@@ -1,6 +1,7 @@
 import type { Dispatch, SetStateAction } from 'react';
 
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
+import { formatDateTimeValue } from '@/i18n/formatters';
 import { cn } from '@/lib/utils';
 import type { RiskQuestionnaireClarification } from '@/types/riskQuestionnaire';
 
@@ -25,6 +26,7 @@ type TranslateFn = (
 
 interface RiskQuestionnaireSectionListProps {
   t: TranslateFn;
+  locale: string;
   template: TemplateSection[];
   canRequestClarification: boolean;
   questionnaireStatus?: string;
@@ -58,6 +60,7 @@ interface RiskQuestionnaireSectionListProps {
 
 export function RiskQuestionnaireSectionList({
   t,
+  locale,
   template,
   canRequestClarification,
   questionnaireStatus,
@@ -190,7 +193,7 @@ export function RiskQuestionnaireSectionList({
                     <p className="text-[10px] text-slate-500">
                       {t('risks:questionnaire.clarification_requested_by')}{' '}
                       {c.requested_by_user_name ?? t('common:fallbacks.unknown_user')} •{' '}
-                      {new Date(c.requested_at).toLocaleString()}
+                      {formatDateTimeValue(c.requested_at, locale)}
                     </p>
 
                     {c.response_message ? (
@@ -203,7 +206,7 @@ export function RiskQuestionnaireSectionList({
                           <p className="text-[10px] text-slate-500">
                             {t('risks:questionnaire.clarification_responded_by')}{' '}
                             {c.responded_by_user_name ?? t('common:fallbacks.unknown_user')} •{' '}
-                            {new Date(c.responded_at).toLocaleString()}
+                            {formatDateTimeValue(c.responded_at, locale)}
                           </p>
                         )}
                       </div>

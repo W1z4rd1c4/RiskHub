@@ -5,8 +5,8 @@
 import { cn } from '@/lib/utils';
 import { Loader2, Edit3 } from 'lucide-react';
 import type { HistoryTimelineItem, HistoryStatus } from '@/types/history';
-import { formatDistanceToNow } from 'date-fns';
 import { useTranslation } from '@/i18n/hooks';
+import { formatRelativeDateValue } from '@/i18n/formatters';
 
 interface HistoryTimelineProps {
     items: HistoryTimelineItem[];
@@ -46,7 +46,7 @@ export function HistoryTimeline({
     onItemAction,
     actionLabel
 }: HistoryTimelineProps) {
-    const { t } = useTranslation('common');
+    const { t, i18n } = useTranslation('common');
     const resolvedEmptyMessage = emptyMessage ?? t('empty.no_history_available');
     const resolvedActionLabel = actionLabel ?? t('actions.request_correction');
 
@@ -111,7 +111,7 @@ export function HistoryTimeline({
                                         )}
                                     </div>
                                     <time className="text-[10px] font-bold text-slate-500 uppercase tracking-wider shrink-0">
-                                        {formatDistanceToNow(new Date(item.timestamp), { addSuffix: true })}
+                                        {formatRelativeDateValue(item.timestamp, i18n.language)}
                                     </time>
                                 </div>
 

@@ -13,6 +13,7 @@ import { useAuthz } from '@/authz/useAuthz';
 import { useTotalAssetsValue } from '@/hooks/useRiskHubConfig';
 import { IMPACT_DESCRIPTIONS, PROBABILITY_DESCRIPTIONS, formatFinancialRange } from '@/constants/riskScoreDescriptions';
 import { cn } from '@/lib/utils';
+import { formatDateTimeValue, formatDateValue } from '@/i18n/formatters';
 import { getRiskOwnerReassessmentTemplate } from '../riskQuestionnaireQuestions';
 import { RiskQuestionnaireSectionList } from './RiskQuestionnaireSectionList';
 
@@ -40,7 +41,7 @@ export function RiskQuestionnaireDetail({
     risk,
     onChanged,
 }: RiskQuestionnaireDetailProps) {
-    const { t } = useTranslation(['common', 'risks']);
+    const { t, i18n } = useTranslation(['common', 'risks']);
     const { user } = useAuth();
     const authz = useAuthz();
     const { totalAssets } = useTotalAssetsValue();
@@ -368,12 +369,12 @@ export function RiskQuestionnaireDetail({
                                             <div className="flex items-center gap-2">
                                                 <Clock className="h-3.5 w-3.5" />
                                                 <span>{t('risks:questionnaire.meta.sent')}:</span>
-                                                <span className="text-slate-300">{new Date(questionnaire.sent_at).toLocaleString()}</span>
+                                                <span className="text-slate-300">{formatDateTimeValue(questionnaire.sent_at, i18n.language)}</span>
                                                 <span className="mx-2 opacity-30">•</span>
                                                 <Calendar className="h-3.5 w-3.5" />
                                                 <span>{t('risks:questionnaire.meta.due')}:</span>
                                                 <span className={cn("text-slate-300", isOverdue && "text-rose-400 font-bold")}>
-                                                    {new Date(questionnaire.due_at).toLocaleDateString()}
+                                                    {formatDateValue(questionnaire.due_at, i18n.language)}
                                                 </span>
                                                 {isOverdue && (
                                                     <span className="ml-2 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest border bg-rose-500/10 border-rose-500/20 text-rose-400">
@@ -445,6 +446,7 @@ export function RiskQuestionnaireDetail({
 
                                         <RiskQuestionnaireSectionList
                                             t={t}
+                                            locale={i18n.language}
                                             template={template}
                                             canRequestClarification={canRequestClarification}
                                             questionnaireStatus={questionnaire.status}

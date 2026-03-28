@@ -10,6 +10,7 @@ import {
 import { controlApi } from '@/services/controlApi';
 import type { ControlExecution } from '@/types/execution';
 import { useTranslation } from '@/i18n/hooks';
+import { formatDateTimeValue, formatDateValue } from '@/i18n/formatters';
 import { getExecutionResultMeta } from '@/lib/executionResult';
 
 interface ExecutionHistoryProps {
@@ -84,13 +85,7 @@ export function ExecutionHistory({ controlId }: ExecutionHistoryProps) {
                                         </span>
                                         <span className="text-slate-600">•</span>
                                         <span className="text-xs font-bold text-white">
-                                            {new Date(exe.executed_at).toLocaleDateString(i18n.language, {
-                                                year: 'numeric',
-                                                month: 'short',
-                                                day: 'numeric',
-                                                hour: '2-digit',
-                                                minute: '2-digit'
-                                            })}
+                                            {formatDateTimeValue(exe.executed_at, i18n.language)}
                                         </span>
                                     </div>
                                     <div className="flex items-center gap-3 text-[10px] text-slate-500 font-medium">
@@ -103,7 +98,7 @@ export function ExecutionHistory({ controlId }: ExecutionHistoryProps) {
                                                 <span className="text-slate-700">|</span>
                                                 <div className="flex items-center gap-1 text-accent">
                                                     <Calendar className="h-3 w-3" />
-                                                    {t('executions.next')}: {new Date(exe.next_scheduled).toLocaleDateString(i18n.language)}
+                                                    {t('executions.next')}: {formatDateValue(exe.next_scheduled, i18n.language)}
                                                 </div>
                                             </>
                                         )}

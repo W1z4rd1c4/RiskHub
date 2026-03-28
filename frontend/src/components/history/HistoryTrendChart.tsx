@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils';
 import type { HistoryTrendPoint } from '@/types/history';
 import { useChartTheme } from '@/hooks/useChartTheme';
 import { useTranslation } from '@/i18n/hooks';
+import { formatNumberValue } from '@/i18n/formatters';
 
 interface HistoryTrendChartProps {
     data: HistoryTrendPoint[];
@@ -28,21 +29,20 @@ interface HistoryTrendChartProps {
     className?: string;
 }
 
-const defaultFormat = (value: number) => value.toLocaleString();
-
 export function HistoryTrendChart({
     data,
     lowerLimit,
     upperLimit,
     valueLabel,
-    formatValue = defaultFormat,
+    formatValue,
     emptyMessage,
     className,
 }: HistoryTrendChartProps) {
-    const { t } = useTranslation(['common', 'controls']);
+    const { t, i18n } = useTranslation(['common', 'controls']);
     const chartTheme = useChartTheme();
     const resolvedValueLabel = valueLabel ?? t('common:labels.value');
     const resolvedEmptyMessage = emptyMessage ?? t('common:empty.no_data_available');
+    const resolvedFormatValue = formatValue ?? ((value: number) => formatNumberValue(value, i18n.language));
 
     if (!data || data.length === 0) {
         return (
@@ -84,7 +84,7 @@ export function HistoryTrendChart({
                         axisLine={false}
                         tickLine={false}
                         tick={{ fill: chartTheme.axisTickFill, fontSize: 10, fontWeight: 700 }}
-                        tickFormatter={formatValue}
+                        tickFormatter={resolvedFormatValue}
                     />
 
                     <Tooltip
@@ -104,7 +104,7 @@ export function HistoryTrendChart({
                             marginBottom: '4px',
                             textTransform: 'uppercase'
                         }}
-                        formatter={(value: number | undefined) => [value !== undefined ? formatValue(value) : t('common:fallbacks.not_available'), resolvedValueLabel]}
+                        formatter={(value: number | undefined) => [value !== undefined ? resolvedFormatValue(value) : t('common:fallbacks.not_available'), resolvedValueLabel]}
                     />
 
                     {/* Lower threshold reference line */}
@@ -115,7 +115,7 @@ export function HistoryTrendChart({
                             strokeDasharray="4 4"
                             strokeWidth={1.5}
                             label={{
-                                value: `${t('controls:detail.level_min')}: ${formatValue(lowerLimit)}`,
+                                value: `${t('controls:detail.level_min')}: ${resolvedFormatValue(lowerLimit)}`,
                                 position: 'left',
                                 fill: chartTheme.threshold.min,
                                 fontSize: 10,
@@ -132,7 +132,7 @@ export function HistoryTrendChart({
                             strokeDasharray="4 4"
                             strokeWidth={1.5}
                             label={{
-                                value: `${t('controls:detail.level_max')}: ${formatValue(upperLimit)}`,
+                                value: `${t('controls:detail.level_max')}: ${resolvedFormatValue(upperLimit)}`,
                                 position: 'left',
                                 fill: chartTheme.threshold.max,
                                 fontSize: 10,

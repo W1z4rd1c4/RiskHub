@@ -3,6 +3,7 @@ import { Target, Calendar, User, Shield, ExternalLink } from 'lucide-react';
 import type { KeyRiskIndicator } from '@/types/kri';
 import type { Risk } from '@/types/risk';
 import { useTranslation } from '@/i18n/hooks';
+import { formatDateValue } from '@/i18n/formatters';
 import { getKriMonitoringMeta } from '@/lib/monitoringStatus';
 
 interface KRIDetailOverviewTabProps {
@@ -84,14 +85,14 @@ export function KRIDetailOverviewTab({
                     {kri.last_period_end && (
                         <div className="flex items-center justify-between py-2 border-b border-white/5">
                             <span className="text-xs text-slate-500">{t('overview.last_period_end', { ns: 'kris' })}</span>
-                            <span className="text-sm font-bold text-white">{new Date(kri.last_period_end).toLocaleDateString(i18n.language)}</span>
+                            <span className="text-sm font-bold text-white">{formatDateValue(kri.last_period_end, i18n.language)}</span>
                         </div>
                     )}
                     {dueDate && (
                         <div className="flex items-center justify-between py-2">
                             <span className="text-xs text-slate-500">{t('overview.due_date', { ns: 'kris' })}</span>
                             <span className={`text-sm font-bold ${kri.monitoring_status === 'not_submitted' ? 'text-amber-400' : 'text-white'}`}>
-                                {dueDate.toLocaleDateString(i18n.language)}
+                                {formatDateValue(dueDate, i18n.language)}
                             </span>
                         </div>
                     )}
@@ -195,7 +196,7 @@ export function KRIDetailOverviewTab({
                     </div>
                     <div>
                         <span className="text-[10px] text-slate-500 uppercase tracking-widest">{t('overview.last_updated', { ns: 'kris' })}</span>
-                        <p className="text-sm font-bold text-white">{kri.last_updated ? new Date(kri.last_updated).toLocaleDateString(i18n.language) : '—'}</p>
+                        <p className="text-sm font-bold text-white">{kri.last_updated ? formatDateValue(kri.last_updated, i18n.language) : '—'}</p>
                     </div>
                     <div>
                         <span className="text-[10px] text-slate-500 uppercase tracking-widest">{t('common:labels.status')}</span>

@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 
 import type { SafeTFunction } from '@/i18n/hooks';
+import { formatDateValue, formatTimeValue } from '@/i18n/formatters';
 import { cn } from '@/lib/utils';
 import type { ApprovalRequest } from '@/types/approval';
 
@@ -22,6 +23,7 @@ interface ApprovalListProps {
     loading: boolean;
     expandedRows: Set<number>;
     currentUserId?: number | null;
+    locale?: string;
     onToggleRow: (approvalId: number) => void;
     onApprove: (approval: ApprovalRequest) => void;
     onReject: (approval: ApprovalRequest) => void;
@@ -34,6 +36,7 @@ export function ApprovalList({
     loading,
     expandedRows,
     currentUserId,
+    locale = 'en',
     onToggleRow,
     onApprove,
     onReject,
@@ -99,7 +102,7 @@ export function ApprovalList({
                             <div className="flex items-center gap-4 text-xs text-slate-500">
                                 <span className="flex items-center gap-1">
                                     <Clock className="h-3 w-3" />
-                                    {new Date(approval.created_at).toLocaleDateString()}
+                                    {formatDateValue(approval.created_at, locale)}
                                 </span>
                                 <span>
                                     by <span className="text-accent">{approval.requested_by_name}</span>
@@ -118,18 +121,12 @@ export function ApprovalList({
                                         >
                                             {approval.status === 'approved'
                                                 ? t('labels.approved_on', {
-                                                      date: new Date(approval.resolved_at).toLocaleDateString(),
-                                                      time: new Date(approval.resolved_at).toLocaleTimeString([], {
-                                                          hour: '2-digit',
-                                                          minute: '2-digit',
-                                                      }),
+                                                      date: formatDateValue(approval.resolved_at, locale),
+                                                      time: formatTimeValue(approval.resolved_at, locale),
                                                   })
                                                 : t('labels.rejected_on', {
-                                                      date: new Date(approval.resolved_at).toLocaleDateString(),
-                                                      time: new Date(approval.resolved_at).toLocaleTimeString([], {
-                                                          hour: '2-digit',
-                                                          minute: '2-digit',
-                                                      }),
+                                                      date: formatDateValue(approval.resolved_at, locale),
+                                                      time: formatTimeValue(approval.resolved_at, locale),
                                                   })}
                                         </span>
                                         {approval.resolved_by_name && (
@@ -161,11 +158,12 @@ export function ApprovalList({
                                         onClick={() => onToggleRow(approval.id)}
                                         className="p-2 hover:bg-white/5 rounded-lg text-slate-400 hover:text-white transition-colors"
                                         title={t('common:tooltips.view_changes')}
+                                        aria-label={t('common:tooltips.view_changes')}
                                     >
                                         {expandedRows.has(approval.id) ? (
-                                            <ChevronUp className="h-4 w-4" />
+                                            <ChevronUp className="h-4 w-4" aria-hidden="true" />
                                         ) : (
-                                            <ChevronDown className="h-4 w-4" />
+                                            <ChevronDown className="h-4 w-4" aria-hidden="true" />
                                         )}
                                     </button>
                                 )}
@@ -177,8 +175,9 @@ export function ApprovalList({
                                                 onClick={() => onApprove(approval)}
                                                 className="p-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 rounded-lg transition-colors border border-emerald-500/20"
                                                 title={t('common:actions.approve')}
+                                                aria-label={t('common:actions.approve')}
                                             >
-                                                <Check className="h-4 w-4" />
+                                                <Check className="h-4 w-4" aria-hidden="true" />
                                             </button>
                                         )}
                                         {approval.can_reject && (
@@ -186,8 +185,9 @@ export function ApprovalList({
                                                 onClick={() => onReject(approval)}
                                                 className="p-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded-lg transition-colors border border-rose-500/20"
                                                 title={t('common:actions.reject')}
+                                                aria-label={t('common:actions.reject')}
                                             >
-                                                <X className="h-4 w-4" />
+                                                <X className="h-4 w-4" aria-hidden="true" />
                                             </button>
                                         )}
                                     </>
@@ -199,8 +199,9 @@ export function ApprovalList({
                                             onClick={() => onCancel(approval.id)}
                                             className="p-2 hover:bg-rose-500/10 hover:text-rose-400 text-slate-500 rounded-lg transition-colors"
                                             title={t('common:tooltips.cancel_request')}
+                                            aria-label={t('common:tooltips.cancel_request')}
                                         >
-                                            <RotateCcw className="h-4 w-4" />
+                                            <RotateCcw className="h-4 w-4" aria-hidden="true" />
                                         </button>
                                     )}
                             </div>

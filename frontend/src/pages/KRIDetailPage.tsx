@@ -20,6 +20,7 @@ import { ApiClientError } from '@/services/apiClient';
 import type { KeyRiskIndicator, KRIHistoryEntry } from '@/types/kri';
 import type { Risk } from '@/types/risk';
 import { useTranslation } from '@/i18n/hooks';
+import { formatMetricNumberValue } from '@/i18n/formatters';
 import type { KRIModalSaveResult } from '@/components/kri/KRIModal';
 
 type TabView = 'overview' | 'history';
@@ -27,7 +28,7 @@ type TabView = 'overview' | 'history';
 export function KRIDetailPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
-    const { t } = useTranslation('common');
+    const { t, i18n } = useTranslation('common');
     const { t: tErrors } = useTranslation('errorKeys');
     const { t: tIssues } = useTranslation('issues');
     const [kri, setKri] = useState<KeyRiskIndicator | null>(null);
@@ -144,7 +145,7 @@ export function KRIDetailPage() {
             if (error instanceof Error) {
                 throw error;
             }
-            throw new Error(tErrors('save_kri_failed'));
+            throw new Error(tErrors('save_kri_failed'), { cause: error });
         }
     };
 
@@ -154,10 +155,7 @@ export function KRIDetailPage() {
 
     // formatNumber is still needed for overview tab
     const formatNumber = (val: number): string => {
-        if (val === 0) return '0';
-        if (Math.abs(val) < 1) return val.toLocaleString('cs-CZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        if (Math.abs(val) < 100) return val.toLocaleString('cs-CZ', { minimumFractionDigits: 0, maximumFractionDigits: 1 });
-        return Math.round(val).toLocaleString('cs-CZ');
+        return formatMetricNumberValue(val, i18n.language);
     };
 
     const calculateDueDate = (): Date | null => {

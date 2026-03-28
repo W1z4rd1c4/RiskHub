@@ -2,10 +2,11 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { http, HttpResponse } from 'msw';
 
 import { server } from '@test/mocks/server';
+import { createTestQueryClient } from '@test/queryClient';
 import { clearAccessToken, setAccessToken } from '@/services/accessTokenStore';
 import { clearBootstrapSession } from '@/services/authSessionCoordinator';
 import { AuthProvider } from '@/contexts/AuthContext';
@@ -26,9 +27,7 @@ const makeUser = (overrides: Partial<Record<string, unknown>> = {}) => ({
 });
 
 function renderWithRoute(route: string) {
-    const queryClient = new QueryClient({
-        defaultOptions: { queries: { retry: false } },
-    });
+    const queryClient = createTestQueryClient();
 
     return render(
         <QueryClientProvider client={queryClient}>

@@ -1,11 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { http, HttpResponse } from 'msw';
 
 import { server } from '@test/mocks/server';
+import { createTestQueryClient } from '@test/queryClient';
 import { clearAccessToken, setAccessToken } from '@/services/accessTokenStore';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { DocumentationSettings } from '@/components/settings/DocumentationSettings';
@@ -119,9 +120,7 @@ const tocDocsPayload = {
 };
 
 function renderDocumentationSettings() {
-    const queryClient = new QueryClient({
-        defaultOptions: { queries: { retry: false } },
-    });
+    const queryClient = createTestQueryClient();
 
     return render(
         <QueryClientProvider client={queryClient}>

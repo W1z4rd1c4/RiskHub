@@ -88,7 +88,7 @@ export function UserNewPage() {
         return () => {
             cancelled = true;
         };
-    }, []);
+    }, [t]);
 
     const fetchRoles = useCallback(async () => {
         try {

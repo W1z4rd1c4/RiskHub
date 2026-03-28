@@ -183,6 +183,12 @@ export const handlers = [
             user: mockAuthUser,
         });
     }),
+    http.post('*/api/v1/auth/refresh', () => {
+        return HttpResponse.json(
+            { detail: 'Authentication required' },
+            { status: 401 },
+        );
+    }),
     http.get('*/api/v1/auth/me', () => {
         return HttpResponse.json(mockAuthUser);
     }),

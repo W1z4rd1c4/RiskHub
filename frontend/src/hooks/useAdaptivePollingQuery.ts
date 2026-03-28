@@ -42,6 +42,7 @@ export function useAdaptivePollingQuery<TQueryFnData, TError = Error, TData = TQ
         refetchIntervalInBackground: false,
         refetchOnWindowFocus: false,
     });
+    const { refetch } = query;
 
     useEffect(() => {
         if (query.dataUpdatedAt > lastSuccessAtRef.current) {
@@ -67,7 +68,7 @@ export function useAdaptivePollingQuery<TQueryFnData, TError = Error, TData = TQ
             setIsVisible(nowVisible);
             if (nowVisible && enabled) {
                 setFailureCount(0);
-                void query.refetch();
+                void refetch();
             }
         };
 
@@ -75,11 +76,11 @@ export function useAdaptivePollingQuery<TQueryFnData, TError = Error, TData = TQ
         return () => {
             document.removeEventListener('visibilitychange', handleVisibilityChange);
         };
-    }, [enabled, query.refetch]);
+    }, [enabled, refetch]);
 
     const refresh = async () => {
         setFailureCount(0);
-        return query.refetch();
+        return refetch();
     };
 
     return {

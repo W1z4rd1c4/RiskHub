@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -67,6 +68,69 @@ async def test_scheduler_start_with_lock_acquired_starts_runtime_and_records_own
             )
         ).scalars().all()
         assert len(runtime_rows) == 1
+
+
+@pytest.mark.asyncio
+async def test_scheduler_stop_marks_runtime_run_stopped(
+    isolated_scheduler,
+    async_engine: AsyncEngine,
+) -> None:
+    provider = SchedulerLockProvider()
+    isolated_scheduler._lock_provider = None
+    isolated_scheduler._resolve_lock_provider = lambda: provider
+
+    await start_scheduler_async()
+    await isolated_scheduler.stop_scheduler_async()
+
+    assert isolated_scheduler.scheduler.running is False
+    assert provider.lock_acquired is False
+    assert isolated_scheduler._runtime_run_id is None
+
+    async_session = async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
+    async with async_session() as session:
+        runtime_rows = (
+            await session.execute(
+                select(SchedulerJobRun).where(SchedulerJobRun.job_name == isolated_scheduler.SCHEDULER_RUNTIME_JOB_NAME)
+            )
+        ).scalars().all()
+        assert len(runtime_rows) == 1
+        assert runtime_rows[0].status == "stopped"
+        assert runtime_rows[0].finished_at is not None
+
+
+@pytest.mark.asyncio
+async def test_scheduler_start_failure_releases_lock_and_stops_scheduler(
+    isolated_scheduler,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class TrackingLockProvider(SchedulerLockProvider):
+        def __init__(self) -> None:
+            super().__init__()
+            self.release_calls = 0
+
+        async def release(self) -> None:
+            self.release_calls += 1
+            await super().release()
+
+    provider = TrackingLockProvider()
+    isolated_scheduler._lock_provider = None
+    isolated_scheduler._resolve_lock_provider = lambda: provider
+
+    async def fail_runtime_start() -> None:
+        raise RuntimeError("runtime start failed")
+
+    monkeypatch.setattr(isolated_scheduler, "_mark_runtime_started", fail_runtime_start)
+
+    with pytest.raises(RuntimeError, match="runtime start failed"):
+        await start_scheduler_async()
+
+    await asyncio.sleep(0)
+
+    assert isolated_scheduler.scheduler.running is False
+    assert provider.lock_acquired is False
+    assert provider.release_calls == 1
+    assert isolated_scheduler._lock_provider is None
+    assert isolated_scheduler._runtime_run_id is None
 
 
 @pytest.mark.asyncio

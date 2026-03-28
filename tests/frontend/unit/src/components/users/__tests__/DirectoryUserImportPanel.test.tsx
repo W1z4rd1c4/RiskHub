@@ -33,10 +33,13 @@ function resolveAdminTranslation(key: string): string | undefined {
     }, adminEn) as string | undefined;
 }
 
+const translateAdmin = (key: string, opts?: { defaultValue?: string }) =>
+    resolveAdminTranslation(key) ?? opts?.defaultValue ?? key;
+
 vi.mock('@/i18n/hooks', () => ({
     useTranslation: () => ({
-        t: (key: string, opts?: { defaultValue?: string }) =>
-            resolveAdminTranslation(key) ?? opts?.defaultValue ?? key,
+        t: translateAdmin,
+        i18n: { language: 'en' },
     }),
 }));
 

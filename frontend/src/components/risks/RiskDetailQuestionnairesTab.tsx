@@ -11,14 +11,15 @@ import { formatFinancialRange } from '@/constants/riskScoreDescriptions';
 import { RiskQuestionnaireDetail } from './RiskQuestionnaireDetail';
 import { getRiskOwnerReassessmentQuestionKeys } from './riskQuestionnaireQuestions';
 import { apiClient } from '@/services/apiClient';
+import { formatDateValue } from '@/i18n/formatters';
 
 interface RiskDetailQuestionnairesTabProps {
     risk: Risk;
 }
 
-function formatDate(value?: string | null) {
+function formatDate(value: string | null | undefined, locale: string) {
     if (!value) return '—';
-    return new Date(value).toLocaleDateString();
+    return formatDateValue(value, locale);
 }
 
 function isOverdue(item: RiskQuestionnaireListItem): boolean {
@@ -27,7 +28,7 @@ function isOverdue(item: RiskQuestionnaireListItem): boolean {
 }
 
 export function RiskDetailQuestionnairesTab({ risk }: RiskDetailQuestionnairesTabProps) {
-    const { t } = useTranslation(['common', 'risks']);
+    const { t, i18n } = useTranslation(['common', 'risks']);
     const authz = useAuthz();
 
     const [items, setItems] = useState<RiskQuestionnaireListItem[]>([]);
@@ -220,7 +221,7 @@ export function RiskDetailQuestionnairesTab({ risk }: RiskDetailQuestionnairesTa
                         <div className="mt-3 flex items-center gap-3">
                             {statusBadge(openItem.status, isOverdue(openItem))}
                             <span className="text-xs text-slate-400">
-                                {t('risks:questionnaires.current_due')}: {formatDate(openItem.due_at)}
+                                {t('risks:questionnaires.current_due')}: {formatDate(openItem.due_at, i18n.language)}
                             </span>
                             <button
                                 onClick={() => setSelectedId(openItem.id)}
@@ -273,7 +274,7 @@ export function RiskDetailQuestionnairesTab({ risk }: RiskDetailQuestionnairesTa
                             <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">
                                 {t('risks:questionnaires.assessment_summary_submitted_at')}
                             </p>
-                            <p className="text-sm text-white">{formatDate(latestSubmitted.submitted_at)}</p>
+                            <p className="text-sm text-white">{formatDate(latestSubmitted.submitted_at, i18n.language)}</p>
                         </div>
 
                         <div className="space-y-1">
@@ -351,9 +352,9 @@ export function RiskDetailQuestionnairesTab({ risk }: RiskDetailQuestionnairesTa
                                     <td className="px-4 py-3">
                                         {statusBadge(q.status, isOverdue(q))}
                                     </td>
-                                    <td className="px-4 py-3 text-sm text-slate-300">{formatDate(q.sent_at)}</td>
-                                    <td className="px-4 py-3 text-sm text-slate-300">{formatDate(q.due_at)}</td>
-                                    <td className="px-4 py-3 text-sm text-slate-300">{formatDate(q.submitted_at)}</td>
+                                    <td className="px-4 py-3 text-sm text-slate-300">{formatDate(q.sent_at, i18n.language)}</td>
+                                    <td className="px-4 py-3 text-sm text-slate-300">{formatDate(q.due_at, i18n.language)}</td>
+                                    <td className="px-4 py-3 text-sm text-slate-300">{formatDate(q.submitted_at, i18n.language)}</td>
                                     <td className="px-4 py-3 text-sm text-slate-300">{q.sent_by_user_name ?? t('common:fallbacks.unknown_user')}</td>
                                     <td className="px-4 py-3 text-sm text-slate-300">
                                         {q.submitted_by_user_name ?? (q.submitted_by_user_id ? t('common:fallbacks.unknown_user') : t('common:labels.none'))}

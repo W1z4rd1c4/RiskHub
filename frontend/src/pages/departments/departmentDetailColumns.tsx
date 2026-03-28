@@ -1,6 +1,7 @@
 import { AlertCircle, CheckCircle, MinusCircle, XCircle } from 'lucide-react';
 
 import type { Column } from '@/components/tables';
+import { formatMetricNumberValue } from '@/i18n/formatters';
 import { getKriMonitoringMeta } from '@/lib/monitoringStatus';
 import type { ControlSummary } from '@/types/control';
 import type { KeyRiskIndicator } from '@/types/kri';
@@ -139,7 +140,7 @@ export const getControlColumns = (t: TranslateFn): Column<ControlSummary>[] => [
     },
 ];
 
-export const getKriColumns = (t: TranslateFn): Column<KeyRiskIndicator>[] => [
+export const getKriColumns = (t: TranslateFn, locale: string): Column<KeyRiskIndicator>[] => [
     {
         key: 'metric_name',
         label: t('common:labels.name'),
@@ -172,7 +173,7 @@ export const getKriColumns = (t: TranslateFn): Column<KeyRiskIndicator>[] => [
         sortable: false,
         render: (kri) => (
             <span className="text-slate-400 text-xs font-mono">
-                {kri.lower_limit.toLocaleString()} – {kri.upper_limit.toLocaleString()} {kri.unit}
+                {formatMetricNumberValue(kri.lower_limit, locale)} – {formatMetricNumberValue(kri.upper_limit, locale)} {kri.unit}
             </span>
         ),
     },
@@ -184,7 +185,7 @@ export const getKriColumns = (t: TranslateFn): Column<KeyRiskIndicator>[] => [
             const monitoring = getKriMonitoringMeta(kri.monitoring_status);
             return (
                 <span className={`text-sm font-black ${monitoring.textClassName}`}>
-                    {kri.current_value.toLocaleString()} <span className="text-slate-500 font-normal text-xs">{kri.unit}</span>
+                    {formatMetricNumberValue(kri.current_value, locale)} <span className="text-slate-500 font-normal text-xs">{kri.unit}</span>
                 </span>
             );
         },

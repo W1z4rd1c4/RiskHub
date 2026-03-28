@@ -382,8 +382,11 @@ export function RolesPanel() {
                                             title={['cro', 'admin', 'viewer'].includes(role.name)
                                                 ? t('admin:roles_panel.actions.edit_disabled', { role: role.display_name })
                                                 : t('common:actions.edit')}
+                                            aria-label={['cro', 'admin', 'viewer'].includes(role.name)
+                                                ? t('admin:roles_panel.actions.edit_disabled', { role: role.display_name })
+                                                : t('common:actions.edit')}
                                         >
-                                            <Edit className="h-4 w-4" />
+                                            <Edit className="h-4 w-4" aria-hidden="true" />
                                         </button>
 
                                         {!role.is_system && role.is_active && !['admin', 'cro', 'viewer', 'internal_audit'].includes(role.name) && (
@@ -391,8 +394,9 @@ export function RolesPanel() {
                                                 onClick={() => setDeleteConfirm(role)}
                                                 className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"
                                                 title={t('common:actions.delete')}
+                                                aria-label={t('common:actions.delete')}
                                             >
-                                                <Trash2 className="h-4 w-4" />
+                                                <Trash2 className="h-4 w-4" aria-hidden="true" />
                                             </button>
                                         )}
 
@@ -401,8 +405,9 @@ export function RolesPanel() {
                                                 onClick={() => restoreMutation.mutate(role.id)}
                                                 className="p-1.5 text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10 rounded transition-colors"
                                                 title={t('admin:roles_panel.actions.restore')}
+                                                aria-label={t('admin:roles_panel.actions.restore')}
                                             >
-                                                <RotateCcw className="h-4 w-4" />
+                                                <RotateCcw className="h-4 w-4" aria-hidden="true" />
                                             </button>
                                         )}
                                     </div>

@@ -5,20 +5,18 @@ import { HistoryTimeline, HistoryTrendChart, HistoryComparisonPanel } from '@/co
 import type { KRIHistoryEntry } from '@/types/kri';
 import type { HistoryTimelineItem, HistoryTrendPoint } from '@/types/history';
 import { useTranslation } from '@/i18n/hooks';
+import { formatDateValue, formatMetricNumberValue } from '@/i18n/formatters';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Pure transformation helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
 function formatDate(dateStr: string, locale: string): string {
-    return new Date(dateStr).toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' });
+    return formatDateValue(dateStr, locale);
 }
 
 function formatNumber(val: number, locale: string): string {
-    if (val === 0) return '0';
-    if (Math.abs(val) < 1) return val.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    if (Math.abs(val) < 100) return val.toLocaleString(locale, { minimumFractionDigits: 0, maximumFractionDigits: 1 });
-    return Math.round(val).toLocaleString(locale);
+    return formatMetricNumberValue(val, locale);
 }
 
 function buildHistoryChartData(history: KRIHistoryEntry[], locale: string): HistoryTrendPoint[] {

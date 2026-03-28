@@ -28,6 +28,7 @@ import { RiskDetailKriHistoryTab } from '@/components/risks/RiskDetailKriHistory
 import { RiskDetailQuestionnairesTab } from '@/components/risks/RiskDetailQuestionnairesTab';
 import { IssueQuickCreateModal } from '@/components/issues/IssueQuickCreateModal';
 import { useTranslation } from '@/i18n/hooks';
+import { formatDateValue, formatMetricNumberValue } from '@/i18n/formatters';
 import { isApprovalCreatedResponse } from '@/types/approval';
 
 type TabView = 'overview' | 'history' | 'assessment';
@@ -35,7 +36,7 @@ type TabView = 'overview' | 'history' | 'assessment';
 export function RiskDetailPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
-    const { t } = useTranslation('common');
+    const { t, i18n } = useTranslation('common');
     const { t: tIssues } = useTranslation('issues');
     const { getColor, getDisplayName } = useRiskTypes();
     const [risk, setRisk] = useState<Risk | null>(null);
@@ -116,8 +117,8 @@ export function RiskDetailPage() {
                     for (const entry of items) {
                         flatItems.push({
                             id: `${kri.id}-${entry.id}`,
-                            title: `${kri.metric_name}: ${entry.value.toLocaleString()} ${entry.unit}`,
-                            subtitle: `Period end ${new Date(entry.period_end).toLocaleDateString('cs-CZ')}`,
+                            title: `${kri.metric_name}: ${formatMetricNumberValue(entry.value, i18n.language)} ${entry.unit}`,
+                            subtitle: `Period end ${formatDateValue(entry.period_end, i18n.language)}`,
                             timestamp: entry.recorded_at,
                             status: entry.breach_status === 'within' ? 'success' : 'danger',
                             badge: entry.breach_status === 'within' ? 'OK' : 'BREACH',
@@ -144,7 +145,7 @@ export function RiskDetailPage() {
         return () => {
             cancelled = true;
         };
-    }, [activeTab, risk?.kris, t]);
+    }, [activeTab, i18n.language, risk?.kris, t]);
 
     const handleDelete = async (reason?: string) => {
         if (!risk) return;
