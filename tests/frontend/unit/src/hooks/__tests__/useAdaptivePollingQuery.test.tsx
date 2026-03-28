@@ -1,17 +1,12 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { createTestQueryClient } from '@test/queryClient';
 
 import { useAdaptivePollingQuery } from '@/hooks/useAdaptivePollingQuery';
 
 function createWrapper() {
-    const queryClient = new QueryClient({
-        defaultOptions: {
-            queries: {
-                retry: false,
-            },
-        },
-    });
+    const queryClient = createTestQueryClient();
 
     return function Wrapper({ children }: { children: React.ReactNode }) {
         return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;

@@ -219,9 +219,8 @@ export async function fetchAllIssuesForGroupedView(
     const limit = GROUPED_VIEW_FETCH_PAGE_SIZE;
     const allItems: IssueSummary[] = [];
     let skip = 0;
-    let total = 0;
 
-    do {
+    for (;;) {
         const response = await issuesApi.list({
             ...buildIssueListFilters({
                 ...filters,
@@ -231,12 +230,15 @@ export async function fetchAllIssuesForGroupedView(
             skip,
             limit,
         });
-        total = response.total;
+        const total = response.total;
         allItems.push(...response.items);
-        skip += limit;
-    } while (skip < total);
 
-    return { items: allItems, total };
+        if (skip + limit >= total) {
+            return { items: allItems, total };
+        }
+
+        skip += limit;
+    }
 }
 
 function groupedValuesForIssue(

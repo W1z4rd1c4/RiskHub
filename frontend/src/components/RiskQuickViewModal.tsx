@@ -4,6 +4,7 @@ import type { Risk } from '@/types/risk';
 import { Shield, Target, User, BarChart, Calendar, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from '@/i18n/hooks';
+import { formatDateValue } from '@/i18n/formatters';
 
 interface RiskQuickViewModalProps {
     risk: Risk | null;
@@ -13,7 +14,7 @@ interface RiskQuickViewModalProps {
 
 export function RiskQuickViewModal({ risk, isOpen, onClose }: RiskQuickViewModalProps) {
     const navigate = useNavigate();
-    const { t } = useTranslation(['risks', 'common']);
+    const { t, i18n } = useTranslation(['risks', 'common']);
 
     if (typeof document === 'undefined') return null;
     if (!risk) return null;
@@ -137,7 +138,7 @@ export function RiskQuickViewModal({ risk, isOpen, onClose }: RiskQuickViewModal
                                         <Calendar className="h-3 w-3" /> {t('common:labels.updated_at')}
                                     </h4>
                                     <p className="text-sm font-bold text-white">
-                                        {new Date(risk.updated_at).toLocaleDateString()}
+                                        {formatDateValue(risk.updated_at, i18n.language)}
                                     </p>
                                 </div>
                             </div>

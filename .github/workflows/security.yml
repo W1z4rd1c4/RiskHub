@@ -39,6 +39,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r requirements-dev.txt
+          pip install "pip-audit>=2.7.0"
 
       - name: Run Bandit (SAST, high severity gate)
         run: |

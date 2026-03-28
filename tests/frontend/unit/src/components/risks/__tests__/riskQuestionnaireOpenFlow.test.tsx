@@ -10,6 +10,7 @@ const tMock = (_key: string, fallback?: string) => fallback ?? _key;
 vi.mock('@/i18n/hooks', () => ({
     useTranslation: () => ({
         t: tMock,
+        i18n: { language: 'en' },
     }),
 }));
 

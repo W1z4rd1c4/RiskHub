@@ -306,8 +306,9 @@ export function DepartmentsPanel() {
                                             onClick={() => { setEditingDept(dept); setModalOpen(true); }}
                                             className="p-1.5 text-slate-400 hover:text-white hover:bg-white/10 rounded transition-colors"
                                             title={t('common:actions.edit')}
+                                            aria-label={t('common:actions.edit')}
                                         >
-                                            <Edit className="h-4 w-4" />
+                                            <Edit className="h-4 w-4" aria-hidden="true" />
                                         </button>
 
                                         {dept.is_active && (
@@ -315,8 +316,9 @@ export function DepartmentsPanel() {
                                                 onClick={() => setDeleteConfirm(dept)}
                                                 className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"
                                                 title={t('common:actions.delete')}
+                                                aria-label={t('common:actions.delete')}
                                             >
-                                                <Trash2 className="h-4 w-4" />
+                                                <Trash2 className="h-4 w-4" aria-hidden="true" />
                                             </button>
                                         )}
 
@@ -325,8 +327,9 @@ export function DepartmentsPanel() {
                                                 onClick={() => restoreMutation.mutate(dept.id)}
                                                 className="p-1.5 text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10 rounded transition-colors"
                                                 title={t('admin:departments_panel.actions.restore')}
+                                                aria-label={t('admin:departments_panel.actions.restore')}
                                             >
-                                                <RotateCcw className="h-4 w-4" />
+                                                <RotateCcw className="h-4 w-4" aria-hidden="true" />
                                             </button>
                                         )}
                                     </div>

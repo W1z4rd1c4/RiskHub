@@ -27,6 +27,7 @@ vi.mock('@/i18n/hooks', () => ({
     useTranslation: () => ({
         t: (key: string, opts?: { defaultValue?: string }) =>
             resolveAdminTranslation(key) ?? opts?.defaultValue ?? key,
+        i18n: { language: 'en' },
     }),
 }));
 

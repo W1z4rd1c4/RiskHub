@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom/vitest';
+import { cleanup } from '@testing-library/react';
 
 class StorageMock {
     private store = new Map<string, string>();
@@ -58,6 +59,7 @@ if (typeof Element !== 'undefined' && typeof Element.prototype.scrollIntoView !=
 }
 
 afterEach(async () => {
+    cleanup();
     if (typeof localStorage !== 'undefined') {
         localStorage.clear();
     }
@@ -69,6 +71,8 @@ afterEach(async () => {
     // Clear auth config cache between tests to avoid cross-test leakage.
     const mod = await import('./src/services/authConfig');
     mod.clearAuthConfigCache();
+    const queryClientMod = await import('../tests/frontend/unit/src/test/queryClient');
+    await queryClientMod.cleanupTestQueryClients();
 });
 
 let mswServer:

@@ -1,7 +1,8 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { createTestQueryClient } from '@test/queryClient';
 
 const mockUseAuth = vi.fn();
 vi.mock('@/contexts/AuthContext', () => ({
@@ -21,6 +22,7 @@ vi.mock('@/authz/useAuthz', () => ({
 vi.mock('@/i18n/hooks', () => ({
     useTranslation: () => ({
         t: (key: string) => key,
+        i18n: { language: 'en' },
     }),
 }));
 
@@ -38,13 +40,7 @@ vi.mock('@/services/userApi', () => ({
 import { Sidebar } from '@/components/layout/Sidebar';
 
 function createWrapper() {
-    const queryClient = new QueryClient({
-        defaultOptions: {
-            queries: {
-                retry: false,
-            },
-        },
-    });
+    const queryClient = createTestQueryClient();
 
     return function Wrapper({ children }: { children: React.ReactNode }) {
         return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;

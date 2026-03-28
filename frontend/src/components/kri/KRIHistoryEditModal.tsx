@@ -7,6 +7,7 @@ import { apiClient } from '@/services/apiClient';
 import { Button } from '@/components/ui/button';
 import type { KRIHistoryEntry, KRIHistoryEdit } from '@/types/kri';
 import { useTranslation } from '@/i18n/hooks';
+import { formatDateValue } from '@/i18n/formatters';
 
 interface KRIHistoryEditModalProps {
     isOpen: boolean;
@@ -85,7 +86,7 @@ export function KRIHistoryEditModal({ isOpen, onClose, kriId, entry, onSuccess }
                                 <div>
                                     <h2 className="text-white font-bold">{t('history_edit.request_correction', { ns: 'kris' })}</h2>
                                     <p className="text-[10px] text-slate-500 uppercase tracking-widest">
-                                        {t('history_edit.period', { ns: 'kris' })}: {new Date(entry.period_end).toLocaleDateString(i18n.language)}
+                                        {t('history_edit.period', { ns: 'kris' })}: {formatDateValue(entry.period_end, i18n.language)}
                                     </p>
                                 </div>
                             </div>

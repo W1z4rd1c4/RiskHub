@@ -220,13 +220,14 @@ async def test_kri_update_activity_log_changes(
 
 @pytest.mark.asyncio
 async def test_approval_activity_log_create_and_approve(
-    auth_client: AsyncClient,
+    client_employee: AsyncClient,
+    client_risk_manager: AsyncClient,
     db_session,
-    test_user: User,
+    test_user_employee: User,
     test_department: Department,
     seed_risk_types,
 ):
-    risk_response = await auth_client.post(
+    risk_response = await client_employee.post(
         "/api/v1/risks",
         json={
             "risk_id_code": "R-AL-03",
@@ -234,7 +235,7 @@ async def test_approval_activity_log_create_and_approve(
             "process": "Approval Process",
             "description": "Risk for approval log test",
             "department_id": test_department.id,
-            "owner_id": test_user.id,
+            "owner_id": test_user_employee.id,
             "risk_type": "operational",
             "category": "Testing",
             "gross_probability": 3,
@@ -246,7 +247,7 @@ async def test_approval_activity_log_create_and_approve(
     )
     risk_id = risk_response.json()["id"]
 
-    approval_response = await auth_client.post(
+    approval_response = await client_employee.post(
         "/api/v1/approvals",
         json={
             "resource_type": "risk",
@@ -265,10 +266,11 @@ async def test_approval_activity_log_create_and_approve(
     )
     assert result.scalars().first() is not None
 
-    await auth_client.post(
+    approve_response = await client_risk_manager.post(
         f"/api/v1/approvals/{approval_id}/approve",
         json={"resolution_notes": "Approved"},
     )
+    assert approve_response.status_code == 200
 
     result = await db_session.execute(
         select(ActivityLog).where(

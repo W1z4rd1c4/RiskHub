@@ -21,15 +21,15 @@ import { departmentApi } from '@/services/departmentApi';
 import type { DepartmentSummary } from '@/services/departmentApi';
 import type { UserRead, UserUpdate, Role } from '@/types/user';
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
 import { usePermissions } from '@/hooks/usePermissions';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { useTranslation } from '@/i18n/hooks';
+import { formatDateTimeValue, formatDateValue } from '@/i18n/formatters';
 
 export function UserDetailPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
-    const { t } = useTranslation(['admin', 'common', 'errorKeys']);
+    const { t, i18n } = useTranslation(['admin', 'common', 'errorKeys']);
     const { canManageUsers } = usePermissions();
     const [user, setUser] = useState<UserRead | null>(null);
     const [departments, setDepartments] = useState<DepartmentSummary[]>([]);
@@ -140,7 +140,7 @@ export function UserDetailPage() {
                         <p className="text-slate-400 text-lg">{user.role.display_name}</p>
                         <div className="flex items-center gap-4 mt-2 text-sm text-slate-500">
                             <span className="flex items-center gap-1"><Mail className="h-3.5 w-3.5" />{user.email}</span>
-                            <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" />{t('user_detail.joined', { ns: 'admin' })} {format(new Date(user.created_at), 'MMM d, yyyy')}</span>
+                            <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" />{t('user_detail.joined', { ns: 'admin' })} {formatDateValue(user.created_at, i18n.language)}</span>
                         </div>
                     </div>
                 </div>
@@ -299,7 +299,7 @@ export function UserDetailPage() {
                                 <p className="text-xs text-slate-500 uppercase tracking-wider mb-1">{t('user_detail.last_update', { ns: 'admin' })}</p>
                                 <div className="flex items-center gap-2 text-slate-300 text-sm">
                                     <Clock className="h-4 w-4" />
-                                    {format(new Date(user.updated_at), 'MMM d, HH:mm')}
+                                    {formatDateTimeValue(user.updated_at, i18n.language, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                                 </div>
                             </div>
                         </div>

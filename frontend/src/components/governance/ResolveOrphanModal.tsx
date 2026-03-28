@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { X, UserCheck, ShieldAlert, ClipboardList, Calendar, User, Search, Check, Building2, Crown, Loader2, Target } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { userApi } from '@/services/userApi';
 import { orphanedItemsApi } from '@/services/orphanedItemsApi';
@@ -15,6 +14,7 @@ import type { DepartmentSummary } from '@/services/departmentApi';
 import type { OrphanedItem } from '@/types/orphanedItem';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { useTranslation } from '@/i18n/hooks';
+import { formatRelativeDateValue } from '@/i18n/formatters';
 
 interface ResolveOrphanModalProps {
     isOpen: boolean;
@@ -38,7 +38,7 @@ type OrphanUserRead = UserRead & {
 };
 
 export function ResolveOrphanModal({ isOpen, onClose, orphan, onResolved }: ResolveOrphanModalProps) {
-    const { t } = useTranslation('common');
+    const { t, i18n } = useTranslation('common');
     const { t: tAdmin } = useTranslation('admin');
     const [users, setUsers] = useState<UserOption[]>([]);
     const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
@@ -294,7 +294,7 @@ export function ResolveOrphanModal({ isOpen, onClose, orphan, onResolved }: Reso
                                                 <div className="flex items-center gap-2">
                                                     <Calendar className="h-3.5 w-3.5 text-slate-500" />
                                                     <span className="text-xs text-slate-400 font-medium">
-                                                        {formatDistanceToNow(new Date(orphan.orphaned_at), { addSuffix: true })}
+                                                        {formatRelativeDateValue(orphan.orphaned_at, i18n.language)}
                                                     </span>
                                                 </div>
                                             </div>

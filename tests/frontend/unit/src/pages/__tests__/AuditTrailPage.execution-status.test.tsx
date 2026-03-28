@@ -12,6 +12,7 @@ vi.mock('@/i18n/hooks', () => ({
         t: (key: string, options?: { count?: number }) => (
             typeof options?.count === 'number' ? `${key}:${options.count}` : key
         ),
+        i18n: { language: 'en' },
     }),
 }));
 
