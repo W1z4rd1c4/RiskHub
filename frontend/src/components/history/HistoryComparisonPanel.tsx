@@ -10,6 +10,7 @@ import type { KRIHistoryEntry } from '@/types/kri';
 import type { HistoryComparisonField, HistoryStatus } from '@/types/history';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { useTranslation } from '@/i18n/hooks';
+import { formatDateValue, formatNumberValue } from '@/i18n/formatters';
 
 interface HistoryComparisonPanelProps {
     entries: KRIHistoryEntry[];
@@ -17,14 +18,16 @@ interface HistoryComparisonPanelProps {
     className?: string;
 }
 
-const defaultFormat = (n: number) => n.toLocaleString('cs-CZ', { maximumFractionDigits: 2 });
-
 export function HistoryComparisonPanel({
     entries,
-    formatValue = defaultFormat,
+    formatValue,
     className,
 }: HistoryComparisonPanelProps) {
     const { t, i18n } = useTranslation(['kris', 'common']);
+    const resolvedFormatValue = useMemo(
+        () => formatValue ?? ((n: number) => formatNumberValue(n, i18n.language, { maximumFractionDigits: 2 })),
+        [formatValue, i18n.language],
+    );
 
     // Sort by period_end descending (most recent first)
     const sortedEntries = useMemo(() => {
@@ -64,7 +67,7 @@ export function HistoryComparisonPanel({
     const comparisonFields = useMemo<HistoryComparisonField[]>(() => {
         if (!leftEntry || !rightEntry || isSameSelection) return [];
 
-        const formatDate = (d: string) => new Date(d).toLocaleDateString(i18n.language);
+        const formatDate = (d: string) => formatDateValue(d, i18n.language);
 
         // Determine tone based on breach status change
         const getBreachTone = (): HistoryStatus => {
@@ -75,7 +78,7 @@ export function HistoryComparisonPanel({
 
         // Calculate value delta
         const valueDelta = rightEntry.value - leftEntry.value;
-        const valueDeltaStr = valueDelta >= 0 ? `+${formatValue(valueDelta)}` : formatValue(valueDelta);
+        const valueDeltaStr = valueDelta >= 0 ? `+${resolvedFormatValue(valueDelta)}` : resolvedFormatValue(valueDelta);
         const valueDirection = valueDelta > 0 ? 'up' : valueDelta < 0 ? 'down' : 'flat';
 
         // Value tone - depends on whether moving toward limits
@@ -92,8 +95,8 @@ export function HistoryComparisonPanel({
         return [
             {
                 label: t('common:labels.value'),
-                before: `${formatValue(leftEntry.value)} ${leftEntry.unit}`,
-                after: `${formatValue(rightEntry.value)} ${rightEntry.unit}`,
+                before: `${resolvedFormatValue(leftEntry.value)} ${leftEntry.unit}`,
+                after: `${resolvedFormatValue(rightEntry.value)} ${rightEntry.unit}`,
                 delta: `${valueDeltaStr} ${rightEntry.unit}`,
                 direction: valueDirection as 'up' | 'down' | 'flat',
                 tone: getValueTone(),
@@ -111,19 +114,19 @@ export function HistoryComparisonPanel({
             },
             {
                 label: t('comparison.lower_limit', { ns: 'kris' }),
-                before: `${formatValue(leftEntry.lower_limit)} ${leftEntry.unit}`,
-                after: `${formatValue(rightEntry.lower_limit)} ${rightEntry.unit}`,
+                before: `${resolvedFormatValue(leftEntry.lower_limit)} ${leftEntry.unit}`,
+                after: `${resolvedFormatValue(rightEntry.lower_limit)} ${rightEntry.unit}`,
                 delta: leftEntry.lower_limit !== rightEntry.lower_limit
-                    ? `${rightEntry.lower_limit - leftEntry.lower_limit >= 0 ? '+' : ''}${formatValue(rightEntry.lower_limit - leftEntry.lower_limit)}`
+                    ? `${rightEntry.lower_limit - leftEntry.lower_limit >= 0 ? '+' : ''}${resolvedFormatValue(rightEntry.lower_limit - leftEntry.lower_limit)}`
                     : undefined,
                 direction: rightEntry.lower_limit > leftEntry.lower_limit ? 'up' : rightEntry.lower_limit < leftEntry.lower_limit ? 'down' : 'flat',
             },
             {
                 label: t('comparison.upper_limit', { ns: 'kris' }),
-                before: `${formatValue(leftEntry.upper_limit)} ${leftEntry.unit}`,
-                after: `${formatValue(rightEntry.upper_limit)} ${rightEntry.unit}`,
+                before: `${resolvedFormatValue(leftEntry.upper_limit)} ${leftEntry.unit}`,
+                after: `${resolvedFormatValue(rightEntry.upper_limit)} ${rightEntry.unit}`,
                 delta: leftEntry.upper_limit !== rightEntry.upper_limit
-                    ? `${rightEntry.upper_limit - leftEntry.upper_limit >= 0 ? '+' : ''}${formatValue(rightEntry.upper_limit - leftEntry.upper_limit)}`
+                    ? `${rightEntry.upper_limit - leftEntry.upper_limit >= 0 ? '+' : ''}${resolvedFormatValue(rightEntry.upper_limit - leftEntry.upper_limit)}`
                     : undefined,
                 direction: rightEntry.upper_limit > leftEntry.upper_limit ? 'up' : rightEntry.upper_limit < leftEntry.upper_limit ? 'down' : 'flat',
             },
@@ -133,12 +136,12 @@ export function HistoryComparisonPanel({
                 after: rightEntry.recorded_by_name || t('comparison.system', { ns: 'kris' }),
             },
         ];
-    }, [leftEntry, rightEntry, isSameSelection, formatValue, t, i18n.language]);
+    }, [leftEntry, rightEntry, isSameSelection, resolvedFormatValue, t, i18n.language]);
 
     // Format option label
     const formatOptionLabel = (entry: KRIHistoryEntry) => {
-        const date = new Date(entry.period_end).toLocaleDateString(i18n.language);
-        return `${date} (${formatValue(entry.value)} ${entry.unit})`;
+        const date = formatDateValue(entry.period_end, i18n.language);
+        return `${date} (${resolvedFormatValue(entry.value)} ${entry.unit})`;
     };
 
     if (sortedEntries.length < 2) {

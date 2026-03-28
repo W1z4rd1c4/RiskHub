@@ -84,9 +84,8 @@ export async function fetchAllVendorsForGroupedView(
     const limit = GROUPED_VIEW_FETCH_PAGE_SIZE;
     const allItems: Vendor[] = [];
     let skip = 0;
-    let total = 0;
 
-    do {
+    for (;;) {
         const response = await vendorApi.getVendors({
             ...buildVendorListParams({
                 ...params,
@@ -96,12 +95,15 @@ export async function fetchAllVendorsForGroupedView(
             skip,
             limit,
         });
-        total = response.total;
+        const total = response.total;
         allItems.push(...response.items);
-        skip += limit;
-    } while (skip < total);
 
-    return { items: allItems, total };
+        if (skip + limit >= total) {
+            return { items: allItems, total };
+        }
+
+        skip += limit;
+    }
 }
 
 function linkedRiskLabel(vendor: Vendor): Array<{ groupValue: string; rowId: string }> {

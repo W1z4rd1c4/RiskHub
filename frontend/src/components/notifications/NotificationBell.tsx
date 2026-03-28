@@ -184,8 +184,9 @@ export function NotificationBell({ initialUnreadCount = 0 }: NotificationBellPro
                         <button
                             onClick={() => setIsOpen(false)}
                             className="p-1 rounded-full hover:bg-white/10"
+                            aria-label={tCommon('actions.close')}
                         >
-                            <X className="h-4 w-4 text-slate-400" />
+                            <X className="h-4 w-4 text-slate-400" aria-hidden="true" />
                         </button>
                     </div>
 

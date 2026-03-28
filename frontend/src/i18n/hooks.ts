@@ -4,6 +4,12 @@ import { type SupportedLanguage, STORAGE_KEY } from './index';
 import type { Namespace } from './types';
 import { useAuth } from '@/contexts/AuthContext';
 import { saveLanguageToServer } from '@/utils/userSettingsStorage';
+import {
+    formatDateTimeValue,
+    formatDateValue,
+    formatNumberValue,
+    formatRelativeDateValue,
+} from './formatters';
 
 /**
  * Type-safe translation hook with namespace support.
@@ -87,68 +93,21 @@ export function useFormattedDate() {
 
     const formatDate = useCallback(
         (date: Date | string | null | undefined, options?: Intl.DateTimeFormatOptions) => {
-            if (!date) return '';
-            const dateObj = typeof date === 'string' ? new Date(date) : date;
-            if (isNaN(dateObj.getTime())) return '';
-
-            const defaultOptions: Intl.DateTimeFormatOptions = {
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric',
-            };
-
-            return new Intl.DateTimeFormat(locale, options || defaultOptions).format(dateObj);
+            return formatDateValue(date, locale, options);
         },
         [locale]
     );
 
     const formatDateTime = useCallback(
         (date: Date | string | null | undefined, options?: Intl.DateTimeFormatOptions) => {
-            if (!date) return '';
-            const dateObj = typeof date === 'string' ? new Date(date) : date;
-            if (isNaN(dateObj.getTime())) return '';
-
-            const defaultOptions: Intl.DateTimeFormatOptions = {
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-            };
-
-            return new Intl.DateTimeFormat(locale, options || defaultOptions).format(dateObj);
+            return formatDateTimeValue(date, locale, options);
         },
         [locale]
     );
 
     const formatRelativeDate = useCallback(
         (date: Date | string | null | undefined) => {
-            if (!date) return '';
-            const dateObj = typeof date === 'string' ? new Date(date) : date;
-            if (isNaN(dateObj.getTime())) return '';
-
-            const now = new Date();
-            const diffMs = now.getTime() - dateObj.getTime();
-            const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-            const rtf = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
-
-            if (diffDays === 0) {
-                const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-                if (diffHours === 0) {
-                    const diffMinutes = Math.floor(diffMs / (1000 * 60));
-                    return rtf.format(-diffMinutes, 'minute');
-                }
-                return rtf.format(-diffHours, 'hour');
-            } else if (diffDays < 7) {
-                return rtf.format(-diffDays, 'day');
-            } else if (diffDays < 30) {
-                return rtf.format(-Math.floor(diffDays / 7), 'week');
-            } else if (diffDays < 365) {
-                return rtf.format(-Math.floor(diffDays / 30), 'month');
-            } else {
-                return rtf.format(-Math.floor(diffDays / 365), 'year');
-            }
+            return formatRelativeDateValue(date, locale);
         },
         [locale]
     );
@@ -169,9 +128,7 @@ export function useFormattedNumber() {
 
     const formatNumber = useCallback(
         (value: number | null | undefined, options?: Intl.NumberFormatOptions) => {
-            if (value === null || value === undefined) return '';
-
-            return new Intl.NumberFormat(locale, options).format(value);
+            return formatNumberValue(value, locale, options);
         },
         [locale]
     );

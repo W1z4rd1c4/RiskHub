@@ -1,10 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { http, HttpResponse } from 'msw';
 
+import { createTestQueryClient } from '@test/queryClient';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { DocumentationPage } from '@/pages/DocumentationPage';
@@ -75,9 +76,7 @@ const tocDocsPayload = {
 };
 
 function renderDocumentationPage(initialRoute: string = '/admin/docs') {
-    const queryClient = new QueryClient({
-        defaultOptions: { queries: { retry: false } },
-    });
+    const queryClient = createTestQueryClient();
 
     return render(
         <QueryClientProvider client={queryClient}>

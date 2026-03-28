@@ -59,8 +59,9 @@ export function ActivityLogPage() {
                     onClick={() => state.refresh()}
                     className="p-2 bg-white/5 hover:bg-white/10 rounded-xl transition-colors text-slate-400 hover:text-white"
                     title={t('tooltips.refresh_log')}
+                    aria-label={t('tooltips.refresh_log')}
                 >
-                    <RefreshCw className={`h-5 w-5 ${state.isLoading ? 'animate-spin' : ''}`} />
+                    <RefreshCw className={`h-5 w-5 ${state.isLoading ? 'animate-spin' : ''}`} aria-hidden="true" />
                 </button>
             </div>
 

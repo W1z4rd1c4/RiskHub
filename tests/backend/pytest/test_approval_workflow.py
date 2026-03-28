@@ -1,8 +1,14 @@
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from app.models.notification import Notification, NotificationType
+from app.services.outbox_service import dispatch_pending_outbox_events
+
+
+def _sessionmaker(async_engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
+    return async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
 
 
 @pytest.mark.asyncio
@@ -81,6 +87,7 @@ class TestApprovalWorkflow:
         client_employee: AsyncClient,
         client_risk_manager: AsyncClient,
         db_session,
+        async_engine: AsyncEngine,
         test_risk,
         test_user_employee,
     ):
@@ -103,6 +110,19 @@ class TestApprovalWorkflow:
             )
         )
         notification = result.scalar_one_or_none()
+        assert notification is None
+
+        processed = await dispatch_pending_outbox_events(_sessionmaker(async_engine))
+        assert processed >= 1
+
+        result = await db_session.execute(
+            select(Notification).where(
+                Notification.user_id == test_user_employee.id,
+                Notification.type == NotificationType.APPROVAL_RESOLVED,
+                Notification.resource_id == approval_id,
+            )
+        )
+        notification = result.scalar_one_or_none()
         assert notification is not None
         assert notification.title == "Request approved"
 
@@ -111,6 +131,7 @@ class TestApprovalWorkflow:
         client_employee: AsyncClient,
         client_risk_manager: AsyncClient,
         db_session,
+        async_engine: AsyncEngine,
         test_risk,
         test_user_employee,
     ):
@@ -124,6 +145,19 @@ class TestApprovalWorkflow:
             json={"resolution_notes": "Rejected for notification test"},
         )
         assert reject_response.status_code == 200
+
+        result = await db_session.execute(
+            select(Notification).where(
+                Notification.user_id == test_user_employee.id,
+                Notification.type == NotificationType.APPROVAL_RESOLVED,
+                Notification.resource_id == approval_id,
+            )
+        )
+        notification = result.scalar_one_or_none()
+        assert notification is None
+
+        processed = await dispatch_pending_outbox_events(_sessionmaker(async_engine))
+        assert processed >= 1
 
         result = await db_session.execute(
             select(Notification).where(

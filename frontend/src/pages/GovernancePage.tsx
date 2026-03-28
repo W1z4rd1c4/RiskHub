@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Navigate } from 'react-router-dom';
 import { useTranslation } from '@/i18n/hooks';
+import { formatDateTimeValue } from '@/i18n/formatters';
 import {
     Scale,
     ClipboardList,
@@ -33,7 +34,7 @@ const item = {
 };
 
 function GovernancePageInner() {
-    const { t } = useTranslation('admin');
+    const { t, i18n } = useTranslation('admin');
     const [selectedOrphan, setSelectedOrphan] = useState<OrphanedItem | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [viewingOrphan, setViewingOrphan] = useState<OrphanedItem | null>(null);
@@ -128,7 +129,7 @@ function GovernancePageInner() {
                     {(lastScanAt || scanStatus) && (
                         <p className="text-xs text-slate-500 mt-2">
                             {scanStatus ? `${scanStatus}` : ''}
-                            {lastScanAt ? ` • ${new Date(lastScanAt).toLocaleString()}` : ''}
+                            {lastScanAt ? ` • ${formatDateTimeValue(lastScanAt, i18n.language)}` : ''}
                         </p>
                     )}
                 </div>
@@ -137,8 +138,9 @@ function GovernancePageInner() {
                         onClick={() => { void overviewQuery.refresh(); }}
                         className="p-2.5 glass rounded-xl text-slate-400 hover:text-accent hover:bg-accent/10 transition-colors"
                         title={t('governance.refresh')}
+                        aria-label={t('governance.refresh')}
                     >
-                        <RefreshCw className="h-5 w-5" />
+                        <RefreshCw className="h-5 w-5" aria-hidden="true" />
                     </button>
                     <div className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest bg-white/5 px-3 py-1.5 rounded-full border border-white/5">
                         <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />

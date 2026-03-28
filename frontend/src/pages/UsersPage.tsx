@@ -127,7 +127,7 @@ export function UsersPage() {
         return () => {
             cancelled = true;
         };
-    }, []);
+    }, [t]);
 
     const handleToggleClick = (user: AccessUserRead) => {
         setUserToToggle(user);

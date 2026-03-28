@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTranslation } from '@/i18n/hooks';
+import { formatDateTimeValue } from '@/i18n/formatters';
 import {
     Edit2,
     UserX,
@@ -56,7 +57,7 @@ export function UsersTable({
     checkingDirectoryUserId = null,
     onCheckDirectory,
 }: UsersTableProps) {
-    const { t } = useTranslation('admin');
+    const { t, i18n } = useTranslation('admin');
     return (
         <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
@@ -118,7 +119,7 @@ export function UsersTable({
                                                     {user.directory_last_checked_at && (
                                                         <>
                                                             {' • '}
-                                                            {new Date(user.directory_last_checked_at).toLocaleString()}
+                                                            {formatDateTimeValue(user.directory_last_checked_at, i18n.language)}
                                                         </>
                                                     )}
                                                 </p>
@@ -156,10 +157,11 @@ export function UsersTable({
                                                     onClick={() => onToggleExpand(user.id)}
                                                     className="p-1 text-slate-500 hover:text-white rounded transition-colors"
                                                     title={t('access.matrix.show_all_capabilities')}
+                                                    aria-label={t('access.matrix.show_all_capabilities')}
                                                 >
                                                     {expandedUserId === user.id
-                                                        ? <ChevronDown className="h-4 w-4" />
-                                                        : <ChevronRight className="h-4 w-4" />
+                                                        ? <ChevronDown className="h-4 w-4" aria-hidden="true" />
+                                                        : <ChevronRight className="h-4 w-4" aria-hidden="true" />
                                                     }
                                                 </button>
                                             </div>
@@ -174,10 +176,11 @@ export function UsersTable({
                                                     onClick={() => onToggleExpand(user.id)}
                                                     className="p-1 text-slate-500 hover:text-white rounded transition-colors"
                                                     title={t('access.matrix.show_all_capabilities')}
+                                                    aria-label={t('access.matrix.show_all_capabilities')}
                                                 >
                                                     {expandedUserId === user.id
-                                                        ? <ChevronDown className="h-4 w-4" />
-                                                        : <ChevronRight className="h-4 w-4" />
+                                                        ? <ChevronDown className="h-4 w-4" aria-hidden="true" />
+                                                        : <ChevronRight className="h-4 w-4" aria-hidden="true" />
                                                     }
                                                 </button>
                                             </div>
@@ -189,10 +192,11 @@ export function UsersTable({
                                                     onClick={() => onToggleExpand(user.id)}
                                                     className="p-1 text-slate-500 hover:text-white rounded transition-colors"
                                                     title={t('access.matrix.show_all_permissions')}
+                                                    aria-label={t('access.matrix.show_all_permissions')}
                                                 >
                                                     {expandedUserId === user.id
-                                                        ? <ChevronDown className="h-4 w-4" />
-                                                        : <ChevronRight className="h-4 w-4" />
+                                                        ? <ChevronDown className="h-4 w-4" aria-hidden="true" />
+                                                        : <ChevronRight className="h-4 w-4" aria-hidden="true" />
                                                     }
                                                 </button>
                                             </div>
@@ -215,8 +219,9 @@ export function UsersTable({
                                                     onClick={() => onEditAccess(user)}
                                                     className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-all"
                                                     title={t('access.actions.edit_access')}
+                                                    aria-label={t('access.actions.edit_access')}
                                                 >
-                                                    <Edit2 className="h-4 w-4" />
+                                                    <Edit2 className="h-4 w-4" aria-hidden="true" />
                                                 </button>
                                             )}
                                             {canManageUsers && (
@@ -229,8 +234,9 @@ export function UsersTable({
                                                             : "text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300"
                                                     )}
                                                     title={user.is_active ? t('access.actions.deactivate') : t('access.actions.activate')}
+                                                    aria-label={user.is_active ? t('access.actions.deactivate') : t('access.actions.activate')}
                                                 >
-                                                    {user.is_active ? <UserX className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
+                                                    {user.is_active ? <UserX className="h-4 w-4" aria-hidden="true" /> : <UserCheck className="h-4 w-4" aria-hidden="true" />}
                                                 </button>
                                             )}
                                             {canRunDirectoryChecks && user.external_id && onCheckDirectory && (

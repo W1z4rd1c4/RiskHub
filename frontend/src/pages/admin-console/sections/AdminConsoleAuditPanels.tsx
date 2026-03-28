@@ -7,6 +7,7 @@ import { RefreshCw, FileDown, Settings2, Copy, Check } from 'lucide-react';
 import { adminApi, type LogConfig } from '@/services/adminApi';
 import { cn } from '@/lib/utils';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
+import { formatDateTimeValue } from '@/i18n/formatters';
 
 function LogSettingsPanel() {
     const { t } = useTranslation('admin');
@@ -129,7 +130,7 @@ function LogSettingsPanel() {
 }
 
 export function AuditLogsPanel() {
-    const { t } = useTranslation('admin');
+    const { t, i18n } = useTranslation('admin');
     const [lines, setLines] = useState<number>(100);
     const [eventFilter, setEventFilter] = useState<string>('');
     const [autoRefresh, setAutoRefresh] = useState(false);
@@ -282,7 +283,7 @@ export function AuditLogsPanel() {
                             logs.map((log, idx) => (
                                 <tr key={`${log.timestamp}-${idx}`} className="hover:bg-white/5 transition-colors">
                                     <td className="py-3 px-4 text-slate-400 whitespace-nowrap">
-                                        {log.timestamp ? new Date(log.timestamp).toLocaleString() : t('common:fallbacks.not_available')}
+                                        {log.timestamp ? formatDateTimeValue(log.timestamp, i18n.language) : t('common:fallbacks.not_available')}
                                     </td>
                                     <td className="py-3 px-4">
                                         <span className={cn(
@@ -362,4 +363,3 @@ export function AuditLogsPanel() {
         </div>
     );
 }
-

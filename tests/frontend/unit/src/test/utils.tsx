@@ -4,19 +4,16 @@
 import React, { ReactElement, useState } from 'react';
 import { render, RenderOptions } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { DashboardFilterProvider } from '@/contexts/DashboardFilterContext';
+import { createTestQueryClient } from './queryClient';
 
 /**
  * All providers wrapper for tests.
  */
 function AllProviders({ children }: { children: React.ReactNode }) {
-    const [queryClient] = useState(() => new QueryClient({
-        defaultOptions: {
-            queries: { retry: false },
-        },
-    }));
+    const [queryClient] = useState(createTestQueryClient);
 
     return (
         <QueryClientProvider client={queryClient}>

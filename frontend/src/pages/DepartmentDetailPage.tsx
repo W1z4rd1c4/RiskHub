@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from '@/i18n/hooks';
+import { formatDateValue } from '@/i18n/formatters';
 import {
     ArrowLeft,
     Building2,
@@ -38,7 +39,7 @@ export function DepartmentDetailPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
 
-    const { t } = useTranslation(['common', 'dashboard', 'kris']);
+    const { t, i18n } = useTranslation(['common', 'dashboard', 'kris']);
 
     // UI state (kept in page for tab/pagination control)
     const [activeTab, setActiveTab] = useState<TabView>('risks');
@@ -213,7 +214,7 @@ export function DepartmentDetailPage() {
             </div>
             <SortableTable
                 data={kris}
-                columns={getKriColumns(t)}
+                columns={getKriColumns(t, i18n.language)}
                 keyExtractor={(kri) => kri.id}
                 onRowClick={(kri) => navigate(`/kris/${kri.id}`)}
                 emptyMessage={kriFilter === 'breach'
@@ -273,7 +274,7 @@ export function DepartmentDetailPage() {
                                 <div>
                                     <p className="text-sm font-bold text-white">{execution.control_name}</p>
                                     <p className="text-xs text-slate-500">
-                                        {t('common:labels.by')} {execution.executed_by} • {new Date(execution.executed_at).toLocaleDateString()}
+                                        {t('common:labels.by')} {execution.executed_by} • {formatDateValue(execution.executed_at, i18n.language)}
                                     </p>
                                 </div>
                             </div>

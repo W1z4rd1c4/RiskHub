@@ -133,8 +133,9 @@ export function IssuesFilterBar({
                     onClick={onRefresh}
                     className="h-10 w-10 flex items-center justify-center glass rounded-xl text-slate-400 hover:text-white transition-colors"
                     title={t('actions.refresh')}
+                    aria-label={t('actions.refresh')}
                 >
-                    <RefreshCw className={`h-5 w-5 ${isLoading ? 'animate-spin text-accent' : ''}`} />
+                    <RefreshCw className={`h-5 w-5 ${isLoading ? 'animate-spin text-accent' : ''}`} aria-hidden="true" />
                 </button>
             </div>
         </div>

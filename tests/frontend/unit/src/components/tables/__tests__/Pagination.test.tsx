@@ -14,6 +14,7 @@ const translations: Record<string, string> = {
 vi.mock('@/i18n/hooks', () => ({
     useTranslation: () => ({
         t: (key: string) => translations[key] ?? key,
+        i18n: { language: 'en' },
     }),
 }));
 

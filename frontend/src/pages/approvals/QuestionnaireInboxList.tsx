@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { CheckCircle2, Clock } from 'lucide-react';
 
 import type { SafeTFunction } from '@/i18n/hooks';
+import { formatDateValue } from '@/i18n/formatters';
 import { cn } from '@/lib/utils';
 import type { RiskQuestionnaireListItem } from '@/types/riskQuestionnaire';
 
@@ -10,6 +11,7 @@ import { getQuestionnaireStatusBadge, getQuestionnaireStatusLabel } from './appr
 interface QuestionnaireInboxListProps {
     loading: boolean;
     questionnaires: RiskQuestionnaireListItem[];
+    locale?: string;
     onOpenRisk: (riskId: number) => void;
     t: SafeTFunction;
 }
@@ -17,6 +19,7 @@ interface QuestionnaireInboxListProps {
 export function QuestionnaireInboxList({
     loading,
     questionnaires,
+    locale = 'en',
     onOpenRisk,
     t,
 }: QuestionnaireInboxListProps) {
@@ -58,7 +61,7 @@ export function QuestionnaireInboxList({
                                 {getQuestionnaireStatusLabel(questionnaire, t)}
                             </span>
                             <div className="text-xs text-slate-500">
-                                {t('risks:questionnaire.meta.due')} {new Date(questionnaire.due_at).toLocaleDateString()}
+                                {t('risks:questionnaire.meta.due')} {formatDateValue(questionnaire.due_at, locale)}
                             </div>
                         </div>
 
@@ -69,7 +72,7 @@ export function QuestionnaireInboxList({
                             <div className="flex items-center gap-4 text-xs text-slate-500">
                                 <span className="flex items-center gap-1">
                                     <Clock className="h-3 w-3" />
-                                    {t('risks:questionnaire.meta.sent')} {new Date(questionnaire.sent_at).toLocaleDateString()}
+                                    {t('risks:questionnaire.meta.sent')} {formatDateValue(questionnaire.sent_at, locale)}
                                 </span>
                                 <span>
                                     by{' '}
