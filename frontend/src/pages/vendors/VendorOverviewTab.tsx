@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 
 import { useTranslation } from '@/i18n/hooks';
+import { formatDateValue } from '@/i18n/formatters';
 import { vendorLinkApi } from '@/services/vendorLinkApi';
 import type { LinkedControl, LinkedKRI } from '@/types/vendorLink';
 import type { Vendor } from '@/types/vendor';
@@ -40,7 +41,7 @@ function formatDateTime(value?: string | null, locale?: string): string {
     if (!value) {
         return '—';
     }
-    return new Date(value).toLocaleDateString(locale);
+    return formatDateValue(value, locale);
 }
 
 const container = {

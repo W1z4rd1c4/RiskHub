@@ -5,8 +5,8 @@ import { X, ShieldAlert, ClipboardList, AlertTriangle, User, Loader2, Target, Ac
 import { controlApi } from '@/services/controlApi';
 import { riskApi } from '@/services/riskApi';
 import type { OrphanedItem } from '@/types/orphanedItem';
-import { formatDistanceToNow } from 'date-fns';
 import { useTranslation } from '@/i18n/hooks';
+import { formatRelativeDateValue } from '@/i18n/formatters';
 
 interface OrphanQuickViewModalProps {
     isOpen: boolean;
@@ -23,7 +23,7 @@ interface ItemDetails {
 }
 
 export function OrphanQuickViewModal({ isOpen, onClose, orphan }: OrphanQuickViewModalProps) {
-    const { t } = useTranslation('admin');
+    const { t, i18n } = useTranslation('admin');
     const [itemDetails, setItemDetails] = useState<ItemDetails | null>(null);
     const [isInitialized, setIsInitialized] = useState(false);
 
@@ -178,7 +178,7 @@ export function OrphanQuickViewModal({ isOpen, onClose, orphan }: OrphanQuickVie
                                                 <div className="flex items-center gap-2">
                                                     <Calendar className="h-3.5 w-3.5 text-slate-500" />
                                                     <span className="text-xs text-slate-400 font-medium">
-                                                        {formatDistanceToNow(new Date(orphan.orphaned_at), { addSuffix: true })}
+                                                        {formatRelativeDateValue(orphan.orphaned_at, i18n.language)}
                                                     </span>
                                                 </div>
                                             </div>

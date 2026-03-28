@@ -7,6 +7,7 @@ import { reportApi } from '@/services/reportApi';
 import { PermissionGate } from '@/components/PermissionGate';
 import { ViewSwitcher, SortableTable, Pagination, CategoryDrillDown } from '@/components/tables';
 import type { Column, ViewMode } from '@/components/tables';
+import { formatMetricNumberValue } from '@/i18n/formatters';
 import { KRI_MONITORING_FILTER_VALUES, getKriMonitoringMeta } from '@/lib/monitoringStatus';
 import type { KeyRiskIndicator, KRIMonitoringStatus, KRITimelinessStatus } from '@/types/kri';
 import { useAuth } from '@/contexts/AuthContext';
@@ -142,7 +143,7 @@ export function KRIsPage() {
     const [currentPage, setCurrentPage] = useState(1);
     const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
-    const { t } = useTranslation('kris');
+    const { t, i18n } = useTranslation('kris');
     const { hasPermission } = useAuth();
     const limit = DEFAULT_LIST_PAGE_SIZE;
     const debouncedSearch = useDebouncedValue(search, LIST_SEARCH_DEBOUNCE_MS);
@@ -171,9 +172,8 @@ export function KRIsPage() {
             const fetchAllMatchingKRIs = async () => {
                 const items: KeyRiskIndicator[] = [];
                 let page = 1;
-                let total = 0;
 
-                do {
+                for (;;) {
                     const data = await kriApi.getKRIs({
                         page,
                         size: GROUPED_VIEW_FETCH_PAGE_SIZE,
@@ -187,10 +187,15 @@ export function KRIsPage() {
                         return null;
                     }
 
-                    total = data.total || 0;
+                    const total = data.total || 0;
                     items.push(...(data.items || []));
+
+                    if (items.length >= total) {
+                        break;
+                    }
+
                     page += 1;
-                } while (items.length < total);
+                }
 
                 const filteredItems = isArchivedOnly
                     ? items.filter((kri) => kri.is_archived === true)
@@ -237,7 +242,7 @@ export function KRIsPage() {
                 setIsLoading(false);
             }
         }
-    }, [viewMode, currentPage, limit, statusFilter, timelinessFilter, debouncedSearch]);
+    }, [viewMode, currentPage, limit, statusFilter, timelinessFilter, debouncedSearch, isArchivedOnly]);
 
     const handleRestoreKRI = async (kriId: number, e: MouseEvent) => {
         e.stopPropagation();
@@ -293,10 +298,7 @@ export function KRIsPage() {
     }, [searchParams, setSearchParams]);
 
     const formatNumber = (val: number): string => {
-        if (val === 0) return '0';
-        if (Math.abs(val) < 1) return val.toLocaleString('cs-CZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        if (Math.abs(val) < 100) return val.toLocaleString('cs-CZ', { minimumFractionDigits: 0, maximumFractionDigits: 1 });
-        return Math.round(val).toLocaleString('cs-CZ');
+        return formatMetricNumberValue(val, i18n.language);
     };
 
     // Table columns matching Risks page style
@@ -432,8 +434,9 @@ export function KRIsPage() {
                         data-testid="kris-refresh-button"
                         className="p-2.5 glass rounded-xl text-slate-400 hover:text-accent hover:bg-accent/10 transition-colors"
                         title={t('common:actions.refresh')}
+                        aria-label={t('common:actions.refresh')}
                     >
-                        <RefreshCw className={`h-5 w-5 ${isLoading ? 'animate-spin text-accent' : ''}`} />
+                        <RefreshCw className={`h-5 w-5 ${isLoading ? 'animate-spin text-accent' : ''}`} aria-hidden="true" />
                     </button>
                     <PermissionGate resource="risks" action="write">
                         <button onClick={() => navigate('/kris/new')} data-testid="kris-create-button" className="btn-primary">
@@ -502,8 +505,9 @@ export function KRIsPage() {
                         }}
                         data-testid="kris-clear-filters-button"
                         className="p-2.5 glass rounded-xl text-slate-400 hover:text-white transition-colors"
+                        aria-label={t('filters.clear')}
                     >
-                        <RefreshCw className="h-4 w-4" />
+                        <RefreshCw className="h-4 w-4" aria-hidden="true" />
                     </button>
                 </div>
             </div>

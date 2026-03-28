@@ -11,7 +11,7 @@ import { useApprovalsPageState } from './approvals/useApprovalsPageState';
 
 export default function ApprovalsPage() {
     const { canResolveApprovals: canResolve, user } = usePermissions();
-    const { t } = useTranslation('approvals');
+    const { t, i18n } = useTranslation('approvals');
     const navigate = useNavigate();
     const {
         approvals,
@@ -65,6 +65,7 @@ export default function ApprovalsPage() {
                 <QuestionnaireInboxList
                     loading={questionnairesLoading}
                     questionnaires={questionnaires}
+                    locale={i18n.language}
                     onOpenRisk={(riskId) => navigate(`/risks/${riskId}`)}
                     t={t}
                 />
@@ -74,6 +75,7 @@ export default function ApprovalsPage() {
                     loading={loading}
                     expandedRows={expandedRows}
                     currentUserId={user?.id}
+                    locale={i18n.language}
                     onToggleRow={toggleRow}
                     onApprove={openApproveDialog}
                     onReject={openRejectDialog}

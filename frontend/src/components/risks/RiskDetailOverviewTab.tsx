@@ -22,6 +22,7 @@ import { ControlCreateDialog } from '@/components/ControlCreateDialog';
 import { KRIGaugeCard } from '@/components/kri/KRIGaugeCard';
 import { ControlGaugeCard } from '@/components/controls/ControlGaugeCard';
 import { useTranslation } from '@/i18n/hooks';
+import { formatDateValue } from '@/i18n/formatters';
 
 // Helper to convert hex color to rgba for backgrounds/borders
 function hexToRgba(hex: string, alpha: number): string {
@@ -474,11 +475,11 @@ export function RiskDetailOverviewTab({
                 <div className="flex items-center justify-end gap-6 text-[10px] text-slate-600 font-medium">
                     <div className="flex items-center gap-1">
                         <Clock className="h-3 w-3" />
-                    {t('common:labels.created_at')}: {new Date(risk.created_at).toLocaleDateString(i18n.language)}
+                    {t('common:labels.created_at')}: {formatDateValue(risk.created_at, i18n.language)}
                     </div>
                     <div className="flex items-center gap-1">
                         <Clock className="h-3 w-3" />
-                    {t('common:labels.updated_at')}: {new Date(risk.updated_at).toLocaleDateString(i18n.language)}
+                    {t('common:labels.updated_at')}: {formatDateValue(risk.updated_at, i18n.language)}
                     </div>
                 </div>
         </>

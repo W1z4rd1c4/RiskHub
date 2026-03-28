@@ -20,6 +20,7 @@ vi.mock('react-router-dom', async () => {
 vi.mock('@/i18n/hooks', () => ({
     useTranslation: () => ({
         t: (key: string) => key,
+        i18n: { language: 'en' },
     }),
 }));
 

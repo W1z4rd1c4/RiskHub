@@ -242,8 +242,9 @@ export function IssueDetailPage() {
                     onClick={fetchIssue}
                     className="p-3 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-white hover:border-accent/40 transition-all"
                     title={t('actions.refresh')}
+                    aria-label={t('actions.refresh')}
                 >
-                    <RefreshCw className="h-5 w-5" />
+                    <RefreshCw className="h-5 w-5" aria-hidden="true" />
                 </button>
             </div>
 

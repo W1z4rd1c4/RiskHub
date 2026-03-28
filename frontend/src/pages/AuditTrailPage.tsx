@@ -16,10 +16,11 @@ import { reportApi } from '@/services/reportApi';
 import type { ExecutionAuditItem, ExecutionResult } from '@/types/execution';
 import { Pagination } from '@/components/tables';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
+import { formatDateValue, formatTimeValue } from '@/i18n/formatters';
 import { getExecutionResultMeta } from '@/lib/executionResult';
 
 export function AuditTrailPage() {
-    const { t } = useTranslation(['controls', 'common']);
+    const { t, i18n } = useTranslation(['controls', 'common']);
     const navigate = useNavigate();
 
     const [executions, setExecutions] = useState<ExecutionAuditItem[]>([]);
@@ -158,10 +159,10 @@ export function AuditTrailPage() {
                                             <td className="px-6 py-5">
                                                 <div className="flex flex-col">
                                                     <span className="text-sm font-bold text-white mb-0.5">
-                                                        {new Date(exec.executed_at).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
+                                                        {formatDateValue(exec.executed_at, i18n.language)}
                                                     </span>
                                                     <span className="text-[10px] font-black text-slate-500 uppercase tracking-tighter">
-                                                        {new Date(exec.executed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                        {formatTimeValue(exec.executed_at, i18n.language)}
                                                     </span>
                                                 </div>
                                             </td>

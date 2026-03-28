@@ -309,8 +309,9 @@ export function RiskTypesPanel() {
                                             onClick={() => { setEditingType(type); setModalOpen(true); }}
                                             className="p-1.5 text-slate-400 hover:text-white hover:bg-white/10 rounded transition-colors"
                                             title={t('common:actions.edit')}
+                                            aria-label={t('common:actions.edit')}
                                         >
-                                            <Edit className="h-4 w-4" />
+                                            <Edit className="h-4 w-4" aria-hidden="true" />
                                         </button>
 
                                         {!type.is_system && type.is_active && (
@@ -318,8 +319,9 @@ export function RiskTypesPanel() {
                                                 onClick={() => setDeleteConfirm(type)}
                                                 className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"
                                                 title={t('common:actions.delete')}
+                                                aria-label={t('common:actions.delete')}
                                             >
-                                                <Trash2 className="h-4 w-4" />
+                                                <Trash2 className="h-4 w-4" aria-hidden="true" />
                                             </button>
                                         )}
 
@@ -328,8 +330,9 @@ export function RiskTypesPanel() {
                                                 onClick={() => restoreMutation.mutate(type.id)}
                                                 className="p-1.5 text-slate-400 hover:text-green-400 hover:bg-green-500/10 rounded transition-colors"
                                                 title={t('admin:risk_types_panel.actions.restore')}
+                                                aria-label={t('admin:risk_types_panel.actions.restore')}
                                             >
-                                                <RotateCcw className="h-4 w-4" />
+                                                <RotateCcw className="h-4 w-4" aria-hidden="true" />
                                             </button>
                                         )}
                                     </div>

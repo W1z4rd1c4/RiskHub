@@ -9,6 +9,7 @@ const getDueSoonMock = vi.fn();
 vi.mock('@/i18n/hooks', () => ({
     useTranslation: () => ({
         t: (key: string) => key,
+        i18n: { language: 'en' },
     }),
 }));
 

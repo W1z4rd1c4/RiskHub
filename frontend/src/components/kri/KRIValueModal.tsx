@@ -7,6 +7,7 @@ import { apiClient } from '@/services/apiClient';
 import type { KeyRiskIndicator, KRIRecordValue } from '@/types/kri';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useTranslation } from '@/i18n/hooks';
+import { formatDateValue } from '@/i18n/formatters';
 
 interface KRIValueModalProps {
     kri: KeyRiskIndicator;
@@ -160,7 +161,7 @@ export function KRIValueModal({ kri, isOpen, onClose, onSuccess }: KRIValueModal
                                         {kri.last_period_end && (
                                             <div className="flex items-center justify-between text-xs text-slate-500 mt-1">
                                                 <span>{t('value_modal.last_period_end', { ns: 'kris' })}</span>
-                                                <span className="font-bold text-white">{new Date(kri.last_period_end).toLocaleDateString(i18n.language)}</span>
+                                                <span className="font-bold text-white">{formatDateValue(kri.last_period_end, i18n.language)}</span>
                                             </div>
                                         )}
                                     </div>

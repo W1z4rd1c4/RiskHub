@@ -14,9 +14,9 @@ import {
     Unlink,
     XCircle,
 } from 'lucide-react';
-import { format, formatDistanceToNow } from 'date-fns';
 
 import { useTranslation } from '@/i18n/hooks';
+import { formatDateTimeValue, formatRelativeDateValue } from '@/i18n/formatters';
 import type { ActivityLogEntry } from '@/types/activityLog';
 import { ACTION_COLORS, ACTION_LABELS, ENTITY_TYPE_LABELS } from '@/types/activityLog';
 
@@ -55,7 +55,7 @@ const getActionIcon = (action: string) => {
 };
 
 export function ActivityLogEntries({ entries, isLoading, errorType, onRetry }: ActivityLogEntriesProps) {
-    const { t } = useTranslation('common');
+    const { t, i18n } = useTranslation('common');
 
     if (isLoading && entries.length === 0) {
         return (
@@ -136,10 +136,10 @@ export function ActivityLogEntries({ entries, isLoading, errorType, onRetry }: A
                                     <div className="flex items-center gap-4 text-xs text-slate-500">
                                         <div
                                             className="flex items-center gap-1.5"
-                                            title={format(new Date(entry.created_at), 'PPP pp')}
+                                            title={formatDateTimeValue(entry.created_at, i18n.language)}
                                         >
                                             <Clock className="h-3 w-3" />
-                                            {formatDistanceToNow(new Date(entry.created_at), { addSuffix: true })}
+                                            {formatRelativeDateValue(entry.created_at, i18n.language)}
                                         </div>
                                     </div>
                                 </div>

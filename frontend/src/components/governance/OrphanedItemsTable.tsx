@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ShieldAlert, ClipboardList, AlertTriangle, UserCheck, Filter, Building2 } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
 import { useTranslation } from '@/i18n/hooks';
+import { formatRelativeDateValue } from '@/i18n/formatters';
 import type { OrphanedItem } from '@/types/orphanedItem';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 
@@ -18,7 +18,7 @@ const typeIcons: Record<string, typeof ShieldAlert> = {
 };
 
 export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTableProps) {
-    const { t } = useTranslation('admin');
+    const { t, i18n } = useTranslation('admin');
     const [filter, setFilter] = useState<string>('all');
     const [now, setNow] = useState(() => Date.now());
 
@@ -143,7 +143,7 @@ export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTa
                                     </td>
                                     <td className="px-4 py-3">
                                         <span className={`text-xs font-bold uppercase tracking-widest ${old ? 'text-amber-400' : 'text-slate-500'}`}>
-                                            {formatDistanceToNow(new Date(item.orphaned_at), { addSuffix: true })}
+                                            {formatRelativeDateValue(item.orphaned_at, i18n.language)}
                                         </span>
                                     </td>
                                     <td className="px-4 py-3 text-right">

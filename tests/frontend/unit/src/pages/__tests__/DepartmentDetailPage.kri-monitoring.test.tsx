@@ -13,6 +13,7 @@ vi.mock('@/i18n/hooks', () => ({
             }
             return key;
         },
+        i18n: { language: 'en' },
     }),
 }));
 

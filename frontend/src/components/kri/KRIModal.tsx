@@ -9,6 +9,7 @@ import { getKriDraftValidationErrorKey } from '@/components/kri/kriFormValidatio
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useTranslation } from '@/i18n/hooks';
+import { formatDateTimeValue } from '@/i18n/formatters';
 import { ApiClientError } from '@/services/apiClient';
 import { userApi } from '@/services/userApi';
 import { vendorApi } from '@/services/vendorApi';
@@ -42,7 +43,7 @@ function mergeVendorOptions(
 }
 
 export function KRIModal({ risk_id, kri, isOpen, onClose, onSave, onDelete }: KRIModalProps) {
-    const { t } = useTranslation(['kris', 'common', 'errorKeys']);
+    const { t, i18n } = useTranslation(['kris', 'common', 'errorKeys']);
     const isCreate = !kri;
     const [isSaving, setIsSaving] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
@@ -428,7 +429,7 @@ export function KRIModal({ risk_id, kri, isOpen, onClose, onSave, onDelete }: KR
                                 <div className="flex items-center gap-2 px-4 py-3 bg-white/[0.02] border border-white/5 rounded-xl text-[10px] text-slate-500 font-bold">
                                     <Calendar className="h-3.5 w-3.5" />
                                     {t('modal.last_updated', { ns: 'kris' })}:{' '}
-                                    {new Date(kri.last_updated).toLocaleString()}
+                                    {formatDateTimeValue(kri.last_updated, i18n.language)}
                                 </div>
                             ) : null}
                         </div>

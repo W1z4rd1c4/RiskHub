@@ -1,7 +1,8 @@
 import { MemoryRouter } from 'react-router-dom';
 import { render, screen, waitFor } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createTestQueryClient } from '@test/queryClient';
 
 const fetchOverviewMock = vi.fn();
 const fetchDashboardSummaryMock = vi.fn();
@@ -32,6 +33,7 @@ vi.mock('@/hooks/usePermissions', () => ({
 vi.mock('@/i18n/hooks', () => ({
     useTranslation: () => ({
         t: (key: string) => key,
+        i18n: { language: 'en' },
     }),
 }));
 
@@ -66,13 +68,7 @@ vi.mock('@/components/dashboard/IssuesSummaryCard', () => ({ IssuesSummaryCard: 
 import { DashboardPage } from '@/pages/DashboardPage';
 
 function createWrapper() {
-    const queryClient = new QueryClient({
-        defaultOptions: {
-            queries: {
-                retry: false,
-            },
-        },
-    });
+    const queryClient = createTestQueryClient();
 
     return function Wrapper({ children }: { children: React.ReactNode }) {
         return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;

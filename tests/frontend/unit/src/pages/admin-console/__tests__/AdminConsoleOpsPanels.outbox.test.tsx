@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createTestQueryClient } from '@test/queryClient';
 
 const getSystemHealthMock = vi.fn();
 const getSystemStatsMock = vi.fn();
@@ -10,6 +11,7 @@ const getOutboxStatusMock = vi.fn();
 vi.mock('@/i18n/hooks', () => ({
     useTranslation: () => ({
         t: (key: string) => key,
+        i18n: { language: 'en' },
     }),
 }));
 
@@ -58,13 +60,7 @@ vi.mock('@/services/adminApi', () => ({
 import { HealthPanel } from '@/pages/admin-console/sections/AdminConsoleOpsPanels';
 
 function createWrapper() {
-    const queryClient = new QueryClient({
-        defaultOptions: {
-            queries: {
-                retry: false,
-            },
-        },
-    });
+    const queryClient = createTestQueryClient();
 
     return function Wrapper({ children }: { children: React.ReactNode }) {
         return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;

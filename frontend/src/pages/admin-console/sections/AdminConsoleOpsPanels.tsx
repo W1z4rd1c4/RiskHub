@@ -8,9 +8,10 @@ import { useAdaptivePollingQuery } from '@/hooks/useAdaptivePollingQuery';
 import { cn } from '@/lib/utils';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { formatDateTimeValue } from '@/i18n/formatters';
 
 export function HealthPanel() {
-    const { t } = useTranslation('admin');
+    const { t, i18n } = useTranslation('admin');
     const healthQuery = useAdaptivePollingQuery({
         queryKey: ['adminHealth'],
         queryFn: ({ signal }) => adminApi.getSystemHealth({ signal }),
@@ -165,7 +166,7 @@ export function HealthPanel() {
                                             <span className="text-xs text-sky-300">{job.status}</span>
                                         </div>
                                         <p className="mt-1 text-xs text-slate-400">
-                                            {new Date(job.started_at).toLocaleString()}
+                                            {formatDateTimeValue(job.started_at, i18n.language)}
                                         </p>
                                     </div>
                                 ))}
@@ -195,7 +196,7 @@ export function HealthPanel() {
                                         </span>
                                     </div>
                                     <div className="mt-1 flex items-center justify-between text-xs text-slate-400">
-                                        <span>{new Date(job.started_at).toLocaleString()}</span>
+                                        <span>{formatDateTimeValue(job.started_at, i18n.language)}</span>
                                         <span>{job.duration_ms ? `${job.duration_ms}ms` : 'n/a'}</span>
                                     </div>
                                     {job.error_message && (
@@ -257,8 +258,8 @@ export function HealthPanel() {
                             <div className="mt-2 space-y-1 text-sm text-slate-300">
                                 <p>{t('health.outbox.status')}: {outboxStatus?.last_dispatch_status || t('health.outbox.none')}</p>
                                 <p>{t('health.outbox.processed')}: {outboxStatus?.last_dispatch_processed ?? 0}</p>
-                                <p>{t('health.outbox.started')}: {outboxStatus?.last_dispatch_started_at ? new Date(outboxStatus.last_dispatch_started_at).toLocaleString() : t('health.outbox.none')}</p>
-                                <p>{t('health.outbox.finished')}: {outboxStatus?.last_dispatch_finished_at ? new Date(outboxStatus.last_dispatch_finished_at).toLocaleString() : t('health.outbox.none')}</p>
+                                <p>{t('health.outbox.started')}: {outboxStatus?.last_dispatch_started_at ? formatDateTimeValue(outboxStatus.last_dispatch_started_at, i18n.language) : t('health.outbox.none')}</p>
+                                <p>{t('health.outbox.finished')}: {outboxStatus?.last_dispatch_finished_at ? formatDateTimeValue(outboxStatus.last_dispatch_finished_at, i18n.language) : t('health.outbox.none')}</p>
                                 {outboxStatus?.last_dispatch_error && (
                                     <p className="text-rose-300">{outboxStatus.last_dispatch_error}</p>
                                 )}
@@ -298,7 +299,7 @@ export function HealthPanel() {
 }
 
 export function LogsPanel() {
-    const { t } = useTranslation('admin');
+    const { t, i18n } = useTranslation('admin');
     const [eventFilter, setEventFilter] = useState<string>('');
 
     const { data: logs, isLoading } = useQuery({
@@ -341,7 +342,7 @@ export function LogsPanel() {
                         {logs?.map((log) => (
                             <tr key={log.id} className="border-b border-white/5 hover:bg-white/5">
                                 <td className="py-2 px-3 text-slate-500 whitespace-nowrap">
-                                    {new Date(log.timestamp).toLocaleString()}
+                                    {formatDateTimeValue(log.timestamp, i18n.language)}
                                 </td>
                                 <td className="py-2 px-3">
                                     <span className={cn(
@@ -368,7 +369,7 @@ export function LogsPanel() {
 }
 
 export function SessionsPanel() {
-    const { t } = useTranslation('admin');
+    const { t, i18n } = useTranslation('admin');
     const queryClient = useQueryClient();
     const [pendingRevokeSession, setPendingRevokeSession] = useState<ActiveSession | null>(null);
     const [directorySummary, setDirectorySummary] = useState<string | null>(null);
@@ -501,7 +502,7 @@ export function SessionsPanel() {
                                     </td>
                                     <td className="py-3 px-4 text-slate-400">{session.department || t('common:fallbacks.not_available')}</td>
                                     <td className="py-3 px-4 text-slate-500">
-                                        {lastActivityDate.toLocaleString()}
+                                        {formatDateTimeValue(lastActivityDate, i18n.language)}
                                     </td>
                                     <td className="py-3 px-4">
                                         <div className="flex items-center gap-2">
