@@ -36,7 +36,7 @@ Implemented authentication utilities:
 **File**: `backend/app/core/config.py`
 
 Added JWT settings:
-- `SECRET_KEY` - JWT signing key (TODO: move to env var for production)
+- `secret_key` - JWT signing key (required; configured via `SECRET_KEY` or `SECRET_KEY_FILE`, and in production stored under `/etc/riskhub/secrets/`)
 - `ACCESS_TOKEN_EXPIRE_MINUTES` - Token expiration time (60 minutes)
 
 ### 5. Pydantic Schemas
