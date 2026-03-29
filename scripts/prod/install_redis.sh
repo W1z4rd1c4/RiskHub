@@ -66,6 +66,7 @@ fi
 
 ensure_network "$NETWORK_NAME"
 ensure_volume "$REDIS_DATA_VOLUME"
+prepare_volume_ownership "$REDIS_DATA_VOLUME" "$redis_image" "/data" "10001:10001"
 require_dir "$SECRET_DIR"
 
 if container_exists "$REDIS_CONTAINER"; then

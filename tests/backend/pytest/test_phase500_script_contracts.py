@@ -11,6 +11,8 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 PROD_SCRIPTS_DIR = REPO_ROOT / "scripts" / "prod"
+PROD_COMMON = PROD_SCRIPTS_DIR / "lib" / "common.sh"
+PROD_SMOKE_TEST = PROD_SCRIPTS_DIR / "smoke_test.sh"
 BACKEND_RUNTIME_PROD = REPO_ROOT / "backend" / "scripts" / "runtime" / "prod.sh"
 BACKEND_DB_RUNTIME_PROD = REPO_ROOT / "backend" / "scripts" / "runtime" / "db" / "prod.sh"
 FRONTEND_RUNTIME_PROD = REPO_ROOT / "frontend" / "scripts" / "runtime" / "prod.sh"
@@ -18,6 +20,7 @@ BACKEND_DOCKERFILE = REPO_ROOT / "backend" / "Dockerfile"
 LINUX_BUNDLE_BUILDER = REPO_ROOT / "scripts" / "release" / "build_linux_bundle.sh"
 RELEASE_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "release.yml"
 MAKEFILE = REPO_ROOT / "scripts" / "Makefile"
+PROD_READINESS_AUDIT = REPO_ROOT / "scripts" / "security" / "run_prod_readiness_audit_local.sh"
 DEV_COMPOSE = REPO_ROOT / "docker-compose.yml"
 EXPECTED_PROD_BOOTSTRAP_SCRIPTS = (
     "__init__.py",
@@ -120,11 +123,11 @@ def test_backend_dockerfile_copies_only_bootstrap_scripts_and_uses_python_health
     assert "http://localhost:8000/api/v1/health" in text
 
 
-def test_dev_compose_bootstrap_uses_dbtasks_target_and_backend_inherits_image_healthcheck() -> None:
+def test_dev_compose_bootstrap_reuses_backend_runtime_image_and_backend_inherits_image_healthcheck() -> None:
     text = _read(DEV_COMPOSE)
 
     assert "bootstrap:" in text
-    assert "target: dbtasks" in text
+    assert "target: dbtasks" not in text
     assert 'command: ["sh", "-lc", "python -m alembic upgrade head && python -m app.db.seed"]' in text
 
     backend_block = text.split("  backend:\n", 1)[1].split("  frontend:\n", 1)[0]
@@ -178,6 +181,25 @@ def test_component_backend_prod_wrapper_uses_single_backend_image_for_db_lifecyc
     assert 'db_args=(--backend-env "$BACKEND_ENV" --backend-image "$backend_image")' in text
 
 
+def test_install_backend_primes_logs_volume_for_non_root_runtime() -> None:
+    common_text = _read(PROD_COMMON)
+    backend_install_text = _script_text("install_backend.sh")
+
+    assert "prepare_volume_ownership()" in common_text
+    assert "--user 0:0" in common_text
+    assert '--entrypoint sh \\' in common_text
+    assert 'prepare_volume_ownership "$BACKEND_LOGS_VOLUME" "$backend_image" "/app/logs" "10001:10001"' in backend_install_text
+
+
+def test_common_container_replace_prefers_graceful_stop_before_remove() -> None:
+    common_text = _read(PROD_COMMON)
+
+    assert 'docker inspect --format \'{{.State.Running}}\'' in common_text
+    assert 'run docker stop -t 20 "$name" >/dev/null' in common_text
+    assert 'run docker rm "$name" >/dev/null' in common_text
+    assert 'run docker rm -f "$name" >/dev/null' not in common_text
+
+
 def test_install_frontend_applies_capability_hardening() -> None:
     text = _script_text("install_frontend.sh")
     assert "--security-opt no-new-privileges" in text
@@ -188,6 +210,30 @@ def test_install_frontend_applies_capability_hardening() -> None:
 def test_install_redis_passes_password_file_override_for_custom_secret_dir() -> None:
     text = _script_text("install_redis.sh")
     assert 'RISKHUB_REDIS_PASSWORD_FILE=${SECRET_DIR}/redis_password' in text
+
+
+def test_install_redis_primes_data_volume_for_non_root_runtime() -> None:
+    text = _script_text("install_redis.sh")
+    assert 'prepare_volume_ownership "$REDIS_DATA_VOLUME" "$redis_image" "/data" "10001:10001"' in text
+
+
+def test_smoke_test_probes_backend_docs_without_in_container_curl() -> None:
+    text = _read(PROD_SMOKE_TEST)
+
+    assert 'docker exec "$BACKEND_CONTAINER" curl' not in text
+    assert 'docker exec %s curl' not in text
+    assert 'backend_container_http_code "/docs"' in text
+    assert 'backend_container_http_code "/openapi.json"' in text
+    assert "urllib" in text
+
+
+def test_prod_readiness_audit_uses_python_probe_for_backend_docs_checks() -> None:
+    text = _read(PROD_READINESS_AUDIT)
+
+    assert "docker exec riskhub-backend curl" not in text
+    assert 'python - \'/docs\'' in text
+    assert 'python - \'/openapi.json\'' in text
+    assert "request.urlopen" in text
 
 
 def test_removed_unsupported_deployment_artifacts_are_absent() -> None:

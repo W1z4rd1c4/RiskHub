@@ -94,6 +94,7 @@ fi
 
 ensure_network "$NETWORK_NAME"
 ensure_volume "$BACKEND_LOGS_VOLUME"
+prepare_volume_ownership "$BACKEND_LOGS_VOLUME" "$backend_image" "/app/logs" "10001:10001"
 require_dir "$SECRET_DIR"
 require_dir "$RUNTIME_DIR"
 

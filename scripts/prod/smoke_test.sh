@@ -12,6 +12,24 @@ retries=30
 sleep_seconds=2
 host_header=""
 
+backend_http_probe_python() {
+  cat <<'PY'
+import sys
+from urllib import error, request
+
+path = sys.argv[1]
+host = sys.argv[2]
+req = request.Request(f"http://localhost:8000{path}", headers={"Host": host})
+try:
+    with request.urlopen(req, timeout=10) as response:
+        print(response.status)
+except error.HTTPError as exc:
+    print(exc.code)
+except Exception as exc:
+    print(f"error:{exc.__class__.__name__}:{exc}")
+PY
+}
+
 reliability_runtime_check_python() {
   cat <<'PY'
 import asyncio
@@ -170,6 +188,25 @@ extract_first_allowed_host() {
   normalize_host_value "$first_entry"
 }
 
+backend_container_http_code() {
+  local path="$1"
+  docker exec -i "$BACKEND_CONTAINER" python - "$path" "$resolved_host" <<'PY'
+import sys
+from urllib import error, request
+
+path = sys.argv[1]
+host = sys.argv[2]
+req = request.Request(f"http://localhost:8000{path}", headers={"Host": host})
+try:
+    with request.urlopen(req, timeout=10) as response:
+        print(response.status)
+except error.HTTPError as exc:
+    print(exc.code)
+except Exception as exc:
+    print(f"error:{exc.__class__.__name__}:{exc}")
+PY
+}
+
 resolved_host=""
 host_source=""
 if [[ -n "$host_header" ]]; then
@@ -206,8 +243,12 @@ fi
 if [[ "$DRY_RUN" == "true" ]]; then
   printf '+ curl -f -H "Host: %s" http://localhost:%s/\\n' "$resolved_host" "$host_port"
   printf '+ curl -f -H "Host: %s" http://localhost:%s/api/v1/health\\n' "$resolved_host" "$host_port"
-  printf '+ docker exec %s curl -sS -H "Host: %s" -o /dev/null -w \"%%{http_code}\" http://localhost:8000/docs\\n' "$BACKEND_CONTAINER" "$resolved_host"
-  printf '+ docker exec %s curl -sS -H "Host: %s" -o /dev/null -w \"%%{http_code}\" http://localhost:8000/openapi.json\\n' "$BACKEND_CONTAINER" "$resolved_host"
+  printf "+ docker exec -i %s python - '/docs' '%s' <<'PY'\\n" "$BACKEND_CONTAINER" "$resolved_host"
+  backend_http_probe_python
+  printf 'PY\\n'
+  printf "+ docker exec -i %s python - '/openapi.json' '%s' <<'PY'\\n" "$BACKEND_CONTAINER" "$resolved_host"
+  backend_http_probe_python
+  printf 'PY\\n'
   printf "+ docker exec -i %s python - <<'PY'\\n" "$BACKEND_CONTAINER"
   reliability_runtime_check_python
   printf 'PY\\n'
@@ -264,12 +305,12 @@ if ! container_exists "$BACKEND_CONTAINER"; then
   die "Backend container not found: $BACKEND_CONTAINER"
 fi
 
-docs_code="$(docker exec "$BACKEND_CONTAINER" curl -sS -H "Host: ${resolved_host}" -o /dev/null -w "%{http_code}" http://localhost:8000/docs 2>/dev/null || true)"
+docs_code="$(backend_container_http_code "/docs" | tr -d '\r\n')"
 if [[ "$docs_code" != "404" ]]; then
   die "Expected backend /docs to be disabled in production (404), got: $docs_code"
 fi
 
-openapi_code="$(docker exec "$BACKEND_CONTAINER" curl -sS -H "Host: ${resolved_host}" -o /dev/null -w "%{http_code}" http://localhost:8000/openapi.json 2>/dev/null || true)"
+openapi_code="$(backend_container_http_code "/openapi.json" | tr -d '\r\n')"
 if [[ "$openapi_code" != "404" ]]; then
   die "Expected backend /openapi.json to be disabled in production (404), got: $openapi_code"
 fi

@@ -142,6 +142,20 @@ ensure_volume() {
   log "Created docker volume: $name"
 }
 
+prepare_volume_ownership() {
+  local volume_name="$1"
+  local image_ref="$2"
+  local mount_path="$3"
+  local owner_spec="$4"
+
+  run docker run --rm \
+    --user 0:0 \
+    --entrypoint sh \
+    -v "${volume_name}:${mount_path}" \
+    "$image_ref" \
+    -lc "mkdir -p ${mount_path} && chown -R ${owner_spec} ${mount_path}"
+}
+
 container_exists() {
   docker inspect "$1" >/dev/null 2>&1
 }
@@ -149,7 +163,12 @@ container_exists() {
 rm_container_if_exists() {
   local name="$1"
   if container_exists "$name"; then
-    run docker rm -f "$name" >/dev/null
+    local running_state="false"
+    running_state="$(docker inspect --format '{{.State.Running}}' "$name" 2>/dev/null || printf 'false')"
+    if [[ "$running_state" == "true" ]]; then
+      run docker stop -t 20 "$name" >/dev/null
+    fi
+    run docker rm "$name" >/dev/null
     log "Removed existing container: $name"
   fi
 }

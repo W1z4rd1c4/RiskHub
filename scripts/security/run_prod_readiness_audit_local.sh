@@ -441,8 +441,36 @@ run_cmd "p3_build_push_redis_upgrade" true 3600 "$ROOT_DIR" "docker build -t '$R
 run_cmd "p3_cli_upgrade" true 3600 "$ROOT_DIR" "RISKHUB_RUNTIME_DIR='$RUNTIME_DIR_PATH' ./scripts/deploy.sh upgrade --target docker --config '$CONFIG_PATH' --secret-dir '$SECRET_DIR_PATH' --backend-image '$BACKEND_IMAGE_UPGRADE' --frontend-image '$FRONTEND_IMAGE_UPGRADE' --redis-image '$REDIS_IMAGE_UPGRADE' --yes"
 run_cmd "p3_cli_rollback" true 1800 "$ROOT_DIR" "RISKHUB_RUNTIME_DIR='$RUNTIME_DIR_PATH' ./scripts/deploy.sh rollback --target docker --config '$CONFIG_PATH' --secret-dir '$SECRET_DIR_PATH' --service all --yes"
 run_cmd "p3_doctor_after_rollback" true 600 "$ROOT_DIR" "RISKHUB_RUNTIME_DIR='$RUNTIME_DIR_PATH' ./scripts/deploy.sh doctor --target docker --config '$CONFIG_PATH' --secret-dir '$SECRET_DIR_PATH' --yes"
-run_cmd "p3_backend_docs_code" true 120 "$ROOT_DIR" "docker exec riskhub-backend curl -sS -H 'Host: riskhub.example.com' -o /dev/null -w \"%{http_code}\" http://localhost:8000/docs"
-run_cmd "p3_backend_openapi_code" true 120 "$ROOT_DIR" "docker exec riskhub-backend curl -sS -H 'Host: riskhub.example.com' -o /dev/null -w \"%{http_code}\" http://localhost:8000/openapi.json"
+run_cmd "p3_backend_docs_code" true 120 "$ROOT_DIR" "docker exec -i riskhub-backend python - '/docs' 'riskhub.example.com' <<'PY'
+import sys
+from urllib import error, request
+
+path = sys.argv[1]
+host = sys.argv[2]
+req = request.Request(f'http://localhost:8000{path}', headers={'Host': host})
+try:
+    with request.urlopen(req, timeout=10) as response:
+        print(response.status)
+except error.HTTPError as exc:
+    print(exc.code)
+except Exception as exc:
+    print(f'error:{exc.__class__.__name__}:{exc}')
+PY"
+run_cmd "p3_backend_openapi_code" true 120 "$ROOT_DIR" "docker exec -i riskhub-backend python - '/openapi.json' 'riskhub.example.com' <<'PY'
+import sys
+from urllib import error, request
+
+path = sys.argv[1]
+host = sys.argv[2]
+req = request.Request(f'http://localhost:8000{path}', headers={'Host': host})
+try:
+    with request.urlopen(req, timeout=10) as response:
+        print(response.status)
+except error.HTTPError as exc:
+    print(exc.code)
+except Exception as exc:
+    print(f'error:{exc.__class__.__name__}:{exc}')
+PY"
 run_cmd "p3_scheduler_ps" true 120 "$ROOT_DIR" "docker exec riskhub-backend-scheduler sh -lc \"ps -eo pid,comm,args | grep uvicorn | grep -v grep\""
 run_cmd "p3_frontend_uid" true 120 "$ROOT_DIR" "docker exec riskhub-frontend id -u"
 run_cmd "p3_postgres_logs" false 120 "$ROOT_DIR" "docker logs $POSTGRES_CONTAINER"
