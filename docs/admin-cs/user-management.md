@@ -1,6 +1,6 @@
 ---
 title: Runbook správy uživatelů a přístupů
-version: "2.2"
+version: "2.3"
 last_updated: "2026-03-29"
 audience: admin
 source_of_truth: "frontend/src/pages/UsersPage.tsx + frontend/src/components/access/AccessEditModal.tsx + backend/app/api/v1/endpoints/access.py + backend/app/api/v1/endpoints/users/"
@@ -30,6 +30,7 @@ Poznámka ke kontraktu:
 - `/users` zůstává jedinou operátorskou route
 - access-management pohledy na této route běží nad `/access/users*`
 - `/users/lookup` je jen picker/search primitivum a není kontraktem operátorské stránky
+- `/users` už nepoužívá samostatnou detailní route uživatele; identity i access editace zůstávají na `/users` v access edit modalu
 - manuální user lifecycle akce na `/users` jsou Admin-only
 - pořadí módů na `/users` je explicitní: nejdřív global access view, pak department access view a teprve potom read-only directory view pro uživatele s `users:read`, kteří nemají access-management oprávnění
 
@@ -89,14 +90,15 @@ Pokud uživatel nemá mít žádný `/users` entitlement, očekávejte redirect 
 3. Použijte create flow, který UI právě nabízí:
    - import nebo external-identity flow
    - direct-entry flow
-4. Před prvním použitím potvrďte roli, oddělení a active status.
-5. Uložte a ověřte, že se uživatel objeví v `/users`.
+4. Pokud uživatele importujete z adresáře, RiskHub vás vrátí na `/users` a otevře access edit modal, kde dokončíte onboarding bez opuštění route.
+5. Před prvním použitím potvrďte roli, oddělení, active status a případné opravy identity.
+6. Uložte a ověřte, že se uživatel objeví v `/users`.
 
 Pokud create akce chybí nebo jsou vypnuté, nejdřív potvrďte, že aktuální session opravdu běží jako platform `admin`. Create a import jsou least-privilege lifecycle akce a nemají se improvizovat z non-admin session. Pokud akce přítomné být mají a stále chybí, zastavte se a použijte [Rychlou referenci admin incidentů](./incident-quick-reference.md).
 
 ### Upravit profil
 
-1. Z `/users` otevřete identity nebo access edit flow.
+1. Z `/users` otevřete access edit modal.
 2. Měňte vždy jen jednu kategorii:
    - identity fields
    - role nebo oddělení

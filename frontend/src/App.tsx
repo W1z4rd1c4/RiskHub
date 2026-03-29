@@ -34,7 +34,6 @@ const HeroPage = lazy(async () => ({ default: (await import('@/pages/HeroPage'))
 const AuditTrailPage = lazy(async () => ({ default: (await import('@/pages/AuditTrailPage')).AuditTrailPage }));
 const UsersPage = lazy(async () => ({ default: (await import('@/pages/UsersPage')).UsersPage }));
 const UserNewPage = lazy(async () => ({ default: (await import('@/pages/UserNewPage')).UserNewPage }));
-const UserDetailPage = lazy(async () => ({ default: (await import('@/pages/UserDetailPage')).UserDetailPage }));
 const ApprovalsPage = lazy(async () => ({ default: (await import('@/pages/ApprovalsPage')).default }));
 const NotificationsPage = lazy(async () => ({ default: (await import('@/pages/NotificationsPage')).NotificationsPage }));
 const GovernancePage = lazy(async () => ({ default: (await import('@/pages/GovernancePage')).default }));
@@ -148,7 +147,6 @@ function App() {
                   } />
                   <Route path="users" element={<UsersPage />} />
                   <Route path="users/new" element={<UserNewPage />} />
-                  <Route path="users/:id" element={<UserDetailPage />} />
                   <Route path="governance" element={
                     <GovernanceRouteGuard>
                       <GovernancePage />

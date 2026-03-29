@@ -239,7 +239,6 @@ export function DepartmentDetailPage() {
                 data={users}
                 columns={getUserColumns(t)}
                 keyExtractor={(u) => u.id}
-                onRowClick={(u) => navigate(`/users/${u.id}`)}
                 emptyMessage={t('common:empty.no_users_department')}
             />
             {userTotalPages > 1 && (
