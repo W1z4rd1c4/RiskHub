@@ -25,6 +25,7 @@ Admins should use [`docs/deployment/production.md`](../../docs/deployment/produc
   - `ENTRA_CLIENT_CERTIFICATE_PRIVATE_KEY_FILE`
   - `REDIS_URL_FILE`
 - Secret material lives outside this directory under the host-managed secret/runtime paths selected by `./scripts/deploy.sh`.
+- The backend image now owns API, scheduler, DB preflight, migrations, and bootstrap flows for the Docker target.
 
 ## Common Flags
 

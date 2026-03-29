@@ -43,7 +43,7 @@ Common rules across both targets:
 
 Release inputs:
 
-- `docker`: pull versioned GHCR images (`riskhub-backend:<version>`, `riskhub-backend-db:<version>`, `riskhub-frontend:<version>`, `riskhub-redis:<version>`)
+- `docker`: pull versioned GHCR images (`riskhub-backend:<version>`, `riskhub-frontend:<version>`, `riskhub-redis:<version>`)
 - `linux`: deploy `riskhub-linux-<version>.tar.gz`
 
 ## Runtime Notes

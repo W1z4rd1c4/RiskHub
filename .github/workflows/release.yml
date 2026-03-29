@@ -133,14 +133,6 @@ jobs:
           docker build --target runtime -t "${backend_image}" -f backend/Dockerfile backend
           docker push "${backend_image}"
 
-      - name: Build and push backend DB image
-        run: |
-          set -euo pipefail
-          owner_lc="${GITHUB_REPOSITORY_OWNER,,}"
-          backend_db_image="ghcr.io/${owner_lc}/riskhub-backend-db:${RELEASE_VERSION}"
-          docker build --target dbtasks -t "${backend_db_image}" -f backend/Dockerfile backend
-          docker push "${backend_db_image}"
-
       - name: Build and push frontend image
         run: |
           set -euo pipefail
@@ -333,7 +325,7 @@ jobs:
           chmod 750 "${secret_dir}"
           chmod 440 "${secret_dir}"/*
 
-          bash scripts/deploy.sh deploy \
+          bash scripts/deploy.sh install \
             --target linux \
             --config "${config_path}" \
             --secret-dir "${secret_dir}" \

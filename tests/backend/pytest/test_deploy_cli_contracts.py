@@ -257,8 +257,6 @@ def test_docker_cli_supports_install_upgrade_doctor_logs_and_rollback_dry_run() 
                 str(secret_dir),
                 "--backend-image",
                 "ghcr.io/example/riskhub-backend:test",
-                "--backend-db-image",
-                "ghcr.io/example/riskhub-backend-db:test",
                 "--frontend-image",
                 "ghcr.io/example/riskhub-frontend:test",
                 "--redis-image",
@@ -271,8 +269,11 @@ def test_docker_cli_supports_install_upgrade_doctor_logs_and_rollback_dry_run() 
         assert install.returncode == 0, f"{install.stdout}\n{install.stderr}"
         install_output = f"{install.stdout}\n{install.stderr}"
         assert "docker pull ghcr.io/example/riskhub-backend:test" in install_output
-        assert "docker pull ghcr.io/example/riskhub-backend-db:test" in install_output
+        assert "docker pull ghcr.io/example/riskhub-backend-db:test" not in install_output
+        assert "--backend-image ghcr.io/example/riskhub-backend:test" in install_output
         assert "scripts/prod/install_backend.sh" in install_output
+        assert "scripts/prod/run_migrations.sh" in install_output
+        assert "scripts/prod/bootstrap_db.sh" in install_output
         assert "scripts/prod/smoke_test.sh" in install_output
 
         upgrade_env = env | {
@@ -291,8 +292,6 @@ def test_docker_cli_supports_install_upgrade_doctor_logs_and_rollback_dry_run() 
                 str(secret_dir),
                 "--backend-image",
                 "ghcr.io/example/riskhub-backend:test2",
-                "--backend-db-image",
-                "ghcr.io/example/riskhub-backend-db:test2",
                 "--frontend-image",
                 "ghcr.io/example/riskhub-frontend:test2",
                 "--redis-image",
@@ -354,8 +353,8 @@ def test_docker_cli_supports_install_upgrade_doctor_logs_and_rollback_dry_run() 
         assert "scripts/prod/rollback.sh" in rollback_output
 
 
-def test_docker_install_requires_backend_db_image_when_version_is_omitted() -> None:
-    with tempfile.TemporaryDirectory(prefix="riskhub-deploy-missing-db-image-") as td:
+def test_docker_install_requires_all_explicit_images_when_version_is_omitted() -> None:
+    with tempfile.TemporaryDirectory(prefix="riskhub-deploy-missing-image-") as td:
         tmp = Path(td)
         config_path = tmp / "riskhub.env"
         secret_dir = tmp / "secrets"
@@ -379,8 +378,6 @@ def test_docker_install_requires_backend_db_image_when_version_is_omitted() -> N
                 str(secret_dir),
                 "--backend-image",
                 "ghcr.io/example/riskhub-backend:test",
-                "--frontend-image",
-                "ghcr.io/example/riskhub-frontend:test",
                 "--redis-image",
                 "ghcr.io/example/riskhub-redis:test",
                 "--dry-run",
@@ -391,7 +388,7 @@ def test_docker_install_requires_backend_db_image_when_version_is_omitted() -> N
 
         output = f"{result.stdout}\n{result.stderr}"
         assert result.returncode != 0
-        assert "--backend-db-image" in output
+        assert "--backend-image, --frontend-image, and --redis-image" in output
 
 
 @pytest.mark.parametrize("command", ["install", "upgrade"])
@@ -427,8 +424,6 @@ def test_docker_cli_dry_run_supports_paths_with_spaces(command: str) -> None:
                 str(secret_dir),
                 "--backend-image",
                 "ghcr.io/example/riskhub-backend:test",
-                "--backend-db-image",
-                "ghcr.io/example/riskhub-backend-db:test",
                 "--frontend-image",
                 "ghcr.io/example/riskhub-frontend:test",
                 "--redis-image",
@@ -442,7 +437,7 @@ def test_docker_cli_dry_run_supports_paths_with_spaces(command: str) -> None:
         output = f"{result.stdout}\n{result.stderr}"
         assert result.returncode == 0, output
         assert "command not found" not in output
-        assert "--backend-db-image ghcr.io/example/riskhub-backend-db:test" in output
+        assert "--backend-image ghcr.io/example/riskhub-backend:test" in output
 
 
 def test_linux_cli_supports_install_upgrade_doctor_logs_and_rollback_dry_run() -> None:

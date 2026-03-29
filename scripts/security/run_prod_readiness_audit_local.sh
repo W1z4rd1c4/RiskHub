@@ -319,11 +319,9 @@ CONFIG_PATH="$TMP_DIR/riskhub.env"
 SECRET_DIR_PATH="$TMP_DIR/secrets"
 RUNTIME_DIR_PATH="$TMP_DIR/runtime"
 BACKEND_IMAGE_DEPLOY="${LOCAL_REGISTRY}/riskhub-backend:${TAG_DEPLOY}"
-BACKEND_DB_IMAGE_DEPLOY="${LOCAL_REGISTRY}/riskhub-backend-db:${TAG_DEPLOY}"
 FRONTEND_IMAGE_DEPLOY="${LOCAL_REGISTRY}/riskhub-frontend:${TAG_DEPLOY}"
 REDIS_IMAGE_DEPLOY="${LOCAL_REGISTRY}/riskhub-redis:${TAG_DEPLOY}"
 BACKEND_IMAGE_UPGRADE="${LOCAL_REGISTRY}/riskhub-backend:${TAG_UPGRADE}"
-BACKEND_DB_IMAGE_UPGRADE="${LOCAL_REGISTRY}/riskhub-backend-db:${TAG_UPGRADE}"
 FRONTEND_IMAGE_UPGRADE="${LOCAL_REGISTRY}/riskhub-frontend:${TAG_UPGRADE}"
 REDIS_IMAGE_UPGRADE="${LOCAL_REGISTRY}/riskhub-redis:${TAG_UPGRADE}"
 
@@ -374,8 +372,6 @@ run_cmd "p2_verify_prod_install_scripts" true 3600 "$ROOT_DIR" "make -f scripts/
 run_cmd "p2_security_contract_probe" true 1200 "$ROOT_DIR" "make -f scripts/Makefile security-contract-probe"
 run_cmd "p2_security_gap_round5" true 1800 "$ROOT_DIR" "make -f scripts/Makefile security-gap-round5"
 run_cmd "p2_prod_guard_pytests" true 1200 "$ROOT_DIR" "cd backend && ./venv/bin/pytest ../tests/backend/pytest/test_production_hardening.py ../tests/backend/pytest/test_security_headers.py ../tests/backend/pytest/test_phase500_script_contracts.py ../tests/backend/pytest/test_phase500_script_runtime_contracts.py -q"
-run_cmd "p2_deploy_cli_init" true 600 "$ROOT_DIR" "RISKHUB_RUNTIME_DIR='$RUNTIME_DIR_PATH' ./scripts/deploy.sh init --target docker --config '$CONFIG_PATH' --secret-dir '$SECRET_DIR_PATH' --yes"
-
 cat >"$CONFIG_PATH" <<EOF
 PUBLIC_URL=https://riskhub.example.com
 ENTRA_TENANT_ID=00000000-0000-0000-0000-000000000000
@@ -434,21 +430,17 @@ run_cmd "p3_wait_postgres" true 120 "$ROOT_DIR" "bash -lc \"for i in {1..60}; do
 run_cmd "p3_start_registry" true 300 "$ROOT_DIR" "docker run -d --name $REGISTRY_CONTAINER -p ${REGISTRY_PORT}:5000 registry:2"
 run_cmd "p3_wait_registry" true 120 "$ROOT_DIR" "bash -lc \"for i in {1..30}; do curl -fsS http://127.0.0.1:${REGISTRY_PORT}/v2/ >/dev/null 2>&1 && exit 0; sleep 1; done; exit 1\""
 run_cmd "p3_build_push_backend_deploy" true 3600 "$ROOT_DIR" "docker build --target runtime -t '$BACKEND_IMAGE_DEPLOY' backend && docker push '$BACKEND_IMAGE_DEPLOY'"
-run_cmd "p3_build_push_backend_db_deploy" true 3600 "$ROOT_DIR" "docker build --target dbtasks -t '$BACKEND_DB_IMAGE_DEPLOY' backend && docker push '$BACKEND_DB_IMAGE_DEPLOY'"
 run_cmd "p3_build_push_frontend_deploy" true 3600 "$ROOT_DIR" "docker build -t '$FRONTEND_IMAGE_DEPLOY' frontend && docker push '$FRONTEND_IMAGE_DEPLOY'"
 run_cmd "p3_build_push_redis_deploy" true 3600 "$ROOT_DIR" "docker build -t '$REDIS_IMAGE_DEPLOY' -f docker/redis/Dockerfile docker/redis && docker push '$REDIS_IMAGE_DEPLOY'"
-run_cmd "p3_cli_preflight" true 600 "$ROOT_DIR" "RISKHUB_RUNTIME_DIR='$RUNTIME_DIR_PATH' ./scripts/deploy.sh preflight --target docker --config '$CONFIG_PATH' --secret-dir '$SECRET_DIR_PATH' --yes"
-run_cmd "p3_cli_deploy" true 3600 "$ROOT_DIR" "RISKHUB_RUNTIME_DIR='$RUNTIME_DIR_PATH' ./scripts/deploy.sh deploy --target docker --config '$CONFIG_PATH' --secret-dir '$SECRET_DIR_PATH' --backend-image '$BACKEND_IMAGE_DEPLOY' --backend-db-image '$BACKEND_DB_IMAGE_DEPLOY' --frontend-image '$FRONTEND_IMAGE_DEPLOY' --redis-image '$REDIS_IMAGE_DEPLOY' --yes"
-run_cmd "p3_status_after_deploy" true 300 "$ROOT_DIR" "./scripts/deploy.sh status --target docker"
+run_cmd "p3_cli_install" true 3600 "$ROOT_DIR" "RISKHUB_RUNTIME_DIR='$RUNTIME_DIR_PATH' ./scripts/deploy.sh install --target docker --config '$CONFIG_PATH' --secret-dir '$SECRET_DIR_PATH' --backend-image '$BACKEND_IMAGE_DEPLOY' --frontend-image '$FRONTEND_IMAGE_DEPLOY' --redis-image '$REDIS_IMAGE_DEPLOY' --yes"
+run_cmd "p3_doctor_after_install" true 600 "$ROOT_DIR" "RISKHUB_RUNTIME_DIR='$RUNTIME_DIR_PATH' ./scripts/deploy.sh doctor --target docker --config '$CONFIG_PATH' --secret-dir '$SECRET_DIR_PATH' --yes"
 run_cmd "p3_verify_runtime" true 300 "$ROOT_DIR" "scripts/prod/verify_runtime.sh"
-run_cmd "p3_cli_smoke_after_deploy" true 600 "$ROOT_DIR" "RISKHUB_RUNTIME_DIR='$RUNTIME_DIR_PATH' ./scripts/deploy.sh smoke --target docker --config '$CONFIG_PATH' --secret-dir '$SECRET_DIR_PATH' --yes"
 run_cmd "p3_build_push_backend_upgrade" true 3600 "$ROOT_DIR" "docker build --target runtime -t '$BACKEND_IMAGE_UPGRADE' backend && docker push '$BACKEND_IMAGE_UPGRADE'"
-run_cmd "p3_build_push_backend_db_upgrade" true 3600 "$ROOT_DIR" "docker build --target dbtasks -t '$BACKEND_DB_IMAGE_UPGRADE' backend && docker push '$BACKEND_DB_IMAGE_UPGRADE'"
 run_cmd "p3_build_push_frontend_upgrade" true 3600 "$ROOT_DIR" "docker build -t '$FRONTEND_IMAGE_UPGRADE' frontend && docker push '$FRONTEND_IMAGE_UPGRADE'"
 run_cmd "p3_build_push_redis_upgrade" true 3600 "$ROOT_DIR" "docker build -t '$REDIS_IMAGE_UPGRADE' -f docker/redis/Dockerfile docker/redis && docker push '$REDIS_IMAGE_UPGRADE'"
-run_cmd "p3_cli_upgrade" true 3600 "$ROOT_DIR" "RISKHUB_RUNTIME_DIR='$RUNTIME_DIR_PATH' ./scripts/deploy.sh upgrade --target docker --config '$CONFIG_PATH' --secret-dir '$SECRET_DIR_PATH' --backend-image '$BACKEND_IMAGE_UPGRADE' --backend-db-image '$BACKEND_DB_IMAGE_UPGRADE' --frontend-image '$FRONTEND_IMAGE_UPGRADE' --redis-image '$REDIS_IMAGE_UPGRADE' --yes"
+run_cmd "p3_cli_upgrade" true 3600 "$ROOT_DIR" "RISKHUB_RUNTIME_DIR='$RUNTIME_DIR_PATH' ./scripts/deploy.sh upgrade --target docker --config '$CONFIG_PATH' --secret-dir '$SECRET_DIR_PATH' --backend-image '$BACKEND_IMAGE_UPGRADE' --frontend-image '$FRONTEND_IMAGE_UPGRADE' --redis-image '$REDIS_IMAGE_UPGRADE' --yes"
 run_cmd "p3_cli_rollback" true 1800 "$ROOT_DIR" "RISKHUB_RUNTIME_DIR='$RUNTIME_DIR_PATH' ./scripts/deploy.sh rollback --target docker --config '$CONFIG_PATH' --secret-dir '$SECRET_DIR_PATH' --service all --yes"
-run_cmd "p3_cli_smoke_after_rollback" true 600 "$ROOT_DIR" "RISKHUB_RUNTIME_DIR='$RUNTIME_DIR_PATH' ./scripts/deploy.sh smoke --target docker --config '$CONFIG_PATH' --secret-dir '$SECRET_DIR_PATH' --yes"
+run_cmd "p3_doctor_after_rollback" true 600 "$ROOT_DIR" "RISKHUB_RUNTIME_DIR='$RUNTIME_DIR_PATH' ./scripts/deploy.sh doctor --target docker --config '$CONFIG_PATH' --secret-dir '$SECRET_DIR_PATH' --yes"
 run_cmd "p3_backend_docs_code" true 120 "$ROOT_DIR" "docker exec riskhub-backend curl -sS -H 'Host: riskhub.example.com' -o /dev/null -w \"%{http_code}\" http://localhost:8000/docs"
 run_cmd "p3_backend_openapi_code" true 120 "$ROOT_DIR" "docker exec riskhub-backend curl -sS -H 'Host: riskhub.example.com' -o /dev/null -w \"%{http_code}\" http://localhost:8000/openapi.json"
 run_cmd "p3_scheduler_ps" true 120 "$ROOT_DIR" "docker exec riskhub-backend-scheduler sh -lc \"ps -eo pid,comm,args | grep uvicorn | grep -v grep\""
@@ -592,14 +584,14 @@ docs_code = parse_first_http_code(logs_dir / "p3_backend_docs_code.log")
 openapi_code = parse_first_http_code(logs_dir / "p3_backend_openapi_code.log")
 frontend_uid = parse_frontend_uid(logs_dir / "p3_frontend_uid.log")
 
-deploy_log_text = read_text(logs_dir / "p3_cli_deploy.log")
-bootstrap_ok = "DB bootstrap: OK" in deploy_log_text
+install_log_text = read_text(logs_dir / "p3_cli_install.log")
+bootstrap_ok = "DB bootstrap: OK" in install_log_text
 bootstrap_fail_patterns = [
     "ModuleNotFoundError: No module named 'app'",
     "Seeding RBAC roles/permissions (canonical contract)...",
     "DB bootstrap: OK",
 ]
-bootstrap_explicit_error = "ModuleNotFoundError: No module named 'app'" in deploy_log_text
+bootstrap_explicit_error = "ModuleNotFoundError: No module named 'app'" in install_log_text
 
 ph500_001_status = "fixed" if bootstrap_ok and not bootstrap_explicit_error else "reopened"
 ph500_002_status = "fixed" if frontend_uid is not None and frontend_uid != 0 else "reopened"
@@ -611,7 +603,7 @@ prior_runtime = [
         "id": "PH500-DA-001",
         "severity": "P0",
         "status": ph500_001_status,
-        "evidence": [str(logs_dir / "p3_cli_deploy.log")],
+        "evidence": [str(logs_dir / "p3_cli_install.log")],
     },
     {
         "id": "PH500-DA-002",
@@ -694,14 +686,12 @@ prior_static = [
 write_json(reports_dir / "prior-blocker-revalidation-static.json", prior_static)
 
 lifecycle_statuses = {
-    "p3_cli_preflight": rc("p3_cli_preflight"),
-    "p3_cli_deploy": rc("p3_cli_deploy"),
-    "p3_status_after_deploy": rc("p3_status_after_deploy"),
+    "p3_cli_install": rc("p3_cli_install"),
+    "p3_doctor_after_install": rc("p3_doctor_after_install"),
     "p3_verify_runtime": rc("p3_verify_runtime"),
-    "p3_cli_smoke_after_deploy": rc("p3_cli_smoke_after_deploy"),
     "p3_cli_upgrade": rc("p3_cli_upgrade"),
     "p3_cli_rollback": rc("p3_cli_rollback"),
-    "p3_cli_smoke_after_rollback": rc("p3_cli_smoke_after_rollback"),
+    "p3_doctor_after_rollback": rc("p3_doctor_after_rollback"),
 }
 (reports_dir / "lifecycle-rc.txt").write_text(
     "\n".join(f"{k}: {v}" for k, v in lifecycle_statuses.items()) + "\n",
@@ -743,7 +733,7 @@ mandatory_controls = [
     {"id": "MC-06", "description": "Preflight rejects invalid host/container frontend ports", "severity": "High", "status": "PASS" if mc_06_pass else "FAIL", "note": f"host_rc={rc('p2_preflight_invalid_host_range')} container_rc={rc('p2_preflight_invalid_container_port')}", "evidence": [str(logs_dir / "p2_preflight_invalid_host_range.log"), str(logs_dir / "p2_preflight_invalid_container_port.log")]},
     {"id": "MC-07", "description": "Unsupported production artifacts are absent from the current surface", "severity": "High", "status": "PASS" if mc_07_pass else "FAIL", "note": f"rc={rc('p2_unsupported_prod_artifacts_absent')}", "evidence": [str(logs_dir / "p2_unsupported_prod_artifacts_absent.log")]},
     {"id": "MC-08", "description": "Frontend runtime executes as non-root UID", "severity": "High", "status": "PASS" if mc_08_pass else "FAIL", "note": f"uid={frontend_uid}", "evidence": [str(logs_dir / "p3_frontend_uid.log")]},
-    {"id": "MC-09", "description": "CLI lifecycle preflight/deploy/status/smoke/upgrade/rollback", "severity": "High", "status": "PASS" if mc_09_pass else "FAIL", "note": str(lifecycle_statuses), "evidence": [str(logs_dir / "p3_cli_preflight.log"), str(logs_dir / "p3_cli_deploy.log"), str(logs_dir / "p3_status_after_deploy.log"), str(logs_dir / "p3_verify_runtime.log"), str(logs_dir / "p3_cli_smoke_after_deploy.log"), str(logs_dir / "p3_cli_upgrade.log"), str(logs_dir / "p3_cli_rollback.log"), str(logs_dir / "p3_cli_smoke_after_rollback.log")]},
+    {"id": "MC-09", "description": "CLI lifecycle install/doctor/upgrade/rollback", "severity": "High", "status": "PASS" if mc_09_pass else "FAIL", "note": str(lifecycle_statuses), "evidence": [str(logs_dir / "p3_cli_install.log"), str(logs_dir / "p3_doctor_after_install.log"), str(logs_dir / "p3_verify_runtime.log"), str(logs_dir / "p3_cli_upgrade.log"), str(logs_dir / "p3_cli_rollback.log"), str(logs_dir / "p3_doctor_after_rollback.log")]},
     {"id": "MC-10", "description": "Prod runtime disables /docs and /openapi.json", "severity": "Medium", "status": "PASS" if mc_10_pass else "FAIL", "note": f"docs_code={docs_code} openapi_code={openapi_code}", "evidence": [str(logs_dir / "p3_backend_docs_code.log"), str(logs_dir / "p3_backend_openapi_code.log")]},
     {"id": "MC-11", "description": "Protocol contract probe unresolved drift/defect == 0", "severity": "High", "status": "PASS" if mc_11_pass else "FAIL", "note": f"probe_unresolved={probe_unresolved} probe_security_defects={probe_security_defects}", "evidence": [str(logs_dir / "p2_security_contract_probe.log"), str(probe_results_path) if probe_results_path else "not found"]},
     {"id": "MC-12", "description": "Supply-chain gates report zero unresolved High/Critical", "severity": "High", "status": "PASS" if mc_12_pass else "FAIL", "note": json.dumps(supply_counts), "evidence": [str(logs_dir / "p4_bandit_high_gate.log"), str(logs_dir / "p4_pip_audit.log"), str(logs_dir / "p4_npm_audit_high.log"), str(logs_dir / "p4_trivy_backend.log"), str(logs_dir / "p4_trivy_frontend.log"), str(logs_dir / "p4_grype_backend.log"), str(logs_dir / "p4_gitleaks_scan.log"), str(reports_dir / "supply-chain-counts.json")]},
@@ -755,7 +745,7 @@ if not mc_09_pass:
         "id": "MC-09",
         "severity": "High",
         "owner_lane": "platform/security",
-        "risk_statement": "Lifecycle deploy/upgrade/rollback and smoke",
+        "risk_statement": "Lifecycle install/doctor/upgrade/rollback",
         "status": "open",
         "evidence": mandatory_controls[8]["evidence"],
         "fix_plan": "Implement control remediation and rerun listed verification tests.",
@@ -794,9 +784,9 @@ if ph500_001_status != "fixed":
         "owner_lane": "scripts/prod",
         "risk_statement": "Prior Phase500 blocker PH500-DA-001 remains unresolved",
         "status": "open",
-        "evidence": [str(logs_dir / "p3_cli_deploy.log")],
+        "evidence": [str(logs_dir / "p3_cli_install.log")],
         "fix_plan": "Apply blocker-specific patch and rerun lifecycle + runtime checks.",
-        "verification_test": [str(logs_dir / "p3_cli_deploy.log")],
+        "verification_test": [str(logs_dir / "p3_cli_install.log")],
         "target_date": "2026-02-29",
     })
 if gitleaks_findings_count > 0:

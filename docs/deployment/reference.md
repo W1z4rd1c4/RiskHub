@@ -110,9 +110,11 @@ Operational notes:
 Docker also supports explicit image references instead of `--version`:
 
 ```bash
-./scripts/deploy.sh install --target docker --config PATH --secret-dir PATH --backend-image IMAGE --backend-db-image IMAGE --frontend-image IMAGE --redis-image IMAGE
-./scripts/deploy.sh upgrade --target docker --config PATH --secret-dir PATH --backend-image IMAGE --backend-db-image IMAGE --frontend-image IMAGE --redis-image IMAGE
+./scripts/deploy.sh install --target docker --config PATH --secret-dir PATH --backend-image IMAGE --frontend-image IMAGE --redis-image IMAGE
+./scripts/deploy.sh upgrade --target docker --config PATH --secret-dir PATH --backend-image IMAGE --frontend-image IMAGE --redis-image IMAGE
 ```
+
+For Docker, the `backend` image also owns DB preflight, migrations, and bootstrap tasks.
 
 This override exists for release engineering and parity work. It is not the primary operator path.
 

@@ -524,7 +524,7 @@ resolve_default_image() {
   local owner
   owner="$(git_remote_owner || true)"
   if [[ -z "$owner" ]]; then
-    die "Unable to derive default GHCR image namespace from git remote. Pass explicit --backend-image/--backend-db-image/--frontend-image/--redis-image values."
+    die "Unable to derive default GHCR image namespace from git remote. Pass explicit --backend-image/--frontend-image/--redis-image values."
   fi
   printf 'ghcr.io/%s/riskhub-%s:%s\n' "$owner" "$kind" "$version"
 }

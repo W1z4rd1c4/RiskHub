@@ -8,8 +8,7 @@ source "${SCRIPT_DIR}/lib/common.sh"
 # shellcheck source=scripts/prod/lib/preflight.sh
 source "${SCRIPT_DIR}/lib/preflight.sh"
 
-backend_db_image=""
-backend_image_alias=""
+backend_image=""
 check_db=false
 check_only=false
 allow_frontend_port_in_use=false
@@ -21,8 +20,7 @@ Usage: scripts/prod/preflight.sh --backend-env PATH --frontend-env PATH [options
 Options:
   --backend-env PATH       Path to backend.env
   --frontend-env PATH      Path to frontend.env
-  --backend-db-image IMAGE Preferred backend DB image ref for --check-db (e.g. riskhub-backend-db:1.0.0)
-  --backend-image IMAGE    Compatibility alias for --backend-db-image
+  --backend-image IMAGE    Preferred backend image ref for --check-db (e.g. riskhub-backend:1.0.0)
   --check-db               Run SELECT 1 against external PostgreSQL using an ephemeral backend container
   --check-only             Alias for --check-db=false (skip DB check)
   --allow-frontend-port-in-use
@@ -42,12 +40,8 @@ fi
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --backend-db-image)
-      backend_db_image="${2:-}"
-      shift 2
-      ;;
     --backend-image)
-      backend_image_alias="${2:-}"
+      backend_image="${2:-}"
       shift 2
       ;;
     --check-db)
@@ -90,15 +84,8 @@ if [[ "$check_only" == "true" ]]; then
   check_db=false
 fi
 
-if [[ -n "$backend_db_image" && -n "$backend_image_alias" && "$backend_db_image" != "$backend_image_alias" ]]; then
-  die "--backend-db-image and --backend-image must match when both are provided"
-fi
-if [[ -z "$backend_db_image" ]]; then
-  backend_db_image="$backend_image_alias"
-fi
-
 if [[ "$check_db" == "true" ]]; then
-  preflight_check_db_connectivity "$BACKEND_ENV" "$backend_db_image"
+  preflight_check_db_connectivity "$BACKEND_ENV" "$backend_image"
 fi
 
 log "Preflight: OK"

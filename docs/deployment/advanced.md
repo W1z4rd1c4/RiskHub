@@ -23,7 +23,7 @@ Internal implementation details:
   - `status.sh`
   - `logs.sh`
   - `verify_runtime.sh`
-  - runtime image for API/scheduler plus DB image for preflight, migrations, and bootstrap
+  - one backend image for API/scheduler plus DB preflight, migrations, and bootstrap
 - Linux executor manages:
   - release unpack under `/opt/riskhub/releases/<version>`
   - runtime `venv` plus DB-task `db-venv` creation from the bundled wheelhouse
@@ -36,7 +36,6 @@ Internal implementation details:
 The release workflow publishes:
 
 - `ghcr.io/<owner>/riskhub-backend:<version>`
-- `ghcr.io/<owner>/riskhub-backend-db:<version>`
 - `ghcr.io/<owner>/riskhub-frontend:<version>`
 - `ghcr.io/<owner>/riskhub-redis:<version>`
 - `riskhub-linux-<version>.tar.gz`

@@ -155,14 +155,10 @@ verify-prod-install-scripts:
 	docker run --rm -v "$$(pwd)":/work -w /work koalaman/shellcheck:stable -x scripts/deploy.sh scripts/deploy/lib/*.sh scripts/prod/*.sh scripts/prod/lib/*.sh scripts/release/build_linux_bundle.sh docker/redis/entrypoint.sh
 	python3 -m py_compile scripts/deploy/lib/render.py
 	docker build --target runtime -t riskhub-backend:verify-prod-install-scripts backend
-	docker run --rm riskhub-backend:verify-prod-install-scripts sh -lc 'python -c "from pathlib import Path; assert not Path(\"/app/scripts\").exists()"'
+	docker run --rm riskhub-backend:verify-prod-install-scripts sh -lc 'test -f /app/scripts/seed_roles_permissions.py && test -f /app/scripts/seed_departments.py && test -f /app/scripts/bootstrap_sso_user.py'
+	docker run --rm riskhub-backend:verify-prod-install-scripts sh -lc 'python -c "from pathlib import Path; scripts = Path(\"/app/scripts\"); expected = {\"__init__.py\", \"bootstrap_sso_user.py\", \"seed_departments.py\", \"seed_roles_permissions.py\"}; actual = {path.name for path in scripts.iterdir()}; assert actual == expected, actual"'
 	docker run --rm riskhub-backend:verify-prod-install-scripts sh -lc 'python -c "from pathlib import Path; root = Path(\"/app\"); hidden = sorted(str(path.relative_to(root)) for path in root.rglob(\".*\")); assert not hidden, hidden"'
-	docker run --rm riskhub-backend:verify-prod-install-scripts sh -lc 'python -c "from pathlib import Path; from alembic.config import Config; assert Path(\"/app/alembic\").is_dir(); assert Path(\"/app/alembic.ini\").is_file(); import app.core.schema_guard; Config(\"/app/alembic.ini\")"'
-	docker build --target dbtasks -t riskhub-backend-db:verify-prod-install-scripts backend
-	docker run --rm riskhub-backend-db:verify-prod-install-scripts sh -lc 'test -f /app/scripts/seed_roles_permissions.py && test -f /app/scripts/seed_departments.py && test -f /app/scripts/bootstrap_sso_user.py'
-	docker run --rm riskhub-backend-db:verify-prod-install-scripts sh -lc 'python -c "from pathlib import Path; scripts = Path(\"/app/scripts\"); expected = {\"__init__.py\", \"bootstrap_sso_user.py\", \"seed_departments.py\", \"seed_roles_permissions.py\"}; actual = {path.name for path in scripts.iterdir()}; assert actual == expected, actual"'
-	docker run --rm riskhub-backend-db:verify-prod-install-scripts sh -lc 'python -c "from pathlib import Path; root = Path(\"/app\"); hidden = sorted(str(path.relative_to(root)) for path in root.rglob(\".*\")); assert not hidden, hidden"'
-	docker run --rm riskhub-backend-db:verify-prod-install-scripts sh -lc 'python -c "import scripts.seed_roles_permissions, scripts.seed_departments, scripts.bootstrap_sso_user"'
+	docker run --rm riskhub-backend:verify-prod-install-scripts sh -lc 'python -c "import psycopg2; from pathlib import Path; from alembic.config import Config; assert Path(\"/app/alembic\").is_dir(); assert Path(\"/app/alembic.ini\").is_file(); import app.core.schema_guard, scripts.seed_roles_permissions, scripts.seed_departments, scripts.bootstrap_sso_user; Config(\"/app/alembic.ini\")"'
 	docker build -t riskhub-frontend:verify-prod-install-scripts frontend
 	docker run --rm riskhub-frontend:verify-prod-install-scripts sh -lc 'test "$$(id -u)" != "0"'
 	docker build -t riskhub-redis:verify-prod-install-scripts -f docker/redis/Dockerfile docker/redis

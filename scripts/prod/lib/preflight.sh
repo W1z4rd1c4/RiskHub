@@ -217,7 +217,7 @@ preflight_check_db_connectivity() {
 
   require_file "$backend_env"
   if [[ -z "$backend_image" ]]; then
-    die "DB check requested but no backend DB image provided (--backend-db-image)."
+    die "DB check requested but no backend image provided (--backend-image)."
   fi
 
   log "Checking external PostgreSQL connectivity (SELECT 1)..."

@@ -100,6 +100,7 @@ Linux target:
 Maintainer note:
 
 - Docker also supports explicit image overrides instead of `--version`. That path is kept for release engineering and is documented in [reference.md](./reference.md) and [advanced.md](./advanced.md), not as the primary operator quickstart.
+- For Docker, the backend image owns API, scheduler, DB preflight, migrations, and bootstrap tasks. There is no separate Docker DB-task image in the public release contract.
 - Linux installs releases under `/opt/riskhub/releases/<version>`, switches `/opt/riskhub/current`, renders systemd/nginx files, runs migrations/bootstrap, and restarts services.
 
 ## 4. Verify

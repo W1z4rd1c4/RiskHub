@@ -104,10 +104,12 @@ def test_backend_dockerfile_copies_only_bootstrap_scripts_and_uses_python_health
     text = _read(BACKEND_DOCKERFILE)
 
     assert "COPY --chown=riskhub:riskhub scripts ./scripts" not in text
+    assert "COPY requirements-db.txt ./requirements-db.txt" in text
+    assert "pip install --no-cache-dir --user -r requirements-db.txt" in text
     assert "FROM python:3.13-alpine AS runtime" in text
-    assert "FROM python:3.13-alpine AS dbtasks" in text
+    assert "FROM python:3.13-alpine AS dbtasks" not in text
     assert "COPY --from=builder-runtime" in text
-    assert "COPY --from=builder-dbtasks" in text
+    assert "COPY --from=builder-dbtasks" not in text
     assert "FROM runtime AS final" in text
     for script_name in EXPECTED_PROD_BOOTSTRAP_SCRIPTS:
         assert f"COPY --chown=riskhub:riskhub scripts/{script_name} ./scripts/{script_name}" in text
@@ -149,8 +151,10 @@ def test_prod_install_and_release_gates_assert_minimal_backend_artifact_contract
     makefile_text = _read(MAKEFILE)
     workflow_text = _read(RELEASE_WORKFLOW)
 
-    assert "riskhub-backend-db" in makefile_text
-    assert "riskhub-backend-db" in workflow_text
+    assert "riskhub-backend-db" not in makefile_text
+    assert "riskhub-backend-db" not in workflow_text
+    assert "seed_roles_permissions.py" in makefile_text
+    assert "bootstrap_sso_user.py" in makefile_text
     assert "backend_db" in workflow_text
     assert "db-venv" in workflow_text
 
@@ -237,10 +241,11 @@ def test_component_prod_wrappers_help_honors_runtime_dir_override(path: Path, ex
         assert f"Default: {Path(td) / expected_suffix}" in output
 
 
-def test_release_parity_audit_uses_deploy_cli_for_prod_runtime_path() -> None:
+def test_release_parity_audit_uses_install_cli_for_prod_runtime_path() -> None:
     text = _read(REPO_ROOT / "scripts" / "security" / "run_release_parity_audit.py")
-    assert "./scripts/deploy.sh deploy --target docker" in text
-    assert "deploy_cli_prod_docker" in text
+    assert "./scripts/deploy.sh install --target docker" in text
+    assert "install_cli_prod_docker" in text
+    assert "--backend-db-image" not in text
     legacy_setup_mode_prod = "./scripts/" + "setup.sh --mode prod"
     forbidden = (
         legacy_setup_mode_prod,
@@ -254,19 +259,22 @@ def test_release_parity_audit_uses_deploy_cli_for_prod_runtime_path() -> None:
 def test_prod_readiness_audit_uses_deploy_cli_for_operator_lifecycle() -> None:
     text = _read(REPO_ROOT / "scripts" / "security" / "run_prod_readiness_audit_local.sh")
     required = (
-        "./scripts/deploy.sh init --target docker",
-        "./scripts/deploy.sh preflight --target docker",
-        "./scripts/deploy.sh deploy --target docker",
+        "./scripts/deploy.sh install --target docker",
+        "./scripts/deploy.sh doctor --target docker",
         "./scripts/deploy.sh upgrade --target docker",
         "./scripts/deploy.sh rollback --target docker",
-        "./scripts/deploy.sh smoke --target docker",
-        "./scripts/deploy.sh status --target docker",
     )
     for token in required:
         assert token in text
 
     legacy_setup_mode_prod = "./scripts/" + "setup.sh --mode prod"
     forbidden = (
+        "./scripts/deploy.sh init --target docker",
+        "./scripts/deploy.sh preflight --target docker",
+        "./scripts/deploy.sh deploy --target docker",
+        "./scripts/deploy.sh status --target docker",
+        "./scripts/deploy.sh smoke --target docker",
+        "--backend-db-image",
         "scripts/prod/setup.sh --",
         "scripts/prod/deploy.sh --",
         "scripts/prod/upgrade.sh --",

@@ -725,10 +725,10 @@ class ReleaseParityAudit:
                 "type": "runtime",
             },
             {
-                "id": "deploy_cli_prod_docker",
+                "id": "install_cli_prod_docker",
                 "entrypoint": "scripts/deploy.sh",
                 "mode": "prod_docker",
-                "command": "./scripts/deploy.sh deploy --target docker --config /etc/riskhub/riskhub.env --secret-dir /etc/riskhub/secrets --version <version>",
+                "command": "./scripts/deploy.sh install --target docker --config /etc/riskhub/riskhub.env --secret-dir /etc/riskhub/secrets --version <version>",
                 "type": "runtime",
             },
             {
@@ -1292,20 +1292,19 @@ class ReleaseParityAudit:
 
         prod_deploy_cmd = (
             f"RISKHUB_RUNTIME_DIR={shlex.quote(str(deploy_runtime_dir))} "
-            "./scripts/deploy.sh deploy --target docker "
+            "./scripts/deploy.sh install --target docker "
             f"--config {shlex.quote(str(deploy_config))} "
             f"--secret-dir {shlex.quote(str(deploy_secret_dir))} "
             "--backend-image ghcr.io/example/riskhub-backend:release-parity "
-            "--backend-db-image ghcr.io/example/riskhub-backend-db:release-parity "
             "--frontend-image ghcr.io/example/riskhub-frontend:release-parity "
             "--redis-image ghcr.io/example/riskhub-redis:release-parity "
             "--dry-run --yes"
         )
-        self._run("path_deploy_cli_prod_docker_dryrun", prod_deploy_cmd, required=False, timeout_sec=1200)
+        self._run("path_install_cli_prod_docker_dryrun", prod_deploy_cmd, required=False, timeout_sec=1200)
         self.runtime_fingerprints.append(
             {
-                "startup_path_id": "deploy_cli_prod_docker",
-                "context_id": "deploy_cli_prod_docker_dryrun",
+                "startup_path_id": "install_cli_prod_docker",
+                "context_id": "install_cli_prod_docker_dryrun",
                 "captured_at_utc": self._iso(self._utc_now()),
                 "git_sha_expected": self.baseline.get("git_sha"),
                 "git_sha_observed": self.baseline.get("git_sha"),

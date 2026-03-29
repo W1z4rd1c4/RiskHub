@@ -8,8 +8,7 @@ source "${SCRIPT_DIR}/lib/common.sh"
 # shellcheck source=scripts/prod/lib/preflight.sh
 source "${SCRIPT_DIR}/lib/preflight.sh"
 
-backend_db_image=""
-backend_image_alias=""
+backend_image=""
 bootstrap_email=""
 bootstrap_role=""
 bootstrap_scope=""
@@ -19,14 +18,13 @@ cro_scope=""
 
 usage() {
   cat <<EOF
-Usage: scripts/prod/bootstrap_db.sh --backend-env PATH --backend-db-image IMAGE [options]
+Usage: scripts/prod/bootstrap_db.sh --backend-env PATH --backend-image IMAGE [options]
 
 Runs RBAC/departments seeding and bootstraps privileged SSO users by email.
 
 Options:
   --backend-env PATH         Path to backend.env
-  --backend-db-image IMAGE   Preferred backend DB image ref (e.g. riskhub-backend-db:1.0.0)
-  --backend-image IMAGE      Compatibility alias for --backend-db-image
+  --backend-image IMAGE      Preferred backend image ref (e.g. riskhub-backend:1.0.0)
   --email EMAIL              Override BOOTSTRAP_ADMIN_EMAIL
   --role ROLE                Override BOOTSTRAP_ADMIN_ROLE (admin|cro)
   --access-scope SCOPE       Override BOOTSTRAP_ADMIN_ACCESS_SCOPE (global|department|manager)
@@ -48,12 +46,8 @@ fi
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --backend-db-image)
-      backend_db_image="${2:-}"
-      shift 2
-      ;;
     --backend-image)
-      backend_image_alias="${2:-}"
+      backend_image="${2:-}"
       shift 2
       ;;
     --email)
@@ -100,15 +94,8 @@ if [[ "$DRY_RUN" != "true" ]]; then
   require_file "$(envfile_get "$BACKEND_ENV" "REDIS_URL_FILE")"
 fi
 
-if [[ -n "$backend_db_image" && -n "$backend_image_alias" && "$backend_db_image" != "$backend_image_alias" ]]; then
-  die "--backend-db-image and --backend-image must match when both are provided"
-fi
-if [[ -z "$backend_db_image" ]]; then
-  backend_db_image="$backend_image_alias"
-fi
-
-if [[ -z "$backend_db_image" ]]; then
-  die "Missing --backend-db-image"
+if [[ -z "$backend_image" ]]; then
+  die "Missing --backend-image"
 fi
 require_dir "$SECRET_DIR"
 require_dir "$RUNTIME_DIR"
@@ -157,7 +144,7 @@ docker_common_args=(
   -v "${SECRET_DIR}:${SECRET_DIR}:ro"
   -v "${RUNTIME_DIR}:${RUNTIME_DIR}:ro"
   --env-file "$BACKEND_ENV"
-  "$backend_db_image"
+  "$backend_image"
 )
 
 log "Seeding RBAC roles/permissions (canonical contract)..."

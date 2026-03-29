@@ -47,23 +47,20 @@ docker_preflight() {
 docker_require_release_images() {
   local version="$1"
   local backend_image_in="$2"
-  local backend_db_image_in="$3"
-  local frontend_image_in="$4"
-  local redis_image_in="$5"
+  local frontend_image_in="$3"
+  local redis_image_in="$4"
 
   if [[ -z "$version" ]]; then
-    if [[ -z "$backend_image_in" || -z "$backend_db_image_in" || -z "$frontend_image_in" || -z "$redis_image_in" ]]; then
-      die "Pass --version or all of --backend-image, --backend-db-image, --frontend-image, and --redis-image for docker install/upgrade."
+    if [[ -z "$backend_image_in" || -z "$frontend_image_in" || -z "$redis_image_in" ]]; then
+      die "Pass --version or all of --backend-image, --frontend-image, and --redis-image for docker install/upgrade."
     fi
     DOCKER_BACKEND_IMAGE="$backend_image_in"
-    DOCKER_BACKEND_DB_IMAGE="$backend_db_image_in"
     DOCKER_FRONTEND_IMAGE="$frontend_image_in"
     DOCKER_REDIS_IMAGE="$redis_image_in"
     return 0
   fi
 
   DOCKER_BACKEND_IMAGE="${backend_image_in:-$(resolve_default_image "backend" "$version")}"
-  DOCKER_BACKEND_DB_IMAGE="${backend_db_image_in:-$(resolve_default_image "backend-db" "$version")}"
   DOCKER_FRONTEND_IMAGE="${frontend_image_in:-$(resolve_default_image "frontend" "$version")}"
   DOCKER_REDIS_IMAGE="${redis_image_in:-$(resolve_default_image "redis" "$version")}"
 }
@@ -81,11 +78,10 @@ docker_deploy_or_upgrade() {
   local config_path="$2"
   local version="$3"
   local backend_image="$4"
-  local backend_db_image="$5"
-  local frontend_image="$6"
-  local redis_image="$7"
+  local frontend_image="$5"
+  local redis_image="$6"
 
-  docker_require_release_images "$version" "$backend_image" "$backend_db_image" "$frontend_image" "$redis_image"
+  docker_require_release_images "$version" "$backend_image" "$frontend_image" "$redis_image"
   docker_require_running
 
   local runtime_dir=""
@@ -135,8 +131,6 @@ docker_deploy_or_upgrade() {
 
     log "Pulling backend image: ${DOCKER_BACKEND_IMAGE}"
     run docker pull "$DOCKER_BACKEND_IMAGE"
-    log "Pulling backend DB image: ${DOCKER_BACKEND_DB_IMAGE}"
-    run docker pull "$DOCKER_BACKEND_DB_IMAGE"
     log "Pulling frontend image: ${DOCKER_FRONTEND_IMAGE}"
     run docker pull "$DOCKER_FRONTEND_IMAGE"
     log "Pulling redis image: ${DOCKER_REDIS_IMAGE}"
@@ -150,7 +144,7 @@ docker_deploy_or_upgrade() {
     local db_preflight_args=(
       --backend-env "$backend_env"
       --frontend-env "$frontend_env"
-      --backend-db-image "$DOCKER_BACKEND_DB_IMAGE"
+      --backend-image "$DOCKER_BACKEND_IMAGE"
       --check-db
     )
     if [[ "$action" == "upgrade" ]]; then
@@ -165,9 +159,9 @@ docker_deploy_or_upgrade() {
     run env RISKHUB_DEFAULT_SECRET_DIR="$SECRET_DIR" RISKHUB_RUNTIME_DIR="$RUNTIME_DIR" \
       "${REPO_ROOT}/scripts/prod/install_redis.sh" --backend-env "$backend_env" --redis-image "$DOCKER_REDIS_IMAGE" "${prod_common[@]}"
     run env RISKHUB_DEFAULT_SECRET_DIR="$SECRET_DIR" RISKHUB_RUNTIME_DIR="$RUNTIME_DIR" \
-      "${REPO_ROOT}/scripts/prod/run_migrations.sh" --backend-env "$backend_env" --backend-db-image "$DOCKER_BACKEND_DB_IMAGE" "${prod_common[@]}"
+      "${REPO_ROOT}/scripts/prod/run_migrations.sh" --backend-env "$backend_env" --backend-image "$DOCKER_BACKEND_IMAGE" "${prod_common[@]}"
     run env RISKHUB_DEFAULT_SECRET_DIR="$SECRET_DIR" RISKHUB_RUNTIME_DIR="$RUNTIME_DIR" \
-      "${REPO_ROOT}/scripts/prod/bootstrap_db.sh" --backend-env "$backend_env" --backend-db-image "$DOCKER_BACKEND_DB_IMAGE" "${prod_common[@]}"
+      "${REPO_ROOT}/scripts/prod/bootstrap_db.sh" --backend-env "$backend_env" --backend-image "$DOCKER_BACKEND_IMAGE" "${prod_common[@]}"
 
     local backend_install_args=(
       --backend-env "$backend_env"
