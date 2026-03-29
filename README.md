@@ -22,6 +22,12 @@ For active backend/frontend iteration:
 
 Docker is required for the recommended path. Local contributor mode requires the local toolchain described in [docs/development/README.md](./docs/development/README.md).
 
+For deterministic Docker-backed verification, current Postgres test-db guidance, and the current Docker browser-test caveats, use:
+
+- [docs/development/README.md](./docs/development/README.md)
+- [docs/TESTING.md](./docs/TESTING.md)
+- [docs/E2E_TESTING.md](./docs/E2E_TESTING.md)
+
 ## Production
 
 Production and operator lifecycle:

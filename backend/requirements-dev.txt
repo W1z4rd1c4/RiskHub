@@ -1,0 +1,17 @@
+-r requirements.txt
+
+# Backend testing
+pytest>=8.0.0
+pytest-asyncio>=0.23.0
+pytest-cov>=4.1.0
+pytest-timeout>=2.3.1
+fakeredis>=2.31.0
+testcontainers[redis]>=4.8.0
+
+# Security/tooling
+ruff==0.6.9
+bandit>=1.7.8
+pre-commit>=3.7.0
+
+# Data migration helpers
+openpyxl>=3.1.0

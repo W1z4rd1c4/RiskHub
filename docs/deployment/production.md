@@ -1,6 +1,6 @@
 # Production Quickstart
 
-> **Last Updated**: 2026-03-17
+> **Last Updated**: 2026-03-29
 > **Audience**: Production administrators
 
 ## Choose A Target
@@ -90,9 +90,12 @@ If you need explicit image refs instead of version-derived GHCR refs:
   --config /etc/riskhub/riskhub.env \
   --secret-dir /etc/riskhub/secrets \
   --backend-image ghcr.io/<owner>/riskhub-backend:v1.2.3 \
+  --backend-db-image ghcr.io/<owner>/riskhub-backend-db:v1.2.3 \
   --frontend-image ghcr.io/<owner>/riskhub-frontend:v1.2.3 \
   --redis-image ghcr.io/<owner>/riskhub-redis:v1.2.3
 ```
+
+Docker uses the runtime image for the API and scheduler containers, and the DB image for DB preflight, migrations, and bootstrap seeding.
 
 Linux target:
 
@@ -104,7 +107,7 @@ Linux target:
   --bundle ./riskhub-linux-v1.2.3.tar.gz
 ```
 
-Linux deployments install releases under `/opt/riskhub/releases/<version>`, switch `/opt/riskhub/current`, render systemd/nginx files, run migrations/bootstrap, and restart services.
+Linux deployments install releases under `/opt/riskhub/releases/<version>`, switch `/opt/riskhub/current`, render systemd/nginx files, run migrations/bootstrap, and restart services. The unpacked release keeps the long-running runtime lane under `backend/` and the DB/bootstrap lane under `backend_db/`.
 
 ## 5. Verify
 

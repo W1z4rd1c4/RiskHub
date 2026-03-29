@@ -14,8 +14,8 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+/lib/
+/lib64/
 parts/
 sdist/
 var/
@@ -116,20 +116,23 @@ backend/*.db
 *.zip
 
 # Temporary/Test artifacts
-*.json
-!frontend/src/i18n/locales/**/*.json
-!scripts/quality/backend-suppression-allowlist.json
 
 # Codex / agent local tooling (keep local-only; install via scripts/setup-dev.sh)
+# Do not ignore common source directory names or extensions generically here.
 .agent/
 .codex/
-*.txt
 frontend/test-results/
 frontend/playwright-report/
 frontend/.playwright-browsers/
 backend/logs/
 tests/results/
 scripts/runtime-artifacts/
+backend/bandit-report.json
+backend/pip-audit-report.json
+frontend/cleanup-audit/
+frontend/i18n-audit/
+frontend/quality-audit/
+frontend/ts-trace-*/
 
 # NotebookLM export files
 REPO.TXT

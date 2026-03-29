@@ -1,0 +1,6 @@
+# Pip-audit allowlist
+#
+# One vulnerability ID per line (e.g., GHSA-xxxx-xxxx-xxxx or CVE-YYYY-NNNN).
+# Lines starting with # and blank lines are ignored.
+#
+# Keep this file short, justified in PR review, and time-bound.
