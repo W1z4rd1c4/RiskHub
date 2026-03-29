@@ -3,7 +3,12 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useTranslation } from '@/i18n/hooks';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
-import { ActivityLogRouteGuard, GovernanceRouteGuard } from '@/authz/BusinessRouteGuards';
+import {
+  ActivityLogRouteGuard,
+  GovernanceRouteGuard,
+  UserLifecycleRouteGuard,
+  UsersRouteGuard,
+} from '@/authz/BusinessRouteGuards';
 import { useAuthz } from '@/authz/useAuthz';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { DashboardFilterProvider } from '@/contexts/DashboardFilterContext';
@@ -145,8 +150,16 @@ function App() {
                       <ActivityLogPage />
                     </ActivityLogRouteGuard>
                   } />
-                  <Route path="users" element={<UsersPage />} />
-                  <Route path="users/new" element={<UserNewPage />} />
+                  <Route path="users" element={
+                    <UsersRouteGuard>
+                      <UsersPage />
+                    </UsersRouteGuard>
+                  } />
+                  <Route path="users/new" element={
+                    <UserLifecycleRouteGuard>
+                      <UserNewPage />
+                    </UserLifecycleRouteGuard>
+                  } />
                   <Route path="governance" element={
                     <GovernanceRouteGuard>
                       <GovernancePage />

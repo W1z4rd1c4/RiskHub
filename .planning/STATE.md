@@ -83,6 +83,16 @@
   - `PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=backend pytest --override-ini addopts='-p no:langsmith_plugin -p no:cacheprovider' tests/backend/pytest/test_access_management.py -q` -> `14 passed`
   - `cd frontend && npm run test:run -- src/components/access/AccessEditModal.test.tsx src/pages/__tests__/UsersPage.modes.test.tsx src/pages/__tests__/UsersPage.sso-cta.test.tsx` -> `13 passed`
 
+### Open Issues Remediation and Regression Hardening - Phase 4 (2026-03-29)
+
+- Added route-level guards for `/users` and `/users/new` so denied sessions redirect before the page mounts or fetches onboarding/config data.
+- Removed the compatibility-sidebar dependency on `canViewUsersPage`; the navigation item now keys off `canViewUsersRoute`, which matches the route guard contract.
+- Hardened `/users` load failures so the page shows a retryable error state instead of a false empty-state table, and hid privileged summary cards outside access mode.
+- Tightened the `/users` create CTA contract again: password mode now exposes only `Add user`, while directory-first modes keep `Add from AD`.
+- Focused verification:
+  - `cd frontend && npm run test:run -- src/authz/__tests__/UserRouteGuards.test.tsx src/pages/__tests__/UsersPage.modes.test.tsx src/pages/__tests__/UsersPage.sso-cta.test.tsx src/components/layout/__tests__/SidebarPolling.test.tsx` -> `16 passed`
+  - `cd frontend && npx tsc --noEmit`
+
 ### Users Surface Contract Realignment - Phase 1 (2026-03-29)
 
 - Began branch `codex/users-surface-realignment` to split user-directory, picker, and lifecycle contracts without adding any new `/users/me` or `/me/*` user-management routes.
@@ -187,7 +197,7 @@
   - `ops.analyst@riskhub.local` (`Jana Horáková`) -> direct `/users` access redirected to `/`; this supersedes the earlier provisional Phase 2 note that the analyst demo account looked like a directory-mode user
   - current seeded demo matrix therefore has no canonical directory-only actor; directory mode remains a supported contract but requires explicit API/unit/browser coverage rather than manual demo-account verification until product intentionally seeds a non-access-view `users:read` role
 - Residual runtime observations discovered during Phase 5:
-  - each demo-login browser run emitted an initial `GET /api/v1/auth/refresh` `401` followed by a successful refresh, which produced visible console noise during login; this did not block the `/users` contract verification but remains an auth/bootstrap cleanup candidate outside this phase
+  - password-mode `/users` originally still rendered both `Add from AD` and `Add user`; the current branch now aligns the page with the intended auth-mode-specific CTA contract and keeps password mode on the direct `Add user` lifecycle path
 
 ### Docker Live Verification + Postgres Marker Reconciliation (2026-03-29)
 
@@ -207,16 +217,14 @@
   - `cd backend && TEST_DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_dev@localhost:5432/riskhub_test pytest -m postgres -v`
   - result: `5 passed, 767 deselected in 5.33s`
   - backend artifact root: `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/backend/coverage_html`
-- Docker-targeted browser automation is currently blocked by an origin assumption in the shared login helper:
+- Docker-targeted browser automation now clears the original login-helper blocker:
   - targeted business-logic rerun:
     - `cd frontend && FRONTEND_URL=http://localhost npx playwright test -c ../tests/frontend/e2e/playwright.config.ts ../tests/frontend/e2e/access-scope.spec.ts --project=chromium --grep "GLOBAL user can see all departments in department list"`
-    - failed with `page.waitForURL` timeout in `/Users/stefanlesnak/Antigravity/Risk App 2/tests/frontend/e2e/helpers/login.ts:37`
-    - observed navigation reached `http://localhost/`, but the helper still waited for `http://localhost:5173/...`
-    - failure artifact: `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/frontend/playwright/test-results/access-scope-Access-Scope--c406f-artments-in-department-list-chromium/test-failed-1.png`
+    - result: `1 passed`
   - targeted polish rerun:
     - `cd frontend && FRONTEND_URL=http://localhost POLISH_AUDIT_DEEP=1 npx playwright test -c ../tests/frontend/e2e/playwright.config.ts ../tests/frontend/e2e/polish-audit.spec.ts --project=chromium --grep "RISK_MANAGER / theme=riskhub / lang=en"`
-    - failed with the same `page.waitForURL` timeout in `/Users/stefanlesnak/Antigravity/Risk App 2/tests/frontend/e2e/helpers/login.ts:37`
-    - failure artifact: `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/frontend/playwright/test-results/polish-audit-Polish-Audit--a77a6-NAGER-theme-riskhub-lang-en-chromium/test-failed-1.png`
+    - result: `1 passed`
+  - the shared login helper is now origin-aware and works against both `http://localhost:5173` and `http://localhost/`
 - Manual live UI verification against the Docker-served app:
   - `RISK_MANAGER`, `theme=dark`, `lang=en`:
     - `/kris` → pass

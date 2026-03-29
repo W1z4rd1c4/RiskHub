@@ -172,7 +172,7 @@ Some environments allow privileged business users to review access users. Manual
 
 If you can manage users, use a “least privilege” process:
 
-- on `/users`, the create CTA is auth-mode dependent: **Add from AD** in directory-first auth modes, and in password mode the page exposes both **Add user** (manual create) and **Add from AD** (directory import)
+- on `/users`, the create CTA is auth-mode dependent: **Add from AD** in directory-first auth modes and **Add user** in password mode
 - create or import accounts only when onboarding is confirmed and your role is authorized for lifecycle actions
 - after a successful directory import, stay on `/users` and complete the onboarding fields in the edit modal instead of looking for a separate user detail page
 - assign the minimum role and permissions needed
@@ -182,6 +182,8 @@ If you can manage users, use a “least privilege” process:
 If you are not platform admin, do not expect admin lifecycle/detail endpoints to be available even if you can still review or edit access fields in `/users`.
 
 If you do not have edit rights, treat `/users` as a read surface and escalate changes to the platform admin team.
+
+If `/users` shows a retry banner instead of user rows, treat that as a load failure, not as proof that there are no matching users.
 
 ## Approvals and Notifications Behavior
 
