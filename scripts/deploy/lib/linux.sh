@@ -75,23 +75,14 @@ linux_install_venvs() {
   run_privileged_sh \
     "$pybin -m venv ${release_dir}/venv" \
     "$(printf '%q' "$pybin") -m venv $(printf '%q' "${release_dir}/venv")"
-  run_privileged_sh \
-    "$pybin -m venv ${release_dir}/db-venv" \
-    "$(printf '%q' "$pybin") -m venv $(printf '%q' "${release_dir}/db-venv")"
 
   local runtime_pip_bin="${release_dir}/venv/bin/pip"
-  local db_pip_bin="${release_dir}/db-venv/bin/pip"
-  local runtime_requirements_file="${release_dir}/backend/requirements-runtime.txt"
-  local db_requirements_file="${release_dir}/backend_db/requirements-db.txt"
+  local runtime_requirements_file="${release_dir}/backend/requirements-db.txt"
   local wheel_dir="${release_dir}/backend/wheels"
   run_privileged_sh \
     "${runtime_pip_bin} install --no-index --find-links ${wheel_dir} -r ${runtime_requirements_file}" \
     "$(printf '%q' "$runtime_pip_bin") install --no-index --find-links $(printf '%q' "$wheel_dir") -r $(printf '%q' "$runtime_requirements_file")"
-  run_privileged_sh \
-    "${db_pip_bin} install --no-index --find-links ${wheel_dir} -r ${db_requirements_file}" \
-    "$(printf '%q' "$db_pip_bin") install --no-index --find-links $(printf '%q' "$wheel_dir") -r $(printf '%q' "$db_requirements_file")"
   run_privileged chown -R "${LINUX_USER}:${LINUX_GROUP}" "${release_dir}/venv"
-  run_privileged chown -R "${LINUX_USER}:${LINUX_GROUP}" "${release_dir}/db-venv"
 }
 
 linux_render_runtime_files() {
@@ -151,10 +142,9 @@ EOF
 linux_run_db_tasks() {
   local release_dir="$1"
   local runtime_workdir="${release_dir}/backend"
-  local db_workdir="${release_dir}/backend_db"
-  local python_bin="${release_dir}/db-venv/bin/python"
-  local alembic_bin="${release_dir}/db-venv/bin/alembic"
-  local pythonpath="${release_dir}/backend:${release_dir}/backend_db"
+  local python_bin="${release_dir}/venv/bin/python"
+  local alembic_bin="${release_dir}/venv/bin/alembic"
+  local pythonpath="${release_dir}/backend"
 
   linux_run_release_command \
     "$runtime_workdir" \
@@ -162,23 +152,23 @@ linux_run_db_tasks() {
     "export PYTHONPATH=$(printf '%q' "$pythonpath"); $(printf '%q' "$alembic_bin") upgrade head"
 
   linux_run_release_command \
-    "$db_workdir" \
-    "cd ${db_workdir} && PYTHONPATH=${pythonpath} ${python_bin} -m scripts.seed_roles_permissions" \
+    "$runtime_workdir" \
+    "cd ${runtime_workdir} && PYTHONPATH=${pythonpath} ${python_bin} -m scripts.seed_roles_permissions" \
     "export PYTHONPATH=$(printf '%q' "$pythonpath"); $(printf '%q' "$python_bin") -m scripts.seed_roles_permissions"
 
   linux_run_release_command \
-    "$db_workdir" \
-    "cd ${db_workdir} && PYTHONPATH=${pythonpath} ${python_bin} -m scripts.seed_departments" \
+    "$runtime_workdir" \
+    "cd ${runtime_workdir} && PYTHONPATH=${pythonpath} ${python_bin} -m scripts.seed_departments" \
     "export PYTHONPATH=$(printf '%q' "$pythonpath"); $(printf '%q' "$python_bin") -m scripts.seed_departments"
 
   linux_run_release_command \
-    "$db_workdir" \
-    "cd ${db_workdir} && PYTHONPATH=${pythonpath} ${python_bin} -m scripts.bootstrap_sso_user --email <admin> --role admin --access-scope global" \
+    "$runtime_workdir" \
+    "cd ${runtime_workdir} && PYTHONPATH=${pythonpath} ${python_bin} -m scripts.bootstrap_sso_user --email <admin> --role admin --access-scope global" \
     "export PYTHONPATH=$(printf '%q' "$pythonpath"); $(printf '%q' "$python_bin") -m scripts.bootstrap_sso_user --email \"\$BOOTSTRAP_ADMIN_EMAIL\" --role admin --access-scope global"
 
   linux_run_release_command \
-    "$db_workdir" \
-    "cd ${db_workdir} && PYTHONPATH=${pythonpath} ${python_bin} -m scripts.bootstrap_sso_user --email <cro> --role cro --access-scope global" \
+    "$runtime_workdir" \
+    "cd ${runtime_workdir} && PYTHONPATH=${pythonpath} ${python_bin} -m scripts.bootstrap_sso_user --email <cro> --role cro --access-scope global" \
     "export PYTHONPATH=$(printf '%q' "$pythonpath"); $(printf '%q' "$python_bin") -m scripts.bootstrap_sso_user --email \"\$BOOTSTRAP_CRO_EMAIL\" --role cro --access-scope global"
 }
 

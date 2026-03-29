@@ -226,10 +226,10 @@ jobs:
           test -f "${release_dir}/manifest.json"
           test -d "${release_dir}/backend/app"
           test -d "${release_dir}/backend/alembic"
+          test -d "${release_dir}/backend/scripts"
           test -f "${release_dir}/backend/requirements-runtime.txt"
+          test -f "${release_dir}/backend/requirements-db.txt"
           test -d "${release_dir}/backend/wheels"
-          test -d "${release_dir}/backend_db/scripts"
-          test -f "${release_dir}/backend_db/requirements-db.txt"
           test -d "${release_dir}/frontend/dist"
           test -f "${release_dir}/deploy/lib/render.py"
           test -f "${release_dir}/deploy/templates/linux/nginx-site.conf.tmpl"
@@ -242,28 +242,25 @@ jobs:
           import sys
 
           release_dir = Path(sys.argv[1])
-          scripts_dir = release_dir / "backend_db" / "scripts"
+          scripts_dir = release_dir / "backend" / "scripts"
           expected = {"__init__.py", "bootstrap_sso_user.py", "seed_departments.py", "seed_roles_permissions.py"}
           actual = {path.name for path in scripts_dir.iterdir()}
           assert actual == expected, actual
-          assert not (release_dir / "backend" / "scripts").exists()
 
           hidden = sorted(str(path.relative_to(release_dir)) for path in release_dir.rglob(".*"))
           assert not hidden, hidden
           PY
 
           python3.13 -m venv "${release_dir}/venv"
-          "${release_dir}/venv/bin/pip" install --no-index --find-links "${release_dir}/backend/wheels" -r "${release_dir}/backend/requirements-runtime.txt"
-          python3.13 -m venv "${release_dir}/db-venv"
-          "${release_dir}/db-venv/bin/pip" install --no-index --find-links "${release_dir}/backend/wheels" -r "${release_dir}/backend_db/requirements-db.txt"
+          "${release_dir}/venv/bin/pip" install --no-index --find-links "${release_dir}/backend/wheels" -r "${release_dir}/backend/requirements-db.txt"
           (
             cd "${release_dir}/backend"
             "${release_dir}/venv/bin/python" -c "from pathlib import Path; from alembic.config import Config; assert Path('alembic').is_dir(); Config('alembic.ini')"
           )
           (
-            cd "${release_dir}/backend_db"
-            PYTHONPATH="${release_dir}/backend:${release_dir}/backend_db" \
-              "${release_dir}/db-venv/bin/python" -c "import scripts.seed_roles_permissions, scripts.seed_departments, scripts.bootstrap_sso_user"
+            cd "${release_dir}/backend"
+            PYTHONPATH="${release_dir}/backend" \
+              "${release_dir}/venv/bin/python" -c "import scripts.seed_roles_permissions, scripts.seed_departments, scripts.bootstrap_sso_user"
           )
 
       - name: Verify rendered nginx and systemd artifacts

@@ -136,14 +136,14 @@ def test_linux_bundle_builder_stages_only_bootstrap_scripts_and_prunes_dotfiles(
     text = _read(LINUX_BUNDLE_BUILDER)
 
     assert 'cp -R "${REPO_ROOT}/backend/scripts" "${BACKEND_STAGE}/scripts"' not in text
-    assert 'cp -R "${REPO_ROOT}/backend/scripts" "${BACKEND_DB_STAGE}/scripts"' not in text
     assert 'cp "${REPO_ROOT}/backend/requirements-runtime.txt" "${BACKEND_STAGE}/requirements-runtime.txt"' in text
+    assert 'cp "${REPO_ROOT}/backend/requirements-db.txt" "${BACKEND_STAGE}/requirements-db.txt"' in text
     assert 'python3 -m pip download' in text
     assert '-r "${REPO_ROOT}/backend/requirements-db.txt"' in text
     for script_name in EXPECTED_PROD_BOOTSTRAP_SCRIPTS:
-        assert f'cp "${{REPO_ROOT}}/backend/scripts/{script_name}" "${{BACKEND_DB_STAGE}}/scripts/{script_name}"' in text
+        assert f'cp "${{REPO_ROOT}}/backend/scripts/{script_name}" "${{BACKEND_STAGE}}/scripts/{script_name}"' in text
 
-    assert "../backend/requirements-runtime.txt" in text
+    assert "BACKEND_DB_STAGE" not in text
     assert 'find "${STAGE_ROOT}" -name ".DS_Store" -delete' in text
 
 
@@ -155,8 +155,10 @@ def test_prod_install_and_release_gates_assert_minimal_backend_artifact_contract
     assert "riskhub-backend-db" not in workflow_text
     assert "seed_roles_permissions.py" in makefile_text
     assert "bootstrap_sso_user.py" in makefile_text
-    assert "backend_db" in workflow_text
-    assert "db-venv" in workflow_text
+    assert "backend/scripts" in workflow_text
+    assert "backend/requirements-db.txt" in workflow_text
+    assert "backend_db" not in workflow_text
+    assert "db-venv" not in workflow_text
 
     for text in (makefile_text, workflow_text):
         assert "__init__.py" in text

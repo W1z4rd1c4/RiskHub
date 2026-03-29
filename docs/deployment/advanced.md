@@ -26,10 +26,10 @@ Internal implementation details:
   - one backend image for API/scheduler plus DB preflight, migrations, and bootstrap
 - Linux executor manages:
   - release unpack under `/opt/riskhub/releases/<version>`
-  - runtime `venv` plus DB-task `db-venv` creation from the bundled wheelhouse
+  - one release `venv` creation from the bundled wheelhouse
   - nginx render + validation
   - systemd unit render + install
-  - migrations, base seed, SSO bootstrap from `backend_db/`
+  - migrations, base seed, SSO bootstrap from `backend/`
 
 ## Release Artifacts
 
@@ -42,10 +42,9 @@ The release workflow publishes:
 
 Linux bundle contents:
 
-- `backend/` runtime lane with app source, Alembic files, and runtime requirements
-- `backend_db/` DB/bootstrap lane with the retained bootstrap scripts and DB requirements
+- `backend/` with app source, Alembic files, bootstrap scripts, and both runtime + DB requirements
 - shared offline Python wheelhouse
-- `venv` and `db-venv` are created at install time from that shared wheelhouse
+- one `venv` is created at install time from that shared wheelhouse
 - frontend `dist`
 - deploy templates
 - manifest with version metadata
@@ -69,4 +68,4 @@ Maintainer note:
 - `riskhub-scheduler.service` runs a separate singleton app instance on `127.0.0.1:8001`
 - `riskhub-redis.service` runs local Redis using the host secret file
 - the runtime service lane reads from `current/backend` with `current/venv`
-- DB lifecycle tasks run from `current/backend_db` with `current/db-venv`
+- DB lifecycle tasks run from `current/backend` with `current/venv`
