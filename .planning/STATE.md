@@ -157,6 +157,29 @@
   - `cd frontend && npm run test:run -- ../tests/frontend/unit/src/pages/__tests__/UserNewPage.sso.test.tsx ../tests/frontend/unit/src/pages/__tests__/UsersPage.sso-cta.test.tsx ../tests/frontend/unit/src/pages/__tests__/UsersPage.modes.test.tsx` -> `14 passed`
   - `cd frontend && npx tsc --noEmit`
 
+### Users Surface Contract Realignment - Phase 5 (2026-03-29)
+
+- Revalidated the full users-surface series on the actual `codex/users-surface-realignment` branch after rebuilding the Docker frontend/backend from that branch; discarded an earlier stale `main` runtime check on `localhost`.
+- Final branch-local regression:
+  - `cd frontend && npm run test:run` -> `77 passed (77 files), 259 passed (259 tests)`
+  - `cd frontend && npx tsc --noEmit`
+  - `PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=backend pytest --override-ini addopts='-p no:langsmith_plugin -p no:cacheprovider' tests/backend/pytest -q` -> `786 passed, 9 skipped`
+- Final active-surface grep gate:
+  - `rg -n 'UserDetailPage|/users/:id|user_detail|users/roles|listVisibleUsers' frontend backend tests docs`
+  - remaining active-code matches are intentional:
+    - `userApi.listVisibleUsers()` remains only in picker/search consumers (`frontend/src/hooks/useDepartmentDetail.ts`, `frontend/src/components/KRIForm.tsx`, `frontend/src/components/kri/KRIModal.tsx`)
+    - `/api/v1/users/roles` remains only in backend tests and the business-logic/backend endpoint docs that now describe it as an Admin-only lifecycle helper
+    - `UserDetailPage` references outside active code are historical/generated artifacts (`docs/reference/file_list.txt`, `frontend/i18n-audit/*`, `tests/results/*`)
+- Demo-account `/users` verification against the rebuilt branch runtime (`http://localhost`):
+  - `admin@riskhub.local` (`System Admin`) -> `/users` stayed in access-management mode, loaded `/api/v1/access/users`, showed `Check AD` + `Add from AD`, and exposed 18 row action buttons; opening access edit showed one email input, confirming admin identity editing stayed on `/users`
+  - `cro@riskhub.local` (`Anna Kowalski`) -> `/users` stayed in access-management mode, loaded `/api/v1/access/users`, showed 9 row edit actions only, and exposed zero email inputs in the access edit modal, confirming CRO access-only editing without lifecycle controls
+  - `risk.manager@riskhub.local` (`Petra Svobodová`) -> `/users` stayed in the global access-management view via `/api/v1/access/users` with zero row actions
+  - `ops.head@riskhub.local` (`Eva Králová`) -> `/users` stayed in department access mode via `/api/v1/access/users/my-department` with two visible rows and zero row actions
+  - `ops.analyst@riskhub.local` (`Jana Horáková`) -> direct `/users` access redirected to `/`; this supersedes the earlier provisional Phase 2 note that the analyst demo account looked like a directory-mode user
+- Residual runtime observations discovered during Phase 5:
+  - each demo-login browser run emitted an initial `GET /api/v1/auth/refresh` `401` followed by a successful refresh, which produced visible console noise during login; this did not block the `/users` contract verification but remains an auth/bootstrap cleanup candidate outside this phase
+  - the Docker backend container still reports `health: starting` because the current container healthcheck relies on `curl`, which is not present in the image
+
 ### Docker Live Verification + Postgres Marker Reconciliation (2026-03-29)
 
 - Attempted deterministic Docker reset:
