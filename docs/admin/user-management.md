@@ -33,6 +33,7 @@ Contract note:
 - `/users` no longer uses a standalone user detail route; identity and access edits stay on `/users` via the access edit modal
 - manual user lifecycle actions on `/users` are Admin-only
 - access-management role data now comes from `/access/roles`; legacy lifecycle role/detail endpoints remain Admin-only
+- directory-mode role filters now come from `/users/directory` facet metadata instead of a frontend hardcoded role list
 - mode precedence on `/users` is explicit: global access view, then department access view, then read-only directory view when `users:read` exists without access-management authority
 
 Most access incidents come from one of four causes:
