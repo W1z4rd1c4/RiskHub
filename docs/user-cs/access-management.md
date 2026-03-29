@@ -1,7 +1,7 @@
 ---
 title: Správa přístupů a adresář uživatelů
-version: "2.0"
-last_updated: "2026-03-05"
+version: "2.1"
+last_updated: "2026-03-29"
 audience: user
 source_of_truth: "frontend/src/pages/UsersPage.tsx + frontend/src/authz/policy.ts + backend access APIs"
 summary: "Jak používat /users v directory módu a access módu, chápat role a scope a bezpečně žádat/ověřovat změny oprávnění."
@@ -38,13 +38,19 @@ Tento manuál popisuje obě varianty a hlavně: jak správně *žádat a ověřo
 
 Hlavní route: `/users`
 
+Důležité rozdělení kontraktů:
+
+- directory mód stránky `/users` běží nad dedikovaným user-directory API
+- `/access/users*` zůstává kontraktem pro privileged access-management review a editace
+- `/users/lookup` zůstává obecným picker/search primitivem pro formuláře a filtry, není to kontrakt stránky `/users`
+
 ## Kde to najdete
 
 - položka **Uživatelé** → `/users`
 
 Pokud **Uživatelé** nevidíte:
 
-- účet pravděpodobně nemá `users:read` a nejste v privileged scope
+- účet pravděpodobně nemá ani directory entitlement (`users:read`), ani access-view entitlement
 - požádejte správce přístupů o potvrzení, zda máte mít alespoň directory přístup
 
 ## Role, scope a viditelnost
@@ -60,8 +66,15 @@ Přístup v RiskHubu stojí na třech vrstvách:
 `/users` se přepíná podle autorizace:
 
 - **Access mód** (privileged): vidíte uživatele včetně scope a capability detailů.
-  - typicky global-scope uživatelé a vedoucí oddělení
+  - global privileged uživatelé používají plný access-management pohled
+  - vedoucí oddělení používají department access pohled
 - **Directory mód** (standard): vyhledatelný seznam viditelných uživatelů bez kompletních permission detailů.
+
+Pořadí módů je důležité:
+
+1. access-management mód pro global privileged uživatele
+2. department access mód pro vedoucí oddělení
+3. directory mód pro uživatele s `users:read`, kteří nemají access-management pohled
 
 ### Platform admin je jiný svět
 
@@ -86,7 +99,7 @@ V access módu obvykle uvidíte:
 | Active status | Zda je účet aktivní | Deaktivace je governance akce; zachovejte audit trail. |
 | Permissions | Resource + action (např. `risks:read`, `vendors:write`) | Effective permissions mohou být jiné než očekávání; ověřujte. |
 
-V directory módu je důraz na identitu a dohledatelnost, ne na enforcement detail.
+V directory módu je důraz na identitu a dohledatelnost, ne na enforcement detail. Je záměrně oddělený od autentizovaného `/users/lookup` pickeru používaného v dalších formulářích a filtrech.
 
 ## Hlavní workflow
 
@@ -150,11 +163,11 @@ Pokud to nefunguje, reportujte:
 
 ### 5) Správa uživatelů (jen pokud na to máte mandát)
 
-Některá prostředí umožňují privilegovaným business uživatelům spravovat access.
+Některá prostředí umožňují privilegovaným business uživatelům review access. Manuální lifecycle akce jsou užší.
 
 Používejte „least privilege“ proces:
 
-- zakládejte účty jen při potvrzeném onboardingu
+- zakládejte nebo importujte účty jen při potvrzeném onboardingu a pouze pokud vaše role lifecycle akce skutečně smí dělat
 - přiřaďte minimum role a permissions
 - nastavte správné oddělení
 - ověřte, že dashboardy a listy odpovídají scope
@@ -222,12 +235,12 @@ Pokud potřebujete audit evidence:
 ### Čekal(a) jsem access mód, ale vidím jen directory
 
 - Pravděpodobně nemáte global scope ani přístup vedoucího oddělení.
-- Ověřte, zda máte mít `users:read` a zda je scope `global`.
+- Ověřte, zda máte mít `users:read` a zda máte mít také global nebo department access pohled.
 
 ### Vidím permissions, ale nejdou upravovat
 
 - View a edit jsou oddělené privilege.
-- V mnoha nastaveních může editovat jen CRO nebo platform admin.
+- V mnoha nastaveních jsou lifecycle akce jako direct create/import Admin-only i tehdy, když je read nebo access-review povrch širší.
 
 ### Uživatel stále nevidí modul i po změně
 

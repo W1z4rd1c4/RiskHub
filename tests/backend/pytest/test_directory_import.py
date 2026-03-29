@@ -192,3 +192,10 @@ async def test_directory_import_reactivates_user_for_auto_deprovision_reasons(
     assert refreshed_user.deprovision_reason is None
     assert refreshed_user.deprovisioned_at is None
     assert refreshed_user.directory_sync_status == "active"
+
+
+@pytest.mark.asyncio
+async def test_directory_import_requires_admin(client_cro: AsyncClient):
+    response = await client_cro.post("/api/v1/directory/users/oid-import-create/import", json={})
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Directory access requires Admin"

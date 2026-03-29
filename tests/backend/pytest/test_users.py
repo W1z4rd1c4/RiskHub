@@ -48,6 +48,27 @@ async def test_list_users(auth_client: AsyncClient, test_user: User):
 
 
 @pytest.mark.asyncio
+async def test_list_directory_users_for_global_directory_reader(
+    client_risk_manager: AsyncClient,
+    test_user_employee: User,
+):
+    response = await client_risk_manager.get("/api/v1/users/directory")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["skip"] == 0
+    assert payload["limit"] == 50
+    assert payload["total"] >= 1
+    assert any(item["email"] == test_user_employee.email for item in payload["items"])
+
+
+@pytest.mark.asyncio
+async def test_list_directory_users_requires_users_read(client_employee: AsyncClient):
+    response = await client_employee.get("/api/v1/users/directory")
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Insufficient permissions"
+
+
+@pytest.mark.asyncio
 async def test_get_user(auth_client: AsyncClient, test_user: User):
     """Test getting a single user."""
     response = await auth_client.get(f"/api/v1/users/{test_user.id}")
@@ -85,6 +106,24 @@ async def test_create_user_rejected_in_microsoft_sso_mode(auth_client_sso: Async
     )
     assert response.status_code == 403
     assert "directory/users/{oid}/import" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_create_user_requires_platform_admin(client_cro: AsyncClient, test_user: User):
+    response = await client_cro.post(
+        "/api/v1/users",
+        json={
+            "email": "new.user@example.com",
+            "name": "New User",
+            "password": "StrongPass123!",
+            "role_id": test_user.role_id,
+            "department_id": None,
+            "manager_id": None,
+            "is_active": True,
+        },
+    )
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Only Admin can manage user lifecycle"
 
 
 @pytest.mark.asyncio

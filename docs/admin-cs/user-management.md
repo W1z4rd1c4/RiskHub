@@ -1,7 +1,7 @@
 ---
 title: Runbook správy uživatelů a přístupů
-version: "2.1"
-last_updated: "2026-03-15"
+version: "2.2"
+last_updated: "2026-03-29"
 audience: admin
 source_of_truth: "frontend/src/pages/UsersPage.tsx + frontend/src/components/access/AccessEditModal.tsx + backend/app/api/v1/endpoints/access.py + backend/app/api/v1/endpoints/users/"
 summary: "Operator-safe runbook pro přidání uživatele, access změny, deaktivaci účtu a řešení běžných access incidentů."
@@ -24,6 +24,13 @@ Primární plochy:
 - `/users`
 - `/admin` -> **Sessions**
 - `/admin` -> **Audit logs**
+
+Poznámka ke kontraktu:
+
+- `/users` zůstává jedinou operátorskou route
+- access-management pohledy na této route běží nad `/access/users*`
+- `/users/lookup` je jen picker/search primitivum a není kontraktem operátorské stránky
+- manuální user lifecycle akce na `/users` jsou Admin-only
 
 Většina access incidentů má jednu ze čtyř příčin:
 
@@ -82,11 +89,11 @@ Bezpečnostní pravidla:
 4. Před prvním použitím potvrďte roli, oddělení a active status.
 5. Uložte a ověřte, že se uživatel objeví v `/users`.
 
-Pokud create akce chybí nebo jsou vypnuté, zastavte se a použijte [Rychlou referenci admin incidentů](./incident-quick-reference.md). Neimprovizujte alternativní create postupy.
+Pokud create akce chybí nebo jsou vypnuté, nejdřív potvrďte, že aktuální session opravdu běží jako platform `admin`. Create a import jsou least-privilege lifecycle akce a nemají se improvizovat z non-admin session. Pokud akce přítomné být mají a stále chybí, zastavte se a použijte [Rychlou referenci admin incidentů](./incident-quick-reference.md).
 
 ### Upravit profil
 
-1. Z `/users` otevřete detail uživatele.
+1. Z `/users` otevřete identity nebo access edit flow.
 2. Měňte vždy jen jednu kategorii:
    - identity fields
    - role nebo oddělení
@@ -102,7 +109,7 @@ Pokud create akce chybí nebo jsou vypnuté, zastavte se a použijte [Rychlou re
    - manager
    - scope
 3. Uložte.
-4. Po refreshi potvrďte hodnoty v řádku nebo detailu uživatele.
+4. Po refreshi potvrďte hodnoty v řádku nebo access panelu.
 
 Změna scope na `global` je významná eskalace. Před uložením si zapište důvod.
 
@@ -173,6 +180,7 @@ Co to obvykle znamená:
 
 - session ve skutečnosti neběží jako `admin`
 - mutation path failuje nebo vrací forbidden
+- session má directory nebo review viditelnost, ale ne lifecycle oprávnění
 
 Co dělat:
 

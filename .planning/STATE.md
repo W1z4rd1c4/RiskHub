@@ -74,6 +74,31 @@
 
 ## Session Context
 
+### Users Surface Contract Realignment - Phase 1 (2026-03-29)
+
+- Began branch `codex/users-surface-realignment` to split user-directory, picker, and lifecycle contracts without adding any new `/users/me` or `/me/*` user-management routes.
+- Backend contract changes in progress:
+  - extracted shared user-visibility filtering into `backend/app/api/v1/endpoints/users/_visibility.py`
+  - added `GET /api/v1/users/directory` as the explicit paginated directory contract for `/users` directory mode
+  - kept `GET /api/v1/users/lookup` as the authenticated picker/search primitive
+  - tightened manual lifecycle creation/import toward Admin-only defaults
+- Frontend contract changes in progress:
+  - added explicit users-route authz flags for directory, global access view, department access view, and aggregate route visibility
+  - added `frontend/src/services/userDirectoryApi.ts` and distinct directory response types
+  - kept `canViewUsersPage` as a temporary compatibility alias during migration
+- Phase-1 documentation reconciliation in progress:
+  - `docs/BUSINESS_LOGIC.md`
+  - `docs/user/access-management.md`
+  - `docs/user-cs/access-management.md`
+  - `docs/admin/user-management.md`
+  - `docs/admin-cs/user-management.md`
+  - `backend/app/api/v1/endpoints/users/README.md`
+- Pending phase gate at this checkpoint:
+  - completed: `PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=backend pytest --override-ini addopts='-p no:langsmith_plugin -p no:cacheprovider' tests/backend/pytest/test_users.py tests/backend/pytest/test_authz_list_policy.py tests/backend/pytest/test_access_management.py tests/backend/pytest/test_directory_import.py -q` -> `34 passed`
+  - completed: `cd frontend && npm run test:run -- ../tests/frontend/unit/src/pages/__tests__/rbac_gating.test.tsx ../tests/frontend/unit/src/components/layout/__tests__/SidebarPolling.test.tsx` -> `17 passed`
+  - completed: `cd frontend && npx tsc --noEmit`
+  - ready for Phase 1 commit/push
+
 ### Docker Live Verification + Postgres Marker Reconciliation (2026-03-29)
 
 - Attempted deterministic Docker reset:
