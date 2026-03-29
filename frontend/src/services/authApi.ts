@@ -4,6 +4,7 @@
 
 import { clearAccessToken, getAccessToken } from '@/services/accessTokenStore';
 import { AuthRequestError, fetchAuthResponse } from '@/services/authRequest';
+import { clearRefreshSessionHint } from '@/services/refreshSessionHint';
 
 const API_URL = '/api/v1/auth';
 
@@ -196,6 +197,7 @@ export const authApi = {
             });
         }
         clearAccessToken();
+        clearRefreshSessionHint();
     },
 
     async logout(): Promise<void> {
@@ -205,5 +207,6 @@ export const authApi = {
         }).catch(() => null);
 
         clearAccessToken();
+        clearRefreshSessionHint();
     },
 };

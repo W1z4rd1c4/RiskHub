@@ -53,4 +53,4 @@ Notes:
 - Playwright artifacts are written under `tests/results/frontend/playwright/`.
 - `polish-audit.spec.ts` currently covers `riskhub` and `light`.
 - `dark` theme still requires manual verification.
-- Current blocker (verified 2026-03-29): the shared demo-login helper in [`/Users/stefanlesnak/Antigravity/Risk App 2/tests/frontend/e2e/helpers/login.ts`](./helpers/login.ts) still waits for `http://localhost:5173/...`, so Docker-origin runs with `FRONTEND_URL=http://localhost` currently fail after successful redirect until that helper is updated.
+- Docker-origin runs should set `FRONTEND_URL=http://localhost`. The shared demo-login helper in [`/Users/stefanlesnak/Antigravity/Risk App 2/tests/frontend/e2e/helpers/login.ts`](./helpers/login.ts) now keys off post-login paths instead of a hardcoded `localhost:5173` origin, so the same helper works against both local Vite and Docker nginx surfaces.

@@ -30,6 +30,16 @@ def _extract_refresh_cookie(response) -> str | None:
     return token.value if token else None
 
 
+def _extract_refresh_hint_cookie(response) -> str | None:
+    cookie_header = response.headers.get("set-cookie")
+    if not cookie_header:
+        return None
+    parsed = SimpleCookie()
+    parsed.load(cookie_header)
+    hint = parsed.get("riskhub_refresh_hint")
+    return hint.value if hint else None
+
+
 @pytest_asyncio.fixture
 async def refresh_client(db_session: AsyncSession) -> AsyncClient:
     async def override_get_db():
@@ -82,6 +92,7 @@ async def test_refresh_endpoint_rotates_refresh_token(
     assert login.status_code == 200, login.text
     first_cookie = refresh_client.cookies.get("riskhub_refresh_token")
     assert first_cookie
+    assert refresh_client.cookies.get("riskhub_refresh_hint") == "1"
 
     refresh = await refresh_client.post("/api/v1/auth/refresh")
     assert refresh.status_code == 200, refresh.text
@@ -175,9 +186,26 @@ async def test_logout_clears_refresh_session(
 
     logout = await refresh_client.post("/api/v1/auth/logout")
     assert logout.status_code == 200
+    assert refresh_client.cookies.get("riskhub_refresh_hint") is None
 
     refresh = await refresh_client.post("/api/v1/auth/refresh")
     assert refresh.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_refresh_failure_clears_refresh_hint_cookie(
+    refresh_client: AsyncClient,
+):
+    refresh_client.cookies.set("riskhub_refresh_token", "invalid-token", path="/api/v1/auth")
+    refresh_client.cookies.set("riskhub_refresh_hint", "1", path="/")
+
+    refresh = await refresh_client.post("/api/v1/auth/refresh")
+
+    assert refresh.status_code == 401
+    assert any(
+        "riskhub_refresh_hint=" in header and "Max-Age=0" in header
+        for header in refresh.headers.get_list("set-cookie")
+    )
 
 
 @pytest.mark.asyncio
