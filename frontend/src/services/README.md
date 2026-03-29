@@ -21,6 +21,7 @@ Folder for `frontend/src/services` implementation assets.
 - `entraAuth.ts`
 - `executionApi.ts`
 - `issuesApi.ts`
+- `userDirectoryApi.ts`
 - `...`
 
 ## Notes

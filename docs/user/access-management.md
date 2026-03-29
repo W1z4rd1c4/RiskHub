@@ -1,7 +1,7 @@
 ---
 title: Access Management and the Users Directory
-version: "2.0"
-last_updated: "2026-03-05"
+version: "2.1"
+last_updated: "2026-03-29"
 audience: user
 source_of_truth: "frontend/src/pages/UsersPage.tsx + frontend/src/authz/policy.ts + backend access APIs"
 summary: "How to use /users in directory mode and access mode, understand roles and scopes, and request/verify permission changes safely."
@@ -38,13 +38,19 @@ This manual explains both, and more importantly: how to *request and verify* acc
 
 Primary route: `/users`
 
+Important contract split:
+
+- `/users` directory mode is backed by the dedicated user-directory API.
+- `/access/users*` remains the access-management contract for privileged reviews and edits.
+- `/users/lookup` stays a generic picker/search primitive for forms and filters. It is not the `/users` page contract.
+
 ## Where To Find It
 
 - Sidebar item **Users** → `/users`
 
 If you do not see **Users**:
 
-- your account likely lacks `users:read`, and you are not in a privileged scope
+- your account likely lacks both directory entitlement (`users:read`) and access-view entitlement
 - ask your access owner to validate whether you should have directory access
 
 ## Roles, Scope, and Visibility
@@ -60,8 +66,15 @@ RiskHub access is built on three layers:
 The `/users` page chooses a mode based on your authorization:
 
 - **Access mode** (privileged): you can see users with their scopes and capability details.
-  - common for global-scope users and department heads
+  - global privileged users use the full access-management view
+  - department heads use the department access view
 - **Directory mode** (standard): you can search a visible user list but you will not see full permission details.
+
+Mode precedence matters:
+
+1. access-management mode for global privileged users
+2. department access mode for department heads
+3. directory mode for users who have `users:read` but not an access-management view
 
 ### Platform admin is different
 
@@ -86,7 +99,7 @@ In access mode, you will typically see:
 | Active status | Whether the account is enabled | Disabling is a governance action; treat it as reversible but audited. |
 | Permissions | Resource + action (e.g., `risks:read`, `vendors:write`) | Effective permissions can differ from expected; always verify. |
 
-In directory mode, the UI focuses on identity and discoverability rather than enforcement details.
+In directory mode, the UI focuses on identity and discoverability rather than enforcement details. It is intentionally separate from the authenticated `/users/lookup` picker used by assignment/search widgets elsewhere in the product.
 
 ## Core Workflows
 
@@ -150,11 +163,11 @@ If verification fails, report:
 
 ### 5) Manage users (only if you have authority)
 
-Some environments allow privileged business users to manage access users.
+Some environments allow privileged business users to review access users. Manual lifecycle actions are narrower.
 
 If you can manage users, use a “least privilege” process:
 
-- create accounts only when onboarding is confirmed
+- create or import accounts only when onboarding is confirmed and your role is authorized for lifecycle actions
 - assign the minimum role and permissions needed
 - set the correct department
 - verify that dashboards and lists match the expected scope
@@ -222,12 +235,12 @@ If you need evidence for an audit:
 ### I expected access mode but I see only a directory
 
 - You likely do not have global scope or department-head access.
-- Confirm whether you should have `users:read` and whether your scope is `global`.
+- Confirm whether you should have `users:read` and whether you should also have a global or department access view.
 
 ### I can see permissions but can’t edit
 
 - Viewing access data and editing are separate privileges.
-- In many setups, only CRO or platform admins can edit access-user permissions.
+- In many setups, lifecycle actions such as direct create/import are Admin-only even when broader read or access-review surfaces are available.
 
 ### A user still can’t see a module after granting access
 
