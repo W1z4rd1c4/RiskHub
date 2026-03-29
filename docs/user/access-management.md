@@ -76,6 +76,8 @@ Mode precedence matters:
 2. department access mode for department heads
 3. directory mode for users who have `users:read` but not an access-management view
 
+If you do not match any of those modes, the route should redirect away instead of rendering a partial or misleading users screen.
+
 ### Platform admin is different
 
 Platform admins are intentionally separated:
@@ -99,7 +101,7 @@ In access mode, you will typically see:
 | Active status | Whether the account is enabled | Disabling is a governance action; treat it as reversible but audited. |
 | Permissions | Resource + action (e.g., `risks:read`, `vendors:write`) | Effective permissions can differ from expected; always verify. |
 
-In directory mode, the UI focuses on identity and discoverability rather than enforcement details. It is intentionally separate from the authenticated `/users/lookup` picker used by assignment/search widgets elsewhere in the product.
+In directory mode, the UI focuses on identity and discoverability rather than enforcement details. It is intentionally separate from the authenticated `/users/lookup` picker used by assignment/search widgets elsewhere in the product. Directory results are server-filtered and paginated; searching and role filtering are part of the `/users` page contract rather than a client-side lookup fallback.
 
 ## Core Workflows
 

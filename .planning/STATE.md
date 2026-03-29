@@ -99,6 +99,24 @@
   - completed: `cd frontend && npx tsc --noEmit`
   - ready for Phase 1 commit/push
 
+### Users Surface Contract Realignment - Phase 2 (2026-03-29)
+
+- Rebuilt `/users` around explicit mode selection:
+  - global privileged users -> `/access/users`
+  - department heads -> `/access/users/my-department`
+  - directory-entitled users without access-management authority -> `/users/directory`
+  - users with no `/users` entitlement -> redirect away from the route
+- Removed the old `/users` page fallback to `userApi.listVisibleUsers()` and replaced directory mode with the dedicated `userDirectoryApi` plus server-driven search/filtering and pagination.
+- Added focused frontend coverage for route modes and updated the existing `/users` CTA/authz suites:
+  - `cd frontend && npm run test:run -- ../tests/frontend/unit/src/pages/__tests__/UsersPage.modes.test.tsx ../tests/frontend/unit/src/pages/__tests__/UsersPage.sso-cta.test.tsx ../tests/frontend/unit/src/pages/__tests__/rbac_gating.test.tsx` -> `22 passed`
+  - `cd frontend && npx tsc --noEmit`
+- Dev/demo account verification against the live local stack (`http://localhost`) using headless Playwright:
+  - `admin@riskhub.local` (`System Admin`) -> `/users` loaded access-management mode; add-user CTA present
+  - `cro@riskhub.local` (`Anna Kowalski`) -> `/users` loaded access-management mode
+  - `risk.manager@riskhub.local` (`Petra Svobodová`) -> `/users` loaded global access-management mode without edit controls
+  - `ops.head@riskhub.local` (`Eva Králová`) -> `/users` loaded department access mode
+  - `ops.analyst@riskhub.local` (`Jana Horáková`) -> `/users` loaded a read-only directory-style view; this supersedes the earlier assumption that the demo matrix lacked a directory-mode account
+
 ### Docker Live Verification + Postgres Marker Reconciliation (2026-03-29)
 
 - Attempted deterministic Docker reset:

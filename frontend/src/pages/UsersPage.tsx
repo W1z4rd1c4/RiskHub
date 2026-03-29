@@ -12,31 +12,38 @@ import {
 import { accessApi } from '@/services/accessApi';
 import { adminApi } from '@/services/adminApi';
 import { userApi } from '@/services/userApi';
+import { userDirectoryApi } from '@/services/userDirectoryApi';
 import type { AuthMode } from '@/services/authApi';
 import { getAuthConfig } from '@/services/authConfig';
 import { isAuthUnavailableError } from '@/services/authRequest';
 import type { AccessUserRead } from '@/types/access';
 import type { DirectoryImportResponse } from '@/types/directory';
-import type { UserLookup } from '@/types/user';
+import type { UserDirectoryEntry } from '@/types/user';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useAuthz } from '@/authz/useAuthz';
-import { useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { AccessEditModal } from '@/components/access/AccessEditModal';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { useUsersPageFilters } from '@/hooks/useUsersPageFilters';
 import { UsersFilterBar } from '@/components/access/UsersFilterBar';
 import { UsersTable } from '@/components/access/UsersTable';
 import { ADUserPicker } from '@/components/users/ADUserPicker';
+import { Pagination } from '@/components/tables/Pagination';
+
+const DIRECTORY_PAGE_SIZE = 50;
+
+type UsersPageMode = 'access' | 'department-access' | 'directory' | 'forbidden';
 
 export function UsersPage() {
     const { t } = useTranslation('admin');
     const [users, setUsers] = useState<AccessUserRead[]>([]);
-    const [directoryUsers, setDirectoryUsers] = useState<UserLookup[]>([]);
+    const [directoryUsers, setDirectoryUsers] = useState<UserDirectoryEntry[]>([]);
+    const [directoryTotal, setDirectoryTotal] = useState(0);
+    const [directoryPage, setDirectoryPage] = useState(1);
     const [isLoading, setIsLoading] = useState(true);
     const [expandedUserId, setExpandedUserId] = useState<number | null>(null);
     const [editModalOpen, setEditModalOpen] = useState(false);
     const [selectedUser, setSelectedUser] = useState<AccessUserRead | null>(null);
-    const [isAccessMode, setIsAccessMode] = useState(false);
     const [isADPickerOpen, setIsADPickerOpen] = useState(false);
     const [directoryMessage, setDirectoryMessage] = useState<string | null>(null);
     const [isCheckingAllDirectory, setIsCheckingAllDirectory] = useState(false);
@@ -53,9 +60,15 @@ export function UsersPage() {
     const { canManageUsers, user: currentUser } = usePermissions();
     const authz = useAuthz();
     const navigate = useNavigate();
-
-    // Department heads get access view but scoped to their department
-    const isDepartmentHead = authz.isDepartmentHead;
+    const pageMode: UsersPageMode = authz.canViewAccessUsers
+        ? 'access'
+        : authz.canViewDepartmentAccessUsers
+            ? 'department-access'
+            : authz.canViewUserDirectory
+                ? 'directory'
+                : 'forbidden';
+    const isAccessMode = pageMode === 'access' || pageMode === 'department-access';
+    const isDirectoryMode = pageMode === 'directory';
 
     const filters = useUsersPageFilters({
         accessUsers: users,
@@ -65,35 +78,50 @@ export function UsersPage() {
     const fetchUsers = useCallback(async () => {
         try {
             setIsLoading(true);
-            if (authz.canManageAccess) {
-                // Privileged users get full access data
+            if (pageMode === 'access') {
                 const data = await accessApi.listAccessUsers();
                 setUsers(data);
-                setIsAccessMode(true);
-            } else if (isDepartmentHead) {
-                // Department heads get their department's access data
+                setDirectoryUsers([]);
+                setDirectoryTotal(0);
+            } else if (pageMode === 'department-access') {
                 const data = await accessApi.listDepartmentAccessUsers();
                 setUsers(data);
-                setIsAccessMode(true); // Enable access mode to show permissions
+                setDirectoryUsers([]);
+                setDirectoryTotal(0);
+            } else if (pageMode === 'directory') {
+                const data = await userDirectoryApi.listDirectoryUsers({
+                    q: filters.searchTerm || undefined,
+                    role_name: filters.roleFilter !== 'all' ? filters.roleFilter : undefined,
+                    skip: (directoryPage - 1) * DIRECTORY_PAGE_SIZE,
+                    limit: DIRECTORY_PAGE_SIZE,
+                });
+                setUsers([]);
+                setDirectoryUsers(data.items);
+                setDirectoryTotal(data.total);
             } else {
-                // Non-privileged get scoped user lookup (read-only directory view)
-                const data = await userApi.listVisibleUsers();
-                setDirectoryUsers(data);
-                setIsAccessMode(false);
+                setUsers([]);
+                setDirectoryUsers([]);
+                setDirectoryTotal(0);
             }
         } catch (error) {
             console.error('Failed to fetch users:', error);
         } finally {
             setIsLoading(false);
         }
-    }, [authz.canManageAccess, isDepartmentHead]);
+    }, [directoryPage, filters.roleFilter, filters.searchTerm, pageMode]);
 
     useEffect(() => {
         // Wait for user to be loaded before fetching
-        if (currentUser) {
+        if (currentUser && pageMode !== 'forbidden') {
             fetchUsers();
         }
-    }, [currentUser, fetchUsers]);
+    }, [currentUser, fetchUsers, pageMode]);
+
+    useEffect(() => {
+        if (isDirectoryMode) {
+            setDirectoryPage(1);
+        }
+    }, [filters.roleFilter, filters.searchTerm, isDirectoryMode]);
 
     useEffect(() => {
         let cancelled = false;
@@ -210,21 +238,26 @@ export function UsersPage() {
         }
     };
 
+    if (currentUser && pageMode === 'forbidden') {
+        return <Navigate to="/" replace />;
+    }
+
     // Compute display values
     const displayUsers = isAccessMode ? filters.filteredAccessUsers : [];
     const displayDirectoryUsers = !isAccessMode ? filters.filteredDirectoryUsers : [];
 
     // Stats
-    const totalCount = isAccessMode ? users.length : directoryUsers.length;
+    const totalCount = isAccessMode ? users.length : directoryTotal;
     const activeCount = isAccessMode
         ? users.filter(u => u.is_active).length
-        : directoryUsers.length; // Directory only shows active users
+        : directoryTotal; // Directory mode only requests active users today.
     const privilegedCount = isAccessMode
         ? users.filter(u => u.access_scope === 'global' && u.role.name !== 'admin').length
         : 0;
     const isAuthModeReady = authModeStatus === 'ready';
     const isDirectoryFirstMode = isAuthModeReady && authMode !== null && authMode !== 'password';
     const allowAuthModeActions = canManageUsers && isAuthModeReady;
+    const directoryTotalPages = Math.max(1, Math.ceil(directoryTotal / DIRECTORY_PAGE_SIZE));
 
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
@@ -345,7 +378,7 @@ export function UsersPage() {
                     hasPermFilters={filters.hasPermFilters}
                     resetPermissionFilters={filters.resetPermissionFilters}
                     filteredCount={filters.filteredAccessUsers.length}
-                    totalCount={users.length}
+                    totalCount={totalCount}
                 />
 
                 <UsersTable
@@ -363,6 +396,17 @@ export function UsersPage() {
                     checkingDirectoryUserId={checkingDirectoryUserId}
                     onCheckDirectory={handleCheckSingleDirectory}
                 />
+
+                {isDirectoryMode && directoryTotalPages > 1 && (
+                    <Pagination
+                        className="mt-6"
+                        currentPage={directoryPage}
+                        totalPages={directoryTotalPages}
+                        totalItems={directoryTotal}
+                        itemsPerPage={DIRECTORY_PAGE_SIZE}
+                        onPageChange={setDirectoryPage}
+                    />
+                )}
             </div>
 
             {/* Access Edit Modal */}

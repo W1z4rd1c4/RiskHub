@@ -31,6 +31,7 @@ Poznámka ke kontraktu:
 - access-management pohledy na této route běží nad `/access/users*`
 - `/users/lookup` je jen picker/search primitivum a není kontraktem operátorské stránky
 - manuální user lifecycle akce na `/users` jsou Admin-only
+- pořadí módů na `/users` je explicitní: nejdřív global access view, pak department access view a teprve potom read-only directory view pro uživatele s `users:read`, kteří nemají access-management oprávnění
 
 Většina access incidentů má jednu ze čtyř příčin:
 
@@ -78,6 +79,8 @@ Bezpečnostní pravidla:
 4. Obnovte stránku a ověřte nové hodnoty.
 5. Pokud se měnila role nebo scope, požádejte uživatele o re-auth.
 6. Potvrďte, že existuje audit trail.
+
+Pokud uživatel nemá mít žádný `/users` entitlement, očekávejte redirect pryč z route místo vykreslení částečného seznamu.
 
 ### Přidat uživatele
 
