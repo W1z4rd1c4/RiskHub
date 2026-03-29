@@ -18,6 +18,7 @@ BACKEND_DOCKERFILE = REPO_ROOT / "backend" / "Dockerfile"
 LINUX_BUNDLE_BUILDER = REPO_ROOT / "scripts" / "release" / "build_linux_bundle.sh"
 RELEASE_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "release.yml"
 MAKEFILE = REPO_ROOT / "scripts" / "Makefile"
+DEV_COMPOSE = REPO_ROOT / "docker-compose.yml"
 EXPECTED_PROD_BOOTSTRAP_SCRIPTS = (
     "__init__.py",
     "bootstrap_sso_user.py",
@@ -115,6 +116,18 @@ def test_backend_dockerfile_copies_only_bootstrap_scripts_and_uses_python_health
     assert "\n    curl\n" not in text
     assert "urllib.request" in text
     assert "http://localhost:8000/api/v1/health" in text
+
+
+def test_dev_compose_bootstrap_uses_dbtasks_target_and_backend_inherits_image_healthcheck() -> None:
+    text = _read(DEV_COMPOSE)
+
+    assert "bootstrap:" in text
+    assert "target: dbtasks" in text
+    assert 'command: ["sh", "-lc", "python -m alembic upgrade head && python -m app.db.seed"]' in text
+
+    backend_block = text.split("  backend:\n", 1)[1].split("  frontend:\n", 1)[0]
+    assert "healthcheck:" not in backend_block
+    assert 'test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]' not in backend_block
 
 
 def test_linux_bundle_builder_stages_only_bootstrap_scripts_and_prunes_dotfiles() -> None:

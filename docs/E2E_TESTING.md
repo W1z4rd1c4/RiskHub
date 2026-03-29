@@ -84,23 +84,11 @@ Preferred deterministic reset:
 ./scripts/compose.sh reset --dataset test
 ```
 
-Observed 2026-03-29:
+Current behavior:
 
-- The Docker bootstrap container currently fails that reset path during `alembic upgrade head` with `ModuleNotFoundError: No module named 'psycopg2'`.
-- Verified fallback when you still need a Docker-backed browser run:
-
-```bash
-cd backend
-DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_dev@localhost:5432/riskhub ./venv/bin/alembic upgrade head
-DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_dev@localhost:5432/riskhub ./venv/bin/python -m app.db.seed
-DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_dev@localhost:5432/riskhub ./venv/bin/python -m scripts.seed_e2e_all
-
-cd ..
-docker compose -f docker-compose.yml --profile full up -d --build backend frontend
-docker compose -f docker-compose.yml --profile full up -d --no-deps frontend
-```
-
-- The explicit `frontend` start is a current workaround for the backend container healthcheck: the image healthcheck uses `curl`, but the current backend image does not include it.
+- `./scripts/compose.sh reset --dataset test` now completes end to end on the Docker stack and is the preferred deterministic browser-verification path.
+- The Docker bootstrap service uses the backend `dbtasks` target, so migrations and seed commands run with the required Postgres client dependencies.
+- Docker Compose now inherits the backend image's Python healthcheck instead of overriding it with `curl`.
 
 Preflight:
 
