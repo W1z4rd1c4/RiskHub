@@ -1,7 +1,7 @@
 ---
 title: User and Access Governance Runbook
-version: "2.1"
-last_updated: "2026-03-15"
+version: "2.2"
+last_updated: "2026-03-29"
 audience: admin
 source_of_truth: "frontend/src/pages/UsersPage.tsx + frontend/src/components/access/AccessEditModal.tsx + backend/app/api/v1/endpoints/access.py + backend/app/api/v1/endpoints/users/"
 summary: "Operator-safe runbook for adding users, changing access, deactivating accounts, and troubleshooting common access incidents."
@@ -24,6 +24,13 @@ Primary surfaces:
 - `/users`
 - `/admin` -> **Sessions**
 - `/admin` -> **Audit logs**
+
+Contract note:
+
+- `/users` remains the single operator route
+- `/access/users*` backs the access-management views on that route
+- `/users/lookup` is picker/search only and not the operator page contract
+- manual user lifecycle actions on `/users` are Admin-only
 
 Most access incidents come from one of four causes:
 
@@ -80,11 +87,11 @@ Safety rules:
 4. Before first use, confirm role, department, and active status.
 5. Save and verify the user appears in `/users`.
 
-If creation actions are missing or disabled, stop and use [Admin Incident Quick Reference](./incident-quick-reference.md). Do not improvise alternate admin-side creation steps.
+If creation actions are missing or disabled, first confirm that the current session is operating as platform `admin`. Creation and import are least-privilege lifecycle actions and should not be improvised from non-admin sessions. If the actions should be present and still are not, stop and use [Admin Incident Quick Reference](./incident-quick-reference.md).
 
 ### Update profile
 
-1. Open the user detail page from `/users`.
+1. Open the identity or access edit flow from `/users`.
 2. Change one category at a time:
    - identity fields
    - role or department
@@ -100,7 +107,7 @@ If creation actions are missing or disabled, stop and use [Admin Incident Quick 
    - manager
    - scope
 3. Save.
-4. Refresh and confirm the values in the user row or detail page.
+4. Refresh and confirm the values in the user row or access panel.
 
 Changing scope to `global` is a significant expansion. Record the reason before saving.
 
@@ -169,6 +176,7 @@ What it usually means:
 
 - the session is not truly operating as `admin`
 - the mutation path is failing or forbidden
+- the session has directory or review visibility but not lifecycle authority
 
 What to do:
 

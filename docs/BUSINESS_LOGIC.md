@@ -281,7 +281,7 @@ Rules:
 | `kri:submit` | Submit KRI values | Reporting Owner, Risk Owner |
 | `approvals:read` | View approval queue | All |
 | `approvals:write` | Approve/reject requests | Privileged users only |
-| `users:read` | View user list | Admin, CRO |
+| `users:read` | View `/users` directory mode and user directory API | Admin, CRO, Risk Manager |
 | `users:write` | Create/edit users | Admin only |
 | `activity_log:read` | View activity log | CRO, Risk Manager, Compliance, Department Head |
 | `vendors:read` | View vendors (Vendor Risk Management) | Governance + business users (scoped) |
@@ -295,6 +295,12 @@ Rules:
 
 > [!NOTE]
 > Platform admins are console-only and are explicitly blocked from business Activity Log and Governance surfaces, including direct route/API access.
+
+> [!NOTE]
+> User discovery and user administration are separate contracts. `/api/v1/users/lookup` is the authenticated picker/search primitive used by forms and filters. `/api/v1/users/directory` is the explicit paginated collection for `/users` directory mode and requires `users:read`. `/api/v1/access/users*` remains the access-management contract for privileged and department-head access views.
+
+> [!NOTE]
+> Manual user lifecycle actions are least-privilege operations. Direct user creation (`POST /api/v1/users`) and directory import (`POST /api/v1/directory/users/{oid}/import`) are Admin-only lifecycle actions even when broader read or access-review surfaces are available to other privileged roles.
 
 > [!NOTE]
 > Vendor visibility and vendor-linked risk visibility are related but not identical. A user can have enough access to view a vendor while still lacking permission or scope to read linked risks. In that case the vendor remains visible, but risk-linked summaries and the frontend `By Risk` grouping must only expose readable risks; otherwise the UI must fall back to an unlinked/no-readable-risk bucket rather than leaking risk names.

@@ -431,6 +431,7 @@ async def test_role_risk_manager(db_session: AsyncSession) -> Role:
     perms = [
         Permission(resource="approvals", action="*", description="Manage approvals"),
         Permission(resource="risks", action="read", description="Read risks"),
+        Permission(resource="users", action="read", description="View user directory"),
     ]
     db_session.add_all(perms)
     await db_session.commit()
