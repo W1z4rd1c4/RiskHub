@@ -100,7 +100,7 @@ FRONTEND_URL=http://localhost POLISH_AUDIT_DEEP=1 npx playwright test -c ../test
 Current browser-lane caveats:
 
 - `polish-audit.spec.ts` automates `riskhub` and `light` themes; `dark` still requires manual verification.
-- The shared demo-login helper in [`tests/frontend/e2e/helpers/login.ts`](../tests/frontend/e2e/helpers/login.ts) still waits for `http://localhost:5173/...`, so Docker-targeted `FRONTEND_URL=http://localhost` browser packs currently fail until that helper becomes origin-aware.
+- Docker-targeted Playwright runs should set `FRONTEND_URL=http://localhost`; the shared demo-login helper is now origin-aware for both the local Vite app and the Docker nginx surface.
 
 ## Frontend Testing Notes
 
