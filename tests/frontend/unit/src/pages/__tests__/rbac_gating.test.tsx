@@ -152,6 +152,10 @@ describe('RBAC UI gating', () => {
         expect(adminAuthz.canViewGovernance).toBe(false);
         expect(adminAuthz.canViewRiskHub).toBe(false);
         expect(adminAuthz.canViewActivityLog).toBe(false);
+        expect(adminAuthz.canViewAccessUsers).toBe(true);
+        expect(adminAuthz.canViewDepartmentAccessUsers).toBe(false);
+        expect(adminAuthz.canViewUserDirectory).toBe(true);
+        expect(adminAuthz.canViewUsersRoute).toBe(true);
         expect(adminAuthz.canManageAccess).toBe(true);
         expect(adminAuthz.canEditAccessUsers).toBe(true);
         expect(adminAuthz.canReadRisks).toBe(true);
@@ -164,6 +168,8 @@ describe('RBAC UI gating', () => {
         const croAuthz = buildAuthz(cro, makeHasPermission(cro.effective_permissions));
         expect(croAuthz.canViewRiskHub).toBe(true);
         expect(croAuthz.canViewAdminConsole).toBe(false);
+        expect(croAuthz.canViewAccessUsers).toBe(true);
+        expect(croAuthz.canViewUsersRoute).toBe(true);
         expect(croAuthz.canEditAccessUsers).toBe(true);
         expect(croAuthz.canReadRisks).toBe(true);
 
@@ -175,6 +181,10 @@ describe('RBAC UI gating', () => {
         });
         const deptHeadAuthz = buildAuthz(deptHead, makeHasPermission(deptHead.effective_permissions));
         expect(deptHeadAuthz.canViewDepartmentAccess).toBe(true);
+        expect(deptHeadAuthz.canViewDepartmentAccessUsers).toBe(true);
+        expect(deptHeadAuthz.canViewAccessUsers).toBe(false);
+        expect(deptHeadAuthz.canViewUserDirectory).toBe(false);
+        expect(deptHeadAuthz.canViewUsersRoute).toBe(true);
         expect(deptHeadAuthz.canManageAccess).toBe(false);
         expect(deptHeadAuthz.canEditAccessUsers).toBe(false);
         expect(deptHeadAuthz.canViewUsersPage).toBe(true);
@@ -186,6 +196,9 @@ describe('RBAC UI gating', () => {
             effective_permissions: ['users:read'],
         });
         const employeeAuthz = buildAuthz(employee, makeHasPermission(employee.effective_permissions));
+        expect(employeeAuthz.canViewUserDirectory).toBe(true);
+        expect(employeeAuthz.canViewUsersRoute).toBe(true);
+        expect(employeeAuthz.canViewAccessUsers).toBe(false);
         expect(employeeAuthz.canViewUsersPage).toBe(true);
         expect(employeeAuthz.canViewDepartmentAccess).toBe(false);
         expect(employeeAuthz.canViewRiskHub).toBe(false);

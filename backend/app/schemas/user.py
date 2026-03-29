@@ -101,6 +101,29 @@ class UserLookup(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class UserDirectoryEntry(BaseModel):
+    """Directory entry for the `/users` page in directory mode."""
+
+    id: int
+    name: str
+    email: str
+    role_name: str | None = None
+    role_display_name: str | None = None
+    department_id: int | None = None
+    department_name: str | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class UserDirectoryListResponse(BaseModel):
+    """Paginated response for user-directory collection reads."""
+
+    items: list[UserDirectoryEntry]
+    total: int
+    skip: int
+    limit: int
+
+
 class UserShellSummary(BaseModel):
     """Aggregated counters for header/sidebar shell surfaces."""
     unread_notifications_count: int = 0

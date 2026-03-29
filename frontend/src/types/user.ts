@@ -49,7 +49,7 @@ export interface UserBrief {
 
 /**
  * User lookup entry from /users/lookup endpoint.
- * Used for read-only directory view by non-privileged users.
+ * Used for pickers, dropdowns, and scoped user search only.
  */
 export interface UserLookup {
     id: number;
@@ -59,6 +59,23 @@ export interface UserLookup {
     department_id?: number;
     department_name?: string;
     manager_id?: number;
+}
+
+export interface UserDirectoryEntry {
+    id: number;
+    name: string;
+    email: string;
+    role_name?: string;
+    role_display_name?: string;
+    department_id?: number;
+    department_name?: string;
+}
+
+export interface UserDirectoryListResponse {
+    items: UserDirectoryEntry[];
+    total: number;
+    skip: number;
+    limit: number;
 }
 
 export interface UserShellSummary {
