@@ -44,6 +44,7 @@ Important contract split:
 - `/access/users*` remains the access-management contract for privileged reviews and edits.
 - `/users/lookup` stays a generic picker/search primitive for forms and filters. It is not the `/users` page contract.
 - `/users` does not expose a standalone colleague detail page. Directory rows are informational, and privileged edits stay in the `/users` modal workflow.
+- Admin-only lifecycle/detail endpoints remain separate from access-management review. Role-selection data for the active UI comes from `/access/roles`, not from legacy `/users` lifecycle helpers.
 
 ## Where To Find It
 
@@ -175,6 +176,8 @@ If you can manage users, use a “least privilege” process:
 - assign the minimum role and permissions needed
 - set the correct department
 - verify that dashboards and lists match the expected scope
+
+If you are not platform admin, do not expect admin lifecycle/detail endpoints to be available even if you can still review or edit access fields in `/users`.
 
 If you do not have edit rights, treat `/users` as a read surface and escalate changes to the platform admin team.
 

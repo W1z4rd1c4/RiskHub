@@ -44,6 +44,7 @@ Důležité rozdělení kontraktů:
 - `/access/users*` zůstává kontraktem pro privileged access-management review a editace
 - `/users/lookup` zůstává obecným picker/search primitivem pro formuláře a filtry, není to kontrakt stránky `/users`
 - `/users` neposkytuje samostatnou colleague/detail route. Řádky v directory módu jsou informativní a privilegované editace zůstávají v modalu na `/users`
+- Admin-only lifecycle/detail endpointy zůstávají oddělené od access-management review. Data pro výběr rolí v aktivním UI přicházejí z `/access/roles`, ne ze starších lifecycle helper endpointů pod `/users`
 
 ## Kde to najdete
 
@@ -175,6 +176,8 @@ Používejte „least privilege“ proces:
 - přiřaďte minimum role a permissions
 - nastavte správné oddělení
 - ověřte, že dashboardy a listy odpovídají scope
+
+Pokud nejste platform admin, neočekávejte dostupnost admin lifecycle/detail endpointů, i když stále můžete v `/users` reviewovat nebo upravovat access pole.
 
 Pokud nemáte práva editovat, berte `/users` jako read povrch a eskalujte změny na platform admin tým.
 

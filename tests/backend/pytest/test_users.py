@@ -79,6 +79,26 @@ async def test_get_user(auth_client: AsyncClient, test_user: User):
 
 
 @pytest.mark.asyncio
+async def test_get_user_requires_platform_admin_for_other_users(
+    client_risk_manager: AsyncClient,
+    test_user_employee: User,
+):
+    response = await client_risk_manager.get(f"/api/v1/users/{test_user_employee.id}")
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Only Admin can manage user lifecycle"
+
+
+@pytest.mark.asyncio
+async def test_get_user_requires_platform_admin_even_for_self(
+    client_employee: AsyncClient,
+    test_user_employee: User,
+):
+    response = await client_employee.get(f"/api/v1/users/{test_user_employee.id}")
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Only Admin can manage user lifecycle"
+
+
+@pytest.mark.asyncio
 async def test_update_user_fields(auth_client: AsyncClient, test_user: User):
     """Test updating user fields (PATCH)."""
     update_data = {"name": "Updated Name"}
@@ -88,6 +108,16 @@ async def test_update_user_fields(auth_client: AsyncClient, test_user: User):
     assert data["name"] == "Updated Name"
     # Email should remain unchanged
     assert data["email"] == test_user.email
+
+
+@pytest.mark.asyncio
+async def test_update_user_requires_platform_admin(
+    client_cro: AsyncClient,
+    test_user_employee: User,
+):
+    response = await client_cro.patch(f"/api/v1/users/{test_user_employee.id}", json={"name": "Blocked"})
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Only Admin can manage user lifecycle"
 
 
 @pytest.mark.asyncio
@@ -207,15 +237,22 @@ async def test_update_user_email_conflict(auth_client: AsyncClient, test_user: U
 
 
 @pytest.mark.asyncio
-async def test_list_roles(auth_client: AsyncClient):
-    """Test listing roles."""
-    response = await auth_client.get("/api/v1/users/roles")
+async def test_list_roles(client_platform_admin: AsyncClient):
+    """Test listing roles for admin-only lifecycle flows."""
+    response = await client_platform_admin.get("/api/v1/users/roles")
     assert response.status_code == 200
     data = response.json()
     assert isinstance(data, list)
     assert len(data) >= 1  # At least 'admin' from test_user fixture
     role_names = [r["name"] for r in data]
     assert "admin" in role_names
+
+
+@pytest.mark.asyncio
+async def test_list_roles_requires_platform_admin(client_cro: AsyncClient):
+    response = await client_cro.get("/api/v1/users/roles")
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Only Admin can manage user lifecycle"
 
 
 @pytest.mark.asyncio

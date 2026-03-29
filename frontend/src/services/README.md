@@ -27,3 +27,6 @@ Folder for `frontend/src/services` implementation assets.
 ## Notes
 
 Keep this README updated when responsibilities or structure in this folder change.
+
+- `userApi.ts` handles user lifecycle/detail helpers that remain Admin-only.
+- `accessApi.ts` owns the active access-management role list contract (`/access/roles`) used by `/users` and user-onboarding flows.
