@@ -1,7 +1,7 @@
 ---
 title: User and Access Governance Runbook
-version: "2.1"
-last_updated: "2026-03-15"
+version: "2.3"
+last_updated: "2026-03-29"
 audience: admin
 source_of_truth: "frontend/src/pages/UsersPage.tsx + frontend/src/components/access/AccessEditModal.tsx + backend/app/api/v1/endpoints/access.py + backend/app/api/v1/endpoints/users/"
 summary: "Operator-safe runbook for adding users, changing access, deactivating accounts, and troubleshooting common access incidents."
@@ -24,6 +24,17 @@ Primary surfaces:
 - `/users`
 - `/admin` -> **Sessions**
 - `/admin` -> **Audit logs**
+
+Contract note:
+
+- `/users` remains the single operator route
+- `/access/users*` backs the access-management views on that route
+- `/users/lookup` is picker/search only and not the operator page contract
+- `/users` no longer uses a standalone user detail route; identity and access edits stay on `/users` via the access edit modal
+- manual user lifecycle actions on `/users` are Admin-only
+- access-management role data now comes from `/access/roles`; legacy lifecycle role/detail endpoints remain Admin-only
+- directory-mode role filters now come from `/users/directory` facet metadata instead of a frontend hardcoded role list
+- mode precedence on `/users` is explicit: global access view, then department access view, then read-only directory view when `users:read` exists without access-management authority
 
 Most access incidents come from one of four causes:
 
@@ -70,26 +81,35 @@ Safety rules:
 5. Ask the user to re-authenticate if role or scope changed.
 6. Confirm the audit trail exists.
 
+If a user should not have any `/users` entitlement, expect the route to redirect away rather than render a partial list.
+
+`/users/new` now follows the same route-level rule. Sessions without lifecycle authority should be redirected before the page loads onboarding data.
+
 ### Add a user
 
 1. Open `/users`.
-2. Select **Add user**.
+2. Select the auth-mode-specific CTA shown on `/users`:
+   - **Add from AD** in directory-first auth modes (`microsoft_sso`, `hybrid_dev`)
+   - **Add user** in password mode
 3. Use the creation flow currently available in the UI:
    - import or external-identity flow
    - direct-entry flow
-4. Before first use, confirm role, department, and active status.
-5. Save and verify the user appears in `/users`.
+4. If you imported the user from directory, RiskHub returns to `/users` and opens the access edit modal so you can finish onboarding without leaving the route.
+5. Before first use, confirm role, department, active status, and any required identity corrections.
+6. Save and verify the user appears in `/users`.
 
-If creation actions are missing or disabled, stop and use [Admin Incident Quick Reference](./incident-quick-reference.md). Do not improvise alternate admin-side creation steps.
+If creation actions are missing or disabled, first confirm that the current session is operating as platform `admin`. Creation and import are least-privilege lifecycle actions and should not be improvised from non-admin sessions. If the actions should be present and still are not, stop and use [Admin Incident Quick Reference](./incident-quick-reference.md).
 
 ### Update profile
 
-1. Open the user detail page from `/users`.
+1. Open the access edit modal from `/users`.
 2. Change one category at a time:
    - identity fields
    - role or department
-3. Save.
+3. Save once. `/users` now sends one transactional `PATCH /api/v1/access/users/{id}` for the modal, so either the whole edit applies or the whole save is rejected.
 4. Refresh and confirm the updated values are visible.
+
+Identity fields are an Admin-only lifecycle action. CRO or other privileged reviewers should stay in the access-management scope of the modal and should not expect separate lifecycle/detail endpoints. If an identity validation fails, treat the save as unapplied and fix the validation issue before retrying.
 
 ### Edit access
 
@@ -99,8 +119,8 @@ If creation actions are missing or disabled, stop and use [Admin Incident Quick 
    - department
    - manager
    - scope
-3. Save.
-4. Refresh and confirm the values in the user row or detail page.
+3. Save once.
+4. Refresh and confirm the values in the user row or access panel.
 
 Changing scope to `global` is a significant expansion. Record the reason before saving.
 
@@ -169,6 +189,7 @@ What it usually means:
 
 - the session is not truly operating as `admin`
 - the mutation path is failing or forbidden
+- the session has directory or review visibility but not lifecycle authority
 
 What to do:
 
@@ -180,13 +201,30 @@ What to do:
 
 What it usually means:
 
-- the page loaded the user list, but the creation path is in a safe degraded state
+- the page loaded the user list, but the auth-mode-specific creation path is in a safe degraded state
+- the visible CTA depends on auth mode:
+  - `Add from AD` in directory-first modes
+  - `Add User` in password mode
 
 What to do:
 
-1. Open `/admin` and confirm the Health state.
-2. Refresh `/users` once.
-3. If creation actions are still disabled after a healthy refresh, escalate as an admin-surface or auth/config incident.
+1. Confirm which auth mode is active so you know whether the expected CTA is **Add from AD** or **Add user**.
+2. Open `/admin` and confirm the Health state.
+3. Refresh `/users` once.
+4. If the expected creation action is still disabled after a healthy refresh, escalate as an admin-surface or auth/config incident.
+
+### “`/users` shows no results, but it might actually be broken”
+
+What it usually means:
+
+- the `/users` fetch failed before the table could load
+- the page is showing a retryable error state instead of pretending the result set is empty
+
+What to do:
+
+1. Read the error banner before treating the page as empty.
+2. Use **Retry** once.
+3. If the same load failure returns, capture the route, time, and request failure and escalate instead of assuming there are no matching users.
 
 ## Escalation and Handoff
 

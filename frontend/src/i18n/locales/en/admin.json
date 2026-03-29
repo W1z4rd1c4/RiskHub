@@ -746,29 +746,5 @@
     "role_access": "Role & Access",
     "platform_role": "Platform Role",
     "active_immediately": "This user is active and can log in immediately"
-  },
-  "user_detail": {
-    "user_not_found": "User not found.",
-    "return_to_list": "Return to list",
-    "back_to_users": "Back to Users",
-    "deactivated": "Deactivated",
-    "joined": "Joined",
-    "edit_profile": "Edit Profile",
-    "view_profile": "View Profile",
-    "view_only_access": "You have view-only access to user profiles",
-    "profile_updated": "Profile updated successfully!",
-    "security": "Security",
-    "deactivate_account": "Deactivate account",
-    "deactivate_help": "Temporarily block this user from accessing the platform.",
-    "deactivate_account_action": "Deactivate Account",
-    "reactivate_account_action": "Reactivate Account",
-    "organization": "Organization",
-    "reports_to": "Reports To",
-    "no_direct_manager": "No Direct Manager",
-    "last_update": "Last Update",
-    "platform_permissions": "Platform Permissions",
-    "permissions_inherited": "Permissions are inherited from the user's role.",
-    "full_access_granted": "Full System Access Granted",
-    "scoped_permissions": "Scoped permissions apply based on department assignment."
   }
 }

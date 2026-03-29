@@ -21,8 +21,14 @@ Folder for `frontend/src/services` implementation assets.
 - `entraAuth.ts`
 - `executionApi.ts`
 - `issuesApi.ts`
+- `userDirectoryApi.ts`
 - `...`
 
 ## Notes
 
 Keep this README updated when responsibilities or structure in this folder change.
+
+- `userApi.ts` handles user lifecycle/detail helpers that remain Admin-only.
+- `accessApi.ts` owns the active access-management role list contract (`/access/roles`) used by `/users` and user-onboarding flows.
+- `userDirectoryApi.ts` owns the dedicated `/users/directory` collection contract for `/users` directory mode; it is distinct from `directoryApi.ts`, which covers external directory/Entra-style integration flows.
+- `/users/directory` responses include backend-provided `available_roles` facet metadata so the `/users` directory role filter stays server-driven instead of hardcoding role vocabulary in the frontend.

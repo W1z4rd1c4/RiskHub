@@ -5,6 +5,10 @@ import { clearAuthConfigCache, getAuthConfig } from '@/services/authConfig';
 import { AUTH_REQUEST_TIMEOUT_MS } from '@/services/authRequest';
 import { authApi } from '@/services/authApi';
 import { __resetAuthSessionCoordinatorForTests, bootstrapAuthSession, clearBootstrapSession } from '@/services/authSessionCoordinator';
+import {
+    __setRefreshSessionHintForTests,
+    clearRefreshSessionHint,
+} from '@/services/refreshSessionHint';
 import { __resetSsoSessionForTests, silentReauthAndExchange } from '@/services/ssoSession';
 
 vi.mock('@/services/entraAuth', () => ({
@@ -27,6 +31,7 @@ describe('auth timeout and retry flow', () => {
         clearAccessToken();
         clearAuthConfigCache();
         clearBootstrapSession();
+        clearRefreshSessionHint();
         __resetAuthSessionCoordinatorForTests();
         __resetSsoSessionForTests();
     });
@@ -37,6 +42,7 @@ describe('auth timeout and retry flow', () => {
         clearAccessToken();
         clearAuthConfigCache();
         clearBootstrapSession();
+        clearRefreshSessionHint();
         __resetAuthSessionCoordinatorForTests();
         __resetSsoSessionForTests();
     });
@@ -178,7 +184,68 @@ describe('auth timeout and retry flow', () => {
         expect(meCalls).toBe(2);
     });
 
+    it('does not probe refresh during anonymous bootstrap when no session hint exists', async () => {
+        const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(() => {
+            throw new Error('bootstrap should not fetch auth endpoints without a token or session hint');
+        });
+
+        await expect(bootstrapAuthSession()).resolves.toEqual({ token: null, user: null });
+        expect(fetchSpy).not.toHaveBeenCalled();
+    });
+
+    it('restores a hinted refresh session during bootstrap reload', async () => {
+        __setRefreshSessionHintForTests();
+
+        vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+            const url = String(input);
+            if (url.endsWith('/api/v1/auth/refresh')) {
+                return Promise.resolve(new Response(JSON.stringify({
+                    access_token: 'refreshed-token',
+                    token_type: 'bearer',
+                    user: {
+                        id: 1,
+                        email: 'admin@riskhub.local',
+                        name: 'System Admin',
+                        role: 'administrator',
+                        role_display_name: 'Administrator',
+                        permissions: [],
+                        effective_permissions: [],
+                        access_scope: 'global',
+                        scope_label: 'Global',
+                    },
+                }), {
+                    status: 200,
+                    headers: { 'Content-Type': 'application/json' },
+                }));
+            }
+            if (url.endsWith('/api/v1/auth/me')) {
+                return Promise.resolve(new Response(JSON.stringify({
+                    id: 1,
+                    email: 'admin@riskhub.local',
+                    name: 'System Admin',
+                    role: 'administrator',
+                    role_display_name: 'Administrator',
+                    permissions: [],
+                    effective_permissions: [],
+                    access_scope: 'global',
+                    scope_label: 'Global',
+                }), {
+                    status: 200,
+                    headers: { 'Content-Type': 'application/json' },
+                }));
+            }
+            throw new Error(`Unexpected fetch call: ${url}`);
+        });
+
+        await expect(bootstrapAuthSession()).resolves.toMatchObject({
+            token: 'refreshed-token',
+            user: { email: 'admin@riskhub.local' },
+        });
+    });
+
     it('times out refresh requests and clears refresh dedupe state for retry', async () => {
+        __setRefreshSessionHintForTests();
+
         let refreshCalls = 0;
         vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
             const url = String(input);
@@ -216,6 +283,49 @@ describe('auth timeout and retry flow', () => {
 
         await expect(silentReauthAndExchange()).resolves.toBe('refreshed-token');
         expect(refreshCalls).toBe(2);
+    });
+
+    it('clears the session hint after a failed refresh and skips subsequent anonymous probes', async () => {
+        __setRefreshSessionHintForTests();
+
+        let refreshCalls = 0;
+        vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+            const url = String(input);
+            if (url.endsWith('/api/v1/auth/refresh')) {
+                refreshCalls += 1;
+                return Promise.resolve(new Response(JSON.stringify({ detail: 'Authentication required' }), {
+                    status: 401,
+                    headers: { 'Content-Type': 'application/json' },
+                }));
+            }
+            if (url.endsWith('/api/v1/auth/config')) {
+                return Promise.resolve(new Response(JSON.stringify({
+                    auth_mode: 'hybrid_dev',
+                    demo_login_enabled: true,
+                    password_login_enabled: true,
+                    sso: {
+                        enabled: false,
+                        provider: 'entra',
+                        scopes: ['openid', 'profile', 'email'],
+                    },
+                    sso_error: null,
+                }), {
+                    status: 200,
+                    headers: { 'Content-Type': 'application/json' },
+                }));
+            }
+            if (!url.endsWith('/api/v1/auth/refresh') && !url.endsWith('/api/v1/auth/config')) {
+                throw new Error(`Unexpected fetch call: ${url}`);
+            }
+            throw new Error(`Unexpected fetch call: ${url}`);
+        });
+
+        await expect(silentReauthAndExchange()).resolves.toBeNull();
+        expect(refreshCalls).toBe(1);
+        expect(document.cookie).not.toContain('riskhub_refresh_hint=1');
+
+        await expect(bootstrapAuthSession()).resolves.toEqual({ token: null, user: null });
+        expect(refreshCalls).toBe(1);
     });
 
     it('times out raw auth API calls instead of waiting indefinitely', async () => {

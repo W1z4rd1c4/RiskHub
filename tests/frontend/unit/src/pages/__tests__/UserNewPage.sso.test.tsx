@@ -38,8 +38,13 @@ vi.mock('@/services/authConfig', () => ({
 
 vi.mock('@/services/userApi', () => ({
     userApi: {
-        listRoles: vi.fn().mockResolvedValue([]),
         createUser: vi.fn(),
+    },
+}));
+
+vi.mock('@/services/accessApi', () => ({
+    accessApi: {
+        listAccessRoles: vi.fn().mockResolvedValue([]),
     },
 }));
 
@@ -64,12 +69,12 @@ vi.mock('@/components/users/DirectoryUserImportPanel', () => ({
         onImported,
         onProviderUnavailableChange,
     }: {
-        onImported: (result: { user_id: number }) => void;
+        onImported: (result: { user_id: number; name: string }) => void;
         onProviderUnavailableChange?: (isUnavailable: boolean) => void;
     }) => (
         <div>
             <div>Directory import panel</div>
-            <button type="button" onClick={() => onImported({ user_id: 42 })}>
+            <button type="button" onClick={() => onImported({ user_id: 42, name: 'Imported User' })}>
                 Import user
             </button>
             <button type="button" onClick={() => onProviderUnavailableChange?.(true)}>
@@ -170,7 +175,7 @@ describe('UserNewPage SSO mode', () => {
         });
     });
 
-    it('navigates to imported user detail after successful directory import', async () => {
+    it('returns to /users with import context after successful directory import', async () => {
         mockGetAuthConfig.mockResolvedValue(makeAuthConfig({ auth_mode: 'microsoft_sso' }));
 
         render(<UserNewPage />);
@@ -178,7 +183,12 @@ describe('UserNewPage SSO mode', () => {
         fireEvent.click(await screen.findByRole('button', { name: 'Import user' }));
 
         await waitFor(() => {
-            expect(mockNavigate).toHaveBeenCalledWith('/users/42');
+            expect(mockNavigate).toHaveBeenCalledWith('/users', {
+                state: {
+                    importedUserId: 42,
+                    importedUserName: 'Imported User',
+                },
+            });
         });
     });
 

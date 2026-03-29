@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import JSONResponse
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -25,6 +26,15 @@ from ._shared import _build_token_response, _issue_refresh_session
 router = APIRouter()
 
 
+def _refresh_unauthorized_response(detail: str, settings: Settings) -> JSONResponse:
+    response = JSONResponse(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        content={"detail": detail},
+    )
+    clear_refresh_cookie(response, settings)
+    return response
+
+
 @router.post("/refresh", response_model=TokenResponse)
 async def refresh_session(
     request: Request,
@@ -35,15 +45,13 @@ async def refresh_session(
     raw_token = get_refresh_cookie(request, settings)
     payload = token_decode_or_none(raw_token, settings)
     if not payload:
-        clear_refresh_cookie(response, settings)
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
+        return _refresh_unauthorized_response("Invalid refresh token", settings)
 
     user_id = payload.get("user_id")
     jti = payload.get("jti")
     token_version = payload.get("token_version")
     if not isinstance(user_id, int) or not isinstance(jti, str) or not isinstance(token_version, int):
-        clear_refresh_cookie(response, settings)
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
+        return _refresh_unauthorized_response("Invalid refresh token", settings)
 
     refresh_row = (
         await db.execute(
@@ -53,8 +61,7 @@ async def refresh_session(
         )
     ).scalar_one_or_none()
     if refresh_row is None or refresh_row.revoked_at is not None:
-        clear_refresh_cookie(response, settings)
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh session not found")
+        return _refresh_unauthorized_response("Refresh session not found", settings)
 
     now = utc_now()
     expires_at = coerce_utc(refresh_row.expires_at)
@@ -67,8 +74,7 @@ async def refresh_session(
         )
         if int(revoke_result.rowcount or 0) > 0:
             await db.commit()
-        clear_refresh_cookie(response, settings)
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token expired")
+        return _refresh_unauthorized_response("Refresh token expired", settings)
 
     permission_load = selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
     user = (
@@ -79,8 +85,7 @@ async def refresh_session(
         )
     ).scalar_one_or_none()
     if user is None or not user.is_active:
-        clear_refresh_cookie(response, settings)
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
+        return _refresh_unauthorized_response("Unauthorized", settings)
 
     if token_version != user.token_version or refresh_row.token_version != user.token_version:
         revoke_result = await db.execute(
@@ -91,8 +96,7 @@ async def refresh_session(
         )
         if int(revoke_result.rowcount or 0) > 0:
             await db.commit()
-        clear_refresh_cookie(response, settings)
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session revoked")
+        return _refresh_unauthorized_response("Session revoked", settings)
 
     child_jti = new_token_jti()
     child_refresh_token, child_expires_at = create_refresh_token(
@@ -115,8 +119,7 @@ async def refresh_session(
         )
     )
     if int(rotate_result.rowcount or 0) != 1:
-        clear_refresh_cookie(response, settings)
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh session not found")
+        return _refresh_unauthorized_response("Refresh session not found", settings)
 
     await _issue_refresh_session(
         db=db,

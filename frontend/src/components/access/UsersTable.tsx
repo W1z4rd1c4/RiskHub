@@ -14,7 +14,7 @@ import {
     Server
 } from 'lucide-react';
 import type { AccessUserRead } from '@/types/access';
-import type { UserLookup } from '@/types/user';
+import type { UserDirectoryEntry } from '@/types/user';
 import { cn } from '@/lib/utils';
 import { PermissionChips, PermissionMatrix } from '@/components/access/PermissionMatrix';
 
@@ -30,7 +30,7 @@ interface UsersTableProps {
     isAccessMode: boolean;
     isLoading: boolean;
     accessUsers: AccessUserRead[];
-    directoryUsers: UserLookup[];
+    directoryUsers: UserDirectoryEntry[];
     expandedUserId: number | null;
     onToggleExpand: (userId: number) => void;
     canEditAccess: boolean;
@@ -351,7 +351,7 @@ export function UsersTable({
                                     <div className="space-y-1">
                                         <p className="text-sm text-white flex items-center gap-1.5">
                                             <Shield className="h-3.5 w-3.5 text-purple-400" />
-                                            {user.role_name || 'Unknown'}
+                                            {user.role_display_name || user.role_name || t('common:fallbacks.unknown')}
                                         </p>
                                         <p className="text-xs text-slate-500 flex items-center gap-1.5">
                                             <Building2 className="h-3.5 w-3.5 text-slate-500" />
