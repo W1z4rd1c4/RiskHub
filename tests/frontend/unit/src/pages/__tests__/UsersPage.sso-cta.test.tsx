@@ -24,6 +24,9 @@ vi.mock('@/hooks/usePermissions', () => ({
 
 vi.mock('@/authz/useAuthz', () => ({
     useAuthz: () => ({
+        canViewAccessUsers: true,
+        canViewDepartmentAccessUsers: false,
+        canViewUserDirectory: true,
         canManageAccess: true,
         canEditAccessUsers: true,
         isDepartmentHead: false,
