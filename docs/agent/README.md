@@ -21,4 +21,4 @@ Canonical topic docs:
 - [`SKILLS_RESOLUTION.md`](./SKILLS_RESOLUTION.md) - skill resolution paths and usage rules
 
 Verification date:
-- 2026-03-07
+- 2026-03-29

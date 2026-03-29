@@ -1,6 +1,6 @@
 # Deployment Advanced Notes
 
-> **Last Updated**: 2026-03-06
+> **Last Updated**: 2026-03-29
 > **Audience**: Maintainers / release engineering
 
 ## Internal Script Mapping
@@ -21,28 +21,30 @@ Internal implementation details:
   - `status.sh`
   - `logs.sh`
   - `verify_runtime.sh`
+  - runtime image for API/scheduler plus DB image for preflight, migrations, and bootstrap
 - Linux executor manages:
   - release unpack under `/opt/riskhub/releases/<version>`
-  - virtualenv creation from the bundled wheelhouse
+  - runtime `venv` plus DB-task `db-venv` creation from the bundled wheelhouse
   - nginx render + validation
   - systemd unit render + install
-  - migrations, base seed, SSO bootstrap
+  - migrations, base seed, SSO bootstrap from `backend_db/`
 
 ## Release Artifacts
 
 The release workflow publishes:
 
 - `ghcr.io/<owner>/riskhub-backend:<version>`
+- `ghcr.io/<owner>/riskhub-backend-db:<version>`
 - `ghcr.io/<owner>/riskhub-frontend:<version>`
 - `ghcr.io/<owner>/riskhub-redis:<version>`
 - `riskhub-linux-<version>.tar.gz`
 
 Linux bundle contents:
 
-- backend app source
-- Alembic files
-- backend operational scripts
-- offline Python wheelhouse
+- `backend/` runtime lane with app source, Alembic files, and runtime requirements
+- `backend_db/` DB/bootstrap lane with the retained bootstrap scripts and DB requirements
+- shared offline Python wheelhouse
+- `venv` and `db-venv` are created at install time from that shared wheelhouse
 - frontend `dist`
 - deploy templates
 - manifest with version metadata
@@ -55,9 +57,15 @@ scripts/release/build_linux_bundle.sh --version v1.2.3
 
 The builder is Linux-only so the bundled wheelhouse matches the Linux deployment target.
 
+Maintainer note:
+
+- rendered `metadata.env` is intentionally shell-sourced by deploy helpers and must remain safe to `source`, including when paths contain spaces
+
 ## Linux Runtime Topology
 
 - nginx serves the SPA and proxies `/api` to `127.0.0.1:8000`
 - `riskhub-backend.service` runs the API on `127.0.0.1:8000`
 - `riskhub-scheduler.service` runs a separate singleton app instance on `127.0.0.1:8001`
 - `riskhub-redis.service` runs local Redis using the host secret file
+- the runtime service lane reads from `current/backend` with `current/venv`
+- DB lifecycle tasks run from `current/backend_db` with `current/db-venv`
