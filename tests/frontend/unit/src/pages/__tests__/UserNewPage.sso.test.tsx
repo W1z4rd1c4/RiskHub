@@ -38,8 +38,13 @@ vi.mock('@/services/authConfig', () => ({
 
 vi.mock('@/services/userApi', () => ({
     userApi: {
-        listRoles: vi.fn().mockResolvedValue([]),
         createUser: vi.fn(),
+    },
+}));
+
+vi.mock('@/services/accessApi', () => ({
+    accessApi: {
+        listAccessRoles: vi.fn().mockResolvedValue([]),
     },
 }));
 
