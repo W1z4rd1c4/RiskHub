@@ -1,4 +1,4 @@
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -24,6 +24,11 @@ vi.mock('@/hooks/useDepartmentDetail', () => ({
 }));
 
 import { DepartmentDetailPage } from '@/pages/DepartmentDetailPage';
+
+function LocationProbe() {
+    const location = useLocation();
+    return <div data-testid="location">{location.pathname}</div>;
+}
 
 describe('DepartmentDetailPage KRI monitoring integration', () => {
     beforeEach(() => {
@@ -134,5 +139,68 @@ describe('DepartmentDetailPage KRI monitoring integration', () => {
 
         expect(screen.getByRole('button', { name: 'department_detail.tabs.kris:5' })).toBeInTheDocument();
         expect(screen.queryByText('Department Archived Warning KRI')).not.toBeInTheDocument();
+    });
+
+    it('keeps department user rows informational instead of navigating away from the department page', async () => {
+        useDepartmentDetailMock.mockImplementation(() => ({
+            department: {
+                id: 7,
+                name: 'Compliance',
+                code: 'CMP',
+                description: 'Monitoring department',
+                created_at: '2026-03-01T00:00:00Z',
+                updated_at: '2026-03-07T00:00:00Z',
+                user_count: 1,
+                risk_count: 0,
+                control_count: 0,
+                kri_count: 0,
+                kri_monitoring_counts: {
+                    new: 0,
+                    not_submitted: 0,
+                    breach: 0,
+                    warning: 0,
+                    optimal: 0,
+                },
+                risk_distribution: { low: 0, medium: 0, high: 0, critical: 0 },
+                risk_by_status: {},
+                control_stats: { total: 0, active: 0, inactive: 0, by_form: {}, by_frequency: {} },
+                recent_executions: [],
+            },
+            isLoading: false,
+            error: null,
+            risks: [],
+            controls: [],
+            kris: [],
+            users: [
+                {
+                    id: 9,
+                    name: 'Ops Analyst',
+                    email: 'ops.analyst@riskhub.test',
+                    role_name: 'employee',
+                    department_id: 7,
+                },
+            ],
+            riskTotalPages: 1,
+            controlTotalPages: 1,
+            kriTotalPages: 1,
+            userTotalPages: 1,
+            getRiskCount: () => 0,
+            refresh: vi.fn(),
+        }));
+
+        render(
+            <MemoryRouter initialEntries={['/departments/7']}>
+                <Routes>
+                    <Route path="/departments/:id" element={<DepartmentDetailPage />} />
+                </Routes>
+                <LocationProbe />
+            </MemoryRouter>
+        );
+
+        const ui = userEvent.setup();
+        await ui.click(screen.getByRole('button', { name: 'department_detail.tabs.users:1' }));
+        await ui.click(screen.getByText('Ops Analyst'));
+
+        expect(screen.getByTestId('location')).toHaveTextContent('/departments/7');
     });
 });

@@ -66,7 +66,7 @@ describe('Sidebar badge polling', () => {
 
         mockUseAuthz.mockReturnValue({
             isPlatformAdmin: false,
-            canViewUsersPage: false,
+            canViewUsersRoute: false,
             canViewRiskHub: false,
             canViewAdminConsole: false,
         });
@@ -94,7 +94,7 @@ describe('Sidebar badge polling', () => {
     it('does not poll any badge endpoints for admin console users', async () => {
         mockUseAuthz.mockReturnValue({
             isPlatformAdmin: true,
-            canViewUsersPage: true,
+            canViewUsersRoute: true,
             canViewRiskHub: false,
             canViewAdminConsole: true,
         });
@@ -127,7 +127,7 @@ describe('Sidebar badge polling', () => {
         });
         mockUseAuthz.mockReturnValue({
             isPlatformAdmin: false,
-            canViewUsersPage: false,
+            canViewUsersRoute: false,
             canViewRiskHub: false,
             canViewAdminConsole: false,
             canViewGovernance: false,

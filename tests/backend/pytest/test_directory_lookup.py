@@ -120,8 +120,15 @@ async def test_directory_get_user_returns_details(directory_admin_client: AsyncC
 
 
 @pytest.mark.asyncio
-async def test_directory_endpoints_require_admin_or_cro(
+async def test_directory_endpoints_require_admin(
     directory_employee_client: AsyncClient,
 ):
     response = await directory_employee_client.get("/api/v1/directory/users/search?q=x")
     assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_directory_search_requires_admin_for_cro(client_cro: AsyncClient):
+    response = await client_cro.get("/api/v1/directory/users/search?q=x")
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Directory access requires Admin"

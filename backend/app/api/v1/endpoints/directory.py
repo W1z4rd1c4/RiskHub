@@ -33,10 +33,10 @@ from .auth._shared import _resolve_safe_default_role
 router = APIRouter(prefix="/directory")
 
 
-def _require_directory_admin_or_cro(current_user: User = Depends(deps.get_current_user)) -> User:
+def _require_directory_admin(current_user: User = Depends(deps.get_current_user)) -> User:
     role_name = getattr(getattr(current_user, "role", None), "name", None)
-    if role_name not in {RoleType.ADMIN, RoleType.CRO}:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Directory access requires Admin or CRO")
+    if role_name != RoleType.ADMIN:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Directory access requires Admin")
     return current_user
 
 
@@ -101,7 +101,7 @@ async def search_directory_users(
     q: str = Query(..., min_length=1, max_length=200),
     limit: int = Query(25, ge=1, le=100),
     skip: int = Query(0, ge=0),
-    current_user: User = Depends(_require_directory_admin_or_cro),
+    current_user: User = Depends(_require_directory_admin),
     settings: Settings = Depends(get_settings),
 ) -> list[DirectoryUserRead]:
     del current_user  # explicit auth gate only
@@ -117,7 +117,7 @@ async def search_directory_users(
 @router.get("/users/{oid}", response_model=DirectoryUserRead)
 async def get_directory_user(
     oid: str,
-    current_user: User = Depends(_require_directory_admin_or_cro),
+    current_user: User = Depends(_require_directory_admin),
     settings: Settings = Depends(get_settings),
 ) -> DirectoryUserRead:
     del current_user
@@ -137,7 +137,7 @@ async def import_directory_user(
     oid: str,
     payload: DirectoryImportRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(_require_directory_admin_or_cro),
+    current_user: User = Depends(_require_directory_admin),
     settings: Settings = Depends(get_settings),
 ) -> DirectoryImportResponse:
     provider = _provider_or_503(settings)

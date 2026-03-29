@@ -9,7 +9,7 @@ from app.core.config import Settings, get_settings
 from app.core.security import verify_password
 from app.db.session import get_db
 from app.main import app
-from app.models import User
+from app.models import Department, Role, User
 
 
 @pytest_asyncio.fixture
@@ -48,6 +48,122 @@ async def test_list_users(auth_client: AsyncClient, test_user: User):
 
 
 @pytest.mark.asyncio
+async def test_list_directory_users_for_global_directory_reader(
+    client_risk_manager: AsyncClient,
+    test_user_employee: User,
+):
+    response = await client_risk_manager.get("/api/v1/users/directory")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["skip"] == 0
+    assert payload["limit"] == 50
+    assert payload["total"] >= 1
+    assert any(role["name"] == "employee" for role in payload["available_roles"])
+    assert any(item["email"] == test_user_employee.email for item in payload["items"])
+
+
+@pytest.mark.asyncio
+async def test_list_directory_users_requires_users_read(client_employee: AsyncClient):
+    response = await client_employee.get("/api/v1/users/directory")
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Insufficient permissions"
+
+
+@pytest.mark.asyncio
+async def test_directory_reader_gets_scope_filtered_directory_with_role_facets(
+    client_directory_reader: AsyncClient,
+    db_session: AsyncSession,
+    test_department,
+    test_user_directory_reader: User,
+):
+    viewer_role = Role(name="viewer", display_name="Viewer", description="Read-only viewer")
+    db_session.add(viewer_role)
+    await db_session.commit()
+    await db_session.refresh(viewer_role)
+
+    visible_user = User(
+        email="visible.viewer@example.com",
+        hashed_password="hash",
+        name="Visible Viewer",
+        role_id=viewer_role.id,
+        department_id=test_department.id,
+        is_active=True,
+        access_scope=test_user_directory_reader.access_scope,
+    )
+    hidden_department = Department(name="Hidden Directory Dept", code="DIR-HIDDEN", description="Hidden dept")
+    db_session.add(hidden_department)
+    await db_session.commit()
+    await db_session.refresh(hidden_department)
+
+    hidden_user = User(
+        email="hidden.viewer@example.com",
+        hashed_password="hash",
+        name="Hidden Viewer",
+        role_id=viewer_role.id,
+        department_id=hidden_department.id,
+        is_active=True,
+        access_scope=test_user_directory_reader.access_scope,
+    )
+    db_session.add_all([visible_user, hidden_user])
+    await db_session.commit()
+
+    response = await client_directory_reader.get("/api/v1/users/directory")
+
+    assert response.status_code == 200
+    payload = response.json()
+    emails = {item["email"] for item in payload["items"]}
+    role_names = {role["name"] for role in payload["available_roles"]}
+
+    assert "visible.viewer@example.com" in emails
+    assert "hidden.viewer@example.com" not in emails
+    assert "directory_reader" in role_names
+    assert "viewer" in role_names
+
+
+@pytest.mark.asyncio
+async def test_directory_role_filter_keeps_alternative_role_facets(
+    client_directory_reader: AsyncClient,
+    db_session: AsyncSession,
+    test_department,
+):
+    employee_role = Role(name="employee", display_name="Employee", description="Employee")
+    viewer_role = Role(name="viewer", display_name="Viewer", description="Viewer")
+    db_session.add_all([employee_role, viewer_role])
+    await db_session.commit()
+    await db_session.refresh(employee_role)
+    await db_session.refresh(viewer_role)
+
+    db_session.add_all(
+        [
+            User(
+                email="facet.employee@example.com",
+                hashed_password="hash",
+                name="Facet Employee",
+                role_id=employee_role.id,
+                department_id=test_department.id,
+                is_active=True,
+            ),
+            User(
+                email="facet.viewer@example.com",
+                hashed_password="hash",
+                name="Facet Viewer",
+                role_id=viewer_role.id,
+                department_id=test_department.id,
+                is_active=True,
+            ),
+        ]
+    )
+    await db_session.commit()
+
+    response = await client_directory_reader.get("/api/v1/users/directory?role_name=viewer")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert {item["email"] for item in payload["items"]} == {"facet.viewer@example.com"}
+    assert {role["name"] for role in payload["available_roles"]} >= {"employee", "viewer"}
+
+
+@pytest.mark.asyncio
 async def test_get_user(auth_client: AsyncClient, test_user: User):
     """Test getting a single user."""
     response = await auth_client.get(f"/api/v1/users/{test_user.id}")
@@ -55,6 +171,26 @@ async def test_get_user(auth_client: AsyncClient, test_user: User):
     data = response.json()
     assert data["email"] == test_user.email
     assert data["id"] == test_user.id
+
+
+@pytest.mark.asyncio
+async def test_get_user_requires_platform_admin_for_other_users(
+    client_risk_manager: AsyncClient,
+    test_user_employee: User,
+):
+    response = await client_risk_manager.get(f"/api/v1/users/{test_user_employee.id}")
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Only Admin can manage user lifecycle"
+
+
+@pytest.mark.asyncio
+async def test_get_user_requires_platform_admin_even_for_self(
+    client_employee: AsyncClient,
+    test_user_employee: User,
+):
+    response = await client_employee.get(f"/api/v1/users/{test_user_employee.id}")
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Only Admin can manage user lifecycle"
 
 
 @pytest.mark.asyncio
@@ -67,6 +203,16 @@ async def test_update_user_fields(auth_client: AsyncClient, test_user: User):
     assert data["name"] == "Updated Name"
     # Email should remain unchanged
     assert data["email"] == test_user.email
+
+
+@pytest.mark.asyncio
+async def test_update_user_requires_platform_admin(
+    client_cro: AsyncClient,
+    test_user_employee: User,
+):
+    response = await client_cro.patch(f"/api/v1/users/{test_user_employee.id}", json={"name": "Blocked"})
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Only Admin can manage user lifecycle"
 
 
 @pytest.mark.asyncio
@@ -85,6 +231,24 @@ async def test_create_user_rejected_in_microsoft_sso_mode(auth_client_sso: Async
     )
     assert response.status_code == 403
     assert "directory/users/{oid}/import" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_create_user_requires_platform_admin(client_cro: AsyncClient, test_user: User):
+    response = await client_cro.post(
+        "/api/v1/users",
+        json={
+            "email": "new.user@example.com",
+            "name": "New User",
+            "password": "StrongPass123!",
+            "role_id": test_user.role_id,
+            "department_id": None,
+            "manager_id": None,
+            "is_active": True,
+        },
+    )
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Only Admin can manage user lifecycle"
 
 
 @pytest.mark.asyncio
@@ -168,15 +332,22 @@ async def test_update_user_email_conflict(auth_client: AsyncClient, test_user: U
 
 
 @pytest.mark.asyncio
-async def test_list_roles(auth_client: AsyncClient):
-    """Test listing roles."""
-    response = await auth_client.get("/api/v1/users/roles")
+async def test_list_roles(client_platform_admin: AsyncClient):
+    """Test listing roles for admin-only lifecycle flows."""
+    response = await client_platform_admin.get("/api/v1/users/roles")
     assert response.status_code == 200
     data = response.json()
     assert isinstance(data, list)
     assert len(data) >= 1  # At least 'admin' from test_user fixture
     role_names = [r["name"] for r in data]
     assert "admin" in role_names
+
+
+@pytest.mark.asyncio
+async def test_list_roles_requires_platform_admin(client_cro: AsyncClient):
+    response = await client_cro.get("/api/v1/users/roles")
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Only Admin can manage user lifecycle"
 
 
 @pytest.mark.asyncio

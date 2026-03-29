@@ -84,23 +84,11 @@ Preferred deterministic reset:
 ./scripts/compose.sh reset --dataset test
 ```
 
-Observed 2026-03-29:
+Current behavior:
 
-- The Docker bootstrap container currently fails that reset path during `alembic upgrade head` with `ModuleNotFoundError: No module named 'psycopg2'`.
-- Verified fallback when you still need a Docker-backed browser run:
-
-```bash
-cd backend
-DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_dev@localhost:5432/riskhub ./venv/bin/alembic upgrade head
-DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_dev@localhost:5432/riskhub ./venv/bin/python -m app.db.seed
-DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_dev@localhost:5432/riskhub ./venv/bin/python -m scripts.seed_e2e_all
-
-cd ..
-docker compose -f docker-compose.yml --profile full up -d --build backend frontend
-docker compose -f docker-compose.yml --profile full up -d --no-deps frontend
-```
-
-- The explicit `frontend` start is a current workaround for the backend container healthcheck: the image healthcheck uses `curl`, but the current backend image does not include it.
+- `./scripts/compose.sh reset --dataset test` now completes end to end on the Docker stack and is the preferred deterministic browser-verification path.
+- The Docker bootstrap service uses the backend `dbtasks` target, so migrations and seed commands run with the required Postgres client dependencies.
+- Docker Compose now inherits the backend image's Python healthcheck instead of overriding it with `curl`.
 
 Preflight:
 
@@ -118,11 +106,13 @@ FRONTEND_URL=http://localhost npm run e2e:business-logic
 FRONTEND_URL=http://localhost POLISH_AUDIT_DEEP=1 npx playwright test -c ../tests/frontend/e2e/playwright.config.ts ../tests/frontend/e2e/polish-audit.spec.ts --project=chromium
 ```
 
-Current Docker-origin blocker:
+Current Docker-origin truth:
 
-- The shared login helper in [`tests/frontend/e2e/helpers/login.ts`](../tests/frontend/e2e/helpers/login.ts) still waits for `http://localhost:5173/...`.
-- Docker full-stack runs with `FRONTEND_URL=http://localhost` therefore time out after successful demo-login redirects until that helper is made origin-aware.
-- Verified failing artifacts from 2026-03-29 are written under `tests/results/frontend/playwright/test-results/`.
+- Docker full-stack browser runs should use `FRONTEND_URL=http://localhost`.
+- The shared login helper in [`tests/frontend/e2e/helpers/login.ts`](../tests/frontend/e2e/helpers/login.ts) now waits on post-login pathnames instead of a hardcoded `localhost:5173` origin, so the same helper works against both Vite and Docker nginx surfaces.
+- Targeted verification on 2026-03-29 passed for:
+  - `access-scope.spec.ts --grep "GLOBAL user can see all departments in department list"`
+  - `polish-audit.spec.ts --grep "RISK_MANAGER / theme=riskhub / lang=en"`
 
 Current automation scope:
 

@@ -11,12 +11,13 @@ export function usePermissions() {
     const { user, hasPermission } = useAuth();
     const authz = useAuthz();
     const isAdminOrCro = authz.isPlatformAdmin || authz.isCRO;
+    const canManageUserLifecycle = authz.isPlatformAdmin;
 
     return {
         hasPermission,
         // User management permissions
-        canViewUsers: hasPermission('users', 'read'),
-        canManageUsers: hasPermission('users', 'write'),
+        canViewUsers: authz.canViewUserDirectory,
+        canManageUsers: canManageUserLifecycle,
         // Risk permissions
         canCreateRisks: hasPermission('risks', 'write'),
         canEditRisks: hasPermission('risks', 'write'),
@@ -38,6 +39,10 @@ export function usePermissions() {
         canManageAccess: authz.canManageAccess,  // Users with global scope can view access data
         canEditAccessUsers: authz.canEditAccessUsers, // Admin/CRO only for access-user mutations
         canManagePrivileged: isAdminOrCro,  // Only admin/CRO can toggle privileged status/roles
+        canViewUsersRoute: authz.canViewUsersRoute,
+        canViewAccessUsers: authz.canViewAccessUsers,
+        canViewDepartmentAccessUsers: authz.canViewDepartmentAccessUsers,
+        canViewUserDirectory: authz.canViewUserDirectory,
         // Activity Log: Admin is console-only and should not access business views.
         // Follow authz here so test/demo fixtures cannot accidentally re-enable the route.
         canViewActivityLog: authz.canViewActivityLog,

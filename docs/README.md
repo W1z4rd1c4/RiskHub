@@ -23,6 +23,7 @@ This file is the primary documentation index for `docs/`.
 | Deployment | Runtime and production deployment guidance | [`docs/deployment/README.md`](./deployment/README.md) |
 | Reference | Reference inventories and legacy path maps | [`docs/reference/README.md`](./reference/README.md) |
 | Quality | Lint/debt baseline and ratchet references | [`docs/quality/README.md`](./quality/README.md) |
+| Assets | Static screenshots and support assets for canonical docs | [`docs/assets/README.md`](./assets/README.md) |
 | Admin (EN) | Platform administration runbooks | [`docs/admin/README.md`](./admin/README.md) |
 | Admin (CS) | České admin runbooky | [`docs/admin-cs/README.md`](./admin-cs/README.md) |
 | User (EN) | End-user/business operation manuals | [`docs/user/README.md`](./user/README.md) |

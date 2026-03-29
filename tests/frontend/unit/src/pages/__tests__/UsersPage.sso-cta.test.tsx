@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
 
 import { UsersPage } from '@/pages/UsersPage';
 import type { AuthConfigResponse } from '@/services/authApi';
@@ -24,6 +25,9 @@ vi.mock('@/hooks/usePermissions', () => ({
 
 vi.mock('@/authz/useAuthz', () => ({
     useAuthz: () => ({
+        canViewAccessUsers: true,
+        canViewDepartmentAccessUsers: false,
+        canViewUserDirectory: true,
         canManageAccess: true,
         canEditAccessUsers: true,
         isDepartmentHead: false,
@@ -109,10 +113,18 @@ describe('UsersPage SSO add CTA', () => {
         mockListAccessUsers.mockResolvedValue([]);
     });
 
+    function renderPage() {
+        render(
+            <MemoryRouter initialEntries={['/users']}>
+                <UsersPage />
+            </MemoryRouter>
+        );
+    }
+
     it('shows a single AD add flow CTA in microsoft_sso mode', async () => {
         mockGetAuthConfig.mockResolvedValue(makeAuthConfig({ auth_mode: 'microsoft_sso' }));
 
-        render(<UsersPage />);
+        renderPage();
 
         await waitFor(() => {
             expect(mockListAccessUsers).toHaveBeenCalled();
@@ -143,7 +155,7 @@ describe('UsersPage SSO add CTA', () => {
             })
         );
 
-        render(<UsersPage />);
+        renderPage();
 
         await waitFor(() => {
             expect(mockListAccessUsers).toHaveBeenCalled();
@@ -156,7 +168,7 @@ describe('UsersPage SSO add CTA', () => {
         expect(screen.queryByRole('button', { name: 'access.add_user' })).not.toBeInTheDocument();
     });
 
-    it('keeps password-mode CTAs in password mode', async () => {
+    it('keeps the password create CTA only in password mode', async () => {
         mockGetAuthConfig.mockResolvedValue(
             makeAuthConfig({
                 auth_mode: 'password',
@@ -172,20 +184,20 @@ describe('UsersPage SSO add CTA', () => {
             })
         );
 
-        render(<UsersPage />);
+        renderPage();
 
         await waitFor(() => {
             expect(mockListAccessUsers).toHaveBeenCalled();
         });
 
-        expect(await screen.findByRole('button', { name: 'Add from AD' })).toBeInTheDocument();
         expect(await screen.findByRole('button', { name: 'access.add_user' })).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Add from AD' })).not.toBeInTheDocument();
     });
 
     it('keeps the list visible but disables auth-mode actions when auth config is unavailable', async () => {
         mockGetAuthConfig.mockRejectedValue(new Error('Auth service unavailable'));
 
-        render(<UsersPage />);
+        renderPage();
 
         await waitFor(() => {
             expect(mockListAccessUsers).toHaveBeenCalled();

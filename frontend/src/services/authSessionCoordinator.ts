@@ -1,6 +1,7 @@
 import { authApi } from '@/services/authApi';
 import { getAccessToken } from '@/services/accessTokenStore';
 import { isAuthUnavailableError } from '@/services/authRequest';
+import { hasRefreshSessionHint } from '@/services/refreshSessionHint';
 import { silentReauthAndExchange } from '@/services/ssoSession';
 
 type CurrentUser = Awaited<ReturnType<typeof authApi.getCurrentUser>>;
@@ -39,6 +40,10 @@ export async function bootstrapAuthSession(): Promise<{ token: string | null; us
             let usedRefresh = false;
 
             if (!token) {
+                if (!hasRefreshSessionHint()) {
+                    clearBootstrapSession();
+                    return { token: null, user: null };
+                }
                 token = await silentReauthAndExchange();
                 usedRefresh = true;
             }

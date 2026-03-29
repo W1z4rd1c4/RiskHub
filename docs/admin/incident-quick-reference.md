@@ -1,7 +1,7 @@
 ---
 title: Admin Incident Quick Reference
-version: "1.0"
-last_updated: "2026-03-15"
+version: "1.1"
+last_updated: "2026-03-29"
 audience: admin
 source_of_truth: "frontend/src/pages/LoginPage.tsx + frontend/src/pages/UsersPage.tsx + frontend/src/pages/AdminConsolePage.tsx + backend/app/api/v1/endpoints/admin/*"
 summary: "Use this first when something is broken. Symptom-first admin runbook for auth, access, health, and evidence incidents."
@@ -185,11 +185,13 @@ Pick the card with the closest exact wording. If more than one card fits, start 
 2. Confirm whether Health is healthy or degraded.
 3. Open **Application logs** and look for repeated auth or configuration errors.
 4. Refresh `/users` once after the Health check.
+5. If an import already succeeded, confirm whether `/users` returned and opened the access edit modal. Do not look for a separate user detail page.
 
 #### What the admin can safely do
 
 - continue read-only review in `/users`
 - retry once after confirming Health
+- if import succeeds but the edit modal does not open back on `/users`, capture it as a `/users` workflow defect
 - stop before improvising alternate creation steps
 
 #### When to escalate

@@ -22,6 +22,7 @@ export async function loginAsDemoUser(
     options: LoginOptions = {}
 ): Promise<void> {
     const { retries = 3, timeout = 15000 } = options;
+    const allowedPostLoginPaths = new Set(['/', '/dashboard', '/admin', '/risks', '/controls', '/kris', '/settings']);
 
     for (let attempt = 1; attempt <= retries; attempt++) {
         try {
@@ -34,14 +35,15 @@ export async function loginAsDemoUser(
             await page.click(`button:has-text("${accountName}")`);
 
             // Wait for redirect - app redirects to / or /admin depending on user
-            await page.waitForURL(/^http:\/\/localhost:5173\/(dashboard|admin|risks|controls|kris|settings|$)/, {
+            await page.waitForURL((url) => allowedPostLoginPaths.has(url.pathname), {
                 timeout: timeout + 5000
             });
             await page.waitForLoadState('domcontentloaded');
 
-            // Verify we're actually logged in by checking for nav element
+            // The protected shell can still be on the global loading screen while
+            // auth + preferences hydration finish, especially under multi-worker load.
+            await waitForPreferencesHydration(page, timeout + 5000);
             await page.waitForSelector('nav, [data-testid="logout-button"]', { timeout });
-            await waitForPreferencesHydration(page, timeout);
 
             return; // Success
         } catch (error) {

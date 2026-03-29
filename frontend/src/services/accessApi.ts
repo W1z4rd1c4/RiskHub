@@ -46,7 +46,8 @@ export const accessApi = {
 
     /**
      * Update access management fields for a user.
-     * Requires privileged access. Admin/CRO required for access_scope changes.
+     * Requires privileged access.
+     * Admin/CRO can edit access fields; Admin-only can include identity fields.
      */
     async updateAccessUser(userId: number, data: AccessUserUpdate): Promise<AccessUserRead> {
         return apiClient.patch<AccessUserRead>(`/access/users/${userId}`, data);

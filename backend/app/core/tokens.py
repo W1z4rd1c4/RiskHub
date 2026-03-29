@@ -14,6 +14,7 @@ from app.core.client_ip import resolve_request_client_ip
 from app.core.config import Settings
 
 REFRESH_TOKEN_TYPE = "refresh"
+REFRESH_SESSION_HINT_COOKIE = "riskhub_refresh_hint"
 
 
 def new_token_jti() -> str:
@@ -52,6 +53,24 @@ def get_refresh_cookie_name(settings: Settings) -> str:
     return settings.refresh_cookie_name or "riskhub_refresh_token"
 
 
+def get_refresh_session_hint_cookie_name() -> str:
+    return REFRESH_SESSION_HINT_COOKIE
+
+
+def set_refresh_session_hint_cookie(response: Response, settings: Settings) -> None:
+    max_age = int(refresh_token_lifetime(settings).total_seconds())
+    response.set_cookie(
+        key=get_refresh_session_hint_cookie_name(),
+        value="1",
+        max_age=max_age,
+        httponly=False,
+        secure=not settings.debug,
+        samesite=settings.refresh_cookie_samesite,
+        domain=settings.refresh_cookie_domain,
+        path="/",
+    )
+
+
 def set_refresh_cookie(response: Response, token: str, settings: Settings) -> None:
     max_age = int(refresh_token_lifetime(settings).total_seconds())
     response.set_cookie(
@@ -64,6 +83,7 @@ def set_refresh_cookie(response: Response, token: str, settings: Settings) -> No
         domain=settings.refresh_cookie_domain,
         path="/api/v1/auth",
     )
+    set_refresh_session_hint_cookie(response, settings)
 
 
 def clear_refresh_cookie(response: Response, settings: Settings) -> None:
@@ -71,6 +91,11 @@ def clear_refresh_cookie(response: Response, settings: Settings) -> None:
         key=get_refresh_cookie_name(settings),
         domain=settings.refresh_cookie_domain,
         path="/api/v1/auth",
+    )
+    response.delete_cookie(
+        key=get_refresh_session_hint_cookie_name(),
+        domain=settings.refresh_cookie_domain,
+        path="/",
     )
 
 

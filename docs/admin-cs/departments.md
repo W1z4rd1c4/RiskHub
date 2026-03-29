@@ -1,7 +1,7 @@
 ---
 title: Oddělení: admin podpora a integrita přístupů
-version: "2.0"
-last_updated: "2026-02-16"
+version: "2.1"
+last_updated: "2026-03-29"
 audience: admin
 source_of_truth: "docs/BUSINESS_LOGIC.md (scope/viditelnost) + backend/app/api/v1/endpoints/riskhub/departments.py + frontend/src/pages/UsersPage.tsx"
 summary: "Admin runbook pro podporu změn oddělení bez rozbití přístupů: diagnostika scope, změny přiřazení uživatelů a bezpečné předání business ownerovi."
@@ -78,7 +78,7 @@ Výsledky:
 ### B) Bezpečná změna přiřazení oddělení nebo managera
 
 1. Otevřete `/users` a najděte uživatele.
-2. Otevřete detail nebo Access Edit modal.
+2. Otevřete Access Edit modal z `/users`.
 3. Upravte **oddělení** *nebo* **managera** (jedna změna).
 4. Uložte.
 5. Požádejte uživatele o re-login, pokud změna ovlivňuje session-derived claims (hlavně role/scope).

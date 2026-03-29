@@ -1,8 +1,9 @@
 import { authApi } from '@/services/authApi';
-import { setAccessToken } from '@/services/accessTokenStore';
+import { getAccessToken, setAccessToken } from '@/services/accessTokenStore';
 import { getAuthConfig } from '@/services/authConfig';
 import { entraAuth } from '@/services/entraAuth';
 import { isAuthUnavailableError, raceAuthTimeout } from '@/services/authRequest';
+import { clearRefreshSessionHint, hasRefreshSessionHint } from '@/services/refreshSessionHint';
 
 let refreshInFlight: Promise<string | null> | null = null;
 let lastRefreshFailureAt = 0;
@@ -15,12 +16,16 @@ export async function silentReauthAndExchange(): Promise<string | null> {
 
     if (!refreshInFlight) {
         refreshInFlight = (async () => {
-            const refreshResponse = await authApi.refresh().catch((error) => {
-                if (isAuthUnavailableError(error)) {
-                    throw error;
-                }
-                return null;
-            });
+            const shouldTryRefresh = !!getAccessToken() || hasRefreshSessionHint();
+            const refreshResponse = shouldTryRefresh
+                ? await authApi.refresh().catch((error) => {
+                    if (isAuthUnavailableError(error)) {
+                        throw error;
+                    }
+                    clearRefreshSessionHint();
+                    return null;
+                })
+                : null;
             if (refreshResponse?.access_token) {
                 lastRefreshFailureAt = 0;
                 setAccessToken(refreshResponse.access_token);

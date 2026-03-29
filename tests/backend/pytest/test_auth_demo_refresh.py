@@ -29,6 +29,16 @@ def _extract_refresh_cookie(response) -> str | None:
     return token.value if token else None
 
 
+def _extract_refresh_hint_cookie(response) -> str | None:
+    cookie_header = response.headers.get("set-cookie")
+    if not cookie_header:
+        return None
+    parsed = SimpleCookie()
+    parsed.load(cookie_header)
+    hint = parsed.get("riskhub_refresh_hint")
+    return hint.value if hint else None
+
+
 @pytest_asyncio.fixture
 async def demo_auth_client(db_session: AsyncSession) -> AsyncClient:
     async def override_get_db():
@@ -60,6 +70,7 @@ async def test_demo_login_issues_refresh_cookie_and_refreshes_session(
     response = await demo_auth_client.post("/api/v1/auth/demo-login", json={"email": test_user.email})
     assert response.status_code == 200, response.text
     assert demo_auth_client.cookies.get("riskhub_refresh_token")
+    assert demo_auth_client.cookies.get("riskhub_refresh_hint") == "1"
 
     refresh = await demo_auth_client.post("/api/v1/auth/refresh")
     assert refresh.status_code == 200, refresh.text
@@ -111,6 +122,7 @@ async def test_demo_login_records_refresh_session_ip_using_trusted_proxy_resolut
         headers={"X-Forwarded-For": "198.51.100.42, 10.0.0.5"},
     )
     assert response.status_code == 200, response.text
+    assert _extract_refresh_hint_cookie(response) == "1"
 
     refresh_row = (
         await db_session.execute(select(RefreshToken).where(RefreshToken.user_id == test_user.id))
