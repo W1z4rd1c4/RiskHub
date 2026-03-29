@@ -74,6 +74,15 @@
 
 ## Session Context
 
+### Open Issues Remediation and Regression Hardening - Phase 3 (2026-03-29)
+
+- Closed the `/users` partial-save gap by making the access edit modal submit a single transactional `PATCH /api/v1/access/users/{id}` request.
+- `backend/app/api/v1/endpoints/access.py` now accepts Admin-only identity fields (`name`, `email`) alongside access fields and rejects the whole mutation on validation failures such as duplicate email.
+- `frontend/src/components/access/AccessEditModal.tsx` now performs one modal save instead of splitting identity and access writes across `/access/users/{id}` and `/users/{id}`.
+- Focused verification:
+  - `PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=backend pytest --override-ini addopts='-p no:langsmith_plugin -p no:cacheprovider' tests/backend/pytest/test_access_management.py -q` -> `14 passed`
+  - `cd frontend && npm run test:run -- src/components/access/AccessEditModal.test.tsx src/pages/__tests__/UsersPage.modes.test.tsx src/pages/__tests__/UsersPage.sso-cta.test.tsx` -> `13 passed`
+
 ### Users Surface Contract Realignment - Phase 1 (2026-03-29)
 
 - Began branch `codex/users-surface-realignment` to split user-directory, picker, and lifecycle contracts without adding any new `/users/me` or `/me/*` user-management routes.
