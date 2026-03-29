@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { accessApi } from '@/services/accessApi';
 import { adminApi } from '@/services/adminApi';
+import { apiClient } from '@/services/apiClient';
 import { userApi } from '@/services/userApi';
 import { userDirectoryApi } from '@/services/userDirectoryApi';
 import type { AuthMode } from '@/services/authApi';
@@ -18,7 +19,7 @@ import { getAuthConfig } from '@/services/authConfig';
 import { isAuthUnavailableError } from '@/services/authRequest';
 import type { AccessUserRead } from '@/types/access';
 import type { DirectoryImportResponse } from '@/types/directory';
-import type { UserDirectoryEntry } from '@/types/user';
+import type { UserDirectoryEntry, UserDirectoryRoleFacet } from '@/types/user';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useAuthz } from '@/authz/useAuthz';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
@@ -39,9 +40,10 @@ type UsersPageLocationState = {
 } | null;
 
 export function UsersPage() {
-    const { t } = useTranslation('admin');
+    const { t } = useTranslation(['admin', 'common', 'errorKeys']);
     const [users, setUsers] = useState<AccessUserRead[]>([]);
     const [directoryUsers, setDirectoryUsers] = useState<UserDirectoryEntry[]>([]);
+    const [directoryAvailableRoles, setDirectoryAvailableRoles] = useState<UserDirectoryRoleFacet[]>([]);
     const [directoryTotal, setDirectoryTotal] = useState(0);
     const [directoryPage, setDirectoryPage] = useState(1);
     const [isLoading, setIsLoading] = useState(true);
@@ -50,6 +52,7 @@ export function UsersPage() {
     const [selectedUser, setSelectedUser] = useState<AccessUserRead | null>(null);
     const [isADPickerOpen, setIsADPickerOpen] = useState(false);
     const [directoryMessage, setDirectoryMessage] = useState<string | null>(null);
+    const [loadErrorKey, setLoadErrorKey] = useState<string | null>(null);
     const [isCheckingAllDirectory, setIsCheckingAllDirectory] = useState(false);
     const [checkingDirectoryUserId, setCheckingDirectoryUserId] = useState<number | null>(null);
     const [authMode, setAuthMode] = useState<AuthMode | null>(null);
@@ -84,15 +87,18 @@ export function UsersPage() {
     const fetchUsers = useCallback(async () => {
         try {
             setIsLoading(true);
+            setLoadErrorKey(null);
             if (pageMode === 'access') {
                 const data = await accessApi.listAccessUsers();
                 setUsers(data);
                 setDirectoryUsers([]);
+                setDirectoryAvailableRoles([]);
                 setDirectoryTotal(0);
             } else if (pageMode === 'department-access') {
                 const data = await accessApi.listDepartmentAccessUsers();
                 setUsers(data);
                 setDirectoryUsers([]);
+                setDirectoryAvailableRoles([]);
                 setDirectoryTotal(0);
             } else if (pageMode === 'directory') {
                 const data = await userDirectoryApi.listDirectoryUsers({
@@ -103,14 +109,21 @@ export function UsersPage() {
                 });
                 setUsers([]);
                 setDirectoryUsers(data.items);
+                setDirectoryAvailableRoles(data.available_roles ?? []);
                 setDirectoryTotal(data.total);
             } else {
                 setUsers([]);
                 setDirectoryUsers([]);
+                setDirectoryAvailableRoles([]);
                 setDirectoryTotal(0);
             }
         } catch (error) {
             console.error('Failed to fetch users:', error);
+            setUsers([]);
+            setDirectoryUsers([]);
+            setDirectoryAvailableRoles([]);
+            setDirectoryTotal(0);
+            setLoadErrorKey(apiClient.toUiMessageKey(error));
         } finally {
             setIsLoading(false);
         }
@@ -269,6 +282,20 @@ export function UsersPage() {
     const displayUsers = isAccessMode ? filters.filteredAccessUsers : [];
     const displayDirectoryUsers = !isAccessMode ? filters.filteredDirectoryUsers : [];
 
+    const showAccessStats = isAccessMode && !loadErrorKey;
+    const roleOptions = isAccessMode
+        ? [
+            { value: 'admin', label: t('access.roles.admins') },
+            { value: 'cro', label: t('access.roles.cros') },
+            { value: 'risk_manager', label: t('access.roles.risk_managers') },
+            { value: 'department_head', label: t('access.roles.dept_heads') },
+            { value: 'employee', label: t('access.roles.control_owners') },
+        ]
+        : (directoryAvailableRoles ?? []).map((role) => ({
+            value: role.name,
+            label: role.display_name,
+        }));
+
     // Stats
     const totalCount = isAccessMode ? users.length : directoryTotal;
     const activeCount = isAccessMode
@@ -296,17 +323,6 @@ export function UsersPage() {
                 </div>
                 {allowAuthModeActions && (
                     <div className="flex flex-wrap items-center gap-2">
-                        {!isDirectoryFirstMode && (
-                            <button
-                                onClick={() => setIsADPickerOpen(true)}
-                                className="rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-white transition hover:bg-white/10"
-                            >
-                                <span className="inline-flex items-center gap-2">
-                                    <Building2 className="h-4 w-4" />
-                                    {t('users.add_from_ad', { defaultValue: 'Add from AD' })}
-                                </span>
-                            </button>
-                        )}
                         {authz.isPlatformAdmin && (
                             <button
                                 onClick={handleCheckAllDirectory}
@@ -346,48 +362,51 @@ export function UsersPage() {
                 </div>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="glass-card p-4 flex items-center gap-4">
-                    <div className="bg-purple-500/20 p-3 rounded-xl">
-                        <Users className="h-6 w-6 text-purple-400" />
+            {showAccessStats && (
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="glass-card p-4 flex items-center gap-4">
+                        <div className="bg-purple-500/20 p-3 rounded-xl">
+                            <Users className="h-6 w-6 text-purple-400" />
+                        </div>
+                        <div>
+                            <p className="text-sm text-slate-400">{t('access.stats.total_users')}</p>
+                            <p className="text-2xl font-bold text-white">{totalCount}</p>
+                        </div>
                     </div>
-                    <div>
-                        <p className="text-sm text-slate-400">{t('access.stats.total_users')}</p>
-                        <p className="text-2xl font-bold text-white">{totalCount}</p>
+                    <div className="glass-card p-4 flex items-center gap-4">
+                        <div className="bg-emerald-500/20 p-3 rounded-xl">
+                            <UserCheck className="h-6 w-6 text-emerald-400" />
+                        </div>
+                        <div>
+                            <p className="text-sm text-slate-400">{t('access.stats.active')}</p>
+                            <p className="text-2xl font-bold text-white">{activeCount}</p>
+                        </div>
+                    </div>
+                    <div className="glass-card p-4 flex items-center gap-4">
+                        <div className="bg-amber-500/20 p-3 rounded-xl">
+                            <Crown className="h-6 w-6 text-amber-400" />
+                        </div>
+                        <div>
+                            <p className="text-sm text-slate-400">{t('access.stats.privileged')}</p>
+                            <p className="text-2xl font-bold text-white">{privilegedCount}</p>
+                        </div>
+                    </div>
+                    <div className="glass-card p-4 flex items-center gap-4">
+                        <div className="bg-slate-500/20 p-3 rounded-xl">
+                            <Server className="h-6 w-6 text-slate-400" />
+                        </div>
+                        <div>
+                            <p className="text-sm text-slate-400">{t('access.stats.sys_admins')}</p>
+                            <p className="text-2xl font-bold text-white">{users.filter(u => u.role.name === 'admin').length}</p>
+                        </div>
                     </div>
                 </div>
-                <div className="glass-card p-4 flex items-center gap-4">
-                    <div className="bg-emerald-500/20 p-3 rounded-xl">
-                        <UserCheck className="h-6 w-6 text-emerald-400" />
-                    </div>
-                    <div>
-                        <p className="text-sm text-slate-400">{t('access.stats.active')}</p>
-                        <p className="text-2xl font-bold text-white">{activeCount}</p>
-                    </div>
-                </div>
-                <div className="glass-card p-4 flex items-center gap-4">
-                    <div className="bg-amber-500/20 p-3 rounded-xl">
-                        <Crown className="h-6 w-6 text-amber-400" />
-                    </div>
-                    <div>
-                        <p className="text-sm text-slate-400">{t('access.stats.privileged')}</p>
-                        <p className="text-2xl font-bold text-white">{privilegedCount}</p>
-                    </div>
-                </div>
-                <div className="glass-card p-4 flex items-center gap-4">
-                    <div className="bg-slate-500/20 p-3 rounded-xl">
-                        <Server className="h-6 w-6 text-slate-400" />
-                    </div>
-                    <div>
-                        <p className="text-sm text-slate-400">{t('access.stats.sys_admins')}</p>
-                        <p className="text-2xl font-bold text-white">{isAccessMode ? users.filter(u => u.role.name === 'admin').length : 0}</p>
-                    </div>
-                </div>
-            </div>
+            )}
 
             <div className="glass-card p-6">
                 <UsersFilterBar
                     isAccessMode={isAccessMode}
+                    roleOptions={roleOptions}
                     searchTerm={filters.searchTerm}
                     setSearchTerm={filters.setSearchTerm}
                     roleFilter={filters.roleFilter}
@@ -404,21 +423,49 @@ export function UsersPage() {
                     totalCount={totalCount}
                 />
 
-                <UsersTable
-                    isAccessMode={isAccessMode}
-                    isLoading={isLoading}
-                    accessUsers={displayUsers}
-                    directoryUsers={displayDirectoryUsers}
-                    expandedUserId={expandedUserId}
-                    onToggleExpand={(userId) => setExpandedUserId(expandedUserId === userId ? null : userId)}
-                    canEditAccess={authz.canEditAccessUsers}
-                    canManageUsers={canManageUsers}
-                    onEditAccess={handleEditAccess}
-                    onToggleStatus={handleToggleClick}
-                    canRunDirectoryChecks={authz.isPlatformAdmin}
-                    checkingDirectoryUserId={checkingDirectoryUserId}
-                    onCheckDirectory={handleCheckSingleDirectory}
-                />
+                {loadErrorKey && !isLoading ? (
+                    <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-5 py-6 text-sm text-rose-100">
+                        <p className="font-medium">
+                            {t(loadErrorKey, {
+                                ns: 'errorKeys',
+                                defaultValue: t('users.load_failed', {
+                                    ns: 'admin',
+                                    defaultValue: 'Unable to load users right now.',
+                                }),
+                            })}
+                        </p>
+                        <p className="mt-2 text-rose-100/80">
+                            {t('users.load_failed_help', {
+                                ns: 'admin',
+                                defaultValue: 'Refresh the page data before treating this as an empty result.',
+                            })}
+                        </p>
+                        <button
+                            type="button"
+                            onClick={() => void fetchUsers()}
+                            className="mt-4 inline-flex items-center gap-2 rounded-xl border border-rose-400/30 bg-rose-500/10 px-4 py-2 text-sm font-medium text-rose-50 transition hover:bg-rose-500/20"
+                        >
+                            <RefreshCw className="h-4 w-4" />
+                            {t('actions.retry', { ns: 'common', defaultValue: 'Retry' })}
+                        </button>
+                    </div>
+                ) : (
+                    <UsersTable
+                        isAccessMode={isAccessMode}
+                        isLoading={isLoading}
+                        accessUsers={displayUsers}
+                        directoryUsers={displayDirectoryUsers}
+                        expandedUserId={expandedUserId}
+                        onToggleExpand={(userId) => setExpandedUserId(expandedUserId === userId ? null : userId)}
+                        canEditAccess={authz.canEditAccessUsers}
+                        canManageUsers={canManageUsers}
+                        onEditAccess={handleEditAccess}
+                        onToggleStatus={handleToggleClick}
+                        canRunDirectoryChecks={authz.isPlatformAdmin}
+                        checkingDirectoryUserId={checkingDirectoryUserId}
+                        onCheckDirectory={handleCheckSingleDirectory}
+                    />
+                )}
 
                 {isDirectoryMode && directoryTotalPages > 1 && (
                     <Pagination

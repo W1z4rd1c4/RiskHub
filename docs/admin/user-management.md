@@ -82,12 +82,14 @@ Safety rules:
 
 If a user should not have any `/users` entitlement, expect the route to redirect away rather than render a partial list.
 
+`/users/new` now follows the same route-level rule. Sessions without lifecycle authority should be redirected before the page loads onboarding data.
+
 ### Add a user
 
 1. Open `/users`.
 2. Select the auth-mode-specific CTA shown on `/users`:
    - **Add from AD** in directory-first auth modes (`microsoft_sso`, `hybrid_dev`)
-   - in password mode, use **Add user** for manual entry or **Add from AD** for directory import
+   - **Add user** in password mode
 3. Use the creation flow currently available in the UI:
    - import or external-identity flow
    - direct-entry flow
@@ -201,14 +203,27 @@ What it usually means:
 - the page loaded the user list, but the auth-mode-specific creation path is in a safe degraded state
 - the visible CTA depends on auth mode:
   - `Add from AD` in directory-first modes
-  - both `Add User` and `Add from AD` in password mode
+  - `Add User` in password mode
 
 What to do:
 
-1. Confirm which auth mode is active so you know whether the expected create action is **Add from AD** only, or both **Add user** and **Add from AD**.
+1. Confirm which auth mode is active so you know whether the expected CTA is **Add from AD** or **Add user**.
 2. Open `/admin` and confirm the Health state.
 3. Refresh `/users` once.
 4. If the expected creation action is still disabled after a healthy refresh, escalate as an admin-surface or auth/config incident.
+
+### “`/users` shows no results, but it might actually be broken”
+
+What it usually means:
+
+- the `/users` fetch failed before the table could load
+- the page is showing a retryable error state instead of pretending the result set is empty
+
+What to do:
+
+1. Read the error banner before treating the page as empty.
+2. Use **Retry** once.
+3. If the same load failure returns, capture the route, time, and request failure and escalate instead of assuming there are no matching users.
 
 ## Escalation and Handoff
 
