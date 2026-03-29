@@ -72,23 +72,11 @@ Preferred deterministic path:
 ./scripts/compose.sh reset --dataset test
 ```
 
-Observed 2026-03-29:
+Current behavior:
 
-- `./scripts/compose.sh reset --dataset test` currently fails in the Docker bootstrap container during `alembic upgrade head` with `ModuleNotFoundError: No module named 'psycopg2'`.
-- Until that image is fixed, the verified fallback is to bootstrap the Docker Postgres database from the local backend virtualenv, then start the app containers directly:
-
-```bash
-cd backend
-DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_dev@localhost:5432/riskhub ./venv/bin/alembic upgrade head
-DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_dev@localhost:5432/riskhub ./venv/bin/python -m app.db.seed
-DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_dev@localhost:5432/riskhub ./venv/bin/python -m scripts.seed_e2e_all
-
-cd ..
-docker compose -f docker-compose.yml --profile full up -d --build backend frontend
-docker compose -f docker-compose.yml --profile full up -d --no-deps frontend
-```
-
-- The second `frontend` command is only needed while the backend container healthcheck remains broken because the current backend image does not ship `curl`.
+- `./scripts/compose.sh reset --dataset test` is the canonical deterministic Docker path for migrations, base seed, deterministic E2E seed, and app startup.
+- The Docker bootstrap service now builds the backend `dbtasks` target, so database bootstrap work runs with the required Postgres client dependencies.
+- Docker Compose now inherits the backend image's Python healthcheck instead of overriding it with `curl`.
 
 Preflight:
 
@@ -112,7 +100,7 @@ FRONTEND_URL=http://localhost POLISH_AUDIT_DEEP=1 npx playwright test -c ../test
 Current browser-lane caveats:
 
 - `polish-audit.spec.ts` automates `riskhub` and `light` themes; `dark` still requires manual verification.
-- The shared demo-login helper in [`/Users/stefanlesnak/Antigravity/Risk App 2/tests/frontend/e2e/helpers/login.ts`](../tests/frontend/e2e/helpers/login.ts) still waits for `http://localhost:5173/...`, so Docker-targeted `FRONTEND_URL=http://localhost` browser packs currently fail until that helper is updated.
+- The shared demo-login helper in [`/Users/stefanlesnak/Antigravity/Risk App 2/tests/frontend/e2e/helpers/login.ts`](../tests/frontend/e2e/helpers/login.ts) still waits for `http://localhost:5173/...`, so Docker-targeted `FRONTEND_URL=http://localhost` browser packs currently fail until that helper becomes origin-aware.
 
 ## Frontend Testing Notes
 
