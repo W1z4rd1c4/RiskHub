@@ -33,6 +33,7 @@ Poznámka ke kontraktu:
 - `/users` už nepoužívá samostatnou detailní route uživatele; identity i access editace zůstávají na `/users` v access edit modalu
 - manuální user lifecycle akce na `/users` jsou Admin-only
 - access-management role data teď přichází z `/access/roles`; starší lifecycle role/detail endpointy zůstávají Admin-only
+- role filtry v directory módu teď přichází z facet metadat `/users/directory`, ne z frontend hardcoded seznamu rolí
 - pořadí módů na `/users` je explicitní: nejdřív global access view, pak department access view a teprve potom read-only directory view pro uživatele s `users:read`, kteří nemají access-management oprávnění
 
 Většina access incidentů má jednu ze čtyř příčin:

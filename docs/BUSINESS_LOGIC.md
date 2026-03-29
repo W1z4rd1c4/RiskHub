@@ -297,7 +297,7 @@ Rules:
 > Platform admins are console-only and are explicitly blocked from business Activity Log and Governance surfaces, including direct route/API access.
 
 > [!NOTE]
-> User discovery and user administration are separate contracts. `/api/v1/users/lookup` is the authenticated picker/search primitive used by forms and filters. `/api/v1/users/directory` is the explicit paginated collection for `/users` directory mode and requires `users:read`. `/api/v1/access/users*` remains the access-management contract for privileged and department-head access views.
+> User discovery and user administration are separate contracts. `/api/v1/users/lookup` is the authenticated picker/search primitive used by forms and filters. `/api/v1/users/directory` is the explicit paginated collection for `/users` directory mode and requires `users:read`. Its response also carries `available_roles` facet metadata derived from the caller's visible directory universe so the frontend role filter stays backend-driven. `/api/v1/access/users*` remains the access-management contract for privileged and department-head access views.
 
 > [!NOTE]
 > Manual user lifecycle actions are least-privilege operations. Direct user creation (`POST /api/v1/users`) and directory import (`POST /api/v1/directory/users/{oid}/import`) are Admin-only lifecycle actions even when broader read or access-review surfaces are available to other privileged roles.

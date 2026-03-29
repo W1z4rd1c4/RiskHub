@@ -93,6 +93,16 @@
   - `cd frontend && npm run test:run -- src/authz/__tests__/UserRouteGuards.test.tsx src/pages/__tests__/UsersPage.modes.test.tsx src/pages/__tests__/UsersPage.sso-cta.test.tsx src/components/layout/__tests__/SidebarPolling.test.tsx` -> `16 passed`
   - `cd frontend && npx tsc --noEmit`
 
+### Open Issues Remediation and Regression Hardening - Phase 5 (2026-03-29)
+
+- Extended `GET /api/v1/users/directory` with backend-driven `available_roles` facet metadata so the `/users` directory filter no longer relies on a hardcoded frontend role vocabulary.
+- Added a test-only `directory_reader` fixture/client in backend pytest coverage instead of changing seeded product RBAC just to make directory mode manually demoable.
+- `/users` directory mode now treats backend role facets as the source of truth for role-filter options while remaining read-only.
+- Focused verification:
+  - `PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=backend pytest --override-ini addopts='-p no:langsmith_plugin -p no:cacheprovider' tests/backend/pytest/test_users.py tests/backend/pytest/test_directory_lookup.py tests/backend/pytest/test_directory_import.py -q` -> `34 passed`
+  - `cd frontend && npm run test:run -- src/pages/__tests__/UsersPage.modes.test.tsx src/pages/__tests__/UsersPage.sso-cta.test.tsx` -> `11 passed`
+  - `cd frontend && npx tsc --noEmit`
+
 ### Users Surface Contract Realignment - Phase 1 (2026-03-29)
 
 - Began branch `codex/users-surface-realignment` to split user-directory, picker, and lifecycle contracts without adding any new `/users/me` or `/me/*` user-management routes.

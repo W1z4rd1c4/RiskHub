@@ -45,6 +45,7 @@ Important contract split:
 - `/users/lookup` stays a generic picker/search primitive for forms and filters. It is not the `/users` page contract.
 - `/users` does not expose a standalone colleague detail page. Directory rows are informational, and privileged edits stay in the `/users` modal workflow.
 - Admin-only lifecycle/detail endpoints remain separate from access-management review. Role-selection data for the active UI comes from `/access/roles`, not from legacy `/users` lifecycle helpers.
+- directory-mode role filter options come from `/users/directory` facet metadata for your visible colleague universe; if a role is missing from the filter, there are currently no visible directory users for that role in scope.
 - Directory mode remains a supported contract, but the current seeded demo matrix does not include a canonical directory-only actor. Manual demo-account verification therefore focuses on access modes until product intentionally assigns `users:read` to a non-access-view role.
 
 ## Where To Find It
