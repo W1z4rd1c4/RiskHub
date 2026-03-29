@@ -10,6 +10,7 @@ import {
     Lock
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { accessApi } from '@/services/accessApi';
 import { userApi } from '@/services/userApi';
 import { apiClient } from '@/services/apiClient';
 import { departmentApi } from '@/services/departmentApi';
@@ -17,7 +18,8 @@ import type { DepartmentSummary } from '@/services/departmentApi';
 import type { AuthConfigResponse } from '@/services/authApi';
 import { getAuthConfig } from '@/services/authConfig';
 import { isAuthUnavailableError } from '@/services/authRequest';
-import type { UserCreate, Role } from '@/types/user';
+import type { RoleWithPermissions } from '@/types/access';
+import type { UserCreate } from '@/types/user';
 import type { DirectoryImportResponse } from '@/types/directory';
 import { usePermissions } from '@/hooks/usePermissions';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
@@ -39,7 +41,7 @@ export function UserNewPage() {
     const [isDirectoryProviderUnavailable, setIsDirectoryProviderUnavailable] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [departments, setDepartments] = useState<DepartmentSummary[]>([]);
-    const [roles, setRoles] = useState<Role[]>([]);
+    const [roles, setRoles] = useState<RoleWithPermissions[]>([]);
     const [formData, setFormData] = useState<UserCreate>({
         email: '',
         name: '',
@@ -50,13 +52,6 @@ export function UserNewPage() {
         is_active: true
     });
     const [errorKey, setErrorKey] = useState<string | null>(null);
-
-    // Redirect if no permission to manage users
-    useEffect(() => {
-        if (!canManageUsers) {
-            navigate('/users', { replace: true });
-        }
-    }, [canManageUsers, navigate]);
 
     useEffect(() => {
         let cancelled = false;
@@ -92,11 +87,11 @@ export function UserNewPage() {
 
     const fetchRoles = useCallback(async () => {
         try {
-            const data = await userApi.listRoles();
+            const data = await accessApi.listAccessRoles();
             setRoles(data);
 
             // Find the safest default role (control_owner preferred, then viewer, then department_head)
-            let defaultRole: Role | undefined;
+            let defaultRole: RoleWithPermissions | undefined;
             for (const safeName of SAFE_ROLE_NAMES) {
                 defaultRole = data.find(r => r.name === safeName);
                 if (defaultRole) break;
@@ -150,7 +145,12 @@ export function UserNewPage() {
     };
 
     const handleDirectoryImported = async (result: DirectoryImportResponse) => {
-        navigate(`/users/${result.user_id}`);
+        navigate('/users', {
+            state: {
+                importedUserId: result.user_id,
+                importedUserName: result.name,
+            },
+        });
     };
 
     const isDirectoryFirstMode = authConfig?.auth_mode

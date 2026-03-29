@@ -74,21 +74,183 @@
 
 ## Session Context
 
+### Open Issues Remediation and Regression Hardening - Phase 3 (2026-03-29)
+
+- Closed the `/users` partial-save gap by making the access edit modal submit a single transactional `PATCH /api/v1/access/users/{id}` request.
+- `backend/app/api/v1/endpoints/access.py` now accepts Admin-only identity fields (`name`, `email`) alongside access fields and rejects the whole mutation on validation failures such as duplicate email.
+- `frontend/src/components/access/AccessEditModal.tsx` now performs one modal save instead of splitting identity and access writes across `/access/users/{id}` and `/users/{id}`.
+- Focused verification:
+  - `PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=backend pytest --override-ini addopts='-p no:langsmith_plugin -p no:cacheprovider' tests/backend/pytest/test_access_management.py -q` -> `14 passed`
+  - `cd frontend && npm run test:run -- src/components/access/AccessEditModal.test.tsx src/pages/__tests__/UsersPage.modes.test.tsx src/pages/__tests__/UsersPage.sso-cta.test.tsx` -> `13 passed`
+
+### Open Issues Remediation and Regression Hardening - Phase 4 (2026-03-29)
+
+- Added route-level guards for `/users` and `/users/new` so denied sessions redirect before the page mounts or fetches onboarding/config data.
+- Removed the compatibility-sidebar dependency on `canViewUsersPage`; the navigation item now keys off `canViewUsersRoute`, which matches the route guard contract.
+- Hardened `/users` load failures so the page shows a retryable error state instead of a false empty-state table, and hid privileged summary cards outside access mode.
+- Tightened the `/users` create CTA contract again: password mode now exposes only `Add user`, while directory-first modes keep `Add from AD`.
+- Focused verification:
+  - `cd frontend && npm run test:run -- src/authz/__tests__/UserRouteGuards.test.tsx src/pages/__tests__/UsersPage.modes.test.tsx src/pages/__tests__/UsersPage.sso-cta.test.tsx src/components/layout/__tests__/SidebarPolling.test.tsx` -> `16 passed`
+  - `cd frontend && npx tsc --noEmit`
+
+### Open Issues Remediation and Regression Hardening - Phase 5 (2026-03-29)
+
+- Extended `GET /api/v1/users/directory` with backend-driven `available_roles` facet metadata so the `/users` directory filter no longer relies on a hardcoded frontend role vocabulary.
+- Added a test-only `directory_reader` fixture/client in backend pytest coverage instead of changing seeded product RBAC just to make directory mode manually demoable.
+- `/users` directory mode now treats backend role facets as the source of truth for role-filter options while remaining read-only.
+- Focused verification:
+  - `PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=backend pytest --override-ini addopts='-p no:langsmith_plugin -p no:cacheprovider' tests/backend/pytest/test_users.py tests/backend/pytest/test_directory_lookup.py tests/backend/pytest/test_directory_import.py -q` -> `34 passed`
+  - `cd frontend && npm run test:run -- src/pages/__tests__/UsersPage.modes.test.tsx src/pages/__tests__/UsersPage.sso-cta.test.tsx` -> `11 passed`
+  - `cd frontend && npx tsc --noEmit`
+
+### Users Surface Contract Realignment - Phase 1 (2026-03-29)
+
+- Began branch `codex/users-surface-realignment` to split user-directory, picker, and lifecycle contracts without adding any new `/users/me` or `/me/*` user-management routes.
+- Backend contract changes in progress:
+  - extracted shared user-visibility filtering into `backend/app/api/v1/endpoints/users/_visibility.py`
+  - added `GET /api/v1/users/directory` as the explicit paginated directory contract for `/users` directory mode
+  - kept `GET /api/v1/users/lookup` as the authenticated picker/search primitive
+  - tightened manual lifecycle creation/import toward Admin-only defaults
+- Frontend contract changes in progress:
+  - added explicit users-route authz flags for directory, global access view, department access view, and aggregate route visibility
+  - added `frontend/src/services/userDirectoryApi.ts` and distinct directory response types
+  - kept `canViewUsersPage` as a temporary compatibility alias during migration
+- Phase-1 documentation reconciliation in progress:
+  - `docs/BUSINESS_LOGIC.md`
+  - `docs/user/access-management.md`
+  - `docs/user-cs/access-management.md`
+  - `docs/admin/user-management.md`
+  - `docs/admin-cs/user-management.md`
+  - `backend/app/api/v1/endpoints/users/README.md`
+- Pending phase gate at this checkpoint:
+  - completed: `PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=backend pytest --override-ini addopts='-p no:langsmith_plugin -p no:cacheprovider' tests/backend/pytest/test_users.py tests/backend/pytest/test_authz_list_policy.py tests/backend/pytest/test_access_management.py tests/backend/pytest/test_directory_import.py -q` -> `34 passed`
+  - completed: `cd frontend && npm run test:run -- ../tests/frontend/unit/src/pages/__tests__/rbac_gating.test.tsx ../tests/frontend/unit/src/components/layout/__tests__/SidebarPolling.test.tsx` -> `17 passed`
+  - completed: `cd frontend && npx tsc --noEmit`
+  - ready for Phase 1 commit/push
+
+### Users Surface Contract Realignment - Phase 2 (2026-03-29)
+
+- Rebuilt `/users` around explicit mode selection:
+  - global privileged users -> `/access/users`
+  - department heads -> `/access/users/my-department`
+  - directory-entitled users without access-management authority -> `/users/directory`
+  - users with no `/users` entitlement -> redirect away from the route
+- Removed the old `/users` page fallback to `userApi.listVisibleUsers()` and replaced directory mode with the dedicated `userDirectoryApi` plus server-driven search/filtering and pagination.
+- Added focused frontend coverage for route modes and updated the existing `/users` CTA/authz suites:
+  - `cd frontend && npm run test:run -- ../tests/frontend/unit/src/pages/__tests__/UsersPage.modes.test.tsx ../tests/frontend/unit/src/pages/__tests__/UsersPage.sso-cta.test.tsx ../tests/frontend/unit/src/pages/__tests__/rbac_gating.test.tsx` -> `22 passed`
+  - `cd frontend && npx tsc --noEmit`
+- Dev/demo account verification against the live local stack (`http://localhost`) using headless Playwright:
+  - `admin@riskhub.local` (`System Admin`) -> `/users` loaded access-management mode; add-user CTA present
+  - `cro@riskhub.local` (`Anna Kowalski`) -> `/users` loaded access-management mode
+  - `risk.manager@riskhub.local` (`Petra Svobodová`) -> `/users` loaded global access-management mode without edit controls
+  - `ops.head@riskhub.local` (`Eva Králová`) -> `/users` loaded department access mode
+  - no canonical directory-only demo actor was verified in this phase; current seeded-matrix truth is recorded in Phase 5 below
+
+### Users Surface Contract Realignment - Phase 3 (2026-03-29)
+
+- Retired the standalone frontend user-detail surface:
+  - removed the standalone user-detail route from `frontend/src/App.tsx`
+  - deleted the former standalone user-detail page component
+  - removed the remaining department-tab navigation path into the retired user-detail surface
+- Re-homed user-management workflows back onto `/users`:
+  - directory import in `frontend/src/pages/UserNewPage.tsx` now returns to `/users` with import context instead of navigating to a standalone detail route
+  - `frontend/src/pages/UsersPage.tsx` now consumes that import context, shows the import success banner, and opens `AccessEditModal` on the imported record in access mode
+  - `frontend/src/components/access/AccessEditModal.tsx` now supports admin identity edits (name/email) alongside access edits so the old detail-page edit responsibilities stay on `/users`
+- Updated active docs and translations to match the new contract:
+  - removed stale standalone-detail locale copy from `frontend/src/i18n/locales/en/admin.json` and `frontend/src/i18n/locales/cs/admin.json`
+  - updated `/users` workflow guidance in `docs/admin/user-management.md`, `docs/admin-cs/user-management.md`, `docs/user/access-management.md`, `docs/user-cs/access-management.md`
+  - updated related admin runbooks in `docs/admin/incident-quick-reference.md`, `docs/admin-cs/incident-quick-reference.md`, `docs/admin/departments.md`, and `docs/admin-cs/departments.md`
+- Updated automation coverage to stop assuming dynamic user-detail routes:
+  - removed `/users` deep-detail expansion from `tests/frontend/e2e/polish-audit.spec.ts`
+- Phase 3 frontend verification:
+  - `cd frontend && npm run test:run -- ../tests/frontend/unit/src/pages/__tests__/UsersPage.modes.test.tsx ../tests/frontend/unit/src/pages/__tests__/UserNewPage.sso.test.tsx ../tests/frontend/unit/src/pages/__tests__/DepartmentDetailPage.kri-monitoring.test.tsx` -> `13 passed`
+  - `cd frontend && npx tsc --noEmit`
+  - active-surface grep now finds only historical planning artifacts for the retired standalone user-detail contract
+
+### Users Surface Contract Realignment - Phase 4 (2026-03-29)
+
+- Tightened lifecycle/detail endpoint drift on the backend:
+  - added `backend/app/api/v1/endpoints/users/_lifecycle.py` as the shared Admin-only lifecycle guard
+  - `GET /api/v1/users/{id}` now requires explicit platform-admin lifecycle authority and no longer allows self-detail reads
+  - `GET /api/v1/users/roles` is now treated as an Admin-only lifecycle helper instead of a generic authenticated role list
+  - access-management role selection remains on `GET /api/v1/access/roles`
+- Removed the remaining frontend dependency on `/users/roles`:
+  - `frontend/src/pages/UserNewPage.tsx` now loads role options from `accessApi.listAccessRoles()`
+  - `frontend/src/services/userApi.ts` no longer exposes frontend helpers for `/users/{id}` reads or `/users/roles`
+- Added explicit auth regression coverage:
+  - `tests/backend/pytest/test_users.py` now covers Admin-only enforcement for `/api/v1/users/{id}`, `/api/v1/users/{id}` self-access denial, `/api/v1/users/{id}` patches, and `/api/v1/users/roles`
+  - `tests/backend/pytest/test_directory_lookup.py` now covers CRO denial for directory search
+  - frontend user-onboarding tests now mock `accessApi.listAccessRoles()` and keep `UsersPage.sso-cta` under a router wrapper after the Phase 3 `useLocation()` dependency
+- Phase 4 verification:
+  - `PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=backend pytest --override-ini addopts='-p no:langsmith_plugin -p no:cacheprovider' tests/backend/pytest/test_users.py tests/backend/pytest/test_access_management.py tests/backend/pytest/test_directory_import.py tests/backend/pytest/test_directory_lookup.py -q` -> `41 passed`
+  - `cd frontend && npm run test:run -- ../tests/frontend/unit/src/pages/__tests__/UserNewPage.sso.test.tsx ../tests/frontend/unit/src/pages/__tests__/UsersPage.sso-cta.test.tsx ../tests/frontend/unit/src/pages/__tests__/UsersPage.modes.test.tsx` -> `14 passed`
+  - `cd frontend && npx tsc --noEmit`
+
+### Users Surface Contract Realignment - Phase 5 (2026-03-29)
+
+- Revalidated the full users-surface series on the actual `codex/users-surface-realignment` branch after rebuilding the Docker frontend/backend from that branch; discarded an earlier stale `main` runtime check on `localhost`.
+- Final branch-local regression:
+  - `cd frontend && npm run test:run` -> `77 passed (77 files), 259 passed (259 tests)`
+  - `cd frontend && npx tsc --noEmit`
+  - `PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=backend pytest --override-ini addopts='-p no:langsmith_plugin -p no:cacheprovider' tests/backend/pytest -q` -> `786 passed, 9 skipped`
+- Final active-surface grep gate:
+  - `rg -n 'UserDetailPage|/users/:id|user_detail|users/roles|listVisibleUsers' frontend backend tests docs`
+  - remaining active-code matches are intentional:
+    - `userApi.listVisibleUsers()` remains only in picker/search consumers (`frontend/src/hooks/useDepartmentDetail.ts`, `frontend/src/components/KRIForm.tsx`, `frontend/src/components/kri/KRIModal.tsx`)
+    - `/api/v1/users/roles` remains only in backend tests and the business-logic/backend endpoint docs that now describe it as an Admin-only lifecycle helper
+    - `UserDetailPage` references outside active code are historical/generated artifacts (`docs/reference/file_list.txt`, `frontend/i18n-audit/*`, `tests/results/*`)
+- Demo-account `/users` verification against the rebuilt branch runtime (`http://localhost`):
+  - `admin@riskhub.local` (`System Admin`) -> `/users` stayed in access-management mode, loaded `/api/v1/access/users`, showed `Check AD` + `Add from AD`, and exposed 18 row action buttons; opening access edit showed one email input, confirming admin identity editing stayed on `/users`
+  - `cro@riskhub.local` (`Anna Kowalski`) -> `/users` stayed in access-management mode, loaded `/api/v1/access/users`, showed 9 row edit actions only, and exposed zero email inputs in the access edit modal, confirming CRO access-only editing without lifecycle controls
+  - `risk.manager@riskhub.local` (`Petra Svobodová`) -> `/users` stayed in the global access-management view via `/api/v1/access/users` with zero row actions
+  - `ops.head@riskhub.local` (`Eva Králová`) -> `/users` stayed in department access mode via `/api/v1/access/users/my-department` with two visible rows and zero row actions
+  - `ops.analyst@riskhub.local` (`Jana Horáková`) -> direct `/users` access redirected to `/`; this supersedes the earlier provisional Phase 2 note that the analyst demo account looked like a directory-mode user
+  - current seeded demo matrix therefore has no canonical directory-only actor; directory mode remains a supported contract but requires explicit API/unit/browser coverage rather than manual demo-account verification until product intentionally seeds a non-access-view `users:read` role
+- Residual runtime observations discovered during Phase 5:
+  - password-mode `/users` originally still rendered both `Add from AD` and `Add user`; the current branch now aligns the page with the intended auth-mode-specific CTA contract and keeps password mode on the direct `Add user` lifecycle path
+
+### Open Issues Remediation and Regression Hardening - Phase 6 (2026-03-29)
+
+- Completed the explicit compatibility audit for the tightened lifecycle helpers:
+  - no active in-repo frontend/runtime consumer still depends on `GET /api/v1/users/{id}` or `GET /api/v1/users/roles`
+  - the remaining live `/users/{id}` consumer is the Admin-only PATCH used for access-management status toggles on `/users`
+  - remaining references are backend tests, active docs that describe the admin-only helper contract, or historical/generated artifacts
+  - external compatibility risk still exists because both endpoints remain discoverable public API surfaces even though the repo no longer uses them for non-admin flows
+- Re-ran the repaired stack and deterministic verification substrate:
+  - `./scripts/compose.sh reset --dataset test`
+  - `docker compose -f docker-compose.yml --profile full run --rm bootstrap python -c "import psycopg2"` -> success
+  - preflight remained healthy:
+    - `curl -fsS http://localhost:8000/api/v1/health`
+    - `curl -fsS http://localhost:8000/api/v1/auth/config`
+    - `curl -I -fsS http://localhost/login`
+  - recreated isolated Postgres test database:
+    - `docker exec riskhub-db psql -U riskhub -d postgres -v ON_ERROR_STOP=1 -c "DROP DATABASE IF EXISTS riskhub_test;" -c "CREATE DATABASE riskhub_test OWNER riskhub;"`
+  - reran Postgres marker suite:
+    - `cd backend && TEST_DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_dev@localhost:5432/riskhub_test pytest -m postgres -v` -> `5 passed, 800 deselected`
+  - reran full backend pytest:
+    - `PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=backend pytest --override-ini addopts='-p no:langsmith_plugin -p no:cacheprovider' tests/backend/pytest -q` -> `796 passed, 9 skipped`
+  - reran full frontend regression:
+    - `cd frontend && npm run test:run` -> `79 passed (79 files), 269 passed (269 tests)`
+    - `cd frontend && npx tsc --noEmit`
+- Hardened the shared Docker/local demo-login helper again in `tests/frontend/e2e/helpers/login.ts`:
+  - the helper now waits for auth/preferences hydration before asserting the authenticated shell, which removes the earlier false timeout where the app was still on the protected-route `Loading...` screen
+- Browser verification after the helper hardening:
+  - targeted Docker polish rerun passed:
+    - `cd frontend && FRONTEND_URL=http://localhost POLISH_AUDIT_DEEP=1 npx playwright test -c ../tests/frontend/e2e/playwright.config.ts ../tests/frontend/e2e/polish-audit.spec.ts --project=chromium --grep "RISK_MANAGER / theme=riskhub / lang=en"` -> `1 passed`
+  - targeted Docker access-scope rerun moved beyond login bootstrap:
+    - `cd frontend && FRONTEND_URL=http://localhost npx playwright test -c ../tests/frontend/e2e/playwright.config.ts ../tests/frontend/e2e/access-scope.spec.ts --project=chromium --grep "GLOBAL user can view cross-department risk detail|DEPARTMENT user direct department access denied for other departments"` -> `1 passed, 1 failed`
+    - the remaining failure is no longer in the login helper; it now times out in `tests/frontend/e2e/pages/RisksPage.ts` waiting for a `/api/v1/risks` response even though the filtered risk table is already rendered, which points at existing page-object synchronization debt in the broader business-logic suite rather than a remaining users-surface/auth-bootstrap contract failure
+  - the full Docker-targeted `cd frontend && FRONTEND_URL=http://localhost npm run e2e:business-logic` lane still surfaces broader access-scope/browser-suite instability under parallel load, so the residual E2E blocker is now test-harness debt, not the original `localhost:5173` origin mismatch
+- No product-side `/users` behavior changed in Phase 6; the Phase 5 live demo-account `/users` matrix remains the current runtime record for Admin, CRO, Risk Manager, department head, and analyst behavior on this repaired branch.
+
 ### Docker Live Verification + Postgres Marker Reconciliation (2026-03-29)
 
 - Attempted deterministic Docker reset:
   - `./scripts/compose.sh reset --dataset test`
-  - blocked in the Docker bootstrap container during `alembic upgrade head` with `ModuleNotFoundError: No module named 'psycopg2'`
-- Verified fallback bootstrap against the Docker Postgres service:
-  - `cd backend && DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_dev@localhost:5432/riskhub ./venv/bin/alembic upgrade head`
-  - `cd backend && DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_dev@localhost:5432/riskhub ./venv/bin/python -m app.db.seed`
-  - `cd backend && DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_dev@localhost:5432/riskhub ./venv/bin/python -m scripts.seed_e2e_all`
-  - seed summary completed with deterministic fixtures (`risks=19`, `controls=16`, `KRIs=13`, `vendors=6`, `approvals_pending=14`, `approvals_my_requests=4`)
-- Verified Docker app runtime after fallback startup:
-  - `docker compose -f docker-compose.yml --profile full up -d --build backend frontend`
-  - `docker compose -f docker-compose.yml --profile full up -d --no-deps frontend`
-  - backend container remained `unhealthy` because the current container healthcheck uses `curl` and the image does not include it
-  - frontend, backend, db, and redis were reachable after the explicit frontend start
+  - now completes end to end after aligning the bootstrap service to the backend `dbtasks` build target
+- Verified Docker app runtime on the canonical compose path:
+  - `docker compose -f docker-compose.yml --profile full run --rm bootstrap python -c "import psycopg2"` -> success
+  - backend now reaches `healthy` under the inherited image healthcheck
 - Runtime preflight passed:
   - `curl -fsS http://localhost:8000/api/v1/health` → `healthy`, `database=connected`
   - `curl -fsS http://localhost:8000/api/v1/auth/config` → `auth_mode=hybrid_dev`, `demo_login_enabled=true`
@@ -99,16 +261,14 @@
   - `cd backend && TEST_DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_dev@localhost:5432/riskhub_test pytest -m postgres -v`
   - result: `5 passed, 767 deselected in 5.33s`
   - backend artifact root: `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/backend/coverage_html`
-- Docker-targeted browser automation is currently blocked by an origin assumption in the shared login helper:
+- Docker-targeted browser automation now clears the original login-helper blocker:
   - targeted business-logic rerun:
     - `cd frontend && FRONTEND_URL=http://localhost npx playwright test -c ../tests/frontend/e2e/playwright.config.ts ../tests/frontend/e2e/access-scope.spec.ts --project=chromium --grep "GLOBAL user can see all departments in department list"`
-    - failed with `page.waitForURL` timeout in `/Users/stefanlesnak/Antigravity/Risk App 2/tests/frontend/e2e/helpers/login.ts:37`
-    - observed navigation reached `http://localhost/`, but the helper still waited for `http://localhost:5173/...`
-    - failure artifact: `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/frontend/playwright/test-results/access-scope-Access-Scope--c406f-artments-in-department-list-chromium/test-failed-1.png`
+    - result: `1 passed`
   - targeted polish rerun:
     - `cd frontend && FRONTEND_URL=http://localhost POLISH_AUDIT_DEEP=1 npx playwright test -c ../tests/frontend/e2e/playwright.config.ts ../tests/frontend/e2e/polish-audit.spec.ts --project=chromium --grep "RISK_MANAGER / theme=riskhub / lang=en"`
-    - failed with the same `page.waitForURL` timeout in `/Users/stefanlesnak/Antigravity/Risk App 2/tests/frontend/e2e/helpers/login.ts:37`
-    - failure artifact: `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/frontend/playwright/test-results/polish-audit-Polish-Audit--a77a6-NAGER-theme-riskhub-lang-en-chromium/test-failed-1.png`
+    - result: `1 passed`
+  - the shared login helper is now origin-aware and works against both `http://localhost:5173` and `http://localhost/`
 - Manual live UI verification against the Docker-served app:
   - `RISK_MANAGER`, `theme=dark`, `lang=en`:
     - `/kris` → pass

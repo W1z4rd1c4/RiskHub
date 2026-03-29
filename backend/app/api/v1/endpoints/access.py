@@ -5,10 +5,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api import deps
+from app.core.activity_logger import build_change_set, log_activity
 from app.core.permissions import get_effective_permissions, get_scope_label, is_privileged_user
 from app.core.user_query_options import user_selectinload_options
 from app.db.session import get_db
 from app.models import Role, RolePermission, User
+from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.models.role import RoleType
 from app.models.user import AccessScope
 from app.schemas.access import AccessUserRead, AccessUserUpdate, PermissionRead, RoleWithPermissions
@@ -38,6 +40,11 @@ def _can_manage_privileged_status(user: User) -> bool:
     can manage privileged status, only admin/CRO.
     """
     return bool(user.role and user.role.name in ADMIN_PRIVILEGED_ROLES)
+
+
+def _can_manage_identity_fields(user: User) -> bool:
+    """Only platform admins can edit identity fields from the access modal."""
+    return bool(user.role and user.role.name == RoleType.ADMIN)
 
 
 def _require_access_user_write(user: User) -> None:
@@ -188,6 +195,8 @@ async def update_access_user(
     Update access management fields for a user.
 
     Note: write access is stricter than read/list access and requires admin/CRO.
+    Identity-field mutations are Admin-only, but they still run through this
+    single transactional endpoint so `/users` saves cannot partially apply.
     """
     _require_privileged(current_user)
     _require_access_user_write(current_user)
@@ -202,6 +211,24 @@ async def update_access_user(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
     update_data = user_data.model_dump(exclude_unset=True)
+    identity_fields = {"name", "email"}
+    identity_update = {field: value for field, value in update_data.items() if field in identity_fields}
+
+    if identity_update and not _can_manage_identity_fields(current_user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only Admin can update user identity fields",
+        )
+
+    if "email" in identity_update and identity_update["email"] != user.email:
+        email_check = await db.execute(
+            select(User.id)
+            .where(User.email == identity_update["email"])
+            .where(User.id != user.id)
+            .limit(1)
+        )
+        if email_check.scalar_one_or_none():
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
 
     # Role change guardrails
     if "role_id" in update_data:
@@ -270,8 +297,22 @@ async def update_access_user(
                     detail="Cannot remove the last admin/CRO from privileged access",
                 )
 
+    changes = build_change_set(user, update_data)
+
     for field, value in update_data.items():
         setattr(user, field, value)
+
+    if changes:
+        await log_activity(
+            db,
+            entity_type=ActivityEntityType.USER,
+            entity_id=user.id,
+            entity_name=user.name,
+            action=ActivityAction.UPDATE,
+            actor=current_user,
+            department_id=user.department_id,
+            changes=changes,
+        )
 
     await db.commit()
     await db.refresh(user)

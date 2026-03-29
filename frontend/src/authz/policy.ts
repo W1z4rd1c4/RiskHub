@@ -13,6 +13,10 @@ export type Authz = {
     isCompliance: boolean;
     isDepartmentHead: boolean;
     hasGlobalScope: boolean;
+    canViewUserDirectory: boolean;
+    canViewAccessUsers: boolean;
+    canViewDepartmentAccessUsers: boolean;
+    canViewUsersRoute: boolean;
     canManageAccess: boolean;
     canEditAccessUsers: boolean;
     canViewDepartmentAccess: boolean;
@@ -43,15 +47,19 @@ export function buildAuthz(user: AuthUser, hasPermission: PermissionChecker): Au
     const isDepartmentHead = user?.role === 'department_head';
     const hasGlobalScope = user?.access_scope === 'global';
 
-    const canManageAccess = hasGlobalScope;
+    const canViewUserDirectory = hasPermission('users', 'read');
+    const canViewAccessUsers = hasGlobalScope;
+    const canViewDepartmentAccessUsers = isDepartmentHead;
+    const canViewUsersRoute = canViewAccessUsers || canViewDepartmentAccessUsers || canViewUserDirectory;
+    const canManageAccess = canViewAccessUsers;
     const canEditAccessUsers = isPlatformAdmin || isCRO;
-    const canViewDepartmentAccess = isDepartmentHead || hasGlobalScope;
+    const canViewDepartmentAccess = canViewDepartmentAccessUsers || canViewAccessUsers;
     const canViewAdminConsole = isPlatformAdmin;
     const canViewRiskHub = isCRO;
     const canViewGovernance = isCRO;
     const canViewActivityLog = !isPlatformAdmin && hasPermission('activity_log', 'read');
     const canViewCommittee = (hasGlobalScope && !isPlatformAdmin) || isDepartmentHead;
-    const canViewUsersPage = canManageAccess || isDepartmentHead || hasPermission('users', 'read');
+    const canViewUsersPage = canViewUsersRoute;
     const canSendRiskQuestionnaires = isRiskManager || isCRO;
     const canRequestRiskClarification = isCRO || isRiskManager;
     const isSecondLine = isRiskManager || isCompliance;
@@ -72,6 +80,10 @@ export function buildAuthz(user: AuthUser, hasPermission: PermissionChecker): Au
         isCompliance,
         isDepartmentHead,
         hasGlobalScope,
+        canViewUserDirectory,
+        canViewAccessUsers,
+        canViewDepartmentAccessUsers,
+        canViewUsersRoute,
         canManageAccess,
         canEditAccessUsers,
         canViewDepartmentAccess,

@@ -7,7 +7,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api import deps
 from app.core.activity_logger import build_change_set, log_activity
 from app.core.config import Settings, get_settings
-from app.core.permissions import can_manage_users
 from app.core.security import get_password_hash
 from app.core.user_query_options import user_selectinload_options
 from app.db.session import get_db
@@ -15,6 +14,8 @@ from app.models import User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas import UserRead, UserUpdate
 from app.services.orphaned_item_service import OrphanedItemService
+
+from ._lifecycle import require_admin_user_lifecycle
 
 router = APIRouter()
 
@@ -39,8 +40,7 @@ async def get_user(
     Raises:
         HTTPException: If user doesn't have permission or user not found
     """
-    if not can_manage_users(current_user) and current_user.id != user_id:
-        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    require_admin_user_lifecycle(current_user)
 
     result = await db.execute(select(User).options(*user_selectinload_options()).where(User.id == user_id))
     user = result.scalar_one_or_none()
@@ -74,8 +74,7 @@ async def update_user(
     Raises:
         HTTPException: If user doesn't have permission or user not found
     """
-    if not can_manage_users(current_user):
-        raise HTTPException(status_code=403, detail="Insufficient permissions")
+    require_admin_user_lifecycle(current_user)
 
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
