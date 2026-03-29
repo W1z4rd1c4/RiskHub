@@ -106,11 +106,13 @@ FRONTEND_URL=http://localhost npm run e2e:business-logic
 FRONTEND_URL=http://localhost POLISH_AUDIT_DEEP=1 npx playwright test -c ../tests/frontend/e2e/playwright.config.ts ../tests/frontend/e2e/polish-audit.spec.ts --project=chromium
 ```
 
-Current Docker-origin blocker:
+Current Docker-origin truth:
 
-- The shared login helper in [`/Users/stefanlesnak/Antigravity/Risk App 2/tests/frontend/e2e/helpers/login.ts`](../tests/frontend/e2e/helpers/login.ts) still waits for `http://localhost:5173/...`.
-- Docker full-stack runs with `FRONTEND_URL=http://localhost` therefore time out after successful demo-login redirects until that helper is made origin-aware.
-- Verified failing artifacts from 2026-03-29 are written under `tests/results/frontend/playwright/test-results/`.
+- Docker full-stack browser runs should use `FRONTEND_URL=http://localhost`.
+- The shared login helper in [`/Users/stefanlesnak/Antigravity/Risk App 2/tests/frontend/e2e/helpers/login.ts`](../tests/frontend/e2e/helpers/login.ts) now waits on post-login pathnames instead of a hardcoded `localhost:5173` origin, so the same helper works against both Vite and Docker nginx surfaces.
+- Targeted verification on 2026-03-29 passed for:
+  - `access-scope.spec.ts --grep "GLOBAL user can see all departments in department list"`
+  - `polish-audit.spec.ts --grep "RISK_MANAGER / theme=riskhub / lang=en"`
 
 Current automation scope:
 
