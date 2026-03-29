@@ -1,5 +1,5 @@
 import { apiClient } from './apiClient';
-import type { UserRead, UserCreate, UserUpdate, Role, UserLookup, UserShellSummary } from '../types/user';
+import type { UserRead, UserCreate, UserUpdate, UserLookup, UserShellSummary } from '../types/user';
 
 export const userApi = {
     async listUsers(skip = 0, limit = 100, departmentId?: number, roleId?: number) {
@@ -8,10 +8,6 @@ export const userApi = {
         if (roleId) params.role_id = roleId;
 
         return apiClient.get<UserRead[]>('/users', { params });
-    },
-
-    async getUser(userId: number) {
-        return apiClient.get<UserRead>(`/users/${userId}`);
     },
 
     async createUser(userData: UserCreate) {
@@ -36,10 +32,6 @@ export const userApi = {
      */
     async listVisibleUsers(params?: { q?: string; include_inactive?: boolean; department_id?: number; skip?: number; limit?: number }) {
         return apiClient.get<UserLookup[]>('/users/lookup', { params });
-    },
-
-    async listRoles() {
-        return apiClient.get<Role[]>('/users/roles');
     },
 
     async getShellSummary(options?: { signal?: AbortSignal }) {

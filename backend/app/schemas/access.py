@@ -2,7 +2,7 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 
 from app.schemas.user import AccessScopeEnum, RoleRead
 
@@ -57,8 +57,12 @@ class AccessUserUpdate(BaseModel):
     """
     Schema for access-management updates.
 
-    Backend policy: all updates using this payload are restricted to admin/CRO.
+    Backend policy:
+    - access fields are restricted to admin/CRO
+    - identity fields are restricted to platform Admin only
     """
+    name: Optional[str] = None
+    email: Optional[EmailStr] = None
     role_id: Optional[int] = None
     department_id: Optional[int] = None
     manager_id: Optional[int] = None

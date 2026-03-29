@@ -11,6 +11,9 @@ from app.models import Role, User
 from app.schemas import RoleRead
 from app.schemas.user import UserLookup
 
+from ._lifecycle import require_admin_user_lifecycle
+from ._visibility import build_visible_users_query
+
 router = APIRouter()
 
 
@@ -19,7 +22,8 @@ async def list_roles(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
 ):
-    """List all available roles. Requires authentication."""
+    """List roles for admin-only user lifecycle flows."""
+    require_admin_user_lifecycle(current_user)
     result = await db.execute(select(Role).where(Role.is_active.is_(True)))
     return result.scalars().all()
 
@@ -49,45 +53,16 @@ async def lookup_users(
         skip: Number of records to skip (default 0)
         limit: Maximum number of records to return (default 50, max 200)
     """
-    from sqlalchemy import or_
-
     from app.core.pagination import MAX_LOOKUP_SIZE
-    from app.models.user import AccessScope
+    from sqlalchemy import or_
 
     # Enforce max lookup size
     limit = min(limit, MAX_LOOKUP_SIZE)
 
-    query = select(User).options(
+    query = build_visible_users_query(current_user, department_id=department_id).options(
         selectinload(User.role),
         selectinload(User.department),
     )
-
-    # Apply scope filtering based on current user's access
-    if current_user.access_scope == AccessScope.GLOBAL:
-        # Global users see everyone
-        # Apply optional department_id filter (allowed for any dept)
-        if department_id is not None:
-            query = query.where(User.department_id == department_id)
-    elif current_user.access_scope == AccessScope.DEPARTMENT:
-        # Department scope: same department users
-        if department_id is not None:
-            # Only allow filtering to caller's own department
-            if department_id != current_user.department_id:
-                return []  # Avoid leaking existence via 403
-            query = query.where(User.department_id == department_id)
-        elif current_user.department_id:
-            query = query.where(User.department_id == current_user.department_id)
-        else:
-            # No department, only see self
-            query = query.where(User.id == current_user.id)
-    else:
-        # Manager scope: self + direct reports
-        query = query.where(or_(User.id == current_user.id, User.manager_id == current_user.id))
-        if department_id is not None:
-            # Managers can only scope to their own department.
-            if department_id != current_user.department_id:
-                return []
-            query = query.where(User.department_id == department_id)
 
     # Apply active filter
     if not include_inactive:

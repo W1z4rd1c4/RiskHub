@@ -107,7 +107,7 @@ Access-management read/list behavior and write behavior are intentionally differ
 |---------|----------------|-------|
 | `GET /api/v1/access/users` | GLOBAL-scope users | Platform-wide list/read endpoint |
 | `GET /api/v1/access/users/my-department` | Department Head OR GLOBAL-scope users | Department-scoped list/read endpoint |
-| `PATCH /api/v1/access/users/{id}` | **Admin or CRO only** | Applies to all mutable fields (`role_id`, `department_id`, `manager_id`, `access_scope`) |
+| `PATCH /api/v1/access/users/{id}` | **Admin or CRO only** | Single transactional save for `/users` access modal. Admin/CRO may update access fields (`role_id`, `department_id`, `manager_id`, `access_scope`); Admin-only may also include identity fields (`name`, `email`). Validation failures reject the whole patch. |
 
 > [!IMPORTANT]
 > `admin` is a platform role, not a business-data superuser. Admin capabilities must not be interpreted as unrestricted business access. Direct business `/governance` and `/activity-log` access remains blocked for `admin`, including direct route/API requests.
@@ -281,7 +281,7 @@ Rules:
 | `kri:submit` | Submit KRI values | Reporting Owner, Risk Owner |
 | `approvals:read` | View approval queue | All |
 | `approvals:write` | Approve/reject requests | Privileged users only |
-| `users:read` | View user list | Admin, CRO |
+| `users:read` | View `/users` directory mode and user directory API | Admin, CRO, Risk Manager |
 | `users:write` | Create/edit users | Admin only |
 | `activity_log:read` | View activity log | CRO, Risk Manager, Compliance, Department Head |
 | `vendors:read` | View vendors (Vendor Risk Management) | Governance + business users (scoped) |
@@ -295,6 +295,15 @@ Rules:
 
 > [!NOTE]
 > Platform admins are console-only and are explicitly blocked from business Activity Log and Governance surfaces, including direct route/API access.
+
+> [!NOTE]
+> User discovery and user administration are separate contracts. `/api/v1/users/lookup` is the authenticated picker/search primitive used by forms and filters. `/api/v1/users/directory` is the explicit paginated collection for `/users` directory mode and requires `users:read`. Its response also carries `available_roles` facet metadata derived from the caller's visible directory universe so the frontend role filter stays backend-driven. `/api/v1/access/users*` remains the access-management contract for privileged and department-head access views.
+
+> [!NOTE]
+> Manual user lifecycle actions are least-privilege operations. Direct user creation (`POST /api/v1/users`) and directory import (`POST /api/v1/directory/users/{oid}/import`) are Admin-only lifecycle actions even when broader read or access-review surfaces are available to other privileged roles.
+
+> [!NOTE]
+> Admin lifecycle/detail endpoints stay separate from access-management review endpoints. `GET /api/v1/users/{id}` and `GET /api/v1/users/roles` are Admin-only lifecycle helpers; the active access-management UI reads role options from `GET /api/v1/access/roles` instead.
 
 > [!NOTE]
 > Vendor visibility and vendor-linked risk visibility are related but not identical. A user can have enough access to view a vendor while still lacking permission or scope to read linked risks. In that case the vendor remains visible, but risk-linked summaries and the frontend `By Risk` grouping must only expose readable risks; otherwise the UI must fall back to an unlinked/no-readable-risk bucket rather than leaking risk names.

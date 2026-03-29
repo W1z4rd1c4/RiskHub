@@ -68,4 +68,6 @@ async def test_successful_password_login_still_issues_tokens(client, db_session,
     body = response.json()
     assert body["access_token"]
     assert body["user"]["email"] == test_user.email
-    assert "riskhub_refresh_token=" in response.headers.get("set-cookie", "")
+    cookie_header = response.headers.get("set-cookie", "")
+    assert "riskhub_refresh_token=" in cookie_header
+    assert "riskhub_refresh_hint=1" in cookie_header

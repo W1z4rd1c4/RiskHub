@@ -89,7 +89,7 @@ export function Sidebar() {
     };
 
     // Access Management visible to admins, privileged users, and department heads
-    const userManagementItem: SidebarItem | null = authz.canViewUsersPage
+    const userManagementItem: SidebarItem | null = authz.canViewUsersRoute
         ? { name: t('sidebar.users'), href: '/users', icon: UsersIcon }
         : null;
 
