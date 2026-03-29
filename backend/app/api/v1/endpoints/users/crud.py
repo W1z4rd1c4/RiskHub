@@ -7,7 +7,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api import deps
 from app.core.activity_logger import log_activity
 from app.core.config import Settings, get_settings
-from app.core.permissions import is_platform_admin
 from app.core.security import get_password_hash
 from app.core.user_query_options import user_selectinload_options
 from app.db.session import get_db
@@ -15,14 +14,9 @@ from app.models import User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas import UserCreate, UserRead
 
+from ._lifecycle import require_admin_user_lifecycle
+
 router = APIRouter()
-
-
-def _require_admin_user_lifecycle(current_user: User) -> None:
-    if not is_platform_admin(current_user):
-        raise HTTPException(status_code=403, detail="Only Admin can manage user lifecycle")
-
-
 @router.get("", response_model=list[UserRead])
 async def list_users(
     skip: int = Query(0, ge=0),
@@ -49,7 +43,7 @@ async def list_users(
     Raises:
         HTTPException: If user doesn't have permission
     """
-    _require_admin_user_lifecycle(current_user)
+    require_admin_user_lifecycle(current_user)
 
     query = select(User).options(*user_selectinload_options())
 
@@ -83,7 +77,7 @@ async def create_user(
     Raises:
         HTTPException: If user doesn't have permission or email exists
     """
-    _require_admin_user_lifecycle(current_user)
+    require_admin_user_lifecycle(current_user)
     if settings.auth_mode == "microsoft_sso":
         raise HTTPException(
             status_code=403,

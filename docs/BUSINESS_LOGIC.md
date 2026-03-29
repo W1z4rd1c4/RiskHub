@@ -303,6 +303,9 @@ Rules:
 > Manual user lifecycle actions are least-privilege operations. Direct user creation (`POST /api/v1/users`) and directory import (`POST /api/v1/directory/users/{oid}/import`) are Admin-only lifecycle actions even when broader read or access-review surfaces are available to other privileged roles.
 
 > [!NOTE]
+> Admin lifecycle/detail endpoints stay separate from access-management review endpoints. `GET /api/v1/users/{id}` and `GET /api/v1/users/roles` are Admin-only lifecycle helpers; the active access-management UI reads role options from `GET /api/v1/access/roles` instead.
+
+> [!NOTE]
 > Vendor visibility and vendor-linked risk visibility are related but not identical. A user can have enough access to view a vendor while still lacking permission or scope to read linked risks. In that case the vendor remains visible, but risk-linked summaries and the frontend `By Risk` grouping must only expose readable risks; otherwise the UI must fall back to an unlinked/no-readable-risk bucket rather than leaking risk names.
 
 > [!NOTE]
