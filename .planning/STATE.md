@@ -115,7 +115,7 @@
   - `cro@riskhub.local` (`Anna Kowalski`) -> `/users` loaded access-management mode
   - `risk.manager@riskhub.local` (`Petra Svobodová`) -> `/users` loaded global access-management mode without edit controls
   - `ops.head@riskhub.local` (`Eva Králová`) -> `/users` loaded department access mode
-  - `ops.analyst@riskhub.local` (`Jana Horáková`) -> `/users` loaded a read-only directory-style view; this supersedes the earlier assumption that the demo matrix lacked a directory-mode account
+  - no canonical directory-only demo actor was verified in this phase; current seeded-matrix truth is recorded in Phase 5 below
 
 ### Users Surface Contract Realignment - Phase 3 (2026-03-29)
 
@@ -176,25 +176,18 @@
   - `risk.manager@riskhub.local` (`Petra Svobodová`) -> `/users` stayed in the global access-management view via `/api/v1/access/users` with zero row actions
   - `ops.head@riskhub.local` (`Eva Králová`) -> `/users` stayed in department access mode via `/api/v1/access/users/my-department` with two visible rows and zero row actions
   - `ops.analyst@riskhub.local` (`Jana Horáková`) -> direct `/users` access redirected to `/`; this supersedes the earlier provisional Phase 2 note that the analyst demo account looked like a directory-mode user
+  - current seeded demo matrix therefore has no canonical directory-only actor; directory mode remains a supported contract but requires explicit API/unit/browser coverage rather than manual demo-account verification until product intentionally seeds a non-access-view `users:read` role
 - Residual runtime observations discovered during Phase 5:
   - each demo-login browser run emitted an initial `GET /api/v1/auth/refresh` `401` followed by a successful refresh, which produced visible console noise during login; this did not block the `/users` contract verification but remains an auth/bootstrap cleanup candidate outside this phase
-  - the Docker backend container still reports `health: starting` because the current container healthcheck relies on `curl`, which is not present in the image
 
 ### Docker Live Verification + Postgres Marker Reconciliation (2026-03-29)
 
 - Attempted deterministic Docker reset:
   - `./scripts/compose.sh reset --dataset test`
-  - blocked in the Docker bootstrap container during `alembic upgrade head` with `ModuleNotFoundError: No module named 'psycopg2'`
-- Verified fallback bootstrap against the Docker Postgres service:
-  - `cd backend && DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_dev@localhost:5432/riskhub ./venv/bin/alembic upgrade head`
-  - `cd backend && DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_dev@localhost:5432/riskhub ./venv/bin/python -m app.db.seed`
-  - `cd backend && DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_dev@localhost:5432/riskhub ./venv/bin/python -m scripts.seed_e2e_all`
-  - seed summary completed with deterministic fixtures (`risks=19`, `controls=16`, `KRIs=13`, `vendors=6`, `approvals_pending=14`, `approvals_my_requests=4`)
-- Verified Docker app runtime after fallback startup:
-  - `docker compose -f docker-compose.yml --profile full up -d --build backend frontend`
-  - `docker compose -f docker-compose.yml --profile full up -d --no-deps frontend`
-  - backend container remained `unhealthy` because the current container healthcheck uses `curl` and the image does not include it
-  - frontend, backend, db, and redis were reachable after the explicit frontend start
+  - now completes end to end after aligning the bootstrap service to the backend `dbtasks` build target
+- Verified Docker app runtime on the canonical compose path:
+  - `docker compose -f docker-compose.yml --profile full run --rm bootstrap python -c "import psycopg2"` -> success
+  - backend now reaches `healthy` under the inherited image healthcheck
 - Runtime preflight passed:
   - `curl -fsS http://localhost:8000/api/v1/health` → `healthy`, `database=connected`
   - `curl -fsS http://localhost:8000/api/v1/auth/config` → `auth_mode=hybrid_dev`, `demo_login_enabled=true`
