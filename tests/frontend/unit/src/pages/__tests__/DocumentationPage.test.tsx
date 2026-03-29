@@ -7,9 +7,9 @@ import { http, HttpResponse } from 'msw';
 
 import { createTestQueryClient } from '@test/queryClient';
 import { ThemeProvider } from '@/contexts/ThemeContext';
-import { AuthProvider } from '@/contexts/AuthContext';
 import { DocumentationPage } from '@/pages/DocumentationPage';
 import { server } from '@test/mocks/server';
+import { AuthProviderWithReady, waitForAuthBootstrapReady } from '@test/authBootstrap';
 
 const makeDoc = (overrides: Partial<Record<string, unknown>> = {}) => ({
     id: 'admin_getting-started',
@@ -75,23 +75,33 @@ const tocDocsPayload = {
     ],
 };
 
-function renderDocumentationPage(initialRoute: string = '/admin/docs') {
+vi.mock('@/utils/userSettingsStorage', async () => {
+    const actual = await vi.importActual<typeof import('@/utils/userSettingsStorage')>('@/utils/userSettingsStorage');
+    return {
+        ...actual,
+        syncPreferencesFromServer: vi.fn(async () => undefined),
+        clearLocalSettings: vi.fn(),
+    };
+});
+
+async function renderDocumentationPage(initialRoute: string = '/admin/docs') {
     const queryClient = createTestQueryClient();
 
-    return render(
+    render(
         <QueryClientProvider client={queryClient}>
             <MemoryRouter initialEntries={[initialRoute]}>
-                <AuthProvider>
+                <AuthProviderWithReady>
                     <ThemeProvider>
                         <Routes>
                             <Route path="/admin/docs" element={<DocumentationPage />} />
                             <Route path="/risks" element={<div data-testid="risks-route">Risks Route</div>} />
                         </Routes>
                     </ThemeProvider>
-                </AuthProvider>
+                </AuthProviderWithReady>
             </MemoryRouter>
         </QueryClientProvider>,
     );
+    await waitForAuthBootstrapReady();
 }
 
 describe('DocumentationPage', () => {
@@ -126,7 +136,7 @@ describe('DocumentationPage', () => {
             http.get('*/api/v1/admin/docs', () => HttpResponse.json(docsPayload)),
         );
 
-        renderDocumentationPage();
+        await renderDocumentationPage();
 
         const uiUser = userEvent.setup();
         await uiUser.click(await screen.findByRole('button', { name: /Getting Started with RiskHub/i }));
@@ -140,7 +150,7 @@ describe('DocumentationPage', () => {
             http.get('*/api/v1/admin/docs', () => HttpResponse.json(docsPayload)),
         );
 
-        renderDocumentationPage();
+        await renderDocumentationPage();
 
         const uiUser = userEvent.setup();
         await uiUser.click(await screen.findByRole('button', { name: /Getting Started with RiskHub/i }));
@@ -156,7 +166,7 @@ describe('DocumentationPage', () => {
             http.get('*/api/v1/admin/docs', () => HttpResponse.json(docsPayload)),
         );
 
-        renderDocumentationPage();
+        await renderDocumentationPage();
 
         const uiUser = userEvent.setup();
         await uiUser.click(await screen.findByRole('button', { name: /Getting Started with RiskHub/i }));
@@ -170,7 +180,7 @@ describe('DocumentationPage', () => {
             http.get('*/api/v1/admin/docs', () => HttpResponse.json(linkedDocsPayload)),
         );
 
-        renderDocumentationPage();
+        await renderDocumentationPage();
 
         const uiUser = userEvent.setup();
         await uiUser.click(await screen.findByRole('button', { name: /Getting Started with RiskHub/i }));
@@ -189,7 +199,7 @@ describe('DocumentationPage', () => {
             http.get('*/api/v1/admin/docs', () => HttpResponse.json(tocDocsPayload)),
         );
 
-        renderDocumentationPage();
+        await renderDocumentationPage();
 
         const uiUser = userEvent.setup();
         await uiUser.click(await screen.findByRole('button', { name: /Getting Started with RiskHub/i }));

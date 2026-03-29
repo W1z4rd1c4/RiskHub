@@ -52,7 +52,7 @@ async def test_sso_token_service_validates_and_extracts_claims():
     token = jwt.encode(claims, priv_pem, algorithm="RS256", headers={"kid": kid})
 
     settings = Settings(
-        secret_key="test-secret-key",
+        secret_key="test-secret-key-32-chars-minimum-value",
         auth_mode="microsoft_sso",
         entra_tenant_id=tenant_id,
         entra_client_id=client_id,
@@ -101,7 +101,7 @@ async def test_sso_token_service_refreshes_jwks_on_unknown_kid():
     token = jwt.encode(claims, priv_pem, algorithm="RS256", headers={"kid": kid})
 
     settings = Settings(
-        secret_key="test-secret-key",
+        secret_key="test-secret-key-32-chars-minimum-value",
         auth_mode="microsoft_sso",
         entra_tenant_id=tenant_id,
         entra_client_id=client_id,
@@ -154,7 +154,7 @@ async def test_sso_token_service_rejects_unapproved_email_domain():
     token = jwt.encode(claims, priv_pem, algorithm="RS256", headers={"kid": kid})
 
     settings = Settings(
-        secret_key="test-secret-key",
+        secret_key="test-secret-key-32-chars-minimum-value",
         auth_mode="microsoft_sso",
         entra_tenant_id=tenant_id,
         entra_client_id=client_id,

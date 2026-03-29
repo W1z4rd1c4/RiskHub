@@ -12,7 +12,7 @@ async def test_auth_config_password_mode(client: AsyncClient):
     def override_settings():
         return Settings(
             debug=True,
-            secret_key="test-secret-key",
+            secret_key="test-secret-key-32-chars-minimum-value",
             mock_auth_enabled=True,
             auth_mode="password",
         )
@@ -37,7 +37,7 @@ async def test_auth_config_hybrid_dev_enables_demo_and_optional_sso(client: Asyn
     def override_settings():
         return Settings(
             debug=True,
-            secret_key="test-secret-key",
+            secret_key="test-secret-key-32-chars-minimum-value",
             mock_auth_enabled=True,
             auth_mode="hybrid_dev",
             entra_tenant_id="00000000-0000-0000-0000-000000000000",
@@ -67,7 +67,7 @@ async def test_auth_config_microsoft_sso_missing_config_sets_sso_error(client: A
     def override_settings():
         return Settings(
             debug=True,
-            secret_key="test-secret-key",
+            secret_key="test-secret-key-32-chars-minimum-value",
             mock_auth_enabled=True,
             auth_mode="microsoft_sso",
             entra_tenant_id=None,

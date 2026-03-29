@@ -23,7 +23,7 @@ async def sso_client(db_session: AsyncSession) -> AsyncClient:
     def override_settings():
         return Settings(
             debug=True,
-            secret_key="test-secret-key",
+            secret_key="test-secret-key-32-chars-minimum-value",
             mock_auth_enabled=True,
             auth_mode="microsoft_sso",
             entra_tenant_id="00000000-0000-0000-0000-000000000000",
@@ -71,7 +71,7 @@ async def test_sso_exchange_disabled_in_password_mode(sso_client: AsyncClient):
     def override_settings_password_mode():
         return Settings(
             debug=True,
-            secret_key="test-secret-key",
+            secret_key="test-secret-key-32-chars-minimum-value",
             mock_auth_enabled=True,
             auth_mode="password",
             entra_tenant_id="00000000-0000-0000-0000-000000000000",
@@ -173,7 +173,7 @@ async def test_sso_exchange_blocks_unknown_user_when_jit_disabled(
     def override_settings_jit_disabled():
         return Settings(
             debug=True,
-            secret_key="test-secret-key",
+            secret_key="test-secret-key-32-chars-minimum-value",
             mock_auth_enabled=True,
             auth_mode="microsoft_sso",
             entra_tenant_id="00000000-0000-0000-0000-000000000000",
@@ -241,7 +241,7 @@ async def test_demo_login_by_email_succeeds_in_hybrid_dev_mode(sso_client: Async
     def override_settings_hybrid_mode():
         return Settings(
             debug=True,
-            secret_key="test-secret-key",
+            secret_key="test-secret-key-32-chars-minimum-value",
             mock_auth_enabled=True,
             auth_mode="hybrid_dev",
         )
@@ -258,7 +258,7 @@ async def test_demo_login_by_email_returns_404_for_unknown_user(sso_client: Asyn
     def override_settings_hybrid_mode():
         return Settings(
             debug=True,
-            secret_key="test-secret-key",
+            secret_key="test-secret-key-32-chars-minimum-value",
             mock_auth_enabled=True,
             auth_mode="hybrid_dev",
         )

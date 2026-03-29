@@ -1,16 +1,25 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { http, HttpResponse } from 'msw';
 
+import { AuthProviderWithReady, waitForAuthBootstrapReady } from '@test/authBootstrap';
 import { server } from '@test/mocks/server';
 import { createTestQueryClient } from '@test/queryClient';
 import { clearAccessToken, setAccessToken } from '@/services/accessTokenStore';
 import { clearBootstrapSession } from '@/services/authSessionCoordinator';
-import { AuthProvider } from '@/contexts/AuthContext';
 import { KRIsPage } from '@/pages/KRIsPage';
+
+vi.mock('@/utils/userSettingsStorage', async () => {
+    const actual = await vi.importActual<typeof import('@/utils/userSettingsStorage')>('@/utils/userSettingsStorage');
+    return {
+        ...actual,
+        syncPreferencesFromServer: vi.fn(async () => undefined),
+        clearLocalSettings: vi.fn(),
+    };
+});
 
 const makeUser = (overrides: Partial<Record<string, unknown>> = {}) => ({
     id: 123,
@@ -91,7 +100,7 @@ function renderWithRoute(route: string) {
     return render(
         <QueryClientProvider client={queryClient}>
             <MemoryRouter initialEntries={[route]}>
-                <AuthProvider>
+                <AuthProviderWithReady>
                     <Routes>
                         <Route
                             path="/kris"
@@ -103,7 +112,7 @@ function renderWithRoute(route: string) {
                             )}
                         />
                     </Routes>
-                </AuthProvider>
+                </AuthProviderWithReady>
             </MemoryRouter>
         </QueryClientProvider>
     );
@@ -113,6 +122,7 @@ async function renderKriPage(route: string) {
     await act(async () => {
         renderWithRoute(route);
     });
+    await waitForAuthBootstrapReady();
 }
 
 function installKriHandlers(requestQueries: string[]) {

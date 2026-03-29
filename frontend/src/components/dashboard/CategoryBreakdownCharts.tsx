@@ -66,7 +66,12 @@ function MiniPieChart({ title, data, colors, onSegmentClick }: MiniPieChartProps
                             outerRadius={75}
                             paddingAngle={2}
                             dataKey="value"
-                            onClick={(entry) => onSegmentClick?.(entry.key)}
+                            onClick={(_, index) => {
+                                const key = chartData[index]?.key;
+                                if (key) {
+                                    onSegmentClick?.(key);
+                                }
+                            }}
                             cursor={onSegmentClick ? 'pointer' : undefined}
                         >
                             {chartData.map((entry, index) => (

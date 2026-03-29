@@ -1,17 +1,26 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { http, HttpResponse } from 'msw';
 
+import { AuthProviderWithReady, waitForAuthBootstrapReady } from '@test/authBootstrap';
 import { server } from '@test/mocks/server';
 import { createTestQueryClient } from '@test/queryClient';
 import { clearAccessToken, setAccessToken } from '@/services/accessTokenStore';
 import { clearBootstrapSession } from '@/services/authSessionCoordinator';
-import { AuthProvider } from '@/contexts/AuthContext';
 import { DashboardFilterProvider } from '@/contexts/DashboardFilterContext';
 import { RisksPage } from '@/pages/RisksPage';
+
+vi.mock('@/utils/userSettingsStorage', async () => {
+    const actual = await vi.importActual<typeof import('@/utils/userSettingsStorage')>('@/utils/userSettingsStorage');
+    return {
+        ...actual,
+        syncPreferencesFromServer: vi.fn(async () => undefined),
+        clearLocalSettings: vi.fn(),
+    };
+});
 
 const makeUser = (overrides: Partial<Record<string, unknown>> = {}) => ({
     id: 123,
@@ -26,22 +35,23 @@ const makeUser = (overrides: Partial<Record<string, unknown>> = {}) => ({
     ...overrides,
 });
 
-function renderWithRoute(route: string) {
+async function renderWithRoute(route: string) {
     const queryClient = createTestQueryClient();
 
-    return render(
+    render(
         <QueryClientProvider client={queryClient}>
             <MemoryRouter initialEntries={[route]}>
-                <AuthProvider>
+                <AuthProviderWithReady>
                     <DashboardFilterProvider>
                         <Routes>
                             <Route path="/risks" element={<RisksPage />} />
                         </Routes>
                     </DashboardFilterProvider>
-                </AuthProvider>
+                </AuthProviderWithReady>
             </MemoryRouter>
         </QueryClientProvider>
     );
+    await waitForAuthBootstrapReady();
 }
 
 describe('RisksPage archived visibility', () => {
@@ -98,7 +108,7 @@ describe('RisksPage archived visibility', () => {
             })
         );
 
-        renderWithRoute('/risks');
+        await renderWithRoute('/risks');
 
         await screen.findByText('Active Risk');
         expect(screen.queryByText('Archived Risk')).not.toBeInTheDocument();

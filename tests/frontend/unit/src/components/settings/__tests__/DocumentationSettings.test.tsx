@@ -6,9 +6,9 @@ import { MemoryRouter } from 'react-router-dom';
 import { http, HttpResponse } from 'msw';
 
 import { server } from '@test/mocks/server';
+import { AuthProviderWithReady, waitForAuthBootstrapReady } from '@test/authBootstrap';
 import { createTestQueryClient } from '@test/queryClient';
 import { clearAccessToken, setAccessToken } from '@/services/accessTokenStore';
-import { AuthProvider } from '@/contexts/AuthContext';
 import { DocumentationSettings } from '@/components/settings/DocumentationSettings';
 
 const makeUser = (overrides: Partial<Record<string, unknown>> = {}) => ({
@@ -119,18 +119,28 @@ const tocDocsPayload = {
     ],
 };
 
-function renderDocumentationSettings() {
+vi.mock('@/utils/userSettingsStorage', async () => {
+    const actual = await vi.importActual<typeof import('@/utils/userSettingsStorage')>('@/utils/userSettingsStorage');
+    return {
+        ...actual,
+        syncPreferencesFromServer: vi.fn(async () => undefined),
+        clearLocalSettings: vi.fn(),
+    };
+});
+
+async function renderDocumentationSettings() {
     const queryClient = createTestQueryClient();
 
-    return render(
+    render(
         <QueryClientProvider client={queryClient}>
             <MemoryRouter>
-                <AuthProvider>
+                <AuthProviderWithReady>
                     <DocumentationSettings />
-                </AuthProvider>
+                </AuthProviderWithReady>
             </MemoryRouter>
         </QueryClientProvider>,
     );
+    await waitForAuthBootstrapReady();
 }
 
 const originalScrollTo = HTMLElement.prototype.scrollTo;
@@ -171,7 +181,7 @@ describe('DocumentationSettings', () => {
             http.get('*/api/v1/admin/docs', () => HttpResponse.json(adminDocsPayload)),
         );
 
-        renderDocumentationSettings();
+        await renderDocumentationSettings();
 
         await screen.findByTestId('settings-doc-card-admin_incident-quick-reference');
         await screen.findByTestId('settings-doc-card-admin_getting-started');
@@ -187,7 +197,7 @@ describe('DocumentationSettings', () => {
             http.get('*/api/v1/admin/docs', () => HttpResponse.json(adminDocsPayload)),
         );
 
-        renderDocumentationSettings();
+        await renderDocumentationSettings();
 
         await screen.findByTestId('settings-doc-card-admin_getting-started');
         const uiUser = userEvent.setup();
@@ -204,7 +214,7 @@ describe('DocumentationSettings', () => {
             http.get('*/api/v1/admin/docs', () => HttpResponse.json(linkedDocsPayload)),
         );
 
-        renderDocumentationSettings();
+        await renderDocumentationSettings();
 
         const uiUser = userEvent.setup();
         await uiUser.click(await screen.findByTestId('settings-doc-card-admin_getting-started'));
@@ -219,7 +229,7 @@ describe('DocumentationSettings', () => {
             http.get('*/api/v1/admin/docs', () => HttpResponse.json(linkedDocsPayload)),
         );
 
-        renderDocumentationSettings();
+        await renderDocumentationSettings();
 
         const uiUser = userEvent.setup();
         await uiUser.click(await screen.findByTestId('settings-doc-card-admin_getting-started'));
@@ -238,7 +248,7 @@ describe('DocumentationSettings', () => {
             http.get('*/api/v1/admin/docs', () => HttpResponse.json(userDocsPayload)),
         );
 
-        renderDocumentationSettings();
+        await renderDocumentationSettings();
 
         await screen.findByTestId('settings-doc-card-user_getting-started');
         expect(screen.getByTestId('settings-docs-audience')).toHaveTextContent('User documentation');
@@ -250,7 +260,7 @@ describe('DocumentationSettings', () => {
             http.get('*/api/v1/admin/docs', () => HttpResponse.json(tocDocsPayload)),
         );
 
-        renderDocumentationSettings();
+        await renderDocumentationSettings();
 
         const uiUser = userEvent.setup();
         await uiUser.click(await screen.findByTestId('settings-doc-card-admin_getting-started'));

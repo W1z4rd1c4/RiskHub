@@ -17,7 +17,7 @@ from app.services.directory_provider_service import DirectoryUserNotFoundError
 def _service_settings() -> Settings:
     return Settings(
         debug=True,
-        secret_key="test-secret-key",
+        secret_key="test-secret-key-32-chars-minimum-value",
         mock_auth_enabled=True,
         directory_provider="ad_emulator",
         ad_emulator_base_url="http://ad-emulator.local",

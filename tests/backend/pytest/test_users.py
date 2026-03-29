@@ -186,7 +186,7 @@ async def test_mock_login_disabled_returns_404(
 ):
     """Mock login endpoint should be unavailable unless debug+mock auth are both enabled."""
     def override_settings_disabled():
-        return Settings(secret_key="test-secret-key", debug=True, mock_auth_enabled=False)
+        return Settings(secret_key="test-secret-key-32-chars-minimum-value", debug=True, mock_auth_enabled=False)
 
     app.dependency_overrides[get_settings] = override_settings_disabled
     try:
@@ -204,7 +204,7 @@ async def test_mock_login_enabled_in_debug_mode(
 ):
     """Mock login endpoint should work only when debug+mock auth are enabled."""
     def override_settings_enabled():
-        return Settings(secret_key="test-secret-key", debug=True, mock_auth_enabled=True)
+        return Settings(secret_key="test-secret-key-32-chars-minimum-value", debug=True, mock_auth_enabled=True)
 
     app.dependency_overrides[get_settings] = override_settings_enabled
     try:

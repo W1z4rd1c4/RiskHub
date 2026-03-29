@@ -1,15 +1,15 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { http, HttpResponse } from 'msw';
 
+import { AuthProviderWithReady, waitForAuthBootstrapReady } from '@test/authBootstrap';
 import { server } from '@test/mocks/server';
 import { createTestQueryClient } from '@test/queryClient';
 import { clearAccessToken, setAccessToken } from '@/services/accessTokenStore';
 import { clearBootstrapSession } from '@/services/authSessionCoordinator';
-import { AuthProvider } from '@/contexts/AuthContext';
 import { DashboardFilterProvider } from '@/contexts/DashboardFilterContext';
 import { buildAuthz } from '@/authz/policy';
 
@@ -18,6 +18,15 @@ import { ControlDetailPage } from '@/pages/ControlDetailPage';
 import { ControlsPage } from '@/pages/ControlsPage';
 import { RisksPage } from '@/pages/RisksPage';
 import { UsersPage } from '@/pages/UsersPage';
+
+vi.mock('@/utils/userSettingsStorage', async () => {
+    const actual = await vi.importActual<typeof import('@/utils/userSettingsStorage')>('@/utils/userSettingsStorage');
+    return {
+        ...actual,
+        syncPreferencesFromServer: vi.fn(async () => undefined),
+        clearLocalSettings: vi.fn(),
+    };
+});
 
 type AuthMeUser = {
     id: number;
@@ -98,13 +107,13 @@ const makeAccessUser = (overrides: Partial<AccessUserApi> = {}): AccessUserApi =
     ...overrides,
 });
 
-function renderWithRoute(route: string) {
+async function renderWithRoute(route: string) {
     const queryClient = createTestQueryClient();
 
-    return render(
+    render(
         <QueryClientProvider client={queryClient}>
             <MemoryRouter initialEntries={[route]}>
-                <AuthProvider>
+                <AuthProviderWithReady>
                     <DashboardFilterProvider>
                         <Routes>
                             <Route path="/kris/:id" element={<KRIDetailPage />} />
@@ -114,10 +123,11 @@ function renderWithRoute(route: string) {
                             <Route path="/users" element={<UsersPage />} />
                         </Routes>
                     </DashboardFilterProvider>
-                </AuthProvider>
+                </AuthProviderWithReady>
             </MemoryRouter>
         </QueryClientProvider>
     );
+    await waitForAuthBootstrapReady();
 }
 
 describe('RBAC UI gating', () => {
@@ -195,7 +205,7 @@ describe('RBAC UI gating', () => {
             http.get('*/api/v1/access/users', () => HttpResponse.json([makeAccessUser()])),
         );
 
-        renderWithRoute('/users');
+        await renderWithRoute('/users');
 
         await screen.findByText('Employee One');
         expect(screen.queryByTitle('Edit Access')).not.toBeInTheDocument();
@@ -214,7 +224,7 @@ describe('RBAC UI gating', () => {
             http.get('*/api/v1/access/users', () => HttpResponse.json([makeAccessUser()])),
         );
 
-        renderWithRoute('/users');
+        await renderWithRoute('/users');
 
         await screen.findByText('Employee One');
         expect(await screen.findByTitle('Edit Access')).toBeInTheDocument();
@@ -270,7 +280,7 @@ describe('RBAC UI gating', () => {
             )
         );
 
-        renderWithRoute('/kris/1');
+        await renderWithRoute('/kris/1');
 
         await screen.findByRole('heading', { name: 'Mock KRI' });
         expect(screen.queryByRole('button', { name: /record value/i })).not.toBeInTheDocument();
@@ -326,7 +336,7 @@ describe('RBAC UI gating', () => {
             )
         );
 
-        renderWithRoute('/kris/1');
+        await renderWithRoute('/kris/1');
 
         await screen.findByRole('heading', { name: 'Mock KRI' });
         expect(await screen.findByRole('button', { name: /record value/i })).toBeInTheDocument();
@@ -382,7 +392,7 @@ describe('RBAC UI gating', () => {
             )
         );
 
-        renderWithRoute('/kris/1');
+        await renderWithRoute('/kris/1');
 
         await screen.findByRole('heading', { name: 'Mock KRI' });
         expect(await screen.findByRole('button', { name: /record value/i })).toBeInTheDocument();
@@ -438,7 +448,7 @@ describe('RBAC UI gating', () => {
             )
         );
 
-        renderWithRoute('/kris/1');
+        await renderWithRoute('/kris/1');
 
         await screen.findByRole('heading', { name: 'Archived Mock KRI' });
         expect(screen.getByRole('button', { name: /unarchive/i })).toBeInTheDocument();
@@ -494,7 +504,7 @@ describe('RBAC UI gating', () => {
             )
         );
 
-        renderWithRoute('/kris/1');
+        await renderWithRoute('/kris/1');
 
         await screen.findByRole('heading', { name: 'Archived Mock KRI' });
         expect(screen.queryByRole('button', { name: /unarchive/i })).not.toBeInTheDocument();
@@ -527,7 +537,7 @@ describe('RBAC UI gating', () => {
             http.get('*/api/v1/controls/:id/executions', () => HttpResponse.json([]))
         );
 
-        renderWithRoute('/controls/1');
+        await renderWithRoute('/controls/1');
 
         await screen.findByText('Mock Control');
         const uiUser = userEvent.setup();
@@ -564,7 +574,7 @@ describe('RBAC UI gating', () => {
             http.get('*/api/v1/controls/:id/executions', () => HttpResponse.json([]))
         );
 
-        renderWithRoute('/controls/1');
+        await renderWithRoute('/controls/1');
 
         await screen.findByText('Mock Control');
         const uiUser = userEvent.setup();
@@ -608,7 +618,7 @@ describe('RBAC UI gating', () => {
             )
         );
 
-        renderWithRoute('/risks');
+        await renderWithRoute('/risks');
 
         await screen.findByText('Archived Risk');
         const uiUser = userEvent.setup();
@@ -651,7 +661,7 @@ describe('RBAC UI gating', () => {
             )
         );
 
-        renderWithRoute('/risks');
+        await renderWithRoute('/risks');
 
         await screen.findByText('Archived Risk');
         const uiUser = userEvent.setup();
@@ -688,7 +698,7 @@ describe('RBAC UI gating', () => {
             )
         );
 
-        renderWithRoute('/controls');
+        await renderWithRoute('/controls');
 
         await screen.findByText('Archived Control');
         const uiUser = userEvent.setup();
@@ -725,7 +735,7 @@ describe('RBAC UI gating', () => {
             )
         );
 
-        renderWithRoute('/controls');
+        await renderWithRoute('/controls');
 
         await screen.findByText('Archived Control');
         const uiUser = userEvent.setup();
