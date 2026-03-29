@@ -85,7 +85,9 @@ If a user should not have any `/users` entitlement, expect the route to redirect
 ### Add a user
 
 1. Open `/users`.
-2. Select **Add user**.
+2. Select the auth-mode-specific CTA shown on `/users`:
+   - **Add from AD** in directory-first auth modes (`microsoft_sso`, `hybrid_dev`)
+   - in password mode, use **Add user** for manual entry or **Add from AD** for directory import
 3. Use the creation flow currently available in the UI:
    - import or external-identity flow
    - direct-entry flow
@@ -101,10 +103,10 @@ If creation actions are missing or disabled, first confirm that the current sess
 2. Change one category at a time:
    - identity fields
    - role or department
-3. Save.
+3. Save once. `/users` now sends one transactional `PATCH /api/v1/access/users/{id}` for the modal, so either the whole edit applies or the whole save is rejected.
 4. Refresh and confirm the updated values are visible.
 
-Identity fields are an Admin-only lifecycle action. CRO or other privileged reviewers should stay in the access-management scope of the modal and should not expect separate lifecycle/detail endpoints.
+Identity fields are an Admin-only lifecycle action. CRO or other privileged reviewers should stay in the access-management scope of the modal and should not expect separate lifecycle/detail endpoints. If an identity validation fails, treat the save as unapplied and fix the validation issue before retrying.
 
 ### Edit access
 
@@ -114,7 +116,7 @@ Identity fields are an Admin-only lifecycle action. CRO or other privileged revi
    - department
    - manager
    - scope
-3. Save.
+3. Save once.
 4. Refresh and confirm the values in the user row or access panel.
 
 Changing scope to `global` is a significant expansion. Record the reason before saving.
@@ -196,13 +198,17 @@ What to do:
 
 What it usually means:
 
-- the page loaded the user list, but the creation path is in a safe degraded state
+- the page loaded the user list, but the auth-mode-specific creation path is in a safe degraded state
+- the visible CTA depends on auth mode:
+  - `Add from AD` in directory-first modes
+  - both `Add User` and `Add from AD` in password mode
 
 What to do:
 
-1. Open `/admin` and confirm the Health state.
-2. Refresh `/users` once.
-3. If creation actions are still disabled after a healthy refresh, escalate as an admin-surface or auth/config incident.
+1. Confirm which auth mode is active so you know whether the expected create action is **Add from AD** only, or both **Add user** and **Add from AD**.
+2. Open `/admin` and confirm the Health state.
+3. Refresh `/users` once.
+4. If the expected creation action is still disabled after a healthy refresh, escalate as an admin-surface or auth/config incident.
 
 ## Escalation and Handoff
 

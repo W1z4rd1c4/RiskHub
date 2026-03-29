@@ -107,7 +107,7 @@ Access-management read/list behavior and write behavior are intentionally differ
 |---------|----------------|-------|
 | `GET /api/v1/access/users` | GLOBAL-scope users | Platform-wide list/read endpoint |
 | `GET /api/v1/access/users/my-department` | Department Head OR GLOBAL-scope users | Department-scoped list/read endpoint |
-| `PATCH /api/v1/access/users/{id}` | **Admin or CRO only** | Applies to all mutable fields (`role_id`, `department_id`, `manager_id`, `access_scope`) |
+| `PATCH /api/v1/access/users/{id}` | **Admin or CRO only** | Single transactional save for `/users` access modal. Admin/CRO may update access fields (`role_id`, `department_id`, `manager_id`, `access_scope`); Admin-only may also include identity fields (`name`, `email`). Validation failures reject the whole patch. |
 
 > [!IMPORTANT]
 > `admin` is a platform role, not a business-data superuser. Admin capabilities must not be interpreted as unrestricted business access. Direct business `/governance` and `/activity-log` access remains blocked for `admin`, including direct route/API requests.
