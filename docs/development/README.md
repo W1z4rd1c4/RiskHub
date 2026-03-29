@@ -102,7 +102,7 @@ FRONTEND_URL=http://localhost npm run e2e:business-logic
 FRONTEND_URL=http://localhost POLISH_AUDIT_DEEP=1 npx playwright test -c ../tests/frontend/e2e/playwright.config.ts ../tests/frontend/e2e/polish-audit.spec.ts --project=chromium
 ```
 
-- Current blocker: the shared E2E login helper still waits for `http://localhost:5173/...`, so Docker-targeted Playwright runs time out after successful redirect until that helper becomes origin-aware.
+- Docker-targeted Playwright runs rely on `FRONTEND_URL=http://localhost`; the shared E2E login helper is now origin-aware and works against both `http://localhost:5173` and the Docker nginx surface.
 - `polish-audit.spec.ts` currently covers `riskhub` and `light`; `dark` theme still needs manual verification.
 - When the Docker app stack is live on the `riskhub` database, run Postgres marker tests against a separate `riskhub_test` database instead of the live app DB.
 
