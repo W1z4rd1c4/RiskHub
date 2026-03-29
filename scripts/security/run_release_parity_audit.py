@@ -753,21 +753,21 @@ class ReleaseParityAudit:
                 "type": "runtime",
             },
             {
-                "id": "backend_db_runtime_dev",
+                "id": "backend_lifecycle_runtime_dev",
                 "entrypoint": "backend/scripts/runtime/db/dev.sh",
                 "mode": "dev",
                 "command": "backend/scripts/runtime/db/dev.sh",
                 "type": "runtime",
             },
             {
-                "id": "backend_db_runtime_test",
+                "id": "backend_lifecycle_runtime_test",
                 "entrypoint": "backend/scripts/runtime/db/test.sh",
                 "mode": "test",
                 "command": "backend/scripts/runtime/db/test.sh --yes",
                 "type": "runtime",
             },
             {
-                "id": "backend_db_runtime_prod",
+                "id": "backend_lifecycle_runtime_prod",
                 "entrypoint": "backend/scripts/runtime/db/prod.sh",
                 "mode": "prod",
                 "command": "backend/scripts/runtime/db/prod.sh --tag <tag>",
@@ -1313,12 +1313,15 @@ class ReleaseParityAudit:
         )
 
         db_dev_result = self._run(
-            "path_backend_db_runtime_dev", "backend/scripts/runtime/db/dev.sh", required=False, timeout_sec=240
+            "path_backend_lifecycle_runtime_dev",
+            "backend/scripts/runtime/db/dev.sh",
+            required=False,
+            timeout_sec=240,
         )
         self.runtime_fingerprints.append(
             {
-                "startup_path_id": "backend_db_runtime_dev",
-                "context_id": "path_backend_db_runtime_dev",
+                "startup_path_id": "backend_lifecycle_runtime_dev",
+                "context_id": "path_backend_lifecycle_runtime_dev",
                 "captured_at_utc": self._iso(self._utc_now()),
                 "git_sha_expected": self.baseline.get("git_sha"),
                 "git_sha_observed": self.baseline.get("git_sha"),
@@ -1327,15 +1330,15 @@ class ReleaseParityAudit:
             }
         )
         db_test_result = self._run(
-            "path_backend_db_runtime_test_dryrun",
+            "path_backend_lifecycle_runtime_test_dryrun",
             "backend/scripts/runtime/db/test.sh --yes --dry-run",
             required=False,
             timeout_sec=240,
         )
         self.runtime_fingerprints.append(
             {
-                "startup_path_id": "backend_db_runtime_test",
-                "context_id": "path_backend_db_runtime_test_dryrun",
+                "startup_path_id": "backend_lifecycle_runtime_test",
+                "context_id": "path_backend_lifecycle_runtime_test_dryrun",
                 "captured_at_utc": self._iso(self._utc_now()),
                 "git_sha_expected": self.baseline.get("git_sha"),
                 "git_sha_observed": self.baseline.get("git_sha"),
@@ -1345,7 +1348,7 @@ class ReleaseParityAudit:
             }
         )
         db_prod_result = self._run(
-            "path_backend_db_runtime_prod_dryrun",
+            "path_backend_lifecycle_runtime_prod_dryrun",
             f"backend/scripts/runtime/db/prod.sh --backend-env {shlex.quote(str(backend_env))} "
             f"--tag release-parity-{self.run_id} --dry-run --yes",
             required=False,
@@ -1353,8 +1356,8 @@ class ReleaseParityAudit:
         )
         self.runtime_fingerprints.append(
             {
-                "startup_path_id": "backend_db_runtime_prod",
-                "context_id": "path_backend_db_runtime_prod_dryrun",
+                "startup_path_id": "backend_lifecycle_runtime_prod",
+                "context_id": "path_backend_lifecycle_runtime_prod_dryrun",
                 "captured_at_utc": self._iso(self._utc_now()),
                 "git_sha_expected": self.baseline.get("git_sha"),
                 "git_sha_observed": self.baseline.get("git_sha"),
@@ -1487,7 +1490,7 @@ class ReleaseParityAudit:
         }
         coverage_notes = {
             "dev_sh_backend": "Covered functionally by backend_runtime_dev; direct blocking invocation omitted.",
-            "compose_sh_up_db_only": "Covered functionally by backend_db_runtime_dev; direct infra-only invocation omitted.",
+            "compose_sh_up_db_only": "Covered functionally by backend_lifecycle_runtime_dev; direct infra-only invocation omitted.",
         }
         for path in self.startup_paths:
             startup_id = path["id"]

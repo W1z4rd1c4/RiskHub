@@ -169,6 +169,15 @@ def test_prod_install_and_release_gates_assert_minimal_backend_artifact_contract
         assert ".DS_Store" not in text or "rglob" in text or "find " in text
 
 
+def test_component_backend_prod_wrapper_uses_single_backend_image_for_db_lifecycle() -> None:
+    text = _read(BACKEND_RUNTIME_PROD)
+
+    assert "riskhub-backend-db" not in text
+    assert "--backend-db-image" not in text
+    assert "docker build --target dbtasks" not in text
+    assert 'db_args=(--backend-env "$BACKEND_ENV" --backend-image "$backend_image")' in text
+
+
 def test_install_frontend_applies_capability_hardening() -> None:
     text = _script_text("install_frontend.sh")
     assert "--security-opt no-new-privileges" in text
