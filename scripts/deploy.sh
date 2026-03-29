@@ -55,6 +55,7 @@ Release options:
 
 Command-specific options:
   install        [--version VERSION|--backend-image IMAGE --backend-db-image IMAGE --frontend-image IMAGE --redis-image IMAGE|--bundle PATH]
+  upgrade        [--version VERSION|--backend-image IMAGE --backend-db-image IMAGE --frontend-image IMAGE --redis-image IMAGE|--bundle PATH]
   doctor         validates config, status, and runtime health for the selected target
   logs           [--service all|backend|scheduler|frontend|redis] [--tail N] [--follow]
   rollback       [--service all|backend|frontend]   (docker only)
