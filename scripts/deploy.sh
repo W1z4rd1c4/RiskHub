@@ -25,6 +25,7 @@ TARGET=""
 CONFIG_PATH="$DEFAULT_CONFIG_PATH"
 VERSION=""
 BACKEND_IMAGE=""
+BACKEND_DB_IMAGE=""
 FRONTEND_IMAGE=""
 REDIS_IMAGE=""
 BUNDLE_PATH=""
@@ -48,6 +49,7 @@ Common options:
 Release options:
   --version VERSION           Docker release version (used to derive default GHCR image refs)
   --backend-image IMAGE       Explicit backend image ref for docker deploy/upgrade
+  --backend-db-image IMAGE    Explicit backend DB-task image ref for docker deploy/upgrade
   --frontend-image IMAGE      Explicit frontend image ref for docker deploy/upgrade
   --redis-image IMAGE         Explicit redis image ref for docker deploy/upgrade
   --bundle PATH               Linux release bundle path for linux deploy/upgrade
@@ -88,6 +90,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --backend-image)
       BACKEND_IMAGE="${2:-}"
+      shift 2
+      ;;
+    --backend-db-image)
+      BACKEND_DB_IMAGE="${2:-}"
       shift 2
       ;;
     --frontend-image)
@@ -353,7 +359,7 @@ case "$command_name" in
     require_file "$CONFIG_PATH"
     secrets_check
     if [[ "$TARGET" == "docker" ]]; then
-      docker_deploy_or_upgrade "deploy" "$CONFIG_PATH" "$VERSION" "$BACKEND_IMAGE" "$FRONTEND_IMAGE" "$REDIS_IMAGE"
+      docker_deploy_or_upgrade "deploy" "$CONFIG_PATH" "$VERSION" "$BACKEND_IMAGE" "$BACKEND_DB_IMAGE" "$FRONTEND_IMAGE" "$REDIS_IMAGE"
     else
       [[ -n "$BUNDLE_PATH" ]] || die "--bundle is required for linux deploy"
       linux_deploy_or_upgrade "deploy" "$CONFIG_PATH" "$BUNDLE_PATH"
@@ -363,7 +369,7 @@ case "$command_name" in
     require_file "$CONFIG_PATH"
     secrets_check
     if [[ "$TARGET" == "docker" ]]; then
-      docker_deploy_or_upgrade "upgrade" "$CONFIG_PATH" "$VERSION" "$BACKEND_IMAGE" "$FRONTEND_IMAGE" "$REDIS_IMAGE"
+      docker_deploy_or_upgrade "upgrade" "$CONFIG_PATH" "$VERSION" "$BACKEND_IMAGE" "$BACKEND_DB_IMAGE" "$FRONTEND_IMAGE" "$REDIS_IMAGE"
     else
       [[ -n "$BUNDLE_PATH" ]] || die "--bundle is required for linux upgrade"
       linux_deploy_or_upgrade "upgrade" "$CONFIG_PATH" "$BUNDLE_PATH"

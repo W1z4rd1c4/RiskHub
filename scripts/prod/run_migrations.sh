@@ -8,17 +8,20 @@ source "${SCRIPT_DIR}/lib/common.sh"
 # shellcheck source=scripts/prod/lib/preflight.sh
 source "${SCRIPT_DIR}/lib/preflight.sh"
 
-backend_image=""
+backend_db_image=""
+backend_image_alias=""
 
 usage() {
   cat <<EOF
-Usage: scripts/prod/run_migrations.sh --backend-env PATH --backend-image IMAGE [options]
+Usage: scripts/prod/run_migrations.sh --backend-env PATH --backend-db-image IMAGE [options]
 
 Runs Alembic migrations against the external PostgreSQL database (no DB container).
 
 Options:
   --backend-env PATH     Path to backend.env
-  --backend-image IMAGE  Backend image ref (e.g. riskhub-backend:1.0.0)
+  --backend-db-image IMAGE
+                        Preferred backend DB image ref (e.g. riskhub-backend-db:1.0.0)
+  --backend-image IMAGE  Compatibility alias for --backend-db-image
   --dry-run              Print commands without executing
   --yes                  Required for non-interactive production runs
   --verbose              More logging
@@ -34,8 +37,12 @@ fi
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --backend-db-image)
+      backend_db_image="${2:-}"
+      shift 2
+      ;;
     --backend-image)
-      backend_image="${2:-}"
+      backend_image_alias="${2:-}"
       shift 2
       ;;
     -h|--help)
@@ -58,8 +65,15 @@ if [[ "$DRY_RUN" != "true" ]]; then
   require_file "$(envfile_get "$BACKEND_ENV" "REDIS_URL_FILE")"
 fi
 
-if [[ -z "$backend_image" ]]; then
-  die "Missing --backend-image"
+if [[ -n "$backend_db_image" && -n "$backend_image_alias" && "$backend_db_image" != "$backend_image_alias" ]]; then
+  die "--backend-db-image and --backend-image must match when both are provided"
+fi
+if [[ -z "$backend_db_image" ]]; then
+  backend_db_image="$backend_image_alias"
+fi
+
+if [[ -z "$backend_db_image" ]]; then
+  die "Missing --backend-db-image"
 fi
 require_dir "$SECRET_DIR"
 require_dir "$RUNTIME_DIR"
@@ -71,5 +85,5 @@ log "Running migrations: alembic upgrade head"
 run docker run --rm \
   -v "${SECRET_DIR}:${SECRET_DIR}:ro" \
   -v "${RUNTIME_DIR}:${RUNTIME_DIR}:ro" \
-  --env-file "$BACKEND_ENV" "$backend_image" alembic upgrade head
+  --env-file "$BACKEND_ENV" "$backend_db_image" alembic upgrade head
 log "Migrations: OK"

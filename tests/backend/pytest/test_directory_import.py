@@ -25,7 +25,7 @@ async def directory_import_client(
     def override_settings():
         return Settings(
             debug=True,
-            secret_key="test-secret-key",
+            secret_key="test-secret-key-32-chars-minimum-value",
             mock_auth_enabled=True,
             directory_provider="ad_emulator",
             ad_emulator_base_url="http://ad-emulator.local",

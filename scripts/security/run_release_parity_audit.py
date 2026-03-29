@@ -484,6 +484,8 @@ class ReleaseParityAudit:
             "./venv/bin/python",
             "package-lock.json",
             "requirements.txt",
+            "requirements-runtime.txt",
+            "requirements-db.txt",
             "no such file or directory",
             "missing required file",
             "missing required directory",
@@ -825,7 +827,14 @@ class ReleaseParityAudit:
 
     def _extract_static_resolution(self) -> None:
         dev_sh = (ROOT_DIR / "scripts" / "dev.sh").read_text(encoding="utf-8")
-        req_text = (ROOT_DIR / "backend" / "requirements.txt").read_text(encoding="utf-8")
+        req_root = ROOT_DIR / "backend"
+        req_text = "\n".join(
+            (
+                (req_root / "requirements.txt").read_text(encoding="utf-8"),
+                (req_root / "requirements-runtime.txt").read_text(encoding="utf-8"),
+                (req_root / "requirements-db.txt").read_text(encoding="utf-8"),
+            )
+        )
         backend_docker = (ROOT_DIR / "backend" / "Dockerfile").read_text(encoding="utf-8")
         frontend_docker = (ROOT_DIR / "frontend" / "Dockerfile").read_text(encoding="utf-8")
         e2e = (ROOT_DIR / ".github" / "workflows" / "e2e.yml").read_text(encoding="utf-8")
@@ -846,6 +855,10 @@ class ReleaseParityAudit:
             "dev_startup": {
                 "backend_venv_conditional_install": "requirements.txt\" -nt \"venv/.deps_installed" in dev_sh,
                 "backend_uses_pip_install_requirements": "pip install -q -r requirements.txt" in dev_sh,
+                "backend_has_layered_requirements": all(
+                    (req_root / name).exists()
+                    for name in ("requirements.txt", "requirements-runtime.txt", "requirements-db.txt")
+                ),
                 "frontend_conditional_install_on_missing_node_modules": "if [ ! -d node_modules ]; then" in dev_sh,
                 "frontend_has_npm_install_fallback": "npm install" in dev_sh,
                 "frontend_lockfile_install_enforced": "npm ci" in dev_sh,
@@ -874,6 +887,8 @@ class ReleaseParityAudit:
                 "scripts/dev.sh:295",
                 "scripts/dev.sh:313",
                 "backend/requirements.txt:1",
+                "backend/requirements-runtime.txt:1",
+                "backend/requirements-db.txt:1",
                 "backend/Dockerfile:7",
                 "frontend/Dockerfile:7",
                 "frontend/Dockerfile:16",
@@ -1281,6 +1296,7 @@ class ReleaseParityAudit:
             f"--config {shlex.quote(str(deploy_config))} "
             f"--secret-dir {shlex.quote(str(deploy_secret_dir))} "
             "--backend-image ghcr.io/example/riskhub-backend:release-parity "
+            "--backend-db-image ghcr.io/example/riskhub-backend-db:release-parity "
             "--frontend-image ghcr.io/example/riskhub-frontend:release-parity "
             "--redis-image ghcr.io/example/riskhub-redis:release-parity "
             "--dry-run --yes"
@@ -1943,7 +1959,7 @@ class ReleaseParityAudit:
                 "## Evidence Map",
                 f"- `scripts/dev.sh:295`, `scripts/dev.sh:313`",
                 f"- `scripts/dev.sh:231`, `scripts/dev.sh:233`",
-                f"- `backend/requirements.txt:1`",
+                f"- `backend/requirements.txt:1`, `backend/requirements-runtime.txt:1`, `backend/requirements-db.txt:1`",
                 f"- `backend/Dockerfile:7`, `backend/Dockerfile:25`",
                 f"- `frontend/Dockerfile:7`, `frontend/Dockerfile:16`",
                 f"- `.github/workflows/e2e.yml:39`, `.github/workflows/e2e.yml:45`, `.github/workflows/e2e.yml:55`",

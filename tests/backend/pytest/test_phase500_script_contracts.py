@@ -14,6 +14,16 @@ PROD_SCRIPTS_DIR = REPO_ROOT / "scripts" / "prod"
 BACKEND_RUNTIME_PROD = REPO_ROOT / "backend" / "scripts" / "runtime" / "prod.sh"
 BACKEND_DB_RUNTIME_PROD = REPO_ROOT / "backend" / "scripts" / "runtime" / "db" / "prod.sh"
 FRONTEND_RUNTIME_PROD = REPO_ROOT / "frontend" / "scripts" / "runtime" / "prod.sh"
+BACKEND_DOCKERFILE = REPO_ROOT / "backend" / "Dockerfile"
+LINUX_BUNDLE_BUILDER = REPO_ROOT / "scripts" / "release" / "build_linux_bundle.sh"
+RELEASE_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "release.yml"
+MAKEFILE = REPO_ROOT / "scripts" / "Makefile"
+EXPECTED_PROD_BOOTSTRAP_SCRIPTS = (
+    "__init__.py",
+    "bootstrap_sso_user.py",
+    "seed_departments.py",
+    "seed_roles_permissions.py",
+)
 ACTIVE_DOCS = [
     REPO_ROOT / "AGENTS.md",
     REPO_ROOT / "docs" / "deployment" / "README.md",
@@ -87,6 +97,57 @@ def test_bootstrap_db_uses_module_execution_for_seed_scripts() -> None:
     assert "python -m scripts.seed_roles_permissions" in text
     assert "python -m scripts.seed_departments" in text
     assert "python -m scripts.bootstrap_sso_user" in text
+
+
+def test_backend_dockerfile_copies_only_bootstrap_scripts_and_uses_python_healthcheck() -> None:
+    text = _read(BACKEND_DOCKERFILE)
+
+    assert "COPY --chown=riskhub:riskhub scripts ./scripts" not in text
+    assert "FROM python:3.13-alpine AS runtime" in text
+    assert "FROM python:3.13-alpine AS dbtasks" in text
+    assert "COPY --from=builder-runtime" in text
+    assert "COPY --from=builder-dbtasks" in text
+    assert "FROM runtime AS final" in text
+    for script_name in EXPECTED_PROD_BOOTSTRAP_SCRIPTS:
+        assert f"COPY --chown=riskhub:riskhub scripts/{script_name} ./scripts/{script_name}" in text
+
+    assert text.count("libpq") == 1
+    assert "\n    curl\n" not in text
+    assert "urllib.request" in text
+    assert "http://localhost:8000/api/v1/health" in text
+
+
+def test_linux_bundle_builder_stages_only_bootstrap_scripts_and_prunes_dotfiles() -> None:
+    text = _read(LINUX_BUNDLE_BUILDER)
+
+    assert 'cp -R "${REPO_ROOT}/backend/scripts" "${BACKEND_STAGE}/scripts"' not in text
+    assert 'cp -R "${REPO_ROOT}/backend/scripts" "${BACKEND_DB_STAGE}/scripts"' not in text
+    assert 'cp "${REPO_ROOT}/backend/requirements-runtime.txt" "${BACKEND_STAGE}/requirements-runtime.txt"' in text
+    assert 'python3 -m pip download' in text
+    assert '-r "${REPO_ROOT}/backend/requirements-db.txt"' in text
+    for script_name in EXPECTED_PROD_BOOTSTRAP_SCRIPTS:
+        assert f'cp "${{REPO_ROOT}}/backend/scripts/{script_name}" "${{BACKEND_DB_STAGE}}/scripts/{script_name}"' in text
+
+    assert "../backend/requirements-runtime.txt" in text
+    assert 'find "${STAGE_ROOT}" -name ".DS_Store" -delete' in text
+
+
+def test_prod_install_and_release_gates_assert_minimal_backend_artifact_contract() -> None:
+    makefile_text = _read(MAKEFILE)
+    workflow_text = _read(RELEASE_WORKFLOW)
+
+    assert "riskhub-backend-db" in makefile_text
+    assert "riskhub-backend-db" in workflow_text
+    assert "backend_db" in workflow_text
+    assert "db-venv" in workflow_text
+
+    for text in (makefile_text, workflow_text):
+        assert "__init__.py" in text
+        assert "bootstrap_sso_user.py" in text
+        assert "seed_departments.py" in text
+        assert "seed_roles_permissions.py" in text
+        assert "hidden = sorted" in text
+        assert ".DS_Store" not in text or "rglob" in text or "find " in text
 
 
 def test_install_frontend_applies_capability_hardening() -> None:
