@@ -21,6 +21,8 @@ AGENTS.md
 │   ├── docs/deployment/README.md
 │   ├── docs/reference/README.md
 │   ├── docs/quality/README.md
+│   ├── docs/assets/README.md
+│   │   └── docs/assets/readme/README.md
 │   ├── docs/admin/README.md
 │   ├── docs/admin-cs/README.md
 │   ├── docs/user/README.md
@@ -45,6 +47,9 @@ AGENTS.md
   - [`docs/security/SECURITY.md`](./security/SECURITY.md)
 - Development startup and local workflows:
   - [`docs/development/README.md`](./development/README.md)
+- Documentation screenshots and support assets:
+  - [`docs/assets/README.md`](./assets/README.md)
+  - [`docs/assets/readme/README.md`](./assets/readme/README.md)
 - Deployment and operations:
   - [`docs/deployment/README.md`](./deployment/README.md)
 - Agent governance and execution:

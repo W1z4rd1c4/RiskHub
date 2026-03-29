@@ -24,7 +24,7 @@ Keep this README updated when responsibilities or structure in this folder chang
 
 - `lookup.py` is the authenticated picker/search primitive used by forms and filters.
 - `_lifecycle.py` contains the Admin-only guard shared by lifecycle/detail helpers under `/users`.
-- `directory.py` is the explicit paginated directory contract for `/users` directory mode.
+- `directory.py` is the explicit paginated directory contract for `/users` directory mode and returns backend-driven `available_roles` facets alongside the paginated directory items.
 - `_visibility.py` contains shared scope filtering used by both lookup and directory list flows.
 - `lookup.py` keeps `/users/lookup` as the picker/search primitive, while `/users/roles` is now an Admin-only lifecycle helper.
 - `crud.py` and `detail.py` remain user-lifecycle/admin-detail surfaces and should not absorb directory responsibilities.

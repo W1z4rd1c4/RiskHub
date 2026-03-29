@@ -209,6 +209,40 @@
 - Residual runtime observations discovered during Phase 5:
   - password-mode `/users` originally still rendered both `Add from AD` and `Add user`; the current branch now aligns the page with the intended auth-mode-specific CTA contract and keeps password mode on the direct `Add user` lifecycle path
 
+### Open Issues Remediation and Regression Hardening - Phase 6 (2026-03-29)
+
+- Completed the explicit compatibility audit for the tightened lifecycle helpers:
+  - no active in-repo frontend/runtime consumer still depends on `GET /api/v1/users/{id}` or `GET /api/v1/users/roles`
+  - the remaining live `/users/{id}` consumer is the Admin-only PATCH used for access-management status toggles on `/users`
+  - remaining references are backend tests, active docs that describe the admin-only helper contract, or historical/generated artifacts
+  - external compatibility risk still exists because both endpoints remain discoverable public API surfaces even though the repo no longer uses them for non-admin flows
+- Re-ran the repaired stack and deterministic verification substrate:
+  - `./scripts/compose.sh reset --dataset test`
+  - `docker compose -f docker-compose.yml --profile full run --rm bootstrap python -c "import psycopg2"` -> success
+  - preflight remained healthy:
+    - `curl -fsS http://localhost:8000/api/v1/health`
+    - `curl -fsS http://localhost:8000/api/v1/auth/config`
+    - `curl -I -fsS http://localhost/login`
+  - recreated isolated Postgres test database:
+    - `docker exec riskhub-db psql -U riskhub -d postgres -v ON_ERROR_STOP=1 -c "DROP DATABASE IF EXISTS riskhub_test;" -c "CREATE DATABASE riskhub_test OWNER riskhub;"`
+  - reran Postgres marker suite:
+    - `cd backend && TEST_DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_dev@localhost:5432/riskhub_test pytest -m postgres -v` -> `5 passed, 800 deselected`
+  - reran full backend pytest:
+    - `PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=backend pytest --override-ini addopts='-p no:langsmith_plugin -p no:cacheprovider' tests/backend/pytest -q` -> `796 passed, 9 skipped`
+  - reran full frontend regression:
+    - `cd frontend && npm run test:run` -> `79 passed (79 files), 269 passed (269 tests)`
+    - `cd frontend && npx tsc --noEmit`
+- Hardened the shared Docker/local demo-login helper again in `tests/frontend/e2e/helpers/login.ts`:
+  - the helper now waits for auth/preferences hydration before asserting the authenticated shell, which removes the earlier false timeout where the app was still on the protected-route `Loading...` screen
+- Browser verification after the helper hardening:
+  - targeted Docker polish rerun passed:
+    - `cd frontend && FRONTEND_URL=http://localhost POLISH_AUDIT_DEEP=1 npx playwright test -c ../tests/frontend/e2e/playwright.config.ts ../tests/frontend/e2e/polish-audit.spec.ts --project=chromium --grep "RISK_MANAGER / theme=riskhub / lang=en"` -> `1 passed`
+  - targeted Docker access-scope rerun moved beyond login bootstrap:
+    - `cd frontend && FRONTEND_URL=http://localhost npx playwright test -c ../tests/frontend/e2e/playwright.config.ts ../tests/frontend/e2e/access-scope.spec.ts --project=chromium --grep "GLOBAL user can view cross-department risk detail|DEPARTMENT user direct department access denied for other departments"` -> `1 passed, 1 failed`
+    - the remaining failure is no longer in the login helper; it now times out in `tests/frontend/e2e/pages/RisksPage.ts` waiting for a `/api/v1/risks` response even though the filtered risk table is already rendered, which points at existing page-object synchronization debt in the broader business-logic suite rather than a remaining users-surface/auth-bootstrap contract failure
+  - the full Docker-targeted `cd frontend && FRONTEND_URL=http://localhost npm run e2e:business-logic` lane still surfaces broader access-scope/browser-suite instability under parallel load, so the residual E2E blocker is now test-harness debt, not the original `localhost:5173` origin mismatch
+- No product-side `/users` behavior changed in Phase 6; the Phase 5 live demo-account `/users` matrix remains the current runtime record for Admin, CRO, Risk Manager, department head, and analyst behavior on this repaired branch.
+
 ### Docker Live Verification + Postgres Marker Reconciliation (2026-03-29)
 
 - Attempted deterministic Docker reset:
