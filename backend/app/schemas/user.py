@@ -115,10 +115,19 @@ class UserDirectoryEntry(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class UserDirectoryRoleFacet(BaseModel):
+    """Available role filter option for the visible directory universe."""
+
+    name: str
+    display_name: str
+    count: int
+
+
 class UserDirectoryListResponse(BaseModel):
     """Paginated response for user-directory collection reads."""
 
     items: list[UserDirectoryEntry]
+    available_roles: list[UserDirectoryRoleFacet]
     total: int
     skip: int
     limit: int

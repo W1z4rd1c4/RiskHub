@@ -10,11 +10,31 @@ from app.core.pagination import MAX_LOOKUP_SIZE
 from app.core.permissions import has_permission
 from app.db.session import get_db
 from app.models import Role, User
-from app.schemas.user import UserDirectoryEntry, UserDirectoryListResponse
+from app.schemas.user import UserDirectoryEntry, UserDirectoryListResponse, UserDirectoryRoleFacet
 
 from ._visibility import build_visible_users_query
 
 router = APIRouter()
+
+
+def _apply_directory_filters(
+    query,
+    *,
+    include_inactive: bool,
+    q: str | None,
+    role_name: str | None = None,
+):
+    if not include_inactive:
+        query = query.where(User.is_active.is_(True))
+
+    if q:
+        search_term = f"%{q}%"
+        query = query.where(or_(User.name.ilike(search_term), User.email.ilike(search_term)))
+
+    if role_name:
+        query = query.where(User.role.has(Role.name == role_name))
+
+    return query
 
 
 @router.get("/directory", response_model=UserDirectoryListResponse)
@@ -33,20 +53,41 @@ async def list_directory_users(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
 
     limit = min(limit, MAX_LOOKUP_SIZE)
-    query = build_visible_users_query(current_user, department_id=department_id).options(
-        selectinload(User.role),
-        selectinload(User.department),
+    base_query = build_visible_users_query(current_user, department_id=department_id)
+    query = _apply_directory_filters(
+        base_query.options(
+            selectinload(User.role),
+            selectinload(User.department),
+        ),
+        include_inactive=include_inactive,
+        q=q,
+        role_name=role_name,
     )
 
-    if not include_inactive:
-        query = query.where(User.is_active.is_(True))
-
-    if q:
-        search_term = f"%{q}%"
-        query = query.where(or_(User.name.ilike(search_term), User.email.ilike(search_term)))
-
-    if role_name:
-        query = query.where(User.role.has(Role.name == role_name))
+    facet_query = _apply_directory_filters(
+        build_visible_users_query(current_user, department_id=department_id),
+        include_inactive=include_inactive,
+        q=q,
+    ).subquery()
+    facet_result = await db.execute(
+        select(
+            facet_query.c.role_id,
+            Role.name,
+            Role.display_name,
+            func.count().label("count"),
+        )
+        .join(Role, Role.id == facet_query.c.role_id)
+        .group_by(facet_query.c.role_id, Role.name, Role.display_name)
+        .order_by(Role.display_name.asc(), Role.name.asc())
+    )
+    available_roles = [
+        UserDirectoryRoleFacet(
+            name=row.name,
+            display_name=row.display_name,
+            count=row.count,
+        )
+        for row in facet_result
+    ]
 
     total = (
         await db.execute(select(func.count()).select_from(query.order_by(None).subquery()))
@@ -68,6 +109,7 @@ async def list_directory_users(
             )
             for user in users
         ],
+        available_roles=available_roles,
         total=total,
         skip=skip,
         limit=limit,
