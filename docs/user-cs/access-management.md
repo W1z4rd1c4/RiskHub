@@ -76,6 +76,8 @@ Pořadí módů je důležité:
 2. department access mód pro vedoucí oddělení
 3. directory mód pro uživatele s `users:read`, kteří nemají access-management pohled
 
+Pokud uživatel nespadá do žádného z těchto módů, route má přesměrovat pryč místo vykreslení částečné nebo zavádějící users obrazovky.
+
 ### Platform admin je jiný svět
 
 Platform admin je záměrně oddělený:
@@ -99,7 +101,7 @@ V access módu obvykle uvidíte:
 | Active status | Zda je účet aktivní | Deaktivace je governance akce; zachovejte audit trail. |
 | Permissions | Resource + action (např. `risks:read`, `vendors:write`) | Effective permissions mohou být jiné než očekávání; ověřujte. |
 
-V directory módu je důraz na identitu a dohledatelnost, ne na enforcement detail. Je záměrně oddělený od autentizovaného `/users/lookup` pickeru používaného v dalších formulářích a filtrech.
+V directory módu je důraz na identitu a dohledatelnost, ne na enforcement detail. Je záměrně oddělený od autentizovaného `/users/lookup` pickeru používaného v dalších formulářích a filtrech. Directory výsledky jsou serverově filtrované a stránkované; search a role filtr jsou součástí kontraktu stránky `/users`, ne client-side fallback nad lookup endpointem.
 
 ## Hlavní workflow
 
