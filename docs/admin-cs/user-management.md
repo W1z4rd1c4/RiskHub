@@ -84,12 +84,14 @@ Bezpečnostní pravidla:
 
 Pokud uživatel nemá mít žádný `/users` entitlement, očekávejte redirect pryč z route místo vykreslení částečného seznamu.
 
+Stejné route-level pravidlo teď platí i pro `/users/new`. Session bez lifecycle oprávnění má být přesměrovaná dřív, než stránka začne načítat onboarding data.
+
 ### Přidat uživatele
 
 1. Otevřete `/users`.
 2. Vyberte CTA podle aktuálního auth módu na `/users`:
    - **Add from AD** v directory-first auth módech (`microsoft_sso`, `hybrid_dev`)
-   - v password módu použijte **Add user** pro ruční založení nebo **Add from AD** pro directory import
+   - **Add user** v password módu
 3. Použijte create flow, který UI právě nabízí:
    - import nebo external-identity flow
    - direct-entry flow
@@ -205,14 +207,27 @@ Co to obvykle znamená:
 - stránka načetla user list, ale auth-mode-specific create path je v safe degraded stavu
 - viditelné CTA závisí na auth módu:
   - `Add from AD` v directory-first režimech
-  - v password režimu jsou viditelné obě CTA: `Add User` i `Add from AD`
+  - `Add User` v password režimu
 
 Co dělat:
 
-1. Potvrďte aktivní auth mód, aby bylo jasné, zda očekávaná create akce je jen **Add from AD**, nebo obě CTA **Add user** a **Add from AD**.
+1. Potvrďte aktivní auth mód, aby bylo jasné, zda očekávaná CTA je **Add from AD** nebo **Add user**.
 2. Otevřete `/admin` a potvrďte Health stav.
 3. Jednou obnovte `/users`.
 4. Pokud očekávaná create akce zůstává vypnutá i po healthy refreshi, eskalujte jako admin-surface nebo auth/config incident.
+
+### „`/users` nevypadá prázdně, ale spíš rozbitě“
+
+Co to obvykle znamená:
+
+- request pro `/users` selhal dřív, než se stihla načíst tabulka
+- stránka ukazuje retry banner místo falešného empty stavu
+
+Co dělat:
+
+1. Přečtěte error banner dřív, než budete předpokládat prázdný výsledek.
+2. Jednou použijte **Retry**.
+3. Pokud se stejný load failure vrátí, zachyťte route, čas a request failure a eskalujte místo toho, abyste předpokládali, že žádní matching users neexistují.
 
 ## Eskalace a předání
 

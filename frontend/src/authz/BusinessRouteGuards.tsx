@@ -24,3 +24,13 @@ export function ActivityLogRouteGuard({ children }: GuardProps) {
     const authz = useAuthz();
     return <RedirectIfDenied allowed={authz.canViewActivityLog}>{children}</RedirectIfDenied>;
 }
+
+export function UsersRouteGuard({ children }: GuardProps) {
+    const authz = useAuthz();
+    return <RedirectIfDenied allowed={authz.canViewUsersRoute}>{children}</RedirectIfDenied>;
+}
+
+export function UserLifecycleRouteGuard({ children }: GuardProps) {
+    const authz = useAuthz();
+    return <RedirectIfDenied allowed={authz.isPlatformAdmin}>{children}</RedirectIfDenied>;
+}
