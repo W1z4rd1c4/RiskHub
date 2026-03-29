@@ -21,6 +21,8 @@ AGENTS.md
 │   ├── docs/deployment/README.md
 │   ├── docs/reference/README.md
 │   ├── docs/quality/README.md
+│   ├── docs/assets/README.md
+│   │   └── docs/assets/readme/README.md
 │   ├── docs/admin/README.md
 │   ├── docs/admin-cs/README.md
 │   ├── docs/user/README.md
@@ -45,6 +47,9 @@ AGENTS.md
   - [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/security/SECURITY.md`](./security/SECURITY.md)
 - Development startup and local workflows:
   - [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/development/README.md`](./development/README.md)
+- Documentation screenshots and support assets:
+  - [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/assets/README.md`](./assets/README.md)
+  - [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/assets/readme/README.md`](./assets/readme/README.md)
 - Deployment and operations:
   - [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/deployment/README.md`](./deployment/README.md)
 - Agent governance and execution:
