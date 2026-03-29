@@ -33,3 +33,24 @@ npx playwright test -c ../tests/frontend/e2e/playwright.config.ts \
   ../tests/frontend/e2e/polish-audit.spec.ts \
   --project=chromium
 ```
+
+## Docker Full-Stack Run
+
+Use the Docker-served frontend when you want the app exactly as served at `http://localhost/`:
+
+```bash
+./scripts/compose.sh reset --dataset test
+
+cd frontend
+FRONTEND_URL=http://localhost npm run e2e:business-logic
+FRONTEND_URL=http://localhost POLISH_AUDIT_DEEP=1 npx playwright test -c ../tests/frontend/e2e/playwright.config.ts \
+  ../tests/frontend/e2e/polish-audit.spec.ts \
+  --project=chromium
+```
+
+Notes:
+
+- Playwright artifacts are written under `tests/results/frontend/playwright/`.
+- `polish-audit.spec.ts` currently covers `riskhub` and `light`.
+- `dark` theme still requires manual verification.
+- Current blocker (verified 2026-03-29): the shared demo-login helper in [`/Users/stefanlesnak/Antigravity/Risk App 2/tests/frontend/e2e/helpers/login.ts`](./helpers/login.ts) still waits for `http://localhost:5173/...`, so Docker-origin runs with `FRONTEND_URL=http://localhost` currently fail after successful redirect until that helper is updated.

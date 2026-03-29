@@ -1,6 +1,6 @@
 # RiskHub Deployment
 
-> **Last Updated**: 2026-03-15
+> **Last Updated**: 2026-03-29
 > **Audience**: IT / DevOps / Platform Engineering
 
 Back to tree: [`../DOCUMENTATION_TREE.md`](../DOCUMENTATION_TREE.md)
@@ -43,7 +43,7 @@ Common rules across both targets:
 
 Release inputs:
 
-- `docker`: pull versioned GHCR images (`riskhub-backend:<version>`, `riskhub-frontend:<version>`, `riskhub-redis:<version>`)
+- `docker`: pull versioned GHCR images (`riskhub-backend:<version>`, `riskhub-backend-db:<version>`, `riskhub-frontend:<version>`, `riskhub-redis:<version>`)
 - `linux`: deploy `riskhub-linux-<version>.tar.gz`
 
 ## Runtime Notes

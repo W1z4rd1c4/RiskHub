@@ -1,0 +1,1801 @@
+app/api/v1/endpoints/approvals.py:227:121: E501 Line too long (148 > 120)
+    |
+225 |     - Other users: see only their own requests
+226 |     """
+227 |     logger.info(f"List approvals: user={current_user.id} can_resolve={can_resolve_approvals(current_user)} filter={status_filter} my={my_requests}")
+    |                                                                                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ E501
+228 |     base_query = select(ApprovalRequest)
+    |
+
+app/api/v1/endpoints/auth.py:40:121: E501 Line too long (124 > 120)
+   |
+38 |         raise HTTPException(
+39 |             status_code=429,
+40 |             detail=f"Account temporarily locked due to too many failed attempts. Try again in {lockout_remaining} seconds.",
+   |                                                                                                                         ^^^^ E501
+41 |             headers={"Retry-After": str(lockout_remaining)}
+42 |         )
+   |
+
+app/api/v1/endpoints/controls/crud.py:161:121: E501 Line too long (129 > 120)
+    |
+159 |             risk_name=first_risk.name if (first_risk and risk_visible) else None,
+160 |             risk_owner_name=first_risk.owner.name if (first_risk and risk_visible and first_risk.owner) else None,
+161 |             risk_department_name=first_risk.department.name if (first_risk and risk_visible and first_risk.department) else None,
+    |                                                                                                                         ^^^^^^^^^ E501
+162 |         ))
+    |
+
+app/api/v1/endpoints/controls/crud.py:589:121: E501 Line too long (122 > 120)
+    |
+587 |         await db.rollback()
+588 |         import logging
+589 |         logging.getLogger(__name__).warning(f"Failed to notify approvers for control delete approval #{approval.id}: {e}")
+    |                                                                                                                         ^^ E501
+590 | 
+591 |     from fastapi.responses import JSONResponse
+    |
+
+app/api/v1/endpoints/dashboard/committee.py:61:121: E501 Line too long (121 > 120)
+   |
+59 |         critical_risks_query = critical_risks_query.where(Risk.department_id.in_(dept_ids))
+60 |     critical_risks = await db.execute(
+61 |         critical_risks_query.order_by(Risk.is_priority.desc(), Risk.net_score.desc()).limit(DASHBOARD_TOP_CRITICAL_RISKS)
+   |                                                                                                                         ^ E501
+62 |     )
+   |
+
+app/api/v1/endpoints/dashboard/committee.py:108:121: E501 Line too long (136 > 120)
+    |
+106 |     if dept_ids is not None:
+107 |         if not dept_ids:
+108 |             return {"critical_risks": [], "recent_activity": [], "department_exposure": [], "critical_vendors": [], "vendor_alerts": {}}
+    |                                                                                                                         ^^^^^^^^^^^^^^^^ E501
+109 |         vendor_scope_filter = Vendor.department_id.in_(dept_ids)
+    |
+
+app/api/v1/endpoints/dashboard/committee.py:132:121: E501 Line too long (134 > 120)
+    |
+130 |         critical_vendors = (
+131 |             await db.execute(
+132 |                 critical_vendors_query.order_by(Vendor.risk_score_1_5.desc(), Vendor.name.asc()).limit(DASHBOARD_TOP_CRITICAL_VENDORS)
+    |                                                                                                                         ^^^^^^^^^^^^^^ E501
+133 |             )
+134 |         ).scalars().all()
+    |
+
+app/api/v1/endpoints/dashboard/committee.py:136:121: E501 Line too long (122 > 120)
+    |
+134 |         ).scalars().all()
+135 | 
+136 |         overdue_query = select(Vendor).options(joinedload(Vendor.outsourcing_owner), joinedload(Vendor.department)).where(
+    |                                                                                                                         ^^ E501
+137 |             Vendor.status == "active",
+138 |             Vendor.next_reassessment_due_at.isnot(None),
+    |
+
+app/api/v1/endpoints/dashboard/committee.py:144:121: E501 Line too long (128 > 120)
+    |
+142 |             overdue_query = overdue_query.where(vendor_scope_filter)
+143 |         overdue_vendors = (
+144 |             await db.execute(overdue_query.order_by(Vendor.next_reassessment_due_at.asc()).limit(DASHBOARD_TOP_OVERDUE_VENDORS))
+    |                                                                                                                         ^^^^^^^^ E501
+145 |         ).scalars().all()
+146 |         overdue_total_query = select(func.count(Vendor.id)).where(
+    |
+
+app/api/v1/endpoints/dashboard/committee.py:157:121: E501 Line too long (147 > 120)
+    |
+155 |         sla_breach_query = (
+156 |             select(VendorSLA)
+157 |             .options(joinedload(VendorSLA.vendor).joinedload(Vendor.department), joinedload(VendorSLA.vendor).joinedload(Vendor.outsourcing_owner))
+    |                                                                                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^ E501
+158 |             .where(VendorSLA.is_archived.is_(False))
+159 |             .where(or_(VendorSLA.current_value < VendorSLA.lower_limit, VendorSLA.current_value > VendorSLA.upper_limit))
+    |
+
+app/api/v1/endpoints/dashboard/committee.py:159:121: E501 Line too long (121 > 120)
+    |
+157 |             .options(joinedload(VendorSLA.vendor).joinedload(Vendor.department), joinedload(VendorSLA.vendor).joinedload(Vendor.outsourcing_owner))
+158 |             .where(VendorSLA.is_archived.is_(False))
+159 |             .where(or_(VendorSLA.current_value < VendorSLA.lower_limit, VendorSLA.current_value > VendorSLA.upper_limit))
+    |                                                                                                                         ^ E501
+160 |             .join(Vendor, VendorSLA.vendor_id == Vendor.id)
+161 |             .where(Vendor.status == "active")
+    |
+
+app/api/v1/endpoints/dashboard/committee.py:166:121: E501 Line too long (125 > 120)
+    |
+164 |             sla_breach_query = sla_breach_query.where(vendor_scope_filter)
+165 |         breached_slas = (
+166 |             await db.execute(sla_breach_query.order_by(VendorSLA.last_reported_at.desc()).limit(DASHBOARD_TOP_BREACHED_SLAS))
+    |                                                                                                                         ^^^^^ E501
+167 |         ).scalars().all()
+168 |         sla_breach_total_query = (
+    |
+
+app/api/v1/endpoints/dashboard/committee.py:172:121: E501 Line too long (121 > 120)
+    |
+170 |             .join(Vendor, VendorSLA.vendor_id == Vendor.id)
+171 |             .where(VendorSLA.is_archived.is_(False))
+172 |             .where(or_(VendorSLA.current_value < VendorSLA.lower_limit, VendorSLA.current_value > VendorSLA.upper_limit))
+    |                                                                                                                         ^ E501
+173 |             .where(Vendor.status == "active")
+174 |         )
+    |
+
+app/api/v1/endpoints/dashboard/committee.py:181:121: E501 Line too long (157 > 120)
+    |
+179 |         incident_query = (
+180 |             select(VendorIncident)
+181 |             .options(joinedload(VendorIncident.vendor).joinedload(Vendor.department), joinedload(VendorIncident.vendor).joinedload(Vendor.outsourcing_owner))
+    |                                                                                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ E501
+182 |             .where(VendorIncident.is_major.is_(True))
+183 |             .where(or_(VendorIncident.occurred_at >= thirty_days_ago, and_(VendorIncident.occurred_at.is_(None), VendorIncident.created_at >= thirty_days_ago)))
+    |
+
+app/api/v1/endpoints/dashboard/committee.py:183:121: E501 Line too long (160 > 120)
+    |
+181 |             .options(joinedload(VendorIncident.vendor).joinedload(Vendor.department), joinedload(VendorIncident.vendor).joinedload(Vendor.outsourcing_owner))
+182 |             .where(VendorIncident.is_major.is_(True))
+183 |             .where(or_(VendorIncident.occurred_at >= thirty_days_ago, and_(VendorIncident.occurred_at.is_(None), VendorIncident.created_at >= thirty_days_ago)))
+    |                                                                                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ E501
+184 |             .join(Vendor, VendorIncident.vendor_id == Vendor.id)
+185 |             .where(Vendor.status == "active")
+    |
+
+app/api/v1/endpoints/dashboard/committee.py:196:121: E501 Line too long (160 > 120)
+    |
+194 |             .join(Vendor, VendorIncident.vendor_id == Vendor.id)
+195 |             .where(VendorIncident.is_major.is_(True))
+196 |             .where(or_(VendorIncident.occurred_at >= thirty_days_ago, and_(VendorIncident.occurred_at.is_(None), VendorIncident.created_at >= thirty_days_ago)))
+    |                                                                                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ E501
+197 |             .where(Vendor.status == "active")
+198 |         )
+    |
+
+app/api/v1/endpoints/dashboard/committee.py:248:121: E501 Line too long (123 > 120)
+    |
+246 |                 "dora_relevant": bool(v.dora_relevant),
+247 |                 "is_significant_vendor": bool(v.is_significant_vendor),
+248 |                 "next_reassessment_due_at": v.next_reassessment_due_at.isoformat() if v.next_reassessment_due_at else None,
+    |                                                                                                                         ^^^ E501
+249 |                 "outsourcing_owner_name": v.outsourcing_owner.name if v.outsourcing_owner else "Unassigned",
+250 |                 "department_name": v.department.name if v.department else "Unassigned",
+    |
+
+app/api/v1/endpoints/dashboard/committee.py:261:121: E501 Line too long (131 > 120)
+    |
+259 |                         "id": v.id,
+260 |                         "name": v.name,
+261 |                         "next_reassessment_due_at": v.next_reassessment_due_at.isoformat() if v.next_reassessment_due_at else None,
+    |                                                                                                                         ^^^^^^^^^^^ E501
+262 |                         "department_name": v.department.name if v.department else "Unassigned",
+263 |                     }
+    |
+
+app/api/v1/endpoints/dashboard/committee.py:277:121: E501 Line too long (122 > 120)
+    |
+275 |                         "breach_status": s.breach_status,
+276 |                         "last_reported_at": s.last_reported_at.isoformat() if s.last_reported_at else None,
+277 |                         "department_name": s.vendor.department.name if s.vendor and s.vendor.department else "Unassigned",
+    |                                                                                                                         ^^ E501
+278 |                     }
+279 |                     for s in breached_slas
+    |
+
+app/api/v1/endpoints/dashboard/committee.py:289:121: E501 Line too long (126 > 120)
+    |
+287 |                         "vendor_name": i.vendor.name if i.vendor else "",
+288 |                         "incident_id": i.id,
+289 |                         "incident_type": i.incident_type.value if hasattr(i.incident_type, "value") else str(i.incident_type),
+    |                                                                                                                         ^^^^^^ E501
+290 |                         "summary": i.summary,
+291 |                         "occurred_at": (i.occurred_at or i.created_at).isoformat() if (i.occurred_at or i.created_at) else None,
+    |
+
+app/api/v1/endpoints/dashboard/committee.py:291:121: E501 Line too long (128 > 120)
+    |
+289 |                         "incident_type": i.incident_type.value if hasattr(i.incident_type, "value") else str(i.incident_type),
+290 |                         "summary": i.summary,
+291 |                         "occurred_at": (i.occurred_at or i.created_at).isoformat() if (i.occurred_at or i.created_at) else None,
+    |                                                                                                                         ^^^^^^^^ E501
+292 |                         "department_name": i.vendor.department.name if i.vendor and i.vendor.department else "Unassigned",
+293 |                     }
+    |
+
+app/api/v1/endpoints/dashboard/committee.py:292:121: E501 Line too long (122 > 120)
+    |
+290 |                         "summary": i.summary,
+291 |                         "occurred_at": (i.occurred_at or i.created_at).isoformat() if (i.occurred_at or i.created_at) else None,
+292 |                         "department_name": i.vendor.department.name if i.vendor and i.vendor.department else "Unassigned",
+    |                                                                                                                         ^^ E501
+293 |                     }
+294 |                     for i in major_incidents
+    |
+
+app/api/v1/endpoints/dashboard/issues_metrics.py:68:121: E501 Line too long (121 > 120)
+   |
+66 |     issues = await _load_scoped_issues(db, current_user, department_id=department_id)
+67 |     open_issues = _open_unsuppressed_issues(issues, now)
+68 |     overdue = [issue for issue in open_issues if coerce_utc(issue.due_at) is not None and coerce_utc(issue.due_at) < now]
+   |                                                                                                                         ^ E501
+69 |     high_severity = [
+70 |         issue
+   |
+
+app/api/v1/endpoints/dashboard/quarterly.py:22:121: E501 Line too long (148 > 120)
+   |
+20 |     db: AsyncSession = Depends(get_db),
+21 |     current_user: User = Depends(deps.get_current_committee_user),
+22 |     current_quarter: Optional[str] = Query(None, description="Current quarter in format 'YYYY-QN' (e.g., '2026-Q1'). Defaults to current quarter."),
+   |                                                                                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ E501
+23 |     compare_quarter: Optional[str] = Query(None, description="Comparison quarter in format 'YYYY-QN' (e.g., '2025-Q4'). Defaults to previous quarter."),
+24 | ):
+   |
+
+app/api/v1/endpoints/dashboard/quarterly.py:23:121: E501 Line too long (152 > 120)
+   |
+21 |     current_user: User = Depends(deps.get_current_committee_user),
+22 |     current_quarter: Optional[str] = Query(None, description="Current quarter in format 'YYYY-QN' (e.g., '2026-Q1'). Defaults to current quarter."),
+23 |     compare_quarter: Optional[str] = Query(None, description="Comparison quarter in format 'YYYY-QN' (e.g., '2025-Q4'). Defaults to previous quarter."),
+   |                                                                                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ E501
+24 | ):
+25 |     """
+   |
+
+app/api/v1/endpoints/dashboard/risks.py:28:121: E501 Line too long (121 > 120)
+   |
+26 |     current_user: User = Depends(require_permission("risks", "read")),
+27 |     department_id: Optional[int] = Query(None, description="Filter by department"),
+28 |     risk_level: Optional[Literal["critical", "high", "medium", "low"]] = Query(None, description="Filter by risk level"),
+   |                                                                                                                         ^ E501
+29 |     risk_type: Literal["gross", "net"] = Query("net", description="Type of risk matrix: 'gross' or 'net'"),
+30 |     include_archived: bool = Query(False, description="Include archived risks"),
+   |
+
+app/api/v1/endpoints/dashboard/risks.py:153:121: E501 Line too long (136 > 120)
+    |
+151 |             "risk_id_code": row.risk_id_code,
+152 |             "name": row.risk_name or row.risk_id_code,  # Risk name, fallback to code
+153 |             "description": row.description[:150] + "..." if row.description and len(row.description) > 150 else (row.description or ""),
+    |                                                                                                                         ^^^^^^^^^^^^^^^^ E501
+154 |             "net_score": row.score,  # Keep key as net_score for backwards compatibility
+155 |             "department_name": row.department_name or "Unassigned",
+    |
+
+app/api/v1/endpoints/dashboard/summary.py:29:121: E501 Line too long (121 > 120)
+   |
+27 |     control_status: Optional[str] = Query(None, description="Filter by control status"),
+28 |     control_form: Optional[str] = Query(None, description="Filter by control form"),
+29 |     risk_level: Optional[Literal["critical", "high", "medium", "low"]] = Query(None, description="Filter by risk level"),
+   |                                                                                                                         ^ E501
+30 |     include_archived: bool = Query(False, description="Include archived items"),
+31 | ):
+   |
+
+app/api/v1/endpoints/dashboard/summary.py:91:121: E501 Line too long (128 > 120)
+   |
+89 |     for form in ControlForm:
+90 |         # Avoid including the form filter itself in the breakdown
+91 |         other_control_conditions = [c for c in control_conditions if not (hasattr(c, 'right') and str(c.right) == control_form)]
+   |                                                                                                                         ^^^^^^^^ E501
+92 |         conditions = [Control.control_form == form.value] + other_control_conditions
+93 |         result = await db.execute(
+   |
+
+app/api/v1/endpoints/dashboard/summary.py:179:121: E501 Line too long (131 > 120)
+    |
+177 |                 select(func.count(Vendor.id)).where(
+178 |                     and_(
+179 |                         *(vendor_conditions + [Vendor.next_reassessment_due_at.isnot(None), Vendor.next_reassessment_due_at < now])
+    |                                                                                                                         ^^^^^^^^^^^ E501
+180 |                     )
+181 |                 )
+    |
+
+app/api/v1/endpoints/dashboard/summary.py:190:121: E501 Line too long (128 > 120)
+    |
+188 |             Vendor.status == "active",
+189 |         ]
+190 |         sla_query = select(func.count(VendorSLA.id)).join(Vendor, VendorSLA.vendor_id == Vendor.id).where(and_(*sla_conditions))
+    |                                                                                                                         ^^^^^^^^ E501
+191 |         if vendor_scope_filter is not None:
+192 |             sla_query = sla_query.where(vendor_scope_filter)
+    |
+
+app/api/v1/endpoints/departments.py:364:121: E501 Line too long (124 > 120)
+    |
+362 |         .group_by(Control.control_form)
+363 |     )
+364 |     control_stats.by_form = {row[0]: row[1] for row in (await db.execute(control_form_stmt)).all() if row[0] and row[1] > 0}
+    |                                                                                                                         ^^^^ E501
+365 | 
+366 |     # Controls by frequency (single grouped query; preserves prior behavior including archived controls)
+    |
+
+app/api/v1/endpoints/executions.py:133:121: E501 Line too long (128 > 120)
+    |
+131 |                     if not link.risk:
+132 |                         continue
+133 |                     if can_access_department_id(current_user, link.risk.department_id) or (link.risk.id in cross_dept_risk_ids):
+    |                                                                                                                         ^^^^^^^^ E501
+134 |                         linked_risks.append(link.risk.process)
+135 |         else:
+    |
+
+app/api/v1/endpoints/issues/_shared.py:403:121: E501 Line too long (123 > 120)
+    |
+401 |     requested_by_name: str | None = None
+402 |     if exception.requested_by_id is not None:
+403 |         requested_by_name = _label_or_fallback(await _resolve_user_name(db, exception.requested_by_id), UNKNOWN_USER_LABEL)
+    |                                                                                                                         ^^^ E501
+404 |     approved_by_name: str | None = None
+405 |     if exception.approved_by_id is not None:
+    |
+
+app/api/v1/endpoints/issues/_shared.py:406:121: E501 Line too long (121 > 120)
+    |
+404 |     approved_by_name: str | None = None
+405 |     if exception.approved_by_id is not None:
+406 |         approved_by_name = _label_or_fallback(await _resolve_user_name(db, exception.approved_by_id), UNKNOWN_USER_LABEL)
+    |                                                                                                                         ^ E501
+407 |     return IssueExceptionRead.model_validate(
+408 |         {
+    |
+
+app/api/v1/endpoints/issues/_shared.py:465:121: E501 Line too long (123 > 120)
+    |
+463 |             "links": [_serialize_issue_link(link).model_dump() for link in issue.links],
+464 |             "remediation_plan": (
+465 |                 _serialize_remediation(issue.remediation_plan).model_dump() if issue.remediation_plan is not None else None
+    |                                                                                                                         ^^^ E501
+466 |             ),
+467 |             "exceptions": [_serialize_exception(exception).model_dump() for exception in issue.exceptions],
+    |
+
+app/api/v1/endpoints/issues/crud.py:103:121: E501 Line too long (122 > 120)
+    |
+102 |     if overdue is True:
+103 |         query = query.where(and_(Issue.due_at.is_not(None), Issue.due_at < now, Issue.status != IssueStatus.closed.value))
+    |                                                                                                                         ^^ E501
+104 |     if overdue is False:
+105 |         query = query.where(or_(Issue.due_at.is_(None), Issue.due_at >= now, Issue.status == IssueStatus.closed.value))
+    |
+
+app/api/v1/endpoints/issues/crud.py:390:121: E501 Line too long (127 > 120)
+    |
+388 |                 raise HTTPException(
+389 |                     status_code=status.HTTP_409_CONFLICT,
+390 |                     detail="Cannot change department while links point to entities in another department; relink/unlink first",
+    |                                                                                                                         ^^^^^^^ E501
+391 |                 )
+    |
+
+app/api/v1/endpoints/issues/exceptions.py:31:121: E501 Line too long (124 > 120)
+   |
+31 | @router.post("/issues/{issue_id}/request-exception", response_model=IssueExceptionRead, status_code=status.HTTP_201_CREATED)
+   |                                                                                                                         ^^^^ E501
+32 | async def request_exception(
+33 |     issue_id: int,
+   |
+
+app/api/v1/endpoints/issues/exceptions.py:61:121: E501 Line too long (122 > 120)
+   |
+59 |     active = _active_exception(issue)
+60 |     if active is not None:
+61 |         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Issue already has an active approved exception")
+   |                                                                                                                         ^^ E501
+62 | 
+63 |     target_exception: IssueException | None = None
+   |
+
+app/api/v1/endpoints/issues/exceptions.py:67:121: E501 Line too long (124 > 120)
+   |
+65 |         target_exception = (
+66 |             await db.execute(
+67 |                 select(IssueException).where(IssueException.id == payload.exception_id, IssueException.issue_id == issue.id)
+   |                                                                                                                         ^^^^ E501
+68 |             )
+69 |         ).scalar_one_or_none()
+   |
+
+app/api/v1/endpoints/issues/exceptions.py:117:121: E501 Line too long (124 > 120)
+    |
+115 |         target_exception = (
+116 |             await db.execute(
+117 |                 select(IssueException).where(IssueException.id == payload.exception_id, IssueException.issue_id == issue.id)
+    |                                                                                                                         ^^^^ E501
+118 |             )
+119 |         ).scalar_one_or_none()
+    |
+
+app/api/v1/endpoints/issues/lookups.py:30:121: E501 Line too long (128 > 120)
+   |
+29 |     departments = (await db.execute(query.order_by(Department.name.asc()))).scalars().all()
+30 |     return [IssueDepartmentLookup.model_validate({"id": dept.id, "name": dept.name, "code": dept.code}) for dept in departments]
+   |                                                                                                                         ^^^^^^^^ E501
+   |
+
+app/api/v1/endpoints/reports/unified_exports.py:502:121: E501 Line too long (136 > 120)
+    |
+500 |             r
+501 |             for r in filtered
+502 |             if r.get("last_period_end") is not None and isinstance(r.get("last_period_end"), date) and r["last_period_end"] < as_of_date
+    |                                                                                                                         ^^^^^^^^^^^^^^^^ E501
+503 |         ]
+    |
+
+app/api/v1/endpoints/risk_questionnaires.py:427:121: E501 Line too long (122 > 120)
+    |
+425 |         actor=current_user,
+426 |         department_id=questionnaire.risk.department_id if questionnaire.risk else None,
+427 |         changes={"status": {"old": old_status.value if hasattr(old_status, "value") else old_status, "new": "submitted"}},
+    |                                                                                                                         ^^ E501
+428 |         description=f"Submitted questionnaire for risk '{questionnaire.risk.name if questionnaire.risk else 'Risk'}'",
+429 |     )
+    |
+
+app/api/v1/endpoints/risks/crud.py:63:121: E501 Line too long (141 > 120)
+   |
+61 |     include_archived: bool = Query(False, description="Include archived risks in results"),
+62 |     has_breach: Optional[bool] = None,
+63 |     min_net_score: Optional[int] = Query(None, ge=0, le=25, description="Filter risks with net_score >= this value (e.g., 15 for critical)"),
+   |                                                                                                                         ^^^^^^^^^^^^^^^^^^^^^ E501
+64 |     sort_by: Optional[str] = Query(None, description="Field to sort by"),
+65 |     sort_order: Optional[str] = Query("asc", description="Sort order (asc or desc)"),
+   |
+
+app/api/v1/endpoints/risks/crud.py:186:121: E501 Line too long (127 > 120)
+    |
+184 |             order_column = Risk.net_score
+185 |         elif sort_by == 'kri_count':
+186 |             order_column = select(func.count(KeyRiskIndicator.id)).where(KeyRiskIndicator.risk_id == Risk.id).scalar_subquery()
+    |                                                                                                                         ^^^^^^^ E501
+187 |         elif sort_by == 'control_count':
+188 |             order_column = select(func.count(ControlRiskLink.id)).where(ControlRiskLink.risk_id == Risk.id).scalar_subquery()
+    |
+
+app/api/v1/endpoints/risks/crud.py:188:121: E501 Line too long (125 > 120)
+    |
+186 |             order_column = select(func.count(KeyRiskIndicator.id)).where(KeyRiskIndicator.risk_id == Risk.id).scalar_subquery()
+187 |         elif sort_by == 'control_count':
+188 |             order_column = select(func.count(ControlRiskLink.id)).where(ControlRiskLink.risk_id == Risk.id).scalar_subquery()
+    |                                                                                                                         ^^^^^ E501
+189 | 
+190 |     # Apply sort order
+    |
+
+app/api/v1/endpoints/risks/crud.py:609:121: E501 Line too long (133 > 120)
+    |
+607 |     # Create approval request - ITEM STAYS VISIBLE
+608 |     # Store risk name and description for better workflow display
+609 |     desc_snippet = (risk.description[:100] + "...") if risk.description and len(risk.description) > 100 else (risk.description or "")
+    |                                                                                                                         ^^^^^^^^^^^^^ E501
+610 | 
+611 |     # Determine primary approver: Risk Owner (if not self)
+    |
+
+app/api/v1/endpoints/vendor_assessments.py:64:121: E501 Line too long (122 > 120)
+   |
+64 | @router.post("/vendors/{vendor_id}/assessments", response_model=VendorAssessmentRead, status_code=status.HTTP_201_CREATED)
+   |                                                                                                                         ^^ E501
+65 | async def create_vendor_assessment(
+66 |     vendor_id: int,
+   |
+
+app/api/v1/endpoints/vendor_assessments.py:77:121: E501 Line too long (121 > 120)
+   |
+75 |     can_write = check_permission(current_user, "vendors", "write")
+76 |     if not can_write and not is_vendor_owner(vendor, current_user):
+77 |         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only outsourcing owner can start assessments")
+   |                                                                                                                         ^ E501
+78 | 
+79 |     assessment = await VendorAssessmentService.create_draft(db, vendor_id=vendor_id, actor=current_user)
+   |
+
+app/api/v1/endpoints/vendor_assessments.py:136:121: E501 Line too long (122 > 120)
+    |
+134 |     can_write = check_permission(current_user, "vendors", "write")
+135 |     if not can_write and not is_vendor_owner(vendor, current_user):
+136 |         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only outsourcing owner can submit assessments")
+    |                                                                                                                         ^^ E501
+137 | 
+138 |     assessment = await VendorAssessmentService.submit(db, assessment_id=assessment.id, actor=current_user)
+    |
+
+app/api/v1/endpoints/vendor_dependencies.py:179:121: E501 Line too long (182 > 120)
+    |
+177 |         await db.execute(
+178 |             select(VendorService)
+179 |             .options(selectinload(VendorService.dependencies).selectinload(VendorDependency.risk), selectinload(VendorService.dependencies).selectinload(VendorDependency.department))
+    |                                                                                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ E501
+180 |             .where(VendorService.vendor_id == vendor_id)
+181 |         )
+    |
+
+app/api/v1/endpoints/vendor_dependencies.py:216:121: E501 Line too long (126 > 120)
+    |
+216 | @router.post("/vendors/{vendor_id}/relationships", response_model=VendorRelationshipRead, status_code=status.HTTP_201_CREATED)
+    |                                                                                                                         ^^^^^^ E501
+217 | async def create_vendor_relationship(
+218 |     vendor_id: int,
+    |
+
+app/api/v1/endpoints/vendor_dependencies.py:259:121: E501 Line too long (125 > 120)
+    |
+257 |         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: vendors:read")
+258 | 
+259 |     rel = (await db.execute(select(VendorRelationship).where(VendorRelationship.id == relationship_id))).scalar_one_or_none()
+    |                                                                                                                         ^^^^^ E501
+260 |     if not rel:
+261 |         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Relationship not found")
+    |
+
+app/api/v1/endpoints/vendor_dependencies.py:324:121: E501 Line too long (182 > 120)
+    |
+322 |         await db.execute(
+323 |             select(VendorService)
+324 |             .options(selectinload(VendorService.dependencies).selectinload(VendorDependency.risk), selectinload(VendorService.dependencies).selectinload(VendorDependency.department))
+    |                                                                                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ E501
+325 |             .where(VendorService.id == service_id)
+326 |         )
+    |
+
+app/api/v1/endpoints/vendor_dependencies.py:360:121: E501 Line too long (132 > 120)
+    |
+360 | @router.post("/vendor-services/{service_id}/dependencies", response_model=VendorDependencyRead, status_code=status.HTTP_201_CREATED)
+    |                                                                                                                         ^^^^^^^^^^^^ E501
+361 | async def create_vendor_dependency(
+362 |     service_id: int,
+    |
+
+app/api/v1/endpoints/vendor_dependencies.py:376:121: E501 Line too long (122 > 120)
+    |
+375 |     if payload.department_id is not None:
+376 |         exists = (await db.execute(select(Department).where(Department.id == payload.department_id))).scalar_one_or_none()
+    |                                                                                                                         ^^ E501
+377 |         if not exists:
+378 |             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Department not found")
+    |
+
+app/api/v1/endpoints/vendor_dependencies.py:402:121: E501 Line too long (175 > 120)
+    |
+401 |     dep = (
+402 |         await db.execute(select(VendorDependency).options(selectinload(VendorDependency.risk), selectinload(VendorDependency.department)).where(VendorDependency.id == dep.id))
+    |                                                                                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ E501
+403 |     ).scalar_one()
+    |
+
+app/api/v1/endpoints/vendor_incidents.py:133:121: E501 Line too long (128 > 120)
+    |
+131 |             owner_id = vendor.outsourcing_owner_user_id
+132 |             if owner_id:
+133 |                 permission_load = selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
+    |                                                                                                                         ^^^^^^^^ E501
+134 |                 owner = (await db.execute(select(User).options(permission_load).where(User.id == owner_id))).scalar_one_or_none()
+135 |                 if owner:
+    |
+
+app/api/v1/endpoints/vendor_incidents.py:134:121: E501 Line too long (129 > 120)
+    |
+132 |             if owner_id:
+133 |                 permission_load = selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
+134 |                 owner = (await db.execute(select(User).options(permission_load).where(User.id == owner_id))).scalar_one_or_none()
+    |                                                                                                                         ^^^^^^^^^ E501
+135 |                 if owner:
+136 |                     owner_locale = getattr(owner, "preferred_language", None) or "en"
+    |
+
+app/api/v1/endpoints/vendor_incidents.py:255:121: E501 Line too long (123 > 120)
+    |
+255 | @router.post("/vendors/{vendor_id}/remediation", response_model=VendorRemediationRead, status_code=status.HTTP_201_CREATED)
+    |                                                                                                                         ^^^ E501
+256 | async def create_vendor_remediation(
+257 |     vendor_id: int,
+    |
+
+app/api/v1/endpoints/vendor_reports.py:46:121: E501 Line too long (121 > 120)
+   |
+44 | def _require_vendor_report_role(current_user: User) -> None:
+45 |     role_name = getattr(getattr(current_user, "role", None), "name", None)
+46 |     allowed = {RoleType.RISK_MANAGER.value, RoleType.CRO.value, RoleType.COMPLIANCE.value, RoleType.INTERNAL_AUDIT.value}
+   |                                                                                                                         ^ E501
+47 |     if role_name not in allowed:
+48 |         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied to vendor reports")
+   |
+
+app/api/v1/endpoints/vendor_resilience.py:30:121: E501 Line too long (125 > 120)
+   |
+28 |     if (plan.max_tolerable_outage_hours or 0) > 24:
+29 |         return True
+30 |     return bool(plan.impact_confidentiality or plan.impact_integrity or plan.impact_authenticity or plan.impact_availability)
+   |                                                                                                                         ^^^^^ E501
+   |
+
+app/api/v1/endpoints/vendor_risk_factors.py:44:121: E501 Line too long (123 > 120)
+   |
+44 | @router.post("/vendors/{vendor_id}/risk-factors", response_model=VendorRiskFactorRead, status_code=status.HTTP_201_CREATED)
+   |                                                                                                                         ^^^ E501
+45 | async def create_vendor_risk_factor(
+46 |     vendor_id: int,
+   |
+
+app/api/v1/endpoints/vendor_slas.py:151:121: E501 Line too long (123 > 120)
+    |
+149 |     can_vendor_write = check_permission(current_user, "vendors", "write")
+150 |     is_vendor_owner = vendor.outsourcing_owner_user_id == current_user.id
+151 |     is_reporting_owner = payload.reporting_owner_id == current_user.id if payload.reporting_owner_id is not None else False
+    |                                                                                                                         ^^^ E501
+152 |     if not (can_vendor_write or is_vendor_owner or is_reporting_owner):
+153 |         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
+    |
+
+app/api/v1/endpoints/vendor_slas.py:347:121: E501 Line too long (123 > 120)
+    |
+345 |                     if owner:
+346 |                         recipients.append(owner)
+347 |                 if vendor.outsourcing_owner_user_id and vendor.outsourcing_owner_user_id not in {u.id for u in recipients}:
+    |                                                                                                                         ^^^ E501
+348 |                     v_owner = (
+349 |                         await db.execute(select(User).options(permission_load).where(User.id == vendor.outsourcing_owner_user_id))
+    |
+
+app/api/v1/endpoints/vendor_slas.py:349:121: E501 Line too long (130 > 120)
+    |
+347 |                 if vendor.outsourcing_owner_user_id and vendor.outsourcing_owner_user_id not in {u.id for u in recipients}:
+348 |                     v_owner = (
+349 |                         await db.execute(select(User).options(permission_load).where(User.id == vendor.outsourcing_owner_user_id))
+    |                                                                                                                         ^^^^^^^^^^ E501
+350 |                     ).scalar_one_or_none()
+351 |                     if v_owner:
+    |
+
+app/api/v1/endpoints/vendor_slas.py:456:121: E501 Line too long (132 > 120)
+    |
+454 |         _, current_period_end = KRIHistoryService.period_bounds_for_date(today, sla.frequency)
+455 |         _, latest_closed_end = KRIHistoryService.latest_closed_period_for_date(today, sla.frequency)
+456 |         period_end = current_period_end if (sla.last_period_end and sla.last_period_end >= latest_closed_end) else latest_closed_end
+    |                                                                                                                         ^^^^^^^^^^^^ E501
+457 |         due = VendorSLAHistoryService.due_date(period_end)
+458 |         if _is_due_soon(due=due, today=today):
+    |
+
+app/api/v1/endpoints/vendor_slas.py:480:121: E501 Line too long (132 > 120)
+    |
+478 |         _, current_period_end = KRIHistoryService.period_bounds_for_date(today, sla.frequency)
+479 |         _, latest_closed_end = KRIHistoryService.latest_closed_period_for_date(today, sla.frequency)
+480 |         period_end = current_period_end if (sla.last_period_end and sla.last_period_end >= latest_closed_end) else latest_closed_end
+    |                                                                                                                         ^^^^^^^^^^^^ E501
+481 |         due = VendorSLAHistoryService.due_date(period_end)
+482 |         if due < today:
+    |
+
+app/api/v1/endpoints/vendors.py:160:121: E501 Line too long (128 > 120)
+    |
+158 |     cadence = 12 if vendor.supports_important_core_insurance_function else 36
+159 |     vendor.reassessment_cadence_months = cadence
+160 |     vendor.next_reassessment_due_at = VendorReassessmentService.compute_next_due(base=datetime.now(UTC), cadence_months=cadence)
+    |                                                                                                                         ^^^^^^^^ E501
+161 |     db.add(vendor)
+162 |     await db.commit()
+    |
+
+app/api/v1/endpoints/vendors.py:178:121: E501 Line too long (133 > 120)
+    |
+177 |     result = await db.execute(
+178 |         select(Vendor).options(selectinload(Vendor.department), selectinload(Vendor.outsourcing_owner)).where(Vendor.id == vendor.id)
+    |                                                                                                                         ^^^^^^^^^^^^^ E501
+179 |     )
+180 |     vendor = result.scalar_one()
+    |
+
+app/api/v1/endpoints/vendors.py:234:121: E501 Line too long (129 > 120)
+    |
+232 |     }
+233 |     if not can_write and (restricted_fields & set(updates.keys())):
+234 |         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to change governance fields")
+    |                                                                                                                         ^^^^^^^^^ E501
+235 | 
+236 |     if can_write and "department_id" in updates:
+    |
+
+app/core/permissions.py:293:121: E501 Line too long (124 > 120)
+    |
+291 |     from app.models import KeyRiskIndicator
+292 | 
+293 |     risk_id = (await db.execute(select(KeyRiskIndicator.risk_id).where(KeyRiskIndicator.id == kri_id))).scalar_one_or_none()
+    |                                                                                                                         ^^^^ E501
+294 |     if risk_id is None:
+295 |         return False
+    |
+
+app/core/snapshot_service.py:102:121: E501 Line too long (128 > 120)
+    |
+100 |         pending_risks = await db.scalar(
+101 |             select(func.count(ApprovalRequest.id))
+102 |             .join(Risk, (ApprovalRequest.resource_type == ApprovalResourceType.RISK) & (ApprovalRequest.resource_id == Risk.id))
+    |                                                                                                                         ^^^^^^^^ E501
+103 |             .where(*pending_approval_conditions, Risk.department_id.in_(department_ids))
+104 |         )
+    |
+
+app/core/snapshot_service.py:107:121: E501 Line too long (137 > 120)
+    |
+105 |         pending_controls = await db.scalar(
+106 |             select(func.count(ApprovalRequest.id))
+107 |             .join(Control, (ApprovalRequest.resource_type == ApprovalResourceType.CONTROL) & (ApprovalRequest.resource_id == Control.id))
+    |                                                                                                                         ^^^^^^^^^^^^^^^^^ E501
+108 |             .where(*pending_approval_conditions, Control.department_id.in_(department_ids))
+109 |         )
+    |
+
+app/core/snapshot_service.py:112:121: E501 Line too long (151 > 120)
+    |
+110 |         pending_kris = await db.scalar(
+111 |             select(func.count(ApprovalRequest.id))
+112 |             .join(KeyRiskIndicator, (ApprovalRequest.resource_type == ApprovalResourceType.KRI) & (ApprovalRequest.resource_id == KeyRiskIndicator.id))
+    |                                                                                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ E501
+113 |             .join(Risk, KeyRiskIndicator.risk_id == Risk.id)
+114 |             .where(*pending_approval_conditions, Risk.department_id.in_(department_ids))
+    |
+
+app/db/rbac_seed_contract.py:7:121: E501 Line too long (136 > 120)
+  |
+6 | RBAC_ROLES: tuple[dict[str, object], ...] = (
+7 |     {"name": "admin", "display_name": "Administrator", "description": "System administration, platform access only", "is_system": True},
+  |                                                                                                                         ^^^^^^^^^^^^^^^^ E501
+8 |     {"name": "cro", "display_name": "Chief Risk Officer", "description": "Full access, risk oversight, reporting", "is_system": True},
+9 |     {"name": "risk_manager", "display_name": "Risk Manager", "description": "Risk register management, control oversight"},
+  |
+
+app/db/rbac_seed_contract.py:8:121: E501 Line too long (134 > 120)
+   |
+ 6 | RBAC_ROLES: tuple[dict[str, object], ...] = (
+ 7 |     {"name": "admin", "display_name": "Administrator", "description": "System administration, platform access only", "is_system": True},
+ 8 |     {"name": "cro", "display_name": "Chief Risk Officer", "description": "Full access, risk oversight, reporting", "is_system": True},
+   |                                                                                                                         ^^^^^^^^^^^^^^ E501
+ 9 |     {"name": "risk_manager", "display_name": "Risk Manager", "description": "Risk register management, control oversight"},
+10 |     {"name": "actuarial", "display_name": "Actuarial Function", "description": "Actuarial controls, reserving oversight"},
+   |
+
+app/db/rbac_seed_contract.py:9:121: E501 Line too long (123 > 120)
+   |
+ 7 |     {"name": "admin", "display_name": "Administrator", "description": "System administration, platform access only", "is_system": True},
+ 8 |     {"name": "cro", "display_name": "Chief Risk Officer", "description": "Full access, risk oversight, reporting", "is_system": True},
+ 9 |     {"name": "risk_manager", "display_name": "Risk Manager", "description": "Risk register management, control oversight"},
+   |                                                                                                                         ^^^ E501
+10 |     {"name": "actuarial", "display_name": "Actuarial Function", "description": "Actuarial controls, reserving oversight"},
+11 |     {"name": "compliance", "display_name": "Compliance Officer", "description": "Regulatory compliance, policy controls"},
+   |
+
+app/db/rbac_seed_contract.py:10:121: E501 Line too long (122 > 120)
+   |
+ 8 |     {"name": "cro", "display_name": "Chief Risk Officer", "description": "Full access, risk oversight, reporting", "is_system": True},
+ 9 |     {"name": "risk_manager", "display_name": "Risk Manager", "description": "Risk register management, control oversight"},
+10 |     {"name": "actuarial", "display_name": "Actuarial Function", "description": "Actuarial controls, reserving oversight"},
+   |                                                                                                                         ^^ E501
+11 |     {"name": "compliance", "display_name": "Compliance Officer", "description": "Regulatory compliance, policy controls"},
+12 |     {"name": "internal_audit", "display_name": "Internal Audit", "description": "Read-only audit access, verification rights", "is_system": True},
+   |
+
+app/db/rbac_seed_contract.py:11:121: E501 Line too long (122 > 120)
+   |
+ 9 |     {"name": "risk_manager", "display_name": "Risk Manager", "description": "Risk register management, control oversight"},
+10 |     {"name": "actuarial", "display_name": "Actuarial Function", "description": "Actuarial controls, reserving oversight"},
+11 |     {"name": "compliance", "display_name": "Compliance Officer", "description": "Regulatory compliance, policy controls"},
+   |                                                                                                                         ^^ E501
+12 |     {"name": "internal_audit", "display_name": "Internal Audit", "description": "Read-only audit access, verification rights", "is_system": True},
+13 |     {"name": "department_head", "display_name": "Department Head", "description": "Department control catalog ownership"},
+   |
+
+app/db/rbac_seed_contract.py:12:121: E501 Line too long (146 > 120)
+   |
+10 |     {"name": "actuarial", "display_name": "Actuarial Function", "description": "Actuarial controls, reserving oversight"},
+11 |     {"name": "compliance", "display_name": "Compliance Officer", "description": "Regulatory compliance, policy controls"},
+12 |     {"name": "internal_audit", "display_name": "Internal Audit", "description": "Read-only audit access, verification rights", "is_system": True},
+   |                                                                                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^ E501
+13 |     {"name": "department_head", "display_name": "Department Head", "description": "Department control catalog ownership"},
+14 |     {"name": "employee", "display_name": "Employee", "description": "Department member with basic access"},
+   |
+
+app/db/rbac_seed_contract.py:13:121: E501 Line too long (122 > 120)
+   |
+11 |     {"name": "compliance", "display_name": "Compliance Officer", "description": "Regulatory compliance, policy controls"},
+12 |     {"name": "internal_audit", "display_name": "Internal Audit", "description": "Read-only audit access, verification rights", "is_system": True},
+13 |     {"name": "department_head", "display_name": "Department Head", "description": "Department control catalog ownership"},
+   |                                                                                                                         ^^ E501
+14 |     {"name": "employee", "display_name": "Employee", "description": "Department member with basic access"},
+15 |     {"name": "viewer", "display_name": "Viewer", "description": "Read-only dashboard access", "is_system": True},
+   |
+
+app/db/rbac_seed_contract.py:48:121: E501 Line too long (172 > 120)
+   |
+46 |     "admin": ("users:*", "activity_log:read", "departments:read"),
+47 |     "cro": ("*:*",),
+48 |     "risk_manager": ("controls:*", "risks:*", "issues:*", "vendors:*", "departments:read", "reports:*", "users:read", "approvals:write", "activity_log:read", "kri:submit"),
+   |                                                                                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ E501
+49 |     "actuarial": ("controls:read", "controls:write", "risks:read", "vendors:read", "reports:read"),
+50 |     "compliance": ("controls:read", "controls:write", "risks:read", "issues:read", "vendors:read", "reports:read", "vendor_contracts:*"),
+   |
+
+app/db/rbac_seed_contract.py:50:121: E501 Line too long (137 > 120)
+   |
+48 |     "risk_manager": ("controls:*", "risks:*", "issues:*", "vendors:*", "departments:read", "reports:*", "users:read", "approvals:write", "activity_log:read", "kri:submit"),
+49 |     "actuarial": ("controls:read", "controls:write", "risks:read", "vendors:read", "reports:read"),
+50 |     "compliance": ("controls:read", "controls:write", "risks:read", "issues:read", "vendors:read", "reports:read", "vendor_contracts:*"),
+   |                                                                                                                         ^^^^^^^^^^^^^^^^^ E501
+51 |     "internal_audit": ("controls:read", "risks:read", "issues:read", "vendors:read", "departments:read", "reports:read"),
+52 |     "department_head": ("controls:read", "controls:write", "risks:read", "issues:read", "issues:write", "vendors:read", "vendors:write", "departments:read", "reports:read", "kri:submit", "activity_log:read"),
+   |
+
+app/db/rbac_seed_contract.py:51:121: E501 Line too long (121 > 120)
+   |
+49 |     "actuarial": ("controls:read", "controls:write", "risks:read", "vendors:read", "reports:read"),
+50 |     "compliance": ("controls:read", "controls:write", "risks:read", "issues:read", "vendors:read", "reports:read", "vendor_contracts:*"),
+51 |     "internal_audit": ("controls:read", "risks:read", "issues:read", "vendors:read", "departments:read", "reports:read"),
+   |                                                                                                                         ^ E501
+52 |     "department_head": ("controls:read", "controls:write", "risks:read", "issues:read", "issues:write", "vendors:read", "vendors:write", "departments:read", "reports:read", "kri:submit", "activity_log:read"),
+53 |     "employee": ("controls:read", "risks:read", "vendors:read", "departments:read", "reports:read"),
+   |
+
+app/db/rbac_seed_contract.py:52:121: E501 Line too long (208 > 120)
+   |
+50 |     "compliance": ("controls:read", "controls:write", "risks:read", "issues:read", "vendors:read", "reports:read", "vendor_contracts:*"),
+51 |     "internal_audit": ("controls:read", "risks:read", "issues:read", "vendors:read", "departments:read", "reports:read"),
+52 |     "department_head": ("controls:read", "controls:write", "risks:read", "issues:read", "issues:write", "vendors:read", "vendors:write", "departments:read", "reports:read", "kri:submit", "activity_log:read"),
+   |                                                                                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ E501
+53 |     "employee": ("controls:read", "risks:read", "vendors:read", "departments:read", "reports:read"),
+54 |     "viewer": ("controls:read", "risks:read", "vendors:read", "departments:read", "reports:read"),
+   |
+
+app/db/seed.py:46:121: E501 Line too long (124 > 120)
+   |
+44 | TEST_USERS = [
+45 |     # Privileged accounts
+46 |     {"email": "admin@riskhub.local", "name": "System Admin", "role": "admin", "department": None, "access_scope": "global"},
+   |                                                                                                                         ^^^^ E501
+47 |     {"email": "cro@riskhub.local", "name": "Anna Kowalski", "role": "cro", "department": "RISK", "access_scope": "global"},
+48 |     {"email": "risk.manager@riskhub.local", "name": "Petra Svobodová", "role": "risk_manager", "department": "RISK", "access_scope": "global"},
+   |
+
+app/db/seed.py:47:121: E501 Line too long (123 > 120)
+   |
+45 |     # Privileged accounts
+46 |     {"email": "admin@riskhub.local", "name": "System Admin", "role": "admin", "department": None, "access_scope": "global"},
+47 |     {"email": "cro@riskhub.local", "name": "Anna Kowalski", "role": "cro", "department": "RISK", "access_scope": "global"},
+   |                                                                                                                         ^^^ E501
+48 |     {"email": "risk.manager@riskhub.local", "name": "Petra Svobodová", "role": "risk_manager", "department": "RISK", "access_scope": "global"},
+49 |     # Department heads
+   |
+
+app/db/seed.py:48:121: E501 Line too long (143 > 120)
+   |
+46 |     {"email": "admin@riskhub.local", "name": "System Admin", "role": "admin", "department": None, "access_scope": "global"},
+47 |     {"email": "cro@riskhub.local", "name": "Anna Kowalski", "role": "cro", "department": "RISK", "access_scope": "global"},
+48 |     {"email": "risk.manager@riskhub.local", "name": "Petra Svobodová", "role": "risk_manager", "department": "RISK", "access_scope": "global"},
+   |                                                                                                                         ^^^^^^^^^^^^^^^^^^^^^^^ E501
+49 |     # Department heads
+50 |     {"email": "ops.head@riskhub.local", "name": "Eva Králová", "role": "department_head", "department": "OPS", "access_scope": "department"},
+   |
+
+app/db/seed.py:50:121: E501 Line too long (141 > 120)
+   |
+48 |     {"email": "risk.manager@riskhub.local", "name": "Petra Svobodová", "role": "risk_manager", "department": "RISK", "access_scope": "global"},
+49 |     # Department heads
+50 |     {"email": "ops.head@riskhub.local", "name": "Eva Králová", "role": "department_head", "department": "OPS", "access_scope": "department"},
+   |                                                                                                                         ^^^^^^^^^^^^^^^^^^^^^ E501
+51 |     {"email": "fin.head@riskhub.local", "name": "Martin Procházka", "role": "department_head", "department": "FIN", "access_scope": "department"},
+52 |     {"email": "it.head@riskhub.local", "name": "Tomáš Novotný", "role": "department_head", "department": "IT", "access_scope": "department"},
+   |
+
+app/db/seed.py:51:121: E501 Line too long (146 > 120)
+   |
+49 |     # Department heads
+50 |     {"email": "ops.head@riskhub.local", "name": "Eva Králová", "role": "department_head", "department": "OPS", "access_scope": "department"},
+51 |     {"email": "fin.head@riskhub.local", "name": "Martin Procházka", "role": "department_head", "department": "FIN", "access_scope": "department"},
+   |                                                                                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^ E501
+52 |     {"email": "it.head@riskhub.local", "name": "Tomáš Novotný", "role": "department_head", "department": "IT", "access_scope": "department"},
+53 |     # Employees (control owners under department heads)
+   |
+
+app/db/seed.py:52:121: E501 Line too long (141 > 120)
+   |
+50 |     {"email": "ops.head@riskhub.local", "name": "Eva Králová", "role": "department_head", "department": "OPS", "access_scope": "department"},
+51 |     {"email": "fin.head@riskhub.local", "name": "Martin Procházka", "role": "department_head", "department": "FIN", "access_scope": "department"},
+52 |     {"email": "it.head@riskhub.local", "name": "Tomáš Novotný", "role": "department_head", "department": "IT", "access_scope": "department"},
+   |                                                                                                                         ^^^^^^^^^^^^^^^^^^^^^ E501
+53 |     # Employees (control owners under department heads)
+54 |     {"email": "ops.analyst@riskhub.local", "name": "Jana Horáková", "role": "employee", "department": "OPS", "access_scope": "department"},
+   |
+
+app/db/seed.py:54:121: E501 Line too long (139 > 120)
+   |
+52 |     {"email": "it.head@riskhub.local", "name": "Tomáš Novotný", "role": "department_head", "department": "IT", "access_scope": "department"},
+53 |     # Employees (control owners under department heads)
+54 |     {"email": "ops.analyst@riskhub.local", "name": "Jana Horáková", "role": "employee", "department": "OPS", "access_scope": "department"},
+   |                                                                                                                         ^^^^^^^^^^^^^^^^^^^ E501
+55 |     {"email": "fin.analyst@riskhub.local", "name": "Lukáš Dvořák", "role": "employee", "department": "FIN", "access_scope": "department"},
+56 |     {"email": "it.analyst@riskhub.local", "name": "Barbora Němcová", "role": "employee", "department": "IT", "access_scope": "department"},
+   |
+
+app/db/seed.py:55:121: E501 Line too long (138 > 120)
+   |
+53 |     # Employees (control owners under department heads)
+54 |     {"email": "ops.analyst@riskhub.local", "name": "Jana Horáková", "role": "employee", "department": "OPS", "access_scope": "department"},
+55 |     {"email": "fin.analyst@riskhub.local", "name": "Lukáš Dvořák", "role": "employee", "department": "FIN", "access_scope": "department"},
+   |                                                                                                                         ^^^^^^^^^^^^^^^^^^ E501
+56 |     {"email": "it.analyst@riskhub.local", "name": "Barbora Němcová", "role": "employee", "department": "IT", "access_scope": "department"},
+57 | ]
+   |
+
+app/db/seed.py:56:121: E501 Line too long (139 > 120)
+   |
+54 |     {"email": "ops.analyst@riskhub.local", "name": "Jana Horáková", "role": "employee", "department": "OPS", "access_scope": "department"},
+55 |     {"email": "fin.analyst@riskhub.local", "name": "Lukáš Dvořák", "role": "employee", "department": "FIN", "access_scope": "department"},
+56 |     {"email": "it.analyst@riskhub.local", "name": "Barbora Němcová", "role": "employee", "department": "IT", "access_scope": "department"},
+   |                                                                                                                         ^^^^^^^^^^^^^^^^^^^ E501
+57 | ]
+   |
+
+app/i18n/cs.py:75:121: E501 Line too long (136 > 120)
+   |
+73 |         'questionnaire_submitted_message': "{actor_name} odeslal(a) dotazník k hodnocení rizika '{risk_name}'.",
+74 |         'questionnaire_clarification_requested_title': 'Žádost o upřesnění',
+75 |         'questionnaire_clarification_requested_message': "Byla požádána o upřesnění k vašemu dotazníku hodnocení rizika '{risk_name}'.",
+   |                                                                                                                         ^^^^^^^^^^^^^^^^ E501
+76 | 
+77 |         'vendor_assessment_submitted_title': 'Hodnocení dodavatele odesláno',
+   |
+
+app/i18n/cs.py:80:121: E501 Line too long (128 > 120)
+   |
+78 |         'vendor_assessment_submitted_message': "{actor_name} odeslal(a) hodnocení dodavatele '{vendor_name}'.",
+79 |         'vendor_assessment_committee_recommended_title': 'Doporučení k hodnocení dodavatele',
+80 |         'vendor_assessment_committee_recommended_message': "Bylo zaznamenáno doporučení komise pro dodavatele '{vendor_name}'.",
+   |                                                                                                                         ^^^^^^^^ E501
+81 |         'vendor_assessment_decided_title': 'Rozhodnutí k hodnocení dodavatele',
+82 |         'vendor_assessment_decided_message': "Bylo zaznamenáno rozhodnutí '{decision}' pro dodavatele '{vendor_name}'.",
+   |
+
+app/i18n/en.py:67:121: E501 Line too long (123 > 120)
+   |
+66 |         'questionnaire_sent_title': 'Questionnaire sent',
+67 |         'questionnaire_sent_message': "A risk assessment questionnaire for '{risk_name}' was sent to you. Due {due_date}.",
+   |                                                                                                                         ^^^ E501
+68 |         'questionnaire_due_soon_title': 'Questionnaire due soon',
+69 |         'questionnaire_due_soon_message': "Your risk assessment questionnaire for '{risk_name}' is due on {due_date}.",
+   |
+
+app/i18n/en.py:73:121: E501 Line too long (121 > 120)
+   |
+71 |         'questionnaire_overdue_message': "Your risk assessment questionnaire for '{risk_name}' was due on {due_date}.",
+72 |         'questionnaire_submitted_title': 'Questionnaire submitted',
+73 |         'questionnaire_submitted_message': "{actor_name} submitted the risk assessment questionnaire for '{risk_name}'.",
+   |                                                                                                                         ^ E501
+74 |         'questionnaire_clarification_requested_title': 'Clarification requested',
+75 |         'questionnaire_clarification_requested_message': "A clarification was requested for your risk assessment questionnaire for '{risk_name}'.",
+   |
+
+app/i18n/en.py:75:121: E501 Line too long (147 > 120)
+   |
+73 |         'questionnaire_submitted_message': "{actor_name} submitted the risk assessment questionnaire for '{risk_name}'.",
+74 |         'questionnaire_clarification_requested_title': 'Clarification requested',
+75 |         'questionnaire_clarification_requested_message': "A clarification was requested for your risk assessment questionnaire for '{risk_name}'.",
+   |                                                                                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^ E501
+76 | 
+77 |         'vendor_assessment_submitted_title': 'Vendor assessment submitted',
+   |
+
+app/i18n/en.py:80:121: E501 Line too long (129 > 120)
+   |
+78 |         'vendor_assessment_submitted_message': "{actor_name} submitted due diligence for vendor '{vendor_name}'.",
+79 |         'vendor_assessment_committee_recommended_title': 'Vendor assessment recommendation',
+80 |         'vendor_assessment_committee_recommended_message': "A committee recommendation was recorded for vendor '{vendor_name}'.",
+   |                                                                                                                         ^^^^^^^^^ E501
+81 |         'vendor_assessment_decided_title': 'Vendor assessment decision',
+82 |         'vendor_assessment_decided_message': "Decision '{decision}' was recorded for vendor '{vendor_name}'.",
+   |
+
+app/main.py:38:121: E501 Line too long (128 > 120)
+   |
+36 |         logger.critical(
+37 |             "mock_auth_production_error",
+38 |             message="FATAL: MOCK_AUTH_ENABLED=true with DEBUG=false is forbidden. Disable mock auth for production deployment.",
+   |                                                                                                                         ^^^^^^^^ E501
+39 |         )
+40 |         raise RuntimeError("MOCK_AUTH_ENABLED cannot be true in non-debug mode")
+   |
+
+app/main.py:165:121: E501 Line too long (154 > 120)
+    |
+163 |                 logger.info(
+164 |                     "log_config_applied",
+165 |                     message=f"Log rotation config applied: App={app_rotation_size}MB x {app_retention}, Audit={audit_rotation_size}MB x {audit_retention}"
+    |                                                                                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ E501
+166 |                 )
+167 |     except Exception as e:
+    |
+
+app/models/approval_request.py:95:121: E501 Line too long (124 > 120)
+   |
+94 |     # Timestamps
+95 |     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False)
+   |                                                                                                                         ^^^^ E501
+96 | 
+97 |     # Relationships - use selectin loading for async compatibility
+   |
+
+app/models/approval_scenario.py:42:121: E501 Line too long (121 > 120)
+   |
+41 |     # Audit fields
+42 |     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+   |                                                                                                                         ^ E501
+43 |     updated_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+   |
+
+app/models/control.py:73:121: E501 Line too long (122 > 120)
+   |
+71 |     # 7. Pozícia zodpovedná za danú kontrolu (Control owner - FK to users)
+72 |     control_owner_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
+73 |     control_owner: Mapped["User"] = relationship("User", foreign_keys=[control_owner_id], back_populates="owned_controls")
+   |                                                                                                                         ^^ E501
+74 | 
+75 |     # 8. Kto vykonáva kontrolu (Executor position)
+   |
+
+app/models/control.py:109:121: E501 Line too long (121 > 120)
+    |
+107 |     # Timestamps
+108 |     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+109 |     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    |                                                                                                                         ^ E501
+110 | 
+111 |     # Relationships
+    |
+
+app/models/department.py:42:121: E501 Line too long (121 > 120)
+   |
+40 |     # Timestamps
+41 |     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+42 |     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+   |                                                                                                                         ^ E501
+   |
+
+app/models/directory_user.py:31:121: E501 Line too long (121 > 120)
+   |
+30 |     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+31 |     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+   |                                                                                                                         ^ E501
+32 | 
+33 |     user: Mapped["User | None"] = relationship("User")
+   |
+
+app/models/global_config.py:54:121: E501 Line too long (121 > 120)
+   |
+53 |     # Audit fields
+54 |     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+   |                                                                                                                         ^ E501
+55 |     updated_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+   |
+
+app/models/issue.py:100:121: E501 Line too long (123 > 120)
+    |
+ 98 |     created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+ 99 | 
+100 |     opened_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC))
+    |                                                                                                                         ^^^ E501
+101 |     due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
+102 |     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    |
+
+app/models/issue.py:105:121: E501 Line too long (137 > 120)
+    |
+103 |     validation_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+104 |     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+105 |     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    |                                                                                                                         ^^^^^^^^^^^^^^^^^ E501
+106 | 
+107 |     # Deadline reminder dedupe fields used by scheduled notification jobs.
+    |
+
+app/models/issue.py:180:121: E501 Line too long (127 > 120)
+    |
+179 |     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+180 |     issue_id: Mapped[int] = mapped_column(ForeignKey("issues.id", ondelete="CASCADE"), nullable=False, index=True, unique=True)
+    |                                                                                                                         ^^^^^^^ E501
+181 |     status: Mapped[IssueRemediationStatus] = mapped_column(
+182 |         SAEnum(
+    |
+
+app/models/issue.py:198:121: E501 Line too long (137 > 120)
+    |
+196 |     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+197 |     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+198 |     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    |                                                                                                                         ^^^^^^^^^^^^^^^^^ E501
+199 | 
+200 |     issue: Mapped["Issue"] = relationship("Issue", back_populates="remediation_plan", lazy="selectin")
+    |
+
+app/models/issue.py:204:121: E501 Line too long (121 > 120)
+    |
+203 |     __table_args__ = (
+204 |         CheckConstraint("progress_percent >= 0 AND progress_percent <= 100", name="ck_issue_remediation_progress_range"),
+    |                                                                                                                         ^ E501
+205 |         Index("ix_issue_remediation_status", "status"),
+206 |         Index("ix_issue_remediation_owner", "owner_user_id"),
+    |
+
+app/models/issue.py:233:121: E501 Line too long (137 > 120)
+    |
+231 |     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
+232 |     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+233 |     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    |                                                                                                                         ^^^^^^^^^^^^^^^^^ E501
+234 | 
+235 |     issue: Mapped["Issue"] = relationship("Issue", back_populates="exceptions", lazy="selectin")
+    |
+
+app/models/key_risk_indicator.py:64:121: E501 Line too long (123 > 120)
+   |
+63 |     # Timestamps
+64 |     last_updated: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+   |                                                                                                                         ^^^ E501
+65 |     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+   |
+
+app/models/risk.py:105:121: E501 Line too long (121 > 120)
+    |
+103 |     # Timestamps
+104 |     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+105 |     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    |                                                                                                                         ^ E501
+106 | 
+107 |     # Relationships
+    |
+
+app/models/risk_questionnaire.py:81:121: E501 Line too long (121 > 120)
+   |
+79 |     assigned_to_user: Mapped["User"] = relationship("User", foreign_keys=[assigned_to_user_id], lazy="selectin")
+80 |     sent_by_user: Mapped["User"] = relationship("User", foreign_keys=[sent_by_user_id], lazy="selectin")
+81 |     submitted_by_user: Mapped["User | None"] = relationship("User", foreign_keys=[submitted_by_user_id], lazy="selectin")
+   |                                                                                                                         ^ E501
+82 | 
+83 |     __table_args__ = (
+   |
+
+app/models/risk_questionnaire.py:116:121: E501 Line too long (121 > 120)
+    |
+114 |     questionnaire: Mapped["RiskQuestionnaire"] = relationship("RiskQuestionnaire", lazy="selectin")
+115 |     requested_by_user: Mapped["User"] = relationship("User", foreign_keys=[requested_by_user_id], lazy="selectin")
+116 |     responded_by_user: Mapped["User | None"] = relationship("User", foreign_keys=[responded_by_user_id], lazy="selectin")
+    |                                                                                                                         ^ E501
+117 | 
+118 |     __table_args__ = (
+    |
+
+app/models/risk_type.py:50:121: E501 Line too long (121 > 120)
+   |
+48 |     # Audit fields
+49 |     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+50 |     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+   |                                                                                                                         ^ E501
+51 | 
+52 |     # Relationship to risks (optional, for eager loading)
+   |
+
+app/models/role.py:85:121: E501 Line too long (133 > 120)
+   |
+83 |     # Relationships
+84 |     users: Mapped[list[User]] = relationship("User", back_populates="role")
+85 |     permissions: Mapped[list["RolePermission"]] = relationship("RolePermission", back_populates="role", cascade="all, delete-orphan")
+   |                                                                                                                         ^^^^^^^^^^^^^ E501
+   |
+
+app/models/user.py:62:121: E501 Line too long (138 > 120)
+   |
+60 |     # Manager-employee hierarchy
+61 |     manager_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+62 |     manager: Mapped["User | None"] = relationship("User", remote_side=[id], back_populates="subordinates", foreign_keys="User.manager_id")
+   |                                                                                                                         ^^^^^^^^^^^^^^^^^^ E501
+63 |     subordinates: Mapped[list["User"]] = relationship("User", back_populates="manager", foreign_keys="User.manager_id")
+   |
+
+app/models/user.py:67:121: E501 Line too long (121 > 120)
+   |
+65 |     # Timestamps
+66 |     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+67 |     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+   |                                                                                                                         ^ E501
+68 |     last_active_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
+   |
+
+app/models/vendor.py:92:121: E501 Line too long (121 > 120)
+   |
+90 |     # Reassessment scheduling (Phase 18-04)
+91 |     reassessment_cadence_months: Mapped[int] = mapped_column(Integer, default=36)
+92 |     next_reassessment_due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
+   |                                                                                                                         ^ E501
+93 |     last_assessed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+94 |     last_decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+   |
+
+app/models/vendor.py:100:121: E501 Line too long (121 > 120)
+    |
+ 99 |     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+100 |     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    |                                                                                                                         ^ E501
+101 | 
+102 |     risk_factors: Mapped[list["VendorRiskFactor"]] = relationship(
+    |
+
+app/models/vendor_assessment.py:42:121: E501 Line too long (125 > 120)
+   |
+41 |     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+42 |     vendor_id: Mapped[int] = mapped_column(Integer, ForeignKey("vendors.id", ondelete="CASCADE"), nullable=False, index=True)
+   |                                                                                                                         ^^^^^ E501
+43 | 
+44 |     status: Mapped[VendorAssessmentStatus] = mapped_column(
+   |
+
+app/models/vendor_assessment.py:99:121: E501 Line too long (121 > 120)
+    |
+ 98 |     vendor: Mapped["Vendor"] = relationship("Vendor", back_populates="assessments", lazy="selectin")
+ 99 |     submitted_by_user: Mapped["User | None"] = relationship("User", foreign_keys=[submitted_by_user_id], lazy="selectin")
+    |                                                                                                                         ^ E501
+100 |     reviewed_by_user: Mapped["User | None"] = relationship("User", foreign_keys=[reviewed_by_user_id], lazy="selectin")
+101 |     decided_by_user: Mapped["User | None"] = relationship("User", foreign_keys=[decided_by_user_id], lazy="selectin")
+    |
+
+app/models/vendor_contingency_plan.py:21:121: E501 Line too long (138 > 120)
+   |
+20 |     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+21 |     vendor_id: Mapped[int] = mapped_column(Integer, ForeignKey("vendors.id", ondelete="CASCADE"), nullable=False, unique=True, index=True)
+   |                                                                                                                         ^^^^^^^^^^^^^^^^^^ E501
+22 | 
+23 |     max_tolerable_outage_hours: Mapped[int | None] = mapped_column(Integer, nullable=True)
+   |
+
+app/models/vendor_contract_control.py:29:121: E501 Line too long (125 > 120)
+   |
+28 |     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+29 |     vendor_id: Mapped[int] = mapped_column(Integer, ForeignKey("vendors.id", ondelete="CASCADE"), nullable=False, index=True)
+   |                                                                                                                         ^^^^^ E501
+30 | 
+31 |     control_key: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+   |
+
+app/models/vendor_exit_plan.py:27:121: E501 Line too long (138 > 120)
+   |
+26 |     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+27 |     vendor_id: Mapped[int] = mapped_column(Integer, ForeignKey("vendors.id", ondelete="CASCADE"), nullable=False, unique=True, index=True)
+   |                                                                                                                         ^^^^^^^^^^^^^^^^^^ E501
+28 | 
+29 |     status: Mapped[VendorPlanStatus] = mapped_column(
+   |
+
+app/models/vendor_external_signal.py:26:121: E501 Line too long (125 > 120)
+   |
+25 |     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+26 |     vendor_id: Mapped[int] = mapped_column(Integer, ForeignKey("vendors.id", ondelete="CASCADE"), nullable=False, index=True)
+   |                                                                                                                         ^^^^^ E501
+27 | 
+28 |     provider_key: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+   |
+
+app/models/vendor_incident.py:36:121: E501 Line too long (125 > 120)
+   |
+35 |     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+36 |     vendor_id: Mapped[int] = mapped_column(Integer, ForeignKey("vendors.id", ondelete="CASCADE"), nullable=False, index=True)
+   |                                                                                                                         ^^^^^ E501
+37 | 
+38 |     incident_type: Mapped[VendorIncidentType] = mapped_column(
+   |
+
+app/models/vendor_relationship.py:28:121: E501 Line too long (125 > 120)
+   |
+27 |     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+28 |     vendor_id: Mapped[int] = mapped_column(Integer, ForeignKey("vendors.id", ondelete="CASCADE"), nullable=False, index=True)
+   |                                                                                                                         ^^^^^ E501
+29 |     related_vendor_id: Mapped[int] = mapped_column(Integer, ForeignKey("vendors.id", ondelete="CASCADE"), nullable=False, index=True)
+30 |     relationship_type: Mapped[VendorRelationshipType] = mapped_column(
+   |
+
+app/models/vendor_relationship.py:29:121: E501 Line too long (133 > 120)
+   |
+27 |     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+28 |     vendor_id: Mapped[int] = mapped_column(Integer, ForeignKey("vendors.id", ondelete="CASCADE"), nullable=False, index=True)
+29 |     related_vendor_id: Mapped[int] = mapped_column(Integer, ForeignKey("vendors.id", ondelete="CASCADE"), nullable=False, index=True)
+   |                                                                                                                         ^^^^^^^^^^^^^ E501
+30 |     relationship_type: Mapped[VendorRelationshipType] = mapped_column(
+31 |         SAEnum(
+   |
+
+app/models/vendor_remediation.py:29:121: E501 Line too long (125 > 120)
+   |
+28 |     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+29 |     vendor_id: Mapped[int] = mapped_column(Integer, ForeignKey("vendors.id", ondelete="CASCADE"), nullable=False, index=True)
+   |                                                                                                                         ^^^^^ E501
+30 |     incident_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("vendor_incidents.id", ondelete="SET NULL"), nullable=True, index=True)
+   |
+
+app/models/vendor_remediation.py:30:121: E501 Line too long (143 > 120)
+   |
+28 |     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+29 |     vendor_id: Mapped[int] = mapped_column(Integer, ForeignKey("vendors.id", ondelete="CASCADE"), nullable=False, index=True)
+30 |     incident_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("vendor_incidents.id", ondelete="SET NULL"), nullable=True, index=True)
+   |                                                                                                                         ^^^^^^^^^^^^^^^^^^^^^^^ E501
+31 | 
+32 |     owner_user_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("users.id"), nullable=True, index=True)
+   |
+
+app/models/vendor_risk_factor.py:23:121: E501 Line too long (121 > 120)
+   |
+22 |     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+23 |     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+   |                                                                                                                         ^ E501
+24 | 
+25 |     vendor: Mapped["Vendor"] = relationship("Vendor", back_populates="risk_factors")
+   |
+
+app/models/vendor_service.py:21:121: E501 Line too long (125 > 120)
+   |
+20 |     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+21 |     vendor_id: Mapped[int] = mapped_column(Integer, ForeignKey("vendors.id", ondelete="CASCADE"), nullable=False, index=True)
+   |                                                                                                                         ^^^^^ E501
+22 |     service_name: Mapped[str] = mapped_column(String(255), nullable=False)
+23 |     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+   |
+
+app/models/vendor_service.py:59:121: E501 Line too long (123 > 120)
+   |
+57 |     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+58 | 
+59 |     vendor_service: Mapped["VendorService"] = relationship("VendorService", back_populates="dependencies", lazy="selectin")
+   |                                                                                                                         ^^^ E501
+60 |     risk: Mapped["Risk | None"] = relationship("Risk", lazy="selectin")
+61 |     department: Mapped["Department | None"] = relationship("Department", lazy="selectin")
+   |
+
+app/models/vendor_sla.py:53:121: E501 Line too long (139 > 120)
+   |
+52 |     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+53 |     last_updated: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+   |                                                                                                                         ^^^^^^^^^^^^^^^^^^^ E501
+54 | 
+55 |     vendor: Mapped["Vendor"] = relationship("Vendor", back_populates="slas", lazy="selectin")
+   |
+
+app/models/vendor_sla_history.py:19:121: E501 Line too long (126 > 120)
+   |
+18 |     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+19 |     sla_id: Mapped[int] = mapped_column(Integer, ForeignKey("vendor_slas.id", ondelete="CASCADE"), nullable=False, index=True)
+   |                                                                                                                         ^^^^^^ E501
+20 | 
+21 |     period_start: Mapped[date] = mapped_column(Date, nullable=False)
+   |
+
+app/services/directory_sync_service.py:402:121: E501 Line too long (154 > 120)
+    |
+400 |                 sync_log.status = DirectorySyncStatus.success
+401 |                 if error_count > 0:
+402 |                     sync_log.status = DirectorySyncStatus.partial if (created_count or updated_count or deactivated_count) else DirectorySyncStatus.failed
+    |                                                                                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ E501
+403 | 
+404 |                 sync_log.finished_at = datetime.now(UTC)
+    |
+
+app/services/issue_deadline_service.py:243:121: E501 Line too long (129 > 120)
+    |
+242 |                 if now <= due_at <= due_soon_cutoff:
+243 |                     if issue.last_due_soon_notified_at is None or coerce_utc(issue.last_due_soon_notified_at) < due_soon_backoff:
+    |                                                                                                                         ^^^^^^^^^ E501
+244 |                         created_for_issue = 0
+245 |                         for user in recipients:
+    |
+
+app/services/issue_deadline_service.py:264:121: E501 Line too long (125 > 120)
+    |
+263 |                 if due_at < now:
+264 |                     if issue.last_overdue_notified_at is None or coerce_utc(issue.last_overdue_notified_at) < overdue_cutoff:
+    |                                                                                                                         ^^^^^ E501
+265 |                         created_for_issue = 0
+266 |                         for user in recipients:
+    |
+
+app/services/issue_deadline_service.py:297:121: E501 Line too long (134 > 120)
+    |
+295 |                                     notification_type=NotificationType.ISSUE_OVERDUE,
+296 |                                     title=f"Escalated overdue issue: {issue.title}",
+297 |                                     message=f"High-severity issue '{issue.title}' remains overdue since {due_at.date().isoformat()}.",
+    |                                                                                                                         ^^^^^^^^^^^^^^ E501
+298 |                                     now=now,
+299 |                                 )
+    |
+
+app/services/issue_workflow_service.py:33:121: E501 Line too long (124 > 120)
+   |
+31 |     REMEDIATION_TRANSITIONS: dict[str, set[str]] = {
+32 |         IssueRemediationStatus.draft.value: {IssueRemediationStatus.active.value, IssueRemediationStatus.blocked.value},
+33 |         IssueRemediationStatus.active.value: {IssueRemediationStatus.blocked.value, IssueRemediationStatus.completed.value},
+   |                                                                                                                         ^^^^ E501
+34 |         IssueRemediationStatus.blocked.value: {IssueRemediationStatus.active.value, IssueRemediationStatus.completed.value},
+35 |         IssueRemediationStatus.completed.value: set(),
+   |
+
+app/services/issue_workflow_service.py:34:121: E501 Line too long (124 > 120)
+   |
+32 |         IssueRemediationStatus.draft.value: {IssueRemediationStatus.active.value, IssueRemediationStatus.blocked.value},
+33 |         IssueRemediationStatus.active.value: {IssueRemediationStatus.blocked.value, IssueRemediationStatus.completed.value},
+34 |         IssueRemediationStatus.blocked.value: {IssueRemediationStatus.active.value, IssueRemediationStatus.completed.value},
+   |                                                                                                                         ^^^^ E501
+35 |         IssueRemediationStatus.completed.value: set(),
+36 |     }
+   |
+
+app/services/issue_workflow_service.py:196:121: E501 Line too long (129 > 120)
+    |
+194 |         if progress_percent is not None:
+195 |             if progress_percent < 0 or progress_percent > 100:
+196 |                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="progress_percent must be between 0 and 100")
+    |                                                                                                                         ^^^^^^^^^ E501
+197 |             remediation_updates["progress_percent"] = progress_percent
+198 |         if remediation_status is not None:
+    |
+
+app/services/issue_workflow_service.py:215:121: E501 Line too long (131 > 120)
+    |
+214 |         issue_updates: dict[str, object] = {}
+215 |         if remediation.status == IssueRemediationStatus.completed.value and issue.status != IssueStatus.ready_for_validation.value:
+    |                                                                                                                         ^^^^^^^^^^^ E501
+216 |             IssueWorkflowService._ensure_issue_transition(issue.status, IssueStatus.ready_for_validation.value)
+217 |             issue_updates["status"] = IssueStatus.ready_for_validation.value
+    |
+
+app/services/issue_workflow_service.py:218:121: E501 Line too long (130 > 120)
+    |
+216 |             IssueWorkflowService._ensure_issue_transition(issue.status, IssueStatus.ready_for_validation.value)
+217 |             issue_updates["status"] = IssueStatus.ready_for_validation.value
+218 |         elif remediation.status == IssueRemediationStatus.active.value and issue.status == IssueStatus.ready_for_validation.value:
+    |                                                                                                                         ^^^^^^^^^^ E501
+219 |             IssueWorkflowService._ensure_issue_transition(issue.status, IssueStatus.in_progress.value)
+220 |             issue_updates["status"] = IssueStatus.in_progress.value
+    |
+
+app/services/kri_deadline_service.py:143:121: E501 Line too long (200 > 120)
+    |
+141 |                                 notification_type=NotificationType.KRI_DUE_SOON,
+142 |                                 title=f"KRI Reporting Due Soon: {kri.metric_name[:50]}",
+143 |                                 message=f"KRI '{kri.metric_name}' reporting period ends on {period_end.isoformat()}. Please submit your value within {config['reporting_grace_days']} days after that.",
+    |                                                                                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ E501
+144 |                                 resource_type="kri",
+145 |                                 resource_id=kri.id,
+    |
+
+app/services/kri_deadline_service.py:153:121: E501 Line too long (122 > 120)
+    |
+151 |                     elif today == due:
+152 |                         if reporting_owner and not await KRIDeadlineService._check_duplicate_notification(
+153 |                             db, kri.id, NotificationType.KRI_DUE_TOMORROW, lookback_days=config["duplicate_lookback_days"]
+    |                                                                                                                         ^^ E501
+154 |                         ):
+155 |                             await NotificationService.create_notification(
+    |
+
+app/services/kri_deadline_service.py:160:121: E501 Line too long (177 > 120)
+    |
+158 |                                 notification_type=NotificationType.KRI_DUE_TOMORROW,
+159 |                                 title=f"KRI Reporting Deadline: {kri.metric_name[:50]}",
+160 |                                 message=f"Today is the deadline for reporting KRI '{kri.metric_name}' for period ending {period_end.isoformat()}. Please submit your value now.",
+    |                                                                                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ E501
+161 |                                 resource_type="kri",
+162 |                                 resource_id=kri.id,
+    |
+
+app/services/kri_deadline_service.py:175:121: E501 Line too long (121 > 120)
+    |
+173 |                         if overdue_weeks > 0 and overdue_weeks % config["overdue_reminder_weeks"] == 0:
+174 |                             if reporting_owner and not await KRIDeadlineService._check_duplicate_notification(
+175 |                                 db, kri.id, NotificationType.KRI_OVERDUE, lookback_days=config["duplicate_lookback_days"]
+    |                                                                                                                         ^ E501
+176 |                             ):
+177 |                                 await NotificationService.create_notification(
+    |
+
+app/services/kri_deadline_service.py:182:121: E501 Line too long (188 > 120)
+    |
+180 |                                     notification_type=NotificationType.KRI_OVERDUE,
+181 |                                     title=f"KRI Overdue ({days_overdue}d): {kri.metric_name[:50]}",
+182 |                                     message=f"KRI '{kri.metric_name}' is {days_overdue} days overdue for reporting. Period ended {period_end.isoformat()}, due date was {due.isoformat()}.",
+    |                                                                                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ E501
+183 |                                     resource_type="kri",
+184 |                                     resource_id=kri.id,
+    |
+
+app/services/kri_deadline_service.py:195:121: E501 Line too long (121 > 120)
+    |
+193 |                     # KRI is breached - notify
+194 |                     if not await KRIDeadlineService._check_duplicate_notification(
+195 |                         db, kri.id, NotificationType.KRI_BREACH_DETECTED, lookback_days=config["duplicate_lookback_days"]
+    |                                                                                                                         ^ E501
+196 |                     ):
+197 |                         owner_id = kri.risk.owner_id if kri.risk else None
+    |
+
+app/services/kri_deadline_service.py:204:121: E501 Line too long (170 > 120)
+    |
+202 |                                 notification_type=NotificationType.KRI_BREACH_DETECTED,
+203 |                                 title=f"KRI Breached: {kri.metric_name[:50]}",
+204 |                                 message=f"KRI '{kri.metric_name}' is {breach_status} limit. Current: {kri.current_value}, Limits: [{kri.lower_limit}, {kri.upper_limit}]",
+    |                                                                                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ E501
+205 |                                 resource_type="kri",
+206 |                                 resource_id=kri.id,
+    |
+
+app/services/kri_deadline_service.py:221:121: E501 Line too long (174 > 120)
+    |
+219 |                                     notification_type=NotificationType.KRI_BREACH_DETECTED,
+220 |                                     title=f"KRI Breached: {kri.metric_name[:50]}",
+221 |                                     message=f"KRI '{kri.metric_name}' is {breach_status} limit. Current: {kri.current_value}, Limits: [{kri.lower_limit}, {kri.upper_limit}]",
+    |                                                                                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ E501
+222 |                                     resource_type="kri",
+223 |                                     resource_id=kri.id,
+    |
+
+app/services/kri_deadline_service.py:237:121: E501 Line too long (125 > 120)
+    |
+235 |                         if kri.current_value >= threshold_value:
+236 |                             if not await KRIDeadlineService._check_duplicate_notification(
+237 |                                 db, kri.id, NotificationType.KRI_NEAR_BREACH, lookback_days=config["duplicate_lookback_days"]
+    |                                                                                                                         ^^^^^ E501
+238 |                             ):
+239 |                                 owner_id = kri.risk.owner_id if kri.risk else None
+    |
+
+app/services/kri_deadline_service.py:246:121: E501 Line too long (164 > 120)
+    |
+244 |                                         notification_type=NotificationType.KRI_NEAR_BREACH,
+245 |                                         title=f"KRI Near Breach: {kri.metric_name[:50]}",
+246 |                                         message=f"KRI '{kri.metric_name}' is approaching upper limit. Current: {kri.current_value}, Upper limit: {kri.upper_limit}",
+    |                                                                                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ E501
+247 |                                         resource_type="kri",
+248 |                                         resource_id=kri.id,
+    |
+
+app/services/kri_history_service.py:326:121: E501 Line too long (122 > 120)
+    |
+324 |                     "reporting_owner_name": (
+325 |                         kri.reporting_owner.name if kri.reporting_owner
+326 |                         else (kri.risk.owner.name if kri.risk and hasattr(kri.risk, 'owner') and kri.risk.owner else None)
+    |                                                                                                                         ^^ E501
+327 |                     ),
+328 |                     "risk_id": kri.risk_id,
+    |
+
+app/services/kri_history_service.py:386:121: E501 Line too long (122 > 120)
+    |
+384 |                     "reporting_owner_name": (
+385 |                         kri.reporting_owner.name if kri.reporting_owner
+386 |                         else (kri.risk.owner.name if kri.risk and hasattr(kri.risk, 'owner') and kri.risk.owner else None)
+    |                                                                                                                         ^^ E501
+387 |                     ),
+388 |                     "risk_id": kri.risk_id,
+    |
+
+app/services/notification_service.py:172:121: E501 Line too long (142 > 120)
+    |
+170 |                     notification_type=NotificationType.APPROVAL_PENDING,
+171 |                     title=f"New {action_label} request",
+172 |                     message=f"New {action_label} request for {approval.resource_type.value} '{approval.resource_name}' requires your review.",
+    |                                                                                                                         ^^^^^^^^^^^^^^^^^^^^^^ E501
+173 |                     resource_type="approval",
+174 |                     resource_id=approval.id,
+    |
+
+app/services/notification_service.py:207:121: E501 Line too long (134 > 120)
+    |
+205 |         try:
+206 |             title = f"Request {status_label}"
+207 |             message = f"Your {action_label} request for {approval.resource_type.value} '{approval.resource_name}' was {status_label}."
+    |                                                                                                                         ^^^^^^^^^^^^^^ E501
+208 | 
+209 |             # Add resolution notes if present
+    |
+
+app/services/notification_service.py:292:121: E501 Line too long (158 > 120)
+    |
+290 |                     notification_type=NotificationType.APPROVAL_CANCELLED,
+291 |                     title="Request cancelled",
+292 |                     message=f"{cancelled_by_user.name} cancelled their {action_label} request for {approval.resource_type.value} '{approval.resource_name}'.",
+    |                                                                                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ E501
+293 |                     resource_type="approval",
+294 |                     resource_id=approval.id,
+    |
+
+app/services/orphaned_item_service.py:436:121: E501 Line too long (123 > 120)
+    |
+434 |                 .join(KeyRiskIndicator, KeyRiskIndicator.id == OrphanedItem.item_id)
+435 |                 .join(Risk, Risk.id == KeyRiskIndicator.risk_id)
+436 |                 .where(OrphanedItem.status == "pending", OrphanedItem.item_type == "kri", Risk.department_id.in_(dept_ids))
+    |                                                                                                                         ^^^ E501
+437 |             )
+    |
+
+app/services/orphaned_item_service.py:444:121: E501 Line too long (134 > 120)
+    |
+442 |         total = int(risk_count) + int(control_count) + int(kri_count)
+443 | 
+444 |         return {"risk_count": int(risk_count), "control_count": int(control_count), "kri_count": int(kri_count), "total_count": total}
+    |                                                                                                                         ^^^^^^^^^^^^^^ E501
+445 | 
+446 |     @staticmethod
+    |
+
+app/services/vendor_assessment_service.py:39:121: E501 Line too long (146 > 120)
+   |
+37 |     @staticmethod
+38 |     def template_key_for_scope(scope: VendorAssessmentScope) -> str:
+39 |         return VendorAssessmentService.TEMPLATE_KEY_DORA if scope == VendorAssessmentScope.dora else VendorAssessmentService.TEMPLATE_KEY_STANDARD
+   |                                                                                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^ E501
+40 | 
+41 |     @staticmethod
+   |
+
+app/services/vendor_assessment_service.py:127:121: E501 Line too long (122 > 120)
+    |
+125 |         assessment = await VendorAssessmentService._load_assessment(db, assessment_id)
+126 |         if assessment.status != VendorAssessmentStatus.draft:
+127 |             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only draft assessments can be submitted")
+    |                                                                                                                         ^^ E501
+128 | 
+129 |         old_status = assessment.status
+    |
+
+app/services/vendor_assessment_service.py:210:121: E501 Line too long (129 > 120)
+    |
+209 |     @staticmethod
+210 |     async def decide(db: AsyncSession, *, assessment_id: int, decision: VendorAssessmentStatus, actor: User) -> VendorAssessment:
+    |                                                                                                                         ^^^^^^^^^ E501
+211 |         assessment = await VendorAssessmentService._load_assessment(db, assessment_id)
+212 |         if assessment.status != VendorAssessmentStatus.committee_recommended:
+    |
+
+app/services/vendor_concentration_service.py:36:121: E501 Line too long (129 > 120)
+   |
+34 |         elif vendor.replaceability == "medium":
+35 |             score += 1
+36 |             flags.append({"key": "moderate_replaceability", "severity": "medium", "reason": "Vendor is moderately replaceable."})
+   |                                                                                                                         ^^^^^^^^^ E501
+37 | 
+38 |         if vendor.supports_important_core_insurance_function:
+   |
+
+app/services/vendor_concentration_service.py:40:121: E501 Line too long (134 > 120)
+   |
+38 |         if vendor.supports_important_core_insurance_function:
+39 |             score += 2
+40 |             flags.append({"key": "supports_core_function", "severity": "high", "reason": "Vendor supports important/core functions."})
+   |                                                                                                                         ^^^^^^^^^^^^^^ E501
+41 | 
+42 |         if vendor.dora_relevant:
+   |
+
+app/services/vendor_concentration_service.py:46:121: E501 Line too long (126 > 120)
+   |
+44 |             flags.append({"key": "dora_relevant", "severity": "medium", "reason": "Vendor is DORA relevant."})
+45 | 
+46 |         rels = (await db.execute(select(VendorRelationship).where(VendorRelationship.vendor_id == vendor.id))).scalars().all()
+   |                                                                                                                         ^^^^^^ E501
+47 |         if rels:
+48 |             score += 1
+   |
+
+app/services/vendor_concentration_service.py:49:121: E501 Line too long (129 > 120)
+   |
+47 |         if rels:
+48 |             score += 1
+49 |             flags.append({"key": "has_fourth_parties", "severity": "medium", "reason": "Vendor has fourth-party relationships."})
+   |                                                                                                                         ^^^^^^^^^ E501
+50 | 
+51 |         services = (await db.execute(select(VendorService).where(VendorService.vendor_id == vendor.id))).scalars().all()
+   |
+
+app/services/vendor_concentration_service.py:62:121: E501 Line too long (152 > 120)
+   |
+60 |         if len(dept_ids) >= 2:
+61 |             score += 2
+62 |             flags.append({"key": "multi_department_dependency", "severity": "high", "reason": "Vendor supports functions across multiple departments."})
+   |                                                                                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ E501
+63 |         elif len(dept_ids) == 1:
+64 |             score += 1
+   |
+
+app/services/vendor_concentration_service.py:68:121: E501 Line too long (156 > 120)
+   |
+66 |         if vendor.supports_important_core_insurance_function and len(dependencies) >= 2:
+67 |             score += 1
+68 |             flags.append({"key": "multiple_critical_dependencies", "severity": "medium", "reason": "Multiple dependencies recorded for a critical vendor."})
+   |                                                                                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ E501
+69 | 
+70 |         score = max(0, min(10, score))
+   |
+
+app/services/vendor_reassessment_service.py:122:121: E501 Line too long (124 > 120)
+    |
+121 |                 if vendor.last_reassessment_reminded_at:
+122 |                     last_reminded = coerce_utc(vendor.last_reassessment_reminded_at) or vendor.last_reassessment_reminded_at
+    |                                                                                                                         ^^^^ E501
+123 |                     if last_reminded >= cooldown_cutoff:
+124 |                         continue
+    |
+
+app/services/vendor_reassessment_service.py:130:121: E501 Line too long (128 > 120)
+    |
+128 |                     continue
+129 | 
+130 |                 permission_load = selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
+    |                                                                                                                         ^^^^^^^^ E501
+131 |                 owner_result = await db.execute(select(User).options(permission_load).where(User.id == owner_id))
+132 |                 owner = owner_result.scalar_one_or_none()
+    |
+
+app/services/vendor_reporting_service.py:55:121: E501 Line too long (124 > 120)
+   |
+53 |                 if not occurred:
+54 |                     continue
+55 |                 occurred_year = (occurred.replace(tzinfo=UTC) if occurred.tzinfo is None else occurred.astimezone(UTC)).year
+   |                                                                                                                         ^^^^ E501
+56 |                 if occurred_year != year:
+57 |                     continue
+   |
+
+app/services/vendor_reporting_service.py:97:121: E501 Line too long (163 > 120)
+   |
+95 |             for v in vendors
+96 |             if v.next_reassessment_due_at
+97 |             and (v.next_reassessment_due_at.replace(tzinfo=UTC) if v.next_reassessment_due_at.tzinfo is None else v.next_reassessment_due_at.astimezone(UTC)) < now
+   |                                                                                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ E501
+98 |         )
+   |
+
+app/services/vendor_reporting_service.py:104:121: E501 Line too long (125 > 120)
+    |
+102 |         if vendor_ids:
+103 |             exit_stmt = select(VendorExitPlan.vendor_id).where(VendorExitPlan.vendor_id.in_(vendor_ids))
+104 |             contingency_stmt = select(VendorContingencyPlan.vendor_id).where(VendorContingencyPlan.vendor_id.in_(vendor_ids))
+    |                                                                                                                         ^^^^^ E501
+105 |             exit_ids = set((await db.execute(exit_stmt)).scalars().all())
+106 |             contingency_ids = set((await db.execute(contingency_stmt)).scalars().all())
+    |
+
+app/services/vendor_signal_service.py:54:121: E501 Line too long (131 > 120)
+   |
+53 |             if not force:
+54 |                 latest = await VendorSignalService._latest_fetched_at(db, vendor_id=vendor.id, provider_key=connector.provider_key)
+   |                                                                                                                         ^^^^^^^^^^^ E501
+55 |                 if latest:
+56 |                     latest_utc = latest.replace(tzinfo=UTC) if latest.tzinfo is None else latest.astimezone(UTC)
+   |
+
+app/services/vendor_signal_service.py:75:121: E501 Line too long (125 > 120)
+   |
+73 |                     results.append(entry)
+74 |             except Exception as e:
+75 |                 logger.warning(f"Vendor signal fetch failed (vendor_id={vendor.id}, provider={connector.provider_key}): {e}")
+   |                                                                                                                         ^^^^^ E501
+76 |                 entry = VendorExternalSignal(
+77 |                     vendor_id=vendor.id,
+   |
+
+app/services/vendor_sla_deadline_service.py:115:121: E501 Line too long (124 > 120)
+    |
+113 |         owners_by_id: dict[int, User] = {}
+114 |         if owner_ids:
+115 |             permission_load = selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
+    |                                                                                                                         ^^^^ E501
+116 |             owners = (
+117 |                 await db.execute(select(User).options(permission_load).where(User.id.in_(owner_ids)))
+    |
+
+Found 187 errors.

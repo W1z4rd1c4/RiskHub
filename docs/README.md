@@ -1,7 +1,7 @@
 # RiskHub Documentation Index
 
-> **Version**: 1.3
-> **Last Updated**: 2026-03-15
+> **Version**: 1.4
+> **Last Updated**: 2026-03-29
 > **Audience**: Product, Engineering, QA, Operations
 
 This file is the primary documentation index for `docs/`.
@@ -38,6 +38,12 @@ This file is the primary documentation index for `docs/`.
 - [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/PERFORMANCE_BASELINE.md`](./PERFORMANCE_BASELINE.md)
 - [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/AUTHZ_LIST_POLICY.md`](./AUTHZ_LIST_POLICY.md)
 - [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/GLOSSARY.md`](./GLOSSARY.md)
+
+Current operational truth for Docker-backed live verification is intentionally centralized in:
+
+- [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/development/README.md`](./development/README.md)
+- [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/TESTING.md`](./TESTING.md)
+- [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/E2E_TESTING.md`](./E2E_TESTING.md)
 
 ## Validation Commands
 

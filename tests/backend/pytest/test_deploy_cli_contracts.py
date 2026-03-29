@@ -520,6 +520,61 @@ def test_docker_deploy_requires_backend_db_image_when_version_is_omitted() -> No
         assert "--backend-db-image" in output
 
 
+@pytest.mark.parametrize("command", ["deploy", "upgrade"])
+def test_docker_cli_dry_run_supports_paths_with_spaces(command: str) -> None:
+    with tempfile.TemporaryDirectory(prefix="riskhub-deploy-spaces-") as td:
+        tmp = Path(td) / "workspace with spaces"
+        tmp.mkdir(parents=True)
+        config_path = tmp / "riskhub.env"
+        secret_dir = tmp / "secrets with spaces"
+        runtime_dir = tmp / "runtime with spaces"
+        _write_config(config_path)
+        _write_secrets(secret_dir)
+        fake_bin = _make_fake_bin(tmp)
+
+        env = os.environ.copy()
+        env["PATH"] = f"{fake_bin}:{env['PATH']}"
+        env["RISKHUB_RUNTIME_DIR"] = str(runtime_dir)
+        if command == "upgrade":
+            env |= {
+                "DOCKER_BACKEND_EXISTS": "1",
+                "DOCKER_SCHEDULER_EXISTS": "1",
+                "DOCKER_FRONTEND_EXISTS": "1",
+            }
+
+        result = _run_cli(
+            [
+                command,
+                "--target",
+                "docker",
+                "--config",
+                str(config_path),
+                "--secret-dir",
+                str(secret_dir),
+                "--backend-image",
+                "ghcr.io/example/riskhub-backend:test",
+                "--backend-db-image",
+                "ghcr.io/example/riskhub-backend-db:test",
+                "--frontend-image",
+                "ghcr.io/example/riskhub-frontend:test",
+                "--redis-image",
+                "ghcr.io/example/riskhub-redis:test",
+                "--dry-run",
+                "--yes",
+            ],
+            env,
+        )
+
+        output = f"{result.stdout}\n{result.stderr}"
+        assert result.returncode == 0, output
+        assert "command not found" not in output
+        assert "--backend-db-image ghcr.io/example/riskhub-backend-db:test" in output
+        if command == "deploy":
+            assert "scripts/prod/install_backend.sh" in output
+        else:
+            assert "--previous-image ghcr.io/example/riskhub-backend:previous" in output
+
+
 def test_linux_cli_supports_preflight_deploy_upgrade_and_rollback_dry_run() -> None:
     with tempfile.TemporaryDirectory(prefix="riskhub-deploy-linux-") as td:
         tmp = Path(td)

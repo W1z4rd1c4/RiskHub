@@ -1,6 +1,6 @@
 # Testing
 
-**Analysis Date:** 2026-03-07
+**Analysis Date:** 2026-03-29
 
 ## Test Stack Overview
 
@@ -20,6 +20,7 @@
 ### Fixture strategy
 - Default backend tests use fast SQLite in-memory (`TEST_DATABASE_URL=sqlite+aiosqlite:///:memory:`) (`tests/backend/pytest/conftest.py`)
 - Postgres-mode is opt-in via `TEST_DATABASE_URL` and applies Alembic migrations once per session, then truncates tables per test (`tests/backend/pytest/conftest.py`)
+- When a live Docker stack is already using `riskhub`, Postgres verification should target a sibling `riskhub_test` database rather than the live app database
 - Role/user fixtures include wildcard and platform-admin variants (`tests/backend/pytest/conftest.py`)
 - Dependency override and header-based auth patterns are both used in test clients
 - Session-scoped engine disposal prevents pytest interpreter-exit hangs caused by leaked `aiosqlite` worker threads (`tests/backend/pytest/conftest.py`)
@@ -42,6 +43,9 @@
 - Global setup also verifies deterministic seed fixtures for stable selectors and assertions (`tests/frontend/e2e/setup/global-setup.ts`)
 - Domain-oriented E2E suites cover permissions, approvals, sensitive fields, cross-department access, and activity logging (`tests/frontend/e2e/`)
 - “polish-audit” is intentionally heavier and is lightweight-by-default; set `POLISH_AUDIT_DEEP=1` when you want full-page/deep audit mode (`tests/frontend/e2e/polish-audit.spec.ts`)
+- Docker full-stack browser runs must override `FRONTEND_URL=http://localhost`
+- `polish-audit` currently automates `riskhub` and `light`; `dark` remains manual-only
+- Current gap (verified 2026-03-29): the shared login helper still waits for `http://localhost:5173/...`, so Docker-origin browser packs fail until that helper becomes origin-aware
 
 ## CI Test/Security Execution
 
@@ -55,7 +59,7 @@
 - Backend tests: `make -f scripts/Makefile test` or `cd backend && pytest -v`
 - Backend lint + suppression budget: `make -f scripts/Makefile lint-backend`
 - Backend suppression budget only: `make -f scripts/Makefile quality-suppression-budget`
-- Backend Postgres-sensitive tests: `cd backend && pytest -m postgres -v`
+- Backend Postgres-sensitive tests: `cd backend && TEST_DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_dev@localhost:5432/riskhub_test pytest -m postgres -v`
 - Backend Redis integration marker: `cd backend && pytest -m redis_integration -q`
 - Frontend unit tests: `cd frontend && npm run test:run`
 - Frontend targeted KRI routing regression: `cd frontend && npm run test:run -- src/pages/__tests__/KRIsPage.monitoring-status.test.tsx`
@@ -63,6 +67,8 @@
 - Frontend type checks: `cd frontend && npx tsc --noEmit`
 - Frontend quality gate chain: `cd frontend && npm run lint && npx tsc --noEmit && npm run quality:debt -- --report-json && npm run cleanup:deadcode && npm run build`
 - E2E: `make -f scripts/Makefile test-e2e` or `cd frontend && npm run e2e`
+- Docker-targeted business-logic E2E: `cd frontend && FRONTEND_URL=http://localhost npm run e2e:business-logic`
+- Docker-targeted polish audit: `cd frontend && FRONTEND_URL=http://localhost POLISH_AUDIT_DEEP=1 npx playwright test -c ../tests/frontend/e2e/playwright.config.ts ../tests/frontend/e2e/polish-audit.spec.ts --project=chromium`
 - Docs topology consistency: `make -f scripts/Makefile docs-topology-consistency`
 - Release parity (fast loop): `python3 scripts/security/run_release_parity_audit.py --run-id <utc-ts> --skip-prod-readiness`
 - Release parity (full gate): `python3 scripts/security/run_release_parity_audit.py --run-id <utc-ts>`
@@ -81,6 +87,8 @@
 ## Practical Gaps to Watch
 
 - SQLite-default tests may not catch all Postgres-specific datetime/enum behavior
+- The intended Docker deterministic reset path (`./scripts/compose.sh reset --dataset test`) is currently blocked by a bootstrap-image dependency gap (`psycopg2` missing in the bootstrap container)
+- Current Docker app startup also needs a frontend workaround while the backend container healthcheck still depends on missing `curl`
 - Authorization changes should be validated in both backend API tests and frontend gating tests
 - Approval-execution changes should include high-confidence regression tests around side effects
 - `/kris` filter changes should be validated with the targeted route-backed regression covering monitoring/timeliness ownership, mutual exclusion, grouped-view parity, and rapid-click loading recovery
@@ -90,4 +98,4 @@
 
 ---
 
-*Testing audit refreshed on 2026-03-07*
+*Testing audit refreshed on 2026-03-29*

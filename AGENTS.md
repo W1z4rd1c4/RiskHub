@@ -139,7 +139,8 @@ Canonical Source: `docs/agent/PYTEST_RUNTIME_NOTES.md`, `.planning/codebase/TEST
 
 - Default tests run on in-memory SQLite; set `TEST_DATABASE_URL` to run the suite on Postgres.
 - `tests/backend/pytest/conftest.py` applies `alembic upgrade head` once per session and truncates all tables between tests when using Postgres.
-- Example: `cd backend && TEST_DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/riskhub_test pytest -v`
+- When a live Docker stack is already using the `riskhub` database, point Postgres-mode pytest at a sibling `riskhub_test` database instead of the live app DB.
+- Example: `cd backend && TEST_DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_dev@localhost:5432/riskhub_test pytest -v`
 
 ### Pytest exit hang (SQLite / aiosqlite)
 
@@ -174,7 +175,7 @@ Canonical Source: `.planning/codebase/TESTING.md`, `docs/TESTING.md`
 Run based on change type:
 
 - Backend API/domain logic: `make -f scripts/Makefile test`
-- Approval/timezone/Postgres-specific behavior: `cd backend && pytest -m postgres -v`
+- Approval/timezone/Postgres-specific behavior: `cd backend && TEST_DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_dev@localhost:5432/riskhub_test pytest -m postgres -v`
 - Frontend unit/integration: `cd frontend && npm run test:run`
 - Frontend type safety: `cd frontend && npx tsc --noEmit`
 - End-to-end flows: `make -f scripts/Makefile test-e2e`
@@ -251,7 +252,9 @@ Local dev is expected to run in **demo-friendly auth mode** (keeps Playwright E2
   - `MOCK_AUTH_ENABLED=true`
 - `./scripts/compose.sh up` keeps the same dev/demo auth posture for the Docker onboarding path and serves the login picker at `http://localhost/login`.
 - Local startup/runtime parity with CI and Docker requires Node major `24` (`.nvmrc` and `.node-version`).
-- This enables the demo login picker at `http://localhost:5173/login` via `POST /api/v1/auth/demo-login/{user_id}`.
+- Local `./scripts/dev.sh` serves the demo login picker on the Vite frontend at `http://localhost:5173/login`.
+- Docker `./scripts/compose.sh up` serves the same picker through nginx at `http://localhost/login`.
+- Docker-origin Playwright runs still require `FRONTEND_URL=http://localhost`, and the current shared login helper remains hardcoded to `http://localhost:5173/...` until that helper is updated.
 - Override example (no demo auth): `AUTH_MODE=password MOCK_AUTH_ENABLED=false ./scripts/dev.sh`
 
 ## Repo Hygiene

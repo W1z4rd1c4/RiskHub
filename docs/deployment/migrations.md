@@ -1,6 +1,6 @@
 # Database Migrations (Alembic)
 
-> **Last Updated**: 2026-02-15  
+> **Last Updated**: 2026-03-29  
 > **Audience**: DevOps / Release Engineering
 
 ---
@@ -22,9 +22,11 @@ This is intentional:
 
 1. Bring up external PostgreSQL.
 2. Run migrations as an explicit deployment step.
-   - Docker target: `./scripts/deploy.sh deploy|upgrade --target docker ...` runs migrations before the API/frontend rollout.
-   - Linux target: `./scripts/deploy.sh deploy|upgrade --target linux ...` runs migrations from the unpacked release bundle before service restart.
+   - Docker target: `./scripts/deploy.sh deploy|upgrade --target docker ...` runs migrations and bootstrap from the DB lane (`riskhub-backend-db`) before the API/frontend rollout.
+   - Linux target: `./scripts/deploy.sh deploy|upgrade --target linux ...` runs migrations and bootstrap from the unpacked `backend_db/` lane using `db-venv` before service restart.
 3. Roll out the backend/API runtime only after migrations succeed.
+
+The long-running runtime lane still keeps Alembic assets so schema-guard checks can resolve the current head at startup, but it does not own the production migration/bootstrap execution path.
 
 ## Rollback posture
 
