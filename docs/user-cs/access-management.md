@@ -45,6 +45,7 @@ Důležité rozdělení kontraktů:
 - `/users/lookup` zůstává obecným picker/search primitivem pro formuláře a filtry, není to kontrakt stránky `/users`
 - `/users` neposkytuje samostatnou colleague/detail route. Řádky v directory módu jsou informativní a privilegované editace zůstávají v modalu na `/users`
 - Admin-only lifecycle/detail endpointy zůstávají oddělené od access-management review. Data pro výběr rolí v aktivním UI přicházejí z `/access/roles`, ne ze starších lifecycle helper endpointů pod `/users`
+- role filtry v directory módu teď přichází z facet metadat `/users/directory` pro váš viditelný colleague universe; pokud role ve filtru chybí, aktuálně v daném scope nejsou žádní viditelní directory uživatelé s touto rolí
 - Directory mód zůstává podporovaným kontraktem, ale aktuální seeded demo matice neobsahuje kanonického directory-only uživatele. Manuální demo-account ověřování se proto soustředí na access módy, dokud produkt záměrně nepřiřadí `users:read` roli bez access-view oprávnění.
 
 ## Kde to najdete
