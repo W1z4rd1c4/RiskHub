@@ -32,6 +32,7 @@ Contract note:
 - `/users/lookup` is picker/search only and not the operator page contract
 - `/users` no longer uses a standalone user detail route; identity and access edits stay on `/users` via the access edit modal
 - manual user lifecycle actions on `/users` are Admin-only
+- access-management role data now comes from `/access/roles`; legacy lifecycle role/detail endpoints remain Admin-only
 - mode precedence on `/users` is explicit: global access view, then department access view, then read-only directory view when `users:read` exists without access-management authority
 
 Most access incidents come from one of four causes:
@@ -102,6 +103,8 @@ If creation actions are missing or disabled, first confirm that the current sess
    - role or department
 3. Save.
 4. Refresh and confirm the updated values are visible.
+
+Identity fields are an Admin-only lifecycle action. CRO or other privileged reviewers should stay in the access-management scope of the modal and should not expect separate lifecycle/detail endpoints.
 
 ### Edit access
 

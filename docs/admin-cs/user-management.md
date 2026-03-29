@@ -32,6 +32,7 @@ Poznámka ke kontraktu:
 - `/users/lookup` je jen picker/search primitivum a není kontraktem operátorské stránky
 - `/users` už nepoužívá samostatnou detailní route uživatele; identity i access editace zůstávají na `/users` v access edit modalu
 - manuální user lifecycle akce na `/users` jsou Admin-only
+- access-management role data teď přichází z `/access/roles`; starší lifecycle role/detail endpointy zůstávají Admin-only
 - pořadí módů na `/users` je explicitní: nejdřív global access view, pak department access view a teprve potom read-only directory view pro uživatele s `users:read`, kteří nemají access-management oprávnění
 
 Většina access incidentů má jednu ze čtyř příčin:
@@ -104,6 +105,8 @@ Pokud create akce chybí nebo jsou vypnuté, nejdřív potvrďte, že aktuální
    - role nebo oddělení
 3. Uložte.
 4. Po refreshi potvrďte nové hodnoty.
+
+Identity fields jsou Admin-only lifecycle akce. CRO ani jiní privileged review uživatelé nemají očekávat samostatné lifecycle/detail endpointy mimo access-management část modalu.
 
 ### Upravit access
 

@@ -11,6 +11,7 @@ from app.models import Role, User
 from app.schemas import RoleRead
 from app.schemas.user import UserLookup
 
+from ._lifecycle import require_admin_user_lifecycle
 from ._visibility import build_visible_users_query
 
 router = APIRouter()
@@ -21,7 +22,8 @@ async def list_roles(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
 ):
-    """List all available roles. Requires authentication."""
+    """List roles for admin-only user lifecycle flows."""
+    require_admin_user_lifecycle(current_user)
     result = await db.execute(select(Role).where(Role.is_active.is_(True)))
     return result.scalars().all()
 

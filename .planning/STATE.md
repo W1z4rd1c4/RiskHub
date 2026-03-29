@@ -138,6 +138,25 @@
   - `cd frontend && npx tsc --noEmit`
   - active-surface grep now finds only historical planning artifacts for the retired standalone user-detail contract
 
+### Users Surface Contract Realignment - Phase 4 (2026-03-29)
+
+- Tightened lifecycle/detail endpoint drift on the backend:
+  - added `backend/app/api/v1/endpoints/users/_lifecycle.py` as the shared Admin-only lifecycle guard
+  - `GET /api/v1/users/{id}` now requires explicit platform-admin lifecycle authority and no longer allows self-detail reads
+  - `GET /api/v1/users/roles` is now treated as an Admin-only lifecycle helper instead of a generic authenticated role list
+  - access-management role selection remains on `GET /api/v1/access/roles`
+- Removed the remaining frontend dependency on `/users/roles`:
+  - `frontend/src/pages/UserNewPage.tsx` now loads role options from `accessApi.listAccessRoles()`
+  - `frontend/src/services/userApi.ts` no longer exposes frontend helpers for `/users/{id}` reads or `/users/roles`
+- Added explicit auth regression coverage:
+  - `tests/backend/pytest/test_users.py` now covers Admin-only enforcement for `/api/v1/users/{id}`, `/api/v1/users/{id}` self-access denial, `/api/v1/users/{id}` patches, and `/api/v1/users/roles`
+  - `tests/backend/pytest/test_directory_lookup.py` now covers CRO denial for directory search
+  - frontend user-onboarding tests now mock `accessApi.listAccessRoles()` and keep `UsersPage.sso-cta` under a router wrapper after the Phase 3 `useLocation()` dependency
+- Phase 4 verification:
+  - `PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=backend pytest --override-ini addopts='-p no:langsmith_plugin -p no:cacheprovider' tests/backend/pytest/test_users.py tests/backend/pytest/test_access_management.py tests/backend/pytest/test_directory_import.py tests/backend/pytest/test_directory_lookup.py -q` -> `41 passed`
+  - `cd frontend && npm run test:run -- ../tests/frontend/unit/src/pages/__tests__/UserNewPage.sso.test.tsx ../tests/frontend/unit/src/pages/__tests__/UsersPage.sso-cta.test.tsx ../tests/frontend/unit/src/pages/__tests__/UsersPage.modes.test.tsx` -> `14 passed`
+  - `cd frontend && npx tsc --noEmit`
+
 ### Docker Live Verification + Postgres Marker Reconciliation (2026-03-29)
 
 - Attempted deterministic Docker reset:
