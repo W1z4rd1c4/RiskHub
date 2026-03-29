@@ -117,6 +117,27 @@
   - `ops.head@riskhub.local` (`Eva Králová`) -> `/users` loaded department access mode
   - `ops.analyst@riskhub.local` (`Jana Horáková`) -> `/users` loaded a read-only directory-style view; this supersedes the earlier assumption that the demo matrix lacked a directory-mode account
 
+### Users Surface Contract Realignment - Phase 3 (2026-03-29)
+
+- Retired the standalone frontend user-detail surface:
+  - removed the standalone user-detail route from `frontend/src/App.tsx`
+  - deleted the former standalone user-detail page component
+  - removed the remaining department-tab navigation path into the retired user-detail surface
+- Re-homed user-management workflows back onto `/users`:
+  - directory import in `frontend/src/pages/UserNewPage.tsx` now returns to `/users` with import context instead of navigating to a standalone detail route
+  - `frontend/src/pages/UsersPage.tsx` now consumes that import context, shows the import success banner, and opens `AccessEditModal` on the imported record in access mode
+  - `frontend/src/components/access/AccessEditModal.tsx` now supports admin identity edits (name/email) alongside access edits so the old detail-page edit responsibilities stay on `/users`
+- Updated active docs and translations to match the new contract:
+  - removed stale standalone-detail locale copy from `frontend/src/i18n/locales/en/admin.json` and `frontend/src/i18n/locales/cs/admin.json`
+  - updated `/users` workflow guidance in `docs/admin/user-management.md`, `docs/admin-cs/user-management.md`, `docs/user/access-management.md`, `docs/user-cs/access-management.md`
+  - updated related admin runbooks in `docs/admin/incident-quick-reference.md`, `docs/admin-cs/incident-quick-reference.md`, `docs/admin/departments.md`, and `docs/admin-cs/departments.md`
+- Updated automation coverage to stop assuming dynamic user-detail routes:
+  - removed `/users` deep-detail expansion from `tests/frontend/e2e/polish-audit.spec.ts`
+- Phase 3 frontend verification:
+  - `cd frontend && npm run test:run -- ../tests/frontend/unit/src/pages/__tests__/UsersPage.modes.test.tsx ../tests/frontend/unit/src/pages/__tests__/UserNewPage.sso.test.tsx ../tests/frontend/unit/src/pages/__tests__/DepartmentDetailPage.kri-monitoring.test.tsx` -> `13 passed`
+  - `cd frontend && npx tsc --noEmit`
+  - active-surface grep now finds only historical planning artifacts for the retired standalone user-detail contract
+
 ### Docker Live Verification + Postgres Marker Reconciliation (2026-03-29)
 
 - Attempted deterministic Docker reset:

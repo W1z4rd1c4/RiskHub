@@ -1,6 +1,6 @@
 ---
 title: User and Access Governance Runbook
-version: "2.2"
+version: "2.3"
 last_updated: "2026-03-29"
 audience: admin
 source_of_truth: "frontend/src/pages/UsersPage.tsx + frontend/src/components/access/AccessEditModal.tsx + backend/app/api/v1/endpoints/access.py + backend/app/api/v1/endpoints/users/"
@@ -30,6 +30,7 @@ Contract note:
 - `/users` remains the single operator route
 - `/access/users*` backs the access-management views on that route
 - `/users/lookup` is picker/search only and not the operator page contract
+- `/users` no longer uses a standalone user detail route; identity and access edits stay on `/users` via the access edit modal
 - manual user lifecycle actions on `/users` are Admin-only
 - mode precedence on `/users` is explicit: global access view, then department access view, then read-only directory view when `users:read` exists without access-management authority
 
@@ -87,14 +88,15 @@ If a user should not have any `/users` entitlement, expect the route to redirect
 3. Use the creation flow currently available in the UI:
    - import or external-identity flow
    - direct-entry flow
-4. Before first use, confirm role, department, and active status.
-5. Save and verify the user appears in `/users`.
+4. If you imported the user from directory, RiskHub returns to `/users` and opens the access edit modal so you can finish onboarding without leaving the route.
+5. Before first use, confirm role, department, active status, and any required identity corrections.
+6. Save and verify the user appears in `/users`.
 
 If creation actions are missing or disabled, first confirm that the current session is operating as platform `admin`. Creation and import are least-privilege lifecycle actions and should not be improvised from non-admin sessions. If the actions should be present and still are not, stop and use [Admin Incident Quick Reference](./incident-quick-reference.md).
 
 ### Update profile
 
-1. Open the identity or access edit flow from `/users`.
+1. Open the access edit modal from `/users`.
 2. Change one category at a time:
    - identity fields
    - role or department

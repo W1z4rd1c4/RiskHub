@@ -1,7 +1,7 @@
 ---
 title: Departments: Admin Support and Access Integrity
-version: "2.0"
-last_updated: "2026-02-16"
+version: "2.1"
+last_updated: "2026-03-29"
 audience: admin
 source_of_truth: "docs/BUSINESS_LOGIC.md (scope/visibility) + backend/app/api/v1/endpoints/riskhub/departments.py + frontend/src/pages/UsersPage.tsx"
 summary: "Admin runbook for supporting department changes without breaking access integrity: scoping diagnosis, user reassignments, and safe handoff to business owners."
@@ -78,7 +78,7 @@ Outcomes:
 ### B) Update user department or manager assignment safely
 
 1. Open `/users` and locate the user.
-2. Open the user’s detail page or Access Edit modal.
+2. Open the Access Edit modal from `/users`.
 3. Update **department** *or* **manager** (one change at a time).
 4. Save.
 5. Ask the user to re-authenticate if the change affects session-derived claims (role/scope changes especially).

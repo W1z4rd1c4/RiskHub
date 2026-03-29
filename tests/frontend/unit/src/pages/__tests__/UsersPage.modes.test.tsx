@@ -112,6 +112,29 @@ async function renderUsersRoute(route = '/users') {
     await waitForAuthBootstrapReady();
 }
 
+async function renderUsersRouteEntry(
+    entry: string | { pathname: string; state?: Record<string, unknown> }
+) {
+    const queryClient = createTestQueryClient();
+
+    render(
+        <QueryClientProvider client={queryClient}>
+            <MemoryRouter initialEntries={[entry]}>
+                <AuthProviderWithReady>
+                    <DashboardFilterProvider>
+                        <Routes>
+                            <Route path="/" element={<div>Home route</div>} />
+                            <Route path="/users" element={<UsersPage />} />
+                        </Routes>
+                    </DashboardFilterProvider>
+                </AuthProviderWithReady>
+            </MemoryRouter>
+        </QueryClientProvider>
+    );
+
+    await waitForAuthBootstrapReady();
+}
+
 describe('UsersPage mode selection', () => {
     beforeEach(() => {
         clearBootstrapSession();
@@ -265,5 +288,54 @@ describe('UsersPage mode selection', () => {
         expect(accessHandler).not.toHaveBeenCalled();
         expect(deptAccessHandler).not.toHaveBeenCalled();
         expect(directoryHandler).not.toHaveBeenCalled();
+    });
+
+    it('re-opens the imported user in the /users access modal after directory import', async () => {
+        const importedUser = makeAccessUser({
+            id: 42,
+            name: 'Imported User',
+            email: 'imported.user@riskhub.test',
+        });
+
+        server.use(
+            http.get('*/api/v1/auth/me', () =>
+                HttpResponse.json(
+                    makeUser({
+                        role: 'admin',
+                        role_display_name: 'Administrator',
+                        access_scope: 'global',
+                        effective_permissions: ['users:read', 'users:write'],
+                    })
+                )
+            ),
+            http.get('*/api/v1/access/users', () => HttpResponse.json([importedUser])),
+            http.get('*/api/v1/access/users/my-department', () => HttpResponse.json([])),
+            http.get('*/api/v1/access/roles', () =>
+                HttpResponse.json([
+                    {
+                        id: 2,
+                        name: 'employee',
+                        display_name: 'Employee',
+                        description: 'Standard employee',
+                        permissions: ['risks:read'],
+                    },
+                ])
+            ),
+            http.get('*/api/v1/departments', () => HttpResponse.json([])),
+            http.get('*/api/v1/users/directory', () =>
+                HttpResponse.json({ items: [], total: 0, skip: 0, limit: 50 })
+            )
+        );
+
+        await renderUsersRouteEntry({
+            pathname: '/users',
+            state: {
+                importedUserId: 42,
+                importedUserName: 'Imported User',
+            },
+        });
+
+        await screen.findByText('Imported User imported from directory.');
+        expect(await screen.findByDisplayValue('Imported User')).toBeInTheDocument();
     });
 });

@@ -746,29 +746,5 @@
     "role_access": "Role a přístup",
     "platform_role": "Role na platformě",
     "active_immediately": "Tento uživatel je aktivní a může se přihlásit okamžitě"
-  },
-  "user_detail": {
-    "user_not_found": "Uživatel nebyl nalezen.",
-    "return_to_list": "Zpět na seznam",
-    "back_to_users": "Zpět na uživatele",
-    "deactivated": "Deaktivovaný",
-    "joined": "Přidán",
-    "edit_profile": "Upravit profil",
-    "view_profile": "Zobrazit profil",
-    "view_only_access": "Máte pouze přístup pro čtení k profilům uživatelů",
-    "profile_updated": "Profil byl úspěšně aktualizován!",
-    "security": "Zabezpečení",
-    "deactivate_account": "Deaktivovat účet",
-    "deactivate_help": "Dočasně zablokuje tohoto uživatele před přístupem do platformy.",
-    "deactivate_account_action": "Deaktivovat účet",
-    "reactivate_account_action": "Znovu aktivovat účet",
-    "organization": "Organizace",
-    "reports_to": "Nadřízený",
-    "no_direct_manager": "Bez přímého nadřízeného",
-    "last_update": "Poslední aktualizace",
-    "platform_permissions": "Oprávnění platformy",
-    "permissions_inherited": "Oprávnění se dědí z role uživatele.",
-    "full_access_granted": "Udělena plná oprávnění systému",
-    "scoped_permissions": "Uplatní se omezená oprávnění podle přiřazeného oddělení."
   }
 }

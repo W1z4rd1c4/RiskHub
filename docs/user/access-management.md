@@ -1,6 +1,6 @@
 ---
 title: Access Management and the Users Directory
-version: "2.1"
+version: "2.2"
 last_updated: "2026-03-29"
 audience: user
 source_of_truth: "frontend/src/pages/UsersPage.tsx + frontend/src/authz/policy.ts + backend access APIs"
@@ -43,6 +43,7 @@ Important contract split:
 - `/users` directory mode is backed by the dedicated user-directory API.
 - `/access/users*` remains the access-management contract for privileged reviews and edits.
 - `/users/lookup` stays a generic picker/search primitive for forms and filters. It is not the `/users` page contract.
+- `/users` does not expose a standalone colleague detail page. Directory rows are informational, and privileged edits stay in the `/users` modal workflow.
 
 ## Where To Find It
 
@@ -170,6 +171,7 @@ Some environments allow privileged business users to review access users. Manual
 If you can manage users, use a “least privilege” process:
 
 - create or import accounts only when onboarding is confirmed and your role is authorized for lifecycle actions
+- after a successful directory import, stay on `/users` and complete the onboarding fields in the edit modal instead of looking for a separate user detail page
 - assign the minimum role and permissions needed
 - set the correct department
 - verify that dashboards and lists match the expected scope
