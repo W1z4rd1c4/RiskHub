@@ -45,6 +45,7 @@ Důležité rozdělení kontraktů:
 - `/users/lookup` zůstává obecným picker/search primitivem pro formuláře a filtry, není to kontrakt stránky `/users`
 - `/users` neposkytuje samostatnou colleague/detail route. Řádky v directory módu jsou informativní a privilegované editace zůstávají v modalu na `/users`
 - Admin-only lifecycle/detail endpointy zůstávají oddělené od access-management review. Data pro výběr rolí v aktivním UI přicházejí z `/access/roles`, ne ze starších lifecycle helper endpointů pod `/users`
+- Directory mód zůstává podporovaným kontraktem, ale aktuální seeded demo matice neobsahuje kanonického directory-only uživatele. Manuální demo-account ověřování se proto soustředí na access módy, dokud produkt záměrně nepřiřadí `users:read` roli bez access-view oprávnění.
 
 ## Kde to najdete
 
@@ -171,6 +172,7 @@ Některá prostředí umožňují privilegovaným business uživatelům review a
 
 Používejte „least privilege“ proces:
 
+- na `/users` závisí create CTA na auth módu: v directory-first auth módech je to **Add from AD**, zatímco v password módu stránka nabízí obě CTA **Add user** (ruční založení) i **Add from AD** (directory import)
 - zakládejte nebo importujte účty jen při potvrzeném onboardingu a pouze pokud vaše role lifecycle akce skutečně smí dělat
 - po úspěšném directory importu zůstaňte na `/users` a dokončete onboarding pole v edit modalu místo hledání samostatné detailní stránky uživatele
 - přiřaďte minimum role a permissions
