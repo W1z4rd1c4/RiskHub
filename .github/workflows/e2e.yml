@@ -38,6 +38,10 @@ jobs:
         with:
           python-version: '3.13'
           cache: 'pip'
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-runtime.txt
+            backend/requirements-db.txt
 
       - name: Set up Node.js
         uses: actions/setup-node@v4

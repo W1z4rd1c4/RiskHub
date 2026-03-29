@@ -19,7 +19,7 @@ usage() {
 Usage: backend/scripts/runtime/prod.sh [options]
 
 Component-only backend production deploy/upgrade wrapper.
-Builds backend image, runs DB prod lifecycle, ensures redis, and installs/upgrades
+Builds backend runtime + DB-task images, runs DB prod lifecycle, ensures redis, and installs/upgrades
 backend API + scheduler containers only.
 
 Options:
@@ -95,6 +95,7 @@ if [[ -z "$tag" ]]; then
 fi
 
 backend_image="riskhub-backend:${tag}"
+backend_db_image="riskhub-backend-db:${tag}"
 backend_installed="false"
 scheduler_installed="false"
 if container_exists "$BACKEND_CONTAINER"; then backend_installed="true"; fi
@@ -138,11 +139,14 @@ if [[ "$DRY_RUN" == "true" ]]; then child_flags+=(--dry-run); fi
 if [[ "$YES" == "true" ]]; then child_flags+=(--yes); fi
 if [[ "$VERBOSE" == "true" ]]; then child_flags+=(--verbose); fi
 
-log "Building backend image: ${backend_image}"
-run docker build -t "$backend_image" "${REPO_ROOT}/backend"
+log "Building backend runtime image: ${backend_image}"
+run docker build --target runtime -t "$backend_image" "${REPO_ROOT}/backend"
+
+log "Building backend DB image: ${backend_db_image}"
+run docker build --target dbtasks -t "$backend_db_image" "${REPO_ROOT}/backend"
 
 log "Running production DB lifecycle via backend/scripts/runtime/db/prod.sh"
-db_args=(--backend-env "$BACKEND_ENV" --backend-image "$backend_image")
+db_args=(--backend-env "$BACKEND_ENV" --backend-db-image "$backend_db_image")
 if [[ ${#child_flags[@]} -gt 0 ]]; then db_args+=("${child_flags[@]}"); fi
 run "${REPO_ROOT}/backend/scripts/runtime/db/prod.sh" "${db_args[@]}"
 

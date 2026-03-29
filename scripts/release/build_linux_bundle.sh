@@ -66,9 +66,10 @@ trap 'rm -rf "$TMP_ROOT"' EXIT
 
 STAGE_ROOT="${TMP_ROOT}/riskhub-linux-${VERSION}"
 BACKEND_STAGE="${STAGE_ROOT}/backend"
+BACKEND_DB_STAGE="${STAGE_ROOT}/backend_db"
 FRONTEND_STAGE="${STAGE_ROOT}/frontend"
 DEPLOY_STAGE="${STAGE_ROOT}/deploy"
-mkdir -p "${BACKEND_STAGE}" "${BACKEND_STAGE}/wheels" "${FRONTEND_STAGE}" "${DEPLOY_STAGE}/lib" "${DEPLOY_STAGE}/templates"
+mkdir -p "${BACKEND_STAGE}" "${BACKEND_STAGE}/wheels" "${BACKEND_DB_STAGE}/scripts" "${FRONTEND_STAGE}" "${DEPLOY_STAGE}/lib" "${DEPLOY_STAGE}/templates"
 
 printf 'Building frontend dist for release %s\n' "$VERSION"
 (
@@ -81,14 +82,29 @@ printf 'Downloading backend wheelhouse for release %s\n' "$VERSION"
 python3 -m pip download \
   --only-binary=:all: \
   --dest "${BACKEND_STAGE}/wheels" \
-  -r "${REPO_ROOT}/backend/requirements.txt"
+  -r "${REPO_ROOT}/backend/requirements-db.txt"
 
 cp -R "${REPO_ROOT}/backend/app" "${BACKEND_STAGE}/app"
 cp -R "${REPO_ROOT}/backend/alembic" "${BACKEND_STAGE}/alembic"
-cp -R "${REPO_ROOT}/backend/scripts" "${BACKEND_STAGE}/scripts"
 cp "${REPO_ROOT}/backend/alembic.ini" "${BACKEND_STAGE}/alembic.ini"
-cp "${REPO_ROOT}/backend/requirements.txt" "${BACKEND_STAGE}/requirements.txt"
-find "${BACKEND_STAGE}" -type d \( -name "__pycache__" -o -name ".pytest_cache" \) -prune -exec rm -rf {} +
+cp "${REPO_ROOT}/backend/requirements-runtime.txt" "${BACKEND_STAGE}/requirements-runtime.txt"
+
+cp "${REPO_ROOT}/backend/scripts/__init__.py" "${BACKEND_DB_STAGE}/scripts/__init__.py"
+cp "${REPO_ROOT}/backend/scripts/seed_roles_permissions.py" "${BACKEND_DB_STAGE}/scripts/seed_roles_permissions.py"
+cp "${REPO_ROOT}/backend/scripts/seed_departments.py" "${BACKEND_DB_STAGE}/scripts/seed_departments.py"
+cp "${REPO_ROOT}/backend/scripts/bootstrap_sso_user.py" "${BACKEND_DB_STAGE}/scripts/bootstrap_sso_user.py"
+python3 - <<'PY' "${REPO_ROOT}/backend/requirements-db.txt" "${BACKEND_DB_STAGE}/requirements-db.txt"
+from pathlib import Path
+import sys
+
+source = Path(sys.argv[1]).read_text(encoding="utf-8")
+target = Path(sys.argv[2])
+rewritten = source.replace("-r requirements-runtime.txt", "-r ../backend/requirements-runtime.txt", 1)
+target.write_text(rewritten, encoding="utf-8")
+PY
+
+find "${STAGE_ROOT}" -type d \( -name "__pycache__" -o -name ".pytest_cache" \) -prune -exec rm -rf {} +
+find "${STAGE_ROOT}" -name ".DS_Store" -delete
 
 cp -R "${REPO_ROOT}/frontend/dist" "${FRONTEND_STAGE}/dist"
 cp "${REPO_ROOT}/scripts/deploy/lib/render.py" "${DEPLOY_STAGE}/lib/render.py"

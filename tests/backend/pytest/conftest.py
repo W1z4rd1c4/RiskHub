@@ -8,7 +8,7 @@ import os
 # Ensure app can import in test runs without requiring production secrets.
 # Must run before importing any app modules that call get_settings() at import time.
 os.environ.setdefault("DEBUG", "true")
-os.environ.setdefault("SECRET_KEY", "test-secret-key")
+os.environ.setdefault("SECRET_KEY", "test-secret-key-32-chars-minimum-value")
 
 
 def _normalize_async_database_url(url: str) -> str:

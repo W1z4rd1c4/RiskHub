@@ -104,7 +104,20 @@ export function HistoryTrendChart({
                             marginBottom: '4px',
                             textTransform: 'uppercase'
                         }}
-                        formatter={(value: number | undefined) => [value !== undefined ? resolvedFormatValue(value) : t('common:fallbacks.not_available'), resolvedValueLabel]}
+                        formatter={(value) => {
+                            const numericValue = typeof value === 'number'
+                                ? value
+                                : Array.isArray(value)
+                                    ? Number(value[0] ?? Number.NaN)
+                                    : Number(value ?? Number.NaN);
+
+                            return [
+                                Number.isFinite(numericValue)
+                                    ? resolvedFormatValue(numericValue)
+                                    : t('common:fallbacks.not_available'),
+                                resolvedValueLabel
+                            ];
+                        }}
                     />
 
                     {/* Lower threshold reference line */}

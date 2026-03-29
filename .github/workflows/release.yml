@@ -52,7 +52,10 @@ jobs:
         with:
           python-version: '3.13'
           cache: 'pip'
-          cache-dependency-path: backend/requirements.txt
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-runtime.txt
+            backend/requirements-db.txt
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -127,8 +130,16 @@ jobs:
           set -euo pipefail
           owner_lc="${GITHUB_REPOSITORY_OWNER,,}"
           backend_image="ghcr.io/${owner_lc}/riskhub-backend:${RELEASE_VERSION}"
-          docker build -t "${backend_image}" -f backend/Dockerfile backend
+          docker build --target runtime -t "${backend_image}" -f backend/Dockerfile backend
           docker push "${backend_image}"
+
+      - name: Build and push backend DB image
+        run: |
+          set -euo pipefail
+          owner_lc="${GITHUB_REPOSITORY_OWNER,,}"
+          backend_db_image="ghcr.io/${owner_lc}/riskhub-backend-db:${RELEASE_VERSION}"
+          docker build --target dbtasks -t "${backend_db_image}" -f backend/Dockerfile backend
+          docker push "${backend_db_image}"
 
       - name: Build and push frontend image
         run: |
@@ -160,7 +171,10 @@ jobs:
         with:
           python-version: '3.13'
           cache: 'pip'
-          cache-dependency-path: backend/requirements.txt
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-runtime.txt
+            backend/requirements-db.txt
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -220,8 +234,10 @@ jobs:
           test -f "${release_dir}/manifest.json"
           test -d "${release_dir}/backend/app"
           test -d "${release_dir}/backend/alembic"
-          test -d "${release_dir}/backend/scripts"
+          test -f "${release_dir}/backend/requirements-runtime.txt"
           test -d "${release_dir}/backend/wheels"
+          test -d "${release_dir}/backend_db/scripts"
+          test -f "${release_dir}/backend_db/requirements-db.txt"
           test -d "${release_dir}/frontend/dist"
           test -f "${release_dir}/deploy/lib/render.py"
           test -f "${release_dir}/deploy/templates/linux/nginx-site.conf.tmpl"
@@ -229,11 +245,33 @@ jobs:
           test -f "${release_dir}/deploy/templates/linux/riskhub-scheduler.service.tmpl"
           test -f "${release_dir}/deploy/templates/linux/riskhub-redis.service.tmpl"
 
+          python3.13 - <<'PY' "${release_dir}"
+          from pathlib import Path
+          import sys
+
+          release_dir = Path(sys.argv[1])
+          scripts_dir = release_dir / "backend_db" / "scripts"
+          expected = {"__init__.py", "bootstrap_sso_user.py", "seed_departments.py", "seed_roles_permissions.py"}
+          actual = {path.name for path in scripts_dir.iterdir()}
+          assert actual == expected, actual
+          assert not (release_dir / "backend" / "scripts").exists()
+
+          hidden = sorted(str(path.relative_to(release_dir)) for path in release_dir.rglob(".*"))
+          assert not hidden, hidden
+          PY
+
           python3.13 -m venv "${release_dir}/venv"
-          "${release_dir}/venv/bin/pip" install --no-index --find-links "${release_dir}/backend/wheels" -r "${release_dir}/backend/requirements.txt"
+          "${release_dir}/venv/bin/pip" install --no-index --find-links "${release_dir}/backend/wheels" -r "${release_dir}/backend/requirements-runtime.txt"
+          python3.13 -m venv "${release_dir}/db-venv"
+          "${release_dir}/db-venv/bin/pip" install --no-index --find-links "${release_dir}/backend/wheels" -r "${release_dir}/backend_db/requirements-db.txt"
           (
             cd "${release_dir}/backend"
-            "${release_dir}/venv/bin/python" -c "import scripts.seed_roles_permissions, scripts.seed_departments, scripts.bootstrap_sso_user"
+            "${release_dir}/venv/bin/python" -c "from pathlib import Path; from alembic.config import Config; assert Path('alembic').is_dir(); Config('alembic.ini')"
+          )
+          (
+            cd "${release_dir}/backend_db"
+            PYTHONPATH="${release_dir}/backend:${release_dir}/backend_db" \
+              "${release_dir}/db-venv/bin/python" -c "import scripts.seed_roles_permissions, scripts.seed_departments, scripts.bootstrap_sso_user"
           )
 
       - name: Verify rendered nginx and systemd artifacts

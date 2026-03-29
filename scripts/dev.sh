@@ -596,6 +596,10 @@ setup_backend_venv() {
 
     local req_hash
     req_hash="$(sha256_of_file "requirements.txt")"
+    local req_runtime_hash
+    req_runtime_hash="$(sha256_of_file "requirements-runtime.txt")"
+    local req_db_hash
+    req_db_hash="$(sha256_of_file "requirements-db.txt")"
     local req_dev_hash
     req_dev_hash="$(sha256_of_file "requirements-dev.txt")"
     local py_major_minor
@@ -604,6 +608,8 @@ setup_backend_venv() {
     local expected_state
     expected_state="$(cat <<EOF
 requirements_sha256=${req_hash}
+requirements_runtime_sha256=${req_runtime_hash}
+requirements_db_sha256=${req_db_hash}
 requirements_dev_sha256=${req_dev_hash}
 python_major_minor=${py_major_minor}
 EOF

@@ -49,8 +49,12 @@ export function OpenIssuesBySeverityChart({ items }: OpenIssuesBySeverityChartPr
                     </Pie>
                     <Tooltip
                         {...tooltipProps}
-                        formatter={(value: number | string | undefined, name: string | number | undefined) => {
-                            const numericValue = typeof value === 'number' ? value : Number(value ?? 0);
+                        formatter={(value, name) => {
+                            const numericValue = typeof value === 'number'
+                                ? value
+                                : Array.isArray(value)
+                                    ? Number(value[0] ?? 0)
+                                    : Number(value ?? 0);
                             const safeValue = Number.isFinite(numericValue) ? numericValue : 0;
                             const severityName = typeof name === 'string' ? name : String(name ?? '');
                             return [safeValue, t(`issues.severity.${severityName}`, severityName)];

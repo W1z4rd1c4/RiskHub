@@ -349,6 +349,8 @@ def test_docker_cli_supports_preflight_deploy_upgrade_and_rollback_dry_run() -> 
                 str(secret_dir),
                 "--backend-image",
                 "ghcr.io/example/riskhub-backend:test",
+                "--backend-db-image",
+                "ghcr.io/example/riskhub-backend-db:test",
                 "--frontend-image",
                 "ghcr.io/example/riskhub-frontend:test",
                 "--redis-image",
@@ -361,9 +363,11 @@ def test_docker_cli_supports_preflight_deploy_upgrade_and_rollback_dry_run() -> 
         assert deploy.returncode == 0, f"{deploy.stdout}\n{deploy.stderr}"
         deploy_output = f"{deploy.stdout}\n{deploy.stderr}"
         assert "docker pull ghcr.io/example/riskhub-backend:test" in deploy_output
+        assert "docker pull ghcr.io/example/riskhub-backend-db:test" in deploy_output
         assert "docker pull ghcr.io/example/riskhub-redis:test" in deploy_output
         assert "scripts/prod/install_backend.sh" in deploy_output
         assert "scripts/prod/install_redis.sh" in deploy_output
+        assert "--backend-db-image ghcr.io/example/riskhub-backend-db:test" in deploy_output
         assert f"RISKHUB_DEFAULT_SECRET_DIR={secret_dir}" in deploy_output
 
         upgrade_env = env | {
@@ -382,6 +386,8 @@ def test_docker_cli_supports_preflight_deploy_upgrade_and_rollback_dry_run() -> 
                 str(secret_dir),
                 "--backend-image",
                 "ghcr.io/example/riskhub-backend:test2",
+                "--backend-db-image",
+                "ghcr.io/example/riskhub-backend-db:test2",
                 "--frontend-image",
                 "ghcr.io/example/riskhub-frontend:test2",
                 "--redis-image",
@@ -442,6 +448,8 @@ def test_docker_deploy_dry_run_keeps_env_arguments_and_rendered_env_files_clean(
                 str(secret_dir),
                 "--backend-image",
                 "ghcr.io/example/riskhub-backend:test",
+                "--backend-db-image",
+                "ghcr.io/example/riskhub-backend-db:test",
                 "--frontend-image",
                 "ghcr.io/example/riskhub-frontend:test",
                 "--redis-image",
@@ -470,6 +478,46 @@ def test_docker_deploy_dry_run_keeps_env_arguments_and_rendered_env_files_clean(
                         continue
                     assert "=" in line
                     assert not line.startswith("+ ")
+
+
+def test_docker_deploy_requires_backend_db_image_when_version_is_omitted() -> None:
+    with tempfile.TemporaryDirectory(prefix="riskhub-deploy-missing-db-image-") as td:
+        tmp = Path(td)
+        config_path = tmp / "riskhub.env"
+        secret_dir = tmp / "secrets"
+        runtime_dir = tmp / "runtime"
+        _write_config(config_path)
+        _write_secrets(secret_dir)
+        fake_bin = _make_fake_bin(tmp)
+
+        env = os.environ.copy()
+        env["PATH"] = f"{fake_bin}:{env['PATH']}"
+        env["RISKHUB_RUNTIME_DIR"] = str(runtime_dir)
+
+        result = _run_cli(
+            [
+                "deploy",
+                "--target",
+                "docker",
+                "--config",
+                str(config_path),
+                "--secret-dir",
+                str(secret_dir),
+                "--backend-image",
+                "ghcr.io/example/riskhub-backend:test",
+                "--frontend-image",
+                "ghcr.io/example/riskhub-frontend:test",
+                "--redis-image",
+                "ghcr.io/example/riskhub-redis:test",
+                "--dry-run",
+                "--yes",
+            ],
+            env,
+        )
+
+        output = f"{result.stdout}\n{result.stderr}"
+        assert result.returncode != 0
+        assert "--backend-db-image" in output
 
 
 def test_linux_cli_supports_preflight_deploy_upgrade_and_rollback_dry_run() -> None:
