@@ -6,6 +6,7 @@ import { permissionResources, permissionActions } from '@/hooks/useUsersPageFilt
 
 interface UsersFilterBarProps {
     isAccessMode: boolean;
+    roleOptions: Array<{ value: string; label: string }>;
     searchTerm: string;
     setSearchTerm: (term: string) => void;
     roleFilter: string;
@@ -24,6 +25,7 @@ interface UsersFilterBarProps {
 
 export function UsersFilterBar({
     isAccessMode,
+    roleOptions,
     searchTerm,
     setSearchTerm,
     roleFilter,
@@ -64,13 +66,7 @@ export function UsersFilterBar({
                             allowEmpty
                             emptyLabel={t('access.roles.all')}
                             className="pl-9"
-                            options={[
-                                { value: 'admin', label: t('access.roles.admins') },
-                                { value: 'cro', label: t('access.roles.cros') },
-                                { value: 'risk_manager', label: t('access.roles.risk_managers') },
-                                { value: 'department_head', label: t('access.roles.dept_heads') },
-                                { value: 'control_owner', label: t('access.roles.control_owners') },
-                            ]}
+                            options={roleOptions}
                         />
                     </div>
                     {isAccessMode && (

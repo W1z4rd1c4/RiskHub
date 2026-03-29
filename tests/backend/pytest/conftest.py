@@ -420,6 +420,61 @@ async def test_user_employee(db_session: AsyncSession, test_department: Departme
 
 
 @pytest_asyncio.fixture
+async def test_role_directory_reader(db_session: AsyncSession) -> Role:
+    """Create a test-only directory reader role with users:read and no access-view powers."""
+    from app.models import Permission, RolePermission
+
+    role = Role(name="directory_reader", display_name="Directory Reader", description="Test-only directory reader role")
+    db_session.add(role)
+    await db_session.commit()
+
+    permission = Permission(resource="users", action="read", description="Read user directory")
+    db_session.add(permission)
+    await db_session.commit()
+
+    db_session.add(RolePermission(role_id=role.id, permission_id=permission.id))
+    await db_session.commit()
+
+    return role
+
+
+@pytest_asyncio.fixture
+async def test_user_directory_reader(
+    db_session: AsyncSession,
+    test_department: Department,
+    test_role_directory_reader: Role,
+) -> User:
+    """Create a department-scoped directory-only reader."""
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+
+    from app.models import Role as RoleModel
+    from app.models import RolePermission
+
+    user = User(
+        name="Directory Reader",
+        email="directory.reader@test.com",
+        department_id=test_department.id,
+        role_id=test_role_directory_reader.id,
+        is_active=True,
+        access_scope=AccessScope.DEPARTMENT,
+    )
+    db_session.add(user)
+    await db_session.commit()
+
+    result = await db_session.execute(
+        select(User)
+        .options(
+            selectinload(User.role).selectinload(RoleModel.permissions).selectinload(RolePermission.permission),
+            selectinload(User.department),
+            selectinload(User.manager),
+        )
+        .where(User.id == user.id)
+    )
+    return result.scalar_one()
+
+
+@pytest_asyncio.fixture
 async def test_role_risk_manager(db_session: AsyncSession) -> Role:
     """Create a risk manager role."""
     from app.models import Permission, RolePermission
@@ -738,6 +793,31 @@ async def client_risk_manager(
 
     transport = ASGITransport(app=app)
     headers = {"X-Mock-User-Id": str(test_user_risk_manager.id)}
+    async with AsyncClient(transport=transport, base_url="http://test", headers=headers) as ac:
+        yield ac
+
+    app.dependency_overrides.clear()
+
+
+@pytest_asyncio.fixture(scope="function")
+async def client_directory_reader(
+    db_session: AsyncSession,
+    test_user_directory_reader: User,
+) -> AsyncGenerator[AsyncClient, None]:
+    """Client for the test-only directory reader using header-based mock auth."""
+    from app.core.config import Settings, get_settings
+
+    def override_settings():
+        return Settings(mock_auth_enabled=True, debug=True)
+
+    async def override_get_db():
+        yield db_session
+
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_settings] = override_settings
+
+    transport = ASGITransport(app=app)
+    headers = {"X-Mock-User-Id": str(test_user_directory_reader.id)}
     async with AsyncClient(transport=transport, base_url="http://test", headers=headers) as ac:
         yield ac
 
