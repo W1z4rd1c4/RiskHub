@@ -205,9 +205,9 @@ def test_deploy_script_help_exposes_only_the_new_public_contract() -> None:
     assert result.returncode == 0, f"{result.stdout}\n{result.stderr}"
     output = result.stdout
     assert "Usage: ./scripts/deploy.sh <install|upgrade|doctor|logs|rollback>" in output
-    assert "Removed commands now fail with migration guidance" in output
-    assert "secrets-edit" in output
-    assert "preflight" in output
+    assert "secrets-edit" not in output
+    assert "preflight" not in output
+    assert "smoke" not in output
 
 
 @pytest.mark.parametrize(

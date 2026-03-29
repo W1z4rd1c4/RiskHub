@@ -7,6 +7,8 @@
 
 The public production surface is `./scripts/deploy.sh install|upgrade|doctor|logs|rollback`.
 
+Everything below is maintainer-only implementation detail. The internal script names listed here are not part of the public operator contract.
+
 Internal implementation details:
 
 - Docker executor wraps the existing `scripts/prod/*` lifecycle:

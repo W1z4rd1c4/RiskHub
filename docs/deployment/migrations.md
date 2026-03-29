@@ -21,9 +21,9 @@ This is intentional:
 ## Recommended production strategy
 
 1. Bring up external PostgreSQL.
-2. Run migrations as an explicit deployment step.
-   - Docker target: `./scripts/deploy.sh install|upgrade --target docker ...` runs migrations and bootstrap before the API/frontend rollout.
-   - Linux target: `./scripts/deploy.sh install|upgrade --target linux ...` runs migrations and bootstrap before service restart.
+2. Run migrations as an explicit install or upgrade step.
+   - `./scripts/deploy.sh install --target docker ...` or `./scripts/deploy.sh upgrade --target docker ...` runs migrations and bootstrap before the API/frontend rollout.
+   - `./scripts/deploy.sh install --target linux ...` or `./scripts/deploy.sh upgrade --target linux ...` runs migrations and bootstrap before service restart.
 3. Roll out the backend/API runtime only after migrations succeed.
 
 The long-running runtime lane still keeps Alembic assets so schema-guard checks can resolve the current head at startup, but it does not own the production migration/bootstrap execution path.
@@ -39,11 +39,11 @@ Recommended rollback plan:
 
 ## Operational checks
 
-Before deploying:
+Before `install` or `upgrade`:
 - confirm the target DB is reachable with the production `DATABASE_URL`
 - confirm `alembic upgrade head` succeeds in a staging environment
 - confirm the release artifact version matches the intended application release
 
-After deploying:
+After `install` or `upgrade`:
 - verify backend health endpoint `GET /api/v1/health`
 - check logs for startup guard failures (secrets/CORS/auth mode)

@@ -206,6 +206,54 @@ def test_renderer_prefers_certificate_mode_and_omits_secret_file_from_runtime_en
         assert metadata["ENTRA_GRAPH_CREDENTIAL_MODE"] == "certificate"
 
 
+def test_renderer_accepts_certificate_mode_without_entra_client_secret_file() -> None:
+    with tempfile.TemporaryDirectory(prefix="riskhub-deploy-render-cert-only-") as td:
+        tmp = Path(td)
+        config_path = tmp / "riskhub.env"
+        secret_dir = tmp / "secrets"
+        runtime_dir = tmp / "runtime"
+        out_dir = tmp / "rendered"
+        _write_config(
+            config_path,
+            ENTRA_CLIENT_CERTIFICATE_THUMBPRINT="ABCDEF1234567890ABCDEF1234567890ABCDEF12",
+        )
+        _write_secrets(
+            secret_dir,
+            entra_client_certificate_private_key="-----BEGIN PRIVATE KEY-----\nTESTKEY\n-----END PRIVATE KEY-----\n",
+        )
+        (secret_dir / "entra_client_secret").unlink()
+
+        subprocess.run(
+            [
+                "python3",
+                str(RENDERER),
+                "write-runtime",
+                "--config",
+                str(config_path),
+                "--target",
+                "docker",
+                "--secret-dir",
+                str(secret_dir),
+                "--runtime-dir",
+                str(runtime_dir),
+                "--out-dir",
+                str(out_dir),
+            ],
+            cwd=REPO_ROOT,
+            check=True,
+        )
+
+        backend_env = _parse_env(out_dir / "backend.env")
+        metadata = _source_shell_assignments(out_dir / "metadata.env", "ENTRA_GRAPH_CREDENTIAL_MODE")
+
+        assert backend_env["ENTRA_CLIENT_CERTIFICATE_THUMBPRINT"] == "ABCDEF1234567890ABCDEF1234567890ABCDEF12"
+        assert backend_env["ENTRA_CLIENT_CERTIFICATE_PRIVATE_KEY_FILE"] == str(
+            secret_dir / "entra_client_certificate_private_key"
+        )
+        assert "ENTRA_CLIENT_SECRET_FILE" not in backend_env
+        assert metadata["ENTRA_GRAPH_CREDENTIAL_MODE"] == "certificate"
+
+
 def test_renderer_rejects_partial_certificate_configuration() -> None:
     with tempfile.TemporaryDirectory(prefix="riskhub-deploy-render-cert-invalid-") as td:
         tmp = Path(td)

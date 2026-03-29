@@ -8,8 +8,8 @@ Template inputs rendered by the deploy CLI when preparing supported deployment t
 
 - `linux/`
 - `riskhub.env.example`
+- `secrets/`
 
 ## Notes
 
-Keep this README updated when responsibilities or structure in this folder change.
-
+Operators copy `riskhub.env.example` into `/etc/riskhub/riskhub.env`, use `secrets/README.md` plus the `*.example` files to populate `/etc/riskhub/secrets/`, and leave the Linux templates for deploy-time rendering only.

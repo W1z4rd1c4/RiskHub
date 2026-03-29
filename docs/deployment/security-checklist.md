@@ -1,6 +1,6 @@
 # Production Security Checklist
 
-> **Last Updated**: 2026-03-17
+> **Last Updated**: 2026-03-29
 > **Audience**: DevOps / Security Engineering
 
 ## Config And Startup Guards
@@ -51,9 +51,9 @@ RiskHub production deploys must satisfy these invariants:
 - Keep `/docs` and `/openapi.json` disabled in production.
 - Keep Redis enabled because rate limiting and account lockout depend on it.
 - Treat any dead-letter outbox event as an operational incident until triaged.
-- After deploy, verify outbox backlog is healthy:
+- After `install` or `upgrade`, verify outbox backlog is healthy:
   - dead-letter count is `0`
-  - dispatcher status is succeeding
+  - dispatcher processing is succeeding
   - backlog is not growing unexpectedly
 
 ## Secrets Handling
@@ -62,7 +62,7 @@ RiskHub production deploys must satisfy these invariants:
 - Keep `/etc/riskhub/riskhub.env` non-secret only.
 - Never commit production secrets.
 - Keep `/etc/riskhub` on an encrypted disk or encrypted mount.
-- Manage required secret files directly in `/etc/riskhub/secrets/` from the shipped template/layout.
+- Manage required secret files directly in `/etc/riskhub/secrets/` using `scripts/deploy/templates/secrets/README.md`.
 - Store `SECRET_KEY`, database credentials, Redis password, and the active Entra confidential credential material in a secret manager when possible.
 - `ENTRA_TENANT_ID` and `ENTRA_CLIENT_ID` are not secret values.
 - Prefer file-backed certificate credential mode over shared client secret when your Entra app registration supports it.

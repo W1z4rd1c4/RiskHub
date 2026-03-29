@@ -268,20 +268,6 @@ ensure_runtime_dir_scaffold() {
   fi
 }
 
-write_secret_file() {
-  local name="$1"
-  local value="$2"
-  local dest
-  dest="$(secret_path "$name")"
-  ensure_secret_dir_scaffold
-  write_file_content "$dest" "${value}" 440
-  if should_use_privileged_ownership "$dest"; then
-    ensure_linux_user
-    run_privileged chown root:"$LINUX_GROUP" "$dest"
-    run_privileged chmod 440 "$dest"
-  fi
-}
-
 write_runtime_secret_file() {
   local name="$1"
   local value="$2"
@@ -423,10 +409,6 @@ cleanup_runtime_dir() {
   fi
 }
 
-secret_edit_parent_dir() {
-  printf '%s\n' "$(dirname "$SECRET_DIR")"
-}
-
 runtime_parent_dir() {
   printf '%s\n' "$(dirname "$RUNTIME_DIR")"
 }
@@ -495,17 +477,6 @@ cleanup_temp_dir() {
     return 0
   fi
   run_privileged rm -rf "$tmp_dir"
-}
-
-make_secret_edit_workspace() {
-  local parent_dir
-  parent_dir="$(secret_edit_parent_dir)"
-  make_temp_dir_in_parent_dir "$parent_dir" "riskhub-secrets-edit"
-}
-
-cleanup_secret_edit_workspace() {
-  local workspace="$1"
-  cleanup_temp_dir "$workspace"
 }
 
 envfile_loader_snippet() {

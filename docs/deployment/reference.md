@@ -31,6 +31,12 @@ Secret directory:
 /etc/riskhub/secrets/
 ```
 
+Shipped examples:
+
+- `scripts/deploy/templates/riskhub.env.example`
+- `scripts/deploy/templates/secrets/README.md`
+- `scripts/deploy/templates/secrets/*.example`
+
 Required files:
 
 - `database_url`
@@ -72,13 +78,13 @@ Target-specific Redis URLs:
 - docker: `redis://:<password>@redis:6379/0`
 - linux: `redis://:<password>@127.0.0.1:6379/0`
 
-## Command Reference
+## Public Operator Contract
 
 ```bash
 ./scripts/deploy.sh install --target docker --config PATH --secret-dir PATH --version VERSION
-./scripts/deploy.sh install --target docker --config PATH --secret-dir PATH --backend-image IMAGE --backend-db-image IMAGE --frontend-image IMAGE --redis-image IMAGE
 ./scripts/deploy.sh install --target linux --config PATH --secret-dir PATH --bundle PATH
-./scripts/deploy.sh upgrade --target docker|linux ...
+./scripts/deploy.sh upgrade --target docker --config PATH --secret-dir PATH --version VERSION
+./scripts/deploy.sh upgrade --target linux --config PATH --secret-dir PATH --bundle PATH
 ./scripts/deploy.sh doctor --target docker|linux --config PATH --secret-dir PATH
 ./scripts/deploy.sh logs --target docker|linux [--service all|backend|scheduler|frontend|redis] [--tail N] [--follow]
 ./scripts/deploy.sh rollback --target docker --config PATH --secret-dir PATH [--service all|backend|frontend]
@@ -94,10 +100,21 @@ Common flags:
 
 Operational notes:
 
-- Operators manage the non-secret config file and required secret files directly from the shipped templates.
-- `install` and `upgrade` run the target preflight and built-in doctor checks automatically.
-- Docker explicit-image mode requires all four images unless `--version` is supplied: runtime backend, backend DB, frontend, and redis.
+- The public operator contract is `install|upgrade|doctor|logs|rollback`.
+- Copy `scripts/deploy/templates/riskhub.env.example` into `/etc/riskhub/riskhub.env` and manage `/etc/riskhub/secrets/*` from `scripts/deploy/templates/secrets/README.md`.
+- `install` and `upgrade` run config validation, target rollout tasks, and built-in doctor checks automatically.
 - `metadata.env` is an internal shell-sourced runtime artifact. Operators should not edit it directly; maintainers must keep its assignments safe to `source`, including when runtime or secret paths contain spaces.
+
+## Maintainer Overrides
+
+Docker also supports explicit image references instead of `--version`:
+
+```bash
+./scripts/deploy.sh install --target docker --config PATH --secret-dir PATH --backend-image IMAGE --backend-db-image IMAGE --frontend-image IMAGE --redis-image IMAGE
+./scripts/deploy.sh upgrade --target docker --config PATH --secret-dir PATH --backend-image IMAGE --backend-db-image IMAGE --frontend-image IMAGE --redis-image IMAGE
+```
+
+This override exists for release engineering and parity work. It is not the primary operator path.
 
 ## Runtime Defaults
 
