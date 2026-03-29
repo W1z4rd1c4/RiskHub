@@ -167,7 +167,7 @@ verify-prod-install-scripts:
 	docker run --rm riskhub-frontend:verify-prod-install-scripts sh -lc 'test "$$(id -u)" != "0"'
 	docker build -t riskhub-redis:verify-prod-install-scripts -f docker/redis/Dockerfile docker/redis
 	docker run --rm riskhub-redis:verify-prod-install-scripts sh -lc 'test "$$(id -u)" != "0"'
-	cd backend && venv/bin/pytest ../tests/backend/pytest/test_production_hardening.py ../tests/backend/pytest/test_phase500_script_contracts.py ../tests/backend/pytest/test_phase500_script_runtime_contracts.py ../tests/backend/pytest/test_deploy_renderer_contracts.py ../tests/backend/pytest/test_deploy_cli_contracts.py ../tests/backend/pytest/test_settings_secret_files.py -q
+	cd backend && venv/bin/pytest ../tests/backend/pytest/test_production_hardening.py ../tests/backend/pytest/test_phase500_script_contracts.py ../tests/backend/pytest/test_phase500_script_runtime_contracts.py ../tests/backend/pytest/test_deploy_renderer_contracts.py ../tests/backend/pytest/test_deploy_cli_contracts.py ../tests/backend/pytest/test_repo_hygiene_contracts.py ../tests/backend/pytest/test_settings_secret_files.py -q
 
 verify-startup-scripts:
 	bash -n scripts/compose.sh scripts/dev.sh

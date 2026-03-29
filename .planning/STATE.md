@@ -74,6 +74,63 @@
 
 ## Session Context
 
+### Docker Live Verification + Postgres Marker Reconciliation (2026-03-29)
+
+- Attempted deterministic Docker reset:
+  - `./scripts/compose.sh reset --dataset test`
+  - blocked in the Docker bootstrap container during `alembic upgrade head` with `ModuleNotFoundError: No module named 'psycopg2'`
+- Verified fallback bootstrap against the Docker Postgres service:
+  - `cd backend && DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_dev@localhost:5432/riskhub ./venv/bin/alembic upgrade head`
+  - `cd backend && DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_dev@localhost:5432/riskhub ./venv/bin/python -m app.db.seed`
+  - `cd backend && DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_dev@localhost:5432/riskhub ./venv/bin/python -m scripts.seed_e2e_all`
+  - seed summary completed with deterministic fixtures (`risks=19`, `controls=16`, `KRIs=13`, `vendors=6`, `approvals_pending=14`, `approvals_my_requests=4`)
+- Verified Docker app runtime after fallback startup:
+  - `docker compose -f docker-compose.yml --profile full up -d --build backend frontend`
+  - `docker compose -f docker-compose.yml --profile full up -d --no-deps frontend`
+  - backend container remained `unhealthy` because the current container healthcheck uses `curl` and the image does not include it
+  - frontend, backend, db, and redis were reachable after the explicit frontend start
+- Runtime preflight passed:
+  - `curl -fsS http://localhost:8000/api/v1/health` → `healthy`, `database=connected`
+  - `curl -fsS http://localhost:8000/api/v1/auth/config` → `auth_mode=hybrid_dev`, `demo_login_enabled=true`
+  - `curl -I -fsS http://localhost/login` → `HTTP/1.1 200 OK`
+- Created isolated Postgres test database:
+  - `docker exec riskhub-db psql -U riskhub -d postgres -v ON_ERROR_STOP=1 -c "DROP DATABASE IF EXISTS riskhub_test;" -c "CREATE DATABASE riskhub_test OWNER riskhub;"`
+- Postgres marker suite passed against the isolated DB:
+  - `cd backend && TEST_DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_dev@localhost:5432/riskhub_test pytest -m postgres -v`
+  - result: `5 passed, 767 deselected in 5.33s`
+  - backend artifact root: `tests/results/backend/coverage_html`
+- Docker-targeted browser automation is currently blocked by an origin assumption in the shared login helper:
+  - targeted business-logic rerun:
+    - `cd frontend && FRONTEND_URL=http://localhost npx playwright test -c ../tests/frontend/e2e/playwright.config.ts ../tests/frontend/e2e/access-scope.spec.ts --project=chromium --grep "GLOBAL user can see all departments in department list"`
+    - failed with `page.waitForURL` timeout in `tests/frontend/e2e/helpers/login.ts:37`
+    - observed navigation reached `http://localhost/`, but the helper still waited for `http://localhost:5173/...`
+    - failure artifact: `tests/results/frontend/playwright/test-results/access-scope-Access-Scope--c406f-artments-in-department-list-chromium/test-failed-1.png`
+  - targeted polish rerun:
+    - `cd frontend && FRONTEND_URL=http://localhost POLISH_AUDIT_DEEP=1 npx playwright test -c ../tests/frontend/e2e/playwright.config.ts ../tests/frontend/e2e/polish-audit.spec.ts --project=chromium --grep "RISK_MANAGER / theme=riskhub / lang=en"`
+    - failed with the same `page.waitForURL` timeout in `tests/frontend/e2e/helpers/login.ts:37`
+    - failure artifact: `tests/results/frontend/playwright/test-results/polish-audit-Polish-Audit--a77a6-NAGER-theme-riskhub-lang-en-chromium/test-failed-1.png`
+- Manual live UI verification against the Docker-served app:
+  - `RISK_MANAGER`, `theme=dark`, `lang=en`:
+    - `/kris` → pass
+    - `/approvals` → pass
+    - `/activity-log` → pass
+    - `/governance` → redirected to `/` as expected
+    - direct `/users/1` → route shell loaded but API returned `403` and the page rendered `User not found`; needs follow-up to confirm whether this is intended for non-admin users
+  - `CRO`, `theme=riskhub`, `lang=cs`:
+    - `/governance` → pass, heading rendered as `Dohled nad správou`
+  - `ADMIN`, `theme=light`, `lang=en`:
+    - `/admin` → pass
+    - `/governance` → redirected to `/admin` as expected
+    - `/users/1` → pass via login `returnTo` flow; user detail rendered for `System Admin`
+- Browser evidence confirmed the current polish automation scope still covers `riskhub` and `light`; `dark` remains a manual-only theme check.
+- Reconciled docs to match the actual verification path and blockers:
+  - `docs/TESTING.md`
+  - `docs/E2E_TESTING.md`
+  - `docs/development/README.md`
+  - `.planning/codebase/TESTING.md`
+  - `docs/agent/PYTEST_RUNTIME_NOTES.md`
+  - `tests/frontend/e2e/README.md`
+
 ### Pre-Release Deployment / Installation Deep Review (2026-03-17)
 
 - Current release status is **NO-GO** based on the latest pre-release deployment/install review.

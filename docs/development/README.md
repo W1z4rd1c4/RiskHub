@@ -1,7 +1,7 @@
 # RiskHub Development Startup
 
-> **Version**: 1.0
-> **Last Updated**: 2026-03-15
+> **Version**: 1.1
+> **Last Updated**: 2026-03-29
 > **Audience**: Engineering, QA
 
 Back to tree: [`docs/DOCUMENTATION_TREE.md`](../DOCUMENTATION_TREE.md)
@@ -30,6 +30,25 @@ Behavior:
 - `reset --dataset test` wipes Docker volumes, reruns migrations + base seed, then adds deterministic E2E fixtures
 
 Open `http://localhost/login` after startup.
+
+Deterministic live-verification preference:
+
+- Prefer `./scripts/compose.sh reset --dataset test` when you need seeded browser verification against the Docker-served app at `http://localhost/`.
+- Observed 2026-03-29: that reset path currently fails inside the Docker bootstrap container during `alembic upgrade head` because `psycopg2` is missing.
+- Verified fallback until the bootstrap image is fixed:
+
+```bash
+cd backend
+DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_dev@localhost:5432/riskhub ./venv/bin/alembic upgrade head
+DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_dev@localhost:5432/riskhub ./venv/bin/python -m app.db.seed
+DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_dev@localhost:5432/riskhub ./venv/bin/python -m scripts.seed_e2e_all
+
+cd ..
+docker compose -f docker-compose.yml --profile full up -d --build backend frontend
+docker compose -f docker-compose.yml --profile full up -d --no-deps frontend
+```
+
+- The explicit `frontend` start is a current workaround for the backend container healthcheck; the backend image healthcheck uses `curl`, and the current backend image does not include it.
 
 LAN mode:
 
@@ -81,12 +100,24 @@ AUTH_MODE=password MOCK_AUTH_ENABLED=false ./scripts/dev.sh
 
 - Playwright E2E still defaults to the local Vite frontend at `http://localhost:5173`
 - `npm run e2e` may start Vite automatically through `tests/frontend/e2e/playwright.config.ts`
-- Docker full-stack at `http://localhost/` is useful for manual verification, but it is not the default Playwright frontend unless `FRONTEND_URL` is overridden
+- Docker full-stack at `http://localhost/` is the preferred deterministic live-verification surface, but Playwright must be pointed at it with `FRONTEND_URL=http://localhost`
 - Recommended deterministic E2E reset:
 
 ```bash
 ./scripts/compose.sh reset --dataset test
 ```
+
+- Docker-targeted browser commands:
+
+```bash
+cd frontend
+FRONTEND_URL=http://localhost npm run e2e:business-logic
+FRONTEND_URL=http://localhost POLISH_AUDIT_DEEP=1 npx playwright test -c ../tests/frontend/e2e/playwright.config.ts ../tests/frontend/e2e/polish-audit.spec.ts --project=chromium
+```
+
+- Current blocker: the shared E2E login helper still waits for `http://localhost:5173/...`, so Docker-targeted Playwright runs time out after successful redirect until that helper is updated.
+- `polish-audit.spec.ts` currently covers `riskhub` and `light`; `dark` theme still needs manual verification.
+- When the Docker app stack is live on the `riskhub` database, run Postgres marker tests against a separate `riskhub_test` database instead of the live app DB.
 
 ## Boundaries
 

@@ -1,6 +1,6 @@
 # Deployment Reference
 
-> **Last Updated**: 2026-03-17
+> **Last Updated**: 2026-03-29
 > **Audience**: Operators and maintainers
 
 ## Operator Config
@@ -64,6 +64,7 @@ These are rendered by the deploy tooling and are not operator-edited:
 - `ENTRA_CLIENT_CERTIFICATE_PRIVATE_KEY_FILE`
 - `REDIS_URL_FILE`
 - scheduler singleton settings
+- shell-safe `metadata.env` for internal deploy/runtime metadata
 - target-specific nginx/systemd/docker runtime files
 
 Target-specific Redis URLs:
@@ -80,7 +81,7 @@ Target-specific Redis URLs:
 ./scripts/deploy.sh secrets-check --target docker|linux [--secret-dir PATH]
 ./scripts/deploy.sh preflight --target docker|linux --config PATH
 ./scripts/deploy.sh deploy --target docker --config PATH --secret-dir PATH --version VERSION
-./scripts/deploy.sh deploy --target docker --config PATH --secret-dir PATH --backend-image IMAGE --frontend-image IMAGE --redis-image IMAGE
+./scripts/deploy.sh deploy --target docker --config PATH --secret-dir PATH --backend-image IMAGE --backend-db-image IMAGE --frontend-image IMAGE --redis-image IMAGE
 ./scripts/deploy.sh deploy --target linux --config PATH --secret-dir PATH --bundle PATH
 ./scripts/deploy.sh upgrade --target docker|linux ...
 ./scripts/deploy.sh status --target docker|linux
@@ -101,6 +102,8 @@ Operational notes:
 
 - `./scripts/deploy.sh init ...` scaffolds the non-secret config, the secret-file placeholders, and the persistent runtime directory.
 - `./scripts/deploy.sh secrets-edit ...` keeps its temporary edit workspace under the parent of `--secret-dir` so secret edits stay on the same host-managed mount, not under `/tmp`.
+- Docker explicit-image mode requires all four images unless `--version` is supplied: runtime backend, backend DB, frontend, and redis.
+- `metadata.env` is an internal shell-sourced runtime artifact. Operators should not edit it directly; maintainers must keep its assignments safe to `source`, including when runtime or secret paths contain spaces.
 
 ## Runtime Defaults
 

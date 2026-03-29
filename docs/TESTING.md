@@ -1,7 +1,7 @@
 # RiskHub Testing Guide
 
-> **Version**: 1.6
-> **Last Updated**: 2026-03-15
+> **Version**: 1.7
+> **Last Updated**: 2026-03-29
 > **Audience**: Engineering, QA
 > **Source of Truth**: `tests/backend/pytest/`, `backend/pytest.ini`, `frontend/package.json`, `tests/frontend/e2e/playwright.config.ts`
 
@@ -16,7 +16,7 @@ This guide defines the current testing matrix for backend, frontend unit tests, 
 | Backend reliability targeted | `cd backend && pytest -q ../tests/backend/pytest/test_scheduler_runtime.py ../tests/backend/pytest/test_outbox_approval_flow.py ../tests/backend/pytest/test_aggregate_overviews.py ../tests/backend/pytest/test_orphaned_items_scan_and_stats.py` | Scheduler ownership, outbox retry path, aggregate overview endpoints, and governance overview |
 | Backend broad | `make -f scripts/Makefile test` | Full backend regression |
 | Backend lint + suppression budget | `make -f scripts/Makefile lint-backend` | Ruff hard gate plus backend/app suppression budget enforcement |
-| Backend Postgres marker | `cd backend && pytest -m postgres -v` | Postgres-sensitive behavior |
+| Backend Postgres marker | `cd backend && TEST_DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_dev@localhost:5432/riskhub_test pytest -m postgres -v` | Postgres-sensitive behavior against a dedicated test database |
 | Backend Redis integration marker | `cd backend && pytest -m redis_integration -q` | Redis fault-injection resilience checks (Docker-backed) |
 | Frontend unit | `cd frontend && npm run test:run` | Component and integration tests |
 | Frontend KRI filter regression | `cd frontend && npm run test:run -- src/pages/__tests__/KRIsPage.monitoring-status.test.tsx` | Route-backed `/kris` monitoring/timeliness filters, rapid-click loading safety, and grouped-view parity |
@@ -38,6 +38,7 @@ This guide defines the current testing matrix for backend, frontend unit tests, 
 - `backend/pytest.ini` defines discovery and default coverage settings.
 - SQLite in-memory is used by default test path unless `TEST_DATABASE_URL` is set.
 - Postgres-specific tests are marked with `@pytest.mark.postgres`.
+- When the Docker app stack is using the live `riskhub` database, point Postgres marker runs at a sibling `riskhub_test` database instead; Postgres-mode truncates tables between tests.
 - Advisory-lock coverage is only valid in Postgres mode. Do not treat SQLite-only passes as sufficient for scheduler ownership enforcement.
 - Redis integration tests are marked with `@pytest.mark.redis_integration` and require Docker-backed test dependencies.
 - For docs endpoint behavior, keep role-scoped fixtures (`client_platform_admin`, `client_cro`, `client_employee`) green.
@@ -62,6 +63,56 @@ cd backend
 
 - After a local backend launch attempt, `scripts/dev.sh` also verifies backend readiness and prints the backend log tail immediately if startup failed during lifespan initialization.
 - Docker onboarding/reset paths intentionally keep the app startup guards unchanged; migrations and base seeding happen in the `./scripts/compose.sh` bootstrap flow rather than by weakening app startup checks.
+
+## Docker Live Verification
+
+Preferred deterministic path:
+
+```bash
+./scripts/compose.sh reset --dataset test
+```
+
+Observed 2026-03-29:
+
+- `./scripts/compose.sh reset --dataset test` currently fails in the Docker bootstrap container during `alembic upgrade head` with `ModuleNotFoundError: No module named 'psycopg2'`.
+- Until that image is fixed, the verified fallback is to bootstrap the Docker Postgres database from the local backend virtualenv, then start the app containers directly:
+
+```bash
+cd backend
+DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_dev@localhost:5432/riskhub ./venv/bin/alembic upgrade head
+DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_dev@localhost:5432/riskhub ./venv/bin/python -m app.db.seed
+DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_dev@localhost:5432/riskhub ./venv/bin/python -m scripts.seed_e2e_all
+
+cd ..
+docker compose -f docker-compose.yml --profile full up -d --build backend frontend
+docker compose -f docker-compose.yml --profile full up -d --no-deps frontend
+```
+
+- The second `frontend` command is only needed while the backend container healthcheck remains broken because the current backend image does not ship `curl`.
+
+Preflight:
+
+```bash
+curl -fsS http://localhost:8000/api/v1/health
+curl -fsS http://localhost:8000/api/v1/auth/config
+curl -I -fsS http://localhost/login
+```
+
+Docker-targeted verification commands:
+
+```bash
+cd backend
+TEST_DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_dev@localhost:5432/riskhub_test pytest -m postgres -v
+
+cd ../frontend
+FRONTEND_URL=http://localhost npm run e2e:business-logic
+FRONTEND_URL=http://localhost POLISH_AUDIT_DEEP=1 npx playwright test -c ../tests/frontend/e2e/playwright.config.ts ../tests/frontend/e2e/polish-audit.spec.ts --project=chromium
+```
+
+Current browser-lane caveats:
+
+- `polish-audit.spec.ts` automates `riskhub` and `light` themes; `dark` still requires manual verification.
+- The shared demo-login helper in [`tests/frontend/e2e/helpers/login.ts`](../tests/frontend/e2e/helpers/login.ts) still waits for `http://localhost:5173/...`, so Docker-targeted `FRONTEND_URL=http://localhost` browser packs currently fail until that helper is updated.
 
 ## Frontend Testing Notes
 

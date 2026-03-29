@@ -53,6 +53,31 @@ def _parse_env(path: Path) -> dict[str, str]:
     return values
 
 
+def _source_shell_assignments(path: Path, *keys: str) -> dict[str, str]:
+    result = subprocess.run(
+        [
+            "bash",
+            "-lc",
+            'set -euo pipefail; metadata_path="$1"; shift; source "$metadata_path"; for key in "$@"; do printf "%s=%s\\n" "$key" "${!key}"; done',
+            "bash",
+            str(path),
+            *keys,
+        ],
+        cwd=REPO_ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    values: dict[str, str] = {}
+    for raw_line in result.stdout.splitlines():
+        if not raw_line or "=" not in raw_line:
+            continue
+        key, value = raw_line.split("=", 1)
+        values[key] = value
+    return values
+
+
 def test_renderer_derives_public_url_hosts_and_target_specific_redis_urls_without_emitting_raw_secrets() -> None:
     with tempfile.TemporaryDirectory(prefix="riskhub-deploy-render-") as td:
         tmp = Path(td)
@@ -105,8 +130,13 @@ def test_renderer_derives_public_url_hosts_and_target_specific_redis_urls_withou
 
         docker_backend = _parse_env(docker_out / "backend.env")
         linux_backend = _parse_env(linux_out / "backend.env")
-        docker_meta = _parse_env(docker_out / "metadata.env")
-        linux_meta = _parse_env(linux_out / "metadata.env")
+        docker_meta = _source_shell_assignments(
+            docker_out / "metadata.env",
+            "SERVER_NAME",
+            "FRONTEND_BIND_PORT",
+            "ENTRA_GRAPH_CREDENTIAL_MODE",
+        )
+        linux_meta = _source_shell_assignments(linux_out / "metadata.env", "BACKEND_BIND_PORT")
 
         assert docker_backend["CORS_ORIGINS"] == '["https://riskhub.example.com"]'
         assert docker_backend["ALLOWED_HOSTS"] == '["riskhub.example.com"]'
@@ -166,7 +196,7 @@ def test_renderer_prefers_certificate_mode_and_omits_secret_file_from_runtime_en
         )
 
         backend_env = _parse_env(out_dir / "backend.env")
-        metadata = _parse_env(out_dir / "metadata.env")
+        metadata = _source_shell_assignments(out_dir / "metadata.env", "ENTRA_GRAPH_CREDENTIAL_MODE")
 
         assert backend_env["ENTRA_CLIENT_CERTIFICATE_THUMBPRINT"] == "ABCDEF1234567890ABCDEF1234567890ABCDEF12"
         assert backend_env["ENTRA_CLIENT_CERTIFICATE_PRIVATE_KEY_FILE"] == str(
@@ -298,7 +328,12 @@ def test_renderer_enforces_scheduler_singleton_runtime_contract() -> None:
         scheduler_unit.write_text(scheduler_result.stdout, encoding="utf-8")
         redis_unit.write_text(redis_result.stdout, encoding="utf-8")
 
-        metadata = _parse_env(runtime_out / "metadata.env")
+        metadata = _source_shell_assignments(
+            runtime_out / "metadata.env",
+            "SCHEDULER_ENABLED",
+            "SCHEDULER_WORKERS",
+            "SCHEDULER_BIND_PORT",
+        )
 
         assert metadata["SCHEDULER_ENABLED"] == "true"
         assert metadata["SCHEDULER_WORKERS"] == "1"
@@ -346,3 +381,54 @@ def test_renderer_rejects_invalid_api_workers() -> None:
         output = f"{result.stdout}\n{result.stderr}"
         assert result.returncode != 0
         assert "API_WORKERS must be at least 1" in output
+
+
+def test_renderer_metadata_env_round_trips_shell_safe_values_for_paths_with_spaces() -> None:
+    with tempfile.TemporaryDirectory(prefix="riskhub-deploy-render-spaces-") as td:
+        tmp = Path(td) / "workspace with spaces"
+        tmp.mkdir(parents=True)
+        config_path = tmp / "riskhub.env"
+        secret_dir = tmp / "secrets with spaces"
+        runtime_dir = tmp / "runtime with spaces"
+        out_dir = tmp / "rendered with spaces"
+        _write_config(config_path)
+        _write_secrets(secret_dir)
+
+        subprocess.run(
+            [
+                "python3",
+                str(RENDERER),
+                "write-runtime",
+                "--config",
+                str(config_path),
+                "--target",
+                "docker",
+                "--secret-dir",
+                str(secret_dir),
+                "--runtime-dir",
+                str(runtime_dir),
+                "--out-dir",
+                str(out_dir),
+            ],
+            cwd=REPO_ROOT,
+            check=True,
+        )
+
+        metadata = _source_shell_assignments(
+            out_dir / "metadata.env",
+            "SECRET_DIR",
+            "RUNTIME_DIR",
+            "CORS_ORIGINS_JSON",
+            "ALLOWED_HOSTS_JSON",
+            "REDIS_URL_FILE",
+            "REDIS_PASSWORD_FILE",
+            "REDIS_URL",
+        )
+
+        assert metadata["SECRET_DIR"] == str(secret_dir)
+        assert metadata["RUNTIME_DIR"] == str(runtime_dir)
+        assert metadata["CORS_ORIGINS_JSON"] == '["https://riskhub.example.com"]'
+        assert metadata["ALLOWED_HOSTS_JSON"] == '["riskhub.example.com"]'
+        assert metadata["REDIS_URL_FILE"] == str(runtime_dir / "redis_url")
+        assert metadata["REDIS_PASSWORD_FILE"] == str(secret_dir / "redis_password")
+        assert metadata["REDIS_URL"] == "redis://:redis-secret@redis:6379/0"
