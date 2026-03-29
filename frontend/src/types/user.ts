@@ -71,8 +71,15 @@ export interface UserDirectoryEntry {
     department_name?: string;
 }
 
+export interface UserDirectoryRoleFacet {
+    name: string;
+    display_name: string;
+    count: number;
+}
+
 export interface UserDirectoryListResponse {
     items: UserDirectoryEntry[];
+    available_roles: UserDirectoryRoleFacet[];
     total: number;
     skip: number;
     limit: number;
