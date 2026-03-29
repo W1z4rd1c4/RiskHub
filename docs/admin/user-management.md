@@ -31,6 +31,7 @@ Contract note:
 - `/access/users*` backs the access-management views on that route
 - `/users/lookup` is picker/search only and not the operator page contract
 - manual user lifecycle actions on `/users` are Admin-only
+- mode precedence on `/users` is explicit: global access view, then department access view, then read-only directory view when `users:read` exists without access-management authority
 
 Most access incidents come from one of four causes:
 
@@ -76,6 +77,8 @@ Safety rules:
 4. Refresh and verify the new values.
 5. Ask the user to re-authenticate if role or scope changed.
 6. Confirm the audit trail exists.
+
+If a user should not have any `/users` entitlement, expect the route to redirect away rather than render a partial list.
 
 ### Add a user
 

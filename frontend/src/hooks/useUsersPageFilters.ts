@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import type { AccessUserRead } from '@/types/access';
-import type { UserLookup } from '@/types/user';
+import type { UserDirectoryEntry } from '@/types/user';
 
 // Permission filter options
 export const permissionResources = [
@@ -45,12 +45,12 @@ export interface UsersPageFiltersState {
     hasPermFilters: boolean;
     resetPermissionFilters: () => void;
     filteredAccessUsers: AccessUserRead[];
-    filteredDirectoryUsers: UserLookup[];
+    filteredDirectoryUsers: UserDirectoryEntry[];
 }
 
 interface UseUsersPageFiltersProps {
     accessUsers: AccessUserRead[];
-    directoryUsers: UserLookup[];
+    directoryUsers: UserDirectoryEntry[];
 }
 
 export function useUsersPageFilters({
@@ -82,15 +82,11 @@ export function useUsersPageFilters({
         });
     }, [accessUsers, searchTerm, roleFilter, scopeFilter, permResourceFilter, permActionFilter]);
 
-    // Filter logic for directory mode (read-only, simpler filtering)
+    // Directory mode filtering is handled server-side; keep a stable pass-through list here
+    // so the page can drive paginated requests from the same filter state.
     const filteredDirectoryUsers = useMemo(() => {
-        return directoryUsers.filter(user => {
-            const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                user.email.toLowerCase().includes(searchTerm.toLowerCase());
-            const matchesRole = roleFilter === 'all' || user.role_name === roleFilter;
-            return matchesSearch && matchesRole;
-        });
-    }, [directoryUsers, searchTerm, roleFilter]);
+        return directoryUsers;
+    }, [directoryUsers]);
 
     return {
         searchTerm,
