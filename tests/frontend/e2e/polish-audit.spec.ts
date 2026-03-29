@@ -139,10 +139,6 @@ async function firstIdFromApi(page: Page, authToken: string, routePath: string):
             const data = await getJson('/api/v1/vendors?skip=0&limit=1');
             return firstNumericIdFromItemsPayload(data);
         }
-        case '/users': {
-            const data = await getJson('/api/v1/users/lookup?skip=0&limit=1');
-            return firstNumericIdFromArrayPayload(data);
-        }
         default:
             return null;
     }
@@ -603,12 +599,6 @@ test.describe('Polish Audit (page-by-page)', () => {
                                 const id = await firstIdFromApi(page, authToken, routePath);
                                 if (id) {
                                     toVisit.splice(i + 1, 0, `/vendors/${id}`, `/vendors/${id}/edit`);
-                                }
-                            }
-                            if (routePath === '/users') {
-                                const id = await firstIdFromApi(page, authToken, routePath);
-                                if (id) {
-                                    toVisit.splice(i + 1, 0, `/users/${id}`);
                                 }
                             }
                         }

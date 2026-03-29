@@ -150,7 +150,12 @@ export function UserNewPage() {
     };
 
     const handleDirectoryImported = async (result: DirectoryImportResponse) => {
-        navigate(`/users/${result.user_id}`);
+        navigate('/users', {
+            state: {
+                importedUserId: result.user_id,
+                importedUserName: result.name,
+            },
+        });
     };
 
     const isDirectoryFirstMode = authConfig?.auth_mode

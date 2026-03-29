@@ -1,6 +1,6 @@
 ---
 title: Správa přístupů a adresář uživatelů
-version: "2.1"
+version: "2.2"
 last_updated: "2026-03-29"
 audience: user
 source_of_truth: "frontend/src/pages/UsersPage.tsx + frontend/src/authz/policy.ts + backend access APIs"
@@ -43,6 +43,7 @@ Důležité rozdělení kontraktů:
 - directory mód stránky `/users` běží nad dedikovaným user-directory API
 - `/access/users*` zůstává kontraktem pro privileged access-management review a editace
 - `/users/lookup` zůstává obecným picker/search primitivem pro formuláře a filtry, není to kontrakt stránky `/users`
+- `/users` neposkytuje samostatnou colleague/detail route. Řádky v directory módu jsou informativní a privilegované editace zůstávají v modalu na `/users`
 
 ## Kde to najdete
 
@@ -170,6 +171,7 @@ Některá prostředí umožňují privilegovaným business uživatelům review a
 Používejte „least privilege“ proces:
 
 - zakládejte nebo importujte účty jen při potvrzeném onboardingu a pouze pokud vaše role lifecycle akce skutečně smí dělat
+- po úspěšném directory importu zůstaňte na `/users` a dokončete onboarding pole v edit modalu místo hledání samostatné detailní stránky uživatele
 - přiřaďte minimum role a permissions
 - nastavte správné oddělení
 - ověřte, že dashboardy a listy odpovídají scope
