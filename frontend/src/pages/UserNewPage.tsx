@@ -53,13 +53,6 @@ export function UserNewPage() {
     });
     const [errorKey, setErrorKey] = useState<string | null>(null);
 
-    // Redirect if no permission to manage users
-    useEffect(() => {
-        if (!canManageUsers) {
-            navigate('/users', { replace: true });
-        }
-    }, [canManageUsers, navigate]);
-
     useEffect(() => {
         let cancelled = false;
         const run = async () => {

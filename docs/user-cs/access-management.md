@@ -172,7 +172,7 @@ Některá prostředí umožňují privilegovaným business uživatelům review a
 
 Používejte „least privilege“ proces:
 
-- na `/users` závisí create CTA na auth módu: v directory-first auth módech je to **Add from AD**, zatímco v password módu stránka nabízí obě CTA **Add user** (ruční založení) i **Add from AD** (directory import)
+- na `/users` závisí create CTA na auth módu: **Add from AD** v directory-first auth módech a **Add user** v password módu
 - zakládejte nebo importujte účty jen při potvrzeném onboardingu a pouze pokud vaše role lifecycle akce skutečně smí dělat
 - po úspěšném directory importu zůstaňte na `/users` a dokončete onboarding pole v edit modalu místo hledání samostatné detailní stránky uživatele
 - přiřaďte minimum role a permissions
@@ -182,6 +182,8 @@ Používejte „least privilege“ proces:
 Pokud nejste platform admin, neočekávejte dostupnost admin lifecycle/detail endpointů, i když stále můžete v `/users` reviewovat nebo upravovat access pole.
 
 Pokud nemáte práva editovat, berte `/users` jako read povrch a eskalujte změny na platform admin tým.
+
+Pokud `/users` ukáže retry banner místo user řádků, berte to jako load failure, ne jako důkaz, že neexistují žádní matching users.
 
 ## Schvalování a notifikace
 

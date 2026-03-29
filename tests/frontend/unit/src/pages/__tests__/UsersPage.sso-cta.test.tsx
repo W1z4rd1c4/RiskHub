@@ -168,7 +168,7 @@ describe('UsersPage SSO add CTA', () => {
         expect(screen.queryByRole('button', { name: 'access.add_user' })).not.toBeInTheDocument();
     });
 
-    it('keeps password-mode CTAs in password mode', async () => {
+    it('keeps the password create CTA only in password mode', async () => {
         mockGetAuthConfig.mockResolvedValue(
             makeAuthConfig({
                 auth_mode: 'password',
@@ -190,8 +190,8 @@ describe('UsersPage SSO add CTA', () => {
             expect(mockListAccessUsers).toHaveBeenCalled();
         });
 
-        expect(await screen.findByRole('button', { name: 'Add from AD' })).toBeInTheDocument();
         expect(await screen.findByRole('button', { name: 'access.add_user' })).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Add from AD' })).not.toBeInTheDocument();
     });
 
     it('keeps the list visible but disables auth-mode actions when auth config is unavailable', async () => {
