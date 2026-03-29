@@ -87,7 +87,9 @@ Pokud uživatel nemá mít žádný `/users` entitlement, očekávejte redirect 
 ### Přidat uživatele
 
 1. Otevřete `/users`.
-2. Vyberte **Add user**.
+2. Vyberte CTA podle aktuálního auth módu na `/users`:
+   - **Add from AD** v directory-first auth módech (`microsoft_sso`, `hybrid_dev`)
+   - v password módu použijte **Add user** pro ruční založení nebo **Add from AD** pro directory import
 3. Použijte create flow, který UI právě nabízí:
    - import nebo external-identity flow
    - direct-entry flow
@@ -103,10 +105,10 @@ Pokud create akce chybí nebo jsou vypnuté, nejdřív potvrďte, že aktuální
 2. Měňte vždy jen jednu kategorii:
    - identity fields
    - role nebo oddělení
-3. Uložte.
+3. Uložte jedním save. `/users` teď pro modal posílá jednu transakční `PATCH /api/v1/access/users/{id}`, takže se buď aplikuje celá změna, nebo se celý save odmítne.
 4. Po refreshi potvrďte nové hodnoty.
 
-Identity fields jsou Admin-only lifecycle akce. CRO ani jiní privileged review uživatelé nemají očekávat samostatné lifecycle/detail endpointy mimo access-management část modalu.
+Identity fields jsou Admin-only lifecycle akce. CRO ani jiní privileged review uživatelé nemají očekávat samostatné lifecycle/detail endpointy mimo access-management část modalu. Pokud validační chyba selže na identity poli, berte celý save jako neprovedený a nejdřív opravte validaci.
 
 ### Upravit access
 
@@ -116,7 +118,7 @@ Identity fields jsou Admin-only lifecycle akce. CRO ani jiní privileged review 
    - oddělení
    - manager
    - scope
-3. Uložte.
+3. Uložte jedním save.
 4. Po refreshi potvrďte hodnoty v řádku nebo access panelu.
 
 Změna scope na `global` je významná eskalace. Před uložením si zapište důvod.
@@ -200,13 +202,17 @@ Co dělat:
 
 Co to obvykle znamená:
 
-- stránka načetla user list, ale create path je v safe degraded stavu
+- stránka načetla user list, ale auth-mode-specific create path je v safe degraded stavu
+- viditelné CTA závisí na auth módu:
+  - `Add from AD` v directory-first režimech
+  - v password režimu jsou viditelné obě CTA: `Add User` i `Add from AD`
 
 Co dělat:
 
-1. Otevřete `/admin` a potvrďte Health stav.
-2. Jednou obnovte `/users`.
-3. Pokud create akce zůstávají vypnuté i po healthy refreshi, eskalujte jako admin-surface nebo auth/config incident.
+1. Potvrďte aktivní auth mód, aby bylo jasné, zda očekávaná create akce je jen **Add from AD**, nebo obě CTA **Add user** a **Add from AD**.
+2. Otevřete `/admin` a potvrďte Health stav.
+3. Jednou obnovte `/users`.
+4. Pokud očekávaná create akce zůstává vypnutá i po healthy refreshi, eskalujte jako admin-surface nebo auth/config incident.
 
 ## Eskalace a předání
 

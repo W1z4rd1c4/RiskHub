@@ -47,6 +47,8 @@ export interface AccessUserRead {
 }
 
 export interface AccessUserUpdate {
+    name?: string;
+    email?: string;
     role_id?: number;
     department_id?: number | null;
     manager_id?: number | null;

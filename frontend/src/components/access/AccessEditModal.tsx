@@ -11,7 +11,6 @@ import { useTranslation } from '@/i18n/hooks';
 import { accessApi } from '@/services/accessApi';
 import { apiClient } from '@/services/apiClient';
 import { departmentApi } from '@/services/departmentApi';
-import { userApi } from '@/services/userApi';
 import { usePermissions } from '@/hooks/usePermissions';
 import type { AccessUserRead, AccessUserUpdate, RoleWithPermissions, AccessScopeEnum } from '@/types/access';
 import type { DepartmentSummary } from '@/services/departmentApi';
@@ -47,6 +46,7 @@ export function AccessEditModal({ isOpen, onClose, user, onSaved }: AccessEditMo
 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [errorKey, setErrorKey] = useState<string | null>(null);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [isInitialized, setIsInitialized] = useState(false);
 
     const loadData = useCallback(async () => {
@@ -63,6 +63,7 @@ export function AccessEditModal({ isOpen, onClose, user, onSaved }: AccessEditMo
         } catch (err) {
             console.error('Failed to load data:', err);
             setErrorKey('errorKeys.request_failed');
+            setErrorMessage(null);
             setIsInitialized(true);
         }
     }, [user?.id]);
@@ -71,6 +72,7 @@ export function AccessEditModal({ isOpen, onClose, user, onSaved }: AccessEditMo
         if (isOpen && user) {
             setIsInitialized(false);
             setErrorKey(null);
+            setErrorMessage(null);
             setSelectedName(user.name);
             setSelectedEmail(user.email);
             setSelectedRoleId(user.role_id);
@@ -85,19 +87,15 @@ export function AccessEditModal({ isOpen, onClose, user, onSaved }: AccessEditMo
         if (!user) return;
         if (!canEditAccessUsers) {
             setErrorKey('errorKeys.forbidden');
+            setErrorMessage(null);
             return;
         }
 
         setIsSubmitting(true);
         setErrorKey(null);
+        setErrorMessage(null);
 
         try {
-            const identityUpdate = canManageUsers
-                ? {
-                    name: selectedName,
-                    email: selectedEmail,
-                }
-                : null;
             const accessUpdate: AccessUserUpdate = {};
 
             if (selectedRoleId !== user.role_id) {
@@ -113,25 +111,38 @@ export function AccessEditModal({ isOpen, onClose, user, onSaved }: AccessEditMo
                 accessUpdate.access_scope = selectedScope;
             }
 
-            const hasIdentityChanges = canManageUsers
-                && (selectedName !== user.name || selectedEmail !== user.email);
-            const hasAccessChanges =
+            if (canManageUsers && selectedName !== user.name) {
+                accessUpdate.name = selectedName;
+            }
+            if (canManageUsers && selectedEmail !== user.email) {
+                accessUpdate.email = selectedEmail;
+            }
+
+            const hasChanges =
                 selectedRoleId !== user.role_id
                 || selectedDeptId !== user.department_id
                 || selectedManagerId !== user.manager_id
-                || (canManagePrivileged && selectedScope !== user.access_scope);
+                || (canManagePrivileged && selectedScope !== user.access_scope)
+                || (canManageUsers && selectedName !== user.name)
+                || (canManageUsers && selectedEmail !== user.email);
 
-            if (hasAccessChanges) {
-                await accessApi.updateAccessUser(user.id, accessUpdate);
+            if (!hasChanges) {
+                onClose();
+                return;
             }
-            if (hasIdentityChanges && identityUpdate) {
-                await userApi.updateUser(user.id, identityUpdate);
-            }
+
+            await accessApi.updateAccessUser(user.id, accessUpdate);
             onSaved();
             onClose();
         } catch (err: unknown) {
             console.error('Failed to update user access:', err);
-            setErrorKey(apiClient.toUiMessageKey(err));
+            const messageKey = apiClient.toUiMessageKey(err);
+            setErrorKey(messageKey);
+            setErrorMessage(
+                messageKey === 'errorKeys.request_failed' || messageKey === 'errorKeys.unknown'
+                    ? apiClient.getRawErrorMessage(err) ?? null
+                    : null
+            );
         } finally {
             setIsSubmitting(false);
         }
@@ -335,7 +346,7 @@ export function AccessEditModal({ isOpen, onClose, user, onSaved }: AccessEditMo
                         <div className="p-6 border-t border-white/5 bg-white/5">
                             {errorKey && (
                                 <div className="mb-4 p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400 text-[10px] font-bold uppercase tracking-wider">
-                                    {t(errorKey, { ns: 'errorKeys' })}
+                                    {errorMessage ?? t(errorKey, { ns: 'errorKeys' })}
                                 </div>
                             )}
 

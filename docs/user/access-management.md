@@ -45,6 +45,7 @@ Important contract split:
 - `/users/lookup` stays a generic picker/search primitive for forms and filters. It is not the `/users` page contract.
 - `/users` does not expose a standalone colleague detail page. Directory rows are informational, and privileged edits stay in the `/users` modal workflow.
 - Admin-only lifecycle/detail endpoints remain separate from access-management review. Role-selection data for the active UI comes from `/access/roles`, not from legacy `/users` lifecycle helpers.
+- Directory mode remains a supported contract, but the current seeded demo matrix does not include a canonical directory-only actor. Manual demo-account verification therefore focuses on access modes until product intentionally assigns `users:read` to a non-access-view role.
 
 ## Where To Find It
 
@@ -171,6 +172,7 @@ Some environments allow privileged business users to review access users. Manual
 
 If you can manage users, use a “least privilege” process:
 
+- on `/users`, the create CTA is auth-mode dependent: **Add from AD** in directory-first auth modes, and in password mode the page exposes both **Add user** (manual create) and **Add from AD** (directory import)
 - create or import accounts only when onboarding is confirmed and your role is authorized for lifecycle actions
 - after a successful directory import, stay on `/users` and complete the onboarding fields in the edit modal instead of looking for a separate user detail page
 - assign the minimum role and permissions needed
