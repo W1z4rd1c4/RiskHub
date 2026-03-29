@@ -1,7 +1,7 @@
 ---
 title: Rychlá reference admin incidentů
-version: "1.0"
-last_updated: "2026-03-15"
+version: "1.1"
+last_updated: "2026-03-29"
 audience: admin
 source_of_truth: "frontend/src/pages/LoginPage.tsx + frontend/src/pages/UsersPage.tsx + frontend/src/pages/AdminConsolePage.tsx + backend/app/api/v1/endpoints/admin/*"
 summary: "Použijte jako první, když se něco rozbije. Symptom-first runbook pro auth, access, health a evidenční incidenty."
@@ -185,11 +185,13 @@ Zvolte card s nejbližším přesným wordingem. Pokud sedí více card najednou
 2. Ověřte, zda je Health healthy nebo degraded.
 3. Otevřete **Application logs** a hledejte opakující se auth nebo config chyby.
 4. Po Health checku jednou obnovte `/users`.
+5. Pokud import už proběhl úspěšně, potvrďte, že se aplikace vrátila na `/users` a otevřela access edit modal. Nehledejte samostatnou user detail page.
 
 #### Co může admin bezpečně udělat
 
 - pokračovat v read-only kontrole v `/users`
 - po healthy kontrole jednou zopakovat refresh
+- pokud import proběhne, ale modal se na `/users` neotevře, zachyťte to jako workflow defect na stránce `/users`
 - zastavit se před improvizovanými alternativními create kroky
 
 #### Kdy eskalovat

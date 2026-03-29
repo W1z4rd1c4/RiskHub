@@ -21,7 +21,7 @@ import type { DirectoryImportResponse } from '@/types/directory';
 import type { UserDirectoryEntry } from '@/types/user';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useAuthz } from '@/authz/useAuthz';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { AccessEditModal } from '@/components/access/AccessEditModal';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { useUsersPageFilters } from '@/hooks/useUsersPageFilters';
@@ -33,6 +33,10 @@ import { Pagination } from '@/components/tables/Pagination';
 const DIRECTORY_PAGE_SIZE = 50;
 
 type UsersPageMode = 'access' | 'department-access' | 'directory' | 'forbidden';
+type UsersPageLocationState = {
+    importedUserId?: number;
+    importedUserName?: string;
+} | null;
 
 export function UsersPage() {
     const { t } = useTranslation('admin');
@@ -59,7 +63,9 @@ export function UsersPage() {
 
     const { canManageUsers, user: currentUser } = usePermissions();
     const authz = useAuthz();
+    const location = useLocation();
     const navigate = useNavigate();
+    const locationState = location.state as UsersPageLocationState;
     const pageMode: UsersPageMode = authz.canViewAccessUsers
         ? 'access'
         : authz.canViewDepartmentAccessUsers
@@ -237,6 +243,23 @@ export function UsersPage() {
             setCheckingDirectoryUserId(null);
         }
     };
+
+    useEffect(() => {
+        if (!isAccessMode || !locationState?.importedUserId || users.length === 0) return;
+
+        const importedUser = users.find((candidate) => candidate.id === locationState.importedUserId);
+        if (!importedUser) return;
+
+        setSelectedUser(importedUser);
+        setEditModalOpen(true);
+        setDirectoryMessage(
+            t('users.directory_import_success', {
+                defaultValue: `${locationState.importedUserName ?? importedUser.name} imported from directory`,
+                name: locationState.importedUserName ?? importedUser.name,
+            }),
+        );
+        navigate('/users', { replace: true, state: null });
+    }, [isAccessMode, locationState, navigate, t, users]);
 
     if (currentUser && pageMode === 'forbidden') {
         return <Navigate to="/" replace />;
