@@ -14,6 +14,7 @@ Operational and development automation for RiskHub.
   - Supports `up`, `down`, `logs`, and deterministic `reset`.
 - `./scripts/deploy.sh`
   - Canonical production deployment/admin CLI.
+  - Public verbs: `install`, `upgrade`, `doctor`, `logs`, `rollback`.
 - `make -f scripts/Makefile <target>`
   - Convenience wrapper around the supported scripts above plus validation/test helpers.
 

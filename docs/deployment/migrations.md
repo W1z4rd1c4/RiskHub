@@ -22,8 +22,8 @@ This is intentional:
 
 1. Bring up external PostgreSQL.
 2. Run migrations as an explicit deployment step.
-   - Docker target: `./scripts/deploy.sh deploy|upgrade --target docker ...` runs migrations and bootstrap from the DB lane (`riskhub-backend-db`) before the API/frontend rollout.
-   - Linux target: `./scripts/deploy.sh deploy|upgrade --target linux ...` runs migrations and bootstrap from the unpacked `backend_db/` lane using `db-venv` before service restart.
+   - Docker target: `./scripts/deploy.sh install|upgrade --target docker ...` runs migrations and bootstrap before the API/frontend rollout.
+   - Linux target: `./scripts/deploy.sh install|upgrade --target linux ...` runs migrations and bootstrap before service restart.
 3. Roll out the backend/API runtime only after migrations succeed.
 
 The long-running runtime lane still keeps Alembic assets so schema-guard checks can resolve the current head at startup, but it does not own the production migration/bootstrap execution path.

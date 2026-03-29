@@ -202,13 +202,17 @@ linux_deploy_or_upgrade() {
   local allow_port_in_use="false"
   if [[ "$action" == "upgrade" ]]; then
     allow_port_in_use="true"
-    [[ -L "$LINUX_CURRENT_LINK" ]] || die "Current linux deployment not found. Use deploy for first install."
+    [[ -L "$LINUX_CURRENT_LINK" ]] || die "Current linux deployment not found. Use install for first setup."
   else
-    [[ ! -L "$LINUX_CURRENT_LINK" ]] || die "Existing linux deployment detected. Use upgrade instead of deploy."
+    [[ ! -L "$LINUX_CURRENT_LINK" ]] || die "Existing linux deployment detected. Use upgrade instead of install."
   fi
 
   linux_preflight "$config_path" "$allow_port_in_use"
-  confirm_or_die "Run linux ${action} using the release bundle?"
+  local user_action="install"
+  if [[ "$action" == "upgrade" ]]; then
+    user_action="upgrade"
+  fi
+  confirm_or_die "Run linux ${user_action} using the release bundle?"
 
   local release_version
   release_version="$(bundle_version "$bundle_path")"
@@ -255,18 +259,18 @@ linux_logs() {
   local service="$1"
   local follow="$2"
   local tail_lines="$3"
-  local follow_args=()
+  local journal_args=(-n "$tail_lines")
   if [[ "$follow" == "true" ]]; then
-    follow_args=(-f)
+    journal_args+=(-f)
   fi
 
   case "$service" in
-    backend) run_privileged journalctl -u "$LINUX_BACKEND_SERVICE" -n "$tail_lines" "${follow_args[@]}" ;;
-    scheduler) run_privileged journalctl -u "$LINUX_SCHEDULER_SERVICE" -n "$tail_lines" "${follow_args[@]}" ;;
-    frontend) run_privileged journalctl -u nginx -n "$tail_lines" "${follow_args[@]}" ;;
-    redis) run_privileged journalctl -u "$LINUX_REDIS_SERVICE" -n "$tail_lines" "${follow_args[@]}" ;;
+    backend) run_privileged journalctl -u "$LINUX_BACKEND_SERVICE" "${journal_args[@]}" ;;
+    scheduler) run_privileged journalctl -u "$LINUX_SCHEDULER_SERVICE" "${journal_args[@]}" ;;
+    frontend) run_privileged journalctl -u nginx "${journal_args[@]}" ;;
+    redis) run_privileged journalctl -u "$LINUX_REDIS_SERVICE" "${journal_args[@]}" ;;
     all)
-      run_privileged journalctl -u "$LINUX_BACKEND_SERVICE" -u "$LINUX_SCHEDULER_SERVICE" -u nginx -u "$LINUX_REDIS_SERVICE" -n "$tail_lines" "${follow_args[@]}"
+      run_privileged journalctl -u "$LINUX_BACKEND_SERVICE" -u "$LINUX_SCHEDULER_SERVICE" -u nginx -u "$LINUX_REDIS_SERVICE" "${journal_args[@]}"
       ;;
     *)
       die "Invalid --service for linux logs (expected all|backend|scheduler|frontend|redis)"

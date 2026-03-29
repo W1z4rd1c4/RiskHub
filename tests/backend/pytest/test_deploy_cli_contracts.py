@@ -1,9 +1,8 @@
-"""Runtime contracts for the unified deployment CLI."""
+"""Runtime contracts for the public deployment CLI."""
 
 from __future__ import annotations
 
 import os
-import re
 import shutil
 import subprocess
 import tarfile
@@ -91,10 +90,7 @@ set -euo pipefail
 subcmd="${1:-}"
 shift || true
 case "${subcmd}" in
-  ps)
-    exit 0
-    ;;
-  pull)
+  ps|pull|logs)
     exit 0
     ;;
   inspect)
@@ -145,6 +141,7 @@ esac
         "id",
         "groupadd",
         "useradd",
+        "journalctl",
     ):
         if command == "sudo":
             script = """#!/usr/bin/env bash
@@ -158,11 +155,6 @@ if [[ "${1:-}" == "-u" && "${2:-}" == "riskhub" ]]; then
   exit 1
 fi
 command /usr/bin/id "$@"
-"""
-        elif command == "nginx":
-            script = """#!/usr/bin/env bash
-set -euo pipefail
-exit 0
 """
         elif command == "ss":
             script = """#!/usr/bin/env bash
@@ -200,7 +192,7 @@ def _run_cli(args: list[str], env: dict[str, str]) -> subprocess.CompletedProces
     )
 
 
-def test_deploy_script_is_executable_entrypoint() -> None:
+def test_deploy_script_help_exposes_only_the_new_public_contract() -> None:
     result = subprocess.run(
         [str(DEPLOY_SCRIPT), "--help"],
         cwd=REPO_ROOT,
@@ -211,102 +203,36 @@ def test_deploy_script_is_executable_entrypoint() -> None:
     )
 
     assert result.returncode == 0, f"{result.stdout}\n{result.stderr}"
-    assert "Usage: ./scripts/deploy.sh" in result.stdout
+    output = result.stdout
+    assert "Usage: ./scripts/deploy.sh <install|upgrade|doctor|logs|rollback>" in output
+    assert "Removed commands now fail with migration guidance" in output
+    assert "secrets-edit" in output
+    assert "preflight" in output
 
 
-def test_init_writes_non_secret_config_and_secret_scaffold() -> None:
-    with tempfile.TemporaryDirectory(prefix="riskhub-deploy-init-") as td:
-        tmp = Path(td)
-        config_path = tmp / "riskhub.env"
-        secret_dir = tmp / "secrets"
-        runtime_dir = tmp / "runtime"
-        env = os.environ.copy()
-        env["RISKHUB_RUNTIME_DIR"] = str(runtime_dir)
-        result = _run_cli(
-            ["init", "--target", "docker", "--config", str(config_path), "--secret-dir", str(secret_dir)],
-            env,
-        )
+@pytest.mark.parametrize(
+    ("command", "replacement"),
+    [
+        ("init", "install"),
+        ("deploy", "install"),
+        ("secrets-init", "doctor"),
+        ("secrets-edit", "doctor"),
+        ("secrets-check", "doctor"),
+        ("preflight", "doctor"),
+        ("status", "doctor"),
+        ("smoke", "doctor"),
+    ],
+)
+def test_removed_public_commands_fail_with_migration_guidance(command: str, replacement: str) -> None:
+    result = _run_cli([command, "--target", "docker"], os.environ.copy())
 
-        assert result.returncode == 0, f"{result.stdout}\n{result.stderr}"
-        assert config_path.exists()
-        assert (secret_dir / "database_url").exists()
-        assert (secret_dir / "secret_key").exists()
-        assert (secret_dir / "redis_password").exists()
-        assert (secret_dir / "entra_client_secret").exists()
-        assert (secret_dir / "entra_client_certificate_private_key").exists()
-        assert runtime_dir.exists()
-        assert (runtime_dir.stat().st_mode & 0o777) == 0o750
-        text = config_path.read_text(encoding="utf-8")
-        assert "PUBLIC_URL=" in text
-        assert "DATABASE_URL=" not in text
-        assert "SECRET_KEY=" not in text
-        assert "BOOTSTRAP_CRO_EMAIL=" in text
+    output = f"{result.stdout}\n{result.stderr}"
+    assert result.returncode != 0
+    assert f"Command '{command}' was removed." in output
+    assert replacement in output
 
 
-def test_docker_preflight_succeeds_before_first_deploy_without_persistent_runtime_dir() -> None:
-    with tempfile.TemporaryDirectory(prefix="riskhub-deploy-preflight-fresh-") as td:
-        tmp = Path(td)
-        config_path = tmp / "riskhub.env"
-        secret_dir = tmp / "secrets"
-        runtime_dir = tmp / "runtime"
-        _write_config(config_path)
-        _write_secrets(secret_dir)
-        fake_bin = _make_fake_bin(tmp)
-
-        env = os.environ.copy()
-        env["PATH"] = f"{fake_bin}:{env['PATH']}"
-        env["RISKHUB_RUNTIME_DIR"] = str(runtime_dir)
-
-        result = _run_cli(
-            [
-                "preflight",
-                "--target",
-                "docker",
-                "--config",
-                str(config_path),
-                "--secret-dir",
-                str(secret_dir),
-                "--yes",
-            ],
-            env,
-        )
-
-        assert result.returncode == 0, f"{result.stdout}\n{result.stderr}"
-        assert not runtime_dir.exists()
-
-
-def test_secrets_edit_uses_secret_mount_workspace_and_cleans_up() -> None:
-    with tempfile.TemporaryDirectory(prefix="riskhub-deploy-secrets-edit-") as td:
-        tmp = Path(td)
-        secret_dir = tmp / "secrets"
-        _write_secrets(secret_dir)
-        editor_log = tmp / "editor.log"
-        editor_path = tmp / "record-editor.sh"
-        _write_exec(
-            editor_path,
-            """#!/usr/bin/env bash
-set -euo pipefail
-printf '%s\n' "$1" >"$RISKHUB_EDITOR_LOG"
-""",
-        )
-
-        env = os.environ.copy()
-        env["EDITOR"] = str(editor_path)
-        env["RISKHUB_EDITOR_LOG"] = str(editor_log)
-
-        result = _run_cli(
-            ["secrets-edit", "--target", "docker", "--secret-dir", str(secret_dir)],
-            env,
-        )
-
-        assert result.returncode == 0, f"{result.stdout}\n{result.stderr}"
-        buffer_path = Path(editor_log.read_text(encoding="utf-8").strip())
-        assert buffer_path.parent.name.startswith(".riskhub-secrets-edit.")
-        assert buffer_path.parent.parent == secret_dir.parent
-        assert not buffer_path.parent.exists()
-
-
-def test_docker_cli_supports_preflight_deploy_upgrade_and_rollback_dry_run() -> None:
+def test_docker_cli_supports_install_upgrade_doctor_logs_and_rollback_dry_run() -> None:
     with tempfile.TemporaryDirectory(prefix="riskhub-deploy-docker-") as td:
         tmp = Path(td)
         config_path = tmp / "riskhub.env"
@@ -320,27 +246,9 @@ def test_docker_cli_supports_preflight_deploy_upgrade_and_rollback_dry_run() -> 
         env["PATH"] = f"{fake_bin}:{env['PATH']}"
         env["RISKHUB_RUNTIME_DIR"] = str(runtime_dir)
 
-        preflight = _run_cli(
+        install = _run_cli(
             [
-                "preflight",
-                "--target",
-                "docker",
-                "--config",
-                str(config_path),
-                "--secret-dir",
-                str(secret_dir),
-                "--dry-run",
-                "--yes",
-            ],
-            env,
-        )
-        assert preflight.returncode == 0, f"{preflight.stdout}\n{preflight.stderr}"
-        preflight_output = f"{preflight.stdout}\n{preflight.stderr}"
-        assert "scripts/prod/preflight.sh" in preflight_output
-
-        deploy = _run_cli(
-            [
-                "deploy",
+                "install",
                 "--target",
                 "docker",
                 "--config",
@@ -360,15 +268,12 @@ def test_docker_cli_supports_preflight_deploy_upgrade_and_rollback_dry_run() -> 
             ],
             env,
         )
-        assert deploy.returncode == 0, f"{deploy.stdout}\n{deploy.stderr}"
-        deploy_output = f"{deploy.stdout}\n{deploy.stderr}"
-        assert "docker pull ghcr.io/example/riskhub-backend:test" in deploy_output
-        assert "docker pull ghcr.io/example/riskhub-backend-db:test" in deploy_output
-        assert "docker pull ghcr.io/example/riskhub-redis:test" in deploy_output
-        assert "scripts/prod/install_backend.sh" in deploy_output
-        assert "scripts/prod/install_redis.sh" in deploy_output
-        assert "--backend-db-image ghcr.io/example/riskhub-backend-db:test" in deploy_output
-        assert f"RISKHUB_DEFAULT_SECRET_DIR={secret_dir}" in deploy_output
+        assert install.returncode == 0, f"{install.stdout}\n{install.stderr}"
+        install_output = f"{install.stdout}\n{install.stderr}"
+        assert "docker pull ghcr.io/example/riskhub-backend:test" in install_output
+        assert "docker pull ghcr.io/example/riskhub-backend-db:test" in install_output
+        assert "scripts/prod/install_backend.sh" in install_output
+        assert "scripts/prod/smoke_test.sh" in install_output
 
         upgrade_env = env | {
             "DOCKER_BACKEND_EXISTS": "1",
@@ -402,6 +307,32 @@ def test_docker_cli_supports_preflight_deploy_upgrade_and_rollback_dry_run() -> 
         assert "--previous-image ghcr.io/example/riskhub-backend:previous" in upgrade_output
         assert "--previous-image ghcr.io/example/riskhub-frontend:previous" in upgrade_output
 
+        doctor = _run_cli(
+            [
+                "doctor",
+                "--target",
+                "docker",
+                "--config",
+                str(config_path),
+                "--secret-dir",
+                str(secret_dir),
+                "--dry-run",
+                "--yes",
+            ],
+            env,
+        )
+        assert doctor.returncode == 0, f"{doctor.stdout}\n{doctor.stderr}"
+        doctor_output = f"{doctor.stdout}\n{doctor.stderr}"
+        assert "scripts/prod/preflight.sh" in doctor_output
+        assert "scripts/prod/status.sh" in doctor_output
+        assert "scripts/prod/smoke_test.sh" in doctor_output
+
+        logs = _run_cli(
+            ["logs", "--target", "docker", "--service", "all", "--tail", "50"],
+            env,
+        )
+        assert logs.returncode == 0, f"{logs.stdout}\n{logs.stderr}"
+
         rollback = _run_cli(
             [
                 "rollback",
@@ -423,64 +354,7 @@ def test_docker_cli_supports_preflight_deploy_upgrade_and_rollback_dry_run() -> 
         assert "scripts/prod/rollback.sh" in rollback_output
 
 
-def test_docker_deploy_dry_run_keeps_env_arguments_and_rendered_env_files_clean() -> None:
-    with tempfile.TemporaryDirectory(prefix="riskhub-deploy-dryrun-clean-") as td:
-        tmp = Path(td)
-        config_path = tmp / "riskhub.env"
-        secret_dir = tmp / "secrets"
-        runtime_dir = tmp / "runtime"
-        _write_config(config_path)
-        _write_secrets(secret_dir)
-        fake_bin = _make_fake_bin(tmp)
-
-        env = os.environ.copy()
-        env["PATH"] = f"{fake_bin}:{env['PATH']}"
-        env["RISKHUB_RUNTIME_DIR"] = str(runtime_dir)
-
-        deploy = _run_cli(
-            [
-                "deploy",
-                "--target",
-                "docker",
-                "--config",
-                str(config_path),
-                "--secret-dir",
-                str(secret_dir),
-                "--backend-image",
-                "ghcr.io/example/riskhub-backend:test",
-                "--backend-db-image",
-                "ghcr.io/example/riskhub-backend-db:test",
-                "--frontend-image",
-                "ghcr.io/example/riskhub-frontend:test",
-                "--redis-image",
-                "ghcr.io/example/riskhub-redis:test",
-                "--dry-run",
-                "--yes",
-            ],
-            env,
-        )
-
-        assert deploy.returncode == 0, f"{deploy.stdout}\n{deploy.stderr}"
-        deploy_output = f"{deploy.stdout}\n{deploy.stderr}"
-        assert "+ mkdir -p" in deploy.stderr
-        assert "+ mkdir -p" not in deploy.stdout
-
-        env_args = re.findall(r"--(backend|frontend)-env\s+([^\s]+)", deploy_output)
-        assert env_args, deploy_output
-        for _, raw_path in env_args:
-            clean_path = raw_path.strip("\"'")
-            assert clean_path.endswith(".env")
-            assert "+ " not in clean_path
-            env_file = Path(clean_path)
-            if env_file.exists():
-                for line in env_file.read_text(encoding="utf-8").splitlines():
-                    if not line.strip():
-                        continue
-                    assert "=" in line
-                    assert not line.startswith("+ ")
-
-
-def test_docker_deploy_requires_backend_db_image_when_version_is_omitted() -> None:
+def test_docker_install_requires_backend_db_image_when_version_is_omitted() -> None:
     with tempfile.TemporaryDirectory(prefix="riskhub-deploy-missing-db-image-") as td:
         tmp = Path(td)
         config_path = tmp / "riskhub.env"
@@ -496,7 +370,7 @@ def test_docker_deploy_requires_backend_db_image_when_version_is_omitted() -> No
 
         result = _run_cli(
             [
-                "deploy",
+                "install",
                 "--target",
                 "docker",
                 "--config",
@@ -520,7 +394,7 @@ def test_docker_deploy_requires_backend_db_image_when_version_is_omitted() -> No
         assert "--backend-db-image" in output
 
 
-@pytest.mark.parametrize("command", ["deploy", "upgrade"])
+@pytest.mark.parametrize("command", ["install", "upgrade"])
 def test_docker_cli_dry_run_supports_paths_with_spaces(command: str) -> None:
     with tempfile.TemporaryDirectory(prefix="riskhub-deploy-spaces-") as td:
         tmp = Path(td) / "workspace with spaces"
@@ -569,13 +443,9 @@ def test_docker_cli_dry_run_supports_paths_with_spaces(command: str) -> None:
         assert result.returncode == 0, output
         assert "command not found" not in output
         assert "--backend-db-image ghcr.io/example/riskhub-backend-db:test" in output
-        if command == "deploy":
-            assert "scripts/prod/install_backend.sh" in output
-        else:
-            assert "--previous-image ghcr.io/example/riskhub-backend:previous" in output
 
 
-def test_linux_cli_supports_preflight_deploy_upgrade_and_rollback_dry_run() -> None:
+def test_linux_cli_supports_install_upgrade_doctor_logs_and_rollback_dry_run() -> None:
     with tempfile.TemporaryDirectory(prefix="riskhub-deploy-linux-") as td:
         tmp = Path(td)
         config_path = tmp / "riskhub.env"
@@ -594,15 +464,9 @@ def test_linux_cli_supports_preflight_deploy_upgrade_and_rollback_dry_run() -> N
         env["RISKHUB_RUNTIME_DIR"] = str(runtime_root)
         env["RISKHUB_LINUX_NGINX_SITE"] = str(nginx_site)
 
-        preflight = _run_cli(
-            ["preflight", "--target", "linux", "--config", str(config_path), "--secret-dir", str(secret_dir), "--dry-run", "--yes"],
-            env,
-        )
-        assert preflight.returncode == 0, f"{preflight.stdout}\n{preflight.stderr}"
-
-        deploy = _run_cli(
+        install = _run_cli(
             [
-                "deploy",
+                "install",
                 "--target",
                 "linux",
                 "--config",
@@ -616,11 +480,10 @@ def test_linux_cli_supports_preflight_deploy_upgrade_and_rollback_dry_run() -> N
             ],
             env,
         )
-        assert deploy.returncode == 0, f"{deploy.stdout}\n{deploy.stderr}"
-        deploy_output = f"{deploy.stdout}\n{deploy.stderr}"
-        assert "riskhub-linux-v-test.tar.gz" in deploy_output
-        assert "riskhub-redis.service" in deploy_output
-        assert "systemctl restart nginx" in deploy_output
+        assert install.returncode == 0, f"{install.stdout}\n{install.stderr}"
+        install_output = f"{install.stdout}\n{install.stderr}"
+        assert "riskhub-linux-v-test.tar.gz" in install_output
+        assert "riskhub-redis.service" in install_output
 
         release_dir = linux_root / "releases" / "v-previous"
         release_dir.mkdir(parents=True)
@@ -646,8 +509,33 @@ def test_linux_cli_supports_preflight_deploy_upgrade_and_rollback_dry_run() -> N
             env,
         )
         assert upgrade.returncode == 0, f"{upgrade.stdout}\n{upgrade.stderr}"
-        upgrade_output = f"{upgrade.stdout}\n{upgrade.stderr}"
-        assert "ln -sfn" in upgrade_output
+
+        doctor = _run_cli(
+            [
+                "doctor",
+                "--target",
+                "linux",
+                "--config",
+                str(config_path),
+                "--secret-dir",
+                str(secret_dir),
+                "--dry-run",
+                "--yes",
+            ],
+            env,
+        )
+        assert doctor.returncode == 0, f"{doctor.stdout}\n{doctor.stderr}"
+        doctor_output = f"{doctor.stdout}\n{doctor.stderr}"
+        assert "COMPONENT\tSTATUS" in doctor_output
+        assert "current-release" in doctor_output
+        assert "/docs" in doctor_output
+        assert "openapi.json" in doctor_output
+
+        logs = _run_cli(
+            ["logs", "--target", "linux", "--service", "all", "--tail", "50"],
+            env,
+        )
+        assert logs.returncode == 0, f"{logs.stdout}\n{logs.stderr}"
 
         rollback = _run_cli(
             [
@@ -668,7 +556,7 @@ def test_linux_cli_supports_preflight_deploy_upgrade_and_rollback_dry_run() -> N
         assert "systemctl restart nginx" in rollback_output
 
 
-def test_preflight_reports_missing_docker_prerequisite() -> None:
+def test_doctor_reports_missing_docker_prerequisite() -> None:
     with tempfile.TemporaryDirectory(prefix="riskhub-deploy-missing-docker-") as td:
         tmp = Path(td)
         config_path = tmp / "riskhub.env"
@@ -688,7 +576,7 @@ def test_preflight_reports_missing_docker_prerequisite() -> None:
         env["PATH"] = f"{fake_bin}:/usr/bin:/bin:/usr/sbin:/sbin"
 
         result = _run_cli(
-            ["preflight", "--target", "docker", "--config", str(config_path), "--secret-dir", str(secret_dir), "--dry-run", "--yes"],
+            ["doctor", "--target", "docker", "--config", str(config_path), "--secret-dir", str(secret_dir), "--dry-run", "--yes"],
             env,
         )
 
@@ -709,44 +597,41 @@ def test_preflight_reports_missing_docker_prerequisite() -> None:
         ("redis_password", "CHANGE_ME_REDIS_PASSWORD\n", "redis_password still contains the placeholder value"),
     ],
 )
-def test_secrets_check_rejects_placeholder_values(
+def test_doctor_rejects_required_secret_placeholders(
     secret_name: str,
     placeholder_value: str,
     expected_message: str,
 ) -> None:
-    with tempfile.TemporaryDirectory(prefix="riskhub-deploy-secrets-check-") as td:
+    with tempfile.TemporaryDirectory(prefix="riskhub-deploy-doctor-placeholders-") as td:
         tmp = Path(td)
+        config_path = tmp / "riskhub.env"
         secret_dir = tmp / "secrets"
+        runtime_dir = tmp / "runtime"
+        fake_bin = _make_fake_bin(tmp)
+        _write_config(config_path)
         _write_secrets(secret_dir, **{secret_name: placeholder_value})
 
-        result = _run_cli(["secrets-check", "--target", "docker", "--secret-dir", str(secret_dir)], os.environ.copy())
+        env = os.environ.copy()
+        env["PATH"] = f"{fake_bin}:{env['PATH']}"
+        env["RISKHUB_RUNTIME_DIR"] = str(runtime_dir)
+
+        result = _run_cli(
+            ["doctor", "--target", "docker", "--config", str(config_path), "--secret-dir", str(secret_dir), "--dry-run", "--yes"],
+            env,
+        )
 
         output = f"{result.stdout}\n{result.stderr}"
         assert result.returncode != 0
         assert expected_message in output
 
 
-def test_secrets_check_allows_placeholder_values_for_optional_entra_scaffold_files() -> None:
-    with tempfile.TemporaryDirectory(prefix="riskhub-deploy-secrets-check-optional-") as td:
-        tmp = Path(td)
-        secret_dir = tmp / "secrets"
-        _write_secrets(
-            secret_dir,
-            entra_client_secret="CHANGE_ME_ENTRA_CLIENT_SECRET\n",
-            entra_client_certificate_private_key="CHANGE_ME_ENTRA_CLIENT_CERTIFICATE_PRIVATE_KEY\n",
-        )
-
-        result = _run_cli(["secrets-check", "--target", "docker", "--secret-dir", str(secret_dir)], os.environ.copy())
-
-        assert result.returncode == 0, f"{result.stdout}\n{result.stderr}"
-
-
-def test_preflight_rejects_certificate_placeholder_before_prod_preflight() -> None:
-    with tempfile.TemporaryDirectory(prefix="riskhub-deploy-cert-placeholder-") as td:
+def test_doctor_rejects_certificate_placeholder_before_validation() -> None:
+    with tempfile.TemporaryDirectory(prefix="riskhub-deploy-doctor-cert-placeholder-") as td:
         tmp = Path(td)
         config_path = tmp / "riskhub.env"
         secret_dir = tmp / "secrets"
         runtime_dir = tmp / "runtime"
+        fake_bin = _make_fake_bin(tmp)
         _write_config(
             config_path,
             ENTRA_CLIENT_CERTIFICATE_THUMBPRINT="ABCDEF1234567890ABCDEF1234567890ABCDEF12",
@@ -756,23 +641,13 @@ def test_preflight_rejects_certificate_placeholder_before_prod_preflight() -> No
             entra_client_certificate_private_key="CHANGE_ME_ENTRA_CLIENT_CERTIFICATE_PRIVATE_KEY\n",
         )
         (secret_dir / "entra_client_secret").unlink()
-        fake_bin = _make_fake_bin(tmp)
 
         env = os.environ.copy()
         env["PATH"] = f"{fake_bin}:{env['PATH']}"
         env["RISKHUB_RUNTIME_DIR"] = str(runtime_dir)
 
         result = _run_cli(
-            [
-                "preflight",
-                "--target",
-                "docker",
-                "--config",
-                str(config_path),
-                "--secret-dir",
-                str(secret_dir),
-                "--yes",
-            ],
+            ["doctor", "--target", "docker", "--config", str(config_path), "--secret-dir", str(secret_dir), "--yes"],
             env,
         )
 
@@ -782,112 +657,15 @@ def test_preflight_rejects_certificate_placeholder_before_prod_preflight() -> No
             "ENTRA_CLIENT_CERTIFICATE_THUMBPRINT is set but no valid "
             "entra_client_certificate_private_key secret file was found"
         ) in output
-        assert "Preflight: OK" not in output
 
 
-def test_preflight_accepts_secret_mode_with_unused_certificate_placeholder_from_init_scaffold() -> None:
-    with tempfile.TemporaryDirectory(prefix="riskhub-deploy-secret-mode-scaffold-") as td:
+def test_doctor_accepts_certificate_mode_without_entra_client_secret() -> None:
+    with tempfile.TemporaryDirectory(prefix="riskhub-deploy-doctor-cert-mode-") as td:
         tmp = Path(td)
         config_path = tmp / "riskhub.env"
         secret_dir = tmp / "secrets"
         runtime_dir = tmp / "runtime"
         fake_bin = _make_fake_bin(tmp)
-
-        env = os.environ.copy()
-        env["PATH"] = f"{fake_bin}:{env['PATH']}"
-        env["RISKHUB_RUNTIME_DIR"] = str(runtime_dir)
-
-        init_result = _run_cli(
-            ["init", "--target", "docker", "--config", str(config_path), "--secret-dir", str(secret_dir)],
-            env,
-        )
-        assert init_result.returncode == 0, f"{init_result.stdout}\n{init_result.stderr}"
-
-        _write_config(config_path)
-        _write_secret_value(
-            secret_dir,
-            "database_url",
-            "postgresql+asyncpg://riskhub:secret@postgres.example.com:5432/riskhub\n",
-        )
-        _write_secret_value(secret_dir, "secret_key", "0123456789abcdef0123456789abcdef\n")
-        _write_secret_value(secret_dir, "redis_password", "redis-secret\n")
-        _write_secret_value(secret_dir, "entra_client_secret", "entra-client-secret\n")
-
-        result = _run_cli(
-            [
-                "preflight",
-                "--target",
-                "docker",
-                "--config",
-                str(config_path),
-                "--secret-dir",
-                str(secret_dir),
-                "--yes",
-            ],
-            env,
-        )
-
-        assert result.returncode == 0, f"{result.stdout}\n{result.stderr}"
-
-
-def test_preflight_accepts_certificate_mode_with_unused_client_secret_placeholder_from_init_scaffold() -> None:
-    with tempfile.TemporaryDirectory(prefix="riskhub-deploy-cert-mode-scaffold-") as td:
-        tmp = Path(td)
-        config_path = tmp / "riskhub.env"
-        secret_dir = tmp / "secrets"
-        runtime_dir = tmp / "runtime"
-        fake_bin = _make_fake_bin(tmp)
-
-        env = os.environ.copy()
-        env["PATH"] = f"{fake_bin}:{env['PATH']}"
-        env["RISKHUB_RUNTIME_DIR"] = str(runtime_dir)
-
-        init_result = _run_cli(
-            ["init", "--target", "docker", "--config", str(config_path), "--secret-dir", str(secret_dir)],
-            env,
-        )
-        assert init_result.returncode == 0, f"{init_result.stdout}\n{init_result.stderr}"
-
-        _write_config(
-            config_path,
-            ENTRA_CLIENT_CERTIFICATE_THUMBPRINT="ABCDEF1234567890ABCDEF1234567890ABCDEF12",
-        )
-        _write_secret_value(
-            secret_dir,
-            "database_url",
-            "postgresql+asyncpg://riskhub:secret@postgres.example.com:5432/riskhub\n",
-        )
-        _write_secret_value(secret_dir, "secret_key", "0123456789abcdef0123456789abcdef\n")
-        _write_secret_value(secret_dir, "redis_password", "redis-secret\n")
-        _write_secret_value(
-            secret_dir,
-            "entra_client_certificate_private_key",
-            "-----BEGIN PRIVATE KEY-----\nTESTKEY\n-----END PRIVATE KEY-----\n",
-        )
-
-        result = _run_cli(
-            [
-                "preflight",
-                "--target",
-                "docker",
-                "--config",
-                str(config_path),
-                "--secret-dir",
-                str(secret_dir),
-                "--yes",
-            ],
-            env,
-        )
-
-        assert result.returncode == 0, f"{result.stdout}\n{result.stderr}"
-
-
-def test_preflight_accepts_certificate_mode_without_entra_client_secret() -> None:
-    with tempfile.TemporaryDirectory(prefix="riskhub-deploy-cert-preflight-") as td:
-        tmp = Path(td)
-        config_path = tmp / "riskhub.env"
-        secret_dir = tmp / "secrets"
-        runtime_dir = tmp / "runtime"
         _write_config(
             config_path,
             ENTRA_CLIENT_CERTIFICATE_THUMBPRINT="ABCDEF1234567890ABCDEF1234567890ABCDEF12",
@@ -897,7 +675,6 @@ def test_preflight_accepts_certificate_mode_without_entra_client_secret() -> Non
             entra_client_certificate_private_key="-----BEGIN PRIVATE KEY-----\nTESTKEY\n-----END PRIVATE KEY-----\n",
         )
         (secret_dir / "entra_client_secret").unlink()
-        fake_bin = _make_fake_bin(tmp)
 
         env = os.environ.copy()
         env["PATH"] = f"{fake_bin}:{env['PATH']}"
@@ -905,13 +682,14 @@ def test_preflight_accepts_certificate_mode_without_entra_client_secret() -> Non
 
         result = _run_cli(
             [
-                "preflight",
+                "doctor",
                 "--target",
                 "docker",
                 "--config",
                 str(config_path),
                 "--secret-dir",
                 str(secret_dir),
+                "--dry-run",
                 "--yes",
             ],
             env,
@@ -920,8 +698,8 @@ def test_preflight_accepts_certificate_mode_without_entra_client_secret() -> Non
         assert result.returncode == 0, f"{result.stdout}\n{result.stderr}"
 
 
-def test_preflight_reports_config_validation_failures() -> None:
-    with tempfile.TemporaryDirectory(prefix="riskhub-deploy-invalid-config-") as td:
+def test_doctor_reports_config_validation_failures() -> None:
+    with tempfile.TemporaryDirectory(prefix="riskhub-deploy-doctor-invalid-config-") as td:
         tmp = Path(td)
         config_path = tmp / "riskhub.env"
         secret_dir = tmp / "secrets"
@@ -933,7 +711,7 @@ def test_preflight_reports_config_validation_failures() -> None:
         env["PATH"] = f"{fake_bin}:{env['PATH']}"
 
         result = _run_cli(
-            ["preflight", "--target", "linux", "--config", str(config_path), "--secret-dir", str(secret_dir), "--dry-run", "--yes"],
+            ["doctor", "--target", "linux", "--config", str(config_path), "--secret-dir", str(secret_dir), "--dry-run", "--yes"],
             env,
         )
 

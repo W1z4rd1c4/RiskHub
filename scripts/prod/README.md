@@ -3,7 +3,7 @@
 `scripts/prod/` is now an internal implementation layer for the public deployment CLI:
 
 ```bash
-./scripts/deploy.sh <init|preflight|deploy|upgrade|status|logs|smoke|rollback> --target docker|linux
+./scripts/deploy.sh <install|upgrade|doctor|logs|rollback> --target docker|linux
 ```
 
 Admins should use [`docs/deployment/production.md`](../../docs/deployment/production.md) and `./scripts/deploy.sh`.

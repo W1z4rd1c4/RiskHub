@@ -5,7 +5,7 @@
 
 ## Internal Script Mapping
 
-The public production surface is `./scripts/deploy.sh`.
+The public production surface is `./scripts/deploy.sh install|upgrade|doctor|logs|rollback`.
 
 Internal implementation details:
 

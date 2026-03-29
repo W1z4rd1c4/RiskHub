@@ -43,7 +43,7 @@ RiskHub production deploys must satisfy these invariants:
 - Linux target: use the dedicated `riskhub-scheduler.service`.
 - Confirm scheduler ownership is actually held:
   - Admin Console `/admin` shows scheduler lock held and a current owner instance.
-  - deploy smoke shows exactly one running `__scheduler_runtime__` row.
+  - `./scripts/deploy.sh doctor ...` shows exactly one running `__scheduler_runtime__` row.
 
 ## Runtime Hardening
 
@@ -62,7 +62,7 @@ RiskHub production deploys must satisfy these invariants:
 - Keep `/etc/riskhub/riskhub.env` non-secret only.
 - Never commit production secrets.
 - Keep `/etc/riskhub` on an encrypted disk or encrypted mount.
-- `./scripts/deploy.sh secrets-edit ...` keeps its temporary edit workspace on the same host-managed deployment path as `--secret-dir`, not under `/tmp`.
+- Manage required secret files directly in `/etc/riskhub/secrets/` from the shipped template/layout.
 - Store `SECRET_KEY`, database credentials, Redis password, and the active Entra confidential credential material in a secret manager when possible.
 - `ENTRA_TENANT_ID` and `ENTRA_CLIENT_ID` are not secret values.
 - Prefer file-backed certificate credential mode over shared client secret when your Entra app registration supports it.

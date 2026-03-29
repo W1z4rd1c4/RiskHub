@@ -29,14 +29,13 @@ BACKEND_DB_IMAGE=""
 FRONTEND_IMAGE=""
 REDIS_IMAGE=""
 BUNDLE_PATH=""
-FORCE=false
 SERVICE="all"
 FOLLOW=false
 TAIL_LINES="200"
 
 usage() {
   cat <<EOF
-Usage: ./scripts/deploy.sh <init|secrets-init|secrets-edit|secrets-check|preflight|deploy|upgrade|status|logs|smoke|rollback> --target docker|linux [options]
+Usage: ./scripts/deploy.sh <install|upgrade|doctor|logs|rollback> --target docker|linux [options]
 
 Common options:
   --target docker|linux
@@ -48,17 +47,20 @@ Common options:
 
 Release options:
   --version VERSION           Docker release version (used to derive default GHCR image refs)
-  --backend-image IMAGE       Explicit backend image ref for docker deploy/upgrade
-  --backend-db-image IMAGE    Explicit backend DB-task image ref for docker deploy/upgrade
-  --frontend-image IMAGE      Explicit frontend image ref for docker deploy/upgrade
-  --redis-image IMAGE         Explicit redis image ref for docker deploy/upgrade
-  --bundle PATH               Linux release bundle path for linux deploy/upgrade
+  --backend-image IMAGE       Explicit backend image ref for docker install/upgrade
+  --backend-db-image IMAGE    Explicit backend DB-task image ref for docker install/upgrade
+  --frontend-image IMAGE      Explicit frontend image ref for docker install/upgrade
+  --redis-image IMAGE         Explicit redis image ref for docker install/upgrade
+  --bundle PATH               Linux release bundle path for linux install/upgrade
 
 Command-specific options:
-  init           [--force]
-  secrets-init   [--force]
+  install        [--version VERSION|--backend-image IMAGE --backend-db-image IMAGE --frontend-image IMAGE --redis-image IMAGE|--bundle PATH]
+  doctor         validates config, status, and runtime health for the selected target
   logs           [--service all|backend|scheduler|frontend|redis] [--tail N] [--follow]
   rollback       [--service all|backend|frontend]   (docker only)
+
+Removed commands now fail with migration guidance:
+  init, secrets-init, secrets-edit, secrets-check, preflight, deploy, status, smoke
 EOF
 }
 
@@ -68,6 +70,24 @@ EOF
     exit 0
   fi
   die "Missing command"
+}
+
+removed_command_message() {
+  local command="$1"
+  case "$command" in
+    init|deploy)
+      printf "Command '%s' was removed. Manage config and secret files directly from the shipped templates, then run './scripts/deploy.sh install'.\n" "$command"
+      ;;
+    secrets-init|secrets-edit|secrets-check)
+      printf "Command '%s' was removed. Manage '/etc/riskhub/riskhub.env' and '/etc/riskhub/secrets/*' directly, then run './scripts/deploy.sh doctor' to validate the deployment.\n" "$command"
+      ;;
+    preflight|status|smoke)
+      printf "Command '%s' was removed. Use './scripts/deploy.sh doctor' for validation, status, and runtime health checks.\n" "$command"
+      ;;
+    *)
+      printf "Command '%s' was removed from the public deployment interface.\n" "$command"
+      ;;
+  esac
 }
 
 while [[ $# -gt 0 ]]; do
@@ -108,10 +128,6 @@ while [[ $# -gt 0 ]]; do
       BUNDLE_PATH="${2:-}"
       shift 2
       ;;
-    --force)
-      FORCE=true
-      shift
-      ;;
     --service)
       SERVICE="${2:-}"
       shift 2
@@ -146,6 +162,12 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+case "$command_name" in
+  init|secrets-init|secrets-edit|secrets-check|preflight|deploy|status|smoke)
+    die "$(removed_command_message "$command_name")"
+    ;;
+esac
 
 [[ "$TARGET" == "docker" || "$TARGET" == "linux" ]] || die "--target must be docker or linux"
 
@@ -334,34 +356,13 @@ secrets_check() {
 }
 
 case "$command_name" in
-  init)
-    deploy_init "$CONFIG_PATH" "$FORCE"
-    ;;
-  secrets-init)
-    deploy_secrets_init "$FORCE"
-    ;;
-  secrets-edit)
-    secrets_edit
-    ;;
-  secrets-check)
-    secrets_check
-    ;;
-  preflight)
-    require_file "$CONFIG_PATH"
-    secrets_check
-    if [[ "$TARGET" == "docker" ]]; then
-      docker_preflight "$CONFIG_PATH" "false"
-    else
-      linux_preflight "$CONFIG_PATH" "false"
-    fi
-    ;;
-  deploy)
+  install)
     require_file "$CONFIG_PATH"
     secrets_check
     if [[ "$TARGET" == "docker" ]]; then
       docker_deploy_or_upgrade "deploy" "$CONFIG_PATH" "$VERSION" "$BACKEND_IMAGE" "$BACKEND_DB_IMAGE" "$FRONTEND_IMAGE" "$REDIS_IMAGE"
     else
-      [[ -n "$BUNDLE_PATH" ]] || die "--bundle is required for linux deploy"
+      [[ -n "$BUNDLE_PATH" ]] || die "--bundle is required for linux install"
       linux_deploy_or_upgrade "deploy" "$CONFIG_PATH" "$BUNDLE_PATH"
     fi
     ;;
@@ -375,11 +376,17 @@ case "$command_name" in
       linux_deploy_or_upgrade "upgrade" "$CONFIG_PATH" "$BUNDLE_PATH"
     fi
     ;;
-  status)
+  doctor)
+    require_file "$CONFIG_PATH"
+    secrets_check
     if [[ "$TARGET" == "docker" ]]; then
+      docker_preflight "$CONFIG_PATH" "true"
       docker_status
+      docker_smoke "$CONFIG_PATH"
     else
+      linux_preflight "$CONFIG_PATH" "true"
       linux_status
+      linux_smoke "$CONFIG_PATH"
     fi
     ;;
   logs)
@@ -387,15 +394,6 @@ case "$command_name" in
       docker_logs "$SERVICE" "$FOLLOW" "$TAIL_LINES"
     else
       linux_logs "$SERVICE" "$FOLLOW" "$TAIL_LINES"
-    fi
-    ;;
-  smoke)
-    require_file "$CONFIG_PATH"
-    secrets_check
-    if [[ "$TARGET" == "docker" ]]; then
-      docker_smoke "$CONFIG_PATH"
-    else
-      linux_smoke "$CONFIG_PATH"
     fi
     ;;
   rollback)

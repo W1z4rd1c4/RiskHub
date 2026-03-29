@@ -29,7 +29,7 @@ Common rules across both targets:
 
 | Doc | Purpose |
 |---|---|
-| [production.md](./production.md) | Operator quickstart for install, upgrade, smoke, logs, and rollback |
+| [production.md](./production.md) | Operator quickstart for install, doctor, upgrade, logs, and rollback |
 | [reference.md](./reference.md) | Config keys, derived values, command reference, runtime defaults |
 | [advanced.md](./advanced.md) | Maintainer details, release artifacts, and internal implementation mapping |
 | [migrations.md](./migrations.md) | Migration strategy and rollback posture |
@@ -38,7 +38,7 @@ Common rules across both targets:
 ## Public Interface
 
 ```bash
-./scripts/deploy.sh <init|secrets-init|secrets-edit|secrets-check|preflight|deploy|upgrade|status|logs|smoke|rollback> --target docker|linux
+./scripts/deploy.sh <install|upgrade|doctor|logs|rollback> --target docker|linux
 ```
 
 Release inputs:
@@ -53,4 +53,4 @@ Release inputs:
 - The scheduler must run exactly once:
   - Docker target: dedicated scheduler container
   - Linux target: dedicated `riskhub-scheduler.service`
-- `./scripts/deploy.sh smoke ...` validates frontend/API readiness, disabled docs endpoints, reliability tables, one active scheduler runtime row, and zero dead-letter outbox rows.
+- `./scripts/deploy.sh doctor ...` validates frontend/API readiness, disabled docs endpoints, reliability tables, one active scheduler runtime row, and zero dead-letter outbox rows.

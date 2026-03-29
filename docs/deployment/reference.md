@@ -75,18 +75,12 @@ Target-specific Redis URLs:
 ## Command Reference
 
 ```bash
-./scripts/deploy.sh init --target docker|linux [--config PATH] [--secret-dir PATH] [--force]
-./scripts/deploy.sh secrets-init --target docker|linux [--secret-dir PATH] [--force]
-./scripts/deploy.sh secrets-edit --target docker|linux [--secret-dir PATH]
-./scripts/deploy.sh secrets-check --target docker|linux [--secret-dir PATH]
-./scripts/deploy.sh preflight --target docker|linux --config PATH
-./scripts/deploy.sh deploy --target docker --config PATH --secret-dir PATH --version VERSION
-./scripts/deploy.sh deploy --target docker --config PATH --secret-dir PATH --backend-image IMAGE --backend-db-image IMAGE --frontend-image IMAGE --redis-image IMAGE
-./scripts/deploy.sh deploy --target linux --config PATH --secret-dir PATH --bundle PATH
+./scripts/deploy.sh install --target docker --config PATH --secret-dir PATH --version VERSION
+./scripts/deploy.sh install --target docker --config PATH --secret-dir PATH --backend-image IMAGE --backend-db-image IMAGE --frontend-image IMAGE --redis-image IMAGE
+./scripts/deploy.sh install --target linux --config PATH --secret-dir PATH --bundle PATH
 ./scripts/deploy.sh upgrade --target docker|linux ...
-./scripts/deploy.sh status --target docker|linux
+./scripts/deploy.sh doctor --target docker|linux --config PATH --secret-dir PATH
 ./scripts/deploy.sh logs --target docker|linux [--service all|backend|scheduler|frontend|redis] [--tail N] [--follow]
-./scripts/deploy.sh smoke --target docker|linux --config PATH --secret-dir PATH
 ./scripts/deploy.sh rollback --target docker --config PATH --secret-dir PATH [--service all|backend|frontend]
 ./scripts/deploy.sh rollback --target linux --config PATH --secret-dir PATH
 ```
@@ -100,8 +94,8 @@ Common flags:
 
 Operational notes:
 
-- `./scripts/deploy.sh init ...` scaffolds the non-secret config, the secret-file placeholders, and the persistent runtime directory.
-- `./scripts/deploy.sh secrets-edit ...` keeps its temporary edit workspace under the parent of `--secret-dir` so secret edits stay on the same host-managed mount, not under `/tmp`.
+- Operators manage the non-secret config file and required secret files directly from the shipped templates.
+- `install` and `upgrade` run the target preflight and built-in doctor checks automatically.
 - Docker explicit-image mode requires all four images unless `--version` is supplied: runtime backend, backend DB, frontend, and redis.
 - `metadata.env` is an internal shell-sourced runtime artifact. Operators should not edit it directly; maintainers must keep its assignments safe to `source`, including when runtime or secret paths contain spaces.
 
@@ -148,7 +142,7 @@ Linux target:
 - one valid Entra confidential credential mechanism for Graph directory access
 - reachable `REDIS_URL_FILE`
 - `/docs` and `/openapi.json` disabled in production
-- smoke checks fail if:
+- doctor checks fail if:
   - `scheduler_job_runs` or `app_outbox_events` is missing
   - the scheduler runtime is not represented by exactly one running `__scheduler_runtime__` row
   - dead-letter outbox rows exist

@@ -53,7 +53,7 @@ docker_require_release_images() {
 
   if [[ -z "$version" ]]; then
     if [[ -z "$backend_image_in" || -z "$backend_db_image_in" || -z "$frontend_image_in" || -z "$redis_image_in" ]]; then
-      die "Pass --version or all of --backend-image, --backend-db-image, --frontend-image, and --redis-image for docker deploy/upgrade."
+      die "Pass --version or all of --backend-image, --backend-db-image, --frontend-image, and --redis-image for docker install/upgrade."
     fi
     DOCKER_BACKEND_IMAGE="$backend_image_in"
     DOCKER_BACKEND_DB_IMAGE="$backend_db_image_in"
@@ -110,17 +110,22 @@ docker_deploy_or_upgrade() {
     if docker_container_exists "riskhub-backend-scheduler"; then scheduler_exists="true"; fi
     if docker_container_exists "riskhub-frontend"; then frontend_exists="true"; fi
 
+    local user_action="install"
+    if [[ "$action" == "upgrade" ]]; then
+      user_action="upgrade"
+    fi
+
     if [[ "$action" == "deploy" ]]; then
       if [[ "$backend_exists" == "true" || "$scheduler_exists" == "true" || "$frontend_exists" == "true" ]]; then
-        die "Existing docker deployment detected. Use upgrade instead of deploy."
+        die "Existing docker deployment detected. Use upgrade instead of install."
       fi
     else
       if [[ "$backend_exists" != "true" || "$scheduler_exists" != "true" || "$frontend_exists" != "true" ]]; then
-        die "Existing docker deployment not found. Use deploy for first install."
+        die "Existing docker deployment not found. Use install for first setup."
       fi
     fi
 
-    confirm_or_die "Run docker ${action} using prebuilt release images?"
+    confirm_or_die "Run docker ${user_action} using prebuilt release images?"
 
     local allow_port_in_use="false"
     if [[ "$action" == "upgrade" ]]; then
