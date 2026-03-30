@@ -34,12 +34,22 @@ linux_preflight() {
   return "$rc"
 }
 
+linux_bundle_require_entry() {
+  local bundle_path="$1"
+  local entry_path="$2"
+  if tar -tzf "$bundle_path" "$entry_path" >/dev/null 2>&1; then
+    return 0
+  fi
+  die "Missing required file in bundle: ${entry_path}"
+}
+
 linux_install_release() {
   local bundle_path="$1"
   local release_version="$2"
   local release_dir="${LINUX_RELEASES_DIR}/${release_version}"
   local extract_root
   extract_root="$(mktemp -d "${TMPDIR:-/tmp}/riskhub-linux-release.XXXXXX")"
+  local extracted_dir="${extract_root}/riskhub-linux-${release_version}"
   local rc=0
 
   {
@@ -48,15 +58,19 @@ linux_install_release() {
     fi
 
     if [[ "$DRY_RUN" == "true" ]]; then
+      linux_bundle_require_entry "$bundle_path" "riskhub-linux-${release_version}/manifest.json"
+      linux_bundle_require_entry "$bundle_path" "riskhub-linux-${release_version}/scripts/deploy.sh"
+      linux_bundle_require_entry "$bundle_path" "riskhub-linux-${release_version}/scripts/deploy/lib/render.py"
       run tar -xzf "$bundle_path" -C "$extract_root"
       ensure_dir "$LINUX_RELEASES_DIR"
-      run_privileged mv "${extract_root}/riskhub-linux-${release_version}" "$release_dir"
+      run_privileged mv "${extracted_dir}" "$release_dir"
       ensure_linux_user
       run_privileged chown -R "${LINUX_USER}:${LINUX_GROUP}" "$release_dir"
     else
       run tar -xzf "$bundle_path" -C "$extract_root"
-      local extracted_dir="${extract_root}/riskhub-linux-${release_version}"
       require_file "${extracted_dir}/manifest.json"
+      require_file "${extracted_dir}/scripts/deploy.sh"
+      require_file "${extracted_dir}/scripts/deploy/lib/render.py"
       ensure_dir "$LINUX_RELEASES_DIR"
       run_privileged mv "$extracted_dir" "$release_dir"
       ensure_linux_user
@@ -213,6 +227,9 @@ linux_deploy_or_upgrade() {
   fi
 
   linux_install_release "$bundle_path" "$release_version"
+  if [[ "$DRY_RUN" != "true" ]]; then
+    use_deploy_assets_from_root "$release_dir"
+  fi
   linux_install_venvs "$release_dir"
   # shellcheck disable=SC2153 # RUNTIME_DIR is a sourced global from deploy/lib/common.sh.
   linux_render_runtime_files "$config_path" "$RUNTIME_DIR"

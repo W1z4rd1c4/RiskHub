@@ -34,6 +34,18 @@ YES=false
 # shellcheck disable=SC2034 # Parsed global flag shared across sourced deploy helpers.
 VERBOSE=false
 
+use_deploy_assets_from_root() {
+  local root_path="$1"
+  local lib_dir="${root_path}/scripts/deploy/lib"
+  require_file "${root_path}/scripts/deploy.sh"
+  require_file "${lib_dir}/common.sh"
+  require_file "${lib_dir}/linux.sh"
+  require_file "${lib_dir}/render.py"
+  DEPLOY_LIB_DIR="$lib_dir"
+  REPO_ROOT="$root_path"
+  RENDERER="${lib_dir}/render.py"
+}
+
 timestamp() {
   date +"%Y-%m-%dT%H:%M:%S%z"
 }

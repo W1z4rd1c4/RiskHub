@@ -94,13 +94,14 @@ cp "${REPO_ROOT}/backend/scripts/seed_roles_permissions.py" "${BACKEND_STAGE}/sc
 cp "${REPO_ROOT}/backend/scripts/seed_departments.py" "${BACKEND_STAGE}/scripts/seed_departments.py"
 cp "${REPO_ROOT}/backend/scripts/bootstrap_sso_user.py" "${BACKEND_STAGE}/scripts/bootstrap_sso_user.py"
 
-find "${STAGE_ROOT}" -type d \( -name "__pycache__" -o -name ".pytest_cache" \) -prune -exec rm -rf {} +
-find "${STAGE_ROOT}" -name ".DS_Store" -delete
-
 cp -R "${REPO_ROOT}/frontend/dist" "${FRONTEND_STAGE}/dist"
 cp "${REPO_ROOT}/scripts/deploy.sh" "${SCRIPTS_STAGE}/deploy.sh"
 chmod 755 "${SCRIPTS_STAGE}/deploy.sh"
 cp -R "${REPO_ROOT}/scripts/deploy" "${SCRIPTS_STAGE}/deploy"
+
+find "${STAGE_ROOT}" -type d \( -name "__pycache__" -o -name ".pytest_cache" \) -prune -exec rm -rf {} +
+find "${STAGE_ROOT}" -name "*.pyc" -delete
+find "${STAGE_ROOT}" -name ".DS_Store" -delete
 
 python3 - <<'PY' "${STAGE_ROOT}/manifest.json" "${VERSION}" "${REPO_ROOT}"
 import json
