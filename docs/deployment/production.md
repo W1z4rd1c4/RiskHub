@@ -11,8 +11,8 @@
 Both targets follow the same operator flow:
 
 1. prepare the host
-2. create `/etc/riskhub/riskhub.env` and `/etc/riskhub/secrets/`
-3. run `install`
+2. create `/etc/riskhub/riskhub.env` and `/etc/riskhub/secrets/` from the target's shipped examples
+3. run `install` from the target's deploy surface
 4. run `doctor` and inspect `logs` if needed
 5. use `upgrade` for new releases
 6. use `rollback` only for application release rollback
@@ -97,6 +97,8 @@ cd riskhub-linux-v1.2.3
 ./scripts/deploy.sh install --target linux --config /etc/riskhub/riskhub.env --secret-dir /etc/riskhub/secrets --bundle ../riskhub-linux-v1.2.3.tar.gz
 ```
 
+Keep the extracted Linux bundle directory on the host. The bundled `./scripts/deploy.sh` is the supported CLI for later `doctor`, `logs`, `upgrade`, and `rollback` runs against that target.
+
 `install` runs config validation, target rollout tasks, and the built-in doctor checks automatically.
 
 Maintainer note:
@@ -111,6 +113,7 @@ Run `doctor` for the same target you installed:
 
 ```bash
 ./scripts/deploy.sh doctor --target docker --config /etc/riskhub/riskhub.env --secret-dir /etc/riskhub/secrets
+cd riskhub-linux-v1.2.3
 ./scripts/deploy.sh doctor --target linux --config /etc/riskhub/riskhub.env --secret-dir /etc/riskhub/secrets
 ```
 
@@ -118,6 +121,7 @@ If you need runtime output, use `logs` for the same target:
 
 ```bash
 ./scripts/deploy.sh logs --target docker --service all --tail 200
+cd riskhub-linux-v1.2.3
 ./scripts/deploy.sh logs --target linux --service all --tail 200
 ```
 
@@ -147,6 +151,8 @@ Use the same target-specific release input shape you used for `install`:
 
 ```bash
 ./scripts/deploy.sh upgrade --target docker --config /etc/riskhub/riskhub.env --secret-dir /etc/riskhub/secrets --version v1.2.4
+tar -xzf riskhub-linux-v1.2.4.tar.gz
+cd riskhub-linux-v1.2.4
 ./scripts/deploy.sh upgrade --target linux --config /etc/riskhub/riskhub.env --secret-dir /etc/riskhub/secrets --bundle ../riskhub-linux-v1.2.4.tar.gz
 ```
 
@@ -158,6 +164,7 @@ Run `rollback` against the same target:
 
 ```bash
 ./scripts/deploy.sh rollback --target docker --config /etc/riskhub/riskhub.env --secret-dir /etc/riskhub/secrets --service all
+cd riskhub-linux-v1.2.4
 ./scripts/deploy.sh rollback --target linux --config /etc/riskhub/riskhub.env --secret-dir /etc/riskhub/secrets
 ```
 

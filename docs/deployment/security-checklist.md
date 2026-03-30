@@ -62,7 +62,7 @@ RiskHub production deploys must satisfy these invariants:
 - Keep `/etc/riskhub/riskhub.env` non-secret only.
 - Never commit production secrets.
 - Keep `/etc/riskhub` on an encrypted disk or encrypted mount.
-- Manage required secret files directly in `/etc/riskhub/secrets/` using `scripts/deploy/templates/secrets/README.md`.
+- Manage required secret files directly in `/etc/riskhub/secrets/` using `scripts/deploy/templates/secrets/README.md` from the repo checkout or from the extracted Linux release bundle.
 - Store `SECRET_KEY`, database credentials, Redis password, and the active Entra confidential credential material in a secret manager when possible.
 - `ENTRA_TENANT_ID` and `ENTRA_CLIENT_ID` are not secret values.
 - Prefer file-backed certificate credential mode over shared client secret when your Entra app registration supports it.
