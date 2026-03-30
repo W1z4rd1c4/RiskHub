@@ -238,6 +238,8 @@ jobs:
           test -f "${release_dir}/scripts/deploy/templates/riskhub.env.example"
           test -f "${release_dir}/scripts/deploy/templates/secrets/README.md"
           test -f "${release_dir}/scripts/deploy/templates/secrets/database_url.example"
+          test -f "${release_dir}/scripts/deploy/templates/secrets/entra_client_secret.example"
+          test -f "${release_dir}/scripts/deploy/templates/secrets/entra_client_certificate_private_key.example"
           test -f "${release_dir}/scripts/deploy/templates/secrets/secret_key.example"
           test -f "${release_dir}/scripts/deploy/templates/secrets/redis_password.example"
           test -f "${release_dir}/scripts/deploy/templates/linux/nginx-site.conf.tmpl"

@@ -169,6 +169,8 @@ def test_prod_install_and_release_gates_assert_minimal_backend_artifact_contract
     assert "backend/requirements-db.txt" in workflow_text
     assert "scripts/deploy.sh" in workflow_text
     assert "scripts/deploy/templates/secrets/README.md" in workflow_text
+    assert "scripts/deploy/templates/secrets/entra_client_secret.example" in workflow_text
+    assert "scripts/deploy/templates/secrets/entra_client_certificate_private_key.example" in workflow_text
     assert 'bash "${release_dir}/scripts/deploy.sh" install' in workflow_text
     assert "backend_db" not in workflow_text
     assert "db-venv" not in workflow_text
