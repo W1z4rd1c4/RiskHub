@@ -732,6 +732,55 @@ class ReleaseParityAudit:
                 "type": "runtime",
             },
             {
+                "id": "upgrade_cli_prod_docker",
+                "entrypoint": "scripts/deploy.sh",
+                "mode": "prod_docker",
+                "command": "./scripts/deploy.sh upgrade --target docker --config /etc/riskhub/riskhub.env --secret-dir /etc/riskhub/secrets --version <version>",
+                "type": "runtime",
+            },
+            {
+                "id": "doctor_cli_prod_docker",
+                "entrypoint": "scripts/deploy.sh",
+                "mode": "prod_docker",
+                "command": "./scripts/deploy.sh doctor --target docker --config /etc/riskhub/riskhub.env --secret-dir /etc/riskhub/secrets",
+                "type": "runtime",
+            },
+            {
+                "id": "rollback_cli_prod_docker",
+                "entrypoint": "scripts/deploy.sh",
+                "mode": "prod_docker",
+                "command": "./scripts/deploy.sh rollback --target docker --config /etc/riskhub/riskhub.env --secret-dir /etc/riskhub/secrets --service all",
+                "type": "runtime",
+            },
+            {
+                "id": "install_cli_prod_linux",
+                "entrypoint": "scripts/deploy.sh",
+                "mode": "prod_linux",
+                "command": "./scripts/deploy.sh install --target linux --config /etc/riskhub/riskhub.env --secret-dir /etc/riskhub/secrets --bundle <bundle>",
+                "type": "runtime",
+            },
+            {
+                "id": "upgrade_cli_prod_linux",
+                "entrypoint": "scripts/deploy.sh",
+                "mode": "prod_linux",
+                "command": "./scripts/deploy.sh upgrade --target linux --config /etc/riskhub/riskhub.env --secret-dir /etc/riskhub/secrets --bundle <bundle>",
+                "type": "runtime",
+            },
+            {
+                "id": "doctor_cli_prod_linux",
+                "entrypoint": "scripts/deploy.sh",
+                "mode": "prod_linux",
+                "command": "./scripts/deploy.sh doctor --target linux --config /etc/riskhub/riskhub.env --secret-dir /etc/riskhub/secrets",
+                "type": "runtime",
+            },
+            {
+                "id": "rollback_cli_prod_linux",
+                "entrypoint": "scripts/deploy.sh",
+                "mode": "prod_linux",
+                "command": "./scripts/deploy.sh rollback --target linux --config /etc/riskhub/riskhub.env --secret-dir /etc/riskhub/secrets",
+                "type": "runtime",
+            },
+            {
                 "id": "backend_runtime_dev",
                 "entrypoint": "backend/scripts/runtime/dev.sh",
                 "mode": "dev",
@@ -1530,12 +1579,22 @@ class ReleaseParityAudit:
         if target.exists():
             shutil.rmtree(target)
         shutil.copytree(latest, target)
+        run_status_path = target / "reports" / "run_status.json"
+        summary_path = target / "SUMMARY.json"
+        run_status = None
+        summary = None
+        if run_status_path.exists():
+            run_status = json.loads(run_status_path.read_text(encoding="utf-8"))
+        if summary_path.exists():
+            summary = json.loads(summary_path.read_text(encoding="utf-8"))
         self.runtime_fingerprints.append(
             {
                 "context_id": "prod_readiness_ingest",
                 "startup_path_id": "prod_readiness",
                 "source": str(latest),
                 "copied_to": str(target),
+                "run_status_payload": run_status,
+                "summary": summary,
                 "captured_at_utc": self._iso(self._utc_now()),
             }
         )
@@ -1578,8 +1637,12 @@ class ReleaseParityAudit:
             if target.exists():
                 shutil.rmtree(target)
             shutil.copytree(latest, target)
+            run_status_path = target / "reports" / "run_status.json"
             summary_path = target / "SUMMARY.json"
+            run_status = None
             summary = None
+            if run_status_path.exists():
+                run_status = json.loads(run_status_path.read_text(encoding="utf-8"))
             if summary_path.exists():
                 summary = json.loads(summary_path.read_text(encoding="utf-8"))
             self.runtime_fingerprints.append(
@@ -1589,6 +1652,7 @@ class ReleaseParityAudit:
                     "source_worktree": str(latest),
                     "copied_to": str(target),
                     "run_rc": run_res.rc,
+                    "run_status_payload": run_status,
                     "summary": summary,
                     "captured_at_utc": self._iso(self._utc_now()),
                 }
@@ -1717,6 +1781,44 @@ class ReleaseParityAudit:
                         "context_id": fp.get("context_id"),
                         "launch_rc": fp.get("launch_rc"),
                         "launch_log": fp.get("launch_log"),
+                    }
+                )
+
+        for fp in self.runtime_fingerprints:
+            if fp.get("startup_path_id") != "prod_readiness":
+                continue
+            run_status = fp.get("run_status_payload") or {}
+            summary = fp.get("summary") or {}
+            status = str(run_status.get("status", "")).lower()
+            planned_run_complete = bool(run_status.get("planned_run_complete"))
+            prod_decision = str(summary.get("decision", run_status.get("decision", ""))).upper()
+            required_failures = int(run_status.get("required_failures", 0) or 0)
+            exit_code = int(run_status.get("exit_code", 0) or 0)
+            if (
+                not run_status
+                or status != "complete"
+                or not planned_run_complete
+                or prod_decision != "PASS"
+                or required_failures > 0
+                or exit_code != 0
+            ):
+                findings.append(
+                    {
+                        "id": "P1-prod-readiness-incomplete",
+                        "severity": "P1",
+                        "classification": "unexpected",
+                        "summary": "Prod-readiness evidence is incomplete or non-passing, so release parity cannot return GO.",
+                        "startup_path_id": "prod_readiness",
+                        "status": status or "missing",
+                        "planned_run_complete": planned_run_complete,
+                        "decision": prod_decision or "MISSING",
+                        "required_failures": required_failures,
+                        "exit_code": exit_code,
+                        "evidence": [
+                            str(self.prod_ingest_dir),
+                            str((Path(fp.get("copied_to", self.prod_ingest_dir)) / "reports" / "run_status.json")),
+                            str((Path(fp.get("copied_to", self.prod_ingest_dir)) / "SUMMARY.json")),
+                        ],
                     }
                 )
 

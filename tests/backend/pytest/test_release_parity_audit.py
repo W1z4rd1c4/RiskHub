@@ -105,3 +105,52 @@ def test_release_parity_keeps_real_startup_failures_blocking() -> None:
 
     assert audit.decision["decision"] == "NO-GO"
     assert any(str(item["id"]).startswith("P1-startup-path-failed-") for item in audit.findings)
+
+
+def test_release_parity_inventory_includes_public_deploy_lifecycle_for_both_targets() -> None:
+    audit = ReleaseParityAudit("test-startup-inventory", run_prod_readiness=False)
+
+    audit._build_startup_inventory()
+
+    startup_ids = {item["id"] for item in audit.startup_paths}
+    assert {
+        "install_cli_prod_docker",
+        "upgrade_cli_prod_docker",
+        "doctor_cli_prod_docker",
+        "rollback_cli_prod_docker",
+        "install_cli_prod_linux",
+        "upgrade_cli_prod_linux",
+        "doctor_cli_prod_linux",
+        "rollback_cli_prod_linux",
+    }.issubset(startup_ids)
+
+
+def test_release_parity_blocks_on_partial_prod_readiness_evidence() -> None:
+    audit = ReleaseParityAudit("test-partial-prod-readiness", run_prod_readiness=False)
+    audit.baseline = {"git_sha": "abc123", "git_branch": "main"}
+    audit.runtime_fingerprints = [
+        {
+            "startup_path_id": "prod_readiness",
+            "context_id": "prod_readiness_ingest",
+            "git_sha_expected": "abc123",
+            "git_sha_observed": "abc123",
+            "run_status_payload": {
+                "status": "partial",
+                "planned_run_complete": False,
+                "required_failures": 0,
+                "exit_code": 0,
+            },
+            "summary": {"decision": "PASS"},
+        }
+    ]
+    audit.static_resolution = {"ci_runtime_policy": {"node_versions": ["24"]}, "dev_startup": {}}
+    audit.toolchain_fingerprint = {
+        "dev_sh_effective_node": {"selected": True, "major": 24},
+    }
+    audit.dep_diffs = {"backend_drift": [], "frontend_drift": []}
+    audit.ui_parity = {"mismatches_same_auth_mode_same_commit": []}
+
+    audit._evaluate_findings_and_decision()
+
+    assert audit.decision["decision"] == "NO-GO"
+    assert any(item["id"] == "P1-prod-readiness-incomplete" for item in audit.findings)

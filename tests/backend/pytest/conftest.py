@@ -63,6 +63,10 @@ def pytest_configure(config: pytest.Config) -> None:
     # Ensure marker availability even when pytest rootdir resolves to repository root.
     config.addinivalue_line(
         "markers",
+        "docker_integration: Tests that require a working local Docker daemon",
+    )
+    config.addinivalue_line(
+        "markers",
         "redis_integration: Tests that require Docker-backed Redis fault-injection/integration",
     )
     config.addinivalue_line(

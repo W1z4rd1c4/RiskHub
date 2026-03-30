@@ -426,3 +426,60 @@ def test_redis_wrapper_honors_non_default_secret_dir_override() -> None:
         finally:
             subprocess.run(["docker", "rm", "-f", container_name], cwd=REPO_ROOT, check=False, capture_output=True, text=True)
             subprocess.run(["docker", "image", "rm", "-f", image_tag], cwd=REPO_ROOT, check=False, capture_output=True, text=True)
+
+
+def test_common_container_replace_falls_back_to_forced_remove_when_plain_remove_fails() -> None:
+    with tempfile.TemporaryDirectory(prefix="riskhub-common-rm-fallback-") as td:
+        tmp = Path(td)
+        fake_bin = tmp / "bin"
+        fake_bin.mkdir()
+        docker_script = fake_bin / "docker"
+        docker_script.write_text(
+            """#!/usr/bin/env bash
+set -euo pipefail
+case "${1:-}" in
+  inspect)
+    if [[ "${2:-}" == "--format" ]]; then
+      printf 'true\\n'
+    else
+      exit 0
+    fi
+    ;;
+  stop)
+    exit 0
+    ;;
+  rm)
+    if [[ "${2:-}" == "-f" ]]; then
+      exit 0
+    fi
+    exit 1
+    ;;
+  *)
+    exit 0
+    ;;
+esac
+""",
+            encoding="utf-8",
+        )
+        docker_script.chmod(0o755)
+
+        env = os.environ.copy()
+        env["PATH"] = f"{fake_bin}:{env['PATH']}"
+
+        result = subprocess.run(
+            [
+                "bash",
+                "-c",
+                f"source '{PROD_SCRIPTS_DIR / 'lib' / 'common.sh'}'; rm_container_if_exists riskhub-backend",
+            ],
+            cwd=REPO_ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+
+        output = f"{result.stdout}\n{result.stderr}"
+        assert result.returncode == 0, output
+        assert "Normal removal failed for container riskhub-backend; falling back to docker rm -f." in output
+        assert "Removed existing container: riskhub-backend" in output

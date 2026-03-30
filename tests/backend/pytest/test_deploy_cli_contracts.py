@@ -621,6 +621,41 @@ def test_linux_cli_supports_install_upgrade_doctor_logs_and_rollback_dry_run() -
         assert "systemctl restart nginx" in rollback_output
 
 
+def test_logs_route_valid_services_for_both_targets() -> None:
+    with tempfile.TemporaryDirectory(prefix="riskhub-deploy-logs-routing-") as td:
+        tmp = Path(td)
+        fake_bin = _make_fake_bin(tmp)
+        env = os.environ.copy()
+        env["PATH"] = f"{fake_bin}:{env['PATH']}"
+
+        docker_logs = _run_cli(["logs", "--target", "docker", "--service", "backend", "--tail", "25"], env)
+        docker_output = f"{docker_logs.stdout}\n{docker_logs.stderr}"
+        assert docker_logs.returncode == 0, docker_output
+        assert "--tail 25 riskhub-backend" in docker_output
+
+        config_path = tmp / "riskhub.env"
+        secret_dir = tmp / "secrets"
+        bundle_path = _make_linux_bundle(tmp, "v-test")
+        extract_root = tmp / "bundle-extract"
+        with tarfile.open(bundle_path, "r:gz") as archive:
+            archive.extractall(extract_root)
+        bundled_script = extract_root / "riskhub-linux-v-test" / "scripts" / "deploy.sh"
+        _write_config(config_path)
+        _write_secrets(secret_dir)
+        env["RISKHUB_LINUX_ROOT"] = str(tmp / "linux-root")
+        env["RISKHUB_RUNTIME_DIR"] = str(tmp / "runtime")
+        env["RISKHUB_LINUX_NGINX_SITE"] = str(tmp / "riskhub.conf")
+
+        linux_logs = _run_bundled_cli(
+            bundled_script,
+            ["logs", "--target", "linux", "--service", "frontend", "--tail", "25"],
+            env,
+        )
+        linux_output = f"{linux_logs.stdout}\n{linux_logs.stderr}"
+        assert linux_logs.returncode == 0, linux_output
+        assert "-u nginx -n 25" in linux_output
+
+
 def test_doctor_reports_missing_docker_prerequisite() -> None:
     with tempfile.TemporaryDirectory(prefix="riskhub-deploy-missing-docker-") as td:
         tmp = Path(td)

@@ -172,6 +172,10 @@ def test_prod_install_and_release_gates_assert_minimal_backend_artifact_contract
     assert "scripts/deploy/templates/secrets/entra_client_secret.example" in workflow_text
     assert "scripts/deploy/templates/secrets/entra_client_certificate_private_key.example" in workflow_text
     assert 'bash "${release_dir}/scripts/deploy.sh" install' in workflow_text
+    assert 'bash "${release_dir}/scripts/deploy.sh" doctor' in workflow_text
+    assert 'bash "${release_dir}/scripts/deploy.sh" rollback' in workflow_text
+    assert 'ENABLE_SCHEDULER=false "${release_dir}/venv/bin/uvicorn" app.main:app' in workflow_text
+    assert 'curl -fsS http://127.0.0.1:18080/api/v1/health' in workflow_text
     assert "backend_db" not in workflow_text
     assert "db-venv" not in workflow_text
 
@@ -365,6 +369,9 @@ def test_prod_readiness_audit_preserves_run_status_and_exit_finalization() -> No
     assert "write_locked_file()" in text
     assert "emit_incomplete_artifacts()" in text
     assert "trap finalize_on_exit EXIT" in text
+    assert 'local final_exit_code="$exit_code"' in text
+    assert 'if [[ "$final_exit_code" -eq 0 ]]; then' in text
+    assert 'final_exit_code=1' in text
 
 
 def test_redis_entrypoint_allows_passthrough_commands_for_image_contract_checks() -> None:

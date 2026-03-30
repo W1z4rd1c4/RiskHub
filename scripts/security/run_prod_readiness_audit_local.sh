@@ -169,7 +169,12 @@ finalize_on_exit() {
   local exit_code=$?
   trap - EXIT
   if [[ "$planned_run_complete" != "true" ]]; then
-    emit_incomplete_artifacts "$exit_code"
+    local final_exit_code="$exit_code"
+    if [[ "$final_exit_code" -eq 0 ]]; then
+      final_exit_code=1
+    fi
+    emit_incomplete_artifacts "$final_exit_code"
+    exit "$final_exit_code"
   fi
   exit "$exit_code"
 }
@@ -445,11 +450,16 @@ run_cmd "p3_backend_docs_code" true 120 "$ROOT_DIR" "docker exec -i riskhub-back
 import sys
 from urllib import error, request
 
+class NoRedirect(request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
 path = sys.argv[1]
 host = sys.argv[2]
 req = request.Request(f'http://localhost:8000{path}', headers={'Host': host})
+opener = request.build_opener(NoRedirect)
 try:
-    with request.urlopen(req, timeout=10) as response:
+    with opener.open(req, timeout=10) as response:
         print(response.status)
 except error.HTTPError as exc:
     print(exc.code)
@@ -460,11 +470,16 @@ run_cmd "p3_backend_openapi_code" true 120 "$ROOT_DIR" "docker exec -i riskhub-b
 import sys
 from urllib import error, request
 
+class NoRedirect(request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
 path = sys.argv[1]
 host = sys.argv[2]
 req = request.Request(f'http://localhost:8000{path}', headers={'Host': host})
+opener = request.build_opener(NoRedirect)
 try:
-    with request.urlopen(req, timeout=10) as response:
+    with opener.open(req, timeout=10) as response:
         print(response.status)
 except error.HTTPError as exc:
     print(exc.code)

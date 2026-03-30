@@ -363,6 +363,101 @@ jobs:
             --dry-run \
             --yes
 
+          RISKHUB_LINUX_ROOT="${linux_root}" \
+          RISKHUB_RUNTIME_DIR="${runtime_dir}" \
+          RISKHUB_LINUX_NGINX_SITE="${nginx_site}" \
+          bash "${release_dir}/scripts/deploy.sh" doctor \
+            --target linux \
+            --config "${config_path}" \
+            --secret-dir "${secret_dir}" \
+            --dry-run \
+            --yes
+
+          RISKHUB_LINUX_ROOT="${linux_root}" \
+          RISKHUB_RUNTIME_DIR="${runtime_dir}" \
+          RISKHUB_LINUX_NGINX_SITE="${nginx_site}" \
+          bash "${release_dir}/scripts/deploy.sh" rollback \
+            --target linux \
+            --config "${config_path}" \
+            --secret-dir "${secret_dir}" \
+            --dry-run \
+            --yes
+
+      - name: Verify extracted linux backend boots with local services
+        run: |
+          set -euo pipefail
+          bundle="dist/releases/riskhub-linux-${RELEASE_VERSION}.tar.gz"
+          tmp_root="$(mktemp -d)"
+          pg_container="riskhub-linux-bundle-pg"
+          app_pid=""
+          cleanup() {
+            set +e
+            if [[ -n "${app_pid}" ]]; then
+              kill "${app_pid}" >/dev/null 2>&1 || true
+              wait "${app_pid}" >/dev/null 2>&1 || true
+            fi
+            redis-cli -a redis-secret shutdown >/dev/null 2>&1 || true
+            docker rm -f "${pg_container}" >/dev/null 2>&1 || true
+            rm -rf "${tmp_root}"
+          }
+          trap cleanup EXIT
+
+          tar -xzf "${bundle}" -C "${tmp_root}"
+          release_dir="${tmp_root}/riskhub-linux-${RELEASE_VERSION}"
+          config_path="${tmp_root}/riskhub.env"
+          secret_dir="${tmp_root}/secrets"
+          runtime_out="${tmp_root}/runtime"
+          mkdir -p "${secret_dir}" "${runtime_out}"
+
+          cat > "${config_path}" <<'EOF'
+          PUBLIC_URL=https://riskhub.example.com
+          ENTRA_TENANT_ID=00000000-0000-0000-0000-000000000000
+          ENTRA_CLIENT_ID=11111111-1111-1111-1111-111111111111
+          BOOTSTRAP_ADMIN_EMAIL=admin@example.com
+          BOOTSTRAP_CRO_EMAIL=cro@example.com
+          API_WORKERS=1
+          FRONTEND_BIND_PORT=8080
+          EOF
+          printf '%s\n' 'postgresql+asyncpg://riskhub:secret@127.0.0.1:55432/riskhub' > "${secret_dir}/database_url"
+          printf '%s\n' '0123456789abcdef0123456789abcdef' > "${secret_dir}/secret_key"
+          printf '%s\n' 'redis-secret' > "${secret_dir}/redis_password"
+          printf '%s\n' 'entra-client-secret' > "${secret_dir}/entra_client_secret"
+          chmod 750 "${secret_dir}"
+          chmod 440 "${secret_dir}"/*
+
+          docker run -d --name "${pg_container}" \
+            -e POSTGRES_USER=riskhub \
+            -e POSTGRES_PASSWORD=secret \
+            -e POSTGRES_DB=riskhub \
+            -p 55432:5432 \
+            postgres:16
+          bash -lc "for i in {1..60}; do docker exec ${pg_container} pg_isready -U riskhub >/dev/null 2>&1 && exit 0; sleep 1; done; exit 1"
+
+          redis-server --port 6379 --save "" --appendonly no --requirepass redis-secret --daemonize yes
+          bash -lc "for i in {1..30}; do redis-cli -a redis-secret ping >/dev/null 2>&1 && exit 0; sleep 1; done; exit 1"
+
+          python3.13 -m venv "${release_dir}/venv"
+          "${release_dir}/venv/bin/pip" install --no-index --find-links "${release_dir}/backend/wheels" -r "${release_dir}/backend/requirements-db.txt"
+          python3 "${release_dir}/scripts/deploy/lib/render.py" write-runtime --config "${config_path}" --target linux --secret-dir "${secret_dir}" --runtime-dir /etc/riskhub/runtime --out-dir "${runtime_out}"
+
+          (
+            set -a
+            . "${runtime_out}/backend.env"
+            set +a
+            cd "${release_dir}/backend"
+            "${release_dir}/venv/bin/alembic" upgrade head
+            ENABLE_SCHEDULER=false "${release_dir}/venv/bin/uvicorn" app.main:app --host 127.0.0.1 --port 18080 --workers 1 >"${tmp_root}/uvicorn.log" 2>&1 &
+            app_pid=$!
+            for i in {1..60}; do
+              if curl -fsS http://127.0.0.1:18080/api/v1/health > "${tmp_root}/health.json"; then
+                break
+              fi
+              sleep 1
+            done
+            grep -q '"status":"healthy"' "${tmp_root}/health.json"
+            grep -q '"database":"connected"' "${tmp_root}/health.json"
+          )
+
   create-release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
