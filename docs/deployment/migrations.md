@@ -23,7 +23,7 @@ This is intentional:
 1. Bring up external PostgreSQL.
 2. Run migrations as an explicit install or upgrade step.
    - `./scripts/deploy.sh install --target docker ...` or `./scripts/deploy.sh upgrade --target docker ...` runs migrations and bootstrap before the API/frontend rollout.
-   - `./scripts/deploy.sh install --target linux ...` or `./scripts/deploy.sh upgrade --target linux ...` runs migrations and bootstrap before service restart.
+   - the extracted Linux bundle's `./scripts/deploy.sh install --target linux ...` or `./scripts/deploy.sh upgrade --target linux ...` runs migrations and bootstrap before service restart.
 3. Roll out the backend/API runtime only after migrations succeed.
 
 The long-running runtime lane still keeps Alembic assets so schema-guard checks can resolve the current head at startup, but it does not own the production migration/bootstrap execution path.

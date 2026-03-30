@@ -54,7 +54,7 @@ done
 
 docker_require_running
 
-follow_args=()
+declare -a follow_args=()
 if [[ "$follow" == "true" ]]; then
   follow_args=(-f)
 fi
@@ -69,7 +69,10 @@ case "$service" in
 esac
 
 if [[ -n "$target" ]]; then
-  exec docker logs "${follow_args[@]}" --tail "$tail_lines" "$target"
+  if [[ ${#follow_args[@]} -gt 0 ]]; then
+    exec docker logs "${follow_args[@]}" --tail "$tail_lines" "$target"
+  fi
+  exec docker logs --tail "$tail_lines" "$target"
 fi
 
 for c in "$REDIS_CONTAINER" "$BACKEND_CONTAINER" "$SCHEDULER_CONTAINER" "$FRONTEND_CONTAINER"; do

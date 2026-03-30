@@ -166,9 +166,14 @@ rm_container_if_exists() {
     local running_state="false"
     running_state="$(docker inspect --format '{{.State.Running}}' "$name" 2>/dev/null || printf 'false')"
     if [[ "$running_state" == "true" ]]; then
-      run docker stop -t 20 "$name" >/dev/null
+      if ! run docker stop -t 20 "$name" >/dev/null; then
+        warn "Graceful stop failed for container ${name}; attempting forced removal."
+      fi
     fi
-    run docker rm "$name" >/dev/null
+    if ! run docker rm "$name" >/dev/null; then
+      warn "Normal removal failed for container ${name}; falling back to docker rm -f."
+      run docker rm -f "$name" >/dev/null
+    fi
     log "Removed existing container: $name"
   fi
 }

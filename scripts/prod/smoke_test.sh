@@ -17,11 +17,16 @@ backend_http_probe_python() {
 import sys
 from urllib import error, request
 
+class NoRedirect(request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
 path = sys.argv[1]
 host = sys.argv[2]
 req = request.Request(f"http://localhost:8000{path}", headers={"Host": host})
+opener = request.build_opener(NoRedirect)
 try:
-    with request.urlopen(req, timeout=10) as response:
+    with opener.open(req, timeout=10) as response:
         print(response.status)
 except error.HTTPError as exc:
     print(exc.code)
@@ -194,11 +199,16 @@ backend_container_http_code() {
 import sys
 from urllib import error, request
 
+class NoRedirect(request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
 path = sys.argv[1]
 host = sys.argv[2]
 req = request.Request(f"http://localhost:8000{path}", headers={"Host": host})
+opener = request.build_opener(NoRedirect)
 try:
-    with request.urlopen(req, timeout=10) as response:
+    with opener.open(req, timeout=10) as response:
         print(response.status)
 except error.HTTPError as exc:
     print(exc.code)

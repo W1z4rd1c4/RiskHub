@@ -35,6 +35,7 @@ ACTIVE_DOCS = [
     REPO_ROOT / "docs" / "E2E_TESTING.md",
     REPO_ROOT / "docs" / "deployment" / "README.md",
     REPO_ROOT / "docs" / "deployment" / "advanced.md",
+    REPO_ROOT / "docs" / "deployment" / "migrations.md",
     REPO_ROOT / "docs" / "deployment" / "production.md",
     REPO_ROOT / "docs" / "deployment" / "reference.md",
     REPO_ROOT / "docs" / "deployment" / "security-checklist.md",
@@ -206,7 +207,7 @@ def test_common_container_replace_prefers_graceful_stop_before_remove() -> None:
     assert 'docker inspect --format \'{{.State.Running}}\'' in common_text
     assert 'run docker stop -t 20 "$name" >/dev/null' in common_text
     assert 'run docker rm "$name" >/dev/null' in common_text
-    assert 'run docker rm -f "$name" >/dev/null' not in common_text
+    assert 'run docker rm -f "$name" >/dev/null' in common_text
 
 
 def test_install_frontend_applies_capability_hardening() -> None:
@@ -234,6 +235,8 @@ def test_smoke_test_probes_backend_docs_without_in_container_curl() -> None:
     assert 'backend_container_http_code "/docs"' in text
     assert 'backend_container_http_code "/openapi.json"' in text
     assert "urllib" in text
+    assert "HTTPRedirectHandler" in text
+    assert "build_opener" in text
 
 
 def test_prod_readiness_audit_uses_python_probe_for_backend_docs_checks() -> None:
@@ -242,7 +245,8 @@ def test_prod_readiness_audit_uses_python_probe_for_backend_docs_checks() -> Non
     assert "docker exec riskhub-backend curl" not in text
     assert 'python - \'/docs\'' in text
     assert 'python - \'/openapi.json\'' in text
-    assert "request.urlopen" in text
+    assert "HTTPRedirectHandler" in text
+    assert "build_opener" in text
 
 
 def test_removed_unsupported_deployment_artifacts_are_absent() -> None:
@@ -382,9 +386,7 @@ def test_active_docs_do_not_reference_removed_or_unsupported_deployment_paths() 
         "docs/deployment/external-postgres-install-scripts.md",
         "Docker/K8s",
         "Docker + K8s",
-        "dbtasks target",
-        "target, so database bootstrap work runs",
-        "target, so migrations and seed commands run",
+        "dbtasks",
     )
     for path in ACTIVE_DOCS:
         text = _read(path)

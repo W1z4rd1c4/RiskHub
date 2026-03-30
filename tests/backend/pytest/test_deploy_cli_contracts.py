@@ -90,7 +90,11 @@ set -euo pipefail
 subcmd="${1:-}"
 shift || true
 case "${subcmd}" in
-  ps|pull|logs)
+  ps|pull)
+    exit 0
+    ;;
+  logs)
+    printf '%s\\n' "$*"
     exit 0
     ;;
   inspect)
@@ -164,7 +168,7 @@ printf 'State Recv-Q Send-Q Local Address:Port Peer Address:Port Process\n'
         else:
             script = """#!/usr/bin/env bash
 set -euo pipefail
-exit 0
+printf '%s\\n' "$*"
 """
         _write_exec(fake_bin / command, script)
 
@@ -242,6 +246,8 @@ def test_deploy_script_help_exposes_only_the_new_public_contract() -> None:
     assert "secrets-edit" not in output
     assert "preflight" not in output
     assert "smoke" not in output
+    assert "(docker only)" not in output
+    assert "linux: full-release only" in output
 
 
 @pytest.mark.parametrize(
@@ -308,6 +314,8 @@ def test_docker_cli_supports_install_upgrade_doctor_logs_and_rollback_dry_run() 
         assert "scripts/prod/install_backend.sh" in install_output
         assert "scripts/prod/run_migrations.sh" in install_output
         assert "scripts/prod/bootstrap_db.sh" in install_output
+        assert "scripts/prod/preflight.sh" in install_output
+        assert "scripts/prod/status.sh" in install_output
         assert "scripts/prod/smoke_test.sh" in install_output
 
         upgrade_env = env | {
@@ -339,6 +347,8 @@ def test_docker_cli_supports_install_upgrade_doctor_logs_and_rollback_dry_run() 
         upgrade_output = f"{upgrade.stdout}\n{upgrade.stderr}"
         assert "--previous-image ghcr.io/example/riskhub-backend:previous" in upgrade_output
         assert "--previous-image ghcr.io/example/riskhub-frontend:previous" in upgrade_output
+        assert "scripts/prod/preflight.sh" in upgrade_output
+        assert "scripts/prod/status.sh" in upgrade_output
 
         doctor = _run_cli(
             [
@@ -361,10 +371,12 @@ def test_docker_cli_supports_install_upgrade_doctor_logs_and_rollback_dry_run() 
         assert "scripts/prod/smoke_test.sh" in doctor_output
 
         logs = _run_cli(
-            ["logs", "--target", "docker", "--service", "all", "--tail", "50"],
-            env,
+            ["logs", "--target", "docker", "--service", "backend", "--tail", "50"],
+            env | {"DOCKER_BACKEND_EXISTS": "1"},
         )
         assert logs.returncode == 0, f"{logs.stdout}\n{logs.stderr}"
+        logs_output = f"{logs.stdout}\n{logs.stderr}"
+        assert "riskhub-backend" in logs_output
 
         rollback = _run_cli(
             [
@@ -526,6 +538,8 @@ def test_linux_cli_supports_install_upgrade_doctor_logs_and_rollback_dry_run() -
         install_output = f"{install.stdout}\n{install.stderr}"
         assert "riskhub-linux-v-test.tar.gz" in install_output
         assert "riskhub-redis.service" in install_output
+        assert "COMPONENT\tSTATUS" in install_output
+        assert "/docs" in install_output
 
         release_dir = linux_root / "releases" / "v-previous"
         release_dir.mkdir(parents=True)
@@ -552,6 +566,9 @@ def test_linux_cli_supports_install_upgrade_doctor_logs_and_rollback_dry_run() -
             env,
         )
         assert upgrade.returncode == 0, f"{upgrade.stdout}\n{upgrade.stderr}"
+        upgrade_output = f"{upgrade.stdout}\n{upgrade.stderr}"
+        assert "COMPONENT\tSTATUS" in upgrade_output
+        assert "/docs" in upgrade_output
 
         doctor = _run_bundled_cli(
             bundled_script,
@@ -581,6 +598,8 @@ def test_linux_cli_supports_install_upgrade_doctor_logs_and_rollback_dry_run() -
             env,
         )
         assert logs.returncode == 0, f"{logs.stdout}\n{logs.stderr}"
+        logs_output = f"{logs.stdout}\n{logs.stderr}"
+        assert "-u riskhub-backend" in logs_output
 
         rollback = _run_bundled_cli(
             bundled_script,
@@ -629,6 +648,44 @@ def test_doctor_reports_missing_docker_prerequisite() -> None:
         output = f"{result.stdout}\n{result.stderr}"
         assert result.returncode != 0
         assert "Missing required command: docker" in output
+
+
+@pytest.mark.parametrize("target", ["docker", "linux"])
+def test_logs_rejects_invalid_service(target: str) -> None:
+    with tempfile.TemporaryDirectory(prefix=f"riskhub-deploy-logs-invalid-{target}-") as td:
+        tmp = Path(td)
+        fake_bin = _make_fake_bin(tmp)
+        env = os.environ.copy()
+        env["PATH"] = f"{fake_bin}:{env['PATH']}"
+
+        if target == "docker":
+            result = _run_cli(["logs", "--target", target, "--service", "invalid"], env)
+            output = f"{result.stdout}\n{result.stderr}"
+            assert result.returncode != 0
+            assert "Invalid --service" in output
+            return
+
+        config_path = tmp / "riskhub.env"
+        secret_dir = tmp / "secrets"
+        bundle_path = _make_linux_bundle(tmp, "v-test")
+        extract_root = tmp / "bundle-extract"
+        with tarfile.open(bundle_path, "r:gz") as archive:
+            archive.extractall(extract_root)
+        bundled_script = extract_root / "riskhub-linux-v-test" / "scripts" / "deploy.sh"
+        _write_config(config_path)
+        _write_secrets(secret_dir)
+        env["RISKHUB_LINUX_ROOT"] = str(tmp / "linux-root")
+        env["RISKHUB_RUNTIME_DIR"] = str(tmp / "runtime")
+        env["RISKHUB_LINUX_NGINX_SITE"] = str(tmp / "riskhub.conf")
+
+        result = _run_bundled_cli(
+            bundled_script,
+            ["logs", "--target", target, "--service", "invalid"],
+            env,
+        )
+        output = f"{result.stdout}\n{result.stderr}"
+        assert result.returncode != 0
+        assert "Invalid --service for linux logs" in output
 
 
 @pytest.mark.parametrize(
