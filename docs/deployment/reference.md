@@ -33,9 +33,8 @@ Secret directory:
 
 Shipped examples:
 
-- `scripts/deploy/templates/riskhub.env.example`
-- `scripts/deploy/templates/secrets/README.md`
-- `scripts/deploy/templates/secrets/*.example`
+- Docker: repo `scripts/deploy/templates/riskhub.env.example`, `scripts/deploy/templates/secrets/README.md`, and `scripts/deploy/templates/secrets/*.example`
+- Linux: extracted bundle `scripts/deploy/templates/riskhub.env.example`, `scripts/deploy/templates/secrets/README.md`, and `scripts/deploy/templates/secrets/*.example`
 
 Required files:
 
@@ -53,7 +52,7 @@ Production requires one supported Entra Graph credential mechanism:
 - `ENTRA_CLIENT_SECRET_FILE`, or
 - `ENTRA_CLIENT_CERTIFICATE_THUMBPRINT` + `ENTRA_CLIENT_CERTIFICATE_PRIVATE_KEY_FILE`
 
-If both are configured, certificate mode is preferred and becomes the active runtime mode.
+If both are configured, certificate mode is preferred only when `ENTRA_CLIENT_CERTIFICATE_THUMBPRINT` is set and becomes the active runtime mode.
 
 ## Derived Internally
 
@@ -81,13 +80,18 @@ Target-specific Redis URLs:
 ## Public Operator Contract
 
 ```bash
+# Docker: run from a repo checkout
 ./scripts/deploy.sh install --target docker --config PATH --secret-dir PATH --version VERSION
-./scripts/deploy.sh install --target linux --config PATH --secret-dir PATH --bundle PATH
 ./scripts/deploy.sh upgrade --target docker --config PATH --secret-dir PATH --version VERSION
-./scripts/deploy.sh upgrade --target linux --config PATH --secret-dir PATH --bundle PATH
-./scripts/deploy.sh doctor --target docker|linux --config PATH --secret-dir PATH
-./scripts/deploy.sh logs --target docker|linux [--service all|backend|scheduler|frontend|redis] [--tail N] [--follow]
+./scripts/deploy.sh doctor --target docker --config PATH --secret-dir PATH
+./scripts/deploy.sh logs --target docker [--service all|backend|scheduler|frontend|redis] [--tail N] [--follow]
 ./scripts/deploy.sh rollback --target docker --config PATH --secret-dir PATH [--service all|backend|frontend]
+
+# Linux: run from the extracted release bundle that contains ./scripts/deploy.sh
+./scripts/deploy.sh install --target linux --config PATH --secret-dir PATH --bundle PATH
+./scripts/deploy.sh upgrade --target linux --config PATH --secret-dir PATH --bundle PATH
+./scripts/deploy.sh doctor --target linux --config PATH --secret-dir PATH
+./scripts/deploy.sh logs --target linux [--service all|backend|scheduler|frontend|redis] [--tail N] [--follow]
 ./scripts/deploy.sh rollback --target linux --config PATH --secret-dir PATH
 ```
 
@@ -103,6 +107,7 @@ Operational notes:
 - The public operator contract is `install|upgrade|doctor|logs|rollback`.
 - Copy `scripts/deploy/templates/riskhub.env.example` into `/etc/riskhub/riskhub.env` and manage `/etc/riskhub/secrets/*` from `scripts/deploy/templates/secrets/README.md`.
 - `install` and `upgrade` run config validation, target rollout tasks, and built-in doctor checks automatically.
+- Linux operators should extract the tarball first and run the bundled `./scripts/deploy.sh` from inside that extracted release.
 - `metadata.env` is an internal shell-sourced runtime artifact. Operators should not edit it directly; maintainers must keep its assignments safe to `source`, including when runtime or secret paths contain spaces.
 
 ## Maintainer Overrides

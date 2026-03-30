@@ -34,7 +34,7 @@ Open `http://localhost/login` after startup.
 Deterministic live-verification preference:
 
 - Prefer `./scripts/compose.sh reset --dataset test` when you need seeded browser verification against the Docker-served app at `http://localhost/`.
-- The Docker bootstrap service now uses the backend `dbtasks` target, so `reset --dataset test` runs migrations and seed commands with the required Postgres client dependencies.
+- The Docker bootstrap service now reuses the backend runtime image, so `reset --dataset test` runs migrations and seed commands inline from the backend image contract.
 - Docker Compose now inherits the backend image's Python healthcheck instead of overriding it with `curl`.
 
 LAN mode:

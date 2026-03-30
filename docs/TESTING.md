@@ -75,7 +75,7 @@ Preferred deterministic path:
 Current behavior:
 
 - `./scripts/compose.sh reset --dataset test` is the canonical deterministic Docker path for migrations, base seed, deterministic E2E seed, and app startup.
-- The Docker bootstrap service now builds the backend `dbtasks` target, so database bootstrap work runs with the required Postgres client dependencies.
+- The Docker bootstrap service now reuses the backend runtime image and runs migrations + seed commands inline.
 - Docker Compose now inherits the backend image's Python healthcheck instead of overriding it with `curl`.
 
 Preflight:

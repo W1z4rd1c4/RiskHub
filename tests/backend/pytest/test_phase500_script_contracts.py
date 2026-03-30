@@ -30,6 +30,9 @@ EXPECTED_PROD_BOOTSTRAP_SCRIPTS = (
 )
 ACTIVE_DOCS = [
     REPO_ROOT / "AGENTS.md",
+    REPO_ROOT / "docs" / "TESTING.md",
+    REPO_ROOT / "docs" / "development" / "README.md",
+    REPO_ROOT / "docs" / "E2E_TESTING.md",
     REPO_ROOT / "docs" / "deployment" / "README.md",
     REPO_ROOT / "docs" / "deployment" / "advanced.md",
     REPO_ROOT / "docs" / "deployment" / "production.md",
@@ -379,6 +382,9 @@ def test_active_docs_do_not_reference_removed_or_unsupported_deployment_paths() 
         "docs/deployment/external-postgres-install-scripts.md",
         "Docker/K8s",
         "Docker + K8s",
+        "dbtasks target",
+        "target, so database bootstrap work runs",
+        "target, so migrations and seed commands run",
     )
     for path in ACTIVE_DOCS:
         text = _read(path)

@@ -49,8 +49,8 @@ Target-specific requirements:
 
 Use the shipped examples as your starting point:
 
-- non-secret config: `scripts/deploy/templates/riskhub.env.example`
-- secret file layout and examples: `scripts/deploy/templates/secrets/README.md`
+- Docker: repo `scripts/deploy/templates/riskhub.env.example` and `scripts/deploy/templates/secrets/README.md`
+- Linux: extract the release tarball and use the bundled `scripts/deploy/templates/riskhub.env.example` and `scripts/deploy/templates/secrets/README.md`
 
 Copy `riskhub.env.example` to `/etc/riskhub/riskhub.env`, then create the required files under `/etc/riskhub/secrets/` using the matching example files without the `.example` suffix.
 
@@ -73,7 +73,7 @@ Choose one Entra confidential credential mode:
 - client secret mode: `entra_client_secret`
 - certificate mode: `entra_client_certificate_private_key` plus `ENTRA_CLIENT_CERTIFICATE_THUMBPRINT` in `riskhub.env`
 
-`ENTRA_TENANT_ID` and `ENTRA_CLIENT_ID` stay in the non-secret config. Database credentials, `SECRET_KEY`, and the Redis password live in `/etc/riskhub/secrets/`. The unused Entra file may be absent. If both Entra files are present, certificate mode is preferred. Certificate PEM material should stay in its dedicated secret file and should never be pasted into non-secret config.
+`ENTRA_TENANT_ID` and `ENTRA_CLIENT_ID` stay in the non-secret config. Database credentials, `SECRET_KEY`, and the Redis password live in `/etc/riskhub/secrets/`. The unused Entra file may be absent. If both Entra files are present, certificate mode is preferred only when `ENTRA_CLIENT_CERTIFICATE_THUMBPRINT` is set. Certificate PEM material should stay in its dedicated secret file and should never be pasted into non-secret config.
 
 ## 3. Install
 
@@ -92,7 +92,9 @@ Docker target:
 Linux target:
 
 ```bash
-./scripts/deploy.sh install --target linux --config /etc/riskhub/riskhub.env --secret-dir /etc/riskhub/secrets --bundle ./riskhub-linux-v1.2.3.tar.gz
+tar -xzf riskhub-linux-v1.2.3.tar.gz
+cd riskhub-linux-v1.2.3
+./scripts/deploy.sh install --target linux --config /etc/riskhub/riskhub.env --secret-dir /etc/riskhub/secrets --bundle ../riskhub-linux-v1.2.3.tar.gz
 ```
 
 `install` runs config validation, target rollout tasks, and the built-in doctor checks automatically.
@@ -145,7 +147,7 @@ Use the same target-specific release input shape you used for `install`:
 
 ```bash
 ./scripts/deploy.sh upgrade --target docker --config /etc/riskhub/riskhub.env --secret-dir /etc/riskhub/secrets --version v1.2.4
-./scripts/deploy.sh upgrade --target linux --config /etc/riskhub/riskhub.env --secret-dir /etc/riskhub/secrets --bundle ./riskhub-linux-v1.2.4.tar.gz
+./scripts/deploy.sh upgrade --target linux --config /etc/riskhub/riskhub.env --secret-dir /etc/riskhub/secrets --bundle ../riskhub-linux-v1.2.4.tar.gz
 ```
 
 The upgrade path keeps database migrations explicit and preserves rollback metadata for the application release only.

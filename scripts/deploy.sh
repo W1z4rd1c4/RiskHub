@@ -56,7 +56,7 @@ Command-specific options:
   upgrade        [--version VERSION|--backend-image IMAGE --frontend-image IMAGE --redis-image IMAGE|--bundle PATH]
   doctor         validates config, status, and runtime health for the selected target
   logs           [--service all|backend|scheduler|frontend|redis] [--tail N] [--follow]
-  rollback       [--service all|backend|frontend]   (docker only)
+  rollback       docker: [--service all|backend|frontend] | linux: full-release only
 EOF
 }
 
@@ -262,6 +262,19 @@ secrets_check() {
   [[ -n "${redis_password%$'\n'}" ]] || die "redis_password must not be empty"
 }
 
+run_target_doctor() {
+  local config_path="$1"
+  if [[ "$TARGET" == "docker" ]]; then
+    docker_preflight "$config_path" "true"
+    docker_status
+    docker_smoke "$config_path"
+  else
+    linux_preflight "$config_path" "true"
+    linux_status
+    linux_smoke "$config_path"
+  fi
+}
+
 case "$command_name" in
   install)
     require_file "$CONFIG_PATH"
@@ -272,6 +285,7 @@ case "$command_name" in
       [[ -n "$BUNDLE_PATH" ]] || die "--bundle is required for linux install"
       linux_deploy_or_upgrade "deploy" "$CONFIG_PATH" "$BUNDLE_PATH"
     fi
+    run_target_doctor "$CONFIG_PATH"
     ;;
   upgrade)
     require_file "$CONFIG_PATH"
@@ -282,19 +296,12 @@ case "$command_name" in
       [[ -n "$BUNDLE_PATH" ]] || die "--bundle is required for linux upgrade"
       linux_deploy_or_upgrade "upgrade" "$CONFIG_PATH" "$BUNDLE_PATH"
     fi
+    run_target_doctor "$CONFIG_PATH"
     ;;
   doctor)
     require_file "$CONFIG_PATH"
     secrets_check
-    if [[ "$TARGET" == "docker" ]]; then
-      docker_preflight "$CONFIG_PATH" "true"
-      docker_status
-      docker_smoke "$CONFIG_PATH"
-    else
-      linux_preflight "$CONFIG_PATH" "true"
-      linux_status
-      linux_smoke "$CONFIG_PATH"
-    fi
+    run_target_doctor "$CONFIG_PATH"
     ;;
   logs)
     if [[ "$TARGET" == "docker" ]]; then

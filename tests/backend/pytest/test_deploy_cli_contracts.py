@@ -239,6 +239,7 @@ def test_deploy_script_help_exposes_only_the_new_public_contract() -> None:
     assert result.returncode == 0, f"{result.stdout}\n{result.stderr}"
     output = result.stdout
     assert "Usage: ./scripts/deploy.sh <install|upgrade|doctor|logs|rollback>" in output
+    assert "docker: [--service all|backend|frontend] | linux: full-release only" in output
     assert "secrets-edit" not in output
     assert "preflight" not in output
     assert "smoke" not in output
@@ -308,6 +309,7 @@ def test_docker_cli_supports_install_upgrade_doctor_logs_and_rollback_dry_run() 
         assert "scripts/prod/install_backend.sh" in install_output
         assert "scripts/prod/run_migrations.sh" in install_output
         assert "scripts/prod/bootstrap_db.sh" in install_output
+        assert "scripts/prod/status.sh" in install_output
         assert "scripts/prod/smoke_test.sh" in install_output
 
         upgrade_env = env | {
@@ -339,6 +341,7 @@ def test_docker_cli_supports_install_upgrade_doctor_logs_and_rollback_dry_run() 
         upgrade_output = f"{upgrade.stdout}\n{upgrade.stderr}"
         assert "--previous-image ghcr.io/example/riskhub-backend:previous" in upgrade_output
         assert "--previous-image ghcr.io/example/riskhub-frontend:previous" in upgrade_output
+        assert "scripts/prod/status.sh" in upgrade_output
 
         doctor = _run_cli(
             [
@@ -518,6 +521,7 @@ def test_linux_cli_supports_install_upgrade_doctor_logs_and_rollback_dry_run() -
         install_output = f"{install.stdout}\n{install.stderr}"
         assert "riskhub-linux-v-test.tar.gz" in install_output
         assert "riskhub-redis.service" in install_output
+        assert "COMPONENT\tSTATUS" in install_output
 
         release_dir = linux_root / "releases" / "v-previous"
         release_dir.mkdir(parents=True)
@@ -544,6 +548,8 @@ def test_linux_cli_supports_install_upgrade_doctor_logs_and_rollback_dry_run() -
             env,
         )
         assert upgrade.returncode == 0, f"{upgrade.stdout}\n{upgrade.stderr}"
+        upgrade_output = f"{upgrade.stdout}\n{upgrade.stderr}"
+        assert "COMPONENT\tSTATUS" in upgrade_output
 
         doctor = _run_bundled_cli(
             bundled_script,

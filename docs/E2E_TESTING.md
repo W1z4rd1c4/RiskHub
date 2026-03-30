@@ -87,7 +87,7 @@ Preferred deterministic reset:
 Current behavior:
 
 - `./scripts/compose.sh reset --dataset test` now completes end to end on the Docker stack and is the preferred deterministic browser-verification path.
-- The Docker bootstrap service uses the backend `dbtasks` target, so migrations and seed commands run with the required Postgres client dependencies.
+- The Docker bootstrap service reuses the backend runtime image, so migrations and seed commands run inline from the backend image contract.
 - Docker Compose now inherits the backend image's Python healthcheck instead of overriding it with `curl`.
 
 Preflight:
