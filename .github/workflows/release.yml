@@ -231,11 +231,19 @@ jobs:
           test -f "${release_dir}/backend/requirements-db.txt"
           test -d "${release_dir}/backend/wheels"
           test -d "${release_dir}/frontend/dist"
-          test -f "${release_dir}/deploy/lib/render.py"
-          test -f "${release_dir}/deploy/templates/linux/nginx-site.conf.tmpl"
-          test -f "${release_dir}/deploy/templates/linux/riskhub-backend.service.tmpl"
-          test -f "${release_dir}/deploy/templates/linux/riskhub-scheduler.service.tmpl"
-          test -f "${release_dir}/deploy/templates/linux/riskhub-redis.service.tmpl"
+          test -f "${release_dir}/scripts/deploy.sh"
+          test -f "${release_dir}/scripts/deploy/lib/common.sh"
+          test -f "${release_dir}/scripts/deploy/lib/linux.sh"
+          test -f "${release_dir}/scripts/deploy/lib/render.py"
+          test -f "${release_dir}/scripts/deploy/templates/riskhub.env.example"
+          test -f "${release_dir}/scripts/deploy/templates/secrets/README.md"
+          test -f "${release_dir}/scripts/deploy/templates/secrets/database_url.example"
+          test -f "${release_dir}/scripts/deploy/templates/secrets/secret_key.example"
+          test -f "${release_dir}/scripts/deploy/templates/secrets/redis_password.example"
+          test -f "${release_dir}/scripts/deploy/templates/linux/nginx-site.conf.tmpl"
+          test -f "${release_dir}/scripts/deploy/templates/linux/riskhub-backend.service.tmpl"
+          test -f "${release_dir}/scripts/deploy/templates/linux/riskhub-scheduler.service.tmpl"
+          test -f "${release_dir}/scripts/deploy/templates/linux/riskhub-redis.service.tmpl"
 
           python3.13 - <<'PY' "${release_dir}"
           from pathlib import Path
@@ -289,11 +297,11 @@ jobs:
           chmod 750 "${secret_dir}"
           chmod 440 "${secret_dir}"/*
 
-          python3 "${release_dir}/deploy/lib/render.py" render-linux-nginx-full --config "${config_path}" --release-root /opt/riskhub/current > "${tmp_root}/nginx.conf"
-          python3 "${release_dir}/deploy/lib/render.py" render-linux-backend-unit --config "${config_path}" --current-link /opt/riskhub/current --runtime-dir /etc/riskhub/runtime --redis-service riskhub-redis > "${tmp_root}/riskhub-backend.service"
-          python3 "${release_dir}/deploy/lib/render.py" render-linux-scheduler-unit --current-link /opt/riskhub/current --runtime-dir /etc/riskhub/runtime --redis-service riskhub-redis > "${tmp_root}/riskhub-scheduler.service"
-          python3 "${release_dir}/deploy/lib/render.py" render-linux-redis-unit --secret-dir "${secret_dir}" > "${tmp_root}/riskhub-redis.service"
-          python3 "${release_dir}/deploy/lib/render.py" write-runtime --config "${config_path}" --target linux --secret-dir "${secret_dir}" --runtime-dir /etc/riskhub/runtime --out-dir "${tmp_root}/runtime"
+          python3 "${release_dir}/scripts/deploy/lib/render.py" render-linux-nginx-full --config "${config_path}" --release-root /opt/riskhub/current > "${tmp_root}/nginx.conf"
+          python3 "${release_dir}/scripts/deploy/lib/render.py" render-linux-backend-unit --config "${config_path}" --current-link /opt/riskhub/current --runtime-dir /etc/riskhub/runtime --redis-service riskhub-redis > "${tmp_root}/riskhub-backend.service"
+          python3 "${release_dir}/scripts/deploy/lib/render.py" render-linux-scheduler-unit --current-link /opt/riskhub/current --runtime-dir /etc/riskhub/runtime --redis-service riskhub-redis > "${tmp_root}/riskhub-scheduler.service"
+          python3 "${release_dir}/scripts/deploy/lib/render.py" render-linux-redis-unit --secret-dir "${secret_dir}" > "${tmp_root}/riskhub-redis.service"
+          python3 "${release_dir}/scripts/deploy/lib/render.py" write-runtime --config "${config_path}" --target linux --secret-dir "${secret_dir}" --runtime-dir /etc/riskhub/runtime --out-dir "${tmp_root}/runtime"
 
           nginx -t -c "${tmp_root}/nginx.conf" -p "${tmp_root}"
           systemd-analyze verify "${tmp_root}/riskhub-backend.service" "${tmp_root}/riskhub-scheduler.service" "${tmp_root}/riskhub-redis.service"
@@ -303,8 +311,13 @@ jobs:
           set -euo pipefail
           tmp_root="$(mktemp -d)"
           trap 'rm -rf "${tmp_root}"' EXIT
+          tar -xzf "dist/releases/riskhub-linux-${RELEASE_VERSION}.tar.gz" -C "${tmp_root}"
+          release_dir="${tmp_root}/riskhub-linux-${RELEASE_VERSION}"
           config_path="${tmp_root}/riskhub.env"
           secret_dir="${tmp_root}/secrets"
+          linux_root="${tmp_root}/linux-root"
+          runtime_dir="${tmp_root}/runtime"
+          nginx_site="${tmp_root}/riskhub.conf"
           mkdir -p "${secret_dir}"
           cat > "${config_path}" <<'EOF'
           PUBLIC_URL=https://riskhub.example.com
@@ -322,7 +335,25 @@ jobs:
           chmod 750 "${secret_dir}"
           chmod 440 "${secret_dir}"/*
 
-          bash scripts/deploy.sh install \
+          RISKHUB_LINUX_ROOT="${linux_root}" \
+          RISKHUB_RUNTIME_DIR="${runtime_dir}" \
+          RISKHUB_LINUX_NGINX_SITE="${nginx_site}" \
+          bash "${release_dir}/scripts/deploy.sh" install \
+            --target linux \
+            --config "${config_path}" \
+            --secret-dir "${secret_dir}" \
+            --bundle "dist/releases/riskhub-linux-${RELEASE_VERSION}.tar.gz" \
+            --dry-run \
+            --yes
+
+          mkdir -p "${linux_root}/releases/v-previous" "${linux_root}/releases/v-old"
+          ln -sfn "${linux_root}/releases/v-previous" "${linux_root}/current"
+          ln -sfn "${linux_root}/releases/v-old" "${linux_root}/previous"
+
+          RISKHUB_LINUX_ROOT="${linux_root}" \
+          RISKHUB_RUNTIME_DIR="${runtime_dir}" \
+          RISKHUB_LINUX_NGINX_SITE="${nginx_site}" \
+          bash "${release_dir}/scripts/deploy.sh" upgrade \
             --target linux \
             --config "${config_path}" \
             --secret-dir "${secret_dir}" \

@@ -173,7 +173,30 @@ exit 0
 
 def _make_linux_bundle(root: Path, version: str) -> Path:
     bundle_root = root / f"riskhub-linux-{version}"
-    bundle_root.mkdir()
+    backend_root = bundle_root / "backend"
+    frontend_root = bundle_root / "frontend"
+    scripts_root = bundle_root / "scripts"
+
+    shutil.copytree(REPO_ROOT / "backend" / "app", backend_root / "app")
+    shutil.copytree(REPO_ROOT / "backend" / "alembic", backend_root / "alembic")
+    (backend_root / "scripts").mkdir(parents=True)
+    (backend_root / "wheels").mkdir(parents=True)
+    shutil.copy2(REPO_ROOT / "backend" / "alembic.ini", backend_root / "alembic.ini")
+    shutil.copy2(REPO_ROOT / "backend" / "requirements-runtime.txt", backend_root / "requirements-runtime.txt")
+    shutil.copy2(REPO_ROOT / "backend" / "requirements-db.txt", backend_root / "requirements-db.txt")
+    for script_name in (
+        "__init__.py",
+        "bootstrap_sso_user.py",
+        "seed_departments.py",
+        "seed_roles_permissions.py",
+    ):
+        shutil.copy2(REPO_ROOT / "backend" / "scripts" / script_name, backend_root / "scripts" / script_name)
+
+    (frontend_root / "dist").mkdir(parents=True)
+    scripts_root.mkdir(parents=True)
+    shutil.copy2(REPO_ROOT / "scripts" / "deploy.sh", scripts_root / "deploy.sh")
+    shutil.copytree(REPO_ROOT / "scripts" / "deploy", scripts_root / "deploy")
+
     (bundle_root / "manifest.json").write_text(f'{{"version": "{version}"}}\n', encoding="utf-8")
     archive_path = root / f"riskhub-linux-{version}.tar.gz"
     with tarfile.open(archive_path, "w:gz") as archive:
@@ -185,6 +208,17 @@ def _run_cli(args: list[str], env: dict[str, str]) -> subprocess.CompletedProces
     return subprocess.run(
         [str(DEPLOY_SCRIPT), *args],
         cwd=REPO_ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+
+
+def _run_bundled_cli(script: Path, args: list[str], env: dict[str, str]) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [str(script), *args],
+        cwd=script.parent.parent,
         check=False,
         capture_output=True,
         text=True,
@@ -449,6 +483,10 @@ def test_linux_cli_supports_install_upgrade_doctor_logs_and_rollback_dry_run() -
         runtime_root = tmp / "runtime"
         nginx_site = tmp / "riskhub.conf"
         bundle_path = _make_linux_bundle(tmp, "v-test")
+        extract_root = tmp / "bundle-extract"
+        with tarfile.open(bundle_path, "r:gz") as archive:
+            archive.extractall(extract_root)
+        bundled_script = extract_root / "riskhub-linux-v-test" / "scripts" / "deploy.sh"
         _write_config(config_path, FRONTEND_BIND_PORT="18082")
         _write_secrets(secret_dir)
         fake_bin = _make_fake_bin(tmp)
@@ -459,7 +497,8 @@ def test_linux_cli_supports_install_upgrade_doctor_logs_and_rollback_dry_run() -
         env["RISKHUB_RUNTIME_DIR"] = str(runtime_root)
         env["RISKHUB_LINUX_NGINX_SITE"] = str(nginx_site)
 
-        install = _run_cli(
+        install = _run_bundled_cli(
+            bundled_script,
             [
                 "install",
                 "--target",
@@ -487,7 +526,8 @@ def test_linux_cli_supports_install_upgrade_doctor_logs_and_rollback_dry_run() -
         (linux_root / "current").symlink_to(release_dir)
         (linux_root / "previous").symlink_to(previous_dir)
 
-        upgrade = _run_cli(
+        upgrade = _run_bundled_cli(
+            bundled_script,
             [
                 "upgrade",
                 "--target",
@@ -505,7 +545,8 @@ def test_linux_cli_supports_install_upgrade_doctor_logs_and_rollback_dry_run() -
         )
         assert upgrade.returncode == 0, f"{upgrade.stdout}\n{upgrade.stderr}"
 
-        doctor = _run_cli(
+        doctor = _run_bundled_cli(
+            bundled_script,
             [
                 "doctor",
                 "--target",
@@ -526,13 +567,15 @@ def test_linux_cli_supports_install_upgrade_doctor_logs_and_rollback_dry_run() -
         assert "/docs" in doctor_output
         assert "openapi.json" in doctor_output
 
-        logs = _run_cli(
+        logs = _run_bundled_cli(
+            bundled_script,
             ["logs", "--target", "linux", "--service", "all", "--tail", "50"],
             env,
         )
         assert logs.returncode == 0, f"{logs.stdout}\n{logs.stderr}"
 
-        rollback = _run_cli(
+        rollback = _run_bundled_cli(
+            bundled_script,
             [
                 "rollback",
                 "--target",

@@ -67,8 +67,8 @@ trap 'rm -rf "$TMP_ROOT"' EXIT
 STAGE_ROOT="${TMP_ROOT}/riskhub-linux-${VERSION}"
 BACKEND_STAGE="${STAGE_ROOT}/backend"
 FRONTEND_STAGE="${STAGE_ROOT}/frontend"
-DEPLOY_STAGE="${STAGE_ROOT}/deploy"
-mkdir -p "${BACKEND_STAGE}" "${BACKEND_STAGE}/scripts" "${BACKEND_STAGE}/wheels" "${FRONTEND_STAGE}" "${DEPLOY_STAGE}/lib" "${DEPLOY_STAGE}/templates"
+SCRIPTS_STAGE="${STAGE_ROOT}/scripts"
+mkdir -p "${BACKEND_STAGE}" "${BACKEND_STAGE}/scripts" "${BACKEND_STAGE}/wheels" "${FRONTEND_STAGE}" "${SCRIPTS_STAGE}"
 
 printf 'Building frontend dist for release %s\n' "$VERSION"
 (
@@ -98,9 +98,9 @@ find "${STAGE_ROOT}" -type d \( -name "__pycache__" -o -name ".pytest_cache" \) 
 find "${STAGE_ROOT}" -name ".DS_Store" -delete
 
 cp -R "${REPO_ROOT}/frontend/dist" "${FRONTEND_STAGE}/dist"
-cp "${REPO_ROOT}/scripts/deploy/lib/render.py" "${DEPLOY_STAGE}/lib/render.py"
-cp -R "${REPO_ROOT}/scripts/deploy/templates/linux" "${DEPLOY_STAGE}/templates/linux"
-cp "${REPO_ROOT}/scripts/deploy/templates/riskhub.env.example" "${DEPLOY_STAGE}/templates/riskhub.env.example"
+cp "${REPO_ROOT}/scripts/deploy.sh" "${SCRIPTS_STAGE}/deploy.sh"
+chmod 755 "${SCRIPTS_STAGE}/deploy.sh"
+cp -R "${REPO_ROOT}/scripts/deploy" "${SCRIPTS_STAGE}/deploy"
 
 python3 - <<'PY' "${STAGE_ROOT}/manifest.json" "${VERSION}" "${REPO_ROOT}"
 import json
