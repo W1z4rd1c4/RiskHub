@@ -1,7 +1,7 @@
 # RiskHub E2E Testing Guide
 
-> **Version**: 1.3
-> **Last Updated**: 2026-03-29
+> **Version**: 1.4
+> **Last Updated**: 2026-04-04
 > **Audience**: QA, Engineering
 > **Source of Truth**: `tests/frontend/e2e/playwright.config.ts`, `tests/frontend/e2e/`, `frontend/package.json`
 
@@ -55,7 +55,7 @@ Primary suite groups in `tests/frontend/e2e/`:
 One-command deterministic reset + full seed (recommended):
 
 ```bash
-./scripts/compose.sh reset --dataset test
+./scripts/install.sh demo --reset test
 ```
 
 This wipes Docker dev volumes, reruns migrations + base demo seed, then adds deterministic E2E fixtures:
@@ -75,18 +75,20 @@ Rules:
 
 - E2E seed scripts must not create duplicate role/department identity records.
 - Deterministic entities are consumed by fixtures and page-object selectors.
+- The underlying advanced/manual reset command remains `./scripts/compose.sh reset --dataset test`.
 
 ## Docker Full-Stack Verification
 
 Preferred deterministic reset:
 
 ```bash
-./scripts/compose.sh reset --dataset test
+./scripts/install.sh demo --reset test
 ```
 
 Current behavior:
 
-- `./scripts/compose.sh reset --dataset test` now completes end to end on the Docker stack and is the preferred deterministic browser-verification path.
+- `./scripts/install.sh demo --reset test` is the preferred deterministic browser-verification path.
+- The underlying advanced/manual command remains `./scripts/compose.sh reset --dataset test`, which now completes end to end on the Docker stack.
 - The Docker bootstrap service uses the backend `dbtasks` target, so migrations and seed commands run with the required Postgres client dependencies.
 - Docker Compose now inherits the backend image's Python healthcheck instead of overriding it with `curl`.
 

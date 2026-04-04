@@ -24,6 +24,7 @@ Usage:
   ./scripts/compose.sh reset --dataset dev|test [--no-build]
 
 Canonical Docker onboarding/appliance path for RiskHub development.
+Public first-run wrapper: ./scripts/install.sh demo
 EOF
 }
 

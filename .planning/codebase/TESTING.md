@@ -1,6 +1,6 @@
 # Testing
 
-**Analysis Date:** 2026-03-29
+**Analysis Date:** 2026-04-04
 
 ## Test Stack Overview
 
@@ -45,7 +45,7 @@
 - “polish-audit” is intentionally heavier and is lightweight-by-default; set `POLISH_AUDIT_DEEP=1` when you want full-page/deep audit mode (`tests/frontend/e2e/polish-audit.spec.ts`)
 - Docker full-stack browser runs must override `FRONTEND_URL=http://localhost`
 - `polish-audit` currently automates `riskhub` and `light`; `dark` remains manual-only
-- Current gap (verified 2026-03-29): the shared login helper still waits for `http://localhost:5173/...`, so Docker-origin browser packs fail until that helper becomes origin-aware
+- The shared login helper is origin-aware for both `http://localhost:5173` and the Docker nginx surface at `http://localhost`
 
 ## CI Test/Security Execution
 
@@ -56,6 +56,8 @@
 
 ## Canonical Commands
 
+- Public local/demo install flows: `./scripts/install.sh demo`, `./scripts/install.sh demo --reset test`, and `./scripts/install.sh dev`
+- Public production install/verification flows: `./scripts/install.sh production --target docker|linux` and `./scripts/install.sh verify --mode production --target docker|linux --config PATH --secret-dir PATH`
 - Backend tests: `make -f scripts/Makefile test` or `cd backend && pytest -v`
 - Backend lint + suppression budget: `make -f scripts/Makefile lint-backend`
 - Backend suppression budget only: `make -f scripts/Makefile quality-suppression-budget`
@@ -87,8 +89,8 @@
 ## Practical Gaps to Watch
 
 - SQLite-default tests may not catch all Postgres-specific datetime/enum behavior
-- The intended Docker deterministic reset path (`./scripts/compose.sh reset --dataset test`) is currently blocked by a bootstrap-image dependency gap (`psycopg2` missing in the bootstrap container)
-- Current Docker app startup also needs a frontend workaround while the backend container healthcheck still depends on missing `curl`
+- Public wrapper flows still rely on the underlying `scripts/dev.sh`, `scripts/compose.sh`, and `scripts/deploy.sh` contracts staying stable
+- Docker-origin Playwright runs still require `FRONTEND_URL=http://localhost`
 - Authorization changes should be validated in both backend API tests and frontend gating tests
 - Approval-execution changes should include high-confidence regression tests around side effects
 - `/kris` filter changes should be validated with the targeted route-backed regression covering monitoring/timeliness ownership, mutual exclusion, grouped-view parity, and rapid-click loading recovery
@@ -98,4 +100,4 @@
 
 ---
 
-*Testing audit refreshed on 2026-03-29*
+*Testing audit refreshed on 2026-04-04*

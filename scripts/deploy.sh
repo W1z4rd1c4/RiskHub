@@ -38,6 +38,9 @@ usage() {
   cat <<EOF
 Usage: ./scripts/deploy.sh <init|secrets-init|secrets-edit|secrets-check|preflight|deploy|upgrade|status|logs|smoke|rollback> --target docker|linux [options]
 
+Guided public installer:
+  ./scripts/install.sh production --target docker|linux
+
 Common options:
   --target docker|linux
   --config PATH               Non-secret config path (default: ${DEFAULT_CONFIG_PATH})

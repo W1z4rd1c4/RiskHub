@@ -1,6 +1,6 @@
 # External Integrations
 
-**Analysis Date:** 2026-03-29
+**Analysis Date:** 2026-04-04
 
 ## Core External Services
 
@@ -42,12 +42,11 @@
 
 - Frontend nginx proxies `/api/` to `backend:8000` in container network (`frontend/nginx.conf`)
 - Vite dev server proxies `/api` to local backend (`frontend/vite.config.ts`)
-- Development Docker Compose defines local multi-service topology, healthchecks, and bootstrap flow (`docker-compose.yml`, `scripts/compose.sh`)
-- Current verified Docker live-verification path still has three known gaps:
-  - the bootstrap container currently lacks `psycopg2`, so `./scripts/compose.sh reset --dataset test` does not complete end to end
-  - the backend container healthcheck currently depends on `curl`, which is not present in the backend image
-  - Docker-origin Playwright runs require `FRONTEND_URL=http://localhost`, but the shared login helper still waits for `http://localhost:5173/...`
-- Supported production/admin deployment runs through `./scripts/deploy.sh --target docker|linux`, backed by retained `scripts/prod/*` helper scripts
+- Public local/demo install flow is wrapper-first through `./scripts/install.sh demo` and `./scripts/install.sh dev`
+- Development Docker Compose defines the local multi-service topology, healthchecks, and bootstrap flow underneath `./scripts/install.sh demo` (`docker-compose.yml`, `scripts/compose.sh`)
+- `./scripts/install.sh demo --reset test` now completes end to end on the Docker stack, using the backend `dbtasks` target for migrations and seed commands
+- Docker-origin Playwright runs still require `FRONTEND_URL=http://localhost`, and the shared login helper is origin-aware across both the Vite and Docker nginx surfaces
+- Supported production install/admin runs are wrapper-first through `./scripts/install.sh production --target docker|linux`, backed by `./scripts/deploy.sh --target docker|linux` and retained `scripts/prod/*` helper scripts
 
 ## CI/Security Integrations
 
@@ -73,4 +72,4 @@
 
 ---
 
-*Integration audit refreshed on 2026-03-29*
+*Integration audit refreshed on 2026-04-04*

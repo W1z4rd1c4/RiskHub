@@ -1,6 +1,6 @@
 # Architecture
 
-**Analysis Date:** 2026-03-15
+**Analysis Date:** 2026-04-04
 
 ## System Shape
 
@@ -64,9 +64,10 @@ RiskHub is a containerized full-stack application:
 
 ## Deployment Topology
 
-- Dev/local two-path flow orchestrated by `scripts/dev.sh`, `scripts/compose.sh`, and `scripts/Makefile`
-- Supported production/admin flow is `./scripts/deploy.sh --target docker|linux`
-- Docker onboarding flow bootstraps migrations + base seed through the compose-only `bootstrap` service before backend readiness
+- Public local/demo install flow is wrapper-first through `./scripts/install.sh demo` and `./scripts/install.sh dev`
+- Public production/admin install flow is wrapper-first through `./scripts/install.sh production --target docker|linux`
+- `scripts/compose.sh`, `scripts/dev.sh`, and `scripts/deploy.sh` remain the underlying advanced/manual implementation layers
+- Docker onboarding flow still bootstraps migrations + base seed through the compose-managed `bootstrap` service before backend readiness
 - Component-scoped runtime entrypoints under `frontend/scripts/runtime/`, `backend/scripts/runtime/`, and `backend/scripts/runtime/db/` are internal implementation assets rather than supported deployment interfaces
 - Frontend served by nginx, proxying backend API requests (`frontend/nginx.conf`)
 - Deployment runbooks live in `docs/deployment/`
@@ -80,4 +81,4 @@ RiskHub is a containerized full-stack application:
 
 ---
 
-*Architecture analysis refreshed on 2026-03-15*
+*Architecture analysis refreshed on 2026-04-04*
