@@ -30274,7 +30274,7 @@ Archive:  placeholder-zip-010.zip
         2  12-27-2025 23:37   .pytest_cache/v/cache/nodeids
    115861  12-25-2025 22:34   placeholder-kri-source.xlsx
     21609  12-25-2025 00:40   placeholder-controls-source.xlsx
-  1014754  12-25-2025 00:42   OS 18 RÌ?iÌ?zeniÌ? rizik.pdf
+  1014754  12-25-2025 00:42   placeholder-risk-policy.pdf
         0  12-28-2025 00:26   backend/
         0  12-25-2025 18:51   backend/app/
         0  12-26-2025 20:01   backend/app/core/
