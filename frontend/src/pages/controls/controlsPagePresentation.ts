@@ -103,6 +103,11 @@ export function getControlStatusColor(status: ControlStatus): string {
             return 'text-rose-400 bg-rose-400/10';
         case ControlStatus.ARCHIVED:
             return 'text-yellow-400 bg-yellow-400/10';
+        case 'active':
+        case 'draft':
+        case 'inactive':
+        case 'archived':
+            return 'text-slate-400 bg-slate-400/10';
         default:
             return 'text-slate-400 bg-slate-400/10';
     }
@@ -110,6 +115,7 @@ export function getControlStatusColor(status: ControlStatus): string {
 
 export function getControlGroupByField(viewMode: ViewMode): keyof ControlSummary | null {
     switch (viewMode) {
+        case 'all':
         case 'category':
             return 'control_form';
         case 'department':
@@ -118,10 +124,12 @@ export function getControlGroupByField(viewMode: ViewMode): keyof ControlSummary
             return 'frequency';
         case 'risk_type':
             return 'risk_type';
+        case 'flag':
+        case 'type':
+        case 'vendor':
+            return null;
         case 'risk':
             return 'risk_name';
-        default:
-            return null;
     }
 }
 
