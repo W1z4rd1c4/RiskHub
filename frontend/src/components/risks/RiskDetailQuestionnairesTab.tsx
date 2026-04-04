@@ -80,7 +80,7 @@ export function RiskDetailQuestionnairesTab({ risk }: RiskDetailQuestionnairesTa
                 if (!cancelled) setLatestSubmittedLoading(false);
             }
         };
-        loadLatest();
+        void loadLatest();
         return () => {
             cancelled = true;
         };

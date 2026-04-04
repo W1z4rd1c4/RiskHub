@@ -29,7 +29,7 @@
 - `backend/alembic/` - migration environment and versioned migrations
 - `backend/scripts/runtime/` - component-scoped backend runtime entrypoints (`dev`, `test`, `prod`)
 - `backend/scripts/runtime/db/` - backend-owned DB runtime entrypoints (`dev`, `test`, `prod`)
-- `tests/backend/pytest/` - 136 tracked test files (133 Python) (measured git-tracked snapshot)
+- `tests/backend/pytest/` - 138 tracked test files (135 Python) (measured git-tracked snapshot)
 
 ## Frontend Tree (`frontend/`)
 
@@ -43,6 +43,7 @@
 - `frontend/src/services/` - API client and domain service wrappers
 - `frontend/src/contexts/` - auth/theme/filter context providers
 - `frontend/src/authz/` - authz policy derivation hooks
+- `frontend/src/routing/` - centralized route metadata and sidebar navigation manifests
 - `frontend/src/hooks/` - shared hooks
 - `frontend/src/i18n/` - locale resources and typed translation hooks
 - `frontend/scripts/runtime/` - component-scoped frontend runtime entrypoints (`dev`, `test`, `prod`)

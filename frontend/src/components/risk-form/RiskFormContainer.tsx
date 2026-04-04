@@ -159,7 +159,7 @@ export function RiskForm({
                 console.error('Failed to load lookups:', err);
             }
         };
-        loadLookups();
+        void loadLookups();
     }, []);
 
     const handleInputChange = (field: keyof Risk, value: unknown) => {
@@ -275,12 +275,12 @@ export function RiskForm({
                 if (onSuccess) {
                     await onSuccess(newRisk.id);
                 } else {
-                    navigate(`/risks/${newRisk.id}`);
+                    void navigate(`/risks/${newRisk.id}`);
                 }
                 return;
             }
 
-            navigate(`/risks/${initialData?.id}`);
+            void navigate(`/risks/${initialData?.id}`);
         } catch (err: unknown) {
             console.error('Error saving risk:', err);
             if (err instanceof ApiClientError) {
@@ -414,7 +414,7 @@ export function RiskForm({
                                 if (onCancel) {
                                     onCancel();
                                 } else {
-                                    navigate('/risks');
+                                    void navigate('/risks');
                                 }
                                 return;
                             }

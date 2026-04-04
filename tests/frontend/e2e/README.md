@@ -23,7 +23,7 @@ Playwright global setup validates fixture health before tests run (risks, contro
 
 ```bash
 cd frontend
-npx playwright test -c ../tests/frontend/e2e/playwright.config.ts \
+npx playwright test -c playwright.config.ts \
   ../tests/frontend/e2e/controls.spec.ts \
   ../tests/frontend/e2e/risks.spec.ts \
   ../tests/frontend/e2e/navigation-stability.spec.ts \
@@ -43,7 +43,7 @@ Use the Docker-served frontend when you want the app exactly as served at `http:
 
 cd frontend
 FRONTEND_URL=http://localhost npm run e2e:business-logic
-FRONTEND_URL=http://localhost POLISH_AUDIT_DEEP=1 npx playwright test -c ../tests/frontend/e2e/playwright.config.ts \
+FRONTEND_URL=http://localhost POLISH_AUDIT_DEEP=1 npx playwright test -c playwright.config.ts \
   ../tests/frontend/e2e/polish-audit.spec.ts \
   --project=chromium
 ```
@@ -51,6 +51,5 @@ FRONTEND_URL=http://localhost POLISH_AUDIT_DEEP=1 npx playwright test -c ../test
 Notes:
 
 - Playwright artifacts are written under `tests/results/frontend/playwright/`.
-- `polish-audit.spec.ts` currently covers `riskhub` and `light`.
-- `dark` theme still requires manual verification.
+- `polish-audit.spec.ts` covers `riskhub`, `light`, and `dark`.
 - Docker-origin runs should set `FRONTEND_URL=http://localhost`. The shared demo-login helper in [`tests/frontend/e2e/helpers/login.ts`](./helpers/login.ts) now keys off post-login paths instead of a hardcoded `localhost:5173` origin, so the same helper works against both local Vite and Docker nginx surfaces.

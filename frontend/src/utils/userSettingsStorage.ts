@@ -81,7 +81,7 @@ export async function syncPreferencesFromServer(): Promise<UserPreferences> {
 
     // Also update i18n instance if language differs
     if (i18n.language !== prefs.language) {
-        i18n.changeLanguage(prefs.language);
+        void i18n.changeLanguage(prefs.language);
     }
 
     return prefs;

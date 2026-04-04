@@ -35,7 +35,7 @@ export function KRIStatusWidget() {
                 setIsLoading(false);
             }
         };
-        fetchData();
+        void fetchData();
     }, [filters.departmentId]);
 
     const getUrgencyColor = (days: number, isOverdue: boolean) => {

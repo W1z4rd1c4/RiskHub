@@ -93,7 +93,7 @@ export const namespaces = [
 
 export type Namespace = typeof namespaces[number];
 
-i18n
+void i18n
     .use(LanguageDetector)
     .use(initReactI18next)
     .init({

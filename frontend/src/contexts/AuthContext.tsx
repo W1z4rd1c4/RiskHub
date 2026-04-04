@@ -152,7 +152,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
         };
 
-        fetchCurrentUser();
+        void fetchCurrentUser();
 
         return () => {
             isMounted = false;

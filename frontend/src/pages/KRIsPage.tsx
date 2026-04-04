@@ -398,12 +398,20 @@ export function KRIsPage() {
     // Get group by field based on view mode
     const getGroupByField = (): keyof KeyRiskIndicator | null => {
         switch (viewMode) {
-            case 'category': return 'risk_category';
-            case 'department': return 'department_name';
-            case 'process': return 'risk_process';
-            case 'risk_type': return 'risk_type';
-            case 'risk': return 'risk_name';
-            default: return null;
+            case 'all':
+            case 'category':
+                return 'risk_category';
+            case 'department':
+                return 'department_name';
+            case 'flag':
+            case 'process':
+                return 'risk_process';
+            case 'type':
+            case 'vendor':
+            case 'risk_type':
+                return 'risk_type';
+            case 'risk':
+                return 'risk_name';
         }
     };
 

@@ -23,10 +23,10 @@ export function RiskNewPage() {
 
     const navigateToVendor = (flash: VendorDetailFlash) => {
         if (!returnTo) {
-            navigate('/risks');
+            void navigate('/risks');
             return;
         }
-        navigate(returnTo, {
+        void navigate(returnTo, {
             state: {
                 vendorFlash: flash,
             },
@@ -35,7 +35,7 @@ export function RiskNewPage() {
 
     const handleVendorContextSuccess = async (riskId: number) => {
         if (!vendorId || !returnTo) {
-            navigate(`/risks/${riskId}`);
+            void navigate(`/risks/${riskId}`);
             return;
         }
 
@@ -62,7 +62,9 @@ export function RiskNewPage() {
         <div className="space-y-8">
             <div className="space-y-3">
                 <button
-                    onClick={() => navigate(isVendorContext ? returnTo! : '/risks')}
+                    onClick={() => {
+                        void navigate(isVendorContext ? returnTo! : '/risks');
+                    }}
                     className="flex items-center gap-2 text-xs font-black text-slate-500 hover:text-accent transition-colors uppercase tracking-widest"
                 >
                     <ArrowLeft className="h-3 w-3" />
@@ -83,7 +85,9 @@ export function RiskNewPage() {
 
             <RiskForm
                 onSuccess={isVendorContext ? handleVendorContextSuccess : undefined}
-                onCancel={isVendorContext ? () => navigate(returnTo!) : undefined}
+                onCancel={isVendorContext ? () => {
+                    void navigate(returnTo!);
+                } : undefined}
                 firstStepBackLabel={isVendorContext ? t('vendors:links.actions.back_to_vendor') : undefined}
             />
         </div>
@@ -105,12 +109,12 @@ export function RiskEditPage() {
                 setRisk(data);
             } catch (err) {
                 console.error('Failed to fetch risk:', err);
-                navigate('/risks');
+                void navigate('/risks');
             } finally {
                 setIsLoading(false);
             }
         };
-        fetchRisk();
+        void fetchRisk();
     }, [id, navigate]);
 
     if (isLoading) {

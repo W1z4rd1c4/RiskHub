@@ -54,7 +54,7 @@ export function AuditTrailPage() {
     }, [resultFilter]);
 
     useEffect(() => {
-        fetchExecutions();
+        void fetchExecutions();
     }, [fetchExecutions]);
 
     return (

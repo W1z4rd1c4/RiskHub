@@ -36,7 +36,7 @@ export function ExecutionHistory({ controlId }: ExecutionHistoryProps) {
     }, [controlId]);
 
     useEffect(() => {
-        fetchExecutions();
+        void fetchExecutions();
     }, [fetchExecutions]);
 
     if (isLoading && executions.length === 0) {

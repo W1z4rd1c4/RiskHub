@@ -3,11 +3,47 @@ import path from 'path';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vitest/config';
 
+const testRoot = path.resolve(__dirname, '../tests/frontend/unit');
+const frontendProbeImporter = path.resolve(__dirname, 'src/main.tsx');
+const forwardedExternalTestImports = new Set([
+  'react',
+  'react/jsx-dev-runtime',
+  'react/jsx-runtime',
+  'react-router-dom',
+  '@azure/msal-browser',
+  '@tanstack/react-query',
+  '@testing-library/react',
+  '@testing-library/user-event',
+  'msw',
+  'msw/node',
+  'react-i18next',
+]);
+
+function externalTestPackageResolver() {
+  return {
+    name: 'external-test-package-resolver',
+    async resolveId(source: string, importer?: string) {
+      if (!importer) {
+        return null;
+      }
+      if (!importer.startsWith(testRoot)) {
+        return null;
+      }
+      if (!forwardedExternalTestImports.has(source)) {
+        return null;
+      }
+
+      const resolved = await this.resolve(source, frontendProbeImporter, { skipSelf: true });
+      return resolved?.id ?? null;
+    },
+  };
+}
+
 export default defineConfig({
-  root: path.resolve(__dirname, '..'),
-  plugins: [react()],
+  root: __dirname,
+  plugins: [externalTestPackageResolver(), react()],
   test: {
-    dir: path.resolve(__dirname, '../tests/frontend/unit'),
+    dir: testRoot,
     deps: {
       moduleDirectories: ['node_modules'],
     },
@@ -29,11 +65,7 @@ export default defineConfig({
   },
   server: {
     fs: {
-      allow: [
-        path.resolve(__dirname, '..'),
-        __dirname,
-        path.resolve(__dirname, '../tests/frontend/unit'),
-      ],
+      allow: [__dirname, testRoot],
     },
   },
 });

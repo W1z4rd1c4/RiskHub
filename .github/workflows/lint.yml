@@ -50,7 +50,7 @@ jobs:
         run: |
           set -euo pipefail
           npm run cleanup:deadcode | tee ../lint-frontend-cleanup.log
-          grep -q "Candidates: 0" ../tests/results/frontend/audits/cleanup/unreachable.md
+          grep -q "Candidates: 0" ../tests/results/quality/frontend/cleanup-audit/unreachable.md
           if git ls-files | grep -q '^tests/results/frontend/playwright/playwright-report/'; then
             echo "Tracked Playwright report artifacts are not allowed."
             exit 1
@@ -147,8 +147,8 @@ jobs:
             lint-docs-topology.log
             lint-backend-ruff.log
             lint-backend-suppression-budget.log
-            tests/results/frontend/audits/quality/debt.json
-            tests/results/frontend/audits/cleanup/unreachable.md
+            tests/results/quality/frontend/debt-budget/debt.json
+            tests/results/quality/frontend/cleanup-audit/unreachable.md
             tests/results/quality/suppression-budget-*/suppression-budget.json
           retention-days: 30
 

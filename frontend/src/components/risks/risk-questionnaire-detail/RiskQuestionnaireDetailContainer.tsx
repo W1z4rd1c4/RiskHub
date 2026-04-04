@@ -120,7 +120,7 @@ export function RiskQuestionnaireDetail({
 	            }
 	        };
 
-        load();
+        void load();
 	        return () => {
 	            cancelled = true;
 	        };
@@ -140,7 +140,7 @@ export function RiskQuestionnaireDetail({
                 // best-effort
             }
         };
-        loadPreviousIfNeeded();
+        void loadPreviousIfNeeded();
         return () => {
             cancelled = true;
         };
@@ -162,7 +162,7 @@ export function RiskQuestionnaireDetail({
                 if (!cancelled) setClarificationsLoading(false);
             }
         };
-        loadClarifications();
+        void loadClarifications();
         return () => {
             cancelled = true;
         };

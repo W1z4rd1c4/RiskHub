@@ -14,7 +14,7 @@ set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 FRONTEND_DIR="$PROJECT_ROOT/frontend"
-PLAYWRIGHT_CONFIG="$PROJECT_ROOT/tests/frontend/e2e/playwright.config.ts"
+PLAYWRIGHT_CONFIG="$PROJECT_ROOT/frontend/playwright.config.ts"
 PLAYWRIGHT_REPORT_DIR="$PROJECT_ROOT/tests/results/frontend/playwright/playwright-report"
 PLAYWRIGHT_RESULTS_DIR="$PROJECT_ROOT/tests/results/frontend/playwright/test-results"
 

@@ -2,30 +2,15 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from '@/i18n/hooks';
 import { cn } from '@/lib/utils';
 import {
-    LayoutDashboard,
-    ClipboardList,
-    ShieldAlert,
-    AlertOctagon,
-    Target,
-    Handshake,
-    Building2,
-    Settings,
     Shield,
     ChevronRight,
     LogOut,
-    Users as UsersIcon,
-    ClipboardCheck,
-    Scale,
-    Activity,
-    Command,
-    Server,
-    BookOpen,
-    type LucideIcon,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useAdaptivePollingQuery } from '@/hooks/useAdaptivePollingQuery';
 import { useAuthz } from '@/authz/useAuthz';
+import { getSidebarNavRoutes } from '@/routing';
 import { userApi } from '@/services/userApi';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { SIDEBAR_POLL_MS } from '@/config/constants';
@@ -34,7 +19,7 @@ export function Sidebar() {
     const location = useLocation();
     const navigate = useNavigate();
     const { user, logout } = useAuth();
-    const { canViewActivityLog, hasPermission } = usePermissions();
+    const { hasPermission } = usePermissions();
     const authz = useAuthz();
     const isAdmin = authz.isPlatformAdmin;
     const { t } = useTranslation('navigation');
@@ -56,102 +41,25 @@ export function Sidebar() {
     const orphanCount = authz.canViewGovernance ? (shellSummaryQuery.data?.orphan_total_count ?? 0) : 0;
     const unreadNotificationCount = shellSummaryQuery.data?.unread_notifications_count ?? 0;
 
-    interface SidebarItem {
-        name: string;
-        href: string;
-        icon: LucideIcon;
-        badge?: number;
-    }
-
-    // Navigation items with translation keys
-    const navigation: SidebarItem[] = [
-        { name: t('sidebar.dashboard'), href: '/', icon: LayoutDashboard },
-        { name: t('sidebar.controls'), href: '/controls', icon: ClipboardList },
-        { name: t('sidebar.risks'), href: '/risks', icon: ShieldAlert },
-        ...(hasPermission('issues', 'read') ? [{ name: t('sidebar.issues'), href: '/issues', icon: AlertOctagon }] : []),
-        { name: t('sidebar.kris'), href: '/kris', icon: Target },
-        ...(hasPermission('vendors', 'read') ? [{ name: t('sidebar.vendors'), href: '/vendors', icon: Handshake }] : []),
-        { name: t('sidebar.departments'), href: '/departments', icon: Building2 },
-        ...(authz.canViewGovernance ? [{ name: t('sidebar.governance'), href: '/governance', icon: Scale }] : []),
-        { name: t('sidebar.settings'), href: '/settings', icon: Settings },
-    ];
-
     const handleLogout = () => {
-        logout();
-        navigate('/landing');
+        void logout();
+        void navigate('/landing');
     };
-
-    const workflowItem: SidebarItem = {
-        name: t('sidebar.approvals'),
-        href: '/approvals',
-        icon: ClipboardCheck,
-        badge: workflowCount > 0 ? workflowCount : undefined
-    };
-
-    // Access Management visible to admins, privileged users, and department heads
-    const userManagementItem: SidebarItem | null = authz.canViewUsersRoute
-        ? { name: t('sidebar.users'), href: '/users', icon: UsersIcon }
-        : null;
-
-    const navigationWithBadges = navigation.map(item => {
-        if (item.href === '/governance') {
-            // Only show orphan count badge for users who can access Governance.
-            const showBadge = authz.canViewGovernance && orphanCount > 0;
-            return { ...item, badge: showBadge ? orphanCount : undefined };
+    const navigation = getSidebarNavRoutes({ authz, hasPermission }).map((route) => {
+        let badge: number | undefined;
+        if (route.nav.badgeKey === 'workflow') {
+            badge = workflowCount > 0 ? workflowCount : undefined;
+        } else if (route.nav.badgeKey === 'orphanCount') {
+            badge = orphanCount > 0 ? orphanCount : undefined;
         }
-        return item;
+
+        return {
+            href: route.nav.href,
+            icon: route.nav.icon,
+            label: t(`sidebar.${route.nav.labelKey}`),
+            badge,
+        };
     });
-
-    const activityLogItem: SidebarItem = {
-        name: t('sidebar.activity_log'),
-        href: '/activity-log',
-        icon: Activity,
-    };
-
-    // Risk Hub visible only to CRO
-    const riskHubItem: SidebarItem | null = authz.canViewRiskHub ? {
-        name: t('sidebar.risk_hub'),
-        href: '/risk-hub',
-        icon: Command,
-    } : null;
-
-    // Admin Console visible only to Admin
-    const adminConsoleItem: SidebarItem | null = authz.canViewAdminConsole ? {
-        name: t('sidebar.admin'),
-        href: '/admin',
-        icon: Server,
-    } : null;
-
-    const documentationItem: SidebarItem | null = authz.canViewAdminConsole ? {
-        name: t('sidebar.documentation'),
-        href: '/admin/docs',
-        icon: BookOpen,
-    } : null;
-
-    // Admin only sees: Settings, Access Management, Admin Console
-    // Everyone else sees the full business navigation
-    const dashboardItem = navigationWithBadges.find((i) => i.href === '/');
-    const settingsItem = navigationWithBadges.find((i) => i.href === '/settings');
-    const businessItems = navigationWithBadges.filter((i) => i.href !== '/' && i.href !== '/settings');
-
-    const filteredNavigation: SidebarItem[] = isAdmin
-        ? [
-            // Admin-only navigation (no business data)
-            ...(settingsItem ? [settingsItem] : []),
-            ...(userManagementItem ? [userManagementItem] : []),
-            ...(adminConsoleItem ? [adminConsoleItem] : []),
-            ...(documentationItem ? [documentationItem] : []),
-        ]
-        : [
-            // Business user navigation
-            ...(dashboardItem ? [dashboardItem] : []),
-            workflowItem,
-            ...businessItems, // Controls, Risks, KRIs, Vendors, Departments, Governance
-            ...(canViewActivityLog ? [activityLogItem] : []),
-            ...(settingsItem ? [settingsItem] : []),
-            ...(userManagementItem ? [userManagementItem] : []),
-            ...(riskHubItem ? [riskHubItem] : []),
-        ];
 
     const brandName = tCommon('brand.name');
     const brandAccentSuffix = 'Hub';
@@ -181,11 +89,11 @@ export function Sidebar() {
                 </div>
 
                 <nav className="flex-1 space-y-2 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-                    {filteredNavigation.map((item) => {
+                    {navigation.map((item) => {
                         const isActive = location.pathname === item.href;
                         return (
                             <Link
-                                key={item.name}
+                                key={item.href}
                                 to={item.href}
                                 className={cn(
                                     'group flex items-center justify-between px-3 py-3 text-sm font-medium rounded-xl transition-all duration-200',
@@ -196,7 +104,7 @@ export function Sidebar() {
                             >
                                 <div className="flex items-center gap-3">
                                     <item.icon className={cn('h-5 w-5', isActive ? 'text-white' : 'text-slate-500 group-hover:text-white')} />
-                                    {item.name}
+                                    {item.label}
                                 </div>
                                 {item.badge !== undefined && (
                                     <span className="bg-accent text-white text-[10px] font-bold px-2 py-0.5 rounded-full">

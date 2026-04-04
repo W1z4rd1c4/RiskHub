@@ -26,7 +26,7 @@ export function DepartmentsPage() {
     };
 
     useEffect(() => {
-        fetchDepartments();
+        void fetchDepartments();
     }, []);
 
     return (

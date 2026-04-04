@@ -46,17 +46,19 @@ export function KRINewPage() {
 
     const handleVendorContextCancel = () => {
         if (returnTo) {
-            navigate(returnTo);
+            void navigate(returnTo);
             return;
         }
-        navigate('/kris');
+        void navigate('/kris');
     };
 
     return (
         <div className="space-y-8">
             <div className="space-y-3">
                 <button
-                    onClick={() => navigate(isVendorContext ? returnTo! : '/kris')}
+                    onClick={() => {
+                        void navigate(isVendorContext ? returnTo! : '/kris');
+                    }}
                     className="flex items-center gap-2 text-xs font-black text-slate-500 hover:text-accent transition-colors uppercase tracking-widest"
                 >
                     <ArrowLeft className="h-3 w-3" />
