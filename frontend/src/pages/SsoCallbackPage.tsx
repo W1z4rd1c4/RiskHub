@@ -25,7 +25,7 @@ export default function SsoCallbackPage() {
                 const result = await entraAuth.handleRedirect();
                 const idToken = result?.idToken;
                 if (!idToken) {
-                    navigate('/login', { replace: true });
+                    void navigate('/login', { replace: true });
                     return;
                 }
 

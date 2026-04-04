@@ -5,7 +5,7 @@ import ts from 'typescript';
 const ARGS = process.argv.slice(2);
 const ROOT = process.cwd();
 const SRC_DIR = path.join(ROOT, 'src');
-const DEFAULT_OUT_DIR = path.join(ROOT, '..', 'tests', 'results', 'frontend', 'audits', 'i18n');
+const DEFAULT_OUT_DIR = path.join(ROOT, '..', 'tests', 'results', 'quality', 'frontend', 'i18n-audit');
 
 const EXCLUDE_PATTERNS = [
   /\.test\.(ts|tsx)$/,

@@ -107,7 +107,7 @@ AUTH_MODE=password MOCK_AUTH_ENABLED=false ./scripts/dev.sh
 ## E2E and Testing Notes
 
 - Playwright E2E still defaults to the local Vite frontend at `http://localhost:5173`
-- `npm run e2e` may start Vite automatically through `tests/frontend/e2e/playwright.config.ts`
+- `npm run e2e` may start Vite automatically through `frontend/playwright.config.ts`
 - Docker full-stack at `http://localhost/` is the preferred deterministic live-verification surface, but Playwright must be pointed at it with `FRONTEND_URL=http://localhost`
 - Recommended deterministic E2E reset:
 
@@ -120,12 +120,12 @@ AUTH_MODE=password MOCK_AUTH_ENABLED=false ./scripts/dev.sh
 ```bash
 cd frontend
 FRONTEND_URL=http://localhost npm run e2e:business-logic
-FRONTEND_URL=http://localhost POLISH_AUDIT_DEEP=1 npx playwright test -c ../tests/frontend/e2e/playwright.config.ts ../tests/frontend/e2e/polish-audit.spec.ts --project=chromium
+FRONTEND_URL=http://localhost POLISH_AUDIT_DEEP=1 npx playwright test -c playwright.config.ts ../tests/frontend/e2e/polish-audit.spec.ts --project=chromium
 ```
 
 - Docker-targeted Playwright runs rely on `FRONTEND_URL=http://localhost`; the shared E2E login helper is now origin-aware and works against both `http://localhost:5173` and the Docker nginx surface.
 - The underlying advanced/manual reset command remains `./scripts/compose.sh reset --dataset test`.
-- `polish-audit.spec.ts` currently covers `riskhub` and `light`; `dark` theme still needs manual verification.
+- `polish-audit.spec.ts` covers `riskhub`, `light`, and `dark`.
 - When the Docker app stack is live on the `riskhub` database, run Postgres marker tests against a separate `riskhub_test` database instead of the live app DB.
 
 ## Boundaries

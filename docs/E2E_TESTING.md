@@ -3,7 +3,7 @@
 > **Version**: 1.4
 > **Last Updated**: 2026-04-04
 > **Audience**: QA, Engineering
-> **Source of Truth**: `tests/frontend/e2e/playwright.config.ts`, `tests/frontend/e2e/`, `frontend/package.json`
+> **Source of Truth**: `frontend/playwright.config.ts`, `tests/frontend/e2e/`, `frontend/package.json`
 
 This guide covers Playwright execution, suite organization, and deterministic test prerequisites.
 
@@ -105,7 +105,7 @@ Docker-targeted Playwright commands:
 ```bash
 cd frontend
 FRONTEND_URL=http://localhost npm run e2e:business-logic
-FRONTEND_URL=http://localhost POLISH_AUDIT_DEEP=1 npx playwright test -c ../tests/frontend/e2e/playwright.config.ts ../tests/frontend/e2e/polish-audit.spec.ts --project=chromium
+FRONTEND_URL=http://localhost POLISH_AUDIT_DEEP=1 npx playwright test -c playwright.config.ts ../tests/frontend/e2e/polish-audit.spec.ts --project=chromium
 ```
 
 Current Docker-origin truth:
@@ -118,8 +118,7 @@ Current Docker-origin truth:
 
 Current automation scope:
 
-- `polish-audit.spec.ts` automates `riskhub` and `light`.
-- `dark` theme remains a manual verification lane for now.
+- `polish-audit.spec.ts` automates `riskhub`, `light`, and `dark`.
 
 ## Running Targeted Packs
 
@@ -127,18 +126,18 @@ Examples:
 
 ```bash
 cd frontend
-npx playwright test -c ../tests/frontend/e2e/playwright.config.ts ../tests/frontend/e2e/cross-department --project=chromium
-npx playwright test -c ../tests/frontend/e2e/playwright.config.ts ../tests/frontend/e2e/permissions --project=chromium
-npx playwright test -c ../tests/frontend/e2e/playwright.config.ts ../tests/frontend/e2e/entity-ownership/risk-ownership.spec.ts --project=chromium
+npx playwright test -c playwright.config.ts ../tests/frontend/e2e/cross-department --project=chromium
+npx playwright test -c playwright.config.ts ../tests/frontend/e2e/permissions --project=chromium
+npx playwright test -c playwright.config.ts ../tests/frontend/e2e/entity-ownership/risk-ownership.spec.ts --project=chromium
 ```
 
 ## Debugging
 
 ```bash
 cd frontend
-npx playwright test -c ../tests/frontend/e2e/playwright.config.ts --debug
-PWDEBUG=1 npx playwright test -c ../tests/frontend/e2e/playwright.config.ts
-npx playwright test -c ../tests/frontend/e2e/playwright.config.ts --trace on
+npx playwright test -c playwright.config.ts --debug
+PWDEBUG=1 npx playwright test -c playwright.config.ts
+npx playwright test -c playwright.config.ts --trace on
 npx playwright show-trace ../tests/results/frontend/playwright/test-results/<run>/placeholder-zip-017.zip
 ```
 

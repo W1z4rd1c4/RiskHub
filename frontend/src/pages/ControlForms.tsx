@@ -24,10 +24,10 @@ export function ControlNewPage() {
 
     const navigateToVendor = (flash: VendorDetailFlash) => {
         if (!returnTo) {
-            navigate('/controls');
+            void navigate('/controls');
             return;
         }
-        navigate(returnTo, {
+        void navigate(returnTo, {
             state: {
                 vendorFlash: flash,
             },
@@ -36,7 +36,7 @@ export function ControlNewPage() {
 
     const handleVendorContextSuccess = async (controlId: number) => {
         if (!vendorId || !returnTo) {
-            navigate(`/controls/${controlId}`);
+            void navigate(`/controls/${controlId}`);
             return;
         }
 
@@ -108,7 +108,7 @@ export function ControlEditPage() {
                 setIsLoading(false);
             }
         };
-        fetchControl();
+        void fetchControl();
     }, [id]);
 
     if (isLoading) {

@@ -26,7 +26,7 @@ export function KRIBreachWidget() {
                 setIsLoading(false);
             }
         };
-        fetchBreaches();
+        void fetchBreaches();
     }, [filters.departmentId]);
 
     if (isLoading) return (

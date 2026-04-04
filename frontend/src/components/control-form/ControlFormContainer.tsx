@@ -185,9 +185,9 @@ export function ControlForm({
             if (onSuccess && controlId) {
                 await onSuccess(controlId);
             } else if (controlId) {
-                navigate(`/controls/${controlId}`);
+                void navigate(`/controls/${controlId}`);
             } else {
-                navigate('/controls');
+                void navigate('/controls');
             }
         } catch (err: unknown) {
             console.error('Error saving control:', err);
@@ -464,7 +464,7 @@ export function ControlForm({
                                 if (onCancel) {
                                     onCancel();
                                 } else {
-                                    navigate('/controls');
+                                    void navigate('/controls');
                                 }
                             } else {
                                 prevStep();

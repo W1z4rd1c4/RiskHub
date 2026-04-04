@@ -165,13 +165,13 @@ export function QuarterlyComparisonWidget() {
                 setCompareQ(prev.quarter);
             }
         }
-        init();
+        void init();
     }, []);
 
     // Fetch data when periods change
     useEffect(() => {
         if (currentYear && currentQ && compareYear && compareQ) {
-            fetchData();
+            void fetchData();
         }
     }, [currentYear, currentQ, compareYear, compareQ, fetchData]);
 

@@ -5,8 +5,8 @@
 ## Test Stack Overview
 
 - Backend: `pytest`, `pytest-asyncio`, `httpx`, `pytest-cov` (`backend/pytest.ini`)
-- Frontend unit/integration: `Vitest` + Testing Library + MSW (`tests/frontend/unit/vitest.config.ts`, `tests/frontend/unit/src/test/mocks/`)
-- Frontend/browser E2E: `Playwright` (`tests/frontend/e2e/playwright.config.ts`, `tests/frontend/e2e/`)
+- Frontend unit/integration: `Vitest` + Testing Library + MSW (`frontend/vitest.config.ts`, `tests/frontend/unit/src/test/mocks/`)
+- Frontend/browser E2E: `Playwright` (`frontend/playwright.config.ts`, `tests/frontend/e2e/`)
 
 ## Backend Testing Patterns
 
@@ -31,25 +31,26 @@
 
 ## Frontend Unit/Integration Patterns
 
-- Vitest configured with jsdom and setup file (`tests/frontend/unit/vitest.config.ts`, `frontend/vitest.setup.ts`)
+- Vitest configured with jsdom and setup file (`frontend/vitest.config.ts`, `frontend/vitest.setup.ts`)
 - Includes `src/**/*.{test,spec}.{ts,tsx}`
 - MSW handlers provide deterministic API contracts during tests (`tests/frontend/unit/src/test/mocks/handlers.ts`)
 - React Query/Auth providers are wrapped in reusable test utilities (`tests/frontend/unit/src/test/utils.tsx`)
 
 ## Frontend E2E Patterns
 
-- Playwright projects: Chromium, Firefox, WebKit, plus CI profile (`tests/frontend/e2e/playwright.config.ts`)
+- Playwright projects: Chromium, Firefox, WebKit, plus CI profile (`frontend/playwright.config.ts`)
 - Global setup performs health/preflight checks (`tests/frontend/e2e/setup/global-setup.ts`)
 - Global setup also verifies deterministic seed fixtures for stable selectors and assertions (`tests/frontend/e2e/setup/global-setup.ts`)
 - Domain-oriented E2E suites cover permissions, approvals, sensitive fields, cross-department access, and activity logging (`tests/frontend/e2e/`)
 - “polish-audit” is intentionally heavier and is lightweight-by-default; set `POLISH_AUDIT_DEEP=1` when you want full-page/deep audit mode (`tests/frontend/e2e/polish-audit.spec.ts`)
 - Docker full-stack browser runs must override `FRONTEND_URL=http://localhost`
-- `polish-audit` currently automates `riskhub` and `light`; `dark` remains manual-only
+- `polish-audit` coverage is expected to include `riskhub`, `light`, and `dark`
 - The shared login helper is origin-aware for both `http://localhost:5173` and the Docker nginx surface at `http://localhost`
 
 ## CI Test/Security Execution
 
 - E2E workflow provisions Postgres service, runs backend + Playwright chromium suite (`.github/workflows/e2e.yml`)
+- Dedicated backend Postgres workflow runs `pytest -m postgres` as a required PR signal for schema-sensitive behavior (`.github/workflows/backend-postgres.yml`)
 - Lint workflow enforces frontend dead-code/debt gates, backend Ruff hard gate, backend suppression budget, and docs topology consistency (`.github/workflows/lint.yml`)
 - Security workflow runs Bandit, pip-audit, npm audit, Trivy, Syft+Grype correlation, and gitleaks parse+scan (`.github/workflows/security.yml`)
 - Security workflow also runs nightly non-blocking Redis resilience integration checks (`redis_integration`) (`.github/workflows/security.yml`)
@@ -71,7 +72,7 @@
 - Frontend quality gate chain: `cd frontend && npm run lint && npx tsc --noEmit && npm run quality:debt -- --report-json && npm run cleanup:deadcode && npm run build`
 - E2E: `make -f scripts/Makefile test-e2e` or `cd frontend && npm run e2e`
 - Docker-targeted business-logic E2E: `cd frontend && FRONTEND_URL=http://localhost npm run e2e:business-logic`
-- Docker-targeted polish audit: `cd frontend && FRONTEND_URL=http://localhost POLISH_AUDIT_DEEP=1 npx playwright test -c ../tests/frontend/e2e/playwright.config.ts ../tests/frontend/e2e/polish-audit.spec.ts --project=chromium`
+- Docker-targeted polish audit: `cd frontend && FRONTEND_URL=http://localhost POLISH_AUDIT_DEEP=1 npx playwright test -c playwright.config.ts ../tests/frontend/e2e/polish-audit.spec.ts --project=chromium`
 - Docs topology consistency: `make -f scripts/Makefile docs-topology-consistency`
 - Release parity (fast loop): `python3 scripts/security/run_release_parity_audit.py --run-id <utc-ts> --skip-prod-readiness`
 - Release parity (full gate): `python3 scripts/security/run_release_parity_audit.py --run-id <utc-ts>`
@@ -89,7 +90,7 @@
 
 ## Practical Gaps to Watch
 
-- SQLite-default tests may not catch all Postgres-specific datetime/enum behavior
+- SQLite-default tests still need the dedicated `pytest -m postgres` lane to catch Postgres-specific datetime/enum behavior
 - Public first-run and lifecycle wrapper flows rely on the `scripts/install.sh` contract plus the underlying `scripts/dev.sh`, `scripts/compose.sh`, and `scripts/deploy.sh` contracts staying stable
 - Docker-origin Playwright runs still require `FRONTEND_URL=http://localhost`
 - Authorization changes should be validated in both backend API tests and frontend gating tests

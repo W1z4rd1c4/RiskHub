@@ -144,6 +144,7 @@ export function buildRiskExportFilters({
 
 export function getRiskGroupByField(viewMode: ViewMode): keyof RiskSummary | null {
     switch (viewMode) {
+        case 'all':
         case 'category':
             return 'category';
         case 'department':
@@ -152,7 +153,10 @@ export function getRiskGroupByField(viewMode: ViewMode): keyof RiskSummary | nul
             return 'process';
         case 'risk_type':
             return 'risk_type';
-        default:
+        case 'flag':
+        case 'risk':
+        case 'type':
+        case 'vendor':
             return null;
     }
 }

@@ -21,7 +21,7 @@ function LogSettingsPanel() {
     const mutation = useMutation({
         mutationFn: (newConfig: LogConfig) => adminApi.updateLogConfig(newConfig),
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['logConfig'] });
+            void queryClient.invalidateQueries({ queryKey: ['logConfig'] });
             setShowSavedNotice(true);
         },
     });

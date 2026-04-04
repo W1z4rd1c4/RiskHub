@@ -74,7 +74,7 @@ export function OrphanQuickViewModal({ isOpen, onClose, orphan }: OrphanQuickVie
             }
         };
 
-        fetchDetails();
+        void fetchDetails();
         return () => {
             cancelled = true;
             if (resetTimeout) clearTimeout(resetTimeout);

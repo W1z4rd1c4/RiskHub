@@ -18,7 +18,7 @@ import { riskApi } from '@/services/riskApi';
 import type { Control, ControlRiskLink } from '@/types/control';
 import { ControlStatus } from '@/types/control';
 import { PermissionGate } from '@/components/PermissionGate';
-import { ControlEffectiveness } from '@/types/risk';
+import type { ControlEffectiveness } from '@/types/risk';
 import type { Risk } from '@/types/risk';
 import { ExecutionHistory } from '@/components/executions/ExecutionHistory';
 import { ExecutionLogModal } from '@/components/executions/ExecutionLogModal';
@@ -111,7 +111,7 @@ export function ControlDetailPage() {
             }
 
             // Immediate archive (204) - navigate away
-            navigate('/controls');
+            void navigate('/controls');
         } catch (err) {
             console.error('Archive failed:', err);
             setApprovalMessage({ key: apiClient.toUiMessageKey(err), isError: true });

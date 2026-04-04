@@ -57,7 +57,7 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
 
     useEffect(() => {
         if ((location.state as { vendorFlash?: VendorDetailFlash } | null)?.vendorFlash) {
-            navigate(location.pathname, { replace: true });
+            void navigate(location.pathname, { replace: true });
         }
     }, [location.pathname, location.state, navigate]);
 
@@ -68,7 +68,7 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
 
         const params = new URLSearchParams(location.search);
         if (params.has('tab') || params.has('section')) {
-            navigate(location.pathname, { replace: true });
+            void navigate(location.pathname, { replace: true });
         }
     }, [location.pathname, location.search, navigate]);
 
@@ -79,7 +79,7 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
         try {
             setIsDeleting(true);
             await vendorApi.deleteVendor(vendor.id);
-            navigate('/vendors');
+            void navigate('/vendors');
         } catch (error) {
             console.error('Failed to archive vendor:', error);
             setActionMessage({
@@ -179,7 +179,7 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
                             type="button"
                             onClick={() => {
                                 setActionMessage(null);
-                                navigate(location.pathname, { replace: true });
+                                void navigate(location.pathname, { replace: true });
                             }}
                             className="opacity-60 transition-opacity hover:opacity-100"
                         >

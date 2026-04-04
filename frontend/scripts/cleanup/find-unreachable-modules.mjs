@@ -5,7 +5,7 @@ import ts from 'typescript';
 const ARGS = process.argv.slice(2);
 const ROOT = process.cwd();
 const SRC_DIR = path.join(ROOT, 'src');
-const DEFAULT_OUT_DIR = path.join(ROOT, '..', 'tests', 'results', 'frontend', 'audits', 'cleanup');
+const DEFAULT_OUT_DIR = path.join(ROOT, '..', 'tests', 'results', 'quality', 'frontend', 'cleanup-audit');
 const RUNTIME_ENTRYPOINTS = ['main.tsx', 'prod-login-preview.tsx'];
 
 const SOURCE_EXTS = new Set(['.ts', '.tsx']);

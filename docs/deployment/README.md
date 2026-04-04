@@ -33,6 +33,7 @@ Common rules across both targets:
 | [production.md](./production.md) | Operator quickstart for install, upgrade, smoke, logs, and rollback |
 | [reference.md](./reference.md) | Config keys, derived values, command reference, runtime defaults |
 | [advanced.md](./advanced.md) | Maintainer details, release artifacts, and internal implementation mapping |
+| [releasing.md](./releasing.md) | Tagging, changelog, and GitHub Release publication flow |
 | [migrations.md](./migrations.md) | Migration strategy and rollback posture |
 | [security-checklist.md](./security-checklist.md) | Hardening checklist before and after go-live |
 

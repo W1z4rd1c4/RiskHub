@@ -347,13 +347,58 @@ jobs:
     needs: [prepare, docker-images, linux-bundle, verify-linux-bundle]
     if: startsWith(github.ref, 'refs/tags/')
     steps:
+      - uses: actions/checkout@v4
+
       - name: Download linux bundle artifact
         uses: actions/download-artifact@v4
         with:
           name: linux-release-bundle
           path: dist/releases
 
+      - name: Resolve release notes from changelog
+        env:
+          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import os
+          import re
+
+          release_version = os.environ["RELEASE_VERSION"]
+          changelog_path = Path("CHANGELOG.md")
+          lines = changelog_path.read_text(encoding="utf-8").splitlines()
+
+          heading = f"## {release_version}"
+          start = None
+          for idx, line in enumerate(lines):
+            if line.strip() == heading:
+              start = idx + 1
+              break
+
+          if start is None:
+            raise SystemExit(f"Missing changelog section for {release_version} in CHANGELOG.md")
+
+          end = len(lines)
+          for idx in range(start, len(lines)):
+            if re.match(r"^##\s+", lines[idx]):
+              end = idx
+              break
+
+          body_lines = lines[start:end]
+          while body_lines and not body_lines[0].strip():
+            body_lines.pop(0)
+          while body_lines and not body_lines[-1].strip():
+            body_lines.pop()
+
+          if not body_lines:
+            raise SystemExit(f"Changelog section for {release_version} is empty")
+
+          Path("release-notes.md").write_text("\n".join(body_lines) + "\n", encoding="utf-8")
+          PY
+
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
         with:
+          body_path: release-notes.md
           files: dist/releases/riskhub-linux-${{ needs.prepare.outputs.version }}.tar.gz

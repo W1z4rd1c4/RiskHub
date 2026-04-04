@@ -48,7 +48,7 @@ export function NotificationSettings() {
     const [errorKey, setErrorKey] = useState<string | null>(null);
 
     useEffect(() => {
-        loadPreferences();
+        void loadPreferences();
     }, []);
 
     const loadPreferences = async () => {

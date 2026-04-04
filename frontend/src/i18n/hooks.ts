@@ -190,9 +190,9 @@ export function useLanguage() {
 
     const setLanguage = useCallback(
         (newLang: SupportedLanguage) => {
-            i18nInstance.changeLanguage(newLang);
+            void i18nInstance.changeLanguage(newLang);
             if (isAuthenticated) {
-                saveLanguageToServer(newLang).catch(console.error);
+                void saveLanguageToServer(newLang).catch(console.error);
             } else {
                 localStorage.setItem(STORAGE_KEY, newLang);
             }

@@ -97,7 +97,7 @@ export function NotificationBell({ initialUnreadCount = 0 }: NotificationBellPro
                     setLoading(false);
                 }
             };
-            fetchNotifications();
+            void fetchNotifications();
         }
     }, [isOpen]);
 
@@ -135,7 +135,7 @@ export function NotificationBell({ initialUnreadCount = 0 }: NotificationBellPro
         // Navigate to resource
         const path = getResourcePath(notification);
         if (path) {
-            navigate(path);
+            void navigate(path);
         }
         setIsOpen(false);
     };
@@ -152,7 +152,7 @@ export function NotificationBell({ initialUnreadCount = 0 }: NotificationBellPro
 
     const handleViewAll = () => {
         setIsOpen(false);
-        navigate('/notifications');
+        void navigate('/notifications');
     };
 
     return (

@@ -171,7 +171,7 @@ export function useActivityLogPageState(
                 console.error('Failed to load filter options:', err);
             }
         };
-        loadOptions();
+        void loadOptions();
     }, [enabled]);
 
     // Build entity types based on tab and view mode
@@ -257,7 +257,7 @@ export function useActivityLogPageState(
     // Auto-fetch on dependency changes
     useEffect(() => {
         if (!enabled) return;
-        fetchEntries();
+        void fetchEntries();
     }, [enabled, fetchEntries]);
 
     return {
@@ -310,6 +310,8 @@ export function useActivityLogPageState(
         limit,
 
         // Actions
-        refresh: fetchEntries,
+        refresh: () => {
+            void fetchEntries();
+        },
     };
 }

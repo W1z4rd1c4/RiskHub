@@ -19,15 +19,15 @@
     "cleanup:deadcode": "node scripts/cleanup/find-unreachable-modules.mjs",
     "i18n:test": "npm run i18n:validate:strict && npm run i18n:validate:usage && npm run i18n:scan && npm run cleanup:deadcode && npm run test:run -- src/i18n",
     "preview": "vite preview",
-    "test": "vitest -c ../tests/frontend/unit/vitest.config.ts",
-    "test:run": "vitest run -c ../tests/frontend/unit/vitest.config.ts",
-    "test:coverage": "vitest run -c ../tests/frontend/unit/vitest.config.ts --coverage",
-    "test:e2e": "playwright test -c ../tests/frontend/e2e/playwright.config.ts",
-    "e2e": "playwright test -c ../tests/frontend/e2e/playwright.config.ts",
-    "e2e:ui": "playwright test -c ../tests/frontend/e2e/playwright.config.ts --ui",
-    "e2e:headed": "playwright test -c ../tests/frontend/e2e/playwright.config.ts --headed",
+    "test": "vitest -c vitest.config.ts",
+    "test:run": "vitest run -c vitest.config.ts",
+    "test:coverage": "vitest run -c vitest.config.ts --coverage",
+    "test:e2e": "playwright test -c playwright.config.ts",
+    "e2e": "playwright test -c playwright.config.ts",
+    "e2e:ui": "playwright test -c playwright.config.ts --ui",
+    "e2e:headed": "playwright test -c playwright.config.ts --headed",
     "e2e:report": "playwright show-report ../tests/results/frontend/playwright/playwright-report",
-    "e2e:business-logic": "playwright test -c ../tests/frontend/e2e/playwright.config.ts ../tests/frontend/e2e/roles-access.spec.ts ../tests/frontend/e2e/access-scope.spec.ts ../tests/frontend/e2e/entity-ownership ../tests/frontend/e2e/department-access.spec.ts ../tests/frontend/e2e/permissions ../tests/frontend/e2e/approval-workflows ../tests/frontend/e2e/sensitive-fields ../tests/frontend/e2e/cross-department ../tests/frontend/e2e/activity-logging"
+    "e2e:business-logic": "playwright test -c playwright.config.ts ../tests/frontend/e2e/roles-access.spec.ts ../tests/frontend/e2e/access-scope.spec.ts ../tests/frontend/e2e/entity-ownership ../tests/frontend/e2e/department-access.spec.ts ../tests/frontend/e2e/permissions ../tests/frontend/e2e/approval-workflows ../tests/frontend/e2e/sensitive-fields ../tests/frontend/e2e/cross-department ../tests/frontend/e2e/activity-logging"
   },
   "dependencies": {
     "@azure/msal-browser": "^5.2.0",
@@ -55,6 +55,7 @@
     "tailwind-merge": "^3.4.0"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.11.1",
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.57.0",
     "@tailwindcss/typography": "^0.5.19",

@@ -79,7 +79,7 @@ export function KRIDetailPage() {
                 }
             }
             // Fetch history
-            fetchHistory(kriId);
+            void fetchHistory(kriId);
         } catch (err) {
             console.error('Failed to fetch KRI:', err);
         } finally {
@@ -88,7 +88,9 @@ export function KRIDetailPage() {
     }, [fetchHistory]);
 
     useEffect(() => {
-        if (id) fetchKRI(parseInt(id));
+        if (id) {
+            void fetchKRI(parseInt(id));
+        }
     }, [id, fetchKRI]);
 
     const handleDelete = async (reason?: string) => {
@@ -99,7 +101,7 @@ export function KRIDetailPage() {
         try {
             await kriApi.deleteKRI(kri.id, deleteReason);
             setIsDeleteDialogOpen(false);
-            navigate('/kris');
+            void navigate('/kris');
         } catch (err) {
             console.error('Failed to delete KRI:', err);
         } finally {
@@ -150,7 +152,9 @@ export function KRIDetailPage() {
     };
 
     const handleRecordSuccess = () => {
-        if (kri) fetchKRI(kri.id);
+        if (kri) {
+            void fetchKRI(kri.id);
+        }
     };
 
     // formatNumber is still needed for overview tab

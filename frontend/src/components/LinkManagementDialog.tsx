@@ -17,7 +17,7 @@ import { controlApi } from '@/services/controlApi';
 import { kriApi } from '@/services/kriApi';
 import { riskApi } from '@/services/riskApi';
 import { lookupApi } from '@/services/lookupApi';
-import { ControlEffectiveness } from '@/types/risk';
+import type { ControlEffectiveness } from '@/types/risk';
 import { LinkSearchPanel, type DepartmentLookup, type SearchResultItem } from './linking/LinkSearchPanel';
 import { ExistingLinksPanel, type ExistingLinkItem } from './linking/ExistingLinksPanel';
 import { useAuth } from '@/contexts/AuthContext';

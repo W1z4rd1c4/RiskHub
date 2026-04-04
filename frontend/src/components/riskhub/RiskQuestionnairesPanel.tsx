@@ -42,7 +42,7 @@ export function RiskQuestionnairesPanel() {
                 console.error('Failed to load departments', e);
             }
         };
-        loadDepartments();
+        void loadDepartments();
     }, []);
 
     const filters = useMemo(() => {

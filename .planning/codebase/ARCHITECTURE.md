@@ -38,7 +38,7 @@ RiskHub is a containerized full-stack application:
 
 - Bootstrapping: `frontend/src/main.tsx`
 - Global providers: QueryClient, AuthProvider, ThemeProvider (`frontend/src/App.tsx`)
-- Routing: `BrowserRouter` route tree in `frontend/src/App.tsx`
+- Routing: `BrowserRouter` shell in `frontend/src/App.tsx` backed by centralized route metadata in `frontend/src/routing/`
 - Domain views: page components in `frontend/src/pages/`, shared components in `frontend/src/components/`
 - API access: central `apiClient` + domain service wrappers (`frontend/src/services/`)
 - Authorization UX: `PermissionGate`, `usePermissions`, `useAuthz` (`frontend/src/components/PermissionGate.tsx`, `frontend/src/hooks/usePermissions.ts`, `frontend/src/authz/useAuthz.ts`)

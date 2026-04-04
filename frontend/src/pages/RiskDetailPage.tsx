@@ -88,7 +88,7 @@ export function RiskDetailPage() {
     }, [id]);
 
     useEffect(() => {
-        fetchData();
+        void fetchData();
     }, [fetchData]);
 
     // Fetch KRI history when History tab is active
@@ -140,7 +140,7 @@ export function RiskDetailPage() {
             }
         };
 
-        fetchKriHistory();
+        void fetchKriHistory();
 
         return () => {
             cancelled = true;
@@ -167,7 +167,7 @@ export function RiskDetailPage() {
             }
 
             // Immediate archive (204) - navigate away
-            navigate('/risks');
+            void navigate('/risks');
         } catch (err) {
             console.error('Error deleting risk:', err);
             setApprovalMessage({ key: apiClient.toUiMessageKey(err), isError: true });
