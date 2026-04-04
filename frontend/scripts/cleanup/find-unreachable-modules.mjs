@@ -2,9 +2,11 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import ts from 'typescript';
 
+const ARGS = process.argv.slice(2);
 const ROOT = process.cwd();
 const SRC_DIR = path.join(ROOT, 'src');
-const OUT_DIR = path.join(ROOT, 'cleanup-audit');
+const DEFAULT_OUT_DIR = path.join(ROOT, '..', 'tests', 'results', 'frontend', 'audits', 'cleanup');
+const RUNTIME_ENTRYPOINTS = ['main.tsx', 'prod-login-preview.tsx'];
 
 const SOURCE_EXTS = new Set(['.ts', '.tsx']);
 const TEST_FILE_RE = /\.(test|spec)\.(ts|tsx)$/;
@@ -252,7 +254,25 @@ function extractDirectPageImports(content) {
   return importedModules;
 }
 
+function resolveOutputDir() {
+  const flag = ARGS.find((arg) => arg === '--output-dir' || arg.startsWith('--output-dir='));
+  if (!flag) return DEFAULT_OUT_DIR;
+  if (flag === '--output-dir') {
+    const nextArg = ARGS[ARGS.indexOf(flag) + 1];
+    if (!nextArg || nextArg.startsWith('--')) {
+      throw new Error('Missing value for --output-dir');
+    }
+    return path.isAbsolute(nextArg) ? nextArg : path.resolve(ROOT, nextArg);
+  }
+  const [, rawPath] = flag.split('=');
+  if (!rawPath) {
+    throw new Error('Missing value for --output-dir');
+  }
+  return path.isAbsolute(rawPath) ? rawPath : path.resolve(ROOT, rawPath);
+}
+
 async function main() {
+  const outDir = resolveOutputDir();
   const files = await walk(SRC_DIR);
   const fileSet = new Set(files);
 
@@ -308,11 +328,13 @@ async function main() {
     }
   }
 
-  const entry = path.normalize(path.join(SRC_DIR, 'main.tsx'));
   const reachable = new Set();
   const queue = [];
 
-  if (fileSet.has(entry)) {
+  for (const entryName of RUNTIME_ENTRYPOINTS) {
+    const entry = path.normalize(path.join(SRC_DIR, entryName));
+    if (!fileSet.has(entry)) continue;
+    if (reachable.has(entry)) continue;
     reachable.add(entry);
     queue.push(entry);
   }
@@ -368,13 +390,13 @@ async function main() {
     .filter((record) => !isTestPath(record.file))
     .sort((a, b) => a.file.localeCompare(b.file));
 
-  await fs.mkdir(OUT_DIR, { recursive: true });
-  await fs.writeFile(path.join(OUT_DIR, 'unreachable.json'), `${JSON.stringify(records, null, 2)}\n`, 'utf8');
+  await fs.mkdir(outDir, { recursive: true });
+  await fs.writeFile(path.join(outDir, 'unreachable.json'), `${JSON.stringify(records, null, 2)}\n`, 'utf8');
 
   const lines = [
     '# Frontend Unreachable Module Audit',
     '',
-    `- Entry: \`src/main.tsx\``,
+    `- Entrypoints: ${RUNTIME_ENTRYPOINTS.map((entryName) => `\`src/${entryName}\``).join(', ')}`,
     `- Candidates: ${records.length}`,
     '',
     '| File | Classification | Confidence Tag | Reason | Refs |',
@@ -388,7 +410,7 @@ async function main() {
     lines.push(`| \`${record.file}\` | ${record.classification} | ${record.confidence_tag} | ${record.reason} | ${refText} |`);
   }
 
-  await fs.writeFile(path.join(OUT_DIR, 'unreachable.md'), `${lines.join('\n')}\n`, 'utf8');
+  await fs.writeFile(path.join(outDir, 'unreachable.md'), `${lines.join('\n')}\n`, 'utf8');
 
   const dormantLines = [
     '# Frontend Dormant Page Audit',
@@ -405,7 +427,7 @@ async function main() {
     dormantLines.push(`| \`src/pages/${entryInfo.specifier.replace('./', '')}.tsx\` | Exported as \`${entryInfo.name}\` but not imported into App routes. |`);
   }
 
-  await fs.writeFile(path.join(OUT_DIR, 'dormant.md'), `${dormantLines.join('\n')}\n`, 'utf8');
+  await fs.writeFile(path.join(outDir, 'dormant.md'), `${dormantLines.join('\n')}\n`, 'utf8');
 
   console.log(`Wrote ${records.length} unreachable module records.`);
 }

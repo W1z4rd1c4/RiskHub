@@ -1,28 +1,32 @@
-# backend
+# RiskHub Backend
 
-## Purpose
+FastAPI + SQLAlchemy backend for RiskHub, including the API surface, database models, migrations, and runtime packaging.
 
-Folder for `backend` implementation assets.
+## What Lives Here
 
-## Contents
+- application code under `app/`
+- Alembic migrations under `alembic/`
+- backend test and tooling configuration via `pytest.ini`, `ruff.toml`, and requirements files
+- Docker build targets for runtime and DB-task images
 
-- `alembic/`
-- `alembic.ini`
-- `app/`
-- `bandit-report.json`
-- `coverage_html/`
-- `data/`
-- `Dockerfile`
-- `docs/`
-- `logs/`
-- `pytest.ini`
-- `requirements-dev.txt`
-- `requirements.txt`
-- `ruff.toml`
-- `scripts/`
-- `security/`
-- `...`
+## Common Commands
 
-## Notes
+```bash
+cd backend
+./venv/bin/alembic upgrade head
+./venv/bin/pytest -q
+TEST_DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_dev@localhost:5432/riskhub_test ./venv/bin/pytest -m postgres -q
+./venv/bin/python -m ruff check app ../tests/backend/pytest scripts
+```
 
-Keep this README updated when responsibilities or structure in this folder change.
+## Testing Notes
+
+- default local pytest runs use SQLite unless `TEST_DATABASE_URL` is set
+- Postgres-mode pytest applies Alembic migrations and truncates tables between tests
+- scheduler ownership, migration-defined constraints, and other PG-specific behavior should be verified in the Postgres lane
+
+## Related Docs
+
+- repo overview: `../README.md`
+- testing matrix: `../docs/TESTING.md`
+- deployment docs: `../docs/deployment/README.md`

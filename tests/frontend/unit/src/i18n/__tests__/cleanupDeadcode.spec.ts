@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 
 const cleanupScript = path.resolve(process.cwd(), 'scripts/cleanup/find-unreachable-modules.mjs');
 
-function runCleanupFixture() {
+function runCleanupFixture(options: { includePreviewEntry?: boolean } = {}) {
   const tmpRoot = mkdtempSync(path.join(os.tmpdir(), 'riskhub-cleanup-audit-'));
   const srcDir = path.join(tmpRoot, 'src');
   const pagesDir = path.join(srcDir, 'pages');
@@ -43,13 +43,28 @@ function runCleanupFixture() {
   writeFileSync(path.join(layoutDir, 'index.ts'), "export { MainLayout } from './MainLayout';\n", 'utf8');
   writeFileSync(path.join(layoutDir, 'MainLayout.tsx'), 'export function MainLayout(_: { children: unknown }) { return null; }\n', 'utf8');
 
-  const result = spawnSync(process.execPath, [cleanupScript], {
+  if (options.includePreviewEntry) {
+    writeFileSync(
+      path.join(srcDir, 'prod-login-preview.tsx'),
+      [
+        "import PreviewPage from './pages/ProdLoginPreviewPage';",
+        'void PreviewPage;',
+        '',
+      ].join('\n'),
+      'utf8',
+    );
+    writeFileSync(path.join(pagesDir, 'ProdLoginPreviewPage.tsx'), 'export default function ProdLoginPreviewPage() { return null; }\n', 'utf8');
+  }
+
+  const outputDir = path.join(tmpRoot, 'tests', 'results', 'frontend', 'audits', 'cleanup');
+
+  const result = spawnSync(process.execPath, [cleanupScript, '--output-dir', outputDir], {
     cwd: tmpRoot,
     encoding: 'utf8',
   });
 
-  const unreachablePath = path.join(tmpRoot, 'cleanup-audit', 'unreachable.json');
-  const dormantPath = path.join(tmpRoot, 'cleanup-audit', 'dormant.md');
+  const unreachablePath = path.join(outputDir, 'unreachable.json');
+  const dormantPath = path.join(outputDir, 'dormant.md');
   const unreachable = JSON.parse(readFileSync(unreachablePath, 'utf8')) as Array<{ file: string }>;
   const dormant = readFileSync(dormantPath, 'utf8');
 
@@ -74,5 +89,17 @@ describe('cleanup dead-code script regressions', () => {
     const { dormant } = runCleanupFixture();
     expect(dormant).toContain('DirectoryEmulatorPage');
     expect(dormant).not.toContain('DashboardPage');
+  });
+
+  it('treats standalone preview entrypoints as reachable runtime roots', () => {
+    const { unreachable } = runCleanupFixture({ includePreviewEntry: true });
+    expect(unreachable.some((record) => record.file === 'src/prod-login-preview.tsx')).toBe(false);
+    expect(unreachable.some((record) => record.file === 'src/pages/ProdLoginPreviewPage.tsx')).toBe(false);
+  });
+
+  it('writes reports to the requested output directory', () => {
+    const { result } = runCleanupFixture();
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('Wrote 0 unreachable module records.');
   });
 });
