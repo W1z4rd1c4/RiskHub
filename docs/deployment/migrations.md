@@ -1,6 +1,6 @@
 # Database Migrations (Alembic)
 
-> **Last Updated**: 2026-03-29  
+> **Last Updated**: 2026-04-05  
 > **Audience**: DevOps / Release Engineering
 
 ---
@@ -22,11 +22,15 @@ This is intentional:
 
 1. Bring up external PostgreSQL.
 2. Run migrations as an explicit deployment step.
-   - Docker target: `./scripts/deploy.sh deploy|upgrade --target docker ...` runs migrations and bootstrap from the DB lane (`riskhub-backend-db`) before the API/frontend rollout.
-   - Linux target: `./scripts/deploy.sh deploy|upgrade --target linux ...` runs migrations and bootstrap from the unpacked `backend_db/` lane using `db-venv` before service restart.
+   - First install: `./scripts/install.sh production --target docker|linux ...`
+   - Release change: `./scripts/install.sh upgrade --target docker|linux ...`
+   - Underneath the public wrapper, Docker migrations/bootstrap still run from the DB lane (`riskhub-backend-db`) via `./scripts/deploy.sh deploy|upgrade --target docker ...` before the API/frontend rollout.
+   - Underneath the public wrapper, Linux migrations/bootstrap still run from the unpacked `backend_db/` lane using `db-venv` via `./scripts/deploy.sh deploy|upgrade --target linux ...` before service restart.
 3. Roll out the backend/API runtime only after migrations succeed.
 
-The long-running runtime lane still keeps Alembic assets so schema-guard checks can resolve the current head at startup, but it does not own the production migration/bootstrap execution path.
+`./scripts/install.sh upgrade ...` also creates a timestamped non-secret runtime backup before the release change. Database backups and secret backups remain operator-managed responsibilities.
+
+The long-running runtime lane still keeps Alembic assets so schema-guard checks can resolve the current head at startup, but the public operator surface is `./scripts/install.sh` while the production migration/bootstrap execution path remains target-specific under `./scripts/deploy.sh`.
 
 ## Rollback posture
 

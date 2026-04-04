@@ -80,13 +80,21 @@ Recommended public production commands:
 ./scripts/install.sh production --target docker --version VERSION
 ./scripts/install.sh production --target docker --backend-image IMAGE --backend-db-image IMAGE --frontend-image IMAGE --redis-image IMAGE
 ./scripts/install.sh production --target linux --bundle PATH
+./scripts/install.sh upgrade --target docker|linux ...
 ./scripts/install.sh verify --mode production --target docker|linux --config PATH --secret-dir PATH
+./scripts/install.sh status --mode production --target docker|linux [--json]
+./scripts/install.sh logs --mode production --target docker|linux [--tail N] [--follow]
+./scripts/install.sh doctor --mode production --target docker|linux [--repair] [--deep] [--json]
 ```
 
 Wrapper notes:
 
 - `./scripts/install.sh production ...` initializes missing config scaffolding, prompts for required non-secret values, reuses `./scripts/deploy.sh secrets-edit ...` for secret capture, refuses unresolved placeholders, then runs `preflight`, `deploy`, `status`, and `smoke`.
+- If `./scripts/install.sh production ...` detects an existing install, it allows the rerun and uses the upgrade lifecycle underneath rather than failing on an existing deployment.
+- `./scripts/install.sh upgrade ...` creates a timestamped non-secret backup under the runtime directory, then runs `preflight`, `upgrade`, `status`, and `smoke`.
 - `./scripts/install.sh verify ...` is non-mutating and dispatches to the production `status` and `smoke` checks for the selected target.
+- `./scripts/install.sh status ...` reports target, config/runtime paths, current release source, managed resource state, and the latest known successful deploy/smoke metadata. `--json` emits machine-readable output only.
+- `./scripts/install.sh doctor ...` is the first response for broken deployments. `--repair` is limited to safe scaffolding, path normalization, restart actions, metadata reconstruction, and post-repair `status`/`smoke`.
 
 ## Advanced/Admin Command Reference
 
@@ -123,6 +131,29 @@ Operational notes:
 - `./scripts/install.sh production ...` is the recommended first-run operator workflow; keep `./scripts/deploy.sh` for advanced/manual administration, debugging, and partial lifecycle commands.
 - Docker explicit-image mode requires all four images unless `--version` is supplied: runtime backend, backend DB, frontend, and redis.
 - `metadata.env` is an internal shell-sourced runtime artifact. Operators should not edit it directly; maintainers must keep its assignments safe to `source`, including when runtime or secret paths contain spaces.
+
+## Install State
+
+Persistent install metadata is written to:
+
+```bash
+/etc/riskhub/runtime/install-state.json
+```
+
+This file records:
+
+- target
+- config path
+- secret dir
+- runtime dir
+- current release source
+- managed services or containers
+- public URL
+- last successful deploy timestamp
+- last successful smoke timestamp
+- last successful command
+
+Operators should treat it as lifecycle metadata owned by `./scripts/install.sh`, not as a manual configuration file.
 
 ## Runtime Defaults
 

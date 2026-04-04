@@ -1,6 +1,6 @@
 # Production Quickstart
 
-> **Last Updated**: 2026-03-29
+> **Last Updated**: 2026-04-04
 > **Audience**: Production administrators
 
 ## Choose A Target
@@ -121,20 +121,20 @@ Linux deployments install releases under `/opt/riskhub/releases/<version>`, swit
 ## 5. Verify
 
 ```bash
-./scripts/deploy.sh status --target docker
-./scripts/deploy.sh smoke --target docker --config /etc/riskhub/riskhub.env --secret-dir /etc/riskhub/secrets
+./scripts/install.sh status --mode production --target docker
+./scripts/install.sh verify --mode production --target docker --config /etc/riskhub/riskhub.env --secret-dir /etc/riskhub/secrets
 ```
 
 ```bash
-./scripts/deploy.sh status --target linux
-./scripts/deploy.sh smoke --target linux --config /etc/riskhub/riskhub.env --secret-dir /etc/riskhub/secrets
+./scripts/install.sh status --mode production --target linux
+./scripts/install.sh verify --mode production --target linux --config /etc/riskhub/riskhub.env --secret-dir /etc/riskhub/secrets
 ```
 
 Logs:
 
 ```bash
-./scripts/deploy.sh logs --target docker --service all --tail 200
-./scripts/deploy.sh logs --target linux --service all --tail 200
+./scripts/install.sh logs --mode production --target docker --tail 200 --follow
+./scripts/install.sh logs --mode production --target linux --tail 200 --follow
 ```
 
 The smoke step now also validates reliability runtime state:
@@ -143,6 +143,13 @@ The smoke step now also validates reliability runtime state:
 - `app_outbox_events` exists
 - exactly one running `__scheduler_runtime__` row is present
 - dead-letter outbox count is `0`
+
+If verification or runtime state looks wrong, start with the doctor command:
+
+```bash
+./scripts/install.sh doctor --mode production --target docker
+./scripts/install.sh doctor --mode production --target linux
+```
 
 If smoke fails on reliability checks, inspect the scheduler first:
 
@@ -162,20 +169,26 @@ scripts/prod/verify_runtime.sh
 Docker target:
 
 ```bash
-./scripts/deploy.sh upgrade --target docker --config /etc/riskhub/riskhub.env --secret-dir /etc/riskhub/secrets --version v1.2.4
+./scripts/install.sh upgrade --target docker --config /etc/riskhub/riskhub.env --secret-dir /etc/riskhub/secrets --version v1.2.4
 ```
 
 Linux target:
 
 ```bash
-./scripts/deploy.sh upgrade \
+./scripts/install.sh upgrade \
   --target linux \
   --config /etc/riskhub/riskhub.env \
   --secret-dir /etc/riskhub/secrets \
   --bundle ./riskhub-linux-v1.2.4.tar.gz
 ```
 
-The upgrade path keeps database migrations explicit and preserves rollback metadata for the application release only.
+The upgrade path creates a timestamped non-secret backup under the runtime directory before it runs `preflight`, `upgrade`, `status`, and `smoke`.
+
+Before release changes:
+
+- back up secret material through your normal operator-managed process
+- take a database backup or ensure PITR is available
+- keep the non-secret runtime backup created by `install.sh upgrade` for rollback and forensic context
 
 ## 7. Rollback
 

@@ -1,7 +1,7 @@
 # RiskHub Development Startup
 
 > **Version**: 1.1
-> **Last Updated**: 2026-03-29
+> **Last Updated**: 2026-04-05
 > **Audience**: Engineering, QA
 
 Back to tree: [`docs/DOCUMENTATION_TREE.md`](../DOCUMENTATION_TREE.md)
@@ -72,6 +72,27 @@ cd backend
 ./venv/bin/python -m app.db.seed
 ```
 
+## Lifecycle / Recovery
+
+Use the public lifecycle wrapper before dropping to the lower-level script layer.
+
+```bash
+./scripts/install.sh status --mode demo
+./scripts/install.sh status --mode dev
+./scripts/install.sh logs --mode demo --tail 200 --follow
+./scripts/install.sh logs --mode dev --tail 200 --follow
+./scripts/install.sh doctor --mode demo
+./scripts/install.sh doctor --mode dev --repair
+```
+
+Behavior:
+
+- `status --mode demo` reports Docker container state plus `http://localhost/login` and `/api/v1/auth/config` readiness.
+- `status --mode dev` reports DB/Redis availability, backend/frontend listener readiness, auth-config health, and local Node major compatibility.
+- `logs --mode demo` routes to `./scripts/compose.sh logs`; `logs --mode dev` tails `.dev-backend.log` and `.dev-frontend.log`.
+- `doctor --mode demo --repair` only starts the Docker stack if it is missing; it does not reset volumes or reseed data.
+- `doctor --mode dev --repair` only restores db-only infra, dependency state, and daemonized backend/frontend processes; it does not reset local data.
+
 ## Demo / Dev Auth
 
 - Local `./scripts/dev.sh` uses the Vite frontend at `http://localhost:5173/login`
@@ -91,7 +112,7 @@ AUTH_MODE=password MOCK_AUTH_ENABLED=false ./scripts/dev.sh
 - Recommended deterministic E2E reset:
 
 ```bash
-./scripts/compose.sh reset --dataset test
+./scripts/install.sh demo --reset test
 ```
 
 - Docker-targeted browser commands:
@@ -103,11 +124,12 @@ FRONTEND_URL=http://localhost POLISH_AUDIT_DEEP=1 npx playwright test -c ../test
 ```
 
 - Docker-targeted Playwright runs rely on `FRONTEND_URL=http://localhost`; the shared E2E login helper is now origin-aware and works against both `http://localhost:5173` and the Docker nginx surface.
+- The underlying advanced/manual reset command remains `./scripts/compose.sh reset --dataset test`.
 - `polish-audit.spec.ts` currently covers `riskhub` and `light`; `dark` theme still needs manual verification.
 - When the Docker app stack is live on the `riskhub` database, run Postgres marker tests against a separate `riskhub_test` database instead of the live app DB.
 
 ## Boundaries
 
-- `./scripts/install.sh` is the public first-run entrypoint for demo and local contributor installs
+- `./scripts/install.sh` is the public first-run and lifecycle entrypoint for demo and local contributor installs
 - `./scripts/compose.sh` and `./scripts/dev.sh` remain supported advanced/manual entrypoints
 - Production deployment remains separate and should use `./scripts/install.sh production --target docker|linux`

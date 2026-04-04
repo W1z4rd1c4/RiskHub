@@ -195,6 +195,15 @@ Use:
 ./scripts/install.sh production --target docker|linux
 ```
 
+Day 2 operations:
+
+```bash
+./scripts/install.sh status --mode production --target docker|linux
+./scripts/install.sh logs --mode production --target docker|linux --tail 200 --follow
+./scripts/install.sh doctor --mode production --target docker|linux [--repair]
+./scripts/install.sh upgrade --target docker|linux
+```
+
 Before touching production, read:
 
 - [Deployment overview](./docs/deployment/README.md)

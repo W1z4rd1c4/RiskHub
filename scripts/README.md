@@ -7,7 +7,8 @@ Operational and development automation for RiskHub.
 ## Supported entrypoints
 
 - `./scripts/install.sh`
-  - Public first-run installer for demo, local contributor, and guided production flows.
+  - Public first-run and lifecycle installer for demo, local contributor, and guided production flows.
+  - Covers `production`, `upgrade`, `status`, `logs`, `doctor`, and `verify` on top of the lower-level script layer.
 - `./scripts/dev.sh`
   - Advanced/manual local contributor startup.
   - Starts Docker-backed DB + Redis, performs local backend setup/schema preflight, and runs backend or backend+frontend locally.
@@ -15,7 +16,7 @@ Operational and development automation for RiskHub.
   - Advanced/manual Docker onboarding and packaged development startup.
   - Supports `up`, `down`, `logs`, and deterministic `reset`.
 - `./scripts/deploy.sh`
-  - Advanced/manual production deployment/admin CLI used by `./scripts/install.sh production`.
+  - Advanced/manual production deployment/admin CLI used underneath `./scripts/install.sh production`, `upgrade`, `status`, `logs`, `doctor`, and `verify`.
 - `make -f scripts/Makefile <target>`
   - Convenience wrapper around the supported scripts above plus validation/test helpers.
 
@@ -58,6 +59,7 @@ cd backend
 ```
 
 - Production deployment remains separate and is guided through `./scripts/install.sh production` or the lower-level `./scripts/deploy.sh`.
+- Day-2 production lifecycle is wrapper-first through `./scripts/install.sh status`, `logs`, `doctor`, and `upgrade`.
 
 ## Common verification commands
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 import tempfile
@@ -13,14 +14,17 @@ DEV_SCRIPT = REPO_ROOT / "scripts" / "dev.sh"
 DEPLOY_SCRIPT = REPO_ROOT / "scripts" / "deploy.sh"
 
 
-def _run_install(*args: str) -> subprocess.CompletedProcess[str]:
+def _run_install(*args: str, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
+    effective_env = os.environ.copy()
+    if env:
+        effective_env.update(env)
     return subprocess.run(
-        [str(INSTALL_SCRIPT), *args],
+        ["bash", str(INSTALL_SCRIPT), *args],
         cwd=REPO_ROOT,
         check=False,
         capture_output=True,
         text=True,
-        env=os.environ.copy(),
+        env=effective_env,
     )
 
 
@@ -54,6 +58,85 @@ def _write_secrets(secret_dir: Path) -> None:
         (secret_dir / name).write_text(value, encoding="utf-8")
 
 
+def _write_install_state(runtime_dir: Path, payload: dict[str, object]) -> None:
+    runtime_dir.mkdir(parents=True, exist_ok=True)
+    (runtime_dir / "install-state.json").write_text(
+        json.dumps(payload, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+
+def _make_fake_deploy_script(tmp: Path) -> Path:
+    script_path = tmp / "fake-deploy.sh"
+    script_path.write_text(
+        """#!/usr/bin/env bash
+set -euo pipefail
+if [[ -n "${RISKHUB_TEST_COMMAND_LOG:-}" ]]; then
+  printf '%s\\n' "$0 $*" >> "${RISKHUB_TEST_COMMAND_LOG}"
+fi
+exit 0
+""",
+        encoding="utf-8",
+    )
+    script_path.chmod(0o755)
+    return script_path
+
+
+def _make_fake_bin(tmp: Path) -> Path:
+    fake_bin = tmp / "bin"
+    fake_bin.mkdir()
+
+    docker_script = fake_bin / "docker"
+    docker_script.write_text(
+        """#!/usr/bin/env bash
+set -euo pipefail
+subcmd="${1:-}"
+shift || true
+case "${subcmd}" in
+  info|ps|restart)
+    exit 0
+    ;;
+  inspect)
+    if [[ "${1:-}" == "--format" ]]; then
+      format="${2:-}"
+      shift 2
+      container="${1:-}"
+      case "${container}" in
+        riskhub-redis)
+          if [[ "$format" == *".State.Running"* ]]; then printf 'true\\n'; else printf '%s\\n' "${RISKHUB_TEST_REDIS_IMAGE:-ghcr.io/example/riskhub-redis:v1.2.3}"; fi
+          ;;
+        riskhub-backend)
+          if [[ "$format" == *".State.Running"* ]]; then printf 'true\\n'; else printf '%s\\n' "${RISKHUB_TEST_BACKEND_IMAGE:-ghcr.io/example/riskhub-backend:v1.2.3}"; fi
+          ;;
+        riskhub-backend-scheduler)
+          if [[ "$format" == *".State.Running"* ]]; then printf 'true\\n'; else printf '%s\\n' "${RISKHUB_TEST_BACKEND_IMAGE:-ghcr.io/example/riskhub-backend:v1.2.3}"; fi
+          ;;
+        riskhub-frontend)
+          if [[ "$format" == *".State.Running"* ]]; then printf 'true\\n'; else printf '%s\\n' "${RISKHUB_TEST_FRONTEND_IMAGE:-ghcr.io/example/riskhub-frontend:v1.2.3}"; fi
+          ;;
+        *)
+          exit 1
+          ;;
+      esac
+      exit 0
+    fi
+    case "${1:-}" in
+      riskhub-redis|riskhub-backend|riskhub-backend-scheduler|riskhub-frontend) exit 0 ;;
+      *) exit 1 ;;
+    esac
+    ;;
+  *)
+    exit 0
+    ;;
+esac
+""",
+        encoding="utf-8",
+    )
+    docker_script.chmod(0o755)
+
+    return fake_bin
+
+
 def test_install_help_lists_public_commands() -> None:
     result = _run_install("--help")
     output = f"{result.stdout}\n{result.stderr}"
@@ -63,7 +146,11 @@ def test_install_help_lists_public_commands() -> None:
     assert "demo" in result.stdout
     assert "dev" in result.stdout
     assert "production" in result.stdout
+    assert "upgrade" in result.stdout
     assert "verify" in result.stdout
+    assert "status" in result.stdout
+    assert "logs" in result.stdout
+    assert "doctor" in result.stdout
 
 
 def test_install_demo_dry_run_dispatches_to_compose_and_verification() -> None:
@@ -173,6 +260,366 @@ def test_install_verify_production_dry_run_is_non_mutating() -> None:
     assert "status --target docker" in output
     assert "smoke --target docker --config /tmp/riskhub.env --secret-dir /tmp/riskhub-secrets --dry-run" in output
     assert "deploy --target docker" not in output
+
+
+def test_install_status_dry_run_dispatches_by_mode() -> None:
+    demo = _run_install("status", "--dry-run", "--mode", "demo")
+    dev = _run_install("status", "--dry-run", "--mode", "dev")
+    production = _run_install(
+        "status",
+        "--dry-run",
+        "--mode",
+        "production",
+        "--target",
+        "docker",
+    )
+
+    assert "docker inspect riskhub-db" in f"{demo.stdout}\n{demo.stderr}"
+    assert "curl -fsS http://localhost/login" in f"{demo.stdout}\n{demo.stderr}"
+
+    dev_output = f"{dev.stdout}\n{dev.stderr}"
+    assert "lsof -nP -iTCP:8000 -sTCP:LISTEN" in dev_output
+    assert "curl -fsS http://localhost:8000/api/v1/auth/config" in dev_output
+
+    production_output = f"{production.stdout}\n{production.stderr}"
+    assert "scripts/deploy.sh" in production_output
+    assert "status --target docker" in production_output
+
+
+def test_install_logs_dry_run_dispatches_by_mode() -> None:
+    demo = _run_install("logs", "--dry-run", "--mode", "demo", "--tail", "50", "--follow")
+    dev = _run_install("logs", "--dry-run", "--mode", "dev", "--tail", "25")
+    production = _run_install(
+        "logs",
+        "--dry-run",
+        "--mode",
+        "production",
+        "--target",
+        "linux",
+        "--tail",
+        "10",
+        "--follow",
+    )
+
+    assert "scripts/compose.sh" in f"{demo.stdout}\n{demo.stderr}"
+    assert "logs --tail 50 --follow" in f"{demo.stdout}\n{demo.stderr}"
+
+    dev_output = f"{dev.stdout}\n{dev.stderr}"
+    assert ".dev-backend.log" in dev_output
+    assert ".dev-frontend.log" in dev_output
+    assert "tail -n 25" in dev_output
+
+    production_output = f"{production.stdout}\n{production.stderr}"
+    assert "scripts/deploy.sh" in production_output
+    assert "logs --target linux --service all --tail 10 --follow" in production_output
+
+
+def test_install_doctor_dry_run_is_non_mutating() -> None:
+    result = _run_install("doctor", "--dry-run", "--mode", "production", "--target", "docker")
+    output = f"{result.stdout}\n{result.stderr}"
+
+    assert result.returncode == 0, output
+    assert "status --target docker" not in output
+    assert "smoke --target docker" not in output
+    assert "init --target docker" not in output
+
+
+def test_install_doctor_repair_dry_run_prints_safe_fix_actions() -> None:
+    result = _run_install("doctor", "--dry-run", "--mode", "dev", "--repair")
+    output = f"{result.stdout}\n{result.stderr}"
+
+    assert result.returncode == 0, output
+    assert "scripts/compose.sh" in output
+    assert "up --profile db-only" in output
+    assert "scripts/dev.sh" in output
+    assert "--daemon" in output
+
+
+def test_install_upgrade_docker_dry_run_dispatches_full_sequence() -> None:
+    with tempfile.TemporaryDirectory(prefix="riskhub-upgrade-docker-") as td:
+        tmp = Path(td)
+        config_path = tmp / "riskhub.env"
+        secret_dir = tmp / "secrets"
+        runtime_dir = tmp / "runtime"
+        _write_config(config_path)
+        _write_secrets(secret_dir)
+        _write_install_state(
+            runtime_dir,
+            {
+                "target": "docker",
+                "config_path": str(config_path),
+                "secret_dir": str(secret_dir),
+                "runtime_dir": str(runtime_dir),
+                "current_release_source": {"kind": "docker_version", "version": "v1.2.3"},
+                "managed_resources": {"docker_containers": ["riskhub-backend"]},
+                "public_url": "https://riskhub.example.com.internal",
+                "last_successful_deploy_timestamp": "2026-04-04T10:00:00Z",
+                "last_successful_smoke_timestamp": "2026-04-04T10:00:00Z",
+                "last_successful_command": "production",
+            },
+        )
+
+        env = {"RISKHUB_RUNTIME_DIR": str(runtime_dir)}
+        result = _run_install(
+            "upgrade",
+            "--dry-run",
+            "--yes",
+            "--target",
+            "docker",
+            "--config",
+            str(config_path),
+            "--secret-dir",
+            str(secret_dir),
+            "--version",
+            "v1.2.4",
+            env=env,
+        )
+        output = f"{result.stdout}\n{result.stderr}"
+
+        assert result.returncode == 0, output
+        assert "scripts/deploy.sh" in output
+        assert "preflight --target docker" in output
+        assert "upgrade --target docker" in output
+        assert "status --target docker" in output
+        assert "smoke --target docker" in output
+
+
+def test_install_upgrade_linux_dry_run_dispatches_full_sequence() -> None:
+    with tempfile.TemporaryDirectory(prefix="riskhub-upgrade-linux-") as td:
+        tmp = Path(td)
+        config_path = tmp / "riskhub.env"
+        secret_dir = tmp / "secrets"
+        runtime_dir = tmp / "runtime"
+        _write_config(config_path)
+        _write_secrets(secret_dir)
+        _write_install_state(
+            runtime_dir,
+            {
+                "target": "linux",
+                "config_path": str(config_path),
+                "secret_dir": str(secret_dir),
+                "runtime_dir": str(runtime_dir),
+                "current_release_source": {"kind": "linux_bundle", "version": "v1.2.3"},
+                "managed_resources": {"linux_services": ["riskhub-backend"]},
+                "public_url": "https://riskhub.example.com.internal",
+                "last_successful_deploy_timestamp": "2026-04-04T10:00:00Z",
+                "last_successful_smoke_timestamp": "2026-04-04T10:00:00Z",
+                "last_successful_command": "production",
+            },
+        )
+
+        env = {"RISKHUB_RUNTIME_DIR": str(runtime_dir)}
+        result = _run_install(
+            "upgrade",
+            "--dry-run",
+            "--yes",
+            "--target",
+            "linux",
+            "--config",
+            str(config_path),
+            "--secret-dir",
+            str(secret_dir),
+            "--bundle",
+            "./riskhub-linux-v1.2.4.tar.gz",
+            env=env,
+        )
+        output = f"{result.stdout}\n{result.stderr}"
+
+        assert result.returncode == 0, output
+        assert "preflight --target linux" in output
+        assert "upgrade --target linux" in output
+        assert "--bundle ./riskhub-linux-v1.2.4.tar.gz" in output
+        assert "status --target linux" in output
+        assert "smoke --target linux" in output
+
+
+def test_install_production_writes_install_state_after_successful_run() -> None:
+    with tempfile.TemporaryDirectory(prefix="riskhub-install-state-write-") as td:
+        tmp = Path(td)
+        config_path = tmp / "riskhub.env"
+        secret_dir = tmp / "secrets"
+        runtime_dir = tmp / "runtime"
+        command_log = tmp / "commands.log"
+        _write_config(config_path)
+        _write_secrets(secret_dir)
+        fake_deploy = _make_fake_deploy_script(tmp)
+
+        env = {
+            "RISKHUB_RUNTIME_DIR": str(runtime_dir),
+            "RISKHUB_INSTALL_DEPLOY_SCRIPT": str(fake_deploy),
+            "RISKHUB_TEST_COMMAND_LOG": str(command_log),
+        }
+        result = _run_install(
+            "production",
+            "--yes",
+            "--target",
+            "docker",
+            "--config",
+            str(config_path),
+            "--secret-dir",
+            str(secret_dir),
+            "--version",
+            "v1.2.3",
+            env=env,
+        )
+        output = f"{result.stdout}\n{result.stderr}"
+
+        assert result.returncode == 0, output
+        state_path = runtime_dir / "install-state.json"
+        assert state_path.exists()
+        payload = json.loads(state_path.read_text(encoding="utf-8"))
+        assert payload["target"] == "docker"
+        assert payload["config_path"] == str(config_path)
+        assert payload["secret_dir"] == str(secret_dir)
+        assert payload["runtime_dir"] == str(runtime_dir)
+        assert payload["current_release_source"]["kind"] == "docker_version"
+        assert payload["current_release_source"]["version"] == "v1.2.3"
+        assert payload["last_successful_command"] == "production"
+        assert payload["last_successful_deploy_timestamp"] is not None
+        assert payload["last_successful_smoke_timestamp"] is not None
+        command_text = command_log.read_text(encoding="utf-8")
+        assert "preflight --target docker" in command_text
+        assert "deploy --target docker" in command_text
+        assert "status --target docker" in command_text
+        assert "smoke --target docker" in command_text
+
+
+def test_install_status_json_reconstructs_production_state_when_metadata_missing() -> None:
+    with tempfile.TemporaryDirectory(prefix="riskhub-status-reconstruct-") as td:
+        tmp = Path(td)
+        config_path = tmp / "riskhub.env"
+        secret_dir = tmp / "secrets"
+        runtime_dir = tmp / "runtime"
+        fake_bin = _make_fake_bin(tmp)
+        _write_config(config_path)
+        _write_secrets(secret_dir)
+        runtime_dir.mkdir(parents=True, exist_ok=True)
+
+        env = os.environ.copy()
+        env["PATH"] = f"{fake_bin}:{env['PATH']}"
+        env["RISKHUB_RUNTIME_DIR"] = str(runtime_dir)
+
+        result = _run_install(
+            "status",
+            "--mode",
+            "production",
+            "--target",
+            "docker",
+            "--config",
+            str(config_path),
+            "--secret-dir",
+            str(secret_dir),
+            "--json",
+            env=env,
+        )
+        output = f"{result.stdout}\n{result.stderr}"
+
+        assert result.returncode == 0, output
+        payload = json.loads(result.stdout)
+        assert payload["metadata"]["present"] is False
+        assert payload["current_release_source"]["kind"] == "docker_images"
+        assert payload["current_release_source"]["backend_image"] == "ghcr.io/example/riskhub-backend:v1.2.3"
+
+
+def test_install_status_json_flags_stale_production_metadata() -> None:
+    with tempfile.TemporaryDirectory(prefix="riskhub-status-stale-") as td:
+        tmp = Path(td)
+        config_path = tmp / "riskhub.env"
+        secret_dir = tmp / "secrets"
+        runtime_dir = tmp / "runtime"
+        fake_bin = _make_fake_bin(tmp)
+        _write_config(config_path)
+        _write_secrets(secret_dir)
+        _write_install_state(
+            runtime_dir,
+            {
+                "target": "docker",
+                "config_path": str(config_path),
+                "secret_dir": str(secret_dir),
+                "runtime_dir": str(runtime_dir),
+                "current_release_source": {
+                    "kind": "docker_images",
+                    "backend_image": "ghcr.io/example/riskhub-backend:old",
+                    "frontend_image": "ghcr.io/example/riskhub-frontend:old",
+                    "redis_image": "ghcr.io/example/riskhub-redis:old",
+                },
+                "managed_resources": {"docker_containers": ["riskhub-backend"]},
+                "public_url": "https://riskhub.example.com.internal",
+                "last_successful_deploy_timestamp": "2026-04-04T10:00:00Z",
+                "last_successful_smoke_timestamp": "2026-04-04T10:00:00Z",
+                "last_successful_command": "production",
+            },
+        )
+
+        env = os.environ.copy()
+        env["PATH"] = f"{fake_bin}:{env['PATH']}"
+        env["RISKHUB_RUNTIME_DIR"] = str(runtime_dir)
+
+        result = _run_install(
+            "status",
+            "--mode",
+            "production",
+            "--target",
+            "docker",
+            "--config",
+            str(config_path),
+            "--secret-dir",
+            str(secret_dir),
+            "--json",
+            env=env,
+        )
+        output = f"{result.stdout}\n{result.stderr}"
+
+        assert result.returncode == 0, output
+        payload = json.loads(result.stdout)
+        assert payload["metadata"]["present"] is True
+        assert payload["metadata"]["stale"] is True
+        assert "backend_image_mismatch" in payload["metadata"]["stale_reasons"]
+
+
+def test_install_doctor_repair_reconstructs_missing_production_metadata() -> None:
+    with tempfile.TemporaryDirectory(prefix="riskhub-doctor-rebuild-") as td:
+        tmp = Path(td)
+        config_path = tmp / "riskhub.env"
+        secret_dir = tmp / "secrets"
+        runtime_dir = tmp / "runtime"
+        fake_bin = _make_fake_bin(tmp)
+        fake_deploy = _make_fake_deploy_script(tmp)
+        _write_config(config_path)
+        _write_secrets(secret_dir)
+        runtime_dir.mkdir(parents=True, exist_ok=True)
+
+        env = os.environ.copy()
+        env["PATH"] = f"{fake_bin}:{env['PATH']}"
+        env["RISKHUB_RUNTIME_DIR"] = str(runtime_dir)
+        env["RISKHUB_INSTALL_DEPLOY_SCRIPT"] = str(fake_deploy)
+
+        result = _run_install(
+            "doctor",
+            "--mode",
+            "production",
+            "--target",
+            "docker",
+            "--config",
+            str(config_path),
+            "--secret-dir",
+            str(secret_dir),
+            "--repair",
+            "--json",
+            env=env,
+        )
+        output = f"{result.stdout}\n{result.stderr}"
+
+        assert result.returncode == 0, output
+        payload = json.loads(result.stdout)
+        assert payload["repair_requested"] is True
+        assert payload["repair_applied"] is True
+        state_path = runtime_dir / "install-state.json"
+        assert state_path.exists()
+        state = json.loads(state_path.read_text(encoding="utf-8"))
+        assert state["target"] == "docker"
+        assert state["current_release_source"]["kind"] == "docker_images"
+        assert state["last_successful_smoke_timestamp"] is not None
 
 
 def test_manual_scripts_reference_install_wrapper_in_help_text() -> None:

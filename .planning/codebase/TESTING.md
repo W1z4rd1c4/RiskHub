@@ -53,11 +53,12 @@
 - Lint workflow enforces frontend dead-code/debt gates, backend Ruff hard gate, backend suppression budget, and docs topology consistency (`.github/workflows/lint.yml`)
 - Security workflow runs Bandit, pip-audit, npm audit, Trivy, Syft+Grype correlation, and gitleaks parse+scan (`.github/workflows/security.yml`)
 - Security workflow also runs nightly non-blocking Redis resilience integration checks (`redis_integration`) (`.github/workflows/security.yml`)
+- Startup-script contract coverage includes the public `scripts/install.sh` first-run and lifecycle surface, including `verify`, `status`, `logs`, `doctor`, and `upgrade` (`tests/backend/pytest/test_install_script_contracts.py`, `tests/backend/pytest/test_startup_script_contracts.py`)
 
 ## Canonical Commands
 
 - Public local/demo install flows: `./scripts/install.sh demo`, `./scripts/install.sh demo --reset test`, and `./scripts/install.sh dev`
-- Public production install/verification flows: `./scripts/install.sh production --target docker|linux` and `./scripts/install.sh verify --mode production --target docker|linux --config PATH --secret-dir PATH`
+- Public production install/lifecycle flows: `./scripts/install.sh production --target docker|linux`, `./scripts/install.sh upgrade --target docker|linux`, `./scripts/install.sh verify --mode production --target docker|linux --config PATH --secret-dir PATH`, `./scripts/install.sh status --mode production --target docker|linux [--json]`, `./scripts/install.sh logs --mode production --target docker|linux [--tail N] [--follow]`, and `./scripts/install.sh doctor --mode production --target docker|linux [--repair] [--deep] [--json]`
 - Backend tests: `make -f scripts/Makefile test` or `cd backend && pytest -v`
 - Backend lint + suppression budget: `make -f scripts/Makefile lint-backend`
 - Backend suppression budget only: `make -f scripts/Makefile quality-suppression-budget`
@@ -89,7 +90,7 @@
 ## Practical Gaps to Watch
 
 - SQLite-default tests may not catch all Postgres-specific datetime/enum behavior
-- Public wrapper flows still rely on the underlying `scripts/dev.sh`, `scripts/compose.sh`, and `scripts/deploy.sh` contracts staying stable
+- Public first-run and lifecycle wrapper flows rely on the `scripts/install.sh` contract plus the underlying `scripts/dev.sh`, `scripts/compose.sh`, and `scripts/deploy.sh` contracts staying stable
 - Docker-origin Playwright runs still require `FRONTEND_URL=http://localhost`
 - Authorization changes should be validated in both backend API tests and frontend gating tests
 - Approval-execution changes should include high-confidence regression tests around side effects

@@ -42,11 +42,12 @@
 
 - Frontend nginx proxies `/api/` to `backend:8000` in container network (`frontend/nginx.conf`)
 - Vite dev server proxies `/api` to local backend (`frontend/vite.config.ts`)
-- Public local/demo install flow is wrapper-first through `./scripts/install.sh demo` and `./scripts/install.sh dev`
+- Public local/demo install flow is wrapper-first through `./scripts/install.sh demo` and `./scripts/install.sh dev`, with lifecycle checks and recovery through `./scripts/install.sh status|logs|doctor --mode demo|dev`
 - Development Docker Compose defines the local multi-service topology, healthchecks, and bootstrap flow underneath `./scripts/install.sh demo` (`docker-compose.yml`, `scripts/compose.sh`)
 - `./scripts/install.sh demo --reset test` now completes end to end on the Docker stack, using the backend `dbtasks` target for migrations and seed commands
 - Docker-origin Playwright runs still require `FRONTEND_URL=http://localhost`, and the shared login helper is origin-aware across both the Vite and Docker nginx surfaces
-- Supported production install/admin runs are wrapper-first through `./scripts/install.sh production --target docker|linux`, backed by `./scripts/deploy.sh --target docker|linux` and retained `scripts/prod/*` helper scripts
+- Supported production install/admin runs are wrapper-first through `./scripts/install.sh production --target docker|linux`, `./scripts/install.sh upgrade --target docker|linux`, and `./scripts/install.sh status|logs|doctor|verify --mode production --target docker|linux`, backed by `./scripts/deploy.sh --target docker|linux` and retained `scripts/prod/*` helper scripts
+- Production lifecycle metadata is stored at `/etc/riskhub/runtime/install-state.json`; `scripts/install.sh` status/logs/doctor/upgrade consume that state to report release source, managed resources, and latest successful deploy/smoke information
 
 ## CI/Security Integrations
 
