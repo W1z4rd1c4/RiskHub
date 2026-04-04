@@ -129,9 +129,8 @@ frontend/playwright-report/
 frontend/.playwright-browsers/
 backend/logs/
 tests/results/
-# Canonical generated frontend audit and trace outputs live under tests/results/.
-tests/results/frontend/audits/
-tests/results/frontend/traces/
+# Canonical generated frontend audit outputs live under tests/results/quality/frontend/.
+frontend/ts-trace-*/
 scripts/runtime-artifacts/
 backend/bandit-report.json
 backend/pip-audit-report.json
