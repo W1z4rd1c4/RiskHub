@@ -1,6 +1,6 @@
 # RiskHub Deployment
 
-> **Last Updated**: 2026-03-29
+> **Last Updated**: 2026-04-04
 > **Audience**: IT / DevOps / Platform Engineering
 
 Back to tree: [`../DOCUMENTATION_TREE.md`](../DOCUMENTATION_TREE.md)
@@ -42,6 +42,15 @@ Common rules across both targets:
 ./scripts/install.sh production --target docker|linux
 ```
 
+Day 2 lifecycle commands:
+
+```bash
+./scripts/install.sh status --mode production --target docker|linux
+./scripts/install.sh logs --mode production --target docker|linux --tail 200 --follow
+./scripts/install.sh doctor --mode production --target docker|linux [--repair]
+./scripts/install.sh upgrade --target docker|linux
+```
+
 Advanced/manual admin interface:
 
 ```bash
@@ -61,3 +70,5 @@ Release inputs:
   - Docker target: dedicated scheduler container
   - Linux target: dedicated `riskhub-scheduler.service`
 - `./scripts/deploy.sh smoke ...` validates frontend/API readiness, disabled docs endpoints, reliability tables, one active scheduler runtime row, and zero dead-letter outbox rows.
+- `./scripts/install.sh upgrade ...` creates a timestamped non-secret backup under the runtime directory before it runs `preflight`, `upgrade`, `status`, and `smoke`.
+- Secret files and the database remain operator-managed backup responsibilities before release changes.

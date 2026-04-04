@@ -40,6 +40,10 @@ Usage: ./scripts/deploy.sh <init|secrets-init|secrets-edit|secrets-check|preflig
 
 Guided public installer:
   ./scripts/install.sh production --target docker|linux
+  ./scripts/install.sh upgrade --target docker|linux
+  ./scripts/install.sh status --mode production --target docker|linux
+  ./scripts/install.sh logs --mode production --target docker|linux
+  ./scripts/install.sh doctor --mode production --target docker|linux
 
 Common options:
   --target docker|linux

@@ -11,6 +11,8 @@ NO_BUILD=false
 WITH_VOLUMES=false
 DATASET=""
 LOG_SERVICE=""
+LOG_TAIL="200"
+LOG_FOLLOW=false
 DRY_RUN=false
 VERBOSE=false
 COMPOSE=()
@@ -20,7 +22,7 @@ usage() {
 Usage:
   ./scripts/compose.sh up [--profile full|db-only] [--lan <ip>] [--no-build]
   ./scripts/compose.sh down [--volumes]
-  ./scripts/compose.sh logs [service]
+  ./scripts/compose.sh logs [service] [--tail N] [--follow]
   ./scripts/compose.sh reset --dataset dev|test [--no-build]
 
 Canonical Docker onboarding/appliance path for RiskHub development.
@@ -301,6 +303,14 @@ while [[ $# -gt 0 ]]; do
       DATASET="${2:-}"
       shift 2
       ;;
+    --tail)
+      LOG_TAIL="${2:-}"
+      shift 2
+      ;;
+    --follow)
+      LOG_FOLLOW=true
+      shift
+      ;;
     --dry-run)
       DRY_RUN=true
       shift
@@ -361,7 +371,10 @@ case "$COMMAND" in
   logs)
     wait_for_docker
     resolve_compose_cmd
-    log_args=(logs -f)
+    log_args=(logs --tail "$LOG_TAIL")
+    if [[ "$LOG_FOLLOW" == "true" ]]; then
+      log_args+=(-f)
+    fi
     if [[ -n "$LOG_SERVICE" ]]; then
       log_args+=("$LOG_SERVICE")
     fi

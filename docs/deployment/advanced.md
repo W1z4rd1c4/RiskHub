@@ -62,6 +62,7 @@ The builder is Linux-only so the bundled wheelhouse matches the Linux deployment
 Maintainer note:
 
 - rendered `metadata.env` is intentionally shell-sourced by deploy helpers and must remain safe to `source`, including when paths contain spaces
+- `install-state.json` is the public-wrapper lifecycle state file and should stay JSON-only, additive, and safe for machine reads
 
 ## Linux Runtime Topology
 

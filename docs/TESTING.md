@@ -1,7 +1,7 @@
 # RiskHub Testing Guide
 
 > **Version**: 1.7
-> **Last Updated**: 2026-03-29
+> **Last Updated**: 2026-04-04
 > **Audience**: Engineering, QA
 > **Source of Truth**: `tests/backend/pytest/`, `backend/pytest.ini`, `frontend/package.json`, `tests/frontend/e2e/playwright.config.ts`
 
@@ -46,9 +46,10 @@ This guide defines the current testing matrix for backend, frontend unit tests, 
 ## Development Startup
 
 - Canonical startup guidance lives in [`docs/development/README.md`](./development/README.md).
-- Use `./scripts/dev.sh` for active local backend/frontend iteration.
-- Use `./scripts/compose.sh up` for Docker onboarding/manual appliance-style runs.
-- Use `./scripts/compose.sh reset --dataset test` for deterministic Docker-backed E2E fixture resets.
+- Use `./scripts/install.sh dev` for active local backend/frontend iteration.
+- Use `./scripts/install.sh demo` for Docker onboarding/manual appliance-style runs.
+- Use `./scripts/install.sh demo --reset test` for deterministic Docker-backed E2E fixture resets.
+- Keep `./scripts/dev.sh` and `./scripts/compose.sh` as the underlying advanced/manual entrypoints.
 
 ## Local Startup Preflight
 
@@ -69,14 +70,15 @@ cd backend
 Preferred deterministic path:
 
 ```bash
-./scripts/compose.sh reset --dataset test
+./scripts/install.sh demo --reset test
 ```
 
 Current behavior:
 
-- `./scripts/compose.sh reset --dataset test` is the canonical deterministic Docker path for migrations, base seed, deterministic E2E seed, and app startup.
+- `./scripts/install.sh demo --reset test` is the canonical deterministic Docker path for migrations, base seed, deterministic E2E seed, and app startup.
 - The Docker bootstrap service now reuses the backend runtime image and runs migrations + seed commands inline.
 - Docker Compose now inherits the backend image's Python healthcheck instead of overriding it with `curl`.
+- The underlying advanced/manual reset command remains `./scripts/compose.sh reset --dataset test`.
 
 Preflight:
 

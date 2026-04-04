@@ -64,9 +64,10 @@ RiskHub is a containerized full-stack application:
 
 ## Deployment Topology
 
-- Public local/demo install flow is wrapper-first through `./scripts/install.sh demo` and `./scripts/install.sh dev`
-- Public production/admin install flow is wrapper-first through `./scripts/install.sh production --target docker|linux`
+- Public local/demo first-run flow is wrapper-first through `./scripts/install.sh demo` and `./scripts/install.sh dev`, with day-2 local lifecycle checks through `./scripts/install.sh status|logs|doctor --mode demo|dev`
+- Public production install flow is wrapper-first through `./scripts/install.sh production --target docker|linux`, with day-2 production lifecycle through `./scripts/install.sh upgrade --target docker|linux` and `./scripts/install.sh status|logs|doctor|verify --mode production --target docker|linux`
 - `scripts/compose.sh`, `scripts/dev.sh`, and `scripts/deploy.sh` remain the underlying advanced/manual implementation layers
+- Production lifecycle metadata is persisted at `/etc/riskhub/runtime/install-state.json` and consumed by `scripts/install.sh` status/logs/doctor/upgrade flows
 - Docker onboarding flow still bootstraps migrations + base seed through the compose-managed `bootstrap` service before backend readiness
 - Component-scoped runtime entrypoints under `frontend/scripts/runtime/`, `backend/scripts/runtime/`, and `backend/scripts/runtime/db/` are internal implementation assets rather than supported deployment interfaces
 - Frontend served by nginx, proxying backend API requests (`frontend/nginx.conf`)
