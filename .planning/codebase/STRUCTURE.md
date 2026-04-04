@@ -1,6 +1,6 @@
 # Repository Structure
 
-**Analysis Date:** 2026-03-18
+**Analysis Date:** 2026-04-04
 
 ## Top-Level Layout
 
@@ -9,7 +9,7 @@
 - `docs/` - product/business/admin/user documentation
 - `tests/` - centralized backend/frontend test suites and test result artifacts
 - `.planning/` - roadmap, state, phase plans/summaries, codebase map docs
-- `scripts/` - operational/dev utilities (including canonical `scripts/dev.sh` and `scripts/compose.sh`)
+- `scripts/` - operational/dev utilities, including the public installer/orchestrator `scripts/install.sh` plus the underlying `scripts/dev.sh`, `scripts/compose.sh`, and `scripts/deploy.sh` entrypoints
 
 ## Backend Tree (`backend/`)
 
@@ -65,7 +65,7 @@
 - `.github/workflows/e2e.yml` - CI E2E flow
 - `.github/workflows/security.yml` - security scanning flow
 - `docker-compose.yml` - development service topology consumed by `scripts/compose.sh`
-- `scripts/Makefile` - convenience command aliases around `scripts/dev.sh` and `scripts/compose.sh`
+- `scripts/Makefile` - convenience command aliases around `scripts/install.sh`, `scripts/dev.sh`, and `scripts/compose.sh`
 
 ## Generated or Heavy Directories (avoid manual edits)
 
@@ -77,4 +77,4 @@
 
 ---
 
-*Structure audit refreshed on 2026-03-18*
+*Structure audit refreshed on 2026-04-04*

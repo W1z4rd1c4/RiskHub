@@ -1,7 +1,7 @@
 # RiskHub Testing Guide
 
-> **Version**: 1.7
-> **Last Updated**: 2026-03-29
+> **Version**: 1.8
+> **Last Updated**: 2026-04-04
 > **Audience**: Engineering, QA
 > **Source of Truth**: `tests/backend/pytest/`, `backend/pytest.ini`, `frontend/package.json`, `tests/frontend/e2e/playwright.config.ts`
 
@@ -46,13 +46,14 @@ This guide defines the current testing matrix for backend, frontend unit tests, 
 ## Development Startup
 
 - Canonical startup guidance lives in [`docs/development/README.md`](./development/README.md).
-- Use `./scripts/dev.sh` for active local backend/frontend iteration.
-- Use `./scripts/compose.sh up` for Docker onboarding/manual appliance-style runs.
-- Use `./scripts/compose.sh reset --dataset test` for deterministic Docker-backed E2E fixture resets.
+- Use `./scripts/install.sh dev` for active local backend/frontend iteration.
+- Use `./scripts/install.sh demo` for the Docker onboarding path.
+- Use `./scripts/install.sh demo --reset test` for deterministic Docker-backed E2E fixture resets.
+- Keep `./scripts/dev.sh` and `./scripts/compose.sh` for advanced/manual execution of those same workflows.
 
 ## Local Startup Preflight
 
-- `./scripts/dev.sh` now performs a schema-head preflight before it starts the local backend in `full` and `backend` modes.
+- `./scripts/install.sh dev` routes through `./scripts/dev.sh`, which performs a schema-head preflight before it starts the local backend in `full` and `backend` modes.
 - If the connected non-SQLite database revision does not match the app head, startup stops before the frontend is launched.
 - The expected recovery path is:
 
@@ -62,19 +63,20 @@ cd backend
 ```
 
 - After a local backend launch attempt, `scripts/dev.sh` also verifies backend readiness and prints the backend log tail immediately if startup failed during lifespan initialization.
-- Docker onboarding/reset paths intentionally keep the app startup guards unchanged; migrations and base seeding happen in the `./scripts/compose.sh` bootstrap flow rather than by weakening app startup checks.
+- `./scripts/install.sh demo` and `./scripts/install.sh demo --reset test` route through `./scripts/compose.sh`; migrations and base seeding still happen in the compose bootstrap flow rather than by weakening app startup checks.
 
 ## Docker Live Verification
 
 Preferred deterministic path:
 
 ```bash
-./scripts/compose.sh reset --dataset test
+./scripts/install.sh demo --reset test
 ```
 
 Current behavior:
 
-- `./scripts/compose.sh reset --dataset test` is the canonical deterministic Docker path for migrations, base seed, deterministic E2E seed, and app startup.
+- `./scripts/install.sh demo --reset test` is the recommended deterministic Docker path for migrations, base seed, deterministic E2E seed, and app startup.
+- The underlying advanced/manual command remains `./scripts/compose.sh reset --dataset test`.
 - The Docker bootstrap service now builds the backend `dbtasks` target, so database bootstrap work runs with the required Postgres client dependencies.
 - Docker Compose now inherits the backend image's Python healthcheck instead of overriding it with `curl`.
 

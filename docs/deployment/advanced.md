@@ -1,11 +1,13 @@
 # Deployment Advanced Notes
 
-> **Last Updated**: 2026-03-29
+> **Last Updated**: 2026-04-04
 > **Audience**: Maintainers / release engineering
 
 ## Internal Script Mapping
 
-The public production surface is `./scripts/deploy.sh`.
+The public production surface is `./scripts/install.sh production --target docker|linux`.
+
+The advanced/manual admin interface underneath it is `./scripts/deploy.sh`.
 
 Internal implementation details:
 

@@ -11,6 +11,9 @@ help:
 	@echo "Run as: make -f scripts/Makefile <target>"
 	@echo ""
 	@echo "Development:"
+	@echo "  ./scripts/install.sh demo     - Public first-run Docker onboarding entrypoint"
+	@echo "  ./scripts/install.sh dev      - Public local contributor entrypoint"
+	@echo "  ./scripts/install.sh production --target docker|linux - Public guided production install"
 	@echo "  make dev          - Start local backend only via ./scripts/dev.sh --backend"
 	@echo "  make dev-full     - Start local backend + frontend via ./scripts/dev.sh"
 	@echo "  make docker       - Start Docker onboarding stack via ./scripts/compose.sh up"
@@ -170,8 +173,8 @@ verify-prod-install-scripts:
 	cd backend && venv/bin/pytest ../tests/backend/pytest/test_production_hardening.py ../tests/backend/pytest/test_phase500_script_contracts.py ../tests/backend/pytest/test_phase500_script_runtime_contracts.py ../tests/backend/pytest/test_deploy_renderer_contracts.py ../tests/backend/pytest/test_deploy_cli_contracts.py ../tests/backend/pytest/test_repo_hygiene_contracts.py ../tests/backend/pytest/test_settings_secret_files.py -q
 
 verify-startup-scripts:
-	bash -n scripts/compose.sh scripts/dev.sh
-	docker run --rm -v "$$(pwd)":/work -w /work koalaman/shellcheck:stable -x scripts/compose.sh scripts/dev.sh
+	bash -n scripts/install.sh scripts/compose.sh scripts/dev.sh
+	docker run --rm -v "$$(pwd)":/work -w /work koalaman/shellcheck:stable -x scripts/install.sh scripts/compose.sh scripts/dev.sh
 
 readme-coverage:
 	python3 scripts/tools/readme_coverage.py audit

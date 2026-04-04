@@ -37,12 +37,21 @@ TLS termination is expected to be pre-provisioned on the host or upstream.
 ## 2. Create The Operator Config
 
 ```bash
-./scripts/deploy.sh init --target docker --config /etc/riskhub/riskhub.env --secret-dir /etc/riskhub/secrets
+./scripts/install.sh production --target docker --version v1.2.3
 ```
 
 or
 
 ```bash
+./scripts/install.sh production --target linux --bundle ./riskhub-linux-v1.2.3.tar.gz
+```
+
+The guided installer initializes config if needed, prompts for the required non-secret values, reuses `./scripts/deploy.sh secrets-edit ...` for secret capture, then runs `preflight`, `deploy`, `status`, and `smoke`.
+
+Advanced/manual config scaffolding remains available:
+
+```bash
+./scripts/deploy.sh init --target docker --config /etc/riskhub/riskhub.env --secret-dir /etc/riskhub/secrets
 ./scripts/deploy.sh init --target linux --config /etc/riskhub/riskhub.env --secret-dir /etc/riskhub/secrets
 ```
 

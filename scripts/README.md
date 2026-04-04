@@ -6,14 +6,16 @@ Operational and development automation for RiskHub.
 
 ## Supported entrypoints
 
+- `./scripts/install.sh`
+  - Public first-run installer for demo, local contributor, and guided production flows.
 - `./scripts/dev.sh`
-  - Canonical local contributor startup.
+  - Advanced/manual local contributor startup.
   - Starts Docker-backed DB + Redis, performs local backend setup/schema preflight, and runs backend or backend+frontend locally.
 - `./scripts/compose.sh`
-  - Canonical Docker onboarding and packaged development startup.
+  - Advanced/manual Docker onboarding and packaged development startup.
   - Supports `up`, `down`, `logs`, and deterministic `reset`.
 - `./scripts/deploy.sh`
-  - Canonical production deployment/admin CLI.
+  - Advanced/manual production deployment/admin CLI used by `./scripts/install.sh production`.
 - `make -f scripts/Makefile <target>`
   - Convenience wrapper around the supported scripts above plus validation/test helpers.
 
@@ -45,8 +47,9 @@ Operational and development automation for RiskHub.
 
 ## Startup notes
 
+- `./scripts/install.sh` is the public first-run entrypoint.
 - `./scripts/dev.sh` is local-only.
-- `./scripts/compose.sh` is the only supported Docker development entrypoint.
+- `./scripts/compose.sh` remains the advanced/manual Docker development entrypoint.
 - If the local database is behind the Alembic head, `./scripts/dev.sh` exits early and prints the recovery command:
 
 ```bash
@@ -54,7 +57,7 @@ cd backend
 ./venv/bin/alembic upgrade head
 ```
 
-- Production deployment remains separate and must use `./scripts/deploy.sh`.
+- Production deployment remains separate and is guided through `./scripts/install.sh production` or the lower-level `./scripts/deploy.sh`.
 
 ## Common verification commands
 

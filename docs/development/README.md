@@ -17,23 +17,22 @@ Recommended for most people.
 Use Docker when you want the lowest-friction first run, demo stack, or deterministic reset workflow.
 
 ```bash
-./scripts/compose.sh up
-./scripts/compose.sh up --profile db-only
-./scripts/compose.sh reset --dataset test
+./scripts/install.sh demo
+./scripts/install.sh demo --reset test
 ```
 
 Behavior:
 
 - `up` boots DB + Redis, runs `alembic upgrade head`, seeds base demo data, then starts backend/frontend containers
 - Full Docker stack serves the app at `http://localhost/`
-- `up --profile db-only` starts only DB + Redis for local contributor workflows
 - `reset --dataset test` wipes Docker volumes, reruns migrations + base seed, then adds deterministic E2E fixtures
 
 Open `http://localhost/login` after startup.
 
 Deterministic live-verification preference:
 
-- Prefer `./scripts/compose.sh reset --dataset test` when you need seeded browser verification against the Docker-served app at `http://localhost/`.
+- Prefer `./scripts/install.sh demo --reset test` when you need seeded browser verification against the Docker-served app at `http://localhost/`.
+- Advanced/manual Docker entrypoints remain available under `./scripts/compose.sh`.
 - The Docker bootstrap service now uses the backend `dbtasks` target, so `reset --dataset test` runs migrations and seed commands with the required Postgres client dependencies.
 - Docker Compose now inherits the backend image's Python healthcheck instead of overriding it with `curl`.
 
@@ -48,8 +47,8 @@ LAN mode:
 Use local runtimes when you are actively iterating on backend or frontend code.
 
 ```bash
-./scripts/dev.sh
-./scripts/dev.sh --backend
+./scripts/install.sh dev
+./scripts/install.sh dev --backend
 ```
 
 Behavior:
@@ -64,6 +63,7 @@ Behavior:
 Important:
 
 - On an already-initialized local database, schema drift still fails fast with an actionable migration command.
+- Advanced/manual contributor entrypoints remain available under `./scripts/dev.sh`.
 - Manual recovery path:
 
 ```bash
@@ -108,6 +108,6 @@ FRONTEND_URL=http://localhost POLISH_AUDIT_DEEP=1 npx playwright test -c ../test
 
 ## Boundaries
 
-- `./scripts/dev.sh` is the only supported local contributor entrypoint
-- `./scripts/compose.sh` is the only supported Docker development/onboarding entrypoint
-- Production deployment remains separate and must use `./scripts/deploy.sh`
+- `./scripts/install.sh` is the public first-run entrypoint for demo and local contributor installs
+- `./scripts/compose.sh` and `./scripts/dev.sh` remain supported advanced/manual entrypoints
+- Production deployment remains separate and should use `./scripts/install.sh production --target docker|linux`

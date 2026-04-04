@@ -14,7 +14,7 @@ Row schema:
 |---|---|---|---|---|---|
 | repository_knowledge_map | `Repository Knowledge Map` | `docs/agent/README.md`; `docs/agent/AGENTS_DOC_COVERAGE.md`; `docs/DOCUMENTATION_TREE.md`; `.planning/README.md` | full | none | 2026-03-29 |
 | mission | `Mission` | `docs/agent/CODEX_WORKING_RULES.md` | full | none | 2026-02-16 |
-| project_map | `Project Map` | `.planning/codebase/STRUCTURE.md`; `.planning/codebase/ARCHITECTURE.md` | full | none | 2026-02-16 |
+| project_map | `Project Map` | `.planning/codebase/STRUCTURE.md`; `.planning/codebase/ARCHITECTURE.md` | full | none | 2026-04-04 |
 | source_of_truth_order | `Source-of-Truth Order` | `docs/agent/CODEX_WORKING_RULES.md`; `.planning/codebase/CONVENTIONS.md` | full | none | 2026-02-16 |
 | active_work_focus | `Active Work Focus (Default Bias)` | `docs/agent/CODEX_WORKING_RULES.md`; `.planning/STATE.md`; `.planning/ROADMAP.md` | full | none | 2026-02-16 |
 | execution_protocol | `Execution Protocol` | `docs/agent/EXECUTION_PROTOCOL.md` | full | none | 2026-02-16 |
@@ -25,12 +25,12 @@ Row schema:
 | pytest_exit_hang | `Pytest exit hang (SQLite / aiosqlite)` | `docs/agent/PYTEST_RUNTIME_NOTES.md` | full | none | 2026-02-16 |
 | endpoint_package_splits | `Endpoint package splits (maintainability)` | `docs/agent/ENDPOINT_INVARIANTS.md` | full | none | 2026-02-16 |
 | sqlalchemy_fk_cycles | `SQLAlchemy FK cycles (SQLite tests)` | `docs/agent/ENDPOINT_INVARIANTS.md` | full | none | 2026-02-16 |
-| testing_matrix | `Testing Matrix` | `.planning/codebase/TESTING.md`; `docs/TESTING.md` | full | none | 2026-03-29 |
+| testing_matrix | `Testing Matrix` | `.planning/codebase/TESTING.md`; `docs/TESTING.md` | full | none | 2026-04-04 |
 | rbac_business_logic_guardrails | `RBAC and Business Logic Guardrails` | `docs/BUSINESS_LOGIC.md`; `.planning/codebase/CONCERNS.md` | full | none | 2026-02-16 |
 | frontend_display_guardrails | `Frontend Display Guardrails` | `docs/agent/FRONTEND_DISPLAY_GUARDRAILS.md` | full | none | 2026-02-16 |
 | security_production_guardrails | `Security and Production Guardrails` | `docs/deployment/security-checklist.md`; `docs/deployment/README.md` | full | none | 2026-02-20 |
-| quick_commands | `Quick Commands` | `scripts/dev.sh`; `scripts/compose.sh`; `scripts/Makefile`; `docs/development/README.md` | full | none | 2026-03-29 |
-| demo_dev_auth_local | `Demo/Dev Auth (local)` | `scripts/dev.sh`; `docs/development/README.md`; `.planning/codebase/INTEGRATIONS.md` | full | none | 2026-03-29 |
+| quick_commands | `Quick Commands` | `scripts/install.sh`; `scripts/dev.sh`; `scripts/compose.sh`; `scripts/deploy.sh`; `scripts/Makefile`; `docs/development/README.md` | full | none | 2026-04-04 |
+| demo_dev_auth_local | `Demo/Dev Auth (local)` | `scripts/install.sh`; `scripts/dev.sh`; `docs/development/README.md`; `.planning/codebase/INTEGRATIONS.md` | full | none | 2026-04-04 |
 | repo_hygiene | `Repo Hygiene` | `.planning/codebase/STRUCTURE.md`; `docs/agent/CODEX_WORKING_RULES.md` | full | none | 2026-02-16 |
 | prompting_tooling_best_practices | `Prompting and Tooling Best Practices (OpenAI-Aligned)` | `docs/agent/CODEX_WORKING_RULES.md` | full | none | 2026-02-16 |
 | skills | `Skills` | `docs/agent/SKILLS_RESOLUTION.md` | full | none | 2026-02-16 |
