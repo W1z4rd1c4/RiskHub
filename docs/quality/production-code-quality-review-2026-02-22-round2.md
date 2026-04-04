@@ -2,7 +2,7 @@
 
 ## Scope
 
-- Repository: `/Users/stefanlesnak/Antigravity/Risk App 2`
+- Repository: ``
 - Mode: full-repo maintainability hardening with behavior-preserving internal refactors
 - Out of scope: public API/schema changes, DB migrations, RBAC contract changes
 
@@ -16,7 +16,7 @@
 
 ### Baseline drift and density
 
-- Docs drift artifact: `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/docs/structure-metrics-guard-20260222-213644/structure-metrics-guard.json`
+- Docs drift artifact: `tests/results/docs/structure-metrics-guard-20260222-213644/structure-metrics-guard.json`
 - Drift details:
   - `frontend_pages_files`: expected `36`, observed `37`
   - `frontend_components_files`: expected `143`, observed `149`
@@ -27,52 +27,52 @@
 
 ### Baseline evidence artifacts
 
-- Debt report: `/Users/stefanlesnak/Antigravity/Risk App 2/frontend/quality-audit/debt.json`
-- Docs drift guard JSON: `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/docs/structure-metrics-guard-20260222-213644/structure-metrics-guard.json`
-- Prior targeted Playwright results: `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/frontend/playwright/test-results/results.json`
+- Debt report: `frontend/quality-audit/debt.json`
+- Docs drift guard JSON: `tests/results/docs/structure-metrics-guard-20260222-213644/structure-metrics-guard.json`
+- Prior targeted Playwright results: `tests/results/frontend/playwright/test-results/results.json`
 
 ## Execution Summary
 
 ### Wave 1 - Docs topology recovery
 
-- Updated `/Users/stefanlesnak/Antigravity/Risk App 2/.planning/codebase/STRUCTURE.md`:
+- Updated `.planning/codebase/STRUCTURE.md`:
   - `frontend/src/pages`: `36 -> 37`
   - `frontend/src/components`: `143 -> 149`
 - Additional docs reachability drift surfaced after adding this report:
   - cause: new canonical doc not linked from `docs/quality/README.md`
-  - fix: added link in `/Users/stefanlesnak/Antigravity/Risk App 2/docs/quality/README.md`
+  - fix: added link in `docs/quality/README.md`
 
 ### Wave 2 - Backend maintainability hardening
 
 - Split dashboard committee endpoint internals:
-  - updated `/Users/stefanlesnak/Antigravity/Risk App 2/backend/app/api/v1/endpoints/dashboard/committee.py`
-  - added `/Users/stefanlesnak/Antigravity/Risk App 2/backend/app/api/v1/endpoints/dashboard/committee_helpers.py`
+  - updated `backend/app/api/v1/endpoints/dashboard/committee.py`
+  - added `backend/app/api/v1/endpoints/dashboard/committee_helpers.py`
 - Extracted KRI history endpoint helpers:
-  - updated `/Users/stefanlesnak/Antigravity/Risk App 2/backend/app/api/v1/endpoints/kris/history.py`
-  - added `/Users/stefanlesnak/Antigravity/Risk App 2/backend/app/api/v1/endpoints/kris/history_helpers.py`
+  - updated `backend/app/api/v1/endpoints/kris/history.py`
+  - added `backend/app/api/v1/endpoints/kris/history_helpers.py`
 - Split unified exports internals:
-  - updated `/Users/stefanlesnak/Antigravity/Risk App 2/backend/app/api/v1/endpoints/reports/unified_exports/exports.py`
-  - added `/Users/stefanlesnak/Antigravity/Risk App 2/backend/app/api/v1/endpoints/reports/unified_exports/export_builders.py`
-  - added `/Users/stefanlesnak/Antigravity/Risk App 2/backend/app/api/v1/endpoints/reports/unified_exports/export_vendors.py`
+  - updated `backend/app/api/v1/endpoints/reports/unified_exports/exports.py`
+  - added `backend/app/api/v1/endpoints/reports/unified_exports/export_builders.py`
+  - added `backend/app/api/v1/endpoints/reports/unified_exports/export_vendors.py`
 - Broad-suite regression fix (test harness compatibility):
-  - updated `/Users/stefanlesnak/Antigravity/Risk App 2/tests/backend/pytest/test_rate_limit_redis_integration.py`
+  - updated `tests/backend/pytest/test_rate_limit_redis_integration.py`
   - made Redis container URL creation version-agnostic for installed `testcontainers` API
 
 ### Wave 3 - Frontend maintainability hardening
 
 - Decomposed risk form container internals:
-  - updated `/Users/stefanlesnak/Antigravity/Risk App 2/frontend/src/components/risk-form/RiskFormContainer.tsx`
-  - added `/Users/stefanlesnak/Antigravity/Risk App 2/frontend/src/components/risk-form/RiskFormIdentityStep.tsx`
-  - added `/Users/stefanlesnak/Antigravity/Risk App 2/frontend/src/components/risk-form/RiskFormOwnershipStep.tsx`
-  - added `/Users/stefanlesnak/Antigravity/Risk App 2/frontend/src/components/risk-form/RiskFormScoringStep.tsx`
+  - updated `frontend/src/components/risk-form/RiskFormContainer.tsx`
+  - added `frontend/src/components/risk-form/RiskFormIdentityStep.tsx`
+  - added `frontend/src/components/risk-form/RiskFormOwnershipStep.tsx`
+  - added `frontend/src/components/risk-form/RiskFormScoringStep.tsx`
 - Decomposed control form container internals:
-  - updated `/Users/stefanlesnak/Antigravity/Risk App 2/frontend/src/components/control-form/ControlFormContainer.tsx`
-  - added `/Users/stefanlesnak/Antigravity/Risk App 2/frontend/src/components/control-form/ControlFormOwnershipStep.tsx`
-  - added `/Users/stefanlesnak/Antigravity/Risk App 2/frontend/src/components/control-form/ControlFormRiskLinkStep.tsx`
-  - added `/Users/stefanlesnak/Antigravity/Risk App 2/frontend/src/components/control-form/controlFormUtils.ts`
+  - updated `frontend/src/components/control-form/ControlFormContainer.tsx`
+  - added `frontend/src/components/control-form/ControlFormOwnershipStep.tsx`
+  - added `frontend/src/components/control-form/ControlFormRiskLinkStep.tsx`
+  - added `frontend/src/components/control-form/controlFormUtils.ts`
 - Decomposed risk questionnaire detail container internals:
-  - updated `/Users/stefanlesnak/Antigravity/Risk App 2/frontend/src/components/risks/risk-questionnaire-detail/RiskQuestionnaireDetailContainer.tsx`
-  - added `/Users/stefanlesnak/Antigravity/Risk App 2/frontend/src/components/risks/risk-questionnaire-detail/RiskQuestionnaireSectionList.tsx`
+  - updated `frontend/src/components/risks/risk-questionnaire-detail/RiskQuestionnaireDetailContainer.tsx`
+  - added `frontend/src/components/risks/risk-questionnaire-detail/RiskQuestionnaireSectionList.tsx`
 
 ### Contract safety confirmation
 
@@ -86,17 +86,17 @@
 ### Required quality gates
 
 - Frontend gate chain command: pass
-  - `cd /Users/stefanlesnak/Antigravity/Risk App 2/frontend && npm run lint && npx tsc --noEmit && npm run quality:debt -- --report-json && npm run cleanup:deadcode && npm run build`
+  - `cd frontend && npm run lint && npx tsc --noEmit && npm run quality:debt -- --report-json && npm run cleanup:deadcode && npm run build`
   - largest raw JS chunk in final build: `789.49 kB` (`dist/assets/index-DBp0k1mh.js`), below `900 kB`
   - no chunk-size warning emitted
 - Backend Ruff command: pass
-  - `cd /Users/stefanlesnak/Antigravity/Risk App 2/backend && ./venv/bin/python -m ruff check app ../tests/backend/pytest scripts`
+  - `cd backend && ./venv/bin/python -m ruff check app ../tests/backend/pytest scripts`
 - Docs topology consistency command: pass
-  - `cd /Users/stefanlesnak/Antigravity/Risk App 2 && make -f scripts/Makefile docs-topology-consistency`
+  - `cd  && make -f scripts/Makefile docs-topology-consistency`
   - artifacts:
-    - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/docs/docs-tree-audit-20260222-220545/docs-tree-audit.json`
-    - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/docs/docs-tree-audit-20260222-220545/docs-tree-audit.md`
-    - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/docs/structure-metrics-guard-20260222-220545/structure-metrics-guard.json`
+    - `tests/results/docs/docs-tree-audit-20260222-220545/docs-tree-audit.json`
+    - `tests/results/docs/docs-tree-audit-20260222-220545/docs-tree-audit.md`
+    - `tests/results/docs/structure-metrics-guard-20260222-220545/structure-metrics-guard.json`
 
 ### Wave 4 regression confidence
 
@@ -123,7 +123,7 @@
 
 ## Fixed Findings
 
-1. Structure metrics drift in `/Users/stefanlesnak/Antigravity/Risk App 2/.planning/codebase/STRUCTURE.md`.
+1. Structure metrics drift in `.planning/codebase/STRUCTURE.md`.
 2. Canonical docs reachability break for this new round2 report (missing link in `docs/quality/README.md`).
 3. Oversized backend export module reduced by vendor export extraction.
 4. Dense backend endpoint internals split into helper modules for committee and KRI history surfaces.
@@ -143,26 +143,26 @@
 
 ## Evidence Map
 
-- Structure metric correction: `/Users/stefanlesnak/Antigravity/Risk App 2/.planning/codebase/STRUCTURE.md`
-- Docs quality index update: `/Users/stefanlesnak/Antigravity/Risk App 2/docs/quality/README.md`
+- Structure metric correction: `.planning/codebase/STRUCTURE.md`
+- Docs quality index update: `docs/quality/README.md`
 - Docs topology pass artifacts:
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/docs/docs-tree-audit-20260222-220545/docs-tree-audit.json`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/docs/structure-metrics-guard-20260222-220545/structure-metrics-guard.json`
+  - `tests/results/docs/docs-tree-audit-20260222-220545/docs-tree-audit.json`
+  - `tests/results/docs/structure-metrics-guard-20260222-220545/structure-metrics-guard.json`
 - Backend maintainability refactors:
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/backend/app/api/v1/endpoints/dashboard/committee.py`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/backend/app/api/v1/endpoints/dashboard/committee_helpers.py`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/backend/app/api/v1/endpoints/kris/history.py`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/backend/app/api/v1/endpoints/kris/history_helpers.py`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/backend/app/api/v1/endpoints/reports/unified_exports/exports.py`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/backend/app/api/v1/endpoints/reports/unified_exports/export_builders.py`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/backend/app/api/v1/endpoints/reports/unified_exports/export_vendors.py`
+  - `backend/app/api/v1/endpoints/dashboard/committee.py`
+  - `backend/app/api/v1/endpoints/dashboard/committee_helpers.py`
+  - `backend/app/api/v1/endpoints/kris/history.py`
+  - `backend/app/api/v1/endpoints/kris/history_helpers.py`
+  - `backend/app/api/v1/endpoints/reports/unified_exports/exports.py`
+  - `backend/app/api/v1/endpoints/reports/unified_exports/export_builders.py`
+  - `backend/app/api/v1/endpoints/reports/unified_exports/export_vendors.py`
 - Frontend maintainability refactors:
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/frontend/src/components/risk-form/RiskFormContainer.tsx`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/frontend/src/components/control-form/ControlFormContainer.tsx`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/frontend/src/components/risks/risk-questionnaire-detail/RiskQuestionnaireDetailContainer.tsx`
+  - `frontend/src/components/risk-form/RiskFormContainer.tsx`
+  - `frontend/src/components/control-form/ControlFormContainer.tsx`
+  - `frontend/src/components/risks/risk-questionnaire-detail/RiskQuestionnaireDetailContainer.tsx`
   - extracted files under the same directories listed in Wave 3
 - Broad test hardening patch:
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/backend/pytest/test_rate_limit_redis_integration.py`
+  - `tests/backend/pytest/test_rate_limit_redis_integration.py`
 
 ## External Audit Summary (Concise)
 

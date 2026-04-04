@@ -4,7 +4,7 @@
 > **Last Updated**: 2026-03-29
 > **Audience**: Engineering, QA
 
-Back to tree: [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/DOCUMENTATION_TREE.md`](../DOCUMENTATION_TREE.md)
+Back to tree: [`docs/DOCUMENTATION_TREE.md`](../DOCUMENTATION_TREE.md)
 
 This document defines the supported local startup surface for RiskHub development.
 

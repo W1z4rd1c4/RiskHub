@@ -8,10 +8,10 @@ This file is the primary documentation index for `docs/`.
 
 ## Primary Navigation
 
-- Repo quick start: [`/Users/stefanlesnak/Antigravity/Risk App 2/README.md`](../README.md)
-- Master tree (English-first): [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/DOCUMENTATION_TREE.md`](./DOCUMENTATION_TREE.md)
-- Agent documentation index: [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/agent/README.md`](./agent/README.md)
-- Planning tree root: [`/Users/stefanlesnak/Antigravity/Risk App 2/.planning/README.md`](../.planning/README.md)
+- Repo quick start: [`README.md`](../README.md)
+- Master tree (English-first): [`docs/DOCUMENTATION_TREE.md`](./DOCUMENTATION_TREE.md)
+- Agent documentation index: [`docs/agent/README.md`](./agent/README.md)
+- Planning tree root: [`.planning/README.md`](../.planning/README.md)
 
 ## Canonical Documentation Domains
 
@@ -31,20 +31,20 @@ This file is the primary documentation index for `docs/`.
 
 ## Core Root Docs
 
-- [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/BUSINESS_LOGIC.md`](./BUSINESS_LOGIC.md)
-- [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/development/README.md`](./development/README.md)
-- [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/TESTING.md`](./TESTING.md)
-- [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/E2E_TESTING.md`](./E2E_TESTING.md)
-- [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/LOCALIZATION.md`](./LOCALIZATION.md)
-- [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/PERFORMANCE_BASELINE.md`](./PERFORMANCE_BASELINE.md)
-- [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/AUTHZ_LIST_POLICY.md`](./AUTHZ_LIST_POLICY.md)
-- [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/GLOSSARY.md`](./GLOSSARY.md)
+- [`docs/BUSINESS_LOGIC.md`](./BUSINESS_LOGIC.md)
+- [`docs/development/README.md`](./development/README.md)
+- [`docs/TESTING.md`](./TESTING.md)
+- [`docs/E2E_TESTING.md`](./E2E_TESTING.md)
+- [`docs/LOCALIZATION.md`](./LOCALIZATION.md)
+- [`docs/PERFORMANCE_BASELINE.md`](./PERFORMANCE_BASELINE.md)
+- [`docs/AUTHZ_LIST_POLICY.md`](./AUTHZ_LIST_POLICY.md)
+- [`docs/GLOSSARY.md`](./GLOSSARY.md)
 
 Current operational truth for Docker-backed live verification is intentionally centralized in:
 
-- [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/development/README.md`](./development/README.md)
-- [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/TESTING.md`](./TESTING.md)
-- [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/E2E_TESTING.md`](./E2E_TESTING.md)
+- [`docs/development/README.md`](./development/README.md)
+- [`docs/TESTING.md`](./TESTING.md)
+- [`docs/E2E_TESTING.md`](./E2E_TESTING.md)
 
 ## Validation Commands
 
@@ -67,4 +67,4 @@ Outputs:
 ## Boundary Notes
 
 - Canonical docs for active operations are under `docs/`, `AGENTS.md`, `.planning/README.md`, `.planning/codebase/`, `.planning/{PROJECT,STATE,ROADMAP}.md`.
-- `.planning/phases/*` is archival and indexed via [`/Users/stefanlesnak/Antigravity/Risk App 2/.planning/phases/README.md`](../.planning/phases/README.md); historical phase bodies are preserved.
+- `.planning/phases/*` is archival and indexed via [`.planning/phases/README.md`](../.planning/phases/README.md); historical phase bodies are preserved.

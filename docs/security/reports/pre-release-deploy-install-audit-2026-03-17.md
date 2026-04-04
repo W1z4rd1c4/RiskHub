@@ -3,10 +3,10 @@
 ## Result
 - Decision: **NO-GO**
 - Run ID: `20260317T143939Z`
-- Review artifact root: `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/pre-release-deploy-install-review-20260317T143939Z`
+- Review artifact root: `tests/results/pre-release-deploy-install-review-20260317T143939Z`
 - Supporting parity artifacts:
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/release-parity-audit-20260317T143939Z-skip`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/release-parity-audit-20260317T143939Z-full`
+  - `tests/results/release-parity-audit-20260317T143939Z-skip`
+  - `tests/results/release-parity-audit-20260317T143939Z-full`
 - Overall release status is `NO-GO` for two independent reasons:
   - unresolved High findings remain on the current supported deployment surface
   - the mandatory Linux production wave was not executed live on a Linux host
@@ -48,13 +48,13 @@ Automated baseline executed:
 - Surface: `shared`
 - Reproduction command: `make -f scripts/Makefile verify-prod-install-scripts`
 - Affected file or contract anchor:
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/scripts/Makefile`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/scripts/deploy/lib/common.sh`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/scripts/deploy/lib/docker.sh`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/scripts/deploy/lib/linux.sh`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/scripts/prod/lib/common.sh`
+  - `scripts/Makefile`
+  - `scripts/deploy/lib/common.sh`
+  - `scripts/deploy/lib/docker.sh`
+  - `scripts/deploy/lib/linux.sh`
+  - `scripts/prod/lib/common.sh`
 - Evidence artifact path:
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/pre-release-deploy-install-review-20260317T143939Z/logs/01_verify_prod_install_scripts_rerun.log`
+  - `tests/results/pre-release-deploy-install-review-20260317T143939Z/logs/01_verify_prod_install_scripts_rerun.log`
 - Operator/developer impact:
   - the repo's own production-install verification target currently fails on `main`, so the shared must-pass gate in the review plan is not met
 - Remediation lane:
@@ -70,10 +70,10 @@ Automated baseline executed:
 - Surface: `shared`
 - Reproduction command: `bash scripts/security/run_prod_readiness_audit_local.sh`
 - Affected file or contract anchor:
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/scripts/security/run_prod_readiness_audit_local.sh`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/scripts/deploy.sh`
+  - `scripts/security/run_prod_readiness_audit_local.sh`
+  - `scripts/deploy.sh`
 - Evidence artifact path:
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/pre-release-deploy-install-review-20260317T143939Z/logs/16_prod_readiness_audit_local_direct.log`
+  - `tests/results/pre-release-deploy-install-review-20260317T143939Z/logs/16_prod_readiness_audit_local_direct.log`
 - Operator/developer impact:
   - the local prod-readiness harness aborts before it can produce trustworthy Docker lifecycle evidence, so the last pre-release audit cannot use this runner as a sign-off mechanism
 - Remediation lane:
@@ -91,10 +91,10 @@ Automated baseline executed:
 - Reproduction command:
   - `./scripts/deploy.sh deploy --target docker --config <config> --secret-dir <secret-dir> --backend-image <backend> --frontend-image <frontend> --redis-image <redis> --yes --dry-run`
 - Affected file or contract anchor:
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/scripts/deploy/lib/common.sh`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/scripts/deploy/lib/docker.sh`
+  - `scripts/deploy/lib/common.sh`
+  - `scripts/deploy/lib/docker.sh`
 - Evidence artifact path:
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/pre-release-deploy-install-review-20260317T143939Z/logs/21_deploy_docker_dry_run_direct.log`
+  - `tests/results/pre-release-deploy-install-review-20260317T143939Z/logs/21_deploy_docker_dry_run_direct.log`
 - Operator/developer impact:
   - `docker` deploy dry-runs emit corrupted `--backend-env` and `--frontend-env` arguments, and the same stdout pollution created garbage pseudo-paths at the repo root during this review
 - Remediation lane:
@@ -110,10 +110,10 @@ Automated baseline executed:
 - Reproduction command:
   - `python3 scripts/security/run_release_parity_audit.py --run-id 20260317T143939Z-full`
 - Affected file or contract anchor:
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/scripts/security/run_release_parity_audit.py`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/scripts/deploy.sh`
+  - `scripts/security/run_release_parity_audit.py`
+  - `scripts/deploy.sh`
 - Evidence artifact path:
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/release-parity-audit-20260317T143939Z-full/prod_readiness_ingest/prod-readiness-audit-20260317-144426/SUMMARY.json`
+  - `tests/results/release-parity-audit-20260317T143939Z-full/prod_readiness_ingest/prod-readiness-audit-20260317-144426/SUMMARY.json`
 - Operator/developer impact:
   - the parity-ingested prod-readiness subtree is not reliable standalone Docker evidence because multiple early commands in the temp worktree fail before the actual lifecycle checks become meaningful
 - Remediation lane:
@@ -130,13 +130,13 @@ Automated baseline executed:
 - Reproduction command:
   - `./scripts/deploy.sh preflight --target linux --config <config> --secret-dir <secret-dir> --yes`
 - Affected file or contract anchor:
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/scripts/deploy/lib/linux.sh`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/docs/deployment/README.md`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/docs/deployment/production.md`
+  - `scripts/deploy/lib/linux.sh`
+  - `docs/deployment/README.md`
+  - `docs/deployment/production.md`
 - Evidence artifact path:
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/pre-release-deploy-install-review-20260317T143939Z/logs/12_linux_init_local.log`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/pre-release-deploy-install-review-20260317T143939Z/logs/14_linux_preflight_on_macos.log`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/pre-release-deploy-install-review-20260317T143939Z/logs/15_linux_preflight_on_macos_fixed_perms.log`
+  - `tests/results/pre-release-deploy-install-review-20260317T143939Z/logs/12_linux_init_local.log`
+  - `tests/results/pre-release-deploy-install-review-20260317T143939Z/logs/14_linux_preflight_on_macos.log`
+  - `tests/results/pre-release-deploy-install-review-20260317T143939Z/logs/15_linux_preflight_on_macos_fixed_perms.log`
 - Operator/developer impact:
   - the Linux production path was not live-validated on a Linux host, so bundle install, systemd/nginx setup, smoke, upgrade, and rollback remain unproven
 - Remediation lane:
@@ -152,12 +152,12 @@ Automated baseline executed:
 - Surface: `compose`
 - Reproduction command: `./scripts/compose.sh --help`
 - Affected file or contract anchor:
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/scripts/compose.sh`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/docs/development/README.md`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/README.md`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/scripts/README.md`
+  - `scripts/compose.sh`
+  - `docs/development/README.md`
+  - `README.md`
+  - `scripts/README.md`
 - Evidence artifact path:
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/pre-release-deploy-install-review-20260317T143939Z/logs/10_compose_help.log`
+  - `tests/results/pre-release-deploy-install-review-20260317T143939Z/logs/10_compose_help.log`
 - Operator/developer impact:
   - the supported Docker onboarding CLI prints usage and then exits non-zero with `Unknown command: --help`, which is a public-interface defect on a documented entrypoint
 - Remediation lane:
@@ -177,28 +177,28 @@ Automated baseline executed:
 
 Baseline passes:
 
-- startup verifier: `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/pre-release-deploy-install-review-20260317T143939Z/logs/02_verify_startup_scripts.log`
-- docs contract: `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/pre-release-deploy-install-review-20260317T143939Z/logs/03_check_docs_contract.log`
-- targeted deploy/startup pytest pack: `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/pre-release-deploy-install-review-20260317T143939Z/logs/06_targeted_deploy_startup_pytests.log`
-- security gap round 5: `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/pre-release-deploy-install-review-20260317T143939Z/logs/13_security_gap_round5.log`
+- startup verifier: `tests/results/pre-release-deploy-install-review-20260317T143939Z/logs/02_verify_startup_scripts.log`
+- docs contract: `tests/results/pre-release-deploy-install-review-20260317T143939Z/logs/03_check_docs_contract.log`
+- targeted deploy/startup pytest pack: `tests/results/pre-release-deploy-install-review-20260317T143939Z/logs/06_targeted_deploy_startup_pytests.log`
+- security gap round 5: `tests/results/pre-release-deploy-install-review-20260317T143939Z/logs/13_security_gap_round5.log`
 
 Parity evidence:
 
-- skip decision: `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/release-parity-audit-20260317T143939Z-skip/decision.json`
-- full decision: `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/release-parity-audit-20260317T143939Z-full/decision.json`
-- full findings: `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/release-parity-audit-20260317T143939Z-full/findings.json`
-- contaminated `dev.sh` parity failure: `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/release-parity-audit-20260317T143939Z-full/logs/path_dev_sh_full.log`
+- skip decision: `tests/results/release-parity-audit-20260317T143939Z-skip/decision.json`
+- full decision: `tests/results/release-parity-audit-20260317T143939Z-full/decision.json`
+- full findings: `tests/results/release-parity-audit-20260317T143939Z-full/findings.json`
+- contaminated `dev.sh` parity failure: `tests/results/release-parity-audit-20260317T143939Z-full/logs/path_dev_sh_full.log`
 
 Compose/runtime confirmations:
 
-- `compose up --profile db-only`: `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/pre-release-deploy-install-review-20260317T143939Z/logs/22_compose_up_db_only.log`
-- `compose reset --dataset test`: `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/pre-release-deploy-install-review-20260317T143939Z/logs/23_compose_reset_test.log`
-- `compose up` full-stack login UI: `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/release-parity-audit-20260317T143939Z-full/ui/compose_sh_up_full_login.png`
+- `compose up --profile db-only`: `tests/results/pre-release-deploy-install-review-20260317T143939Z/logs/22_compose_up_db_only.log`
+- `compose reset --dataset test`: `tests/results/pre-release-deploy-install-review-20260317T143939Z/logs/23_compose_reset_test.log`
+- `compose up` full-stack login UI: `tests/results/release-parity-audit-20260317T143939Z-full/ui/compose_sh_up_full_login.png`
 
 Dev/runtime confirmations:
 
-- `dev.sh --backend`: `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/pre-release-deploy-install-review-20260317T143939Z/logs/19_dev_backend.log`
-- `dev.sh --daemon`: `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/pre-release-deploy-install-review-20260317T143939Z/logs/20_dev_full_daemon.log`
+- `dev.sh --backend`: `tests/results/pre-release-deploy-install-review-20260317T143939Z/logs/19_dev_backend.log`
+- `dev.sh --daemon`: `tests/results/pre-release-deploy-install-review-20260317T143939Z/logs/20_dev_full_daemon.log`
 
 ## Limitations
 

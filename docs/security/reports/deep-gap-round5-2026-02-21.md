@@ -1,12 +1,12 @@
 # RiskHub Round 5 Gap Closure Report (2026-02-21)
 
 Run artifact root:
-`/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/security/deep-gap-round5-20260221-225327`
+`tests/results/security/deep-gap-round5-20260221-225327`
 
 ## Executive Status
 - Decision: `PARTIAL_BLOCKED_PRECONDITION`
 - Confirmed `High/Critical` unresolved in implemented scope: `0`
-- Excluded by directive: `/Users/stefanlesnak/Antigravity/Risk App 2/backend/app/core/client_ip.py`
+- Excluded by directive: `backend/app/core/client_ip.py`
 - Excel invariant: preserved (`410` + `excel_export_removed`)
 
 ## What Was Implemented
@@ -34,14 +34,14 @@ Run artifact root:
 ## Verification Evidence
 - Targeted regression/security suite:
   - `65 passed, 1 skipped`
-  - Evidence: `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/security/deep-gap-round5-20260221-225327/reports/pytest-gap-round5.txt`
+  - Evidence: `tests/results/security/deep-gap-round5-20260221-225327/reports/pytest-gap-round5.txt`
 - State-machine valid-session campaign artifact:
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/security/deep-gap-round5-20260221-225327/campaigns/state-machine-valid-session.json`
+  - `tests/results/security/deep-gap-round5-20260221-225327/campaigns/state-machine-valid-session.json`
 - RBAC write-surface sweep artifacts:
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/security/deep-gap-round5-20260221-225327/campaigns/rbac-write-sweep.json`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/security/deep-gap-round5-20260221-225327/campaigns/rbac-write-sweep.csv`
+  - `tests/results/security/deep-gap-round5-20260221-225327/campaigns/rbac-write-sweep.json`
+  - `tests/results/security/deep-gap-round5-20260221-225327/campaigns/rbac-write-sweep.csv`
 - Real staging replay precondition result:
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/security/deep-gap-round5-20260221-225327/reports/real-staging-precondition.json`
+  - `tests/results/security/deep-gap-round5-20260221-225327/reports/real-staging-precondition.json`
 
 ## 7-Point Closure Status
 1. Real staging infra-only chains: `BLOCKED_PRECONDITION` (missing RH_STAGING_* credentials).
@@ -57,19 +57,19 @@ Run artifact root:
 2. Point 3 parity completion: completed in addendum; no further staging-sim action required for this report cycle.
 
 ## Machine-Readable Findings
-- `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/security/deep-gap-round5-20260221-225327/findings-round5.json`
-- `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/security/deep-gap-round5-point3-parity-20260221-230550/findings-round5-point3-parity.json` (consolidated Point 3 parity status view)
+- `tests/results/security/deep-gap-round5-20260221-225327/findings-round5.json`
+- `tests/results/security/deep-gap-round5-point3-parity-20260221-230550/findings-round5-point3-parity.json` (consolidated Point 3 parity status view)
 
 ## Addendum — Point 3 Parity Completion (2026-02-21 UTC)
 
 Addendum artifact root:
-`/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/security/deep-gap-round5-point3-parity-20260221-230550`
+`tests/results/security/deep-gap-round5-point3-parity-20260221-230550`
 
 ### Execution Scope
 1. Started staging-sim backend on `http://127.0.0.1:18000` using:
-   - `/Users/stefanlesnak/Antigravity/Risk App 2/backend/scripts/runtime/dev.sh --port 18000 --no-reload`
+   - `backend/scripts/runtime/dev.sh --port 18000 --no-reload`
 2. Re-ran:
-   - `/Users/stefanlesnak/Antigravity/Risk App 2/scripts/security/state_machine_campaign.py`
+   - `scripts/security/state_machine_campaign.py`
    - Targets:
      - `local=http://127.0.0.1:8000`
      - `staging-sim=http://127.0.0.1:18000`
@@ -83,15 +83,15 @@ Addendum artifact root:
 
 ### Evidence
 - Campaign output:
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/security/deep-gap-round5-point3-parity-20260221-230550/campaigns/state-machine-valid-session.json`
+  - `tests/results/security/deep-gap-round5-point3-parity-20260221-230550/campaigns/state-machine-valid-session.json`
 - Parity summary:
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/security/deep-gap-round5-point3-parity-20260221-230550/reports/point3-parity-summary.json`
+  - `tests/results/security/deep-gap-round5-point3-parity-20260221-230550/reports/point3-parity-summary.json`
 - Closure status:
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/security/deep-gap-round5-point3-parity-20260221-230550/reports/parity-status.txt`
+  - `tests/results/security/deep-gap-round5-point3-parity-20260221-230550/reports/parity-status.txt`
 - Closure note:
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/security/deep-gap-round5-point3-parity-20260221-230550/reports/point3-closure-note.md`
+  - `tests/results/security/deep-gap-round5-point3-parity-20260221-230550/reports/point3-closure-note.md`
 - Consolidated machine-readable index:
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/security/deep-gap-round5-point3-parity-20260221-230550/findings-round5-point3-parity.json`
+  - `tests/results/security/deep-gap-round5-point3-parity-20260221-230550/findings-round5-point3-parity.json`
 
 ### Revised 7-Point Status (Delta Only)
 - Point 3. State-machine valid-session depth: `FIXED` for local + staging-sim parity.

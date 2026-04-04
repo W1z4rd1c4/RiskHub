@@ -10,7 +10,7 @@
 ### Gate Commands (Baseline)
 1. Frontend gate chain
 ```bash
-cd /Users/stefanlesnak/Antigravity/Risk\ App\ 2/frontend \
+cd frontend \
   && npm run lint \
   && npx tsc --noEmit \
   && npm run quality:debt -- --report-json \
@@ -21,14 +21,14 @@ Status: PASS. Build artifact max chunk: `dist/assets/index-D-7OGFLj.js` at `789.
 
 2. Backend lint gate
 ```bash
-cd /Users/stefanlesnak/Antigravity/Risk\ App\ 2/backend \
+cd backend \
   && ./venv/bin/python -m ruff check app ../tests/backend/pytest scripts
 ```
 Status: PASS (`All checks passed!`).
 
 3. Docs topology gate
 ```bash
-cd /Users/stefanlesnak/Antigravity/Risk\ App\ 2 \
+cd  \
   && make -f scripts/Makefile docs-topology-consistency
 ```
 Status: PASS.
@@ -139,7 +139,7 @@ Final backend `>400` files:
 ### Additional Regression Runs
 1. Backend targeted tests: PASS.
 ```bash
-cd /Users/stefanlesnak/Antigravity/Risk\ App\ 2/backend \
+cd backend \
   && ./venv/bin/pytest -q \
      ../tests/backend/pytest/test_dashboard.py \
      ../tests/backend/pytest/test_dashboard_committee_vendor_metrics.py \
@@ -158,13 +158,13 @@ Result: `127 passed`.
 
 2. Frontend broad unit suite: PASS.
 ```bash
-cd /Users/stefanlesnak/Antigravity/Risk\ App\ 2/frontend && npm run test:run
+cd frontend && npm run test:run
 ```
 Result: `45 files passed`, `167 tests passed`.
 
 3. Frontend targeted Playwright batch (controls/risks/navigation/questionnaires/kris/vendors/polish): PASS.
 ```bash
-cd /Users/stefanlesnak/Antigravity/Risk\ App\ 2/frontend \
+cd frontend \
   && npx playwright test \
      -c ../tests/frontend/e2e/playwright.config.ts \
      ../tests/frontend/e2e/controls.spec.ts \
@@ -180,7 +180,7 @@ Result: `33 passed`, `0 failed`.
 
 4. Backend broad suite: PASS.
 ```bash
-cd /Users/stefanlesnak/Antigravity/Risk\ App\ 2/backend && ./venv/bin/pytest -q
+cd backend && ./venv/bin/pytest -q
 ```
 Result: `625 passed`, `7 skipped`, `0 failed`.
 

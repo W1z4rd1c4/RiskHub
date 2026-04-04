@@ -1,5 +1,5 @@
 # Risk Form Module
 
 This module contains the `RiskForm` implementation split from
-`/Users/stefanlesnak/Antigravity/Risk App 2/frontend/src/components/RiskForm.tsx`
+`frontend/src/components/RiskForm.tsx`
 to keep the public entrypoint stable while isolating form implementation details.

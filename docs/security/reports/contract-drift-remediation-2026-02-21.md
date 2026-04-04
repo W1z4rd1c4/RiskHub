@@ -2,12 +2,12 @@
 
 ## Scope
 - Source findings:
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/security/deep-scan-round3-runtimefix-20260220-233943/findings-round3-runtimefix.json` (`R3.1-004`)
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/security/deep-pentest-round4-20260221-001107/findings-round4.json` (`R4-004`)
+  - `tests/results/security/deep-scan-round3-runtimefix-20260220-233943/findings-round3-runtimefix.json` (`R3.1-004`)
+  - `tests/results/security/deep-pentest-round4-20260221-001107/findings-round4.json` (`R4-004`)
 - Closure artifact root:
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/security/contract-drift-remediation-20260221-004208`
+  - `tests/results/security/contract-drift-remediation-20260221-004208`
 - Explicitly excluded:
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/backend/app/core/client_ip.py`
+  - `backend/app/core/client_ip.py`
 
 ## Summary
 The two open contract-drift findings were closed through tooling/spec parity, without runtime behavior changes:
@@ -17,24 +17,24 @@ The two open contract-drift findings were closed through tooling/spec parity, wi
 
 ## Implemented Changes
 1. Protocol drift harness (repo-tracked):
-   - `/Users/stefanlesnak/Antigravity/Risk App 2/scripts/security/protocol_contract_probe.py`
-   - `/Users/stefanlesnak/Antigravity/Risk App 2/scripts/security/run_protocol_contract_probe.sh`
+   - `scripts/security/protocol_contract_probe.py`
+   - `scripts/security/run_protocol_contract_probe.sh`
 2. OpenAPI contract alignment (metadata-only):
-   - `/Users/stefanlesnak/Antigravity/Risk App 2/backend/app/api/v1/endpoints/auth/sso.py`
-   - `/Users/stefanlesnak/Antigravity/Risk App 2/backend/app/api/v1/endpoints/reports/_streaming.py`
-   - `/Users/stefanlesnak/Antigravity/Risk App 2/backend/app/api/v1/endpoints/reports/legacy_excel.py`
-   - `/Users/stefanlesnak/Antigravity/Risk App 2/backend/app/api/v1/endpoints/reports/summary_excel.py`
-   - `/Users/stefanlesnak/Antigravity/Risk App 2/backend/app/api/v1/endpoints/reports/audit_trail_excel.py`
-   - `/Users/stefanlesnak/Antigravity/Risk App 2/backend/app/api/v1/endpoints/reports/unified_exports/routes.py`
-   - `/Users/stefanlesnak/Antigravity/Risk App 2/backend/app/api/v1/endpoints/approvals/resolve.py`
-   - `/Users/stefanlesnak/Antigravity/Risk App 2/backend/app/api/v1/endpoints/approvals/detail.py`
+   - `backend/app/api/v1/endpoints/auth/sso.py`
+   - `backend/app/api/v1/endpoints/reports/_streaming.py`
+   - `backend/app/api/v1/endpoints/reports/legacy_excel.py`
+   - `backend/app/api/v1/endpoints/reports/summary_excel.py`
+   - `backend/app/api/v1/endpoints/reports/audit_trail_excel.py`
+   - `backend/app/api/v1/endpoints/reports/unified_exports/routes.py`
+   - `backend/app/api/v1/endpoints/approvals/resolve.py`
+   - `backend/app/api/v1/endpoints/approvals/detail.py`
 3. Regression tests:
-   - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/backend/pytest/test_openapi_contract_parity.py`
-   - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/backend/pytest/test_protocol_contract_probe.py`
+   - `tests/backend/pytest/test_openapi_contract_parity.py`
+   - `tests/backend/pytest/test_protocol_contract_probe.py`
 4. Developer workflow/docs:
-   - `/Users/stefanlesnak/Antigravity/Risk App 2/scripts/Makefile` (`security-contract-probe` target)
-   - `/Users/stefanlesnak/Antigravity/Risk App 2/scripts/README.md`
-   - `/Users/stefanlesnak/Antigravity/Risk App 2/docs/security/SECURITY.md`
+   - `scripts/Makefile` (`security-contract-probe` target)
+   - `scripts/README.md`
+   - `docs/security/SECURITY.md`
 
 ## Verification Results
 ### Deterministic protocol-contract probe
@@ -46,8 +46,8 @@ The two open contract-drift findings were closed through tooling/spec parity, wi
   - `unresolved_contract_drift_count=0`
   - `auth_precondition=1` (expected no-auth probe)
 - Evidence:
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/security/contract-drift-remediation-20260221-004208/protocol/probe-results.json`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/security/contract-drift-remediation-20260221-004208/protocol/probe-triage.csv`
+  - `tests/results/security/contract-drift-remediation-20260221-004208/protocol/probe-results.json`
+  - `tests/results/security/contract-drift-remediation-20260221-004208/protocol/probe-triage.csv`
 
 ### Focused backend regression suite
 - Command suite:
@@ -58,18 +58,18 @@ The two open contract-drift findings were closed through tooling/spec parity, wi
   - `test_reports_rbac.py`
 - Result: `31 passed, 9 warnings`.
 - Evidence:
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/security/contract-drift-remediation-20260221-004208/reports/pytest-targeted.txt`
+  - `tests/results/security/contract-drift-remediation-20260221-004208/reports/pytest-targeted.txt`
 
 ### Excel invariant checks
 - Legacy `/excel` endpoints and `format=xlsx` remained fail-closed with `410` and `excel_export_removed`.
 - Evidence:
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/security/contract-drift-remediation-20260221-004208/protocol/probe-results.json`
+  - `tests/results/security/contract-drift-remediation-20260221-004208/protocol/probe-results.json`
 
 ## Finding Closure Status
 | Finding | Previous Status | New Status | Evidence |
 |---|---|---|---|
-| R3.1-004 | open | closed | `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/security/contract-drift-remediation-20260221-004208/protocol/probe-results.json` |
-| R4-004 | open | closed | `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/security/contract-drift-remediation-20260221-004208/protocol/probe-triage.csv` |
+| R3.1-004 | open | closed | `tests/results/security/contract-drift-remediation-20260221-004208/protocol/probe-results.json` |
+| R4-004 | open | closed | `tests/results/security/contract-drift-remediation-20260221-004208/protocol/probe-triage.csv` |
 
 ## Acceptance Criteria Check
 1. `R4-004` closure evidence reproducible from repo-tracked harness commands: **PASS**.

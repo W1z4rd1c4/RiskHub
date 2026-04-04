@@ -2,8 +2,8 @@
 
 ## Required Sections
 
-- Current hard-gate scope: `/Users/stefanlesnak/Antigravity/Risk App 2/backend/app`
-- Informational scope: `/Users/stefanlesnak/Antigravity/Risk App 2/backend`
+- Current hard-gate scope: `backend/app`
+- Informational scope: `backend`
 - Last updated: `2026-02-15`
 
 ## Ratchet Classes
@@ -19,6 +19,6 @@
 - `E712`, `E402`, and `E501` are enforced in hard-gate scope with zero counts.
 - `E501` baseline was captured pre-ratchet and fully remediated in Sweep 6.
 - Baseline evidence files:
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/docs/quality/baseline/e712-app.txt`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/docs/quality/baseline/e402-app.txt`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/docs/quality/baseline/e501-app.txt`
+  - `docs/quality/baseline/e712-app.txt`
+  - `docs/quality/baseline/e402-app.txt`
+  - `docs/quality/baseline/e501-app.txt`

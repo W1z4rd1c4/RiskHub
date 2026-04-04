@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Page-local modules for `/Users/stefanlesnak/Antigravity/Risk App 2/frontend/src/pages/IssuesPage.tsx`.
+Page-local modules for `frontend/src/pages/IssuesPage.tsx`.
 
 ## Contents
 

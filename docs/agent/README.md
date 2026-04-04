@@ -1,6 +1,6 @@
 # Agent Documentation Index
 
-Back to tree: [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/DOCUMENTATION_TREE.md`](../DOCUMENTATION_TREE.md)
+Back to tree: [`docs/DOCUMENTATION_TREE.md`](../DOCUMENTATION_TREE.md)
 
 This directory is the canonical documentation layer for AGENTS-specific development rules that are not product feature specs.
 

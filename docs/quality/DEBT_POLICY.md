@@ -6,8 +6,8 @@ This policy defines what counts as code-quality debt in RiskHub and how exceptio
 
 ## Scope
 
-- Frontend production source: `/Users/stefanlesnak/Antigravity/Risk App 2/frontend/src/**`
-- Backend lint scope: `/Users/stefanlesnak/Antigravity/Risk App 2/backend/app/**` (hard gate), full backend tree (informational ratchet track)
+- Frontend production source: `frontend/src/**`
+- Backend lint scope: `backend/app/**` (hard gate), full backend tree (informational ratchet track)
 
 ## Debt Rules
 
@@ -38,8 +38,8 @@ Production backend comment debt policy (`backend/app/**`):
 
 Exceptions are defined in:
 
-- `/Users/stefanlesnak/Antigravity/Risk App 2/frontend/scripts/quality/debt-allowlist.json`
-- `/Users/stefanlesnak/Antigravity/Risk App 2/scripts/quality/backend-suppression-allowlist.json`
+- `frontend/scripts/quality/debt-allowlist.json`
+- `scripts/quality/backend-suppression-allowlist.json`
 
 Each exception must include:
 
@@ -71,7 +71,7 @@ Backend suppression allowlist entries must include:
 
 ## CI Governance
 
-1. Lint gates run in `/Users/stefanlesnak/Antigravity/Risk App 2/.github/workflows/lint.yml`.
+1. Lint gates run in `.github/workflows/lint.yml`.
 2. Security workflow must not contain contradictory lint gates with `continue-on-error`.
 3. Lint failures are merge-blocking.
 

@@ -32,7 +32,7 @@ npx playwright install chromium
 
 Canonical startup guidance:
 
-- [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/development/README.md`](./development/README.md)
+- [`docs/development/README.md`](./development/README.md)
 - Playwright still defaults to the local Vite frontend on `http://localhost:5173`
 - Docker full-stack at `http://localhost/` is for onboarding/manual verification unless `FRONTEND_URL` is overridden
 
@@ -111,7 +111,7 @@ FRONTEND_URL=http://localhost POLISH_AUDIT_DEEP=1 npx playwright test -c ../test
 Current Docker-origin truth:
 
 - Docker full-stack browser runs should use `FRONTEND_URL=http://localhost`.
-- The shared login helper in [`/Users/stefanlesnak/Antigravity/Risk App 2/tests/frontend/e2e/helpers/login.ts`](../tests/frontend/e2e/helpers/login.ts) now waits on post-login pathnames instead of a hardcoded `localhost:5173` origin, so the same helper works against both Vite and Docker nginx surfaces.
+- The shared login helper in [`tests/frontend/e2e/helpers/login.ts`](../tests/frontend/e2e/helpers/login.ts) now waits on post-login pathnames instead of a hardcoded `localhost:5173` origin, so the same helper works against both Vite and Docker nginx surfaces.
 - Targeted verification on 2026-03-29 passed for:
   - `access-scope.spec.ts --grep "GLOBAL user can see all departments in department list"`
   - `polish-audit.spec.ts --grep "RISK_MANAGER / theme=riskhub / lang=en"`

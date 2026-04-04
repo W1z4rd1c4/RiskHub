@@ -1,7 +1,7 @@
 # Security Scanning & Vulnerability Management
 
 This document describes the security scanning tools, processes, and response procedures for RiskHub.
-Back to tree: [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/DOCUMENTATION_TREE.md`](../DOCUMENTATION_TREE.md)
+Back to tree: [`docs/DOCUMENTATION_TREE.md`](../DOCUMENTATION_TREE.md)
 
 ## Quick Start
 
@@ -36,6 +36,9 @@ npm audit
 # Secrets Detection (Gitleaks)
 # Install: brew install gitleaks (macOS) or see https://github.com/gitleaks/gitleaks
 gitleaks detect --config .gitleaks.toml
+
+# Public-repo leak audit (current tree + full git history + privacy metadata)
+make -f scripts/Makefile public-leak-audit
 
 # Container Scan (Trivy)
 # Install: brew install trivy (macOS)
@@ -88,6 +91,7 @@ python3 scripts/tools/docs_tree_audit.py --scope full
 | **Syft** | SBOM generation for image inventory | CI | CI (push/schedule) |
 | **Grype** | SBOM vulnerability correlation gate | `backend/security/grype-ignore.yaml` | CI (push/schedule) |
 | **Gitleaks** | Secrets detection | `.gitleaks.toml` | Pre-commit, CI |
+| **Public Leak Audit** | Current-tree + history leak/privacy sweep | `scripts/security/run_public_repo_leak_audit.sh` | Local before public releases |
 | **Protocol Contract Probe** | Deterministic protocol/security-vs-contract triage | `scripts/security/protocol_contract_probe.py` | Local security closure runs |
 | **Redis Resilience Tests** | Redis fault-injection fail-closed checks | `tests/backend/pytest/test_*redis*_resilience.py` | Local + nightly CI |
 | **Round-5 Replay Harnesses** | Real staging + state-machine/RBAC sweeps | `scripts/security/*.py` | Local security audits |

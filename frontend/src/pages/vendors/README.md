@@ -3,8 +3,8 @@
 ## Purpose
 
 Page-local modules for vendor routes, covering both
-`/Users/stefanlesnak/Antigravity/Risk App 2/frontend/src/pages/VendorDetailPage.tsx`
-and `/Users/stefanlesnak/Antigravity/Risk App 2/frontend/src/pages/VendorsPage.tsx`.
+`frontend/src/pages/VendorDetailPage.tsx`
+and `frontend/src/pages/VendorsPage.tsx`.
 
 ## Contents
 
@@ -51,9 +51,9 @@ in the same action cluster.
 The individual vendor route family (`view`, `edit`, `new`) now shares a
 vendor-local glass-stack design layer. Shell concerns stay here, while shared
 surface primitives live in
-`/Users/stefanlesnak/Antigravity/Risk App 2/frontend/src/components/vendors/vendorRouteUi.tsx`
+`frontend/src/components/vendors/vendorRouteUi.tsx`
 and
-`/Users/stefanlesnak/Antigravity/Risk App 2/frontend/src/components/vendors/vendorRoute.css`.
+`frontend/src/components/vendors/vendorRoute.css`.
 
 Create and edit flows are intentionally aligned with detail-page structure:
 

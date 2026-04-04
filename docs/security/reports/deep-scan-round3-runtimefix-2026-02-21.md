@@ -1,6 +1,6 @@
 # RiskHub Deep Security Scan Round 3.1 Runtime-Fix Report (2026-02-21)
 
-> Supersession note (2026-02-21): Contract-drift finding `R3.1-004` is closed in `/Users/stefanlesnak/Antigravity/Risk App 2/docs/security/reports/contract-drift-remediation-2026-02-21.md`. Historical findings content below is preserved as originally reported.
+> Supersession note (2026-02-21): Contract-drift finding `R3.1-004` is closed in `docs/security/reports/contract-drift-remediation-2026-02-21.md`. Historical findings content below is preserved as originally reported.
 
 ## Scope
 - Mode: scan-and-report only (no product-code remediation in this cycle)
@@ -8,10 +8,10 @@
   - local: `http://127.0.0.1:8000`
   - staging-sim: `http://127.0.0.1:18000` (second backend instance)
 - Real staging: not run (credentials unavailable in this cycle)
-- Explicit exclusion: `/Users/stefanlesnak/Antigravity/Risk App 2/backend/app/core/client_ip.py`
+- Explicit exclusion: `backend/app/core/client_ip.py`
 
 ## Artifact Root
-- `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/security/deep-scan-round3-runtimefix-20260220-233943`
+- `tests/results/security/deep-scan-round3-runtimefix-20260220-233943`
 
 ## Execution Summary
 1. Baseline and dual-backend topology completed; both targets healthy.
@@ -28,9 +28,9 @@
 ## Key Results
 - Schemathesis runtime-noise gate: **closed**
   - No `RuntimeError`, `Exception in thread`, or `dictionary changed size` signatures in scan logs.
-  - Evidence: `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/security/deep-scan-round3-runtimefix-20260220-233943/dynamic/schemathesis-runtime-noise-check.txt`
+  - Evidence: `tests/results/security/deep-scan-round3-runtimefix-20260220-233943/dynamic/schemathesis-runtime-noise-check.txt`
 - Staging precondition status: **replaced by staging-sim completed**
-  - Evidence: `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/security/deep-scan-round3-runtimefix-20260220-233943/baseline/targets.txt`
+  - Evidence: `tests/results/security/deep-scan-round3-runtimefix-20260220-233943/baseline/targets.txt`
 - ZAP artifacts: generated
   - Baseline final exits: `zap-local-baseline.final.exitcode=0`, `zap-staging-sim-baseline.final.exitcode=0`
   - API exits: `zap-local-api.exitcode=0`, `zap-staging-sim-api.exitcode=0`
@@ -39,18 +39,18 @@
   - token abuse checks passed: 2/2
   - excel invariant checks passed: 12/12
   - admin observability RBAC checks passed: 18/18
-  - Evidence: `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/security/deep-scan-round3-runtimefix-20260220-233943/reports/high-value-abuse-summary.json`
+  - Evidence: `tests/results/security/deep-scan-round3-runtimefix-20260220-233943/reports/high-value-abuse-summary.json`
 
 ## Findings Triage
 | ID | Severity | Status | Summary | Evidence |
 |---|---|---|---|---|
-| R3.1-001 | Low | fixed | Schemathesis runtime-noise instability removed by pinned runtime image. | `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/security/deep-scan-round3-runtimefix-20260220-233943/dynamic/schemathesis-summary.txt`, `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/security/deep-scan-round3-runtimefix-20260220-233943/dynamic/schemathesis-runtime-noise-check.txt` |
-| R3.1-002 | Low | mitigated_simulation | Missing real staging creds mitigated with full staging-sim wave on `:18000`; explicitly labeled as simulation. | `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/security/deep-scan-round3-runtimefix-20260220-233943/baseline/staging-sim-preflight.txt`, `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/security/deep-scan-round3-runtimefix-20260220-233943/baseline/targets.txt` |
-| R3.1-003 | Low | false_positive_tooling_noise | Schemathesis generated `X-Mock-User-Id` in payload exploration despite no manual injection in harness commands. | `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/security/deep-scan-round3-runtimefix-20260220-233943/dynamic/schemathesis-summary-nomock.txt`, `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/security/deep-scan-round3-runtimefix-20260220-233943/dynamic/schemathesis-nomock-xmock-hits.txt` |
-| R3.1-004 | Medium | open | OpenAPI contract drift (e.g., 410 legacy Excel compatibility and auth-path response variance) remains as spec/contract debt, not confirmed exploit path. | `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/security/deep-scan-round3-runtimefix-20260220-233943/dynamic/schemathesis-local-focused.log`, `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/security/deep-scan-round3-runtimefix-20260220-233943/reports/excel-invariant-results.csv` |
+| R3.1-001 | Low | fixed | Schemathesis runtime-noise instability removed by pinned runtime image. | `tests/results/security/deep-scan-round3-runtimefix-20260220-233943/dynamic/schemathesis-summary.txt`, `tests/results/security/deep-scan-round3-runtimefix-20260220-233943/dynamic/schemathesis-runtime-noise-check.txt` |
+| R3.1-002 | Low | mitigated_simulation | Missing real staging creds mitigated with full staging-sim wave on `:18000`; explicitly labeled as simulation. | `tests/results/security/deep-scan-round3-runtimefix-20260220-233943/baseline/staging-sim-preflight.txt`, `tests/results/security/deep-scan-round3-runtimefix-20260220-233943/baseline/targets.txt` |
+| R3.1-003 | Low | false_positive_tooling_noise | Schemathesis generated `X-Mock-User-Id` in payload exploration despite no manual injection in harness commands. | `tests/results/security/deep-scan-round3-runtimefix-20260220-233943/dynamic/schemathesis-summary-nomock.txt`, `tests/results/security/deep-scan-round3-runtimefix-20260220-233943/dynamic/schemathesis-nomock-xmock-hits.txt` |
+| R3.1-004 | Medium | open | OpenAPI contract drift (e.g., 410 legacy Excel compatibility and auth-path response variance) remains as spec/contract debt, not confirmed exploit path. | `tests/results/security/deep-scan-round3-runtimefix-20260220-233943/dynamic/schemathesis-local-focused.log`, `tests/results/security/deep-scan-round3-runtimefix-20260220-233943/reports/excel-invariant-results.csv` |
 
 ## Attack-Vector Coverage Matrix
-- Matrix file: `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/security/deep-scan-round3-runtimefix-20260220-233943/reports/coverage-matrix-round3-runtimefix.csv`
+- Matrix file: `tests/results/security/deep-scan-round3-runtimefix-20260220-233943/reports/coverage-matrix-round3-runtimefix.csv`
 - Coverage labels present: `local`, `staging-sim`, `real-staging-not-run`
 
 ## Final Decision

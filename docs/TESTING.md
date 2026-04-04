@@ -1,7 +1,7 @@
 # RiskHub Testing Guide
 
-> **Version**: 1.8
-> **Last Updated**: 2026-04-04
+> **Version**: 1.7
+> **Last Updated**: 2026-03-29
 > **Audience**: Engineering, QA
 > **Source of Truth**: `tests/backend/pytest/`, `backend/pytest.ini`, `frontend/package.json`, `tests/frontend/e2e/playwright.config.ts`
 
@@ -45,15 +45,14 @@ This guide defines the current testing matrix for backend, frontend unit tests, 
 
 ## Development Startup
 
-- Canonical startup guidance lives in [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/development/README.md`](./development/README.md).
-- Use `./scripts/install.sh dev` for active local backend/frontend iteration.
-- Use `./scripts/install.sh demo` for the Docker onboarding path.
-- Use `./scripts/install.sh demo --reset test` for deterministic Docker-backed E2E fixture resets.
-- Keep `./scripts/dev.sh` and `./scripts/compose.sh` for advanced/manual execution of those same workflows.
+- Canonical startup guidance lives in [`docs/development/README.md`](./development/README.md).
+- Use `./scripts/dev.sh` for active local backend/frontend iteration.
+- Use `./scripts/compose.sh up` for Docker onboarding/manual appliance-style runs.
+- Use `./scripts/compose.sh reset --dataset test` for deterministic Docker-backed E2E fixture resets.
 
 ## Local Startup Preflight
 
-- `./scripts/install.sh dev` routes through `./scripts/dev.sh`, which performs a schema-head preflight before it starts the local backend in `full` and `backend` modes.
+- `./scripts/dev.sh` now performs a schema-head preflight before it starts the local backend in `full` and `backend` modes.
 - If the connected non-SQLite database revision does not match the app head, startup stops before the frontend is launched.
 - The expected recovery path is:
 
@@ -63,21 +62,20 @@ cd backend
 ```
 
 - After a local backend launch attempt, `scripts/dev.sh` also verifies backend readiness and prints the backend log tail immediately if startup failed during lifespan initialization.
-- `./scripts/install.sh demo` and `./scripts/install.sh demo --reset test` route through `./scripts/compose.sh`; migrations and base seeding still happen in the compose bootstrap flow rather than by weakening app startup checks.
+- Docker onboarding/reset paths intentionally keep the app startup guards unchanged; migrations and base seeding happen in the `./scripts/compose.sh` bootstrap flow rather than by weakening app startup checks.
 
 ## Docker Live Verification
 
 Preferred deterministic path:
 
 ```bash
-./scripts/install.sh demo --reset test
+./scripts/compose.sh reset --dataset test
 ```
 
 Current behavior:
 
-- `./scripts/install.sh demo --reset test` is the recommended deterministic Docker path for migrations, base seed, deterministic E2E seed, and app startup.
-- The underlying advanced/manual command remains `./scripts/compose.sh reset --dataset test`.
-- The Docker bootstrap service now builds the backend `dbtasks` target, so database bootstrap work runs with the required Postgres client dependencies.
+- `./scripts/compose.sh reset --dataset test` is the canonical deterministic Docker path for migrations, base seed, deterministic E2E seed, and app startup.
+- The Docker bootstrap service now reuses the backend runtime image and runs migrations + seed commands inline.
 - Docker Compose now inherits the backend image's Python healthcheck instead of overriding it with `curl`.
 
 Preflight:
@@ -120,7 +118,7 @@ Current browser-lane caveats:
   - `cd frontend && npx vitest run -c ../tests/frontend/unit/vitest.config.ts src/pages/__tests__/RisksPage.presentation.test.ts src/pages/__tests__/ControlsPage.presentation.test.ts src/pages/__tests__/IssuesPage.grouped-views.test.tsx src/pages/__tests__/KRIsPage.monitoring-status.test.tsx src/pages/__tests__/VendorsPage.grouped-views.test.tsx`
   - `cd frontend && npx playwright test -c ../tests/frontend/e2e/playwright.config.ts --project=chromium ../tests/frontend/e2e/risks.spec.ts ../tests/frontend/e2e/controls.spec.ts ../tests/frontend/e2e/kris.spec.ts ../tests/frontend/e2e/vendors.spec.ts ../tests/frontend/e2e/issues-workflow.spec.ts --grep "groups linked risks by vendor|groups linked controls by vendor|groups linked KRIs by vendor|groups vendors by flag|links an existing KRI|groups vendor-context issues by vendor"`
 - Backend vendor-link regressions must cover linked KRI list/link/unlink behavior and vendor summaries on risk/control/issue/KRI list payloads:
-  - `cd /Users/stefanlesnak/Antigravity/Risk App 2 && PYTHONPATH=backend pytest tests/backend/pytest/test_vendor_links.py -q`
+  - `cd  && PYTHONPATH=backend pytest tests/backend/pytest/test_vendor_links.py -q`
 - Playwright runs live browser flows from `tests/frontend/e2e`.
 - CI E2E contract requires demo auth mode:
   - backend env includes `AUTH_MODE=hybrid_dev`, `DEBUG=true`, `MOCK_AUTH_ENABLED=true`
@@ -148,7 +146,7 @@ Current browser-lane caveats:
 When editing documentation libraries (`docs/admin*`, `docs/user*`) or docs endpoint behavior:
 
 ```bash
-cd "/Users/stefanlesnak/Antigravity/Risk App 2"
+cd ""
 python3 scripts/check_docs_contract.py
 make -f scripts/Makefile docs-topology-consistency
 
@@ -163,7 +161,7 @@ npx tsc --noEmit
 For RBAC/docs reconciliation sweeps that touch role boundaries or permission contracts, add:
 
 ```bash
-cd "/Users/stefanlesnak/Antigravity/Risk App 2"
+cd ""
 PYTHONPATH=backend pytest tests/backend/pytest/test_activity_log.py tests/backend/pytest/test_orphaned_items_scan_and_stats.py tests/backend/pytest/test_executions.py tests/backend/pytest/api/v1/test_issues_rbac_api.py tests/backend/pytest/api/v1/test_dashboard_issue_metrics.py tests/backend/pytest/api/v1/test_reports_issues.py tests/backend/pytest/test_seed_rbac_parity.py -q
 
 cd frontend
@@ -173,7 +171,7 @@ npm run e2e:business-logic
 For vendor grouped-view/detail documentation or permission-gating changes, also add:
 
 ```bash
-cd "/Users/stefanlesnak/Antigravity/Risk App 2"
+cd ""
 PYTHONPATH=backend pytest tests/backend/pytest/test_vendors.py tests/backend/pytest/test_vendor_links.py -q
 
 cd frontend
@@ -186,7 +184,7 @@ npx playwright test -c ../tests/frontend/e2e/playwright.config.ts ../tests/front
 For vendor-centric grouped views and vendor-linked KRI changes, also add:
 
 ```bash
-cd "/Users/stefanlesnak/Antigravity/Risk App 2"
+cd ""
 PYTHONPATH=backend pytest tests/backend/pytest/test_vendor_links.py -q
 
 cd frontend

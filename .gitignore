@@ -121,6 +121,9 @@ backend/*.db
 # Do not ignore common source directory names or extensions generically here.
 .agent/
 .codex/
+.dev-backend.pid
+.dev-frontend.pid
+dev.sh.pid
 frontend/test-results/
 frontend/playwright-report/
 frontend/.playwright-browsers/

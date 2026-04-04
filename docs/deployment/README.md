@@ -5,7 +5,7 @@
 
 Back to tree: [`../DOCUMENTATION_TREE.md`](../DOCUMENTATION_TREE.md)
 
-Development Docker startup is documented separately in [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/development/README.md`](../development/README.md). This document remains production-only.
+Development Docker startup is documented separately in [`docs/development/README.md`](../development/README.md). This document remains production-only.
 
 ## Production Model
 

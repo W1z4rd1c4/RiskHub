@@ -2,7 +2,7 @@
 
 ## Scope
 
-- Repository: `/Users/stefanlesnak/Antigravity/Risk App 2`
+- Repository: ``
 - Review mode: Full maintainability sweep, balanced risk, no intentional API/DB contract changes
 - Security posture: treated as already passed; this review focuses on code quality, maintainability, and regression-safe polish
 
@@ -10,13 +10,13 @@
 
 ### Gate command baseline (exact commands)
 
-- `cd /Users/stefanlesnak/Antigravity/Risk\ App\ 2/frontend && npm run lint`
-- `cd /Users/stefanlesnak/Antigravity/Risk\ App\ 2/frontend && npx tsc --noEmit`
-- `cd /Users/stefanlesnak/Antigravity/Risk\ App\ 2/frontend && npm run quality:debt -- --report-json`
-- `cd /Users/stefanlesnak/Antigravity/Risk\ App\ 2/frontend && npm run cleanup:deadcode`
-- `cd /Users/stefanlesnak/Antigravity/Risk\ App\ 2/frontend && npm run build`
-- `cd /Users/stefanlesnak/Antigravity/Risk\ App\ 2/backend && ./venv/bin/python -m ruff check app ../tests/backend/pytest scripts`
-- `make -f /Users/stefanlesnak/Antigravity/Risk\ App\ 2/scripts/Makefile docs-topology-consistency`
+- `cd frontend && npm run lint`
+- `cd frontend && npx tsc --noEmit`
+- `cd frontend && npm run quality:debt -- --report-json`
+- `cd frontend && npm run cleanup:deadcode`
+- `cd frontend && npm run build`
+- `cd backend && ./venv/bin/python -m ruff check app ../tests/backend/pytest scripts`
+- `make -f scripts/Makefile docs-topology-consistency`
 
 ### Baseline status summary
 
@@ -32,7 +32,7 @@
 
 #### Frontend lint warning
 
-- `/Users/stefanlesnak/Antigravity/Risk App 2/frontend/src/components/users/DirectoryUserImportPanel.tsx:71`
+- `frontend/src/components/users/DirectoryUserImportPanel.tsx:71`
   - `react-hooks/exhaustive-deps` missing dependency `onProviderUnavailableChange`
 
 #### Frontend build warning
@@ -43,23 +43,23 @@
 
 #### Backend Ruff failures
 
-- `/Users/stefanlesnak/Antigravity/Risk App 2/backend/app/api/v1/endpoints/auth/password.py:115` (`F841`)
-- `/Users/stefanlesnak/Antigravity/Risk App 2/backend/app/api/v1/endpoints/directory.py:1` (`I001`)
-- `/Users/stefanlesnak/Antigravity/Risk App 2/backend/app/integrations/vendor_signals/public_registry.py:6` (`F401`)
-- `/Users/stefanlesnak/Antigravity/Risk App 2/backend/app/services/directory_provider_service.py:89` (`E501`)
-- `/Users/stefanlesnak/Antigravity/Risk App 2/backend/app/services/graph_directory_service.py:81` (`F841`)
-- `/Users/stefanlesnak/Antigravity/Risk App 2/backend/app/services/graph_directory_service.py:88` (`E501`)
-- `/Users/stefanlesnak/Antigravity/Risk App 2/backend/app/services/graph_directory_service.py:126` (`E501`)
-- `/Users/stefanlesnak/Antigravity/Risk App 2/backend/app/services/sso_token_service.py:7` (`F401`)
-- `/Users/stefanlesnak/Antigravity/Risk App 2/tests/backend/pytest/test_phase500_script_contracts.py:3` (`I001`)
-- `/Users/stefanlesnak/Antigravity/Risk App 2/tests/backend/pytest/test_phase500_script_runtime_contracts.py:3` (`I001`)
-- `/Users/stefanlesnak/Antigravity/Risk App 2/tests/backend/pytest/test_users.py:1` (`I001`)
+- `backend/app/api/v1/endpoints/auth/password.py:115` (`F841`)
+- `backend/app/api/v1/endpoints/directory.py:1` (`I001`)
+- `backend/app/integrations/vendor_signals/public_registry.py:6` (`F401`)
+- `backend/app/services/directory_provider_service.py:89` (`E501`)
+- `backend/app/services/graph_directory_service.py:81` (`F841`)
+- `backend/app/services/graph_directory_service.py:88` (`E501`)
+- `backend/app/services/graph_directory_service.py:126` (`E501`)
+- `backend/app/services/sso_token_service.py:7` (`F401`)
+- `tests/backend/pytest/test_phase500_script_contracts.py:3` (`I001`)
+- `tests/backend/pytest/test_phase500_script_runtime_contracts.py:3` (`I001`)
+- `tests/backend/pytest/test_users.py:1` (`I001`)
 
 #### Docs topology consistency failure
 
 - `structure_metrics_guard_status=fail`
 - Artifact:
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/docs/structure-metrics-guard-20260222-203115/structure-metrics-guard.json`
+  - `tests/results/docs/structure-metrics-guard-20260222-203115/structure-metrics-guard.json`
 - Drift captured:
   - `.planning/codebase/STRUCTURE.md` expected backend pytest files `110 (107 Python)`
   - observed `111 (108 Python)`
@@ -68,20 +68,20 @@
 
 #### Backend long functions (line counts)
 
-- `332` - `/Users/stefanlesnak/Antigravity/Risk App 2/backend/app/api/v1/endpoints/dashboard/committee.py:25` (`get_committee_summary`)
-- `267` - `/Users/stefanlesnak/Antigravity/Risk App 2/backend/app/services/vendor_sla_deadline_service.py:77` (`check_vendor_sla_deadlines`)
-- `226` - `/Users/stefanlesnak/Antigravity/Risk App 2/backend/app/services/kri_deadline_service.py:69` (`check_kri_deadlines`)
-- `215` - `/Users/stefanlesnak/Antigravity/Risk App 2/backend/app/api/v1/endpoints/kris/history.py:26` (`record_kri_value`)
-- `208` - `/Users/stefanlesnak/Antigravity/Risk App 2/backend/app/api/v1/endpoints/controls/crud/update.py:21` (`update_control`)
-- `193` - `/Users/stefanlesnak/Antigravity/Risk App 2/backend/app/api/v1/endpoints/risks/crud/update.py:21` (`update_risk`)
-- `171` - `/Users/stefanlesnak/Antigravity/Risk App 2/backend/app/api/v1/endpoints/auth/sso.py:31` (`sso_exchange`)
+- `332` - `backend/app/api/v1/endpoints/dashboard/committee.py:25` (`get_committee_summary`)
+- `267` - `backend/app/services/vendor_sla_deadline_service.py:77` (`check_vendor_sla_deadlines`)
+- `226` - `backend/app/services/kri_deadline_service.py:69` (`check_kri_deadlines`)
+- `215` - `backend/app/api/v1/endpoints/kris/history.py:26` (`record_kri_value`)
+- `208` - `backend/app/api/v1/endpoints/controls/crud/update.py:21` (`update_control`)
+- `193` - `backend/app/api/v1/endpoints/risks/crud/update.py:21` (`update_risk`)
+- `171` - `backend/app/api/v1/endpoints/auth/sso.py:31` (`sso_exchange`)
 
 #### Frontend large files (line counts)
 
-- `868` - `/Users/stefanlesnak/Antigravity/Risk App 2/frontend/src/components/RiskForm.tsx`
-- `847` - `/Users/stefanlesnak/Antigravity/Risk App 2/frontend/src/components/ControlForm.tsx`
-- `844` - `/Users/stefanlesnak/Antigravity/Risk App 2/frontend/src/components/risks/RiskQuestionnaireDetail.tsx`
-- `794` - `/Users/stefanlesnak/Antigravity/Risk App 2/frontend/src/pages/AdminConsolePage.tsx`
+- `868` - `frontend/src/components/RiskForm.tsx`
+- `847` - `frontend/src/components/ControlForm.tsx`
+- `844` - `frontend/src/components/risks/RiskQuestionnaireDetail.tsx`
+- `794` - `frontend/src/pages/AdminConsolePage.tsx`
 
 ## Quality Targets For This Sweep
 
@@ -96,30 +96,30 @@
 ### Wave 1 (Gate Recovery)
 
 - Resolved all baseline Ruff findings in:
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/backend/app/api/v1/endpoints/auth/password.py`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/backend/app/api/v1/endpoints/directory.py`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/backend/app/integrations/vendor_signals/public_registry.py`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/backend/app/services/directory_provider_service.py`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/backend/app/services/graph_directory_service.py`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/backend/app/services/sso_token_service.py`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/backend/pytest/test_phase500_script_contracts.py`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/backend/pytest/test_phase500_script_runtime_contracts.py`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/backend/pytest/test_users.py`
+  - `backend/app/api/v1/endpoints/auth/password.py`
+  - `backend/app/api/v1/endpoints/directory.py`
+  - `backend/app/integrations/vendor_signals/public_registry.py`
+  - `backend/app/services/directory_provider_service.py`
+  - `backend/app/services/graph_directory_service.py`
+  - `backend/app/services/sso_token_service.py`
+  - `tests/backend/pytest/test_phase500_script_contracts.py`
+  - `tests/backend/pytest/test_phase500_script_runtime_contracts.py`
+  - `tests/backend/pytest/test_users.py`
 - Removed frontend lint warning in:
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/frontend/src/components/users/DirectoryUserImportPanel.tsx`
+  - `frontend/src/components/users/DirectoryUserImportPanel.tsx`
 - Reconciled docs structure drift in:
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/.planning/codebase/STRUCTURE.md`
+  - `.planning/codebase/STRUCTURE.md`
 
 ### Wave 2 (Backend Maintainability)
 
 - Refactored targeted backend hotspots with helper extraction while preserving routes/schemas:
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/backend/app/api/v1/endpoints/dashboard/committee.py`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/backend/app/api/v1/endpoints/kris/history.py`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/backend/app/api/v1/endpoints/controls/crud/update.py`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/backend/app/api/v1/endpoints/risks/crud/update.py`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/backend/app/api/v1/endpoints/auth/sso.py`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/backend/app/services/kri_deadline_service.py`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/backend/app/services/vendor_sla_deadline_service.py`
+  - `backend/app/api/v1/endpoints/dashboard/committee.py`
+  - `backend/app/api/v1/endpoints/kris/history.py`
+  - `backend/app/api/v1/endpoints/controls/crud/update.py`
+  - `backend/app/api/v1/endpoints/risks/crud/update.py`
+  - `backend/app/api/v1/endpoints/auth/sso.py`
+  - `backend/app/services/kri_deadline_service.py`
+  - `backend/app/services/vendor_sla_deadline_service.py`
 - Longest function sizes in targeted files are now at/below target range where practical:
   - `committee.py`: longest helper `65` lines
   - `kris/history.py`: longest helper `118` lines
@@ -129,21 +129,21 @@
 ### Wave 3 (Frontend Maintainability + Performance)
 
 - Implemented route-level lazy loading with suspense fallback in:
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/frontend/src/App.tsx`
+  - `frontend/src/App.tsx`
 - Decomposed mega-component entrypoints into stable thin exports + feature modules:
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/frontend/src/components/RiskForm.tsx` -> `/Users/stefanlesnak/Antigravity/Risk App 2/frontend/src/components/risk-form/RiskFormContainer.tsx`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/frontend/src/components/ControlForm.tsx` -> `/Users/stefanlesnak/Antigravity/Risk App 2/frontend/src/components/control-form/ControlFormContainer.tsx`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/frontend/src/components/risks/RiskQuestionnaireDetail.tsx` -> `/Users/stefanlesnak/Antigravity/Risk App 2/frontend/src/components/risks/risk-questionnaire-detail/RiskQuestionnaireDetailContainer.tsx`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/frontend/src/pages/AdminConsolePage.tsx` -> `/Users/stefanlesnak/Antigravity/Risk App 2/frontend/src/pages/admin-console/AdminConsolePageContainer.tsx`
+  - `frontend/src/components/RiskForm.tsx` -> `frontend/src/components/risk-form/RiskFormContainer.tsx`
+  - `frontend/src/components/ControlForm.tsx` -> `frontend/src/components/control-form/ControlFormContainer.tsx`
+  - `frontend/src/components/risks/RiskQuestionnaireDetail.tsx` -> `frontend/src/components/risks/risk-questionnaire-detail/RiskQuestionnaireDetailContainer.tsx`
+  - `frontend/src/pages/AdminConsolePage.tsx` -> `frontend/src/pages/admin-console/AdminConsolePageContainer.tsx`
 - Improved deadcode analysis for dynamic imports in:
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/frontend/scripts/cleanup/find-unreachable-modules.mjs`
+  - `frontend/scripts/cleanup/find-unreachable-modules.mjs`
 - Removed confirmed unreachable module:
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/frontend/src/pages/index.ts`
+  - `frontend/src/pages/index.ts`
 - Added module READMEs for topology contract:
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/frontend/src/components/risk-form/README.md`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/frontend/src/components/control-form/README.md`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/frontend/src/components/risks/risk-questionnaire-detail/README.md`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/frontend/src/pages/admin-console/README.md`
+  - `frontend/src/components/risk-form/README.md`
+  - `frontend/src/components/control-form/README.md`
+  - `frontend/src/components/risks/risk-questionnaire-detail/README.md`
+  - `frontend/src/pages/admin-console/README.md`
 
 ### Wave 4 (Verification)
 
@@ -152,7 +152,7 @@
 - Targeted frontend suite:
   - `27 passed (4 files), 0 failed`
 - Targeted frontend E2E regression (export flows, navigation stability, questionnaire flow, polish audit):
-  - Command: `cd /Users/stefanlesnak/Antigravity/Risk App 2/frontend && npx playwright test -c ../tests/frontend/e2e/playwright.config.ts ../tests/frontend/e2e/controls.spec.ts ../tests/frontend/e2e/risks.spec.ts ../tests/frontend/e2e/navigation-stability.spec.ts ../tests/frontend/e2e/questionnaires.spec.ts ../tests/frontend/e2e/kris.spec.ts ../tests/frontend/e2e/vendors.spec.ts ../tests/frontend/e2e/polish-audit.spec.ts --project=chromium`
+  - Command: `cd frontend && npx playwright test -c ../tests/frontend/e2e/playwright.config.ts ../tests/frontend/e2e/controls.spec.ts ../tests/frontend/e2e/risks.spec.ts ../tests/frontend/e2e/navigation-stability.spec.ts ../tests/frontend/e2e/questionnaires.spec.ts ../tests/frontend/e2e/kris.spec.ts ../tests/frontend/e2e/vendors.spec.ts ../tests/frontend/e2e/polish-audit.spec.ts --project=chromium`
   - `33 passed, 0 failed (chromium, 2.4m)`
 - Broad guardrails:
   - Frontend: `167 passed (45 files), 0 failed`
@@ -165,13 +165,13 @@
 ### Wave 5 (Deliverables)
 
 - Report finalized with baseline vs final evidence and explicit deferred non-blockers.
-- `/Users/stefanlesnak/Antigravity/Risk App 2/docs/quality/README.md` updated to include this report.
+- `docs/quality/README.md` updated to include this report.
 
 ## Final Gate Status
 
-- `cd /Users/stefanlesnak/Antigravity/Risk App 2/frontend && npm run lint && npx tsc --noEmit && npm run quality:debt -- --report-json && npm run cleanup:deadcode && npm run build` -> pass
-- `cd /Users/stefanlesnak/Antigravity/Risk App 2/backend && ./venv/bin/python -m ruff check app ../tests/backend/pytest scripts` -> pass
-- `make -f /Users/stefanlesnak/Antigravity/Risk App 2/scripts/Makefile docs-topology-consistency` -> pass
+- `cd frontend && npm run lint && npx tsc --noEmit && npm run quality:debt -- --report-json && npm run cleanup:deadcode && npm run build` -> pass
+- `cd backend && ./venv/bin/python -m ruff check app ../tests/backend/pytest scripts` -> pass
+- `make -f scripts/Makefile docs-topology-consistency` -> pass
 
 ## Baseline vs Final Metrics
 
@@ -190,36 +190,36 @@
 ## Evidence Map
 
 - Debt report JSON:
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/frontend/quality-audit/debt.json`
+  - `frontend/quality-audit/debt.json`
 - Deadcode report (0 unreachable):
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/frontend/cleanup-audit/unreachable.md`
+  - `frontend/cleanup-audit/unreachable.md`
 - Docs topology pass artifacts:
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/docs/docs-tree-audit-20260222-205641/docs-tree-audit.json`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/docs/structure-metrics-guard-20260222-205641/structure-metrics-guard.json`
+  - `tests/results/docs/docs-tree-audit-20260222-205641/docs-tree-audit.json`
+  - `tests/results/docs/structure-metrics-guard-20260222-205641/structure-metrics-guard.json`
 - Build artifact evidence (chunk breakdown):
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/frontend/dist/assets/`
+  - `frontend/dist/assets/`
 - Backend targeted test coverage surface:
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/backend/pytest/test_dashboard.py`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/backend/pytest/test_dashboard_committee_vendor_metrics.py`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/backend/pytest/test_kri_history.py`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/backend/pytest/test_kris_history_api.py`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/backend/pytest/test_controls.py`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/backend/pytest/test_risks.py`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/backend/pytest/test_sso_exchange.py`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/backend/pytest/test_sso_token_service.py`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/backend/pytest/test_auth_refresh.py`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/backend/pytest/test_directory_lookup.py`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/backend/pytest/test_directory_import.py`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/backend/pytest/test_ad_deprovision_service.py`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/backend/pytest/test_auth_lockout_redis_resilience.py`
+  - `tests/backend/pytest/test_dashboard.py`
+  - `tests/backend/pytest/test_dashboard_committee_vendor_metrics.py`
+  - `tests/backend/pytest/test_kri_history.py`
+  - `tests/backend/pytest/test_kris_history_api.py`
+  - `tests/backend/pytest/test_controls.py`
+  - `tests/backend/pytest/test_risks.py`
+  - `tests/backend/pytest/test_sso_exchange.py`
+  - `tests/backend/pytest/test_sso_token_service.py`
+  - `tests/backend/pytest/test_auth_refresh.py`
+  - `tests/backend/pytest/test_directory_lookup.py`
+  - `tests/backend/pytest/test_directory_import.py`
+  - `tests/backend/pytest/test_ad_deprovision_service.py`
+  - `tests/backend/pytest/test_auth_lockout_redis_resilience.py`
 - Frontend targeted tests:
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/frontend/unit/src/__tests__/approval_ui_rendering.spec.tsx`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/frontend/unit/src/__tests__/approval_edit_update_handling.spec.ts`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/frontend/unit/src/components/risks/__tests__/riskQuestionnaireOpenFlow.test.tsx`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/frontend/unit/src/pages/__tests__/UserNewPage.sso.test.tsx`
+  - `tests/frontend/unit/src/__tests__/approval_ui_rendering.spec.tsx`
+  - `tests/frontend/unit/src/__tests__/approval_edit_update_handling.spec.ts`
+  - `tests/frontend/unit/src/components/risks/__tests__/riskQuestionnaireOpenFlow.test.tsx`
+  - `tests/frontend/unit/src/pages/__tests__/UserNewPage.sso.test.tsx`
 - Frontend Playwright targeted regression artifacts:
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/frontend/playwright/test-results/results.json`
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/frontend/playwright/playwright-report/index.html`
+  - `tests/results/frontend/playwright/test-results/results.json`
+  - `tests/results/frontend/playwright/playwright-report/index.html`
 
 ## Known Limitations / Deferred Non-Blockers
 

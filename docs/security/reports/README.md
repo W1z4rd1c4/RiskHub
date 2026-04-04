@@ -6,8 +6,8 @@ Historical and current security scan/pentest/remediation reports.
 
 ## Navigation
 
-- Back to security index: [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/security/README.md`](../README.md)
-- Back to documentation tree: [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/DOCUMENTATION_TREE.md`](../../DOCUMENTATION_TREE.md)
+- Back to security index: [`docs/security/README.md`](../README.md)
+- Back to documentation tree: [`docs/DOCUMENTATION_TREE.md`](../../DOCUMENTATION_TREE.md)
 
 ## Reports
 

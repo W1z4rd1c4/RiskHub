@@ -1,7 +1,7 @@
 # Legacy Path Map
 
 > Historical reference only. Current startup and operational guidance lives in
-> [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/development/README.md`](../development/README.md).
+> [`docs/development/README.md`](../development/README.md).
 
 This repository was restructured to centralize tests and move operational entrypoints under `scripts/`.
 

@@ -2,8 +2,8 @@
 
 ## Scope
 
-- Frontend: `/Users/stefanlesnak/Antigravity/Risk App 2/frontend`
-- Backend: `/Users/stefanlesnak/Antigravity/Risk App 2/backend`
+- Frontend: `frontend`
+- Backend: `backend`
 
 ## Command Baseline
 
@@ -14,7 +14,7 @@
 
 ## Ruff Configuration Baseline
 
-Source: `/Users/stefanlesnak/Antigravity/Risk App 2/backend/ruff.toml`
+Source: `backend/ruff.toml`
 
 - `select = ["E", "F", "W", "I"]`
 - `ignore = ["E402", "E501", "E712", "W291", "W293"]` (baseline before ratchet)
@@ -23,8 +23,8 @@ Source: `/Users/stefanlesnak/Antigravity/Risk App 2/backend/ruff.toml`
 ## Dead-Code Audit Baseline
 
 Sources:
-- `/Users/stefanlesnak/Antigravity/Risk App 2/frontend/cleanup-audit/unreachable.md`
-- `/Users/stefanlesnak/Antigravity/Risk App 2/frontend/cleanup-audit/dormant.md`
+- `frontend/cleanup-audit/unreachable.md`
+- `frontend/cleanup-audit/dormant.md`
 
 - Unreachable candidates: `0`
 - Dormant pages: `1` (`DirectoryEmulatorPage`)
@@ -33,4 +33,4 @@ Sources:
 
 - This file is a pre-ratchet snapshot for Sweep 4.
 - Subsequent ratchet waves must update quality docs if the lint contract changes.
-- Post Wave A in this sweep: `W291` and `W293` were removed from `ignore` in `/Users/stefanlesnak/Antigravity/Risk App 2/backend/ruff.toml`.
+- Post Wave A in this sweep: `W291` and `W293` were removed from `ignore` in `backend/ruff.toml`.

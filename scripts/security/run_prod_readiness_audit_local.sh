@@ -570,7 +570,11 @@ def gitleaks_count(path: Path) -> int:
     return len(payload) if isinstance(payload, list) else 999
 
 probe_log = read_text(logs_dir / "p2_security_contract_probe.log")
-probe_match = re.findall(r"/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/security/contract-drift-remediation-[^ ]+/protocol/probe-results\.json", probe_log)
+root_re = re.escape(str(root))
+probe_match = re.findall(
+    rf"{root_re}/tests/results/security/contract-drift-remediation-[^ ]+/protocol/probe-results\.json",
+    probe_log,
+)
 if probe_match:
     probe_results_path = Path(probe_match[-1])
 else:

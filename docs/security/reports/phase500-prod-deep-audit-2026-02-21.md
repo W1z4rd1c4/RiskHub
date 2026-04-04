@@ -1,4 +1,6 @@
-> Supersession note (2026-02-22): Prior blockers PH500-DA-001..004 revalidated as fixed in `/Users/stefanlesnak/Antigravity/Risk App 2/docs/security/reports/prod-readiness-deep-audit-2026-02-22.md`.
+> Supersession note (2026-03-29): Prior blockers PH500-DA-001..004 revalidated as fixed in `docs/security/reports/prod-readiness-deep-audit-2026-03-29.md`.
+
+> Supersession note (2026-02-22): Prior blockers PH500-DA-001..004 revalidated as fixed in `docs/security/reports/prod-readiness-deep-audit-2026-02-22.md`.
 
 # Phase 500 Production Deep-Dive Audit Report (2026-02-21 UTC)
 
@@ -8,7 +10,7 @@
   - Local start: `2026-02-22T00:17:20+0100`
   - UTC start: `2026-02-21T23:17:20Z`
 - Evidence artifact root:
-  - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/prod/deep-audit-20260222-001703`
+  - `tests/results/prod/deep-audit-20260222-001703`
 
 ### Blockers
 | ID | Severity | Status | Owner lane | Summary |
@@ -46,16 +48,16 @@
   - `upgrade`, `rollback`, post-rollback smoke, and `setup --action upgrade --dry-run` then fail because no successful install exists.
 - Key evidence:
   - Script call chain:
-    - `/Users/stefanlesnak/Antigravity/Risk App 2/scripts/prod/bootstrap_db.sh:138`
-    - `/Users/stefanlesnak/Antigravity/Risk App 2/scripts/prod/bootstrap_db.sh:141`
-    - `/Users/stefanlesnak/Antigravity/Risk App 2/scripts/prod/bootstrap_db.sh:144`
+    - `scripts/prod/bootstrap_db.sh:138`
+    - `scripts/prod/bootstrap_db.sh:141`
+    - `scripts/prod/bootstrap_db.sh:144`
   - Seed script import dependency:
-    - `/Users/stefanlesnak/Antigravity/Risk App 2/backend/scripts/seed_roles_permissions.py:12`
+    - `backend/scripts/seed_roles_permissions.py:12`
   - Runtime failure trace:
-    - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/prod/deep-audit-20260222-001703/logs/16_lifecycle_deploy.log:187`
-    - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/prod/deep-audit-20260222-001703/logs/16_lifecycle_deploy.log:190`
+    - `tests/results/prod/deep-audit-20260222-001703/logs/16_lifecycle_deploy.log:187`
+    - `tests/results/prod/deep-audit-20260222-001703/logs/16_lifecycle_deploy.log:190`
   - Lifecycle RC summary:
-    - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/prod/deep-audit-20260222-001703/reports/05_lifecycle_rc.txt`
+    - `tests/results/prod/deep-audit-20260222-001703/reports/05_lifecycle_rc.txt`
 
 ### PH500-DA-002 (P1) — Frontend runtime is root
 - Expected:
@@ -64,10 +66,10 @@
   - Built frontend image runs as uid `0` / user `root`.
 - Key evidence:
   - Dockerfile creates user but has no `USER` switch:
-    - `/Users/stefanlesnak/Antigravity/Risk App 2/frontend/Dockerfile:39`
-    - `/Users/stefanlesnak/Antigravity/Risk App 2/frontend/Dockerfile:54`
+    - `frontend/Dockerfile:39`
+    - `frontend/Dockerfile:54`
   - Runtime probe:
-    - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/prod/deep-audit-20260222-001703/logs/13_frontend_runtime_user.log`
+    - `tests/results/prod/deep-audit-20260222-001703/logs/13_frontend_runtime_user.log`
 
 ### PH500-DA-003 (P1) — Setup dry-run leaves secret-bearing temp env files
 - Expected:
@@ -76,13 +78,13 @@
   - A new `riskhub-setup.*` temp directory remains with `backend.env` and `frontend.env` (`0600`), containing generated secrets.
 - Key evidence:
   - Cleanup only removes local staging files, not dry-run destination temp files:
-    - `/Users/stefanlesnak/Antigravity/Risk App 2/scripts/prod/setup.sh:585`
-    - `/Users/stefanlesnak/Antigravity/Risk App 2/scripts/prod/setup.sh:593`
-    - `/Users/stefanlesnak/Antigravity/Risk App 2/scripts/prod/setup.sh:643`
+    - `scripts/prod/setup.sh:585`
+    - `scripts/prod/setup.sh:593`
+    - `scripts/prod/setup.sh:643`
   - Residual temp dir and file modes:
-    - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/prod/deep-audit-20260222-001703/reports/03_setup_dryrun_tempdir_contents.txt`
+    - `tests/results/prod/deep-audit-20260222-001703/reports/03_setup_dryrun_tempdir_contents.txt`
   - Log redaction check (no literal DB/secret leak to stdout):
-    - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/prod/deep-audit-20260222-001703/reports/03_setup_dryrun_leak_scan.txt`
+    - `tests/results/prod/deep-audit-20260222-001703/reports/03_setup_dryrun_leak_scan.txt`
 
 ### PH500-DA-004 (P1) — Preflight misses invalid frontend port semantics
 - Expected:
@@ -94,86 +96,86 @@
   - Downstream `install_frontend.sh` then fails with Docker port validation errors.
 - Key evidence:
   - Current preflight only checks host port numeric, not range, and does not validate container port:
-    - `/Users/stefanlesnak/Antigravity/Risk App 2/scripts/prod/lib/preflight.sh:122`
-    - `/Users/stefanlesnak/Antigravity/Risk App 2/scripts/prod/lib/preflight.sh:125`
+    - `scripts/prod/lib/preflight.sh:122`
+    - `scripts/prod/lib/preflight.sh:125`
   - Preflight matrix RCs:
-    - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/prod/deep-audit-20260222-001703/reports/02_preflight_matrix_rc.txt`
+    - `tests/results/prod/deep-audit-20260222-001703/reports/02_preflight_matrix_rc.txt`
   - Downstream install failures:
-    - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/prod/deep-audit-20260222-001703/logs/09b_install_frontend_invalid_host_range.log`
-    - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/prod/deep-audit-20260222-001703/logs/09c_install_frontend_invalid_container_port.log`
+    - `tests/results/prod/deep-audit-20260222-001703/logs/09b_install_frontend_invalid_host_range.log`
+    - `tests/results/prod/deep-audit-20260222-001703/logs/09c_install_frontend_invalid_container_port.log`
   - `install_frontend.sh` consumes `FRONTEND_CONTAINER_PORT` directly in `docker run -p`:
-    - `/Users/stefanlesnak/Antigravity/Risk App 2/scripts/prod/install_frontend.sh:77`
-    - `/Users/stefanlesnak/Antigravity/Risk App 2/scripts/prod/install_frontend.sh:99`
+    - `scripts/prod/install_frontend.sh:77`
+    - `scripts/prod/install_frontend.sh:99`
 
 ## Evidence Map
 
 ### Baseline and auth readiness
 1. RC summary:
-   - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/prod/deep-audit-20260222-001703/reports/01_baseline_rc.txt`
+   - `tests/results/prod/deep-audit-20260222-001703/reports/01_baseline_rc.txt`
 2. Logs:
-   - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/prod/deep-audit-20260222-001703/logs/01_verify_prod_install_scripts.log`
-   - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/prod/deep-audit-20260222-001703/logs/02_frontend_login_auth_tests.log`
-   - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/prod/deep-audit-20260222-001703/logs/03_backend_auth_prod_tests.log`
+   - `tests/results/prod/deep-audit-20260222-001703/logs/01_verify_prod_install_scripts.log`
+   - `tests/results/prod/deep-audit-20260222-001703/logs/02_frontend_login_auth_tests.log`
+   - `tests/results/prod/deep-audit-20260222-001703/logs/03_backend_auth_prod_tests.log`
 
 ### Script-chain and preflight behavior
 1. Static chain anchors:
-   - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/prod/deep-audit-20260222-001703/reports/02_script_chain_static_evidence.txt`
+   - `tests/results/prod/deep-audit-20260222-001703/reports/02_script_chain_static_evidence.txt`
 2. Preflight matrix RCs/logs:
-   - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/prod/deep-audit-20260222-001703/reports/02_preflight_matrix_rc.txt`
-   - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/prod/deep-audit-20260222-001703/logs/04_preflight_strict_occupied.log`
-   - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/prod/deep-audit-20260222-001703/logs/05_preflight_allow_occupied.log`
-   - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/prod/deep-audit-20260222-001703/logs/06_preflight_invalid_host_range.log`
-   - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/prod/deep-audit-20260222-001703/logs/07_preflight_invalid_container_port.log`
+   - `tests/results/prod/deep-audit-20260222-001703/reports/02_preflight_matrix_rc.txt`
+   - `tests/results/prod/deep-audit-20260222-001703/logs/04_preflight_strict_occupied.log`
+   - `tests/results/prod/deep-audit-20260222-001703/logs/05_preflight_allow_occupied.log`
+   - `tests/results/prod/deep-audit-20260222-001703/logs/06_preflight_invalid_host_range.log`
+   - `tests/results/prod/deep-audit-20260222-001703/logs/07_preflight_invalid_container_port.log`
 
 ### Setup dry-run secret handling
 1. RC and temp-dir diff evidence:
-   - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/prod/deep-audit-20260222-001703/reports/03_setup_dryrun_secret_hygiene.txt`
+   - `tests/results/prod/deep-audit-20260222-001703/reports/03_setup_dryrun_secret_hygiene.txt`
 2. Residual file mode evidence:
-   - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/prod/deep-audit-20260222-001703/reports/03_setup_dryrun_tempdir_contents.txt`
+   - `tests/results/prod/deep-audit-20260222-001703/reports/03_setup_dryrun_tempdir_contents.txt`
 3. Log redaction evidence:
-   - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/prod/deep-audit-20260222-001703/reports/03_setup_dryrun_leak_scan.txt`
+   - `tests/results/prod/deep-audit-20260222-001703/reports/03_setup_dryrun_leak_scan.txt`
 
 ### Image/runtime contracts
 1. RC summary:
-   - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/prod/deep-audit-20260222-001703/reports/04_image_contract_rc.txt`
+   - `tests/results/prod/deep-audit-20260222-001703/reports/04_image_contract_rc.txt`
 2. Backend scripts + runtime user:
-   - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/prod/deep-audit-20260222-001703/logs/10_backend_scripts_presence.log`
-   - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/prod/deep-audit-20260222-001703/logs/11_backend_runtime_user.log`
+   - `tests/results/prod/deep-audit-20260222-001703/logs/10_backend_scripts_presence.log`
+   - `tests/results/prod/deep-audit-20260222-001703/logs/11_backend_runtime_user.log`
 3. Frontend runtime user:
-   - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/prod/deep-audit-20260222-001703/logs/13_frontend_runtime_user.log`
+   - `tests/results/prod/deep-audit-20260222-001703/logs/13_frontend_runtime_user.log`
 
 ### Lifecycle simulation
 1. RC summary:
-   - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/prod/deep-audit-20260222-001703/reports/05_lifecycle_rc.txt`
+   - `tests/results/prod/deep-audit-20260222-001703/reports/05_lifecycle_rc.txt`
 2. Deploy failure trace:
-   - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/prod/deep-audit-20260222-001703/logs/16_lifecycle_deploy.log`
+   - `tests/results/prod/deep-audit-20260222-001703/logs/16_lifecycle_deploy.log`
 3. Follow-on failures:
-   - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/prod/deep-audit-20260222-001703/logs/17_lifecycle_upgrade.log`
-   - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/prod/deep-audit-20260222-001703/logs/18_lifecycle_rollback.log`
-   - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/prod/deep-audit-20260222-001703/logs/19_lifecycle_smoke_after_rollback.log`
-   - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/prod/deep-audit-20260222-001703/logs/20_setup_upgrade_dryrun_existing_install.log`
+   - `tests/results/prod/deep-audit-20260222-001703/logs/17_lifecycle_upgrade.log`
+   - `tests/results/prod/deep-audit-20260222-001703/logs/18_lifecycle_rollback.log`
+   - `tests/results/prod/deep-audit-20260222-001703/logs/19_lifecycle_smoke_after_rollback.log`
+   - `tests/results/prod/deep-audit-20260222-001703/logs/20_setup_upgrade_dryrun_existing_install.log`
 
 ### Security and supply-chain
 1. RC summaries:
-   - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/prod/deep-audit-20260222-001703/reports/06_security_supply_chain_rc.txt`
-   - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/prod/deep-audit-20260222-001703/reports/06b_security_gate_corrections_rc.txt`
+   - `tests/results/prod/deep-audit-20260222-001703/reports/06_security_supply_chain_rc.txt`
+   - `tests/results/prod/deep-audit-20260222-001703/reports/06b_security_gate_corrections_rc.txt`
 2. Counts:
-   - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/prod/deep-audit-20260222-001703/reports/06_security_supply_chain_counts.txt`
+   - `tests/results/prod/deep-audit-20260222-001703/reports/06_security_supply_chain_counts.txt`
 3. Raw scanner outputs:
-   - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/prod/deep-audit-20260222-001703/reports/trivy-backend.json`
-   - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/prod/deep-audit-20260222-001703/reports/trivy-frontend.json`
-   - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/prod/deep-audit-20260222-001703/reports/sbom-backend.json`
-   - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/prod/deep-audit-20260222-001703/reports/grype-backend.json`
-   - `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/prod/deep-audit-20260222-001703/reports/gitleaks-report.json`
+   - `tests/results/prod/deep-audit-20260222-001703/reports/trivy-backend.json`
+   - `tests/results/prod/deep-audit-20260222-001703/reports/trivy-frontend.json`
+   - `tests/results/prod/deep-audit-20260222-001703/reports/sbom-backend.json`
+   - `tests/results/prod/deep-audit-20260222-001703/reports/grype-backend.json`
+   - `tests/results/prod/deep-audit-20260222-001703/reports/gitleaks-report.json`
 
 ### Docs/runtime cross-check anchors
 1. Deployment flow guarantees:
-   - `/Users/stefanlesnak/Antigravity/Risk App 2/docs/deployment/external-postgres-install-scripts.md:122`
-   - `/Users/stefanlesnak/Antigravity/Risk App 2/docs/deployment/installation-manual.md:219`
+   - `docs/deployment/external-postgres-install-scripts.md:122`
+   - `docs/deployment/installation-manual.md:219`
 2. Setup dry-run expectations:
-   - `/Users/stefanlesnak/Antigravity/Risk App 2/docs/deployment/installation-manual.md:113`
+   - `docs/deployment/installation-manual.md:113`
 3. Security hardening policy:
-   - `/Users/stefanlesnak/Antigravity/Risk App 2/docs/deployment/security-checklist.md:40`
+   - `docs/deployment/security-checklist.md:40`
 
 ## Immediate Next Patch Set (P0/P1 Only)
 1. **Fix PH500-DA-001 (P0)**:

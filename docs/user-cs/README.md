@@ -17,7 +17,7 @@ tags:
 
 # Uživatelská dokumentace RiskHub
 
-Zpět na strom dokumentace: <a href="../DOCUMENTATION_TREE.md">/Users/stefanlesnak/Antigravity/Risk App 2/docs/DOCUMENTATION_TREE.md</a>
+Zpět na strom dokumentace: <a href="../DOCUMENTATION_TREE.md">docs/DOCUMENTATION_TREE.md</a>
 
 Tato knihovna je produkční manuál pro všechny ne-admin role. Je napsaná pro reálnou práci: co dělat, kde to dělat a jak rychle diagnostikovat situace typu „nic se nezměnilo“, „nevidím modul“ nebo „nevím, kdo to upravil“.
 

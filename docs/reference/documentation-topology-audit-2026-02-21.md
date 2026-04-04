@@ -52,7 +52,7 @@ python3 scripts/tools/readme_coverage.py audit
 
 ## Topology Artifacts
 
-- Canonical JSON: `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/docs/docs-tree-audit-20260221-235000-canonical-final/docs-tree-audit.json`
-- Canonical Markdown: `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/docs/docs-tree-audit-20260221-235000-canonical-final/docs-tree-audit.md`
-- Full JSON: `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/docs/docs-tree-audit-20260221-235000-full-final/docs-tree-audit.json`
-- Full Markdown: `/Users/stefanlesnak/Antigravity/Risk App 2/tests/results/docs/docs-tree-audit-20260221-235000-full-final/docs-tree-audit.md`
+- Canonical JSON: `tests/results/docs/docs-tree-audit-20260221-235000-canonical-final/docs-tree-audit.json`
+- Canonical Markdown: `tests/results/docs/docs-tree-audit-20260221-235000-canonical-final/docs-tree-audit.md`
+- Full JSON: `tests/results/docs/docs-tree-audit-20260221-235000-full-final/docs-tree-audit.json`
+- Full Markdown: `tests/results/docs/docs-tree-audit-20260221-235000-full-final/docs-tree-audit.md`

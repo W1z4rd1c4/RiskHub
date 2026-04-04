@@ -4,10 +4,10 @@ English-first master index for repository documentation topology.
 
 ## Root Entry Points
 
-- [`/Users/stefanlesnak/Antigravity/Risk App 2/README.md`](../README.md): Repository quick start and canonical startup commands.
-- [`/Users/stefanlesnak/Antigravity/Risk App 2/AGENTS.md`](../AGENTS.md): Agent behavior, source-of-truth order, execution protocol.
-- [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/README.md`](./README.md): Product and engineering documentation index.
-- [`/Users/stefanlesnak/Antigravity/Risk App 2/.planning/README.md`](../.planning/README.md): Planning state, roadmap, codebase maps, and phase archive entry.
+- [`README.md`](../README.md): Repository quick start and canonical startup commands.
+- [`AGENTS.md`](../AGENTS.md): Agent behavior, source-of-truth order, execution protocol.
+- [`docs/README.md`](./README.md): Product and engineering documentation index.
+- [`.planning/README.md`](../.planning/README.md): Planning state, roadmap, codebase maps, and phase archive entry.
 
 ## Tree Map
 
@@ -39,29 +39,29 @@ AGENTS.md
 ## Navigation By Intent
 
 - Product/business behavior:
-  - [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/BUSINESS_LOGIC.md`](./BUSINESS_LOGIC.md)
-  - [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/user/README.md`](./user/README.md)
-  - [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/admin/README.md`](./admin/README.md)
+  - [`docs/BUSINESS_LOGIC.md`](./BUSINESS_LOGIC.md)
+  - [`docs/user/README.md`](./user/README.md)
+  - [`docs/admin/README.md`](./admin/README.md)
 - Security posture and audits:
-  - [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/security/README.md`](./security/README.md)
-  - [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/security/SECURITY.md`](./security/SECURITY.md)
+  - [`docs/security/README.md`](./security/README.md)
+  - [`docs/security/SECURITY.md`](./security/SECURITY.md)
 - Development startup and local workflows:
-  - [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/development/README.md`](./development/README.md)
+  - [`docs/development/README.md`](./development/README.md)
 - Documentation screenshots and support assets:
-  - [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/assets/README.md`](./assets/README.md)
-  - [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/assets/readme/README.md`](./assets/readme/README.md)
+  - [`docs/assets/README.md`](./assets/README.md)
+  - [`docs/assets/readme/README.md`](./assets/readme/README.md)
 - Deployment and operations:
-  - [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/deployment/README.md`](./deployment/README.md)
+  - [`docs/deployment/README.md`](./deployment/README.md)
 - Agent governance and execution:
-  - [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/agent/README.md`](./agent/README.md)
-  - [`/Users/stefanlesnak/Antigravity/Risk App 2/AGENTS.md`](../AGENTS.md)
+  - [`docs/agent/README.md`](./agent/README.md)
+  - [`AGENTS.md`](../AGENTS.md)
 - Active planning and current truth:
-  - [`/Users/stefanlesnak/Antigravity/Risk App 2/.planning/STATE.md`](../.planning/STATE.md)
-  - [`/Users/stefanlesnak/Antigravity/Risk App 2/.planning/ROADMAP.md`](../.planning/ROADMAP.md)
-  - [`/Users/stefanlesnak/Antigravity/Risk App 2/.planning/codebase/STRUCTURE.md`](../.planning/codebase/STRUCTURE.md)
+  - [`.planning/STATE.md`](../.planning/STATE.md)
+  - [`.planning/ROADMAP.md`](../.planning/ROADMAP.md)
+  - [`.planning/codebase/STRUCTURE.md`](../.planning/codebase/STRUCTURE.md)
 - Historical planning archives:
-  - [`/Users/stefanlesnak/Antigravity/Risk App 2/.planning/phases/README.md`](../.planning/phases/README.md)
-  - [`/Users/stefanlesnak/Antigravity/Risk App 2/docs/reference/LEGACY_PATH_MAP.md`](./reference/LEGACY_PATH_MAP.md) (historical path/archive reference)
+  - [`.planning/phases/README.md`](../.planning/phases/README.md)
+  - [`docs/reference/LEGACY_PATH_MAP.md`](./reference/LEGACY_PATH_MAP.md) (historical path/archive reference)
 
 ## Canonical vs Archival Boundary
 
