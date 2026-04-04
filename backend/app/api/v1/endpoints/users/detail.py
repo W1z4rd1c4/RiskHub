@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api import deps
 from app.core.activity_logger import build_change_set, log_activity
 from app.core.config import Settings, get_settings
+from app.core.email import email_equals
 from app.core.security import get_password_hash
 from app.core.user_query_options import user_selectinload_options
 from app.db.session import get_db
@@ -84,7 +85,7 @@ async def update_user(
 
     # Check email uniqueness if changing email
     if user_data.email and user_data.email != user.email:
-        email_check = await db.execute(select(User).where(User.email == user_data.email))
+        email_check = await db.execute(select(User).where(email_equals(User.email, user_data.email)))
         if email_check.scalar_one_or_none():
             raise HTTPException(status_code=400, detail="Email already registered")
 

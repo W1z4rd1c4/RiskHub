@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import ipaddress
 import json
 import shlex
 import tarfile
@@ -15,6 +16,7 @@ TEMPLATES_DIR = Path(__file__).resolve().parents[1] / "templates"
 DEFAULT_DATABASE_URL = "postgresql+asyncpg://riskhub:riskhub@db:5432/riskhub"
 DEFAULT_SECRET_DIR = Path("/etc/riskhub/secrets")
 DEFAULT_RUNTIME_DIR = Path("/etc/riskhub/runtime")
+DEFAULT_DOCKER_NETWORK_SUBNET = "172.31.255.0/24"
 SECRET_PLACEHOLDERS = {
     "database_url": "CHANGE_ME_DATABASE_URL",
     "secret_key": "CHANGE_ME_SECRET_KEY_AT_LEAST_32_CHARACTERS",
@@ -77,6 +79,23 @@ def _validate_positive_int(name: str, value: str | int) -> int:
     if parsed < 1:
         raise RenderError(f"{name} must be at least 1")
     return parsed
+
+
+def _validate_cidr(name: str, value: str) -> str:
+    try:
+        return str(ipaddress.ip_network(value.strip(), strict=False))
+    except ValueError as exc:
+        raise RenderError(f"{name} must be a valid CIDR network") from exc
+
+
+def _parse_json_string_list(name: str, raw_value: str) -> tuple[str, ...]:
+    try:
+        parsed = json.loads(raw_value)
+    except json.JSONDecodeError as exc:
+        raise RenderError(f"{name} must be a JSON array of strings") from exc
+    if not isinstance(parsed, list) or not all(isinstance(item, str) and item.strip() for item in parsed):
+        raise RenderError(f"{name} must be a JSON array of non-empty strings")
+    return tuple(item.strip() for item in parsed)
 
 
 def _read_secret_file(path: Path, field_name: str) -> str:
@@ -212,6 +231,8 @@ class DeployConfig:
     bootstrap_cro_email: str
     api_workers: int
     frontend_bind_port: int
+    trusted_proxies: tuple[str, ...] | None
+    docker_network_subnet: str
 
     @classmethod
     def from_env_file(cls, path: Path) -> "DeployConfig":
@@ -236,6 +257,13 @@ class DeployConfig:
         if admin_email.lower() == cro_email.lower():
             raise RenderError("BOOTSTRAP_ADMIN_EMAIL and BOOTSTRAP_CRO_EMAIL must be different")
 
+        trusted_proxies_raw = values.get("TRUSTED_PROXIES", "").strip()
+        trusted_proxies = _parse_json_string_list("TRUSTED_PROXIES", trusted_proxies_raw) if trusted_proxies_raw else None
+        docker_network_subnet = _validate_cidr(
+            "DOCKER_NETWORK_SUBNET",
+            values.get("DOCKER_NETWORK_SUBNET", DEFAULT_DOCKER_NETWORK_SUBNET),
+        )
+
         return cls(
             public_url=public_url,
             entra_tenant_id=require("ENTRA_TENANT_ID"),
@@ -245,6 +273,8 @@ class DeployConfig:
             bootstrap_cro_email=cro_email,
             api_workers=api_workers,
             frontend_bind_port=frontend_bind_port,
+            trusted_proxies=trusted_proxies,
+            docker_network_subnet=docker_network_subnet,
         )
 
     @property
@@ -257,7 +287,15 @@ class DeployConfig:
         host = "redis" if target == "docker" else "127.0.0.1"
         return f"redis://:{secrets.redis_password}@{host}:6379/0"
 
-    def backend_env(self, secret_dir: Path, runtime_dir: Path, credential_mode: str) -> str:
+    def effective_trusted_proxies(self, target: str) -> list[str]:
+        if self.trusted_proxies is not None:
+            return list(self.trusted_proxies)
+        defaults = ["127.0.0.1", "::1"]
+        if target == "docker":
+            defaults.append(self.docker_network_subnet)
+        return defaults
+
+    def backend_env(self, target: str, secret_dir: Path, runtime_dir: Path, credential_mode: str) -> str:
         values = {
             "DEBUG": "false",
             "MOCK_AUTH_ENABLED": "false",
@@ -266,6 +304,7 @@ class DeployConfig:
             "DATABASE_URL_FILE": str(secret_dir / "database_url"),
             "CORS_ORIGINS": json.dumps([self.public_url]),
             "ALLOWED_HOSTS": json.dumps([self.hostname]),
+            "TRUSTED_PROXIES": json.dumps(self.effective_trusted_proxies(target)),
             "REDIS_URL_FILE": str(runtime_dir / "redis_url"),
             "ENTRA_TENANT_ID": self.entra_tenant_id,
             "ENTRA_CLIENT_ID": self.entra_client_id,
@@ -276,6 +315,8 @@ class DeployConfig:
             "BOOTSTRAP_CRO_EMAIL": self.bootstrap_cro_email,
             "BOOTSTRAP_CRO_ACCESS_SCOPE": "global",
         }
+        if target == "docker":
+            values["DOCKER_NETWORK_SUBNET"] = self.docker_network_subnet
         if credential_mode == "certificate":
             assert self.entra_client_certificate_thumbprint is not None
             values["ENTRA_CLIENT_CERTIFICATE_THUMBPRINT"] = self.entra_client_certificate_thumbprint
@@ -286,12 +327,14 @@ class DeployConfig:
             values["ENTRA_CLIENT_SECRET_FILE"] = str(secret_dir / "entra_client_secret")
         return "\n".join(f"{key}={value}" for key, value in values.items()) + "\n"
 
-    def frontend_env(self) -> str:
+    def frontend_env(self, target: str) -> str:
         values = {
             "FRONTEND_HOST_PORT": str(self.frontend_bind_port),
             "FRONTEND_CONTAINER_PORT": "80",
             "SERVER_NAME": self.hostname,
         }
+        if target == "docker":
+            values["DOCKER_NETWORK_SUBNET"] = self.docker_network_subnet
         return "\n".join(f"{key}={value}" for key, value in values.items()) + "\n"
 
     def metadata_env(
@@ -308,6 +351,7 @@ class DeployConfig:
             "SERVER_NAME": self.hostname,
             "CORS_ORIGINS_JSON": json.dumps([self.public_url]),
             "ALLOWED_HOSTS_JSON": json.dumps([self.hostname]),
+            "TRUSTED_PROXIES_JSON": json.dumps(self.effective_trusted_proxies(target)),
             "SECRET_DIR": str(secret_dir),
             "RUNTIME_DIR": str(runtime_dir),
             "REDIS_URL_FILE": str(runtime_dir / "redis_url"),
@@ -323,6 +367,8 @@ class DeployConfig:
             "SCHEDULER_ENABLED": "true",
             "SCHEDULER_WORKERS": "1",
         }
+        if target == "docker":
+            values["DOCKER_NETWORK_SUBNET"] = self.docker_network_subnet
         return _render_shell_assignments(values)
 
 
@@ -332,10 +378,10 @@ def _write_runtime_files(config_path: Path, target: str, secret_dir: Path, runti
     credential_mode = secrets.validate(config)
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "backend.env").write_text(
-        config.backend_env(secret_dir, runtime_dir, credential_mode),
+        config.backend_env(target, secret_dir, runtime_dir, credential_mode),
         encoding="utf-8",
     )
-    (out_dir / "frontend.env").write_text(config.frontend_env(), encoding="utf-8")
+    (out_dir / "frontend.env").write_text(config.frontend_env(target), encoding="utf-8")
     (out_dir / "metadata.env").write_text(
         config.metadata_env(target, secret_dir, runtime_dir, secrets, credential_mode),
         encoding="utf-8",
@@ -498,8 +544,8 @@ def main(argv: Iterable[str] | None = None) -> int:
                     "runtime_dir": args.runtime_dir,
                     "entra_graph_credential_mode": credential_mode,
                     "redis_url": config.redis_url(args.target, secrets),
-                    "backend_env": config.backend_env(Path(args.secret_dir), Path(args.runtime_dir), credential_mode),
-                    "frontend_env": config.frontend_env(),
+                    "backend_env": config.backend_env(args.target, Path(args.secret_dir), Path(args.runtime_dir), credential_mode),
+                    "frontend_env": config.frontend_env(args.target),
                 }
             )
         elif args.command == "bundle-version":

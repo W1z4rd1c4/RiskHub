@@ -10,6 +10,7 @@ import random
 from sqlalchemy import select
 
 from app.core.config import get_settings
+from app.core.email import email_equals
 from app.core.security import get_password_hash
 from app.db.session import session_context
 from app.models import Department, Role, User
@@ -113,7 +114,7 @@ async def seed_users():
             print("Creating initial users in database...")
             db_users = {}
             for user_data in users_to_create:
-                result = await db.execute(select(User).filter(User.email == user_data["email"]))
+                result = await db.execute(select(User).where(email_equals(User.email, user_data["email"])))
                 existing = result.scalar_one_or_none()
 
                 if not existing:
@@ -201,7 +202,7 @@ async def seed_users():
                         email = "ops.employee@riskhub.test"  # DEMO ACCOUNT
                         name = "Operations Employee"
 
-                    result = await db.execute(select(User).filter(User.email == email))
+                    result = await db.execute(select(User).where(email_equals(User.email, email)))
                     existing = result.scalar_one_or_none()
 
                     if not existing:

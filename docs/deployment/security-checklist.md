@@ -26,9 +26,12 @@ RiskHub production deploys must satisfy these invariants:
   - nginx is the public listener
   - backend API stays on `127.0.0.1:8000`
   - scheduler stays on `127.0.0.1:8001`
+  - default `TRUSTED_PROXIES` is loopback only unless operators explicitly add upstream proxy CIDRs
 - Docker target:
   - frontend container is the public listener
   - backend is not intended to be directly exposed
+  - deploy tooling pins a dedicated docker subnet and renders it into `TRUSTED_PROXIES`
+  - if an existing `riskhub-network` uses a different subnet, preflight fails until the network is recreated or the configured subnet is updated
 
 ## Authentication
 
@@ -50,6 +53,7 @@ RiskHub production deploys must satisfy these invariants:
 - Backend and frontend runtime processes must run as non-root.
 - Keep `/docs` and `/openapi.json` disabled in production.
 - Keep Redis enabled because rate limiting and account lockout depend on it.
+- Avoid broad private-network `TRUSTED_PROXIES` ranges unless you intentionally trust all peers inside those networks to supply `X-Forwarded-For`.
 - Treat any dead-letter outbox event as an operational incident until triaged.
 - After deploy, verify outbox backlog is healthy:
   - dead-letter count is `0`

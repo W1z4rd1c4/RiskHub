@@ -325,7 +325,7 @@ async def test_update_user_email_conflict(auth_client: AsyncClient, test_user: U
     db_session.add(other_user)
     await db_session.commit()
 
-    update_data = {"email": "conflict@example.com"}
+    update_data = {"email": "Conflict@Example.com"}
     response = await auth_client.patch(f"/api/v1/users/{test_user.id}", json=update_data)
     assert response.status_code == 400
     assert "Email already registered" in response.json()["detail"]

@@ -24,6 +24,7 @@ x-backend-environment: &backend-environment
   ENTRA_CLOCK_SKEW_SECONDS: ${ENTRA_CLOCK_SKEW_SECONDS:-60}
   ENTRA_OIDC_DISCOVERY_URL: ${ENTRA_OIDC_DISCOVERY_URL:-}
   CORS_ORIGINS: "[\"http://localhost:80\",\"http://localhost:5173\",\"http://frontend:80\",\"http://${LAN_HOST:-localhost}:80\",\"http://${LAN_HOST:-localhost}:8000\"]"
+  TRUSTED_PROXIES: "[\"127.0.0.1\",\"::1\",\"${RISKHUB_DOCKER_SUBNET:-172.31.254.0/24}\"]"
 
 services:
   db:
@@ -124,3 +125,6 @@ volumes:
 networks:
   riskhub-network:
     driver: bridge
+    ipam:
+      config:
+        - subnet: ${RISKHUB_DOCKER_SUBNET:-172.31.254.0/24}

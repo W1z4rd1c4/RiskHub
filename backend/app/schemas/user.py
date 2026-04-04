@@ -2,7 +2,9 @@ from datetime import datetime
 from enum import Enum
 from typing import Optional
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, field_validator
+
+from app.core.email import normalize_email
 
 
 class AccessScopeEnum(str, Enum):
@@ -35,6 +37,11 @@ class UserBase(BaseModel):
     department_id: Optional[int] = None
     manager_id: Optional[int] = None  # Manager-employee hierarchy
 
+    @field_validator("email", mode="before")
+    @classmethod
+    def _normalize_email(cls, value: str) -> str | None:
+        return normalize_email(value)
+
 
 class UserCreate(UserBase):
     """Schema for creating User."""
@@ -50,6 +57,11 @@ class UserUpdate(BaseModel):
     department_id: Optional[int] = None
     manager_id: Optional[int] = None
     is_active: Optional[bool] = None
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def _normalize_email(cls, value: str | None) -> str | None:
+        return normalize_email(value)
 
 
 class UserRead(BaseModel):

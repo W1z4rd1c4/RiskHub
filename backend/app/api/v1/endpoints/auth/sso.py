@@ -1,11 +1,12 @@
 from fastapi import APIRouter, Depends
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
 from app.core.config import Settings, get_settings
+from app.core.email import email_equals, normalize_email
 from app.db.session import get_db
 from app.models import Role, RolePermission, User
 from app.schemas.auth import SsoExchangeRequest, TokenResponse
@@ -103,7 +104,7 @@ async def _find_user_by_email(db: AsyncSession, email: str):
     result = await db.execute(
         select(User)
         .options(permission_load, selectinload(User.department))
-        .where(func.lower(User.email) == email.lower())
+        .where(email_equals(User.email, email))
     )
     return result.scalar_one_or_none()
 
@@ -138,9 +139,12 @@ async def _link_existing_user_if_needed(
 async def _jit_provision_user(db: AsyncSession, *, identity):
     permission_load = _user_permission_load()
     default_role = await _resolve_safe_default_role(db)
+    normalized_email = normalize_email(identity.email)
+    if normalized_email is None:
+        raise ValueError("identity.email must be present for JIT provisioning")
     new_user = User(
-        email=identity.email.lower(),
-        name=identity.name or identity.email.lower(),
+        email=normalized_email,
+        name=identity.name or normalized_email,
         external_id=identity.external_id,
         hashed_password=None,
         role_id=default_role.id,
@@ -216,7 +220,7 @@ async def sso_exchange(
     if not user.is_active:
         return JSONResponse(status_code=403, content={"detail": "User account is inactive", "code": "USER_INACTIVE"})
 
-    token_response = _build_token_response(user)
+    token_response = _build_token_response(user, settings=settings)
     await _issue_refresh_session(db=db, request=request, response=response, user=user, settings=settings)
 
     from app.core.activity_logger import log_activity

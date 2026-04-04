@@ -24,6 +24,8 @@ Optional keys:
 - `API_WORKERS` default `4`
 - `FRONTEND_BIND_PORT` default `80`
 - `ENTRA_CLIENT_CERTIFICATE_THUMBPRINT` when using certificate credential mode
+- `DOCKER_NETWORK_SUBNET` default `172.31.255.0/24` for managed docker installs
+- `TRUSTED_PROXIES` JSON array override when you need explicit proxy CIDRs beyond the target defaults
 
 Secret directory:
 
@@ -55,6 +57,7 @@ These are rendered by the deploy tooling and are not operator-edited:
 
 - `CORS_ORIGINS`
 - `ALLOWED_HOSTS`
+- `TRUSTED_PROXIES`
 - `SERVER_NAME`
 - `REDIS_URL`
 - `DATABASE_URL_FILE`
@@ -71,6 +74,17 @@ Target-specific Redis URLs:
 
 - docker: `redis://:<password>@redis:6379/0`
 - linux: `redis://:<password>@127.0.0.1:6379/0`
+
+Target-specific trusted proxy defaults:
+
+- docker: `["127.0.0.1", "::1", "<DOCKER_NETWORK_SUBNET>"]`
+- linux: `["127.0.0.1", "::1"]`
+
+Docker network notes:
+
+- managed docker installs create `riskhub-network` with the configured `DOCKER_NETWORK_SUBNET`
+- deploy preflight fails if an existing `riskhub-network` does not match that subnet
+- broad RFC1918 `TRUSTED_PROXIES` ranges weaken `X-Forwarded-For` trust for rate limiting, refresh-session IP attribution, and request logging
 
 ## Public Wrapper Commands
 
@@ -194,6 +208,7 @@ Linux target:
 - `AUTH_MODE=microsoft_sso`
 - `SECRET_KEY_FILE` resolves to a value with length at least `32`
 - explicit `CORS_ORIGINS`
+- access-token bearer auth requires RiskHub access-token claims (`type=access`, `iss=riskhub`, `aud=riskhub-api`)
 - explicit `DATABASE_URL_FILE`
 - one valid Entra confidential credential mechanism for Graph directory access
 - reachable `REDIS_URL_FILE`

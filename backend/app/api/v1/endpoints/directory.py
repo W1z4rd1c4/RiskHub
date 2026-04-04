@@ -11,6 +11,7 @@ from app.api import deps
 from app.core.activity_logger import log_activity
 from app.core.config import Settings, get_settings
 from app.core.datetime_utils import utc_now
+from app.core.email import email_equals, normalize_email
 from app.db.session import get_db
 from app.models import Department, Role, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
@@ -153,7 +154,9 @@ async def import_directory_user(
     directory_email = directory_user.email or directory_user.user_principal_name
     if not directory_email:
         raise HTTPException(status_code=400, detail="Directory user is missing an importable email address")
-    normalized_email = directory_email.strip().lower()
+    normalized_email = normalize_email(directory_email)
+    if normalized_email is None:
+        raise HTTPException(status_code=400, detail="Directory user is missing an importable email address")
 
     now = utc_now()
     user = (
@@ -162,7 +165,7 @@ async def import_directory_user(
     import_status = "updated"
     if user is None:
         existing_email_user = (
-            await db.execute(select(User).where(func.lower(User.email) == normalized_email))
+            await db.execute(select(User).where(email_equals(User.email, normalized_email)))
         ).scalar_one_or_none()
         if (
             existing_email_user is not None

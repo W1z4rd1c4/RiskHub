@@ -1,4 +1,6 @@
 """Dependency injection utilities for FastAPI endpoints."""
+from datetime import timedelta
+
 from fastapi import Depends, Header, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
@@ -15,6 +17,61 @@ from app.models import Role, RolePermission, User
 security = HTTPBearer(auto_error=False)
 
 
+def _user_permission_load():
+    return selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
+
+
+async def _resolve_bearer_user(
+    *,
+    db: AsyncSession,
+    settings: Settings,
+    token: str,
+    update_last_active: bool,
+    optional: bool,
+) -> User | None:
+    try:
+        payload = decode_access_token(token, settings=settings)
+        user_id = payload.get("user_id")
+        token_version_claim = payload.get("token_version")
+        if not isinstance(user_id, int):
+            raise HTTPException(status_code=401, detail="Invalid token")
+        if token_version_claim is not None and not isinstance(token_version_claim, int):
+            raise HTTPException(status_code=401, detail="Invalid token")
+    except (TokenDecodeError, HTTPException) as exc:
+        if optional:
+            return None
+        if isinstance(exc, HTTPException):
+            raise exc
+        raise HTTPException(status_code=401, detail="Invalid token") from exc
+
+    result = await db.execute(
+        select(User)
+        .options(_user_permission_load(), selectinload(User.department))
+        .where(User.id == user_id)
+    )
+    user = result.scalar_one_or_none()
+    if not user or not user.is_active:
+        if optional:
+            return None
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    if token_version_claim is not None and token_version_claim != user.token_version:
+        if optional:
+            return None
+        raise HTTPException(status_code=401, detail="Session revoked")
+
+    if update_last_active:
+        now = utc_now()
+        last_active = coerce_utc(user.last_active_at)
+        should_update = not last_active or (now - last_active) > timedelta(minutes=1)
+        if should_update:
+            # Keep the write best-effort and in-session so callers control commits.
+            user.last_active_at = now
+            db.add(user)
+
+    return user
+
+
 async def get_current_user(
     db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
@@ -27,65 +84,32 @@ async def get_current_user(
     import logging
 
     logger = logging.getLogger(__name__)
-    user_id = None
-    token_version_claim: int | None = None
 
     # 1. Check Mock Auth (Development/Testing only)
     # STRICT CHECK: Must be enabled in settings AND debug mode must be True
     if x_mock_user_id and settings.mock_auth_enabled and settings.debug:
         logger.warning(f"MOCK AUTH USED: User ID {x_mock_user_id} - DO NOT USE IN PRODUCTION")
-        user_id = x_mock_user_id
+        result = await db.execute(
+            select(User)
+            .options(_user_permission_load(), selectinload(User.department))
+            .where(User.id == x_mock_user_id)
+        )
+        user = result.scalar_one_or_none()
+        if not user or not user.is_active:
+            raise HTTPException(status_code=401, detail="Unauthorized")
+        return user
 
     # 2. Check JWT
-    elif credentials:
-        try:
-            token = credentials.credentials
-            payload = decode_access_token(token)
-            user_id = payload.get("user_id")
-            claim = payload.get("token_version")
-            if isinstance(claim, int):
-                token_version_claim = claim
-            elif claim is not None:
-                raise HTTPException(status_code=401, detail="Invalid token")
-        except TokenDecodeError:
-            raise HTTPException(status_code=401, detail="Invalid token")
-
-    if user_id is None:
+    if not credentials:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
-    # Eager load role -> permissions -> permission AND department
-    permission_load = selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
-
-    result = await db.execute(
-        select(User)
-        .options(permission_load, selectinload(User.department))
-        .where(User.id == user_id)
+    return await _resolve_bearer_user(
+        db=db,
+        settings=settings,
+        token=credentials.credentials,
+        update_last_active=True,
+        optional=False,
     )
-    user = result.scalar_one_or_none()
-
-    if not user or not user.is_active:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-
-    if token_version_claim is not None and token_version_claim != user.token_version:
-        raise HTTPException(status_code=401, detail="Session revoked")
-
-    # Update last_active_at (debounced 1 min to reduce DB writes)
-    from datetime import timedelta
-
-    now = utc_now()
-    last_active = coerce_utc(user.last_active_at)
-    should_update = not last_active or (now - last_active) > timedelta(minutes=1)
-
-    if should_update:
-        # Update last_active_at in-session. Do NOT commit here to avoid
-        # breaking transaction boundaries for the caller. The update will
-        # be committed by endpoints that write (POST/PUT/DELETE) or flushed
-        # at session cleanup. For read-only GET requests the update may not
-        # persist, which is acceptable for best-effort presence tracking.
-        user.last_active_at = now
-        db.add(user)
-
-    return user
 
 
 async def get_current_committee_user(
@@ -103,7 +127,8 @@ async def get_current_committee_user(
 
 async def get_current_user_optional(
     authorization: str | None = Header(None),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
 ) -> User | None:
     """
     Optional authentication for endpoints that work with/without auth.
@@ -119,14 +144,14 @@ async def get_current_user_optional(
         return None
 
     try:
-        token = authorization.split(" ")[1]
-        payload = decode_access_token(token)
-        user_id = payload.get("user_id")
-        if user_id:
-            result = await db.execute(
-                select(User).where(User.id == user_id)
-            )
-            return result.scalar_one_or_none()
+        token = authorization.split(" ", 1)[1]
+        return await _resolve_bearer_user(
+            db=db,
+            settings=settings,
+            token=token,
+            update_last_active=False,
+            optional=True,
+        )
     except Exception as e:
         import logging
         logger = logging.getLogger(__name__)

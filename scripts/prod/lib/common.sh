@@ -120,13 +120,33 @@ docker_network_exists() {
   docker network inspect "$1" >/dev/null 2>&1
 }
 
+docker_network_subnets() {
+  docker network inspect "$1" --format '{{range .IPAM.Config}}{{println .Subnet}}{{end}}' 2>/dev/null | tr -d '\r'
+}
+
 docker_volume_exists() {
   docker volume inspect "$1" >/dev/null 2>&1
 }
 
 ensure_network() {
   local name="$1"
+  local expected_subnet="${2:-}"
   if docker_network_exists "$name"; then
+    if [[ -n "$expected_subnet" ]]; then
+      local existing_subnets
+      existing_subnets="$(docker_network_subnets "$name")"
+      if [[ -z "$existing_subnets" ]]; then
+        die "Docker network '$name' exists but has no inspectable subnet. Recreate it or set a matching DOCKER_NETWORK_SUBNET."
+      fi
+      if ! printf '%s\n' "$existing_subnets" | grep -Fxq "$expected_subnet"; then
+        die "Docker network '$name' uses subnet(s) [$existing_subnets], expected '$expected_subnet'. Recreate the network or update DOCKER_NETWORK_SUBNET."
+      fi
+    fi
+    return 0
+  fi
+  if [[ -n "$expected_subnet" ]]; then
+    run docker network create --subnet "$expected_subnet" "$name" >/dev/null
+    log "Created docker network: $name ($expected_subnet)"
     return 0
   fi
   run docker network create "$name" >/dev/null

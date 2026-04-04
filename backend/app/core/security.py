@@ -1,6 +1,6 @@
 import logging
 from datetime import UTC, datetime, timedelta
-from typing import Iterable, Optional
+from typing import Any, Iterable, Optional
 
 import jwt
 from fastapi import Depends, Header, HTTPException, status
@@ -10,15 +10,17 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.config import get_settings
+from app.core.config import Settings, get_settings
 from app.core.permissions import ensure_business_view_access, has_permission
 from app.db.session import get_db
 from app.models import Role, RolePermission, User
 
-settings = get_settings()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 logger = logging.getLogger(__name__)
 DUMMY_PASSWORD_HASH = "$2b$12$PKiOVCVtyq61.6OteU0aAOhNxM5hP3/jHGgVLh0mQYZe0B2YfM7uy"
+ACCESS_TOKEN_TYPE = "access"
+ACCESS_TOKEN_ISSUER = "riskhub"
+ACCESS_TOKEN_AUDIENCE = "riskhub-api"
 
 # Backward-compatible alias used by auth dependencies.
 TokenDecodeError = InvalidTokenError
@@ -42,7 +44,12 @@ def get_password_hash(password: str) -> str:
 
 
 # JWT token utilities
-def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
+def create_access_token(
+    data: dict[str, Any],
+    expires_delta: timedelta | None = None,
+    *,
+    settings: Settings | None = None,
+) -> str:
     """
     Create a JWT access token.
 
@@ -53,13 +60,21 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
     Returns:
         Encoded JWT token string
     """
+    active_settings = settings or get_settings()
     to_encode = data.copy()
-    expire = datetime.now(UTC) + (expires_delta or timedelta(minutes=settings.access_token_expire_minutes))
-    to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, settings.secret_key, algorithm="HS256")
+    expire = datetime.now(UTC) + (expires_delta or timedelta(minutes=active_settings.access_token_expire_minutes))
+    to_encode.update(
+        {
+            "type": ACCESS_TOKEN_TYPE,
+            "iss": ACCESS_TOKEN_ISSUER,
+            "aud": ACCESS_TOKEN_AUDIENCE,
+            "exp": expire,
+        }
+    )
+    return jwt.encode(to_encode, active_settings.secret_key, algorithm="HS256")
 
 
-def decode_access_token(token: str) -> dict:
+def decode_access_token(token: str, *, settings: Settings | None = None) -> dict[str, Any]:
     """
     Decode and validate a JWT access token.
 
@@ -72,7 +87,18 @@ def decode_access_token(token: str) -> dict:
     Raises:
         InvalidTokenError: If token is invalid or expired
     """
-    return jwt.decode(token, settings.secret_key, algorithms=["HS256"])
+    active_settings = settings or get_settings()
+    payload = jwt.decode(
+        token,
+        active_settings.secret_key,
+        algorithms=["HS256"],
+        audience=ACCESS_TOKEN_AUDIENCE,
+        issuer=ACCESS_TOKEN_ISSUER,
+        options={"require": ["exp", "aud", "iss", "type"]},
+    )
+    if payload.get("type") != ACCESS_TOKEN_TYPE:
+        raise InvalidTokenError("Unexpected token type")
+    return payload
 
 
 async def get_current_user(

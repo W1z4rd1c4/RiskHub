@@ -211,6 +211,38 @@ preflight_frontend_env() {
   fi
 }
 
+preflight_docker_network_contract() {
+  local backend_env="$1"
+  local frontend_env="$2"
+  local backend_subnet frontend_subnet expected_subnet
+  backend_subnet="$(envfile_get "$backend_env" "DOCKER_NETWORK_SUBNET" || true)"
+  frontend_subnet="$(envfile_get "$frontend_env" "DOCKER_NETWORK_SUBNET" || true)"
+
+  if [[ -z "$backend_subnet" && -z "$frontend_subnet" ]]; then
+    return 0
+  fi
+  if [[ -z "$backend_subnet" || -z "$frontend_subnet" ]]; then
+    die "Docker runtime env contract is incomplete: DOCKER_NETWORK_SUBNET must be present in both backend.env and frontend.env."
+  fi
+  if [[ "$backend_subnet" != "$frontend_subnet" ]]; then
+    die "Docker runtime env contract mismatch: backend.env DOCKER_NETWORK_SUBNET ($backend_subnet) does not match frontend.env ($frontend_subnet)."
+  fi
+
+  expected_subnet="$backend_subnet"
+  if ! docker_network_exists "$NETWORK_NAME"; then
+    return 0
+  fi
+
+  local existing_subnets
+  existing_subnets="$(docker_network_subnets "$NETWORK_NAME")"
+  if [[ -z "$existing_subnets" ]]; then
+    die "Existing docker network '$NETWORK_NAME' has no inspectable subnet. Recreate the network before deploy."
+  fi
+  if ! printf '%s\n' "$existing_subnets" | grep -Fxq "$expected_subnet"; then
+    die "Existing docker network '$NETWORK_NAME' uses subnet(s) [$existing_subnets], expected '$expected_subnet'. Recreate the network or update DOCKER_NETWORK_SUBNET."
+  fi
+}
+
 preflight_check_db_connectivity() {
   local backend_env="$1"
   local backend_image="$2"

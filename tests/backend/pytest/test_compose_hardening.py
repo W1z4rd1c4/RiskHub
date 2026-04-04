@@ -73,6 +73,19 @@ def test_base_compose_backend_publish_is_loopback_bound():
 
     assert "127.0.0.1:8000:8000" in backend_ports
     assert not any(_is_public_publish_for_backend_8000(port) for port in backend_ports)
+
+
+def test_base_compose_pins_network_subnet_and_backend_trusted_proxies():
+    compose_text = (REPO_ROOT / "docker-compose.yml").read_text(encoding="utf-8")
+    expected_trusted_proxies = (
+        'TRUSTED_PROXIES: "[\\"127.0.0.1\\",\\"::1\\",\\"${RISKHUB_DOCKER_SUBNET:-172.31.254.0/24}\\"]"'
+    )
+
+    assert expected_trusted_proxies in compose_text
+    assert "ipam:" in compose_text
+    assert "- subnet: ${RISKHUB_DOCKER_SUBNET:-172.31.254.0/24}" in compose_text
+
+
 def test_prod_compose_artifact_is_absent():
     compose_path = REPO_ROOT / "docker-compose.prod.yml"
     assert not compose_path.exists()

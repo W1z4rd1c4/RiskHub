@@ -2,8 +2,9 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, field_validator
 
+from app.core.email import normalize_email
 from app.schemas.user import AccessScopeEnum, RoleRead
 
 
@@ -67,3 +68,8 @@ class AccessUserUpdate(BaseModel):
     department_id: Optional[int] = None
     manager_id: Optional[int] = None
     access_scope: Optional[AccessScopeEnum] = None
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def _normalize_email(cls, value: str | None) -> str | None:
+        return normalize_email(value)

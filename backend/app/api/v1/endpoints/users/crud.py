@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api import deps
 from app.core.activity_logger import log_activity
 from app.core.config import Settings, get_settings
+from app.core.email import email_equals
 from app.core.security import get_password_hash
 from app.core.user_query_options import user_selectinload_options
 from app.db.session import get_db
@@ -85,7 +86,7 @@ async def create_user(
         )
 
     # Check if email already exists
-    result = await db.execute(select(User).where(User.email == user_data.email))
+    result = await db.execute(select(User).where(email_equals(User.email, user_data.email)))
     if result.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Email already registered")
 

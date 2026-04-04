@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.api.v1.router import api_router
+from app.core.client_ip import find_broad_trusted_proxy_entries
 from app.core.config import Settings, get_settings
 from app.core.datetime_utils import utc_now
 
@@ -65,6 +66,18 @@ def _validate_production_settings(settings: Settings) -> None:
     if not settings.entra_tenant_id or not settings.entra_client_id:
         raise RuntimeError(
             "FATAL: ENTRA_TENANT_ID and ENTRA_CLIENT_ID are required when AUTH_MODE=microsoft_sso and DEBUG=false."
+        )
+
+    broad_proxy_entries = find_broad_trusted_proxy_entries(settings.trusted_proxies)
+    if broad_proxy_entries:
+        logger.warning(
+            "trusted_proxy_broad_network_warning",
+            message=(
+                "TRUSTED_PROXIES contains broad network ranges. "
+                "X-Forwarded-For handling, rate limiting, refresh-session IP attribution, and request logs "
+                "will trust peers inside these ranges."
+            ),
+            trusted_proxies=broad_proxy_entries,
         )
 
 

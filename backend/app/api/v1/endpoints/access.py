@@ -6,6 +6,7 @@ from sqlalchemy.orm import selectinload
 
 from app.api import deps
 from app.core.activity_logger import build_change_set, log_activity
+from app.core.email import email_equals
 from app.core.permissions import get_effective_permissions, get_scope_label, is_privileged_user
 from app.core.user_query_options import user_selectinload_options
 from app.db.session import get_db
@@ -223,7 +224,7 @@ async def update_access_user(
     if "email" in identity_update and identity_update["email"] != user.email:
         email_check = await db.execute(
             select(User.id)
-            .where(User.email == identity_update["email"])
+            .where(email_equals(User.email, identity_update["email"]))
             .where(User.id != user.id)
             .limit(1)
         )
