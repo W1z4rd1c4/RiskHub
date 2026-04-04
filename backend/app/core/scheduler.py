@@ -367,11 +367,79 @@ def _resolve_lock_provider() -> SchedulerLockProvider:
 async def _mark_runtime_started() -> None:
     global _runtime_run_id
     _runtime_run_id = str(uuid4())
-    await _record_job_start(
-        job_name=SCHEDULER_RUNTIME_JOB_NAME,
-        run_id=_runtime_run_id,
-        trigger_type="startup",
-    )
+    started_at = utc_now()
+
+    async with get_db_context() as db:
+        stale_runtime_rows = (
+            await db.execute(
+                select(SchedulerJobRun)
+                .where(SchedulerJobRun.job_name == SCHEDULER_RUNTIME_JOB_NAME)
+                .where(SchedulerJobRun.status == "running")
+                .order_by(SchedulerJobRun.started_at.asc())
+            )
+        ).scalars().all()
+
+        for stale_runtime in stale_runtime_rows:
+            stale_runtime.status = "stopped"
+            stale_runtime.finished_at = started_at
+            stale_runtime.duration_ms = _compute_duration_ms(stale_runtime.started_at)
+            stale_result = dict(stale_runtime.result_json or {})
+            stale_result.update(
+                {
+                    "stopped_at": started_at.isoformat(),
+                    "stop_reason": "replaced_on_startup",
+                    "superseded_by_run_id": _runtime_run_id,
+                    "superseded_by_instance_id": PROCESS_INSTANCE_ID,
+                }
+            )
+            stale_runtime.result_json = stale_result
+            db.add(stale_runtime)
+
+        job_run = SchedulerJobRun(
+            job_name=SCHEDULER_RUNTIME_JOB_NAME,
+            run_id=_runtime_run_id,
+            status="running",
+            trigger_type="startup",
+            instance_id=PROCESS_INSTANCE_ID,
+            started_at=started_at,
+        )
+        db.add(job_run)
+        await db.commit()
+
+    if stale_runtime_rows:
+        logger.warning(
+            "scheduler_runtime_reconciled_stale_rows",
+            instance_id=PROCESS_INSTANCE_ID,
+            stale_runtime_rows=len(stale_runtime_rows),
+            replacement_run_id=_runtime_run_id,
+        )
+
+
+async def _reconcile_stale_runtime_rows() -> int:
+    async with get_db_context() as db:
+        result = await db.execute(
+            select(SchedulerJobRun)
+            .where(SchedulerJobRun.job_name == SCHEDULER_RUNTIME_JOB_NAME)
+            .where(SchedulerJobRun.status == "running")
+            .order_by(SchedulerJobRun.started_at.desc())
+        )
+        stale_rows = list(result.scalars().all())
+        if not stale_rows:
+            return 0
+
+        recovered_at = utc_now()
+        for runtime_run in stale_rows:
+            runtime_run.status = "stopped"
+            runtime_run.finished_at = recovered_at
+            runtime_run.duration_ms = _compute_duration_ms(runtime_run.started_at)
+            runtime_run.result_json = {
+                "stop_reason": "replaced_on_startup",
+                "recovered_at": recovered_at.isoformat(),
+                "recovered_by_instance_id": PROCESS_INSTANCE_ID,
+            }
+            db.add(runtime_run)
+        await db.commit()
+        return len(stale_rows)
 
 
 async def _mark_runtime_stopped() -> None:
@@ -580,6 +648,13 @@ async def start_scheduler_async() -> None:
         return
 
     try:
+        recovered_runtime_rows = await _reconcile_stale_runtime_rows()
+        if recovered_runtime_rows:
+            logger.warning(
+                "scheduler_runtime_rows_reconciled",
+                recovered_runtime_rows=recovered_runtime_rows,
+                instance_id=PROCESS_INSTANCE_ID,
+            )
         setup_scheduler()
         scheduler.start()
         await _mark_runtime_started()

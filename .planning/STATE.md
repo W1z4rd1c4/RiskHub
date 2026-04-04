@@ -247,7 +247,7 @@
 
 - Attempted deterministic Docker reset:
   - `./scripts/compose.sh reset --dataset test`
-  - now completes end to end after aligning the bootstrap service to the backend `dbtasks` build target
+  - now completes end to end after aligning the bootstrap service to the backend runtime image contract
 - Verified Docker app runtime on the canonical compose path:
   - `docker compose -f docker-compose.yml --profile full run --rm bootstrap python -c "import psycopg2"` -> success
   - backend now reaches `healthy` under the inherited image healthcheck

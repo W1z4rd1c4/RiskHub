@@ -71,6 +71,49 @@ async def test_scheduler_start_with_lock_acquired_starts_runtime_and_records_own
 
 
 @pytest.mark.asyncio
+async def test_scheduler_start_reconciles_stale_runtime_rows_before_recording_new_owner(
+    isolated_scheduler,
+    async_engine: AsyncEngine,
+) -> None:
+    provider = SchedulerLockProvider()
+    isolated_scheduler._lock_provider = None
+    isolated_scheduler._resolve_lock_provider = lambda: provider
+
+    stale_started_at = datetime.now(UTC) - timedelta(minutes=5)
+    async_session = async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
+    async with async_session() as session:
+        session.add(
+            SchedulerJobRun(
+                job_name=isolated_scheduler.SCHEDULER_RUNTIME_JOB_NAME,
+                run_id="stale-runtime-run",
+                status="running",
+                trigger_type="startup",
+                instance_id="stale-instance",
+                started_at=stale_started_at,
+            )
+        )
+        await session.commit()
+
+    await start_scheduler_async()
+
+    async with async_session() as session:
+        runtime_rows = (
+            await session.execute(
+                select(SchedulerJobRun)
+                .where(SchedulerJobRun.job_name == isolated_scheduler.SCHEDULER_RUNTIME_JOB_NAME)
+                .order_by(SchedulerJobRun.started_at.asc())
+            )
+        ).scalars().all()
+        assert len(runtime_rows) == 2
+        assert runtime_rows[0].run_id == "stale-runtime-run"
+        assert runtime_rows[0].status == "stopped"
+        assert runtime_rows[0].finished_at is not None
+        assert runtime_rows[0].duration_ms is not None
+        assert runtime_rows[1].status == "running"
+        assert runtime_rows[1].instance_id == isolated_scheduler.PROCESS_INSTANCE_ID
+
+
+@pytest.mark.asyncio
 async def test_scheduler_stop_marks_runtime_run_stopped(
     isolated_scheduler,
     async_engine: AsyncEngine,
@@ -96,6 +139,49 @@ async def test_scheduler_stop_marks_runtime_run_stopped(
         assert len(runtime_rows) == 1
         assert runtime_rows[0].status == "stopped"
         assert runtime_rows[0].finished_at is not None
+
+
+@pytest.mark.asyncio
+async def test_scheduler_start_reconciles_stale_runtime_rows(
+    isolated_scheduler,
+    async_engine: AsyncEngine,
+) -> None:
+    provider = SchedulerLockProvider()
+    isolated_scheduler._lock_provider = None
+    isolated_scheduler._resolve_lock_provider = lambda: provider
+
+    async_session = async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
+    async with async_session() as session:
+        session.add(
+            SchedulerJobRun(
+                job_name=isolated_scheduler.SCHEDULER_RUNTIME_JOB_NAME,
+                run_id="stale-runtime-run",
+                status="running",
+                trigger_type="startup",
+                instance_id="stale-instance",
+                started_at=datetime.now(UTC) - timedelta(minutes=5),
+            )
+        )
+        await session.commit()
+
+    await start_scheduler_async()
+
+    async with async_session() as session:
+        runtime_rows = (
+            await session.execute(
+                select(SchedulerJobRun)
+                .where(SchedulerJobRun.job_name == isolated_scheduler.SCHEDULER_RUNTIME_JOB_NAME)
+                .order_by(SchedulerJobRun.started_at.asc())
+            )
+        ).scalars().all()
+        assert len(runtime_rows) == 2
+        running_rows = [row for row in runtime_rows if row.status == "running"]
+        stopped_rows = [row for row in runtime_rows if row.status == "stopped"]
+        assert len(running_rows) == 1
+        assert len(stopped_rows) == 1
+        assert stopped_rows[0].run_id == "stale-runtime-run"
+        assert stopped_rows[0].finished_at is not None
+        assert stopped_rows[0].result_json["recovered_by_instance_id"] == isolated_scheduler.PROCESS_INSTANCE_ID
 
 
 @pytest.mark.asyncio

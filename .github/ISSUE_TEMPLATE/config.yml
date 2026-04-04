@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Support and usage guidance
+    url: https://github.com/W1z4rd1c4/RIskHub/blob/main/.github/SUPPORT.md
+    about: Start here for setup, usage, and documentation paths.
+  - name: Security policy
+    url: https://github.com/W1z4rd1c4/RIskHub/blob/main/SECURITY.md
+    about: Use the security policy for vulnerability reporting.
