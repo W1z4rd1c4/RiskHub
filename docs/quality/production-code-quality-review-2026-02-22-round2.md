@@ -2,7 +2,7 @@
 
 ## Scope
 
-- Repository: `.`
+- Repository: ``
 - Mode: full-repo maintainability hardening with behavior-preserving internal refactors
 - Out of scope: public API/schema changes, DB migrations, RBAC contract changes
 

@@ -1,31 +1,41 @@
 # Security Policy
 
+RiskHub takes vulnerability reports seriously.
+
 ## Reporting a Vulnerability
 
-If you believe you found a security vulnerability in RiskHub, do not open a public issue.
+Please do **not** open a public GitHub issue for security vulnerabilities.
 
-Preferred path:
+Instead:
 
-1. Use GitHub Private Vulnerability Reporting from the repository Security tab.
-2. If that option is unavailable, contact the maintainer privately through GitHub and include:
-   - a short description of the issue
-   - affected components or paths
-   - reproduction steps or proof of concept
-   - impact assessment
-   - any suggested mitigation
+1. Contact the maintainers through an existing private channel if you already have one.
+2. If you do not have a private channel, open a minimal public issue that requests a secure contact path and do **not** include exploit details.
+3. Include the affected version or commit, reproduction steps, impact, and any suggested fix if you have one.
 
-Please avoid public disclosure until the issue is triaged and a fix or mitigation plan exists.
+## What to Include
 
-## What to Expect
+- a clear description of the issue
+- steps to reproduce
+- expected and observed behavior
+- impact assessment
+- affected environment or commit
 
-- Initial triage should confirm whether the report is reproducible and in scope.
-- Valid reports will be prioritized based on impact and exploitability.
-- When possible, the fix will ship with a changelog note or advisory after remediation.
+## Response Expectations
 
-## Supported Security Practices
+RiskHub follows the documented severity guidance in [docs/security/SECURITY.md](./docs/security/SECURITY.md), including prioritized response windows for critical, high, medium, and low findings.
 
-- Never commit secrets or production credentials.
-- Prefer least-privilege configuration and explicit RBAC boundaries.
-- Treat approval workflows, auth boundaries, and deployment behavior as high-sensitivity areas.
+## Public Repo Leak Audits
 
-For repository security tooling and scan guidance, see [docs/security/SECURITY.md](./docs/security/SECURITY.md).
+Before public releases or after opening new public repository surfaces, run:
+
+```bash
+make -f scripts/Makefile public-leak-audit
+```
+
+This audit checks the tracked working tree and full Git history for secrets, private local-machine metadata, and accidentally tracked runtime artifacts.
+
+## Operational Security Documentation
+
+For the full security scanning, vulnerability-management, and disclosure process, see:
+
+- [docs/security/SECURITY.md](./docs/security/SECURITY.md)

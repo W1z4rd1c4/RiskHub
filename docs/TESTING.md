@@ -1,7 +1,7 @@
 # RiskHub Testing Guide
 
-> **Version**: 1.8
-> **Last Updated**: 2026-04-04
+> **Version**: 1.7
+> **Last Updated**: 2026-03-29
 > **Audience**: Engineering, QA
 > **Source of Truth**: `tests/backend/pytest/`, `backend/pytest.ini`, `frontend/package.json`, `tests/frontend/e2e/playwright.config.ts`
 
@@ -46,14 +46,13 @@ This guide defines the current testing matrix for backend, frontend unit tests, 
 ## Development Startup
 
 - Canonical startup guidance lives in [`docs/development/README.md`](./development/README.md).
-- Use `./scripts/install.sh dev` for active local backend/frontend iteration.
-- Use `./scripts/install.sh demo` for the Docker onboarding path.
-- Use `./scripts/install.sh demo --reset test` for deterministic Docker-backed E2E fixture resets.
-- Keep `./scripts/dev.sh` and `./scripts/compose.sh` for advanced/manual execution of those same workflows.
+- Use `./scripts/dev.sh` for active local backend/frontend iteration.
+- Use `./scripts/compose.sh up` for Docker onboarding/manual appliance-style runs.
+- Use `./scripts/compose.sh reset --dataset test` for deterministic Docker-backed E2E fixture resets.
 
 ## Local Startup Preflight
 
-- `./scripts/install.sh dev` routes through `./scripts/dev.sh`, which performs a schema-head preflight before it starts the local backend in `full` and `backend` modes.
+- `./scripts/dev.sh` now performs a schema-head preflight before it starts the local backend in `full` and `backend` modes.
 - If the connected non-SQLite database revision does not match the app head, startup stops before the frontend is launched.
 - The expected recovery path is:
 
@@ -63,21 +62,20 @@ cd backend
 ```
 
 - After a local backend launch attempt, `scripts/dev.sh` also verifies backend readiness and prints the backend log tail immediately if startup failed during lifespan initialization.
-- `./scripts/install.sh demo` and `./scripts/install.sh demo --reset test` route through `./scripts/compose.sh`; migrations and base seeding still happen in the compose bootstrap flow rather than by weakening app startup checks.
+- Docker onboarding/reset paths intentionally keep the app startup guards unchanged; migrations and base seeding happen in the `./scripts/compose.sh` bootstrap flow rather than by weakening app startup checks.
 
 ## Docker Live Verification
 
 Preferred deterministic path:
 
 ```bash
-./scripts/install.sh demo --reset test
+./scripts/compose.sh reset --dataset test
 ```
 
 Current behavior:
 
-- `./scripts/install.sh demo --reset test` is the recommended deterministic Docker path for migrations, base seed, deterministic E2E seed, and app startup.
-- The underlying advanced/manual command remains `./scripts/compose.sh reset --dataset test`.
-- The Docker bootstrap service now builds the backend `dbtasks` target, so database bootstrap work runs with the required Postgres client dependencies.
+- `./scripts/compose.sh reset --dataset test` is the canonical deterministic Docker path for migrations, base seed, deterministic E2E seed, and app startup.
+- The Docker bootstrap service now reuses the backend runtime image and runs migrations + seed commands inline.
 - Docker Compose now inherits the backend image's Python healthcheck instead of overriding it with `curl`.
 
 Preflight:
@@ -148,7 +146,7 @@ Current browser-lane caveats:
 When editing documentation libraries (`docs/admin*`, `docs/user*`) or docs endpoint behavior:
 
 ```bash
-cd "."
+cd ""
 python3 scripts/check_docs_contract.py
 make -f scripts/Makefile docs-topology-consistency
 
@@ -163,7 +161,7 @@ npx tsc --noEmit
 For RBAC/docs reconciliation sweeps that touch role boundaries or permission contracts, add:
 
 ```bash
-cd "."
+cd ""
 PYTHONPATH=backend pytest tests/backend/pytest/test_activity_log.py tests/backend/pytest/test_orphaned_items_scan_and_stats.py tests/backend/pytest/test_executions.py tests/backend/pytest/api/v1/test_issues_rbac_api.py tests/backend/pytest/api/v1/test_dashboard_issue_metrics.py tests/backend/pytest/api/v1/test_reports_issues.py tests/backend/pytest/test_seed_rbac_parity.py -q
 
 cd frontend
@@ -173,7 +171,7 @@ npm run e2e:business-logic
 For vendor grouped-view/detail documentation or permission-gating changes, also add:
 
 ```bash
-cd "."
+cd ""
 PYTHONPATH=backend pytest tests/backend/pytest/test_vendors.py tests/backend/pytest/test_vendor_links.py -q
 
 cd frontend
@@ -186,7 +184,7 @@ npx playwright test -c ../tests/frontend/e2e/playwright.config.ts ../tests/front
 For vendor-centric grouped views and vendor-linked KRI changes, also add:
 
 ```bash
-cd "."
+cd ""
 PYTHONPATH=backend pytest tests/backend/pytest/test_vendor_links.py -q
 
 cd frontend

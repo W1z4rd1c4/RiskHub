@@ -23,38 +23,38 @@ Disposition buckets:
 ### Gate Commands
 1. Backend Ruff
 ```bash
-cd .\ 2/backend \
+cd backend \
   && ./venv/bin/python -m ruff check app ../tests/backend/pytest scripts
 ```
 Status: PASS.
 
 2. Frontend ESLint
 ```bash
-cd .\ 2/frontend && npm run lint
+cd frontend && npm run lint
 ```
 Status: PASS.
 
 3. Frontend TypeScript
 ```bash
-cd .\ 2/frontend && npx tsc --noEmit
+cd frontend && npx tsc --noEmit
 ```
 Status: PASS.
 
 4. Frontend debt budget
 ```bash
-cd .\ 2/frontend && npm run quality:debt -- --report-json
+cd frontend && npm run quality:debt -- --report-json
 ```
 Status: PASS.
 
 5. Frontend dead-code scan
 ```bash
-cd .\ 2/frontend && npm run cleanup:deadcode
+cd frontend && npm run cleanup:deadcode
 ```
 Status: PASS.
 
 6. Backend suppression budget
 ```bash
-cd .\ 2 && python3 scripts/tools/suppression_budget.py
+cd  && python3 scripts/tools/suppression_budget.py
 ```
 Status: PASS (`Observed=2, Max=2, Unmatched=0, Expired=0, StaleAllowlist=0`).
 

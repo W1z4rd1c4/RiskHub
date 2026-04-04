@@ -90,8 +90,8 @@ async def update_user(
 
     # Update fields
     update_data = user_data.model_dump(exclude_unset=True)
-    password_field_provided = "password" in update_data
-    password = update_data.pop("password", None)
+    password_field_provided = "password" in update_data  # gitleaks:allow
+    password = update_data.pop("password", None)  # gitleaks:allow
 
     if settings.auth_mode == "microsoft_sso" and password_field_provided:
         raise HTTPException(

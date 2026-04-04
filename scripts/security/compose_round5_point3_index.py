@@ -9,12 +9,14 @@ from pathlib import Path
 from typing import Any
 
 
-DEFAULT_BASE_FINDINGS = Path(
-    "tests/results/security/deep-gap-round5-20260221-225327/findings-round5.json"
-)
-DEFAULT_PARITY_ROOT = Path(
-    "tests/results/security/deep-gap-round5-point3-parity-20260221-230550"
-)
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+def _latest_match(pattern: str, label: str) -> Path:
+    matches = sorted(REPO_ROOT.glob(pattern), key=lambda path: path.stat().st_mtime)
+    if not matches:
+        raise FileNotFoundError(f"No {label} found under {REPO_ROOT / pattern.rsplit('/', 1)[0]}")
+    return matches[-1]
 
 
 def _must_exist(path: Path, label: str) -> None:
@@ -226,16 +228,24 @@ def build_index(
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Compose consolidated Round 5 Point-3 parity findings index")
-    parser.add_argument("--base-findings", default=str(DEFAULT_BASE_FINDINGS))
-    parser.add_argument("--parity-root", default=str(DEFAULT_PARITY_ROOT))
+    parser.add_argument("--base-findings")
+    parser.add_argument("--parity-root")
     parser.add_argument("--campaign")
     parser.add_argument("--parity-summary")
     parser.add_argument("--parity-status")
     parser.add_argument("--output")
     args = parser.parse_args()
 
-    base_findings_path = Path(args.base_findings)
-    parity_root = Path(args.parity_root)
+    base_findings_path = (
+        Path(args.base_findings)
+        if args.base_findings
+        else _latest_match("tests/results/security/deep-gap-round5-*/findings-round5.json", "base findings")
+    )
+    parity_root = (
+        Path(args.parity_root)
+        if args.parity_root
+        else _latest_match("tests/results/security/deep-gap-round5-point3-parity-*", "parity root")
+    )
     run_id = parity_root.name
 
     campaign_path = Path(args.campaign) if args.campaign else parity_root / "campaigns/state-machine-valid-session.json"

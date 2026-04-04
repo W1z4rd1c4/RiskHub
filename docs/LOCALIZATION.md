@@ -89,7 +89,7 @@ Docs endpoint behavior (`GET /api/v1/admin/docs`) is strict:
 ## Verification
 
 ```bash
-cd "."
+cd ""
 python3 scripts/check_docs_contract.py
 
 cd backend

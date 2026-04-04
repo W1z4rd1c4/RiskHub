@@ -2,7 +2,7 @@
 
 ## Scope
 
-- Repository: `.`
+- Repository: ``
 - Review mode: Full maintainability sweep, balanced risk, no intentional API/DB contract changes
 - Security posture: treated as already passed; this review focuses on code quality, maintainability, and regression-safe polish
 
@@ -10,13 +10,13 @@
 
 ### Gate command baseline (exact commands)
 
-- `cd .\ 2/frontend && npm run lint`
-- `cd .\ 2/frontend && npx tsc --noEmit`
-- `cd .\ 2/frontend && npm run quality:debt -- --report-json`
-- `cd .\ 2/frontend && npm run cleanup:deadcode`
-- `cd .\ 2/frontend && npm run build`
-- `cd .\ 2/backend && ./venv/bin/python -m ruff check app ../tests/backend/pytest scripts`
-- `make -f .\ 2/scripts/Makefile docs-topology-consistency`
+- `cd frontend && npm run lint`
+- `cd frontend && npx tsc --noEmit`
+- `cd frontend && npm run quality:debt -- --report-json`
+- `cd frontend && npm run cleanup:deadcode`
+- `cd frontend && npm run build`
+- `cd backend && ./venv/bin/python -m ruff check app ../tests/backend/pytest scripts`
+- `make -f scripts/Makefile docs-topology-consistency`
 
 ### Baseline status summary
 
