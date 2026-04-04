@@ -5,6 +5,11 @@ import { clearAuthConfigCache, getAuthConfig } from '@/services/authConfig';
 import { AUTH_REQUEST_TIMEOUT_MS } from '@/services/authRequest';
 import { authApi } from '@/services/authApi';
 import { __resetAuthSessionCoordinatorForTests, bootstrapAuthSession, clearBootstrapSession } from '@/services/authSessionCoordinator';
+import { __setCsrfTokenForTests, clearCsrfToken } from '@/services/csrfToken';
+import {
+    __resetExplicitLogoutSuppressionForTests,
+    setExplicitLogoutSuppressed,
+} from '@/services/logoutSuppression';
 import {
     __setRefreshSessionHintForTests,
     clearRefreshSessionHint,
@@ -31,7 +36,9 @@ describe('auth timeout and retry flow', () => {
         clearAccessToken();
         clearAuthConfigCache();
         clearBootstrapSession();
+        clearCsrfToken();
         clearRefreshSessionHint();
+        __resetExplicitLogoutSuppressionForTests();
         __resetAuthSessionCoordinatorForTests();
         __resetSsoSessionForTests();
     });
@@ -42,7 +49,9 @@ describe('auth timeout and retry flow', () => {
         clearAccessToken();
         clearAuthConfigCache();
         clearBootstrapSession();
+        clearCsrfToken();
         clearRefreshSessionHint();
+        __resetExplicitLogoutSuppressionForTests();
         __resetAuthSessionCoordinatorForTests();
         __resetSsoSessionForTests();
     });
@@ -154,7 +163,11 @@ describe('auth timeout and retry flow', () => {
                 }));
             }
 
-            if (url.endsWith('/api/v1/auth/refresh') || url.endsWith('/api/v1/auth/config')) {
+            if (
+                url.endsWith('/api/v1/auth/refresh')
+                || url.endsWith('/api/v1/auth/config')
+                || url.endsWith('/api/v1/auth/csrf')
+            ) {
                 return createAbortablePendingResponse(init?.signal as AbortSignal | undefined);
             }
 
@@ -198,6 +211,10 @@ describe('auth timeout and retry flow', () => {
 
         vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
             const url = String(input);
+            if (url.endsWith('/api/v1/auth/csrf')) {
+                __setCsrfTokenForTests('bootstrap-csrf-token');
+                return Promise.resolve(new Response(null, { status: 204 }));
+            }
             if (url.endsWith('/api/v1/auth/refresh')) {
                 return Promise.resolve(new Response(JSON.stringify({
                     access_token: 'refreshed-token',
@@ -243,12 +260,82 @@ describe('auth timeout and retry flow', () => {
         });
     });
 
+    it('seeds the CSRF cookie through the dedicated auth endpoint', async () => {
+        vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+            const url = String(input);
+            if (!url.endsWith('/api/v1/auth/csrf')) {
+                throw new Error(`Unexpected fetch call: ${url}`);
+            }
+            __setCsrfTokenForTests('seeded-csrf-token');
+            return Promise.resolve(new Response(null, { status: 204 }));
+        });
+
+        await expect(authApi.ensureCsrf()).resolves.toBeUndefined();
+        expect(document.cookie).toContain('riskhub_csrf_token=seeded-csrf-token');
+    });
+
+    it('retries refresh once after a csrf validation failure', async () => {
+        let refreshCalls = 0;
+        let csrfCalls = 0;
+
+        vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+            const url = String(input);
+            if (url.endsWith('/api/v1/auth/csrf')) {
+                csrfCalls += 1;
+                __setCsrfTokenForTests(csrfCalls === 1 ? 'stale-csrf-token' : 'fresh-csrf-token');
+                return Promise.resolve(new Response(null, { status: 204 }));
+            }
+            if (url.endsWith('/api/v1/auth/refresh')) {
+                refreshCalls += 1;
+                if (refreshCalls === 1) {
+                    return Promise.resolve(new Response(JSON.stringify({
+                        code: 'csrf_validation_failed',
+                        detail: 'CSRF validation failed.',
+                    }), {
+                        status: 403,
+                        headers: { 'Content-Type': 'application/json' },
+                    }));
+                }
+                return Promise.resolve(new Response(JSON.stringify({
+                    access_token: 'refreshed-token',
+                    token_type: 'bearer',
+                    user: {
+                        id: 1,
+                        email: 'admin@riskhub.local',
+                        name: 'System Admin',
+                        role: 'administrator',
+                        role_display_name: 'Administrator',
+                        permissions: [],
+                        effective_permissions: [],
+                        access_scope: 'global',
+                        scope_label: 'Global',
+                    },
+                }), {
+                    status: 200,
+                    headers: { 'Content-Type': 'application/json' },
+                }));
+            }
+            throw new Error(`Unexpected fetch call: ${url}`);
+        });
+
+        await expect(authApi.refresh()).resolves.toMatchObject({
+            access_token: 'refreshed-token',
+            user: { email: 'admin@riskhub.local' },
+        });
+        expect(csrfCalls).toBe(2);
+        expect(refreshCalls).toBe(2);
+    });
+
     it('times out refresh requests and clears refresh dedupe state for retry', async () => {
         __setRefreshSessionHintForTests();
 
         let refreshCalls = 0;
         vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
             const url = String(input);
+            if (url.endsWith('/api/v1/auth/csrf')) {
+                __setCsrfTokenForTests('refresh-csrf-token');
+                return Promise.resolve(new Response(null, { status: 204 }));
+            }
             if (!url.endsWith('/api/v1/auth/refresh')) {
                 throw new Error(`Unexpected fetch call: ${url}`);
             }
@@ -291,6 +378,10 @@ describe('auth timeout and retry flow', () => {
         let refreshCalls = 0;
         vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
             const url = String(input);
+            if (url.endsWith('/api/v1/auth/csrf')) {
+                __setCsrfTokenForTests('failed-refresh-csrf-token');
+                return Promise.resolve(new Response(null, { status: 204 }));
+            }
             if (url.endsWith('/api/v1/auth/refresh')) {
                 refreshCalls += 1;
                 return Promise.resolve(new Response(JSON.stringify({ detail: 'Authentication required' }), {
@@ -314,7 +405,11 @@ describe('auth timeout and retry flow', () => {
                     headers: { 'Content-Type': 'application/json' },
                 }));
             }
-            if (!url.endsWith('/api/v1/auth/refresh') && !url.endsWith('/api/v1/auth/config')) {
+            if (
+                !url.endsWith('/api/v1/auth/refresh')
+                && !url.endsWith('/api/v1/auth/config')
+                && !url.endsWith('/api/v1/auth/csrf')
+            ) {
                 throw new Error(`Unexpected fetch call: ${url}`);
             }
             throw new Error(`Unexpected fetch call: ${url}`);
@@ -326,6 +421,20 @@ describe('auth timeout and retry flow', () => {
 
         await expect(bootstrapAuthSession()).resolves.toEqual({ token: null, user: null });
         expect(refreshCalls).toBe(1);
+    });
+
+    it('suppresses bootstrap and silent reauth after explicit logout', async () => {
+        __setRefreshSessionHintForTests();
+        __setCsrfTokenForTests();
+        setExplicitLogoutSuppressed();
+
+        const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(() => {
+            throw new Error('auth flows should not fetch while explicit logout suppression is active');
+        });
+
+        await expect(silentReauthAndExchange()).resolves.toBeNull();
+        await expect(bootstrapAuthSession()).resolves.toEqual({ token: null, user: null });
+        expect(fetchSpy).not.toHaveBeenCalled();
     });
 
     it('times out raw auth API calls instead of waiting indefinitely', async () => {

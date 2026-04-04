@@ -54,6 +54,7 @@ describe('ProtectedRoute bootstrap failure handling', () => {
             if (
                 !url.endsWith('/api/v1/auth/me') &&
                 !url.endsWith('/api/v1/auth/refresh') &&
+                !url.endsWith('/api/v1/auth/csrf') &&
                 !url.endsWith('/api/v1/auth/config')
             ) {
                 throw new Error(`Unexpected fetch call: ${url}`);

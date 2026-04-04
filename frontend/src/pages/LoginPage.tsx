@@ -5,6 +5,7 @@ import { useTranslation } from '@/i18n/hooks';
 import { setAccessToken } from '@/services/accessTokenStore';
 import { authApi, type AuthConfigResponse } from '@/services/authApi';
 import { getAuthConfig } from '@/services/authConfig';
+import { clearExplicitLogoutSuppressed } from '@/services/logoutSuppression';
 import { isAuthUnavailableError } from '@/services/authRequest';
 import { entraAuth } from '@/services/entraAuth';
 import authEn from '@/i18n/locales/en/auth.json';
@@ -116,6 +117,7 @@ export default function LoginPage() {
     }, [authConfig?.auth_mode, prodLanguage]);
 
     const handleDemoLogin = async (email: string) => {
+        clearExplicitLogoutSuppressed();
         setErrorKey('');
         setAuthActionUnavailableError(null);
         setIsLoading(email);
@@ -140,6 +142,7 @@ export default function LoginPage() {
     };
 
     const handleSsoLogin = async () => {
+        clearExplicitLogoutSuppressed();
         setErrorKey('');
         setAuthActionUnavailableError(null);
         setIsSsoLoading(true);

@@ -27,6 +27,7 @@ from app.models import RefreshToken, Role, RolePermission, User
 from app.schemas.auth import TokenResponse
 
 from ._shared import _build_token_response, _issue_refresh_session
+from ._request_protection import validate_csrf, validate_request_origin
 
 router = APIRouter()
 logger = get_logger("auth.refresh")
@@ -54,6 +55,11 @@ async def refresh_session(
     db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ):
+    if forbidden_response := validate_request_origin(request, settings):
+        return forbidden_response
+    if forbidden_response := validate_csrf(request):
+        return forbidden_response
+
     raw_token = get_refresh_cookie(request, settings)
     payload = token_decode_or_none(raw_token, settings)
     if not payload:

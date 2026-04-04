@@ -25,6 +25,7 @@ Common rules across both targets:
 - Scheduler ownership is enforced in-app with a Postgres advisory lock and recorded in `scheduler_job_runs`.
 - Post-commit side effects are dispatched from the transactional outbox table `app_outbox_events`.
 - Production runs with `DEBUG=false`, `MOCK_AUTH_ENABLED=false`, `AUTH_MODE=microsoft_sso`.
+- Public `GET /api/v1/health` is intentionally minimal and returns only `status`; detailed runtime health stays on admin-authenticated `/api/v1/admin/health`.
 
 ## Read This First
 
@@ -67,6 +68,8 @@ Release inputs:
 
 - Redis is required in production.
 - `/docs` and `/openapi.json` must stay disabled in production.
+- Cookie-authenticated auth endpoints (`/api/v1/auth/refresh`, refresh-cookie fallback logout) require allowed Origin/Referer plus double-submit CSRF.
+- Explicit logout invalidates all RiskHub app sessions for the user, not only the current browser refresh session.
 - The scheduler must run exactly once:
   - Docker target: dedicated scheduler container
   - Linux target: dedicated `riskhub-scheduler.service`

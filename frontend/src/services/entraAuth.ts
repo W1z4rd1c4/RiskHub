@@ -2,6 +2,7 @@ import {
     PublicClientApplication,
     type AccountInfo,
     type AuthenticationResult,
+    type EndSessionRequest,
     type PopupRequest,
     type RedirectRequest,
     type SilentRequest,
@@ -123,6 +124,16 @@ export const entraAuth = {
         const request: SilentRequest = { scopes, account };
         const result = await app.acquireTokenSilent(request);
         return result.idToken || null;
+    },
+
+    async logoutRedirect(): Promise<void> {
+        const { app } = await getMsalApp();
+        const account = ensureActiveAccount(app);
+        const request: EndSessionRequest = {
+            account: account ?? undefined,
+            postLogoutRedirectUri: `${window.location.origin}/login`,
+        };
+        await app.logoutRedirect(request);
     },
 
     __resetForTests(): void {

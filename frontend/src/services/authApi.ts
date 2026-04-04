@@ -3,6 +3,7 @@
  */
 
 import { clearAccessToken, getAccessToken } from '@/services/accessTokenStore';
+import { clearCsrfToken, getCsrfToken } from '@/services/csrfToken';
 import { AuthRequestError, fetchAuthResponse } from '@/services/authRequest';
 import { clearRefreshSessionHint } from '@/services/refreshSessionHint';
 
@@ -50,6 +51,15 @@ export interface TokenResponse {
         access_scope: 'global' | 'department' | 'manager';
         scope_label: string;
     };
+}
+
+async function parseAuthError(response: Response, fallbackMessage: string): Promise<{ detail: string; code?: string }> {
+    const error = await response.json().catch(() => ({}));
+    const detail = (error as { detail?: string }).detail || fallbackMessage;
+    const code = typeof (error as { code?: unknown }).code === 'string'
+        ? String((error as { code: string }).code)
+        : undefined;
+    return { detail, code };
 }
 
 export const authApi = {
@@ -159,14 +169,52 @@ export const authApi = {
     },
 
     async refresh(): Promise<TokenResponse> {
-        const response = await fetchAuthResponse(`${API_URL}/refresh`, {
-            method: 'POST',
+        await this.ensureCsrf();
+        const performRefresh = async (allowCsrfRetry: boolean): Promise<TokenResponse> => {
+            const csrfToken = getCsrfToken();
+            if (!csrfToken) {
+                throw new AuthRequestError({
+                    code: 'AUTH_REQUEST_FAILED',
+                    message: 'CSRF token unavailable',
+                    rawMessage: 'CSRF token unavailable',
+                    status: 403,
+                });
+            }
+
+            const response = await fetchAuthResponse(`${API_URL}/refresh`, {
+                method: 'POST',
+                headers: { 'X-CSRF-Token': csrfToken },
+                credentials: 'include',
+            });
+
+            if (!response.ok) {
+                const { detail, code } = await parseAuthError(response, 'Refresh failed');
+                if (allowCsrfRetry && response.status === 403 && code === 'csrf_validation_failed') {
+                    await this.ensureCsrf();
+                    return performRefresh(false);
+                }
+                throw new AuthRequestError({
+                    code: response.status >= 500 ? 'AUTH_SERVICE_UNAVAILABLE' : 'AUTH_REQUEST_FAILED',
+                    message: detail,
+                    rawMessage: detail,
+                    status: response.status,
+                });
+            }
+
+            return response.json();
+        };
+
+        return performRefresh(true);
+    },
+
+    async ensureCsrf(): Promise<void> {
+        const response = await fetchAuthResponse(`${API_URL}/csrf`, {
+            method: 'GET',
             credentials: 'include',
         });
 
         if (!response.ok) {
-            const error = await response.json().catch(() => ({}));
-            const detail = (error as { detail?: string }).detail || 'Refresh failed';
+            const { detail } = await parseAuthError(response, 'Failed to initialize CSRF protection');
             throw new AuthRequestError({
                 code: response.status >= 500 ? 'AUTH_SERVICE_UNAVAILABLE' : 'AUTH_REQUEST_FAILED',
                 message: detail,
@@ -175,7 +223,14 @@ export const authApi = {
             });
         }
 
-        return response.json();
+        if (!getCsrfToken()) {
+            throw new AuthRequestError({
+                code: 'AUTH_REQUEST_FAILED',
+                message: 'Failed to initialize CSRF protection',
+                rawMessage: 'Failed to initialize CSRF protection',
+                status: 403,
+            });
+        }
     },
 
     async logoutAll(): Promise<void> {
@@ -198,15 +253,39 @@ export const authApi = {
         }
         clearAccessToken();
         clearRefreshSessionHint();
+        clearCsrfToken();
     },
 
     async logout(): Promise<void> {
-        await fetchAuthResponse(`${API_URL}/logout`, {
-            method: 'POST',
-            credentials: 'include',
-        }).catch(() => null);
+        const accessToken = getAccessToken();
+        const headers = new Headers();
+        if (accessToken) {
+            headers.set('Authorization', `Bearer ${accessToken}`);
+        }
 
-        clearAccessToken();
-        clearRefreshSessionHint();
+        let csrfToken = getCsrfToken();
+        if (!csrfToken) {
+            await this.ensureCsrf();
+            csrfToken = getCsrfToken();
+        }
+        if (csrfToken) {
+            headers.set('X-CSRF-Token', csrfToken);
+        }
+
+        const response = await fetchAuthResponse(`${API_URL}/logout`, {
+            method: 'POST',
+            headers,
+            credentials: 'include',
+        });
+
+        if (!response.ok) {
+            const { detail } = await parseAuthError(response, 'Logout failed');
+            throw new AuthRequestError({
+                code: response.status >= 500 ? 'AUTH_SERVICE_UNAVAILABLE' : 'AUTH_REQUEST_FAILED',
+                message: detail,
+                rawMessage: detail,
+                status: response.status,
+            });
+        }
     },
 };

@@ -1,5 +1,6 @@
 import { authApi } from '@/services/authApi';
 import { getAccessToken } from '@/services/accessTokenStore';
+import { isExplicitLogoutSuppressed } from '@/services/logoutSuppression';
 import { isAuthUnavailableError } from '@/services/authRequest';
 import { hasRefreshSessionHint } from '@/services/refreshSessionHint';
 import { silentReauthAndExchange } from '@/services/ssoSession';
@@ -36,6 +37,11 @@ export function clearBootstrapSession(): void {
 export async function bootstrapAuthSession(): Promise<{ token: string | null; user: CurrentUser | null }> {
     if (!bootstrapPromise) {
         bootstrapPromise = (async () => {
+            if (isExplicitLogoutSuppressed()) {
+                clearBootstrapSession();
+                return { token: null, user: null };
+            }
+
             let token = getAccessToken();
             let usedRefresh = false;
 
@@ -55,11 +61,19 @@ export async function bootstrapAuthSession(): Promise<{ token: string | null; us
 
             const cached = getCachedBootstrap(token);
             if (cached) {
+                if (isExplicitLogoutSuppressed()) {
+                    clearBootstrapSession();
+                    return { token: null, user: null };
+                }
                 return { token: cached.token, user: cached.user };
             }
 
             try {
                 const user = await authApi.getCurrentUser(token);
+                if (isExplicitLogoutSuppressed()) {
+                    clearBootstrapSession();
+                    return { token: null, user: null };
+                }
                 cacheBootstrapSession(user, token);
                 return { token, user };
             } catch (error) {
@@ -76,6 +90,10 @@ export async function bootstrapAuthSession(): Promise<{ token: string | null; us
             }
 
             const user = await authApi.getCurrentUser(refreshedToken);
+            if (isExplicitLogoutSuppressed()) {
+                clearBootstrapSession();
+                return { token: null, user: null };
+            }
             cacheBootstrapSession(user, refreshedToken);
             return { token: refreshedToken, user };
         })().finally(() => {

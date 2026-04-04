@@ -1,17 +1,22 @@
-import { Bell, Search, LogOut } from 'lucide-react';
+import { Bell, Search, Loader2, LogOut } from 'lucide-react';
 import { useTranslation } from '@/i18n/hooks';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
 export function Header() {
-    const { user, logout } = useAuth();
+    const { user, logout, logoutPending, logoutErrorKey } = useAuth();
     const navigate = useNavigate();
     const { t } = useTranslation('navigation');
+    const { t: tErrors } = useTranslation('errorKeys');
 
-    const handleLogout = () => {
-        void logout();
-        void navigate('/login');
+    const handleLogout = async () => {
+        try {
+            await logout();
+            await navigate('/login');
+        } catch {
+            // Keep the user on the current screen so they can retry.
+        }
     };
 
     return (
@@ -37,15 +42,21 @@ export function Header() {
                             <span className="font-medium">{user.name}</span>
                             <span className="text-white/60 ml-2">({user.role_display_name})</span>
                         </div>
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={handleLogout}
-                            className="text-white/80 hover:text-white hover:bg-white/10 rounded-xl"
-                        >
-                            <LogOut className="h-4 w-4 mr-2" />
-                            {t('user_menu.logout')}
-                        </Button>
+                        <div className="flex flex-col items-end gap-1">
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleLogout}
+                                disabled={logoutPending}
+                                className="text-white/80 hover:text-white hover:bg-white/10 rounded-xl disabled:opacity-60"
+                            >
+                                {logoutPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <LogOut className="h-4 w-4 mr-2" />}
+                                {t('user_menu.logout')}
+                            </Button>
+                            {logoutErrorKey && (
+                                <p className="text-xs text-rose-300">{tErrors(logoutErrorKey)}</p>
+                            )}
+                        </div>
                     </>
                 )}
             </div>

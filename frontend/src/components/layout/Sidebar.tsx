@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 import {
     Shield,
     ChevronRight,
+    Loader2,
     LogOut,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -18,12 +19,13 @@ import { SIDEBAR_POLL_MS } from '@/config/constants';
 export function Sidebar() {
     const location = useLocation();
     const navigate = useNavigate();
-    const { user, logout } = useAuth();
+    const { user, logout, logoutPending, logoutErrorKey } = useAuth();
     const { hasPermission } = usePermissions();
     const authz = useAuthz();
     const isAdmin = authz.isPlatformAdmin;
     const { t } = useTranslation('navigation');
     const { t: tCommon } = useTranslation('common');
+    const { t: tErrors } = useTranslation('errorKeys');
 
     // Badge polling gates:
     // - Admin console should not poll business data.
@@ -41,9 +43,13 @@ export function Sidebar() {
     const orphanCount = authz.canViewGovernance ? (shellSummaryQuery.data?.orphan_total_count ?? 0) : 0;
     const unreadNotificationCount = shellSummaryQuery.data?.unread_notifications_count ?? 0;
 
-    const handleLogout = () => {
-        void logout();
-        void navigate('/landing');
+    const handleLogout = async () => {
+        try {
+            await logout();
+            await navigate('/login');
+        } catch {
+            // Keep the user on the current screen so they can retry.
+        }
     };
     const navigation = getSidebarNavRoutes({ authz, hasPermission }).map((route) => {
         let badge: number | undefined;
@@ -132,11 +138,15 @@ export function Sidebar() {
                     <button
                         onClick={handleLogout}
                         data-testid="logout-button"
-                        className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-rose-400 hover:bg-rose-500/10 rounded-xl transition-all duration-200"
+                        disabled={logoutPending}
+                        className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-rose-400 hover:bg-rose-500/10 rounded-xl transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
                     >
-                        <LogOut className="h-4 w-4" />
+                        {logoutPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
                         {t('user_menu.logout')}
                     </button>
+                    {logoutErrorKey && (
+                        <p className="px-3 text-xs text-rose-300">{tErrors(logoutErrorKey)}</p>
+                    )}
                 </div>
             </div>
         </aside>

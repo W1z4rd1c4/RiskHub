@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { setAccessToken } from '@/services/accessTokenStore';
 import { authApi } from '@/services/authApi';
 import { entraAuth } from '@/services/entraAuth';
+import { clearExplicitLogoutSuppressed } from '@/services/logoutSuppression';
 import { hardNavigate } from '@/utils/hardNavigate';
 import { useTranslation } from '@/i18n/hooks';
 
@@ -30,6 +31,7 @@ export default function SsoCallbackPage() {
                 }
 
                 const tokenResponse = await authApi.ssoExchange(idToken);
+                clearExplicitLogoutSuppressed();
                 setAccessToken(tokenResponse.access_token);
                 hardNavigate(sanitizeReturnTo(result?.state));
             } catch (e) {
