@@ -1,4 +1,4 @@
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -25,6 +25,7 @@ function runDebtBudgetFixture(options: FixtureOptions) {
   const tmpRoot = mkdtempSync(path.join(os.tmpdir(), 'riskhub-debt-budget-'));
   const srcDir = path.join(tmpRoot, 'src', 'components');
   const qualityDir = path.join(tmpRoot, 'scripts', 'quality');
+  const reportPath = path.join(tmpRoot, 'tests', 'results', 'frontend', 'audits', 'quality', 'debt.json');
 
   mkdirSync(srcDir, { recursive: true });
   mkdirSync(qualityDir, { recursive: true });
@@ -36,18 +37,20 @@ function runDebtBudgetFixture(options: FixtureOptions) {
     'utf8',
   );
 
-  const result = spawnSync(process.execPath, [debtScript], {
+  const result = spawnSync(process.execPath, [debtScript, `--report-json=${reportPath}`], {
     cwd: tmpRoot,
     encoding: 'utf8',
   });
 
+  const report = JSON.parse(readFileSync(reportPath, 'utf8')) as { scannedFiles: number };
+
   rmSync(tmpRoot, { recursive: true, force: true });
-  return result;
+  return { report, result };
 }
 
 describe('debt-budget script', () => {
   it('fails on explicit any in frontend/src', () => {
-    const result = runDebtBudgetFixture({
+    const { result } = runDebtBudgetFixture({
       source: `
         export function Probe(payload: any) {
           return <div>{String(payload)}</div>;
@@ -60,7 +63,7 @@ describe('debt-budget script', () => {
   });
 
   it('allows explicit any only when a valid allowlist entry exists', () => {
-    const result = runDebtBudgetFixture({
+    const { report, result } = runDebtBudgetFixture({
       source: `
         export function Probe(payload: any) {
           return <div>{String(payload)}</div>;
@@ -83,10 +86,11 @@ describe('debt-budget script', () => {
 
     expect(result.status).toBe(0);
     expect(result.stdout).toContain('Debt budget passed');
+    expect(report.scannedFiles).toBe(1);
   });
 
   it('fails when allowlist entry is expired', () => {
-    const result = runDebtBudgetFixture({
+    const { result } = runDebtBudgetFixture({
       source: `
         export function Probe(payload: any) {
           return <div>{String(payload)}</div>;
@@ -112,7 +116,7 @@ describe('debt-budget script', () => {
   });
 
   it('fails on disallowed suppression directives', () => {
-    const result = runDebtBudgetFixture({
+    const { result } = runDebtBudgetFixture({
       source: `
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         export function Probe(value: any) {
@@ -129,7 +133,7 @@ describe('debt-budget script', () => {
   });
 
   it('fails on production TODO/FIXME/HACK/XXX debt markers', () => {
-    const result = runDebtBudgetFixture({
+    const { result } = runDebtBudgetFixture({
       source: `
         export function Probe() {
           // TODO remove this temporary fallback

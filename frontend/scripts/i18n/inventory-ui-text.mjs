@@ -2,9 +2,10 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import ts from 'typescript';
 
+const ARGS = process.argv.slice(2);
 const ROOT = process.cwd();
 const SRC_DIR = path.join(ROOT, 'src');
-const OUT_DIR = path.join(ROOT, 'i18n-audit');
+const DEFAULT_OUT_DIR = path.join(ROOT, '..', 'tests', 'results', 'frontend', 'audits', 'i18n');
 
 const EXCLUDE_PATTERNS = [
   /\.test\.(ts|tsx)$/,
@@ -154,7 +155,25 @@ function riskFor(file) {
   return 'low';
 }
 
+function resolveOutputDir() {
+  const flag = ARGS.find((arg) => arg === '--output-dir' || arg.startsWith('--output-dir='));
+  if (!flag) return DEFAULT_OUT_DIR;
+  if (flag === '--output-dir') {
+    const nextArg = ARGS[ARGS.indexOf(flag) + 1];
+    if (!nextArg || nextArg.startsWith('--')) {
+      throw new Error('Missing value for --output-dir');
+    }
+    return path.isAbsolute(nextArg) ? nextArg : path.resolve(ROOT, nextArg);
+  }
+  const [, rawPath] = flag.split('=');
+  if (!rawPath) {
+    throw new Error('Missing value for --output-dir');
+  }
+  return path.isAbsolute(rawPath) ? rawPath : path.resolve(ROOT, rawPath);
+}
+
 async function main() {
+  const outDir = resolveOutputDir();
   const files = await walk(SRC_DIR);
   const rows = [];
 
@@ -171,8 +190,8 @@ async function main() {
 
   rows.sort((a, b) => b.hardcodedTextCount - a.hardcodedTextCount || a.file.localeCompare(b.file));
 
-  await fs.mkdir(OUT_DIR, { recursive: true });
-  await fs.writeFile(path.join(OUT_DIR, 'inventory.json'), JSON.stringify(rows, null, 2) + '\n', 'utf8');
+  await fs.mkdir(outDir, { recursive: true });
+  await fs.writeFile(path.join(outDir, 'inventory.json'), JSON.stringify(rows, null, 2) + '\n', 'utf8');
 
   const bySeverity = { high: 0, medium: 0, low: 0 };
   for (const row of rows) bySeverity[row.severity] += row.hardcodedTextCount;
@@ -193,7 +212,7 @@ async function main() {
     lines.push(`| \`${row.file}\` | ${row.hardcodedTextCount} | ${row.usesTranslation ? 'yes' : 'no'} | ${row.ownershipGroup} | ${row.severity} |`);
   }
 
-  await fs.writeFile(path.join(OUT_DIR, 'inventory.md'), lines.join('\n') + '\n', 'utf8');
+  await fs.writeFile(path.join(outDir, 'inventory.md'), lines.join('\n') + '\n', 'utf8');
   console.log(`Wrote i18n audit inventory for ${rows.length} files.`);
 }
 
