@@ -14,9 +14,15 @@ logger = logging.getLogger("core.client_ip")
 DEFAULT_TRUSTED_PROXIES: tuple[str, ...] = (
     "127.0.0.1",
     "::1",
+)
+
+_BROAD_TRUSTED_PROXY_WARNINGS: tuple[str, ...] = (
+    "0.0.0.0/0",
+    "::/0",
     "10.0.0.0/8",
     "172.16.0.0/12",
     "192.168.0.0/16",
+    "fd00::/8",
 )
 
 
@@ -52,6 +58,19 @@ def _parse_trusted_networks(
         except ValueError as exc:
             logger.warning("invalid_trusted_proxy_config entry=%s error=%s", entry, exc)
     return networks
+
+
+def find_broad_trusted_proxy_entries(trusted_proxies: Iterable[str]) -> list[str]:
+    broad_networks = _parse_trusted_networks(_BROAD_TRUSTED_PROXY_WARNINGS)
+    flagged: list[str] = []
+    for entry in trusted_proxies:
+        networks = _parse_trusted_networks([entry])
+        if not networks:
+            continue
+        network = networks[0]
+        if any(network == broad for broad in broad_networks):
+            flagged.append(entry.strip())
+    return flagged
 
 
 class ClientIPResolver:

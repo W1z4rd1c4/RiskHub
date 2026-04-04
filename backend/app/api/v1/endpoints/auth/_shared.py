@@ -26,7 +26,7 @@ def _sha256_trunc(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()[:16]
 
 
-def _build_token_response(user: User) -> TokenResponse:
+def _build_token_response(user: User, *, settings: Settings) -> TokenResponse:
     effective_permissions = get_effective_permissions(user)
     scope_label = get_scope_label(user)
     user_data = {
@@ -43,7 +43,8 @@ def _build_token_response(user: User) -> TokenResponse:
         "scope_label": scope_label,
     }
     access_token = create_access_token(
-        data={"sub": user.email, "user_id": user.id, "token_version": user.token_version}
+        data={"sub": user.email, "user_id": user.id, "token_version": user.token_version},
+        settings=settings,
     )
     return TokenResponse(access_token=access_token, user=user_data)
 

@@ -8,6 +8,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 RENDERER = REPO_ROOT / "scripts" / "deploy" / "lib" / "render.py"
+DEFAULT_DOCKER_NETWORK_SUBNET = "172.31.255.0/24"
 
 
 def _write_config(path: Path, **overrides: str) -> None:
@@ -54,11 +55,18 @@ def _parse_env(path: Path) -> dict[str, str]:
 
 
 def _source_shell_assignments(path: Path, *keys: str) -> dict[str, str]:
+    shell_script = (
+        'set -euo pipefail; '
+        'metadata_path="$1"; '
+        'shift; '
+        'source "$metadata_path"; '
+        'for key in "$@"; do printf "%s=%s\\n" "$key" "${!key}"; done'
+    )
     result = subprocess.run(
         [
             "bash",
             "-lc",
-            'set -euo pipefail; metadata_path="$1"; shift; source "$metadata_path"; for key in "$@"; do printf "%s=%s\\n" "$key" "${!key}"; done',
+            shell_script,
             "bash",
             str(path),
             *keys,
@@ -134,12 +142,17 @@ def test_renderer_derives_public_url_hosts_and_target_specific_redis_urls_withou
             docker_out / "metadata.env",
             "SERVER_NAME",
             "FRONTEND_BIND_PORT",
+            "DOCKER_NETWORK_SUBNET",
             "ENTRA_GRAPH_CREDENTIAL_MODE",
         )
         linux_meta = _source_shell_assignments(linux_out / "metadata.env", "BACKEND_BIND_PORT")
 
         assert docker_backend["CORS_ORIGINS"] == '["https://riskhub.example.com"]'
         assert docker_backend["ALLOWED_HOSTS"] == '["riskhub.example.com"]'
+        assert docker_backend["TRUSTED_PROXIES"] == f'["127.0.0.1", "::1", "{DEFAULT_DOCKER_NETWORK_SUBNET}"]'
+        assert docker_backend["DOCKER_NETWORK_SUBNET"] == DEFAULT_DOCKER_NETWORK_SUBNET
+        assert linux_backend["TRUSTED_PROXIES"] == '["127.0.0.1", "::1"]'
+        assert "DOCKER_NETWORK_SUBNET" not in linux_backend
         assert docker_backend["DATABASE_URL_FILE"] == str(secret_dir / "database_url")
         assert docker_backend["SECRET_KEY_FILE"] == str(secret_dir / "secret_key")
         assert docker_backend["ENTRA_CLIENT_SECRET_FILE"] == str(secret_dir / "entra_client_secret")
@@ -155,6 +168,7 @@ def test_renderer_derives_public_url_hosts_and_target_specific_redis_urls_withou
         assert (linux_out / "redis_url").read_text(encoding="utf-8") == "redis://:redis-secret@127.0.0.1:6379/0\n"
         assert docker_meta["SERVER_NAME"] == "riskhub.example.com"
         assert docker_meta["FRONTEND_BIND_PORT"] == "18080"
+        assert docker_meta["DOCKER_NETWORK_SUBNET"] == DEFAULT_DOCKER_NETWORK_SUBNET
         assert linux_meta["BACKEND_BIND_PORT"] == "8000"
         assert docker_meta["ENTRA_GRAPH_CREDENTIAL_MODE"] == "secret"
 
@@ -420,6 +434,8 @@ def test_renderer_metadata_env_round_trips_shell_safe_values_for_paths_with_spac
             "RUNTIME_DIR",
             "CORS_ORIGINS_JSON",
             "ALLOWED_HOSTS_JSON",
+            "TRUSTED_PROXIES_JSON",
+            "DOCKER_NETWORK_SUBNET",
             "REDIS_URL_FILE",
             "REDIS_PASSWORD_FILE",
             "REDIS_URL",
@@ -429,6 +445,8 @@ def test_renderer_metadata_env_round_trips_shell_safe_values_for_paths_with_spac
         assert metadata["RUNTIME_DIR"] == str(runtime_dir)
         assert metadata["CORS_ORIGINS_JSON"] == '["https://riskhub.example.com"]'
         assert metadata["ALLOWED_HOSTS_JSON"] == '["riskhub.example.com"]'
+        assert metadata["TRUSTED_PROXIES_JSON"] == f'["127.0.0.1", "::1", "{DEFAULT_DOCKER_NETWORK_SUBNET}"]'
+        assert metadata["DOCKER_NETWORK_SUBNET"] == DEFAULT_DOCKER_NETWORK_SUBNET
         assert metadata["REDIS_URL_FILE"] == str(runtime_dir / "redis_url")
         assert metadata["REDIS_PASSWORD_FILE"] == str(secret_dir / "redis_password")
         assert metadata["REDIS_URL"] == "redis://:redis-secret@redis:6379/0"

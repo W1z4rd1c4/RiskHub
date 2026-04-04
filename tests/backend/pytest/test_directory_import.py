@@ -54,8 +54,8 @@ async def test_directory_import_creates_user_and_department(
         return DirectoryUserRead(
             external_id=external_id,
             display_name="Imported User",
-            email="imported.user@example.com",
-            user_principal_name="imported.user@example.com",
+            email="Imported.User@Example.com",
+            user_principal_name="Imported.User@Example.com",
             department="Enterprise Risk",
             job_title="Senior Risk Analyst",
             account_enabled=True,
@@ -98,8 +98,8 @@ async def test_directory_reimport_updates_existing_user_without_duplication(
         return DirectoryUserRead(
             external_id=external_id,
             display_name="Employee Updated",
-            email=test_user_employee.email,
-            user_principal_name=test_user_employee.email,
+            email=test_user_employee.email.upper(),
+            user_principal_name=test_user_employee.email.upper(),
             department="Updated Department",
             job_title="Updated Title",
             account_enabled=True,

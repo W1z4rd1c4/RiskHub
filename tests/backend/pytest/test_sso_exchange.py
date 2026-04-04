@@ -147,7 +147,7 @@ async def test_sso_exchange_jit_creates_unknown_user(sso_client: AsyncClient, db
         return VerifiedIdentity(
             external_id="oid-unknown",
             tenant_id=settings.entra_tenant_id or "",
-            email="unknown@example.com",
+            email="Unknown@Example.com",
             name="Unknown",
         )
 

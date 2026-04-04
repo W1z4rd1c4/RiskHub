@@ -9,6 +9,8 @@ from collections.abc import Mapping
 
 from sqlalchemy import select
 
+from app.core.email import email_equals
+
 # User email -> ID mappings (populated at runtime)
 USERS = {
     "cro@riskhub.local": None,
@@ -40,7 +42,7 @@ async def load_mappings(db):
 
     users = {}
     for email in USERS:
-        result = await db.execute(select(User).where(User.email == email))
+        result = await db.execute(select(User).where(email_equals(User.email, email)))
         user = result.scalar_one_or_none()
         if user:
             users[email] = user.id

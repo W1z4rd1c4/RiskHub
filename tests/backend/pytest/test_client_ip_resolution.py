@@ -46,6 +46,11 @@ def test_untrusted_peer_ignores_xff():
     assert rate_limit._get_client_ip(request) == "203.0.113.25"
 
 
+def test_default_helper_ignores_private_peer_xff_without_explicit_proxy_config():
+    request = _build_request("10.0.0.9", "198.51.100.1, 203.0.113.5")
+    assert get_request_client_ip(request) == "10.0.0.9"
+
+
 def test_multi_proxy_chain_strips_trusted_hops_from_right():
     trusted = {"10.0.0.0/8", "172.16.0.0/12"}
     rate_limit, _ = _build_middlewares(trusted)

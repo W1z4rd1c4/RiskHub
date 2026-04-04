@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
+import hashlib
+
+from fastapi import APIRouter, Depends, status
 from fastapi.responses import JSONResponse
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,10 +12,13 @@ from starlette.responses import Response
 
 from app.core.config import Settings, get_settings
 from app.core.datetime_utils import coerce_utc, utc_now
+from app.core.logging import get_logger
 from app.core.tokens import (
     clear_refresh_cookie,
     create_refresh_token,
     get_refresh_cookie,
+    get_request_client_ip,
+    get_request_user_agent,
     new_token_jti,
     token_decode_or_none,
 )
@@ -24,6 +29,13 @@ from app.schemas.auth import TokenResponse
 from ._shared import _build_token_response, _issue_refresh_session
 
 router = APIRouter()
+logger = get_logger("auth.refresh")
+
+
+def _telemetry_fingerprint(value: str | None) -> str | None:
+    if not value:
+        return None
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()[:16]
 
 
 def _refresh_unauthorized_response(detail: str, settings: Settings) -> JSONResponse:
@@ -98,6 +110,25 @@ async def refresh_session(
             await db.commit()
         return _refresh_unauthorized_response("Session revoked", settings)
 
+    current_ip = get_request_client_ip(request, settings.trusted_proxies)
+    current_user_agent = get_request_user_agent(request)
+    ip_changed = bool(refresh_row.created_ip and current_ip and refresh_row.created_ip != current_ip)
+    user_agent_changed = bool(
+        refresh_row.user_agent and current_user_agent and refresh_row.user_agent != current_user_agent
+    )
+    if ip_changed or user_agent_changed:
+        logger.warning(
+            "refresh_session_context_changed",
+            user_id=user.id,
+            refresh_token_id=refresh_row.id,
+            ip_changed=ip_changed,
+            old_ip_sha256=_telemetry_fingerprint(refresh_row.created_ip),
+            new_ip_sha256=_telemetry_fingerprint(current_ip),
+            user_agent_changed=user_agent_changed,
+            old_user_agent_sha256=_telemetry_fingerprint(refresh_row.user_agent),
+            new_user_agent_sha256=_telemetry_fingerprint(current_user_agent),
+        )
+
     child_jti = new_token_jti()
     child_refresh_token, child_expires_at = create_refresh_token(
         user_id=user.id,
@@ -132,6 +163,6 @@ async def refresh_session(
         issued_at=now,
     )
 
-    token_response = _build_token_response(user)
+    token_response = _build_token_response(user, settings=settings)
     await db.commit()
     return token_response

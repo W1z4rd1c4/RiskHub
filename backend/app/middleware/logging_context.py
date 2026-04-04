@@ -16,6 +16,7 @@ from starlette.responses import Response
 
 from app.core.client_ip import DEFAULT_TRUSTED_PROXIES, ClientIPResolver, resolve_request_client_ip
 from app.core.logging import client_ip_ctx, get_logger, request_id_ctx, user_id_ctx
+from app.core.security import TokenDecodeError, decode_access_token
 
 logger = get_logger("middleware.logging")
 
@@ -57,7 +58,7 @@ class LoggingContextMiddleware(BaseHTTPMiddleware):
             auth_header = request.headers.get("Authorization", "")
             if auth_header.startswith("Bearer "):
                 token = auth_header[7:]
-                user_id = _extract_user_id_from_token(token)
+                user_id = _extract_user_id_from_token(token, settings=request.app.state.settings)
                 if user_id:
                     user_id_token = user_id_ctx.set(user_id)
 
@@ -102,7 +103,7 @@ class LoggingContextMiddleware(BaseHTTPMiddleware):
                 user_id_ctx.reset(user_id_token)
 
 
-def _extract_user_id_from_token(token: str) -> int | None:
+def _extract_user_id_from_token(token: str, *, settings) -> int | None:
     """
     Extract user_id from JWT token with signature verification.
 
@@ -110,25 +111,13 @@ def _extract_user_id_from_token(token: str) -> int | None:
     Invalid/expired tokens return None (no attribution).
     """
     try:
-        import jwt
-        from jwt import InvalidTokenError
-
-        from app.core.config import get_settings
-
-        settings = get_settings()
-        # Verify signature to prevent spoofed attribution
-        payload = jwt.decode(
-            token,
-            settings.secret_key,
-            algorithms=["HS256"],
-            options={"verify_exp": True, "verify_signature": True}
-        )
+        payload = decode_access_token(token, settings=settings)
         # Token encodes user_id as dedicated claim, sub is email
         user_id = payload.get("user_id")
         if user_id is not None:
             return int(user_id)
         return None
-    except (InvalidTokenError, ValueError, TypeError):
+    except (TokenDecodeError, ValueError, TypeError):
         # Invalid/expired token - no user attribution
         return None
     except Exception:

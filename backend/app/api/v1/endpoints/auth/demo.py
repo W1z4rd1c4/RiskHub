@@ -1,11 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from starlette.requests import Request
 from starlette.responses import Response
 
 from app.core.config import Settings, get_settings
+from app.core.email import email_equals
 from app.db.session import get_db
 from app.models import RolePermission, User
 from app.schemas.auth import DemoLoginRequest, TokenResponse
@@ -35,9 +36,8 @@ async def _resolve_demo_user_by_id(*, db: AsyncSession, user_id: int) -> User | 
 
 
 async def _resolve_demo_user_by_email(*, db: AsyncSession, email: str) -> User | None:
-    normalized_email = email.strip().lower()
     result = await db.execute(
-        select(User).options(*_user_with_demo_load()).where(func.lower(User.email) == normalized_email)
+        select(User).options(*_user_with_demo_load()).where(email_equals(User.email, email))
     )
     return result.scalar_one_or_none()
 
@@ -54,7 +54,7 @@ async def _build_demo_response(
     if not user.is_active:
         raise HTTPException(status_code=403, detail="User account is inactive")
 
-    token_response = _build_token_response(user)
+    token_response = _build_token_response(user, settings=settings)
     await _issue_refresh_session(db=db, request=request, response=response, user=user, settings=settings)
 
     from app.core.activity_logger import log_activity

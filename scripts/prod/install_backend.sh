@@ -92,7 +92,8 @@ if [[ "$instance" != "api" && "$instance" != "scheduler" ]]; then
   die "Invalid --instance (expected api|scheduler)"
 fi
 
-ensure_network "$NETWORK_NAME"
+network_subnet="$(envfile_get "$BACKEND_ENV" "DOCKER_NETWORK_SUBNET" || true)"
+ensure_network "$NETWORK_NAME" "$network_subnet"
 ensure_volume "$BACKEND_LOGS_VOLUME"
 require_dir "$SECRET_DIR"
 require_dir "$RUNTIME_DIR"

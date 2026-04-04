@@ -8,6 +8,7 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 from app.core.config import Settings, get_settings
+from app.core.email import email_equals
 from app.core.logging import get_logger
 from app.core.security import verify_password_or_dummy
 from app.db.session import get_db
@@ -93,7 +94,9 @@ async def login(
     )
 
     result = await db.execute(
-        select(User).options(permission_load, selectinload(User.department)).where(User.email == credentials.email)
+        select(User)
+        .options(permission_load, selectinload(User.department))
+        .where(email_equals(User.email, credentials.email))
     )
     user = result.scalar_one_or_none()
     password_valid = verify_password_or_dummy(credentials.password, user.hashed_password if user else None)
@@ -135,7 +138,7 @@ async def login(
         fallback=None,
     )
 
-    token_response = _build_token_response(user)
+    token_response = _build_token_response(user, settings=settings)
     await _issue_refresh_session(db=db, request=request, response=response, user=user, settings=settings)
 
     from app.core.activity_logger import log_activity

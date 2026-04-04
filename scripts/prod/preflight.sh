@@ -85,6 +85,7 @@ fi
 log "Preflight: validating configuration and host readiness"
 preflight_backend_env "$BACKEND_ENV"
 preflight_frontend_env "$FRONTEND_ENV" "$allow_frontend_port_in_use"
+preflight_docker_network_contract "$BACKEND_ENV" "$FRONTEND_ENV"
 
 if [[ "$check_only" == "true" ]]; then
   check_db=false

@@ -50,6 +50,7 @@ async def demo_auth_client(db_session: AsyncSession) -> AsyncClient:
             secret_key="test-secret-key-32-chars-minimum-value",
             mock_auth_enabled=True,
             auth_mode="hybrid_dev",
+            trusted_proxies=["127.0.0.1", "::1", "10.0.0.0/8"],
         )
 
     app.dependency_overrides[get_db] = override_get_db

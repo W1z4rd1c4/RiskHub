@@ -1,8 +1,9 @@
 """Pydantic schemas for authentication."""
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
+from app.core.email import normalize_email
 from app.schemas.user import UserBrief
 
 
@@ -11,10 +12,26 @@ class LoginRequest(BaseModel):
     email: str  # Changed from EmailStr to allow .test TLD for testing
     password: str
 
+    @field_validator("email", mode="before")
+    @classmethod
+    def _normalize_email(cls, value: str) -> str:
+        normalized = normalize_email(value)
+        if normalized is None:
+            raise ValueError("email must not be empty")
+        return normalized
+
 
 class DemoLoginRequest(BaseModel):
     """Schema for dev-only demo login request."""
     email: str
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def _normalize_email(cls, value: str) -> str:
+        normalized = normalize_email(value)
+        if normalized is None:
+            raise ValueError("email must not be empty")
+        return normalized
 
 
 class TokenResponse(BaseModel):

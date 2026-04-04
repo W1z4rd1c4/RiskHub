@@ -71,7 +71,8 @@ if [[ -z "$frontend_image" ]]; then
   die "Missing --frontend-image"
 fi
 
-ensure_network "$NETWORK_NAME"
+network_subnet="$(envfile_get "$FRONTEND_ENV" "DOCKER_NETWORK_SUBNET" || true)"
+ensure_network "$NETWORK_NAME" "$network_subnet"
 
 host_port="$(envfile_get "$FRONTEND_ENV" "FRONTEND_HOST_PORT" || true)"
 container_port="$(envfile_get "$FRONTEND_ENV" "FRONTEND_CONTAINER_PORT" || true)"

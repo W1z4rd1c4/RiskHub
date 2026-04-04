@@ -21,6 +21,7 @@ import sys
 from sqlalchemy import func, select
 
 from app.core.config import get_settings
+from app.core.email import email_equals, normalize_email
 from app.db.session import session_context
 from app.models import Department, Role, User
 from app.models.user import AccessScope
@@ -74,7 +75,7 @@ async def _resolve_department_id(department: str | None) -> int | None:
 
 async def _run(args: argparse.Namespace) -> int:
     settings = get_settings()
-    email = args.email.strip().lower()
+    email = normalize_email(args.email)
     if not email or "@" not in email:
         raise SystemExit("Invalid --email (must be a valid email address)")
 
@@ -86,7 +87,7 @@ async def _run(args: argparse.Namespace) -> int:
         if role is None:
             raise SystemExit(f"Role not found: {args.role!r} (seed roles first)")
 
-        user_result = await db.execute(select(User).where(func.lower(User.email) == email))
+        user_result = await db.execute(select(User).where(email_equals(User.email, email)))
         user = user_result.scalar_one_or_none()
 
         access_scope = AccessScope(args.access_scope)

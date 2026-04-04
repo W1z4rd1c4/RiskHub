@@ -200,7 +200,7 @@ async def test_access_update_duplicate_email_rolls_back_access_changes(
         f"/api/v1/access/users/{test_user_employee.id}",
         json={
             "name": "Should Roll Back",
-            "email": "conflict@example.com",
+            "email": "Conflict@Example.com",
             "role_id": test_role.id,
         },
     )

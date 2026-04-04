@@ -94,6 +94,29 @@ case "${subcmd}" in
   ps)
     exit 0
     ;;
+  network)
+    action="${1:-}"
+    shift || true
+    case "${action}" in
+      inspect)
+        name="${1:-}"
+        [[ "${DOCKER_NETWORK_EXISTS:-0}" == "1" ]] || exit 1
+        shift || true
+        if [[ "${1:-}" == "--format" ]]; then
+          printf '%s\n' "${DOCKER_NETWORK_SUBNET:-172.31.255.0/24}"
+        else
+          printf '[]\n'
+        fi
+        exit 0
+        ;;
+      create)
+        exit 0
+        ;;
+      *)
+        exit 0
+        ;;
+    esac
+    ;;
   pull)
     exit 0
     ;;
@@ -273,6 +296,41 @@ def test_docker_preflight_succeeds_before_first_deploy_without_persistent_runtim
 
         assert result.returncode == 0, f"{result.stdout}\n{result.stderr}"
         assert not runtime_dir.exists()
+
+
+def test_docker_preflight_rejects_existing_network_with_mismatched_subnet() -> None:
+    with tempfile.TemporaryDirectory(prefix="riskhub-deploy-preflight-network-mismatch-") as td:
+        tmp = Path(td)
+        config_path = tmp / "riskhub.env"
+        secret_dir = tmp / "secrets"
+        runtime_dir = tmp / "runtime"
+        _write_config(config_path)
+        _write_secrets(secret_dir)
+        fake_bin = _make_fake_bin(tmp)
+
+        env = os.environ.copy()
+        env["PATH"] = f"{fake_bin}:{env['PATH']}"
+        env["RISKHUB_RUNTIME_DIR"] = str(runtime_dir)
+        env["DOCKER_NETWORK_EXISTS"] = "1"
+        env["DOCKER_NETWORK_SUBNET"] = "172.31.200.0/24"
+
+        result = _run_cli(
+            [
+                "preflight",
+                "--target",
+                "docker",
+                "--config",
+                str(config_path),
+                "--secret-dir",
+                str(secret_dir),
+                "--yes",
+            ],
+            env,
+        )
+
+        output = f"{result.stdout}\n{result.stderr}"
+        assert result.returncode != 0
+        assert "uses subnet(s) [172.31.200.0/24], expected '172.31.255.0/24'" in output
 
 
 def test_secrets_edit_uses_secret_mount_workspace_and_cleans_up() -> None:
@@ -595,7 +653,17 @@ def test_linux_cli_supports_preflight_deploy_upgrade_and_rollback_dry_run() -> N
         env["RISKHUB_LINUX_NGINX_SITE"] = str(nginx_site)
 
         preflight = _run_cli(
-            ["preflight", "--target", "linux", "--config", str(config_path), "--secret-dir", str(secret_dir), "--dry-run", "--yes"],
+            [
+                "preflight",
+                "--target",
+                "linux",
+                "--config",
+                str(config_path),
+                "--secret-dir",
+                str(secret_dir),
+                "--dry-run",
+                "--yes",
+            ],
             env,
         )
         assert preflight.returncode == 0, f"{preflight.stdout}\n{preflight.stderr}"
@@ -688,7 +756,17 @@ def test_preflight_reports_missing_docker_prerequisite() -> None:
         env["PATH"] = f"{fake_bin}:/usr/bin:/bin:/usr/sbin:/sbin"
 
         result = _run_cli(
-            ["preflight", "--target", "docker", "--config", str(config_path), "--secret-dir", str(secret_dir), "--dry-run", "--yes"],
+            [
+                "preflight",
+                "--target",
+                "docker",
+                "--config",
+                str(config_path),
+                "--secret-dir",
+                str(secret_dir),
+                "--dry-run",
+                "--yes",
+            ],
             env,
         )
 
@@ -933,7 +1011,17 @@ def test_preflight_reports_config_validation_failures() -> None:
         env["PATH"] = f"{fake_bin}:{env['PATH']}"
 
         result = _run_cli(
-            ["preflight", "--target", "linux", "--config", str(config_path), "--secret-dir", str(secret_dir), "--dry-run", "--yes"],
+            [
+                "preflight",
+                "--target",
+                "linux",
+                "--config",
+                str(config_path),
+                "--secret-dir",
+                str(secret_dir),
+                "--dry-run",
+                "--yes",
+            ],
             env,
         )
 
