@@ -2,6 +2,7 @@
 // Now supports arbitrary types configured in Risk Hub (not just S/O)
 
 import type { ControlMonitoringFields } from './control';
+import type { KeyRiskIndicator } from './kri';
 import type { LinkedVendorSummary } from './vendorLink';
 
 export type RiskType = string;
@@ -59,7 +60,7 @@ export interface Risk {
     updated_at: string;
 
     // Relationships
-    kris?: import('./kri').KeyRiskIndicator[];
+    kris?: KeyRiskIndicator[];
     owner?: {
         id: number;
         name: string;

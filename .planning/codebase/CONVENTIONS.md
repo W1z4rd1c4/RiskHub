@@ -46,8 +46,8 @@
 ## Testing and Quality Conventions
 
 - Backend: pytest naming and markers in `backend/pytest.ini`
-- Frontend: Vitest jsdom tests + MSW mocks (`tests/frontend/unit/vitest.config.ts`, `tests/frontend/unit/src/test/mocks/`)
-- E2E: Playwright multi-browser projects (`tests/frontend/e2e/playwright.config.ts`)
+- Frontend: Vitest jsdom tests + MSW mocks (`frontend/vitest.config.ts`, `tests/frontend/unit/src/test/mocks/`)
+- E2E: Playwright multi-browser projects (`frontend/playwright.config.ts`)
 - Lint/security toolchain via ESLint + pre-commit + security workflows (`frontend/eslint.config.js`, `.pre-commit-config.yaml`, `.github/workflows/security.yml`)
 
 ## Time and Date Handling Convention (Policy)

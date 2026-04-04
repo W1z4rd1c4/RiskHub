@@ -12,7 +12,7 @@ export function IssueNewPage() {
     const canWrite = hasPermission('issues', 'write');
 
     const handleCreated = (issue: Issue) => {
-        navigate(`/issues/${issue.id}`);
+        void navigate(`/issues/${issue.id}`);
     };
 
     if (!canWrite) {

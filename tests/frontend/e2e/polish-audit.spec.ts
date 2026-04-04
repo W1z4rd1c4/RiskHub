@@ -17,7 +17,7 @@ import { loginAsDemoUser, DEMO_ACCOUNTS } from './helpers/login';
 import { waitForDataLoad } from './helpers/wait';
 import { navigateSpa } from './helpers/spaNavigate';
 
-type AuditTheme = 'riskhub' | 'light';
+type AuditTheme = 'riskhub' | 'light' | 'dark';
 type AuditLanguage = 'en' | 'cs';
 type AuditRole = 'RISK_MANAGER' | 'CRO' | 'ADMIN';
 
@@ -56,7 +56,7 @@ type AuditArtifact = {
     records: RouteAudit[];
 };
 
-const THEMES: AuditTheme[] = ['riskhub', 'light'];
+const THEMES: AuditTheme[] = ['riskhub', 'light', 'dark'];
 const LANGUAGES: AuditLanguage[] = ['en', 'cs'];
 
 const ROLE_CASES: Array<{ role: AuditRole; accountName: string }> = [

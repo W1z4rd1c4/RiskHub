@@ -44,7 +44,7 @@ export function usePendingApprovalIds(resourceType: ResourceType): Set<number> {
             }
         };
 
-        fetchPending();
+        void fetchPending();
     }, [resourceType]);
 
     return pendingIds;

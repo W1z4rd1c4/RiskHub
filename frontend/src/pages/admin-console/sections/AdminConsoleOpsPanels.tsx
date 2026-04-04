@@ -403,7 +403,7 @@ export function SessionsPanel() {
                     deprovisioned: result.deprovisioned,
                 }),
             );
-            queryClient.invalidateQueries({ queryKey: ['adminSessions'] });
+            void queryClient.invalidateQueries({ queryKey: ['adminSessions'] });
         } catch (error) {
             console.error('Directory check-all failed', error);
             setDirectorySummary(t('users.directory_check_failed', { defaultValue: 'Directory check failed.' }));

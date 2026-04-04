@@ -51,7 +51,7 @@ export function RiskDrilldownModal({ isOpen, onClose, probability, impact, riskT
     }, [filters, impact, isOpen, probability, riskType, t]);
 
     useEffect(() => {
-        fetchRisks();
+        void fetchRisks();
     }, [fetchRisks]);
 
     // Close on escape
@@ -82,7 +82,7 @@ export function RiskDrilldownModal({ isOpen, onClose, probability, impact, riskT
     };
 
     const handleRiskClick = (riskId: number) => {
-        navigate(`/risks/${riskId}`);
+        void navigate(`/risks/${riskId}`);
         onClose();
     };
 

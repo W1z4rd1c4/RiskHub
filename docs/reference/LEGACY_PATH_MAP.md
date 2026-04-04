@@ -21,4 +21,4 @@ This repository was restructured to centralize tests and move operational entryp
 
 - Historical planning archives under `.planning/phases/` may still reference legacy paths.
 - Runtime and CI contracts should follow the active docs in `docs/development/README.md`, not this archive note.
-- JS test suites under `tests/frontend/` resolve package dependencies through `tests/frontend/node_modules` (symlink to `../../frontend/node_modules`).
+- Frontend test execution is rooted from `frontend/` configs (`frontend/vitest.config.ts`, `frontend/playwright.config.ts`); `tests/frontend/` only stores suites and helpers.

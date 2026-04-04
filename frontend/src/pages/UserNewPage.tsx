@@ -124,8 +124,8 @@ export function UserNewPage() {
 
     useEffect(() => {
         if (canManageUsers && authConfig?.auth_mode === 'password') {
-            fetchDepartments();
-            fetchRoles();
+            void fetchDepartments();
+            void fetchRoles();
         }
     }, [authConfig, canManageUsers, fetchDepartments, fetchRoles]);
 
@@ -136,7 +136,7 @@ export function UserNewPage() {
 
         try {
             await userApi.createUser(formData);
-            navigate('/users');
+            void navigate('/users');
         } catch (err: unknown) {
             setErrorKey(apiClient.toUiMessageKey(err));
         } finally {
@@ -145,7 +145,7 @@ export function UserNewPage() {
     };
 
     const handleDirectoryImported = async (result: DirectoryImportResponse) => {
-        navigate('/users', {
+        void navigate('/users', {
             state: {
                 importedUserId: result.user_id,
                 importedUserName: result.name,
@@ -162,7 +162,9 @@ export function UserNewPage() {
         <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="flex items-center justify-between">
                 <button
-                    onClick={() => navigate('/users')}
+                    onClick={() => {
+                        void navigate('/users');
+                    }}
                     className="group flex items-center gap-2 text-slate-400 hover:text-white transition-colors"
                 >
                     <ArrowLeft className="h-5 w-5 group-hover:-translate-x-1 transition-transform" />

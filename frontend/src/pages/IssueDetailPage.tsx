@@ -120,7 +120,7 @@ export function IssueDetailPage() {
             setIsLoading(false);
             return;
         }
-        fetchIssue();
+        void fetchIssue();
     }, [canRead, fetchIssue]);
 
     useEffect(() => {

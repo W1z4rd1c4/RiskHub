@@ -14,7 +14,7 @@ export function HeroPage() {
     const handleLogin = () => {
         // Mock login as admin (ID 1 from seed)
         // Mock auth removed
-        navigate('/');
+        void navigate('/');
     };
 
     return (

@@ -7,7 +7,7 @@ import type {
     ControlRiskLink,
     ControlListResponse
 } from '@/types/control';
-import { ControlEffectiveness } from '@/types/risk';
+import type { ControlEffectiveness } from '@/types/risk';
 import type { ApprovalCreatedResponse } from '@/types/approval';
 import type { ControlExecution, ControlExecutionCreate } from '@/types/execution';
 

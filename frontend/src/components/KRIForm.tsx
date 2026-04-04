@@ -370,7 +370,7 @@ export function KRIForm({
             });
 
             if (vendorContext) {
-                navigate(vendorContext.returnTo, {
+                void navigate(vendorContext.returnTo, {
                     state: {
                         vendorFlash: {
                             tone: 'success',
@@ -388,7 +388,7 @@ export function KRIForm({
                 return;
             }
 
-            navigate(`/kris/${newKRI.id}`);
+            void navigate(`/kris/${newKRI.id}`);
         } catch (err: unknown) {
             console.error('Error saving KRI:', err);
             if (err instanceof ApiClientError) {
@@ -441,7 +441,7 @@ export function KRIForm({
             }
 
             if (kriId) {
-                navigate(`/kris/${kriId}`);
+                void navigate(`/kris/${kriId}`);
             }
         } catch (err: unknown) {
             console.error('Error saving KRI:', err);
@@ -936,7 +936,7 @@ export function KRIForm({
                                             onCancel();
                                             return;
                                         }
-                                        navigate('/kris');
+                                        void navigate('/kris');
                                     }}
                                     className="flex items-center gap-2 text-xs font-black text-slate-500 hover:text-white transition-colors uppercase tracking-widest"
                                 >

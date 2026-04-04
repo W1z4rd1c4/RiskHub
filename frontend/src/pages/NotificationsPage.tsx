@@ -15,6 +15,8 @@ function getNotificationIcon(type: NotificationType, size: 'sm' | 'md' = 'md') {
             return <Clock className={`${sizeClass} text-amber-400`} />;
         case 'approval_resolved':
             return <CheckCircle className={`${sizeClass} text-emerald-400`} />;
+        case 'approval_cancelled':
+            return <AlertTriangle className={`${sizeClass} text-orange-400`} />;
         case 'kri_due_soon':
         case 'kri_due_tomorrow':
             return <Clock className={`${sizeClass} text-amber-400`} />;
@@ -24,6 +26,15 @@ function getNotificationIcon(type: NotificationType, size: 'sm' | 'md' = 'md') {
             return <AlertTriangle className={`${sizeClass} text-orange-400`} />;
         case 'kri_breach_detected':
             return <AlertCircle className={`${sizeClass} text-rose-500`} />;
+        case 'questionnaire_sent':
+        case 'questionnaire_due_soon':
+            return <Clock className={`${sizeClass} text-amber-400`} />;
+        case 'questionnaire_overdue':
+            return <AlertCircle className={`${sizeClass} text-rose-400`} />;
+        case 'questionnaire_submitted':
+            return <CheckCircle className={`${sizeClass} text-emerald-400`} />;
+        case 'questionnaire_clarification_requested':
+            return <AlertTriangle className={`${sizeClass} text-orange-400`} />;
         default:
             return <Bell className={`${sizeClass} text-slate-400`} />;
     }
@@ -81,7 +92,7 @@ export function NotificationsPage() {
     }, [activeTab, limit, page]);
 
     useEffect(() => {
-        fetchNotifications();
+        void fetchNotifications();
     }, [fetchNotifications]);
 
     const handleNotificationClick = async (notification: Notification) => {
@@ -101,7 +112,7 @@ export function NotificationsPage() {
         // Navigate to resource
         const path = getResourcePath(notification.resource_type, notification.resource_id);
         if (path) {
-            navigate(path);
+            void navigate(path);
         }
     };
 

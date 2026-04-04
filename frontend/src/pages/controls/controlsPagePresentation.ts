@@ -115,9 +115,10 @@ export function getControlStatusColor(status: ControlStatus): string {
 
 export function getControlGroupByField(viewMode: ViewMode): keyof ControlSummary | null {
     switch (viewMode) {
-        case 'all':
         case 'category':
             return 'control_form';
+        case 'all':
+            return null;
         case 'department':
             return 'department_name';
         case 'process':

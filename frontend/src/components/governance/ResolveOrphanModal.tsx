@@ -8,6 +8,7 @@ import { departmentApi } from '@/services/departmentApi';
 import { controlApi } from '@/services/controlApi';
 import { riskApi } from '@/services/riskApi';
 import { apiClient } from '@/services/apiClient';
+import type { ControlRiskLink } from '@/types/control';
 import type { RiskSummary } from '@/types/risk';
 import type { UserRead } from '@/types/user';
 import type { DepartmentSummary } from '@/services/departmentApi';
@@ -46,7 +47,7 @@ export function ResolveOrphanModal({ isOpen, onClose, orphan, onResolved }: Reso
     const [selectedRiskId, setSelectedRiskId] = useState<number | null>(null);
     const [allDepartments, setAllDepartments] = useState<DepartmentSummary[]>([]);
     const [allRisks, setAllRisks] = useState<RiskSummary[]>([]);
-    const [linkedRisks, setLinkedRisks] = useState<import('@/types/control').ControlRiskLink[]>([]);
+    const [linkedRisks, setLinkedRisks] = useState<ControlRiskLink[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [errorKey, setErrorKey] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');

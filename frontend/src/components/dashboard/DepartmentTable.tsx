@@ -173,7 +173,7 @@ export function DepartmentTable({ metrics }: DepartmentTableProps) {
                                             <button
                                                 onClick={(e) => {
                                                     e.stopPropagation();
-                                                    navigate(`/controls?department=${dept.department_id}`);
+                                                    void navigate(`/controls?department=${dept.department_id}`);
                                                 }}
                                                 className="p-1.5 text-slate-500 hover:text-accent hover:bg-accent/10 rounded-md transition-colors"
                                             >
@@ -187,7 +187,7 @@ export function DepartmentTable({ metrics }: DepartmentTableProps) {
                                             <button
                                                 onClick={(e) => {
                                                     e.stopPropagation();
-                                                    navigate(`/risks?department=${dept.department_id}`);
+                                                    void navigate(`/risks?department=${dept.department_id}`);
                                                 }}
                                                 className="p-1.5 text-slate-500 hover:text-orange-400 hover:bg-orange-400/10 rounded-md transition-colors"
                                             >

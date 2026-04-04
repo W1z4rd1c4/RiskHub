@@ -56,7 +56,7 @@
 
 - Backend testing: `pytest`, `pytest-asyncio`, `pytest-cov` (`backend/pytest.ini`)
 - Backend linting: Ruff (`backend/ruff.toml`, `backend/requirements-dev.txt`)
-- Frontend testing: Vitest + Playwright (`tests/frontend/unit/vitest.config.ts`, `tests/frontend/e2e/playwright.config.ts`)
+- Frontend testing: Vitest + Playwright (`frontend/vitest.config.ts`, `frontend/playwright.config.ts`)
 - Frontend linting: ESLint (`frontend/eslint.config.js`)
 - Repo-level security checks: Bandit, pip-audit, Trivy, Syft+Grype correlation, gitleaks (`.pre-commit-config.yaml`, `.github/workflows/security.yml`)
 

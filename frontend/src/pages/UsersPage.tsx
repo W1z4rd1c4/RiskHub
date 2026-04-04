@@ -132,7 +132,7 @@ export function UsersPage() {
     useEffect(() => {
         // Wait for user to be loaded before fetching
         if (currentUser && pageMode !== 'forbidden') {
-            fetchUsers();
+            void fetchUsers();
         }
     }, [currentUser, fetchUsers, pageMode]);
 
@@ -187,7 +187,7 @@ export function UsersPage() {
         try {
             setIsToggling(true);
             await userApi.updateUser(userToToggle.id, { is_active: !userToToggle.is_active });
-            fetchUsers();
+            await fetchUsers();
         } catch (error) {
             console.error('Failed to update user status:', error);
         } finally {
@@ -203,7 +203,7 @@ export function UsersPage() {
     };
 
     const handleAccessSaved = () => {
-        fetchUsers();
+        void fetchUsers();
     };
 
     const handleDirectoryImported = async (result: DirectoryImportResponse) => {
@@ -271,7 +271,7 @@ export function UsersPage() {
                 name: locationState.importedUserName ?? importedUser.name,
             }),
         );
-        navigate('/users', { replace: true, state: null });
+        void navigate('/users', { replace: true, state: null });
     }, [isAccessMode, locationState, navigate, t, users]);
 
     if (currentUser && pageMode === 'forbidden') {

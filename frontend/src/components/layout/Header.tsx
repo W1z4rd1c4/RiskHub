@@ -10,8 +10,8 @@ export function Header() {
     const { t } = useTranslation('navigation');
 
     const handleLogout = () => {
-        logout();
-        navigate('/login');
+        void logout();
+        void navigate('/login');
     };
 
     return (
