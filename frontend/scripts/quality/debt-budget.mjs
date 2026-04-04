@@ -6,6 +6,7 @@ const ARGS = process.argv.slice(2);
 const ROOT = process.cwd();
 const SRC_DIR = path.join(ROOT, 'src');
 const ALLOWLIST_PATH = path.join(ROOT, 'scripts', 'quality', 'debt-allowlist.json');
+const DEFAULT_REPORT_PATH = path.join(ROOT, '..', 'tests', 'results', 'frontend', 'audits', 'quality', 'debt.json');
 const FILE_EXTENSIONS = new Set(['.ts', '.tsx']);
 const TEST_FILE_RE = /\.(test|spec)\.(ts|tsx)$/;
 const TEST_PATH_RE = /(?:^|\/)(__tests__|test)\//;
@@ -147,11 +148,11 @@ function resolveReportPath() {
   const flag = ARGS.find((arg) => arg === '--report-json' || arg.startsWith('--report-json='));
   if (!flag) return null;
   if (flag === '--report-json') {
-    return path.join(ROOT, 'quality-audit', 'debt.json');
+    return DEFAULT_REPORT_PATH;
   }
   const [, rawPath] = flag.split('=');
   if (!rawPath) {
-    return path.join(ROOT, 'quality-audit', 'debt.json');
+    return DEFAULT_REPORT_PATH;
   }
   return path.isAbsolute(rawPath) ? rawPath : path.join(ROOT, rawPath);
 }

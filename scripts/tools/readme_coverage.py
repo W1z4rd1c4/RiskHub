@@ -124,6 +124,21 @@ def classify_purpose(rel_dir: Path) -> str:
     text = rel_dir.as_posix()
     parts = rel_dir.parts
 
+    if text == "backend":
+        return "Backend API, migrations, runtime packaging, and backend test configuration for RiskHub."
+
+    if text == "frontend":
+        return "React frontend application, build tooling, and frontend quality scripts for RiskHub."
+
+    if text == "tests":
+        return "Centralized backend, frontend, and generated verification artifacts for RiskHub."
+
+    if text == "backend/app":
+        return "Primary FastAPI application package, including models, services, and API routing."
+
+    if text == "frontend/src":
+        return "Frontend application source for pages, components, hooks, state, and shared UI logic."
+
     if text.startswith("backend/app/api/v1/endpoints/"):
         domain = parts[5] if len(parts) > 5 else "endpoint"
         return f"API endpoint package for `{domain}` domain."
