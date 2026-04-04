@@ -18,7 +18,8 @@ Common rules across both targets:
 
 - External PostgreSQL is mandatory.
 - Operators edit `/etc/riskhub/riskhub.env` for non-secrets and `/etc/riskhub/secrets/` for secrets.
-- The admin entrypoint is `./scripts/deploy.sh`.
+- The public guided installer is `./scripts/install.sh production --target docker|linux`.
+- The admin entrypoint underneath it is `./scripts/deploy.sh`.
 - The frontend serves the SPA and proxies `/api` on the same origin.
 - The scheduler runs as a separate singleton runtime.
 - Scheduler ownership is enforced in-app with a Postgres advisory lock and recorded in `scheduler_job_runs`.
@@ -36,6 +37,12 @@ Common rules across both targets:
 | [security-checklist.md](./security-checklist.md) | Hardening checklist before and after go-live |
 
 ## Public Interface
+
+```bash
+./scripts/install.sh production --target docker|linux
+```
+
+Advanced/manual admin interface:
 
 ```bash
 ./scripts/deploy.sh <init|secrets-init|secrets-edit|secrets-check|preflight|deploy|upgrade|status|logs|smoke|rollback> --target docker|linux

@@ -1,6 +1,6 @@
 # Deployment Reference
 
-> **Last Updated**: 2026-03-29
+> **Last Updated**: 2026-04-04
 > **Audience**: Operators and maintainers
 
 ## Operator Config
@@ -72,7 +72,25 @@ Target-specific Redis URLs:
 - docker: `redis://:<password>@redis:6379/0`
 - linux: `redis://:<password>@127.0.0.1:6379/0`
 
-## Command Reference
+## Public Wrapper Commands
+
+Recommended public production commands:
+
+```bash
+./scripts/install.sh production --target docker --version VERSION
+./scripts/install.sh production --target docker --backend-image IMAGE --backend-db-image IMAGE --frontend-image IMAGE --redis-image IMAGE
+./scripts/install.sh production --target linux --bundle PATH
+./scripts/install.sh verify --mode production --target docker|linux --config PATH --secret-dir PATH
+```
+
+Wrapper notes:
+
+- `./scripts/install.sh production ...` initializes missing config scaffolding, prompts for required non-secret values, reuses `./scripts/deploy.sh secrets-edit ...` for secret capture, refuses unresolved placeholders, then runs `preflight`, `deploy`, `status`, and `smoke`.
+- `./scripts/install.sh verify ...` is non-mutating and dispatches to the production `status` and `smoke` checks for the selected target.
+
+## Advanced/Admin Command Reference
+
+Lower-level admin interface:
 
 ```bash
 ./scripts/deploy.sh init --target docker|linux [--config PATH] [--secret-dir PATH] [--force]
@@ -102,6 +120,7 @@ Operational notes:
 
 - `./scripts/deploy.sh init ...` scaffolds the non-secret config, the secret-file placeholders, and the persistent runtime directory.
 - `./scripts/deploy.sh secrets-edit ...` keeps its temporary edit workspace under the parent of `--secret-dir` so secret edits stay on the same host-managed mount, not under `/tmp`.
+- `./scripts/install.sh production ...` is the recommended first-run operator workflow; keep `./scripts/deploy.sh` for advanced/manual administration, debugging, and partial lifecycle commands.
 - Docker explicit-image mode requires all four images unless `--version` is supplied: runtime backend, backend DB, frontend, and redis.
 - `metadata.env` is an internal shell-sourced runtime artifact. Operators should not edit it directly; maintainers must keep its assignments safe to `source`, including when runtime or secret paths contain spaces.
 
