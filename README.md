@@ -16,6 +16,15 @@
   <a href="#documentation-map"><strong>Documentation</strong></a>
 </p>
 
+## Open Source Status
+
+RiskHub is published as an open-source repository under the [MIT License](./LICENSE).
+
+- Contributions are accepted through forks, issues, and pull requests.
+- Security issues should follow [SECURITY.md](./SECURITY.md), not public issue threads.
+- The contribution workflow and verification expectations live in [CONTRIBUTING.md](./CONTRIBUTING.md).
+- Merges to `main` are maintainer-controlled. Public PRs are welcome, but merge authority is intentionally restricted.
+
 ## What It Looks Like
 
 <table>
@@ -80,7 +89,7 @@ This repository already reflects those boundaries in product behavior and docume
 Recommended for most people: use the Docker onboarding path.
 
 ```bash
-./scripts/compose.sh up
+./scripts/install.sh demo
 ```
 
 Then open `http://localhost/login`.
@@ -88,7 +97,7 @@ Then open `http://localhost/login`.
 If you need a deterministic Docker-backed reset for browser verification and seeded demo data:
 
 ```bash
-./scripts/compose.sh reset --dataset test
+./scripts/install.sh demo --reset test
 ```
 
 Use the canonical startup guide for current caveats, reset behavior, and environment details:
@@ -100,7 +109,7 @@ Use the canonical startup guide for current caveats, reset behavior, and environ
 Use local runtimes when you are actively iterating on backend or frontend code.
 
 ```bash
-./scripts/dev.sh
+./scripts/install.sh dev
 ```
 
 What this path gives you:
@@ -114,7 +123,7 @@ Contributor notes:
 
 - Docker is still part of the supported local workflow
 - Node major `24` is the expected local frontend runtime
-- production deployment remains separate and should use `./scripts/deploy.sh`
+- production deployment remains separate and should use `./scripts/install.sh production --target docker|linux`
 
 ## Stack At A Glance
 
@@ -183,7 +192,7 @@ Production deployment is intentionally separate from local startup and Docker on
 Use:
 
 ```bash
-./scripts/deploy.sh
+./scripts/install.sh production --target docker|linux
 ```
 
 Before touching production, read:
