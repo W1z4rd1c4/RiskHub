@@ -82,8 +82,8 @@ How we know this worked:
 ## Context
 
 **Reference Documents:**
-- `placeholder-risk-policy.pdf` — Company risk management policy
-- `placeholder-controls-source.xlsx` — Example control catalog from Provoz department
+- `placeholder-risk-policy.pdf` — Company risk management policy placeholder
+- `placeholder-controls-source.xlsx` — Example control catalog placeholder from Provoz department
 - `DEFINICIA KONTROL` — 13-point control data structure definition
 
 **Control Data Structure (13 Points):**
