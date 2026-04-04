@@ -1,8 +1,13 @@
 import { createContext, useCallback, useContext, useState, useEffect, type ReactNode } from 'react';
 import { authApi } from '@/services/authApi';
 import { clearAccessToken, getAccessToken, setAccessToken, subscribeAccessToken } from '@/services/accessTokenStore';
+import { clearCsrfToken } from '@/services/csrfToken';
+import { getAuthConfig } from '@/services/authConfig';
 import { bootstrapAuthSession, cacheBootstrapSession, clearBootstrapSession } from '@/services/authSessionCoordinator';
-import { isAuthUnavailableError } from '@/services/authRequest';
+import { AuthRequestError, isAuthUnavailableError } from '@/services/authRequest';
+import { entraAuth } from '@/services/entraAuth';
+import { clearExplicitLogoutSuppressed, setExplicitLogoutSuppressed } from '@/services/logoutSuppression';
+import { clearRefreshSessionHint } from '@/services/refreshSessionHint';
 import { syncPreferencesFromServer, clearLocalSettings } from '@/utils/userSettingsStorage';
 
 interface User {
@@ -24,11 +29,13 @@ interface AuthContextType {
     isLoading: boolean;
     bootstrapStatus: 'loading' | 'authenticated' | 'anonymous' | 'error';
     bootstrapError: 'service_unavailable' | null;
+    logoutPending: boolean;
+    logoutErrorKey: string | null;
     isPreferencesHydrated: boolean;
     hasPermission: (resource: string, action: string) => boolean;
     isAuthenticated: boolean;
     login: (email: string, password: string) => Promise<User>;
-    logout: () => void;
+    logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -39,6 +46,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [isLoading, setIsLoading] = useState(true);
     const [bootstrapStatus, setBootstrapStatus] = useState<'loading' | 'authenticated' | 'anonymous' | 'error'>('loading');
     const [bootstrapError, setBootstrapError] = useState<'service_unavailable' | null>(null);
+    const [logoutPending, setLogoutPending] = useState(false);
+    const [logoutErrorKey, setLogoutErrorKey] = useState<string | null>(null);
     const [isPreferencesHydrated, setIsPreferencesHydrated] = useState(!token);
 
     const updatePreferencesReadySignal = useCallback((ready: boolean) => {
@@ -77,6 +86,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, [updatePreferencesReadySignal]);
 
     const login = async (email: string, password: string): Promise<User> => {
+        clearExplicitLogoutSuppressed();
+        setLogoutErrorKey(null);
         try {
             const response = await authApi.login({ email, password });
             setToken(response.access_token);
@@ -94,16 +105,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
     };
 
-    const logout = useCallback(() => {
-        void authApi.logout();
+    const logout = useCallback(async () => {
+        setLogoutPending(true);
+        setLogoutErrorKey(null);
+        setExplicitLogoutSuppressed();
+
+        const authConfig = await getAuthConfig().catch(() => null);
+        const shouldUseSsoLogout = authConfig?.auth_mode === 'microsoft_sso';
+
+        try {
+            await authApi.logout();
+        } catch (error) {
+            clearExplicitLogoutSuppressed();
+            setLogoutPending(false);
+            setLogoutErrorKey(
+                error instanceof AuthRequestError && typeof error.status === 'number' && error.status >= 500
+                    ? 'errorKeys.server'
+                    : 'errorKeys.logout_failed',
+            );
+            throw error;
+        }
+
         clearToken();
         clearBootstrapSession();
-        clearLocalSettings(); // Clear theme/language
+        clearRefreshSessionHint();
+        clearCsrfToken();
+        clearLocalSettings();
         setUser(null);
         setBootstrapStatus('anonymous');
         setBootstrapError(null);
         setIsPreferencesHydrated(true);
         updatePreferencesReadySignal(true);
+        setLogoutPending(false);
+
+        if (shouldUseSsoLogout) {
+            try {
+                await entraAuth.logoutRedirect();
+            } catch (error) {
+                console.error(error);
+            }
+        }
     }, [clearToken, updatePreferencesReadySignal]);
 
     useEffect(() => {
@@ -176,6 +217,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 isLoading,
                 bootstrapStatus,
                 bootstrapError,
+                logoutPending,
+                logoutErrorKey,
                 isPreferencesHydrated,
                 hasPermission,
                 isAuthenticated: !!token && !!user,

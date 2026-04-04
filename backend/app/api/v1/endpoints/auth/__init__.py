@@ -4,10 +4,11 @@ from fastapi import APIRouter
 
 from app.services.sso_token_service import verify_entra_id_token as verify_entra_id_token
 
-from . import config, demo, logout, me, password, refresh, sso
+from . import config, csrf, demo, logout, me, password, refresh, sso
 
 router = APIRouter()
 router.include_router(config.router)
+router.include_router(csrf.router)
 router.include_router(password.router)
 router.include_router(me.router)
 router.include_router(refresh.router)

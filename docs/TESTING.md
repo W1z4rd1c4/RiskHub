@@ -93,6 +93,11 @@ curl -fsS http://localhost:8000/api/v1/auth/config
 curl -I -fsS http://localhost/login
 ```
 
+Notes:
+
+- `GET /api/v1/health` now returns only `{"status":"healthy"|"degraded"}`; use the status code and the `status` field only.
+- Browser-authenticated `POST /api/v1/auth/refresh` now requires allowed Origin/Referer plus `X-CSRF-Token`, so scripted refresh checks must seed CSRF first via `GET /api/v1/auth/csrf` when they are not using a real browser session.
+
 Docker-targeted verification commands:
 
 ```bash

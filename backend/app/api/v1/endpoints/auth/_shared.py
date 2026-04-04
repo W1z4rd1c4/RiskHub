@@ -16,6 +16,7 @@ from app.core.tokens import (
     get_request_client_ip,
     get_request_user_agent,
     new_token_jti,
+    set_csrf_cookie,
     set_refresh_cookie,
 )
 from app.models import RefreshToken, Role, User
@@ -91,6 +92,7 @@ async def _issue_refresh_session(
         db.add(rotated_from)
 
     set_refresh_cookie(response, refresh_token, settings)
+    set_csrf_cookie(response, settings)
     return refresh_row
 
 
@@ -108,6 +110,17 @@ async def _revoke_user_refresh_tokens(
         .values(revoked_at=now, revoked_reason=reason)
     )
     return int(result.rowcount or 0)
+
+
+async def _invalidate_user_sessions(
+    *,
+    db: AsyncSession,
+    user: User,
+    reason: str,
+) -> int:
+    user.token_version += 1
+    db.add(user)
+    return await _revoke_user_refresh_tokens(db=db, user_id=user.id, reason=reason)
 
 
 async def _resolve_safe_default_role(db: AsyncSession) -> Role:

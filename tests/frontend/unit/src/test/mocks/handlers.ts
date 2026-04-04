@@ -183,6 +183,10 @@ export const handlers = [
             user: mockAuthUser,
         });
     }),
+    http.get('*/api/v1/auth/csrf', () => {
+        document.cookie = 'riskhub_csrf_token=test-csrf-token; path=/';
+        return new HttpResponse(null, { status: 204 });
+    }),
     http.post('*/api/v1/auth/refresh', () => {
         return HttpResponse.json(
             { detail: 'Authentication required' },

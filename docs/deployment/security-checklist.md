@@ -37,6 +37,9 @@ RiskHub production deploys must satisfy these invariants:
 
 - Production is SSO-only.
 - Validate the Microsoft Entra app registration and redirect URIs before go-live.
+- Register both the sign-in callback (`/auth/sso/callback`) and the post-logout redirect (`/login`) for the production origin.
+- Normal logout invalidates all RiskHub app sessions for the user.
+- Cookie-authenticated auth endpoints require same-origin browser requests via explicit Origin/Referer validation plus double-submit CSRF.
 - Keep bootstrap admin/CRO emails distinct.
 
 ## Scheduler
@@ -52,6 +55,7 @@ RiskHub production deploys must satisfy these invariants:
 
 - Backend and frontend runtime processes must run as non-root.
 - Keep `/docs` and `/openapi.json` disabled in production.
+- Keep the public `/api/v1/health` probe minimal; use `/api/v1/admin/health` for detailed runtime diagnostics.
 - Keep Redis enabled because rate limiting and account lockout depend on it.
 - Avoid broad private-network `TRUSTED_PROXIES` ranges unless you intentionally trust all peers inside those networks to supply `X-Forwarded-For`.
 - Treat any dead-letter outbox event as an operational incident until triaged.

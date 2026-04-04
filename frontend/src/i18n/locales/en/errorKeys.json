@@ -7,6 +7,7 @@
   "validation": "Some fields are invalid. Please review and try again.",
   "server": "Server error. Please try again later.",
   "request_failed": "Request failed. Please try again.",
+  "logout_failed": "Logout failed. Please try again.",
   "demo_login_failed": "Demo login failed.",
   "login_failed": "Login failed.",
   "load_departments_failed": "Failed to load departments.",

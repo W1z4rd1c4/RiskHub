@@ -65,6 +65,10 @@ test.describe('Authentication', () => {
 
             // Should redirect to login
             await expect(page).toHaveURL(/.*login/);
+
+            await page.reload({ waitUntil: 'domcontentloaded' });
+            await expect(page).toHaveURL(/.*login/);
+            await expect(page.locator('[data-testid="logout-button"]')).not.toBeVisible();
         });
     });
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import secrets
 from datetime import UTC, datetime, timedelta
 from collections.abc import Iterable
 from typing import Any
@@ -15,6 +16,7 @@ from app.core.config import Settings
 
 REFRESH_TOKEN_TYPE = "refresh"
 REFRESH_SESSION_HINT_COOKIE = "riskhub_refresh_hint"
+CSRF_TOKEN_COOKIE = "riskhub_csrf_token"
 
 
 def new_token_jti() -> str:
@@ -57,6 +59,14 @@ def get_refresh_session_hint_cookie_name() -> str:
     return REFRESH_SESSION_HINT_COOKIE
 
 
+def get_csrf_cookie_name() -> str:
+    return CSRF_TOKEN_COOKIE
+
+
+def new_csrf_token() -> str:
+    return secrets.token_urlsafe(32)
+
+
 def set_refresh_session_hint_cookie(response: Response, settings: Settings) -> None:
     max_age = int(refresh_token_lifetime(settings).total_seconds())
     response.set_cookie(
@@ -69,6 +79,22 @@ def set_refresh_session_hint_cookie(response: Response, settings: Settings) -> N
         domain=settings.refresh_cookie_domain,
         path="/",
     )
+
+
+def set_csrf_cookie(response: Response, settings: Settings, token: str | None = None) -> str:
+    csrf_token = token or new_csrf_token()
+    max_age = int(refresh_token_lifetime(settings).total_seconds())
+    response.set_cookie(
+        key=get_csrf_cookie_name(),
+        value=csrf_token,
+        max_age=max_age,
+        httponly=False,
+        secure=not settings.debug,
+        samesite=settings.refresh_cookie_samesite,
+        domain=settings.refresh_cookie_domain,
+        path="/",
+    )
+    return csrf_token
 
 
 def set_refresh_cookie(response: Response, token: str, settings: Settings) -> None:
@@ -86,6 +112,14 @@ def set_refresh_cookie(response: Response, token: str, settings: Settings) -> No
     set_refresh_session_hint_cookie(response, settings)
 
 
+def clear_csrf_cookie(response: Response, settings: Settings) -> None:
+    response.delete_cookie(
+        key=get_csrf_cookie_name(),
+        domain=settings.refresh_cookie_domain,
+        path="/",
+    )
+
+
 def clear_refresh_cookie(response: Response, settings: Settings) -> None:
     response.delete_cookie(
         key=get_refresh_cookie_name(settings),
@@ -97,10 +131,15 @@ def clear_refresh_cookie(response: Response, settings: Settings) -> None:
         domain=settings.refresh_cookie_domain,
         path="/",
     )
+    clear_csrf_cookie(response, settings)
 
 
 def get_refresh_cookie(request: Request, settings: Settings) -> str | None:
     return request.cookies.get(get_refresh_cookie_name(settings))
+
+
+def get_csrf_cookie(request: Request) -> str | None:
+    return request.cookies.get(get_csrf_cookie_name())
 
 
 def token_decode_or_none(token: str | None, settings: Settings) -> dict[str, Any] | None:

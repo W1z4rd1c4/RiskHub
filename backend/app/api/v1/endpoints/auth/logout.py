@@ -10,9 +10,48 @@ from app.core.tokens import clear_refresh_cookie, get_refresh_cookie, token_deco
 from app.db.session import get_db
 from app.models import RefreshToken, User
 
-from ._shared import _revoke_user_refresh_tokens
+from ._request_protection import validate_csrf, validate_request_origin
+from ._shared import _invalidate_user_sessions
 
 router = APIRouter()
+
+
+async def _resolve_refresh_cookie_user(
+    *,
+    db: AsyncSession,
+    request: Request,
+    settings: Settings,
+) -> User | None:
+    raw_token = get_refresh_cookie(request, settings)
+    payload = token_decode_or_none(raw_token, settings)
+    if not payload:
+        return None
+
+    user_id = payload.get("user_id")
+    jti = payload.get("jti")
+    token_version = payload.get("token_version")
+    if not isinstance(user_id, int) or not isinstance(jti, str) or not isinstance(token_version, int):
+        return None
+
+    refresh_row = (
+        await db.execute(
+            select(RefreshToken)
+            .where(RefreshToken.user_id == user_id)
+            .where(RefreshToken.jti == jti)
+            .where(RefreshToken.revoked_at.is_(None))
+        )
+    ).scalar_one_or_none()
+    if refresh_row is None:
+        return None
+
+    user = (
+        await db.execute(select(User).where(User.id == user_id))
+    ).scalar_one_or_none()
+    if user is None or not user.is_active:
+        return None
+    if token_version != user.token_version or refresh_row.token_version != user.token_version:
+        return None
+    return user
 
 
 @router.post("/logout")
@@ -21,6 +60,7 @@ async def logout(
     response: Response,
     db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
+    current_user: User | None = Depends(deps.get_current_user_optional),
 ):
     """
     Logout endpoint (server-side refresh token revocation + cookie clear).
@@ -28,27 +68,23 @@ async def logout(
     Returns:
         Success message
     """
-    raw_token = get_refresh_cookie(request, settings)
-    payload = token_decode_or_none(raw_token, settings)
-    if payload:
-        jti = payload.get("jti")
-        user_id = payload.get("user_id")
-        if isinstance(jti, str) and isinstance(user_id, int):
-            refresh_row = (
-                await db.execute(
-                    select(RefreshToken)
-                    .where(RefreshToken.user_id == user_id)
-                    .where(RefreshToken.jti == jti)
-                    .where(RefreshToken.revoked_at.is_(None))
-                )
-            ).scalar_one_or_none()
-            if refresh_row:
-                refresh_row.revoked_reason = "logout"
-                from app.core.datetime_utils import utc_now
+    resolved_user = current_user
+    require_csrf = False
 
-                refresh_row.revoked_at = utc_now()
-                db.add(refresh_row)
-                await db.commit()
+    if resolved_user is None:
+        resolved_user = await _resolve_refresh_cookie_user(db=db, request=request, settings=settings)
+        require_csrf = resolved_user is not None
+
+    if resolved_user is not None:
+        if forbidden_response := validate_request_origin(request, settings):
+            return forbidden_response
+        if require_csrf and (forbidden_response := validate_csrf(request)):
+            return forbidden_response
+
+        revoked = await _invalidate_user_sessions(db=db, user=resolved_user, reason="logout")
+        clear_refresh_cookie(response, settings)
+        await db.commit()
+        return {"message": "Logged out successfully", "revoked_sessions": revoked}
 
     clear_refresh_cookie(response, settings)
     return {"message": "Logged out successfully"}
@@ -61,10 +97,7 @@ async def logout_all_devices(
     db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ):
-    current_user.token_version += 1
-    db.add(current_user)
-    revoked = await _revoke_user_refresh_tokens(db=db, user_id=current_user.id, reason="logout_all")
-
+    revoked = await _invalidate_user_sessions(db=db, user=current_user, reason="logout_all")
     clear_refresh_cookie(response, settings)
     await db.commit()
 

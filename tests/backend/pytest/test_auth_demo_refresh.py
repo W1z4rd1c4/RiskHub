@@ -14,9 +14,15 @@ from app.db.session import get_db
 from app.main import app
 from app.models import RefreshToken, User
 
+TEST_ORIGIN = "http://test"
 
-def _refresh_cookie_headers(token: str) -> dict[str, str]:
-    return {"Cookie": f"riskhub_refresh_token={token}"}
+
+def _refresh_cookie_headers(token: str, csrf_token: str) -> dict[str, str]:
+    return {
+        "Cookie": f"riskhub_refresh_token={token}; riskhub_csrf_token={csrf_token}; riskhub_refresh_hint=1",
+        "Origin": TEST_ORIGIN,
+        "X-CSRF-Token": csrf_token,
+    }
 
 
 def _extract_refresh_cookie(response) -> str | None:
@@ -39,6 +45,16 @@ def _extract_refresh_hint_cookie(response) -> str | None:
     return hint.value if hint else None
 
 
+def _extract_csrf_cookie(response) -> str | None:
+    for cookie_header in response.headers.get_list("set-cookie"):
+        parsed = SimpleCookie()
+        parsed.load(cookie_header)
+        token = parsed.get("riskhub_csrf_token")
+        if token:
+            return token.value
+    return None
+
+
 @pytest_asyncio.fixture
 async def demo_auth_client(db_session: AsyncSession) -> AsyncClient:
     async def override_get_db():
@@ -50,6 +66,7 @@ async def demo_auth_client(db_session: AsyncSession) -> AsyncClient:
             secret_key="test-secret-key-32-chars-minimum-value",
             mock_auth_enabled=True,
             auth_mode="hybrid_dev",
+            cors_origins=[TEST_ORIGIN],
             trusted_proxies=["127.0.0.1", "::1", "10.0.0.0/8"],
         )
 
@@ -72,8 +89,12 @@ async def test_demo_login_issues_refresh_cookie_and_refreshes_session(
     assert response.status_code == 200, response.text
     assert demo_auth_client.cookies.get("riskhub_refresh_token")
     assert demo_auth_client.cookies.get("riskhub_refresh_hint") == "1"
+    assert demo_auth_client.cookies.get("riskhub_csrf_token")
 
-    refresh = await demo_auth_client.post("/api/v1/auth/refresh")
+    refresh = await demo_auth_client.post(
+        "/api/v1/auth/refresh",
+        headers={"Origin": TEST_ORIGIN, "X-CSRF-Token": str(demo_auth_client.cookies.get("riskhub_csrf_token"))},
+    )
     assert refresh.status_code == 200, refresh.text
 
 
@@ -85,15 +106,17 @@ async def test_demo_refresh_replay_allows_single_parallel_winner(
     login = await demo_auth_client.post("/api/v1/auth/demo-login", json={"email": test_user.email})
     assert login.status_code == 200, login.text
     initial_cookie = demo_auth_client.cookies.get("riskhub_refresh_token")
+    csrf_token = demo_auth_client.cookies.get("riskhub_csrf_token")
     assert initial_cookie
+    assert csrf_token
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client_a, AsyncClient(
         transport=transport, base_url="http://test"
     ) as client_b:
         response_a, response_b = await asyncio.gather(
-            client_a.post("/api/v1/auth/refresh", headers=_refresh_cookie_headers(initial_cookie)),
-            client_b.post("/api/v1/auth/refresh", headers=_refresh_cookie_headers(initial_cookie)),
+            client_a.post("/api/v1/auth/refresh", headers=_refresh_cookie_headers(initial_cookie, csrf_token)),
+            client_b.post("/api/v1/auth/refresh", headers=_refresh_cookie_headers(initial_cookie, csrf_token)),
         )
 
     responses = [response_a, response_b]
@@ -101,13 +124,21 @@ async def test_demo_refresh_replay_allows_single_parallel_winner(
 
     winner = next(response for response in responses if response.status_code == 200)
     winner_cookie = _extract_refresh_cookie(winner)
+    winner_csrf_cookie = _extract_csrf_cookie(winner)
     assert winner_cookie and winner_cookie != initial_cookie
+    assert winner_csrf_cookie
 
     async with AsyncClient(transport=transport, base_url="http://test") as verifier:
-        stale_replay = await verifier.post("/api/v1/auth/refresh", headers=_refresh_cookie_headers(initial_cookie))
+        stale_replay = await verifier.post(
+            "/api/v1/auth/refresh",
+            headers=_refresh_cookie_headers(initial_cookie, csrf_token),
+        )
         assert stale_replay.status_code == 401
 
-        winner_replay = await verifier.post("/api/v1/auth/refresh", headers=_refresh_cookie_headers(winner_cookie))
+        winner_replay = await verifier.post(
+            "/api/v1/auth/refresh",
+            headers=_refresh_cookie_headers(winner_cookie, winner_csrf_cookie),
+        )
         assert winner_replay.status_code == 200
 
 

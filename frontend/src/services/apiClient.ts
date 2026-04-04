@@ -1,6 +1,7 @@
 import { getErrorMessageKey } from '@/i18n/getErrorMessageKey';
 import { clearAccessToken, getAccessToken } from '@/services/accessTokenStore';
 import { clearBootstrapSession } from '@/services/authSessionCoordinator';
+import { isExplicitLogoutSuppressed } from '@/services/logoutSuppression';
 import { silentReauthAndExchange } from '@/services/ssoSession';
 
 // Use relative URL for nginx proxy (enables LAN access)
@@ -46,6 +47,7 @@ class ApiClient {
     }
 
     private shouldAttemptSilentReauth(pathname: string, attempt: number): boolean {
+        if (isExplicitLogoutSuppressed()) return false;
         if (attempt > 0) return false;
         // Avoid infinite loops / recursion around auth endpoints.
         if (pathname.startsWith('/api/v1/auth/')) return false;
