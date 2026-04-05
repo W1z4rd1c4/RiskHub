@@ -11,6 +11,8 @@ from sqlalchemy import inspect, select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from app.core.scheduler import (
+    FULL_SCHEDULER_JOB_IDS,
+    OUTBOX_ONLY_SCHEDULER_JOB_IDS,
     PostgresAdvisoryLockProvider,
     SchedulerLockProvider,
     configure_scheduler,
@@ -19,6 +21,10 @@ from app.core.scheduler import (
 )
 from app.models.outbox_event import OutboxEvent
 from app.models.scheduler_job_run import SchedulerJobRun
+
+
+def _registered_job_ids(test_scheduler: AsyncIOScheduler) -> set[str]:
+    return {job.id for job in test_scheduler.get_jobs()}
 
 
 @pytest_asyncio.fixture
@@ -59,6 +65,34 @@ async def test_scheduler_start_with_lock_acquired_starts_runtime_and_records_own
 
     assert isolated_scheduler.scheduler.running is True
     assert provider.lock_acquired is True
+    assert _registered_job_ids(isolated_scheduler.scheduler) == set(FULL_SCHEDULER_JOB_IDS)
+
+    async_session = async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
+    async with async_session() as session:
+        runtime_rows = (
+            await session.execute(
+                select(SchedulerJobRun).where(SchedulerJobRun.job_name == isolated_scheduler.SCHEDULER_RUNTIME_JOB_NAME)
+            )
+        ).scalars().all()
+        assert len(runtime_rows) == 1
+
+
+@pytest.mark.asyncio
+async def test_scheduler_outbox_only_profile_registers_only_dispatch_job_and_records_runtime(
+    isolated_scheduler,
+    async_engine: AsyncEngine,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    provider = SchedulerLockProvider()
+    isolated_scheduler._lock_provider = None
+    isolated_scheduler._resolve_lock_provider = lambda: provider
+    monkeypatch.setenv("SCHEDULER_JOB_PROFILE", "outbox_only")
+
+    await start_scheduler_async()
+
+    assert isolated_scheduler.scheduler.running is True
+    assert provider.lock_acquired is True
+    assert _registered_job_ids(isolated_scheduler.scheduler) == set(OUTBOX_ONLY_SCHEDULER_JOB_IDS)
 
     async_session = async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
     async with async_session() as session:

@@ -13,7 +13,6 @@ from app.bootstrap import (
     configure_app_dependencies,
     configure_database_and_scheduler,
     configure_default_runtime_state,
-    derive_allowed_hosts,
     parse_log_rotation_config,
     register_middleware,
     register_routes,
@@ -75,11 +74,6 @@ def create_app(settings: Settings) -> FastAPI:
     register_middleware(app, settings)
     register_routes(app, settings)
     return app
-
-
-def _derive_allowed_hosts(cors_origins: list[str]) -> list[str]:
-    return derive_allowed_hosts(cors_origins)
-
 
 def _validate_production_settings(settings: Settings) -> None:
     validate_settings_for_runtime(settings)

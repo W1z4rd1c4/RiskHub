@@ -17,6 +17,7 @@ import { StepIndicator } from '@/components/ui/StepIndicator';
 import { riskApi } from '@/services/riskApi';
 import { ApiClientError } from '@/services/apiClient';
 import { lookupApi } from '@/services/lookupApi';
+import { riskHubApi } from '@/services/riskHubApi';
 import type { UserLookupItem } from '@/services/lookupApi';
 import type { Risk, RiskCreate, RiskUpdate } from '@/types/risk';
 import { RiskStatus } from '@/types/risk';
@@ -25,6 +26,7 @@ import { parseUpdateResult } from '@/lib/approvalUi';
 import { RiskFormIdentityStep } from './RiskFormIdentityStep';
 import { RiskFormOwnershipStep } from './RiskFormOwnershipStep';
 import { RiskFormScoringStep } from './RiskFormScoringStep';
+import { resolveRiskTypeCode } from './riskTypeDefaults';
 
 interface RiskFormProps {
     initialData?: Risk;
@@ -108,7 +110,7 @@ export function RiskForm({
         name: '',
         process: '',
         subprocess: '',
-        risk_type: initialData?.risk_type || 'operational',
+        risk_type: initialData?.risk_type,
         category: '',
         description: '',
         status: RiskStatus.ACTIVE,
@@ -123,6 +125,23 @@ export function RiskForm({
         kri_threshold_red: '',
         ...initialData
     }));
+
+    useEffect(() => {
+        const resolvedRiskType = resolveRiskTypeCode(formData.risk_type, riskTypes);
+        if (formData.risk_type === resolvedRiskType) {
+            return;
+        }
+
+        setFormData((prev) => {
+            if (prev.risk_type === resolvedRiskType) {
+                return prev;
+            }
+            return {
+                ...prev,
+                risk_type: resolvedRiskType,
+            };
+        });
+    }, [formData.risk_type, riskTypes]);
 
     useEffect(() => {
         const loadLookups = async () => {
@@ -271,7 +290,21 @@ export function RiskForm({
                     return; // Stay on form, don't navigate
                 }
             } else {
-                const newRisk = await riskApi.createRisk(formData as RiskCreate);
+                const riskTypeOptions = await riskHubApi.getPublicRiskTypes().catch(() => riskTypes);
+                const resolvedRiskType = resolveRiskTypeCode(formData.risk_type, riskTypeOptions);
+                const createPayload = {
+                    ...formData,
+                    risk_type: resolvedRiskType,
+                } as RiskCreate;
+
+                if (formData.risk_type !== resolvedRiskType) {
+                    setFormData((prev) => ({
+                        ...prev,
+                        risk_type: resolvedRiskType,
+                    }));
+                }
+
+                const newRisk = await riskApi.createRisk(createPayload);
                 if (onSuccess) {
                     await onSuccess(newRisk.id);
                 } else {

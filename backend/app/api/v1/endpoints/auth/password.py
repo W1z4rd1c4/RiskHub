@@ -14,6 +14,7 @@ from app.core.security import verify_password_or_dummy
 from app.db.session import get_db
 from app.models import RolePermission, User
 from app.schemas.auth import LoginRequest, TokenResponse
+from app.services.account_lockout_service import AccountLockoutBackendError
 
 from ._shared import _build_token_response, _issue_refresh_session
 
@@ -39,7 +40,7 @@ async def _run_lockout_operation(
 ) -> _T:
     try:
         return await operation()
-    except Exception as exc:  # noqa: BLE001 - backend implementations can raise provider-specific runtime errors
+    except AccountLockoutBackendError as exc:
         logger.warning("auth_lockout_backend_error", operation=operation_name, error=str(exc))
         if settings.redis.lockout_fail_closed_on_backend_error:
             _raise_lockout_backend_unavailable()

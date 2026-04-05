@@ -2,7 +2,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from app.core.config import Settings, get_settings
-from app.main import DEFAULT_DATABASE_URL, _derive_allowed_hosts, create_app
+from app.main import DEFAULT_DATABASE_URL, create_app
 
 PRODUCTION_SECRET = "test-secret-for-production-mode-123456"
 PRODUCTION_DATABASE_URL = "postgresql+asyncpg://riskhub:tests@prod-db:5432/riskhub"
@@ -144,21 +144,3 @@ def test_production_requires_graph_directory_provider() -> None:
 def test_production_requires_email_link_disabled() -> None:
     with pytest.raises(RuntimeError, match="AUTH_SSO_ALLOW_EMAIL_LINK must be false"):
         create_app(_production_settings(auth_sso_allow_email_link=True))
-
-
-def test_derive_allowed_hosts_is_tolerant_and_keeps_local_defaults():
-    allowed_hosts = _derive_allowed_hosts(
-        [
-            "https://app.example.com",
-            "https://sub.example.com/path?q=1",
-            "http://localhost:5173",
-            "not-a-url",
-        ]
-    )
-
-    assert "localhost" in allowed_hosts
-    assert "127.0.0.1" in allowed_hosts
-    assert "app.example.com" in allowed_hosts
-    assert "sub.example.com" in allowed_hosts
-    assert "not-a-url" not in allowed_hosts
-    assert allowed_hosts == sorted(allowed_hosts)

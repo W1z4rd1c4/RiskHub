@@ -12,10 +12,10 @@ test.describe('KRI CRUD Permissions (Deterministic)', () => {
         await expect(krisPage.rowByText(E2E_KRIS.ARCHIVE_ACTIVE_PAIR.metric_name)).toBeVisible();
     });
 
-    test('Department Head can see New KRI button', async ({ deptHeadPage }) => {
+    test('Department Head cannot see New KRI button without risks:write', async ({ deptHeadPage }) => {
         const krisPage = new KRIsPage(deptHeadPage);
         await krisPage.navigate();
-        await krisPage.expectCreateButtonVisible();
+        await krisPage.expectCreateButtonHidden();
     });
 
     test('Risk Manager can open deterministic KRI detail', async ({ riskManagerPage }) => {

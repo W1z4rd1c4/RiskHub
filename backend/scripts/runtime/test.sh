@@ -65,6 +65,9 @@ fi
 if [[ -z "${DEBUG:-}" ]]; then export DEBUG=true; fi
 if [[ -z "${MOCK_AUTH_ENABLED:-}" ]]; then export MOCK_AUTH_ENABLED=true; fi
 if [[ -z "${AUTH_MODE:-}" ]]; then export AUTH_MODE=hybrid_dev; fi
+if [[ -z "${DIRECTORY_PROVIDER:-}" ]]; then export DIRECTORY_PROVIDER=ad_emulator; fi
+if [[ -z "${ENTRA_JIT_PROVISIONING_ENABLED:-}" ]]; then export ENTRA_JIT_PROVISIONING_ENABLED=true; fi
+if [[ -z "${AUTH_SSO_ALLOW_EMAIL_LINK:-}" ]]; then export AUTH_SSO_ALLOW_EMAIL_LINK=true; fi
 if [[ -z "${SECRET_KEY:-}" ]]; then export SECRET_KEY=test-secret-key-not-for-production-use; fi
 if [[ -z "${DATABASE_URL:-}" ]]; then export DATABASE_URL="postgresql+asyncpg://riskhub:riskhub_dev@localhost:5432/riskhub"; fi
 if [[ -z "${TEST_DATABASE_URL:-}" ]]; then export TEST_DATABASE_URL="postgresql+asyncpg://riskhub:riskhub_dev@localhost:5432/riskhub"; fi

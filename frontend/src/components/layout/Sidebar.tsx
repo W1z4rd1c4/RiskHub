@@ -104,16 +104,16 @@ export function Sidebar() {
                                 className={cn(
                                     'group flex items-center justify-between px-3 py-3 text-sm font-medium rounded-xl transition-all duration-200',
                                     isActive
-                                        ? 'bg-accent text-white shadow-lg shadow-accent/20'
+                                        ? 'bg-accent text-slate-950 shadow-lg shadow-accent/20'
                                         : 'text-slate-400 hover:bg-white/5 hover:text-white'
                                 )}
                             >
                                 <div className="flex items-center gap-3">
-                                    <item.icon className={cn('h-5 w-5', isActive ? 'text-white' : 'text-slate-500 group-hover:text-white')} />
+                                    <item.icon className={cn('h-5 w-5', isActive ? 'text-slate-950' : 'text-slate-500 group-hover:text-white')} />
                                     {item.label}
                                 </div>
                                 {item.badge !== undefined && (
-                                    <span className="bg-accent text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                    <span className="bg-accent text-slate-950 text-[10px] font-bold px-2 py-0.5 rounded-full">
                                         {item.badge}
                                     </span>
                                 )}
@@ -131,7 +131,7 @@ export function Sidebar() {
                             </div>
                             <div className="flex-1 min-w-0">
                                 <p className="text-sm font-medium text-white truncate">{user.name}</p>
-                                <p className="text-xs text-slate-500 truncate">{user.role_display_name}</p>
+                                <p className="text-xs text-slate-300 truncate">{user.role_display_name}</p>
                             </div>
                         </div>
                     )}
@@ -139,7 +139,7 @@ export function Sidebar() {
                         onClick={handleLogout}
                         data-testid="logout-button"
                         disabled={logoutPending}
-                        className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-rose-400 hover:bg-rose-500/10 rounded-xl transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+                        className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-rose-300 hover:bg-rose-500/10 rounded-xl transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                         {logoutPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
                         {t('user_menu.logout')}

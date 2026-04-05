@@ -3,6 +3,7 @@ import { AlertCircle, Plus } from 'lucide-react';
 
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import type { Risk } from '@/types/risk';
+import { resolveRiskTypeCode } from './riskTypeDefaults';
 
 type TranslateFn = (
   key: string,
@@ -50,6 +51,8 @@ export function RiskFormIdentityStep({
   setShowCategoryDropdown,
   handleInputChange,
 }: RiskFormIdentityStepProps) {
+  const selectedRiskType = resolveRiskTypeCode(formData.risk_type, riskTypes);
+
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
       <div>
@@ -74,7 +77,7 @@ export function RiskFormIdentityStep({
         <div>
           <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">{t('risks:form.labels.risk_type')}</label>
           <ThemedSelect
-            value={formData.risk_type || 'operational'}
+            value={selectedRiskType}
             onValueChange={(v) => handleInputChange('risk_type', v)}
             disabled={riskTypesLoading}
             className="w-full"

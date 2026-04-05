@@ -10,8 +10,8 @@
 - Migration path via Alembic (`backend/alembic/`, `backend/alembic/env.py`)
 
 ### Redis
-- Used for production rate limiting and account lockout (`backend/app/bootstrap.py`, `backend/app/middleware/security.py`, `backend/app/services/account_lockout_service.py`)
-- Required when `DEBUG=false` (`backend/app/bootstrap.py`)
+- Used for production rate limiting and account lockout (`backend/app/bootstrap_runtime.py`, `backend/app/middleware/rate_limit.py`, `backend/app/services/account_lockout_service.py`)
+- Required when `DEBUG=false` (`backend/app/bootstrap_runtime.py`)
 
 ## Directory/Identity Integrations
 
@@ -21,8 +21,9 @@
 - Webhook signature verification via `WEBHOOK_SECRET` (required in production mode) (`backend/app/core/config.py`)
 
 ### Microsoft Entra ID (SSO)
-- Backend auth modes include Entra SSO-only production mode (`backend/app/core/config.py`, `backend/app/bootstrap.py`)
+- Backend auth modes include Entra SSO-only production mode (`backend/app/core/config.py`, `backend/app/bootstrap_validation.py`)
 - Token verification + OIDC discovery/JWKS refresh: `backend/app/services/sso_token_service.py`
+- Graph directory lookup is exposed through `graph_directory_service.py` and internally split across token/auth transport helpers (`backend/app/services/graph_directory_service.py`, `backend/app/services/graph_directory_auth.py`, `backend/app/services/graph_directory_transport.py`)
 - Exchange endpoint: `POST /api/v1/auth/sso/exchange` (`backend/app/api/v1/endpoints/auth/sso.py`)
 - Frontend client flow via MSAL: `frontend/src/services/entraAuth.ts`
 - Frontend callback route: `/auth/sso/callback` (`frontend/src/pages/SsoCallbackPage.tsx`)
@@ -48,12 +49,13 @@
 - Docker-origin Playwright runs still require `FRONTEND_URL=http://localhost`, and the shared login helper is origin-aware across both the Vite and Docker nginx surfaces
 - Supported production install/admin runs are wrapper-first through `./scripts/install.sh production --target docker|linux`, `./scripts/install.sh upgrade --target docker|linux`, and `./scripts/install.sh status|logs|doctor|verify --mode production --target docker|linux`, backed internally by `scripts/install_cli.py`, `scripts/install_lib/`, `./scripts/deploy.sh --target docker|linux`, and retained `scripts/prod/*` helper scripts
 - Production lifecycle metadata is stored at `/etc/riskhub/runtime/install-state.json`; `scripts/install.sh` status/logs/doctor/upgrade consume that state to report release source, managed resources, and latest successful deploy/smoke information
-- Production runtime treats `ALLOWED_HOSTS` as an explicit allowlist invariant; managed install flows render it from the configured public hostname, but runtime enforcement does not derive it from `CORS_ORIGINS` (`backend/app/bootstrap.py`, `docs/deployment/reference.md`)
+- Production runtime treats `ALLOWED_HOSTS` as an explicit allowlist invariant; managed install flows render it from the configured public hostname, but runtime enforcement does not derive it from `CORS_ORIGINS` (`backend/app/bootstrap_validation.py`, `docs/deployment/reference.md`)
 
 ## CI/Security Integrations
 
-- E2E workflow runs Playwright against backend + Postgres service (`.github/workflows/e2e.yml`)
+- E2E workflow runs a fast hybrid-dev Playwright lane plus a separate production-profile startup/auth/header/docs-disabled smoke lane (`.github/workflows/e2e.yml`)
 - Security workflow runs Bandit, pip-audit, npm audit, Trivy, Syft+Grype correlation, and gitleaks parse+scan (`.github/workflows/security.yml`)
+- Lint/docs CI now also enforces production contract doc parity through `scripts/security/validate_production_contract_docs.py` (`.github/workflows/lint.yml`)
 
 ## Observability and Logging
 
@@ -68,7 +70,7 @@
 
 ## Configuration-Sensitive Integrations
 
-- `MOCK_AUTH_ENABLED` + demo login only intended for debug/dev (`backend/app/bootstrap.py`, `backend/app/api/v1/endpoints/auth/demo.py`)
+- `MOCK_AUTH_ENABLED` + demo login only intended for debug/dev (`backend/app/bootstrap_validation.py`, `backend/app/api/v1/endpoints/auth/demo.py`)
 - Webhook verification behavior varies by debug/production guardrails (`backend/app/api/v1/endpoints/directory.py`)
 - Scheduler execution controlled by `ENABLE_SCHEDULER=true` on exactly one process (`backend/app/core/scheduler.py`)
 

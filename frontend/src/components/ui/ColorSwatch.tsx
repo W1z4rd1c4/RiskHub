@@ -15,10 +15,11 @@ export function ColorSwatch({ color, toneClassName, className, title }: ColorSwa
     return (
         <svg
             viewBox="0 0 12 12"
-            aria-hidden="true"
-            title={title}
+            aria-hidden={title ? undefined : 'true'}
+            role={title ? 'img' : undefined}
             className={cn('inline-block h-3 w-3 shrink-0', className)}
         >
+            {title ? <title>{title}</title> : null}
             <rect
                 x="1"
                 y="1"

@@ -19,7 +19,7 @@
 ## Current Position
 
 **Milestone:** v1.0 MVP
-**Active Phases:** 90 (AD Emulator) and 156 in progress; 19 and 70 deferred
+**Active Phases:** 90 (AD Emulator) in progress; 19 and 70 deferred
 **Documentation Status:** Reconciled with phase folders and canonical docs (2026-04-05)
 
 ## Progress Summary
@@ -58,7 +58,7 @@
 | 152 Audit Resolution 2 | ✅ Complete (8/8) | 2026-01-10 |
 | 153 Audit Resolution 3 | ✅ Complete (12/12) | 2026-01-10 |
 | 154 Workflow Bug Sweep | ✅ Complete (5/5) | 2026-01-14 |
-| 156 Audit | ⏳ In progress (7/8) | - |
+| 156 Audit | ✅ Complete (8/8) | 2026-04-05 |
 | 156.1 Admin Role & RBAC Hardening | ✅ Complete (5/5) | 2026-02-11 |
 | 157 Business Logic Compliance | ✅ Complete (6/6) | 2026-01-22 |
 | 158 Audit | ✅ Complete (10/10) | 2026-01-19 |
@@ -73,6 +73,42 @@
 | 501 Production Readiness Hardening | ✅ Complete (8/8) | 2026-02-16 |
 
 ## Session Context
+
+### Seven-Wave Closure Plan Completion (2026-04-05)
+
+- Closed the remaining CI/runtime/docs parity work from the seven-wave remediation pass:
+  - centralized production invariant enforcement behind `backend/app/core/production_contract.py`
+  - expanded workflow/image immutability checks across the full workflow directory
+  - made frontend Vitest PR-blocking and widened the named Postgres CI contract
+  - added a separate production-profile smoke lane while keeping the fast hybrid-dev Playwright lane
+  - restored prod-safe config/runtime defaults and narrowed remaining runtime catch-all handling outside the accepted MSAL/outbox boundaries
+  - decomposed bootstrap, security middleware, Graph directory integration, and installer production helpers into smaller modules without changing public contracts
+- Closed two late browser/runtime regressions discovered during the final verification loop:
+  - the new-risk form now resolves a valid risk type from live Risk Hub config instead of assuming the stale hardcoded `operational` default
+  - the canonical seed path now reconciles and repairs the default system risk types so `/api/v1/riskhub/public-risk-types` and risk-create validation stay aligned
+  - the Playwright E2E runtime now enables scheduler ownership with `SCHEDULER_JOB_PROFILE=outbox_only` so questionnaire notification delivery is exercised through the real outbox path without enabling the unrelated periodic jobs
+- Final verification:
+  - docs/static/contracts:
+    - `python3 scripts/check_docs_contract.py`
+    - `make -f scripts/Makefile docs-topology-consistency`
+    - `python3 scripts/security/validate_production_contract_docs.py`
+    - `python3 scripts/security/validate_workflow_pins.py`
+    - `python3 scripts/security/validate_repo_hardening.py`
+    - all passed
+  - backend full SQLite:
+    - `make -f scripts/Makefile test` -> `914 passed, 15 skipped`
+  - backend Postgres CI contract:
+    - `TEST_DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_test@127.0.0.1:55432/riskhub_test make -f scripts/Makefile test-postgres-ci` -> `11 passed` + `20 passed`
+  - backend targeted governance/hardening pack:
+    - `cd backend && pytest -q ../tests/backend/pytest/test_outbox_approval_flow.py ../tests/backend/pytest/test_security_headers.py ../tests/backend/pytest/test_production_hardening.py ../tests/backend/pytest/test_settings_secret_files.py ../tests/backend/pytest/test_outbound_egress_guards.py ../tests/backend/pytest/test_health.py ../tests/backend/pytest/test_install_script_contracts.py ../tests/backend/pytest/test_workflow_pin_validator.py ../tests/backend/pytest/test_production_contract_docs.py ../tests/backend/pytest/test_seed_risk_types.py` -> `86 passed, 1 skipped`
+  - frontend unit:
+    - `cd frontend && npm run test:run` -> `83 files passed`, `290 tests passed`
+  - frontend static/quality:
+    - `cd frontend && npm run lint && npx tsc --noEmit && npm run build && npm run quality:debt -- --report-json && node scripts/quality/validate-debt-budget-report.mjs && npm run cleanup:deadcode && node scripts/cleanup/validate-unreachable-report.mjs && node scripts/quality/validate-no-inline-styles.mjs`
+    - all passed
+  - browser/runtime:
+    - `cd frontend && BACKEND_URL=http://localhost:8000 npx playwright test -c playwright.config.ts --project=chromium --workers=1`
+    - `221 passed, 39 skipped`
 
 ### Remediation and Documentation Reconciliation Closeout (2026-04-05)
 

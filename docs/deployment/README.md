@@ -72,6 +72,7 @@ Release inputs:
 - `/docs` and `/openapi.json` must stay disabled in production.
 - Cookie-authenticated auth endpoints (`/api/v1/auth/refresh`, refresh-cookie fallback logout) require allowed Origin/Referer plus double-submit CSRF.
 - Production CSP is now strict enough to drop `style-src 'unsafe-inline'`; inline styles are not allowed in active frontend source.
+- `Cross-Origin-Opener-Policy` and `Cross-Origin-Embedder-Policy` are intentionally not set in the current baseline because RiskHub does not require cross-origin isolated browser features today; reassess before enabling SharedArrayBuffer-style workloads.
 - Explicit logout invalidates all RiskHub app sessions for the user, not only the current browser refresh session.
 - The scheduler must run exactly once:
   - Docker target: dedicated scheduler container

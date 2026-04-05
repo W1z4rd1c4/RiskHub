@@ -27,6 +27,7 @@ Operational and development automation for RiskHub.
   - Shared library helpers used by `./scripts/deploy.sh`.
 - `install_lib/`
   - Stdlib-only Python control plane used by `./scripts/install_cli.py` and the public `./scripts/install.sh` wrapper.
+  - Production lifecycle internals are now split into release-input, secret/scaffold, lifecycle-action, and summary/verify helpers to keep the public wrapper contract stable while reducing single-file sprawl.
 - `prod/`
   - Retained internal production runtime/install helpers behind the supported deploy CLI.
 - `security/`

@@ -59,6 +59,7 @@ export function RisksFilterBar({
                     value={statusFilter}
                     onValueChange={(value) => onStatusChange(value as RiskStatus | '')}
                     placeholder={t('status.active')}
+                    triggerAriaLabel={t('fields.status')}
                     triggerTestId="risks-status-filter-trigger"
                     contentTestId="risks-status-filter-content"
                     optionTestIdPrefix="risks-status-filter-option"
@@ -72,6 +73,7 @@ export function RisksFilterBar({
                     value={typeFilter}
                     onValueChange={onTypeChange}
                     placeholder={t('filters.all_types')}
+                    triggerAriaLabel={t('filters.all_types')}
                     allowEmpty
                     emptyLabel={t('filters.all_types')}
                     triggerTestId="risks-type-filter-trigger"
@@ -118,6 +120,8 @@ export function RisksFilterBar({
                     type="button"
                     onClick={onRefresh}
                     data-testid="risks-refresh-button"
+                    aria-label={t('actions.refresh', { ns: 'common' })}
+                    title={t('actions.refresh', { ns: 'common' })}
                     className="p-2.5 glass rounded-xl text-slate-400 hover:text-white transition-colors"
                 >
                     <RefreshCw className={`h-5 w-5 ${isLoading ? 'animate-spin text-accent' : ''}`} />

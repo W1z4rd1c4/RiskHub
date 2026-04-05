@@ -363,6 +363,10 @@
   color: #64748b !important;
 }
 
+.theme-light [data-testid="logout-button"] {
+  color: #be123c !important;
+}
+
 /* Light theme - Glassmorphism */
 .theme-light .glass {
   background-color: rgba(255, 255, 255, 0.85) !important;

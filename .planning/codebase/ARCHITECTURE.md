@@ -7,15 +7,15 @@
 RiskHub is a containerized full-stack application:
 - Backend: FastAPI monolith with modular domain endpoints (many split into packages with subrouters) (`backend/app/api/v1/endpoints/`)
 - Frontend: React SPA with route-based pages (`frontend/src/App.tsx`, `frontend/src/pages/`)
-- Datastore: PostgreSQL, with Redis for production runtime controls (`docker-compose.yml`, `scripts/compose.sh`, `backend/app/bootstrap.py`, `scripts/deploy.sh`)
+- Datastore: PostgreSQL, with Redis for production runtime controls (`docker-compose.yml`, `scripts/compose.sh`, `backend/app/bootstrap_runtime.py`, `scripts/deploy.sh`)
 - Quantitative repository-size metrics are tracked in `.planning/codebase/STRUCTURE.md` as the count source of truth.
 
 ## Backend Layering
 
 ### App composition and lifecycle
-- Canonical app composition and production guardrails live in `backend/app/bootstrap.py`
+- Canonical app composition is exported through `backend/app/bootstrap.py`, which now serves as a stable facade over `backend/app/bootstrap_app.py`, `backend/app/bootstrap_runtime.py`, and `backend/app/bootstrap_validation.py`
 - `backend/app/main.py` is the thin entrypoint for logging bootstrap, `lifespan`, and `create_app`
-- DB engine/sessionmaker initialized per-app and stored on `app.state` (`backend/app/db/session.py`, `backend/app/bootstrap.py`, `backend/app/main.py`)
+- DB engine/sessionmaker initialized per-app and stored on `app.state` (`backend/app/db/session.py`, `backend/app/bootstrap_runtime.py`, `backend/app/main.py`)
 - Lifespan shutdown disposes DB engine and closes Redis (`backend/app/main.py`)
 
 ### API Layer
@@ -31,9 +31,10 @@ RiskHub is a containerized full-stack application:
 - Async DB session boundary in `backend/app/db/session.py` (`get_db(request)` yields `AsyncSession`; no implicit commit)
 
 ### Cross-Cutting Runtime
-- Middleware chain: CORS, trusted hosts, logging context, security headers, rate limiting, language (`backend/app/bootstrap.py`, `backend/app/middleware/`)
+- Middleware chain: CORS, trusted hosts, logging context, security headers, rate limiting, language (`backend/app/bootstrap_app.py`, `backend/app/middleware/`)
+- `backend/app/middleware/security.py` remains the import-stable facade while header and rate-limit behavior now live in `backend/app/middleware/security_headers.py` and `backend/app/middleware/rate_limit.py`
 - Structured logging + audit logging (`backend/app/core/logging.py`, `backend/app/core/activity_logger.py`)
-- Background jobs via APScheduler (`backend/app/core/scheduler.py`) with DB access via a configured `sessionmaker` (`backend/app/bootstrap.py`, `backend/app/core/scheduler.py`)
+- Background jobs via APScheduler (`backend/app/core/scheduler.py`) with DB access via a configured `sessionmaker` (`backend/app/bootstrap_runtime.py`, `backend/app/core/scheduler.py`)
 
 ## Frontend Layering
 
@@ -45,6 +46,7 @@ RiskHub is a containerized full-stack application:
 - Auth/session coordination: `AuthProvider` composition plus `useAuthBootstrap`, `useAuthActions`, and `sessionManager` (`frontend/src/contexts/AuthContext.tsx`, `frontend/src/contexts/auth/`, `frontend/src/services/sessionManager.ts`)
 - Authorization UX: `PermissionGate`, `usePermissions`, `useAuthz` (`frontend/src/components/PermissionGate.tsx`, `frontend/src/hooks/usePermissions.ts`, `frontend/src/authz/useAuthz.ts`)
 - Entra SSO support via MSAL (`frontend/src/services/entraAuth.ts`, `frontend/src/pages/SsoCallbackPage.tsx`)
+- Preference hydration readiness now stays inside the auth provider/hook graph; the earlier module-level readiness singleton is gone (`frontend/src/contexts/auth/usePreferenceHydration.ts`, `frontend/src/contexts/AuthContext.tsx`)
 
 ## Core Data Flows
 

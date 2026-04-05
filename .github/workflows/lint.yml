@@ -10,16 +10,38 @@ permissions:
   contents: read
 
 jobs:
+  frontend-unit-tests:
+    name: Frontend Unit Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Run frontend Vitest suite
+        run: npm run test:run
+        working-directory: frontend
+
   lint:
     name: Lint (Frontend + Backend)
     runs-on: ubuntu-latest
-    needs: [docs-topology-consistency]
+    needs: [docs-topology-consistency, frontend-unit-tests]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '24'
           cache: 'npm'
@@ -67,7 +89,7 @@ jobs:
         working-directory: frontend
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: '3.13'
           cache: 'pip'
@@ -132,7 +154,7 @@ jobs:
 
       - name: Upload lint evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: lint-evidence
           path: |
@@ -155,10 +177,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: '3.13'
 
@@ -167,12 +189,19 @@ jobs:
           set -euo pipefail
           make -f scripts/Makefile docs-topology-consistency | tee lint-docs-topology.log
 
+      - name: Production contract docs gate
+        run: |
+          set -euo pipefail
+          python3 scripts/security/validate_production_contract_docs.py | tee lint-production-contract.log
+
       - name: Upload docs topology evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: docs-topology-evidence
-          path: lint-docs-topology.log
+          path: |
+            lint-docs-topology.log
+            lint-production-contract.log
           retention-days: 30
 
   ruff-informational:
@@ -181,10 +210,10 @@ jobs:
     continue-on-error: true
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: '3.13'
           cache: 'pip'
@@ -208,10 +237,10 @@ jobs:
     continue-on-error: true
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: '3.13'
 
@@ -220,7 +249,7 @@ jobs:
 
       - name: Upload docs-tree audit artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: docs-tree-audit
           path: tests/results/docs/docs-tree-audit-*

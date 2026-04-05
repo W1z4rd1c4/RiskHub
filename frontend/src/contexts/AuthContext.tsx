@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useState, useEffect, type ReactNode } from 'react';
 import type { AuthUser } from '@/services/authApi';
 import { getAccessToken, subscribeAccessToken } from '@/services/accessTokenStore';
+import { getBootstrapSession } from '@/services/bootstrapSessionCache';
 import { hasUserPermission } from '@/contexts/auth/permissions';
 import { usePreferenceHydration } from '@/contexts/auth/usePreferenceHydration';
 import { useAuthBootstrap } from '@/contexts/auth/useAuthBootstrap';
@@ -61,21 +62,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     const hasPermission = useCallback((resource: string, action: string): boolean => {
-        return hasUserPermission(user, resource, action);
-    }, [user]);
+        const cachedUser = token ? getBootstrapSession(token)?.user ?? null : null;
+        return hasUserPermission(user ?? cachedUser, resource, action);
+    }, [token, user]);
+    const cachedBootstrapUser = token ? getBootstrapSession(token)?.user ?? null : null;
+    const effectiveUser = user ?? cachedBootstrapUser;
+    const sessionBootstrapPending = Boolean(token) && !effectiveUser;
+    const effectiveBootstrapStatus =
+        sessionBootstrapPending && bootstrapStatus !== 'error' ? 'loading' : bootstrapStatus;
+    const effectiveIsLoading = isLoading || sessionBootstrapPending;
 
     return (
         <AuthContext.Provider
             value={{
-                user,
-                isLoading,
-                bootstrapStatus,
+                user: effectiveUser,
+                isLoading: effectiveIsLoading,
+                bootstrapStatus: effectiveBootstrapStatus,
                 bootstrapError,
                 logoutPending,
                 logoutErrorKey,
                 isPreferencesHydrated,
                 hasPermission,
-                isAuthenticated: !!token && !!user,
+                isAuthenticated: !!token && !!effectiveUser,
                 login,
                 logout,
             }}

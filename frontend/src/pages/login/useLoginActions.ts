@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import type { TFunction } from 'i18next';
 import { useNavigate } from 'react-router-dom';
+import type { SafeTFunction } from '@/i18n/hooks';
 import { authApi } from '@/services/authApi';
 import { applyAuthenticatedSession } from '@/services/sessionManager';
 import { clearExplicitLogoutSuppressed } from '@/services/logoutSuppression';
@@ -9,7 +9,7 @@ import { entraAuth } from '@/services/entraAuth';
 
 interface UseLoginActionsOptions {
     returnTo: string;
-    translate: TFunction;
+    translate: SafeTFunction;
 }
 
 interface UseLoginActionsResult {

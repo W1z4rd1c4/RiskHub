@@ -49,7 +49,7 @@ async def test_graph_directory_service_acquires_token_with_client_secret(monkeyp
             return {"access_token": "secret-token", "expires_in": 900}
 
     monkeypatch.setattr(
-        "app.services.graph_directory_service.importlib.import_module",
+        "app.services.graph_directory_auth.importlib.import_module",
         lambda name: SimpleNamespace(ConfidentialClientApplication=FakeConfidentialClientApplication),
     )
 
@@ -74,7 +74,7 @@ async def test_graph_directory_service_prefers_certificate_credential(monkeypatc
             return {"access_token": "certificate-token", "expires_in": 900}
 
     monkeypatch.setattr(
-        "app.services.graph_directory_service.importlib.import_module",
+        "app.services.graph_directory_auth.importlib.import_module",
         lambda name: SimpleNamespace(ConfidentialClientApplication=FakeConfidentialClientApplication),
     )
 
@@ -107,7 +107,7 @@ async def test_graph_directory_service_fails_cleanly_when_token_acquisition_retu
             return {"error": "invalid_client", "error_description": "bad credential"}
 
     monkeypatch.setattr(
-        "app.services.graph_directory_service.importlib.import_module",
+        "app.services.graph_directory_auth.importlib.import_module",
         lambda name: SimpleNamespace(ConfidentialClientApplication=FakeConfidentialClientApplication),
     )
 
@@ -124,7 +124,7 @@ async def test_graph_directory_service_fails_cleanly_when_msal_is_missing(
     def _raise_module_not_found(name: str) -> object:
         raise ModuleNotFoundError(name)
 
-    monkeypatch.setattr("app.services.graph_directory_service.importlib.import_module", _raise_module_not_found)
+    monkeypatch.setattr("app.services.graph_directory_auth.importlib.import_module", _raise_module_not_found)
 
     service = GraphDirectoryService(_base_settings(entra_client_secret="entra-client-secret"))
 
@@ -144,7 +144,7 @@ async def test_graph_directory_service_rejects_non_dict_token_payload(
             return ["not-a-dict"]
 
     monkeypatch.setattr(
-        "app.services.graph_directory_service.importlib.import_module",
+        "app.services.graph_directory_auth.importlib.import_module",
         lambda name: SimpleNamespace(ConfidentialClientApplication=FakeConfidentialClientApplication),
     )
 
@@ -155,13 +155,19 @@ async def test_graph_directory_service_rejects_non_dict_token_payload(
 
 
 def test_directory_provider_auto_uses_graph_when_secret_is_configured() -> None:
-    service = DirectoryProviderService(_base_settings(entra_client_secret="entra-client-secret"))
+    service = DirectoryProviderService(
+        _base_settings(
+            directory_provider="auto",
+            entra_client_secret="entra-client-secret",
+        )
+    )
     assert service.provider_name == "graph"
 
 
 def test_directory_provider_auto_uses_graph_when_certificate_is_configured() -> None:
     service = DirectoryProviderService(
         _base_settings(
+            directory_provider="auto",
             entra_client_certificate_thumbprint="ABCDEF1234567890ABCDEF1234567890ABCDEF12",
             entra_client_certificate_private_key="-----BEGIN PRIVATE KEY-----\nTESTKEY\n-----END PRIVATE KEY-----",
         )
@@ -172,6 +178,7 @@ def test_directory_provider_auto_uses_graph_when_certificate_is_configured() -> 
 def test_directory_provider_auto_falls_back_to_ad_emulator_when_graph_is_not_configured() -> None:
     service = DirectoryProviderService(
         _base_settings(
+            directory_provider="auto",
             entra_tenant_id=None,
             entra_client_id=None,
             ad_emulator_base_url="https://ad-emulator.example.com",
@@ -206,6 +213,7 @@ def test_graph_directory_service_maps_business_role_extension_field() -> None:
 def test_ad_emulator_provider_maps_business_role_field() -> None:
     service = DirectoryProviderService(
         _base_settings(
+            directory_provider="auto",
             entra_tenant_id=None,
             entra_client_id=None,
             entra_business_role_attribute_name="riskhubBusinessRole",
@@ -229,6 +237,7 @@ def test_ad_emulator_provider_maps_business_role_field() -> None:
 def test_ad_emulator_provider_ignores_business_role_field_when_feature_disabled() -> None:
     service = DirectoryProviderService(
         _base_settings(
+            directory_provider="auto",
             entra_tenant_id=None,
             entra_client_id=None,
             entra_business_role_attribute_name=None,
@@ -253,6 +262,7 @@ def test_directory_provider_rejects_incomplete_certificate_configuration() -> No
     with pytest.raises(DirectoryProviderUnavailableError, match="Incomplete Entra certificate credential configuration"):
         DirectoryProviderService(
             _base_settings(
+                directory_provider="auto",
                 entra_client_certificate_thumbprint="ABCDEF1234567890ABCDEF1234567890ABCDEF12",
             )
         )
@@ -262,6 +272,7 @@ def test_directory_provider_rejects_incomplete_certificate_configuration_even_wi
     with pytest.raises(DirectoryProviderUnavailableError, match="Incomplete Entra certificate credential configuration"):
         DirectoryProviderService(
             _base_settings(
+                directory_provider="auto",
                 entra_client_certificate_thumbprint="ABCDEF1234567890ABCDEF1234567890ABCDEF12",
                 ad_emulator_base_url="https://ad-emulator.example.com",
             )
@@ -272,6 +283,7 @@ def test_directory_provider_reports_generalized_missing_credential_message() -> 
     with pytest.raises(DirectoryProviderUnavailableError, match="Set an Entra Graph credential or AD_EMULATOR_BASE_URL"):
         DirectoryProviderService(
             _base_settings(
+                directory_provider="auto",
                 entra_tenant_id=None,
                 entra_client_id=None,
             )

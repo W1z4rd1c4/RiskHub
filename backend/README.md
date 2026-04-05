@@ -15,7 +15,7 @@ FastAPI + SQLAlchemy backend for RiskHub, including the API surface, database mo
 cd backend
 ./venv/bin/alembic upgrade head
 ./venv/bin/pytest -q
-TEST_DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_dev@localhost:5432/riskhub_test ./venv/bin/pytest -m postgres -q
+TEST_DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_dev@localhost:5432/riskhub_test make -f ../scripts/Makefile test-postgres-ci
 ./venv/bin/python -m ruff check app ../tests/backend/pytest scripts
 ```
 
@@ -23,7 +23,7 @@ TEST_DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_dev@localhost:5432/riskhu
 
 - default local pytest runs use SQLite unless `TEST_DATABASE_URL` is set
 - Postgres-mode pytest applies Alembic migrations and truncates tables between tests
-- scheduler ownership, migration-defined constraints, and other PG-specific behavior should be verified in the Postgres lane
+- scheduler ownership, migration-defined constraints, and other PG-specific behavior should be verified in the named Postgres CI contract (`make -f ../scripts/Makefile test-postgres-ci`)
 
 ## Related Docs
 

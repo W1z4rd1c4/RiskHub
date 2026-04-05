@@ -25,11 +25,82 @@ from app.models import (
     Department,
     Permission,
     Risk,
+    RiskTypeConfig,
     Role,
     RolePermission,
     User,
 )
 from app.models.user import AccessScope
+
+DEFAULT_RISK_TYPES = (
+    {
+        "code": "operational",
+        "display_name": "Operational",
+        "description": "Operational risk",
+        "color": "#3b82f6",
+        "is_system": True,
+        "sort_order": 1,
+    },
+    {
+        "code": "strategic",
+        "display_name": "Strategic",
+        "description": "Strategic risk",
+        "color": "#8b5cf6",
+        "is_system": True,
+        "sort_order": 2,
+    },
+)
+
+
+def _risk_type_text_missing(value: str | None) -> bool:
+    return value is None or not value.strip()
+
+
+def _format_risk_type_seed_summary(summary: dict[str, int]) -> str:
+    return f"created={summary['created']}, repaired={summary['repaired']}"
+
+
+async def seed_default_risk_types(db: AsyncSession) -> dict[str, int]:
+    """Ensure the canonical system risk types exist and remain usable."""
+    result = await db.execute(
+        select(RiskTypeConfig).where(RiskTypeConfig.code.in_([risk_type["code"] for risk_type in DEFAULT_RISK_TYPES]))
+    )
+    existing_by_code = {risk_type.code: risk_type for risk_type in result.scalars().all()}
+    summary = {"created": 0, "repaired": 0}
+
+    for risk_type_defaults in DEFAULT_RISK_TYPES:
+        existing = existing_by_code.get(risk_type_defaults["code"])
+        if existing is None:
+            db.add(RiskTypeConfig(**risk_type_defaults))
+            summary["created"] += 1
+            continue
+
+        repaired = False
+        if not existing.is_active:
+            existing.is_active = True
+            repaired = True
+        if not existing.is_system:
+            existing.is_system = True
+            repaired = True
+        if _risk_type_text_missing(existing.display_name):
+            existing.display_name = risk_type_defaults["display_name"]
+            repaired = True
+        if _risk_type_text_missing(existing.description):
+            existing.description = risk_type_defaults["description"]
+            repaired = True
+        if _risk_type_text_missing(existing.color):
+            existing.color = risk_type_defaults["color"]
+            repaired = True
+        if existing.sort_order is None:
+            existing.sort_order = risk_type_defaults["sort_order"]
+            repaired = True
+        if repaired:
+            summary["repaired"] += 1
+
+    if summary["created"] or summary["repaired"]:
+        await db.flush()
+
+    return summary
 
 
 async def seed_database():
@@ -39,10 +110,15 @@ async def seed_database():
         result = await db.execute(select(Role))
         if result.scalars().first():
             print("Database already seeded. Skipping roles/permissions/users.")
+            risk_type_summary = await seed_default_risk_types(db)
+            if risk_type_summary["created"] or risk_type_summary["repaired"]:
+                print(f"Reconciled default risk types ({_format_risk_type_seed_summary(risk_type_summary)})")
             # Still check and seed controls/risks if missing
             result = await db.execute(select(Control))
             if not result.scalars().first():
                 await seed_controls_and_risks(db)
+            elif risk_type_summary["created"] or risk_type_summary["repaired"]:
+                await db.commit()
             return
 
         print("Seeding database...")
@@ -90,6 +166,9 @@ async def seed_database():
             departments[dept_data["code"]] = dept
         await db.flush()
         print(f"Created {len(DEPARTMENTS)} departments")
+
+        risk_type_summary = await seed_default_risk_types(db)
+        print(f"Reconciled default risk types ({_format_risk_type_seed_summary(risk_type_summary)})")
 
         # Create test users
         users = {}

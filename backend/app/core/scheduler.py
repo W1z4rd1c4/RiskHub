@@ -38,13 +38,17 @@ _outbox_dispatch_state: dict[str, object | None] = {
 SCHEDULER_LOCK_CLASS_ID = 424242
 SCHEDULER_LOCK_OBJECT_ID = 1
 SCHEDULER_RUNTIME_JOB_NAME = "__scheduler_runtime__"
-SCHEDULER_JOB_IDS = (
+SCHEDULER_JOB_PROFILE_ENV = "SCHEDULER_JOB_PROFILE"
+DEFAULT_SCHEDULER_JOB_PROFILE = "full"
+FULL_SCHEDULER_JOB_IDS = (
     "kri_deadline_check",
     "questionnaire_deadline_check",
     "issue_deadline_check",
     "ad_deprovision_check",
     "orphan_scan",
+    "outbox_dispatch",
 )
+OUTBOX_ONLY_SCHEDULER_JOB_IDS = ("outbox_dispatch",)
 PROCESS_INSTANCE_ID = str(uuid4())
 PROCESS_STARTED_AT = utc_now()
 
@@ -476,13 +480,33 @@ async def run_outbox_dispatch() -> None:
         )
 
 
-def setup_scheduler():
-    """Configure scheduled jobs."""
-    from app.core.config import get_settings
+def _resolve_scheduler_job_profile() -> str:
+    configured = os.getenv(SCHEDULER_JOB_PROFILE_ENV, DEFAULT_SCHEDULER_JOB_PROFILE).strip().lower()
+    if configured in {DEFAULT_SCHEDULER_JOB_PROFILE, "outbox_only"}:
+        return configured
 
-    settings = get_settings()
-    scheduler.remove_all_jobs()
+    logger.warning(
+        "scheduler_job_profile_invalid",
+        configured_profile=configured or None,
+        selected_profile=DEFAULT_SCHEDULER_JOB_PROFILE,
+        instance_id=PROCESS_INSTANCE_ID,
+    )
+    return DEFAULT_SCHEDULER_JOB_PROFILE
 
+
+def _register_outbox_dispatch_job() -> None:
+    scheduler.add_job(
+        run_outbox_dispatch,
+        IntervalTrigger(seconds=OUTBOX_DISPATCH_INTERVAL_SECONDS),
+        id="outbox_dispatch",
+        name="Outbox Dispatch",
+        replace_existing=True,
+        coalesce=True,
+        max_instances=1,
+    )
+
+
+def _register_full_scheduler_jobs(settings) -> tuple[str, ...]:
     # Daily KRI check at 8:00 AM
     scheduler.add_job(
         run_kri_check,
@@ -522,18 +546,35 @@ def setup_scheduler():
         name="Daily Orphan Governance Scan",
         replace_existing=True,
     )
-    scheduler.add_job(
-        run_outbox_dispatch,
-        IntervalTrigger(seconds=OUTBOX_DISPATCH_INTERVAL_SECONDS),
-        id="outbox_dispatch",
-        name="Outbox Dispatch",
-        replace_existing=True,
-        coalesce=True,
-        max_instances=1,
-    )
+    _register_outbox_dispatch_job()
+    return FULL_SCHEDULER_JOB_IDS
+
+
+def _register_outbox_only_scheduler_jobs() -> tuple[str, ...]:
+    _register_outbox_dispatch_job()
+    return OUTBOX_ONLY_SCHEDULER_JOB_IDS
+
+
+def setup_scheduler() -> tuple[str, tuple[str, ...]]:
+    """Configure scheduled jobs."""
+    from app.core.config import get_settings
+
+    settings = get_settings()
+    scheduler.remove_all_jobs()
+
+    profile = _resolve_scheduler_job_profile()
+    if profile == "outbox_only":
+        registered_job_ids = _register_outbox_only_scheduler_jobs()
+    else:
+        registered_job_ids = _register_full_scheduler_jobs(settings)
+
     logger.info(
-        "Scheduler configured: KRI/questionnaire/issue/AD-deprovision/orphan checks scheduled daily"
+        "scheduler_configured",
+        scheduler_job_profile=profile,
+        registered_job_ids=list(registered_job_ids),
+        instance_id=PROCESS_INSTANCE_ID,
     )
+    return profile, registered_job_ids
 
 
 def start_scheduler():
@@ -580,7 +621,7 @@ async def start_scheduler_async() -> None:
         return
 
     try:
-        setup_scheduler()
+        profile, registered_job_ids = setup_scheduler()
         scheduler.start()
         await _mark_runtime_started()
     except Exception:
@@ -600,6 +641,8 @@ async def start_scheduler_async() -> None:
     logger.info(
         "scheduler_started",
         scheduler_enabled=True,
+        scheduler_job_profile=profile,
+        registered_job_ids=list(registered_job_ids),
         instance_id=PROCESS_INSTANCE_ID,
         lock_provider=provider.provider_name,
         lock_acquired=True,

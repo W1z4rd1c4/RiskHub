@@ -43,6 +43,7 @@ export function ControlsFilterBar({
                     value={statusFilter}
                     onValueChange={(value) => onStatusChange(value as ControlListStatusFilter)}
                     placeholder={t('filters.all_statuses')}
+                    triggerAriaLabel={t('filters.all_statuses')}
                     allowEmpty
                     emptyLabel={t('filters.all_statuses')}
                     triggerTestId="controls-status-filter-trigger"
@@ -60,6 +61,8 @@ export function ControlsFilterBar({
                     type="button"
                     onClick={onRefresh}
                     data-testid="controls-refresh-button"
+                    aria-label={t('actions.refresh', { ns: 'common' })}
+                    title={t('actions.refresh', { ns: 'common' })}
                     className="p-2.5 glass rounded-xl text-slate-400 hover:text-white transition-colors"
                 >
                     <RefreshCw className={`h-5 w-5 ${isLoading ? 'animate-spin text-accent' : ''}`} />

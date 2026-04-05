@@ -14,6 +14,17 @@ PRODUCTION_ENTRA_CLIENT_ID = "11111111-1111-1111-1111-111111111111"
 PRODUCTION_ENTRA_CLIENT_SECRET = "production-entra-client-secret"
 
 
+def _csp_directives(csp: str) -> dict[str, str]:
+    directives: dict[str, str] = {}
+    for raw_directive in csp.split(";"):
+        directive = raw_directive.strip()
+        if not directive:
+            continue
+        name = directive.split(" ", 1)[0]
+        directives[name] = directive
+    return directives
+
+
 def _required_headers_present(headers: dict[str, str]) -> None:
     assert headers["x-frame-options"] == "DENY"
     assert headers["x-content-type-options"] == "nosniff"
@@ -40,9 +51,9 @@ async def test_security_headers_in_debug_mode():
     assert response.status_code == 200
     _required_headers_present(dict(response.headers))
     assert "strict-transport-security" not in response.headers
-    csp = response.headers["content-security-policy"]
-    assert "script-src 'self' 'unsafe-inline' 'unsafe-eval'" in csp
-    assert "connect-src 'self' http://localhost:* https://*" in csp
+    csp = _csp_directives(response.headers["content-security-policy"])
+    assert csp["script-src"] == "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
+    assert csp["connect-src"] == "connect-src 'self' http://localhost:* https://*"
 
 
 @pytest.mark.asyncio
@@ -71,10 +82,12 @@ async def test_security_headers_in_production_mode():
     assert response.status_code == 200
     _required_headers_present(dict(response.headers))
     assert response.headers["strict-transport-security"] == "max-age=31536000; includeSubDomains; preload"
+    assert "cross-origin-opener-policy" not in response.headers
+    assert "cross-origin-embedder-policy" not in response.headers
 
-    csp = response.headers["content-security-policy"]
-    assert "script-src 'self'" in csp
-    assert "style-src 'self' https://fonts.googleapis.com" in csp
-    assert "style-src 'self' 'unsafe-inline'" not in csp
-    assert "'unsafe-eval'" not in csp
+    csp = _csp_directives(response.headers["content-security-policy"])
+    assert csp["script-src"] == "script-src 'self'"
+    assert csp["style-src"] == "style-src 'self' https://fonts.googleapis.com"
+    assert "'unsafe-inline'" not in csp["style-src"]
+    assert all("'unsafe-eval'" not in directive for directive in csp.values())
     assert "upgrade-insecure-requests" in csp

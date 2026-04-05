@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from '@/i18n/hooks';
 import { sanitizeReturnTo } from '@/services/authRedirect';
+import { getAccessToken, subscribeAccessToken } from '@/services/accessTokenStore';
 import { AuthConfigErrorView, LoadingLoginView, LoginNotConfiguredView } from '@/pages/login/LoginStateViews';
 import { DemoLoginView } from '@/pages/login/DemoLoginView';
 import { SsoOnlyView } from '@/pages/login/SsoOnlyView';
@@ -14,6 +15,7 @@ import { useProdLoginMetadata } from '@/pages/login/useProdLoginMetadata';
 export default function LoginPage() {
     const { t, i18n } = useTranslation(['auth', 'errorKeys', 'common']);
     const location = useLocation();
+    const navigate = useNavigate();
     const { returnTo, authErrorParam } = useMemo(() => {
         const params = new URLSearchParams(location.search);
         return {
@@ -23,7 +25,17 @@ export default function LoginPage() {
     }, [location.search]);
 
     const [prodLanguage, setProdLanguage] = useState<ProdLanguage>('cs');
+    const [hasAccessToken, setHasAccessToken] = useState(() => getAccessToken() !== null);
     const showBootstrapUnavailableBanner = authErrorParam === 'service_unavailable';
+
+    useEffect(() => subscribeAccessToken((token) => setHasAccessToken(token !== null)), []);
+
+    useEffect(() => {
+        if (!hasAccessToken) {
+            return;
+        }
+        void navigate(returnTo, { replace: true });
+    }, [hasAccessToken, navigate, returnTo]);
 
     const {
         authConfig,
@@ -56,17 +68,37 @@ export default function LoginPage() {
         translate: t,
     });
 
-    const prodCopy = useMemo(
-        () => getProdAuthCopy((key) => i18n.t(key, { ns: 'auth', lng: prodLanguage })),
-        [i18n, prodLanguage],
+    const resolveFixedTranslate = useMemo(
+        () => (language: ProdLanguage, namespace: 'auth' | 'errorKeys') => {
+            if (typeof i18n.getFixedT === 'function') {
+                return i18n.getFixedT(language, namespace) as (key: string) => string;
+            }
+            const translator = i18n as { t: (key: string, options?: Record<string, unknown>) => string };
+            return ((key: string) => translator.t(key, { lng: language, ns: namespace })) as (key: string) => string;
+        },
+        [i18n],
     );
-    const prodErrorMessage = errorKey ? i18n.t(errorKey, { ns: 'errorKeys', lng: prodLanguage }) : '';
+
+    const prodAuthTranslate = useMemo(
+        () => resolveFixedTranslate(prodLanguage, 'auth'),
+        [prodLanguage, resolveFixedTranslate],
+    );
+    const prodErrorTranslate = useMemo(
+        () => resolveFixedTranslate(prodLanguage, 'errorKeys'),
+        [prodLanguage, resolveFixedTranslate],
+    );
+
+    const prodCopy = useMemo(
+        () => getProdAuthCopy(prodAuthTranslate),
+        [prodAuthTranslate],
+    );
+    const prodErrorMessage = errorKey ? prodErrorTranslate(errorKey) : '';
     const demoErrorMessage = errorKey ? t(errorKey, { ns: 'errorKeys' }) : null;
 
     useProdLoginMetadata({
         enabled: authConfig?.auth_mode === 'microsoft_sso',
         language: prodLanguage,
-        title: i18n.t('login_sso_prod.html_title', { ns: 'auth', lng: prodLanguage }),
+        title: prodAuthTranslate('login_sso_prod.html_title'),
     });
 
     if (isAuthConfigLoading) {

@@ -1,5 +1,7 @@
 import { test, expect } from '@playwright/test';
+import { waitForNotificationByAccountName } from './helpers/api-auth';
 import { DEMO_ACCOUNTS, loginAsDemoUser, logout } from './helpers/login';
+import { navigateSpa } from './helpers/spaNavigate';
 
 test.describe('questionnaire workflow', () => {
     test('CRO sends, owner submits, CRO notified', async ({ page }) => {
@@ -121,13 +123,17 @@ test.describe('questionnaire workflow', () => {
         // Logout Owner
         await logout(page);
 
-        // 3) CRO sees notification
+        // 3) CRO sees notification after the queued outbox notification is dispatched
         await loginAsDemoUser(page, DEMO_ACCOUNTS.CRO);
         await page.goto('/dashboard');
-
-        // Open notification bell and assert submitted notification exists
-        await page.getByRole('button', { name: /notifications|oznámení/i }).click({ timeout: 15000 });
-
-        await expect(page.getByText(riskNameRe).first()).toBeVisible({ timeout: 30000 });
+        await waitForNotificationByAccountName(
+            DEMO_ACCOUNTS.CRO,
+            (notification) =>
+                notification.type === 'questionnaire_submitted'
+                && (riskNameRe.test(notification.title) || riskNameRe.test(notification.message)),
+            { timeoutMs: 30000, intervalMs: 1000 },
+        );
+        await navigateSpa(page, '/notifications');
+        await expect(page.getByText(riskNameRe).first()).toBeVisible({ timeout: 15000 });
     });
 });

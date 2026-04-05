@@ -103,7 +103,10 @@ test.describe('Admin Console', () => {
                 await route.continue();
             });
 
-            await ensureAdminAccess(page);
+            await page.goto('/admin');
+            await waitForDataLoad(page);
+            await expect(page).toHaveURL(/\/admin/, { timeout: 15000 });
+            await expect(page.locator('h1')).toHaveText(/Admin Console|Administrace/i, { timeout: 15000 });
 
             await page.getByRole('button', { name: /Audit Logs|Auditní logy/i }).click();
 

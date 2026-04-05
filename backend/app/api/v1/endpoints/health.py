@@ -3,6 +3,7 @@
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
@@ -26,7 +27,7 @@ async def health_check(db: AsyncSession = Depends(get_db)):
     try:
         await db.execute(text("SELECT 1"))
         db_status = "connected"
-    except Exception:
+    except (SQLAlchemyError, OSError):
         db_status = "disconnected"
 
     # Overall status based on database connection

@@ -201,6 +201,18 @@ def test_settings_grouped_views_expose_current_values() -> None:
     assert settings.protocol_guard_settings.enabled is True
 
 
+def test_settings_defaults_are_prod_safe_and_dev_scripts_opt_in_to_relaxed_modes() -> None:
+    settings = Settings(
+        _env_file=None,
+        secret_key="0123456789abcdef0123456789abcdef",
+        database_url="postgresql+asyncpg://riskhub:secret@postgres.example.com:5432/riskhub",
+    )
+
+    assert settings.directory_provider == "graph"
+    assert settings.entra_jit_provisioning_enabled is False
+    assert settings.auth_sso_allow_email_link is False
+
+
 def test_settings_derive_entra_business_role_claim_and_graph_field() -> None:
     settings = Settings(
         _env_file=None,

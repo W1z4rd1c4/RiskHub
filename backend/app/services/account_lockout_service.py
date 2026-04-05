@@ -5,6 +5,8 @@ import time
 from dataclasses import dataclass
 from typing import Dict, Protocol, Tuple
 
+from redis.exceptions import RedisError
+
 
 @dataclass
 class LoginAttemptState:
@@ -17,6 +19,10 @@ class AccountLockoutBackend(Protocol):
     async def is_locked(self, identifier: str) -> Tuple[bool, int]: ...
     async def record_failed_attempt(self, identifier: str) -> Tuple[bool, int]: ...
     async def record_successful_login(self, identifier: str) -> None: ...
+
+
+class AccountLockoutBackendError(RuntimeError):
+    """Raised when the backing lockout store cannot be reached safely."""
 
 
 def _normalize_identifier(identifier: str) -> str:
@@ -119,7 +125,10 @@ class RedisAccountLockoutBackend(AccountLockoutBackend):
 
     async def is_locked(self, identifier: str) -> Tuple[bool, int]:
         lock_key = self._lock_key(identifier)
-        ttl = await self.redis.ttl(lock_key)
+        try:
+            ttl = await self.redis.ttl(lock_key)
+        except (RedisError, TimeoutError, OSError) as exc:
+            raise AccountLockoutBackendError("redis lockout backend unavailable") from exc
         if ttl and ttl > 0:
             return True, int(ttl)
         return False, 0
@@ -129,7 +138,10 @@ class RedisAccountLockoutBackend(AccountLockoutBackend):
         fail_key = self._fail_key(identifier)
 
         # If already locked, keep returning remaining TTL.
-        ttl = await self.redis.ttl(lock_key)
+        try:
+            ttl = await self.redis.ttl(lock_key)
+        except (RedisError, TimeoutError, OSError) as exc:
+            raise AccountLockoutBackendError("redis lockout backend unavailable") from exc
         if ttl and ttl > 0:
             return True, int(ttl)
 
@@ -153,17 +165,23 @@ class RedisAccountLockoutBackend(AccountLockoutBackend):
 
         return {0, max_failed - count}
         """
-        locked, info = await self.redis.eval(
-            lua,
-            2,
-            fail_key,
-            lock_key,
-            self.attempt_window_seconds,
-            self.max_failed_attempts,
-            self.lockout_duration_seconds,
-        )
+        try:
+            locked, info = await self.redis.eval(
+                lua,
+                2,
+                fail_key,
+                lock_key,
+                self.attempt_window_seconds,
+                self.max_failed_attempts,
+                self.lockout_duration_seconds,
+            )
+        except (RedisError, TimeoutError, OSError) as exc:
+            raise AccountLockoutBackendError("redis lockout backend unavailable") from exc
 
         return bool(locked), int(info)
 
     async def record_successful_login(self, identifier: str) -> None:
-        await self.redis.delete(self._fail_key(identifier), self._lock_key(identifier))
+        try:
+            await self.redis.delete(self._fail_key(identifier), self._lock_key(identifier))
+        except (RedisError, TimeoutError, OSError) as exc:
+            raise AccountLockoutBackendError("redis lockout backend unavailable") from exc

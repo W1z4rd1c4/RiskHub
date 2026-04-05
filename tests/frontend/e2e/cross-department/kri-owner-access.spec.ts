@@ -33,7 +33,7 @@ test.describe('KRI Reporting Owner Cross-Department Access (Deterministic)', () 
 
     test('KRI detail shows linked risk section for deterministic cross-department KRI', async ({ browser }) => {
         const { context, page } = await openDeterministicCrossDeptKriForFinanceOwner(browser);
-        await expect(page.locator('h3:has-text("Linked Risk")')).toBeVisible();
+        await expect(page.locator('h3').filter({ hasText: /Linked Risk|Propojené riziko/i }).first()).toBeVisible();
         await expect(page.locator('h4').filter({ hasText: E2E_RISKS.PRIORITY_PRIVILEGED_APPROVAL.name }).first()).toBeVisible();
         await context.close();
     });
@@ -47,13 +47,13 @@ test.describe('KRI Reporting Owner Cross-Department Access (Deterministic)', () 
 
         await expect(page).toHaveURL(/\/risks\/\d+$/);
         await expect(page.locator('h1, h2').first()).toBeVisible();
-        await expect(page.locator('h3').filter({ hasText: /Mitigating Controls/i }).first()).toBeVisible();
+        await expect(page.locator('h3').filter({ hasText: /Mitigating Controls|Zmírňující kontroly/i }).first()).toBeVisible();
         await context.close();
     });
 
     test('Reporting owner can see Record Value action on deterministic KRI detail', async ({ browser }) => {
         const { context, page } = await openDeterministicCrossDeptKriForFinanceOwner(browser);
-        await expect(page.getByRole('button', { name: /Record Value/i })).toBeVisible();
+        await expect(page.getByRole('button', { name: /Record Value|Zaznamenat hodnotu/i })).toBeVisible();
         await context.close();
     });
 

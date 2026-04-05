@@ -55,7 +55,7 @@ export function AdminConsolePage() {
                             onClick={() => setActiveTab(tab.id)}
                             className={cn(
                                 'flex items-center gap-2 px-4 py-2.5 rounded-lg transition-all whitespace-nowrap',
-                                isActive ? 'bg-slate-600 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/5',
+                                isActive ? 'bg-slate-700 text-slate-50 shadow-lg' : 'text-slate-300 hover:text-white hover:bg-white/5',
                             )}
                         >
                             <tab.icon className="h-4 w-4" />

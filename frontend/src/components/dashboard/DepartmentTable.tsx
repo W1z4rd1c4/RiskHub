@@ -175,6 +175,8 @@ export function DepartmentTable({ metrics }: DepartmentTableProps) {
                                                     e.stopPropagation();
                                                     void navigate(`/controls?department=${dept.department_id}`);
                                                 }}
+                                                aria-label={t('department_table.actions.view_controls')}
+                                                title={t('department_table.actions.view_controls')}
                                                 className="p-1.5 text-slate-500 hover:text-accent hover:bg-accent/10 rounded-md transition-colors"
                                             >
                                                 <ClipboardList className="h-4 w-4" />
@@ -189,6 +191,8 @@ export function DepartmentTable({ metrics }: DepartmentTableProps) {
                                                     e.stopPropagation();
                                                     void navigate(`/risks?department=${dept.department_id}`);
                                                 }}
+                                                aria-label={t('department_table.actions.view_risks')}
+                                                title={t('department_table.actions.view_risks')}
                                                 className="p-1.5 text-slate-500 hover:text-orange-400 hover:bg-orange-400/10 rounded-md transition-colors"
                                             >
                                                 <AlertTriangle className="h-4 w-4" />
@@ -204,6 +208,16 @@ export function DepartmentTable({ metrics }: DepartmentTableProps) {
                                                     // Toggle focus - if already focused, unfocus
                                                     setDepartmentId(isSelected ? null : dept.department_id);
                                                 }}
+                                                aria-label={
+                                                    isSelected
+                                                        ? t('department_table.actions.remove_focus')
+                                                        : t('department_table.actions.set_focus')
+                                                }
+                                                title={
+                                                    isSelected
+                                                        ? t('department_table.actions.remove_focus')
+                                                        : t('department_table.actions.set_focus')
+                                                }
                                                 className={`p-1.5 rounded-md transition-colors ${isSelected
                                                     ? 'text-accent bg-accent/10'
                                                     : 'text-slate-500 hover:text-purple-400 hover:bg-purple-400/10'
@@ -220,6 +234,8 @@ export function DepartmentTable({ metrics }: DepartmentTableProps) {
                                         <div className="relative group/tooltip">
                                             <button
                                                 onClick={() => navigate(`/risks?department=${dept.department_id}`)}
+                                                aria-label={t('department_table.actions.go_to_department')}
+                                                title={t('department_table.actions.go_to_department')}
                                                 className="p-1.5 text-slate-500 group-hover:text-white transition-colors"
                                             >
                                                 <ChevronRight className="h-4 w-4" />

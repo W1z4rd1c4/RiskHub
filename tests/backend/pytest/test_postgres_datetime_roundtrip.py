@@ -1,11 +1,18 @@
 from __future__ import annotations
 
+import os
 from datetime import UTC
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.department import Department
+
+
+pytestmark = pytest.mark.skipif(
+    not os.environ.get("TEST_DATABASE_URL", "").startswith("postgresql"),
+    reason="Postgres-only round-trip contract",
+)
 
 
 @pytest.mark.asyncio

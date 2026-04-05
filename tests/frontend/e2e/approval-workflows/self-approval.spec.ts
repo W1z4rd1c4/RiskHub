@@ -32,14 +32,15 @@ test.describe('Self-Approval Prevention & Cancellation', () => {
                 return;
             }
 
-            // On own requests, approve button should NOT be visible
-            const status = await approvalsPage.getStatus(0);
-            if (status === 'pending' || status === 'pending_privileged') {
-                const hasApprove = await approvalsPage.isApproveButtonVisible(0);
-                const hasReject = await approvalsPage.isRejectButtonVisible(0);
-                // Non-privileged users cannot approve/reject
-                expect(hasApprove).toBe(false);
-                expect(hasReject).toBe(false);
+            // On own requests, approve/reject buttons should NOT be visible.
+            for (let i = 0; i < count; i++) {
+                const status = await approvalsPage.getStatus(i);
+                if (status === 'pending' || status === 'pending_privileged') {
+                    const hasApprove = await approvalsPage.isApproveButtonVisible(i);
+                    const hasReject = await approvalsPage.isRejectButtonVisible(i);
+                    expect(hasApprove).toBe(false);
+                    expect(hasReject).toBe(false);
+                }
             }
 
             await employeeContext.close();
@@ -56,11 +57,15 @@ test.describe('Self-Approval Prevention & Cancellation', () => {
                 return;
             }
 
-            // Dept heads are non-privileged, so they cannot resolve approvals
-            const status = await approvalsPage.getStatus(0);
-            if (status === 'pending' || status === 'pending_privileged') {
-                const hasApprove = await approvalsPage.isApproveButtonVisible(0);
-                expect(hasApprove).toBe(false);
+            // Dept heads are non-privileged, so they cannot resolve their own requests.
+            for (let i = 0; i < count; i++) {
+                const status = await approvalsPage.getStatus(i);
+                if (status === 'pending' || status === 'pending_privileged') {
+                    const hasApprove = await approvalsPage.isApproveButtonVisible(i);
+                    const hasReject = await approvalsPage.isRejectButtonVisible(i);
+                    expect(hasApprove).toBe(false);
+                    expect(hasReject).toBe(false);
+                }
             }
         });
     });
