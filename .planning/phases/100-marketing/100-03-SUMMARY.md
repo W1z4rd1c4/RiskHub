@@ -7,8 +7,8 @@ Optimalizovat prezentaci pro tisk do PDF a výrazně rozšířit textový obsah 
 - **PDF-First Design**: Galerie screenshotů byla změněna na statický layout (obrázek + text pod ním). To zajišťuje, že při tisku nebo exportu do PDF jsou všechny popisy viditelné.
 - **Rozšířený Obsah**: Pro všech 14 screenshotů byly dopisovány detailní business a technické popisy v češtině.
 - **Aktualizace Autorství**: Role byly upraveny na:
-    - **Product Architecture**: Architekt
-    - **Platform Delivery**: Developer
+    - **Architektura produktu**: návrh řešení
+    - **Implementace platformy**: delivery a realizační engine
 - **AD Emulator Kontext**: Přidána sekce vysvětlující provizorní roli AD Emulatoru jako nástroje pro simulaci podnikového adresáře (LDAP/AD).
 - **Celková Stylizace**: Změna navigace a hero sekce pro profesionálnější vzhled ("Board Presentation").
 

@@ -11,7 +11,7 @@ Back to tree: [`docs/DOCUMENTATION_TREE.md`](../DOCUMENTATION_TREE.md)
 pip install pre-commit
 
 # Install hooks
-pre-commit install
+pre-commit install --install-hooks
 
 # Run all hooks manually
 pre-commit run --all-files
@@ -36,6 +36,9 @@ npm audit
 # Secrets Detection (Gitleaks)
 # Install: brew install gitleaks (macOS) or see https://github.com/gitleaks/gitleaks
 gitleaks detect --config .gitleaks.toml
+
+# Fast public-repo hygiene gate (tracked files only)
+python3 scripts/security/validate_public_repo_hygiene.py
 
 # Public-repo leak audit (current tree + full git history + privacy metadata)
 make -f scripts/Makefile public-leak-audit
@@ -91,6 +94,7 @@ python3 scripts/tools/docs_tree_audit.py --scope full
 | **Syft** | SBOM generation for image inventory | CI | CI (push/schedule) |
 | **Grype** | SBOM vulnerability correlation gate | `backend/security/grype-ignore.yaml` | CI (push/schedule) |
 | **Gitleaks** | Secrets detection | `.gitleaks.toml` | Pre-commit, CI |
+| **Public Repo Hygiene** | Fast tracked-file privacy and artifact gate | `scripts/security/validate_public_repo_hygiene.py` | Pre-commit, CI |
 | **Public Leak Audit** | Current-tree + history leak/privacy sweep | `scripts/security/run_public_repo_leak_audit.sh` | Local before public releases |
 | **Protocol Contract Probe** | Deterministic protocol/security-vs-contract triage | `scripts/security/protocol_contract_probe.py` | Local security closure runs |
 | **Redis Resilience Tests** | Redis fault-injection fail-closed checks | `tests/backend/pytest/test_*redis*_resilience.py` | Local + nightly CI |
@@ -110,6 +114,7 @@ The security workflow (`.github/workflows/security.yml`) runs:
 | Frontend Security | PR, Push, Weekly | High+ |
 | Container Scan + SBOM Correlation | Push, Weekly | Trivy High+/Critical + Grype High+/Critical |
 | Secrets Detection | PR, Push | Config parse + full scan |
+| Public Repo Hygiene | PR, Push | Blocking on tracked path/privacy leaks |
 | Security Headers | PR only | Required headers |
 | Redis Resilience Integration (non-blocking) | Nightly | Informational (`redis_integration`) |
 
@@ -184,7 +189,9 @@ Re-evaluate this acceptance if RiskHub introduces any ECDSA/ECDH-based algorithm
 ## Development Security Checklist
 
 - [ ] Never commit secrets (use `.env` files)
+- [ ] Install hooks with `pre-commit install --install-hooks`
 - [ ] Run `pre-commit run --all-files` before pushing
+- [ ] Ensure public docs use repo-relative links only; never commit `file://` or absolute local paths
 - [ ] Review dependency updates for security patches
 - [ ] Use parameterized queries (SQLAlchemy handles this)
 - [ ] Validate all user input via Pydantic schemas

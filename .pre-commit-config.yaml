@@ -53,6 +53,11 @@ repos:
   # Frontend linting
   - repo: local
     hooks:
+      - id: public-repo-hygiene
+        name: Public Repo Hygiene
+        entry: python3 scripts/security/validate_public_repo_hygiene.py
+        language: system
+        pass_filenames: false
       - id: eslint
         name: ESLint
         entry: npm run lint

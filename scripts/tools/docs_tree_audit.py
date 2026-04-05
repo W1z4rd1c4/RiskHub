@@ -182,27 +182,16 @@ def resolve_target(source_rel: Path, target: str) -> tuple[str, str, str | None]
     raw_no_fragment = target.split("#", 1)[0]
     raw_no_fragment = raw_no_fragment.split("?", 1)[0]
 
+    if re.match(r"^[A-Za-z]:\\Users\\", raw_no_fragment):
+        return ("unresolved", "forbidden_local_path_target", raw_no_fragment)
+
     if target.startswith("file://"):
         parsed = urlparse(target)
-        file_path = Path(unquote(parsed.path))
-        resolved = candidate_with_readme(file_path)
-        if not resolved:
-            return ("unresolved", "missing_file_uri_target", None)
-        rel = as_repo_relative(resolved)
-        if rel is None:
-            return ("unresolved", "file_uri_outside_repo", str(resolved))
-        return ("resolved_repo", "ok", rel)
+        return ("unresolved", "forbidden_local_path_target", unquote(parsed.path))
 
     if target.startswith("/"):
         if raw_no_fragment.startswith("/Users/") or raw_no_fragment.startswith("/home/"):
-            absolute = Path(raw_no_fragment)
-            resolved = candidate_with_readme(absolute)
-            if not resolved:
-                return ("unresolved", "missing_absolute_target", None)
-            rel = as_repo_relative(resolved)
-            if rel is None:
-                return ("unresolved", "absolute_target_outside_repo", str(resolved))
-            return ("resolved_repo", "ok", rel)
+            return ("unresolved", "forbidden_local_path_target", raw_no_fragment)
 
         if Path(raw_no_fragment).suffix.lower() not in MD_EXTENSIONS:
             return ("ignored", "app_route", None)

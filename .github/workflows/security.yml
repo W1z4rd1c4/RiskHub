@@ -19,6 +19,21 @@ permissions:
   security-events: write
 
 jobs:
+  public-repo-hygiene:
+    name: Public Repo Hygiene
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: '3.13'
+
+      - name: Validate tracked public repo hygiene
+        run: python3 scripts/security/validate_public_repo_hygiene.py
+
   workflow-pin-validation:
     name: Workflow Pin Validation
     runs-on: ubuntu-latest

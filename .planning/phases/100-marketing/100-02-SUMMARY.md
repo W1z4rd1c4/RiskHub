@@ -10,7 +10,7 @@ Rozšířit marketingovou prezentaci (`presentation.html`) o reálné screenshot
   - **Hero**: Nový 8K render "Shield" vizualizující bezpečnost.
   - **Architektura**: Technická sekce popisující React/FastAPI stack s 8K vizualizací.
   - **Roadmapa**: Časová osa zobrazující 15 dokončených fází projektu.
-  - **Autor**: Sekce "O Projektu" (Product Architecture, Vánoce 2025, Systematic Vibe Coding).
+  - **Autor**: Sekce "O Projektu" (produktová architektura, Vánoce 2025, Systematic Vibe Coding).
 - **Design**: Premium "Silicon Valley" aesthetic (Glassmorphism, Dark mode, Slavia Red accents).
 
 ## Technické Detaily

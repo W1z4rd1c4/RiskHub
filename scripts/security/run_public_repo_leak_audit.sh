@@ -8,7 +8,9 @@ GITLEAKS_IMAGE="${GITLEAKS_IMAGE:-zricethezav/gitleaks:v8.18.2}"
 
 CURRENT_TREE_REPORT="$ARTIFACT_ROOT/current-tree-gitleaks.json"
 HISTORY_REPORT="$ARTIFACT_ROOT/history-gitleaks.json"
-PRIVACY_REPORT="$ARTIFACT_ROOT/private-surface-paths.txt"
+TRACKED_HYGIENE_REPORT="$ARTIFACT_ROOT/current-tree-hygiene.json"
+PRIVACY_REPORT="$ARTIFACT_ROOT/history-private-surface-paths.txt"
+MESSAGE_PRIVACY_REPORT="$ARTIFACT_ROOT/history-private-message-paths.txt"
 TRACKED_ARTIFACTS_REPORT="$ARTIFACT_ROOT/tracked-runtime-artifacts.txt"
 HISTORY_ARTIFACTS_REPORT="$ARTIFACT_ROOT/history-runtime-artifacts.txt"
 
@@ -37,6 +39,7 @@ run_gitleaks() {
 
 current_tree_rc=0
 history_rc=0
+hygiene_rc=0
 
 if ! run_gitleaks "$CURRENT_TREE_REPORT" --source /repo --no-git; then
   current_tree_rc=$?
@@ -46,10 +49,22 @@ if ! run_gitleaks "$HISTORY_REPORT" --source /repo; then
   history_rc=$?
 fi
 
-git -C "$ROOT_DIR" ls-files -z README.md SECURITY.md docs backend frontend scripts tests .github | \
-  xargs -0 rg -n --no-messages '/Users/[^/]+/.+(RiskHub|RIskHub)|/home/[^/]+/.+(RiskHub|RIskHub)|C:\\Users\\[^\\]+\\.+(RiskHub|RIskHub)' | \
-  rg -v '^scripts/security/run_public_repo_leak_audit\.sh:' \
+if ! python3 "$ROOT_DIR/scripts/security/validate_public_repo_hygiene.py" --format json --output "$TRACKED_HYGIENE_REPORT"; then
+  hygiene_rc=$?
+fi
+
+git -C "$ROOT_DIR" log --all -p --no-ext-diff --text --format='%H' -- . \
+  ':(exclude)scripts/security/run_public_repo_leak_audit.sh' \
+  ':(exclude)scripts/security/validate_public_repo_hygiene.py' \
+  ':(exclude)scripts/tools/docs_tree_audit.py' \
+  ':(exclude)tests/backend/pytest/test_docs_tree_audit.py' \
+  ':(exclude)tests/backend/pytest/test_public_repo_hygiene_validator.py' | \
+  rg -n --no-messages 'file:///Users/|/(Users|home)/[^/]+/|[A-Za-z]:\\Users\\' \
   >"$PRIVACY_REPORT" || true
+
+git -C "$ROOT_DIR" log --all --format='%H%n%s%n%b%n---' | \
+  rg -n --no-messages 'file:///Users/|/(Users|home)/[^/]+/|[A-Za-z]:\\Users\\' \
+  >"$MESSAGE_PRIVACY_REPORT" || true
 
 git -C "$ROOT_DIR" ls-files '.dev-*.pid' 'dev.sh.pid' 'scripts/runtime-artifacts/**' 'backend/logs/**' 'tests/results/**' \
   >"$TRACKED_ARTIFACTS_REPORT"
@@ -58,7 +73,7 @@ git -C "$ROOT_DIR" rev-list --objects --all | \
   rg '(^| )(\.dev-backend\.pid|\.dev-frontend\.pid|dev\.sh\.pid|scripts/runtime-artifacts/legacy/)' \
   >"$HISTORY_ARTIFACTS_REPORT" || true
 
-python3 - "$CURRENT_TREE_REPORT" "$HISTORY_REPORT" "$PRIVACY_REPORT" "$TRACKED_ARTIFACTS_REPORT" "$HISTORY_ARTIFACTS_REPORT" <<'PY2'
+python3 - "$CURRENT_TREE_REPORT" "$HISTORY_REPORT" "$TRACKED_HYGIENE_REPORT" "$PRIVACY_REPORT" "$MESSAGE_PRIVACY_REPORT" "$TRACKED_ARTIFACTS_REPORT" "$HISTORY_ARTIFACTS_REPORT" <<'PY2'
 from __future__ import annotations
 
 import json
@@ -67,15 +82,24 @@ from pathlib import Path
 
 current_tree_report = Path(sys.argv[1])
 history_report = Path(sys.argv[2])
-privacy_report = Path(sys.argv[3])
-tracked_artifacts_report = Path(sys.argv[4])
-history_artifacts_report = Path(sys.argv[5])
+tracked_hygiene_report = Path(sys.argv[3])
+privacy_report = Path(sys.argv[4])
+message_privacy_report = Path(sys.argv[5])
+tracked_artifacts_report = Path(sys.argv[6])
+history_artifacts_report = Path(sys.argv[7])
 
 def _count_json_rows(path: Path) -> int:
     if not path.exists():
         return 0
     payload = json.loads(path.read_text(encoding="utf-8"))
     return len(payload) if isinstance(payload, list) else 0
+
+
+def _count_hygiene_findings(path: Path) -> int:
+    if not path.exists():
+        return 0
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    return int(payload.get("finding_count", 0))
 
 def _count_lines(path: Path) -> int:
     if not path.exists():
@@ -84,17 +108,19 @@ def _count_lines(path: Path) -> int:
 
 print(f"current_tree_gitleaks={_count_json_rows(current_tree_report)}")
 print(f"history_gitleaks={_count_json_rows(history_report)}")
-print(f"privacy_path_hits={_count_lines(privacy_report)}")
+print(f"tracked_hygiene_findings={_count_hygiene_findings(tracked_hygiene_report)}")
+print(f"history_privacy_path_hits={_count_lines(privacy_report)}")
+print(f"history_message_privacy_hits={_count_lines(message_privacy_report)}")
 print(f"tracked_runtime_artifacts={_count_lines(tracked_artifacts_report)}")
 print(f"history_runtime_artifacts={_count_lines(history_artifacts_report)}")
 PY2
 
-if [[ "$current_tree_rc" -ne 0 || "$history_rc" -ne 0 ]]; then
-  echo "Public leak audit failed: gitleaks found leaks." >&2
+if [[ "$current_tree_rc" -ne 0 || "$history_rc" -ne 0 || "$hygiene_rc" -ne 0 ]]; then
+  echo "Public leak audit failed: gitleaks or tracked hygiene validation found leaks." >&2
   exit 1
 fi
 
-if [[ -s "$PRIVACY_REPORT" || -s "$TRACKED_ARTIFACTS_REPORT" || -s "$HISTORY_ARTIFACTS_REPORT" ]]; then
+if [[ -s "$PRIVACY_REPORT" || -s "$MESSAGE_PRIVACY_REPORT" || -s "$TRACKED_ARTIFACTS_REPORT" || -s "$HISTORY_ARTIFACTS_REPORT" ]]; then
   echo "Public leak audit failed: private metadata or tracked runtime artifacts detected." >&2
   exit 1
 fi

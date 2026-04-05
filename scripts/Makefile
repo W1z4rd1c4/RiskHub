@@ -1,7 +1,7 @@
 # RiskHub Development Makefile
 # Usage: make -f scripts/Makefile <target>
 
-.PHONY: help dev dev-full docker docker-lan docker-reset stop clean test test-postgres-ci migrate logs shell db db-shell lint lint-frontend lint-backend quality-suppression-budget readme-coverage docs-tree-audit docs-topology-consistency verify verify-prod-install-scripts verify-startup-scripts security-contract-probe security-redis-resilience security-gap-round5 public-leak-audit prod-readiness-audit-local release-parity-audit
+.PHONY: help dev dev-full docker docker-lan docker-reset stop clean test test-postgres-ci migrate logs shell db db-shell lint lint-frontend lint-backend quality-suppression-budget readme-coverage docs-tree-audit docs-topology-consistency verify verify-prod-install-scripts verify-startup-scripts security-contract-probe security-redis-resilience security-gap-round5 public-repo-hygiene public-leak-audit prod-readiness-audit-local release-parity-audit
 
 # Default target
 help:
@@ -47,6 +47,7 @@ help:
 	@echo "  make security-contract-probe - Run deterministic protocol/contract drift probe harness"
 	@echo "  make security-redis-resilience - Run Redis fail-closed resilience tests"
 	@echo "  make security-gap-round5 - Run Round-5 targeted security gap tests"
+	@echo "  make public-repo-hygiene - Scan tracked files for public path/privacy leaks"
 	@echo "  make public-leak-audit - Scan current tree + git history for public leak risks"
 	@echo "  make prod-readiness-audit-local - Run local production-readiness deep audit runner"
 	@echo "  make release-parity-audit - Run startup/dependency release parity audit"
@@ -216,6 +217,9 @@ security-gap-round5:
 		../tests/backend/pytest/test_rbac_write_surface.py \
 		../tests/backend/pytest/test_outbound_egress_guards.py \
 		../tests/backend/pytest/test_dev_auth_boundary.py -q
+
+public-repo-hygiene:
+	python3 scripts/security/validate_public_repo_hygiene.py
 
 public-leak-audit:
 	bash scripts/security/run_public_repo_leak_audit.sh

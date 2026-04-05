@@ -701,7 +701,7 @@ case $MODE in
         ensure_local_schema_ready
 
         cleanup_local_processes
-        stop_known_dev_listeners_on_port 8000 "Backend" "(uvicorn|app\\.main:app|multiprocessing\\.spawn|RiskHub|RiskHub)"
+        stop_known_dev_listeners_on_port 8000 "Backend" "(uvicorn|app\\.main:app|multiprocessing\\.spawn|RiskHub)"
         stop_known_dev_listeners_on_port 5173 "Frontend" "(vite|npm run dev|node .*vite)"
         start_backend_local
         if ! wait_for_backend_ready 90; then
@@ -743,7 +743,7 @@ case $MODE in
         setup_backend_venv
         ensure_local_schema_ready
         cleanup_local_processes
-        stop_known_dev_listeners_on_port 8000 "Backend" "(uvicorn|app\\.main:app|multiprocessing\\.spawn|RiskHub|RiskHub)"
+        stop_known_dev_listeners_on_port 8000 "Backend" "(uvicorn|app\\.main:app|multiprocessing\\.spawn|RiskHub)"
 
         echo ""
         echo -e "${YELLOW}Starting backend locally...${NC}"
