@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate tracked files for public-repo privacy and hygiene leaks."""
+"""Validate tracked files and git history for public-repo privacy leaks."""
 
 from __future__ import annotations
 
@@ -12,6 +12,10 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+PATCH_COMMIT_PREFIX = "__RISKHUB_HYGIENE_PATCH_COMMIT__ "
+MESSAGE_COMMIT_PREFIX = "__RISKHUB_HYGIENE_MESSAGE_COMMIT__ "
+MESSAGE_END_MARKER = "__RISKHUB_HYGIENE_MESSAGE_END__"
+DIFF_HEADER_RE = re.compile(r"^diff --git a/(.+) b/(.+)$")
 
 ALLOWED_CONTENT_PATHS = {
     Path("scripts/security/run_public_repo_leak_audit.sh"),
@@ -20,6 +24,14 @@ ALLOWED_CONTENT_PATHS = {
     Path("tests/backend/pytest/test_docs_tree_audit.py"),
     Path("tests/backend/pytest/test_public_repo_hygiene_validator.py"),
 }
+
+DEFAULT_HISTORY_PATCH_EXCLUDES = (
+    ":(exclude)scripts/security/run_public_repo_leak_audit.sh",
+    ":(exclude)scripts/security/validate_public_repo_hygiene.py",
+    ":(exclude)scripts/tools/docs_tree_audit.py",
+    ":(exclude)tests/backend/pytest/test_docs_tree_audit.py",
+    ":(exclude)tests/backend/pytest/test_public_repo_hygiene_validator.py",
+)
 
 FORBIDDEN_TRACKED_PATH_PREFIXES = (
     "backend/logs/",
@@ -36,25 +48,30 @@ FORBIDDEN_TRACKED_PATHS = (
     "backend/bandit-report.json",
     "backend/pip-audit-report.json",
     "dev.sh.pid",
-    "placeholder-presentation-output.pdf",
     "presentation.html",
 )
+
+POSIX_PATH_COMPONENT = r"[^/\s)\]>\"']+"
+WINDOWS_PATH_COMPONENT = r"[^\\\s)\]>\"']+"
 
 FORBIDDEN_CONTENT_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     (
         "absolute local file URI",
         re.compile(
-            r"file:///(?:Users/[^/\s]+/[^/\s]+/|home/[^/\s]+/[^/\s]+/|[A-Za-z]:/Users/[^/\s]+/[^/\s]+/)[^\s)>\]\"']+",
+            rf"file:///(?:"
+            rf"(?:Users|home)/{POSIX_PATH_COMPONENT}(?:/{POSIX_PATH_COMPONENT})+"
+            rf"|[A-Za-z]:/Users/{POSIX_PATH_COMPONENT}(?:/{POSIX_PATH_COMPONENT})+"
+            rf")",
         ),
     ),
     (
         "absolute POSIX user path",
-        re.compile(r"(?<![A-Za-z0-9_])/(?:Users|home)/[^/\s]+/[^/\s]+/[^\s)>\]\"']+"),
+        re.compile(rf"(?<![A-Za-z0-9_])/(?:Users|home)/{POSIX_PATH_COMPONENT}(?:/{POSIX_PATH_COMPONENT})+"),
     ),
     (
         "absolute Windows user path",
         re.compile(
-            r"(?<![A-Za-z0-9_])[A-Za-z]:\\Users\\[^\\\s)>\]\"']+(?:\\[^\\\s)>\]\"']+){2,}"
+            rf"(?<![A-Za-z0-9_])[A-Za-z]:\\Users\\{WINDOWS_PATH_COMPONENT}(?:\\{WINDOWS_PATH_COMPONENT})+"
         ),
     ),
 )
@@ -63,8 +80,10 @@ TRAILING_PUNCTUATION = ".,);]}`"
 SAFE_CONTENT_PREFIXES = (
     "/home/riskhub/",
     "/home/zap/",
+    "/home/youruser/",
     "file:///home/riskhub/",
     "file:///home/zap/",
+    "file:///home/youruser/",
 )
 
 
@@ -75,6 +94,7 @@ class HygieneFinding:
     path: str
     line: int | None = None
     match: str | None = None
+    commit: str | None = None
 
 
 def _run_git(*args: str) -> subprocess.CompletedProcess[str]:
@@ -84,6 +104,8 @@ def _run_git(*args: str) -> subprocess.CompletedProcess[str]:
         check=False,
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
     )
 
 
@@ -103,6 +125,41 @@ def _decode_text(path: Path) -> str | None:
 
 def _trim_match(value: str) -> str:
     return value.rstrip(TRAILING_PUNCTUATION)
+
+
+def _line_findings(
+    rel_path: Path | None,
+    *,
+    finding_path: str,
+    line: str,
+    line_no: int | None,
+    commit: str | None,
+) -> list[HygieneFinding]:
+    if rel_path is not None and rel_path in ALLOWED_CONTENT_PATHS:
+        return []
+
+    findings: list[HygieneFinding] = []
+    occupied: list[tuple[int, int]] = []
+    for reason, pattern in FORBIDDEN_CONTENT_PATTERNS:
+        for match in pattern.finditer(line):
+            span = match.span()
+            if any(start <= span[0] and span[1] <= end for start, end in occupied):
+                continue
+            trimmed_match = _trim_match(match.group(0))
+            if any(trimmed_match.startswith(prefix) for prefix in SAFE_CONTENT_PREFIXES):
+                continue
+            occupied.append(span)
+            findings.append(
+                HygieneFinding(
+                    kind="content",
+                    reason=reason,
+                    path=finding_path,
+                    line=line_no,
+                    match=trimmed_match,
+                    commit=commit,
+                )
+            )
+    return findings
 
 
 def path_findings(rel_path: Path) -> list[HygieneFinding]:
@@ -130,30 +187,17 @@ def path_findings(rel_path: Path) -> list[HygieneFinding]:
 
 
 def content_findings(rel_path: Path, text: str) -> list[HygieneFinding]:
-    if rel_path in ALLOWED_CONTENT_PATHS:
-        return []
-
     findings: list[HygieneFinding] = []
     for line_no, line in enumerate(text.splitlines(), start=1):
-        occupied: list[tuple[int, int]] = []
-        for reason, pattern in FORBIDDEN_CONTENT_PATTERNS:
-            for match in pattern.finditer(line):
-                span = match.span()
-                if any(start <= span[0] and span[1] <= end for start, end in occupied):
-                    continue
-                trimmed_match = _trim_match(match.group(0))
-                if any(trimmed_match.startswith(prefix) for prefix in SAFE_CONTENT_PREFIXES):
-                    continue
-                occupied.append(span)
-                findings.append(
-                    HygieneFinding(
-                        kind="content",
-                        reason=reason,
-                        path=rel_path.as_posix(),
-                        line=line_no,
-                        match=trimmed_match,
-                    )
-                )
+        findings.extend(
+            _line_findings(
+                rel_path,
+                finding_path=rel_path.as_posix(),
+                line=line,
+                line_no=line_no,
+                commit=None,
+            )
+        )
     return findings
 
 
@@ -172,8 +216,109 @@ def scan_repo() -> list[HygieneFinding]:
     return findings
 
 
+def scan_history_patch_output(output: str) -> list[HygieneFinding]:
+    findings: list[HygieneFinding] = []
+    current_commit: str | None = None
+    current_path: Path | None = None
+
+    for line_no, line in enumerate(output.splitlines(), start=1):
+        if line.startswith(PATCH_COMMIT_PREFIX):
+            current_commit = line.removeprefix(PATCH_COMMIT_PREFIX).strip()
+            current_path = None
+            continue
+
+        match = DIFF_HEADER_RE.match(line)
+        if match:
+            current_path = Path(match.group(2))
+            continue
+
+        if current_commit is None:
+            continue
+
+        findings.extend(
+            _line_findings(
+                current_path,
+                finding_path=current_path.as_posix() if current_path is not None else "<history-patch>",
+                line=line,
+                line_no=line_no,
+                commit=current_commit,
+            )
+        )
+    return findings
+
+
+def scan_history_message_output(output: str) -> list[HygieneFinding]:
+    findings: list[HygieneFinding] = []
+    current_commit: str | None = None
+    message_line_no = 0
+
+    for line in output.splitlines():
+        if line.startswith(MESSAGE_COMMIT_PREFIX):
+            current_commit = line.removeprefix(MESSAGE_COMMIT_PREFIX).strip()
+            message_line_no = 0
+            continue
+        if line == MESSAGE_END_MARKER:
+            current_commit = None
+            message_line_no = 0
+            continue
+        if current_commit is None:
+            continue
+
+        message_line_no += 1
+        findings.extend(
+            _line_findings(
+                None,
+                finding_path="<commit-message>",
+                line=line,
+                line_no=message_line_no,
+                commit=current_commit,
+            )
+        )
+    return findings
+
+
+def scan_history_patches(path_excludes: tuple[str, ...]) -> list[HygieneFinding]:
+    result = _run_git(
+        "log",
+        "--all",
+        "-p",
+        "--no-ext-diff",
+        "--text",
+        f"--format={PATCH_COMMIT_PREFIX}%H",
+        "--",
+        ".",
+        *path_excludes,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(f"git log patch scan failed:\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}")
+    return scan_history_patch_output(result.stdout)
+
+
+def scan_history_messages() -> list[HygieneFinding]:
+    result = _run_git(
+        "log",
+        "--all",
+        f"--format={MESSAGE_COMMIT_PREFIX}%H%n%s%n%b%n{MESSAGE_END_MARKER}",
+    )
+    if result.returncode != 0:
+        raise RuntimeError(f"git log message scan failed:\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}")
+    return scan_history_message_output(result.stdout)
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Validate public-repo hygiene and privacy leaks.")
+    parser.add_argument(
+        "--mode",
+        choices=("tracked", "history-patches", "history-messages"),
+        default="tracked",
+        help="Scan the tracked tree, history patches, or commit messages.",
+    )
+    parser.add_argument(
+        "--path-exclude",
+        action="append",
+        default=[],
+        help="Additional git pathspec exclusion for history-patches mode.",
+    )
     parser.add_argument("--format", choices=("text", "json"), default="text", help="Output format.")
     parser.add_argument("--output", default="", help="Optional output path for the report.")
     return parser.parse_args()
@@ -188,14 +333,16 @@ def render_text(findings: list[HygieneFinding]) -> str:
     lines.append("Public repo hygiene validation failed:")
     for finding in findings:
         line_part = f":{finding.line}" if finding.line is not None else ""
+        commit_part = f" [{finding.commit[:12]}]" if finding.commit else ""
         match_part = f" -> {finding.match}" if finding.match else ""
-        lines.append(f"- {finding.reason}: {finding.path}{line_part}{match_part}")
+        lines.append(f"- {finding.reason}: {finding.path}{line_part}{commit_part}{match_part}")
     return "\n".join(lines) + "\n"
 
 
-def render_json(findings: list[HygieneFinding]) -> str:
+def render_json(findings: list[HygieneFinding], *, mode: str) -> str:
     payload = {
         "repo_root": str(REPO_ROOT),
+        "mode": mode,
         "finding_count": len(findings),
         "findings": [asdict(finding) for finding in findings],
     }
@@ -204,11 +351,20 @@ def render_json(findings: list[HygieneFinding]) -> str:
 
 def main() -> int:
     args = parse_args()
-    findings = scan_repo()
-    rendered = render_json(findings) if args.format == "json" else render_text(findings)
+    if args.mode == "tracked":
+        findings = scan_repo()
+    elif args.mode == "history-patches":
+        path_excludes = DEFAULT_HISTORY_PATCH_EXCLUDES + tuple(args.path_exclude)
+        findings = scan_history_patches(path_excludes)
+    else:
+        findings = scan_history_messages()
+
+    rendered = render_json(findings, mode=args.mode) if args.format == "json" else render_text(findings)
 
     if args.output:
-        Path(args.output).write_text(rendered, encoding="utf-8")
+        output_path = Path(args.output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(rendered, encoding="utf-8")
     else:
         try:
             print(rendered, end="")

@@ -62,3 +62,23 @@ def test_resolve_target_keeps_repo_relative_links_valid() -> None:
     assert status == "resolved_repo"
     assert reason == "ok"
     assert resolved == "docs/README.md"
+
+
+def test_resolve_target_keeps_repo_root_absolute_markdown_links_valid() -> None:
+    status, reason, resolved = MODULE.resolve_target(
+        Path(".planning/README.md"),
+        "/docs/README.md",
+    )
+
+    assert status == "resolved_repo"
+    assert reason == "ok"
+    assert resolved == "docs/README.md"
+
+
+def test_resolve_target_keeps_app_routes_ignored() -> None:
+    status, reason, resolved = MODULE.resolve_target(
+        Path(".planning/README.md"),
+        "/login",
+    )
+
+    assert (status, reason, resolved) == ("ignored", "app_route", None)

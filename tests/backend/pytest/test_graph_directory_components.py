@@ -14,7 +14,7 @@ from app.services.graph_directory_transport import GraphApiTransport
 
 def _base_settings(**overrides: object) -> Settings:
     values: dict[str, object] = {
-        "secret_key": "0123456789abcdef0123456789abcdef",
+        "secret_key": "abcdefghijklmnopqrstuvwxyz1234567890",
         "database_url": "postgresql+asyncpg://riskhub:secret@postgres.example.com:5432/riskhub",
         "auth_mode": "microsoft_sso",
         "entra_tenant_id": "00000000-0000-0000-0000-000000000000",

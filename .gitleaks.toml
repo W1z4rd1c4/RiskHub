@@ -14,6 +14,7 @@ regexes = [
     '''your-secret-key-here-min-32-chars''',
     '''SECRET_KEY=abcdefghijklmnopqrstuvwxyz1234567890''',
     '''abcdefghijklmnopqrstuvwxyz1234567890''',
+    '''0123456789abcdef0123456789abcdef''',
 ]
 paths = [
     '''(^|/repo/)\.env\.example$''',

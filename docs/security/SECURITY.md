@@ -191,7 +191,7 @@ Re-evaluate this acceptance if RiskHub introduces any ECDSA/ECDH-based algorithm
 - [ ] Never commit secrets (use `.env` files)
 - [ ] Install hooks with `pre-commit install --install-hooks`
 - [ ] Run `pre-commit run --all-files` before pushing
-- [ ] Ensure public docs use repo-relative links only; never commit `file://` or absolute local paths
+- [ ] Prefer repo-relative markdown links in public docs; repo-root absolute markdown links are acceptable, but never commit `file://` or absolute local filesystem paths
 - [ ] Review dependency updates for security patches
 - [ ] Use parameterized queries (SQLAlchemy handles this)
 - [ ] Validate all user input via Pydantic schemas
