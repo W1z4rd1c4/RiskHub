@@ -295,6 +295,8 @@ def test_docker_preflight_succeeds_before_first_deploy_without_persistent_runtim
         )
 
         assert result.returncode == 0, f"{result.stdout}\n{result.stderr}"
+        output = f"{result.stdout}\n{result.stderr}"
+        assert "Production is using Entra client-secret mode" in output
         assert not runtime_dir.exists()
 
 

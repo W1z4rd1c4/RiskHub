@@ -7,12 +7,6 @@ import { clearExplicitLogoutSuppressed } from '@/services/logoutSuppression';
 import { hardNavigate } from '@/utils/hardNavigate';
 import { useTranslation } from '@/i18n/hooks';
 
-function sanitizeReturnTo(value: string | null | undefined): string {
-    if (!value) return '/';
-    if (value.startsWith('/') && !value.startsWith('//')) return value;
-    return '/';
-}
-
 export default function SsoCallbackPage() {
     const navigate = useNavigate();
     const { t } = useTranslation('auth');
@@ -30,10 +24,10 @@ export default function SsoCallbackPage() {
                     return;
                 }
 
-                const tokenResponse = await authApi.ssoExchange(idToken);
+                const tokenResponse = await authApi.ssoExchange(idToken, result?.state ?? null);
                 clearExplicitLogoutSuppressed();
                 setAccessToken(tokenResponse.access_token);
-                hardNavigate(sanitizeReturnTo(result?.state));
+                hardNavigate(tokenResponse.post_login_redirect_to || '/');
             } catch (e) {
                 console.error(e);
                 if (cancelled) return;

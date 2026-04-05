@@ -1,16 +1,5 @@
 #!/usr/bin/env python3
-"""
-Bootstrap (pre-provision) an SSO user by email.
-
-Why: In production SSO mode, just-in-time provisioning assigns a safe default role.
-To avoid admin/CRO lockout, operators can pre-create an initial admin/CRO user by email.
-On first successful SSO login, RiskHub binds the user's external_id (OID) to this email record.
-
-This script is idempotent:
-- creates the user if missing
-- updates role/access_scope/department if present
-- does not wipe external_id if already set
-"""
+"""Bootstrap (pre-provision and pre-link) an SSO user by email or UPN."""
 
 from __future__ import annotations
 
@@ -25,11 +14,22 @@ from app.core.email import email_equals, normalize_email
 from app.db.session import session_context
 from app.models import Department, Role, User
 from app.models.user import AccessScope
+from app.services.directory_identity_service import (
+    DirectoryIdentityConflictError,
+    apply_directory_profile,
+    has_auto_deprovision_reason,
+)
+from app.services.directory_provider_service import DirectoryProviderService, DirectoryProviderUnavailableError
 
 
 def _parse_args(argv: list[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Bootstrap an SSO user by email (idempotent upsert).")
-    parser.add_argument("--email", required=True, help="User email (used for SSO matching).")
+    parser = argparse.ArgumentParser(description="Bootstrap and pre-link an SSO user (idempotent upsert).")
+    parser.add_argument("--email", required=True, help="User email or UPN (used for exact directory lookup).")
+    parser.add_argument(
+        "--external-id",
+        default=None,
+        help="Optional Entra object ID. If omitted, the script resolves an exact directory match by email/UPN.",
+    )
     parser.add_argument("--role", required=True, help="Role name (e.g. admin, cro).")
     parser.add_argument(
         "--access-scope",
@@ -48,6 +48,21 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
         help="Optional display name. Defaults to email if not provided.",
     )
     return parser.parse_args(argv)
+
+
+async def _resolve_directory_user(email_or_upn: str):
+    settings = get_settings()
+    try:
+        provider = DirectoryProviderService(settings)
+    except DirectoryProviderUnavailableError as exc:
+        raise SystemExit(f"Directory provider unavailable: {exc}") from exc
+
+    matches = await provider.find_user_by_login_identifier(email_or_upn)
+    if len(matches) != 1:
+        raise SystemExit(
+            f"Expected exactly one exact directory match for {email_or_upn!r}; found {len(matches)}"
+        )
+    return matches[0]
 
 
 async def _resolve_department_id(department: str | None) -> int | None:
@@ -79,6 +94,16 @@ async def _run(args: argparse.Namespace) -> int:
     if not email or "@" not in email:
         raise SystemExit("Invalid --email (must be a valid email address)")
 
+    directory_user = None
+    external_id = args.external_id.strip() if args.external_id else None
+    if external_id == "":
+        external_id = None
+    if external_id is None:
+        directory_user = await _resolve_directory_user(args.email)
+        external_id = directory_user.external_id
+    if not external_id:
+        raise SystemExit("Unable to resolve an external_id for bootstrap user")
+
     department_id = await _resolve_department_id(args.department)
 
     async with session_context(settings) as db:
@@ -87,27 +112,34 @@ async def _run(args: argparse.Namespace) -> int:
         if role is None:
             raise SystemExit(f"Role not found: {args.role!r} (seed roles first)")
 
-        user_result = await db.execute(select(User).where(email_equals(User.email, email)))
-        user = user_result.scalar_one_or_none()
+        user_by_external_id = (await db.execute(select(User).where(User.external_id == external_id))).scalar_one_or_none()
+        user_by_email = (await db.execute(select(User).where(email_equals(User.email, email)))).scalar_one_or_none()
+        if user_by_external_id is not None and user_by_email is not None and user_by_external_id.id != user_by_email.id:
+            raise SystemExit(
+                "Bootstrap conflict: existing email and external_id records refer to different users. "
+                "Resolve manually before continuing."
+            )
+        user = user_by_external_id or user_by_email
 
         access_scope = AccessScope(args.access_scope)
 
         if user is None:
             user = User(
                 email=email,
-                name=args.name.strip() if args.name else email,
+                name=args.name.strip() if args.name else (directory_user.display_name if directory_user else email),
                 role_id=role.id,
                 department_id=department_id,
                 access_scope=access_scope,
                 hashed_password=None,
-                external_id=None,
+                external_id=external_id,
                 is_active=True,
             )
             db.add(user)
             await db.flush()
-            await db.commit()
-            print(f"BOOTSTRAP_OK created email={email} role={role.name} scope={access_scope.value}")
-            return 0
+        elif user.external_id not in (None, external_id):
+            raise SystemExit(
+                f"Bootstrap conflict: existing user {user.email!r} is already linked to a different external_id"
+            )
 
         changed = False
 
@@ -120,12 +152,22 @@ async def _run(args: argparse.Namespace) -> int:
         if user.department_id != department_id:
             user.department_id = department_id
             changed = True
-        if args.name and user.name != args.name.strip():
+        if args.name and directory_user is None and user.name != args.name.strip():
             user.name = args.name.strip()
             changed = True
-        if not user.is_active:
+        if not user.is_active and not has_auto_deprovision_reason(user):
             user.is_active = True
             changed = True
+        if user.external_id != external_id:
+            user.external_id = external_id
+            changed = True
+
+        try:
+            if directory_user is not None:
+                await apply_directory_profile(db, user=user, directory_user=directory_user)
+                changed = True
+        except DirectoryIdentityConflictError as exc:
+            raise SystemExit(str(exc)) from exc
 
         if changed:
             db.add(user)

@@ -16,6 +16,7 @@ Folder for `backend/scripts` implementation assets.
 - `migrate_kris.py`
 - `migrate_risk_names.py`
 - `migrate_risks.py`
+- `revoke_refresh_sessions.py`
 - `runtime/`
 - `seed_all.py`
 - `seed_controls.py`

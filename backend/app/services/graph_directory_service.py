@@ -7,6 +7,7 @@ from typing import Any
 import httpx
 
 from app.core.config import EntraConfidentialCredential, Settings
+from app.core.email import normalize_email
 from app.core.outbound_guard import OutboundRequestError, build_outbound_client, guard_outbound_url
 from app.schemas.directory import DirectoryUserRead
 
@@ -69,6 +70,26 @@ class GraphDirectoryService:
             not_found_is_error=True,
         )
         return self._to_directory_user(payload)
+
+    async def find_user_by_login_identifier(self, identifier: str) -> list[DirectoryUserRead]:
+        normalized = normalize_email(identifier)
+        if normalized is None:
+            return []
+        safe_identifier = normalized.replace("'", "''")
+        params = {
+            "$select": "id,displayName,mail,userPrincipalName,department,jobTitle,accountEnabled",
+            "$filter": f"mail eq '{safe_identifier}' or userPrincipalName eq '{safe_identifier}'",
+            "$top": "5",
+        }
+        payload = await self._graph_get("/users", params=params)
+        items = payload.get("value", [])
+        if not isinstance(items, list):
+            return []
+        matches = [self._to_directory_user(row) for row in items if isinstance(row, dict)]
+        return [
+            row for row in matches
+            if normalize_email(row.email) == normalized or normalize_email(row.user_principal_name) == normalized
+        ]
 
     async def _graph_get(
         self,

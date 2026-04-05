@@ -3,9 +3,7 @@ import {
     type AccountInfo,
     type AuthenticationResult,
     type EndSessionRequest,
-    type PopupRequest,
     type RedirectRequest,
-    type SilentRequest,
 } from '@azure/msal-browser';
 
 import { clearAuthConfigCache, getAuthConfig } from '@/services/authConfig';
@@ -15,12 +13,6 @@ let msalKey: string | null = null;
 
 function getRedirectUri(): string {
     return `${window.location.origin}/auth/sso/callback`;
-}
-
-function sanitizeReturnTo(value: string | null | undefined): string | undefined {
-    if (!value) return undefined;
-    if (value.startsWith('/') && !value.startsWith('//')) return value;
-    return '/';
 }
 
 function pickAccount(accounts: AccountInfo[], activeAccount: AccountInfo | null): AccountInfo | null {
@@ -79,28 +71,21 @@ export const entraAuth = {
         return Boolean(config?.sso?.enabled && config.sso.authority && config.sso.client_id);
     },
 
-    async loginRedirect(returnTo?: string): Promise<void> {
+    async loginRedirect({
+        nonce,
+        state,
+    }: {
+        nonce: string;
+        state: string;
+    }): Promise<void> {
         const { app, scopes } = await getMsalApp();
-        const state = sanitizeReturnTo(returnTo);
         const request: RedirectRequest = {
             redirectUri: getRedirectUri(),
             scopes,
-            ...(state ? { state } : {}),
+            state,
+            nonce,
         };
         await app.loginRedirect(request);
-    },
-
-    async loginPopup(): Promise<AuthenticationResult> {
-        const { app, scopes } = await getMsalApp();
-        const request: PopupRequest = {
-            redirectUri: getRedirectUri(),
-            scopes,
-        };
-        const result = await app.loginPopup(request);
-        if (result.account) {
-            app.setActiveAccount(result.account);
-        }
-        return result;
     },
 
     async handleRedirect(): Promise<AuthenticationResult | null> {
@@ -112,18 +97,6 @@ export const entraAuth = {
             ensureActiveAccount(app);
         }
         return result ?? null;
-    },
-
-    async acquireIdTokenSilent(): Promise<string | null> {
-        const { app, scopes } = await getMsalApp();
-        const account = ensureActiveAccount(app);
-        if (!account) {
-            return null;
-        }
-
-        const request: SilentRequest = { scopes, account };
-        const result = await app.acquireTokenSilent(request);
-        return result.idToken || null;
     },
 
     async logoutRedirect(): Promise<void> {

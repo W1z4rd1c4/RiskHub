@@ -1,5 +1,5 @@
 import hashlib
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from fastapi import HTTPException
 from sqlalchemy import select, update
@@ -8,7 +8,7 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 from app.core.config import Settings
-from app.core.datetime_utils import utc_now
+from app.core.datetime_utils import coerce_utc, utc_now
 from app.core.permissions import get_effective_permissions, get_scope_label
 from app.core.security import create_access_token
 from app.core.tokens import (
@@ -22,12 +22,35 @@ from app.core.tokens import (
 from app.models import RefreshToken, Role, User
 from app.schemas.auth import TokenResponse
 
+SESSION_RENEWAL_MINIMUM_SECONDS = 60
+
 
 def _sha256_trunc(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()[:16]
 
 
-def _build_token_response(user: User, *, settings: Settings) -> TokenResponse:
+def _resolve_access_expires_delta(
+    *,
+    settings: Settings,
+    session_expires_at: datetime | None = None,
+) -> timedelta:
+    default_lifetime = timedelta(minutes=active_minutes) if (active_minutes := settings.access_token_expire_minutes) else timedelta(minutes=60)
+    if session_expires_at is None:
+        return default_lifetime
+
+    remaining = coerce_utc(session_expires_at) - utc_now()
+    if remaining.total_seconds() <= SESSION_RENEWAL_MINIMUM_SECONDS:
+        raise ValueError("session_expiring")
+    return min(default_lifetime, remaining)
+
+
+def _build_token_response(
+    user: User,
+    *,
+    settings: Settings,
+    session_expires_at: datetime | None = None,
+    post_login_redirect_to: str | None = None,
+) -> TokenResponse:
     effective_permissions = get_effective_permissions(user)
     scope_label = get_scope_label(user)
     user_data = {
@@ -45,9 +68,14 @@ def _build_token_response(user: User, *, settings: Settings) -> TokenResponse:
     }
     access_token = create_access_token(
         data={"sub": user.email, "user_id": user.id, "token_version": user.token_version},
+        expires_delta=_resolve_access_expires_delta(settings=settings, session_expires_at=session_expires_at),
         settings=settings,
     )
-    return TokenResponse(access_token=access_token, user=user_data)
+    return TokenResponse(
+        access_token=access_token,
+        user=user_data,
+        post_login_redirect_to=post_login_redirect_to,
+    )
 
 
 async def _issue_refresh_session(
@@ -74,6 +102,7 @@ async def _issue_refresh_session(
         refresh_token, expires_at = refresh_token_and_expiry
 
     now = issued_at or utc_now()
+    cookie_max_age = max(int((coerce_utc(expires_at) - now).total_seconds()), 0)
     refresh_row = RefreshToken(
         user_id=user.id,
         jti=jti,
@@ -91,8 +120,8 @@ async def _issue_refresh_session(
         rotated_from.replaced_by_jti = jti
         db.add(rotated_from)
 
-    set_refresh_cookie(response, refresh_token, settings)
-    set_csrf_cookie(response, settings)
+    set_refresh_cookie(response, refresh_token, settings, max_age=cookie_max_age)
+    set_csrf_cookie(response, settings, max_age=cookie_max_age)
     return refresh_row
 
 

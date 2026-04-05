@@ -206,6 +206,49 @@ async def test_directory_disabled_user_is_auto_deprovisioned(
 
 
 @pytest.mark.asyncio
+async def test_directory_disabled_user_with_active_break_glass_stays_active(
+    db_session: AsyncSession,
+    test_user_employee: User,
+    monkeypatch,
+):
+    test_user_employee.external_id = "oid-break-glass-user"
+    test_user_employee.is_active = True
+    test_user_employee.break_glass_reason = "Emergency access"
+    test_user_employee.break_glass_expires_at = utc_now() + timedelta(hours=2)
+    db_session.add(test_user_employee)
+    await db_session.commit()
+
+    async def stub_get_user(self, external_id: str):
+        return DirectoryUserRead(
+            external_id=external_id,
+            display_name="Break Glass User",
+            email=test_user_employee.email,
+            user_principal_name=test_user_employee.email,
+            department="Risk",
+            job_title="Analyst",
+            account_enabled=False,
+            source="ad_emulator",
+        )
+
+    monkeypatch.setattr("app.services.directory_provider_service.DirectoryProviderService.get_user", stub_get_user)
+
+    result = await ADDeprovisionService.check_user_by_id(
+        db_session,
+        user_id=test_user_employee.id,
+        settings=_service_settings(),
+        trigger="pytest",
+    )
+
+    assert result["status"] == "active"
+    assert result["reason"] == "break_glass_override"
+
+    refreshed_user = (await db_session.execute(select(User).where(User.id == test_user_employee.id))).scalar_one()
+    assert refreshed_user.is_active is True
+    assert refreshed_user.deprovision_reason == ADDeprovisionService.DEPROVISION_REASON_DIRECTORY_DISABLED
+    assert refreshed_user.directory_sync_status == "directory_disabled"
+
+
+@pytest.mark.asyncio
 async def test_reenabled_directory_user_is_auto_reactivated(
     db_session: AsyncSession,
     test_user_employee: User,
@@ -216,6 +259,8 @@ async def test_reenabled_directory_user_is_auto_reactivated(
     test_user_employee.directory_sync_status = "directory_disabled"
     test_user_employee.deprovision_reason = ADDeprovisionService.DEPROVISION_REASON_DIRECTORY_DISABLED
     test_user_employee.deprovisioned_at = utc_now() - timedelta(days=1)
+    test_user_employee.break_glass_reason = "Temporary override"
+    test_user_employee.break_glass_expires_at = utc_now() + timedelta(hours=1)
     db_session.add(test_user_employee)
     await db_session.commit()
 
@@ -246,3 +291,5 @@ async def test_reenabled_directory_user_is_auto_reactivated(
     assert refreshed_user.directory_sync_status == "active"
     assert refreshed_user.deprovision_reason is None
     assert refreshed_user.deprovisioned_at is None
+    assert refreshed_user.break_glass_reason is None
+    assert refreshed_user.break_glass_expires_at is None

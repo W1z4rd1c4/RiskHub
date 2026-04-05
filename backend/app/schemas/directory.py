@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import timedelta
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -37,3 +38,12 @@ class DirectoryImportResponse(BaseModel):
     role_id: int
     role_name: str | None = None
     directory_sync_status: str | None = None
+
+
+class DirectoryBreakGlassEnableRequest(BaseModel):
+    reason: str = Field(..., min_length=1, max_length=255)
+    expires_in_hours: int = Field(..., ge=1, le=24)
+
+    @property
+    def expires_delta(self) -> timedelta:
+        return timedelta(hours=self.expires_in_hours)

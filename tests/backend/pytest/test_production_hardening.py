@@ -9,6 +9,26 @@ PRODUCTION_DATABASE_URL = "postgresql+asyncpg://riskhub:tests@prod-db:5432/riskh
 PRODUCTION_AUTH_MODE = "microsoft_sso"
 PRODUCTION_ENTRA_TENANT_ID = "00000000-0000-0000-0000-000000000000"
 PRODUCTION_ENTRA_CLIENT_ID = "11111111-1111-1111-1111-111111111111"
+PRODUCTION_ENTRA_CLIENT_SECRET = "production-entra-client-secret"
+
+
+def _production_settings(**overrides) -> Settings:
+    values = {
+        "debug": False,
+        "secret_key": PRODUCTION_SECRET,
+        "mock_auth_enabled": False,
+        "auth_mode": PRODUCTION_AUTH_MODE,
+        "entra_tenant_id": PRODUCTION_ENTRA_TENANT_ID,
+        "entra_client_id": PRODUCTION_ENTRA_CLIENT_ID,
+        "entra_client_secret": PRODUCTION_ENTRA_CLIENT_SECRET,
+        "directory_provider": "graph",
+        "entra_jit_provisioning_enabled": False,
+        "auth_sso_allow_email_link": False,
+        "cors_origins": ["http://testserver"],
+        "database_url": PRODUCTION_DATABASE_URL,
+    }
+    values.update(overrides)
+    return Settings(**values)
 
 
 @pytest.mark.asyncio
@@ -29,18 +49,7 @@ async def test_docs_enabled_in_debug_mode():
 
 @pytest.mark.asyncio
 async def test_docs_disabled_in_production_mode():
-    app = create_app(
-        Settings(
-            debug=False,
-            secret_key=PRODUCTION_SECRET,
-            mock_auth_enabled=False,
-            auth_mode=PRODUCTION_AUTH_MODE,
-            entra_tenant_id=PRODUCTION_ENTRA_TENANT_ID,
-            entra_client_id=PRODUCTION_ENTRA_CLIENT_ID,
-            cors_origins=["http://testserver"],
-            database_url=PRODUCTION_DATABASE_URL,
-        )
-    )
+    app = create_app(_production_settings())
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://testserver") as client:
         docs = await client.get("/docs")
@@ -52,18 +61,7 @@ async def test_docs_disabled_in_production_mode():
 
 @pytest.mark.asyncio
 async def test_trusted_host_blocks_unexpected_host_in_production_mode():
-    app = create_app(
-        Settings(
-            debug=False,
-            secret_key=PRODUCTION_SECRET,
-            mock_auth_enabled=False,
-            auth_mode=PRODUCTION_AUTH_MODE,
-            entra_tenant_id=PRODUCTION_ENTRA_TENANT_ID,
-            entra_client_id=PRODUCTION_ENTRA_CLIENT_ID,
-            cors_origins=["http://testserver"],
-            database_url=PRODUCTION_DATABASE_URL,
-        )
-    )
+    app = create_app(_production_settings())
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://testserver") as client:
         ok = await client.get("/api/v1/health")
@@ -79,18 +77,7 @@ async def test_dev_auth_routes_are_unavailable_in_production_mode(monkeypatch: p
     monkeypatch.setenv("MOCK_AUTH_ENABLED", "false")
     get_settings.cache_clear()
 
-    app = create_app(
-        Settings(
-            debug=False,
-            secret_key=PRODUCTION_SECRET,
-            mock_auth_enabled=False,
-            auth_mode=PRODUCTION_AUTH_MODE,
-            entra_tenant_id=PRODUCTION_ENTRA_TENANT_ID,
-            entra_client_id=PRODUCTION_ENTRA_CLIENT_ID,
-            cors_origins=["http://testserver"],
-            database_url=PRODUCTION_DATABASE_URL,
-        )
-    )
+    app = create_app(_production_settings())
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://testserver") as client:
         demo = await client.post("/api/v1/auth/demo-login/1")
@@ -104,97 +91,53 @@ async def test_dev_auth_routes_are_unavailable_in_production_mode(monkeypatch: p
 def test_cors_guard_rejects_wildcard_origins_in_production_mode():
     with pytest.raises(RuntimeError):
         create_app(
-            Settings(
-                debug=False,
-                secret_key=PRODUCTION_SECRET,
-                mock_auth_enabled=False,
-                auth_mode=PRODUCTION_AUTH_MODE,
-                entra_tenant_id=PRODUCTION_ENTRA_TENANT_ID,
-                entra_client_id=PRODUCTION_ENTRA_CLIENT_ID,
-                cors_origins=["*"],
-                database_url=PRODUCTION_DATABASE_URL,
-            )
+            _production_settings(cors_origins=["*"])
         )
 
 
 def test_cors_guard_requires_explicit_allowlist_in_production_mode():
     with pytest.raises(RuntimeError):
         create_app(
-            Settings(
-                debug=False,
-                secret_key=PRODUCTION_SECRET,
-                mock_auth_enabled=False,
-                auth_mode=PRODUCTION_AUTH_MODE,
-                entra_tenant_id=PRODUCTION_ENTRA_TENANT_ID,
-                entra_client_id=PRODUCTION_ENTRA_CLIENT_ID,
-                cors_origins=[],
-                database_url=PRODUCTION_DATABASE_URL,
-            )
+            _production_settings(cors_origins=[])
         )
 
 
 def test_auth_mode_guard_requires_microsoft_sso_in_production():
     with pytest.raises(RuntimeError, match="AUTH_MODE must be 'microsoft_sso'"):
         create_app(
-            Settings(
-                debug=False,
-                secret_key=PRODUCTION_SECRET,
-                mock_auth_enabled=False,
-                auth_mode="password",
-                entra_tenant_id=PRODUCTION_ENTRA_TENANT_ID,
-                entra_client_id=PRODUCTION_ENTRA_CLIENT_ID,
-                cors_origins=["http://testserver"],
-                database_url=PRODUCTION_DATABASE_URL,
-            )
+            _production_settings(auth_mode="password")
         )
 
 
 def test_auth_mode_guard_requires_entra_config_in_production():
     with pytest.raises(RuntimeError, match="ENTRA_TENANT_ID and ENTRA_CLIENT_ID are required"):
         create_app(
-            Settings(
-                debug=False,
-                secret_key=PRODUCTION_SECRET,
-                mock_auth_enabled=False,
-                auth_mode=PRODUCTION_AUTH_MODE,
-                entra_tenant_id=None,
-                entra_client_id=None,
-                cors_origins=["http://testserver"],
-                database_url=PRODUCTION_DATABASE_URL,
-            )
+            _production_settings(entra_tenant_id=None, entra_client_id=None)
         )
 
 
 def test_secret_key_length_guard_triggers_in_production():
     with pytest.raises(RuntimeError, match="SECRET_KEY must be at least 32 characters"):
         create_app(
-            Settings(
-                debug=False,
-                secret_key="too-short",
-                mock_auth_enabled=False,
-                auth_mode=PRODUCTION_AUTH_MODE,
-                entra_tenant_id=PRODUCTION_ENTRA_TENANT_ID,
-                entra_client_id=PRODUCTION_ENTRA_CLIENT_ID,
-                cors_origins=["http://testserver"],
-                database_url=PRODUCTION_DATABASE_URL,
-            )
+            _production_settings(secret_key="too-short")
         )
 
 
 def test_database_url_default_guard_triggers_in_production():
     with pytest.raises(RuntimeError, match="DATABASE_URL must be explicitly configured"):
         create_app(
-            Settings(
-                debug=False,
-                secret_key=PRODUCTION_SECRET,
-                mock_auth_enabled=False,
-                auth_mode=PRODUCTION_AUTH_MODE,
-                entra_tenant_id=PRODUCTION_ENTRA_TENANT_ID,
-                entra_client_id=PRODUCTION_ENTRA_CLIENT_ID,
-                cors_origins=["http://testserver"],
-                database_url=DEFAULT_DATABASE_URL,
-            )
+            _production_settings(database_url=DEFAULT_DATABASE_URL)
         )
+
+
+def test_production_requires_graph_directory_provider() -> None:
+    with pytest.raises(RuntimeError, match="DIRECTORY_PROVIDER must be 'graph'"):
+        create_app(_production_settings(directory_provider="auto"))
+
+
+def test_production_requires_email_link_disabled() -> None:
+    with pytest.raises(RuntimeError, match="AUTH_SSO_ALLOW_EMAIL_LINK must be false"):
+        create_app(_production_settings(auth_sso_allow_email_link=True))
 
 
 def test_derive_allowed_hosts_is_tolerant_and_keeps_local_defaults():

@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps as api_deps
 from app.core.config import Settings, get_settings
+from app.core.datetime_utils import utc_now
 from app.core.security import create_access_token
 from app.core.tokens import create_refresh_token
 from app.db.session import get_db
@@ -138,6 +139,105 @@ async def test_refresh_endpoint_rotates_refresh_token(
     assert len(rows) == 2
     assert rows[0].revoked_at is not None
     assert rows[1].revoked_at is None
+
+
+@pytest.mark.asyncio
+async def test_refresh_rotation_preserves_absolute_session_expiry_for_sso_sessions(
+    refresh_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: User,
+    monkeypatch,
+):
+    test_user.external_id = "oid-refresh-fixed-lifetime"
+    db_session.add(test_user)
+    await db_session.commit()
+
+    absolute_expiry = utc_now() + timedelta(minutes=5)
+
+    async def stub_verify_entra_id_token(*, id_token: str, settings: Settings):
+        return VerifiedIdentity(
+            external_id="oid-refresh-fixed-lifetime",
+            tenant_id=settings.entra_tenant_id or "",
+            email=test_user.email,
+            name=test_user.name,
+            expires_at=absolute_expiry,
+        )
+
+    monkeypatch.setattr("app.api.v1.endpoints.auth.verify_entra_id_token", stub_verify_entra_id_token)
+
+    login = await refresh_client.post("/api/v1/auth/sso/exchange", json={"id_token": "fake"})
+    assert login.status_code == 200, login.text
+
+    first_row = (
+        await db_session.execute(
+            select(RefreshToken).where(RefreshToken.user_id == test_user.id).order_by(RefreshToken.id.asc())
+        )
+    ).scalars().one()
+
+    refresh = await refresh_client.post(
+        "/api/v1/auth/refresh",
+        headers={"Origin": TEST_ORIGIN, "X-CSRF-Token": str(refresh_client.cookies.get("riskhub_csrf_token"))},
+    )
+    assert refresh.status_code == 200, refresh.text
+
+    rows = (
+        await db_session.execute(
+            select(RefreshToken).where(RefreshToken.user_id == test_user.id).order_by(RefreshToken.id.asc())
+        )
+    ).scalars().all()
+    assert len(rows) == 2
+    assert abs((rows[1].expires_at - first_row.expires_at).total_seconds()) < 1.5
+
+
+@pytest.mark.asyncio
+async def test_refresh_rejects_sessions_with_less_than_minimum_remaining_lifetime(
+    refresh_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: User,
+):
+    test_user.external_id = "oid-refresh-expiring"
+    db_session.add(test_user)
+    await db_session.commit()
+
+    refresh_token, _ = create_refresh_token(
+        user_id=test_user.id,
+        token_version=test_user.token_version,
+        jti="near-expiry-jti",
+        settings=Settings(
+            debug=True,
+            secret_key=TEST_SECRET_KEY,
+            mock_auth_enabled=True,
+            auth_mode="microsoft_sso",
+            cors_origins=[TEST_ORIGIN],
+            entra_tenant_id="00000000-0000-0000-0000-000000000000",
+            entra_client_id="11111111-1111-1111-1111-111111111111",
+            directory_provider="ad_emulator",
+            ad_emulator_base_url="http://ad-emulator.local",
+        ),
+        expires_delta=timedelta(seconds=30),
+    )
+    now = utc_now()
+    refresh_row = RefreshToken(
+        user_id=test_user.id,
+        jti="near-expiry-jti",
+        token_version=test_user.token_version,
+        issued_at=now,
+        last_used_at=now,
+        expires_at=now + timedelta(seconds=30),
+        created_ip="127.0.0.1",
+        user_agent="pytest",
+    )
+    db_session.add(refresh_row)
+    await db_session.commit()
+
+    response = await refresh_client.post(
+        "/api/v1/auth/refresh",
+        headers=_refresh_cookie_headers(refresh_token, "short-lived-csrf"),
+    )
+    assert response.status_code == 401
+
+    refreshed_row = (await db_session.execute(select(RefreshToken).where(RefreshToken.id == refresh_row.id))).scalar_one()
+    assert refreshed_row.revoked_reason == "expires_soon"
 
 
 @pytest.mark.asyncio

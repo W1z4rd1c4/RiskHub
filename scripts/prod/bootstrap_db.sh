@@ -21,7 +21,7 @@ usage() {
   cat <<EOF
 Usage: scripts/prod/bootstrap_db.sh --backend-env PATH --backend-db-image IMAGE [options]
 
-Runs RBAC/departments seeding and bootstraps privileged SSO users by email.
+Runs RBAC/departments seeding and bootstraps privileged SSO users by exact directory lookup.
 
 Options:
   --backend-env PATH         Path to backend.env
@@ -166,7 +166,7 @@ run "${docker_common_args[@]}" python -m scripts.seed_roles_permissions
 log "Seeding departments..."
 run "${docker_common_args[@]}" python -m scripts.seed_departments
 
-log "Bootstrapping initial SSO user by email (idempotent upsert)..."
+log "Bootstrapping initial SSO user with pre-link (idempotent upsert)..."
 bootstrap_args=(python -m scripts.bootstrap_sso_user --email "$bootstrap_email" --role "$bootstrap_role" --access-scope "$bootstrap_scope")
 if [[ -n "$bootstrap_department" ]]; then
   bootstrap_args+=(--department "$bootstrap_department")
@@ -174,7 +174,7 @@ fi
 run "${docker_common_args[@]}" "${bootstrap_args[@]}"
 
 if [[ -n "$cro_email" ]]; then
-  log "Bootstrapping CRO SSO user by email (idempotent upsert)..."
+  log "Bootstrapping CRO SSO user with pre-link (idempotent upsert)..."
   cro_args=(python -m scripts.bootstrap_sso_user --email "$cro_email" --role "cro" --access-scope "$cro_scope")
   run "${docker_common_args[@]}" "${cro_args[@]}"
 fi

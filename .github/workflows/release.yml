@@ -251,7 +251,13 @@ jobs:
 
           release_dir = Path(sys.argv[1])
           scripts_dir = release_dir / "backend_db" / "scripts"
-          expected = {"__init__.py", "bootstrap_sso_user.py", "seed_departments.py", "seed_roles_permissions.py"}
+          expected = {
+              "__init__.py",
+              "bootstrap_sso_user.py",
+              "revoke_refresh_sessions.py",
+              "seed_departments.py",
+              "seed_roles_permissions.py",
+          }
           actual = {path.name for path in scripts_dir.iterdir()}
           assert actual == expected, actual
           assert not (release_dir / "backend" / "scripts").exists()

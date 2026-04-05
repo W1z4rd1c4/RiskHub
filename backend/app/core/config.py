@@ -116,6 +116,9 @@ class Settings(BaseSettings):
     )
     entra_clock_skew_seconds: int = 60
     entra_oidc_discovery_url: str | None = None
+    auth_sso_allow_email_link: bool = True
+    auth_sso_challenge_ttl_seconds: int = 300
+    auth_sso_require_challenge: bool = False
     directory_provider: Literal["auto", "graph", "ad_emulator"] = "auto"
     ad_emulator_base_url: str | None = None
     ad_emulator_api_key: str | None = None
@@ -167,6 +170,7 @@ class Settings(BaseSettings):
     refresh_cookie_domain: str | None = None
 
     # AD deprovision scheduler
+    ad_deprovision_check_interval_minutes: int = 24 * 60
     ad_deprovision_check_hour: int = 2
     ad_deprovision_check_minute: int = 0
 

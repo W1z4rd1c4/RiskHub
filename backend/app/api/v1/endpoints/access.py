@@ -6,6 +6,7 @@ from sqlalchemy.orm import selectinload
 
 from app.api import deps
 from app.core.activity_logger import build_change_set, log_activity
+from app.core.config import Settings, get_settings
 from app.core.email import email_equals
 from app.core.permissions import get_effective_permissions, get_scope_label, is_privileged_user
 from app.core.user_query_options import user_selectinload_options
@@ -15,6 +16,7 @@ from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.models.role import RoleType
 from app.models.user import AccessScope
 from app.schemas.access import AccessUserRead, AccessUserUpdate, PermissionRead, RoleWithPermissions
+from app.services.directory_identity_service import requires_break_glass_for_reenable
 
 router = APIRouter()
 
@@ -191,6 +193,7 @@ async def update_access_user(
     user_data: AccessUserUpdate,
     current_user: User = Depends(deps.get_current_user),
     db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
 ):
     """
     Update access management fields for a user.
@@ -212,13 +215,27 @@ async def update_access_user(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
     update_data = user_data.model_dump(exclude_unset=True)
-    identity_fields = {"name", "email"}
+    identity_fields = {"name", "email", "department_id"}
     identity_update = {field: value for field, value in update_data.items() if field in identity_fields}
 
     if identity_update and not _can_manage_identity_fields(current_user):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only Admin can update user identity fields",
+        )
+
+    if settings.auth_mode == "microsoft_sso" and user.external_id:
+        for field, value in identity_update.items():
+            if value != getattr(user, field):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=f"{field} is managed by directory sync for SSO-linked users.",
+                )
+
+    if update_data.get("is_active") is True and requires_break_glass_for_reenable(user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Directory-deprovisioned users require break-glass enable before reactivation.",
         )
 
     if "email" in identity_update and identity_update["email"] != user.email:

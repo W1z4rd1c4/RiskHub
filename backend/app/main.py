@@ -67,6 +67,18 @@ def _validate_production_settings(settings: Settings) -> None:
         raise RuntimeError(
             "FATAL: ENTRA_TENANT_ID and ENTRA_CLIENT_ID are required when AUTH_MODE=microsoft_sso and DEBUG=false."
         )
+    if settings.directory_provider != "graph":
+        raise RuntimeError("FATAL: DIRECTORY_PROVIDER must be 'graph' when DEBUG=false.")
+    if settings.ad_emulator_base_url:
+        raise RuntimeError("FATAL: AD_EMULATOR_BASE_URL must be unset when DEBUG=false.")
+    if settings.entra_confidential_credential is None:
+        raise RuntimeError(
+            "FATAL: An Entra Graph confidential credential is required when DEBUG=false."
+        )
+    if settings.entra_jit_provisioning_enabled:
+        raise RuntimeError("FATAL: ENTRA_JIT_PROVISIONING_ENABLED must be false when DEBUG=false.")
+    if settings.auth_sso_allow_email_link:
+        raise RuntimeError("FATAL: AUTH_SSO_ALLOW_EMAIL_LINK must be false when DEBUG=false.")
 
     broad_proxy_entries = find_broad_trusted_proxy_entries(settings.trusted_proxies)
     if broad_proxy_entries:
@@ -117,11 +129,14 @@ async def lifespan(app: FastAPI):
         InMemoryAccountLockoutBackend,
         RedisAccountLockoutBackend,
     )
+    from app.services.sso_challenge_store import InMemorySsoChallengeStore, RedisSsoChallengeStore
 
     if app.state.redis is not None:
         app.state.account_lockout = AccountLockoutService(RedisAccountLockoutBackend(app.state.redis))
+        app.state.sso_challenge_store = RedisSsoChallengeStore(app.state.redis)
     else:
         app.state.account_lockout = AccountLockoutService(InMemoryAccountLockoutBackend())
+        app.state.sso_challenge_store = InMemorySsoChallengeStore()
 
     await start_scheduler_async()
     yield
@@ -225,8 +240,10 @@ def create_app(settings: Settings) -> FastAPI:
     # Defaults for transports/tests that don't run lifespan.
     app.state.redis = None
     from app.services.account_lockout_service import AccountLockoutService, InMemoryAccountLockoutBackend
+    from app.services.sso_challenge_store import InMemorySsoChallengeStore
 
     app.state.account_lockout = AccountLockoutService(InMemoryAccountLockoutBackend())
+    app.state.sso_challenge_store = InMemorySsoChallengeStore()
 
     from app.db.session import init_app_db
 

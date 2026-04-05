@@ -173,12 +173,12 @@ linux_run_db_tasks() {
 
   linux_run_release_command \
     "$db_workdir" \
-    "cd ${db_workdir} && PYTHONPATH=${pythonpath} ${python_bin} -m scripts.bootstrap_sso_user --email <admin> --role admin --access-scope global" \
+    "cd ${db_workdir} && PYTHONPATH=${pythonpath} ${python_bin} -m scripts.bootstrap_sso_user --email <admin> --role admin --access-scope global (pre-link)" \
     "export PYTHONPATH=$(printf '%q' "$pythonpath"); $(printf '%q' "$python_bin") -m scripts.bootstrap_sso_user --email \"\$BOOTSTRAP_ADMIN_EMAIL\" --role admin --access-scope global"
 
   linux_run_release_command \
     "$db_workdir" \
-    "cd ${db_workdir} && PYTHONPATH=${pythonpath} ${python_bin} -m scripts.bootstrap_sso_user --email <cro> --role cro --access-scope global" \
+    "cd ${db_workdir} && PYTHONPATH=${pythonpath} ${python_bin} -m scripts.bootstrap_sso_user --email <cro> --role cro --access-scope global (pre-link)" \
     "export PYTHONPATH=$(printf '%q' "$pythonpath"); $(printf '%q' "$python_bin") -m scripts.bootstrap_sso_user --email \"\$BOOTSTRAP_CRO_EMAIL\" --role cro --access-scope global"
 }
 

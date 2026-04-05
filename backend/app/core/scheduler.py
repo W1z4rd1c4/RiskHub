@@ -507,12 +507,12 @@ def setup_scheduler():
         name="Daily Issue Deadline Check",
         replace_existing=True,
     )
-    # Daily AD deprovision check (config-driven)
+    # Interval-based AD deprovision check (config-driven)
     scheduler.add_job(
         run_ad_deprovision_check,
-        CronTrigger(hour=settings.ad_deprovision_check_hour, minute=settings.ad_deprovision_check_minute),
+        IntervalTrigger(minutes=max(int(settings.ad_deprovision_check_interval_minutes), 1)),
         id="ad_deprovision_check",
-        name="Daily AD Deprovision Check",
+        name="AD Deprovision Check",
         replace_existing=True,
     )
     scheduler.add_job(

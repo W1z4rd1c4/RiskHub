@@ -1,6 +1,6 @@
 # Production Quickstart
 
-> **Last Updated**: 2026-04-04
+> **Last Updated**: 2026-04-05
 > **Audience**: Production administrators
 
 ## Choose A Target
@@ -13,6 +13,7 @@ Both targets require:
 - external PostgreSQL
 - a public RiskHub URL
 - Microsoft Entra app credentials, including one confidential credential method for Graph (`client secret` or `certificate credential`)
+- Enterprise App assignment required enabled for the RiskHub application before first production sign-in
 - access to the release assets for the version you want to deploy
 - an encrypted host disk or encrypted mount for `/etc/riskhub`
 
@@ -69,7 +70,16 @@ or
 ./scripts/deploy.sh secrets-edit --target linux --secret-dir /etc/riskhub/secrets
 ```
 
-`ENTRA_TENANT_ID` and `ENTRA_CLIENT_ID` stay in the non-secret config. Database credentials, `SECRET_KEY`, and the Redis password live in `/etc/riskhub/secrets/`. `init` scaffolds both optional Entra secret files so the secret directory layout is ready for either confidential-credential mode. For Entra Graph credentials, production supports either `ENTRA_CLIENT_SECRET_FILE` or the preferred certificate mode: `ENTRA_CLIENT_CERTIFICATE_THUMBPRINT` in `riskhub.env` plus the PEM private key at `/etc/riskhub/secrets/entra_client_certificate_private_key`. `secrets-edit` keeps its temporary edit buffer on the same host-managed deployment path as the secret directory, not under `/tmp`, and remains line-based, so certificate PEM material should be managed directly in the dedicated secret file rather than pasted into `secrets-edit`. The unused optional Entra file may remain on its scaffold placeholder; preflight validates only the credential mode selected by `riskhub.env`.
+`ENTRA_TENANT_ID` and `ENTRA_CLIENT_ID` stay in the non-secret config. Database credentials, `SECRET_KEY`, and the Redis password live in `/etc/riskhub/secrets/`. `init` scaffolds both optional Entra secret files so the secret directory layout is ready for either confidential-credential mode. For Entra Graph credentials, production supports either `ENTRA_CLIENT_SECRET_FILE` or the preferred certificate mode: `ENTRA_CLIENT_CERTIFICATE_THUMBPRINT` in `riskhub.env` plus the PEM private key at `/etc/riskhub/secrets/entra_client_certificate_private_key`. `secrets-edit` keeps its temporary edit buffer on the same host-managed deployment path as the secret directory, not under `/tmp`, and remains line-based, so certificate PEM material should be managed directly in the dedicated secret file rather than pasted into `secrets-edit`. The unused optional Entra file may remain on its scaffold placeholder; preflight validates only the credential mode selected by `riskhub.env` and warns when production still uses client-secret mode.
+
+Rendered production runtime config is intentionally opinionated:
+
+- `DIRECTORY_PROVIDER=graph`
+- `ENTRA_JIT_PROVISIONING_ENABLED=false`
+- `AUTH_SSO_ALLOW_EMAIL_LINK=false`
+- `AD_DEPROVISION_CHECK_INTERVAL_MINUTES=15`
+
+Bootstrap users are now pre-linked to Entra before first login. The bootstrap script resolves an exact directory match by email or UPN, sets `external_id`, and fails closed when zero or multiple exact matches are found.
 
 ## 3. Run Preflight
 
@@ -81,7 +91,7 @@ or
 ./scripts/deploy.sh preflight --target linux --config /etc/riskhub/riskhub.env --secret-dir /etc/riskhub/secrets
 ```
 
-Preflight validates the config, target prerequisites, secret directory permissions, placeholder-secret removal for required secrets, the active Entra confidential credential mode, and the frontend bind port.
+Preflight validates the config, target prerequisites, secret directory permissions, placeholder-secret removal for required secrets, the active Entra confidential credential mode, Graph-only production invariants, and the frontend bind port.
 
 ## 4. Deploy
 
@@ -117,6 +127,21 @@ Linux target:
 ```
 
 Linux deployments install releases under `/opt/riskhub/releases/<version>`, switch `/opt/riskhub/current`, render systemd/nginx files, run migrations/bootstrap, and restart services. The unpacked release keeps the long-running runtime lane under `backend/` and the DB/bootstrap lane under `backend_db/`.
+
+## 4.1 SSO Compatibility Cutover
+
+The SSO challenge rollout is intentionally two-step:
+
+1. Deploy the backend/frontend compatibility build with `AUTH_SSO_REQUIRE_CHALLENGE=false`.
+2. Validate SSO end-to-end in production.
+3. Flip `AUTH_SSO_REQUIRE_CHALLENGE=true`.
+4. Revoke legacy refresh rows once the stricter flow is live:
+
+```bash
+python -m scripts.revoke_refresh_sessions --reason sso_absolute_expiry_cutover
+```
+
+This revokes active refresh sessions without mass-bumping `token_version`, so already-issued access tokens expire naturally.
 
 ## 5. Verify
 

@@ -1,6 +1,6 @@
 # Production Security Checklist
 
-> **Last Updated**: 2026-03-17
+> **Last Updated**: 2026-04-05
 > **Audience**: DevOps / Security Engineering
 
 ## Config And Startup Guards
@@ -10,11 +10,14 @@ RiskHub production deploys must satisfy these invariants:
 - `DEBUG=false`
 - `MOCK_AUTH_ENABLED=false`
 - `AUTH_MODE=microsoft_sso`
+- `DIRECTORY_PROVIDER=graph`
 - `SECRET_KEY` secret file length at least `32`
 - explicit external PostgreSQL `database_url` secret file
 - explicit `CORS_ORIGINS`
 - reachable `REDIS_URL`
 - valid `ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`, and one supported Entra Graph credential mechanism
+- `ENTRA_JIT_PROVISIONING_ENABLED=false`
+- `AUTH_SSO_ALLOW_EMAIL_LINK=false`
 - reviewed `TRUSTED_PROXIES` when traffic passes through non-default proxy networks
 
 ## Network
@@ -36,8 +39,11 @@ RiskHub production deploys must satisfy these invariants:
 ## Authentication
 
 - Production is SSO-only.
+- Require Microsoft Entra Enterprise App assignment before go-live.
 - Validate the Microsoft Entra app registration and redirect URIs before go-live.
 - Register both the sign-in callback (`/auth/sso/callback`) and the post-logout redirect (`/login`) for the production origin.
+- Production bootstrap users must be pre-linked to Entra `oid` before first login; do not rely on first-login email linking.
+- SSO login now starts with a backend-issued challenge and the backend resolves the post-login redirect target server-side.
 - Normal logout invalidates all RiskHub app sessions for the user.
 - Cookie-authenticated auth endpoints require same-origin browser requests via explicit Origin/Referer validation plus double-submit CSRF.
 - Keep bootstrap admin/CRO emails distinct.
@@ -73,9 +79,15 @@ RiskHub production deploys must satisfy these invariants:
 - `./scripts/deploy.sh secrets-edit ...` keeps its temporary edit workspace on the same host-managed deployment path as `--secret-dir`, not under `/tmp`.
 - Store `SECRET_KEY`, database credentials, Redis password, and the active Entra confidential credential material in a secret manager when possible.
 - `ENTRA_TENANT_ID` and `ENTRA_CLIENT_ID` are not secret values.
-- Prefer file-backed certificate credential mode over shared client secret when your Entra app registration supports it.
+- Prefer file-backed certificate credential mode over shared client secret when your Entra app registration supports it; treat client-secret production mode as an explicit waiver.
 - Keep certificate PEM material only in `/etc/riskhub/secrets/entra_client_certificate_private_key`; do not inline it into non-secret env files.
 - Do not print secrets into shell history or CI logs.
+
+## Session Cutover
+
+- After enabling strict SSO challenge enforcement in production, revoke legacy refresh sessions with:
+  - `python -m scripts.revoke_refresh_sessions --reason sso_absolute_expiry_cutover`
+- This cutover must not mass-bump `token_version`; existing access tokens should age out naturally.
 
 ## Supply Chain
 

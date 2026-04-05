@@ -85,6 +85,12 @@ class User(Base):
     directory_sync_status: Mapped[str | None] = mapped_column(String(50), nullable=True, index=True)
     deprovisioned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     deprovision_reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    break_glass_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    break_glass_reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    break_glass_granted_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    break_glass_granted_by_user: Mapped["User | None"] = relationship(
+        "User", remote_side=[id], foreign_keys=[break_glass_granted_by_user_id]
+    )
 
     # User preferences (synced across devices)
     preferred_theme: Mapped[str] = mapped_column(String(20), default="riskhub", server_default="riskhub")
@@ -123,3 +129,8 @@ class User(Base):
     def department_name(self) -> str | None:
         """Get department name if department is assigned."""
         return self.department.name if self.department else None
+
+    def has_active_break_glass(self, *, now: datetime) -> bool:
+        if self.break_glass_expires_at is None:
+            return False
+        return self.break_glass_expires_at > now
