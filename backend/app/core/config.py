@@ -143,6 +143,7 @@ class Settings(BaseSettings):
         default_factory=list,
         validation_alias=AliasChoices("ENTRA_ALLOWED_EMAIL_DOMAINS", "ENTRA_ALLOWED_DOMAINS"),
     )
+    entra_business_role_attribute_name: str | None = None
     entra_clock_skew_seconds: int = 60
     entra_oidc_discovery_url: str | None = None
     auth_sso_allow_email_link: bool = True
@@ -281,6 +282,10 @@ class Settings(BaseSettings):
         return _normalize_optional_string(self.entra_client_certificate_private_key)
 
     @property
+    def normalized_entra_business_role_attribute_name(self) -> str | None:
+        return _normalize_optional_string(self.entra_business_role_attribute_name)
+
+    @property
     def entra_certificate_credential_error(self) -> str | None:
         has_thumbprint = self.normalized_entra_client_certificate_thumbprint is not None
         has_private_key = self.normalized_entra_client_certificate_private_key is not None
@@ -316,12 +321,32 @@ class Settings(BaseSettings):
             entra_tenant_id=self.entra_tenant_id,
             entra_client_id=self.entra_client_id,
             entra_allowed_email_domains=tuple(self.entra_allowed_email_domains),
+            entra_business_role_attribute_name=self.normalized_entra_business_role_attribute_name,
             jit_provisioning_enabled=self.entra_jit_provisioning_enabled,
             allow_email_link=self.auth_sso_allow_email_link,
             sso_challenge_ttl_seconds=self.auth_sso_challenge_ttl_seconds,
             sso_require_challenge=self.auth_sso_require_challenge,
             directory_provider=self.directory_provider,
         )
+
+    @property
+    def entra_business_role_graph_field(self) -> str | None:
+        attr_name = self.normalized_entra_business_role_attribute_name
+        client_id = _normalize_optional_string(self.entra_client_id)
+        if not attr_name or not client_id:
+            return None
+        return f"extension_{client_id.replace('-', '')}_{attr_name}"
+
+    @property
+    def entra_business_role_token_claim(self) -> str | None:
+        attr_name = self.normalized_entra_business_role_attribute_name
+        if not attr_name:
+            return None
+        return f"extn.{attr_name}"
+
+    @property
+    def entra_business_role_enabled(self) -> bool:
+        return self.normalized_entra_business_role_attribute_name is not None
 
     @property
     def outbound(self) -> OutboundSettingsSection:

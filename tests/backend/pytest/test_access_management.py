@@ -31,6 +31,24 @@ async def test_access_update_allows_admin(auth_client: AsyncClient, test_user_em
 
 
 @pytest.mark.asyncio
+async def test_access_users_list_includes_entra_business_role(
+    auth_client: AsyncClient,
+    db_session,
+    test_user_employee: User,
+):
+    test_user_employee.entra_business_role = "Claims Manager"
+    db_session.add(test_user_employee)
+    await db_session.commit()
+
+    response = await auth_client.get("/api/v1/access/users")
+
+    assert response.status_code == 200
+    payload = response.json()
+    target = next(item for item in payload if item["id"] == test_user_employee.id)
+    assert target["entra_business_role"] == "Claims Manager"
+
+
+@pytest.mark.asyncio
 async def test_access_update_rejects_non_admin_scope_change(
     client_risk_manager: AsyncClient,
     test_user_employee: User,
@@ -146,6 +164,29 @@ async def test_access_update_allows_admin_combined_identity_and_access(
 
 
 @pytest.mark.asyncio
+async def test_access_update_ignores_entra_business_role_payload(
+    auth_client: AsyncClient,
+    db_session,
+    test_user_employee: User,
+):
+    test_user_employee.entra_business_role = "Claims Manager"
+    db_session.add(test_user_employee)
+    await db_session.commit()
+
+    response = await auth_client.patch(
+        f"/api/v1/access/users/{test_user_employee.id}",
+        json={"department_id": None, "entra_business_role": "Tampered Role"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["department_id"] is None
+    assert response.json()["entra_business_role"] == "Claims Manager"
+
+    await db_session.refresh(test_user_employee)
+    assert test_user_employee.entra_business_role == "Claims Manager"
+
+
+@pytest.mark.asyncio
 async def test_access_update_rejects_cro_identity_mutation(
     client_cro: AsyncClient,
     test_user_employee: User,
@@ -166,12 +207,12 @@ async def test_access_update_allows_cro_access_only_mutation(
 ):
     response = await client_cro.patch(
         f"/api/v1/access/users/{test_user_employee.id}",
-        json={"department_id": None},
+        json={"access_scope": "manager"},
     )
 
     assert response.status_code == 200
     data = response.json()
-    assert data["department_id"] is None
+    assert data["access_scope"] == "manager"
 
 
 @pytest.mark.asyncio

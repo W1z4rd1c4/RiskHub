@@ -201,6 +201,36 @@ def test_settings_grouped_views_expose_current_values() -> None:
     assert settings.protocol_guard_settings.enabled is True
 
 
+def test_settings_derive_entra_business_role_claim_and_graph_field() -> None:
+    settings = Settings(
+        _env_file=None,
+        secret_key="0123456789abcdef0123456789abcdef",
+        database_url="postgresql+asyncpg://riskhub:secret@postgres.example.com:5432/riskhub",
+        entra_client_id="11111111-1111-1111-1111-111111111111",
+        entra_business_role_attribute_name="riskhubBusinessRole",
+    )
+
+    assert settings.entra_business_role_graph_field == (
+        "extension_11111111111111111111111111111111_riskhubBusinessRole"
+    )
+    assert settings.entra_business_role_token_claim == "extn.riskhubBusinessRole"
+    assert settings.entra_business_role_enabled is True
+    assert settings.auth_settings.entra_business_role_attribute_name == "riskhubBusinessRole"
+
+
+def test_settings_disable_entra_business_role_helpers_when_attribute_name_missing() -> None:
+    settings = Settings(
+        _env_file=None,
+        secret_key="0123456789abcdef0123456789abcdef",
+        database_url="postgresql+asyncpg://riskhub:secret@postgres.example.com:5432/riskhub",
+        entra_client_id="11111111-1111-1111-1111-111111111111",
+    )
+
+    assert settings.entra_business_role_enabled is False
+    assert settings.entra_business_role_graph_field is None
+    assert settings.entra_business_role_token_claim is None
+
+
 @pytest.mark.parametrize(
     ("filename", "content", "error"),
     [

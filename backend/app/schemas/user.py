@@ -72,6 +72,7 @@ class UserRead(BaseModel):
     is_active: bool
     role: RoleRead
     access_scope: AccessScopeEnum
+    entra_business_role: Optional[str] = None
     department_id: Optional[int] = None
     department_name: Optional[str] = None
     manager_id: Optional[int] = None
@@ -93,6 +94,7 @@ class UserBrief(BaseModel):
     effective_permissions: list[str]
     access_scope: AccessScopeEnum
     scope_label: str
+    entra_business_role: Optional[str] = None
     department_id: Optional[int] = None
     department_name: Optional[str] = None
 

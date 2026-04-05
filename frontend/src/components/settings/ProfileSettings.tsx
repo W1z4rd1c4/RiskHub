@@ -1,4 +1,4 @@
-import { User, Mail, Building, Shield, Key } from 'lucide-react';
+import { User, Mail, Building, Shield, Key, BriefcaseBusiness } from 'lucide-react';
 import { useTranslation } from '@/i18n/hooks';
 
 interface ProfileSettingsProps {
@@ -8,6 +8,7 @@ interface ProfileSettingsProps {
         name: string;
         role: string;
         role_display_name: string;
+        entra_business_role?: string | null;
         department_name?: string;
         permissions: string[];
         effective_permissions: string[];
@@ -139,6 +140,17 @@ export function ProfileSettings({ user }: ProfileSettingsProps) {
                                     {user.role_display_name}
                                 </span>
                             </div>
+                        </div>
+
+                        {/* Organizational Role */}
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1">
+                                <BriefcaseBusiness className="h-3 w-3" />
+                                {t('profile.organizational_role')}
+                            </label>
+                            <p className="text-white font-medium">
+                                {user.entra_business_role || t('common:fallbacks.unassigned')}
+                            </p>
                         </div>
 
                         {/* Access Scope */}

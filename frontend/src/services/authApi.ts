@@ -55,6 +55,7 @@ export interface TokenResponse {
         name: string;
         role: string;
         role_display_name: string;
+        entra_business_role?: string | null;
         department_id?: number;
         department_name?: string;
         permissions: string[];

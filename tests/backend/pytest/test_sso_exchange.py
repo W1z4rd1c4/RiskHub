@@ -351,6 +351,144 @@ async def test_sso_exchange_syncs_linked_user_profile_fields(
 
 
 @pytest.mark.asyncio
+async def test_sso_exchange_updates_entra_business_role_from_token_when_present(
+    sso_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: User,
+    monkeypatch,
+):
+    test_user.external_id = "oid-business-role"
+    db_session.add(test_user)
+    await db_session.commit()
+
+    def override_settings_business_role():
+        return Settings(
+            debug=True,
+            secret_key="test-secret-key-32-chars-minimum-value",
+            mock_auth_enabled=True,
+            auth_mode="microsoft_sso",
+            entra_tenant_id="00000000-0000-0000-0000-000000000000",
+            entra_client_id="11111111-1111-1111-1111-111111111111",
+            entra_jit_provisioning_enabled=True,
+            entra_business_role_attribute_name="riskhubBusinessRole",
+            cors_origins=["http://test"],
+        )
+
+    app.dependency_overrides[get_settings] = override_settings_business_role
+
+    async def stub_verify_entra_id_token(*, id_token: str, settings: Settings):
+        return VerifiedIdentity(
+            external_id="oid-business-role",
+            tenant_id=settings.entra_tenant_id or "",
+            email=test_user.email,
+            name=test_user.name,
+            business_role="Regional Director",
+        )
+
+    monkeypatch.setattr("app.api.v1.endpoints.auth.verify_entra_id_token", stub_verify_entra_id_token)
+
+    res = await sso_client.post("/api/v1/auth/sso/exchange", json={"id_token": "fake"})
+    assert res.status_code == 200, res.text
+    assert res.json()["user"]["entra_business_role"] == "Regional Director"
+
+    refreshed = (await db_session.execute(select(User).where(User.id == test_user.id))).scalar_one()
+    assert refreshed.entra_business_role == "Regional Director"
+    assert refreshed.entra_business_role_last_synced_at is not None
+
+
+@pytest.mark.asyncio
+async def test_sso_exchange_does_not_clear_entra_business_role_when_token_claim_absent(
+    sso_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: User,
+    monkeypatch,
+):
+    test_user.external_id = "oid-business-role-absent"
+    test_user.entra_business_role = "Existing Role"
+    db_session.add(test_user)
+    await db_session.commit()
+
+    def override_settings_business_role():
+        return Settings(
+            debug=True,
+            secret_key="test-secret-key-32-chars-minimum-value",
+            mock_auth_enabled=True,
+            auth_mode="microsoft_sso",
+            entra_tenant_id="00000000-0000-0000-0000-000000000000",
+            entra_client_id="11111111-1111-1111-1111-111111111111",
+            entra_jit_provisioning_enabled=True,
+            entra_business_role_attribute_name="riskhubBusinessRole",
+            cors_origins=["http://test"],
+        )
+
+    app.dependency_overrides[get_settings] = override_settings_business_role
+
+    async def stub_verify_entra_id_token(*, id_token: str, settings: Settings):
+        return VerifiedIdentity(
+            external_id="oid-business-role-absent",
+            tenant_id=settings.entra_tenant_id or "",
+            email=test_user.email,
+            name=test_user.name,
+            business_role=None,
+        )
+
+    monkeypatch.setattr("app.api.v1.endpoints.auth.verify_entra_id_token", stub_verify_entra_id_token)
+
+    res = await sso_client.post("/api/v1/auth/sso/exchange", json={"id_token": "fake"})
+    assert res.status_code == 200, res.text
+    assert res.json()["user"]["entra_business_role"] == "Existing Role"
+
+    refreshed = (await db_session.execute(select(User).where(User.id == test_user.id))).scalar_one()
+    assert refreshed.entra_business_role == "Existing Role"
+
+
+@pytest.mark.asyncio
+async def test_auth_me_includes_entra_business_role_after_sso_login(
+    sso_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: User,
+    monkeypatch,
+):
+    test_user.external_id = "oid-me-business-role"
+    db_session.add(test_user)
+    await db_session.commit()
+
+    def override_settings_business_role():
+        return Settings(
+            debug=True,
+            secret_key="test-secret-key-32-chars-minimum-value",
+            mock_auth_enabled=True,
+            auth_mode="microsoft_sso",
+            entra_tenant_id="00000000-0000-0000-0000-000000000000",
+            entra_client_id="11111111-1111-1111-1111-111111111111",
+            entra_jit_provisioning_enabled=True,
+            entra_business_role_attribute_name="riskhubBusinessRole",
+            cors_origins=["http://test"],
+        )
+
+    app.dependency_overrides[get_settings] = override_settings_business_role
+
+    async def stub_verify_entra_id_token(*, id_token: str, settings: Settings):
+        return VerifiedIdentity(
+            external_id="oid-me-business-role",
+            tenant_id=settings.entra_tenant_id or "",
+            email=test_user.email,
+            name=test_user.name,
+            business_role="Claims Manager",
+        )
+
+    monkeypatch.setattr("app.api.v1.endpoints.auth.verify_entra_id_token", stub_verify_entra_id_token)
+
+    login = await sso_client.post("/api/v1/auth/sso/exchange", json={"id_token": "fake"})
+    assert login.status_code == 200, login.text
+    access_token = login.json()["access_token"]
+
+    me = await sso_client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {access_token}"})
+    assert me.status_code == 200, me.text
+    assert me.json()["entra_business_role"] == "Claims Manager"
+
+
+@pytest.mark.asyncio
 async def test_sso_exchange_blocks_unknown_user_when_jit_disabled(
     sso_client: AsyncClient, db_session: AsyncSession, monkeypatch
 ):

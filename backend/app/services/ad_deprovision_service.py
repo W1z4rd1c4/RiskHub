@@ -49,7 +49,14 @@ class ADDeprovisionService:
             raise ValueError("User not found")
 
         provider = DirectoryProviderService(settings)
-        result = await cls._check_user(db, user=user, provider=provider, actor=actor, trigger=trigger)
+        result = await cls._check_user(
+            db,
+            user=user,
+            provider=provider,
+            settings=settings,
+            actor=actor,
+            trigger=trigger,
+        )
         await db.commit()
         return result
 
@@ -69,7 +76,14 @@ class ADDeprovisionService:
 
         results: list[dict[str, Any]] = []
         for user in users:
-            outcome = await cls._check_user(db, user=user, provider=provider, actor=actor, trigger=trigger)
+            outcome = await cls._check_user(
+                db,
+                user=user,
+                provider=provider,
+                settings=settings,
+                actor=actor,
+                trigger=trigger,
+            )
             results.append(outcome)
 
         await db.commit()
@@ -109,6 +123,7 @@ class ADDeprovisionService:
         *,
         user: User,
         provider: DirectoryProviderService,
+        settings: Settings,
         actor: User | None,
         trigger: str,
     ) -> dict[str, Any]:
@@ -164,7 +179,12 @@ class ADDeprovisionService:
         user.directory_last_seen_at = now
         if not remote_user.account_enabled:
             try:
-                await apply_directory_profile(db, user=user, directory_user=remote_user)
+                await apply_directory_profile(
+                    db,
+                    user=user,
+                    directory_user=remote_user,
+                    sync_business_role=settings.entra_business_role_enabled,
+                )
             except DirectoryIdentityConflictError:
                 user.directory_sync_status = "directory_disabled"
                 db.add(user)
@@ -190,7 +210,12 @@ class ADDeprovisionService:
             )
 
         try:
-            await apply_directory_profile(db, user=user, directory_user=remote_user)
+            await apply_directory_profile(
+                db,
+                user=user,
+                directory_user=remote_user,
+                sync_business_role=settings.entra_business_role_enabled,
+            )
         except DirectoryIdentityConflictError as exc:
             user.directory_sync_status = "identity_conflict"
             db.add(user)

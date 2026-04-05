@@ -164,7 +164,12 @@ async def _run(args: argparse.Namespace) -> int:
 
         try:
             if directory_user is not None:
-                await apply_directory_profile(db, user=user, directory_user=directory_user)
+                await apply_directory_profile(
+                    db,
+                    user=user,
+                    directory_user=directory_user,
+                    sync_business_role=settings.entra_business_role_enabled,
+                )
                 changed = True
         except DirectoryIdentityConflictError as exc:
             raise SystemExit(str(exc)) from exc

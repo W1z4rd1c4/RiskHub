@@ -39,6 +39,7 @@ export interface AccessUserRead {
     effective_permissions: string[];
     external_id?: string | null;
     job_title?: string | null;
+    entra_business_role?: string | null;
     directory_last_checked_at?: string | null;
     directory_last_seen_at?: string | null;
     directory_sync_status?: string | null;

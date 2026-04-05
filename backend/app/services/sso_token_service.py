@@ -37,6 +37,7 @@ class VerifiedIdentity:
     tenant_id: str
     email: str | None
     name: str | None
+    business_role: str | None = None
     nonce: str | None = None
     expires_at: datetime = field(default_factory=lambda: utc_now() + timedelta(hours=1))
 
@@ -235,6 +236,14 @@ class EntraTokenVerifier:
         if name is not None and not isinstance(name, str):
             name = None
 
+        business_role = None
+        business_role_claim = self._settings.entra_business_role_token_claim
+        if business_role_claim:
+            raw_business_role = claims.get(business_role_claim)
+            if isinstance(raw_business_role, str):
+                stripped_business_role = raw_business_role.strip()
+                business_role = stripped_business_role or None
+
         nonce = claims.get("nonce")
         if nonce is not None and not isinstance(nonce, str):
             nonce = None
@@ -249,22 +258,24 @@ class EntraTokenVerifier:
             tenant_id=self._tenant_id,
             email=email,
             name=name,
+            business_role=business_role,
             nonce=nonce,
             expires_at=expires_at,
         )
 
 
-_verifier_cache: dict[tuple[str, str, str, int, tuple[str, ...]], EntraTokenVerifier] = {}
+_verifier_cache: dict[tuple[str, str, str, int, tuple[str, ...], str], EntraTokenVerifier] = {}
 
 
-def _verifier_key(settings: Settings) -> tuple[str, str, str, int, tuple[str, ...]]:
+def _verifier_key(settings: Settings) -> tuple[str, str, str, int, tuple[str, ...], str]:
     auth_settings = settings.auth
     tenant_id = auth_settings.entra_tenant_id or ""
     client_id = auth_settings.entra_client_id or ""
     discovery_url = settings.entra_oidc_discovery_url or ""
     clock_skew = int(settings.entra_clock_skew_seconds or 0)
     allowed = tuple(sorted(d.strip().lower() for d in auth_settings.entra_allowed_email_domains if d.strip()))
-    return (tenant_id, client_id, discovery_url, clock_skew, allowed)
+    business_role_claim = settings.entra_business_role_token_claim or ""
+    return (tenant_id, client_id, discovery_url, clock_skew, allowed, business_role_claim)
 
 
 def _get_verifier(settings: Settings) -> EntraTokenVerifier:

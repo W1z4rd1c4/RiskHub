@@ -28,6 +28,35 @@ async def directory_import_client(
             secret_key="test-secret-key-32-chars-minimum-value",
             mock_auth_enabled=True,
             directory_provider="ad_emulator",
+            entra_business_role_attribute_name="riskhubBusinessRole",
+            ad_emulator_base_url="http://ad-emulator.local",
+        )
+
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_settings] = override_settings
+
+    transport = ASGITransport(app=app)
+    headers = {"X-Mock-User-Id": str(test_user_platform_admin.id)}
+    async with AsyncClient(transport=transport, base_url="http://test", headers=headers) as ac:
+        yield ac
+
+    app.dependency_overrides.clear()
+
+
+@pytest_asyncio.fixture
+async def directory_import_client_business_role_disabled(
+    db_session: AsyncSession,
+    test_user_platform_admin,
+) -> AsyncClient:
+    async def override_get_db():
+        yield db_session
+
+    def override_settings():
+        return Settings(
+            debug=True,
+            secret_key="test-secret-key-32-chars-minimum-value",
+            mock_auth_enabled=True,
+            directory_provider="ad_emulator",
             ad_emulator_base_url="http://ad-emulator.local",
         )
 
@@ -58,6 +87,7 @@ async def test_directory_import_creates_user_and_department(
             user_principal_name="Imported.User@Example.com",
             department="Enterprise Risk",
             job_title="Senior Risk Analyst",
+            business_role="Regional Director",
             account_enabled=True,
             source="ad_emulator",
         )
@@ -75,6 +105,7 @@ async def test_directory_import_creates_user_and_department(
     ).scalar_one()
     assert user.email == "imported.user@example.com"
     assert user.job_title == "Senior Risk Analyst"
+    assert user.entra_business_role == "Regional Director"
     assert user.directory_sync_status == "active"
 
     department = (
@@ -102,6 +133,7 @@ async def test_directory_reimport_updates_existing_user_without_duplication(
             user_principal_name=test_user_employee.email.upper(),
             department="Updated Department",
             job_title="Updated Title",
+            business_role="Claims Manager",
             account_enabled=True,
             source="ad_emulator",
         )
@@ -121,6 +153,7 @@ async def test_directory_reimport_updates_existing_user_without_duplication(
     assert len(users) == 1
     assert users[0].name == "Employee Updated"
     assert users[0].job_title == "Updated Title"
+    assert users[0].entra_business_role == "Claims Manager"
 
 
 @pytest.mark.asyncio
@@ -199,3 +232,83 @@ async def test_directory_import_requires_admin(client_cro: AsyncClient):
     response = await client_cro.post("/api/v1/directory/users/oid-import-create/import", json={})
     assert response.status_code == 403
     assert response.json()["detail"] == "Directory access requires Admin"
+
+
+@pytest.mark.asyncio
+async def test_directory_import_clears_entra_business_role_when_directory_value_missing(
+    directory_import_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user_employee,
+    monkeypatch,
+):
+    test_user_employee.external_id = "oid-role-clear"
+    test_user_employee.entra_business_role = "Old Role"
+    db_session.add(test_user_employee)
+    await db_session.commit()
+
+    async def stub_get_user(self, external_id: str):
+        return DirectoryUserRead(
+            external_id=external_id,
+            display_name="Employee Updated",
+            email=test_user_employee.email,
+            user_principal_name=test_user_employee.email,
+            department="Risk",
+            job_title="Analyst",
+            business_role=None,
+            account_enabled=True,
+            source="ad_emulator",
+        )
+
+    monkeypatch.setattr("app.services.directory_provider_service.DirectoryProviderService.get_user", stub_get_user)
+
+    response = await directory_import_client.post("/api/v1/directory/users/oid-role-clear/import", json={})
+    assert response.status_code == 200, response.text
+
+    refreshed_user = (
+        await db_session.execute(select(User).where(User.external_id == "oid-role-clear"))
+    ).scalar_one()
+    assert refreshed_user.entra_business_role is None
+    assert refreshed_user.entra_business_role_last_synced_at is not None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("directory_business_role", [None, "Regional Director"])
+async def test_directory_import_does_not_sync_entra_business_role_when_feature_disabled(
+    directory_import_client_business_role_disabled: AsyncClient,
+    db_session: AsyncSession,
+    test_user_employee,
+    monkeypatch,
+    directory_business_role: str | None,
+):
+    test_user_employee.external_id = "oid-role-disabled"
+    test_user_employee.entra_business_role = "Old Role"
+    db_session.add(test_user_employee)
+    await db_session.commit()
+    original_synced_at = test_user_employee.entra_business_role_last_synced_at
+
+    async def stub_get_user(self, external_id: str):
+        return DirectoryUserRead(
+            external_id=external_id,
+            display_name="Employee Updated",
+            email=test_user_employee.email,
+            user_principal_name=test_user_employee.email,
+            department="Risk",
+            job_title="Analyst",
+            business_role=directory_business_role,
+            account_enabled=True,
+            source="ad_emulator",
+        )
+
+    monkeypatch.setattr("app.services.directory_provider_service.DirectoryProviderService.get_user", stub_get_user)
+
+    response = await directory_import_client_business_role_disabled.post(
+        "/api/v1/directory/users/oid-role-disabled/import",
+        json={},
+    )
+    assert response.status_code == 200, response.text
+
+    refreshed_user = (
+        await db_session.execute(select(User).where(User.external_id == "oid-role-disabled"))
+    ).scalar_one()
+    assert refreshed_user.entra_business_role == "Old Role"
+    assert refreshed_user.entra_business_role_last_synced_at == original_synced_at

@@ -23,8 +23,12 @@ def _make_rsa_keypair() -> tuple[bytes, rsa.RSAPublicKey]:
     return priv_pem, key.public_key()
 
 
+async def _allow_resolved_outbound_guard(*_args, **_kwargs) -> None:
+    return None
+
+
 @pytest.mark.asyncio
-async def test_sso_token_service_validates_and_extracts_claims():
+async def test_sso_token_service_validates_and_extracts_claims(monkeypatch: pytest.MonkeyPatch):
     tenant_id = "00000000-0000-0000-0000-000000000000"
     client_id = "11111111-1111-1111-1111-111111111111"
     discovery_url = "https://example.test/oidc"
@@ -45,6 +49,7 @@ async def test_sso_token_service_validates_and_extracts_claims():
         "oid": "oid-123",
         "preferred_username": "User@Example.com",
         "name": "Test User",
+        "extn.riskhubBusinessRole": "Regional Director",
         "iat": int(now.timestamp()),
         "nbf": int((now - timedelta(seconds=5)).timestamp()),
         "exp": int((now + timedelta(minutes=5)).timestamp()),
@@ -56,9 +61,14 @@ async def test_sso_token_service_validates_and_extracts_claims():
         auth_mode="microsoft_sso",
         entra_tenant_id=tenant_id,
         entra_client_id=client_id,
+        entra_business_role_attribute_name="riskhubBusinessRole",
         entra_oidc_discovery_url=discovery_url,
     )
     verifier = EntraTokenVerifier(settings=settings)
+    monkeypatch.setattr(
+        "app.services.sso_token_service.guard_resolved_outbound_url",
+        _allow_resolved_outbound_guard,
+    )
 
     async def fake_fetch_json(url: str):
         if url == discovery_url:
@@ -74,10 +84,11 @@ async def test_sso_token_service_validates_and_extracts_claims():
     assert identity.external_id == "oid-123"
     assert identity.email == "user@example.com"
     assert identity.name == "Test User"
+    assert identity.business_role == "Regional Director"
 
 
 @pytest.mark.asyncio
-async def test_sso_token_service_refreshes_jwks_on_unknown_kid():
+async def test_sso_token_service_refreshes_jwks_on_unknown_kid(monkeypatch: pytest.MonkeyPatch):
     tenant_id = "00000000-0000-0000-0000-000000000000"
     client_id = "11111111-1111-1111-1111-111111111111"
     discovery_url = "https://example.test/oidc"
@@ -108,6 +119,10 @@ async def test_sso_token_service_refreshes_jwks_on_unknown_kid():
         entra_oidc_discovery_url=discovery_url,
     )
     verifier = EntraTokenVerifier(settings=settings)
+    monkeypatch.setattr(
+        "app.services.sso_token_service.guard_resolved_outbound_url",
+        _allow_resolved_outbound_guard,
+    )
 
     jwks_calls = {"count": 0}
 
@@ -129,7 +144,7 @@ async def test_sso_token_service_refreshes_jwks_on_unknown_kid():
 
 
 @pytest.mark.asyncio
-async def test_sso_token_service_rejects_unapproved_email_domain():
+async def test_sso_token_service_rejects_unapproved_email_domain(monkeypatch: pytest.MonkeyPatch):
     tenant_id = "00000000-0000-0000-0000-000000000000"
     client_id = "11111111-1111-1111-1111-111111111111"
     discovery_url = "https://example.test/oidc"
@@ -162,6 +177,10 @@ async def test_sso_token_service_rejects_unapproved_email_domain():
         entra_oidc_discovery_url=discovery_url,
     )
     verifier = EntraTokenVerifier(settings=settings)
+    monkeypatch.setattr(
+        "app.services.sso_token_service.guard_resolved_outbound_url",
+        _allow_resolved_outbound_guard,
+    )
 
     async def fake_fetch_json(url: str):
         if url == discovery_url:

@@ -14,12 +14,13 @@ from app.services.ad_deprovision_service import ADDeprovisionService
 from app.services.directory_provider_service import DirectoryUserNotFoundError
 
 
-def _service_settings() -> Settings:
+def _service_settings(*, business_role_enabled: bool = True) -> Settings:
     return Settings(
         debug=True,
         secret_key="test-secret-key-32-chars-minimum-value",
         mock_auth_enabled=True,
         directory_provider="ad_emulator",
+        entra_business_role_attribute_name="riskhubBusinessRole" if business_role_enabled else None,
         ad_emulator_base_url="http://ad-emulator.local",
     )
 
@@ -117,6 +118,7 @@ async def test_deprovision_active_user_updates_sync_metadata(
 ):
     test_user_employee.external_id = "oid-active-user"
     test_user_employee.is_active = True
+    test_user_employee.entra_business_role = "Old Role"
     db_session.add(test_user_employee)
     await db_session.commit()
 
@@ -128,6 +130,7 @@ async def test_deprovision_active_user_updates_sync_metadata(
             user_principal_name=test_user_employee.email,
             department="Risk",
             job_title="Analyst",
+            business_role="Regional Director",
             account_enabled=True,
             source="ad_emulator",
         )
@@ -145,8 +148,90 @@ async def test_deprovision_active_user_updates_sync_metadata(
     refreshed_user = (await db_session.execute(select(User).where(User.id == test_user_employee.id))).scalar_one()
     assert refreshed_user.is_active is True
     assert refreshed_user.directory_sync_status == "active"
+    assert refreshed_user.entra_business_role == "Regional Director"
     assert refreshed_user.directory_last_checked_at is not None
     assert refreshed_user.directory_last_seen_at is not None
+
+
+@pytest.mark.asyncio
+async def test_reconciliation_clears_entra_business_role_when_directory_value_is_missing(
+    db_session: AsyncSession,
+    test_user_employee: User,
+    monkeypatch,
+):
+    test_user_employee.external_id = "oid-clear-business-role"
+    test_user_employee.entra_business_role = "Existing Role"
+    db_session.add(test_user_employee)
+    await db_session.commit()
+
+    async def stub_get_user(self, external_id: str):
+        return DirectoryUserRead(
+            external_id=external_id,
+            display_name="Employee Active",
+            email=test_user_employee.email,
+            user_principal_name=test_user_employee.email,
+            department="Risk",
+            job_title="Analyst",
+            business_role=None,
+            account_enabled=True,
+            source="ad_emulator",
+        )
+
+    monkeypatch.setattr("app.services.directory_provider_service.DirectoryProviderService.get_user", stub_get_user)
+
+    result = await ADDeprovisionService.check_user_by_id(
+        db_session,
+        user_id=test_user_employee.id,
+        settings=_service_settings(),
+        trigger="pytest",
+    )
+
+    assert result["status"] == "active"
+    refreshed_user = (await db_session.execute(select(User).where(User.id == test_user_employee.id))).scalar_one()
+    assert refreshed_user.entra_business_role is None
+    assert refreshed_user.entra_business_role_last_synced_at is not None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("directory_business_role", [None, "Regional Director"])
+async def test_reconciliation_does_not_sync_entra_business_role_when_feature_disabled(
+    db_session: AsyncSession,
+    test_user_employee: User,
+    monkeypatch,
+    directory_business_role: str | None,
+):
+    test_user_employee.external_id = "oid-disabled-business-role-sync"
+    test_user_employee.entra_business_role = "Existing Role"
+    db_session.add(test_user_employee)
+    await db_session.commit()
+    original_synced_at = test_user_employee.entra_business_role_last_synced_at
+
+    async def stub_get_user(self, external_id: str):
+        return DirectoryUserRead(
+            external_id=external_id,
+            display_name="Employee Active",
+            email=test_user_employee.email,
+            user_principal_name=test_user_employee.email,
+            department="Risk",
+            job_title="Analyst",
+            business_role=directory_business_role,
+            account_enabled=True,
+            source="ad_emulator",
+        )
+
+    monkeypatch.setattr("app.services.directory_provider_service.DirectoryProviderService.get_user", stub_get_user)
+
+    result = await ADDeprovisionService.check_user_by_id(
+        db_session,
+        user_id=test_user_employee.id,
+        settings=_service_settings(business_role_enabled=False),
+        trigger="pytest",
+    )
+
+    assert result["status"] == "active"
+    refreshed_user = (await db_session.execute(select(User).where(User.id == test_user_employee.id))).scalar_one()
+    assert refreshed_user.entra_business_role == "Existing Role"
+    assert refreshed_user.entra_business_role_last_synced_at == original_synced_at
 
 
 @pytest.mark.asyncio

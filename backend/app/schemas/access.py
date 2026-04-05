@@ -45,6 +45,7 @@ class AccessUserRead(BaseModel):
     effective_permissions: list[str]
     external_id: Optional[str] = None
     job_title: Optional[str] = None
+    entra_business_role: Optional[str] = None
     directory_last_checked_at: datetime | None = None
     directory_last_seen_at: datetime | None = None
     directory_sync_status: Optional[str] = None

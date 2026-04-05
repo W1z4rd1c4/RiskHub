@@ -40,6 +40,8 @@ class User(Base):
     )
     name: Mapped[str] = mapped_column(String(255))
     job_title: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # Entra-owned organizational metadata. This must never drive RiskHub authorization.
+    entra_business_role: Mapped[str | None] = mapped_column(String(255), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     employee_type: Mapped[str | None] = mapped_column(String(50), nullable=True, default="employee")
     token_version: Mapped[int] = mapped_column(default=0, server_default="0", nullable=False)
@@ -82,6 +84,7 @@ class User(Base):
     last_active_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
     directory_last_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     directory_last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    entra_business_role_last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     directory_sync_status: Mapped[str | None] = mapped_column(String(50), nullable=True, index=True)
     deprovisioned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     deprovision_reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
