@@ -1,6 +1,6 @@
 # RiskHub Deployment
 
-> **Last Updated**: 2026-04-04
+> **Last Updated**: 2026-04-05
 > **Audience**: IT / DevOps / Platform Engineering
 
 Back to tree: [`../DOCUMENTATION_TREE.md`](../DOCUMENTATION_TREE.md)
@@ -19,6 +19,7 @@ Common rules across both targets:
 - External PostgreSQL is mandatory.
 - Operators edit `/etc/riskhub/riskhub.env` for non-secrets and `/etc/riskhub/secrets/` for secrets.
 - The public guided installer is `./scripts/install.sh production --target docker|linux`.
+- `./scripts/install.sh` remains the public surface, but the lifecycle control plane now runs through `scripts/install_cli.py` and `scripts/install_lib/`.
 - The admin entrypoint underneath it is `./scripts/deploy.sh`.
 - The frontend serves the SPA and proxies `/api` on the same origin.
 - The scheduler runs as a separate singleton runtime.
@@ -67,8 +68,10 @@ Release inputs:
 ## Runtime Notes
 
 - Redis is required in production.
+- Production runtime requires an explicit `ALLOWED_HOSTS` value. Managed deploy/install tooling renders it from the configured public hostname for supported `docker` and `linux` targets, but operators must still verify it matches the real public host allowlist.
 - `/docs` and `/openapi.json` must stay disabled in production.
 - Cookie-authenticated auth endpoints (`/api/v1/auth/refresh`, refresh-cookie fallback logout) require allowed Origin/Referer plus double-submit CSRF.
+- Production CSP is now strict enough to drop `style-src 'unsafe-inline'`; inline styles are not allowed in active frontend source.
 - Explicit logout invalidates all RiskHub app sessions for the user, not only the current browser refresh session.
 - The scheduler must run exactly once:
   - Docker target: dedicated scheduler container

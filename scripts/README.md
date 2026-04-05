@@ -8,6 +8,7 @@ Operational and development automation for RiskHub.
 
 - `./scripts/install.sh`
   - Public first-run and lifecycle installer for demo, local contributor, and guided production flows.
+  - Thin shell wrapper over `./scripts/install_cli.py` and `./scripts/install_lib/`.
   - Covers `production`, `upgrade`, `status`, `logs`, `doctor`, and `verify` on top of the lower-level script layer.
 - `./scripts/dev.sh`
   - Advanced/manual local contributor startup.
@@ -24,6 +25,8 @@ Operational and development automation for RiskHub.
 
 - `deploy/`
   - Shared library helpers used by `./scripts/deploy.sh`.
+- `install_lib/`
+  - Stdlib-only Python control plane used by `./scripts/install_cli.py` and the public `./scripts/install.sh` wrapper.
 - `prod/`
   - Retained internal production runtime/install helpers behind the supported deploy CLI.
 - `security/`
@@ -45,10 +48,13 @@ Operational and development automation for RiskHub.
   - Wraps Playwright execution with artifact/watchdog handling.
 - `verify_security_headers.py`
   - Verifies expected security headers for deployed/frontend targets.
+- `install_cli.py`
+  - Internal Python entrypoint behind the public `./scripts/install.sh` wrapper.
 
 ## Startup notes
 
 - `./scripts/install.sh` is the public first-run entrypoint.
+- `./scripts/install.sh` stays the public entrypoint even though the lifecycle control plane now lives in Python under `./scripts/install_cli.py` and `./scripts/install_lib/`.
 - `./scripts/dev.sh` is local-only.
 - `./scripts/compose.sh` remains the advanced/manual Docker development entrypoint.
 - If the local database is behind the Alembic head, `./scripts/dev.sh` exits early and prints the recovery command:

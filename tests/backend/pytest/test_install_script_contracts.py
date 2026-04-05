@@ -241,6 +241,62 @@ def test_install_production_linux_dry_run_dispatches_full_sequence() -> None:
         assert "smoke --target linux" in output
 
 
+def test_install_production_dry_run_initializes_missing_scaffold_before_lifecycle() -> None:
+    with tempfile.TemporaryDirectory(prefix="riskhub-install-scaffold-") as td:
+        tmp = Path(td)
+        config_path = tmp / "missing.env"
+        secret_dir = tmp / "missing-secrets"
+
+        result = _run_install(
+            "production",
+            "--dry-run",
+            "--yes",
+            "--target",
+            "docker",
+            "--config",
+            str(config_path),
+            "--secret-dir",
+            str(secret_dir),
+            "--version",
+            "v1.2.3",
+        )
+        output = f"{result.stdout}\n{result.stderr}"
+
+        assert result.returncode == 0, output
+        assert "init --target docker --config" in output
+        assert "preflight --target docker" not in output
+        assert "deploy --target docker" not in output
+
+
+def test_install_production_dry_run_initializes_missing_secret_scaffold_before_lifecycle() -> None:
+    with tempfile.TemporaryDirectory(prefix="riskhub-install-secret-scaffold-") as td:
+        tmp = Path(td)
+        config_path = tmp / "riskhub.env"
+        secret_dir = tmp / "secrets"
+        _write_config(config_path)
+        secret_dir.mkdir(parents=True, exist_ok=True)
+
+        result = _run_install(
+            "production",
+            "--dry-run",
+            "--yes",
+            "--target",
+            "docker",
+            "--config",
+            str(config_path),
+            "--secret-dir",
+            str(secret_dir),
+            "--version",
+            "v1.2.3",
+        )
+        output = f"{result.stdout}\n{result.stderr}"
+
+        assert result.returncode == 0, output
+        assert "secrets-init --target docker --secret-dir" in output
+        assert "preflight --target docker" not in output
+        assert "deploy --target docker" not in output
+
+
 def test_install_verify_production_dry_run_is_non_mutating() -> None:
     result = _run_install(
         "verify",
@@ -482,6 +538,104 @@ def test_install_production_writes_install_state_after_successful_run() -> None:
         assert "deploy --target docker" in command_text
         assert "status --target docker" in command_text
         assert "smoke --target docker" in command_text
+
+
+def test_install_production_refuses_unresolved_secret_placeholders_before_deploy() -> None:
+    with tempfile.TemporaryDirectory(prefix="riskhub-install-placeholder-") as td:
+        tmp = Path(td)
+        config_path = tmp / "riskhub.env"
+        secret_dir = tmp / "secrets"
+        fake_deploy = _make_fake_deploy_script(tmp)
+        _write_config(config_path)
+        secret_dir.mkdir(parents=True, exist_ok=True)
+        for name, value in {
+            "database_url": "CHANGE_ME_DATABASE_URL\n",
+            "secret_key": "CHANGE_ME_SECRET_KEY_AT_LEAST_32_CHARACTERS\n",
+            "redis_password": "CHANGE_ME_REDIS_PASSWORD\n",
+            "entra_client_secret": "CHANGE_ME_ENTRA_CLIENT_SECRET\n",
+        }.items():
+            (secret_dir / name).write_text(value, encoding="utf-8")
+
+        env = {
+            "EDITOR": "true",
+            "RISKHUB_INSTALL_DEPLOY_SCRIPT": str(fake_deploy),
+        }
+        result = _run_install(
+            "production",
+            "--yes",
+            "--target",
+            "docker",
+            "--config",
+            str(config_path),
+            "--secret-dir",
+            str(secret_dir),
+            "--version",
+            "v1.2.3",
+            env=env,
+        )
+        output = f"{result.stdout}\n{result.stderr}"
+
+        assert result.returncode != 0
+        assert "still contains the placeholder value" in output
+
+
+def test_install_upgrade_writes_non_secret_runtime_backup() -> None:
+    with tempfile.TemporaryDirectory(prefix="riskhub-upgrade-backup-") as td:
+        tmp = Path(td)
+        config_path = tmp / "riskhub.env"
+        secret_dir = tmp / "secrets"
+        runtime_dir = tmp / "runtime"
+        command_log = tmp / "commands.log"
+        fake_deploy = _make_fake_deploy_script(tmp)
+        _write_config(config_path)
+        _write_secrets(secret_dir)
+        runtime_dir.mkdir(parents=True, exist_ok=True)
+        (runtime_dir / "backend.env").write_text("backend=1\n", encoding="utf-8")
+        (runtime_dir / "metadata.env").write_text("metadata=1\n", encoding="utf-8")
+        _write_install_state(
+            runtime_dir,
+            {
+                "target": "docker",
+                "config_path": str(config_path),
+                "secret_dir": str(secret_dir),
+                "runtime_dir": str(runtime_dir),
+                "current_release_source": {"kind": "docker_version", "version": "v1.2.3"},
+                "managed_resources": {"docker_containers": ["riskhub-backend"]},
+                "public_url": "https://riskhub.example.com.internal",
+                "last_successful_deploy_timestamp": "2026-04-04T10:00:00Z",
+                "last_successful_smoke_timestamp": "2026-04-04T10:00:00Z",
+                "last_successful_command": "production",
+            },
+        )
+
+        env = {
+            "RISKHUB_RUNTIME_DIR": str(runtime_dir),
+            "RISKHUB_INSTALL_DEPLOY_SCRIPT": str(fake_deploy),
+            "RISKHUB_TEST_COMMAND_LOG": str(command_log),
+        }
+        result = _run_install(
+            "upgrade",
+            "--yes",
+            "--target",
+            "docker",
+            "--config",
+            str(config_path),
+            "--secret-dir",
+            str(secret_dir),
+            "--version",
+            "v1.2.4",
+            env=env,
+        )
+        output = f"{result.stdout}\n{result.stderr}"
+
+        assert result.returncode == 0, output
+        backups = list((runtime_dir / "backups").glob("*"))
+        assert backups
+        latest_backup = sorted(backups)[-1]
+        assert (latest_backup / "config" / config_path.name).exists()
+        assert (latest_backup / "runtime" / "backend.env").exists()
+        assert (latest_backup / "runtime" / "metadata.env").exists()
+        assert (latest_backup / "runtime" / "install-state.json").exists()
 
 
 def test_install_status_json_reconstructs_production_state_when_metadata_missing() -> None:

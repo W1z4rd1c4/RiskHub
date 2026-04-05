@@ -16,7 +16,8 @@ from app.core.outbound_guard import (
     OutboundRequestError,
     build_outbound_client,
     extract_host,
-    guard_outbound_url,
+    guard_resolved_outbound_url,
+    guarded_get,
 )
 
 
@@ -65,12 +66,13 @@ class EntraTokenVerifier:
     JWKS_TTL_SECONDS = 60 * 60  # 1h
 
     def __init__(self, *, settings: Settings):
-        if not settings.entra_tenant_id or not settings.entra_client_id:
+        auth_settings = settings.auth
+        if not auth_settings.entra_tenant_id or not auth_settings.entra_client_id:
             raise SsoProviderUnavailableError("Missing Entra configuration")
         self._settings = settings
-        self._tenant_id = settings.entra_tenant_id
-        self._client_id = settings.entra_client_id
-        self._allowed_domains = [d.strip().lower() for d in settings.entra_allowed_email_domains if d.strip()]
+        self._tenant_id = auth_settings.entra_tenant_id
+        self._client_id = auth_settings.entra_client_id
+        self._allowed_domains = [d.strip().lower() for d in auth_settings.entra_allowed_email_domains if d.strip()]
         self._clock_skew_seconds = int(settings.entra_clock_skew_seconds or 0)
         self._discovery_url = (
             settings.entra_oidc_discovery_url
@@ -87,12 +89,17 @@ class EntraTokenVerifier:
     async def _fetch_json(self, url: str) -> dict[str, Any]:
         allow_hosts = [self._discovery_host] if self._discovery_host else None
         try:
-            guard_outbound_url(url=url, settings=self._settings, allowed_hosts=allow_hosts)
+            await guard_resolved_outbound_url(url=url, settings=self._settings, allowed_hosts=allow_hosts)
         except OutboundRequestError as exc:
             raise SsoProviderUnavailableError(str(exc)) from exc
         try:
             async with build_outbound_client(settings=self._settings, timeout_seconds=10.0) as client:
-                res = await client.get(url)
+                res = await guarded_get(
+                    client,
+                    url=url,
+                    settings=self._settings,
+                    allowed_hosts=allow_hosts,
+                )
                 res.raise_for_status()
                 data = res.json()
                 if not isinstance(data, dict):
@@ -117,7 +124,7 @@ class EntraTokenVerifier:
             if issuer_host:
                 allowed_hosts.append(issuer_host)
             try:
-                guard_outbound_url(
+                await guard_resolved_outbound_url(
                     url=str(jwks_uri),
                     settings=self._settings,
                     allowed_hosts=allowed_hosts or None,
@@ -251,11 +258,12 @@ _verifier_cache: dict[tuple[str, str, str, int, tuple[str, ...]], EntraTokenVeri
 
 
 def _verifier_key(settings: Settings) -> tuple[str, str, str, int, tuple[str, ...]]:
-    tenant_id = settings.entra_tenant_id or ""
-    client_id = settings.entra_client_id or ""
+    auth_settings = settings.auth
+    tenant_id = auth_settings.entra_tenant_id or ""
+    client_id = auth_settings.entra_client_id or ""
     discovery_url = settings.entra_oidc_discovery_url or ""
     clock_skew = int(settings.entra_clock_skew_seconds or 0)
-    allowed = tuple(sorted(d.strip().lower() for d in settings.entra_allowed_email_domains if d.strip()))
+    allowed = tuple(sorted(d.strip().lower() for d in auth_settings.entra_allowed_email_domains if d.strip()))
     return (tenant_id, client_id, discovery_url, clock_skew, allowed)
 
 

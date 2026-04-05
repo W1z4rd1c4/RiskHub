@@ -25,6 +25,7 @@ def _production_settings(**overrides) -> Settings:
         "entra_jit_provisioning_enabled": False,
         "auth_sso_allow_email_link": False,
         "cors_origins": ["http://testserver"],
+        "allowed_hosts": ["testserver"],
         "database_url": PRODUCTION_DATABASE_URL,
     }
     values.update(overrides)
@@ -100,6 +101,11 @@ def test_cors_guard_requires_explicit_allowlist_in_production_mode():
         create_app(
             _production_settings(cors_origins=[])
         )
+
+
+def test_allowed_hosts_are_required_in_production_mode() -> None:
+    with pytest.raises(RuntimeError, match="ALLOWED_HOSTS must be set"):
+        create_app(_production_settings(allowed_hosts=[]))
 
 
 def test_auth_mode_guard_requires_microsoft_sso_in_production():

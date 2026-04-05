@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import asyncio
+import hashlib
 import importlib
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -8,11 +11,27 @@ import httpx
 
 from app.core.config import EntraConfidentialCredential, Settings
 from app.core.email import normalize_email
-from app.core.outbound_guard import OutboundRequestError, build_outbound_client, guard_outbound_url
+from app.core.outbound_guard import (
+    OutboundRequestError,
+    build_outbound_client,
+    guard_outbound_url,
+    guard_resolved_outbound_url,
+    guarded_get,
+)
 from app.schemas.directory import DirectoryUserRead
 
 _GRAPH_BASE_URL = "https://graph.microsoft.com/v1.0"
 _GRAPH_SCOPE = "https://graph.microsoft.com/.default"
+
+
+@dataclass
+class _GraphTokenCacheEntry:
+    token: str | None = None
+    expiry: datetime | None = None
+    lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+
+
+_GRAPH_TOKEN_CACHE: dict[str, _GraphTokenCacheEntry] = {}
 
 
 class GraphDirectoryProviderError(RuntimeError):
@@ -111,8 +130,15 @@ class GraphDirectoryService:
             timeout_seconds=self._settings.graph_timeout_seconds,
         ) as client:
             try:
-                response = await client.get(url, headers=headers, params=params)
-            except httpx.HTTPError as exc:
+                response = await guarded_get(
+                    client,
+                    url=url,
+                    settings=self._settings,
+                    allowed_hosts=["graph.microsoft.com"],
+                    headers=headers,
+                    params=params,
+                )
+            except (httpx.HTTPError, OutboundRequestError) as exc:
                 raise GraphProviderUnavailableError(f"Graph request failed: {exc}") from exc
 
         if response.status_code == 404 and not_found_is_error:
@@ -129,10 +155,6 @@ class GraphDirectoryService:
         return payload
 
     async def _get_access_token(self) -> str:
-        now = datetime.now(UTC)
-        if self._token and self._token_expiry and now < self._token_expiry - timedelta(seconds=60):
-            return self._token
-
         tenant_id = self._settings.entra_tenant_id
         client_id = self._settings.entra_client_id
         if not tenant_id or not client_id:
@@ -149,26 +171,56 @@ class GraphDirectoryService:
                 "Graph credentials are not configured (ENTRA_TENANT_ID, ENTRA_CLIENT_ID, and an Entra Graph credential)."
             )
 
-        token_url = f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
-        try:
-            guard_outbound_url(url=token_url, settings=self._settings, allowed_hosts=["login.microsoftonline.com"])
-        except OutboundRequestError as exc:
-            raise GraphProviderUnavailableError(str(exc)) from exc
-
-        payload = await self._acquire_graph_token_with_msal(
+        cache_key = self._build_token_cache_key(
             tenant_id=tenant_id,
             client_id=client_id,
             credential=credential,
         )
-        access_token = payload.get("access_token")
-        expires_in = payload.get("expires_in")
-        if not isinstance(access_token, str) or not access_token:
-            raise GraphProviderUnavailableError("Graph token response missing access_token")
+        cache_entry = _GRAPH_TOKEN_CACHE.setdefault(cache_key, _GraphTokenCacheEntry())
+        now = datetime.now(UTC)
+        if cache_entry.token and cache_entry.expiry and now < cache_entry.expiry - timedelta(seconds=60):
+            self._token = cache_entry.token
+            self._token_expiry = cache_entry.expiry
+            return cache_entry.token
 
-        lifetime = int(expires_in) if isinstance(expires_in, int | float | str) and str(expires_in).isdigit() else 3600
-        self._token = access_token
-        self._token_expiry = now + timedelta(seconds=max(lifetime, 60))
-        return self._token
+        token_url = f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
+        try:
+            await guard_resolved_outbound_url(
+                url=token_url,
+                settings=self._settings,
+                allowed_hosts=["login.microsoftonline.com"],
+            )
+        except OutboundRequestError as exc:
+            raise GraphProviderUnavailableError(str(exc)) from exc
+
+        async with cache_entry.lock:
+            now = datetime.now(UTC)
+            if cache_entry.token and cache_entry.expiry and now < cache_entry.expiry - timedelta(seconds=60):
+                self._token = cache_entry.token
+                self._token_expiry = cache_entry.expiry
+                return cache_entry.token
+
+            payload = await self._acquire_graph_token_with_msal(
+                tenant_id=tenant_id,
+                client_id=client_id,
+                credential=credential,
+            )
+            access_token = payload.get("access_token")
+            expires_in = payload.get("expires_in")
+            if not isinstance(access_token, str) or not access_token:
+                raise GraphProviderUnavailableError("Graph token response missing access_token")
+
+            lifetime = (
+                int(expires_in)
+                if isinstance(expires_in, int | float | str) and str(expires_in).isdigit()
+                else 3600
+            )
+            expiry = now + timedelta(seconds=max(lifetime, 60))
+            cache_entry.token = access_token
+            cache_entry.expiry = expiry
+            self._token = access_token
+            self._token_expiry = expiry
+            return access_token
 
     async def _acquire_graph_token_with_msal(
         self,
@@ -187,14 +239,15 @@ class GraphDirectoryService:
         authority = f"https://login.microsoftonline.com/{tenant_id}"
         client_credential: str | dict[str, str]
         if credential.mode == "certificate":
-            assert credential.client_certificate_private_key is not None
-            assert credential.client_certificate_thumbprint is not None
+            if not credential.client_certificate_private_key or not credential.client_certificate_thumbprint:
+                raise GraphProviderUnavailableError("Graph certificate credential is incomplete")
             client_credential = {
                 "private_key": credential.client_certificate_private_key,
                 "thumbprint": credential.client_certificate_thumbprint,
             }
         else:
-            assert credential.client_secret is not None
+            if not credential.client_secret:
+                raise GraphProviderUnavailableError("Graph client secret credential is missing")
             client_credential = credential.client_secret
 
         try:
@@ -204,7 +257,7 @@ class GraphDirectoryService:
                 client_credential=client_credential,
             )
             result = await self._run_in_thread(app.acquire_token_for_client, scopes=[_GRAPH_SCOPE])
-        except Exception as exc:  # pragma: no cover - exact dependency/runtime exception varies
+        except Exception as exc:  # pragma: no cover - explicit third-party dependency boundary
             raise GraphProviderUnavailableError(f"Failed to acquire Graph token: {exc}") from exc
 
         if not isinstance(result, dict):
@@ -219,6 +272,30 @@ class GraphDirectoryService:
         import asyncio
 
         return await asyncio.to_thread(fn, *args, **kwargs)
+
+    @staticmethod
+    def _build_token_cache_key(
+        *,
+        tenant_id: str,
+        client_id: str,
+        credential: EntraConfidentialCredential,
+    ) -> str:
+        fingerprint = hashlib.sha256()
+        fingerprint.update(tenant_id.encode("utf-8"))
+        fingerprint.update(b"\0")
+        fingerprint.update(client_id.encode("utf-8"))
+        fingerprint.update(b"\0")
+        fingerprint.update(credential.mode.encode("utf-8"))
+        if credential.client_secret:
+            fingerprint.update(b"\0")
+            fingerprint.update(credential.client_secret.encode("utf-8"))
+        if credential.client_certificate_thumbprint:
+            fingerprint.update(b"\0")
+            fingerprint.update(credential.client_certificate_thumbprint.encode("utf-8"))
+        if credential.client_certificate_private_key:
+            fingerprint.update(b"\0")
+            fingerprint.update(credential.client_certificate_private_key.encode("utf-8"))
+        return fingerprint.hexdigest()
 
     def _to_directory_user(self, payload: dict[str, Any]) -> DirectoryUserRead:
         oid = payload.get("id")
@@ -246,3 +323,7 @@ class GraphDirectoryService:
             account_enabled=bool(account_enabled) if isinstance(account_enabled, bool) else True,
             source="graph",
         )
+
+
+def __reset_graph_token_cache_for_tests() -> None:
+    _GRAPH_TOKEN_CACHE.clear()

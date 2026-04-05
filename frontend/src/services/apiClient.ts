@@ -1,7 +1,7 @@
 import { getErrorMessageKey } from '@/i18n/getErrorMessageKey';
-import { clearAccessToken, getAccessToken } from '@/services/accessTokenStore';
-import { clearBootstrapSession } from '@/services/authSessionCoordinator';
+import { getAccessToken } from '@/services/accessTokenStore';
 import { isExplicitLogoutSuppressed } from '@/services/logoutSuppression';
+import { clearAuthenticatedSession } from '@/services/sessionManager';
 import { silentReauthAndExchange } from '@/services/ssoSession';
 
 // Use relative URL for nginx proxy (enables LAN access)
@@ -14,6 +14,20 @@ type QueryParams = URLSearchParams | object;
 
 interface RequestOptions extends RequestInit {
     params?: QueryParams;
+}
+
+interface PreparedRequest {
+    url: URL;
+    pathname: string;
+    init: RequestInit;
+}
+
+interface RequestExecutorOptions<T> {
+    endpoint: string;
+    options?: RequestOptions;
+    attempt?: number;
+    parseSuccess: (response: Response) => Promise<T>;
+    parseError?: (response: Response) => Promise<ApiClientErrorPayload>;
 }
 
 export interface ApiClientErrorPayload {
@@ -117,11 +131,9 @@ class ApiClient {
         });
     }
 
-    private async request<T>(endpoint: string, options: RequestOptions = {}, attempt = 0): Promise<T> {
+    private buildPreparedRequest(endpoint: string, options: RequestOptions = {}): PreparedRequest {
         const { params, ...init } = options;
         const url = this.buildUrl(endpoint, params);
-        const pathname = url.pathname;
-
         const headers = new Headers(init.headers);
         const token = getAccessToken();
         if (token) {
@@ -132,19 +144,69 @@ class ApiClient {
             headers.set('Content-Type', 'application/json');
         }
 
+        return {
+            url,
+            pathname: url.pathname,
+            init: { ...init, headers, credentials: 'include' },
+        };
+    }
+
+    private async parseJsonError(response: Response): Promise<ApiClientErrorPayload> {
+        const errorData = await response.json().catch(() => ({}));
+        const code = typeof (errorData as { code?: unknown }).code === 'string'
+            ? String((errorData as { code: string }).code)
+            : typeof (errorData as { error_code?: unknown }).error_code === 'string'
+                ? String((errorData as { error_code: string }).error_code)
+                : undefined;
+        const rawMessage = this.parseErrorMessage(errorData, response.status);
+        return {
+            status: response.status,
+            code,
+            messageKey: getErrorMessageKey(code, response.status),
+            rawMessage,
+        };
+    }
+
+    private async parseBlobError(response: Response): Promise<ApiClientErrorPayload> {
+        const errorPayload = await this.parseJsonError(response);
+        if (errorPayload.rawMessage) {
+            return errorPayload;
+        }
+        return {
+            status: response.status,
+            code: 'REQUEST_FAILED',
+            messageKey: getErrorMessageKey('REQUEST_FAILED', response.status),
+            rawMessage: `Download failed: ${response.statusText || response.status}`,
+        };
+    }
+
+    private async executeRequest<T>({
+        endpoint,
+        options = {},
+        attempt = 0,
+        parseSuccess,
+        parseError = (response) => this.parseJsonError(response),
+    }: RequestExecutorOptions<T>): Promise<T> {
+        const prepared = this.buildPreparedRequest(endpoint, options);
+
         try {
-            const response = await fetch(url.toString(), { ...init, headers, credentials: 'include' });
+            const response = await fetch(prepared.url.toString(), prepared.init);
 
             if (response.status === 401) {
-                if (this.shouldAttemptSilentReauth(pathname, attempt)) {
+                if (this.shouldAttemptSilentReauth(prepared.pathname, attempt)) {
                     const refreshedToken = await silentReauthAndExchange();
                     if (refreshedToken) {
-                        return this.request<T>(endpoint, options, attempt + 1);
+                        return this.executeRequest({
+                            endpoint,
+                            options,
+                            attempt: attempt + 1,
+                            parseSuccess,
+                            parseError,
+                        });
                     }
                 }
 
-                clearAccessToken();
-                clearBootstrapSession();
+                clearAuthenticatedSession({ clearBootstrap: true });
                 throw new ApiClientError({
                     status: 401,
                     code: 'UNAUTHORIZED',
@@ -154,30 +216,27 @@ class ApiClient {
             }
 
             if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                const code = typeof (errorData as { code?: unknown }).code === 'string'
-                    ? String((errorData as { code: string }).code)
-                    : typeof (errorData as { error_code?: unknown }).error_code === 'string'
-                        ? String((errorData as { error_code: string }).error_code)
-                        : undefined;
-
-                const rawMessage = this.parseErrorMessage(errorData, response.status);
-                throw new ApiClientError({
-                    status: response.status,
-                    code,
-                    messageKey: getErrorMessageKey(code, response.status),
-                    rawMessage,
-                });
+                throw new ApiClientError(await parseError(response));
             }
 
-            if (response.status === 204) {
-                return {} as T;
-            }
-
-            return response.json();
+            return parseSuccess(response);
         } catch (error) {
             throw this.toApiClientError(error);
         }
+    }
+
+    private async request<T>(endpoint: string, options: RequestOptions = {}, attempt = 0): Promise<T> {
+        return this.executeRequest({
+            endpoint,
+            options,
+            attempt,
+            parseSuccess: async (response) => {
+                if (response.status === 204) {
+                    return {} as T;
+                }
+                return response.json();
+            },
+        });
     }
 
     get<T>(endpoint: string, options?: RequestOptions) {
@@ -216,50 +275,13 @@ class ApiClient {
      * Uses the same base URL and auth logic as other requests.
      */
     async getBlob(endpoint: string, options: RequestOptions = {}, attempt = 0): Promise<{ blob: Blob; headers: Headers }> {
-        const { params, ...init } = options;
-        const url = this.buildUrl(endpoint, params);
-        const pathname = url.pathname;
-
-        const headers = new Headers(init.headers);
-        const token = getAccessToken();
-        if (token) {
-            headers.set('Authorization', `Bearer ${token}`);
-        }
-
-        try {
-            const response = await fetch(url.toString(), { ...init, method: 'GET', headers, credentials: 'include' });
-
-            if (response.status === 401) {
-                if (this.shouldAttemptSilentReauth(pathname, attempt)) {
-                    const refreshedToken = await silentReauthAndExchange();
-                    if (refreshedToken) {
-                        return this.getBlob(endpoint, options, attempt + 1);
-                    }
-                }
-
-                clearAccessToken();
-                clearBootstrapSession();
-                throw new ApiClientError({
-                    status: 401,
-                    code: 'UNAUTHORIZED',
-                    messageKey: getErrorMessageKey('UNAUTHORIZED', 401),
-                    rawMessage: 'Unauthorized',
-                });
-            }
-
-            if (!response.ok) {
-                throw new ApiClientError({
-                    status: response.status,
-                    code: 'REQUEST_FAILED',
-                    messageKey: getErrorMessageKey('REQUEST_FAILED', response.status),
-                    rawMessage: `Download failed: ${response.statusText}`,
-                });
-            }
-
-            return { blob: await response.blob(), headers: response.headers };
-        } catch (error) {
-            throw this.toApiClientError(error);
-        }
+        return this.executeRequest({
+            endpoint,
+            options: { ...options, method: 'GET' },
+            attempt,
+            parseSuccess: async (response) => ({ blob: await response.blob(), headers: response.headers }),
+            parseError: (response) => this.parseBlobError(response),
+        });
     }
 }
 

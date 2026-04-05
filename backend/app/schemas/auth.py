@@ -51,12 +51,22 @@ class AuthSsoConfig(BaseModel):
     scopes: list[str] = Field(default_factory=lambda: ["openid", "profile", "email"])
 
 
+class DemoPersonaRead(BaseModel):
+    section: Literal["privileged", "department_heads", "employees"]
+    name: str
+    email: str
+    role_key: str
+    dept_key: str | None = None
+    color: Literal["rose", "purple", "violet", "amber", "emerald", "sky", "teal", "indigo", "pink"]
+
+
 class AuthConfigResponse(BaseModel):
     auth_mode: Literal["password", "microsoft_sso", "hybrid_dev"]
     demo_login_enabled: bool
     password_login_enabled: bool
     sso: AuthSsoConfig
     sso_error: str | None = None
+    demo_personas: list[DemoPersonaRead] = Field(default_factory=list)
 
 
 class SsoStartRequest(BaseModel):

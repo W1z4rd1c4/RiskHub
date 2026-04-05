@@ -41,7 +41,7 @@ async def _run_lockout_operation(
         return await operation()
     except Exception as exc:  # noqa: BLE001 - backend implementations can raise provider-specific runtime errors
         logger.warning("auth_lockout_backend_error", operation=operation_name, error=str(exc))
-        if settings.lockout_fail_closed_on_backend_error:
+        if settings.redis.lockout_fail_closed_on_backend_error:
             _raise_lockout_backend_unavailable()
         return fallback
 

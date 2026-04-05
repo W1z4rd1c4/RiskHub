@@ -42,6 +42,78 @@ export const mockAuthUser = {
     scope_label: 'all',
 };
 
+export const mockDemoPersonas = [
+    {
+        section: 'privileged',
+        name: 'System Admin',
+        email: 'admin@riskhub.local',
+        role_key: 'auth:login_demo.roles.administrator',
+        color: 'rose',
+    },
+    {
+        section: 'privileged',
+        name: 'Anna Kowalski',
+        email: 'cro@riskhub.local',
+        role_key: 'auth:login_demo.roles.chief_risk_officer',
+        color: 'purple',
+    },
+    {
+        section: 'privileged',
+        name: 'Petra Svobodová',
+        email: 'risk.manager@riskhub.local',
+        role_key: 'auth:login_demo.roles.risk_manager',
+        color: 'violet',
+    },
+    {
+        section: 'department_heads',
+        name: 'Eva Králová',
+        email: 'ops.head@riskhub.local',
+        role_key: 'auth:login_demo.roles.department_head',
+        dept_key: 'auth:login_demo.departments.operations',
+        color: 'amber',
+    },
+    {
+        section: 'department_heads',
+        name: 'Martin Procházka',
+        email: 'fin.head@riskhub.local',
+        role_key: 'auth:login_demo.roles.department_head',
+        dept_key: 'auth:login_demo.departments.finance',
+        color: 'emerald',
+    },
+    {
+        section: 'department_heads',
+        name: 'Tomáš Novotný',
+        email: 'it.head@riskhub.local',
+        role_key: 'auth:login_demo.roles.department_head',
+        dept_key: 'auth:login_demo.departments.it',
+        color: 'sky',
+    },
+    {
+        section: 'employees',
+        name: 'Jana Horáková',
+        email: 'ops.analyst@riskhub.local',
+        role_key: 'auth:login_demo.roles.control_owner',
+        dept_key: 'auth:login_demo.departments.operations',
+        color: 'amber',
+    },
+    {
+        section: 'employees',
+        name: 'Lukáš Dvořák',
+        email: 'fin.analyst@riskhub.local',
+        role_key: 'auth:login_demo.roles.control_owner',
+        dept_key: 'auth:login_demo.departments.finance',
+        color: 'emerald',
+    },
+    {
+        section: 'employees',
+        name: 'Barbora Němcová',
+        email: 'it.analyst@riskhub.local',
+        role_key: 'auth:login_demo.roles.control_owner',
+        dept_key: 'auth:login_demo.departments.it',
+        color: 'sky',
+    },
+] as const;
+
 let mockPreferences: { theme: 'light' | 'dark' | 'riskhub'; language: 'en' | 'cs' } = {
     theme: 'riskhub',
     language: 'en',
@@ -151,6 +223,7 @@ export const handlers = [
             auth_mode: 'hybrid_dev',
             demo_login_enabled: true,
             password_login_enabled: true,
+            demo_personas: mockDemoPersonas,
             sso: {
                 enabled: false,
                 provider: 'entra',

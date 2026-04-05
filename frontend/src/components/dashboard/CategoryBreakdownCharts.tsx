@@ -3,6 +3,7 @@
  * Uses theme-aware colors via useChartTheme hook.
  */
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import { ColorSwatch } from '@/components/ui/ColorSwatch';
 import { useTranslation } from '@/i18n/hooks';
 import { useDashboardFilters } from '../../contexts/DashboardFilterContext';
 import { useChartTheme } from '@/hooks/useChartTheme';
@@ -108,10 +109,7 @@ function MiniPieChart({ title, data, colors, onSegmentClick }: MiniPieChartProps
                         onClick={() => onSegmentClick?.(entry.key)}
                         className="flex items-center gap-1 text-[9px] font-bold text-slate-400 hover:text-white transition-colors"
                     >
-                        <div
-                            className="w-2 h-2 rounded-full"
-                            style={{ backgroundColor: colors[entry.key] || chartTheme.series.neutral }}
-                        />
+                        <ColorSwatch className="h-2 w-2" color={colors[entry.key] || chartTheme.series.neutral} />
                         {entry.name}
                     </button>
                 ))}

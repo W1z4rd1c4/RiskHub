@@ -458,7 +458,7 @@ Plans:
 Plans:
 
 - [x] 25-00: Backend Preferences Storage (User model columns, migration, API endpoints)
-- [x] 25-01: Frontend Sync Infrastructure (API client, storage utils, AuthContext sync)
+- [x] 25-01: Frontend Sync Infrastructure (API client, storage utils, session-aware preference sync)
 - [x] 25-02: Theme Context Refactoring (server sync, multi-tab sync, simplify)
 - [x] 25-03: Language Context Refactoring (server sync, i18n trigger, simplify)
 - [x] 25-04: Verification & E2E Testing (settings-isolation.spec.ts, data-testid)
@@ -1052,6 +1052,12 @@ Follow-up hardening completed on 2026-03-07:
 - transactional outbox + dispatcher for request-driven side effects
 - production smoke/runtime checks extended to validate reliability tables, singleton scheduler runtime ownership, and dead-letter-free outbox state
 
+Final closure reconciliation completed on 2026-04-05:
+
+- public `install.sh` remains stable while the installer/lifecycle control plane moved into `install_cli.py` + `install_lib/`
+- guided production install/upgrade parity restored for config scaffolding, secret scaffolding/edit flow, placeholder refusal, and non-secret runtime backups
+- public/operator deployment docs reconciled with the Python installer control plane and the explicit production `ALLOWED_HOSTS` requirement
+
 ### Phase 501: Production Readiness Hardening
 
 **Goal**: Remediate deep-scan production readiness issues across compile gates, vulnerability posture, stale code cleanup, JWT/auth internals, and CI enforcement.
@@ -1070,3 +1076,9 @@ Plans:
 - [x] 501-06: Tests/scripts quality debt cleanup
 - [x] 501-07: CI gate hardening
 - [x] 501-08: Full verification + closeout
+
+Post-closeout note (2026-04-05):
+
+- modern production CSP now omits `style-src 'unsafe-inline'`
+- repo hardening validators now gate workflow pinning, inline-style regressions, legacy header regressions, and auth/session navigation/storage regressions
+- settings/runtime follow-up completed with real section models and restored model-level strictness for `Settings`

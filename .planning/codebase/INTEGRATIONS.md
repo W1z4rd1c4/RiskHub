@@ -1,6 +1,6 @@
 # External Integrations
 
-**Analysis Date:** 2026-04-04
+**Analysis Date:** 2026-04-05
 
 ## Core External Services
 
@@ -10,8 +10,8 @@
 - Migration path via Alembic (`backend/alembic/`, `backend/alembic/env.py`)
 
 ### Redis
-- Used for production rate limiting and account lockout (`backend/app/main.py`, `backend/app/middleware/security.py`, `backend/app/services/account_lockout_service.py`)
-- Required when `DEBUG=false` (`backend/app/main.py`)
+- Used for production rate limiting and account lockout (`backend/app/bootstrap.py`, `backend/app/middleware/security.py`, `backend/app/services/account_lockout_service.py`)
+- Required when `DEBUG=false` (`backend/app/bootstrap.py`)
 
 ## Directory/Identity Integrations
 
@@ -21,7 +21,7 @@
 - Webhook signature verification via `WEBHOOK_SECRET` (required in production mode) (`backend/app/core/config.py`)
 
 ### Microsoft Entra ID (SSO)
-- Backend auth modes include Entra SSO-only production mode (`backend/app/core/config.py`, `backend/app/main.py`)
+- Backend auth modes include Entra SSO-only production mode (`backend/app/core/config.py`, `backend/app/bootstrap.py`)
 - Token verification + OIDC discovery/JWKS refresh: `backend/app/services/sso_token_service.py`
 - Exchange endpoint: `POST /api/v1/auth/sso/exchange` (`backend/app/api/v1/endpoints/auth/sso.py`)
 - Frontend client flow via MSAL: `frontend/src/services/entraAuth.ts`
@@ -29,7 +29,7 @@
 
 ### JWT Authentication
 - Backend issues HS256 JWTs (`backend/app/core/security.py`, `backend/app/api/v1/endpoints/auth/password.py`, `backend/app/api/v1/endpoints/auth/sso.py`)
-- Frontend stores token and attaches `Authorization: Bearer` (`frontend/src/contexts/AuthContext.tsx`, `frontend/src/services/apiClient.ts`)
+- Frontend session state is coordinated through `sessionManager` and `accessTokenStore`, and `apiClient` attaches `Authorization: Bearer` (`frontend/src/services/sessionManager.ts`, `frontend/src/services/accessTokenStore.ts`, `frontend/src/services/apiClient.ts`)
 
 ## Vendor Signal Integrations
 
@@ -42,12 +42,13 @@
 
 - Frontend nginx proxies `/api/` to `backend:8000` in container network (`frontend/nginx.conf`)
 - Vite dev server proxies `/api` to local backend (`frontend/vite.config.ts`)
-- Public local/demo install flow is wrapper-first through `./scripts/install.sh demo` and `./scripts/install.sh dev`, with lifecycle checks and recovery through `./scripts/install.sh status|logs|doctor --mode demo|dev`
+- Public local/demo install flow is wrapper-first through `./scripts/install.sh demo` and `./scripts/install.sh dev`; the public wrapper now delegates to `scripts/install_cli.py` and `scripts/install_lib/`, with lifecycle checks and recovery still surfaced through `./scripts/install.sh status|logs|doctor --mode demo|dev`
 - Development Docker Compose defines the local multi-service topology, healthchecks, and bootstrap flow underneath `./scripts/install.sh demo` (`docker-compose.yml`, `scripts/compose.sh`)
 - `./scripts/install.sh demo --reset test` now completes end to end on the Docker stack, using the backend `dbtasks` target for migrations and seed commands
 - Docker-origin Playwright runs still require `FRONTEND_URL=http://localhost`, and the shared login helper is origin-aware across both the Vite and Docker nginx surfaces
-- Supported production install/admin runs are wrapper-first through `./scripts/install.sh production --target docker|linux`, `./scripts/install.sh upgrade --target docker|linux`, and `./scripts/install.sh status|logs|doctor|verify --mode production --target docker|linux`, backed by `./scripts/deploy.sh --target docker|linux` and retained `scripts/prod/*` helper scripts
+- Supported production install/admin runs are wrapper-first through `./scripts/install.sh production --target docker|linux`, `./scripts/install.sh upgrade --target docker|linux`, and `./scripts/install.sh status|logs|doctor|verify --mode production --target docker|linux`, backed internally by `scripts/install_cli.py`, `scripts/install_lib/`, `./scripts/deploy.sh --target docker|linux`, and retained `scripts/prod/*` helper scripts
 - Production lifecycle metadata is stored at `/etc/riskhub/runtime/install-state.json`; `scripts/install.sh` status/logs/doctor/upgrade consume that state to report release source, managed resources, and latest successful deploy/smoke information
+- Production runtime treats `ALLOWED_HOSTS` as an explicit allowlist invariant; managed install flows render it from the configured public hostname, but runtime enforcement does not derive it from `CORS_ORIGINS` (`backend/app/bootstrap.py`, `docs/deployment/reference.md`)
 
 ## CI/Security Integrations
 
@@ -67,10 +68,10 @@
 
 ## Configuration-Sensitive Integrations
 
-- `MOCK_AUTH_ENABLED` + demo login only intended for debug/dev (`backend/app/main.py`, `backend/app/api/v1/endpoints/auth/demo.py`)
+- `MOCK_AUTH_ENABLED` + demo login only intended for debug/dev (`backend/app/bootstrap.py`, `backend/app/api/v1/endpoints/auth/demo.py`)
 - Webhook verification behavior varies by debug/production guardrails (`backend/app/api/v1/endpoints/directory.py`)
 - Scheduler execution controlled by `ENABLE_SCHEDULER=true` on exactly one process (`backend/app/core/scheduler.py`)
 
 ---
 
-*Integration audit refreshed on 2026-04-04*
+*Integration audit refreshed on 2026-04-05*

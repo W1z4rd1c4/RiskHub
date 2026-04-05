@@ -63,6 +63,9 @@ RiskHub production deploys must satisfy these invariants:
 - Keep `/docs` and `/openapi.json` disabled in production.
 - Keep the public `/api/v1/health` probe minimal; use `/api/v1/admin/health` for detailed runtime diagnostics.
 - Keep Redis enabled because rate limiting and account lockout depend on it.
+- Keep `ALLOWED_HOSTS` explicit and reviewed for the real public hostname set; do not assume CORS or runtime defaults are sufficient.
+- Keep the modern header baseline only: CSP, HSTS, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Cross-Origin-Resource-Policy`, and `Permissions-Policy`. Do not reintroduce legacy `X-XSS-Protection`.
+- Keep production CSP free of `style-src 'unsafe-inline'`.
 - Avoid broad private-network `TRUSTED_PROXIES` ranges unless you intentionally trust all peers inside those networks to supply `X-Forwarded-For`.
 - Treat any dead-letter outbox event as an operational incident until triaged.
 - After deploy, verify outbox backlog is healthy:

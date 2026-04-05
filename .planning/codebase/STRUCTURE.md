@@ -1,6 +1,6 @@
 # Repository Structure
 
-**Analysis Date:** 2026-04-04
+**Analysis Date:** 2026-04-05
 
 ## Top-Level Layout
 
@@ -19,17 +19,17 @@
 - `backend/app/db/session.py` - engine/sessionmaker lifecycle + `get_db` dependency (sessionmaker stored on `app.state`)
 
 ### Primary subdirectories
-- `backend/app/api/v1/endpoints/` - 156 Python modules/packages (measured `*.py` snapshot; extensively split into subrouters for maintainability)
+- `backend/app/api/v1/endpoints/` - 158 Python modules/packages (measured `*.py` snapshot; extensively split into subrouters for maintainability)
 - `backend/app/models/` - 26 model modules (measured `*.py` snapshot)
 - `backend/app/schemas/` - 23 schema modules (measured `*.py` snapshot)
-- `backend/app/services/` - 66 Python modules (measured `*.py` snapshot; business services + internal refactor packages; facade modules re-export public symbols)
+- `backend/app/services/` - 68 Python modules (measured `*.py` snapshot; business services + internal refactor packages; facade modules re-export public symbols)
 - `backend/app/core/` - configuration, auth, permissions, logging, scheduler
 - `backend/app/middleware/` - security/logging/language middleware
 - `backend/app/integrations/` - AD emulator and vendor-signal connectors
 - `backend/alembic/` - migration environment and versioned migrations
 - `backend/scripts/runtime/` - component-scoped backend runtime entrypoints (`dev`, `test`, `prod`)
 - `backend/scripts/runtime/db/` - backend-owned DB runtime entrypoints (`dev`, `test`, `prod`)
-- `tests/backend/pytest/` - 138 tracked test files (135 Python) (measured git-tracked snapshot)
+- `tests/backend/pytest/` - 139 tracked test files (136 Python) (measured git-tracked snapshot)
 
 ## Frontend Tree (`frontend/`)
 
@@ -48,7 +48,7 @@
 - `frontend/src/i18n/` - locale resources and typed translation hooks
 - `frontend/scripts/runtime/` - component-scoped frontend runtime entrypoints (`dev`, `test`, `prod`)
 - `tests/frontend/unit/src/test/` - MSW handlers and test utilities
-- `tests/frontend/e2e/` - 41 E2E specs (measured git-tracked `*.spec.ts` snapshot; domain-focused test suites)
+- `tests/frontend/e2e/` - 42 E2E specs (measured git-tracked `*.spec.ts` snapshot; domain-focused test suites)
 
 ## Planning and Documentation Structure
 
@@ -78,4 +78,4 @@
 
 ---
 
-*Structure audit refreshed on 2026-04-04*
+*Structure audit refreshed on 2026-04-05*

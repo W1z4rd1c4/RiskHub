@@ -1,9 +1,10 @@
 import { authApi } from '@/services/authApi';
-import { getAccessToken, setAccessToken } from '@/services/accessTokenStore';
+import { getAccessToken } from '@/services/accessTokenStore';
 import { getAuthConfig } from '@/services/authConfig';
 import { isExplicitLogoutSuppressed } from '@/services/logoutSuppression';
 import { isAuthUnavailableError } from '@/services/authRequest';
 import { clearRefreshSessionHint, hasRefreshSessionHint } from '@/services/refreshSessionHint';
+import { applyAuthenticatedSession } from '@/services/sessionManager';
 
 let refreshInFlight: Promise<string | null> | null = null;
 let lastRefreshFailureAt = 0;
@@ -37,7 +38,7 @@ export async function silentReauthAndExchange(): Promise<string | null> {
                     return null;
                 }
                 lastRefreshFailureAt = 0;
-                setAccessToken(refreshResponse.access_token);
+                applyAuthenticatedSession(refreshResponse);
                 return refreshResponse.access_token;
             }
 

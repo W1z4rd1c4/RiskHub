@@ -1,28 +1,12 @@
 import { createContext, useCallback, useContext, useState, useEffect, type ReactNode } from 'react';
-import { authApi } from '@/services/authApi';
-import { clearAccessToken, getAccessToken, setAccessToken, subscribeAccessToken } from '@/services/accessTokenStore';
-import { clearCsrfToken } from '@/services/csrfToken';
-import { getAuthConfig } from '@/services/authConfig';
-import { bootstrapAuthSession, cacheBootstrapSession, clearBootstrapSession } from '@/services/authSessionCoordinator';
-import { AuthRequestError, isAuthUnavailableError } from '@/services/authRequest';
-import { entraAuth } from '@/services/entraAuth';
-import { clearExplicitLogoutSuppressed, setExplicitLogoutSuppressed } from '@/services/logoutSuppression';
-import { clearRefreshSessionHint } from '@/services/refreshSessionHint';
-import { syncPreferencesFromServer, clearLocalSettings } from '@/utils/userSettingsStorage';
+import type { AuthUser } from '@/services/authApi';
+import { getAccessToken, subscribeAccessToken } from '@/services/accessTokenStore';
+import { hasUserPermission } from '@/contexts/auth/permissions';
+import { usePreferenceHydration } from '@/contexts/auth/usePreferenceHydration';
+import { useAuthBootstrap } from '@/contexts/auth/useAuthBootstrap';
+import { useAuthActions } from '@/contexts/auth/useAuthActions';
 
-interface User {
-    id: number;
-    email: string;
-    name: string;
-    role: string;
-    role_display_name: string;
-    department_id?: number;
-    department_name?: string;
-    permissions: string[];
-    effective_permissions: string[];
-    access_scope: 'global' | 'department' | 'manager';
-    scope_label: string;
-}
+type User = AuthUser;
 
 interface AuthContextType {
     user: User | null;
@@ -48,167 +32,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [bootstrapError, setBootstrapError] = useState<'service_unavailable' | null>(null);
     const [logoutPending, setLogoutPending] = useState(false);
     const [logoutErrorKey, setLogoutErrorKey] = useState<string | null>(null);
-    const [isPreferencesHydrated, setIsPreferencesHydrated] = useState(!token);
-
-    const updatePreferencesReadySignal = useCallback((ready: boolean) => {
-        if (typeof window !== 'undefined') {
-            window.__RISKHUB_PREFERENCES_READY__ = ready;
-        }
-        if (typeof document !== 'undefined') {
-            document.documentElement.dataset.preferencesHydrated = ready ? 'true' : 'false';
-        }
-    }, []);
-
-    const setToken = useCallback((newToken: string) => {
-        setAccessToken(newToken);
-        setTokenState(newToken);
-    }, []);
-
-    const clearToken = useCallback(() => {
-        clearAccessToken();
-        setTokenState(null);
-    }, []);
+    const {
+        isPreferencesHydrated,
+        hydratePreferences,
+        markPreferencesReady,
+    } = usePreferenceHydration(!token);
 
     useEffect(() => subscribeAccessToken(setTokenState), []);
 
-    const hydratePreferences = useCallback(async () => {
-        setIsPreferencesHydrated(false);
-        updatePreferencesReadySignal(false);
+    const { login, logout } = useAuthActions({
+        hydratePreferences,
+        markPreferencesReady,
+        setUser,
+        setBootstrapStatus,
+        setBootstrapError,
+        setLogoutPending,
+        setLogoutErrorKey,
+    });
 
-        try {
-            await syncPreferencesFromServer();
-        } catch (error) {
-            console.error(error);
-        } finally {
-            setIsPreferencesHydrated(true);
-            updatePreferencesReadySignal(true);
-        }
-    }, [updatePreferencesReadySignal]);
+    useAuthBootstrap({
+        token,
+        hydratePreferences,
+        markPreferencesReady,
+        setUser,
+        setBootstrapStatus,
+        setBootstrapError,
+        setIsLoading,
+    });
 
-    const login = async (email: string, password: string): Promise<User> => {
-        clearExplicitLogoutSuppressed();
-        setLogoutErrorKey(null);
-        try {
-            const response = await authApi.login({ email, password });
-            setToken(response.access_token);
-            cacheBootstrapSession(response.user, response.access_token);
-            setUser(response.user);
-            setBootstrapStatus('authenticated');
-            setBootstrapError(null);
-
-            // Keep settings hydration deterministic for theme/language persistence.
-            await hydratePreferences();
-
-            return response.user;
-        } catch (err) {
-            throw new Error(err instanceof Error ? err.message : 'Login failed', { cause: err });
-        }
-    };
-
-    const logout = useCallback(async () => {
-        setLogoutPending(true);
-        setLogoutErrorKey(null);
-        setExplicitLogoutSuppressed();
-
-        const authConfig = await getAuthConfig().catch(() => null);
-        const shouldUseSsoLogout = authConfig?.auth_mode === 'microsoft_sso';
-
-        try {
-            await authApi.logout();
-        } catch (error) {
-            clearExplicitLogoutSuppressed();
-            setLogoutPending(false);
-            setLogoutErrorKey(
-                error instanceof AuthRequestError && typeof error.status === 'number' && error.status >= 500
-                    ? 'errorKeys.server'
-                    : 'errorKeys.logout_failed',
-            );
-            throw error;
-        }
-
-        clearToken();
-        clearBootstrapSession();
-        clearRefreshSessionHint();
-        clearCsrfToken();
-        clearLocalSettings();
-        setUser(null);
-        setBootstrapStatus('anonymous');
-        setBootstrapError(null);
-        setIsPreferencesHydrated(true);
-        updatePreferencesReadySignal(true);
-        setLogoutPending(false);
-
-        if (shouldUseSsoLogout) {
-            try {
-                await entraAuth.logoutRedirect();
-            } catch (error) {
-                console.error(error);
-            }
-        }
-    }, [clearToken, updatePreferencesReadySignal]);
-
-    useEffect(() => {
-        let isMounted = true;
-
-        const fetchCurrentUser = async () => {
-            try {
-                const session = await bootstrapAuthSession();
-                if (!isMounted) return;
-
-                if (!session.token || !session.user) {
-                    setUser(null);
-                    setBootstrapStatus('anonymous');
-                    setBootstrapError(null);
-                    setIsPreferencesHydrated(true);
-                    updatePreferencesReadySignal(true);
-                    return;
-                }
-
-                if (session.token !== token) {
-                    setToken(session.token);
-                }
-
-                setIsPreferencesHydrated(false);
-                updatePreferencesReadySignal(false);
-                setUser(session.user);
-                await hydratePreferences();
-                if (isMounted) {
-                    setBootstrapStatus('authenticated');
-                    setBootstrapError(null);
-                }
-            } catch (error) {
-                if (isMounted) {
-                    clearBootstrapSession();
-                    clearToken();
-                    setUser(null);
-                    setBootstrapStatus(isAuthUnavailableError(error) ? 'error' : 'anonymous');
-                    setBootstrapError(isAuthUnavailableError(error) ? 'service_unavailable' : null);
-                    setIsPreferencesHydrated(true);
-                    updatePreferencesReadySignal(true);
-                }
-            } finally {
-                if (isMounted) {
-                    setIsLoading(false);
-                }
-            }
-        };
-
-        void fetchCurrentUser();
-
-        return () => {
-            isMounted = false;
-        };
-    }, [clearToken, hydratePreferences, setToken, token, updatePreferencesReadySignal]);
-
-    const hasPermission = (resource: string, action: string): boolean => {
-        // Use effective_permissions if available, fallback to permissions
-        const perms = user?.effective_permissions ?? user?.permissions ?? [];
-        return perms.some((perm) => {
-            const [permResource, permAction] = perm.split(':');
-            return (permResource === '*' || permResource === resource) &&
-                (permAction === '*' || permAction === action);
-        });
-    };
+    const hasPermission = useCallback((resource: string, action: string): boolean => {
+        return hasUserPermission(user, resource, action);
+    }, [user]);
 
     return (
         <AuthContext.Provider

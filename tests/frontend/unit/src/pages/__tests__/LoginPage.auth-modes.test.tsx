@@ -6,6 +6,7 @@ import { MemoryRouter } from 'react-router-dom';
 import userEvent from '@testing-library/user-event';
 
 import { server } from '@test/mocks/server';
+import { mockDemoPersonas } from '@test/mocks/handlers';
 import { createTestQueryClient } from '@test/queryClient';
 import LoginPage from '@/pages/LoginPage';
 import { clearAuthConfigCache } from '@/services/authConfig';
@@ -44,6 +45,7 @@ describe('LoginPage auth modes', () => {
                     auth_mode: 'microsoft_sso',
                     demo_login_enabled: false,
                     password_login_enabled: false,
+                    demo_personas: [],
                     sso: {
                         enabled: true,
                         provider: 'entra',
@@ -70,6 +72,7 @@ describe('LoginPage auth modes', () => {
                     auth_mode: 'hybrid_dev',
                     demo_login_enabled: true,
                     password_login_enabled: true,
+                    demo_personas: mockDemoPersonas,
                     sso: {
                         enabled: false,
                         provider: 'entra',
@@ -96,6 +99,7 @@ describe('LoginPage auth modes', () => {
                     auth_mode: 'hybrid_dev',
                     demo_login_enabled: true,
                     password_login_enabled: true,
+                    demo_personas: mockDemoPersonas,
                     sso: {
                         enabled: false,
                         provider: 'entra',
@@ -155,6 +159,7 @@ describe('LoginPage auth modes', () => {
                     auth_mode: 'hybrid_dev',
                     demo_login_enabled: true,
                     password_login_enabled: true,
+                    demo_personas: mockDemoPersonas,
                     sso: {
                         enabled: false,
                         provider: 'entra',
@@ -200,6 +205,7 @@ describe('LoginPage auth modes', () => {
                     auth_mode: 'hybrid_dev',
                     demo_login_enabled: true,
                     password_login_enabled: true,
+                    demo_personas: mockDemoPersonas,
                     sso: {
                         enabled: false,
                         provider: 'entra',

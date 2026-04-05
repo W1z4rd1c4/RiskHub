@@ -4,9 +4,16 @@ from pathlib import Path
 from typing import Any, Literal
 
 from pydantic import AliasChoices, Field, model_validator
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, PydanticBaseSettingsSource
 
 from app.core.client_ip import DEFAULT_TRUSTED_PROXIES
+from app.core.config_sections import (
+    AuthSettingsSection,
+    OutboundSettingsSection,
+    ProtocolGuardSettingsSection,
+    RedisSettingsSection,
+    SessionSettingsSection,
+)
 
 
 def _lookup_raw_value(data: dict[str, Any], *keys: str) -> tuple[bool, Any]:
@@ -14,6 +21,28 @@ def _lookup_raw_value(data: dict[str, Any], *keys: str) -> tuple[bool, Any]:
         if key in data:
             return True, data[key]
     return False, None
+
+
+def _normalize_alias_keys_for_settings(
+    settings_cls: type["Settings"],
+    data: dict[str, Any],
+) -> dict[str, Any]:
+    normalized = dict(data)
+    for field_name, field_info in settings_cls.model_fields.items():
+        validation_alias = field_info.validation_alias
+        if isinstance(validation_alias, AliasChoices):
+            aliases = [str(choice) for choice in validation_alias.choices]
+        elif isinstance(validation_alias, str):
+            aliases = [validation_alias]
+        else:
+            aliases = []
+
+        for alias in aliases:
+            if alias in normalized and field_name not in normalized:
+                normalized[field_name] = normalized[alias]
+            if alias != field_name:
+                normalized.pop(alias, None)
+    return normalized
 
 
 def _read_secret_value(file_env_name: str, raw_path: Any) -> str:
@@ -128,8 +157,8 @@ class Settings(BaseSettings):
     # CORS
     cors_origins: list[str] = Field(default_factory=list)
 
-    # Trusted hosts (production hardening). If not provided, allowed hosts are derived from CORS origins.
-    allowed_hosts: list[str] | None = None
+    # Trusted hosts (production hardening). Explicit allowlist is required when DEBUG=false.
+    allowed_hosts: list[str] = Field(default_factory=list)
 
     # Trusted reverse proxies (IP/CIDR) for safe client IP extraction from X-Forwarded-For.
     trusted_proxies: list[str] = Field(default_factory=lambda: list(DEFAULT_TRUSTED_PROXIES))
@@ -211,6 +240,34 @@ class Settings(BaseSettings):
 
         return resolved
 
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> tuple[PydanticBaseSettingsSource, ...]:
+        class _NormalizedAliasSource(PydanticBaseSettingsSource):
+            def __init__(self, wrapped: PydanticBaseSettingsSource):
+                super().__init__(wrapped.settings_cls)
+                self._wrapped = wrapped
+
+            def get_field_value(self, field, field_name):
+                return self._wrapped.get_field_value(field, field_name)
+
+            def __call__(self) -> dict[str, Any]:
+                data = self._wrapped()
+                return _normalize_alias_keys_for_settings(settings_cls, data)
+
+        return (
+            init_settings,
+            _NormalizedAliasSource(env_settings),
+            _NormalizedAliasSource(dotenv_settings),
+            file_secret_settings,
+        )
+
     @property
     def normalized_entra_client_secret(self) -> str | None:
         return _normalize_optional_string(self.entra_client_secret)
@@ -252,10 +309,78 @@ class Settings(BaseSettings):
             return EntraConfidentialCredential(mode="secret", client_secret=client_secret)
         return None
 
+    @property
+    def auth(self) -> AuthSettingsSection:
+        return AuthSettingsSection(
+            mode=self.auth_mode,
+            entra_tenant_id=self.entra_tenant_id,
+            entra_client_id=self.entra_client_id,
+            entra_allowed_email_domains=tuple(self.entra_allowed_email_domains),
+            jit_provisioning_enabled=self.entra_jit_provisioning_enabled,
+            allow_email_link=self.auth_sso_allow_email_link,
+            sso_challenge_ttl_seconds=self.auth_sso_challenge_ttl_seconds,
+            sso_require_challenge=self.auth_sso_require_challenge,
+            directory_provider=self.directory_provider,
+        )
+
+    @property
+    def outbound(self) -> OutboundSettingsSection:
+        return OutboundSettingsSection(
+            allow_private_destinations=self.outbound_allow_private_destinations,
+            allowed_hosts=tuple(self.outbound_allowed_hosts),
+            block_redirects=self.outbound_block_redirects,
+        )
+
+    @property
+    def session(self) -> SessionSettingsSection:
+        return SessionSettingsSection(
+            refresh_token_expire_days=self.refresh_token_expire_days,
+            refresh_cookie_name=self.refresh_cookie_name,
+            refresh_cookie_samesite=self.refresh_cookie_samesite,
+            refresh_cookie_domain=self.refresh_cookie_domain,
+        )
+
+    @property
+    def redis(self) -> RedisSettingsSection:
+        return RedisSettingsSection(
+            redis_url=self.redis_url,
+            rate_limit_fail_closed_prefixes=tuple(self.rate_limit_fail_closed_prefixes),
+            lockout_fail_closed_on_backend_error=self.lockout_fail_closed_on_backend_error,
+        )
+
+    @property
+    def protocol_guard(self) -> ProtocolGuardSettingsSection:
+        return ProtocolGuardSettingsSection(
+            enabled=self.protocol_guard_enabled,
+            block_method_override=self.protocol_guard_block_method_override,
+            sensitive_query_keys=tuple(self.protocol_guard_sensitive_query_keys),
+            json_prefixes=tuple(self.protocol_guard_json_prefixes),
+        )
+
+    @property
+    def auth_settings(self) -> AuthSettingsSection:
+        return self.auth
+
+    @property
+    def outbound_settings(self) -> OutboundSettingsSection:
+        return self.outbound
+
+    @property
+    def session_settings(self) -> SessionSettingsSection:
+        return self.session
+
+    @property
+    def redis_settings(self) -> RedisSettingsSection:
+        return self.redis
+
+    @property
+    def protocol_guard_settings(self) -> ProtocolGuardSettingsSection:
+        return self.protocol_guard
+
     model_config = {
         "env_file": ".env",
         "populate_by_name": True,
-        "extra": "ignore"
+        "extra": "forbid",
     }
 
 

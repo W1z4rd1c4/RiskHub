@@ -1,6 +1,6 @@
 # Deployment Reference
 
-> **Last Updated**: 2026-04-04
+> **Last Updated**: 2026-04-05
 > **Audience**: Operators and maintainers
 
 ## Operator Config
@@ -14,6 +14,7 @@ Non-secret path:
 Required keys:
 
 - `PUBLIC_URL`
+- `ALLOWED_HOSTS`
 - `ENTRA_TENANT_ID`
 - `ENTRA_CLIENT_ID`
 - `BOOTSTRAP_ADMIN_EMAIL`
@@ -23,6 +24,7 @@ Optional keys:
 
 - `API_WORKERS` default `4`
 - `FRONTEND_BIND_PORT` default `80`
+- `CORS_ORIGINS` when you need an explicit override instead of the managed same-origin default
 - `ENTRA_CLIENT_CERTIFICATE_THUMBPRINT` when using certificate credential mode
 - `DOCKER_NETWORK_SUBNET` default `172.31.255.0/24` for managed docker installs
 - `TRUSTED_PROXIES` JSON array override when you need explicit proxy CIDRs beyond the target defaults
@@ -51,12 +53,11 @@ Production requires one supported Entra Graph credential mechanism:
 
 If both are configured, certificate mode is preferred and becomes the active runtime mode.
 
-## Derived Internally
+## Managed / Installer-Rendered Values
 
-These are rendered by the deploy tooling and are not operator-edited:
+These are rendered by the managed deploy tooling and are not operator-edited in the common guided-install path:
 
 - `CORS_ORIGINS`
-- `ALLOWED_HOSTS`
 - `TRUSTED_PROXIES`
 - `SERVER_NAME`
 - `REDIS_URL`
@@ -69,6 +70,10 @@ These are rendered by the deploy tooling and are not operator-edited:
 - scheduler singleton settings
 - shell-safe `metadata.env` for internal deploy/runtime metadata
 - target-specific nginx/systemd/docker runtime files
+
+Production runtime note:
+
+- `ALLOWED_HOSTS` is a required production setting. Managed `docker`/`linux` install flows derive and render it from the configured public hostname, but manual operators must treat it as an explicit allowlist requirement rather than assuming it is optional or inferred from CORS settings.
 
 Target-specific Redis URLs:
 
@@ -103,6 +108,7 @@ Recommended public production commands:
 
 Wrapper notes:
 
+- `./scripts/install.sh` remains the public operator surface, but it is now backed internally by `scripts/install_cli.py` and `scripts/install_lib/`.
 - `./scripts/install.sh production ...` initializes missing config scaffolding, prompts for required non-secret values, reuses `./scripts/deploy.sh secrets-edit ...` for secret capture, refuses unresolved placeholders, then runs `preflight`, `deploy`, `status`, and `smoke`.
 - If `./scripts/install.sh production ...` detects an existing install, it allows the rerun and uses the upgrade lifecycle underneath rather than failing on an existing deployment.
 - `./scripts/install.sh upgrade ...` creates a timestamped non-secret backup under the runtime directory, then runs `preflight`, `upgrade`, `status`, and `smoke`.

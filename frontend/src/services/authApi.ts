@@ -20,6 +20,15 @@ export interface DemoLoginRequest {
     email: string;
 }
 
+export interface DemoPersona {
+    section: 'privileged' | 'department_heads' | 'employees';
+    name: string;
+    email: string;
+    role_key: string;
+    dept_key?: string | null;
+    color: 'rose' | 'purple' | 'violet' | 'amber' | 'emerald' | 'sky' | 'teal' | 'indigo' | 'pink';
+}
+
 export interface AuthConfigResponse {
     auth_mode: AuthMode;
     demo_login_enabled: boolean;
@@ -33,6 +42,7 @@ export interface AuthConfigResponse {
         scopes: string[];
     };
     sso_error?: string | null;
+    demo_personas?: DemoPersona[];
 }
 
 export interface TokenResponse {
@@ -54,13 +64,46 @@ export interface TokenResponse {
     };
 }
 
-async function parseAuthError(response: Response, fallbackMessage: string): Promise<{ detail: string; code?: string }> {
+export type AuthUser = TokenResponse['user'];
+
+interface ParsedAuthError {
+    detail: string;
+    code?: string;
+}
+
+async function parseAuthError(response: Response, fallbackMessage: string): Promise<ParsedAuthError> {
     const error = await response.json().catch(() => ({}));
     const detail = (error as { detail?: string }).detail || fallbackMessage;
     const code = typeof (error as { code?: unknown }).code === 'string'
         ? String((error as { code: string }).code)
         : undefined;
     return { detail, code };
+}
+
+function buildAuthRequestError(response: Response, detail: string): AuthRequestError {
+    return new AuthRequestError({
+        code: response.status >= 500 ? 'AUTH_SERVICE_UNAVAILABLE' : 'AUTH_REQUEST_FAILED',
+        message: detail,
+        rawMessage: detail,
+        status: response.status,
+    });
+}
+
+async function requestAuthJson<T>(path: string, init: RequestInit, fallbackMessage: string): Promise<T> {
+    const response = await fetchAuthResponse(`${API_URL}${path}`, init);
+    if (!response.ok) {
+        const { detail } = await parseAuthError(response, fallbackMessage);
+        throw buildAuthRequestError(response, detail);
+    }
+    return response.json();
+}
+
+async function requestAuthVoid(path: string, init: RequestInit, fallbackMessage: string): Promise<void> {
+    const response = await fetchAuthResponse(`${API_URL}${path}`, init);
+    if (!response.ok) {
+        const { detail } = await parseAuthError(response, fallbackMessage);
+        throw buildAuthRequestError(response, detail);
+    }
 }
 
 export const authApi = {
@@ -72,8 +115,7 @@ export const authApi = {
         });
 
         if (!response.ok) {
-            const error = await response.json().catch(() => ({}));
-            const detail = (error as { detail?: string }).detail || 'Failed to get auth config';
+            const { detail } = await parseAuthError(response, 'Failed to get auth config');
             throw new AuthRequestError({
                 code: response.status >= 500 ? 'AUTH_SERVICE_UNAVAILABLE' : 'AUTH_CONFIG_LOAD_FAILED',
                 message: detail,
@@ -86,108 +128,46 @@ export const authApi = {
     },
 
     async login(credentials: LoginRequest): Promise<TokenResponse> {
-        const response = await fetchAuthResponse(`${API_URL}/login`, {
+        return requestAuthJson<TokenResponse>('/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(credentials),
             credentials: 'include',
-        });
-
-        if (!response.ok) {
-            const error = await response.json().catch(() => ({}));
-            const detail = (error as { detail?: string }).detail || 'Login failed';
-            throw new AuthRequestError({
-                code: response.status >= 500 ? 'AUTH_SERVICE_UNAVAILABLE' : 'AUTH_REQUEST_FAILED',
-                message: detail,
-                rawMessage: detail,
-                status: response.status,
-            });
-        }
-
-        return response.json();
+        }, 'Login failed');
     },
 
     async demoLogin(email: string): Promise<TokenResponse> {
-        const response = await fetchAuthResponse(`${API_URL}/demo-login`, {
+        return requestAuthJson<TokenResponse>('/demo-login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email } satisfies DemoLoginRequest),
             credentials: 'include',
-        });
-
-        if (!response.ok) {
-            const error = await response.json().catch(() => ({}));
-            const detail = (error as { detail?: string }).detail || 'Demo login failed';
-            throw new AuthRequestError({
-                code: response.status >= 500 ? 'AUTH_SERVICE_UNAVAILABLE' : 'AUTH_REQUEST_FAILED',
-                message: detail,
-                rawMessage: detail,
-                status: response.status,
-            });
-        }
-
-        return response.json();
+        }, 'Demo login failed');
     },
 
     async ssoStart(returnTo?: string): Promise<{ nonce: string; state: string; expires_in: number }> {
-        const response = await fetchAuthResponse(`${API_URL}/sso/start`, {
+        return requestAuthJson<{ nonce: string; state: string; expires_in: number }>('/sso/start', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ return_to: returnTo ?? '/' }),
             credentials: 'include',
-        });
-
-        if (!response.ok) {
-            const detail = (await response.json().catch(() => ({})) as { detail?: string }).detail || 'SSO start failed';
-            throw new AuthRequestError({
-                code: response.status >= 500 ? 'AUTH_SERVICE_UNAVAILABLE' : 'AUTH_REQUEST_FAILED',
-                message: detail,
-                rawMessage: detail,
-                status: response.status,
-            });
-        }
-
-        return response.json();
+        }, 'SSO start failed');
     },
 
     async ssoExchange(idToken: string, state?: string | null): Promise<TokenResponse> {
-        const response = await fetchAuthResponse(`${API_URL}/sso/exchange`, {
+        return requestAuthJson<TokenResponse>('/sso/exchange', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(state ? { id_token: idToken, state } : { id_token: idToken }),
             credentials: 'include',
-        });
-
-        if (!response.ok) {
-            const error = await response.json().catch(() => ({}));
-            const detail = typeof (error as { detail?: unknown }).detail === 'string' ? String((error as { detail: string }).detail) : 'SSO exchange failed';
-            throw new AuthRequestError({
-                code: response.status >= 500 ? 'AUTH_SERVICE_UNAVAILABLE' : 'AUTH_REQUEST_FAILED',
-                message: detail,
-                rawMessage: detail,
-                status: response.status,
-            });
-        }
-
-        return response.json();
+        }, 'SSO exchange failed');
     },
 
     async getCurrentUser(token: string): Promise<TokenResponse['user']> {
-        const response = await fetchAuthResponse(`${API_URL}/me`, {
+        return requestAuthJson<TokenResponse['user']>('/me', {
             headers: { 'Authorization': `Bearer ${token}` },
             credentials: 'include',
-        });
-
-        if (!response.ok) {
-            throw new AuthRequestError({
-                code: response.status >= 500 ? 'AUTH_SERVICE_UNAVAILABLE' : 'AUTH_REQUEST_FAILED',
-                message: 'Failed to get current user',
-                rawMessage: 'Failed to get current user',
-                status: response.status,
-            });
-        }
-
-        return response.json();
+        }, 'Failed to get current user');
     },
 
     async refresh(): Promise<TokenResponse> {
@@ -210,17 +190,12 @@ export const authApi = {
             });
 
             if (!response.ok) {
-                const { detail, code } = await parseAuthError(response, 'Refresh failed');
-                if (allowCsrfRetry && response.status === 403 && code === 'csrf_validation_failed') {
+                const parsedError = await parseAuthError(response, 'Refresh failed');
+                if (allowCsrfRetry && response.status === 403 && parsedError.code === 'csrf_validation_failed') {
                     await this.ensureCsrf();
                     return performRefresh(false);
                 }
-                throw new AuthRequestError({
-                    code: response.status >= 500 ? 'AUTH_SERVICE_UNAVAILABLE' : 'AUTH_REQUEST_FAILED',
-                    message: detail,
-                    rawMessage: detail,
-                    status: response.status,
-                });
+                throw buildAuthRequestError(response, parsedError.detail);
             }
 
             return response.json();
@@ -230,20 +205,10 @@ export const authApi = {
     },
 
     async ensureCsrf(): Promise<void> {
-        const response = await fetchAuthResponse(`${API_URL}/csrf`, {
+        await requestAuthVoid('/csrf', {
             method: 'GET',
             credentials: 'include',
-        });
-
-        if (!response.ok) {
-            const { detail } = await parseAuthError(response, 'Failed to initialize CSRF protection');
-            throw new AuthRequestError({
-                code: response.status >= 500 ? 'AUTH_SERVICE_UNAVAILABLE' : 'AUTH_REQUEST_FAILED',
-                message: detail,
-                rawMessage: detail,
-                status: response.status,
-            });
-        }
+        }, 'Failed to initialize CSRF protection');
 
         if (!getCsrfToken()) {
             throw new AuthRequestError({
@@ -257,22 +222,11 @@ export const authApi = {
 
     async logoutAll(): Promise<void> {
         const accessToken = getAccessToken();
-        const response = await fetchAuthResponse(`${API_URL}/logout-all`, {
+        await requestAuthVoid('/logout-all', {
             method: 'POST',
             headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
             credentials: 'include',
-        });
-
-        if (!response.ok) {
-            const error = await response.json().catch(() => ({}));
-            const detail = (error as { detail?: string }).detail || 'Logout all failed';
-            throw new AuthRequestError({
-                code: response.status >= 500 ? 'AUTH_SERVICE_UNAVAILABLE' : 'AUTH_REQUEST_FAILED',
-                message: detail,
-                rawMessage: detail,
-                status: response.status,
-            });
-        }
+        }, 'Logout all failed');
         clearAccessToken();
         clearRefreshSessionHint();
         clearCsrfToken();
@@ -294,20 +248,10 @@ export const authApi = {
             headers.set('X-CSRF-Token', csrfToken);
         }
 
-        const response = await fetchAuthResponse(`${API_URL}/logout`, {
+        await requestAuthVoid('/logout', {
             method: 'POST',
             headers,
             credentials: 'include',
-        });
-
-        if (!response.ok) {
-            const { detail } = await parseAuthError(response, 'Logout failed');
-            throw new AuthRequestError({
-                code: response.status >= 500 ? 'AUTH_SERVICE_UNAVAILABLE' : 'AUTH_REQUEST_FAILED',
-                message: detail,
-                rawMessage: detail,
-                status: response.status,
-            });
-        }
+        }, 'Logout failed');
     },
 };

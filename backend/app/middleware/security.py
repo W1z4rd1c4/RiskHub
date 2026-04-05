@@ -5,11 +5,13 @@ This middleware implements:
 1. Security headers (CSP, HSTS, X-Frame-Options, etc.)
 2. Rate limiting for sensitive endpoints
 """
+import math
 import time
 import uuid
 from dataclasses import dataclass, field
 from typing import Dict, Tuple
 
+from redis.exceptions import RedisError
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
@@ -38,7 +40,6 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     Headers added:
     - X-Frame-Options: Prevents clickjacking
     - X-Content-Type-Options: Prevents MIME type sniffing
-    - X-XSS-Protection: Legacy XSS filter
     - Strict-Transport-Security: Forces HTTPS
     - Referrer-Policy: Controls referrer information
     - Content-Security-Policy: Restricts resource loading
@@ -60,7 +61,6 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         # Security headers for all responses
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["X-XSS-Protection"] = "1; mode=block"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
         response.headers["Permissions-Policy"] = (
@@ -94,7 +94,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             csp_directives = [
                 "default-src 'self'",
                 "script-src 'self'",
-                "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+                "style-src 'self' https://fonts.googleapis.com",
                 "font-src 'self' https://fonts.gstatic.com",
                 "img-src 'self' data: https: blob:",
                 "connect-src 'self'",  # Only same-origin API calls
@@ -195,7 +195,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
     def _is_fail_closed_path(self, *, request: Request, path: str) -> bool:
         settings = getattr(request.app.state, "settings", self._default_settings)
-        prefixes = getattr(settings, "rate_limit_fail_closed_prefixes", ()) or ()
+        prefixes = settings.redis.rate_limit_fail_closed_prefixes
         for prefix in prefixes:
             if isinstance(prefix, str) and prefix and path.startswith(prefix):
                 return True
@@ -270,8 +270,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                         headers={"Retry-After": str(retry_after)},
                     )
                 return await call_next(request)
-            except Exception as e:
-                logger.warning("rate_limit_redis_error", client_ip=client_ip, path=path, error=str(e))
+            except (RedisError, TimeoutError, OSError, RuntimeError) as exc:
+                logger.warning("rate_limit_redis_error", client_ip=client_ip, path=path, error=str(exc))
                 if self._is_fail_closed_path(request=request, path=path):
                     return JSONResponse(
                         status_code=503,
@@ -322,9 +322,12 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         state = self.state[key]
         state.last_seen = now  # Update for TTL tracking
 
+        # Keep the in-memory window aligned with Redis semantics.
+        self._clean_old_requests(state, window, now)
+
         # Check if currently blocked
         if state.blocked_until > now:
-            retry_after = int(state.blocked_until - now)
+            retry_after = max(0, math.ceil(state.blocked_until - now))
             logger.warning(
                 "rate_limit_blocked",
                 client_ip=client_ip,
@@ -340,12 +343,10 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 headers={"Retry-After": str(retry_after)}
             )
 
-        # Clean old requests and check limit
-        self._clean_old_requests(state, window, now)
-
         if len(state.requests) >= max_requests:
-            # Block for remaining window time
-            state.blocked_until = now + window
+            oldest_request = min(state.requests)
+            state.blocked_until = oldest_request + window
+            retry_after = max(0, math.ceil(state.blocked_until - now))
             logger.warning(
                 "rate_limit_exceeded",
                 client_ip=client_ip,
@@ -357,9 +358,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 status_code=429,
                 content={
                     "detail": "Too many requests. Please try again later.",
-                    "retry_after": window
+                    "retry_after": retry_after
                 },
-                headers={"Retry-After": str(window)}
+                headers={"Retry-After": str(retry_after)}
             )
 
         # Record this request

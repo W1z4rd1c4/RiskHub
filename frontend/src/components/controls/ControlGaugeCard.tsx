@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import type { RiskControlLink } from '@/types/risk';
+import { MetricGaugeSvg } from '@/components/ui/MetricGaugeSvg';
 import { useTranslation } from '@/i18n/hooks';
 import { getControlMonitoringMeta } from '@/lib/monitoringStatus';
 
@@ -28,6 +29,7 @@ export function ControlGaugeCard({ link, onClick }: ControlGaugeCardProps) {
     };
 
     const valuePct = calculatePercent(riskLevel);
+    const gaugeToneClass = monitoring.gaugeClassName.split(' ')[0].replace(/^bg-/, 'text-');
 
     return (
         <motion.div
@@ -67,24 +69,11 @@ export function ControlGaugeCard({ link, onClick }: ControlGaugeCardProps) {
                 </div>
 
                 {/* Gauge Visualization */}
-                <div className="relative h-8 flex items-center">
-                    {/* Background track */}
-                    <div className="absolute inset-x-0 h-2 bg-white/5 rounded-full overflow-hidden" />
-
-                    {/* Progress track (styled like KRI gauge) */}
-                    <div
-                        className={`absolute h-2 rounded-full opacity-20 ${monitoring.gaugeClassName.split(' ')[0]}`}
-                        style={{ left: '0%', width: `${valuePct}%` }}
-                    />
-
-                    {/* Current Value Pointer */}
-                    <motion.div
-                        initial={{ left: 0 }}
-                        animate={{ left: `${valuePct}%` }}
-                        transition={{ type: "spring", stiffness: 100 }}
-                        className={`absolute w-3 h-3 rounded-full border-2 border-slate-900 z-10 -ml-1.5 ${monitoring.gaugeClassName}`}
-                    />
-                </div>
+                <MetricGaugeSvg
+                    valuePct={valuePct}
+                    pointerClassName={`${gaugeToneClass} fill-current`}
+                    zones={[{ startPct: 0, endPct: valuePct, className: `${gaugeToneClass}/20` }]}
+                />
 
                 <div className="flex justify-between text-[10px] font-bold uppercase tracking-tighter text-slate-400">
                     <span>{t('detail.level_min', { ns: 'controls' })}</span>

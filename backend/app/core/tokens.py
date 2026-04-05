@@ -25,7 +25,7 @@ def new_token_jti() -> str:
 
 
 def refresh_token_lifetime(settings: Settings) -> timedelta:
-    return timedelta(days=max(int(settings.refresh_token_expire_days), 1))
+    return timedelta(days=max(int(settings.session.refresh_token_expire_days), 1))
 
 
 def create_refresh_token(
@@ -53,7 +53,7 @@ def decode_refresh_token(token: str, settings: Settings) -> dict[str, Any]:
 
 
 def get_refresh_cookie_name(settings: Settings) -> str:
-    return settings.refresh_cookie_name or "riskhub_refresh_token"
+    return settings.session.refresh_cookie_name or "riskhub_refresh_token"
 
 
 def get_refresh_session_hint_cookie_name() -> str:
@@ -73,6 +73,7 @@ def new_csrf_token() -> str:
 
 
 def set_refresh_session_hint_cookie(response: Response, settings: Settings, *, max_age: int | None = None) -> None:
+    session_settings = settings.session
     cookie_max_age = max_age if max_age is not None else int(refresh_token_lifetime(settings).total_seconds())
     response.set_cookie(
         key=get_refresh_session_hint_cookie_name(),
@@ -80,8 +81,8 @@ def set_refresh_session_hint_cookie(response: Response, settings: Settings, *, m
         max_age=cookie_max_age,
         httponly=False,
         secure=not settings.debug,
-        samesite=settings.refresh_cookie_samesite,
-        domain=settings.refresh_cookie_domain,
+        samesite=session_settings.refresh_cookie_samesite,
+        domain=session_settings.refresh_cookie_domain,
         path="/",
     )
 
@@ -93,6 +94,7 @@ def set_csrf_cookie(
     *,
     max_age: int | None = None,
 ) -> str:
+    session_settings = settings.session
     csrf_token = token or new_csrf_token()
     cookie_max_age = max_age if max_age is not None else int(refresh_token_lifetime(settings).total_seconds())
     response.set_cookie(
@@ -101,14 +103,15 @@ def set_csrf_cookie(
         max_age=cookie_max_age,
         httponly=False,
         secure=not settings.debug,
-        samesite=settings.refresh_cookie_samesite,
-        domain=settings.refresh_cookie_domain,
+        samesite=session_settings.refresh_cookie_samesite,
+        domain=session_settings.refresh_cookie_domain,
         path="/",
     )
     return csrf_token
 
 
 def set_refresh_cookie(response: Response, token: str, settings: Settings, *, max_age: int | None = None) -> None:
+    session_settings = settings.session
     cookie_max_age = max_age if max_age is not None else int(refresh_token_lifetime(settings).total_seconds())
     response.set_cookie(
         key=get_refresh_cookie_name(settings),
@@ -116,52 +119,56 @@ def set_refresh_cookie(response: Response, token: str, settings: Settings, *, ma
         max_age=cookie_max_age,
         httponly=True,
         secure=not settings.debug,
-        samesite=settings.refresh_cookie_samesite,
-        domain=settings.refresh_cookie_domain,
+        samesite=session_settings.refresh_cookie_samesite,
+        domain=session_settings.refresh_cookie_domain,
         path="/api/v1/auth",
     )
     set_refresh_session_hint_cookie(response, settings, max_age=cookie_max_age)
 
 
 def set_sso_challenge_cookie(response: Response, challenge_id: str, settings: Settings, *, max_age: int) -> None:
+    session_settings = settings.session
     response.set_cookie(
         key=get_sso_challenge_cookie_name(),
         value=challenge_id,
         max_age=max_age,
         httponly=True,
         secure=not settings.debug,
-        samesite=settings.refresh_cookie_samesite,
-        domain=settings.refresh_cookie_domain,
+        samesite=session_settings.refresh_cookie_samesite,
+        domain=session_settings.refresh_cookie_domain,
         path="/api/v1/auth",
     )
 
 
 def clear_csrf_cookie(response: Response, settings: Settings) -> None:
+    session_settings = settings.session
     response.delete_cookie(
         key=get_csrf_cookie_name(),
-        domain=settings.refresh_cookie_domain,
+        domain=session_settings.refresh_cookie_domain,
         path="/",
     )
 
 
 def clear_refresh_cookie(response: Response, settings: Settings) -> None:
+    session_settings = settings.session
     response.delete_cookie(
         key=get_refresh_cookie_name(settings),
-        domain=settings.refresh_cookie_domain,
+        domain=session_settings.refresh_cookie_domain,
         path="/api/v1/auth",
     )
     response.delete_cookie(
         key=get_refresh_session_hint_cookie_name(),
-        domain=settings.refresh_cookie_domain,
+        domain=session_settings.refresh_cookie_domain,
         path="/",
     )
     clear_csrf_cookie(response, settings)
 
 
 def clear_sso_challenge_cookie(response: Response, settings: Settings) -> None:
+    session_settings = settings.session
     response.delete_cookie(
         key=get_sso_challenge_cookie_name(),
-        domain=settings.refresh_cookie_domain,
+        domain=session_settings.refresh_cookie_domain,
         path="/api/v1/auth",
     )
 

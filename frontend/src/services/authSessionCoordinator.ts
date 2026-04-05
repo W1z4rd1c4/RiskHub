@@ -1,5 +1,11 @@
 import { authApi } from '@/services/authApi';
 import { getAccessToken } from '@/services/accessTokenStore';
+import {
+    __resetBootstrapSessionCacheForTests,
+    clearBootstrapSession,
+    getBootstrapSession,
+    type BootstrapSession,
+} from '@/services/bootstrapSessionCache';
 import { isExplicitLogoutSuppressed } from '@/services/logoutSuppression';
 import { isAuthUnavailableError } from '@/services/authRequest';
 import { hasRefreshSessionHint } from '@/services/refreshSessionHint';
@@ -7,32 +13,7 @@ import { silentReauthAndExchange } from '@/services/ssoSession';
 
 type CurrentUser = Awaited<ReturnType<typeof authApi.getCurrentUser>>;
 
-const BOOTSTRAP_CACHE_TTL_MS = 5_000;
-
 let bootstrapPromise: Promise<{ token: string | null; user: CurrentUser | null }> | null = null;
-let cachedBootstrap: { token: string; user: CurrentUser; expiresAt: number } | null = null;
-
-function getCachedBootstrap(token: string): { token: string; user: CurrentUser } | null {
-    if (!cachedBootstrap) return null;
-    if (cachedBootstrap.token !== token) return null;
-    if (cachedBootstrap.expiresAt <= Date.now()) {
-        cachedBootstrap = null;
-        return null;
-    }
-    return cachedBootstrap;
-}
-
-export function cacheBootstrapSession(user: CurrentUser, token: string): void {
-    cachedBootstrap = {
-        token,
-        user,
-        expiresAt: Date.now() + BOOTSTRAP_CACHE_TTL_MS,
-    };
-}
-
-export function clearBootstrapSession(): void {
-    cachedBootstrap = null;
-}
 
 export async function bootstrapAuthSession(): Promise<{ token: string | null; user: CurrentUser | null }> {
     if (!bootstrapPromise) {
@@ -59,7 +40,7 @@ export async function bootstrapAuthSession(): Promise<{ token: string | null; us
                 return { token: null, user: null };
             }
 
-            const cached = getCachedBootstrap(token);
+            const cached = getBootstrapSession(token);
             if (cached) {
                 if (isExplicitLogoutSuppressed()) {
                     clearBootstrapSession();
@@ -74,7 +55,6 @@ export async function bootstrapAuthSession(): Promise<{ token: string | null; us
                     clearBootstrapSession();
                     return { token: null, user: null };
                 }
-                cacheBootstrapSession(user, token);
                 return { token, user };
             } catch (error) {
                 if (usedRefresh || isAuthUnavailableError(error)) {
@@ -94,7 +74,6 @@ export async function bootstrapAuthSession(): Promise<{ token: string | null; us
                 clearBootstrapSession();
                 return { token: null, user: null };
             }
-            cacheBootstrapSession(user, refreshedToken);
             return { token: refreshedToken, user };
         })().finally(() => {
             bootstrapPromise = null;
@@ -106,5 +85,8 @@ export async function bootstrapAuthSession(): Promise<{ token: string | null; us
 
 export function __resetAuthSessionCoordinatorForTests(): void {
     bootstrapPromise = null;
-    cachedBootstrap = null;
+    __resetBootstrapSessionCacheForTests();
 }
+
+export { clearBootstrapSession };
+export type { BootstrapSession };

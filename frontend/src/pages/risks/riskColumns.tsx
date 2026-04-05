@@ -1,6 +1,7 @@
 import type { MouseEvent } from 'react';
 import { AlertCircle, ChevronRight, Lock, Star } from 'lucide-react';
 
+import { RiskTypeBadge } from '@/components/ui/RiskTypeBadge';
 import type { Column } from '@/components/tables/SortableTable';
 import type { RiskStatus, RiskSummary } from '@/types/risk';
 
@@ -16,15 +17,6 @@ type BuildRiskColumnsParams = {
     hasPermission: (resource: string, action: string) => boolean;
     handleRestoreRisk: (riskId: number, event: MouseEvent) => void | Promise<void>;
 };
-
-function hexToRgba(hex: string, alpha: number): string {
-    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-    if (!result) return `rgba(100, 116, 139, ${alpha})`;
-    const r = parseInt(result[1], 16);
-    const g = parseInt(result[2], 16);
-    const b = parseInt(result[3], 16);
-    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
 
 export function getRiskStatusColor(status: RiskStatus): string {
     switch (status) {
@@ -108,17 +100,12 @@ export function buildRiskColumns({
                 const typeColor = getColor(risk.risk_type);
                 return (
                     <div className="flex justify-center">
-                        <span
-                            className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase"
-                            style={{
-                                color: typeColor,
-                                backgroundColor: hexToRgba(typeColor, 0.12),
-                                borderColor: hexToRgba(typeColor, 0.24),
-                            }}
+                        <RiskTypeBadge
+                            label={getInitials(risk.risk_type)}
+                            color={typeColor}
                             title={getDisplayName(risk.risk_type)}
-                        >
-                            {getInitials(risk.risk_type)}
-                        </span>
+                            className="rounded-md px-2 py-0.5"
+                        />
                     </div>
                 );
             },

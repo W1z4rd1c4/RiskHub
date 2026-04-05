@@ -47,7 +47,7 @@ or
 ./scripts/install.sh production --target linux --bundle ./riskhub-linux-v1.2.3.tar.gz
 ```
 
-The guided installer initializes config if needed, prompts for the required non-secret values, reuses `./scripts/deploy.sh secrets-edit ...` for secret capture, then runs `preflight`, `deploy`, `status`, and `smoke`.
+The guided installer initializes config if needed, prompts for the required non-secret values, reuses `./scripts/deploy.sh secrets-edit ...` for secret capture, refuses unresolved placeholders, then runs `preflight`, `deploy`, `status`, and `smoke`. `./scripts/install.sh` remains the supported operator surface even though the lifecycle control plane now runs through `scripts/install_cli.py` and `scripts/install_lib/`.
 
 Advanced/manual config scaffolding remains available:
 
@@ -70,7 +70,7 @@ or
 ./scripts/deploy.sh secrets-edit --target linux --secret-dir /etc/riskhub/secrets
 ```
 
-`ENTRA_TENANT_ID` and `ENTRA_CLIENT_ID` stay in the non-secret config. Database credentials, `SECRET_KEY`, and the Redis password live in `/etc/riskhub/secrets/`. `init` scaffolds both optional Entra secret files so the secret directory layout is ready for either confidential-credential mode. For Entra Graph credentials, production supports either `ENTRA_CLIENT_SECRET_FILE` or the preferred certificate mode: `ENTRA_CLIENT_CERTIFICATE_THUMBPRINT` in `riskhub.env` plus the PEM private key at `/etc/riskhub/secrets/entra_client_certificate_private_key`. `secrets-edit` keeps its temporary edit buffer on the same host-managed deployment path as the secret directory, not under `/tmp`, and remains line-based, so certificate PEM material should be managed directly in the dedicated secret file rather than pasted into `secrets-edit`. The unused optional Entra file may remain on its scaffold placeholder; preflight validates only the credential mode selected by `riskhub.env` and warns when production still uses client-secret mode.
+`ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`, and the production `ALLOWED_HOSTS` allowlist stay in the non-secret config. Database credentials, `SECRET_KEY`, and the Redis password live in `/etc/riskhub/secrets/`. `init` scaffolds both optional Entra secret files so the secret directory layout is ready for either confidential-credential mode. For Entra Graph credentials, production supports either `ENTRA_CLIENT_SECRET_FILE` or the preferred certificate mode: `ENTRA_CLIENT_CERTIFICATE_THUMBPRINT` in `riskhub.env` plus the PEM private key at `/etc/riskhub/secrets/entra_client_certificate_private_key`. `secrets-edit` keeps its temporary edit buffer on the same host-managed deployment path as the secret directory, not under `/tmp`, and remains line-based, so certificate PEM material should be managed directly in the dedicated secret file rather than pasted into `secrets-edit`. The unused optional Entra file may remain on its scaffold placeholder; preflight validates only the credential mode selected by `riskhub.env` and warns when production still uses client-secret mode.
 
 Rendered production runtime config is intentionally opinionated:
 
@@ -91,7 +91,7 @@ Bootstrap users are now pre-linked to Entra before first login. The bootstrap sc
 ./scripts/deploy.sh preflight --target linux --config /etc/riskhub/riskhub.env --secret-dir /etc/riskhub/secrets
 ```
 
-Preflight validates the config, target prerequisites, secret directory permissions, placeholder-secret removal for required secrets, the active Entra confidential credential mode, Graph-only production invariants, and the frontend bind port.
+Preflight validates the config, target prerequisites, explicit production `ALLOWED_HOSTS`, secret directory permissions, placeholder-secret removal for required secrets, the active Entra confidential credential mode, Graph-only production invariants, and the frontend bind port.
 
 ## 4. Deploy
 
