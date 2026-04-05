@@ -5,16 +5,21 @@ ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 RUN_ID="${RUN_ID:-$(date -u +%Y%m%dT%H%M%SZ)}"
 ARTIFACT_ROOT="${ARTIFACT_ROOT:-$ROOT_DIR/tests/results/security/public-leak-audit-$RUN_ID}"
 GITLEAKS_IMAGE="${GITLEAKS_IMAGE:-zricethezav/gitleaks:v8.18.2}"
+mkdir -p "$ROOT_DIR/tests/results/security"
+TMP_ARTIFACT_ROOT="$(mktemp -d "$ROOT_DIR/tests/results/security/.tmp-public-leak-audit-$RUN_ID.XXXXXX")"
 
 CURRENT_TREE_REPORT="$ARTIFACT_ROOT/current-tree-gitleaks.json"
 HISTORY_REPORT="$ARTIFACT_ROOT/history-gitleaks.json"
+CURRENT_TREE_TMP_REPORT="$TMP_ARTIFACT_ROOT/current-tree-gitleaks.json"
+HISTORY_TMP_REPORT="$TMP_ARTIFACT_ROOT/history-gitleaks.json"
 TRACKED_HYGIENE_REPORT="$ARTIFACT_ROOT/current-tree-hygiene.json"
-PRIVACY_REPORT="$ARTIFACT_ROOT/history-private-surface-paths.txt"
-MESSAGE_PRIVACY_REPORT="$ARTIFACT_ROOT/history-private-message-paths.txt"
+PRIVACY_REPORT="$ARTIFACT_ROOT/history-private-surface-paths.json"
+MESSAGE_PRIVACY_REPORT="$ARTIFACT_ROOT/history-private-message-paths.json"
 TRACKED_ARTIFACTS_REPORT="$ARTIFACT_ROOT/tracked-runtime-artifacts.txt"
 HISTORY_ARTIFACTS_REPORT="$ARTIFACT_ROOT/history-runtime-artifacts.txt"
 
 mkdir -p "$ARTIFACT_ROOT"
+trap 'rm -rf "$TMP_ARTIFACT_ROOT"' EXIT
 
 if ! command -v docker >/dev/null 2>&1; then
   echo "docker is required to run the public leak audit" >&2
@@ -37,34 +42,41 @@ run_gitleaks() {
     "$@"
 }
 
+copy_report() {
+  local source_path="$1"
+  local target_path="$2"
+  if [[ -f "$source_path" ]]; then
+    cp "$source_path" "$target_path"
+  fi
+}
+
 current_tree_rc=0
 history_rc=0
 hygiene_rc=0
+history_privacy_rc=0
+history_message_rc=0
 
-if ! run_gitleaks "$CURRENT_TREE_REPORT" --source /repo --no-git; then
+if ! run_gitleaks "$CURRENT_TREE_TMP_REPORT" --source /repo --no-git; then
   current_tree_rc=$?
 fi
+copy_report "$CURRENT_TREE_TMP_REPORT" "$CURRENT_TREE_REPORT"
 
-if ! run_gitleaks "$HISTORY_REPORT" --source /repo; then
+if ! run_gitleaks "$HISTORY_TMP_REPORT" --source /repo; then
   history_rc=$?
 fi
+copy_report "$HISTORY_TMP_REPORT" "$HISTORY_REPORT"
 
 if ! python3 "$ROOT_DIR/scripts/security/validate_public_repo_hygiene.py" --format json --output "$TRACKED_HYGIENE_REPORT"; then
   hygiene_rc=$?
 fi
 
-git -C "$ROOT_DIR" log --all -p --no-ext-diff --text --format='%H' -- . \
-  ':(exclude)scripts/security/run_public_repo_leak_audit.sh' \
-  ':(exclude)scripts/security/validate_public_repo_hygiene.py' \
-  ':(exclude)scripts/tools/docs_tree_audit.py' \
-  ':(exclude)tests/backend/pytest/test_docs_tree_audit.py' \
-  ':(exclude)tests/backend/pytest/test_public_repo_hygiene_validator.py' | \
-  rg -n --no-messages 'file:///Users/|/(Users|home)/[^/]+/|[A-Za-z]:\\Users\\' \
-  >"$PRIVACY_REPORT" || true
+if ! python3 "$ROOT_DIR/scripts/security/validate_public_repo_hygiene.py" --mode history-patches --format json --output "$PRIVACY_REPORT"; then
+  history_privacy_rc=$?
+fi
 
-git -C "$ROOT_DIR" log --all --format='%H%n%s%n%b%n---' | \
-  rg -n --no-messages 'file:///Users/|/(Users|home)/[^/]+/|[A-Za-z]:\\Users\\' \
-  >"$MESSAGE_PRIVACY_REPORT" || true
+if ! python3 "$ROOT_DIR/scripts/security/validate_public_repo_hygiene.py" --mode history-messages --format json --output "$MESSAGE_PRIVACY_REPORT"; then
+  history_message_rc=$?
+fi
 
 git -C "$ROOT_DIR" ls-files '.dev-*.pid' 'dev.sh.pid' 'scripts/runtime-artifacts/**' 'backend/logs/**' 'tests/results/**' \
   >"$TRACKED_ARTIFACTS_REPORT"
@@ -109,8 +121,8 @@ def _count_lines(path: Path) -> int:
 print(f"current_tree_gitleaks={_count_json_rows(current_tree_report)}")
 print(f"history_gitleaks={_count_json_rows(history_report)}")
 print(f"tracked_hygiene_findings={_count_hygiene_findings(tracked_hygiene_report)}")
-print(f"history_privacy_path_hits={_count_lines(privacy_report)}")
-print(f"history_message_privacy_hits={_count_lines(message_privacy_report)}")
+print(f"history_privacy_path_hits={_count_hygiene_findings(privacy_report)}")
+print(f"history_message_privacy_hits={_count_hygiene_findings(message_privacy_report)}")
 print(f"tracked_runtime_artifacts={_count_lines(tracked_artifacts_report)}")
 print(f"history_runtime_artifacts={_count_lines(history_artifacts_report)}")
 PY2
@@ -120,7 +132,7 @@ if [[ "$current_tree_rc" -ne 0 || "$history_rc" -ne 0 || "$hygiene_rc" -ne 0 ]];
   exit 1
 fi
 
-if [[ -s "$PRIVACY_REPORT" || -s "$MESSAGE_PRIVACY_REPORT" || -s "$TRACKED_ARTIFACTS_REPORT" || -s "$HISTORY_ARTIFACTS_REPORT" ]]; then
+if [[ "$history_privacy_rc" -ne 0 || "$history_message_rc" -ne 0 || -s "$TRACKED_ARTIFACTS_REPORT" || -s "$HISTORY_ARTIFACTS_REPORT" ]]; then
   echo "Public leak audit failed: private metadata or tracked runtime artifacts detected." >&2
   exit 1
 fi
