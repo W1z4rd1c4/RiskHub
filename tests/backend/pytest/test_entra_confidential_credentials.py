@@ -12,6 +12,7 @@ from app.services.directory_provider_service import (
 from app.services.graph_directory_service import (
     GraphDirectoryService,
     GraphProviderUnavailableError,
+    __reset_graph_token_cache_for_tests,
 )
 
 
@@ -26,6 +27,11 @@ def _base_settings(**overrides: object) -> Settings:
     }
     values.update(overrides)
     return Settings(_env_file=None, **values)
+
+
+@pytest.fixture(autouse=True)
+def _reset_graph_token_cache() -> None:
+    __reset_graph_token_cache_for_tests()
 
 
 @pytest.mark.asyncio

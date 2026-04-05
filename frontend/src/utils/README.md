@@ -6,7 +6,6 @@ Folder for `frontend/src/utils` implementation assets.
 
 ## Contents
 
-- `hardNavigate.ts`
 - `userSettingsStorage.ts`
 
 ## Notes

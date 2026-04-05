@@ -1,7 +1,7 @@
 # RiskHub Testing Guide
 
-> **Version**: 1.7
-> **Last Updated**: 2026-04-04
+> **Version**: 1.8
+> **Last Updated**: 2026-04-05
 > **Audience**: Engineering, QA
 > **Source of Truth**: `tests/backend/pytest/`, `backend/pytest.ini`, `frontend/package.json`, `frontend/playwright.config.ts`
 
@@ -14,6 +14,7 @@ This guide defines the current testing matrix for backend, frontend unit tests, 
 | Backend RBAC/authz sweep | `cd . && PYTHONPATH=backend pytest tests/backend/pytest/test_activity_log.py tests/backend/pytest/test_orphaned_items_scan_and_stats.py tests/backend/pytest/test_executions.py tests/backend/pytest/api/v1/test_issues_rbac_api.py tests/backend/pytest/api/v1/test_dashboard_issue_metrics.py tests/backend/pytest/api/v1/test_reports_issues.py tests/backend/pytest/test_seed_rbac_parity.py -q` | Focused admin-boundary, RBAC, and seed-contract regression pack |
 | Backend targeted | `cd backend && venv/bin/pytest ../tests/backend/pytest/test_admin_docs.py -q` | Docs endpoint behavior and locale fallback |
 | Backend reliability targeted | `cd backend && pytest -q ../tests/backend/pytest/test_scheduler_runtime.py ../tests/backend/pytest/test_outbox_approval_flow.py ../tests/backend/pytest/test_aggregate_overviews.py ../tests/backend/pytest/test_orphaned_items_scan_and_stats.py` | Scheduler ownership, outbox retry path, aggregate overview endpoints, and governance overview |
+| Backend install contract | `cd backend && pytest -q ../tests/backend/pytest/test_install_script_contracts.py ../tests/backend/pytest/test_startup_script_contracts.py` | Public `scripts/install.sh` and startup wrapper contract, including the Python-backed lifecycle control plane |
 | Backend broad | `make -f scripts/Makefile test` | Full backend regression |
 | Backend PR CI (SQLite) | `cd backend && pytest -m "not postgres" -q` | Blocking PR lane for broad backend regression on the default fast harness |
 | Backend lint + suppression budget | `make -f scripts/Makefile lint-backend` | Ruff hard gate plus backend/app suppression budget enforcement |
@@ -26,7 +27,7 @@ This guide defines the current testing matrix for backend, frontend unit tests, 
 | Frontend reliability targeted | `cd frontend && npm run test:run -- src/components/layout/__tests__/SidebarPolling.test.tsx src/components/notifications/__tests__/NotificationBell.test.tsx src/hooks/__tests__/useAdaptivePollingQuery.test.tsx src/pages/__tests__/DashboardPage.overview.test.tsx src/pages/__tests__/GovernancePage.overview.test.tsx src/pages/admin-console/__tests__/AdminConsoleOpsPanels.outbox.test.tsx src/services/__tests__/accessTokenStore.test.ts src/services/__tests__/apiClient.401-recovery.test.ts` | Aggregate polling, admin outbox panel, and auth/bootstrap regression pack |
 | Frontend docs UI | `cd frontend && npm run test:run -- src/components/settings/__tests__/DocumentationSettings.test.tsx` | Docs cards/filter/audience behavior |
 | Frontend types | `cd frontend && npx tsc --noEmit` | Type safety gate |
-| Frontend quality chain | `cd frontend && npm run lint && npx tsc --noEmit && npm run quality:debt -- --report-json && npm run cleanup:deadcode && npm run build` | Full frontend production quality gate |
+| Frontend quality chain | `cd frontend && npm run lint && npx tsc --noEmit && npm run quality:debt -- --report-json && node scripts/quality/validate-debt-budget-report.mjs && npm run cleanup:deadcode && node scripts/cleanup/validate-unreachable-report.mjs && node scripts/quality/validate-no-inline-styles.mjs` | Frontend lint/type/debt/dead-code/inline-style gate mirrored by CI |
 | Frontend E2E | `cd frontend && npm run e2e` | Browser-level regression |
 | Frontend business-logic E2E | `cd frontend && npm run e2e:business-logic` | Focused role/scope/admin-boundary and workflow regression |
 | Docs topology consistency | `cd . && make -f scripts/Makefile docs-topology-consistency` | README coverage, docs tree audit scope, and structure metrics consistency |
@@ -41,6 +42,7 @@ This guide defines the current testing matrix for backend, frontend unit tests, 
 - SQLite in-memory is used by default test path unless `TEST_DATABASE_URL` is set.
 - Postgres-specific tests are marked with `@pytest.mark.postgres`.
 - PR CI runs both a broad SQLite lane and a blocking Postgres-targeted lane.
+- Installer regression coverage is anchored to the public `./scripts/install.sh` contract even though the implementation now routes through `scripts/install_cli.py` and `scripts/install_lib/`.
 - Schema-sensitive changes should keep the dedicated Postgres pytest lane green; do not rely on browser E2E as the only Postgres signal.
 - When the Docker app stack is using the live `riskhub` database, point Postgres marker runs at a sibling `riskhub_test` database instead; Postgres-mode truncates tables between tests.
 - Advisory-lock coverage is only valid in Postgres mode. Do not treat SQLite-only passes as sufficient for scheduler ownership enforcement.
@@ -54,6 +56,7 @@ This guide defines the current testing matrix for backend, frontend unit tests, 
 - Use `./scripts/install.sh dev` for active local backend/frontend iteration.
 - Use `./scripts/install.sh demo` for Docker onboarding/manual appliance-style runs.
 - Use `./scripts/install.sh demo --reset test` for deterministic Docker-backed E2E fixture resets.
+- `./scripts/install.sh` remains the public wrapper; do not bypass it in runbooks even though its lifecycle control plane now lives in Python under `scripts/install_cli.py` and `scripts/install_lib/`.
 - Keep `./scripts/dev.sh` and `./scripts/compose.sh` as the underlying advanced/manual entrypoints.
 
 ## Local Startup Preflight
@@ -149,6 +152,9 @@ Current browser-lane caveats:
 
 - Frontend dead-code non-regression is enforced by `npm run cleanup:deadcode` in local Make targets and CI lint workflow.
 - Frontend debt budget non-regression is enforced by `npm run quality:debt -- --report-json`.
+- Frontend debt-budget JSON output is machine-checked by `node scripts/quality/validate-debt-budget-report.mjs`.
+- Frontend dead-code report output is machine-checked by `node scripts/cleanup/validate-unreachable-report.mjs`.
+- Frontend inline-style regressions are blocked by `node scripts/quality/validate-no-inline-styles.mjs`.
 - Backend suppression non-regression is enforced by `scripts/tools/suppression_budget.py` against:
   - `scripts/quality/backend-suppression-allowlist.json`
 - Docs topology consistency is enforced by `make -f scripts/Makefile docs-topology-consistency`.

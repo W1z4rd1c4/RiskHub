@@ -21,18 +21,9 @@ import { LinkManagementDialog } from '@/components/LinkManagementDialog';
 import { ControlCreateDialog } from '@/components/ControlCreateDialog';
 import { KRIGaugeCard } from '@/components/kri/KRIGaugeCard';
 import { ControlGaugeCard } from '@/components/controls/ControlGaugeCard';
+import { RiskTypeBadge } from '@/components/ui/RiskTypeBadge';
 import { useTranslation } from '@/i18n/hooks';
 import { formatDateValue } from '@/i18n/formatters';
-
-// Helper to convert hex color to rgba for backgrounds/borders
-function hexToRgba(hex: string, alpha: number): string {
-    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-    if (!result) return `rgba(100, 116, 139, ${alpha})`; // slate-500 fallback
-    const r = parseInt(result[1], 16);
-    const g = parseInt(result[2], 16);
-    const b = parseInt(result[3], 16);
-    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
 
 const container = {
     hidden: { opacity: 0 },
@@ -154,15 +145,7 @@ export function RiskDetailOverviewTab({
                             {(() => {
                                 const typeColor = getColor(risk.risk_type);
                                 return (
-                                    <span
-                                        className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase"
-                                        style={{
-                                            color: typeColor,
-                                            backgroundColor: hexToRgba(typeColor, 0.12),
-                                        }}
-                                    >
-                                        {getDisplayName(risk.risk_type)}
-                                    </span>
+                                    <RiskTypeBadge label={getDisplayName(risk.risk_type)} color={typeColor} />
                                 );
                             })()}
                         </div>

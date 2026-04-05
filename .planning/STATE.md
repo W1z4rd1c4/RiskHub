@@ -20,7 +20,7 @@
 
 **Milestone:** v1.0 MVP
 **Active Phases:** 90 (AD Emulator) and 156 in progress; 19 and 70 deferred
-**Documentation Status:** Reconciled with phase folders and canonical docs (2026-03-05)
+**Documentation Status:** Reconciled with phase folders and canonical docs (2026-04-05)
 
 ## Progress Summary
 
@@ -73,6 +73,29 @@
 | 501 Production Readiness Hardening | ✅ Complete (8/8) | 2026-02-16 |
 
 ## Session Context
+
+### Remediation and Documentation Reconciliation Closeout (2026-04-05)
+
+- Restored the public installer wrapper contract after the Python control-plane extraction:
+  - `scripts/install.sh` remains the public shell entrypoint
+  - `scripts/install_cli.py` + `scripts/install_lib/` now carry the lifecycle implementation
+  - production first-run behavior again covers config scaffolding, secret scaffolding/edit flow, placeholder refusal, lifecycle metadata, and non-secret runtime backups
+- Completed the final production/runtime hardening follow-up:
+  - production CSP no longer permits `style-src 'unsafe-inline'`
+  - active frontend inline styles were removed behind shared SVG/swatches/badge primitives
+  - repo hardening and no-inline-style validators were added to CI
+- Completed settings/runtime cleanup:
+  - `Settings` now exposes section models at `settings.auth`, `settings.outbound`, `settings.session`, `settings.redis`, and `settings.protocol_guard`
+  - model-level strictness is back on (`extra="forbid"`) with file-backed secret env compatibility preserved
+- Reconciled public/operator docs and deployment/security guidance with the current branch behavior:
+  - installer wrapper remains public but is now documented as a Python-backed control plane
+  - deployment docs now treat production `ALLOWED_HOSTS` as an explicit runtime requirement
+  - security docs now describe the modern header baseline and strict production CSP
+- Verification:
+  - `cd backend && pytest -q ../tests/backend/pytest/test_outbox_approval_flow.py ../tests/backend/pytest/test_entra_confidential_credentials.py ../tests/backend/pytest/test_settings_secret_files.py ../tests/backend/pytest/test_security_headers.py ../tests/backend/pytest/test_production_hardening.py ../tests/backend/pytest/test_outbound_egress_guards.py ../tests/backend/pytest/test_rate_limit_redis_resilience.py ../tests/backend/pytest/test_log_rotation_config.py ../tests/backend/pytest/test_install_script_contracts.py` → `74 passed, 1 skipped`
+  - `cd frontend && npm run test:run -- src/services/__tests__/authTimeoutFlow.test.ts src/contexts/__tests__/AuthLogoutFlow.test.tsx src/contexts/__tests__/AuthBootstrapRouteGuard.test.tsx src/pages/__tests__/LoginPage.auth-modes.test.tsx src/pages/__tests__/SsoCallbackPage.test.tsx src/__tests__/login_sso_rendering.spec.tsx src/services/__tests__/apiClient.401-recovery.test.ts` → `28 passed`
+  - `cd frontend && npm run lint && npx tsc --noEmit && npm run quality:debt -- --report-json && node scripts/quality/validate-debt-budget-report.mjs && npm run cleanup:deadcode && node scripts/cleanup/validate-unreachable-report.mjs && node scripts/quality/validate-no-inline-styles.mjs` → passed
+  - `python3 scripts/security/validate_workflow_pins.py .github/workflows/security.yml .github/workflows/release.yml && python3 scripts/security/validate_repo_hardening.py` → passed
 
 ### Open Issues Remediation and Regression Hardening - Phase 3 (2026-03-29)
 

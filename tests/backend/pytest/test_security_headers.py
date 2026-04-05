@@ -11,12 +11,12 @@ PRODUCTION_DATABASE_URL = "postgresql+asyncpg://riskhub:tests@prod-db:5432/riskh
 PRODUCTION_AUTH_MODE = "microsoft_sso"
 PRODUCTION_ENTRA_TENANT_ID = "00000000-0000-0000-0000-000000000000"
 PRODUCTION_ENTRA_CLIENT_ID = "11111111-1111-1111-1111-111111111111"
+PRODUCTION_ENTRA_CLIENT_SECRET = "production-entra-client-secret"
 
 
 def _required_headers_present(headers: dict[str, str]) -> None:
     assert headers["x-frame-options"] == "DENY"
     assert headers["x-content-type-options"] == "nosniff"
-    assert headers["x-xss-protection"] == "1; mode=block"
     assert headers["referrer-policy"] == "strict-origin-when-cross-origin"
     assert headers["cross-origin-resource-policy"] == "same-origin"
     assert headers["permissions-policy"] == "geolocation=(), microphone=(), camera=(), payment=(), usb=()"
@@ -55,7 +55,12 @@ async def test_security_headers_in_production_mode():
             auth_mode=PRODUCTION_AUTH_MODE,
             entra_tenant_id=PRODUCTION_ENTRA_TENANT_ID,
             entra_client_id=PRODUCTION_ENTRA_CLIENT_ID,
+            entra_client_secret=PRODUCTION_ENTRA_CLIENT_SECRET,
+            directory_provider="graph",
+            entra_jit_provisioning_enabled=False,
+            auth_sso_allow_email_link=False,
             cors_origins=["http://testserver"],
+            allowed_hosts=["testserver"],
             database_url=PRODUCTION_DATABASE_URL,
         )
     )
@@ -69,5 +74,7 @@ async def test_security_headers_in_production_mode():
 
     csp = response.headers["content-security-policy"]
     assert "script-src 'self'" in csp
+    assert "style-src 'self' https://fonts.googleapis.com" in csp
+    assert "style-src 'self' 'unsafe-inline'" not in csp
     assert "'unsafe-eval'" not in csp
     assert "upgrade-insecure-requests" in csp

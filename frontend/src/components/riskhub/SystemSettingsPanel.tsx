@@ -78,8 +78,6 @@ function ConfigInput({ config, onSave }: ConfigInputProps) {
             // Format display value with space thousands separators (e.g., "10 000 000 000")
             const numValue = parseInt(value) || 0;
             const displayValue = numValue.toLocaleString('cs-CZ').replace(/\u00a0/g, ' ');
-            // Dynamic width: ~10px per char + padding
-            const inputWidth = Math.max(60, displayValue.length * 10 + 24);
 
             return (
                 <input
@@ -91,8 +89,7 @@ function ConfigInput({ config, onSave }: ConfigInputProps) {
                         const cleaned = e.target.value.replace(/[^0-9]/g, '');
                         setValue(cleaned);
                     }}
-                    style={{ width: `${inputWidth}px` }}
-                    className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white text-right font-mono focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
+                    className="w-24 md:w-32 px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white text-right font-mono focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
                     disabled={!config.is_editable}
                 />
             );

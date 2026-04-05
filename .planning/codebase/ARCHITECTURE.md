@@ -1,20 +1,21 @@
 # Architecture
 
-**Analysis Date:** 2026-04-04
+**Analysis Date:** 2026-04-05
 
 ## System Shape
 
 RiskHub is a containerized full-stack application:
 - Backend: FastAPI monolith with modular domain endpoints (many split into packages with subrouters) (`backend/app/api/v1/endpoints/`)
 - Frontend: React SPA with route-based pages (`frontend/src/App.tsx`, `frontend/src/pages/`)
-- Datastore: PostgreSQL, with Redis for production runtime controls (`docker-compose.yml`, `scripts/compose.sh`, `backend/app/main.py`, `scripts/deploy.sh`)
+- Datastore: PostgreSQL, with Redis for production runtime controls (`docker-compose.yml`, `scripts/compose.sh`, `backend/app/bootstrap.py`, `scripts/deploy.sh`)
 - Quantitative repository-size metrics are tracked in `.planning/codebase/STRUCTURE.md` as the count source of truth.
 
 ## Backend Layering
 
 ### App composition and lifecycle
-- App factory + production guardrails: `backend/app/main.py`
-- DB engine/sessionmaker initialized per-app and stored on `app.state` (`backend/app/db/session.py`, `backend/app/main.py`)
+- Canonical app composition and production guardrails live in `backend/app/bootstrap.py`
+- `backend/app/main.py` is the thin entrypoint for logging bootstrap, `lifespan`, and `create_app`
+- DB engine/sessionmaker initialized per-app and stored on `app.state` (`backend/app/db/session.py`, `backend/app/bootstrap.py`, `backend/app/main.py`)
 - Lifespan shutdown disposes DB engine and closes Redis (`backend/app/main.py`)
 
 ### API Layer
@@ -30,9 +31,9 @@ RiskHub is a containerized full-stack application:
 - Async DB session boundary in `backend/app/db/session.py` (`get_db(request)` yields `AsyncSession`; no implicit commit)
 
 ### Cross-Cutting Runtime
-- Middleware chain: CORS, trusted hosts, logging context, security headers, rate limiting, language (`backend/app/main.py`, `backend/app/middleware/`)
+- Middleware chain: CORS, trusted hosts, logging context, security headers, rate limiting, language (`backend/app/bootstrap.py`, `backend/app/middleware/`)
 - Structured logging + audit logging (`backend/app/core/logging.py`, `backend/app/core/activity_logger.py`)
-- Background jobs via APScheduler (`backend/app/core/scheduler.py`) with DB access via a configured `sessionmaker` (`backend/app/main.py`, `backend/app/core/scheduler.py`)
+- Background jobs via APScheduler (`backend/app/core/scheduler.py`) with DB access via a configured `sessionmaker` (`backend/app/bootstrap.py`, `backend/app/core/scheduler.py`)
 
 ## Frontend Layering
 
@@ -41,6 +42,7 @@ RiskHub is a containerized full-stack application:
 - Routing: `BrowserRouter` shell in `frontend/src/App.tsx` backed by centralized route metadata in `frontend/src/routing/`
 - Domain views: page components in `frontend/src/pages/`, shared components in `frontend/src/components/`
 - API access: central `apiClient` + domain service wrappers (`frontend/src/services/`)
+- Auth/session coordination: `AuthProvider` composition plus `useAuthBootstrap`, `useAuthActions`, and `sessionManager` (`frontend/src/contexts/AuthContext.tsx`, `frontend/src/contexts/auth/`, `frontend/src/services/sessionManager.ts`)
 - Authorization UX: `PermissionGate`, `usePermissions`, `useAuthz` (`frontend/src/components/PermissionGate.tsx`, `frontend/src/hooks/usePermissions.ts`, `frontend/src/authz/useAuthz.ts`)
 - Entra SSO support via MSAL (`frontend/src/services/entraAuth.ts`, `frontend/src/pages/SsoCallbackPage.tsx`)
 
@@ -48,7 +50,7 @@ RiskHub is a containerized full-stack application:
 
 ### Authenticated API request
 1. User logs in via password (`POST /api/v1/auth/login`) or SSO exchange (`POST /api/v1/auth/sso/exchange`) (`backend/app/api/v1/endpoints/auth/password.py`, `backend/app/api/v1/endpoints/auth/sso.py`)
-2. Frontend stores token in localStorage (`frontend/src/contexts/AuthContext.tsx`)
+2. Frontend applies authenticated/bootstrap session state through `sessionManager`, which coordinates token storage and bootstrap cache (`frontend/src/services/sessionManager.ts`, `frontend/src/services/accessTokenStore.ts`, `frontend/src/services/bootstrapSessionCache.ts`)
 3. `apiClient` injects bearer token (`frontend/src/services/apiClient.ts`)
 4. Backend resolves user/permissions in dependency layer (`backend/app/api/deps.py`)
 5. Endpoint/service executes and may write audit events (`backend/app/core/activity_logger.py`)
@@ -66,8 +68,9 @@ RiskHub is a containerized full-stack application:
 
 - Public local/demo first-run flow is wrapper-first through `./scripts/install.sh demo` and `./scripts/install.sh dev`, with day-2 local lifecycle checks through `./scripts/install.sh status|logs|doctor --mode demo|dev`
 - Public production install flow is wrapper-first through `./scripts/install.sh production --target docker|linux`, with day-2 production lifecycle through `./scripts/install.sh upgrade --target docker|linux` and `./scripts/install.sh status|logs|doctor|verify --mode production --target docker|linux`
-- `scripts/compose.sh`, `scripts/dev.sh`, and `scripts/deploy.sh` remain the underlying advanced/manual implementation layers
+- `scripts/install.sh` remains the public shell surface while `scripts/install_cli.py` and `scripts/install_lib/` now carry the lifecycle orchestration on top of `scripts/compose.sh`, `scripts/dev.sh`, and `scripts/deploy.sh`
 - Production lifecycle metadata is persisted at `/etc/riskhub/runtime/install-state.json` and consumed by `scripts/install.sh` status/logs/doctor/upgrade flows
+- Production runtime enforces explicit `ALLOWED_HOSTS`; managed install flows render the setting from the configured public hostname, but runtime host enforcement is not derived from `CORS_ORIGINS`
 - Docker onboarding flow still bootstraps migrations + base seed through the compose-managed `bootstrap` service before backend readiness
 - Component-scoped runtime entrypoints under `frontend/scripts/runtime/`, `backend/scripts/runtime/`, and `backend/scripts/runtime/db/` are internal implementation assets rather than supported deployment interfaces
 - Frontend served by nginx, proxying backend API requests (`frontend/nginx.conf`)
@@ -82,4 +85,4 @@ RiskHub is a containerized full-stack application:
 
 ---
 
-*Architecture analysis refreshed on 2026-04-04*
+*Architecture analysis refreshed on 2026-04-05*

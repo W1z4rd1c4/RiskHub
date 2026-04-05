@@ -173,6 +173,34 @@ def test_settings_report_incomplete_certificate_credential_configuration() -> No
     assert settings.entra_confidential_credential is None
 
 
+def test_settings_reject_unknown_explicit_values() -> None:
+    with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
+        Settings(
+            _env_file=None,
+            secret_key="0123456789abcdef0123456789abcdef",
+            database_url="postgresql+asyncpg://riskhub:secret@postgres.example.com:5432/riskhub",
+            unexpected_field="value",
+        )
+
+
+def test_settings_grouped_views_expose_current_values() -> None:
+    settings = Settings(
+        _env_file=None,
+        secret_key="0123456789abcdef0123456789abcdef",
+        database_url="postgresql+asyncpg://riskhub:secret@postgres.example.com:5432/riskhub",
+        auth_mode="hybrid_dev",
+        outbound_allowed_hosts=["graph.microsoft.com"],
+        refresh_cookie_name="custom-refresh",
+        rate_limit_fail_closed_prefixes=["/api/v1/auth"],
+    )
+
+    assert settings.auth_settings.mode == "hybrid_dev"
+    assert settings.outbound_settings.allowed_hosts == ("graph.microsoft.com",)
+    assert settings.session_settings.refresh_cookie_name == "custom-refresh"
+    assert settings.redis_settings.rate_limit_fail_closed_prefixes == ("/api/v1/auth",)
+    assert settings.protocol_guard_settings.enabled is True
+
+
 @pytest.mark.parametrize(
     ("filename", "content", "error"),
     [

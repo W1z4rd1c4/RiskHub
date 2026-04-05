@@ -6,11 +6,7 @@ vi.mock('@/services/entraAuth', () => ({
     },
 }));
 
-vi.mock('@/utils/hardNavigate', () => ({
-    hardNavigate: vi.fn(),
-}));
-
-import { render, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { http, HttpResponse } from 'msw';
 
@@ -19,7 +15,6 @@ import { mockAuthUser } from '@test/mocks/handlers';
 import SsoCallbackPage from '@/pages/SsoCallbackPage';
 import { clearAccessToken, getAccessToken } from '@/services/accessTokenStore';
 import { entraAuth } from '@/services/entraAuth';
-import { hardNavigate } from '@/utils/hardNavigate';
 
 afterEach(() => {
     vi.restoreAllMocks();
@@ -47,6 +42,7 @@ describe('SsoCallbackPage', () => {
             <MemoryRouter initialEntries={['/auth/sso/callback']}>
                 <Routes>
                     <Route path="/auth/sso/callback" element={<SsoCallbackPage />} />
+                    <Route path="/" element={<div>Dashboard Home</div>} />
                     <Route path="/login" element={<div>Login</div>} />
                 </Routes>
             </MemoryRouter>
@@ -56,6 +52,6 @@ describe('SsoCallbackPage', () => {
             expect(getAccessToken()).toBe('riskhub-jwt');
         });
 
-        expect(hardNavigate).toHaveBeenCalledWith('/');
+        expect(await screen.findByText('Dashboard Home')).toBeInTheDocument();
     });
 });

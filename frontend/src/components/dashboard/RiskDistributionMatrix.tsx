@@ -1,4 +1,6 @@
 import { motion } from 'framer-motion';
+import { ColorSwatch } from '@/components/ui/ColorSwatch';
+import { cn } from '@/lib/utils';
 import type { RiskDistributionItem } from '../../types/dashboard';
 import { useTranslation } from '@/i18n/hooks';
 import { useStatusTheme } from '@/hooks/useStatusTheme';
@@ -22,17 +24,16 @@ export function RiskDistributionMatrix({ distribution, onCellClick }: RiskDistri
         return item ? item.count : 0;
     };
 
-    /** Returns inline style for cell background color based on semantic status palette. */
-    const getCellStyle = (p: number, i: number): React.CSSProperties => {
+    const getCellClasses = (p: number, i: number): string => {
         const score = p * i;
         const count = getCountForCell(p, i);
         if (count === 0) {
-            return { backgroundColor: statusTheme.matrix.emptyCell, opacity: 0.2 };
+            return `${statusTheme.matrix.emptyCell} opacity-20`;
         }
-        if (score >= 16) return { backgroundColor: statusTheme.matrix.critical };
-        if (score >= 10) return { backgroundColor: statusTheme.matrix.high };
-        if (score >= 5) return { backgroundColor: statusTheme.matrix.medium };
-        return { backgroundColor: statusTheme.matrix.low };
+        if (score >= 16) return statusTheme.matrix.critical;
+        if (score >= 10) return statusTheme.matrix.high;
+        if (score >= 5) return statusTheme.matrix.medium;
+        return statusTheme.matrix.low;
     };
 
     const handleCellClick = (p: number, i: number) => {
@@ -76,15 +77,12 @@ export function RiskDistributionMatrix({ distribution, onCellClick }: RiskDistri
                                         tabIndex={isClickable ? 0 : -1}
                                         role={isClickable ? 'button' : undefined}
                                         aria-label={isClickable ? t('risk_distribution_matrix.cell_aria', { count, probability: p, impact: i }) : undefined}
-                                        className={`
-                                            w-16 h-16
-                                            rounded-xl flex flex-col items-center justify-center
-                                            transition-all duration-300 m-1.5
-                                            backdrop-blur-xl border border-white/10
-                                            ${count > 0 ? 'scale-100 shadow-lg shadow-black/20' : 'scale-95'}
-                                            ${isClickable ? 'cursor-pointer focus:ring-2 focus:ring-accent focus:outline-none hover:opacity-80' : ''}
-                                        `}
-                                        style={getCellStyle(p, i)}
+                                        className={cn(
+                                            'm-1.5 flex h-16 w-16 flex-col items-center justify-center rounded-xl border border-white/10 backdrop-blur-xl transition-all duration-300',
+                                            getCellClasses(p, i),
+                                            count > 0 ? 'scale-100 shadow-lg shadow-black/20' : 'scale-95',
+                                            isClickable && 'cursor-pointer focus:outline-none focus:ring-2 focus:ring-accent hover:opacity-80',
+                                        )}
                                         title={`${t('risk_distribution_matrix.cell_title', { probability: p, impact: i, count })}${isClickable ? t('risk_distribution_matrix.click_to_view') : ''}`}
                                         whileHover={isClickable ? { scale: 1.08, y: -3 } : undefined}
                                         whileTap={isClickable ? { scale: 0.95 } : undefined}
@@ -111,19 +109,19 @@ export function RiskDistributionMatrix({ distribution, onCellClick }: RiskDistri
             {/* Legend */}
             <div className="flex gap-4 mt-8">
                 <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: statusTheme.matrix.low }} />
+                    <ColorSwatch className="h-3 w-3" toneClassName={`${statusTheme.matrix.low.replace(/^bg-/, 'text-')} fill-current`} />
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('issues.severity.low')}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: statusTheme.matrix.medium }} />
+                    <ColorSwatch className="h-3 w-3" toneClassName={`${statusTheme.matrix.medium.replace(/^bg-/, 'text-')} fill-current`} />
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('issues.severity.medium')}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: statusTheme.matrix.high }} />
+                    <ColorSwatch className="h-3 w-3" toneClassName={`${statusTheme.matrix.high.replace(/^bg-/, 'text-')} fill-current`} />
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('issues.severity.high')}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: statusTheme.matrix.critical }} />
+                    <ColorSwatch className="h-3 w-3" toneClassName={`${statusTheme.matrix.critical.replace(/^bg-/, 'text-')} fill-current`} />
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('issues.severity.critical')}</span>
                 </div>
             </div>

@@ -70,3 +70,30 @@ class TestLogRotationConfig:
         assert app_handler is not None, "App log handler should exist"
         assert app_handler.maxBytes == 15 * 1024 * 1024  # 15MB
         assert app_handler.backupCount == 8
+
+    def test_parse_log_rotation_config_accepts_valid_values(self):
+        from app.main import _parse_log_rotation_config
+
+        parsed = _parse_log_rotation_config(
+            {
+                "app_log_rotation_size_mb": "12",
+                "app_log_retention_count": "9",
+                "audit_log_rotation_size_mb": "14",
+                "audit_log_retention_count": "11",
+            }
+        )
+
+        assert parsed["app_log_rotation_size_mb"] == 12
+        assert parsed["app_log_retention_count"] == 9
+        assert parsed["audit_log_rotation_size_mb"] == 14
+        assert parsed["audit_log_retention_count"] == 11
+
+    def test_parse_log_rotation_config_rejects_invalid_values(self):
+        from app.main import _parse_log_rotation_config
+
+        try:
+            _parse_log_rotation_config({"app_log_rotation_size_mb": "invalid"})
+        except ValueError as exc:
+            assert "app_log_rotation_size_mb" in str(exc)
+        else:  # pragma: no cover - defensive
+            raise AssertionError("Expected invalid log rotation config to raise ValueError")

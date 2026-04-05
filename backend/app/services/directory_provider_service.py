@@ -11,7 +11,7 @@ from app.core.outbound_guard import (
     OutboundRequestError,
     build_outbound_client,
     extract_host,
-    guard_outbound_url,
+    guarded_get,
 )
 from app.schemas.directory import DirectoryUserRead
 from app.services.graph_directory_service import (
@@ -85,15 +85,6 @@ class _ADEmulatorDirectoryService:
         not_found_is_error: bool = False,
     ) -> dict[str, Any]:
         url = urljoin(f"{self._base_url}/", path.lstrip("/"))
-        try:
-            guard_outbound_url(
-                url=url,
-                settings=self._settings,
-                allowed_hosts=([self._base_host] if self._base_host else None),
-            )
-        except OutboundRequestError as exc:
-            raise DirectoryProviderUnavailableError(str(exc)) from exc
-
         headers: dict[str, str] = {}
         if self._settings.ad_emulator_api_key:
             headers[self._settings.ad_emulator_api_key_header] = self._settings.ad_emulator_api_key
@@ -102,8 +93,15 @@ class _ADEmulatorDirectoryService:
             timeout_seconds=self._settings.graph_timeout_seconds,
         ) as client:
             try:
-                response = await client.get(url, params=params, headers=headers)
-            except httpx.HTTPError as exc:
+                response = await guarded_get(
+                    client,
+                    url=url,
+                    settings=self._settings,
+                    allowed_hosts=([self._base_host] if self._base_host else None),
+                    params=params,
+                    headers=headers,
+                )
+            except (httpx.HTTPError, OutboundRequestError) as exc:
                 raise DirectoryProviderUnavailableError(f"AD emulator request failed: {exc}") from exc
 
         if response.status_code == 404 and not_found_is_error:
@@ -186,7 +184,8 @@ class DirectoryProviderService:
             raise DirectoryProviderError(str(exc)) from exc
 
     def _build_provider(self, settings: Settings) -> GraphDirectoryService | _ADEmulatorDirectoryService:
-        choice = settings.directory_provider
+        auth_settings = settings.auth
+        choice = auth_settings.directory_provider
         if choice == "graph":
             return GraphDirectoryService(settings)
         if choice == "ad_emulator":
@@ -195,7 +194,7 @@ class DirectoryProviderService:
         # auto mode
         if settings.entra_certificate_credential_error:
             raise DirectoryProviderUnavailableError(settings.entra_certificate_credential_error)
-        if settings.entra_tenant_id and settings.entra_client_id and settings.entra_confidential_credential is not None:
+        if auth_settings.entra_tenant_id and auth_settings.entra_client_id and settings.entra_confidential_credential is not None:
             return GraphDirectoryService(settings)
         if settings.ad_emulator_base_url:
             return _ADEmulatorDirectoryService(settings)

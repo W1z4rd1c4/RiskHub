@@ -1,6 +1,6 @@
 # Testing
 
-**Analysis Date:** 2026-04-04
+**Analysis Date:** 2026-04-05
 
 ## Test Stack Overview
 
@@ -51,10 +51,10 @@
 
 - E2E workflow provisions Postgres service, runs backend + Playwright chromium suite (`.github/workflows/e2e.yml`)
 - Dedicated backend Postgres workflow runs `pytest -m postgres` as a required PR signal for schema-sensitive behavior (`.github/workflows/backend-postgres.yml`)
-- Lint workflow enforces frontend dead-code/debt gates, backend Ruff hard gate, backend suppression budget, and docs topology consistency (`.github/workflows/lint.yml`)
+- Lint workflow enforces frontend debt/dead-code/no-inline-style gates with machine-readable validators, backend Ruff hard gate, backend suppression budget, and docs topology consistency (`.github/workflows/lint.yml`)
 - Security workflow runs Bandit, pip-audit, npm audit, Trivy, Syft+Grype correlation, and gitleaks parse+scan (`.github/workflows/security.yml`)
 - Security workflow also runs nightly non-blocking Redis resilience integration checks (`redis_integration`) (`.github/workflows/security.yml`)
-- Startup-script contract coverage includes the public `scripts/install.sh` first-run and lifecycle surface, including `verify`, `status`, `logs`, `doctor`, and `upgrade` (`tests/backend/pytest/test_install_script_contracts.py`, `tests/backend/pytest/test_startup_script_contracts.py`)
+- Startup/install contract coverage includes the public `scripts/install.sh` first-run and lifecycle surface even though the implementation now routes through `scripts/install_cli.py` and `scripts/install_lib/`; covered commands include `verify`, `status`, `logs`, `doctor`, and `upgrade` (`tests/backend/pytest/test_install_script_contracts.py`, `tests/backend/pytest/test_startup_script_contracts.py`)
 
 ## Canonical Commands
 
@@ -69,7 +69,7 @@
 - Frontend targeted KRI routing regression: `cd frontend && npm run test:run -- src/pages/__tests__/KRIsPage.monitoring-status.test.tsx`
 - Frontend targeted vendor grouped-view regression: `cd frontend && npm run test:run -- src/pages/__tests__/VendorsPage.grouped-views.test.tsx`
 - Frontend type checks: `cd frontend && npx tsc --noEmit`
-- Frontend quality gate chain: `cd frontend && npm run lint && npx tsc --noEmit && npm run quality:debt -- --report-json && npm run cleanup:deadcode && npm run build`
+- Frontend quality gate chain: `cd frontend && npm run lint && npx tsc --noEmit && npm run quality:debt -- --report-json && node scripts/quality/validate-debt-budget-report.mjs && npm run cleanup:deadcode && node scripts/cleanup/validate-unreachable-report.mjs && node scripts/quality/validate-no-inline-styles.mjs`
 - E2E: `make -f scripts/Makefile test-e2e` or `cd frontend && npm run e2e`
 - Docker-targeted business-logic E2E: `cd frontend && FRONTEND_URL=http://localhost npm run e2e:business-logic`
 - Docker-targeted polish audit: `cd frontend && FRONTEND_URL=http://localhost POLISH_AUDIT_DEEP=1 npx playwright test -c playwright.config.ts ../tests/frontend/e2e/polish-audit.spec.ts --project=chromium`
@@ -91,7 +91,7 @@
 ## Practical Gaps to Watch
 
 - SQLite-default tests still need the dedicated `pytest -m postgres` lane to catch Postgres-specific datetime/enum behavior
-- Public first-run and lifecycle wrapper flows rely on the `scripts/install.sh` contract plus the underlying `scripts/dev.sh`, `scripts/compose.sh`, and `scripts/deploy.sh` contracts staying stable
+- Public first-run and lifecycle wrapper flows rely on the `scripts/install.sh` contract staying stable while the internal implementation lives in `scripts/install_cli.py` and `scripts/install_lib/` on top of `scripts/dev.sh`, `scripts/compose.sh`, and `scripts/deploy.sh`
 - Docker-origin Playwright runs still require `FRONTEND_URL=http://localhost`
 - Authorization changes should be validated in both backend API tests and frontend gating tests
 - Approval-execution changes should include high-confidence regression tests around side effects

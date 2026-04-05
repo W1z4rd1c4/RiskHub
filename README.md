@@ -123,6 +123,7 @@ Contributor notes:
 
 - Docker is still part of the supported local workflow
 - Node major `24` is the expected local frontend runtime
+- `./scripts/install.sh` remains the supported public entrypoint even though it now delegates internally to `./scripts/install_cli.py` and `./scripts/install_lib/`
 - production deployment remains separate and should use `./scripts/install.sh production --target docker|linux`
 
 ## Stack At A Glance
@@ -203,6 +204,12 @@ Day 2 operations:
 ./scripts/install.sh doctor --mode production --target docker|linux [--repair]
 ./scripts/install.sh upgrade --target docker|linux
 ```
+
+Operator contract notes:
+
+- `./scripts/install.sh` stays the public shell surface for `production`, `upgrade`, `status`, `logs`, and `doctor`
+- the lifecycle control plane behind it now lives in `./scripts/install_cli.py` and `./scripts/install_lib/`
+- production runtime expects an explicit `ALLOWED_HOSTS` allowlist; see the deployment docs before rollout
 
 Before touching production, read:
 

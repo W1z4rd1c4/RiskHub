@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { setAccessToken } from '@/services/accessTokenStore';
 import { authApi } from '@/services/authApi';
 import { entraAuth } from '@/services/entraAuth';
 import { clearExplicitLogoutSuppressed } from '@/services/logoutSuppression';
-import { hardNavigate } from '@/utils/hardNavigate';
+import { applyAuthenticatedSession } from '@/services/sessionManager';
 import { useTranslation } from '@/i18n/hooks';
 
 export default function SsoCallbackPage() {
@@ -26,8 +25,8 @@ export default function SsoCallbackPage() {
 
                 const tokenResponse = await authApi.ssoExchange(idToken, result?.state ?? null);
                 clearExplicitLogoutSuppressed();
-                setAccessToken(tokenResponse.access_token);
-                hardNavigate(tokenResponse.post_login_redirect_to || '/');
+                const target = applyAuthenticatedSession(tokenResponse);
+                void navigate(target, { replace: true });
             } catch (e) {
                 console.error(e);
                 if (cancelled) return;

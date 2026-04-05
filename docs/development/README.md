@@ -74,7 +74,7 @@ cd backend
 
 ## Lifecycle / Recovery
 
-Use the public lifecycle wrapper before dropping to the lower-level script layer.
+Use the public lifecycle wrapper before dropping to the lower-level script layer. `./scripts/install.sh` remains the supported surface even though it is now backed by the internal Python control plane (`scripts/install_cli.py` + `scripts/install_lib/`).
 
 ```bash
 ./scripts/install.sh status --mode demo
@@ -131,5 +131,6 @@ FRONTEND_URL=http://localhost POLISH_AUDIT_DEEP=1 npx playwright test -c playwri
 ## Boundaries
 
 - `./scripts/install.sh` is the public first-run and lifecycle entrypoint for demo and local contributor installs
+- internal implementation note: `./scripts/install.sh` is a stable shell wrapper over `./scripts/install_cli.py`; do not bypass it in runbooks
 - `./scripts/compose.sh` and `./scripts/dev.sh` remain supported advanced/manual entrypoints
 - Production deployment remains separate and should use `./scripts/install.sh production --target docker|linux`

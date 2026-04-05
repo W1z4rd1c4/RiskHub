@@ -13,6 +13,7 @@ jobs:
   lint:
     name: Lint (Frontend + Backend)
     runs-on: ubuntu-latest
+    needs: [docs-topology-consistency]
 
     steps:
       - uses: actions/checkout@v4
@@ -44,13 +45,15 @@ jobs:
         run: |
           set -euo pipefail
           npm run quality:debt -- --report-json | tee ../lint-frontend-debt.log
+          node scripts/quality/validate-debt-budget-report.mjs
         working-directory: frontend
 
       - name: Frontend cleanup audit contract
         run: |
           set -euo pipefail
           npm run cleanup:deadcode | tee ../lint-frontend-cleanup.log
-          grep -q "Candidates: 0" ../tests/results/quality/frontend/cleanup-audit/unreachable.md
+          node scripts/cleanup/validate-unreachable-report.mjs
+          node scripts/quality/validate-no-inline-styles.mjs
           if git ls-files | grep -q '^tests/results/frontend/playwright/playwright-report/'; then
             echo "Tracked Playwright report artifacts are not allowed."
             exit 1
@@ -72,11 +75,6 @@ jobs:
             backend/requirements.txt
             backend/requirements-runtime.txt
             backend/requirements-db.txt
-
-      - name: Docs topology consistency gate (blocking)
-        run: |
-          set -euo pipefail
-          make -f scripts/Makefile docs-topology-consistency | tee lint-docs-topology.log
 
       - name: Install backend lint dependencies
         run: |
@@ -144,12 +142,37 @@ jobs:
             lint-frontend-debt.log
             lint-frontend-cleanup.log
             lint-frontend-build.log
-            lint-docs-topology.log
             lint-backend-ruff.log
             lint-backend-suppression-budget.log
             tests/results/quality/frontend/debt-budget/debt.json
             tests/results/quality/frontend/cleanup-audit/unreachable.md
+            tests/results/quality/frontend/cleanup-audit/unreachable.json
             tests/results/quality/suppression-budget-*/suppression-budget.json
+          retention-days: 30
+
+  docs-topology-consistency:
+    name: Docs Topology Consistency
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Docs topology consistency gate
+        run: |
+          set -euo pipefail
+          make -f scripts/Makefile docs-topology-consistency | tee lint-docs-topology.log
+
+      - name: Upload docs topology evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: docs-topology-evidence
+          path: lint-docs-topology.log
           retention-days: 30
 
   ruff-informational:

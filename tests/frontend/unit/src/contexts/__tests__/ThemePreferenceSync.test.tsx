@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { clearAccessToken, setAccessToken } from '@/services/accessTokenStore';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
+import { __resetPreferencesReadyForTests, getPreferencesReady } from '@/services/preferencesReadiness';
 
 const getCurrentUserMock = vi.fn();
 const syncPreferencesFromServerMock = vi.fn();
@@ -43,14 +44,14 @@ describe('Auth preference hydration ordering', () => {
   beforeEach(() => {
     localStorage.clear();
     clearAccessToken();
-    window.__RISKHUB_PREFERENCES_READY__ = undefined;
+    __resetPreferencesReadyForTests();
   });
 
   afterEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
     clearAccessToken();
-    window.__RISKHUB_PREFERENCES_READY__ = undefined;
+    __resetPreferencesReadyForTests();
   });
 
   it('does not mark auth ready until preferences are synced from server', async () => {
@@ -80,7 +81,7 @@ describe('Auth preference hydration ordering', () => {
     await waitFor(() => expect(getCurrentUserMock).toHaveBeenCalledTimes(1));
     expect(screen.getByTestId('auth-loading')).toHaveTextContent('loading');
     expect(screen.getByTestId('prefs-hydrated')).toHaveTextContent('no');
-    expect(window.__RISKHUB_PREFERENCES_READY__).toBe(false);
+    expect(getPreferencesReady()).toBe(false);
 
     deferred.resolve({ theme: 'dark', language: 'cs' });
 
@@ -88,6 +89,6 @@ describe('Auth preference hydration ordering', () => {
       expect(screen.getByTestId('auth-loading')).toHaveTextContent('ready');
       expect(screen.getByTestId('prefs-hydrated')).toHaveTextContent('yes');
     });
-    expect(window.__RISKHUB_PREFERENCES_READY__).toBe(true);
+    expect(getPreferencesReady()).toBe(true);
   });
 });

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Palette, Plus, Edit, Trash2, RotateCcw, AlertCircle } from 'lucide-react';
+import { ColorSwatch } from '@/components/ui/ColorSwatch';
 import { riskHubApi } from '@/services/riskHubApi';
 import { apiClient } from '@/services/apiClient';
 import type { RiskType, RiskTypeCreate, RiskTypeUpdate } from '@/services/riskHubApi';
@@ -271,10 +272,7 @@ export function RiskTypesPanel() {
                                 )}
                             >
                                 <td className="py-3 px-4">
-                                    <div
-                                        className="w-6 h-6 rounded-full border-2 border-white/20"
-                                        style={{ backgroundColor: type.color }}
-                                    />
+                                    <ColorSwatch color={type.color} className="h-6 w-6" />
                                 </td>
                                 <td className="py-3 px-4">
                                     <code className="text-sm font-mono text-slate-300">{type.code}</code>

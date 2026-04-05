@@ -8,16 +8,22 @@ import { server } from '@test/mocks/server';
 import LoginPage from '@/pages/LoginPage';
 import SsoCallbackPage from '@/pages/SsoCallbackPage';
 import { clearAccessToken, getAccessToken } from '@/services/accessTokenStore';
+import { clearAuthConfigCache } from '@/services/authConfig';
 import { entraAuth } from '@/services/entraAuth';
 
 // Mock i18next so tests don't depend on full i18n initialization.
 vi.mock('react-i18next', async () => {
   const actual = await vi.importActual<typeof import('react-i18next')>('react-i18next');
+  const translate = (key: string) => {
+    if (key === 'login_sso_prod.button_label') return 'Continue with Microsoft';
+    if (key === 'login_sso.continue_with_microsoft') return 'Continue with Microsoft';
+    return key;
+  };
   return {
     ...actual,
     useTranslation: () => ({
-      t: (key: string) => key,
-      i18n: { language: 'en', changeLanguage: vi.fn() },
+      t: translate,
+      i18n: { language: 'en', changeLanguage: vi.fn(), t: translate },
     }),
   };
 });
@@ -29,16 +35,14 @@ vi.mock('@/services/entraAuth', () => ({
   },
 }));
 
-vi.mock('@/utils/hardNavigate', () => ({
-  hardNavigate: vi.fn(),
-}));
-
 function renderLogin(initialEntry = '/login') {
   return render(
     <MemoryRouter initialEntries={[initialEntry]}>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/auth/sso/callback" element={<SsoCallbackPage />} />
+        <Route path="/controls" element={<div>Controls</div>} />
+        <Route path="/" element={<div>Home</div>} />
       </Routes>
     </MemoryRouter>,
   );
@@ -47,6 +51,7 @@ function renderLogin(initialEntry = '/login') {
 describe('LoginPage (SSO + demo modes)', () => {
   beforeEach(() => {
     clearAccessToken();
+    clearAuthConfigCache();
     vi.mocked(entraAuth.handleRedirect).mockResolvedValue(null);
     vi.mocked(entraAuth.loginRedirect).mockResolvedValue(undefined);
   });
@@ -63,6 +68,7 @@ describe('LoginPage (SSO + demo modes)', () => {
           auth_mode: 'microsoft_sso',
           demo_login_enabled: false,
           password_login_enabled: false,
+          demo_personas: [],
           sso: {
             enabled: true,
             provider: 'entra',
@@ -87,6 +93,7 @@ describe('LoginPage (SSO + demo modes)', () => {
           auth_mode: 'microsoft_sso',
           demo_login_enabled: false,
           password_login_enabled: false,
+          demo_personas: [],
           sso: {
             enabled: true,
             provider: 'entra',
@@ -127,6 +134,7 @@ describe('LoginPage (SSO + demo modes)', () => {
           auth_mode: 'microsoft_sso',
           demo_login_enabled: false,
           password_login_enabled: false,
+          demo_personas: [],
           sso: {
             enabled: true,
             provider: 'entra',
@@ -167,13 +175,11 @@ describe('LoginPage (SSO + demo modes)', () => {
       state: 'opaque-state',
     } as unknown as { idToken: string; state: string });
 
-    const { hardNavigate } = await import('@/utils/hardNavigate');
-
     renderLogin('/auth/sso/callback');
 
     await waitFor(() => {
       expect(getAccessToken()).toBe('exchanged-riskhub-token');
-      expect(hardNavigate).toHaveBeenCalledWith('/controls');
     });
+    expect(await screen.findByText('Controls')).toBeInTheDocument();
   });
 });

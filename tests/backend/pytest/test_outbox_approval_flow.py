@@ -8,7 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from app.core.datetime_utils import utc_now
 from app.models import Notification, OutboxEvent, User
 from app.models.notification import NotificationType
-from app.services.outbox_service import OUTBOX_MAX_ATTEMPTS, dispatch_pending_outbox_events
+from app.services.outbox_service import dispatch_pending_outbox_events
+from app.services.outbox.store import OUTBOX_RECLAIM_AFTER, OutboxService
 
 
 def _sessionmaker(async_engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
@@ -66,7 +67,7 @@ async def test_create_approval_request_enqueues_outbox_without_inline_notificati
 
 
 @pytest.mark.asyncio
-async def test_outbox_unknown_event_retries_then_dead_letters(
+async def test_outbox_unknown_event_dead_letters_immediately(
     db_session: AsyncSession,
     async_engine: AsyncEngine,
 ) -> None:
@@ -88,11 +89,24 @@ async def test_outbox_unknown_event_retries_then_dead_letters(
     async with _sessionmaker(async_engine)() as read_session:
         refreshed = await read_session.get(OutboxEvent, event.id)
         assert refreshed is not None
-        assert refreshed.status == "pending"
-        assert refreshed.last_error == "Unknown outbox event: unknown.event"
+        assert refreshed.status == "dead_letter"
+        assert refreshed.last_error == "Unknown outbox event type: unknown.event"
 
-    event.attempt_count = OUTBOX_MAX_ATTEMPTS - 1
-    event.available_at = utc_now()
+
+@pytest.mark.asyncio
+async def test_invalid_outbox_payload_dead_letters_immediately(
+    db_session: AsyncSession,
+    async_engine: AsyncEngine,
+) -> None:
+    event = OutboxEvent(
+        event_type="approval.request_created",
+        aggregate_type="approval_request",
+        aggregate_id=1,
+        idempotency_key="approval.request_created:1:invalid",
+        payload={"unexpected": True},
+        status="pending",
+        available_at=utc_now(),
+    )
     db_session.add(event)
     await db_session.commit()
 
@@ -100,9 +114,54 @@ async def test_outbox_unknown_event_retries_then_dead_letters(
     assert processed == 0
 
     async with _sessionmaker(async_engine)() as read_session:
-        dead_letter = await read_session.get(OutboxEvent, event.id)
-        assert dead_letter is not None
-        assert dead_letter.status == "dead_letter"
+        refreshed = await read_session.get(OutboxEvent, event.id)
+        assert refreshed is not None
+        assert refreshed.status == "dead_letter"
+        assert refreshed.last_error is not None
+        assert "Invalid outbox payload for approval.request_created" in refreshed.last_error
+
+
+@pytest.mark.asyncio
+@pytest.mark.postgres
+async def test_postgres_claim_batch_skips_locked_rows(async_engine: AsyncEngine) -> None:
+    if async_engine.dialect.name != "postgresql":
+        pytest.skip("PostgreSQL-specific lock semantics test")
+
+    sessionmaker = _sessionmaker(async_engine)
+    async with sessionmaker() as seed_session:
+        event = OutboxEvent(
+            event_type="approval.request_created",
+            aggregate_type="approval_request",
+            aggregate_id=1,
+            idempotency_key="approval.request_created:postgres-lock-test",
+            payload={"approval_id": 1},
+            status="pending",
+            available_at=utc_now(),
+        )
+        seed_session.add(event)
+        await seed_session.commit()
+
+    async with sessionmaker() as first_session:
+        await first_session.begin()
+        now = utc_now()
+        first_claim = await OutboxService._claim_batch_postgres(
+            first_session,
+            batch_size=1,
+            lock_owner="worker-1",
+            now=now,
+            reclaim_before=now - OUTBOX_RECLAIM_AFTER,
+        )
+        assert first_claim == [event.id]
+
+        async with sessionmaker() as second_session:
+            second_claim = await OutboxService.claim_batch(
+                second_session,
+                batch_size=1,
+                lock_owner="worker-2",
+            )
+
+        assert second_claim == []
+        await first_session.commit()
 
 
 @pytest.mark.asyncio

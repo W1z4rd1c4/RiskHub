@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { Target, Calendar, User, Shield, ExternalLink } from 'lucide-react';
+import { MetricGaugeSvg } from '@/components/ui/MetricGaugeSvg';
 import type { KeyRiskIndicator } from '@/types/kri';
 import type { Risk } from '@/types/risk';
 import { useTranslation } from '@/i18n/hooks';
@@ -23,6 +24,11 @@ export function KRIDetailOverviewTab({
 }: KRIDetailOverviewTabProps) {
     const { t, i18n } = useTranslation(['kris', 'common', 'risks']);
     const monitoring = getKriMonitoringMeta(kri.monitoring_status);
+    const displayUpperLimit = kri.upper_limit > 0 ? kri.upper_limit : 1;
+    const lowerPct = Math.max(0, Math.min(100, (kri.lower_limit / displayUpperLimit) * 100));
+    const upperPct = Math.max(lowerPct, Math.min(100, (kri.upper_limit / displayUpperLimit) * 100));
+    const valuePct = Math.max(0, Math.min(100, (kri.current_value / displayUpperLimit) * 100));
+    const pointerToneClass = `${monitoring.gaugeClassName.split(' ')[0].replace(/^bg-/, 'text-')} fill-current`;
 
     return (
         <div className="grid gap-6 lg:grid-cols-3">
@@ -47,20 +53,12 @@ export function KRIDetailOverviewTab({
                 </div>
 
                 {/* Visual Gauge */}
-                <div className="relative h-4 bg-white/5 rounded-full overflow-hidden mt-6">
-                    <div
-                        className="absolute h-full bg-emerald-500/20"
-                        style={{
-                            left: `${Math.max(0, (kri.lower_limit / kri.upper_limit) * 50)}%`,
-                            width: `${Math.min(100, ((kri.upper_limit - kri.lower_limit) / kri.upper_limit) * 100)}%`
-                        }}
-                    />
-                    <motion.div
-                        initial={{ left: 0 }}
-                        animate={{ left: `${Math.min(100, Math.max(0, (kri.current_value / kri.upper_limit) * 80))}%` }}
-                        className={`absolute w-4 h-4 rounded-full -top-0 ${monitoring.gaugeClassName.split(' ')[0]}`}
-                    />
-                </div>
+                <MetricGaugeSvg
+                    className="mt-6"
+                    valuePct={valuePct}
+                    pointerClassName={pointerToneClass}
+                    zones={[{ startPct: lowerPct, endPct: upperPct, className: 'text-emerald-500/20' }]}
+                />
             </motion.div>
 
             {/* Reporting Info Card */}

@@ -1,21 +1,10 @@
 import { motion } from 'framer-motion';
 import { ArrowUpRight, Star } from 'lucide-react';
 
+import { RiskTypeBadge } from '@/components/ui/RiskTypeBadge';
 import { useRiskTypes, useRiskThresholds } from '@/hooks/useRiskHubConfig';
 import { useTranslation } from '@/i18n/hooks';
 import type { LinkedRisk } from '@/types/vendorLink';
-
-function hexToRgba(hex: string, alpha: number): string {
-    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-    if (!result) {
-        return `rgba(100, 116, 139, ${alpha})`;
-    }
-
-    const r = Number.parseInt(result[1], 16);
-    const g = Number.parseInt(result[2], 16);
-    const b = Number.parseInt(result[3], 16);
-    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
 
 interface VendorLinkedRiskCardProps {
     risk: LinkedRisk;
@@ -41,15 +30,7 @@ export function VendorLinkedRiskCard({ risk, onClick }: VendorLinkedRiskCardProp
             <div className="flex items-start justify-between gap-3 mb-4">
                 <div className="min-w-0">
                     <div className="flex items-center gap-2 mb-2 flex-wrap">
-                        <span
-                            className="px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest"
-                            style={{
-                                color: riskTypeColor,
-                                backgroundColor: hexToRgba(riskTypeColor, 0.12),
-                            }}
-                        >
-                            {getDisplayName(riskType)}
-                        </span>
+                        <RiskTypeBadge label={getDisplayName(riskType)} color={riskTypeColor} />
                         {risk.is_priority ? (
                             <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest text-amber-300 bg-amber-400/10 border border-amber-400/20">
                                 <Star className="h-3 w-3 fill-amber-300" />
