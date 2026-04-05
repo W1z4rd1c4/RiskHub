@@ -174,6 +174,22 @@ async def test_get_user(auth_client: AsyncClient, test_user: User):
 
 
 @pytest.mark.asyncio
+async def test_get_user_includes_entra_business_role(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: User,
+):
+    test_user.entra_business_role = "Regional Director"
+    db_session.add(test_user)
+    await db_session.commit()
+
+    response = await auth_client.get(f"/api/v1/users/{test_user.id}")
+
+    assert response.status_code == 200
+    assert response.json()["entra_business_role"] == "Regional Director"
+
+
+@pytest.mark.asyncio
 async def test_get_user_requires_platform_admin_for_other_users(
     client_risk_manager: AsyncClient,
     test_user_employee: User,
@@ -203,6 +219,29 @@ async def test_update_user_fields(auth_client: AsyncClient, test_user: User):
     assert data["name"] == "Updated Name"
     # Email should remain unchanged
     assert data["email"] == test_user.email
+
+
+@pytest.mark.asyncio
+async def test_update_user_ignores_entra_business_role_payload(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: User,
+):
+    test_user.entra_business_role = "Original Role"
+    db_session.add(test_user)
+    await db_session.commit()
+
+    response = await auth_client.patch(
+        f"/api/v1/users/{test_user.id}",
+        json={"name": "Updated Name", "entra_business_role": "Tampered Role"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["name"] == "Updated Name"
+    assert response.json()["entra_business_role"] == "Original Role"
+
+    await db_session.refresh(test_user)
+    assert test_user.entra_business_role == "Original Role"
 
 
 @pytest.mark.asyncio

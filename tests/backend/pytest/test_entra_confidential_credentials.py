@@ -180,6 +180,75 @@ def test_directory_provider_auto_falls_back_to_ad_emulator_when_graph_is_not_con
     assert service.provider_name == "ad_emulator"
 
 
+def test_graph_directory_service_maps_business_role_extension_field() -> None:
+    settings = _base_settings(
+        entra_client_secret="entra-client-secret",
+        entra_business_role_attribute_name="riskhubBusinessRole",
+    )
+    service = GraphDirectoryService(settings)
+
+    user = service._to_directory_user(
+        {
+            "id": "oid-123",
+            "displayName": "John Doe",
+            "mail": "john@example.com",
+            "userPrincipalName": "john@example.com",
+            "department": "Risk",
+            "jobTitle": "Analyst",
+            "extension_11111111111111111111111111111111_riskhubBusinessRole": " Regional Director ",
+            "accountEnabled": True,
+        }
+    )
+
+    assert user.business_role == "Regional Director"
+
+
+def test_ad_emulator_provider_maps_business_role_field() -> None:
+    service = DirectoryProviderService(
+        _base_settings(
+            entra_tenant_id=None,
+            entra_client_id=None,
+            entra_business_role_attribute_name="riskhubBusinessRole",
+            ad_emulator_base_url="https://ad-emulator.example.com",
+        )
+    )
+
+    user = service._provider._to_directory_user(  # type: ignore[attr-defined]
+        {
+            "external_id": "oid-123",
+            "display_name": "Jane Doe",
+            "email": "jane@example.com",
+            "business_role": " Claims Manager ",
+            "account_enabled": True,
+        }
+    )
+
+    assert user.business_role == "Claims Manager"
+
+
+def test_ad_emulator_provider_ignores_business_role_field_when_feature_disabled() -> None:
+    service = DirectoryProviderService(
+        _base_settings(
+            entra_tenant_id=None,
+            entra_client_id=None,
+            entra_business_role_attribute_name=None,
+            ad_emulator_base_url="https://ad-emulator.example.com",
+        )
+    )
+
+    user = service._provider._to_directory_user(  # type: ignore[attr-defined]
+        {
+            "external_id": "oid-123",
+            "display_name": "Jane Doe",
+            "email": "jane@example.com",
+            "business_role": " Claims Manager ",
+            "account_enabled": True,
+        }
+    )
+
+    assert user.business_role is None
+
+
 def test_directory_provider_rejects_incomplete_certificate_configuration() -> None:
     with pytest.raises(DirectoryProviderUnavailableError, match="Incomplete Entra certificate credential configuration"):
         DirectoryProviderService(

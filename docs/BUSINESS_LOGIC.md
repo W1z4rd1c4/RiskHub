@@ -112,6 +112,7 @@ Access-management read/list behavior and write behavior are intentionally differ
 Additional identity-governance rule for `microsoft_sso` mode:
 
 - For users with `external_id`, the following fields are Entra-authoritative and cannot be edited locally: `name`, `email`, `department_id`.
+- `entra_business_role`, when configured, is also Entra-authoritative metadata. It is visible to the signed-in user and admin read surfaces, but it must not be used for RiskHub authorization.
 - Local `role_id`, `access_scope`, and `manager_id` remain RiskHub-authoritative in this release.
 - If an externally linked user was auto-deprovisioned because the directory account is missing or disabled, normal local re-enable is blocked; operators must use the explicit break-glass flow with expiry and audit.
 

@@ -17,6 +17,7 @@ export interface DirectoryImportResponse {
     external_id: string;
     department_id: number | null;
     department_name: string | null;
+    entra_business_role: string | null;
     role_id: number;
     role_name: string | null;
     directory_sync_status: string | null;

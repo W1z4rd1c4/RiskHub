@@ -15,6 +15,7 @@ class DirectoryUserRead(BaseModel):
     user_principal_name: str | None = None
     department: str | None = None
     job_title: str | None = None
+    business_role: str | None = None
     account_enabled: bool = True
     source: Literal["graph", "ad_emulator"]
 
@@ -35,6 +36,7 @@ class DirectoryImportResponse(BaseModel):
     external_id: str
     department_id: int | None = None
     department_name: str | None = None
+    entra_business_role: str | None = None
     role_id: int
     role_name: str | None = None
     directory_sync_status: str | None = None

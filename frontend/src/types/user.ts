@@ -11,6 +11,7 @@ export interface UserRead {
     name: string;
     is_active: boolean;
     role: Role;
+    entra_business_role?: string | null;
     department_id: number | null;
     manager_id: number | null;
     manager_name: string | null;
@@ -44,6 +45,7 @@ export interface UserBrief {
     name: string;
     role: string;
     role_display_name: string;
+    entra_business_role?: string | null;
     permissions: string[];
 }
 

@@ -19,6 +19,7 @@ from app.core.outbound_guard import (
     guarded_get,
 )
 from app.schemas.directory import DirectoryUserRead
+from app.services.directory_identity_service import normalize_business_role
 
 _GRAPH_BASE_URL = "https://graph.microsoft.com/v1.0"
 _GRAPH_SCOPE = "https://graph.microsoft.com/.default"
@@ -58,13 +59,20 @@ class GraphDirectoryService:
     def source_name(self) -> str:
         return "graph"
 
+    def _user_select_fields(self) -> str:
+        fields = ["id", "displayName", "mail", "userPrincipalName", "department", "jobTitle", "accountEnabled"]
+        business_role_field = self._settings.entra_business_role_graph_field
+        if business_role_field:
+            fields.append(business_role_field)
+        return ",".join(fields)
+
     async def search_users(self, *, query: str, limit: int = 25, skip: int = 0) -> list[DirectoryUserRead]:
         q = query.strip()
         if not q:
             return []
         safe_q = q.replace("'", "''")
         params = {
-            "$select": "id,displayName,mail,userPrincipalName,department,jobTitle,accountEnabled",
+            "$select": self._user_select_fields(),
             "$filter": (
                 f"startswith(displayName,'{safe_q}')"
                 f" or startswith(mail,'{safe_q}')"
@@ -85,7 +93,7 @@ class GraphDirectoryService:
             raise GraphUserNotFoundError("Missing directory object id")
         payload = await self._graph_get(
             f"/users/{oid}",
-            params={"$select": "id,displayName,mail,userPrincipalName,department,jobTitle,accountEnabled"},
+            params={"$select": self._user_select_fields()},
             not_found_is_error=True,
         )
         return self._to_directory_user(payload)
@@ -96,7 +104,7 @@ class GraphDirectoryService:
             return []
         safe_identifier = normalized.replace("'", "''")
         params = {
-            "$select": "id,displayName,mail,userPrincipalName,department,jobTitle,accountEnabled",
+            "$select": self._user_select_fields(),
             "$filter": f"mail eq '{safe_identifier}' or userPrincipalName eq '{safe_identifier}'",
             "$top": "5",
         }
@@ -311,6 +319,7 @@ class GraphDirectoryService:
         upn_raw = payload.get("userPrincipalName")
         department_raw = payload.get("department")
         job_title_raw = payload.get("jobTitle")
+        business_role_raw = payload.get(self._settings.entra_business_role_graph_field or "")
         account_enabled = payload.get("accountEnabled")
 
         return DirectoryUserRead(
@@ -320,6 +329,7 @@ class GraphDirectoryService:
             user_principal_name=upn_raw.strip().lower() if isinstance(upn_raw, str) and upn_raw.strip() else None,
             department=department_raw.strip() if isinstance(department_raw, str) and department_raw.strip() else None,
             job_title=job_title_raw.strip() if isinstance(job_title_raw, str) and job_title_raw.strip() else None,
+            business_role=normalize_business_role(business_role_raw if isinstance(business_role_raw, str) else None),
             account_enabled=bool(account_enabled) if isinstance(account_enabled, bool) else True,
             source="graph",
         )

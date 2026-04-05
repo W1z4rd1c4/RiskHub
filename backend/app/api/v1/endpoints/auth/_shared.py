@@ -59,6 +59,7 @@ def _build_token_response(
         "name": user.name,
         "role": user.role.name,
         "role_display_name": user.role.display_name,
+        "entra_business_role": user.entra_business_role,
         "department_id": user.department_id,
         "department_name": user.department.name if user.department else None,
         "permissions": effective_permissions,

@@ -158,7 +158,12 @@ async def import_directory_user(
         user.role_id = role.id
 
     try:
-        await apply_directory_profile(db, user=user, directory_user=directory_user)
+        await apply_directory_profile(
+            db,
+            user=user,
+            directory_user=directory_user,
+            sync_business_role=settings.entra_business_role_enabled,
+        )
     except DirectoryIdentityConflictError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     if directory_user.account_enabled and user.deprovision_reason in ADDeprovisionService.AUTO_DEPROVISION_REASONS:
@@ -211,6 +216,7 @@ async def import_directory_user(
         external_id=refreshed.external_id or directory_user.external_id,
         department_id=refreshed.department_id,
         department_name=refreshed.department.name if refreshed.department else None,
+        entra_business_role=refreshed.entra_business_role,
         role_id=refreshed.role_id,
         role_name=refreshed.role.name if refreshed.role else None,
         directory_sync_status=refreshed.directory_sync_status,

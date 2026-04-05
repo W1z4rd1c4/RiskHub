@@ -14,6 +14,7 @@
     "email": "E-mailová adresa",
     "department": "Oddělení",
     "role": "Role",
+    "organizational_role": "Organizační role",
     "last_login": "Poslední přihlášení",
     "your_identity": "Vaše identita",
     "your_permissions": "Vaše oprávnění",

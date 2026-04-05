@@ -72,6 +72,8 @@ or
 
 `ENTRA_TENANT_ID`, `ENTRA_CLIENT_ID`, and the production `ALLOWED_HOSTS` allowlist stay in the non-secret config. Database credentials, `SECRET_KEY`, and the Redis password live in `/etc/riskhub/secrets/`. `init` scaffolds both optional Entra secret files so the secret directory layout is ready for either confidential-credential mode. For Entra Graph credentials, production supports either `ENTRA_CLIENT_SECRET_FILE` or the preferred certificate mode: `ENTRA_CLIENT_CERTIFICATE_THUMBPRINT` in `riskhub.env` plus the PEM private key at `/etc/riskhub/secrets/entra_client_certificate_private_key`. `secrets-edit` keeps its temporary edit buffer on the same host-managed deployment path as the secret directory, not under `/tmp`, and remains line-based, so certificate PEM material should be managed directly in the dedicated secret file rather than pasted into `secrets-edit`. The unused optional Entra file may remain on its scaffold placeholder; preflight validates only the credential mode selected by `riskhub.env` and warns when production still uses client-secret mode.
 
+If you enable read-only Entra business-role metadata in RiskHub, set `ENTRA_BUSINESS_ROLE_ATTRIBUTE_NAME=riskhubBusinessRole` in `/etc/riskhub/riskhub.env`, create that directory extension on the RiskHub app registration, and add the matching optional ID-token claim before rollout.
+
 Rendered production runtime config is intentionally opinionated:
 
 - `DIRECTORY_PROVIDER=graph`

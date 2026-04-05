@@ -17,6 +17,13 @@ def resolve_directory_email(directory_user: DirectoryUserRead) -> str | None:
     return normalize_email(directory_user.email or directory_user.user_principal_name)
 
 
+def normalize_business_role(value: str | None) -> str | None:
+    if value is None:
+        return None
+    normalized = value.strip()
+    return normalized or None
+
+
 def has_auto_deprovision_reason(user: User) -> bool:
     from app.services.ad_deprovision_service import ADDeprovisionService
 
@@ -63,6 +70,7 @@ async def apply_directory_profile(
     *,
     user: User,
     directory_user: DirectoryUserRead,
+    sync_business_role: bool = False,
 ):
     now = utc_now()
     normalized_email = resolve_directory_email(directory_user)
@@ -83,6 +91,9 @@ async def apply_directory_profile(
     user.name = directory_user.display_name or user.name or normalized_email or user.email
     user.external_id = directory_user.external_id
     user.job_title = directory_user.job_title
+    if sync_business_role:
+        user.entra_business_role = normalize_business_role(directory_user.business_role)
+        user.entra_business_role_last_synced_at = now
     user.directory_last_checked_at = now
     user.directory_last_seen_at = now
     user.directory_sync_status = "active" if directory_user.account_enabled else "directory_disabled"

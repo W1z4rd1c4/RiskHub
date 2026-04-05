@@ -14,6 +14,7 @@ class AuthSettingsSection(_FrozenSectionModel):
     entra_tenant_id: str | None
     entra_client_id: str | None
     entra_allowed_email_domains: tuple[str, ...]
+    entra_business_role_attribute_name: str | None
     jit_provisioning_enabled: bool
     allow_email_link: bool
     sso_challenge_ttl_seconds: int

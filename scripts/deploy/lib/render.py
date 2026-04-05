@@ -227,6 +227,7 @@ class DeployConfig:
     entra_tenant_id: str
     entra_client_id: str
     entra_client_certificate_thumbprint: str | None
+    entra_business_role_attribute_name: str | None
     bootstrap_admin_email: str
     bootstrap_cro_email: str
     api_workers: int
@@ -269,6 +270,7 @@ class DeployConfig:
             entra_tenant_id=require("ENTRA_TENANT_ID"),
             entra_client_id=require("ENTRA_CLIENT_ID"),
             entra_client_certificate_thumbprint=values.get("ENTRA_CLIENT_CERTIFICATE_THUMBPRINT", "").strip() or None,
+            entra_business_role_attribute_name=values.get("ENTRA_BUSINESS_ROLE_ATTRIBUTE_NAME", "").strip() or None,
             bootstrap_admin_email=admin_email,
             bootstrap_cro_email=cro_email,
             api_workers=api_workers,
@@ -321,6 +323,8 @@ class DeployConfig:
         }
         if target == "docker":
             values["DOCKER_NETWORK_SUBNET"] = self.docker_network_subnet
+        if self.entra_business_role_attribute_name:
+            values["ENTRA_BUSINESS_ROLE_ATTRIBUTE_NAME"] = self.entra_business_role_attribute_name
         if credential_mode == "certificate":
             assert self.entra_client_certificate_thumbprint is not None
             values["ENTRA_CLIENT_CERTIFICATE_THUMBPRINT"] = self.entra_client_certificate_thumbprint

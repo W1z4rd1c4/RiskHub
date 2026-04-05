@@ -81,6 +81,7 @@ def _build_access_user_read(user: User) -> AccessUserRead:
         effective_permissions=get_effective_permissions(user),
         external_id=user.external_id,
         job_title=user.job_title,
+        entra_business_role=user.entra_business_role,
         directory_last_checked_at=user.directory_last_checked_at,
         directory_last_seen_at=user.directory_last_seen_at,
         directory_sync_status=user.directory_sync_status,

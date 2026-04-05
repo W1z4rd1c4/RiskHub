@@ -11,6 +11,7 @@ from starlette.responses import JSONResponse, Response
 from app.core.config import Settings, get_settings
 from app.core.datetime_utils import coerce_utc, utc_now
 from app.core.email import email_equals, normalize_email
+from app.core.logging import get_logger
 from app.core.tokens import (
     clear_sso_challenge_cookie,
     create_refresh_token,
@@ -22,6 +23,7 @@ from app.core.tokens import (
 from app.db.session import get_db
 from app.models import Role, RolePermission, User
 from app.schemas.auth import SsoExchangeRequest, SsoStartRequest, SsoStartResponse, TokenResponse
+from app.services.directory_identity_service import normalize_business_role
 from app.services.sso_challenge_store import SsoChallenge
 from app.services.sso_token_service import SsoProviderUnavailableError, SsoTokenVerificationError
 
@@ -35,6 +37,7 @@ from ._shared import (
 )
 
 router = APIRouter()
+logger = get_logger("auth.sso")
 
 
 def _user_permission_load():
@@ -155,6 +158,7 @@ async def _sync_sso_user_profile(
     user: User,
     identity,
 ):
+    now = utc_now()
     if identity.name and user.name != identity.name:
         user.name = identity.name
 
@@ -172,6 +176,12 @@ async def _sync_sso_user_profile(
                 content={"detail": "SSO identity conflict", "code": "SSO_IDENTITY_COLLISION"},
             )
         user.email = normalized_email
+
+    business_role = normalize_business_role(identity.business_role)
+    if business_role is not None and user.entra_business_role != business_role:
+        user.entra_business_role = business_role
+    if business_role is not None:
+        user.entra_business_role_last_synced_at = now
 
     db.add(user)
     await db.flush()
@@ -495,6 +505,13 @@ async def sso_exchange(
             f"User logged in (sso): {user.email} "
             f"tenant_sha256={_sha256_trunc(identity.tenant_id)} oid_sha256={_sha256_trunc(identity.external_id)}"
         ),
+    )
+    logger.info(
+        "sso_login_success",
+        user_id=user.id,
+        oid_sha256=_sha256_trunc(identity.external_id),
+        tenant_sha256=_sha256_trunc(identity.tenant_id),
+        entra_business_role_present=identity.business_role is not None,
     )
     await db.commit()
     return token_response

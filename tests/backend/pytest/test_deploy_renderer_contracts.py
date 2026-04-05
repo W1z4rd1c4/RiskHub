@@ -225,6 +225,43 @@ def test_renderer_prefers_certificate_mode_and_omits_secret_file_from_runtime_en
         assert metadata["ENTRA_GRAPH_CREDENTIAL_MODE"] == "certificate"
 
 
+def test_renderer_passes_through_entra_business_role_attribute_name() -> None:
+    with tempfile.TemporaryDirectory(prefix="riskhub-deploy-render-business-role-") as td:
+        tmp = Path(td)
+        config_path = tmp / "riskhub.env"
+        secret_dir = tmp / "secrets"
+        runtime_dir = tmp / "runtime"
+        out_dir = tmp / "rendered"
+        _write_config(
+            config_path,
+            ENTRA_BUSINESS_ROLE_ATTRIBUTE_NAME="riskhubBusinessRole",
+        )
+        _write_secrets(secret_dir)
+
+        subprocess.run(
+            [
+                "python3",
+                str(RENDERER),
+                "write-runtime",
+                "--config",
+                str(config_path),
+                "--target",
+                "docker",
+                "--secret-dir",
+                str(secret_dir),
+                "--runtime-dir",
+                str(runtime_dir),
+                "--out-dir",
+                str(out_dir),
+            ],
+            cwd=REPO_ROOT,
+            check=True,
+        )
+
+        backend_env = _parse_env(out_dir / "backend.env")
+        assert backend_env["ENTRA_BUSINESS_ROLE_ATTRIBUTE_NAME"] == "riskhubBusinessRole"
+
+
 def test_renderer_rejects_partial_certificate_configuration() -> None:
     with tempfile.TemporaryDirectory(prefix="riskhub-deploy-render-cert-invalid-") as td:
         tmp = Path(td)
