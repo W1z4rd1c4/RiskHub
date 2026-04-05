@@ -37,6 +37,10 @@ Unless user redirects, prioritize unresolved work identified as in progress in:
   - `backend/venv/`
   - `tests/results/backend/coverage_html/`
   - `tests/results/`
+- Install repository hooks with `pre-commit install --install-hooks` in active local clones.
+- Treat `python3 scripts/security/validate_public_repo_hygiene.py` as the fast local gate for public path/privacy leaks.
+- When touching docs, `.planning`, scripts, or security tooling, keep the public hygiene validator green before commit.
+- The public hygiene validator intentionally allowlists its own scanner implementation and regression tests so leak-detection patterns embedded in those files do not self-report.
 - Prefer small, reviewable diffs over broad rewrites.
 - Do not modify unrelated files just to satisfy formatting preferences.
 

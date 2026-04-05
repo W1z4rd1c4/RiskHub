@@ -104,6 +104,15 @@ python3 scripts/tools/docs_tree_audit.py --scope full
 
 ---
 
+## Public Repo Hygiene Notes
+
+- Install the hook in each local clone with `pre-commit install --install-hooks`.
+- The fast gate is `python3 scripts/security/validate_public_repo_hygiene.py`; CI runs the same validator in the `Public Repo Hygiene` job.
+- The validator is intentionally self-aware: it allowlists its own scanner implementation, the leak-audit script, and its regression tests so path-detection patterns embedded in those files do not self-report.
+- The validator is focused on public path/privacy leaks and tracked local/runtime artifacts. It is complementary to Gitleaks, not a replacement for secret scanning.
+
+---
+
 ## CI/CD Pipeline
 
 The security workflow (`.github/workflows/security.yml`) runs:
