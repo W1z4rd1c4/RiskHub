@@ -17,6 +17,9 @@ Required keys:
 - `ALLOWED_HOSTS`
 - `ENTRA_TENANT_ID`
 - `ENTRA_CLIENT_ID`
+- `DIRECTORY_PROVIDER`
+- `ENTRA_JIT_PROVISIONING_ENABLED`
+- `AUTH_SSO_ALLOW_EMAIL_LINK`
 - `BOOTSTRAP_ADMIN_EMAIL`
 - `BOOTSTRAP_CRO_EMAIL`
 
@@ -74,6 +77,10 @@ These are rendered by the managed deploy tooling and are not operator-edited in 
 Production runtime note:
 
 - `ALLOWED_HOSTS` is a required production setting. Managed `docker`/`linux` install flows derive and render it from the configured public hostname, but manual operators must treat it as an explicit allowlist requirement rather than assuming it is optional or inferred from CORS settings.
+- `DIRECTORY_PROVIDER` must be set to `graph` in production.
+- `ENTRA_JIT_PROVISIONING_ENABLED` must be set to `false` in production.
+- `AUTH_SSO_ALLOW_EMAIL_LINK` must be set to `false` in production.
+- Production requires one explicit Entra confidential credential mode: `ENTRA_CLIENT_SECRET_FILE`, or `ENTRA_CLIENT_CERTIFICATE_THUMBPRINT` plus `ENTRA_CLIENT_CERTIFICATE_PRIVATE_KEY_FILE`.
 
 Target-specific Redis URLs:
 
@@ -212,6 +219,9 @@ Linux target:
 - `DEBUG=false`
 - `MOCK_AUTH_ENABLED=false`
 - `AUTH_MODE=microsoft_sso`
+- `DIRECTORY_PROVIDER=graph`
+- `ENTRA_JIT_PROVISIONING_ENABLED=false`
+- `AUTH_SSO_ALLOW_EMAIL_LINK=false`
 - `SECRET_KEY_FILE` resolves to a value with length at least `32`
 - explicit `CORS_ORIGINS`
 - access-token bearer auth requires RiskHub access-token claims (`type=access`, `iss=riskhub`, `aud=riskhub-api`)
@@ -219,6 +229,7 @@ Linux target:
 - one valid Entra confidential credential mechanism for Graph directory access
 - reachable `REDIS_URL_FILE`
 - `/docs` and `/openapi.json` disabled in production
+- browser isolation headers (`Cross-Origin-Opener-Policy`, `Cross-Origin-Embedder-Policy`) intentionally omitted in the current baseline because RiskHub does not require cross-origin isolated browser capabilities
 - smoke checks fail if:
   - `scheduler_job_runs` or `app_outbox_events` is missing
   - the scheduler runtime is not represented by exactly one running `__scheduler_runtime__` row

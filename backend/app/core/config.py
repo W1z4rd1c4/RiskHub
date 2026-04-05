@@ -138,7 +138,7 @@ class Settings(BaseSettings):
     )
     # SECURITY: JIT provisioning creates local users on first SSO login. Disable if you require
     # pre-provisioning via admin.
-    entra_jit_provisioning_enabled: bool = True
+    entra_jit_provisioning_enabled: bool = False
     entra_allowed_email_domains: list[str] = Field(
         default_factory=list,
         validation_alias=AliasChoices("ENTRA_ALLOWED_EMAIL_DOMAINS", "ENTRA_ALLOWED_DOMAINS"),
@@ -146,10 +146,10 @@ class Settings(BaseSettings):
     entra_business_role_attribute_name: str | None = None
     entra_clock_skew_seconds: int = 60
     entra_oidc_discovery_url: str | None = None
-    auth_sso_allow_email_link: bool = True
+    auth_sso_allow_email_link: bool = False
     auth_sso_challenge_ttl_seconds: int = 300
     auth_sso_require_challenge: bool = False
-    directory_provider: Literal["auto", "graph", "ad_emulator"] = "auto"
+    directory_provider: Literal["auto", "graph", "ad_emulator"] = "graph"
     ad_emulator_base_url: str | None = None
     ad_emulator_api_key: str | None = None
     ad_emulator_api_key_header: str = "X-API-Key"

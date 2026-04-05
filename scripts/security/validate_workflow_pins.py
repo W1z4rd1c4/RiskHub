@@ -8,8 +8,10 @@ import sys
 from pathlib import Path
 
 USES_RE = re.compile(r"^\s*-\s+uses:\s+([^\s]+)")
+IMAGE_RE = re.compile(r"^\s*image:\s+([^\s]+)")
 FULL_SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 PINNED_IMAGE_RE = re.compile(r"anchore/(?:syft|grype):[^\s'\"]+@sha256:[0-9a-f]{64}")
+EXTERNAL_IMAGE_RE = re.compile(r"^[a-z0-9./_-]+:[^@\s'\"]+@sha256:[0-9a-f]{64}$")
 
 
 def _strip_quotes(value: str) -> str:
@@ -50,14 +52,23 @@ def validate_workflow(path: Path) -> list[str]:
                 f"{path}:{lineno}: scanner image must include an explicit version tag and digest",
             )
 
+        image_match = IMAGE_RE.match(line)
+        if image_match:
+            target = _strip_quotes(image_match.group(1))
+            if target.startswith("${{"):
+                continue
+            if ":" not in target:
+                continue
+            if not EXTERNAL_IMAGE_RE.fullmatch(target):
+                errors.append(
+                    f"{path}:{lineno}: workflow service image must include an explicit version tag and digest, found {target}",
+                )
+
     return errors
 
 
 def main(argv: list[str]) -> int:
-    paths = [Path(arg) for arg in argv] or [
-        Path(".github/workflows/security.yml"),
-        Path(".github/workflows/release.yml"),
-    ]
+    paths = [Path(arg) for arg in argv] or sorted(Path(".github/workflows").glob("*.yml"))
 
     errors: list[str] = []
     for path in paths:

@@ -66,6 +66,7 @@ RiskHub production deploys must satisfy these invariants:
 - Keep `ALLOWED_HOSTS` explicit and reviewed for the real public hostname set; do not assume CORS or runtime defaults are sufficient.
 - Keep the modern header baseline only: CSP, HSTS, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Cross-Origin-Resource-Policy`, and `Permissions-Policy`. Do not reintroduce legacy `X-XSS-Protection`.
 - Keep production CSP free of `style-src 'unsafe-inline'`.
+- `Cross-Origin-Opener-Policy` and `Cross-Origin-Embedder-Policy` are intentionally not enabled in the current baseline because the app does not need cross-origin isolated browser capabilities today; reassess before introducing SharedArrayBuffer or similar browser features.
 - Avoid broad private-network `TRUSTED_PROXIES` ranges unless you intentionally trust all peers inside those networks to supply `X-Forwarded-For`.
 - Treat any dead-letter outbox event as an operational incident until triaged.
 - After deploy, verify outbox backlog is healthy:
@@ -98,6 +99,7 @@ RiskHub production deploys must satisfy these invariants:
 - Docker target should pull only published release images.
 - Linux target should use only published `riskhub-linux-<version>.tar.gz` bundles.
 - Validate release artifacts in CI before publishing.
+- CI policy now requires immutable action SHAs, digest-pinned service images, and production contract doc parity checks before PR merge.
 
 ## Backups And Rollback
 

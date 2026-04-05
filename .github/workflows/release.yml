@@ -23,7 +23,7 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
       - name: Validate workflow action and image pins
-        run: python3 scripts/security/validate_workflow_pins.py .github/workflows/security.yml .github/workflows/release.yml
+        run: python3 scripts/security/validate_workflow_pins.py
 
   prepare:
     name: Prepare Release Metadata

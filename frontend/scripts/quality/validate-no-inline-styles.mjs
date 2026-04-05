@@ -1,7 +1,10 @@
 import { readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const root = join(process.cwd(), 'src');
+const scriptDir = dirname(fileURLToPath(import.meta.url));
+const frontendRoot = join(scriptDir, '..', '..');
+const root = join(frontendRoot, 'src');
 const violations = [];
 
 function collectSourceFiles(currentDir, prefix = '') {

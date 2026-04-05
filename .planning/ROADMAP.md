@@ -60,7 +60,7 @@ Building an enterprise risk management platform for insurance companies, startin
 - [x] **Phase 153: Audit Resolution 3** — Further audit fixes (12/12)
 - [x] **Phase 154: Workflow Bug Sweep** — Workflow bug fixes (5/5)
 - [ ] **Phase 155: Approval Edit UX** — Approval UX improvements (0/1)
-- [ ] **Phase 156: Audit** — Additional audit phase (7/8)
+- [x] **Phase 156: Audit** — Additional audit phase (8/8)
 - [x] **Phase 156.1: Admin Role & RBAC Hardening** — Fix admin-role authorization gaps and RBAC contract drift (5/5)
 - [x] **Phase 157: Business Logic Compliance** — Fix BUSINESS_LOGIC.md discrepancies (6/6)
 - [x] **Phase 158: Audit** — Full-app audit findings → 10 independent fix plans (10/10)
@@ -772,9 +772,10 @@ Plans:
 **Goal**: Remediate audit findings focused on RBAC correctness, security hardening, and data integrity without changing core business semantics.
 **Depends on**: None
 **Research**: None
-**Status**: ⏳ In progress
+**Status**: ✅ Complete
+**Completed**: 2026-04-05
 **Plans**: 8 plans
-**Evidence hint**: Summaries exist for 01-08; `156-08` is explicitly marked deferred.
+**Evidence hint**: Summaries exist for 01-08; `156-08` was later closed by the auth/session and timezone standardization follow-up.
 
 Plans:
 
@@ -785,10 +786,12 @@ Plans:
 - [x] 156-05: Frontend Permission Gating & Demo Login
 - [x] 156-06: CSP Hardening & LOG_LEVEL
 - [x] 156-07: Control-Risk Link Uniqueness
-- [ ] 156-08: JWT Storage & Timezone Decisions (deferred)
+- [x] 156-08: JWT Storage & Timezone Decisions
 
 Note:
-- `156-08` remains intentionally deferred; phase stays open until a final architecture decision is implemented.
+- `156-08` was originally deferred, then effectively resolved on 2026-04-05:
+  - frontend access tokens now remain in memory only, with refresh continuity handled through the backend-issued refresh/csrf cookie bootstrap path
+  - timezone handling is now standardized on timezone-aware UTC persistence and guardrails
 
 ### Phase 156.1: Admin Role & RBAC Hardening (INSERTED)
 
@@ -917,7 +920,7 @@ Phases execute in numeric order: 1 → ... → 6.1 → 7 → 8 → 9 → 10 → 
 | 153. Audit Resolution 3 | 12/12 | ✅ Complete | 2026-01-10 |
 | 154. Workflow Bug Sweep | 5/5 | ✅ Complete | 2026-01-14 |
 | 155. Approval Edit UX | 0/1 | ⏸️ Planned | - |
-| 156. Audit | 7/8 | ⏳ In progress | - |
+| 156. Audit | 8/8 | ✅ Complete | 2026-04-05 |
 | 156.1 Admin Role & RBAC Hardening | 5/5 | ✅ Complete | 2026-02-11 |
 | 157. Business Logic Compliance | 6/6 | ✅ Complete | 2026-01-22 |
 | 158. Audit | 10/10 | ✅ Complete | 2026-01-19 |
@@ -1082,3 +1085,5 @@ Post-closeout note (2026-04-05):
 - modern production CSP now omits `style-src 'unsafe-inline'`
 - repo hardening validators now gate workflow pinning, inline-style regressions, legacy header regressions, and auth/session navigation/storage regressions
 - settings/runtime follow-up completed with real section models and restored model-level strictness for `Settings`
+- all GitHub Actions workflows now require immutable action refs/service images through the repo-wide pin validator
+- PR CI now includes blocking frontend Vitest coverage, the expanded Postgres regression lane, and a distinct production-profile smoke lane beside the fast hybrid-dev Playwright job

@@ -39,11 +39,7 @@ export async function loginAsDemoUser(
                 timeout: timeout + 5000
             });
             await page.waitForLoadState('domcontentloaded');
-
-            // The protected shell can still be on the global loading screen while
-            // auth + preferences hydration finish, especially under multi-worker load.
             await waitForPreferencesHydration(page, timeout + 5000);
-            await page.waitForSelector('nav, [data-testid="logout-button"]', { timeout });
 
             return; // Success
         } catch (error) {

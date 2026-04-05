@@ -54,6 +54,8 @@ export function Pagination({
                 <button
                     onClick={() => onPageChange(currentPage - 1)}
                     disabled={!canGoPrev}
+                    aria-label={t('actions.previous')}
+                    title={t('actions.previous')}
                     className={cn(
                         'p-2 rounded-lg transition-all duration-200',
                         canGoPrev
@@ -97,6 +99,8 @@ export function Pagination({
                 <button
                     onClick={() => onPageChange(currentPage + 1)}
                     disabled={!canGoNext}
+                    aria-label={t('actions.next')}
+                    title={t('actions.next')}
                     className={cn(
                         'p-2 rounded-lg transition-all duration-200',
                         canGoNext

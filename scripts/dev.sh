@@ -272,6 +272,15 @@ export_local_dev_env_defaults() {
     if [ -z "${AUTH_MODE:-}" ]; then
         export AUTH_MODE=hybrid_dev
     fi
+    if [ -z "${DIRECTORY_PROVIDER:-}" ]; then
+        export DIRECTORY_PROVIDER=ad_emulator
+    fi
+    if [ -z "${ENTRA_JIT_PROVISIONING_ENABLED:-}" ]; then
+        export ENTRA_JIT_PROVISIONING_ENABLED=true
+    fi
+    if [ -z "${AUTH_SSO_ALLOW_EMAIL_LINK:-}" ]; then
+        export AUTH_SSO_ALLOW_EMAIL_LINK=true
+    fi
     if [ -z "${SECRET_KEY:-}" ]; then
         export SECRET_KEY=dev-secret-key-not-for-production-use
     fi

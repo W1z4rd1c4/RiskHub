@@ -10,10 +10,10 @@ const DEMO_TOKEN_OPTIONS_BY_ACCOUNT_NAME: Record<string, DemoTokenOptions> = {
     'Anna Kowalski': { email: 'cro@riskhub.local', fallbackUserIds: [2] },
     'Petra Svobodová': { email: 'risk.manager@riskhub.local', fallbackUserIds: [3] },
     'Eva Králová': { email: 'ops.head@riskhub.local', fallbackUserIds: [4] },
-    'Martin Procházka': { email: 'finance.head@riskhub.local', fallbackUserIds: [5] },
+    'Martin Procházka': { email: 'fin.head@riskhub.local', fallbackUserIds: [5] },
     'Tomáš Novotný': { email: 'it.head@riskhub.local', fallbackUserIds: [6] },
     'Jana Horáková': { email: 'ops.analyst@riskhub.local', fallbackUserIds: [7] },
-    'Lukáš Dvořák': { email: 'finance.analyst@riskhub.local', fallbackUserIds: [8] },
+    'Lukáš Dvořák': { email: 'fin.analyst@riskhub.local', fallbackUserIds: [8] },
     'Barbora Němcová': { email: 'it.analyst@riskhub.local', fallbackUserIds: [9] },
 };
 
@@ -35,6 +35,20 @@ export interface ControlLookup {
 export interface KRILookup {
     id: number;
     is_archived?: boolean;
+}
+
+export interface NotificationLookup {
+    id: number;
+    type: string;
+    title: string;
+    message: string;
+    is_read: boolean;
+}
+
+interface NotificationListResponse {
+    items: NotificationLookup[];
+    total: number;
+    unread_count: number;
 }
 
 export function getApiBaseUrl(): string {
@@ -82,7 +96,7 @@ export async function getDemoToken(options: DemoTokenOptions): Promise<string> {
         const response = await fetch(candidate.url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            ...(candidate.body ? { body: JSON.stringify(candidate.body) } : {}),
+            body: JSON.stringify(candidate.body ?? {}),
         });
         if (!response.ok) continue;
         const data = await response.json() as { access_token?: string };
@@ -90,6 +104,47 @@ export async function getDemoToken(options: DemoTokenOptions): Promise<string> {
     }
 
     throw new Error(`Failed to get API token for ${email} via demo-login endpoints`);
+}
+
+export async function listNotificationsByAccountName(accountName: string): Promise<NotificationLookup[]> {
+    const apiBase = getApiBaseUrl();
+    const token = await getDemoTokenByAccountName(accountName);
+    const params = new URLSearchParams({
+        skip: '0',
+        limit: '50',
+        unread_only: 'false',
+    });
+    const response = await fetch(`${apiBase}/api/v1/notifications?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) {
+        throw new Error(`Failed to load notifications for '${accountName}': ${response.status}`);
+    }
+    const body = await response.json() as NotificationListResponse;
+    return body.items;
+}
+
+export async function waitForNotificationByAccountName(
+    accountName: string,
+    matcher: (notification: NotificationLookup) => boolean,
+    options: { timeoutMs?: number; intervalMs?: number } = {},
+): Promise<NotificationLookup> {
+    const timeoutMs = options.timeoutMs ?? 30000;
+    const intervalMs = options.intervalMs ?? 1000;
+    const deadline = Date.now() + timeoutMs;
+    let lastNotifications: NotificationLookup[] = [];
+
+    while (Date.now() < deadline) {
+        lastNotifications = await listNotificationsByAccountName(accountName);
+        const match = lastNotifications.find(matcher);
+        if (match) {
+            return match;
+        }
+        await new Promise(resolve => setTimeout(resolve, intervalMs));
+    }
+
+    const observed = lastNotifications.map(notification => `${notification.type}:${notification.title}`).join(', ') || 'none';
+    throw new Error(`Timed out waiting for notification for '${accountName}'. Observed notifications: ${observed}`);
 }
 
 export async function getVendorByRegistration(registrationId: string): Promise<VendorLookup | null> {

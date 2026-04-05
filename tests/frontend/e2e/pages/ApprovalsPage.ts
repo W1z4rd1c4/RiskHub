@@ -75,18 +75,53 @@ export class ApprovalsPage {
     }
 
     async selectPendingQueue(): Promise<void> {
-        await this.pendingQueueTab.click();
+        await Promise.all([
+            this.waitForApprovalsResponse({ status: 'pending', myRequests: false }),
+            this.pendingQueueTab.click(),
+        ]);
+        await this.waitForActiveTab(this.pendingQueueTab);
         await this.waitForApprovalsReady();
     }
 
     async selectMyRequests(): Promise<void> {
-        await this.myRequestsTab.click();
+        await Promise.all([
+            this.waitForApprovalsResponse({ myRequests: true }),
+            this.myRequestsTab.click(),
+        ]);
+        await this.waitForActiveTab(this.myRequestsTab);
         await this.waitForApprovalsReady();
     }
 
     async selectHistory(): Promise<void> {
-        await this.historyTab.click();
+        await Promise.all([
+            this.waitForApprovalsResponse({ myRequests: false }),
+            this.historyTab.click(),
+        ]);
+        await this.waitForActiveTab(this.historyTab);
         await this.waitForApprovalsReady();
+    }
+
+    private async waitForActiveTab(tab: Locator, timeout = 15000): Promise<void> {
+        await expect(tab).toHaveClass(/bg-accent/, { timeout });
+    }
+
+    private async waitForApprovalsResponse(expected: { status?: string; myRequests?: boolean }, timeout = 15000): Promise<void> {
+        await this.page.waitForResponse((response) => {
+            if (response.request().method() !== 'GET') return false;
+            if (!response.url().includes('/api/v1/approvals')) return false;
+
+            try {
+                const url = new URL(response.url());
+                const status = url.searchParams.get('status');
+                const myRequests = url.searchParams.get('my_requests') === 'true';
+
+                if (expected.status !== undefined && status !== expected.status) return false;
+                if (expected.status === undefined && status !== null) return false;
+                return myRequests === Boolean(expected.myRequests);
+            } catch {
+                return false;
+            }
+        }, { timeout });
     }
 
     async waitForApprovalsReady(timeout = 15000): Promise<void> {

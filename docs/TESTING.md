@@ -19,9 +19,9 @@ This guide defines the current testing matrix for backend, frontend unit tests, 
 | Backend PR CI (SQLite) | `cd backend && pytest -m "not postgres" -q` | Blocking PR lane for broad backend regression on the default fast harness |
 | Backend lint + suppression budget | `make -f scripts/Makefile lint-backend` | Ruff hard gate plus backend/app suppression budget enforcement |
 | Backend Postgres marker | `cd backend && TEST_DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_dev@localhost:5432/riskhub_test pytest -m postgres -v` | Postgres-sensitive behavior against a dedicated test database |
-| Backend PR CI (Postgres) | `cd backend && TEST_DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_test@localhost:5432/riskhub_test pytest -m postgres -q` | Blocking PR lane for migrated Postgres behavior and migration-defined constraints |
+| Backend PR CI (Postgres) | `TEST_DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_test@localhost:5432/riskhub_test make -f scripts/Makefile test-postgres-ci` | Blocking PR lane for Postgres marker coverage plus the broader DB-sensitive regression contract |
 | Backend Redis integration marker | `cd backend && pytest -m redis_integration -q` | Redis fault-injection resilience checks (Docker-backed) |
-| Frontend unit | `cd frontend && npm run test:run` | Component and integration tests |
+| Frontend unit | `cd frontend && npm run test:run` | Component and integration tests; PR-blocking in CI |
 | Frontend KRI filter regression | `cd frontend && npm run test:run -- src/pages/__tests__/KRIsPage.monitoring-status.test.tsx` | Route-backed `/kris` monitoring/timeliness filters, rapid-click loading safety, and grouped-view parity |
 | Frontend vendor grouped-view regression | `cd frontend && npm run test:run -- src/pages/__tests__/VendorsPage.grouped-views.test.tsx` | `/vendors` grouped tabs, `By Risk` permission gating, overlapping risk-group membership, and `Unlinked Risk` fallback |
 | Frontend reliability targeted | `cd frontend && npm run test:run -- src/components/layout/__tests__/SidebarPolling.test.tsx src/components/notifications/__tests__/NotificationBell.test.tsx src/hooks/__tests__/useAdaptivePollingQuery.test.tsx src/pages/__tests__/DashboardPage.overview.test.tsx src/pages/__tests__/GovernancePage.overview.test.tsx src/pages/admin-console/__tests__/AdminConsoleOpsPanels.outbox.test.tsx src/services/__tests__/accessTokenStore.test.ts src/services/__tests__/apiClient.401-recovery.test.ts` | Aggregate polling, admin outbox panel, and auth/bootstrap regression pack |
@@ -30,9 +30,11 @@ This guide defines the current testing matrix for backend, frontend unit tests, 
 | Frontend quality chain | `cd frontend && npm run lint && npx tsc --noEmit && npm run quality:debt -- --report-json && node scripts/quality/validate-debt-budget-report.mjs && npm run cleanup:deadcode && node scripts/cleanup/validate-unreachable-report.mjs && node scripts/quality/validate-no-inline-styles.mjs` | Frontend lint/type/debt/dead-code/inline-style gate mirrored by CI |
 | Frontend E2E | `cd frontend && npm run e2e` | Browser-level regression |
 | Frontend business-logic E2E | `cd frontend && npm run e2e:business-logic` | Focused role/scope/admin-boundary and workflow regression |
+| Production-profile smoke | `.github/workflows/e2e.yml` job `production-profile-smoke` | PR-blocking backend startup/auth/header/docs-disabled smoke under production-safe config |
 | Docs topology consistency | `cd . && make -f scripts/Makefile docs-topology-consistency` | README coverage, docs tree audit scope, and structure metrics consistency |
 | Suppression budget only | `cd . && make -f scripts/Makefile quality-suppression-budget` | Enforce backend suppression allowlist max budget/no-expired entries |
 | Docs contract | `cd . && python3 scripts/check_docs_contract.py` | Header/parity/link/audience checks |
+| Production contract docs parity | `cd . && python3 scripts/security/validate_production_contract_docs.py` | Ensures `.env.example`, deployment reference, and runtime production invariants stay synchronized |
 | Release parity (fast, non-blocking lane) | `python3 scripts/security/run_release_parity_audit.py --run-id <utc-ts> --skip-prod-readiness` | Monitoring lane for startup/dependency/UI parity checks (main/nightly; not PR-blocking) |
 | Release parity (full) | `python3 scripts/security/run_release_parity_audit.py --run-id <utc-ts>` | Final pre-release parity gate including prod-readiness execution/ingestion |
 
@@ -41,12 +43,12 @@ This guide defines the current testing matrix for backend, frontend unit tests, 
 - `backend/pytest.ini` defines discovery and default coverage settings.
 - SQLite in-memory is used by default test path unless `TEST_DATABASE_URL` is set.
 - Postgres-specific tests are marked with `@pytest.mark.postgres`.
-- PR CI runs both a broad SQLite lane and a blocking Postgres-targeted lane.
+- PR CI runs a broad SQLite lane, a blocking Postgres regression contract, and a blocking frontend Vitest lane.
 - Installer regression coverage is anchored to the public `./scripts/install.sh` contract even though the implementation now routes through `scripts/install_cli.py` and `scripts/install_lib/`.
 - Schema-sensitive changes should keep the dedicated Postgres pytest lane green; do not rely on browser E2E as the only Postgres signal.
 - When the Docker app stack is using the live `riskhub` database, point Postgres marker runs at a sibling `riskhub_test` database instead; Postgres-mode truncates tables between tests.
 - Advisory-lock coverage is only valid in Postgres mode. Do not treat SQLite-only passes as sufficient for scheduler ownership enforcement.
-- The Postgres lane is the authority for migration-defined indexes and live schema typing checks.
+- The Postgres lane is the authority for migration-defined indexes and live schema typing checks, and now runs a named DB-sensitive regression contract instead of only `pytest -m postgres`.
 - Redis integration tests are marked with `@pytest.mark.redis_integration` and require Docker-backed test dependencies.
 - For docs endpoint behavior, keep role-scoped fixtures (`client_platform_admin`, `client_cro`, `client_employee`) green.
 
@@ -137,8 +139,11 @@ Current browser-lane caveats:
 - Playwright runs live browser flows from `tests/frontend/e2e`.
 - CI E2E contract requires demo auth mode:
   - backend env includes `AUTH_MODE=hybrid_dev`, `DEBUG=true`, `MOCK_AUTH_ENABLED=true`
+  - backend env also includes `ENABLE_SCHEDULER=true` together with `SCHEDULER_JOB_PROFILE=outbox_only` so transactional outbox delivery is exercised without enabling the unrelated periodic scheduler jobs in the single-process browser lane
   - deterministic seed commands run without tolerance (`python -m app.db.seed` and `python -m scripts.seed_e2e_all`)
+  - the canonical base seed now reconciles and repairs the default system risk types expected by `/riskhub/public-risk-types` and risk-create validation
   - backend preflight must confirm `/api/v1/auth/config` reports `demo_login_enabled=true`
+- CI also runs a separate production-profile smoke lane with `DEBUG=false`, `MOCK_AUTH_ENABLED=false`, `AUTH_MODE=microsoft_sso`, explicit `ALLOWED_HOSTS`, `DIRECTORY_PROVIDER=graph`, `ENTRA_JIT_PROVISIONING_ENABLED=false`, `AUTH_SSO_ALLOW_EMAIL_LINK=false`, and live Redis enabled.
 - Role-sensitive behavior must be verified for admin/non-admin views when docs contracts change.
 
 ## Release Gate (Parity)
@@ -158,6 +163,7 @@ Current browser-lane caveats:
 - Backend suppression non-regression is enforced by `scripts/tools/suppression_budget.py` against:
   - `scripts/quality/backend-suppression-allowlist.json`
 - Docs topology consistency is enforced by `make -f scripts/Makefile docs-topology-consistency`.
+- Production contract doc parity is enforced by `python3 scripts/security/validate_production_contract_docs.py`.
 
 ## Docs Change Verification (Required)
 

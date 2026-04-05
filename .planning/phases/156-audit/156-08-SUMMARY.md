@@ -2,29 +2,28 @@
 
 ## Status
 
-**Deferred** — User chose to skip these architectural decisions for now.
+**Closed later (2026-04-05)** — this checkpoint was originally deferred, then superseded by later auth/session and timezone hardening work.
 
-## Decisions Pending
+## Resolved Decisions
 
 ### 1. Browser Auth Storage Strategy
 
-Options presented:
-
-- **spa-msal**: SPA with MSAL (browser obtains tokens)
-- **bff-oidc**: Backend-for-frontend (httpOnly cookies)
-- **keep-current-dev-temporarily**: Keep localStorage for dev/demo
+- Access tokens are now kept in memory only on the frontend.
+- Session continuity uses backend-issued refresh/csrf cookies plus bootstrap refresh exchange.
+- Session mutations are centralized under the session-manager layer instead of ad hoc token/localStorage writes.
+- This closed the immediate “browser token storage” risk without changing the public auth endpoints.
 
 ### 2. Timezone Consistency Strategy
 
-Options presented:
-
-- **api-normalize-only**: Normalize at API boundary only
-- **db-migrate-timezone-aware**: Standardize DB columns
+- The repository standard is now timezone-aware UTC persistence for instant timestamps.
+- Canonical helpers, migrations, and regression tests enforce the UTC-aware policy.
+- The deferred “timezone decision” is therefore no longer pending in active code.
 
 ## Next Steps
 
-When ready to implement Microsoft/Entra login or address timezone consistency, revisit this plan and make the architectural decisions.
+- Future Entra/BFF evolution can still happen as a separate architecture step, but the original deferred audit item is no longer blocking.
+- Keep the current session/bootstrap and UTC-aware contracts aligned with docs/tests during future auth or infra changes.
 
 ## Commit
 
-No commit — decision deferred.
+No historical commit for this summary file itself; the later closure landed as part of the 2026-04-05 remediation wave.

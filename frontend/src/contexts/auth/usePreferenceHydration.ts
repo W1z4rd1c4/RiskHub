@@ -1,5 +1,4 @@
 import { useCallback, useState } from 'react';
-import { setPreferencesReady } from '@/services/preferencesReadiness';
 import { syncPreferencesFromServer } from '@/utils/userSettingsStorage';
 
 export function usePreferenceHydration(initialReady: boolean) {
@@ -7,7 +6,6 @@ export function usePreferenceHydration(initialReady: boolean) {
 
     const markPreferencesReady = useCallback((ready: boolean) => {
         setIsPreferencesHydrated(ready);
-        setPreferencesReady(ready);
     }, []);
 
     const hydratePreferences = useCallback(async () => {

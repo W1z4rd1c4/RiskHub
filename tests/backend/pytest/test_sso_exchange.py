@@ -32,6 +32,7 @@ async def sso_client(db_session: AsyncSession) -> AsyncClient:
             entra_tenant_id="00000000-0000-0000-0000-000000000000",
             entra_client_id="11111111-1111-1111-1111-111111111111",
             entra_jit_provisioning_enabled=True,
+            auth_sso_allow_email_link=True,
             cors_origins=["http://test"],
         )
 

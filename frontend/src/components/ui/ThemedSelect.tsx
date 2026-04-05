@@ -20,6 +20,7 @@ export interface ThemedSelectProps {
     onValueChange: (value: string) => void
     options: SelectOption[]
     placeholder?: string
+    triggerAriaLabel?: string
     className?: string
     disabled?: boolean
     /** Show empty option that clears selection */
@@ -43,6 +44,7 @@ export function ThemedSelect({
     onValueChange,
     options,
     placeholder,
+    triggerAriaLabel,
     className,
     disabled = false,
     allowEmpty = false,
@@ -81,7 +83,11 @@ export function ThemedSelect({
 
     return (
         <Select value={internalValue} onValueChange={handleValueChange} disabled={disabled}>
-            <SelectTrigger className={cn("min-w-[130px]", className)} data-testid={triggerTestId}>
+            <SelectTrigger
+                className={cn("min-w-[130px]", className)}
+                data-testid={triggerTestId}
+                aria-label={triggerAriaLabel ?? resolvedPlaceholder}
+            >
                 <SelectValue placeholder={resolvedPlaceholder} />
             </SelectTrigger>
             <SelectContent data-testid={contentTestId}>
