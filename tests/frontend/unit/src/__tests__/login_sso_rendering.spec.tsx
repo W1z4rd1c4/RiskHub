@@ -26,7 +26,6 @@ vi.mock('@/services/entraAuth', () => ({
   entraAuth: {
     loginRedirect: vi.fn(async () => {}),
     handleRedirect: vi.fn(async () => null),
-    acquireIdTokenSilent: vi.fn(async () => 'id-token'),
   },
 }));
 
@@ -99,6 +98,14 @@ describe('LoginPage (SSO + demo modes)', () => {
           sso_error: null,
         });
       }),
+      http.post('*/api/v1/auth/sso/start', async ({ request }) => {
+        expect(await request.json()).toEqual({ return_to: '/risks' });
+        return HttpResponse.json({
+          nonce: 'server-nonce',
+          state: 'server-state',
+          expires_in: 300,
+        });
+      }),
     );
 
     const user = userEvent.setup();
@@ -107,7 +114,10 @@ describe('LoginPage (SSO + demo modes)', () => {
     const button = await screen.findByRole('button', { name: /microsoft/i });
     await user.click(button);
 
-    expect(entraAuth.loginRedirect).toHaveBeenCalledWith('/risks');
+    expect(entraAuth.loginRedirect).toHaveBeenCalledWith({
+      nonce: 'server-nonce',
+      state: 'server-state',
+    });
   });
 
   it('exchanges redirect id token, stores RiskHub JWT, and redirects', async () => {
@@ -128,10 +138,15 @@ describe('LoginPage (SSO + demo modes)', () => {
           sso_error: null,
         });
       }),
-      http.post('*/api/v1/auth/sso/exchange', () => {
+      http.post('*/api/v1/auth/sso/exchange', async ({ request }) => {
+        expect(await request.json()).toEqual({
+          id_token: 'id-token',
+          state: 'opaque-state',
+        });
         return HttpResponse.json({
           access_token: 'exchanged-riskhub-token',
           token_type: 'bearer',
+          post_login_redirect_to: '/controls',
           user: {
             id: 1,
             email: 'user@example.com',
@@ -149,7 +164,7 @@ describe('LoginPage (SSO + demo modes)', () => {
 
     vi.mocked(entraAuth.handleRedirect).mockResolvedValue({
       idToken: 'id-token',
-      state: '/controls',
+      state: 'opaque-state',
     } as unknown as { idToken: string; state: string });
 
     const { hardNavigate } = await import('@/utils/hardNavigate');

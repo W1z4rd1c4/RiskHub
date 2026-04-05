@@ -6,6 +6,7 @@ from urllib.parse import urljoin
 import httpx
 
 from app.core.config import Settings
+from app.core.email import normalize_email
 from app.core.outbound_guard import (
     OutboundRequestError,
     build_outbound_client,
@@ -65,6 +66,16 @@ class _ADEmulatorDirectoryService:
             raise DirectoryProviderUnavailableError("AD emulator base URL is not configured")
         payload = await self._get_json(f"/users/{external_id.strip()}", not_found_is_error=True)
         return self._to_directory_user(payload)
+
+    async def find_user_by_login_identifier(self, identifier: str) -> list[DirectoryUserRead]:
+        normalized = normalize_email(identifier)
+        if normalized is None:
+            return []
+        matches = await self.search_users(query=normalized, limit=25, skip=0)
+        return [
+            row for row in matches
+            if normalize_email(row.email) == normalized or normalize_email(row.user_principal_name) == normalized
+        ]
 
     async def _get_json(
         self,
@@ -161,6 +172,14 @@ class DirectoryProviderService:
             return await self._provider.get_user(external_id=external_id)
         except GraphUserNotFoundError as exc:
             raise DirectoryUserNotFoundError(str(exc)) from exc
+        except GraphProviderUnavailableError as exc:
+            raise DirectoryProviderUnavailableError(str(exc)) from exc
+        except GraphDirectoryProviderError as exc:
+            raise DirectoryProviderError(str(exc)) from exc
+
+    async def find_user_by_login_identifier(self, identifier: str) -> list[DirectoryUserRead]:
+        try:
+            return await self._provider.find_user_by_login_identifier(identifier=identifier)
         except GraphProviderUnavailableError as exc:
             raise DirectoryProviderUnavailableError(str(exc)) from exc
         except GraphDirectoryProviderError as exc:

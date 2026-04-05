@@ -1,8 +1,8 @@
 # RiskHub Business Logic Reference
 
-> **Version**: 1.1  
-> **Last Updated**: 2026-03-09  
-> **Audience**: Product, Engineering, QA, Compliance  
+> **Version**: 1.1
+> **Last Updated**: 2026-04-05
+> **Audience**: Product, Engineering, QA, Compliance
 > **Source of Truth**: Backend RBAC and approval enforcement in `backend/app/`
 
 ---
@@ -108,6 +108,12 @@ Access-management read/list behavior and write behavior are intentionally differ
 | `GET /api/v1/access/users` | GLOBAL-scope users | Platform-wide list/read endpoint |
 | `GET /api/v1/access/users/my-department` | Department Head OR GLOBAL-scope users | Department-scoped list/read endpoint |
 | `PATCH /api/v1/access/users/{id}` | **Admin or CRO only** | Single transactional save for `/users` access modal. Admin/CRO may update access fields (`role_id`, `department_id`, `manager_id`, `access_scope`); Admin-only may also include identity fields (`name`, `email`). Validation failures reject the whole patch. |
+
+Additional identity-governance rule for `microsoft_sso` mode:
+
+- For users with `external_id`, the following fields are Entra-authoritative and cannot be edited locally: `name`, `email`, `department_id`.
+- Local `role_id`, `access_scope`, and `manager_id` remain RiskHub-authoritative in this release.
+- If an externally linked user was auto-deprovisioned because the directory account is missing or disabled, normal local re-enable is blocked; operators must use the explicit break-glass flow with expiry and audit.
 
 > [!IMPORTANT]
 > `admin` is a platform role, not a business-data superuser. Admin capabilities must not be interpreted as unrestricted business access. Direct business `/governance` and `/activity-log` access remains blocked for `admin`, including direct route/API requests.

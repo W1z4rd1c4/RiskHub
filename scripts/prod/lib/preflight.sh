@@ -87,6 +87,9 @@ preflight_backend_env() {
   envfile_require_exact "$backend_env" "DEBUG" "false"
   envfile_require_exact "$backend_env" "MOCK_AUTH_ENABLED" "false"
   envfile_require_exact "$backend_env" "AUTH_MODE" "microsoft_sso"
+  envfile_require_exact "$backend_env" "DIRECTORY_PROVIDER" "graph"
+  envfile_require_exact "$backend_env" "ENTRA_JIT_PROVISIONING_ENABLED" "false"
+  envfile_require_exact "$backend_env" "AUTH_SSO_ALLOW_EMAIL_LINK" "false"
 
   envfile_require_absent "$backend_env" "SECRET_KEY"
   envfile_require_absent "$backend_env" "DATABASE_URL"
@@ -127,6 +130,9 @@ preflight_backend_env() {
 
   envfile_require_nonempty "$backend_env" "ENTRA_TENANT_ID"
   envfile_require_nonempty "$backend_env" "ENTRA_CLIENT_ID"
+  if grep -qE '^[[:space:]]*AD_EMULATOR_BASE_URL=' "$backend_env"; then
+    die "AD_EMULATOR_BASE_URL must not be present in $backend_env"
+  fi
 
   local entra_client_secret_file entra_client_certificate_private_key_file entra_client_certificate_thumbprint
   local has_secret_mode=false
@@ -161,6 +167,9 @@ preflight_backend_env() {
   fi
   if [[ "$has_secret_mode" == "true" && "$has_certificate_mode" == "true" ]]; then
     warn "Both ENTRA_CLIENT_SECRET_FILE and certificate credential are configured; certificate mode is active."
+  fi
+  if [[ "$has_secret_mode" == "true" && "$has_certificate_mode" != "true" ]]; then
+    warn "Production is using Entra client-secret mode; certificate mode is preferred unless explicitly waived."
   fi
 
   if [[ -f "$redis_url_file" ]]; then

@@ -12,12 +12,10 @@ const {
     msalAppMock: {
         initialize: vi.fn(async () => {}),
         loginRedirect: vi.fn(async () => {}),
-        loginPopup: vi.fn(async () => ({ account: null })),
         handleRedirectPromise: vi.fn(async () => null),
         getActiveAccount: vi.fn(() => null),
         getAllAccounts: vi.fn(() => []),
         setActiveAccount: vi.fn(),
-        acquireTokenSilent: vi.fn(async () => ({ idToken: 'id-token' })),
     },
 }));
 
@@ -58,12 +56,10 @@ beforeEach(() => {
 
     msalAppMock.initialize.mockClear();
     msalAppMock.loginRedirect.mockClear();
-    msalAppMock.loginPopup.mockClear();
     msalAppMock.handleRedirectPromise.mockClear();
     msalAppMock.getActiveAccount.mockClear();
     msalAppMock.getAllAccounts.mockClear();
     msalAppMock.setActiveAccount.mockClear();
-    msalAppMock.acquireTokenSilent.mockClear();
 
     entraAuth.__resetForTests();
 });
@@ -74,7 +70,7 @@ afterEach(() => {
 
 describe('entraAuth', () => {
     it('configures MSAL to use sessionStorage cache', async () => {
-        await entraAuth.loginRedirect('/risks');
+        await entraAuth.loginRedirect({ nonce: 'server-nonce', state: 'server-state' });
 
         expect(PublicClientApplicationMock).toHaveBeenCalledTimes(1);
         expect(PublicClientApplicationMock).toHaveBeenCalledWith({
@@ -91,7 +87,8 @@ describe('entraAuth', () => {
         expect(msalAppMock.loginRedirect).toHaveBeenCalledWith({
             redirectUri: `${window.location.origin}/auth/sso/callback`,
             scopes: ['openid', 'profile', 'email'],
-            state: '/risks',
+            state: 'server-state',
+            nonce: 'server-nonce',
         });
     });
 });

@@ -10,6 +10,7 @@ from app.core.config import Settings
 from app.core.datetime_utils import utc_now
 from app.models import RefreshToken, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
+from app.services.directory_identity_service import DirectoryIdentityConflictError, apply_directory_profile
 from app.services.directory_provider_service import (
     DirectoryProviderError,
     DirectoryProviderService,
@@ -82,6 +83,26 @@ class ADDeprovisionService:
         }
 
     @classmethod
+    async def deprovision_user(
+        cls,
+        db: AsyncSession,
+        *,
+        user: User,
+        actor: User | None,
+        trigger: str,
+        sync_status: str,
+        deprovision_reason: str,
+    ) -> dict[str, Any]:
+        return await cls._deprovision_user(
+            db,
+            user=user,
+            actor=actor,
+            trigger=trigger,
+            sync_status=sync_status,
+            deprovision_reason=deprovision_reason,
+        )
+
+    @classmethod
     async def _check_user(
         cls,
         db: AsyncSession,
@@ -142,6 +163,23 @@ class ADDeprovisionService:
 
         user.directory_last_seen_at = now
         if not remote_user.account_enabled:
+            try:
+                await apply_directory_profile(db, user=user, directory_user=remote_user)
+            except DirectoryIdentityConflictError:
+                user.directory_sync_status = "directory_disabled"
+                db.add(user)
+            if user.has_active_break_glass(now=now):
+                user.deprovisioned_at = user.deprovisioned_at or now
+                user.deprovision_reason = cls.DEPROVISION_REASON_DIRECTORY_DISABLED
+                db.add(user)
+                return {
+                    "user_id": user.id,
+                    "email": user.email,
+                    "status": "active",
+                    "reason": "break_glass_override",
+                    "revoked_sessions": 0,
+                    "orphaned_items_flagged": 0,
+                }
             return await cls._deprovision_user(
                 db,
                 user=user,
@@ -151,11 +189,26 @@ class ADDeprovisionService:
                 deprovision_reason=cls.DEPROVISION_REASON_DIRECTORY_DISABLED,
             )
 
-        user.directory_sync_status = "active"
+        try:
+            await apply_directory_profile(db, user=user, directory_user=remote_user)
+        except DirectoryIdentityConflictError as exc:
+            user.directory_sync_status = "identity_conflict"
+            db.add(user)
+            return {
+                "user_id": user.id,
+                "email": user.email,
+                "status": "error",
+                "reason": f"identity_conflict:{exc}",
+                "revoked_sessions": 0,
+                "orphaned_items_flagged": 0,
+            }
         if user.deprovision_reason in cls.AUTO_DEPROVISION_REASONS:
             user.is_active = True
             user.deprovisioned_at = None
             user.deprovision_reason = None
+        user.break_glass_expires_at = None
+        user.break_glass_reason = None
+        user.break_glass_granted_by_user_id = None
         db.add(user)
         return {
             "user_id": user.id,

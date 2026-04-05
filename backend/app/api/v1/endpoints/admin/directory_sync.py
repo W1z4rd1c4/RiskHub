@@ -1,11 +1,16 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.activity_logger import log_activity
 from app.core.config import Settings, get_settings
+from app.core.datetime_utils import utc_now
 from app.db.session import get_db
 from app.models import User
+from app.models.activity_log import ActivityAction, ActivityEntityType
+from app.schemas.directory import DirectoryBreakGlassEnableRequest
 from app.services.ad_deprovision_service import ADDeprovisionService
 from app.services.directory_provider_service import DirectoryProviderUnavailableError
 
@@ -50,3 +55,44 @@ async def check_all_directory_users(
         )
     except DirectoryProviderUnavailableError as exc:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
+
+
+@router.post("/directory/break-glass-enable/{user_id}")
+async def break_glass_enable_directory_user(
+    user_id: int,
+    payload: DirectoryBreakGlassEnableRequest,
+    db: AsyncSession = Depends(get_db),
+    admin_user: User = Depends(require_platform_admin),
+) -> dict:
+    user = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    if not user.external_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User is not directory-linked")
+    if user.deprovision_reason not in ADDeprovisionService.AUTO_DEPROVISION_REASONS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Break-glass enable is only allowed for directory-deprovisioned users",
+        )
+
+    now = utc_now()
+    user.is_active = True
+    user.break_glass_reason = payload.reason.strip()
+    user.break_glass_expires_at = now + payload.expires_delta
+    user.break_glass_granted_by_user_id = admin_user.id
+    db.add(user)
+
+    await log_activity(
+        db=db,
+        actor=admin_user,
+        action=ActivityAction.UPDATE,
+        entity_type=ActivityEntityType.USER,
+        entity_id=user.id,
+        entity_name=user.name,
+        description=(
+            "Break-glass enabled for directory-linked user "
+            f"(expires_in_hours={payload.expires_in_hours}, reason={payload.reason.strip()})"
+        ),
+    )
+    await db.commit()
+    return {"status": "success", "user_id": user.id}

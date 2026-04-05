@@ -91,6 +91,7 @@ COPY --chown=riskhub:riskhub scripts/__init__.py ./scripts/__init__.py
 COPY --chown=riskhub:riskhub scripts/seed_roles_permissions.py ./scripts/seed_roles_permissions.py
 COPY --chown=riskhub:riskhub scripts/seed_departments.py ./scripts/seed_departments.py
 COPY --chown=riskhub:riskhub scripts/bootstrap_sso_user.py ./scripts/bootstrap_sso_user.py
+COPY --chown=riskhub:riskhub scripts/revoke_refresh_sessions.py ./scripts/revoke_refresh_sessions.py
 
 RUN find /app -name '.DS_Store' -delete && mkdir -p /app/logs && chown -R riskhub:riskhub /app/logs
 

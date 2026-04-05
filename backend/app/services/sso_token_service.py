@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx
@@ -10,6 +11,7 @@ from jwt import PyJWTError
 
 from app.core.config import Settings
 from app.core.email import normalize_email
+from app.core.datetime_utils import utc_now
 from app.core.outbound_guard import (
     OutboundRequestError,
     build_outbound_client,
@@ -34,6 +36,10 @@ class VerifiedIdentity:
     tenant_id: str
     email: str | None
     name: str | None
+    nonce: str | None = None
+    expires_at: datetime = field(default_factory=lambda: utc_now() + timedelta(hours=1))
+
+
 def _jwks_has_kid(jwks: dict[str, Any], kid: str) -> bool:
     keys = jwks.get("keys")
     if not isinstance(keys, list):
@@ -222,11 +228,22 @@ class EntraTokenVerifier:
         if name is not None and not isinstance(name, str):
             name = None
 
+        nonce = claims.get("nonce")
+        if nonce is not None and not isinstance(nonce, str):
+            nonce = None
+
+        exp = claims.get("exp")
+        if not isinstance(exp, (int, float)):
+            raise SsoTokenVerificationError(code="invalid_token", detail="Token missing exp")
+        expires_at = datetime.fromtimestamp(exp, UTC)
+
         return VerifiedIdentity(
             external_id=external_id,
             tenant_id=self._tenant_id,
             email=email,
             name=name,
+            nonce=nonce,
+            expires_at=expires_at,
         )
 
 

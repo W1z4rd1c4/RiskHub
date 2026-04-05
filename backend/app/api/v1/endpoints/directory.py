@@ -1,19 +1,16 @@
 from __future__ import annotations
 
-import re
-
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api import deps
 from app.core.activity_logger import log_activity
 from app.core.config import Settings, get_settings
-from app.core.datetime_utils import utc_now
-from app.core.email import email_equals, normalize_email
+from app.core.email import email_equals
 from app.db.session import get_db
-from app.models import Department, Role, User
+from app.models import Role, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.models.role import RoleType
 from app.schemas.directory import (
@@ -22,6 +19,11 @@ from app.schemas.directory import (
     DirectoryUserRead,
 )
 from app.services.ad_deprovision_service import ADDeprovisionService
+from app.services.directory_identity_service import (
+    DirectoryIdentityConflictError,
+    apply_directory_profile,
+    resolve_directory_email,
+)
 from app.services.directory_provider_service import (
     DirectoryProviderError,
     DirectoryProviderService,
@@ -39,41 +41,6 @@ def _require_directory_admin(current_user: User = Depends(deps.get_current_user)
     if role_name != RoleType.ADMIN:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Directory access requires Admin")
     return current_user
-
-
-def _normalize_department_code(value: str) -> str:
-    normalized = re.sub(r"[^A-Za-z0-9]+", "_", value.strip()).strip("_").upper()
-    if not normalized:
-        normalized = "DEPARTMENT"
-    return normalized[:50]
-
-
-async def _resolve_or_create_department(db: AsyncSession, directory_department: str) -> Department:
-    name = directory_department.strip()
-    if not name:
-        raise HTTPException(status_code=400, detail="Invalid directory department")
-
-    result = await db.execute(select(Department).where(func.lower(Department.name) == name.lower()))
-    existing = result.scalar_one_or_none()
-    if existing is not None:
-        return existing
-
-    base_code = _normalize_department_code(name)
-    candidate_code = base_code
-    suffix = 1
-    while True:
-        code_result = await db.execute(select(Department).where(func.lower(Department.code) == candidate_code.lower()))
-        if code_result.scalar_one_or_none() is None:
-            break
-        suffix += 1
-        suffix_str = str(suffix)
-        head = base_code[: max(1, 50 - len(suffix_str) - 1)]
-        candidate_code = f"{head}_{suffix_str}"
-
-    department = Department(name=name, code=candidate_code, description="Imported from directory")
-    db.add(department)
-    await db.flush()
-    return department
 
 
 async def _resolve_role_for_import(
@@ -151,14 +118,10 @@ async def import_directory_user(
     except DirectoryProviderError as exc:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc)) from exc
 
-    directory_email = directory_user.email or directory_user.user_principal_name
-    if not directory_email:
-        raise HTTPException(status_code=400, detail="Directory user is missing an importable email address")
-    normalized_email = normalize_email(directory_email)
+    normalized_email = resolve_directory_email(directory_user)
     if normalized_email is None:
         raise HTTPException(status_code=400, detail="Directory user is missing an importable email address")
 
-    now = utc_now()
     user = (
         await db.execute(select(User).where(User.external_id == directory_user.external_id))
     ).scalar_one_or_none()
@@ -190,39 +153,45 @@ async def import_directory_user(
             db.add(user)
             import_status = "created"
 
-    user.email = normalized_email
-    user.name = directory_user.display_name or normalized_email
-    user.external_id = directory_user.external_id
-    user.job_title = directory_user.job_title
-    user.directory_last_checked_at = now
-    user.directory_last_seen_at = now
-    user.directory_sync_status = "active" if directory_user.account_enabled else "directory_disabled"
-
-    if directory_user.account_enabled and user.deprovision_reason in ADDeprovisionService.AUTO_DEPROVISION_REASONS:
-        user.is_active = True
-        user.deprovisioned_at = None
-        user.deprovision_reason = None
-
-    if directory_user.department:
-        department = await _resolve_or_create_department(db, directory_user.department)
-        user.department_id = department.id
-
     if payload.role_id is not None and import_status == "updated":
         role = await _resolve_role_for_import(db, override_role_id=payload.role_id)
         user.role_id = role.id
 
+    try:
+        await apply_directory_profile(db, user=user, directory_user=directory_user)
+    except DirectoryIdentityConflictError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    if directory_user.account_enabled and user.deprovision_reason in ADDeprovisionService.AUTO_DEPROVISION_REASONS:
+        user.is_active = True
+        user.deprovisioned_at = None
+        user.deprovision_reason = None
+        user.break_glass_expires_at = None
+        user.break_glass_reason = None
+        user.break_glass_granted_by_user_id = None
+
+    if not directory_user.account_enabled:
+        await ADDeprovisionService.deprovision_user(
+            db,
+            user=user,
+            actor=current_user,
+            trigger="directory_import",
+            sync_status="directory_disabled",
+            deprovision_reason=ADDeprovisionService.DEPROVISION_REASON_DIRECTORY_DISABLED,
+        )
+
     db.add(user)
     await db.flush()
 
-    await log_activity(
-        db=db,
-        actor=current_user,
-        action=ActivityAction.CREATE if import_status == "created" else ActivityAction.UPDATE,
-        entity_type=ActivityEntityType.USER,
-        entity_id=user.id,
-        entity_name=user.name,
-        description=f"Directory import ({provider.provider_name}) for {user.email}",
-    )
+    if directory_user.account_enabled:
+        await log_activity(
+            db=db,
+            actor=current_user,
+            action=ActivityAction.CREATE if import_status == "created" else ActivityAction.UPDATE,
+            entity_type=ActivityEntityType.USER,
+            entity_id=user.id,
+            entity_name=user.name,
+            description=f"Directory import ({provider.provider_name}) for {user.email}",
+        )
 
     await db.commit()
 

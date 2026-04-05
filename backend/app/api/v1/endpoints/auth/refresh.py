@@ -26,7 +26,7 @@ from app.db.session import get_db
 from app.models import RefreshToken, Role, RolePermission, User
 from app.schemas.auth import TokenResponse
 
-from ._shared import _build_token_response, _issue_refresh_session
+from ._shared import SESSION_RENEWAL_MINIMUM_SECONDS, _build_token_response, _issue_refresh_session
 from ._request_protection import validate_csrf, validate_request_origin
 
 router = APIRouter()
@@ -93,6 +93,16 @@ async def refresh_session(
         if int(revoke_result.rowcount or 0) > 0:
             await db.commit()
         return _refresh_unauthorized_response("Refresh token expired", settings)
+    if expires_at and (expires_at - now).total_seconds() <= SESSION_RENEWAL_MINIMUM_SECONDS:
+        revoke_result = await db.execute(
+            update(RefreshToken)
+            .where(RefreshToken.id == refresh_row.id)
+            .where(RefreshToken.revoked_at.is_(None))
+            .values(revoked_at=now, revoked_reason="expires_soon")
+        )
+        if int(revoke_result.rowcount or 0) > 0:
+            await db.commit()
+        return _refresh_unauthorized_response("Refresh token expired", settings)
 
     permission_load = selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
     user = (
@@ -136,11 +146,13 @@ async def refresh_session(
         )
 
     child_jti = new_token_jti()
+    child_lifetime = expires_at - now
     child_refresh_token, child_expires_at = create_refresh_token(
         user_id=user.id,
         token_version=user.token_version,
         jti=child_jti,
         settings=settings,
+        expires_delta=child_lifetime,
     )
     rotate_result = await db.execute(
         update(RefreshToken)
@@ -169,6 +181,6 @@ async def refresh_session(
         issued_at=now,
     )
 
-    token_response = _build_token_response(user, settings=settings)
+    token_response = _build_token_response(user, settings=settings, session_expires_at=expires_at)
     await db.commit()
     return token_response

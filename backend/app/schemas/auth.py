@@ -39,6 +39,7 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserBrief  # Use specific schema instead of dict
+    post_login_redirect_to: str | None = None
 
 
 class AuthSsoConfig(BaseModel):
@@ -58,5 +59,16 @@ class AuthConfigResponse(BaseModel):
     sso_error: str | None = None
 
 
+class SsoStartRequest(BaseModel):
+    return_to: str | None = None
+
+
+class SsoStartResponse(BaseModel):
+    nonce: str
+    state: str
+    expires_in: int
+
+
 class SsoExchangeRequest(BaseModel):
     id_token: str = Field(..., min_length=1)
+    state: str | None = Field(default=None, min_length=1)

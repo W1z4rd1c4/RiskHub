@@ -38,6 +38,7 @@ export interface AuthConfigResponse {
 export interface TokenResponse {
     access_token: string;
     token_type: string;
+    post_login_redirect_to?: string | null;
     user: {
         id: number;
         email: string;
@@ -128,11 +129,32 @@ export const authApi = {
         return response.json();
     },
 
-    async ssoExchange(idToken: string): Promise<TokenResponse> {
+    async ssoStart(returnTo?: string): Promise<{ nonce: string; state: string; expires_in: number }> {
+        const response = await fetchAuthResponse(`${API_URL}/sso/start`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ return_to: returnTo ?? '/' }),
+            credentials: 'include',
+        });
+
+        if (!response.ok) {
+            const detail = (await response.json().catch(() => ({})) as { detail?: string }).detail || 'SSO start failed';
+            throw new AuthRequestError({
+                code: response.status >= 500 ? 'AUTH_SERVICE_UNAVAILABLE' : 'AUTH_REQUEST_FAILED',
+                message: detail,
+                rawMessage: detail,
+                status: response.status,
+            });
+        }
+
+        return response.json();
+    },
+
+    async ssoExchange(idToken: string, state?: string | null): Promise<TokenResponse> {
         const response = await fetchAuthResponse(`${API_URL}/sso/exchange`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id_token: idToken }),
+            body: JSON.stringify(state ? { id_token: idToken, state } : { id_token: idToken }),
             credentials: 'include',
         });
 

@@ -148,7 +148,8 @@ export default function LoginPage() {
         setIsSsoLoading(true);
 
         try {
-            await entraAuth.loginRedirect(returnTo);
+            const challenge = await authApi.ssoStart(returnTo);
+            await entraAuth.loginRedirect({ nonce: challenge.nonce, state: challenge.state });
         } catch (err) {
             console.error(err);
             setErrorKey('errorKeys.login_failed');

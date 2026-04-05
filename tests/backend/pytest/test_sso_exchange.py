@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import timedelta
+
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
@@ -8,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.config import Settings, get_settings
+from app.core.datetime_utils import utc_now
 from app.core.policy import SAFE_DIRECTORY_DEFAULT_ROLE_CANDIDATES
 from app.db.session import get_db
 from app.main import app
@@ -29,6 +32,7 @@ async def sso_client(db_session: AsyncSession) -> AsyncClient:
             entra_tenant_id="00000000-0000-0000-0000-000000000000",
             entra_client_id="11111111-1111-1111-1111-111111111111",
             entra_jit_provisioning_enabled=True,
+            cors_origins=["http://test"],
         )
 
     app.dependency_overrides[get_db] = override_get_db
@@ -64,6 +68,119 @@ async def test_sso_exchange_success_external_id_match(
     body = res.json()
     assert "access_token" in body
     assert body["user"]["email"] == test_user.email
+
+
+@pytest.mark.asyncio
+async def test_sso_start_and_exchange_strict_mode_returns_server_redirect(
+    sso_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: User,
+    monkeypatch,
+):
+    test_user.external_id = "oid-strict-flow"
+    db_session.add(test_user)
+    await db_session.commit()
+
+    def override_settings_strict():
+        return Settings(
+            debug=True,
+            secret_key="test-secret-key-32-chars-minimum-value",
+            mock_auth_enabled=True,
+            auth_mode="microsoft_sso",
+            entra_tenant_id="00000000-0000-0000-0000-000000000000",
+            entra_client_id="11111111-1111-1111-1111-111111111111",
+            entra_jit_provisioning_enabled=True,
+            auth_sso_require_challenge=True,
+            cors_origins=["http://test"],
+        )
+
+    app.dependency_overrides[get_settings] = override_settings_strict
+
+    start = await sso_client.post(
+        "/api/v1/auth/sso/start",
+        json={"return_to": "/risks"},
+        headers={"Origin": "http://test"},
+    )
+    assert start.status_code == 200, start.text
+    start_payload = start.json()
+
+    async def stub_verify_entra_id_token(*, id_token: str, settings: Settings):
+        return VerifiedIdentity(
+            external_id="oid-strict-flow",
+            tenant_id=settings.entra_tenant_id or "",
+            email=test_user.email,
+            name=test_user.name,
+            nonce=start_payload["nonce"],
+            expires_at=utc_now() + timedelta(minutes=10),
+        )
+
+    monkeypatch.setattr("app.api.v1.endpoints.auth.verify_entra_id_token", stub_verify_entra_id_token)
+
+    exchange = await sso_client.post(
+        "/api/v1/auth/sso/exchange",
+        json={"id_token": "fake", "state": start_payload["state"]},
+    )
+    assert exchange.status_code == 200, exchange.text
+    assert exchange.json()["post_login_redirect_to"] == "/risks"
+
+
+@pytest.mark.asyncio
+async def test_sso_exchange_strict_mode_rejects_stale_tab_challenge(
+    sso_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: User,
+    monkeypatch,
+):
+    test_user.external_id = "oid-stale-tab"
+    db_session.add(test_user)
+    await db_session.commit()
+
+    def override_settings_strict():
+        return Settings(
+            debug=True,
+            secret_key="test-secret-key-32-chars-minimum-value",
+            mock_auth_enabled=True,
+            auth_mode="microsoft_sso",
+            entra_tenant_id="00000000-0000-0000-0000-000000000000",
+            entra_client_id="11111111-1111-1111-1111-111111111111",
+            entra_jit_provisioning_enabled=True,
+            auth_sso_require_challenge=True,
+            cors_origins=["http://test"],
+        )
+
+    app.dependency_overrides[get_settings] = override_settings_strict
+
+    first_start = await sso_client.post(
+        "/api/v1/auth/sso/start",
+        json={"return_to": "/first"},
+        headers={"Origin": "http://test"},
+    )
+    second_start = await sso_client.post(
+        "/api/v1/auth/sso/start",
+        json={"return_to": "/second"},
+        headers={"Origin": "http://test"},
+    )
+    first_payload = first_start.json()
+    _ = second_start.json()
+
+    async def stub_verify_entra_id_token(*, id_token: str, settings: Settings):
+        return VerifiedIdentity(
+            external_id="oid-stale-tab",
+            tenant_id=settings.entra_tenant_id or "",
+            email=test_user.email,
+            name=test_user.name,
+            nonce=first_payload["nonce"],
+            expires_at=utc_now() + timedelta(minutes=10),
+        )
+
+    monkeypatch.setattr("app.api.v1.endpoints.auth.verify_entra_id_token", stub_verify_entra_id_token)
+
+    exchange = await sso_client.post(
+        "/api/v1/auth/sso/exchange",
+        json={"id_token": "fake", "state": first_payload["state"]},
+    )
+    assert exchange.status_code == 401, exchange.text
+    assert exchange.json()["code"] == "SSO_STATE_MISMATCH"
 
 
 @pytest.mark.asyncio
@@ -106,6 +223,42 @@ async def test_sso_exchange_links_user_by_email_when_external_id_null(
 
     refreshed = (await db_session.execute(select(User).where(User.id == test_user.id))).scalar_one()
     assert refreshed.external_id == "oid-linked"
+
+
+@pytest.mark.asyncio
+async def test_sso_exchange_requires_explicit_link_when_email_linking_disabled(
+    sso_client: AsyncClient, db_session: AsyncSession, test_user: User, monkeypatch
+):
+    assert test_user.external_id is None
+
+    def override_settings_email_link_off():
+        return Settings(
+            debug=True,
+            secret_key="test-secret-key-32-chars-minimum-value",
+            mock_auth_enabled=True,
+            auth_mode="microsoft_sso",
+            entra_tenant_id="00000000-0000-0000-0000-000000000000",
+            entra_client_id="11111111-1111-1111-1111-111111111111",
+            entra_jit_provisioning_enabled=False,
+            auth_sso_allow_email_link=False,
+            cors_origins=["http://test"],
+        )
+
+    app.dependency_overrides[get_settings] = override_settings_email_link_off
+
+    async def stub_verify_entra_id_token(*, id_token: str, settings: Settings):
+        return VerifiedIdentity(
+            external_id="oid-link-required",
+            tenant_id=settings.entra_tenant_id or "",
+            email=test_user.email,
+            name=test_user.name,
+        )
+
+    monkeypatch.setattr("app.api.v1.endpoints.auth.verify_entra_id_token", stub_verify_entra_id_token)
+
+    res = await sso_client.post("/api/v1/auth/sso/exchange", json={"id_token": "fake"})
+    assert res.status_code == 403, res.text
+    assert res.json()["code"] == "SSO_LINK_REQUIRED"
 
 
 @pytest.mark.asyncio
@@ -164,6 +317,37 @@ async def test_sso_exchange_jit_creates_unknown_user(sso_client: AsyncClient, db
     assert created.hashed_password is None
     assert created.external_id == "oid-unknown"
     assert created.role.name in SAFE_DIRECTORY_DEFAULT_ROLE_CANDIDATES
+
+
+@pytest.mark.asyncio
+async def test_sso_exchange_syncs_linked_user_profile_fields(
+    sso_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: User,
+    monkeypatch,
+):
+    test_user.external_id = "oid-profile-sync"
+    test_user.name = "Old Name"
+    test_user.email = "old.profile@example.com"
+    db_session.add(test_user)
+    await db_session.commit()
+
+    async def stub_verify_entra_id_token(*, id_token: str, settings: Settings):
+        return VerifiedIdentity(
+            external_id="oid-profile-sync",
+            tenant_id=settings.entra_tenant_id or "",
+            email="new.profile@example.com",
+            name="New Name",
+        )
+
+    monkeypatch.setattr("app.api.v1.endpoints.auth.verify_entra_id_token", stub_verify_entra_id_token)
+
+    res = await sso_client.post("/api/v1/auth/sso/exchange", json={"id_token": "fake"})
+    assert res.status_code == 200, res.text
+
+    refreshed = (await db_session.execute(select(User).where(User.id == test_user.id))).scalar_one()
+    assert refreshed.email == "new.profile@example.com"
+    assert refreshed.name == "New Name"
 
 
 @pytest.mark.asyncio

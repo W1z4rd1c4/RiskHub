@@ -14,6 +14,7 @@ from app.db.session import get_db
 from app.models import User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas import UserRead, UserUpdate
+from app.services.directory_identity_service import requires_break_glass_for_reenable
 from app.services.orphaned_item_service import OrphanedItemService
 
 from ._lifecycle import require_admin_user_lifecycle
@@ -98,6 +99,21 @@ async def update_user(
         raise HTTPException(
             status_code=403,
             detail="Password updates are disabled in microsoft_sso mode.",
+        )
+
+    if settings.auth_mode == "microsoft_sso" and user.external_id:
+        locked_identity_fields = {"email", "name", "department_id"}
+        for field in locked_identity_fields:
+            if field in update_data and update_data[field] != getattr(user, field):
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"{field} is managed by directory sync for SSO-linked users.",
+                )
+
+    if update_data.get("is_active") is True and requires_break_glass_for_reenable(user):
+        raise HTTPException(
+            status_code=403,
+            detail="Directory-deprovisioned users require break-glass enable before reactivation.",
         )
 
     extra_changes = {}
