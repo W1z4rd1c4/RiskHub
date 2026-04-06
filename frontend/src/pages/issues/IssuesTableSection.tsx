@@ -187,7 +187,7 @@ export function IssuesTableSection({
                         </tr>
                     </thead>
                     <tbody>
-                        {[...Array(itemsPerPage)].map((_, index) => (
+                        {Array.from({ length: itemsPerPage }, (_, index) => (
                             <tr
                                 key={`issues-skeleton-${index}`}
                                 className="border-b border-white/5 animate-pulse"

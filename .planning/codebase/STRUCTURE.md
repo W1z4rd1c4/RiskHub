@@ -1,6 +1,6 @@
 # Repository Structure
 
-**Analysis Date:** 2026-04-05
+**Analysis Date:** 2026-04-06
 
 ## Top-Level Layout
 
@@ -29,7 +29,7 @@
 - `backend/alembic/` - migration environment and versioned migrations
 - `backend/scripts/runtime/` - component-scoped backend runtime entrypoints (`dev`, `test`, `prod`)
 - `backend/scripts/runtime/db/` - backend-owned DB runtime entrypoints (`dev`, `test`, `prod`)
-- `tests/backend/pytest/` - 145 test files (142 Python) (measured workspace snapshot)
+- `tests/backend/pytest/` - 146 test files (143 Python) (measured workspace snapshot)
 
 ## Frontend Tree (`frontend/`)
 
@@ -39,7 +39,7 @@
 
 ### Primary subdirectories
 - `frontend/src/pages/` - 87 tracked files (measured git-tracked snapshot; route-level pages + tests)
-- `frontend/src/components/` - 159 tracked files (measured git-tracked snapshot; components + tests)
+- `frontend/src/components/` - 160 tracked files (measured git-tracked snapshot; components + tests)
 - `frontend/src/services/` - API client and domain service wrappers
 - `frontend/src/contexts/` - auth/theme/filter context providers
 - `frontend/src/authz/` - authz policy derivation hooks
@@ -79,4 +79,4 @@
 
 ---
 
-*Structure audit refreshed on 2026-04-05*
+*Structure audit refreshed on 2026-04-06*

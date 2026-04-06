@@ -19,6 +19,8 @@ import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { formatDateValue, formatTimeValue } from '@/i18n/formatters';
 import { getExecutionResultMeta } from '@/lib/executionResult';
 
+const AUDIT_TRAIL_SKELETON_ROWS = 5;
+
 export function AuditTrailPage() {
     const { t, i18n } = useTranslation(['controls', 'common']);
     const navigate = useNavigate();
@@ -124,7 +126,7 @@ export function AuditTrailPage() {
                             key={resultFilter}
                         >
                             {isLoading ? (
-                                [...Array(5)].map((_, i) => (
+                                Array.from({ length: AUDIT_TRAIL_SKELETON_ROWS }, (_, i) => (
                                     <tr key={`skeleton-${i}`} className="border-b border-white/5 animate-pulse">
                                         <td className="px-6 py-6"><div className="h-4 w-32 bg-white/5 rounded" /></td>
                                         <td className="px-6 py-6"><div className="h-4 w-48 bg-white/5 rounded" /></td>

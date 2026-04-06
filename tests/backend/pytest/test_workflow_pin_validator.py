@@ -104,8 +104,8 @@ def test_lint_workflow_runs_blocking_frontend_vitest_job() -> None:
     text = LINT_WORKFLOW.read_text(encoding="utf-8")
 
     assert "frontend-unit-tests:" in text
-    assert "Run frontend Vitest suite" in text
-    assert "npm run test:run" in text
+    assert "Run frontend Vitest coverage gate" in text
+    assert "npm run test:coverage" in text
     assert "needs: [docs-topology-consistency, frontend-unit-tests]" in text
 
 

@@ -2,6 +2,8 @@ import { useMemo } from 'react';
 import type { RiskSummary } from '@/types/risk';
 import { useTranslation } from '@/i18n/hooks';
 
+const HEATMAP_AXIS = [1, 2, 3, 4, 5] as const;
+
 interface MiniHeatmapProps {
     risks: RiskSummary[];
 }
@@ -12,16 +14,18 @@ interface MiniHeatmapProps {
 export function MiniHeatmap({ risks }: MiniHeatmapProps) {
     const { t } = useTranslation('common');
     // Generate 5x5 matrix of counts
-    const matrix = useMemo(() => {
-        const m = Array(5).fill(0).map(() => Array(5).fill(0));
+    const matrix = useMemo<number[][]>(() => {
+        const grid = Array.from({ length: HEATMAP_AXIS.length }, () =>
+            Array<number>(HEATMAP_AXIS.length).fill(0),
+        );
         risks.forEach(r => {
             // Impact is X (1-5), Probability is Y (1-5)
             // Array indices are 0-4
             const x = Math.min(Math.max(r.gross_impact - 1, 0), 4);
             const y = Math.min(Math.max(r.gross_probability - 1, 0), 4);
-            m[y][x]++;
+            grid[y][x] += 1;
         });
-        return m;
+        return grid;
     }, [risks]);
 
     const getCellColor = (p: number, i: number, count: number) => {
@@ -37,9 +41,9 @@ export function MiniHeatmap({ risks }: MiniHeatmapProps) {
     return (
         <div className="flex flex-col gap-1 p-2 glass rounded-lg border border-white/5 w-fit">
             <div className="flex flex-col-reverse gap-0.5">
-                {[1, 2, 3, 4, 5].map((p) => (
+                {HEATMAP_AXIS.map((p) => (
                     <div key={p} className="flex gap-0.5">
-                        {[1, 2, 3, 4, 5].map((i) => {
+                        {HEATMAP_AXIS.map((i) => {
                             const count = matrix[p - 1][i - 1];
                             return (
                                 <div

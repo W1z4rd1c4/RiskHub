@@ -101,7 +101,8 @@ Safety rules:
    - configuration changes
    - session revocations
    - approval decisions, if audited
-4. Export only the evidence required for the current case.
+4. Audit change payloads are intentionally redacted for sensitive fields, free text, and unknown keys; use entity/action/timestamp correlation rather than expecting raw secret or PII values.
+5. Export only the evidence required for the current case.
 
 ### 4) Sessions
 

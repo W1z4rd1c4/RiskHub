@@ -144,7 +144,7 @@ export function UserNewPage() {
         }
     };
 
-    const handleDirectoryImported = async (result: DirectoryImportResponse) => {
+    const handleDirectoryImported = (result: DirectoryImportResponse) => {
         void navigate('/users', {
             state: {
                 importedUserId: result.user_id,

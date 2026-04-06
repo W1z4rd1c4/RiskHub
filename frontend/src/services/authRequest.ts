@@ -93,7 +93,7 @@ export async function raceAuthTimeout<T>(
         }, AUTH_REQUEST_TIMEOUT_MS);
 
         promise.then(resolve).catch((error) => {
-            reject(error);
+            reject(error instanceof Error ? error : new Error(String(error)));
         }).finally(() => {
             globalThis.clearTimeout(timeoutId);
         });

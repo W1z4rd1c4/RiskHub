@@ -16,6 +16,7 @@ from app.core.activity_logger import (
     MAX_CHANGE_KEYS,
     MAX_CHANGE_VALUE_LENGTH,
     MAX_DESCRIPTION_LENGTH,
+    audit_logger,
     log_activity,
 )
 from app.db.session import get_db
@@ -214,8 +215,8 @@ async def test_kri_update_activity_log_changes(
     entry = result.scalars().first()
     assert entry is not None
     changes = entry.changes
-    assert changes["description"]["old"] == "Initial description"
-    assert changes["description"]["new"] == "Updated description"
+    assert changes["description"]["old"] == "[REDACTED]"
+    assert changes["description"]["new"] == "[REDACTED]"
 
 
 @pytest.mark.asyncio
@@ -352,7 +353,7 @@ async def test_approval_execution_logs_entity_update_for_priority_risk_edit(
     )
     entry = result.scalars().first()
     assert entry is not None
-    assert entry.changes["description"]["new"] == "Updated by employee (requires approval)"
+    assert entry.changes["description"]["new"] == "[REDACTED]"
     assert f"approval #{approval_id}" in entry.description.lower()
 
 
@@ -479,7 +480,7 @@ async def test_activity_log_search_in_changes_and_default_window(
         action=ActivityAction.UPDATE,
         actor=None,
         department_id=None,
-        changes={"field": {"old": "alpha", "new": "search-needle"}},
+        changes={"process": {"old": "alpha", "new": "search-needle"}},
         description="Recent entry",
     )
     old_entry = ActivityLog(
@@ -490,7 +491,7 @@ async def test_activity_log_search_in_changes_and_default_window(
         actor_id=None,
         actor_name="Anonymous",
         department_id=None,
-        changes={"field": {"old": "beta", "new": "ancient-needle"}},
+        changes={"process": {"old": "beta", "new": "ancient-needle"}},
         description="Old entry",
         created_at=datetime.now(UTC) - timedelta(days=120),
     )
@@ -554,6 +555,84 @@ async def test_activity_log_guardrails(db_session):
     sample_value = next(iter(entry.changes.values()))
     assert len(sample_value["old"]) <= MAX_CHANGE_VALUE_LENGTH
     assert len(sample_value["new"]) <= MAX_CHANGE_VALUE_LENGTH
+
+
+@pytest.mark.asyncio
+async def test_activity_log_redacts_sensitive_and_unknown_fields_and_keeps_safe_fields(db_session):
+    await log_activity(
+        db_session,
+        entity_type=ActivityEntityType.USER,
+        entity_id=40,
+        entity_name="Audit User",
+        action=ActivityAction.UPDATE,
+        actor=None,
+        department_id=None,
+        changes={
+            "password": {"old": None, "new": "super-secret"},
+            "email": {"old": "old@example.com", "new": "new@example.com"},
+            "description": {"old": "private", "new": "still private"},
+            "session_id": {"old": "session-old", "new": "session-new"},
+            "result_json": {"old": {"detail": "old"}, "new": {"detail": "new"}},
+            "mystery_field": {"old": "alpha", "new": "beta"},
+            "is_active": {"old": True, "new": False},
+            "password_changed": {"old": None, "new": True},
+        },
+        description=None,
+    )
+    await db_session.commit()
+
+    result = await db_session.execute(select(ActivityLog).where(ActivityLog.entity_id == 40))
+    entry = result.scalars().first()
+    assert entry is not None
+    assert entry.changes["password"]["new"] == "[REDACTED]"
+    assert entry.changes["email"]["old"] == "[REDACTED]"
+    assert entry.changes["description"]["new"] == "[REDACTED]"
+    assert entry.changes["session_id"]["new"] == "[REDACTED]"
+    assert entry.changes["result_json"]["new"] == "[REDACTED]"
+    assert entry.changes["mystery_field"]["new"] == "[REDACTED]"
+    assert entry.changes["is_active"]["new"] is False
+    assert entry.changes["password_changed"]["new"] is True
+    assert "password" not in entry.description.lower()
+    assert "description" not in entry.description.lower()
+    assert "session" not in entry.description.lower()
+    assert "result_json" not in entry.description.lower()
+    assert "mystery_field" not in entry.description.lower()
+
+
+@pytest.mark.asyncio
+async def test_activity_log_uses_identical_sanitized_changes_for_db_and_siem(db_session, monkeypatch):
+    emitted: dict[str, object] = {}
+
+    def capture(event: str, **kwargs: object) -> None:
+        emitted["event"] = event
+        emitted.update(kwargs)
+
+    monkeypatch.setattr(audit_logger, "info", capture)
+
+    await log_activity(
+        db_session,
+        entity_type=ActivityEntityType.KRI,
+        entity_id=41,
+        entity_name="Audit KRI",
+        action=ActivityAction.UPDATE,
+        actor=None,
+        department_id=None,
+        changes={
+            "description": {"old": "hidden old", "new": "hidden new"},
+            "last_error": {"old": "old trace", "new": "new trace"},
+            "session_id": {"old": "session-old", "new": "session-new"},
+            "status": {"old": "active", "new": "inactive"},
+        },
+    )
+    await db_session.commit()
+
+    result = await db_session.execute(select(ActivityLog).where(ActivityLog.entity_id == 41))
+    entry = result.scalars().first()
+    assert entry is not None
+    assert entry.changes["last_error"]["new"] == "[REDACTED]"
+    assert entry.changes["session_id"]["new"] == "[REDACTED]"
+    assert emitted["changes"] == entry.changes
+    assert emitted["description"] == entry.description
 
 
 @pytest.mark.asyncio

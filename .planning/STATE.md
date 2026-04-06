@@ -19,7 +19,7 @@
 ## Current Position
 
 **Milestone:** v1.0 MVP
-**Active Phases:** 90 (AD Emulator) in progress; 19 and 70 deferred
+**Active Phases:** 252 (Quality Closure Loop) in progress; 90 (AD Emulator) remains active; 19 and 70 deferred
 **Documentation Status:** Reconciled with phase folders and canonical docs (2026-04-05)
 
 ## Progress Summary
@@ -69,10 +69,79 @@
 | 201 Archived Visibility + Restore | ✅ Complete (5/5) | 2026-02-15 |
 | 250 Spaghetti Simplification | ✅ Complete (10/10) | 2026-01-10 |
 | 251 Spaghetti Simplification 2 | ✅ Complete (11/11) | 2026-01-10 |
+| 252 Quality Closure Loop | ⏳ In progress (4/10) | - |
 | 500 Production Installation Scripts | ✅ Complete (8/8) | 2026-02-16 |
 | 501 Production Readiness Hardening | ✅ Complete (8/8) | 2026-02-16 |
 
 ## Session Context
+
+### Phase 252 Kickoff - Quality Closure Loop (2026-04-06)
+
+- User-directed priority shifted to a new serial remediation phase focused on the surviving current quality issues:
+  - audit-log redaction
+  - `KRIForm.tsx`
+  - `VendorForm.tsx`
+  - `IssueDetailPage.tsx`
+  - `DashboardPage.tsx`
+  - `apiClient.ts`
+  - `adminApi.ts`
+  - frontend TS safety ratchet
+  - scoped backend typing/lint ratchet
+  - coverage thresholds
+  - duplicated DB default
+  - Redis `BaseException`
+  - low-priority doc/package/compose polish
+- Explicitly out of scope for Phase 252 unless needed for compilation or test repair:
+  - `AuthContext` / `useAuth*` / session authority internals
+  - `backend/app/core/config.py` / settings architecture
+  - broad backend bootstrap reshaping
+  - repo-wide backend Ruff class expansion
+- Execution model:
+  - serial waves only
+  - fast-sanity gate first
+  - full repo gate only at final closeout
+  - each completed wave must add a `252-0X-SUMMARY.md` and update this state file
+- Wave `252-00` completed:
+  - created Phase 252 roadmap/state/phase scaffolding
+  - added README coverage for newly in-scope directories uncovered by docs-topology
+  - refreshed `.planning/codebase/STRUCTURE.md` tracked metrics/date after recent repo churn
+  - fast sanity verification:
+    - `python3 scripts/check_docs_contract.py` -> passed
+    - `make -f scripts/Makefile docs-topology-consistency` -> passed
+    - `make -f scripts/Makefile test` -> `918 passed, 15 skipped`
+    - `cd frontend && npm run test:run` -> `83 files passed`, `290 tests passed`
+    - `cd frontend && npm run lint && npx tsc --noEmit && npm run build && npm run quality:debt -- --report-json && node scripts/quality/validate-debt-budget-report.mjs && npm run cleanup:deadcode && node scripts/cleanup/validate-unreachable-report.mjs && node scripts/quality/validate-no-inline-styles.mjs` -> all passed
+- Wave `252-01` completed:
+  - added a dedicated activity-log redaction policy module
+  - switched activity logging to sanitize before truncation and reuse the same sanitized payload for DB and SIEM output
+  - redacted sensitive fields, free text, and unknown fields by default while preserving safe structural fields
+  - updated admin/operator docs to document redacted audit payload behavior
+  - verification:
+    - `cd backend && ./venv/bin/python -m pytest -q ../tests/backend/pytest/test_activity_log.py ../tests/backend/pytest/test_activity_log_redaction.py ../tests/backend/pytest/test_siem_logging.py` -> `22 passed`
+    - `cd backend && TEST_DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_test@127.0.0.1:55432/riskhub_test ./venv/bin/python -m pytest -q ../tests/backend/pytest/test_activity_log.py` -> `18 passed`
+    - `make -f scripts/Makefile docs-topology-consistency` -> passed
+- Wave `252-02` completed:
+  - enabled the blocking frontend TS-safety rules and fixed the full measured offender baseline
+  - added typed frontend coverage tooling and blocking thresholds (`57/47/47/58`)
+  - added backend mypy plus touched-file Ruff `UP`/`SIM` ratchets for the Phase 252 backend files only
+  - added backend coverage enforcement with `--cov-fail-under=69`
+  - updated CI/workflow contract tests and ratchet docs to match the new gates
+  - verification:
+    - `cd frontend && npm run lint` -> passed
+    - `cd frontend && npx tsc --noEmit` -> passed
+    - `cd frontend && npm run test:coverage` -> `83 files passed`, `290 tests passed`, coverage `57.02/47.17/47.57/58.67`
+    - `cd backend && ./venv/bin/mypy --config-file mypy.ini app/core/activity_logger.py app/core/activity_redaction.py app/bootstrap_runtime.py app/bootstrap_validation.py` -> passed
+    - `cd backend && ./venv/bin/ruff check app/core/activity_logger.py app/core/activity_redaction.py app/bootstrap_runtime.py app/bootstrap_validation.py --select UP,SIM` -> passed
+    - `make -f scripts/Makefile test` -> `922 passed, 15 skipped`, backend coverage gate passed at `69.90%`
+- Wave `252-03` completed:
+  - replaced the old `KRIForm.tsx` implementation with a stable façade over a new `frontend/src/components/kri-form/` module set
+  - extracted KRI form state, lookups, submit flow, selectors, and step rendering into typed internal modules
+  - preserved vendor-context create flow, vendor mismatch handling, and approval-queued edit handling
+  - removed raw `console.error` calls from the KRI form path
+  - added focused selector/state tests for the new internal modules
+  - verification:
+    - `cd frontend && npm run test:run -- src/components/__tests__/KRIForm.vendor-context.test.tsx src/components/__tests__/KRIModal.vendor-selection.test.tsx src/pages/__tests__/KRIForms.vendor-context.test.tsx src/__tests__/approval_edit_update_handling.spec.ts src/components/kri-form/kriForm.selectors.test.ts src/components/kri-form/useKriFormState.test.tsx` -> `6 files passed`, `23 tests passed`
+    - `cd frontend && npm run lint && npx tsc --noEmit` -> passed
 
 ### Seven-Wave Closure Plan Completion (2026-04-05)
 

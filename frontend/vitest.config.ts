@@ -52,9 +52,15 @@ export default defineConfig({
     setupFiles: [path.resolve(__dirname, 'vitest.setup.ts')],
     include: ['src/**/*.{test,spec}.{ts,tsx}'],
     coverage: {
-      reporter: ['text', 'json', 'html'],
+      reporter: ['text', 'json', 'json-summary', 'html'],
       exclude: ['node_modules/', 'src/test/'],
       reportsDirectory: path.resolve(__dirname, '../tests/results/frontend/unit/coverage'),
+      thresholds: {
+        statements: 57,
+        branches: 47,
+        functions: 47,
+        lines: 58,
+      },
     },
   },
   resolve: {

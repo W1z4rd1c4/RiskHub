@@ -145,8 +145,11 @@ export function VendorForm({ initialData, isEdit = false, onSaved, onCancel }: V
                     }
                 });
                 setSubprocessesByProcess(subprocMap);
-            } catch (loadError) {
-                console.error('Failed to load vendor lookups:', loadError);
+            } catch {
+                setUsers([]);
+                setDepartments([]);
+                setExistingProcesses([]);
+                setSubprocessesByProcess({});
             }
         };
 
@@ -230,8 +233,7 @@ export function VendorForm({ initialData, isEdit = false, onSaved, onCancel }: V
                 : await vendorApi.createVendor(payloadBase as VendorCreate);
 
             onSaved(saved);
-        } catch (saveError) {
-            console.error('Failed to save vendor:', saveError);
+        } catch {
             setError(t('errors.save_failed'));
         } finally {
             setIsSubmitting(false);

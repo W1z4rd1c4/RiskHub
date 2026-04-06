@@ -4,6 +4,7 @@ from enum import Enum as PyEnum
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.activity_redaction import SanitizedChanges, sanitize_changes
 from app.core.logging import get_audit_logger
 from app.models import ActivityLog, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
@@ -11,7 +12,7 @@ from app.models.activity_log import ActivityAction, ActivityEntityType
 # Structured logger for audit events (SIEM-compatible) - routes to audit.json.log
 audit_logger = get_audit_logger()
 
-EXCLUDED_CHANGE_FIELDS = {"password", "hashed_password"}
+RAW_CHANGESET_EXCLUDED_FIELDS = {"password", "hashed_password"}
 MAX_DESCRIPTION_LENGTH = 2048
 MAX_CHANGE_KEYS = 50
 MAX_CHANGE_VALUE_LENGTH = 500
@@ -21,7 +22,7 @@ def _normalize_change_value(value: object) -> object:
     """Normalize enums for JSON-friendly change logging."""
     if isinstance(value, PyEnum):
         return value.value
-    if isinstance(value, (datetime, date)):
+    if isinstance(value, datetime | date):
         return value.isoformat()
     return value
 
@@ -79,7 +80,7 @@ def build_change_set(model: object, updates: dict, *, extra_changes: dict | None
     """
     changes: dict[str, dict[str, object]] = {}
     for field, new_value in updates.items():
-        if field in EXCLUDED_CHANGE_FIELDS:
+        if field in RAW_CHANGESET_EXCLUDED_FIELDS:
             continue
         old_value = getattr(model, field, None)
         old_value = _normalize_change_value(old_value)
@@ -89,7 +90,7 @@ def build_change_set(model: object, updates: dict, *, extra_changes: dict | None
 
     if extra_changes:
         for field, values in extra_changes.items():
-            if field in EXCLUDED_CHANGE_FIELDS:
+            if field in RAW_CHANGESET_EXCLUDED_FIELDS:
                 continue
             old_value = _normalize_change_value(values.get("old"))
             new_value = _normalize_change_value(values.get("new"))
@@ -128,10 +129,12 @@ async def log_activity(
     Returns:
         Created ActivityLog entry
     """
+    normalized_changes = _normalize_changes(changes)
+    sanitized_changes = sanitize_changes(entity_type.value, normalized_changes)
     if description is None:
-        description = _generate_description(entity_type, entity_name, action, changes)
+        description = _generate_description(entity_type, entity_name, action, sanitized_changes)
     description = _truncate_text(description, MAX_DESCRIPTION_LENGTH) or ""
-    changes = _truncate_changes(_normalize_changes(changes))
+    changes = _truncate_changes(sanitized_changes.changes)
 
     entry = ActivityLog(
         entity_type=entity_type.value,
@@ -169,7 +172,7 @@ def _generate_description(
     entity_type: ActivityEntityType,
     entity_name: str,
     action: ActivityAction,
-    changes: dict | None,
+    sanitized_changes: SanitizedChanges,
 ) -> str:
     """Generate human-readable description for an activity."""
     action_verbs = {
@@ -188,8 +191,11 @@ def _generate_description(
 
     desc = f"{verb.capitalize()} {entity_label}: {entity_name}"
 
-    if changes and action == ActivityAction.UPDATE:
-        fields = ", ".join(changes.keys())
-        desc += f" (fields: {fields})"
+    if action == ActivityAction.UPDATE and sanitized_changes.changes:
+        if sanitized_changes.visible_fields:
+            fields = ", ".join(sanitized_changes.visible_fields)
+            desc += f" (fields: {fields})"
+        else:
+            desc += " (updated sensitive fields)"
 
     return desc
