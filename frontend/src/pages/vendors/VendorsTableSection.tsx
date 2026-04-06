@@ -214,7 +214,7 @@ export function VendorsTableSection({
                         </tr>
                     </thead>
                     <tbody>
-                        {[...Array(itemsPerPage)].map((_, i) => (
+                        {Array.from({ length: itemsPerPage }, (_, i) => (
                             <tr key={`vendor-skeleton-${i}`} className="border-b border-white/5 animate-pulse">
                                 <td className="px-6 py-4">
                                     <div className="h-4 w-40 bg-white/5 rounded" />

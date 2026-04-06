@@ -6,11 +6,14 @@ import { silentReauthAndExchange } from '@/services/ssoSession';
 
 // Use relative URL for nginx proxy (enables LAN access)
 // In development, VITE_API_URL can override for direct backend connection
-const API_URL = import.meta.env.VITE_API_URL || '/api/v1';
+const API_URL =
+    typeof import.meta.env.VITE_API_URL === 'string' && import.meta.env.VITE_API_URL.length > 0
+        ? import.meta.env.VITE_API_URL
+        : '/api/v1';
 
 type QueryScalar = string | number | boolean;
 type QueryValue = QueryScalar | QueryScalar[] | null | undefined;
-type QueryParams = URLSearchParams | object;
+type QueryParams = URLSearchParams | Record<string, QueryValue>;
 
 interface RequestOptions extends RequestInit {
     params?: QueryParams;
@@ -53,6 +56,11 @@ export class ApiClientError extends Error {
     }
 }
 
+async function parseJsonBody<T>(response: Response): Promise<T> {
+    const payload: unknown = await response.json();
+    return payload as T;
+}
+
 class ApiClient {
     private baseUrl: string;
 
@@ -90,7 +98,7 @@ class ApiClient {
                 return url;
             }
 
-            Object.entries(params as Record<string, QueryValue>).forEach(([key, value]) => {
+            Object.entries(params).forEach(([key, value]) => {
                 this.appendQueryParam(url, key, value);
             });
         }
@@ -152,7 +160,9 @@ class ApiClient {
     }
 
     private async parseJsonError(response: Response): Promise<ApiClientErrorPayload> {
-        const errorData = await response.json().catch(() => ({}));
+        const errorData: unknown = await parseJsonBody<unknown>(response).catch(
+            () => ({} as Record<string, never>),
+        );
         const code = typeof (errorData as { code?: unknown }).code === 'string'
             ? String((errorData as { code: string }).code)
             : typeof (errorData as { error_code?: unknown }).error_code === 'string'
@@ -234,7 +244,7 @@ class ApiClient {
                 if (response.status === 204) {
                     return {} as T;
                 }
-                return response.json();
+                return parseJsonBody<T>(response);
             },
         });
     }

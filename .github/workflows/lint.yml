@@ -28,8 +28,8 @@ jobs:
         run: npm ci
         working-directory: frontend
 
-      - name: Run frontend Vitest suite
-        run: npm run test:run
+      - name: Run frontend Vitest coverage gate
+        run: npm run test:coverage
         working-directory: frontend
 
   lint:
@@ -97,6 +97,7 @@ jobs:
             backend/requirements.txt
             backend/requirements-runtime.txt
             backend/requirements-db.txt
+            backend/requirements-dev.txt
 
       - name: Install backend lint dependencies
         run: |
@@ -108,6 +109,36 @@ jobs:
         run: |
           set -euo pipefail
           ruff check app ../tests/backend/pytest scripts | tee ../lint-backend-ruff.log
+        working-directory: backend
+
+      - name: Backend mypy (Phase 252 scope)
+        run: |
+          set -euo pipefail
+          phase_252_files=(
+            "app/core/activity_logger.py"
+            "app/core/activity_redaction.py"
+            "app/bootstrap_runtime.py"
+            "app/bootstrap_validation.py"
+          )
+          while IFS= read -r file; do
+            phase_252_files+=("$file")
+          done < <(find app/core/settings -type f -name '*.py' | sort)
+          mypy --config-file mypy.ini "${phase_252_files[@]}" | tee ../lint-backend-mypy.log
+        working-directory: backend
+
+      - name: Backend Ruff phase-252 ratchet (UP/SIM)
+        run: |
+          set -euo pipefail
+          phase_252_files=(
+            "app/core/activity_logger.py"
+            "app/core/activity_redaction.py"
+            "app/bootstrap_runtime.py"
+            "app/bootstrap_validation.py"
+          )
+          while IFS= read -r file; do
+            phase_252_files+=("$file")
+          done < <(find app/core/settings -type f -name '*.py' | sort)
+          ruff check "${phase_252_files[@]}" --select UP,SIM | tee ../lint-backend-ruff-phase-252.log
         working-directory: backend
 
       - name: Backend suppression budget (blocking)
@@ -143,6 +174,8 @@ jobs:
             echo "- Frontend cleanup audit contract: PASS";
             echo "- Frontend build: PASS";
             echo "- Backend Ruff hard gate (backend/app + tests/backend/pytest + backend/scripts): PASS";
+            echo "- Backend mypy (Phase 252 scope): PASS";
+            echo "- Backend Ruff phase-252 ratchet (UP/SIM): PASS";
             echo "- Ruff ratchet status: E712=${E712_COUNT}, E402=${E402_COUNT}, E501=${E501_COUNT}";
           } > lint-summary.md
 
@@ -159,6 +192,8 @@ jobs:
             lint-frontend-cleanup.log
             lint-frontend-build.log
             lint-backend-ruff.log
+            lint-backend-mypy.log
+            lint-backend-ruff-phase-252.log
             lint-backend-suppression-budget.log
             tests/results/quality/frontend/debt-budget/debt.json
             tests/results/quality/frontend/cleanup-audit/unreachable.md

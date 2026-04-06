@@ -73,8 +73,15 @@ interface ParsedAuthError {
     code?: string;
 }
 
+async function parseAuthJson<T>(response: Response): Promise<T> {
+    const payload: unknown = await response.json();
+    return payload as T;
+}
+
 async function parseAuthError(response: Response, fallbackMessage: string): Promise<ParsedAuthError> {
-    const error = await response.json().catch(() => ({}));
+    const error: unknown = await parseAuthJson<unknown>(response).catch(
+        () => ({} as Record<string, never>),
+    );
     const detail = (error as { detail?: string }).detail || fallbackMessage;
     const code = typeof (error as { code?: unknown }).code === 'string'
         ? String((error as { code: string }).code)
@@ -97,7 +104,7 @@ async function requestAuthJson<T>(path: string, init: RequestInit, fallbackMessa
         const { detail } = await parseAuthError(response, fallbackMessage);
         throw buildAuthRequestError(response, detail);
     }
-    return response.json();
+    return parseAuthJson<T>(response);
 }
 
 async function requestAuthVoid(path: string, init: RequestInit, fallbackMessage: string): Promise<void> {
@@ -126,7 +133,7 @@ export const authApi = {
             });
         }
 
-        return response.json();
+        return parseAuthJson<AuthConfigResponse>(response);
     },
 
     async login(credentials: LoginRequest): Promise<TokenResponse> {
@@ -200,7 +207,7 @@ export const authApi = {
                 throw buildAuthRequestError(response, parsedError.detail);
             }
 
-            return response.json();
+            return parseAuthJson<TokenResponse>(response);
         };
 
         return performRefresh(true);

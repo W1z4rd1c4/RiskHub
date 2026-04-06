@@ -534,7 +534,7 @@ export function KRIsPage() {
                             </tr>
                         </thead>
                         <tbody>
-                            {[...Array(limit)].map((_, i) => (
+                            {Array.from({ length: limit }, (_, i) => (
                                 <tr key={`skeleton-${i}`} className="border-b border-white/5 animate-pulse">
                                     <td className="px-6 py-4"><div className="h-4 w-32 bg-white/5 rounded" /></td>
                                     <td className="px-6 py-4"><div className="h-4 w-16 bg-white/5 rounded" /></td>

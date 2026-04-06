@@ -207,7 +207,7 @@ export function ControlsTableSection({
                         </tr>
                     </thead>
                     <tbody>
-                        {[...Array(itemsPerPage)].map((_, index) => (
+                        {Array.from({ length: itemsPerPage }, (_, index) => (
                             <tr
                                 key={`controls-skeleton-${index}`}
                                 className="border-b border-white/5 animate-pulse"

@@ -16,3 +16,6 @@ Package-backed release parity audit harness.
 ## Notes
 
 - `scripts/security/run_release_parity_audit.py` remains the thin public wrapper used by CI and local commands.
+- `cli.py` is the command entrypoint wrapper.
+- `audit.py` owns orchestration and report generation.
+- Keep CLI behavior compatible with `scripts/security/run_release_parity_audit.py` callers and contract tests.

@@ -8,16 +8,22 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 VALIDATOR_PATH = REPO_ROOT / "scripts" / "security" / "validate_workflow_pins.py"
 SECURITY_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "security.yml"
 RELEASE_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "release.yml"
-RELEASE_PARITY_PR_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "release-parity-pr.yml"
+RELEASE_PARITY_PR_WORKFLOW = (
+    REPO_ROOT / ".github" / "workflows" / "release-parity-pr.yml"
+)
 LINT_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "lint.yml"
 BACKEND_POSTGRES_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "backend-postgres.yml"
 E2E_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "e2e.yml"
 STARTUP_SMOKE_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "startup-smoke.yml"
-LOCAL_PROD_AUDIT = REPO_ROOT / "scripts" / "security" / "run_prod_readiness_audit_local.sh"
+LOCAL_PROD_AUDIT = (
+    REPO_ROOT / "scripts" / "security" / "run_prod_readiness_audit_local.sh"
+)
 
 
 def _load_validator_module():
-    spec = importlib.util.spec_from_file_location("validate_workflow_pins", VALIDATOR_PATH)
+    spec = importlib.util.spec_from_file_location(
+        "validate_workflow_pins", VALIDATOR_PATH
+    )
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -106,8 +112,8 @@ def test_lint_workflow_runs_blocking_frontend_vitest_job() -> None:
     text = LINT_WORKFLOW.read_text(encoding="utf-8")
 
     assert "frontend-unit-tests:" in text
-    assert "Run frontend Vitest suite" in text
-    assert "npm run test:run" in text
+    assert "Run frontend Vitest coverage gate" in text
+    assert "npm run test:coverage" in text
     assert "needs: [docs-topology-consistency, frontend-unit-tests]" in text
 
 
@@ -119,7 +125,9 @@ def test_lint_workflow_runs_production_contract_docs_validator() -> None:
     assert "python3 scripts/security/validate_deprecated_imports.py" in text
 
 
-def test_release_parity_pr_workflow_blocks_pull_requests_with_contract_validators() -> None:
+def test_release_parity_pr_workflow_blocks_pull_requests_with_contract_validators() -> (
+    None
+):
     text = RELEASE_PARITY_PR_WORKFLOW.read_text(encoding="utf-8")
 
     assert "pull_request:" in text
@@ -176,10 +184,14 @@ def test_security_workflow_runs_container_scan_in_pull_requests() -> None:
 
     assert "pull_request:" in text
     assert "container-security:" in text
-    assert "if: github.event_name == 'push' || github.event_name == 'schedule'" not in text
+    assert (
+        "if: github.event_name == 'push' || github.event_name == 'schedule'" not in text
+    )
 
 
-def test_startup_smoke_workflow_asserts_health_schema_headers_and_docs_exposure() -> None:
+def test_startup_smoke_workflow_asserts_health_schema_headers_and_docs_exposure() -> (
+    None
+):
     text = STARTUP_SMOKE_WORKFLOW.read_text(encoding="utf-8")
 
     for snippet in (

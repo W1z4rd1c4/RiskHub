@@ -19,3 +19,5 @@ Per-domain transactional outbox handlers.
 
 - Keep domain-specific notification rules inside the matching module instead of rebuilding a new handler monolith.
 - Retry vs dead-letter policy is owned by `backend/app/services/outbox/dispatcher.py`, not by these handler modules.
+- Domain handler modules are registered through the outbox registry; do not move handler selection logic back into one large dispatcher file.
+- Shared payload/notification helpers belong in `common.py` only when they are genuinely cross-domain.

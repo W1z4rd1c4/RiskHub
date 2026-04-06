@@ -19,3 +19,4 @@ Split the rate-limit boundary into policy, backend, response, and wrapper concer
 
 - `app.middleware.rate_limit.RateLimitMiddleware` is the canonical import surface.
 - The in-memory backend is a bounded fallback for Redis outages, not a distributed equivalent to the Redis limiter.
+- Preserve existing production/runtime contract behavior documented in rate-limit tests before changing module boundaries.

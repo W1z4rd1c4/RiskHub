@@ -17,3 +17,5 @@ Physical settings segmentation without changing the flat environment-variable co
 
 - `backend/app/core/config.py` remains the import-stable facade for `Settings`, `get_settings`, and `EntraConfidentialCredential`.
 - The runtime env contract stays flat; this package only segments implementation ownership.
+- `root.py` assembles the public `Settings` object and `get_settings()`.
+- Keep file-backed secret handling and alias normalization behavior in sync with tests before restructuring this package.

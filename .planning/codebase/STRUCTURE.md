@@ -1,6 +1,6 @@
 # Repository Structure
 
-**Analysis Date:** 2026-04-05
+**Analysis Date:** 2026-04-06
 
 ## Top-Level Layout
 
@@ -79,4 +79,4 @@
 
 ---
 
-*Structure audit refreshed on 2026-04-05*
+*Structure audit refreshed on 2026-04-06*
