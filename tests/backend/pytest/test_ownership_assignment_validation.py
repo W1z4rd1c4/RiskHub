@@ -133,6 +133,63 @@ async def _latest_approval(
     ).scalars().first()
 
 
+async def _create_cross_department_reporting_owner_without_risks_read(
+    db_session: AsyncSession,
+    *,
+    prefix: str,
+) -> tuple[User, Risk, KeyRiskIndicator]:
+    own_department = await _create_department(db_session, prefix=f"{prefix}-owner")
+    target_department = await _create_department(db_session, prefix=f"{prefix}-target")
+    role = await _create_role_with_permissions(
+        db_session,
+        prefix=f"{prefix}-role",
+        permissions=[],
+    )
+    reporting_owner = await _create_user(
+        db_session,
+        role_id=role.id,
+        department_id=own_department.id,
+        prefix=f"{prefix}-user",
+    )
+    risk = Risk(
+        risk_id_code=f"OWN-VAL-{uuid4().hex[:8].upper()}",
+        name=f"{prefix} Hidden Risk",
+        process="Validation",
+        description="Cross-department risk assigned to reporting owner without read permission",
+        department_id=target_department.id,
+        owner_id=None,
+        risk_type="operational",
+        category="Validation",
+        gross_probability=3,
+        gross_impact=3,
+        gross_score=9,
+        net_probability=2,
+        net_impact=2,
+        net_score=4,
+        status=RiskStatus.active.value,
+    )
+    db_session.add(risk)
+    await db_session.commit()
+    await db_session.refresh(risk)
+
+    kri = KeyRiskIndicator(
+        risk_id=risk.id,
+        metric_name=f"{prefix} Hidden KRI",
+        description="Cross-department KRI assigned to reporting owner without read permission",
+        current_value=25,
+        lower_limit=0,
+        upper_limit=100,
+        unit="%",
+        frequency="monthly",
+        reporting_owner_id=reporting_owner.id,
+    )
+    db_session.add(kri)
+    await db_session.commit()
+    await db_session.refresh(kri)
+
+    return reporting_owner, risk, kri
+
+
 @pytest.mark.asyncio
 async def test_control_create_rejects_nonexistent_control_owner_id(
     auth_client: AsyncClient,
@@ -944,6 +1001,86 @@ async def test_control_owner_without_risks_read_cannot_read_linked_risk_detail(
     response = await client.get(
         f"/api/v1/risks/{risk.id}",
         headers={"X-Mock-User-Id": str(owner.id)},
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Permission denied: risks:read"
+
+
+@pytest.mark.asyncio
+async def test_reporting_owner_without_risks_read_gets_403_on_kri_detail(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    seed_risk_types,
+):
+    reporting_owner, _, kri = await _create_cross_department_reporting_owner_without_risks_read(
+        db_session,
+        prefix="reporting-owner-no-read-detail",
+    )
+
+    response = await client.get(
+        f"/api/v1/kris/{kri.id}",
+        headers={"X-Mock-User-Id": str(reporting_owner.id)},
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Permission denied: risks:read"
+
+
+@pytest.mark.asyncio
+async def test_reporting_owner_without_risks_read_gets_403_on_kri_list(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    seed_risk_types,
+):
+    reporting_owner, risk, _ = await _create_cross_department_reporting_owner_without_risks_read(
+        db_session,
+        prefix="reporting-owner-no-read-list",
+    )
+
+    response = await client.get(
+        f"/api/v1/kris?risk_id={risk.id}",
+        headers={"X-Mock-User-Id": str(reporting_owner.id)},
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Permission denied: risks:read"
+
+
+@pytest.mark.asyncio
+async def test_reporting_owner_without_risks_read_gets_403_on_kri_history(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    seed_risk_types,
+):
+    reporting_owner, _, kri = await _create_cross_department_reporting_owner_without_risks_read(
+        db_session,
+        prefix="reporting-owner-no-read-history",
+    )
+
+    response = await client.get(
+        f"/api/v1/kris/{kri.id}/history",
+        headers={"X-Mock-User-Id": str(reporting_owner.id)},
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Permission denied: risks:read"
+
+
+@pytest.mark.asyncio
+async def test_reporting_owner_without_risks_read_gets_403_on_linked_risk_detail(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    seed_risk_types,
+):
+    reporting_owner, risk, _ = await _create_cross_department_reporting_owner_without_risks_read(
+        db_session,
+        prefix="reporting-owner-no-read-risk",
+    )
+
+    response = await client.get(
+        f"/api/v1/risks/{risk.id}",
+        headers={"X-Mock-User-Id": str(reporting_owner.id)},
     )
 
     assert response.status_code == 403
