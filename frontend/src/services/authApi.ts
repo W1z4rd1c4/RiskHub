@@ -2,10 +2,11 @@
  * Authentication API client for JWT-based authentication
  */
 
-import { clearAccessToken, getAccessToken } from '@/services/accessTokenStore';
 import { clearCsrfToken, getCsrfToken } from '@/services/csrfToken';
 import { AuthRequestError, fetchAuthResponse } from '@/services/authRequest';
 import { clearRefreshSessionHint } from '@/services/refreshSessionHint';
+import { applyAnonymousSession } from '@/services/sessionManager';
+import { getSessionSnapshot } from '@/services/sessionStore';
 
 const API_URL = '/api/v1/auth';
 
@@ -222,19 +223,19 @@ export const authApi = {
     },
 
     async logoutAll(): Promise<void> {
-        const accessToken = getAccessToken();
+        const accessToken = getSessionSnapshot().token;
         await requestAuthVoid('/logout-all', {
             method: 'POST',
             headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
             credentials: 'include',
         }, 'Logout all failed');
-        clearAccessToken();
+        applyAnonymousSession();
         clearRefreshSessionHint();
         clearCsrfToken();
     },
 
     async logout(): Promise<void> {
-        const accessToken = getAccessToken();
+        const accessToken = getSessionSnapshot().token;
         const headers = new Headers();
         if (accessToken) {
             headers.set('Authorization', `Bearer ${accessToken}`);

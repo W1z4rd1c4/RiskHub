@@ -1,11 +1,10 @@
-import { createContext, useCallback, useContext, useState, useEffect, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, type ReactNode } from 'react';
 import type { AuthUser } from '@/services/authApi';
-import { getAccessToken, subscribeAccessToken } from '@/services/accessTokenStore';
-import { getBootstrapSession } from '@/services/bootstrapSessionCache';
 import { hasUserPermission } from '@/contexts/auth/permissions';
 import { usePreferenceHydration } from '@/contexts/auth/usePreferenceHydration';
 import { useAuthBootstrap } from '@/contexts/auth/useAuthBootstrap';
 import { useAuthActions } from '@/contexts/auth/useAuthActions';
+import { useSessionSnapshot } from '@/services/sessionStore';
 
 type User = AuthUser;
 
@@ -26,64 +25,40 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-    const [token, setTokenState] = useState<string | null>(() => getAccessToken());
-    const [user, setUser] = useState<User | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [bootstrapStatus, setBootstrapStatus] = useState<'loading' | 'authenticated' | 'anonymous' | 'error'>('loading');
-    const [bootstrapError, setBootstrapError] = useState<'service_unavailable' | null>(null);
-    const [logoutPending, setLogoutPending] = useState(false);
-    const [logoutErrorKey, setLogoutErrorKey] = useState<string | null>(null);
+    const session = useSessionSnapshot();
     const {
         isPreferencesHydrated,
         hydratePreferences,
         markPreferencesReady,
-    } = usePreferenceHydration(!token);
-
-    useEffect(() => subscribeAccessToken(setTokenState), []);
+    } = usePreferenceHydration(!session.token);
 
     const { login, logout } = useAuthActions({
         hydratePreferences,
         markPreferencesReady,
-        setUser,
-        setBootstrapStatus,
-        setBootstrapError,
-        setLogoutPending,
-        setLogoutErrorKey,
     });
 
     useAuthBootstrap({
-        token,
+        token: session.token,
         hydratePreferences,
         markPreferencesReady,
-        setUser,
-        setBootstrapStatus,
-        setBootstrapError,
-        setIsLoading,
     });
 
     const hasPermission = useCallback((resource: string, action: string): boolean => {
-        const cachedUser = token ? getBootstrapSession(token)?.user ?? null : null;
-        return hasUserPermission(user ?? cachedUser, resource, action);
-    }, [token, user]);
-    const cachedBootstrapUser = token ? getBootstrapSession(token)?.user ?? null : null;
-    const effectiveUser = user ?? cachedBootstrapUser;
-    const sessionBootstrapPending = Boolean(token) && !effectiveUser;
-    const effectiveBootstrapStatus =
-        sessionBootstrapPending && bootstrapStatus !== 'error' ? 'loading' : bootstrapStatus;
-    const effectiveIsLoading = isLoading || sessionBootstrapPending;
+        return hasUserPermission(session.user, resource, action);
+    }, [session.user]);
 
     return (
         <AuthContext.Provider
             value={{
-                user: effectiveUser,
-                isLoading: effectiveIsLoading,
-                bootstrapStatus: effectiveBootstrapStatus,
-                bootstrapError,
-                logoutPending,
-                logoutErrorKey,
+                user: session.user,
+                isLoading: session.bootstrapStatus === 'loading',
+                bootstrapStatus: session.bootstrapStatus,
+                bootstrapError: session.bootstrapError,
+                logoutPending: session.logoutPending,
+                logoutErrorKey: session.logoutErrorKey,
                 isPreferencesHydrated,
                 hasPermission,
-                isAuthenticated: !!token && !!effectiveUser,
+                isAuthenticated: Boolean(session.token && session.user),
                 login,
                 logout,
             }}

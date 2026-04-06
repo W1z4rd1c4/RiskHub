@@ -1,7 +1,3 @@
-"""
-Tests for Health API endpoint.
-"""
-
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.exc import SQLAlchemyError
@@ -24,7 +20,12 @@ async def test_health_check(db_session):
             response = await client.get("/api/v1/health")
             assert response.status_code == 200
             data = response.json()
-            assert data == {"status": "healthy"}
+            assert data == {
+                "status": "healthy",
+                "database": "connected",
+                "redis": "disabled",
+                "scheduler": "disabled",
+            }
     finally:
         app.dependency_overrides.clear()
 
@@ -44,7 +45,12 @@ async def test_health_check_returns_degraded_for_database_errors():
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             response = await client.get("/api/v1/health")
             assert response.status_code == 200
-            assert response.json() == {"status": "degraded"}
+            assert response.json() == {
+                "status": "degraded",
+                "database": "disconnected",
+                "redis": "disabled",
+                "scheduler": "disabled",
+            }
     finally:
         app.dependency_overrides.clear()
 

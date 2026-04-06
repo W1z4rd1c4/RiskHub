@@ -5,10 +5,13 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
-from app.core.datetime_utils import utc_now
+from app.core.datetime_utils import coerce_utc, utc_now
 from app.models import Notification, OutboxEvent, User
 from app.models.notification import NotificationType
-from app.services.outbox_service import dispatch_pending_outbox_events
+from app.services.outbox.errors import FatalOutboxError, RetryableOutboxError
+from app.services.outbox.payloads import OUTBOX_PAYLOAD_MODELS
+from app.services.outbox.registry import OUTBOX_EVENT_HANDLERS
+from app.services.outbox import dispatch_pending_outbox_events
 from app.services.outbox.store import OUTBOX_RECLAIM_AFTER, OutboxService
 
 
@@ -119,6 +122,117 @@ async def test_invalid_outbox_payload_dead_letters_immediately(
         assert refreshed.status == "dead_letter"
         assert refreshed.last_error is not None
         assert "Invalid outbox payload for approval.request_created" in refreshed.last_error
+
+
+@pytest.mark.asyncio
+async def test_outbox_registry_covers_all_typed_payload_models() -> None:
+    assert set(OUTBOX_EVENT_HANDLERS) == set(OUTBOX_PAYLOAD_MODELS)
+
+
+@pytest.mark.asyncio
+async def test_retryable_outbox_handler_failure_marks_retry(
+    db_session: AsyncSession,
+    async_engine: AsyncEngine,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    event = OutboxEvent(
+        event_type="approval.request_created",
+        aggregate_type="approval_request",
+        aggregate_id=1,
+        idempotency_key="approval.request_created:retryable",
+        payload={"approval_id": 1},
+        status="pending",
+        available_at=utc_now(),
+    )
+    db_session.add(event)
+    await db_session.commit()
+
+    async def retryable_handler(_db: AsyncSession, _payload) -> None:
+        raise RetryableOutboxError("temporary notification outage")
+
+    import app.services.outbox.dispatcher as dispatcher_module
+
+    monkeypatch.setitem(dispatcher_module.OUTBOX_EVENT_HANDLERS, event.event_type, retryable_handler)
+
+    processed = await dispatch_pending_outbox_events(_sessionmaker(async_engine))
+    assert processed == 0
+
+    async with _sessionmaker(async_engine)() as read_session:
+        refreshed = await read_session.get(OutboxEvent, event.id)
+        assert refreshed is not None
+        assert refreshed.status == "pending"
+        assert refreshed.last_error == "temporary notification outage"
+        assert coerce_utc(refreshed.available_at) > coerce_utc(event.available_at)
+
+
+@pytest.mark.asyncio
+async def test_fatal_outbox_handler_failure_dead_letters(
+    db_session: AsyncSession,
+    async_engine: AsyncEngine,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    event = OutboxEvent(
+        event_type="approval.request_created",
+        aggregate_type="approval_request",
+        aggregate_id=1,
+        idempotency_key="approval.request_created:fatal",
+        payload={"approval_id": 1},
+        status="pending",
+        available_at=utc_now(),
+    )
+    db_session.add(event)
+    await db_session.commit()
+
+    async def fatal_handler(_db: AsyncSession, _payload) -> None:
+        raise FatalOutboxError("approval target is no longer valid")
+
+    import app.services.outbox.dispatcher as dispatcher_module
+
+    monkeypatch.setitem(dispatcher_module.OUTBOX_EVENT_HANDLERS, event.event_type, fatal_handler)
+
+    processed = await dispatch_pending_outbox_events(_sessionmaker(async_engine))
+    assert processed == 0
+
+    async with _sessionmaker(async_engine)() as read_session:
+        refreshed = await read_session.get(OutboxEvent, event.id)
+        assert refreshed is not None
+        assert refreshed.status == "dead_letter"
+        assert refreshed.last_error == "approval target is no longer valid"
+
+
+@pytest.mark.asyncio
+async def test_unclassified_outbox_handler_failure_dead_letters(
+    db_session: AsyncSession,
+    async_engine: AsyncEngine,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    event = OutboxEvent(
+        event_type="approval.request_created",
+        aggregate_type="approval_request",
+        aggregate_id=1,
+        idempotency_key="approval.request_created:unclassified",
+        payload={"approval_id": 1},
+        status="pending",
+        available_at=utc_now(),
+    )
+    db_session.add(event)
+    await db_session.commit()
+
+    async def unclassified_handler(_db: AsyncSession, _payload) -> None:
+        raise RuntimeError("unexpected handler bug")
+
+    import app.services.outbox.dispatcher as dispatcher_module
+
+    monkeypatch.setitem(dispatcher_module.OUTBOX_EVENT_HANDLERS, event.event_type, unclassified_handler)
+
+    processed = await dispatch_pending_outbox_events(_sessionmaker(async_engine))
+    assert processed == 0
+
+    async with _sessionmaker(async_engine)() as read_session:
+        refreshed = await read_session.get(OutboxEvent, event.id)
+        assert refreshed is not None
+        assert refreshed.status == "dead_letter"
+        assert refreshed.last_error == "unexpected handler bug"
 
 
 @pytest.mark.asyncio

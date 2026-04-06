@@ -74,6 +74,50 @@
 
 ## Session Context
 
+### Architecture and Governance Closure Baseline (2026-04-06)
+
+- Baseline verification before the new closure loops:
+  - `python3 scripts/check_docs_contract.py` -> passed
+  - `make -f scripts/Makefile docs-topology-consistency` -> passed after reconciling stale structure counts in `.planning/codebase/STRUCTURE.md`
+  - `make -f scripts/Makefile test` -> `940 passed, 15 skipped`
+  - `TEST_DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_test@127.0.0.1:55432/riskhub_test make -f scripts/Makefile test-postgres-ci` -> `11 passed` + `20 passed`
+  - `cd frontend && npm run test:run` -> `83 files passed`, `290 tests passed`
+  - `cd frontend && npm run lint && npx tsc --noEmit && npm run build && npm run quality:debt -- --report-json && node scripts/quality/validate-debt-budget-report.mjs && npm run cleanup:deadcode && node scripts/cleanup/validate-unreachable-report.mjs && node scripts/quality/validate-no-inline-styles.mjs` -> all passed
+- Finding ledger for the 30-item architecture/governance review:
+
+| Finding | Disposition | Notes |
+|---|---|---|
+| 1 | fix now | SQLite outbox semantics still diverge from Postgres on claim behavior. |
+| 2 | fix now | Frontend session/auth authority is still split across multiple stores/helpers. |
+| 3 | fix now | Config implementation is still too centralized even though section models now exist. |
+| 4 | fix now | Outbox dispatcher still retries broad unclassified exceptions. |
+| 5 | fix now | `outbox/handlers.py` is still accumulating multi-domain responsibilities. |
+| 6 | fix now | `rate_limit.py` still mixes policy, backend, fallback, and response concerns. |
+| 7 | fix now | Fast parity auditing remains non-blocking and does not protect PRs. |
+| 8 | fix now | `run_release_parity_audit.py` remains a monolith and should be split with the governance pass. |
+| 9 | fix now | CI/workflow orchestration still duplicates some contract logic outside canonical validators. |
+| 10 | drop/reword | Reworded to one remaining shell-gate cleanup, not a broad `lint.yml` structural defect. |
+| 11 | fix now | Container security scanning still misses relevant PR paths. |
+| 12 | fix now | Broad trusted proxies still warn instead of failing closed in production. |
+| 13 | fix now | Graph/MSAL boundary still uses an over-broad catch classification. |
+| 14 | fix now | Graph cache identity still depends on full secret/private-key material. |
+| 15 | fix now | Compatibility facades remain active and need migration/removal discipline. |
+| 16 | defer | Postgres should become a broader oracle later, but current blocking Postgres CI coverage is already in place. |
+| 17 | fix now | Startup smoke is still too shallow to be a meaningful contract lane. |
+| 18 | fix now | Health endpoint still collapses component state to one status string. |
+| 19 | fix now | Rate-limit policies remain hardcoded in runtime code instead of typed settings. |
+| 20 | fix now | Rate-limit path matching still uses brittle first-prefix semantics. |
+| 21 | defer | In-memory limiter memory shape should be tightened during the rate-limit refactor, but it is not a separate first-pass blocker. |
+| 22 | fix now | `bootstrapSessionCache` still duplicates session/token semantics. |
+| 23 | fix now | `AuthContext` still falls back to bootstrap cache for effective auth/permissions. |
+| 24 | fix now | Security tests still permanently encode COOP/COEP absence. |
+| 25 | fix now | Several security header assertions should be semantic rather than exact-string contracts. |
+| 26 | defer | `scripts/Makefile` breadth is real, but only the touched governance entrypoints should move now. |
+| 27 | defer | `graph_directory_auth.py` still does too much, but the first-pass closure focuses on boundary typing and cache identity. |
+| 28 | drop/reword | Dropped as a top-level target; `LoginPage.tsx` is no longer a material architecture risk. |
+| 29 | fix now | Security/runtime/doc truth still needs stronger single-validator enforcement. |
+| 30 | drop/reword | Synthesis only; resolved by closing the concrete items above rather than treating it as a separate defect. |
+
 ### Seven-Wave Closure Plan Completion (2026-04-05)
 
 - Closed the remaining CI/runtime/docs parity work from the seven-wave remediation pass:

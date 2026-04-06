@@ -13,7 +13,7 @@ from app.i18n import t
 from app.models import Risk, RiskQuestionnaire, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.models.risk_questionnaire import RiskQuestionnaireStatus
-from app.services.outbox_service import OutboxService
+from app.services.outbox import OutboxService
 from app.services.risk_questionnaire_service import (
     QUESTIONNAIRE_TEMPLATE_KEY,
     QUESTIONNAIRE_TEMPLATE_VERSION,

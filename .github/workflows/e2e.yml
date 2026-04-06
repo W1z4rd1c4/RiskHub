@@ -225,7 +225,11 @@ jobs:
               payload = json.load(response)
               headers = response.headers
 
-          assert payload == {"status": "healthy"}, payload
+          assert set(payload) == {"status", "database", "redis", "scheduler"}, payload
+          assert payload["status"] == "healthy", payload
+          assert payload["database"] == "connected", payload
+          assert payload["redis"] == "connected", payload
+          assert payload["scheduler"] in {"disabled", "stopped", "running"}, payload
           assert headers["Strict-Transport-Security"] == "max-age=31536000; includeSubDomains; preload"
           csp = headers["Content-Security-Policy"]
           assert "style-src 'self' https://fonts.googleapis.com" in csp

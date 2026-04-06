@@ -23,13 +23,13 @@
 - `backend/app/models/` - 26 model modules (measured `*.py` snapshot)
 - `backend/app/schemas/` - 23 schema modules (measured `*.py` snapshot)
 - `backend/app/services/` - 76 Python modules (measured workspace `*.py` snapshot; business services + internal refactor packages; facade modules re-export public symbols)
-- `backend/app/core/` - configuration, auth, permissions, logging, scheduler
+- `backend/app/core/` - configuration facade + segmented settings package, auth, permissions, logging, scheduler
 - `backend/app/middleware/` - 7 Python modules (measured workspace `*.py` snapshot; security/logging/language middleware with facade-preserving splits)
 - `backend/app/integrations/` - AD emulator and vendor-signal connectors
 - `backend/alembic/` - migration environment and versioned migrations
 - `backend/scripts/runtime/` - component-scoped backend runtime entrypoints (`dev`, `test`, `prod`)
 - `backend/scripts/runtime/db/` - backend-owned DB runtime entrypoints (`dev`, `test`, `prod`)
-- `tests/backend/pytest/` - 145 test files (142 Python) (measured workspace snapshot)
+- `tests/backend/pytest/` - 146 test files (143 Python) (measured workspace snapshot)
 
 ## Frontend Tree (`frontend/`)
 
@@ -39,7 +39,7 @@
 
 ### Primary subdirectories
 - `frontend/src/pages/` - 87 tracked files (measured git-tracked snapshot; route-level pages + tests)
-- `frontend/src/components/` - 159 tracked files (measured git-tracked snapshot; components + tests)
+- `frontend/src/components/` - 160 tracked files (measured git-tracked snapshot; components + tests)
 - `frontend/src/services/` - API client and domain service wrappers
 - `frontend/src/contexts/` - auth/theme/filter context providers
 - `frontend/src/authz/` - authz policy derivation hooks

@@ -11,9 +11,11 @@ WORKDIR /app
 # Copy package files
 COPY package.json package-lock.json ./
 
-# Install dependencies fresh in container (avoids architecture mismatch)
-# Include devDependencies for build (typescript, vite, etc.)
-RUN npm ci --include=dev
+# Install dependencies fresh in container (avoids architecture mismatch).
+# The current lint toolchain includes an ESLint/plugin peer range that is
+# narrower than the pinned container npm resolver, so keep the lockfile install
+# but allow legacy peer resolution inside the Docker build path.
+RUN npm ci --include=dev --legacy-peer-deps
 
 # Copy source code (excluding node_modules via .dockerignore)
 COPY . .

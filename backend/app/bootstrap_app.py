@@ -20,9 +20,11 @@ def register_middleware(app: FastAPI, settings: Settings) -> None:
     if not settings.debug:
         app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.allowed_hosts)
 
-    from app.middleware.logging_context import LoggingContextMiddleware
     from app.middleware.language import LanguageMiddleware
-    from app.middleware.security import ProtocolGuardMiddleware, RateLimitMiddleware, SecurityHeadersMiddleware
+    from app.middleware.logging_context import LoggingContextMiddleware
+    from app.middleware.rate_limit import RateLimitMiddleware
+    from app.middleware.security_headers import SecurityHeadersMiddleware
+    from app.middleware.security_protocol import ProtocolGuardMiddleware
 
     app.add_middleware(LoggingContextMiddleware, trusted_proxies=settings.trusted_proxies)
     app.add_middleware(SecurityHeadersMiddleware, enable_hsts=not settings.debug)

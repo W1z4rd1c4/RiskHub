@@ -1,29 +1,31 @@
 import { useEffect } from 'react';
-import type { AuthUser } from '@/services/authApi';
 import { bootstrapAuthSession } from '@/services/authSessionCoordinator';
 import { isAuthUnavailableError } from '@/services/authRequest';
-import { applyBootstrappedSession, clearAuthenticatedSession } from '@/services/sessionManager';
+import {
+    applyAnonymousSession,
+    applyBootstrappingSession,
+    applyBootstrappedSession,
+    applyBootstrapError,
+} from '@/services/sessionManager';
+import { getSessionSnapshot } from '@/services/sessionStore';
 
 interface UseAuthBootstrapOptions {
     token: string | null;
     hydratePreferences: () => Promise<void>;
     markPreferencesReady: (ready: boolean) => void;
-    setUser: (user: AuthUser | null) => void;
-    setBootstrapStatus: (status: 'loading' | 'authenticated' | 'anonymous' | 'error') => void;
-    setBootstrapError: (error: 'service_unavailable' | null) => void;
-    setIsLoading: (loading: boolean) => void;
 }
 
 export function useAuthBootstrap({
     token,
     hydratePreferences,
     markPreferencesReady,
-    setUser,
-    setBootstrapStatus,
-    setBootstrapError,
-    setIsLoading,
 }: UseAuthBootstrapOptions): void {
     useEffect(() => {
+        if (!token && getSessionSnapshot().bootstrapStatus === 'error') {
+            markPreferencesReady(true);
+            return;
+        }
+
         let isMounted = true;
 
         const fetchCurrentUser = async () => {
@@ -32,35 +34,26 @@ export function useAuthBootstrap({
                 if (!isMounted) return;
 
                 if (!session.token || !session.user) {
-                    setUser(null);
-                    setBootstrapStatus('anonymous');
-                    setBootstrapError(null);
+                    applyAnonymousSession();
                     markPreferencesReady(true);
                     return;
                 }
 
-                if (session.token !== token) {
-                    applyBootstrappedSession({ token: session.token, user: session.user });
-                }
-
+                applyBootstrappingSession({ token: session.token, user: session.user });
                 markPreferencesReady(false);
-                setUser(session.user);
                 await hydratePreferences();
-                if (isMounted) {
-                    setBootstrapStatus('authenticated');
-                    setBootstrapError(null);
+                if (!isMounted) {
+                    return;
                 }
+                applyBootstrappedSession({ token: session.token, user: session.user });
             } catch (error) {
                 if (isMounted) {
-                    clearAuthenticatedSession({ clearBootstrap: true });
-                    setUser(null);
-                    setBootstrapStatus(isAuthUnavailableError(error) ? 'error' : 'anonymous');
-                    setBootstrapError(isAuthUnavailableError(error) ? 'service_unavailable' : null);
+                    if (isAuthUnavailableError(error)) {
+                        applyBootstrapError('service_unavailable');
+                    } else {
+                        applyAnonymousSession();
+                    }
                     markPreferencesReady(true);
-                }
-            } finally {
-                if (isMounted) {
-                    setIsLoading(false);
                 }
             }
         };
@@ -73,10 +66,6 @@ export function useAuthBootstrap({
     }, [
         hydratePreferences,
         markPreferencesReady,
-        setBootstrapError,
-        setBootstrapStatus,
-        setIsLoading,
-        setUser,
         token,
     ]);
 }

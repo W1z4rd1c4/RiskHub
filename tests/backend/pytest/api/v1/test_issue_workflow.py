@@ -18,7 +18,7 @@ from app.models import (
     User,
 )
 from app.models.user import AccessScope
-from app.services.outbox_service import dispatch_pending_outbox_events
+from app.services.outbox import dispatch_pending_outbox_events
 
 
 async def _dispatch_outbox(async_engine: AsyncEngine) -> int:

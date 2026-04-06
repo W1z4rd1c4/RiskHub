@@ -10,7 +10,7 @@
 - Migration path via Alembic (`backend/alembic/`, `backend/alembic/env.py`)
 
 ### Redis
-- Used for production rate limiting and account lockout (`backend/app/bootstrap_runtime.py`, `backend/app/middleware/rate_limit.py`, `backend/app/services/account_lockout_service.py`)
+- Used for production rate limiting and account lockout (`backend/app/bootstrap_runtime.py`, `backend/app/middleware/rate_limit/`, `backend/app/services/account_lockout_service.py`)
 - Required when `DEBUG=false` (`backend/app/bootstrap_runtime.py`)
 
 ## Directory/Identity Integrations
@@ -24,13 +24,14 @@
 - Backend auth modes include Entra SSO-only production mode (`backend/app/core/config.py`, `backend/app/bootstrap_validation.py`)
 - Token verification + OIDC discovery/JWKS refresh: `backend/app/services/sso_token_service.py`
 - Graph directory lookup is exposed through `graph_directory_service.py` and internally split across token/auth transport helpers (`backend/app/services/graph_directory_service.py`, `backend/app/services/graph_directory_auth.py`, `backend/app/services/graph_directory_transport.py`)
+- Graph token-cache identity now depends on tenant/client/mode plus thumbprint or explicit `ENTRA_CREDENTIAL_FINGERPRINT`, not raw secret/private-key bytes (`backend/app/services/graph_directory_auth.py`)
 - Exchange endpoint: `POST /api/v1/auth/sso/exchange` (`backend/app/api/v1/endpoints/auth/sso.py`)
 - Frontend client flow via MSAL: `frontend/src/services/entraAuth.ts`
 - Frontend callback route: `/auth/sso/callback` (`frontend/src/pages/SsoCallbackPage.tsx`)
 
 ### JWT Authentication
 - Backend issues HS256 JWTs (`backend/app/core/security.py`, `backend/app/api/v1/endpoints/auth/password.py`, `backend/app/api/v1/endpoints/auth/sso.py`)
-- Frontend session state is coordinated through `sessionManager` and `accessTokenStore`, and `apiClient` attaches `Authorization: Bearer` (`frontend/src/services/sessionManager.ts`, `frontend/src/services/accessTokenStore.ts`, `frontend/src/services/apiClient.ts`)
+- Frontend session state is now canonicalized in `sessionStore`; `sessionManager` owns state transitions, temporary compatibility adapters project token/bootstrap reads, and `apiClient` attaches `Authorization: Bearer` from that single snapshot (`frontend/src/services/sessionStore.ts`, `frontend/src/services/sessionManager.ts`, `frontend/src/services/accessTokenStore.ts`, `frontend/src/services/apiClient.ts`)
 
 ## Vendor Signal Integrations
 
@@ -73,6 +74,7 @@
 - `MOCK_AUTH_ENABLED` + demo login only intended for debug/dev (`backend/app/bootstrap_validation.py`, `backend/app/api/v1/endpoints/auth/demo.py`)
 - Webhook verification behavior varies by debug/production guardrails (`backend/app/api/v1/endpoints/directory.py`)
 - Scheduler execution controlled by `ENABLE_SCHEDULER=true` on exactly one process (`backend/app/core/scheduler.py`)
+- Broad `TRUSTED_PROXIES` ranges are production-fatal unless `ALLOW_BROAD_TRUSTED_PROXIES_IN_PRODUCTION=true` is set explicitly (`backend/app/bootstrap_validation.py`)
 
 ---
 

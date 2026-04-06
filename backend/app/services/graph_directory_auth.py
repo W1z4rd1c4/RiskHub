@@ -9,7 +9,13 @@ from typing import Any
 
 from app.core.config import EntraConfidentialCredential, Settings
 from app.core.outbound_guard import OutboundRequestError, guard_resolved_outbound_url
-from app.services.graph_directory_errors import GraphProviderUnavailableError
+from app.services.graph_directory_errors import (
+    GraphCredentialError,
+    GraphDependencyError,
+    GraphProviderUnavailableError,
+    GraphTokenAcquisitionError,
+    GraphTransientError,
+)
 
 _GRAPH_SCOPE = "https://graph.microsoft.com/.default"
 
@@ -36,16 +42,16 @@ class GraphAccessTokenProvider:
         tenant_id = self._settings.entra_tenant_id
         client_id = self._settings.entra_client_id
         if not tenant_id or not client_id:
-            raise GraphProviderUnavailableError(
+            raise GraphCredentialError(
                 "Graph credentials are not configured (ENTRA_TENANT_ID, ENTRA_CLIENT_ID, and an Entra Graph credential)."
             )
 
         if self._settings.entra_certificate_credential_error:
-            raise GraphProviderUnavailableError(self._settings.entra_certificate_credential_error)
+            raise GraphCredentialError(self._settings.entra_certificate_credential_error)
 
         credential = self._settings.entra_confidential_credential
         if credential is None:
-            raise GraphProviderUnavailableError(
+            raise GraphCredentialError(
                 "Graph credentials are not configured (ENTRA_TENANT_ID, ENTRA_CLIENT_ID, and an Entra Graph credential)."
             )
 
@@ -53,6 +59,7 @@ class GraphAccessTokenProvider:
             tenant_id=tenant_id,
             client_id=client_id,
             credential=credential,
+            credential_fingerprint=self._settings.entra_credential_fingerprint,
         )
         cache_entry = _GRAPH_TOKEN_CACHE.setdefault(cache_key, _GraphTokenCacheEntry())
         now = datetime.now(UTC)
@@ -106,7 +113,7 @@ class GraphAccessTokenProvider:
         try:
             msal = importlib.import_module("msal")
         except ModuleNotFoundError as exc:
-            raise GraphProviderUnavailableError(
+            raise GraphDependencyError(
                 "MSAL Python is not installed; cannot acquire Graph token."
             ) from exc
 
@@ -114,14 +121,14 @@ class GraphAccessTokenProvider:
         client_credential: str | dict[str, str]
         if credential.mode == "certificate":
             if not credential.client_certificate_private_key or not credential.client_certificate_thumbprint:
-                raise GraphProviderUnavailableError("Graph certificate credential is incomplete")
+                raise GraphCredentialError("Graph certificate credential is incomplete")
             client_credential = {
                 "private_key": credential.client_certificate_private_key,
                 "thumbprint": credential.client_certificate_thumbprint,
             }
         else:
             if not credential.client_secret:
-                raise GraphProviderUnavailableError("Graph client secret credential is missing")
+                raise GraphCredentialError("Graph client secret credential is missing")
             client_credential = credential.client_secret
 
         try:
@@ -130,17 +137,23 @@ class GraphAccessTokenProvider:
                 authority=authority,
                 client_credential=client_credential,
             )
+        except (TypeError, ValueError) as exc:
+            raise GraphCredentialError(f"Failed to configure Graph credentials: {exc}") from exc
+
+        try:
             result = await self._run_in_thread(app.acquire_token_for_client, scopes=[_GRAPH_SCOPE])
+        except OSError as exc:
+            raise GraphTransientError(f"Transient Graph token acquisition failure: {exc}") from exc
         except Exception as exc:  # pragma: no cover - explicit third-party dependency boundary
-            raise GraphProviderUnavailableError(f"Failed to acquire Graph token: {exc}") from exc
+            raise GraphTokenAcquisitionError(f"Failed to acquire Graph token: {exc}") from exc
 
         if not isinstance(result, dict):
-            raise GraphProviderUnavailableError("Graph token response is invalid")
+            raise GraphTokenAcquisitionError("Graph token response is invalid")
         if "access_token" in result:
             return result
 
         detail = result.get("error_description") or result.get("error") or "unknown error"
-        raise GraphProviderUnavailableError(f"Failed to acquire Graph token: {detail}")
+        raise GraphTokenAcquisitionError(f"Failed to acquire Graph token: {detail}")
 
     async def _run_in_thread(self, fn, *args, **kwargs):
         return await asyncio.to_thread(fn, *args, **kwargs)
@@ -151,6 +164,7 @@ class GraphAccessTokenProvider:
         tenant_id: str,
         client_id: str,
         credential: EntraConfidentialCredential,
+        credential_fingerprint: str | None = None,
     ) -> str:
         fingerprint = hashlib.sha256()
         fingerprint.update(tenant_id.encode("utf-8"))
@@ -158,15 +172,11 @@ class GraphAccessTokenProvider:
         fingerprint.update(client_id.encode("utf-8"))
         fingerprint.update(b"\0")
         fingerprint.update(credential.mode.encode("utf-8"))
-        if credential.client_secret:
-            fingerprint.update(b"\0")
-            fingerprint.update(credential.client_secret.encode("utf-8"))
+        fingerprint.update(b"\0")
+        fingerprint.update((credential_fingerprint or "").encode("utf-8"))
         if credential.client_certificate_thumbprint:
             fingerprint.update(b"\0")
             fingerprint.update(credential.client_certificate_thumbprint.encode("utf-8"))
-        if credential.client_certificate_private_key:
-            fingerprint.update(b"\0")
-            fingerprint.update(credential.client_certificate_private_key.encode("utf-8"))
         return fingerprint.hexdigest()
 
 

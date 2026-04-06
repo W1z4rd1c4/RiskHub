@@ -1,13 +1,12 @@
 import type { TokenResponse } from '@/services/authApi';
 import { sanitizeReturnTo } from '@/services/authRedirect';
 import {
-    clearBootstrapSession,
     type BootstrapSession,
-    setBootstrapSession,
 } from '@/services/bootstrapSessionCache';
-import { clearAccessToken, setAccessToken } from '@/services/accessTokenStore';
 import { clearCsrfToken } from '@/services/csrfToken';
 import { clearRefreshSessionHint } from '@/services/refreshSessionHint';
+import { getSessionSnapshot, setSessionSnapshot } from '@/services/sessionStore';
+import type { SessionBootstrapError } from '@/services/sessionTypes';
 
 interface ClearAuthenticatedSessionOptions {
     clearBootstrap?: boolean;
@@ -17,9 +16,16 @@ interface ClearAuthenticatedSessionOptions {
 
 export type SessionUser = TokenResponse['user'];
 
-function cacheSession(user: SessionUser, token: string): void {
-    setAccessToken(token);
-    setBootstrapSession({ user, token });
+function setAuthenticatedSession(user: SessionUser, token: string): void {
+    setSessionSnapshot((previous) => ({
+        ...previous,
+        token,
+        user,
+        bootstrapStatus: 'authenticated',
+        bootstrapError: null,
+        logoutPending: false,
+        logoutErrorKey: null,
+    }));
 }
 
 export function resolvePostLoginRedirect(response: TokenResponse, fallbackReturnTo: string = '/'): string {
@@ -28,14 +34,72 @@ export function resolvePostLoginRedirect(response: TokenResponse, fallbackReturn
 
 export function syncAuthenticatedToken(token: string | null): void {
     if (token) {
-        setAccessToken(token);
+        setSessionSnapshot((previous) => ({
+            ...previous,
+            token,
+            user: previous.token === token ? previous.user : null,
+            bootstrapStatus: previous.token === token && previous.user ? 'authenticated' : 'loading',
+            bootstrapError: null,
+        }));
         return;
     }
-    clearAccessToken();
+    applyAnonymousSession();
 }
 
 export function applyBootstrappedSession(session: BootstrapSession): void {
-    cacheSession(session.user, session.token);
+    setAuthenticatedSession(session.user, session.token);
+}
+
+export function applyBootstrappingSession(session: BootstrapSession): void {
+    setSessionSnapshot((previous) => ({
+        ...previous,
+        token: session.token,
+        user: session.user,
+        bootstrapStatus: 'loading',
+        bootstrapError: null,
+        logoutPending: false,
+        logoutErrorKey: null,
+    }));
+}
+
+export function applyAnonymousSession(): void {
+    setSessionSnapshot((previous) => ({
+        ...previous,
+        token: null,
+        user: null,
+        bootstrapStatus: 'anonymous',
+        bootstrapError: null,
+        logoutPending: false,
+        logoutErrorKey: null,
+    }));
+}
+
+export function applyBootstrapError(error: SessionBootstrapError): void {
+    setSessionSnapshot((previous) => ({
+        ...previous,
+        token: null,
+        user: null,
+        bootstrapStatus: error ? 'error' : 'anonymous',
+        bootstrapError: error,
+        logoutPending: false,
+        logoutErrorKey: null,
+    }));
+}
+
+export function setLogoutPendingState(pending: boolean): void {
+    setSessionSnapshot((previous) => ({
+        ...previous,
+        logoutPending: pending,
+        logoutErrorKey: pending ? null : previous.logoutErrorKey,
+    }));
+}
+
+export function setLogoutErrorState(errorKey: string | null): void {
+    setSessionSnapshot((previous) => ({
+        ...previous,
+        logoutPending: false,
+        logoutErrorKey: errorKey,
+    }));
 }
 
 export function clearAuthenticatedSession(options: ClearAuthenticatedSessionOptions = {}): void {
@@ -45,10 +109,16 @@ export function clearAuthenticatedSession(options: ClearAuthenticatedSessionOpti
         clearRefreshHint = false,
     } = options;
 
-    clearAccessToken();
-    if (clearBootstrap) {
-        clearBootstrapSession();
-    }
+    const nextBootstrapStatus = clearBootstrap || getSessionSnapshot().token === null ? 'anonymous' : 'loading';
+    setSessionSnapshot((previous) => ({
+        ...previous,
+        token: null,
+        user: null,
+        bootstrapStatus: nextBootstrapStatus,
+        bootstrapError: null,
+        logoutPending: false,
+        logoutErrorKey: null,
+    }));
     if (clearCsrf) {
         clearCsrfToken();
     }
@@ -58,6 +128,6 @@ export function clearAuthenticatedSession(options: ClearAuthenticatedSessionOpti
 }
 
 export function applyAuthenticatedSession(response: TokenResponse, fallbackReturnTo: string = '/'): string {
-    cacheSession(response.user, response.access_token);
+    setAuthenticatedSession(response.user, response.access_token);
     return resolvePostLoginRedirect(response, fallbackReturnTo);
 }

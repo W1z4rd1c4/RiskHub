@@ -12,7 +12,7 @@ from app.schemas.issue import (
     IssueStartRemediationRequest,
 )
 from app.services.issue_workflow_service import IssueWorkflowService
-from app.services.outbox_service import OutboxService
+from app.services.outbox import OutboxService
 
 from ._shared import (
     _ensure_owner_assignable,

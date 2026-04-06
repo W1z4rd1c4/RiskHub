@@ -14,7 +14,7 @@ from app.db.session import get_db
 from app.models import ApprovalRequest, ApprovalStatus, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas.approval_request import ApprovalRequestListResponse, ApprovalRequestRead, ApprovalRequestResolve
-from app.services.outbox_service import OutboxService
+from app.services.outbox import OutboxService
 
 from ._shared import _build_approval_read, _get_approval_department_id, logger
 

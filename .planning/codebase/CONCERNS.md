@@ -1,6 +1,6 @@
 # Codebase Concerns
 
-**Analysis Date:** 2026-02-16
+**Analysis Date:** 2026-04-05
 
 ## High-Risk Hotspots (Require Extra Care)
 
@@ -27,14 +27,19 @@
 
 ## Authentication and Session Risks
 
-- JWT access token stored in browser localStorage (`frontend/src/contexts/AuthContext.tsx`) remains an XSS-sensitive design choice
+- Client auth/session state is now centralized in the in-memory `sessionStore`, but compatibility adapters (`frontend/src/services/accessTokenStore.ts`, `frontend/src/services/bootstrapSessionCache.ts`) still need final removal discipline in the closing cleanup loop
 - Dev/demo auth paths are intentionally present and must remain production-disabled (`backend/app/main.py`, `backend/app/api/v1/endpoints/auth/demo.py`)
 - SSO token verification is monkeypatched in tests via `app.api.v1.endpoints.auth.verify_entra_id_token` and requires facade-style attribute lookup to keep patching working through refactors (`backend/app/api/v1/endpoints/auth/__init__.py`, `backend/app/api/v1/endpoints/auth/sso.py`)
 
 ## Scheduler Operational Risk
 
 - Background scheduler can duplicate jobs if enabled in more than one backend process
-- Guard exists (`ENABLE_SCHEDULER=true` expected on exactly one process), but this is deployment-discipline dependent (`backend/app/core/scheduler.py`)
+- Non-Postgres runtimes now fail fast if scheduler/outbox execution is started with multiple workers, but duplicate-job risk still depends on deployment discipline for PostgreSQL-backed scheduler ownership (`backend/app/core/scheduler.py`, `backend/app/services/outbox/store.py`)
+
+## Production Boundary Risk
+
+- Broad private-network `TRUSTED_PROXIES` values are now production-fatal unless explicitly overridden; operators need to make that trust decision deliberately (`backend/app/bootstrap_validation.py`)
+- Graph auth now separates dependency, credential, token-response, and transient failures, but the boundary remains security-sensitive because it drives production directory lookups and token caching (`backend/app/services/graph_directory_auth.py`, `backend/app/services/graph_directory_errors.py`)
 
 ## Log Growth and Operational Hygiene
 
@@ -55,4 +60,4 @@
 
 ---
 
-*Concerns audit refreshed on 2026-02-16*
+*Concerns audit refreshed on 2026-04-05*
