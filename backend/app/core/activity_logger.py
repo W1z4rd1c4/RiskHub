@@ -5,7 +5,14 @@ from enum import Enum as PyEnum
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.activity_redaction import SanitizedChanges, sanitize_changes
+from app.core.activity_redaction import (
+    DB_ACTIVITY_METADATA_POLICY,
+    SIEM_ACTIVITY_METADATA_POLICY,
+    SanitizedChanges,
+    build_activity_description,
+    sanitize_activity_metadata,
+    sanitize_changes,
+)
 from app.core.logging import get_audit_logger
 from app.models import ActivityLog, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
@@ -109,6 +116,9 @@ async def log_activity(
     entity_type: ActivityEntityType,
     entity_id: int,
     entity_name: str,
+    safe_entity_label: str | None = None,
+    safe_description: str | None = None,
+    safe_description_siem: str | None = None,
     action: ActivityAction,
     actor: User | None = None,
     department_id: int | None = None,
@@ -123,6 +133,9 @@ async def log_activity(
         entity_type: Type of entity (risk, control, etc.)
         entity_id: ID of the entity
         entity_name: Display name (snapshot)
+        safe_entity_label: Explicitly approved safe label for DB/API activity surfaces
+        safe_description: Explicitly approved safe description for DB/API activity surfaces
+        safe_description_siem: Explicitly approved safe description for SIEM/audit.json.log
         action: Action performed (create, update, delete, etc.)
         actor: User who performed the action
         department_id: Associated department (for scoping)
@@ -134,20 +147,41 @@ async def log_activity(
     """
     normalized_changes = _normalize_changes(changes)
     sanitized_changes = sanitize_changes(entity_type.value, normalized_changes)
-    if description is None:
-        description = _generate_description(
-            entity_type, entity_name, action, sanitized_changes
-        )
-    description = _truncate_text(description, MAX_DESCRIPTION_LENGTH) or ""
+    raw_actor_name = actor.name if actor else None
+    db_metadata = sanitize_activity_metadata(
+        entity_type.value,
+        action.value,
+        raw_entity_name=entity_name,
+        raw_actor_name=raw_actor_name,
+        raw_description=description,
+        safe_description=safe_description,
+        safe_description_siem=safe_description_siem,
+        safe_entity_label=safe_entity_label,
+        sanitized_changes=sanitized_changes,
+        policy=DB_ACTIVITY_METADATA_POLICY,
+    )
+    siem_metadata = sanitize_activity_metadata(
+        entity_type.value,
+        action.value,
+        raw_entity_name=entity_name,
+        raw_actor_name=raw_actor_name,
+        raw_description=description,
+        safe_description=safe_description,
+        safe_description_siem=safe_description_siem,
+        safe_entity_label=safe_entity_label,
+        sanitized_changes=sanitized_changes,
+        policy=SIEM_ACTIVITY_METADATA_POLICY,
+    )
+    description = _truncate_text(db_metadata.description, MAX_DESCRIPTION_LENGTH) or ""
     changes = _truncate_changes(sanitized_changes.changes)
 
     entry = ActivityLog(
         entity_type=entity_type.value,
         entity_id=entity_id,
-        entity_name=entity_name,
+        entity_name=_truncate_text(db_metadata.entity_name, 255) or entity_type.value,
         action=action.value,
         actor_id=actor.id if actor else None,
-        actor_name=actor.name if actor else "Anonymous",
+        actor_name=_truncate_text(db_metadata.actor_name, 255) or "Anonymous",
         department_id=department_id,
         changes=changes,
         description=description,
@@ -155,19 +189,24 @@ async def log_activity(
     db.add(entry)
 
     # Emit structured log for SIEM integration
-    audit_logger.info(
-        action.value,
-        feature="audit",
-        event_type=action.value,
-        entity_type=entity_type.value,
-        entity_id=entity_id,
-        entity_name=entity_name,
-        actor_id=actor.id if actor else None,
-        actor_name=actor.name if actor else "Anonymous",
-        department_id=department_id,
-        changes=changes,
-        description=description,
-    )
+    audit_payload: dict[str, object] = {
+        "feature": "audit",
+        "event_type": action.value,
+        "entity_type": entity_type.value,
+        "entity_id": entity_id,
+        "entity_name": siem_metadata.entity_name,
+        "actor_id": actor.id if actor else None,
+        "department_id": department_id,
+        "changes": changes,
+        "description": siem_metadata.description,
+        "metadata_redaction_count": len(siem_metadata.redacted_fields),
+    }
+    if siem_metadata.redacted_fields:
+        audit_payload["metadata_redacted_fields"] = siem_metadata.redacted_fields
+    if siem_metadata.actor_name is not None:
+        audit_payload["actor_name"] = siem_metadata.actor_name
+
+    audit_logger.info(action.value, **audit_payload)
 
     # Note: commit handled by caller's transaction
     return entry
@@ -175,32 +214,8 @@ async def log_activity(
 
 def _generate_description(
     entity_type: ActivityEntityType,
-    entity_name: str,
     action: ActivityAction,
     sanitized_changes: SanitizedChanges,
 ) -> str:
     """Generate human-readable description for an activity."""
-    action_verbs = {
-        ActivityAction.CREATE: "created",
-        ActivityAction.UPDATE: "updated",
-        ActivityAction.DELETE: "deleted",
-        ActivityAction.ARCHIVE: "archived",
-        ActivityAction.APPROVE: "approved",
-        ActivityAction.REJECT: "rejected",
-        ActivityAction.STATUS_CHANGE: "changed status of",
-        ActivityAction.LINK: "linked",
-        ActivityAction.UNLINK: "unlinked",
-    }
-    verb = action_verbs.get(action, action.value)
-    entity_label = entity_type.value.replace("_", " ").title()
-
-    desc = f"{verb.capitalize()} {entity_label}: {entity_name}"
-
-    if action == ActivityAction.UPDATE and sanitized_changes.changes:
-        if sanitized_changes.visible_fields:
-            fields = ", ".join(sanitized_changes.visible_fields)
-            desc += f" (fields: {fields})"
-        else:
-            desc += " (updated sensitive fields)"
-
-    return desc
+    return build_activity_description(entity_type.value, action.value, sanitized_changes)

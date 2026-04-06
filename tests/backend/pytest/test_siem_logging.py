@@ -52,6 +52,8 @@ async def test_audit_log_on_failed_login(client: AsyncClient):
     # Verify content
     assert log_entry["event"] == "failed_login"
     assert "Failed login attempt" in log_entry["description"]
+    assert log_entry["entity_name"] == "User"
+    assert payload["email"] not in log_entry["description"]
     assert log_entry["feature"] == "audit"
     assert log_entry["logger"] == "audit"
 
@@ -59,6 +61,47 @@ async def test_audit_log_on_failed_login(client: AsyncClient):
     # Actually, failure happens before user is loaded, so user_id might be missing or null
     assert "request_id" in log_entry, "request_id should be present"
     assert "client_ip" in log_entry, "client_ip should be present"
+
+
+@pytest.mark.asyncio
+async def test_audit_log_on_demo_login_uses_safe_description(
+    client: AsyncClient,
+    db_session,
+    test_user,
+):
+    from app.core.security import get_password_hash
+
+    backend_dir = Path(__file__).resolve().parents[3] / "backend"
+    audit_log_path = backend_dir / "logs" / "audit.json.log"
+    audit_log_path.parent.mkdir(exist_ok=True)
+
+    initial_log_lines = []
+    if audit_log_path.exists():
+        with open(audit_log_path, "r") as f:
+            initial_log_lines = f.readlines()
+
+    test_user.hashed_password = get_password_hash("StrongPass123!")
+    db_session.add(test_user)
+    await db_session.commit()
+
+    response = await client.post(
+        "/api/v1/auth/login",
+        json={"email": test_user.email, "password": "StrongPass123!"},
+    )
+    assert response.status_code == 200
+
+    with open(audit_log_path, "r") as f:
+        current_log_lines = f.readlines()
+
+    assert len(current_log_lines) > len(initial_log_lines), "New audit log entry should be added"
+
+    last_line = current_log_lines[-1].strip()
+    log_entry = json.loads(last_line)
+
+    assert log_entry["event"] == "login"
+    assert log_entry["description"] == "User logged in"
+    assert log_entry["entity_name"] == "User"
+    assert "@" not in log_entry["description"]
 
 
 @pytest.mark.asyncio

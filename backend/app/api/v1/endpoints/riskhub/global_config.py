@@ -3,7 +3,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.activity_logger import log_activity
+from app.core.activity_logger import build_change_set, log_activity
 from app.db.session import get_db
 from app.models import GlobalConfig, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
@@ -135,6 +135,7 @@ async def update_config(
             raise HTTPException(status_code=400, detail="Value must be true or false")
 
     old_value = config.value
+    changes = build_change_set(config, {"value": data.value})
     config.value = data.value
     config.updated_by_id = cro_user.id
 
@@ -148,8 +149,11 @@ async def update_config(
         entity_type=ActivityEntityType.CONFIG,
         entity_id=config.id,
         entity_name=config.display_name,
+        safe_entity_label=config.display_name,
+        changes=changes,
         description=f"Config '{key}' changed from '{old_value}' to '{data.value}'",
     )
+    await db.commit()
 
     return GlobalConfigRead(
         id=config.id,
@@ -165,4 +169,3 @@ async def update_config(
         updated_at=config.updated_at.isoformat(),
         updated_by_name=cro_user.name,
     )
-

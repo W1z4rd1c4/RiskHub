@@ -23,6 +23,7 @@ from app.db.session import get_db
 from app.main import app
 from app.models import (
     ActivityLog,
+    ApprovalScenario,
     Department,
     Permission,
     Role,
@@ -149,8 +150,8 @@ async def test_control_update_activity_log_changes(
     entry = result.scalars().first()
     assert entry is not None
     changes = entry.changes
-    assert changes["name"]["old"] == "Activity Control"
-    assert changes["name"]["new"] == "Updated Control"
+    assert changes["name"]["old"] == "[REDACTED]"
+    assert changes["name"]["new"] == "[REDACTED]"
     assert changes["risk_level"]["old"] == 3
     assert changes["risk_level"]["new"] == 5
 
@@ -294,7 +295,106 @@ async def test_approval_activity_log_create_and_approve(
     )
     entry = result.scalars().first()
     assert entry is not None
-    assert f"approval #{approval_id}" in entry.description.lower()
+    assert entry.entity_name == f"R-AL-03"
+    assert entry.description == "Archived Risk"
+
+
+@pytest.mark.asyncio
+async def test_risk_restore_activity_log_keeps_safe_restore_description(
+    auth_client: AsyncClient,
+    db_session,
+    test_user: User,
+    test_department: Department,
+    seed_risk_types,
+):
+    create_response = await auth_client.post(
+        "/api/v1/risks",
+        json={
+            "risk_id_code": "R-REST-01",
+            "name": "Sensitive Restore Risk",
+            "process": "Restore Process",
+            "description": "Risk used to validate restore logging",
+            "department_id": test_department.id,
+            "owner_id": test_user.id,
+            "risk_type": "operational",
+            "category": "Testing",
+            "gross_probability": 3,
+            "gross_impact": 3,
+            "net_probability": 2,
+            "net_impact": 2,
+            "status": "active",
+        },
+    )
+    assert create_response.status_code == 201
+    risk_id = create_response.json()["id"]
+
+    archive_response = await auth_client.delete(
+        f"/api/v1/risks/{risk_id}?reason=Archive+for+restore+logging"
+    )
+    assert archive_response.status_code == 204
+
+    restore_response = await auth_client.post(f"/api/v1/risks/{risk_id}/restore")
+    assert restore_response.status_code == 200
+
+    result = await db_session.execute(
+        select(ActivityLog).where(
+            ActivityLog.entity_type == ActivityEntityType.RISK.value,
+            ActivityLog.entity_id == risk_id,
+            ActivityLog.action == ActivityAction.UPDATE.value,
+            ActivityLog.description == "Restored risk",
+        )
+    )
+    entry = result.scalars().first()
+    assert entry is not None
+    assert entry.entity_name == "R-REST-01"
+    assert entry.changes["status"]["old"] == "archived"
+    assert entry.changes["status"]["new"] == "active"
+
+
+@pytest.mark.asyncio
+async def test_control_restore_activity_log_uses_generic_safe_description(
+    auth_client: AsyncClient,
+    db_session,
+    test_user: User,
+    test_department: Department,
+):
+    create_response = await auth_client.post(
+        "/api/v1/controls",
+        json={
+            "name": "Sensitive Restore Control",
+            "description": "Control used to validate restore logging",
+            "department_id": test_department.id,
+            "control_owner_id": test_user.id,
+            "control_form": "manual",
+            "frequency": "monthly",
+            "risk_level": 3,
+            "status": "active",
+        },
+    )
+    assert create_response.status_code == 201
+    control_id = create_response.json()["id"]
+
+    archive_response = await auth_client.delete(
+        f"/api/v1/controls/{control_id}?reason=Archive+for+restore+logging"
+    )
+    assert archive_response.status_code == 204
+
+    restore_response = await auth_client.post(f"/api/v1/controls/{control_id}/restore")
+    assert restore_response.status_code == 200
+
+    result = await db_session.execute(
+        select(ActivityLog).where(
+            ActivityLog.entity_type == ActivityEntityType.CONTROL.value,
+            ActivityLog.entity_id == control_id,
+            ActivityLog.action == ActivityAction.UPDATE.value,
+            ActivityLog.description == "Restored Control",
+        )
+    )
+    entry = result.scalars().first()
+    assert entry is not None
+    assert entry.entity_name == "Control"
+    assert entry.changes["status"]["old"] == "archived"
+    assert entry.changes["status"]["new"] == "active"
 
 
 @pytest.mark.asyncio
@@ -354,7 +454,8 @@ async def test_approval_execution_logs_entity_update_for_priority_risk_edit(
     entry = result.scalars().first()
     assert entry is not None
     assert entry.changes["description"]["new"] == "[REDACTED]"
-    assert f"approval #{approval_id}" in entry.description.lower()
+    assert entry.entity_name == "R-AL-05"
+    assert entry.description == "Updated Risk (updated sensitive fields)"
 
 
 @pytest.mark.asyncio
@@ -502,15 +603,13 @@ async def test_activity_log_search_in_changes_and_default_window(
         "/api/v1/activity-log", params={"search": "search-needle"}
     )
     assert response.status_code == 200
-    assert any(
-        item["entity_name"] == "Recent Entry" for item in response.json()["items"]
-    )
+    assert any(item["entity_id"] == 10 for item in response.json()["items"])
 
     response = await client_cro.get(
         "/api/v1/activity-log", params={"search": "ancient-needle"}
     )
     assert response.status_code == 200
-    assert all(item["entity_name"] != "Old Entry" for item in response.json()["items"])
+    assert all(item["entity_id"] != 11 for item in response.json()["items"])
 
     response = await client_cro.get(
         "/api/v1/activity-log",
@@ -520,7 +619,7 @@ async def test_activity_log_search_in_changes_and_default_window(
         },
     )
     assert response.status_code == 200
-    assert any(item["entity_name"] == "Old Entry" for item in response.json()["items"])
+    assert any(item["entity_id"] == 11 for item in response.json()["items"])
 
 
 @pytest.mark.asyncio
@@ -610,6 +709,196 @@ async def test_activity_log_redacts_sensitive_and_unknown_fields_and_keeps_safe_
 
 
 @pytest.mark.asyncio
+async def test_activity_log_templates_issue_metadata_and_hides_raw_titles_from_search(
+    client_cro: AsyncClient,
+    db_session,
+    test_user: User,
+):
+    await log_activity(
+        db_session,
+        entity_type=ActivityEntityType.ISSUE,
+        entity_id=52,
+        entity_name="ULTRA-SENSITIVE-ISSUE-TITLE",
+        action=ActivityAction.CREATE,
+        actor=test_user,
+        department_id=test_user.department_id,
+        description="Created issue: ULTRA-SENSITIVE-ISSUE-TITLE",
+    )
+    await db_session.commit()
+
+    result = await db_session.execute(select(ActivityLog).where(ActivityLog.entity_id == 52))
+    entry = result.scalars().first()
+    assert entry is not None
+    assert entry.entity_name == "Issue"
+    assert entry.actor_name == test_user.name
+    assert entry.description == "Created Issue"
+
+    raw_search = await client_cro.get("/api/v1/activity-log?search=ULTRA-SENSITIVE-ISSUE-TITLE")
+    assert raw_search.status_code == 200
+    assert raw_search.json()["total"] == 0
+
+    actor_search = await client_cro.get(f"/api/v1/activity-log?search={test_user.name}")
+    assert actor_search.status_code == 200
+    assert any(item["entity_id"] == 52 for item in actor_search.json()["items"])
+
+
+@pytest.mark.asyncio
+async def test_activity_log_search_matches_safe_risk_labels_not_raw_names(
+    client_cro: AsyncClient,
+    db_session,
+    test_user: User,
+):
+    await log_activity(
+        db_session,
+        entity_type=ActivityEntityType.RISK,
+        entity_id=53,
+        entity_name="ULTRA-SENSITIVE-RISK-NAME",
+        safe_entity_label="R-AUD-053",
+        action=ActivityAction.UPDATE,
+        actor=test_user,
+        department_id=test_user.department_id,
+        changes={"risk_id_code": {"old": "R-AUD-052", "new": "R-AUD-053"}},
+        description="Sensitive risk rename",
+    )
+    await db_session.commit()
+
+    result = await db_session.execute(select(ActivityLog).where(ActivityLog.entity_id == 53))
+    entry = result.scalars().first()
+    assert entry is not None
+    assert entry.entity_name == "R-AUD-053"
+    assert entry.description == "Updated Risk (fields: risk_id_code)"
+
+    safe_search = await client_cro.get("/api/v1/activity-log?search=R-AUD-053")
+    assert safe_search.status_code == 200
+    assert any(item["entity_id"] == 53 for item in safe_search.json()["items"])
+
+    raw_search = await client_cro.get("/api/v1/activity-log?search=ULTRA-SENSITIVE-RISK-NAME")
+    assert raw_search.status_code == 200
+    assert raw_search.json()["total"] == 0
+
+
+@pytest.mark.asyncio
+async def test_risk_type_activity_log_uses_safe_label_structured_changes_and_restore_description(
+    client_cro: AsyncClient,
+    db_session,
+):
+    create_response = await client_cro.post(
+        "/api/v1/riskhub/risk-types",
+        json={
+            "code": "activity_config_type",
+            "display_name": "Activity Config Type",
+            "description": "Config used for activity-log coverage",
+            "color": "#64748b",
+            "icon": "shield",
+            "sort_order": 1,
+        },
+    )
+    assert create_response.status_code == 201
+    risk_type_id = create_response.json()["id"]
+
+    update_response = await client_cro.patch(
+        f"/api/v1/riskhub/risk-types/{risk_type_id}",
+        json={
+            "display_name": "Activity Config Type Updated",
+            "color": "#0f172a",
+        },
+    )
+    assert update_response.status_code == 200
+
+    result = await db_session.execute(
+        select(ActivityLog).where(
+            ActivityLog.entity_type == ActivityEntityType.CONFIG.value,
+            ActivityLog.entity_id == risk_type_id,
+            ActivityLog.action == ActivityAction.UPDATE.value,
+            ActivityLog.description == "Updated Config (fields: display_name, color)",
+        )
+    )
+    update_entry = result.scalars().first()
+    assert update_entry is not None
+    assert update_entry.entity_name == "Activity Config Type Updated"
+    assert update_entry.changes["display_name"]["old"] == "Activity Config Type"
+    assert update_entry.changes["display_name"]["new"] == "Activity Config Type Updated"
+    assert update_entry.changes["color"]["old"] == "#64748b"
+    assert update_entry.changes["color"]["new"] == "#0f172a"
+
+    search_response = await client_cro.get(
+        "/api/v1/activity-log",
+        params={"search": "Activity Config Type Updated"},
+    )
+    assert search_response.status_code == 200
+    assert any(item["entity_id"] == risk_type_id for item in search_response.json()["items"])
+
+    delete_response = await client_cro.delete(f"/api/v1/riskhub/risk-types/{risk_type_id}")
+    assert delete_response.status_code == 200
+
+    restore_response = await client_cro.post(f"/api/v1/riskhub/risk-types/{risk_type_id}/restore")
+    assert restore_response.status_code == 200
+
+    result = await db_session.execute(
+        select(ActivityLog).where(
+            ActivityLog.entity_type == ActivityEntityType.CONFIG.value,
+            ActivityLog.entity_id == risk_type_id,
+            ActivityLog.action == ActivityAction.UPDATE.value,
+            ActivityLog.description == "Restored risk type",
+        )
+    )
+    restore_entry = result.scalars().first()
+    assert restore_entry is not None
+    assert restore_entry.entity_name == "Activity Config Type Updated"
+    assert restore_entry.changes["is_active"]["old"] is False
+    assert restore_entry.changes["is_active"]["new"] is True
+
+
+@pytest.mark.asyncio
+async def test_approval_scenario_activity_log_uses_safe_label_and_structured_changes(
+    client_cro: AsyncClient,
+    db_session,
+):
+    scenario = ApprovalScenario(
+        key="activity_scenario",
+        display_name="Activity Scenario",
+        description="Scenario used for activity-log coverage",
+        requires_approval=True,
+        approver_roles='["risk_manager", "cro"]',
+    )
+    db_session.add(scenario)
+    await db_session.commit()
+    await db_session.refresh(scenario)
+
+    update_response = await client_cro.patch(
+        "/api/v1/riskhub/approval-scenarios/activity_scenario",
+        json={
+            "requires_approval": False,
+            "approver_roles": ["cro"],
+        },
+    )
+    assert update_response.status_code == 200
+
+    result = await db_session.execute(
+        select(ActivityLog).where(
+            ActivityLog.entity_type == ActivityEntityType.CONFIG.value,
+            ActivityLog.entity_id == scenario.id,
+            ActivityLog.action == ActivityAction.UPDATE.value,
+            ActivityLog.description == "Updated Config (fields: requires_approval, approver_roles)",
+        )
+    )
+    entry = result.scalars().first()
+    assert entry is not None
+    assert entry.entity_name == "Activity Scenario"
+    assert entry.changes["requires_approval"]["old"] is True
+    assert entry.changes["requires_approval"]["new"] is False
+    assert entry.changes["approver_roles"]["old"] == ["risk_manager", "cro"]
+    assert entry.changes["approver_roles"]["new"] == ["cro"]
+
+    search_response = await client_cro.get(
+        "/api/v1/activity-log",
+        params={"search": "Activity Scenario"},
+    )
+    assert search_response.status_code == 200
+    assert any(item["entity_id"] == scenario.id for item in search_response.json()["items"])
+
+
+@pytest.mark.asyncio
 async def test_activity_log_uses_identical_sanitized_changes_for_db_and_siem(
     db_session, monkeypatch
 ):
@@ -647,6 +936,9 @@ async def test_activity_log_uses_identical_sanitized_changes_for_db_and_siem(
     assert entry.changes["session_id"]["new"] == "[REDACTED]"
     assert emitted["changes"] == entry.changes
     assert emitted["description"] == entry.description
+    assert emitted["entity_name"] == "Kri"
+    assert "actor_name" not in emitted
+    assert emitted["metadata_redaction_count"] >= 1
 
 
 @pytest.mark.asyncio
@@ -800,8 +1092,8 @@ async def test_activity_log_department_scoping(db_session):
             response = await scoped_client.get("/api/v1/activity-log")
             assert response.status_code == 200
             items = response.json()["items"]
-            assert any(item["entity_name"] == "Dept A Entry" for item in items)
-            assert all(item["entity_name"] != "Dept B Entry" for item in items)
+            assert any(item["entity_id"] == 100 for item in items)
+            assert all(item["entity_id"] != 101 for item in items)
     finally:
         app.dependency_overrides.clear()
 

@@ -56,6 +56,8 @@ async def restore_control(
         entity_type=ActivityEntityType.CONTROL,
         entity_id=control.id,
         entity_name=f"{control.name}",
+        safe_description="Restored Control",
+        safe_description_siem="Restored Control",
         action=ActivityAction.UPDATE,
         actor=current_user,
         department_id=control.department_id,

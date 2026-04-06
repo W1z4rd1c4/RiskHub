@@ -4,10 +4,7 @@ import ts from 'typescript';
 import { fileURLToPath } from 'node:url';
 
 const ARGS = process.argv.slice(2);
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-const SRC_DIR = path.join(ROOT, 'src');
-const ALLOWLIST_PATH = path.join(ROOT, 'scripts', 'quality', 'debt-allowlist.json');
-const DEFAULT_REPORT_PATH = path.join(ROOT, '..', 'tests', 'results', 'quality', 'frontend', 'debt-budget', 'debt.json');
+const SCRIPT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const FILE_EXTENSIONS = new Set(['.ts', '.tsx']);
 const TEST_FILE_RE = /\.(test|spec)\.(ts|tsx)$/;
 const TEST_PATH_RE = /(?:^|\/)(__tests__|test)\//;
@@ -28,6 +25,48 @@ function toLineCol(source, index) {
   const chunk = source.slice(0, index);
   const lines = chunk.split('\n');
   return { line: lines.length, col: (lines.at(-1) || '').length + 1 };
+}
+
+async function pathExists(targetPath) {
+  try {
+    await fs.stat(targetPath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function isFrontendRoot(root) {
+  return (
+    await pathExists(path.join(root, 'src'))
+  ) && (
+    await pathExists(path.join(root, 'scripts', 'quality'))
+  );
+}
+
+function getFlagValue(name) {
+  const exact = ARGS.find((arg) => arg === name || arg.startsWith(`${name}=`));
+  if (!exact) return null;
+  if (exact === name) return '';
+  const [, value] = exact.split('=');
+  return value ?? '';
+}
+
+async function resolveRoot() {
+  const explicitRootArg = getFlagValue('--root');
+  if (explicitRootArg !== null) {
+    const explicitRoot = path.resolve(process.cwd(), explicitRootArg || '.');
+    if (!(await isFrontendRoot(explicitRoot))) {
+      throw new Error(`Invalid frontend root: ${explicitRoot}`);
+    }
+    return explicitRoot;
+  }
+
+  if (await isFrontendRoot(process.cwd())) {
+    return process.cwd();
+  }
+
+  return SCRIPT_ROOT;
 }
 
 function isDateExpired(expiresOn) {
@@ -70,17 +109,17 @@ function buildExceptionIndex(exceptions) {
   return { index, errors };
 }
 
-async function walk(dir, acc = []) {
+async function walk(dir, root, acc = []) {
   const entries = await fs.readdir(dir, { withFileTypes: true });
   for (const entry of entries) {
     const fullPath = path.join(dir, entry.name);
     if (entry.isDirectory()) {
-      await walk(fullPath, acc);
+      await walk(fullPath, root, acc);
       continue;
     }
     if (!entry.isFile()) continue;
     if (!FILE_EXTENSIONS.has(path.extname(entry.name))) continue;
-    const rel = toPosix(path.relative(ROOT, fullPath));
+    const rel = toPosix(path.relative(root, fullPath));
     if (TEST_FILE_RE.test(rel) || TEST_PATH_RE.test(rel)) continue;
     acc.push(fullPath);
   }
@@ -131,9 +170,10 @@ function collectExplicitAnyViolations(relPath, source, filePath, violations) {
   visit(sf);
 }
 
-async function loadAllowlist() {
+async function loadAllowlist(root) {
+  const allowlistPath = path.join(root, 'scripts', 'quality', 'debt-allowlist.json');
   try {
-    const raw = await fs.readFile(ALLOWLIST_PATH, 'utf8');
+    const raw = await fs.readFile(allowlistPath, 'utf8');
     const parsed = JSON.parse(raw);
     const exceptions = Array.isArray(parsed.exceptions) ? parsed.exceptions : [];
     return exceptions;
@@ -145,23 +185,30 @@ async function loadAllowlist() {
   }
 }
 
-function resolveReportPath() {
+function defaultReportPath(root) {
+  if (path.basename(root) === 'frontend') {
+    return path.join(root, '..', 'tests', 'results', 'quality', 'frontend', 'debt-budget', 'debt.json');
+  }
+  return path.join(root, 'tests', 'results', 'quality', 'frontend', 'debt-budget', 'debt.json');
+}
+
+function resolveReportPath(root) {
   const flag = ARGS.find((arg) => arg === '--report-json' || arg.startsWith('--report-json='));
   if (!flag) return null;
   if (flag === '--report-json') {
-    return DEFAULT_REPORT_PATH;
+    return defaultReportPath(root);
   }
   const [, rawPath] = flag.split('=');
   if (!rawPath) {
-    return DEFAULT_REPORT_PATH;
+    return defaultReportPath(root);
   }
-  return path.isAbsolute(rawPath) ? rawPath : path.join(ROOT, rawPath);
+  return path.isAbsolute(rawPath) ? rawPath : path.resolve(process.cwd(), rawPath);
 }
 
-function normalizeCliPath(rawPath) {
+function normalizeCliPath(rawPath, root) {
   const normalized = rawPath.replaceAll('\\', '/');
   if (path.isAbsolute(rawPath)) {
-    return toPosix(path.relative(ROOT, rawPath));
+    return toPosix(path.relative(root, rawPath));
   }
   return normalized.startsWith('frontend/') ? normalized.slice('frontend/'.length) : normalized;
 }
@@ -170,14 +217,15 @@ function isEligibleSourcePath(relPath) {
   return relPath.startsWith('src/') && FILE_EXTENSIONS.has(path.extname(relPath)) && !TEST_FILE_RE.test(relPath) && !TEST_PATH_RE.test(relPath);
 }
 
-async function resolveScanFiles() {
+async function resolveScanFiles(root) {
+  const srcDir = path.join(root, 'src');
   const explicitPaths = ARGS
-    .filter((arg) => !arg.startsWith('--report-json'))
-    .map(normalizeCliPath)
+    .filter((arg) => !arg.startsWith('--report-json') && !arg.startsWith('--root'))
+    .map((arg) => normalizeCliPath(arg, root))
     .filter(Boolean);
 
   if (explicitPaths.length === 0) {
-    return walk(SRC_DIR);
+    return walk(srcDir, root);
   }
 
   const files = [];
@@ -186,7 +234,7 @@ async function resolveScanFiles() {
   for (const relPath of explicitPaths) {
     if (!isEligibleSourcePath(relPath)) continue;
 
-    const fullPath = path.join(ROOT, relPath);
+    const fullPath = path.join(root, relPath);
     try {
       const stats = await fs.stat(fullPath);
       if (!stats.isFile() || seen.has(fullPath)) continue;
@@ -208,15 +256,16 @@ async function writeJsonReport(reportPath, payload) {
 }
 
 async function main() {
-  const reportPath = resolveReportPath();
-  const files = await resolveScanFiles();
-  const allowlistEntries = await loadAllowlist();
+  const root = await resolveRoot();
+  const reportPath = resolveReportPath(root);
+  const files = await resolveScanFiles(root);
+  const allowlistEntries = await loadAllowlist(root);
   const { index: allowlistIndex, errors: allowlistErrors } = buildExceptionIndex(allowlistEntries);
 
   const violations = [];
   for (const filePath of files) {
     const source = await fs.readFile(filePath, 'utf8');
-    const relPath = toPosix(path.relative(ROOT, filePath));
+    const relPath = toPosix(path.relative(root, filePath));
 
     collectCommentViolations(relPath, source, violations);
     collectExplicitAnyViolations(relPath, source, filePath, violations);

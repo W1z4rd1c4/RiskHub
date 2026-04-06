@@ -75,6 +75,7 @@ async def _apply_edit_risk_control(
                     entity_type=ActivityEntityType.RISK,
                     entity_id=risk.id,
                     entity_name=f"{risk.risk_id_code}: {risk.name}",
+                    safe_entity_label=risk.risk_id_code,
                     action=ActivityAction.UPDATE,
                     actor=current_user,
                     department_id=risk.department_id,

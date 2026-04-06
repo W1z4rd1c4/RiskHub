@@ -256,6 +256,12 @@ async def cancel_request(
         action=ActivityAction.CANCEL,
         actor=current_user,
         department_id=department_id,
+        safe_description=cancel_description,
+        safe_description_siem=(
+            "Approval request cancelled by requester"
+            if is_requester
+            else "Approval request cancelled by privileged user"
+        ),
         description=cancel_description,
     )
 

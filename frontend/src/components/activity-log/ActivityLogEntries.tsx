@@ -18,7 +18,7 @@ import {
 import { useTranslation } from '@/i18n/hooks';
 import { formatDateTimeValue, formatRelativeDateValue } from '@/i18n/formatters';
 import type { ActivityLogEntry } from '@/types/activityLog';
-import { ACTION_COLORS, ACTION_LABELS, ENTITY_TYPE_LABELS } from '@/types/activityLog';
+import { ACTION_COLORS, ACTION_LABELS, getActivityEntityLabel } from '@/types/activityLog';
 
 import { getDiffPair } from './activityLogPresentation';
 
@@ -53,6 +53,8 @@ const getActionIcon = (action: string) => {
             return <Activity className="h-3 w-3" />;
     }
 };
+
+const normalizeActivityLabel = (value: string) => value.trim().replace(/\s+/g, ' ').toLowerCase();
 
 export function ActivityLogEntries({ entries, isLoading, errorType, onRetry }: ActivityLogEntriesProps) {
     const { t, i18n } = useTranslation('common');
@@ -118,6 +120,11 @@ export function ActivityLogEntries({ entries, isLoading, errorType, onRetry }: A
                         exit={{ opacity: 0, scale: 0.95 }}
                         className="group relative overflow-hidden rounded-2xl border border-white/5 p-5 transition-all hover:border-accent/30 glass-card"
                     >
+                        {(() => {
+                            const entityTypeLabel = getActivityEntityLabel(entry.entity_type);
+                            const showEntityName = normalizeActivityLabel(entry.entity_name) !== normalizeActivityLabel(entityTypeLabel);
+
+                            return (
                         <div className="flex items-start gap-4">
                             <div className={`shrink-0 rounded-xl p-2 ${ACTION_COLORS[entry.action] || 'bg-white/10 text-slate-400'}`}>
                                 {getActionIcon(entry.action)}
@@ -128,10 +135,10 @@ export function ActivityLogEntries({ entries, isLoading, errorType, onRetry }: A
                                     <div className="flex items-center gap-2 text-sm">
                                         <span className="font-semibold text-slate-200">{entry.actor_name}</span>
                                         <span className="text-slate-500">{ACTION_LABELS[entry.action] ?? entry.action}</span>
-                                        <span className="font-medium text-accent/80">
-                                            {ENTITY_TYPE_LABELS[entry.entity_type] ?? entry.entity_type}
-                                        </span>
-                                        <span className="truncate font-medium text-slate-200">"{entry.entity_name}"</span>
+                                        <span className="font-medium text-accent/80">{entityTypeLabel}</span>
+                                        {showEntityName ? (
+                                            <span className="truncate font-medium text-slate-200">{entry.entity_name}</span>
+                                        ) : null}
                                     </div>
                                     <div className="flex items-center gap-4 text-xs text-slate-500">
                                         <div
@@ -176,6 +183,8 @@ export function ActivityLogEntries({ entries, isLoading, errorType, onRetry }: A
                                 )}
                             </div>
                         </div>
+                            );
+                        })()}
                     </motion.div>
                 ))}
             </AnimatePresence>

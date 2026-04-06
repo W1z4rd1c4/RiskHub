@@ -123,6 +123,8 @@ async def login(
             entity_type=ActivityEntityType.USER,
             entity_id=0,
             entity_name=credentials.email,
+            safe_description=f"Failed login attempt{' (account now locked)' if is_now_locked else ''}",
+            safe_description_siem=f"Failed login attempt{' (account now locked)' if is_now_locked else ''}",
             description=f"Failed login attempt: invalid credentials{' (account now locked)' if is_now_locked else ''}",
         )
         await db.commit()
@@ -153,6 +155,8 @@ async def login(
         entity_type=ActivityEntityType.USER,
         entity_id=user.id,
         entity_name=user.name,
+        safe_description="User logged in",
+        safe_description_siem="User logged in",
         description=f"User logged in: {user.email}",
     )
 

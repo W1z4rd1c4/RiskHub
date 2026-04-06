@@ -60,6 +60,8 @@ async def _log_failed_sso(
         entity_type=ActivityEntityType.USER,
         entity_id=0,
         entity_name=entity_name,
+        safe_description=description,
+        safe_description_siem=description,
         description=description,
     )
     await db.commit()
@@ -488,6 +490,8 @@ async def sso_exchange(
         entity_type=ActivityEntityType.USER,
         entity_id=user.id,
         entity_name=user.name,
+        safe_description="User logged in (sso)",
+        safe_description_siem="User logged in (sso)",
         description=(
             f"User logged in (sso): {user.email} "
             f"tenant_sha256={_sha256_trunc(identity.tenant_id)} oid_sha256={_sha256_trunc(identity.external_id)}"

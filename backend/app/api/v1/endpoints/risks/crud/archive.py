@@ -47,6 +47,7 @@ async def delete_risk(
             entity_type=ActivityEntityType.RISK,
             entity_id=risk.id,
             entity_name=f"{risk.risk_id_code}",
+            safe_entity_label=risk.risk_id_code,
             action=ActivityAction.ARCHIVE,
             actor=current_user,
             department_id=risk.department_id,

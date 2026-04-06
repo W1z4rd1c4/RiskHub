@@ -282,5 +282,5 @@ async def test_access_update_logs_combined_user_changes(
     )
     entry = result.scalars().first()
     assert entry is not None
-    assert entry.changes["name"]["new"] == "Logged Employee"
+    assert entry.changes["name"]["new"] == "[REDACTED]"
     assert entry.changes["department_id"]["new"] is None

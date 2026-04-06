@@ -72,12 +72,12 @@ Each Activity Log entry represents one action.
 | Field | Meaning | How to use it |
 |---|---|---|
 | Entity type | What kind of object changed (risk/control/kri/user/etc) | Use it to narrow the search to the right domain. |
-| Entity name | Human-readable label | Prefer this when communicating with stakeholders. |
+| Entity name | Safe identifier or generic entity label | Prefer stable codes/labels over raw titles. |
 | Action | `create`, `update`, `archive`, `approve`, `reject`, `link`, etc | Action tells you what kind of event it is. |
 | Actor | Who performed it (may be null for system actions) | If actor is missing, treat as system-generated. |
 | Department | Context label for routing | Helps explain why something appeared/disappeared in department scope. |
 | Changes | Field-level `old` → `new` deltas | Use it to prove the exact edit without opening the entity. |
-| Description | Short narrative context | Good for quick scanning, not always exhaustive. |
+| Description | Sanitized short narrative context | Good for quick scanning, intentionally template-based for sensitive events. |
 | Timestamp | When it happened (`created_at`) | Use a tight date range when investigating. |
 
 Changes can include structured values. The UI formats them defensively:
@@ -94,7 +94,7 @@ If you changed an entity and it looks unchanged:
 
 1. Open `/activity-log`.
 2. Switch to the entity type tab (Risk / Control / KRI / User).
-3. Search for the entity name or a stable identifier.
+3. Search for a stable identifier, safe label, or actor name.
 4. Look for `update` or `status_change` entries.
 5. If you see no update, check `/approvals` for a pending request.
 
@@ -175,7 +175,7 @@ You can switch between view modes:
 
 Use filters to control noise:
 
-- search (names and descriptions)
+- search (safe labels, actor names, sanitized descriptions)
 - action (create/update/archive/link/etc)
 - date range (from/to)
 
@@ -208,7 +208,7 @@ Avoid copying full diffs into external channels unless the recipient is authoriz
 ### The log loads but doesn’t show the event I expect
 
 - Tighten the entity type tab.
-- Try a different search term (entity name, owner name).
+- Try a different search term (entity code / safe label, actor name).
 - Expand the date range slightly.
 - If the change was approval-gated, look for approval events instead of entity edits.
 

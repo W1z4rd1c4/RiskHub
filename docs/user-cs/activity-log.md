@@ -72,12 +72,12 @@ Každý záznam Activity Logu reprezentuje jednu akci.
 | Pole | Význam | Jak to používat |
 |---|---|---|
 | Entity type | Co se měnilo (risk/control/kri/user/…) | Přepněte taby, ať hledáte ve správné doméně. |
-| Entity name | Lidsky čitelný název | Preferujte pro komunikaci. |
+| Entity name | Bezpečný identifikátor nebo obecný label entity | Preferujte stabilní kódy/labely, ne raw názvy. |
 | Action | `create`, `update`, `archive`, `approve`, `reject`, `link`, … | Říká, jaký typ události to je. |
 | Actor | Kdo akci provedl (může být null) | Null často znamená systémovou akci. |
 | Department | Kontext pro routing | Pomáhá vysvětlit, proč se něco objevilo/zmizelo ve scope. |
 | Changes | Deltá `old` → `new` | Důkaz konkrétní editace bez otevírání entity. |
-| Description | Krátký popis | Vhodné pro rychlé skenování, ne vždy kompletní. |
+| Description | Sanitizovaný krátký popis | Vhodné pro rychlé skenování, u citlivých událostí je záměrně šablonový. |
 | Timestamp | Čas (`created_at`) | Používejte úzký date range při vyšetřování. |
 
 Změny mohou obsahovat strukturované hodnoty. UI je formátované „defenzivně“:
@@ -94,7 +94,7 @@ Když jste něco změnili, ale vypadá to beze změny:
 
 1. Otevřete `/activity-log`.
 2. Přepněte na tab podle entity (Risk / Control / KRI / User).
-3. Vyhledejte podle názvu nebo stabilního identifikátoru.
+3. Vyhledejte podle stabilního identifikátoru, safe labelu nebo jména aktéra.
 4. Najděte `update` nebo `status_change`.
 5. Pokud nic nevidíte, zkontrolujte `/approvals` (může čekat workflow).
 
@@ -173,7 +173,7 @@ Můžete přepnout view mód:
 
 Pro kontrolu šumu:
 
-- search (názvy a popisy)
+- search (safe labely, jména aktérů, sanitizované popisy)
 - action (create/update/archive/link…)
 - date range (from/to)
 
@@ -206,7 +206,7 @@ Nevkládejte celé diffy do neautorizovaných kanálů.
 ### Log se načte, ale nevidím událost
 
 - Přepněte na správný tab.
-- Zkuste jiné search slovo (název entity, jméno ownera).
+- Zkuste jiné search slovo (kód / safe label entity, jméno aktéra).
 - Rozšiřte date range o pár dní.
 - Pokud šlo o workflow, hledejte approval eventy místo entity update.
 

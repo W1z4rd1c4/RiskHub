@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.activity_logger import log_activity
+from app.core.activity_logger import build_change_set, log_activity
 from app.db.session import get_db
 from app.models import Risk, RiskTypeConfig, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
@@ -96,6 +96,7 @@ async def create_risk_type(
         entity_type=ActivityEntityType.CONFIG,
         entity_id=risk_type.id,
         entity_name=risk_type.display_name,
+        safe_entity_label=risk_type.display_name,
         description=f"Created risk type: {risk_type.display_name}",
     )
     await db.commit()  # Persist activity log
@@ -134,6 +135,21 @@ async def update_risk_type(
     if not risk_type:
         raise HTTPException(status_code=404, detail="Risk type not found")
 
+    updates: dict[str, object] = {}
+
+    if data.display_name is not None:
+        updates["display_name"] = data.display_name
+    if data.description is not None:
+        updates["description"] = data.description
+    if data.color is not None:
+        updates["color"] = data.color
+    if data.icon is not None:
+        updates["icon"] = data.icon
+    if data.sort_order is not None:
+        updates["sort_order"] = data.sort_order
+
+    changes = build_change_set(risk_type, updates)
+
     # Apply updates
     if data.display_name is not None:
         risk_type.display_name = data.display_name
@@ -156,6 +172,8 @@ async def update_risk_type(
         entity_type=ActivityEntityType.CONFIG,
         entity_id=risk_type.id,
         entity_name=risk_type.display_name,
+        safe_entity_label=risk_type.display_name,
+        changes=changes,
         description=f"Updated risk type: {risk_type.display_name}",
     )
     await db.commit()  # Persist activity log
@@ -203,6 +221,7 @@ async def delete_risk_type(
     # Orphaned-item creation is intentionally deferred until Risk includes a
     # persisted risk_type FK; current behavior remains metadata-only soft delete.
 
+    changes = build_change_set(risk_type, {"is_active": False})
     risk_type.is_active = False
     await db.commit()
 
@@ -213,6 +232,8 @@ async def delete_risk_type(
         entity_type=ActivityEntityType.CONFIG,
         entity_id=risk_type.id,
         entity_name=risk_type.display_name,
+        safe_entity_label=risk_type.display_name,
+        changes=changes,
         description=f"Deleted risk type: {risk_type.display_name} (affecting {risk_type.risk_count} risks)",
     )
     await db.commit()  # Persist activity log
@@ -240,6 +261,7 @@ async def restore_risk_type(
     if risk_type.is_active:
         raise HTTPException(status_code=400, detail="Risk type is not deleted")
 
+    changes = build_change_set(risk_type, {"is_active": True})
     risk_type.is_active = True
     await db.commit()
     await db.refresh(risk_type)
@@ -251,6 +273,10 @@ async def restore_risk_type(
         entity_type=ActivityEntityType.CONFIG,
         entity_id=risk_type.id,
         entity_name=risk_type.display_name,
+        safe_entity_label=risk_type.display_name,
+        safe_description="Restored risk type",
+        safe_description_siem="Restored risk type",
+        changes=changes,
         description=f"Restored risk type: {risk_type.display_name}",
     )
     await db.commit()  # Persist activity log

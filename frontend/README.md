@@ -63,6 +63,7 @@ npx playwright test -c playwright.config.ts ../tests/frontend/e2e/polish-audit.s
 - Type safety: `npx tsc --noEmit`
 - ESLint: `npm run lint`
 - Debt budget JSON: `npm run quality:debt -- --report-json`
+  - Alternate root: `npm run quality:debt -- --root /abs/path/to/frontend --report-json`
 - Dead-code audit: `npm run cleanup:deadcode`
 - Build gate: `npm run build`
 - Accessibility/browser smoke: Playwright specs under `tests/frontend/e2e/`

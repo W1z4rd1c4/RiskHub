@@ -127,8 +127,10 @@ async def create_department(
         entity_type=ActivityEntityType.DEPARTMENT,
         entity_id=dept.id,
         entity_name=dept.name,
+        safe_entity_label=dept.code or dept.name,
         description=f"Created department: {dept.name}",
     )
+    await db.commit()
 
     return DepartmentHubRead(
         id=dept.id,
@@ -209,8 +211,10 @@ async def update_department(
         entity_type=ActivityEntityType.DEPARTMENT,
         entity_id=dept.id,
         entity_name=dept.name,
+        safe_entity_label=dept.code or dept.name,
         description=f"Updated department: {dept.name}",
     )
+    await db.commit()
 
     return DepartmentHubRead(
         id=dept.id,
@@ -279,8 +283,10 @@ async def delete_department(
         entity_type=ActivityEntityType.DEPARTMENT,
         entity_id=dept.id,
         entity_name=dept.name,
+        safe_entity_label=dept.code or dept.name,
         description=f"Deleted department: {dept.name}",
     )
+    await db.commit()
 
     return {"status": "deleted", "id": id}
 
@@ -316,8 +322,12 @@ async def restore_department(
         entity_type=ActivityEntityType.DEPARTMENT,
         entity_id=dept.id,
         entity_name=dept.name,
+        safe_entity_label=dept.code or dept.name,
+        safe_description="Restored department",
+        safe_description_siem="Restored department",
         description=f"Restored department: {dept.name}",
     )
+    await db.commit()
 
     return DepartmentHubRead(
         id=dept.id,
@@ -330,4 +340,3 @@ async def restore_department(
         risk_count=0,
         control_count=0,
     )
-

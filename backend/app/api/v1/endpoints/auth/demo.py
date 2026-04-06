@@ -67,6 +67,8 @@ async def _build_demo_response(
         entity_type=ActivityEntityType.USER,
         entity_id=user.id,
         entity_name=user.name,
+        safe_description="User logged in (demo)",
+        safe_description_siem="User logged in (demo)",
         description=login_detail,
     )
     await db.commit()

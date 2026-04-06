@@ -108,8 +108,10 @@ async def create_role(
         entity_type=ActivityEntityType.ROLE,
         entity_id=role.id,
         entity_name=role.display_name,
+        safe_entity_label=role.display_name,
         description=f"Created role: {role.display_name}",
     )
+    await db.commit()
 
     return RoleHubRead(
         id=role.id,
@@ -196,8 +198,10 @@ async def update_role(
         entity_type=ActivityEntityType.ROLE,
         entity_id=role.id,
         entity_name=role.display_name,
+        safe_entity_label=role.display_name,
         description=f"Updated role: {role.display_name}",
     )
+    await db.commit()
 
     return RoleHubRead(
         id=role.id,
@@ -253,8 +257,10 @@ async def delete_role(
         entity_type=ActivityEntityType.ROLE,
         entity_id=role.id,
         entity_name=role.display_name,
+        safe_entity_label=role.display_name,
         description=f"Deleted role: {role.display_name}",
     )
+    await db.commit()
 
     return {"status": "deleted", "id": id}
 
@@ -292,8 +298,12 @@ async def restore_role(
         entity_type=ActivityEntityType.ROLE,
         entity_id=role.id,
         entity_name=role.display_name,
+        safe_entity_label=role.display_name,
+        safe_description="Restored role",
+        safe_description_siem="Restored role",
         description=f"Restored role: {role.display_name}",
     )
+    await db.commit()
 
     return RoleHubRead(
         id=role.id,
@@ -305,4 +315,3 @@ async def restore_role(
         user_count=0,
         permissions=[f"{rp.permission.resource}:{rp.permission.action}" for rp in role.permissions],
     )
-

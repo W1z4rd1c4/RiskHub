@@ -69,16 +69,21 @@ async def update_approval_scenario(
         raise HTTPException(status_code=404, detail=f"Approval scenario '{key}' not found")
 
     changes: list[str] = []
+    activity_changes: dict[str, dict[str, object]] = {}
 
     if data.requires_approval is not None:
         old_val = scenario.requires_approval
         scenario.requires_approval = data.requires_approval
-        changes.append(f"requires_approval: {old_val} → {data.requires_approval}")
+        if old_val != data.requires_approval:
+            changes.append(f"requires_approval: {old_val} → {data.requires_approval}")
+            activity_changes["requires_approval"] = {"old": old_val, "new": data.requires_approval}
 
     if data.approver_roles is not None:
         old_roles = scenario.get_approver_roles()
         scenario.set_approver_roles(data.approver_roles)
-        changes.append(f"approver_roles: {old_roles} → {data.approver_roles}")
+        if old_roles != data.approver_roles:
+            changes.append(f"approver_roles: {old_roles} → {data.approver_roles}")
+            activity_changes["approver_roles"] = {"old": old_roles, "new": data.approver_roles}
 
     scenario.updated_by_id = cro_user.id
 
@@ -93,8 +98,11 @@ async def update_approval_scenario(
             entity_type=ActivityEntityType.CONFIG,
             entity_id=scenario.id,
             entity_name=scenario.display_name,
+            safe_entity_label=scenario.display_name,
+            changes=activity_changes or None,
             description=f"Approval scenario '{key}' updated: {', '.join(changes)}",
         )
+        await db.commit()
 
     return ApprovalScenarioRead(
         id=scenario.id,
@@ -106,4 +114,3 @@ async def update_approval_scenario(
         updated_at=scenario.updated_at.isoformat(),
         updated_by_name=cro_user.name,
     )
-

@@ -81,6 +81,7 @@ async def create_risk(
                 entity_type=ActivityEntityType.RISK,
                 entity_id=risk.id,
                 entity_name=f"{risk.risk_id_code}: {risk.description[:50] if risk.description else risk.name}",
+                safe_entity_label=risk.risk_id_code,
                 action=ActivityAction.CREATE,
                 actor=current_user,
                 department_id=risk.department_id,

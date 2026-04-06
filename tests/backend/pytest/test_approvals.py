@@ -8,7 +8,11 @@ from httpx import AsyncClient
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.activity_logger import audit_logger
 from app.models import (
+    ActivityAction,
+    ActivityEntityType,
+    ActivityLog,
     ApprovalActionType,
     ApprovalRequest,
     ApprovalResourceType,
@@ -820,6 +824,32 @@ async def test_cancel_own_request(auth_client: AsyncClient, test_risk):
 
 
 @pytest.mark.asyncio
+async def test_cancel_own_request_preserves_requester_activity_description(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    test_risk,
+):
+    create_response = await auth_client.post(
+        "/api/v1/approvals", json={"resource_type": "risk", "resource_id": test_risk.id, "reason": "Test reason"}
+    )
+    approval_id = create_response.json()["id"]
+
+    response = await auth_client.post(f"/api/v1/approvals/{approval_id}/cancel")
+    assert response.status_code == 200
+
+    result = await db_session.execute(
+        select(ActivityLog).where(
+            ActivityLog.entity_type == ActivityEntityType.APPROVAL.value,
+            ActivityLog.entity_id == approval_id,
+            ActivityLog.action == ActivityAction.CANCEL.value,
+        )
+    )
+    entry = result.scalars().first()
+    assert entry is not None
+    assert entry.description == "Approval request cancelled by requester"
+
+
+@pytest.mark.asyncio
 async def test_cannot_cancel_already_resolved_request(
     client_cro: AsyncClient,
     client_approval_requester: AsyncClient,
@@ -1441,6 +1471,50 @@ async def test_privileged_user_cro_can_cancel_other_users_pending_request(
     cancel_response = await client_cro.post(f"/api/v1/approvals/{approval_id}/cancel")
     assert cancel_response.status_code == 200
     assert cancel_response.json()["status"] == "cancelled"
+
+    result = await db_session.execute(
+        select(ActivityLog).where(
+            ActivityLog.entity_type == ActivityEntityType.APPROVAL.value,
+            ActivityLog.entity_id == approval_id,
+            ActivityLog.action == ActivityAction.CANCEL.value,
+        )
+    )
+    entry = result.scalars().first()
+    assert entry is not None
+    assert entry.description == "Approval request cancelled by Test CRO (privileged)"
+
+
+@pytest.mark.asyncio
+async def test_privileged_cancel_uses_siem_safe_description(
+    client_cro: AsyncClient,
+    client_approval_requester: AsyncClient,
+    test_risk,
+    monkeypatch,
+):
+    emitted: dict[str, object] = {}
+
+    def capture(event: str, **kwargs: object) -> None:
+        emitted["event"] = event
+        emitted.update(kwargs)
+
+    monkeypatch.setattr(audit_logger, "info", capture)
+
+    create_response = await client_approval_requester.post(
+        "/api/v1/approvals",
+        json={"resource_type": "risk", "resource_id": test_risk.id, "reason": "Employee request to delete"},
+    )
+    assert create_response.status_code == 201
+    approval_id = create_response.json()["id"]
+
+    cancel_response = await client_cro.post(f"/api/v1/approvals/{approval_id}/cancel")
+    assert cancel_response.status_code == 200
+
+    assert emitted["event"] == "cancel"
+    assert emitted["event_type"] == "cancel"
+    assert emitted["description"] == "Approval request cancelled by privileged user"
+    assert "Test CRO" not in emitted["description"]
+    assert "actor_name" not in emitted
+    assert "description" in emitted["metadata_redacted_fields"]
 
 
 @pytest.mark.asyncio

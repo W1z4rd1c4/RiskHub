@@ -74,6 +74,8 @@ async def restore_vendor(
         entity_type=ActivityEntityType.VENDOR,
         entity_id=vendor.id,
         entity_name=vendor.name,
+        safe_description="Restored Vendor",
+        safe_description_siem="Restored Vendor",
         action=ActivityAction.UPDATE,
         actor=current_user,
         department_id=vendor.department_id,
@@ -87,4 +89,3 @@ async def restore_vendor(
     if not vendor:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
     return vendor_to_read(vendor)
-

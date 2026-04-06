@@ -53,6 +53,7 @@ async def _apply_delete_side_effects(
             entity_type=ActivityEntityType.RISK,
             entity_id=risk.id,
             entity_name=f"{risk.risk_id_code}: {risk.name}",
+            safe_entity_label=risk.risk_id_code,
             action=ActivityAction.ARCHIVE,
             actor=current_user,
             department_id=risk.department_id,
@@ -111,6 +112,7 @@ async def _apply_delete_side_effects(
             entity_type=ActivityEntityType.KRI,
             entity_id=kri.id,
             entity_name=f"{kri.metric_name}",
+            safe_entity_label=kri.metric_name,
             action=ActivityAction.ARCHIVE,
             actor=current_user,
             department_id=department_id,
@@ -119,4 +121,3 @@ async def _apply_delete_side_effects(
             else None,
             description=f"Archived via approval #{approval.id}",
         )
-

@@ -48,6 +48,7 @@ async def delete_kri(
             entity_type=ActivityEntityType.KRI,
             entity_id=kri.id,
             entity_name=f"{kri.metric_name}",
+            safe_entity_label=kri.metric_name,
             action=ActivityAction.ARCHIVE,
             actor=current_user,
             department_id=kri.risk.department_id,

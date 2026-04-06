@@ -8,17 +8,18 @@ const debtScript = path.resolve(process.cwd(), 'scripts/quality/debt-budget.mjs'
 
 type FixtureOptions = {
   source: string;
-      allowlist?: {
-        exceptions: Array<{
-          rule: string;
-          file: string;
-          line: number;
-          owner: string;
-          issue: string;
-          expiresOn: string;
-          reason: string;
-        }>;
-      };
+  allowlist?: {
+    exceptions: Array<{
+      rule: string;
+      file: string;
+      line: number;
+      owner: string;
+      issue: string;
+      expiresOn: string;
+      reason: string;
+    }>;
+  };
+  useRootFlag?: boolean;
 };
 
 function runDebtBudgetFixture(options: FixtureOptions) {
@@ -37,8 +38,13 @@ function runDebtBudgetFixture(options: FixtureOptions) {
     'utf8',
   );
 
-  const result = spawnSync(process.execPath, [debtScript, `--report-json=${reportPath}`], {
-    cwd: tmpRoot,
+  const args = [debtScript, `--report-json=${reportPath}`];
+  if (options.useRootFlag) {
+    args.push(`--root=${tmpRoot}`);
+  }
+
+  const result = spawnSync(process.execPath, args, {
+    cwd: options.useRootFlag ? process.cwd() : tmpRoot,
     encoding: 'utf8',
   });
 
@@ -145,5 +151,33 @@ describe('debt-budget script', () => {
     expect(result.status).toBe(1);
     expect(result.stderr).toContain('[comment-debt-marker]');
     expect(result.stderr).toContain('TODO');
+  });
+
+  it('supports explicit --root when executed outside the fixture cwd', () => {
+    const { report, result } = runDebtBudgetFixture({
+      source: `
+        export function Probe(payload: any) {
+          return <div>{String(payload)}</div>;
+        }
+      `,
+      allowlist: {
+        exceptions: [
+          {
+            rule: 'explicit-any',
+            file: 'src/components/Probe.tsx',
+            line: 2,
+            owner: 'frontend',
+            issue: 'RH-4321',
+            expiresOn: '2099-01-01',
+            reason: 'Fixture allowlist coverage',
+          },
+        ],
+      },
+      useRootFlag: true,
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain('Debt budget passed');
+    expect(report.scannedFiles).toBe(1);
   });
 });

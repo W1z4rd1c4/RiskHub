@@ -25,6 +25,15 @@ export const ENTITY_TYPE_LABELS: Record<string, string> = {
     risk: 'Risk',
     control: 'Control',
     kri: 'KRI',
+    risk_questionnaire: 'Risk Questionnaire',
+    vendor: 'Vendor',
+    vendor_assessment: 'Vendor Assessment',
+    vendor_incident: 'Vendor Incident',
+    vendor_sla: 'Vendor SLA',
+    vendor_remediation: 'Vendor Remediation',
+    issue: 'Issue',
+    issue_remediation: 'Issue Remediation',
+    issue_exception: 'Issue Exception',
     user: 'User',
     department: 'Department',
     approval: 'Approval',
@@ -48,6 +57,18 @@ export const ACTION_LABELS: Record<string, string> = {
     login: 'Logged In',
     failed_login: 'Login Failed',
 };
+
+function titleCaseActivityEntityType(entityType: string): string {
+    return entityType
+        .split('_')
+        .filter(Boolean)
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(' ');
+}
+
+export function getActivityEntityLabel(entityType: string): string {
+    return ENTITY_TYPE_LABELS[entityType] ?? titleCaseActivityEntityType(entityType);
+}
 
 export const ACTION_COLORS: Record<string, string> = {
     create: 'text-emerald-400 bg-emerald-400/10',

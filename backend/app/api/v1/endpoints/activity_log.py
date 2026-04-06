@@ -34,7 +34,7 @@ async def list_activity_logs(
     actor_id: Optional[int] = Query(None, description="Filter by actor (user)"),
     department_id: Optional[int] = Query(None, description="Filter by department"),
     action: Optional[str] = Query(None, description="Filter by action type"),
-    search: Optional[str] = Query(None, description="Fulltext search in description/entity_name"),
+    search: Optional[str] = Query(None, description="Fulltext search in sanitized entity labels, actor names, and change payloads"),
     date_from: Optional[datetime] = Query(None, description="Start date"),
     date_to: Optional[datetime] = Query(None, description="End date"),
 ):

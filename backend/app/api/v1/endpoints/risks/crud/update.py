@@ -245,6 +245,7 @@ async def update_risk(
         entity_type=ActivityEntityType.RISK,
         entity_id=risk.id,
         entity_name=f"{risk.risk_id_code}: {risk.description[:50]}",
+        safe_entity_label=risk.risk_id_code,
         action=ActivityAction.UPDATE,
         actor=current_user,
         department_id=risk.department_id,
