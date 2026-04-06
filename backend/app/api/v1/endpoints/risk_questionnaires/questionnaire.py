@@ -18,7 +18,7 @@ from app.schemas.risk_questionnaire import (
     RiskQuestionnaireRead,
     RiskQuestionnaireSubmit,
 )
-from app.services.outbox_service import OutboxService
+from app.services.outbox import OutboxService
 from app.services.risk_questionnaire_service import (
     can_submit_questionnaire,
     get_previous_submitted_questionnaire,

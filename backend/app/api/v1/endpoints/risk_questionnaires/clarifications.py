@@ -16,7 +16,7 @@ from app.schemas.risk_questionnaire import (
     RiskQuestionnaireClarificationRead,
     RiskQuestionnaireClarificationRespond,
 )
-from app.services.outbox_service import OutboxService
+from app.services.outbox import OutboxService
 from app.services.risk_questionnaire_service import can_send_questionnaire
 
 from ._shared import _get_questionnaire_for_read, _serialize_clarification

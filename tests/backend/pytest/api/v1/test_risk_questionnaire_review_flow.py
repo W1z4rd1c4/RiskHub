@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from app.models import Risk, User
 from app.models.notification import Notification, NotificationType
 from app.models.risk import RiskStatus
-from app.services.outbox_service import dispatch_pending_outbox_events
+from app.services.outbox import dispatch_pending_outbox_events
 
 
 async def _dispatch_outbox(async_engine: AsyncEngine) -> int:

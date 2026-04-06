@@ -86,6 +86,8 @@ describe('ProtectedRoute bootstrap failure handling', () => {
         await act(async () => {
             await vi.advanceTimersByTimeAsync(AUTH_REQUEST_TIMEOUT_MS + 1);
             await Promise.resolve();
+            await Promise.resolve();
+            await vi.advanceTimersByTimeAsync(0);
         });
 
         expect(screen.getByTestId('location')).toHaveTextContent('/login?returnTo=%2Fsecure&authError=service_unavailable');

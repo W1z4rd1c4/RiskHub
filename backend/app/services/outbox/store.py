@@ -15,6 +15,9 @@ OUTBOX_DISPATCH_INTERVAL_SECONDS = 5
 OUTBOX_BATCH_SIZE = 50
 OUTBOX_MAX_ATTEMPTS = 10
 OUTBOX_RECLAIM_AFTER = timedelta(minutes=5)
+NON_POSTGRES_OUTBOX_SINGLE_WORKER_ERROR = (
+    "Transactional outbox dispatch requires a single worker when the database dialect is not PostgreSQL"
+)
 
 
 def _claimable_events_condition(*, now, reclaim_before):
@@ -187,3 +190,8 @@ class OutboxService:
         event.last_error = error_message
         db.add(event)
         await db.commit()
+
+
+def ensure_outbox_runtime_supported(*, dialect_name: str, worker_count: int) -> None:
+    if dialect_name != "postgresql" and worker_count > 1:
+        raise RuntimeError(NON_POSTGRES_OUTBOX_SINGLE_WORKER_ERROR)

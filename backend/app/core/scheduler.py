@@ -16,7 +16,8 @@ from app.models.scheduler_job_run import SchedulerJobRun
 from app.services.issue_deadline_service import IssueDeadlineService
 from app.services.kri_deadline_service import KRIDeadlineService
 from app.services.orphaned_item_service import OrphanedItemService
-from app.services.outbox_service import OUTBOX_DISPATCH_INTERVAL_SECONDS, dispatch_pending_outbox_events
+from app.services.outbox import OUTBOX_DISPATCH_INTERVAL_SECONDS, dispatch_pending_outbox_events
+from app.services.outbox.store import ensure_outbox_runtime_supported
 from app.services.questionnaire_deadline_service import QuestionnaireDeadlineService
 
 logger = get_logger("scheduler")
@@ -494,6 +495,25 @@ def _resolve_scheduler_job_profile() -> str:
     return DEFAULT_SCHEDULER_JOB_PROFILE
 
 
+def _resolve_process_worker_count() -> int:
+    for env_name in ("API_WORKERS", "UVICORN_WORKERS", "WEB_CONCURRENCY"):
+        raw_value = os.getenv(env_name, "").strip()
+        if not raw_value:
+            continue
+        try:
+            return max(int(raw_value), 1)
+        except ValueError:
+            logger.warning(
+                "scheduler_worker_count_invalid",
+                env_name=env_name,
+                configured_value=raw_value,
+                selected_worker_count=1,
+                instance_id=PROCESS_INSTANCE_ID,
+            )
+            return 1
+    return 1
+
+
 def _register_outbox_dispatch_job() -> None:
     scheduler.add_job(
         run_outbox_dispatch,
@@ -606,6 +626,11 @@ async def start_scheduler_async() -> None:
 
     if scheduler.running:
         return
+
+    ensure_outbox_runtime_supported(
+        dialect_name=_db_engine.dialect.name,
+        worker_count=_resolve_process_worker_count(),
+    )
 
     provider = _resolve_lock_provider()
     _lock_provider = provider

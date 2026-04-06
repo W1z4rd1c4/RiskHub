@@ -1,7 +1,7 @@
 import { getErrorMessageKey } from '@/i18n/getErrorMessageKey';
-import { getAccessToken } from '@/services/accessTokenStore';
 import { isExplicitLogoutSuppressed } from '@/services/logoutSuppression';
 import { clearAuthenticatedSession } from '@/services/sessionManager';
+import { getSessionSnapshot } from '@/services/sessionStore';
 import { silentReauthAndExchange } from '@/services/ssoSession';
 
 // Use relative URL for nginx proxy (enables LAN access)
@@ -135,7 +135,7 @@ class ApiClient {
         const { params, ...init } = options;
         const url = this.buildUrl(endpoint, params);
         const headers = new Headers(init.headers);
-        const token = getAccessToken();
+        const token = getSessionSnapshot().token;
         if (token) {
             headers.set('Authorization', `Bearer ${token}`);
         }

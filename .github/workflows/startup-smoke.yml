@@ -24,13 +24,35 @@ jobs:
           mkdir -p .ci-artifacts/startup-smoke
           ./scripts/compose.sh up | tee .ci-artifacts/startup-smoke/compose-up.log
 
-      - name: Verify health and login surfaces
+      - name: Verify health, headers, auth config, and docs exposure
         run: |
           set -euo pipefail
           curl --retry 12 --retry-delay 2 --retry-connrefused -fsS http://localhost:8000/api/v1/health | tee .ci-artifacts/startup-smoke/health.json
           curl --retry 12 --retry-delay 2 --retry-connrefused -fsS http://localhost:8000/api/v1/auth/config | tee .ci-artifacts/startup-smoke/auth-config.json
-          curl --retry 12 --retry-delay 2 --retry-connrefused -fsS http://localhost/login -o .ci-artifacts/startup-smoke/login.html
+          curl --retry 12 --retry-delay 2 --retry-connrefused -fsS -D .ci-artifacts/startup-smoke/health.headers http://localhost:8000/api/v1/health -o /dev/null
+          curl --retry 12 --retry-delay 2 --retry-connrefused -fsS -D .ci-artifacts/startup-smoke/login.headers http://localhost/login -o .ci-artifacts/startup-smoke/login.html
+          curl --retry 12 --retry-delay 2 --retry-connrefused -fsS http://localhost:8000/docs -o .ci-artifacts/startup-smoke/docs.html
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          health = json.loads(Path(".ci-artifacts/startup-smoke/health.json").read_text(encoding="utf-8"))
+          assert set(health) == {"status", "database", "redis", "scheduler"}
+          assert health["status"] in {"healthy", "degraded"}
+          assert health["database"] == "connected"
+          assert health["redis"] in {"connected", "disabled"}
+          assert health["scheduler"] in {"running", "disabled", "stopped"}
+
+          auth_config = json.loads(Path(".ci-artifacts/startup-smoke/auth-config.json").read_text(encoding="utf-8"))
+          assert "auth_mode" in auth_config
+          assert "sso" in auth_config
+          assert "demo_login_enabled" in auth_config
+          PY
+          grep -qi '^x-frame-options: DENY' .ci-artifacts/startup-smoke/health.headers
+          grep -qi '^content-security-policy:' .ci-artifacts/startup-smoke/health.headers
           grep -q 'id="root"' .ci-artifacts/startup-smoke/login.html
+          grep -q '<script type="module"' .ci-artifacts/startup-smoke/login.html
+          grep -q 'Swagger UI' .ci-artifacts/startup-smoke/docs.html
 
       - name: Capture Docker diagnostics
         if: always()

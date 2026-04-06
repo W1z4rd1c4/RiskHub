@@ -4,7 +4,7 @@ from starlette.requests import Request
 
 from app.core.tokens import get_request_client_ip
 from app.middleware.logging_context import LoggingContextMiddleware
-from app.middleware.security import RateLimitMiddleware
+from app.middleware.rate_limit import RateLimitMiddleware
 
 
 def _build_request(peer_ip: str, xff: str | None = None) -> Request:

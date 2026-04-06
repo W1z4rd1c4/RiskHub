@@ -2,8 +2,16 @@
  * User Settings Isolation E2E Tests
  * Verifies that theme and language persist server-side per-user
  */
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import { loginAsDemoUser, logout, DEMO_ACCOUNTS } from './helpers/login';
+
+async function waitForPreferencesSave(page: Page): Promise<void> {
+    return page.waitForResponse((resp) =>
+        resp.url().includes('/preferences')
+        && resp.request().method() === 'PUT'
+        && resp.status() === 200
+    );
+}
 
 test.describe('User Settings Isolation', () => {
     test('theme should not persist across different users', async ({ page }) => {
@@ -51,12 +59,10 @@ test.describe('User Settings Isolation', () => {
         // Click Appearance tab first
         await page.click('[data-testid="settings-tab-appearance"]');
         await page.waitForSelector('[data-testid="theme-dark"]', { timeout: 5000 });
-        await page.click('[data-testid="theme-dark"]');
-
-        // Wait for server sync
-        await page.waitForResponse(resp =>
-            resp.url().includes('/preferences') && resp.status() === 200
-        );
+        await Promise.all([
+            waitForPreferencesSave(page),
+            page.click('[data-testid="theme-dark"]'),
+        ]);
 
         // Logout
         await logout(page);
@@ -86,12 +92,10 @@ test.describe('User Settings Isolation', () => {
         // Click Localization tab first
         await page.click('[data-testid="settings-tab-localization"]');
         await page.waitForSelector('[data-testid="language-cs"]', { timeout: 5000 });
-        await page.click('[data-testid="language-cs"]');
-
-        // Wait for server sync
-        await page.waitForResponse(resp =>
-            resp.url().includes('/preferences') && resp.status() === 200
-        );
+        await Promise.all([
+            waitForPreferencesSave(page),
+            page.click('[data-testid="language-cs"]'),
+        ]);
 
         // Verify Czech is applied (check for a Czech word)
         await expect(page.getByText('Čeština').first()).toBeVisible();
@@ -116,7 +120,10 @@ test.describe('User Settings Isolation', () => {
         await page.goto('/settings');
         await page.click('[data-testid="settings-tab-localization"]');
         await page.waitForSelector('[data-testid="language-en"]', { timeout: 5000 });
-        await page.click('[data-testid="language-en"]');
+        await Promise.all([
+            waitForPreferencesSave(page),
+            page.click('[data-testid="language-en"]'),
+        ]);
         await logout(page);
     });
 });

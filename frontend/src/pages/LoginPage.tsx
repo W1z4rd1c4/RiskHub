@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from '@/i18n/hooks';
 import { sanitizeReturnTo } from '@/services/authRedirect';
-import { getAccessToken, subscribeAccessToken } from '@/services/accessTokenStore';
 import { AuthConfigErrorView, LoadingLoginView, LoginNotConfiguredView } from '@/pages/login/LoginStateViews';
 import { DemoLoginView } from '@/pages/login/DemoLoginView';
 import { SsoOnlyView } from '@/pages/login/SsoOnlyView';
@@ -11,6 +10,7 @@ import { getProdAuthCopy } from '@/pages/login/prodAuthCopy';
 import { useAuthConfigLoader } from '@/pages/login/useAuthConfigLoader';
 import { useLoginActions } from '@/pages/login/useLoginActions';
 import { useProdLoginMetadata } from '@/pages/login/useProdLoginMetadata';
+import { useSessionSnapshot } from '@/services/sessionStore';
 
 export default function LoginPage() {
     const { t, i18n } = useTranslation(['auth', 'errorKeys', 'common']);
@@ -25,10 +25,8 @@ export default function LoginPage() {
     }, [location.search]);
 
     const [prodLanguage, setProdLanguage] = useState<ProdLanguage>('cs');
-    const [hasAccessToken, setHasAccessToken] = useState(() => getAccessToken() !== null);
+    const hasAccessToken = useSessionSnapshot().token !== null;
     const showBootstrapUnavailableBanner = authErrorParam === 'service_unavailable';
-
-    useEffect(() => subscribeAccessToken((token) => setHasAccessToken(token !== null)), []);
 
     useEffect(() => {
         if (!hasAccessToken) {

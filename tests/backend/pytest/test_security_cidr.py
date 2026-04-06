@@ -13,7 +13,7 @@ import pytest
 
 from app.core.config import Settings
 from app.main import _validate_production_settings
-from app.middleware.security import RateLimitMiddleware
+from app.middleware.rate_limit import RateLimitMiddleware
 
 
 class TestCIDRMatching:
@@ -104,7 +104,25 @@ class TestInvalidConfig:
         assert not middleware._is_trusted_proxy("invalid-cidr")
 
 
-def test_validate_production_settings_warns_on_broad_trusted_proxy_ranges(monkeypatch):
+def test_validate_production_settings_rejects_broad_trusted_proxy_ranges() -> None:
+    settings = Settings(
+        secret_key="test-secret-key-32-chars-minimum-value",
+        debug=False,
+        database_url="postgresql+asyncpg://riskhub:secret@postgres.example.com:5432/riskhub",
+        cors_origins=["https://riskhub.example.com"],
+        allowed_hosts=["riskhub.example.com"],
+        auth_mode="microsoft_sso",
+        entra_tenant_id="00000000-0000-0000-0000-000000000000",
+        entra_client_id="11111111-1111-1111-1111-111111111111",
+        entra_client_secret="entra-client-secret",
+        trusted_proxies=["127.0.0.1", "10.0.0.0/8"],
+    )
+
+    with pytest.raises(RuntimeError, match="ALLOW_BROAD_TRUSTED_PROXIES_IN_PRODUCTION"):
+        _validate_production_settings(settings)
+
+
+def test_validate_production_settings_warns_on_broad_trusted_proxy_ranges_with_override(monkeypatch):
     warnings: list[tuple[str, dict[str, object]]] = []
 
     def capture_warning(event: str, **kwargs):
@@ -123,6 +141,7 @@ def test_validate_production_settings_warns_on_broad_trusted_proxy_ranges(monkey
         entra_client_id="11111111-1111-1111-1111-111111111111",
         entra_client_secret="entra-client-secret",
         trusted_proxies=["127.0.0.1", "10.0.0.0/8"],
+        allow_broad_trusted_proxies_in_production=True,
     )
 
     _validate_production_settings(settings)

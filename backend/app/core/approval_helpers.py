@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models import Control, ControlRiskLink, Risk
-from app.services.outbox_service import OutboxService
+from app.services.outbox import OutboxService
 
 if TYPE_CHECKING:
     from app.models import ApprovalRequest, User

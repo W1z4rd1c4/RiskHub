@@ -2,20 +2,22 @@
 
 ## Purpose
 
-Transactional outbox package split out of the legacy `outbox_service.py` facade.
+Transactional outbox package split by responsibility.
 
 ## Contents
 
 - `store.py`
   - Claiming, enqueue, retry, dead-letter, and completion state transitions.
 - `dispatcher.py`
-  - Batch dispatcher and isolated handler execution loop.
+  - Batch dispatcher with typed fatal vs retryable handler failure policy.
+- `registry.py`
+  - Central event-type to handler mapping.
 - `handlers/`
-  - Per-domain outbox handlers.
+  - Per-domain outbox handlers (`approvals.py`, `issues.py`, `questionnaires.py`) plus shared helper utilities.
 - `payloads.py`
   - Typed payload models and validation registry.
 
 ## Notes
 
-- Keep `backend/app/services/outbox_service.py` as the import-compatibility facade.
 - Persistence/claim logic and handler execution must stay separated.
+- Non-Postgres runtimes are treated as single-worker only for outbox dispatch; multi-worker scheduler/outbox execution must use PostgreSQL.

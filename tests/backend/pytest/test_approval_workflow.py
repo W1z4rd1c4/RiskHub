@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from app.models.notification import Notification, NotificationType
-from app.services.outbox_service import dispatch_pending_outbox_events
+from app.services.outbox import dispatch_pending_outbox_events
 
 
 def _sessionmaker(async_engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:

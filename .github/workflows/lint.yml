@@ -118,13 +118,7 @@ jobs:
       - name: Validate ratchet status documentation contract
         run: |
           set -euo pipefail
-          test -f docs/quality/lint-ratchet-status.md
-          grep -q "^## Required Sections" docs/quality/lint-ratchet-status.md
-          grep -q "^## Ratchet Classes" docs/quality/lint-ratchet-status.md
-          grep -q "^## Notes" docs/quality/lint-ratchet-status.md
-          test -f docs/quality/baseline/e712-app.txt
-          test -f docs/quality/baseline/e402-app.txt
-          test -f docs/quality/baseline/e501-app.txt
+          python3 scripts/tools/validate_lint_ratchet_docs.py
 
       - name: Compute Ruff ratchet class counts
         run: |
@@ -194,6 +188,11 @@ jobs:
           set -euo pipefail
           python3 scripts/security/validate_production_contract_docs.py | tee lint-production-contract.log
 
+      - name: Deprecated import contract
+        run: |
+          set -euo pipefail
+          python3 scripts/security/validate_deprecated_imports.py | tee lint-deprecated-imports.log
+
       - name: Upload docs topology evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -202,6 +201,7 @@ jobs:
           path: |
             lint-docs-topology.log
             lint-production-contract.log
+            lint-deprecated-imports.log
           retention-days: 30
 
   ruff-informational:

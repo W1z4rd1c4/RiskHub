@@ -8,9 +8,11 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 VALIDATOR_PATH = REPO_ROOT / "scripts" / "security" / "validate_workflow_pins.py"
 SECURITY_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "security.yml"
 RELEASE_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "release.yml"
+RELEASE_PARITY_PR_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "release-parity-pr.yml"
 LINT_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "lint.yml"
 BACKEND_POSTGRES_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "backend-postgres.yml"
 E2E_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "e2e.yml"
+STARTUP_SMOKE_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "startup-smoke.yml"
 LOCAL_PROD_AUDIT = REPO_ROOT / "scripts" / "security" / "run_prod_readiness_audit_local.sh"
 
 
@@ -114,6 +116,22 @@ def test_lint_workflow_runs_production_contract_docs_validator() -> None:
 
     assert "Production contract docs gate" in text
     assert "python3 scripts/security/validate_production_contract_docs.py" in text
+    assert "python3 scripts/security/validate_deprecated_imports.py" in text
+
+
+def test_release_parity_pr_workflow_blocks_pull_requests_with_contract_validators() -> None:
+    text = RELEASE_PARITY_PR_WORKFLOW.read_text(encoding="utf-8")
+
+    assert "pull_request:" in text
+    assert "continue-on-error" not in text
+    for snippet in (
+        "python3 scripts/check_docs_contract.py",
+        "python3 scripts/security/validate_production_contract_docs.py",
+        "python3 scripts/security/validate_workflow_pins.py",
+        "python3 scripts/security/validate_repo_hardening.py",
+        "python3 scripts/security/validate_deprecated_imports.py",
+    ):
+        assert snippet in text
 
 
 def test_backend_postgres_workflow_uses_named_postgres_ci_contract() -> None:
@@ -147,5 +165,28 @@ def test_e2e_workflow_defines_production_profile_smoke_lane() -> None:
         "AUTH_SSO_ALLOW_EMAIL_LINK: 'false'",
         "REDIS_URL: redis://localhost:6379/0",
         "image: redis:7@sha256:",
+        'assert set(payload) == {"status", "database", "redis", "scheduler"}',
+        'assert payload["redis"] == "connected"',
+    ):
+        assert snippet in text
+
+
+def test_security_workflow_runs_container_scan_in_pull_requests() -> None:
+    text = SECURITY_WORKFLOW.read_text(encoding="utf-8")
+
+    assert "pull_request:" in text
+    assert "container-security:" in text
+    assert "if: github.event_name == 'push' || github.event_name == 'schedule'" not in text
+
+
+def test_startup_smoke_workflow_asserts_health_schema_headers_and_docs_exposure() -> None:
+    text = STARTUP_SMOKE_WORKFLOW.read_text(encoding="utf-8")
+
+    for snippet in (
+        'assert set(health) == {"status", "database", "redis", "scheduler"}',
+        "grep -qi '^x-frame-options: DENY'",
+        "grep -qi '^content-security-policy:'",
+        "grep -q '<script type=\"module\"'",
+        "grep -q 'Swagger UI'",
     ):
         assert snippet in text
