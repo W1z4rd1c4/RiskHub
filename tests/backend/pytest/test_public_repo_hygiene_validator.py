@@ -79,6 +79,33 @@ def test_path_findings_detect_tracked_generated_outputs() -> None:
     assert findings[0].reason == "tracked generated/local-only artifact directory"
 
 
+def test_scan_paths_limits_tracked_scan_to_requested_files(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    docs_dir = tmp_path / "docs"
+    docs_dir.mkdir()
+    clean_file = docs_dir / "clean.md"
+    clean_file.write_text("clean\n", encoding="utf-8")
+    leaky_file = docs_dir / "leaky.md"
+    leaky_file.write_text("/Users/alice/project\n", encoding="utf-8")
+
+    monkeypatch.setattr(MODULE, "REPO_ROOT", tmp_path)
+
+    findings = MODULE.scan_paths(["docs/clean.md"])
+
+    assert findings == []
+
+
+def test_scan_paths_skips_deleted_or_missing_files(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(MODULE, "REPO_ROOT", tmp_path)
+
+    findings = MODULE.scan_paths(["docs/missing.md"])
+
+    assert findings == []
+
+
 def test_scan_history_patch_output_detects_sensitive_paths() -> None:
     output = "\n".join(
         [

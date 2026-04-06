@@ -1,9 +1,10 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import ts from 'typescript';
+import { fileURLToPath } from 'node:url';
 
 const ARGS = process.argv.slice(2);
-const ROOT = process.cwd();
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const SRC_DIR = path.join(ROOT, 'src');
 const ALLOWLIST_PATH = path.join(ROOT, 'scripts', 'quality', 'debt-allowlist.json');
 const DEFAULT_REPORT_PATH = path.join(ROOT, '..', 'tests', 'results', 'quality', 'frontend', 'debt-budget', 'debt.json');
@@ -157,6 +158,49 @@ function resolveReportPath() {
   return path.isAbsolute(rawPath) ? rawPath : path.join(ROOT, rawPath);
 }
 
+function normalizeCliPath(rawPath) {
+  const normalized = rawPath.replaceAll('\\', '/');
+  if (path.isAbsolute(rawPath)) {
+    return toPosix(path.relative(ROOT, rawPath));
+  }
+  return normalized.startsWith('frontend/') ? normalized.slice('frontend/'.length) : normalized;
+}
+
+function isEligibleSourcePath(relPath) {
+  return relPath.startsWith('src/') && FILE_EXTENSIONS.has(path.extname(relPath)) && !TEST_FILE_RE.test(relPath) && !TEST_PATH_RE.test(relPath);
+}
+
+async function resolveScanFiles() {
+  const explicitPaths = ARGS
+    .filter((arg) => !arg.startsWith('--report-json'))
+    .map(normalizeCliPath)
+    .filter(Boolean);
+
+  if (explicitPaths.length === 0) {
+    return walk(SRC_DIR);
+  }
+
+  const files = [];
+  const seen = new Set();
+
+  for (const relPath of explicitPaths) {
+    if (!isEligibleSourcePath(relPath)) continue;
+
+    const fullPath = path.join(ROOT, relPath);
+    try {
+      const stats = await fs.stat(fullPath);
+      if (!stats.isFile() || seen.has(fullPath)) continue;
+    } catch {
+      continue;
+    }
+
+    seen.add(fullPath);
+    files.push(fullPath);
+  }
+
+  return files;
+}
+
 async function writeJsonReport(reportPath, payload) {
   if (!reportPath) return;
   await fs.mkdir(path.dirname(reportPath), { recursive: true });
@@ -165,7 +209,7 @@ async function writeJsonReport(reportPath, payload) {
 
 async function main() {
   const reportPath = resolveReportPath();
-  const files = await walk(SRC_DIR);
+  const files = await resolveScanFiles();
   const allowlistEntries = await loadAllowlist();
   const { index: allowlistIndex, errors: allowlistErrors } = buildExceptionIndex(allowlistEntries);
 

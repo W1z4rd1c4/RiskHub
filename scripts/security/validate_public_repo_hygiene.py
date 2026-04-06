@@ -118,6 +118,20 @@ def tracked_files() -> list[Path]:
     return [Path(line) for line in result.stdout.splitlines() if line.strip()]
 
 
+def _normalize_rel_path(raw_path: str) -> Path | None:
+    candidate = Path(raw_path)
+    if candidate.is_absolute():
+        try:
+            return candidate.resolve().relative_to(REPO_ROOT)
+        except ValueError:
+            return None
+
+    try:
+        return (REPO_ROOT / candidate).resolve().relative_to(REPO_ROOT)
+    except ValueError:
+        return None
+
+
 def _decode_text(path: Path) -> str | None:
     raw = path.read_bytes()
     if b"\0" in raw[:8192]:
@@ -212,6 +226,30 @@ def scan_repo() -> list[HygieneFinding]:
     for rel_path in tracked_files():
         findings.extend(path_findings(rel_path))
         abs_path = REPO_ROOT / rel_path
+        try:
+            text = _decode_text(abs_path)
+        except OSError:
+            continue
+        if text is None:
+            continue
+        findings.extend(content_findings(rel_path, text))
+    return findings
+
+
+def scan_paths(raw_paths: list[str]) -> list[HygieneFinding]:
+    findings: list[HygieneFinding] = []
+    seen: set[Path] = set()
+    for raw_path in raw_paths:
+        rel_path = _normalize_rel_path(raw_path)
+        if rel_path is None or rel_path in seen:
+            continue
+        seen.add(rel_path)
+
+        abs_path = REPO_ROOT / rel_path
+        if not abs_path.exists() or abs_path.is_dir():
+            continue
+
+        findings.extend(path_findings(rel_path))
         try:
             text = _decode_text(abs_path)
         except OSError:
@@ -341,6 +379,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--output", default="", help="Optional output path for the report."
     )
+    parser.add_argument(
+        "paths",
+        nargs="*",
+        help="Optional tracked paths to scan in tracked mode. Defaults to the full tracked tree.",
+    )
     return parser.parse_args()
 
 
@@ -375,7 +418,7 @@ def main() -> int:
     args = parse_args()
     try:
         if args.mode == "tracked":
-            findings = scan_repo()
+            findings = scan_paths(args.paths) if args.paths else scan_repo()
         elif args.mode == "history-patches":
             path_excludes = DEFAULT_HISTORY_PATCH_EXCLUDES + tuple(args.path_exclude)
             findings = scan_history_patches(path_excludes)

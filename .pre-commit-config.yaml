@@ -30,10 +30,12 @@ repos:
     rev: v0.6.9
     hooks:
       - id: ruff
-        args: [--config=backend/ruff.toml, backend/app, tests/backend/pytest, backend/scripts]
+        args: [--config=backend/ruff.toml]
+        files: ^(backend/app|backend/scripts|tests/backend/pytest)/.*\.py$
       - id: ruff
         name: Ruff (manual autofix)
-        args: [--config=backend/ruff.toml, --fix, backend/app, tests/backend/pytest, backend/scripts]
+        args: [--config=backend/ruff.toml, --fix]
+        files: ^(backend/app|backend/scripts|tests/backend/pytest)/.*\.py$
         stages: [manual]
 
   # Python security - Bandit
@@ -41,8 +43,8 @@ repos:
     rev: 1.7.8
     hooks:
       - id: bandit
-        args: ["--ini", "backend/.bandit", "-r", "backend/app"]
-        files: ^backend/
+        args: ["--ini", "backend/.bandit"]
+        files: ^backend/app/.*\.py$
 
   # Secrets detection - Gitleaks
   - repo: https://github.com/gitleaks/gitleaks
@@ -57,18 +59,13 @@ repos:
         name: Public Repo Hygiene
         entry: python3 scripts/security/validate_public_repo_hygiene.py
         language: system
-        pass_filenames: false
       - id: eslint
         name: ESLint
-        entry: npm run lint
+        entry: npm --prefix frontend exec eslint --
         language: system
-        files: \.(js|jsx|ts|tsx)$
-        pass_filenames: false
-        args: ["--prefix", "frontend"]
+        files: ^frontend/.*\.(js|jsx|ts|tsx)$
       - id: frontend-debt-budget
         name: Frontend Debt Budget
-        entry: npm run quality:debt
+        entry: node frontend/scripts/quality/debt-budget.mjs
         language: system
-        files: \.(ts|tsx)$
-        pass_filenames: false
-        args: ["--prefix", "frontend"]
+        files: ^frontend/.*\.(ts|tsx)$

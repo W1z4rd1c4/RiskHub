@@ -68,7 +68,9 @@ class LinkResult:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Audit docs tree topology and markdown links.")
+    parser = argparse.ArgumentParser(
+        description="Audit docs tree topology and markdown links."
+    )
     parser.add_argument(
         "--scope",
         choices=("canonical", "full"),
@@ -95,7 +97,12 @@ def parse_args() -> argparse.Namespace:
 
 
 def utc_now_iso() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    return (
+        datetime.now(timezone.utc)
+        .replace(microsecond=0)
+        .isoformat()
+        .replace("+00:00", "Z")
+    )
 
 
 def run_id_now() -> str:
@@ -105,7 +112,9 @@ def run_id_now() -> str:
 def canonical_scope_files() -> list[Path]:
     files: set[Path] = set()
     files.add(Path("AGENTS.md"))
-    files.update(path.relative_to(REPO_ROOT) for path in DOCS_DIR.rglob("*.md") if path.is_file())
+    files.update(
+        path.relative_to(REPO_ROOT) for path in DOCS_DIR.rglob("*.md") if path.is_file()
+    )
 
     planning_roots = [
         Path(".planning/README.md"),
@@ -119,19 +128,32 @@ def canonical_scope_files() -> list[Path]:
         if abs_path.is_file():
             files.add(rel)
 
-    files.update(path.relative_to(REPO_ROOT) for path in (PLANNING_DIR / "codebase").rglob("*.md") if path.is_file())
+    files.update(
+        path.relative_to(REPO_ROOT)
+        for path in (PLANNING_DIR / "codebase").rglob("*.md")
+        if path.is_file()
+    )
     return sorted(files, key=lambda path: path.as_posix())
 
 
 def full_scope_files() -> list[Path]:
     files = set(canonical_scope_files())
-    files.update(path.relative_to(REPO_ROOT) for path in (PLANNING_DIR / "phases").rglob("*.md") if path.is_file())
+    files.update(
+        path.relative_to(REPO_ROOT)
+        for path in (PLANNING_DIR / "phases").rglob("*.md")
+        if path.is_file()
+    )
     return sorted(files, key=lambda path: path.as_posix())
 
 
 def bucket_for_source(source: Path) -> str:
     parts = source.parts
-    if len(parts) >= 2 and parts[0] == ".planning" and parts[1] == "phases" and source.name != "README.md":
+    if (
+        len(parts) >= 2
+        and parts[0] == ".planning"
+        and parts[1] == "phases"
+        and source.name != "README.md"
+    ):
         return "archival"
     return "canonical"
 
@@ -190,7 +212,9 @@ def resolve_target(source_rel: Path, target: str) -> tuple[str, str, str | None]
         return ("unresolved", "forbidden_local_path_target", unquote(parsed.path))
 
     if target.startswith("/"):
-        if raw_no_fragment.startswith("/Users/") or raw_no_fragment.startswith("/home/"):
+        if raw_no_fragment.startswith("/Users/") or raw_no_fragment.startswith(
+            "/home/"
+        ):
             return ("unresolved", "forbidden_local_path_target", raw_no_fragment)
 
         if Path(raw_no_fragment).suffix.lower() not in MD_EXTENSIONS:
@@ -243,7 +267,9 @@ def check_required_entrypoints() -> list[dict[str, object]]:
     return records
 
 
-def evaluate_required_crosslinks(resolved_targets_by_source: dict[str, set[str]]) -> list[dict[str, object]]:
+def evaluate_required_crosslinks(
+    resolved_targets_by_source: dict[str, set[str]]
+) -> list[dict[str, object]]:
     records: list[dict[str, object]] = []
     for source, target in REQUIRED_CROSSLINKS:
         source_key = source.as_posix()
@@ -252,7 +278,8 @@ def evaluate_required_crosslinks(resolved_targets_by_source: dict[str, set[str]]
             {
                 "source": source_key,
                 "target": target_key,
-                "present": target_key in resolved_targets_by_source.get(source_key, set()),
+                "present": target_key
+                in resolved_targets_by_source.get(source_key, set()),
             }
         )
     return records
@@ -262,7 +289,11 @@ def evaluate_reachability(
     resolved_targets_by_source: dict[str, set[str]], max_root_hops: int
 ) -> dict[str, object]:
     canonical_files = {path.as_posix() for path in canonical_scope_files()}
-    roots = [path.as_posix() for path in ROOT_REACHABILITY_ROOTS if path.as_posix() in canonical_files]
+    roots = [
+        path.as_posix()
+        for path in ROOT_REACHABILITY_ROOTS
+        if path.as_posix() in canonical_files
+    ]
     adjacency: dict[str, set[str]] = {source: set() for source in canonical_files}
 
     for source, targets in resolved_targets_by_source.items():
@@ -283,7 +314,9 @@ def evaluate_reachability(
             queue.append(target)
 
     unreachable = sorted(canonical_files - set(distance.keys()))
-    weakly_connected = sorted(path for path, hops in distance.items() if hops > max_root_hops)
+    weakly_connected = sorted(
+        path for path, hops in distance.items() if hops > max_root_hops
+    )
     return {
         "roots": roots,
         "max_root_hops": max_root_hops,
@@ -317,12 +350,24 @@ def render_markdown_report(payload: dict[str, object]) -> str:
     lines.append("")
     lines.append(f"- Files scanned: `{summary['files_scanned']}`")
     lines.append(f"- Links scanned: `{summary['links_scanned']}`")
-    lines.append(f"- Missing required entrypoints: `{summary['entrypoint_missing_count']}`")
-    lines.append(f"- Missing required cross-links: `{summary['crosslink_missing_count']}`")
-    lines.append(f"- Canonical unresolved links: `{summary['canonical_unresolved_count']}`")
-    lines.append(f"- Archival unresolved links: `{summary['archival_unresolved_count']}`")
-    lines.append(f"- Reachability unreachable count: `{summary['reachability_unreachable_count']}`")
-    lines.append(f"- Reachability weakly connected count: `{summary['reachability_weakly_connected_count']}`")
+    lines.append(
+        f"- Missing required entrypoints: `{summary['entrypoint_missing_count']}`"
+    )
+    lines.append(
+        f"- Missing required cross-links: `{summary['crosslink_missing_count']}`"
+    )
+    lines.append(
+        f"- Canonical unresolved links: `{summary['canonical_unresolved_count']}`"
+    )
+    lines.append(
+        f"- Archival unresolved links: `{summary['archival_unresolved_count']}`"
+    )
+    lines.append(
+        f"- Reachability unreachable count: `{summary['reachability_unreachable_count']}`"
+    )
+    lines.append(
+        f"- Reachability weakly connected count: `{summary['reachability_weakly_connected_count']}`"
+    )
     lines.append("")
     lines.append("## Required Entrypoints")
     lines.append("")
@@ -336,7 +381,9 @@ def render_markdown_report(payload: dict[str, object]) -> str:
     lines.append("| Source | Target | Present |")
     lines.append("|---|---|---|")
     for item in crosslinks:
-        lines.append(f"| `{item['source']}` | `{item['target']}` | `{item['present']}` |")
+        lines.append(
+            f"| `{item['source']}` | `{item['target']}` | `{item['present']}` |"
+        )
     lines.append("")
 
     lines.append("## Reachability")
@@ -346,7 +393,9 @@ def render_markdown_report(payload: dict[str, object]) -> str:
     lines.append(f"- Canonical files: `{reachability['canonical_files_count']}`")
     lines.append(f"- Reachable files: `{reachability['reachable_count']}`")
     lines.append(f"- Unreachable files: `{reachability['unreachable_count']}`")
-    lines.append(f"- Weakly connected files: `{reachability['weakly_connected_count']}`")
+    lines.append(
+        f"- Weakly connected files: `{reachability['weakly_connected_count']}`"
+    )
     lines.append("")
     if reachability["unreachable_files"]:
         lines.append("### Unreachable Canonical Files")
@@ -378,7 +427,9 @@ def render_markdown_report(payload: dict[str, object]) -> str:
                 )
             if len(rows) > MD_REPORT_MAX_ITEMS:
                 lines.append("")
-                lines.append(f"- Output truncated in markdown to `{MD_REPORT_MAX_ITEMS}` rows. See JSON for full list.")
+                lines.append(
+                    f"- Output truncated in markdown to `{MD_REPORT_MAX_ITEMS}` rows. See JSON for full list."
+                )
         lines.append("")
 
     return "\n".join(lines)
@@ -417,23 +468,36 @@ def run_audit(
     reachability = evaluate_reachability(resolved_targets_by_source, max_root_hops)
 
     unresolved_canonical = [
-        result for result in link_results if result.unresolved and result.bucket == "canonical"
+        result
+        for result in link_results
+        if result.unresolved and result.bucket == "canonical"
     ]
     unresolved_archival = [
-        result for result in link_results if result.unresolved and result.bucket == "archival"
+        result
+        for result in link_results
+        if result.unresolved and result.bucket == "archival"
     ]
 
-    entrypoint_missing_count = sum(1 for item in required_entrypoints if not item["exists"])
-    crosslink_missing_count = sum(1 for item in required_crosslinks if not item["present"])
+    entrypoint_missing_count = sum(
+        1 for item in required_entrypoints if not item["exists"]
+    )
+    crosslink_missing_count = sum(
+        1 for item in required_crosslinks if not item["present"]
+    )
 
     has_canonical_violations = (
-        entrypoint_missing_count > 0 or crosslink_missing_count > 0 or len(unresolved_canonical) > 0
+        entrypoint_missing_count > 0
+        or crosslink_missing_count > 0
+        or len(unresolved_canonical) > 0
     )
     has_reachability_violations = (
-        reachability["unreachable_count"] > 0 or reachability["weakly_connected_count"] > 0
+        reachability["unreachable_count"] > 0
+        or reachability["weakly_connected_count"] > 0
     )
     if fail_on_unreachable:
-        has_canonical_violations = has_canonical_violations or has_reachability_violations
+        has_canonical_violations = (
+            has_canonical_violations or has_reachability_violations
+        )
     status = "fail" if has_canonical_violations else "pass"
     exit_code = 1 if has_canonical_violations else 0
 
@@ -453,7 +517,9 @@ def run_audit(
             "canonical_unresolved_count": len(unresolved_canonical),
             "archival_unresolved_count": len(unresolved_archival),
             "reachability_unreachable_count": reachability["unreachable_count"],
-            "reachability_weakly_connected_count": reachability["weakly_connected_count"],
+            "reachability_weakly_connected_count": reachability[
+                "weakly_connected_count"
+            ],
             "fail_on_unreachable_enabled": fail_on_unreachable,
         },
         "reachability": reachability,
@@ -505,7 +571,9 @@ def main() -> int:
         json_path = output_dir / "docs-tree-audit.json"
         md_path = output_dir / "docs-tree-audit.md"
 
-        json_path.write_text(json.dumps(payload, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
+        json_path.write_text(
+            json.dumps(payload, indent=2, ensure_ascii=True) + "\n", encoding="utf-8"
+        )
         md_path.write_text(render_markdown_report(payload) + "\n", encoding="utf-8")
 
         print(f"docs_tree_audit_scope={args.scope}")
@@ -513,7 +581,9 @@ def main() -> int:
         print(f"docs_tree_audit_json={json_path}")
         print(f"docs_tree_audit_md={md_path}")
         return audit_exit_code
-    except Exception as exc:  # pragma: no cover - defensive path for CLI runtime failures
+    except (
+        Exception
+    ) as exc:  # pragma: no cover - defensive path for CLI runtime failures
         print(f"ERROR: docs tree audit runtime failure: {exc}", file=sys.stderr)
         return 2
 
