@@ -5,8 +5,7 @@ ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 RUN_ID="${RUN_ID:-$(date -u +%Y%m%dT%H%M%SZ)}"
 ARTIFACT_ROOT="${ARTIFACT_ROOT:-$ROOT_DIR/tests/results/security/public-leak-audit-$RUN_ID}"
 GITLEAKS_IMAGE="${GITLEAKS_IMAGE:-zricethezav/gitleaks:v8.18.2}"
-mkdir -p "$ROOT_DIR/tests/results/security"
-TMP_ARTIFACT_ROOT="$(mktemp -d "$ROOT_DIR/tests/results/security/.tmp-public-leak-audit-$RUN_ID.XXXXXX")"
+TMP_ARTIFACT_ROOT="$ROOT_DIR/tests/results/security/.tmp-public-leak-audit-$RUN_ID"
 
 CURRENT_TREE_REPORT="$ARTIFACT_ROOT/current-tree-gitleaks.json"
 HISTORY_REPORT="$ARTIFACT_ROOT/history-gitleaks.json"
@@ -19,6 +18,7 @@ TRACKED_ARTIFACTS_REPORT="$ARTIFACT_ROOT/tracked-runtime-artifacts.txt"
 HISTORY_ARTIFACTS_REPORT="$ARTIFACT_ROOT/history-runtime-artifacts.txt"
 
 mkdir -p "$ARTIFACT_ROOT"
+mkdir -p "$TMP_ARTIFACT_ROOT"
 trap 'rm -rf "$TMP_ARTIFACT_ROOT"' EXIT
 
 if ! command -v docker >/dev/null 2>&1; then
@@ -52,29 +52,39 @@ copy_report() {
 
 current_tree_rc=0
 history_rc=0
-hygiene_rc=0
+tracked_hygiene_rc=0
 history_privacy_rc=0
 history_message_rc=0
 
-if ! run_gitleaks "$CURRENT_TREE_TMP_REPORT" --source /repo --no-git; then
+if run_gitleaks "$CURRENT_TREE_TMP_REPORT" --source /repo --no-git; then
+  :
+else
   current_tree_rc=$?
 fi
 copy_report "$CURRENT_TREE_TMP_REPORT" "$CURRENT_TREE_REPORT"
 
-if ! run_gitleaks "$HISTORY_TMP_REPORT" --source /repo; then
+if run_gitleaks "$HISTORY_TMP_REPORT" --source /repo; then
+  :
+else
   history_rc=$?
 fi
 copy_report "$HISTORY_TMP_REPORT" "$HISTORY_REPORT"
 
-if ! python3 "$ROOT_DIR/scripts/security/validate_public_repo_hygiene.py" --format json --output "$TRACKED_HYGIENE_REPORT"; then
-  hygiene_rc=$?
+if python3 "$ROOT_DIR/scripts/security/validate_public_repo_hygiene.py" --format json --output "$TRACKED_HYGIENE_REPORT"; then
+  :
+else
+  tracked_hygiene_rc=$?
 fi
 
-if ! python3 "$ROOT_DIR/scripts/security/validate_public_repo_hygiene.py" --mode history-patches --format json --output "$PRIVACY_REPORT"; then
+if python3 "$ROOT_DIR/scripts/security/validate_public_repo_hygiene.py" --mode history-patches --format json --output "$PRIVACY_REPORT"; then
+  :
+else
   history_privacy_rc=$?
 fi
 
-if ! python3 "$ROOT_DIR/scripts/security/validate_public_repo_hygiene.py" --mode history-messages --format json --output "$MESSAGE_PRIVACY_REPORT"; then
+if python3 "$ROOT_DIR/scripts/security/validate_public_repo_hygiene.py" --mode history-messages --format json --output "$MESSAGE_PRIVACY_REPORT"; then
+  :
+else
   history_message_rc=$?
 fi
 
@@ -106,7 +116,6 @@ def _count_json_rows(path: Path) -> int:
     payload = json.loads(path.read_text(encoding="utf-8"))
     return len(payload) if isinstance(payload, list) else 0
 
-
 def _count_hygiene_findings(path: Path) -> int:
     if not path.exists():
         return 0
@@ -127,12 +136,12 @@ print(f"tracked_runtime_artifacts={_count_lines(tracked_artifacts_report)}")
 print(f"history_runtime_artifacts={_count_lines(history_artifacts_report)}")
 PY2
 
-if [[ "$current_tree_rc" -ne 0 || "$history_rc" -ne 0 || "$hygiene_rc" -ne 0 ]]; then
-  echo "Public leak audit failed: gitleaks or tracked hygiene validation found leaks." >&2
+if [[ "$current_tree_rc" -ne 0 || "$history_rc" -ne 0 ]]; then
+  echo "Public leak audit failed: gitleaks found leaks." >&2
   exit 1
 fi
 
-if [[ "$history_privacy_rc" -ne 0 || "$history_message_rc" -ne 0 || -s "$TRACKED_ARTIFACTS_REPORT" || -s "$HISTORY_ARTIFACTS_REPORT" ]]; then
+if [[ "$tracked_hygiene_rc" -ne 0 || "$history_privacy_rc" -ne 0 || "$history_message_rc" -ne 0 || -s "$TRACKED_ARTIFACTS_REPORT" || -s "$HISTORY_ARTIFACTS_REPORT" ]]; then
   echo "Public leak audit failed: private metadata or tracked runtime artifacts detected." >&2
   exit 1
 fi

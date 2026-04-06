@@ -7,6 +7,7 @@ import argparse
 import json
 import re
 import subprocess
+import sys
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
@@ -33,6 +34,9 @@ DEFAULT_HISTORY_PATCH_EXCLUDES = (
     ":(exclude)tests/backend/pytest/test_public_repo_hygiene_validator.py",
 )
 
+POSIX_PATH_COMPONENT = r"[^/\s)\]>\"']+"
+WINDOWS_PATH_COMPONENT = r"[^\\\s)\]>\"']+"
+
 FORBIDDEN_TRACKED_PATH_PREFIXES = (
     "backend/logs/",
     "frontend/.playwright-browsers/",
@@ -51,22 +55,18 @@ FORBIDDEN_TRACKED_PATHS = (
     "presentation.html",
 )
 
-POSIX_PATH_COMPONENT = r"[^/\s)\]>\"']+"
-WINDOWS_PATH_COMPONENT = r"[^\\\s)\]>\"']+"
-
 FORBIDDEN_CONTENT_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     (
         "absolute local file URI",
         re.compile(
-            rf"file:///(?:"
-            rf"(?:Users|home)/{POSIX_PATH_COMPONENT}(?:/{POSIX_PATH_COMPONENT})+"
-            rf"|[A-Za-z]:/Users/{POSIX_PATH_COMPONENT}(?:/{POSIX_PATH_COMPONENT})+"
-            rf")",
+            rf"file:///(?:(?:Users|home)/{POSIX_PATH_COMPONENT}(?:/{POSIX_PATH_COMPONENT})+|[A-Za-z]:/Users/{POSIX_PATH_COMPONENT}(?:/{POSIX_PATH_COMPONENT})+)"
         ),
     ),
     (
         "absolute POSIX user path",
-        re.compile(rf"(?<![A-Za-z0-9_])/(?:Users|home)/{POSIX_PATH_COMPONENT}(?:/{POSIX_PATH_COMPONENT})+"),
+        re.compile(
+            rf"(?<![A-Za-z0-9_])/(?:Users|home)/{POSIX_PATH_COMPONENT}(?:/{POSIX_PATH_COMPONENT})+"
+        ),
     ),
     (
         "absolute Windows user path",
@@ -112,7 +112,9 @@ def _run_git(*args: str) -> subprocess.CompletedProcess[str]:
 def tracked_files() -> list[Path]:
     result = _run_git("ls-files")
     if result.returncode != 0:
-        raise RuntimeError(f"git ls-files failed:\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}")
+        raise RuntimeError(
+            f"git ls-files failed:\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+        )
     return [Path(line) for line in result.stdout.splitlines() if line.strip()]
 
 
@@ -145,9 +147,13 @@ def _line_findings(
             span = match.span()
             if any(start <= span[0] and span[1] <= end for start, end in occupied):
                 continue
+
             trimmed_match = _trim_match(match.group(0))
-            if any(trimmed_match.startswith(prefix) for prefix in SAFE_CONTENT_PREFIXES):
+            if any(
+                trimmed_match.startswith(prefix) for prefix in SAFE_CONTENT_PREFIXES
+            ):
                 continue
+
             occupied.append(span)
             findings.append(
                 HygieneFinding(
@@ -238,7 +244,11 @@ def scan_history_patch_output(output: str) -> list[HygieneFinding]:
         findings.extend(
             _line_findings(
                 current_path,
-                finding_path=current_path.as_posix() if current_path is not None else "<history-patch>",
+                finding_path=(
+                    current_path.as_posix()
+                    if current_path is not None
+                    else "<history-patch>"
+                ),
                 line=line,
                 line_no=line_no,
                 commit=current_commit,
@@ -290,7 +300,9 @@ def scan_history_patches(path_excludes: tuple[str, ...]) -> list[HygieneFinding]
         *path_excludes,
     )
     if result.returncode != 0:
-        raise RuntimeError(f"git log patch scan failed:\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}")
+        raise RuntimeError(
+            f"git log patch scan failed:\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+        )
     return scan_history_patch_output(result.stdout)
 
 
@@ -301,12 +313,16 @@ def scan_history_messages() -> list[HygieneFinding]:
         f"--format={MESSAGE_COMMIT_PREFIX}%H%n%s%n%b%n{MESSAGE_END_MARKER}",
     )
     if result.returncode != 0:
-        raise RuntimeError(f"git log message scan failed:\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}")
+        raise RuntimeError(
+            f"git log message scan failed:\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+        )
     return scan_history_message_output(result.stdout)
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Validate public-repo hygiene and privacy leaks.")
+    parser = argparse.ArgumentParser(
+        description="Validate public-repo hygiene and privacy leaks."
+    )
     parser.add_argument(
         "--mode",
         choices=("tracked", "history-patches", "history-messages"),
@@ -319,8 +335,12 @@ def parse_args() -> argparse.Namespace:
         default=[],
         help="Additional git pathspec exclusion for history-patches mode.",
     )
-    parser.add_argument("--format", choices=("text", "json"), default="text", help="Output format.")
-    parser.add_argument("--output", default="", help="Optional output path for the report.")
+    parser.add_argument(
+        "--format", choices=("text", "json"), default="text", help="Output format."
+    )
+    parser.add_argument(
+        "--output", default="", help="Optional output path for the report."
+    )
     return parser.parse_args()
 
 
@@ -335,7 +355,9 @@ def render_text(findings: list[HygieneFinding]) -> str:
         line_part = f":{finding.line}" if finding.line is not None else ""
         commit_part = f" [{finding.commit[:12]}]" if finding.commit else ""
         match_part = f" -> {finding.match}" if finding.match else ""
-        lines.append(f"- {finding.reason}: {finding.path}{line_part}{commit_part}{match_part}")
+        lines.append(
+            f"- {finding.reason}: {finding.path}{line_part}{commit_part}{match_part}"
+        )
     return "\n".join(lines) + "\n"
 
 
@@ -351,15 +373,23 @@ def render_json(findings: list[HygieneFinding], *, mode: str) -> str:
 
 def main() -> int:
     args = parse_args()
-    if args.mode == "tracked":
-        findings = scan_repo()
-    elif args.mode == "history-patches":
-        path_excludes = DEFAULT_HISTORY_PATCH_EXCLUDES + tuple(args.path_exclude)
-        findings = scan_history_patches(path_excludes)
-    else:
-        findings = scan_history_messages()
+    try:
+        if args.mode == "tracked":
+            findings = scan_repo()
+        elif args.mode == "history-patches":
+            path_excludes = DEFAULT_HISTORY_PATCH_EXCLUDES + tuple(args.path_exclude)
+            findings = scan_history_patches(path_excludes)
+        else:
+            findings = scan_history_messages()
+    except RuntimeError as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
 
-    rendered = render_json(findings, mode=args.mode) if args.format == "json" else render_text(findings)
+    rendered = (
+        render_json(findings, mode=args.mode)
+        if args.format == "json"
+        else render_text(findings)
+    )
 
     if args.output:
         output_path = Path(args.output)

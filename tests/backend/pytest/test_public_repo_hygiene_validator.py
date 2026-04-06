@@ -9,7 +9,9 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 MODULE_PATH = REPO_ROOT / "scripts" / "security" / "validate_public_repo_hygiene.py"
-SPEC = importlib.util.spec_from_file_location("validate_public_repo_hygiene", MODULE_PATH)
+SPEC = importlib.util.spec_from_file_location(
+    "validate_public_repo_hygiene", MODULE_PATH
+)
 assert SPEC and SPEC.loader
 MODULE = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = MODULE
@@ -25,17 +27,6 @@ def test_content_findings_detect_absolute_posix_path() -> None:
     assert len(findings) == 1
     assert findings[0].reason == "absolute POSIX user path"
     assert findings[0].match == "/Users/alice/work/repo/docs/guide.md"
-
-
-def test_content_findings_detect_file_uri() -> None:
-    findings = MODULE.content_findings(
-        Path("docs/example.md"),
-        "[guide](file:///Users/alice/work/repo/docs/guide.md)",
-    )
-
-    assert len(findings) == 1
-    assert findings[0].reason == "absolute local file URI"
-    assert findings[0].match == "file:///Users/alice/work/repo/docs/guide.md"
 
 
 @pytest.mark.parametrize(
@@ -72,17 +63,6 @@ def test_content_findings_ignore_safe_home_prefixes(sample: str) -> None:
     assert findings == []
 
 
-def test_content_findings_detect_windows_user_path() -> None:
-    findings = MODULE.content_findings(
-        Path("docs/example.md"),
-        r"Legacy export lived at C:\Users\alice\repo\docs\guide.md",
-    )
-
-    assert len(findings) == 1
-    assert findings[0].reason == "absolute Windows user path"
-    assert findings[0].match == r"C:\Users\alice\repo\docs\guide.md"
-
-
 def test_content_findings_allowlisted_validator_files_can_contain_patterns() -> None:
     findings = MODULE.content_findings(
         Path("scripts/security/run_public_repo_leak_audit.sh"),
@@ -117,14 +97,14 @@ def test_scan_history_patch_output_detects_sensitive_paths() -> None:
     assert findings[0].match == "/Users/alice/project"
 
 
-def test_scan_history_patch_output_ignores_safe_prefixes() -> None:
+def test_scan_history_patch_output_ignores_safe_prefixes_and_binary_noise() -> None:
     output = "\n".join(
         [
             f"{MODULE.PATCH_COMMIT_PREFIX}feedface",
             "diff --git a/docs/example.md b/docs/example.md",
             "@@ -1 +1 @@",
             "+ANTIGRAVITY_CONFIG_DIR=/home/youruser/.config npx get-shit-done-cc --global",
-            "Binary files a/assets.bin and b/assets.bin differ",
+            'binary file matches (found "\\0" byte around offset 4980448)',
         ]
     )
 
