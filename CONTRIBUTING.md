@@ -14,11 +14,13 @@ RiskHub accepts public contributions through forks, issues, and pull requests.
 Start from the canonical local workflows:
 
 ```bash
-./scripts/compose.sh up
-./scripts/dev.sh
+./scripts/install.sh demo
+./scripts/install.sh dev
 ```
 
-For onboarding, local runtime expectations, and demo-auth behavior, read [docs/development/README.md](./docs/development/README.md).
+`./scripts/install.sh` is the supported public shell surface for local startup and lifecycle flows. `./scripts/compose.sh` and `./scripts/dev.sh` remain available for advanced/manual workflows.
+
+For onboarding, local runtime expectations, and demo-auth behavior, read [docs/development/README.md](./docs/development/README.md). For local hook setup and security checks, use [docs/security/SECURITY.md](./docs/security/SECURITY.md).
 
 ## Branch and PR Workflow
 

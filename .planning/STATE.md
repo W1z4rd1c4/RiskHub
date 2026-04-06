@@ -1052,6 +1052,10 @@
 - Executed Phase `200` plan `200-08` export/reporting closeout with minimal backend naming fix (audit linked-risk labels now prefer `risk.name`), targeted backend/frontend verification only (`20 + 3 + 5 backend tests`, `10 + 9 Playwright tests`, all green), and created summary evidence at `.planning/phases/200-naming-enforcement/200-08-SUMMARY.md` (2026-02-11).
 - Reopened Phase `15` for settings documentation remediation, added research + execution plan `15-06` for UX simplification, tags, and strict audience separation (2026-02-16).
 - Executed Phase `15` plan `15-06` end-to-end with strict admin/user docs segmentation, tag-based navigation UX, and passing targeted backend/frontend verification; Phase `15` now complete (`6/6`) (2026-02-16).
+- Finalized Phase `500` / `501` closeout reconciliation for the wrapper-first installer control plane, production `ALLOWED_HOSTS` requirements, CI gate notes, and operator deployment parity already reflected in roadmap follow-up sections (2026-04-05).
+- Executed approval-auth and SSO challenge hardening: delete-request authorization now mirrors underlying delete routes, backend-issued SSO challenge flow is mandatory for exchange, and production/operator docs were verified in sync (2026-04-06).
+- Executed ownership reference validation hardening across risk/control/KRI create-update and approval-apply paths, with focused backend regression coverage for nonexistent and inactive assignees (2026-04-06).
+- Added explicit reporting-owner `risks:read` regression coverage proving reporting ownership does not bypass base KRI/risk read permission gates (`4` focused tests; ownership validation suite green) (2026-04-06).
 
 ### Next Step
 
@@ -1059,4 +1063,4 @@
 
 ---
 
-*Updated: 2026-02-16*
+*Updated: 2026-04-06*
