@@ -5,6 +5,7 @@ from sqlalchemy.orm import selectinload
 
 from app.api.v1.endpoints._monitoring_response import load_monitoring_response_context, serialize_control_read
 from app.core.datetime_utils import utc_now
+from app.core.owner_reference_validation import validate_active_owner_reference
 from app.core.activity_logger import log_activity
 from app.core.permissions import check_department_access
 from app.core.security import require_permission
@@ -25,6 +26,11 @@ async def create_control(
     """Create a new control. Requires controls:write permission."""
     # Verify department access
     check_department_access(control_data.department_id, current_user)
+    await validate_active_owner_reference(
+        db,
+        user_id=control_data.control_owner_id,
+        label="Control owner",
+    )
 
     control = Control(
         name=control_data.name,

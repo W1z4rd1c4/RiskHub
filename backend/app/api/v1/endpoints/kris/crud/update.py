@@ -6,6 +6,7 @@ from sqlalchemy.orm import joinedload, selectinload
 from app.api.v1.endpoints._monitoring_response import load_monitoring_response_context, serialize_kri_response
 from app.core.datetime_utils import utc_now
 from app.core.activity_logger import build_change_set, log_activity
+from app.core.owner_reference_validation import validate_active_owner_reference
 from app.core.permissions import can_read_vendor, check_department_access
 from app.core.security import check_permission, require_permission
 from app.db.session import get_db
@@ -94,6 +95,12 @@ async def update_kri(
     )
     if existing_delete.scalar_one_or_none():
         raise HTTPException(status_code=409, detail="Cannot update KRI while deletion is pending approval")
+    if "reporting_owner_id" in update_data:
+        await validate_active_owner_reference(
+            db,
+            user_id=update_data["reporting_owner_id"],
+            label="Reporting owner",
+        )
 
     # ALL KRI edits by non-privileged users require approval
     if not can_resolve_approvals(current_user):

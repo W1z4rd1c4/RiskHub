@@ -7,6 +7,7 @@ from app.api import deps
 from app.api.v1.endpoints._monitoring_response import load_monitoring_response_context, serialize_risk_read
 from app.core.datetime_utils import utc_now
 from app.core.activity_logger import build_change_set, log_activity
+from app.core.owner_reference_validation import validate_active_owner_reference
 from app.core.permissions import check_department_access
 from app.core.security import check_permission
 from app.db.session import get_db
@@ -209,6 +210,12 @@ async def update_risk(
     update_data = risk_data.model_dump(exclude_unset=True)
     await _validate_risk_update_payload(db, risk, update_data)
     await _assert_no_pending_risk_delete(db, risk.id)
+    if "owner_id" in update_data:
+        await validate_active_owner_reference(
+            db,
+            user_id=update_data["owner_id"],
+            label="Risk owner",
+        )
 
     approval_response = await _create_risk_edit_approval_if_required(
         db,

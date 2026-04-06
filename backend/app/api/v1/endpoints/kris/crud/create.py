@@ -6,6 +6,7 @@ from sqlalchemy.orm import joinedload, selectinload
 from app.api.v1.endpoints._monitoring_response import load_monitoring_response_context, serialize_kri_response
 from app.core.datetime_utils import utc_now
 from app.core.activity_logger import log_activity
+from app.core.owner_reference_validation import validate_active_owner_reference
 from app.core.permissions import can_read_vendor, check_department_access
 from app.core.security import check_permission, require_permission
 from app.db.session import get_db
@@ -43,6 +44,11 @@ async def create_kri(
     # Validate limits
     if data.lower_limit >= data.upper_limit:
         raise HTTPException(status_code=400, detail="lower_limit must be less than upper_limit")
+    await validate_active_owner_reference(
+        db,
+        user_id=data.reporting_owner_id,
+        label="Reporting owner",
+    )
 
     await validate_assignable_vendors(
         db,

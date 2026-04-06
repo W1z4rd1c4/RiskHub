@@ -4,6 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import activity_logger
+from app.core.owner_reference_validation import validate_active_owner_reference
 from app.models import ApprovalRequest, ApprovalResourceType, Control, Risk, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 
@@ -38,6 +39,12 @@ async def _apply_edit_risk_control(
                 if field not in allowed_fields:
                     rejected_fields.append(field)
                     continue
+                if field == "owner_id":
+                    await validate_active_owner_reference(
+                        db,
+                        user_id=vals.get("new"),
+                        label="Risk owner",
+                    )
                 if hasattr(risk, field):
                     setattr(risk, field, vals.get("new"))
                     applied_changes[field] = vals
@@ -87,6 +94,12 @@ async def _apply_edit_risk_control(
                 if field not in allowed_fields:
                     rejected_fields.append(field)
                     continue
+                if field == "control_owner_id":
+                    await validate_active_owner_reference(
+                        db,
+                        user_id=vals.get("new"),
+                        label="Control owner",
+                    )
                 if hasattr(control, field):
                     setattr(control, field, vals.get("new"))
                     applied_changes[field] = vals
@@ -111,4 +124,3 @@ async def _apply_edit_risk_control(
                     changes=applied_changes,
                     description=f"Updated via approval #{approval.id}",
                 )
-

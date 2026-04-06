@@ -5,7 +5,7 @@ from datetime import UTC, date, datetime
 
 import pytest
 from httpx import AsyncClient
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import (
@@ -18,12 +18,17 @@ from app.models import (
     Permission,
     Role,
     RolePermission,
+    OutboxEvent,
     User,
 )
 from app.models.key_risk_indicator import KRIFrequency
 from app.models.kri_history import KRIValueHistory
 from app.models.user import AccessScope
 from app.services.kri_history_service import KRIHistoryService
+
+
+async def _count_outbox_events(db_session: AsyncSession) -> int:
+    return int(await db_session.scalar(select(func.count()).select_from(OutboxEvent)) or 0)
 
 
 @pytest.mark.asyncio
@@ -200,6 +205,231 @@ async def test_approve_sanitizes_500_detail_on_commit_failure(
     detail = response.json()["detail"]
     assert detail == "Failed to process approval request"
     assert "db exploded" not in detail.lower()
+
+
+@pytest.mark.asyncio
+async def test_approve_risk_owner_change_rejects_stale_inactive_target_and_rolls_back(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    test_risk,
+    test_role_employee: Role,
+    test_user_employee: User,
+):
+    stale_owner = User(
+        name="Stale Risk Owner",
+        email="stale-risk-owner@example.com",
+        role_id=test_role_employee.id,
+        department_id=test_risk.department_id,
+        is_active=False,
+        access_scope=AccessScope.DEPARTMENT,
+    )
+    db_session.add(stale_owner)
+    await db_session.commit()
+    await db_session.refresh(stale_owner)
+
+    original_owner_id = test_risk.owner_id
+    approval = ApprovalRequest(
+        resource_type=ApprovalResourceType.RISK,
+        resource_id=test_risk.id,
+        resource_name=test_risk.name,
+        requested_by_id=test_user_employee.id,
+        reason="Stale owner target",
+        action_type=ApprovalActionType.EDIT,
+        pending_changes={"owner_id": {"old": original_owner_id, "new": stale_owner.id}},
+        status=ApprovalStatus.PENDING,
+    )
+    db_session.add(approval)
+    await db_session.commit()
+
+    response = await auth_client.post(
+        f"/api/v1/approvals/{approval.id}/approve",
+        json={"resolution_notes": "Approve stale owner change"},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Risk owner is inactive"
+    await db_session.refresh(approval)
+    await db_session.refresh(test_risk)
+    assert approval.status == ApprovalStatus.PENDING
+    assert approval.resolved_by_id is None
+    assert approval.resolved_at is None
+    assert test_risk.owner_id == original_owner_id
+    assert await _count_outbox_events(db_session) == 0
+
+
+@pytest.mark.asyncio
+async def test_approve_control_owner_change_rejects_stale_inactive_target_and_rolls_back(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    test_department,
+    test_role_employee: Role,
+    test_user_employee: User,
+):
+    control = Control(
+        name="Approval Control Owner Rollback",
+        description="Control for stale owner approval test",
+        department_id=test_department.id,
+        control_owner_id=test_user_employee.id,
+        control_form="manual",
+        frequency="monthly",
+        status="active",
+    )
+    stale_owner = User(
+        name="Stale Control Owner",
+        email="stale-control-owner@example.com",
+        role_id=test_role_employee.id,
+        department_id=test_department.id,
+        is_active=False,
+        access_scope=AccessScope.DEPARTMENT,
+    )
+    db_session.add_all([control, stale_owner])
+    await db_session.commit()
+    await db_session.refresh(control)
+    await db_session.refresh(stale_owner)
+
+    original_owner_id = control.control_owner_id
+    approval = ApprovalRequest(
+        resource_type=ApprovalResourceType.CONTROL,
+        resource_id=control.id,
+        resource_name=control.name,
+        requested_by_id=test_user_employee.id,
+        reason="Stale control owner target",
+        action_type=ApprovalActionType.EDIT,
+        pending_changes={"control_owner_id": {"old": original_owner_id, "new": stale_owner.id}},
+        status=ApprovalStatus.PENDING,
+    )
+    db_session.add(approval)
+    await db_session.commit()
+
+    response = await auth_client.post(
+        f"/api/v1/approvals/{approval.id}/approve",
+        json={"resolution_notes": "Approve stale control owner change"},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Control owner is inactive"
+    await db_session.refresh(approval)
+    await db_session.refresh(control)
+    assert approval.status == ApprovalStatus.PENDING
+    assert approval.resolved_by_id is None
+    assert approval.resolved_at is None
+    assert control.control_owner_id == original_owner_id
+    assert await _count_outbox_events(db_session) == 0
+
+
+@pytest.mark.asyncio
+async def test_approve_kri_reporting_owner_change_rejects_stale_inactive_target_and_rolls_back(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    test_risk,
+    test_role_employee: Role,
+    test_user_employee: User,
+):
+    kri = KeyRiskIndicator(
+        risk_id=test_risk.id,
+        metric_name="Approval KRI Owner Rollback",
+        description="KRI for stale owner approval test",
+        current_value=20.0,
+        lower_limit=0.0,
+        upper_limit=100.0,
+        unit="%",
+        frequency=KRIFrequency.monthly.value,
+        reporting_owner_id=test_user_employee.id,
+    )
+    stale_owner = User(
+        name="Stale Reporting Owner",
+        email="stale-reporting-owner@example.com",
+        role_id=test_role_employee.id,
+        department_id=test_risk.department_id,
+        is_active=False,
+        access_scope=AccessScope.DEPARTMENT,
+    )
+    db_session.add_all([kri, stale_owner])
+    await db_session.commit()
+    await db_session.refresh(kri)
+    await db_session.refresh(stale_owner)
+
+    original_owner_id = kri.reporting_owner_id
+    approval = ApprovalRequest(
+        resource_type=ApprovalResourceType.KRI,
+        resource_id=kri.id,
+        resource_name=kri.metric_name,
+        requested_by_id=test_user_employee.id,
+        reason="Stale reporting owner target",
+        action_type=ApprovalActionType.EDIT,
+        pending_changes={"reporting_owner_id": {"old": original_owner_id, "new": stale_owner.id}},
+        status=ApprovalStatus.PENDING,
+    )
+    db_session.add(approval)
+    await db_session.commit()
+
+    response = await auth_client.post(
+        f"/api/v1/approvals/{approval.id}/approve",
+        json={"resolution_notes": "Approve stale reporting owner change"},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Reporting owner is inactive"
+    await db_session.refresh(approval)
+    await db_session.refresh(kri)
+    assert approval.status == ApprovalStatus.PENDING
+    assert approval.resolved_by_id is None
+    assert approval.resolved_at is None
+    assert kri.reporting_owner_id == original_owner_id
+    assert await _count_outbox_events(db_session) == 0
+
+
+@pytest.mark.asyncio
+async def test_approve_risk_owner_change_rejects_deleted_target_and_rolls_back(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    test_risk,
+    test_role_employee: Role,
+    test_user_employee: User,
+):
+    deleted_owner = User(
+        name="Deleted Risk Owner",
+        email="deleted-risk-owner@example.com",
+        role_id=test_role_employee.id,
+        department_id=test_risk.department_id,
+        is_active=True,
+        access_scope=AccessScope.DEPARTMENT,
+    )
+    db_session.add(deleted_owner)
+    await db_session.commit()
+    await db_session.refresh(deleted_owner)
+
+    original_owner_id = test_risk.owner_id
+    approval = ApprovalRequest(
+        resource_type=ApprovalResourceType.RISK,
+        resource_id=test_risk.id,
+        resource_name=test_risk.name,
+        requested_by_id=test_user_employee.id,
+        reason="Deleted owner target",
+        action_type=ApprovalActionType.EDIT,
+        pending_changes={"owner_id": {"old": original_owner_id, "new": deleted_owner.id}},
+        status=ApprovalStatus.PENDING,
+    )
+    db_session.add(approval)
+    await db_session.commit()
+
+    await db_session.delete(deleted_owner)
+    await db_session.commit()
+
+    response = await auth_client.post(
+        f"/api/v1/approvals/{approval.id}/approve",
+        json={"resolution_notes": "Approve deleted owner change"},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Risk owner not found"
+    await db_session.refresh(approval)
+    await db_session.refresh(test_risk)
+    assert approval.status == ApprovalStatus.PENDING
+    assert approval.resolved_by_id is None
+    assert approval.resolved_at is None
+    assert test_risk.owner_id == original_owner_id
+    assert await _count_outbox_events(db_session) == 0
 
 
 @pytest.mark.asyncio

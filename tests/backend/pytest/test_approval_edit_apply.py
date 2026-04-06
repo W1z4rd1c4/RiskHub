@@ -4,9 +4,13 @@ Ensures that approval-applied edits produce the same derived fields and
 audit attribution as direct updates:
 - Risk: scores are recomputed when probability/impact changes
 - Control: updated_by_id is set when fields are modified
+- Owner reassignment targets are revalidated when approvals are applied
 """
 
 import pytest
+from fastapi import HTTPException
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from app.models import (
     ApprovalActionType,
@@ -14,10 +18,12 @@ from app.models import (
     ApprovalResourceType,
     ApprovalStatus,
     Control,
+    KeyRiskIndicator,
     Risk,
+    User,
 )
 from app.models.risk import RiskStatus
-from app.services.approval_execution_service import _apply_edit_risk_control
+from app.services.approval_execution_service import _apply_edit_risk_control, _apply_kri_generic_edit
 
 
 @pytest.mark.asyncio
@@ -211,3 +217,216 @@ async def test_approval_edit_risk_no_score_change_when_no_probability_impact(
     # Scores should remain unchanged
     assert risk.gross_score == 9
     assert risk.net_score == 4
+
+
+@pytest.mark.asyncio
+async def test_approval_edit_risk_rejects_inactive_owner_target(
+    db_session,
+    test_department,
+    test_role_employee,
+    test_user_cro,
+):
+    """Risk approval edit rejects inactive owner targets at apply time."""
+    risk = Risk(
+        name="Risk Owner Revalidation",
+        risk_id_code="TST-004",
+        process="Test Process",
+        risk_type="operational",
+        description="Owner revalidation test",
+        department_id=test_department.id,
+        owner_id=test_user_cro.id,
+        gross_probability=2,
+        gross_impact=2,
+        gross_score=4,
+        net_probability=1,
+        net_impact=1,
+        net_score=1,
+        status=RiskStatus.active.value,
+    )
+    inactive_owner = User(
+        name="Inactive Risk Owner",
+        email="inactive-risk-owner@example.com",
+        role_id=test_role_employee.id,
+        department_id=test_department.id,
+        is_active=False,
+    )
+    db_session.add_all([risk, inactive_owner])
+    await db_session.commit()
+    await db_session.refresh(risk)
+    await db_session.refresh(inactive_owner)
+
+    approval = ApprovalRequest(
+        resource_type=ApprovalResourceType.RISK,
+        resource_id=risk.id,
+        resource_name=risk.name,
+        action_type=ApprovalActionType.EDIT,
+        requested_by_id=test_user_cro.id,
+        reason="Testing inactive owner validation",
+        status=ApprovalStatus.APPROVED,
+        pending_changes={"owner_id": {"old": risk.owner_id, "new": inactive_owner.id}},
+    )
+    db_session.add(approval)
+    await db_session.commit()
+
+    with pytest.raises(HTTPException) as exc_info:
+        await _apply_edit_risk_control(db_session, approval, test_user_cro)
+
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.detail == "Risk owner is inactive"
+    await db_session.refresh(risk)
+    assert risk.owner_id == test_user_cro.id
+
+
+@pytest.mark.asyncio
+async def test_approval_edit_risk_rejects_missing_owner_target(
+    db_session,
+    test_department,
+    test_user_cro,
+):
+    """Risk approval edit rejects missing owner targets at apply time."""
+    risk = Risk(
+        name="Risk Missing Owner Revalidation",
+        risk_id_code="TST-005",
+        process="Test Process",
+        risk_type="operational",
+        description="Owner revalidation test",
+        department_id=test_department.id,
+        owner_id=test_user_cro.id,
+        gross_probability=2,
+        gross_impact=2,
+        gross_score=4,
+        net_probability=1,
+        net_impact=1,
+        net_score=1,
+        status=RiskStatus.active.value,
+    )
+    db_session.add(risk)
+    await db_session.commit()
+    await db_session.refresh(risk)
+
+    approval = ApprovalRequest(
+        resource_type=ApprovalResourceType.RISK,
+        resource_id=risk.id,
+        resource_name=risk.name,
+        action_type=ApprovalActionType.EDIT,
+        requested_by_id=test_user_cro.id,
+        reason="Testing missing owner validation",
+        status=ApprovalStatus.APPROVED,
+        pending_changes={"owner_id": {"old": risk.owner_id, "new": 999999}},
+    )
+    db_session.add(approval)
+    await db_session.commit()
+
+    with pytest.raises(HTTPException) as exc_info:
+        await _apply_edit_risk_control(db_session, approval, test_user_cro)
+
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.detail == "Risk owner not found"
+    await db_session.refresh(risk)
+    assert risk.owner_id == test_user_cro.id
+
+
+@pytest.mark.asyncio
+async def test_approval_edit_control_rejects_inactive_owner_target(
+    db_session,
+    test_department,
+    test_role_employee,
+    test_user_cro,
+    test_user_risk_manager,
+):
+    """Control approval edit rejects inactive owner targets at apply time."""
+    control = Control(
+        name="Control Owner Revalidation",
+        description="Original description",
+        department_id=test_department.id,
+        control_owner_id=test_user_risk_manager.id,
+        status="active",
+        control_form="manual",
+        frequency="monthly",
+    )
+    inactive_owner = User(
+        name="Inactive Control Owner",
+        email="inactive-control-owner@example.com",
+        role_id=test_role_employee.id,
+        department_id=test_department.id,
+        is_active=False,
+    )
+    db_session.add_all([control, inactive_owner])
+    await db_session.commit()
+    await db_session.refresh(control)
+    await db_session.refresh(inactive_owner)
+
+    approval = ApprovalRequest(
+        resource_type=ApprovalResourceType.CONTROL,
+        resource_id=control.id,
+        resource_name=control.name,
+        action_type=ApprovalActionType.EDIT,
+        requested_by_id=test_user_risk_manager.id,
+        reason="Testing inactive control owner validation",
+        status=ApprovalStatus.APPROVED,
+        pending_changes={"control_owner_id": {"old": control.control_owner_id, "new": inactive_owner.id}},
+    )
+    db_session.add(approval)
+    await db_session.commit()
+
+    with pytest.raises(HTTPException) as exc_info:
+        await _apply_edit_risk_control(db_session, approval, test_user_cro)
+
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.detail == "Control owner is inactive"
+    await db_session.refresh(control)
+    assert control.control_owner_id == test_user_risk_manager.id
+
+
+@pytest.mark.asyncio
+async def test_approval_edit_kri_rejects_inactive_reporting_owner_target(
+    db_session,
+    test_department,
+    test_role_employee,
+    test_user_cro,
+    test_risk,
+):
+    """KRI approval edit rejects inactive reporting owner targets at apply time."""
+    kri = KeyRiskIndicator(
+        risk_id=test_risk.id,
+        metric_name="KRI Owner Revalidation",
+        description="Reporting owner revalidation test",
+        current_value=10.0,
+        lower_limit=0.0,
+        upper_limit=100.0,
+        unit="%",
+        frequency="monthly",
+        reporting_owner_id=test_user_cro.id,
+    )
+    inactive_owner = User(
+        name="Inactive Reporting Owner",
+        email="inactive-reporting-owner@example.com",
+        role_id=test_role_employee.id,
+        department_id=test_department.id,
+        is_active=False,
+    )
+    db_session.add_all([kri, inactive_owner])
+    await db_session.commit()
+    await db_session.refresh(inactive_owner)
+    kri = (
+        await db_session.execute(
+            select(KeyRiskIndicator)
+            .options(selectinload(KeyRiskIndicator.vendor_links))
+            .where(KeyRiskIndicator.id == kri.id)
+        )
+    ).scalar_one()
+
+    with pytest.raises(HTTPException) as exc_info:
+        await _apply_kri_generic_edit(
+            db_session,
+            kri,
+            {"reporting_owner_id": {"old": kri.reporting_owner_id, "new": inactive_owner.id}},
+            test_user_cro,
+            999,
+            test_department.id,
+        )
+
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.detail == "Reporting owner is inactive"
+    await db_session.refresh(kri)
+    assert kri.reporting_owner_id == test_user_cro.id

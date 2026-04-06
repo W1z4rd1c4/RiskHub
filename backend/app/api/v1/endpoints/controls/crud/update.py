@@ -7,6 +7,7 @@ from app.api import deps
 from app.api.v1.endpoints._monitoring_response import load_monitoring_response_context, serialize_control_read
 from app.core.datetime_utils import utc_now
 from app.core.activity_logger import build_change_set, log_activity
+from app.core.owner_reference_validation import validate_active_owner_reference
 from app.core.permissions import check_department_access, is_control_owner
 from app.core.security import check_permission
 from app.db.session import get_db
@@ -197,6 +198,12 @@ async def update_control(
     )
     update_data = control_data.model_dump(exclude_unset=True)
     await _assert_no_pending_control_delete(db, control.id)
+    if "control_owner_id" in update_data:
+        await validate_active_owner_reference(
+            db,
+            user_id=update_data["control_owner_id"],
+            label="Control owner",
+        )
 
     approval_response = await _create_control_edit_approval_if_required(
         db,

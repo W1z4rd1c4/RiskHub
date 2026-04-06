@@ -70,14 +70,14 @@ async def approve_request(
 
     # 4) Apply side effects if approved
     if should_apply_changes:
-        await apply_side_effects(db, approval, current_user)
-
-        # Log approval APPROVE action
-        if approval.status == ApprovalStatus.APPROVED:
-            await log_approval_approve(db, approval, current_user, previous_status)
-
-        # Commit changes
         try:
+            await apply_side_effects(db, approval, current_user)
+
+            # Log approval APPROVE action
+            if approval.status == ApprovalStatus.APPROVED:
+                await log_approval_approve(db, approval, current_user, previous_status)
+
+            # Commit changes
             logger.info("Flushing and committing changes...")
             await db.flush()
             await OutboxService.enqueue(
@@ -90,6 +90,11 @@ async def approve_request(
             )
             await db.commit()
             logger.info("Commit successful")
+        except HTTPException as exc:
+            await db.rollback()
+            if exc.status_code == 400:
+                raise
+            raise
         except Exception:
             logger.exception("Error applying approval %s", approval_id)
             await db.rollback()

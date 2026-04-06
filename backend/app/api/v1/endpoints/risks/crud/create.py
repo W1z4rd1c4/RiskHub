@@ -7,6 +7,7 @@ from sqlalchemy.orm import selectinload
 from app.api.v1.endpoints._monitoring_response import load_monitoring_response_context, serialize_risk_read
 from app.core.datetime_utils import utc_now
 from app.core.activity_logger import log_activity
+from app.core.owner_reference_validation import validate_active_owner_reference
 from app.core.permissions import check_department_access
 from app.core.security import require_permission
 from app.db.session import get_db
@@ -31,6 +32,11 @@ async def create_risk(
 
     # Validate risk type against dynamic configuration
     await validate_risk_type(db, risk_data.risk_type)
+    await validate_active_owner_reference(
+        db,
+        user_id=risk_data.owner_id,
+        label="Risk owner",
+    )
 
     # Prepare for atomic retry pattern
     risk_id_code = risk_data.risk_id_code

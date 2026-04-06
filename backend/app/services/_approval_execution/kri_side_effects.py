@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core import activity_logger
+from app.core.owner_reference_validation import validate_active_owner_reference
 from app.models import ApprovalRequest, KeyRiskIndicator, User, VendorKRILink
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.services.kri_vendor_assignment import assign_vendors_to_kri, ensure_vendors_exist, normalize_vendor_ids
@@ -248,6 +249,12 @@ async def _apply_kri_generic_edit(
         if mapped_field not in allowed_fields:
             rejected_fields.append(field)
             continue
+        if mapped_field == "reporting_owner_id":
+            await validate_active_owner_reference(
+                db,
+                user_id=vals.get("new"),
+                label="Reporting owner",
+            )
         if hasattr(kri, mapped_field):
             setattr(kri, mapped_field, vals.get("new"))
             applied_changes[mapped_field] = {
