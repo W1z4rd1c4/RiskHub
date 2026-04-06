@@ -498,11 +498,17 @@ async def test_activity_log_search_in_changes_and_default_window(
     db_session.add(old_entry)
     await db_session.commit()
 
-    response = await client_cro.get("/api/v1/activity-log", params={"search": "search-needle"})
+    response = await client_cro.get(
+        "/api/v1/activity-log", params={"search": "search-needle"}
+    )
     assert response.status_code == 200
-    assert any(item["entity_name"] == "Recent Entry" for item in response.json()["items"])
+    assert any(
+        item["entity_name"] == "Recent Entry" for item in response.json()["items"]
+    )
 
-    response = await client_cro.get("/api/v1/activity-log", params={"search": "ancient-needle"})
+    response = await client_cro.get(
+        "/api/v1/activity-log", params={"search": "ancient-needle"}
+    )
     assert response.status_code == 200
     assert all(item["entity_name"] != "Old Entry" for item in response.json()["items"])
 
@@ -558,7 +564,9 @@ async def test_activity_log_guardrails(db_session):
 
 
 @pytest.mark.asyncio
-async def test_activity_log_redacts_sensitive_and_unknown_fields_and_keeps_safe_fields(db_session):
+async def test_activity_log_redacts_sensitive_and_unknown_fields_and_keeps_safe_fields(
+    db_session,
+):
     await log_activity(
         db_session,
         entity_type=ActivityEntityType.USER,
@@ -581,7 +589,9 @@ async def test_activity_log_redacts_sensitive_and_unknown_fields_and_keeps_safe_
     )
     await db_session.commit()
 
-    result = await db_session.execute(select(ActivityLog).where(ActivityLog.entity_id == 40))
+    result = await db_session.execute(
+        select(ActivityLog).where(ActivityLog.entity_id == 40)
+    )
     entry = result.scalars().first()
     assert entry is not None
     assert entry.changes["password"]["new"] == "[REDACTED]"
@@ -600,7 +610,9 @@ async def test_activity_log_redacts_sensitive_and_unknown_fields_and_keeps_safe_
 
 
 @pytest.mark.asyncio
-async def test_activity_log_uses_identical_sanitized_changes_for_db_and_siem(db_session, monkeypatch):
+async def test_activity_log_uses_identical_sanitized_changes_for_db_and_siem(
+    db_session, monkeypatch
+):
     emitted: dict[str, object] = {}
 
     def capture(event: str, **kwargs: object) -> None:
@@ -626,7 +638,9 @@ async def test_activity_log_uses_identical_sanitized_changes_for_db_and_siem(db_
     )
     await db_session.commit()
 
-    result = await db_session.execute(select(ActivityLog).where(ActivityLog.entity_id == 41))
+    result = await db_session.execute(
+        select(ActivityLog).where(ActivityLog.entity_id == 41)
+    )
     entry = result.scalars().first()
     assert entry is not None
     assert entry.changes["last_error"]["new"] == "[REDACTED]"
@@ -685,7 +699,9 @@ async def test_activity_log_is_append_only(db_session):
     )
     await db_session.commit()
 
-    result = await db_session.execute(select(ActivityLog).where(ActivityLog.entity_id == 30))
+    result = await db_session.execute(
+        select(ActivityLog).where(ActivityLog.entity_id == 30)
+    )
     entry = result.scalars().first()
     assert entry is not None
 
@@ -712,7 +728,9 @@ async def test_activity_log_department_scoping(db_session):
     role = Role(name="dept_head", display_name="Dept Head", description="Dept Head")
     db_session.add(role)
     await db_session.commit()
-    perm = Permission(resource="activity_log", action="read", description="Read activity log")
+    perm = Permission(
+        resource="activity_log", action="read", description="Read activity log"
+    )
     db_session.add(perm)
     await db_session.commit()
     db_session.add(RolePermission(role_id=role.id, permission_id=perm.id))
@@ -731,7 +749,9 @@ async def test_activity_log_department_scoping(db_session):
     result = await db_session.execute(
         select(User)
         .options(
-            selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission),
+            selectinload(User.role)
+            .selectinload(Role.permissions)
+            .selectinload(RolePermission.permission),
             selectinload(User.department),
         )
         .where(User.id == scoped_user.id)
@@ -774,7 +794,9 @@ async def test_activity_log_department_scoping(db_session):
 
     transport = ASGITransport(app=app)
     try:
-        async with AsyncClient(transport=transport, base_url="http://test") as scoped_client:
+        async with AsyncClient(
+            transport=transport, base_url="http://test"
+        ) as scoped_client:
             response = await scoped_client.get("/api/v1/activity-log")
             assert response.status_code == 200
             items = response.json()["items"]
@@ -800,4 +822,7 @@ async def test_platform_admin_is_denied_business_activity_log(
     response = await client_platform_admin.get(path)
 
     assert response.status_code == 403
-    assert response.json()["detail"] == "Platform admins cannot access the business Activity Log"
+    assert (
+        response.json()["detail"]
+        == "Platform admins cannot access the business Activity Log"
+    )

@@ -4,6 +4,9 @@
 # Install: pip install pre-commit && pre-commit install
 # Run manually: pre-commit run --all-files
 
+default_language_version:
+  python: python3.13
+
 repos:
   # General hooks
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -23,17 +26,18 @@ repos:
     rev: 24.4.2
     hooks:
       - id: black
-        language_version: python3.12
 
   # Python linting
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.6.9
     hooks:
       - id: ruff
-        args: [--config=backend/ruff.toml, backend/app, tests/backend/pytest, backend/scripts]
+        args: [--config=backend/ruff.toml]
+        files: ^(backend/app|tests/backend/pytest|backend/scripts)/.*\.py$
       - id: ruff
         name: Ruff (manual autofix)
-        args: [--config=backend/ruff.toml, --fix, backend/app, tests/backend/pytest, backend/scripts]
+        args: [--config=backend/ruff.toml, --fix]
+        files: ^(backend/app|tests/backend/pytest|backend/scripts)/.*\.py$
         stages: [manual]
 
   # Python security - Bandit
@@ -41,8 +45,8 @@ repos:
     rev: 1.7.8
     hooks:
       - id: bandit
-        args: ["--ini", "backend/.bandit", "-r", "backend/app"]
-        files: ^backend/
+        args: ["--ini", "backend/.bandit"]
+        files: ^backend/app/.*\.py$
 
   # Secrets detection - Gitleaks
   - repo: https://github.com/gitleaks/gitleaks
