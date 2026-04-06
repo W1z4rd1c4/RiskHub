@@ -2,9 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api import deps
+from app.api.v1.endpoints.approvals._delete_authorization import assert_can_request_delete_control
 from app.core.activity_logger import log_activity
-from app.core.permissions import check_department_access
-from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import Control, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
@@ -18,7 +18,7 @@ async def delete_control(
     control_id: int,
     reason: str = Query(..., min_length=1, description="Reason for deletion (mandatory)"),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("controls", "delete")),
+    current_user: User = Depends(deps.get_current_user),
 ):
     """
     Request deletion of a control.
@@ -30,14 +30,11 @@ async def delete_control(
     from app.core.permissions import can_resolve_approvals
     from app.models import ApprovalRequest, ApprovalResourceType, ApprovalStatus
 
-    result = await db.execute(select(Control).where(Control.id == control_id))
-    control = result.scalar_one_or_none()
-
-    if not control:
-        raise HTTPException(status_code=404, detail="Control not found")
-
-    # Verify department access
-    check_department_access(control.department_id, current_user)
+    control = await assert_can_request_delete_control(
+        db,
+        control_id=control_id,
+        current_user=current_user,
+    )
 
     # Privileged users can delete immediately
     if can_resolve_approvals(current_user):

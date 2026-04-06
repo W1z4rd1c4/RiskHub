@@ -163,11 +163,11 @@ export const authApi = {
         }, 'SSO start failed');
     },
 
-    async ssoExchange(idToken: string, state?: string | null): Promise<TokenResponse> {
+    async ssoExchange(idToken: string, state: string): Promise<TokenResponse> {
         return requestAuthJson<TokenResponse>('/sso/exchange', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(state ? { id_token: idToken, state } : { id_token: idToken }),
+            body: JSON.stringify({ id_token: idToken, state }),
             credentials: 'include',
         }, 'SSO exchange failed');
     },

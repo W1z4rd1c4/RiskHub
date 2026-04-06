@@ -141,18 +141,31 @@ async def test_control_owner_can_create_execution_via_control_endpoint(
 
 @pytest.mark.asyncio
 async def test_control_owner_sees_cross_dept_executions_in_list(
-    auth_client: AsyncClient,
+    client_cro: AsyncClient,
     db_session: AsyncSession,
-    cross_dept_control: Control,
-    test_user: User,
+    second_department: Department,
+    test_user_cro: User,
 ):
     """
     Control owner sees executions for their cross-dept control in /executions list.
     """
+    cross_dept_control = Control(
+        name="Cross-Dept Control For Execution List",
+        description="Control in second dept owned by CRO user",
+        department_id=second_department.id,
+        control_owner_id=test_user_cro.id,
+        control_form="manual",
+        frequency="monthly",
+        status=ControlStatus.active.value,
+    )
+    db_session.add(cross_dept_control)
+    await db_session.commit()
+    await db_session.refresh(cross_dept_control)
+
     # Create an execution
     execution = ControlExecution(
         control_id=cross_dept_control.id,
-        executed_by_id=test_user.id,
+        executed_by_id=test_user_cro.id,
         result="passed",
         findings="Test execution",
     )
@@ -161,7 +174,7 @@ async def test_control_owner_sees_cross_dept_executions_in_list(
     await db_session.refresh(execution)
 
     # Owner should see this execution in list
-    response = await auth_client.get("/api/v1/executions")
+    response = await client_cro.get("/api/v1/executions")
     assert response.status_code == 200
 
     executions = response.json()["items"]
@@ -369,10 +382,10 @@ async def test_non_owner_cannot_create_execution_for_other_dept_control(
 
 @pytest.mark.asyncio
 async def test_risk_owner_can_restore_cross_department_archived_risk(
-    client_employee: AsyncClient,
+    client_approval_requester: AsyncClient,
     db_session: AsyncSession,
     second_department: Department,
-    test_user_employee: User,
+    test_user_approval_requester: User,
     seed_risk_types,
 ):
     """
@@ -385,7 +398,7 @@ async def test_risk_owner_can_restore_cross_department_archived_risk(
         process="Cross-Dept Restore",
         description="Archived risk in another department owned by employee",
         department_id=second_department.id,
-        owner_id=test_user_employee.id,
+        owner_id=test_user_approval_requester.id,
         risk_type="operational",
         category="Test",
         gross_probability=3,
@@ -400,6 +413,6 @@ async def test_risk_owner_can_restore_cross_department_archived_risk(
     await db_session.commit()
     await db_session.refresh(risk)
 
-    response = await client_employee.post(f"/api/v1/risks/{risk.id}/restore")
+    response = await client_approval_requester.post(f"/api/v1/risks/{risk.id}/restore")
     assert response.status_code == 200
     assert response.json()["status"] == "active"

@@ -7,6 +7,7 @@ import pytest_asyncio
 from httpx import AsyncClient
 
 from app.models import Control, Department, User
+from app.models.control_execution import ControlExecution
 
 
 @pytest.mark.asyncio
@@ -47,16 +48,16 @@ async def test_create_execution(auth_client: AsyncClient, test_user: User, test_
 
 
 @pytest.mark.asyncio
-async def test_list_executions(auth_client: AsyncClient, test_user: User, test_department: Department):
+async def test_list_executions(client_cro: AsyncClient, test_user_cro: User, test_department: Department):
     """Test listing executions."""
     # Create a control and execution first
-    control_response = await auth_client.post(
+    control_response = await client_cro.post(
         "/api/v1/controls",
         json={
             "name": "List Execution Control",
             "description": "Control for list execution test",
             "department_id": test_department.id,
-            "control_owner_id": test_user.id,
+            "control_owner_id": test_user_cro.id,
             "control_form": "automatic",
             "frequency": "daily",
             "risk_level": 2,
@@ -65,7 +66,7 @@ async def test_list_executions(auth_client: AsyncClient, test_user: User, test_d
     )
     control_id = control_response.json()["id"]
 
-    await auth_client.post(
+    await client_cro.post(
         "/api/v1/executions",
         json={
             "control_id": control_id,
@@ -74,7 +75,7 @@ async def test_list_executions(auth_client: AsyncClient, test_user: User, test_d
         },
     )
 
-    response = await auth_client.get("/api/v1/executions")
+    response = await client_cro.get("/api/v1/executions")
 
     assert response.status_code == 200
     data = response.json()
@@ -84,16 +85,16 @@ async def test_list_executions(auth_client: AsyncClient, test_user: User, test_d
 
 
 @pytest.mark.asyncio
-async def test_filter_executions_by_result(auth_client: AsyncClient, test_user: User, test_department: Department):
+async def test_filter_executions_by_result(client_cro: AsyncClient, test_user_cro: User, test_department: Department):
     """Test filtering executions by result."""
     # Create a control and execution
-    control_response = await auth_client.post(
+    control_response = await client_cro.post(
         "/api/v1/controls",
         json={
             "name": "Filter Execution Control",
             "description": "Control for filter execution test",
             "department_id": test_department.id,
-            "control_owner_id": test_user.id,
+            "control_owner_id": test_user_cro.id,
             "control_form": "manual",
             "frequency": "weekly",
             "risk_level": 4,
@@ -102,7 +103,7 @@ async def test_filter_executions_by_result(auth_client: AsyncClient, test_user: 
     )
     control_id = control_response.json()["id"]
 
-    await auth_client.post(
+    await client_cro.post(
         "/api/v1/executions",
         json={
             "control_id": control_id,
@@ -111,7 +112,7 @@ async def test_filter_executions_by_result(auth_client: AsyncClient, test_user: 
         },
     )
 
-    response = await auth_client.get("/api/v1/executions?result=warning")
+    response = await client_cro.get("/api/v1/executions?result=warning")
 
     assert response.status_code == 200
     data = response.json()
@@ -196,8 +197,6 @@ async def test_employee_list_executions_scoped_to_department(
     test_user_employee: User,
 ):
     """Employee should only see executions from their department."""
-    from app.models import ControlExecution
-
     # Create control in employee's department
     control = Control(
         name="Employee Dept Control",
@@ -226,6 +225,85 @@ async def test_employee_list_executions_scoped_to_department(
     data = response.json()
     # Should only contain executions from employee's department
     assert data["total"] >= 1
+
+
+@pytest.mark.asyncio
+async def test_platform_admin_cannot_list_or_read_business_executions(
+    client_platform_admin: AsyncClient,
+    db_session,
+    test_department: Department,
+    test_user_cro: User,
+):
+    """Canonical platform admins must be blocked from business execution surfaces."""
+    control = Control(
+        name="Platform Admin Boundary Control",
+        description="Business control used for boundary testing",
+        department_id=test_department.id,
+        control_owner_id=test_user_cro.id,
+        control_form="manual",
+        frequency="monthly",
+        risk_level=2,
+        status="active",
+        created_by_id=test_user_cro.id,
+        updated_by_id=test_user_cro.id,
+    )
+    db_session.add(control)
+    await db_session.commit()
+    await db_session.refresh(control)
+
+    execution = ControlExecution(
+        control_id=control.id,
+        executed_by_id=test_user_cro.id,
+        result="passed",
+        findings="Boundary test execution",
+    )
+    db_session.add(execution)
+    await db_session.commit()
+    await db_session.refresh(execution)
+
+    list_response = await client_platform_admin.get("/api/v1/executions")
+    assert list_response.status_code == 403
+
+    detail_response = await client_platform_admin.get(f"/api/v1/executions/{execution.id}")
+    assert detail_response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_employee_can_read_execution_detail_in_scope(
+    client_employee: AsyncClient,
+    db_session,
+    test_department: Department,
+    test_user_employee: User,
+):
+    """A scoped business user with controls:read can still read in-scope execution detail."""
+    control = Control(
+        name="Employee Execution Detail Control",
+        description="Business control for in-scope detail access",
+        department_id=test_department.id,
+        control_owner_id=test_user_employee.id,
+        control_form="manual",
+        frequency="monthly",
+        risk_level=2,
+        status="active",
+    )
+    db_session.add(control)
+    await db_session.commit()
+    await db_session.refresh(control)
+
+    execution = ControlExecution(
+        control_id=control.id,
+        executed_by_id=test_user_employee.id,
+        result="passed",
+        findings="Employee-visible execution",
+    )
+    db_session.add(execution)
+    await db_session.commit()
+    await db_session.refresh(execution)
+
+    response = await client_employee.get(f"/api/v1/executions/{execution.id}")
+
+    assert response.status_code == 200
+    assert response.json()["id"] == execution.id
 
 
 # =============================================================================

@@ -132,12 +132,7 @@ Linux deployments install releases under `/opt/riskhub/releases/<version>`, swit
 
 ## 4.1 SSO Compatibility Cutover
 
-The SSO challenge rollout is intentionally two-step:
-
-1. Deploy the backend/frontend compatibility build with `AUTH_SSO_REQUIRE_CHALLENGE=false`.
-2. Validate SSO end-to-end in production.
-3. Flip `AUTH_SSO_REQUIRE_CHALLENGE=true`.
-4. Revoke legacy refresh rows once the stricter flow is live:
+The SSO challenge flow is mandatory for every deployment. Once the stricter build is live, revoke legacy refresh rows:
 
 ```bash
 python -m scripts.revoke_refresh_sessions --reason sso_absolute_expiry_cutover

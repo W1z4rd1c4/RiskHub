@@ -16,11 +16,11 @@ class TestApprovalWorkflow:
     """End-to-end approval workflow tests."""
 
     async def test_deletion_approval_flow(
-        self, client_employee: AsyncClient, client_risk_manager: AsyncClient, test_risk
+        self, client_approval_requester: AsyncClient, client_risk_manager: AsyncClient, test_risk
     ):
         """Test DELETE flow: request → approve → auto-archive."""
         # 1. Employee requests deletion
-        response = await client_employee.delete(f"/api/v1/risks/{test_risk.id}?reason=Testing deletion")
+        response = await client_approval_requester.delete(f"/api/v1/risks/{test_risk.id}?reason=Testing deletion")
         assert response.status_code == 202
         approval_id = response.json()["approval_id"]
 
@@ -36,12 +36,12 @@ class TestApprovalWorkflow:
         assert response.json()["status"] == "archived"
 
     async def test_edit_approval_flow_sensitive_field(
-        self, client_employee: AsyncClient, client_risk_manager: AsyncClient, test_risk
+        self, client_approval_requester: AsyncClient, client_risk_manager: AsyncClient, test_risk
     ):
         """Test EDIT flow for sensitive field: request → approve → auto-apply."""
         # Change category (sensitive)
         new_data = {"category": "New Category"}
-        response = await client_employee.patch(f"/api/v1/risks/{test_risk.id}", json=new_data)
+        response = await client_approval_requester.patch(f"/api/v1/risks/{test_risk.id}", json=new_data)
         assert response.status_code == 202
         approval_id = response.json()["approval_id"]
 
@@ -60,11 +60,11 @@ class TestApprovalWorkflow:
         assert response.json()["category"] == "New Category"
 
     async def test_rejection_preserves_resource(
-        self, client_employee: AsyncClient, client_risk_manager: AsyncClient, test_risk
+        self, client_approval_requester: AsyncClient, client_risk_manager: AsyncClient, test_risk
     ):
         """Test rejection preserves current state."""
         # Request deletion
-        response = await client_employee.delete(f"/api/v1/risks/{test_risk.id}?reason=Testing rejection")
+        response = await client_approval_requester.delete(f"/api/v1/risks/{test_risk.id}?reason=Testing rejection")
         approval_id = response.json()["approval_id"]
 
         # Reject
@@ -84,15 +84,15 @@ class TestApprovalWorkflow:
 
     async def test_requester_notified_on_approval(
         self,
-        client_employee: AsyncClient,
+        client_approval_requester: AsyncClient,
         client_risk_manager: AsyncClient,
         db_session,
         async_engine: AsyncEngine,
         test_risk,
-        test_user_employee,
+        test_user_approval_requester,
     ):
         """Requester receives APPROVAL_RESOLVED notification after approval."""
-        response = await client_employee.delete(f"/api/v1/risks/{test_risk.id}?reason=Testing deletion")
+        response = await client_approval_requester.delete(f"/api/v1/risks/{test_risk.id}?reason=Testing deletion")
         assert response.status_code == 202
         approval_id = response.json()["approval_id"]
 
@@ -104,7 +104,7 @@ class TestApprovalWorkflow:
 
         result = await db_session.execute(
             select(Notification).where(
-                Notification.user_id == test_user_employee.id,
+                Notification.user_id == test_user_approval_requester.id,
                 Notification.type == NotificationType.APPROVAL_RESOLVED,
                 Notification.resource_id == approval_id,
             )
@@ -117,7 +117,7 @@ class TestApprovalWorkflow:
 
         result = await db_session.execute(
             select(Notification).where(
-                Notification.user_id == test_user_employee.id,
+                Notification.user_id == test_user_approval_requester.id,
                 Notification.type == NotificationType.APPROVAL_RESOLVED,
                 Notification.resource_id == approval_id,
             )
@@ -128,15 +128,15 @@ class TestApprovalWorkflow:
 
     async def test_requester_notified_on_rejection(
         self,
-        client_employee: AsyncClient,
+        client_approval_requester: AsyncClient,
         client_risk_manager: AsyncClient,
         db_session,
         async_engine: AsyncEngine,
         test_risk,
-        test_user_employee,
+        test_user_approval_requester,
     ):
         """Requester receives APPROVAL_RESOLVED notification after rejection."""
-        response = await client_employee.delete(f"/api/v1/risks/{test_risk.id}?reason=Testing rejection")
+        response = await client_approval_requester.delete(f"/api/v1/risks/{test_risk.id}?reason=Testing rejection")
         assert response.status_code == 202
         approval_id = response.json()["approval_id"]
 
@@ -148,7 +148,7 @@ class TestApprovalWorkflow:
 
         result = await db_session.execute(
             select(Notification).where(
-                Notification.user_id == test_user_employee.id,
+                Notification.user_id == test_user_approval_requester.id,
                 Notification.type == NotificationType.APPROVAL_RESOLVED,
                 Notification.resource_id == approval_id,
             )
@@ -161,7 +161,7 @@ class TestApprovalWorkflow:
 
         result = await db_session.execute(
             select(Notification).where(
-                Notification.user_id == test_user_employee.id,
+                Notification.user_id == test_user_approval_requester.id,
                 Notification.type == NotificationType.APPROVAL_RESOLVED,
                 Notification.resource_id == approval_id,
             )
@@ -172,7 +172,7 @@ class TestApprovalWorkflow:
 
     async def test_priority_risk_edit_requires_approval_from_non_privileged(
         self,
-        client_employee: AsyncClient,
+        client_approval_requester: AsyncClient,
         client_risk_manager: AsyncClient,
         db_session,
         test_department,
@@ -210,7 +210,7 @@ class TestApprovalWorkflow:
         await db_session.refresh(priority_risk)
 
         # Non-privileged employee tries to edit ANY field on priority risk
-        response = await client_employee.patch(
+        response = await client_approval_requester.patch(
             f"/api/v1/risks/{priority_risk.id}", json={"description": "Updated description"}
         )
 

@@ -90,8 +90,12 @@ export default function LoginPage() {
         () => getProdAuthCopy(prodAuthTranslate),
         [prodAuthTranslate],
     );
-    const prodErrorMessage = errorKey ? prodErrorTranslate(errorKey) : '';
-    const demoErrorMessage = errorKey ? t(errorKey, { ns: 'errorKeys' }) : null;
+    const prodErrorMessage = authErrorParam === 'sso_callback_failed'
+        ? prodAuthTranslate('sso_callback.exchange_failed')
+        : errorKey ? prodErrorTranslate(errorKey) : '';
+    const demoErrorMessage = authErrorParam === 'sso_callback_failed'
+        ? t('sso_callback.exchange_failed')
+        : errorKey ? t(errorKey, { ns: 'errorKeys' }) : null;
 
     useProdLoginMetadata({
         enabled: authConfig?.auth_mode === 'microsoft_sso',

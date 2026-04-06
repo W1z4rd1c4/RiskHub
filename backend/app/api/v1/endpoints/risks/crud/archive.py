@@ -2,8 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api import deps
+from app.api.v1.endpoints.approvals._delete_authorization import assert_can_request_delete_risk
 from app.core.activity_logger import log_activity
-from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import Risk, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
@@ -17,7 +18,7 @@ async def delete_risk(
     risk_id: int,
     reason: str = Query(..., min_length=1, description="Reason for deletion (mandatory)"),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("risks", "delete")),
+    current_user: User = Depends(deps.get_current_user),
 ):
     """
     Request deletion of a risk.
@@ -26,21 +27,14 @@ async def delete_risk(
     """
     from fastapi.responses import Response
 
-    from app.core.permissions import can_resolve_approvals, check_department_access
+    from app.core.permissions import can_resolve_approvals
     from app.models import ApprovalRequest, ApprovalResourceType, ApprovalStatus
 
-    result = await db.execute(select(Risk).where(Risk.id == risk_id))
-    risk = result.scalar_one_or_none()
-
-    if not risk:
-        raise HTTPException(status_code=404, detail="Risk not found")
-
-    # Allow risk owners to request deletion regardless of department (cross-department access)
-    # per BUSINESS_LOGIC.md §7.1
-    is_owner = risk.owner_id == current_user.id
-    if not is_owner:
-        # Verify department access only for non-owners
-        check_department_access(risk.department_id, current_user)
+    risk = await assert_can_request_delete_risk(
+        db,
+        risk_id=risk_id,
+        current_user=current_user,
+    )
 
     # Privileged users can delete immediately
     if can_resolve_approvals(current_user):
@@ -127,4 +121,3 @@ async def delete_risk(
             "action_type": "delete",
         },
     )
-

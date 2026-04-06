@@ -30,7 +30,11 @@ PRODUCTION_REQUIRED_SECRET_MODES: tuple[str, ...] = (
 PRODUCTION_INVARIANTS: tuple[ProductionInvariant, ...] = (
     ProductionInvariant("DEBUG", "false", "Production must run without debug mode."),
     ProductionInvariant("MOCK_AUTH_ENABLED", "false", "Mock auth is forbidden in production."),
-    ProductionInvariant("AUTH_MODE", "microsoft_sso", "Production requires Entra SSO-only auth."),
+    ProductionInvariant(
+        "AUTH_MODE",
+        "microsoft_sso",
+        "Production requires Entra SSO-only auth with the mandatory backend-issued SSO challenge flow.",
+    ),
     ProductionInvariant("DIRECTORY_PROVIDER", "graph", "Production must use the Graph directory provider."),
     ProductionInvariant(
         "ENTRA_JIT_PROVISIONING_ENABLED",

@@ -44,7 +44,8 @@ RiskHub production deploys must satisfy these invariants:
 - Validate the Microsoft Entra app registration and redirect URIs before go-live.
 - Register both the sign-in callback (`/auth/sso/callback`) and the post-logout redirect (`/login`) for the production origin.
 - Production bootstrap users must be pre-linked to Entra `oid` before first login; do not rely on first-login email linking.
-- SSO login now starts with a backend-issued challenge and the backend resolves the post-login redirect target server-side.
+- Every SSO login must start with a backend-issued challenge; `/api/v1/auth/sso/exchange` is not valid without a matching challenge cookie, `state`, and `nonce`.
+- The backend resolves the post-login redirect target server-side after challenge validation.
 - Normal logout invalidates all RiskHub app sessions for the user.
 - Cookie-authenticated auth endpoints require same-origin browser requests via explicit Origin/Referer validation plus double-submit CSRF.
 - Keep bootstrap admin/CRO emails distinct.
@@ -94,7 +95,7 @@ RiskHub production deploys must satisfy these invariants:
 
 ## Session Cutover
 
-- After enabling strict SSO challenge enforcement in production, revoke legacy refresh sessions with:
+- After deploying the mandatory SSO challenge flow in production, revoke legacy refresh sessions with:
   - `python -m scripts.revoke_refresh_sessions --reason sso_absolute_expiry_cutover`
 - This cutover must not mass-bump `token_version`; existing access tokens should age out naturally.
 

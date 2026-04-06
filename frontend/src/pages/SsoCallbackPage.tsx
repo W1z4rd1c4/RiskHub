@@ -22,8 +22,12 @@ export default function SsoCallbackPage() {
                     void navigate('/login', { replace: true });
                     return;
                 }
+                if (!result?.state) {
+                    void navigate('/login?authError=sso_callback_failed', { replace: true });
+                    return;
+                }
 
-                const tokenResponse = await authApi.ssoExchange(idToken, result?.state ?? null);
+                const tokenResponse = await authApi.ssoExchange(idToken, result.state);
                 clearExplicitLogoutSuppressed();
                 const target = applyAuthenticatedSession(tokenResponse);
                 void navigate(target, { replace: true });

@@ -53,7 +53,8 @@ class AuthSettingsMixin:
     entra_credential_fingerprint: str | None = None
     auth_sso_allow_email_link: bool = False
     auth_sso_challenge_ttl_seconds: int = 300
-    auth_sso_require_challenge: bool = False
+    # Deprecated compatibility flag: the backend now enforces the SSO challenge flow unconditionally.
+    auth_sso_require_challenge: bool = True
     directory_provider: Literal["auto", "graph", "ad_emulator"] = "graph"
     ad_emulator_base_url: str | None = None
     ad_emulator_api_key: str | None = None

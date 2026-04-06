@@ -21,12 +21,12 @@ def _sessionmaker(async_engine: AsyncEngine) -> async_sessionmaker[AsyncSession]
 
 @pytest.mark.asyncio
 async def test_create_approval_request_enqueues_outbox_without_inline_notifications(
-    client_employee: AsyncClient,
+    client_approval_requester: AsyncClient,
     db_session: AsyncSession,
     async_engine: AsyncEngine,
     test_risk,
 ) -> None:
-    response = await client_employee.post(
+    response = await client_approval_requester.post(
         "/api/v1/approvals",
         json={"resource_type": "risk", "resource_id": test_risk.id, "reason": "Outbox flow"},
     )
@@ -280,14 +280,14 @@ async def test_postgres_claim_batch_skips_locked_rows(async_engine: AsyncEngine)
 
 @pytest.mark.asyncio
 async def test_reject_approval_enqueues_resolution_outbox_and_dispatch_notifies_requester(
-    client_employee: AsyncClient,
+    client_approval_requester: AsyncClient,
     client_risk_manager: AsyncClient,
     db_session: AsyncSession,
     async_engine: AsyncEngine,
     test_risk,
-    test_user_employee: User,
+    test_user_approval_requester: User,
 ) -> None:
-    create_response = await client_employee.post(
+    create_response = await client_approval_requester.post(
         "/api/v1/approvals",
         json={"resource_type": "risk", "resource_id": test_risk.id, "reason": "Please reject"},
     )
@@ -314,7 +314,7 @@ async def test_reject_approval_enqueues_resolution_outbox_and_dispatch_notifies_
     requester_notification = (
         await db_session.execute(
             select(Notification).where(
-                Notification.user_id == test_user_employee.id,
+                Notification.user_id == test_user_approval_requester.id,
                 Notification.type == NotificationType.APPROVAL_RESOLVED,
                 Notification.resource_id == approval_id,
             )
@@ -328,7 +328,7 @@ async def test_reject_approval_enqueues_resolution_outbox_and_dispatch_notifies_
     requester_notification = (
         await db_session.execute(
             select(Notification).where(
-                Notification.user_id == test_user_employee.id,
+                Notification.user_id == test_user_approval_requester.id,
                 Notification.type == NotificationType.APPROVAL_RESOLVED,
                 Notification.resource_id == approval_id,
             )
@@ -339,19 +339,19 @@ async def test_reject_approval_enqueues_resolution_outbox_and_dispatch_notifies_
 
 @pytest.mark.asyncio
 async def test_cancel_approval_enqueues_outbox_without_inline_cancellation_notifications(
-    client_employee: AsyncClient,
+    client_approval_requester: AsyncClient,
     db_session: AsyncSession,
     async_engine: AsyncEngine,
     test_risk,
 ) -> None:
-    create_response = await client_employee.post(
+    create_response = await client_approval_requester.post(
         "/api/v1/approvals",
         json={"resource_type": "risk", "resource_id": test_risk.id, "reason": "Cancel me"},
     )
     assert create_response.status_code == 201, create_response.text
     approval_id = create_response.json()["id"]
 
-    cancel_response = await client_employee.post(f"/api/v1/approvals/{approval_id}/cancel")
+    cancel_response = await client_approval_requester.post(f"/api/v1/approvals/{approval_id}/cancel")
     assert cancel_response.status_code == 200, cancel_response.text
 
     outbox_row = (

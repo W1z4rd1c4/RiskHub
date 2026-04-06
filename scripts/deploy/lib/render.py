@@ -313,7 +313,7 @@ class DeployConfig:
             "ENTRA_CLIENT_ID": self.entra_client_id,
             "ENTRA_JIT_PROVISIONING_ENABLED": "false",
             "AUTH_SSO_ALLOW_EMAIL_LINK": "false",
-            "AUTH_SSO_REQUIRE_CHALLENGE": "false",
+            "AUTH_SSO_REQUIRE_CHALLENGE": "true",
             "AD_DEPROVISION_CHECK_INTERVAL_MINUTES": "15",
             "BOOTSTRAP_ADMIN_EMAIL": self.bootstrap_admin_email,
             "BOOTSTRAP_ADMIN_ROLE": "admin",

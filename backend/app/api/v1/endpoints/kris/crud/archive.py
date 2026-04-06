@@ -1,14 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
 
+from app.api import deps
+from app.api.v1.endpoints.approvals._delete_authorization import assert_can_request_delete_kri
 from app.core.activity_logger import log_activity
 from app.core.datetime_utils import utc_now
-from app.core.permissions import check_department_access
-from app.core.security import require_permission
 from app.db.session import get_db
-from app.models import KeyRiskIndicator, Risk, User
+from app.models import User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 
 router = APIRouter()
@@ -19,7 +17,7 @@ async def delete_kri(
     kri_id: int,
     reason: str = Query(..., min_length=1, description="Reason for deletion (mandatory)"),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("risks", "delete")),
+    current_user: User = Depends(deps.get_current_user),
 ):
     """
     Request deletion of a KRI.
@@ -31,19 +29,11 @@ async def delete_kri(
     from app.core.permissions import can_resolve_approvals
     from app.models import ApprovalRequest, ApprovalResourceType, ApprovalStatus
 
-    result = await db.execute(
-        select(KeyRiskIndicator)
-        .join(Risk)
-        .where(KeyRiskIndicator.id == kri_id)
-        .options(joinedload(KeyRiskIndicator.risk))
+    kri = await assert_can_request_delete_kri(
+        db,
+        kri_id=kri_id,
+        current_user=current_user,
     )
-    kri = result.scalar_one_or_none()
-
-    if not kri:
-        raise HTTPException(status_code=404, detail="KRI not found")
-
-    # Verify department access via linked risk
-    check_department_access(kri.risk.department_id, current_user)
 
     # Privileged users can archive immediately (no approval needed)
     if can_resolve_approvals(current_user):

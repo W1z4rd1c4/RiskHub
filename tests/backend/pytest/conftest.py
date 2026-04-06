@@ -360,23 +360,20 @@ async def test_user_platform_admin(
 
 @pytest_asyncio.fixture
 async def test_role_employee(db_session: AsyncSession) -> Role:
-    """Create an employee role with limited permissions."""
+    """Create the canonical seeded employee role."""
     from app.models import Permission, RolePermission
 
     role = Role(name="employee", display_name="Employee", description="Standard employee role")
     db_session.add(role)
     await db_session.commit()
 
-    # Permissions for basic list/read
     permissions = [
         Permission(resource="risks", action="read", description="Read risks"),
-        Permission(resource="risks", action="write", description="Request risk edits"),
-        Permission(resource="risks", action="delete", description="Request risk deletions"),
         Permission(resource="controls", action="read", description="Read controls"),
-        Permission(resource="controls", action="write", description="Request control edits"),
-        Permission(resource="controls", action="delete", description="Request control deletions"),
+        Permission(resource="controls", action="execute", description="Execute controls"),
+        Permission(resource="vendors", action="read", description="Read vendors"),
+        Permission(resource="departments", action="read", description="Read departments"),
         Permission(resource="reports", action="read", description="Read reports"),
-        Permission(resource="kri", action="submit", description="Submit KRI values"),
     ]
     for p in permissions:
         db_session.add(p)
@@ -397,6 +394,76 @@ async def test_user_employee(db_session: AsyncSession, test_department: Departme
         email="employee@test.com",
         department_id=test_department.id,
         role_id=test_role_employee.id,
+        is_active=True,
+        access_scope=AccessScope.DEPARTMENT,
+    )
+    db_session.add(user)
+    await db_session.commit()
+
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+
+    from app.models import Role, RolePermission
+
+    result = await db_session.execute(
+        select(User)
+        .options(
+            selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission),
+            selectinload(User.department),
+        )
+        .where(User.id == user.id)
+    )
+    return result.scalar_one()
+
+
+@pytest_asyncio.fixture
+async def test_role_approval_requester(db_session: AsyncSession) -> Role:
+    """Create a department-scoped non-privileged user that can initiate approval-bound edits/deletes."""
+    from app.models import Permission, RolePermission
+
+    role = Role(
+        name="approval_requester",
+        display_name="Approval Requester",
+        description="Department-scoped requester for approval workflow tests",
+    )
+    db_session.add(role)
+    await db_session.commit()
+
+    permissions = [
+        Permission(resource="risks", action="read", description="Read risks"),
+        Permission(resource="risks", action="write", description="Request risk edits"),
+        Permission(resource="risks", action="delete", description="Request risk deletions"),
+        Permission(resource="controls", action="read", description="Read controls"),
+        Permission(resource="controls", action="write", description="Request control edits"),
+        Permission(resource="controls", action="delete", description="Request control deletions"),
+        Permission(resource="controls", action="execute", description="Execute controls"),
+        Permission(resource="vendors", action="read", description="Read vendors"),
+        Permission(resource="departments", action="read", description="Read departments"),
+        Permission(resource="reports", action="read", description="Read reports"),
+    ]
+    for permission in permissions:
+        db_session.add(permission)
+    await db_session.commit()
+
+    for permission in permissions:
+        db_session.add(RolePermission(role_id=role.id, permission_id=permission.id))
+    await db_session.commit()
+
+    return role
+
+
+@pytest_asyncio.fixture
+async def test_user_approval_requester(
+    db_session: AsyncSession,
+    test_department: Department,
+    test_role_approval_requester: Role,
+) -> User:
+    """Create a non-privileged approval requester user."""
+    user = User(
+        name="Test Approval Requester",
+        email="approval.requester@test.com",
+        department_id=test_department.id,
+        role_id=test_role_approval_requester.id,
         is_active=True,
         access_scope=AccessScope.DEPARTMENT,
     )
@@ -769,6 +836,31 @@ async def client_employee(db_session: AsyncSession, test_user_employee: User) ->
 
     transport = ASGITransport(app=app)
     headers = {"X-Mock-User-Id": str(test_user_employee.id)}
+    async with AsyncClient(transport=transport, base_url="http://test", headers=headers) as ac:
+        yield ac
+
+    app.dependency_overrides.clear()
+
+
+@pytest_asyncio.fixture(scope="function")
+async def client_approval_requester(
+    db_session: AsyncSession,
+    test_user_approval_requester: User,
+) -> AsyncGenerator[AsyncClient, None]:
+    """Client for non-privileged approval-request workflow tests using header-based mock auth."""
+    from app.core.config import Settings, get_settings
+
+    def override_settings():
+        return Settings(mock_auth_enabled=True, debug=True)
+
+    async def override_get_db():
+        yield db_session
+
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_settings] = override_settings
+
+    transport = ASGITransport(app=app)
+    headers = {"X-Mock-User-Id": str(test_user_approval_requester.id)}
     async with AsyncClient(transport=transport, base_url="http://test", headers=headers) as ac:
         yield ac
 

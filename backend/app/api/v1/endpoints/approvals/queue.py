@@ -28,6 +28,11 @@ from app.schemas.approval_request import (
     ApprovalStatusEnum,
 )
 
+from ._delete_authorization import (
+    assert_can_request_delete_control,
+    assert_can_request_delete_kri,
+    assert_can_request_delete_risk,
+)
 from ._shared import _build_approval_read, logger
 
 router = APIRouter()
@@ -41,44 +46,34 @@ async def create_approval_request(
 ):
     """
     Create a new approval request for resource deletion.
-    Requires mandatory reason.
+    Requires the same delete authority as the underlying resource delete endpoint.
     """
     # Validate resource exists and get name for snapshot
     resource_name = ""
     department_id: int | None = None
     if request_data.resource_type == ApprovalResourceTypeEnum.risk:
-        result = await db.execute(select(Risk).where(Risk.id == request_data.resource_id))
-        resource = result.scalar_one_or_none()
-        if not resource:
-            raise HTTPException(status_code=404, detail="Risk not found")
-        # Verify requester has access to resource's department
-        check_department_access(resource.department_id, current_user)
+        resource = await assert_can_request_delete_risk(
+            db,
+            risk_id=request_data.resource_id,
+            current_user=current_user,
+        )
         resource_name = f"{resource.risk_id_code}: {resource.description[:50] if resource.description else ''}"
         department_id = resource.department_id
     elif request_data.resource_type == ApprovalResourceTypeEnum.control:
-        result = await db.execute(select(Control).where(Control.id == request_data.resource_id))
-        resource = result.scalar_one_or_none()
-        if not resource:
-            raise HTTPException(status_code=404, detail="Control not found")
-        # Verify requester has access to resource's department
-        check_department_access(resource.department_id, current_user)
+        resource = await assert_can_request_delete_control(
+            db,
+            control_id=request_data.resource_id,
+            current_user=current_user,
+        )
         control_label = (resource.name or "").strip()[:50]
         resource_name = control_label or "Unknown control"
         department_id = resource.department_id
     elif request_data.resource_type == ApprovalResourceTypeEnum.kri:
-        # Load KRI with linked Risk for department access check
-        result = await db.execute(
-            select(KeyRiskIndicator)
-            .options(selectinload(KeyRiskIndicator.risk))
-            .where(KeyRiskIndicator.id == request_data.resource_id)
+        resource = await assert_can_request_delete_kri(
+            db,
+            kri_id=request_data.resource_id,
+            current_user=current_user,
         )
-        resource = result.scalar_one_or_none()
-        if not resource:
-            raise HTTPException(status_code=404, detail="KRI not found")
-        # Verify access via linked risk's department
-        if not resource.risk:
-            raise HTTPException(status_code=404, detail="KRI has no linked risk")
-        check_department_access(resource.risk.department_id, current_user)
         kri_label = (resource.metric_name or "").strip()[:50]
         resource_name = kri_label or "Unknown KRI"
         department_id = resource.risk.department_id

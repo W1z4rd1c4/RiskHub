@@ -81,4 +81,4 @@ class SsoStartResponse(BaseModel):
 
 class SsoExchangeRequest(BaseModel):
     id_token: str = Field(..., min_length=1)
-    state: str | None = Field(default=None, min_length=1)
+    state: str = Field(..., min_length=1)

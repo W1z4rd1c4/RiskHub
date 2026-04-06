@@ -221,14 +221,14 @@ async def test_kri_update_activity_log_changes(
 
 @pytest.mark.asyncio
 async def test_approval_activity_log_create_and_approve(
-    client_employee: AsyncClient,
+    client_approval_requester: AsyncClient,
     client_risk_manager: AsyncClient,
     db_session,
-    test_user_employee: User,
+    test_user_approval_requester: User,
     test_department: Department,
     seed_risk_types,
 ):
-    risk_response = await client_employee.post(
+    risk_response = await client_approval_requester.post(
         "/api/v1/risks",
         json={
             "risk_id_code": "R-AL-03",
@@ -236,7 +236,7 @@ async def test_approval_activity_log_create_and_approve(
             "process": "Approval Process",
             "description": "Risk for approval log test",
             "department_id": test_department.id,
-            "owner_id": test_user_employee.id,
+            "owner_id": test_user_approval_requester.id,
             "risk_type": "operational",
             "category": "Testing",
             "gross_probability": 3,
@@ -248,7 +248,7 @@ async def test_approval_activity_log_create_and_approve(
     )
     risk_id = risk_response.json()["id"]
 
-    approval_response = await client_employee.post(
+    approval_response = await client_approval_requester.post(
         "/api/v1/approvals",
         json={
             "resource_type": "risk",
@@ -302,7 +302,7 @@ async def test_approval_execution_logs_entity_update_for_priority_risk_edit(
     client: AsyncClient,
     db_session,
     test_department: Department,
-    test_user_employee: User,
+    test_user_approval_requester: User,
     test_user_cro: User,
     seed_risk_types,
 ):
@@ -331,7 +331,7 @@ async def test_approval_execution_logs_entity_update_for_priority_risk_edit(
 
     update_response = await client.patch(
         f"/api/v1/risks/{risk_id}",
-        headers={"X-Mock-User-Id": str(test_user_employee.id)},
+        headers={"X-Mock-User-Id": str(test_user_approval_requester.id)},
         json={"description": "Updated by employee (requires approval)"},
     )
     assert update_response.status_code == 202, update_response.text

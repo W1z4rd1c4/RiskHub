@@ -162,7 +162,7 @@ def test_renderer_derives_public_url_hosts_and_target_specific_redis_urls_withou
         assert docker_backend["DIRECTORY_PROVIDER"] == "graph"
         assert docker_backend["ENTRA_JIT_PROVISIONING_ENABLED"] == "false"
         assert docker_backend["AUTH_SSO_ALLOW_EMAIL_LINK"] == "false"
-        assert docker_backend["AUTH_SSO_REQUIRE_CHALLENGE"] == "false"
+        assert docker_backend["AUTH_SSO_REQUIRE_CHALLENGE"] == "true"
         assert docker_backend["AD_DEPROVISION_CHECK_INTERVAL_MINUTES"] == "15"
         assert "DATABASE_URL" not in docker_backend
         assert "SECRET_KEY" not in docker_backend

@@ -13,12 +13,16 @@ from app.models import (
     ApprovalRequest,
     ApprovalResourceType,
     ApprovalStatus,
+    Control,
     KeyRiskIndicator,
+    Permission,
     Role,
+    RolePermission,
     User,
 )
 from app.models.key_risk_indicator import KRIFrequency
 from app.models.kri_history import KRIValueHistory
+from app.models.user import AccessScope
 from app.services.kri_history_service import KRIHistoryService
 
 
@@ -320,12 +324,12 @@ async def test_cancel_own_request(auth_client: AsyncClient, test_risk):
 @pytest.mark.asyncio
 async def test_cannot_cancel_already_resolved_request(
     client_cro: AsyncClient,
-    client_employee: AsyncClient,
+    client_approval_requester: AsyncClient,
     test_risk,
 ):
     """Test cannot cancel an already-approved request."""
     # Create request as a non-privileged user
-    create_response = await client_employee.post(
+    create_response = await client_approval_requester.post(
         "/api/v1/approvals", json={"resource_type": "risk", "resource_id": test_risk.id, "reason": "Test reason"}
     )
     approval_id = create_response.json()["id"]
@@ -345,12 +349,12 @@ async def test_cannot_cancel_already_resolved_request(
 @pytest.mark.asyncio
 async def test_cannot_approve_already_resolved_request(
     client_cro: AsyncClient,
-    client_employee: AsyncClient,
+    client_approval_requester: AsyncClient,
     test_risk,
 ):
     """Test cannot approve an already-rejected request."""
     # Create request
-    create_response = await client_employee.post(
+    create_response = await client_approval_requester.post(
         "/api/v1/approvals", json={"resource_type": "risk", "resource_id": test_risk.id, "reason": "Test reason"}
     )
     approval_id = create_response.json()["id"]
@@ -389,7 +393,8 @@ async def test_update_blocked_during_pending_delete(auth_client: AsyncClient, te
 async def test_create_approval_cross_department_forbidden(
     client: AsyncClient,
     db_session,
-    test_role_employee,
+    test_role_approval_requester,
+    test_user: User,
 ):
     """
     Users should not be able to create approval requests for resources
@@ -410,7 +415,7 @@ async def test_create_approval_cross_department_forbidden(
     user_in_a = User(
         name="User A",
         email="user-a@example.com",
-        role_id=test_role_employee.id,
+        role_id=test_role_approval_requester.id,
         department_id=dept_a.id,
         is_active=True,
     )
@@ -426,7 +431,7 @@ async def test_create_approval_cross_department_forbidden(
         description="Risk in department B",
         category="Test",
         department_id=dept_b.id,
-        owner_id=user_in_a.id,  # Owner doesn't matter, testing dept access
+        owner_id=test_user.id,
         risk_type="operational",
         gross_probability=2,
         gross_impact=3,
@@ -448,6 +453,168 @@ async def test_create_approval_cross_department_forbidden(
     # Should get 403 Forbidden
     assert response.status_code == 403
     assert "department" in response.json()["detail"].lower()
+
+
+async def _create_same_department_read_only_user(
+    db_session: AsyncSession,
+    *,
+    department_id: int,
+    granted_permissions: list[tuple[str, str, str]],
+    email: str,
+    name: str,
+) -> User:
+    role = Role(name=email.replace("@", "_").replace(".", "_"), display_name=name, description="Read-only test role")
+    db_session.add(role)
+    await db_session.commit()
+    await db_session.refresh(role)
+
+    permissions: list[Permission] = []
+    for resource, action, description in granted_permissions:
+        permission = Permission(resource=resource, action=action, description=description)
+        db_session.add(permission)
+        permissions.append(permission)
+    await db_session.commit()
+
+    for permission in permissions:
+        db_session.add(RolePermission(role_id=role.id, permission_id=permission.id))
+    await db_session.commit()
+
+    user = User(
+        name=name,
+        email=email,
+        department_id=department_id,
+        role_id=role.id,
+        is_active=True,
+        access_scope=AccessScope.DEPARTMENT,
+    )
+    db_session.add(user)
+    await db_session.commit()
+    await db_session.refresh(user)
+    return user
+
+
+@pytest.mark.asyncio
+async def test_same_department_read_only_user_cannot_open_risk_delete_approval(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    test_department,
+    test_risk,
+):
+    user = await _create_same_department_read_only_user(
+        db_session,
+        department_id=test_department.id,
+        granted_permissions=[("risks", "read", "Read risks")],
+        email="readonly-risk@example.com",
+        name="Read Only Risk User",
+    )
+    headers = {"X-Mock-User-Id": str(user.id)}
+
+    delete_response = await client.delete(
+        f"/api/v1/risks/{test_risk.id}",
+        headers=headers,
+        params={"reason": "No delete authority"},
+    )
+    assert delete_response.status_code == 403
+
+    approval_response = await client.post(
+        "/api/v1/approvals",
+        headers=headers,
+        json={"resource_type": "risk", "resource_id": test_risk.id, "reason": "No delete authority"},
+    )
+    assert approval_response.status_code == 403
+    assert approval_response.json()["detail"] == "Permission denied: risks:delete"
+
+
+@pytest.mark.asyncio
+async def test_same_department_read_only_user_cannot_open_control_delete_approval(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    test_department,
+    test_user_cro: User,
+):
+    control = Control(
+        name="Approval Guard Control",
+        description="Control for delete-approval authorization test",
+        department_id=test_department.id,
+        control_owner_id=test_user_cro.id,
+        control_form="manual",
+        frequency="monthly",
+        risk_level=3,
+        status="active",
+    )
+    db_session.add(control)
+    await db_session.commit()
+    await db_session.refresh(control)
+
+    user = await _create_same_department_read_only_user(
+        db_session,
+        department_id=test_department.id,
+        granted_permissions=[("controls", "read", "Read controls")],
+        email="readonly-control@example.com",
+        name="Read Only Control User",
+    )
+    headers = {"X-Mock-User-Id": str(user.id)}
+
+    delete_response = await client.delete(
+        f"/api/v1/controls/{control.id}",
+        headers=headers,
+        params={"reason": "No delete authority"},
+    )
+    assert delete_response.status_code == 403
+
+    approval_response = await client.post(
+        "/api/v1/approvals",
+        headers=headers,
+        json={"resource_type": "control", "resource_id": control.id, "reason": "No delete authority"},
+    )
+    assert approval_response.status_code == 403
+    assert approval_response.json()["detail"] == "Permission denied: controls:delete"
+
+
+@pytest.mark.asyncio
+async def test_same_department_read_only_user_cannot_open_kri_delete_approval(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    test_department,
+    test_risk,
+):
+    kri = KeyRiskIndicator(
+        risk_id=test_risk.id,
+        metric_name="Approval Guard KRI",
+        description="KRI for delete-approval authorization test",
+        current_value=1.0,
+        lower_limit=0.0,
+        upper_limit=5.0,
+        unit="%",
+        frequency=KRIFrequency.monthly.value,
+    )
+    db_session.add(kri)
+    await db_session.commit()
+    await db_session.refresh(kri)
+
+    user = await _create_same_department_read_only_user(
+        db_session,
+        department_id=test_department.id,
+        granted_permissions=[("risks", "read", "Read risks")],
+        email="readonly-kri@example.com",
+        name="Read Only KRI User",
+    )
+    headers = {"X-Mock-User-Id": str(user.id)}
+
+    delete_response = await client.delete(
+        f"/api/v1/kris/{kri.id}",
+        headers=headers,
+        params={"reason": "No delete authority"},
+    )
+    assert delete_response.status_code == 403
+
+    approval_response = await client.post(
+        "/api/v1/approvals",
+        headers=headers,
+        json={"resource_type": "kri", "resource_id": kri.id, "reason": "No delete authority"},
+    )
+    assert approval_response.status_code == 403
+    assert approval_response.json()["detail"] == "Permission denied: risks:delete"
 
 
 @pytest.mark.asyncio
@@ -655,7 +822,8 @@ async def test_approve_kri_value_submission_sanitizes_internal_500_detail(
 async def test_kri_approval_cross_department_denied(
     client: AsyncClient,
     db_session: AsyncSession,
-    test_role_employee,
+    test_role_approval_requester,
+    test_user_cro: User,
 ):
     """
     Test that KRI approval creation is denied for cross-department requests,
@@ -678,7 +846,7 @@ async def test_kri_approval_cross_department_denied(
     user_in_a = User(
         name="KRI User A",
         email="kri-user-a@example.com",
-        role_id=test_role_employee.id,
+        role_id=test_role_approval_requester.id,
         department_id=dept_a.id,
         access_scope=AccessScope.DEPARTMENT,
         is_active=True,
@@ -686,29 +854,6 @@ async def test_kri_approval_cross_department_denied(
     db_session.add(user_in_a)
     await db_session.commit()
     await db_session.refresh(user_in_a)
-
-    # Find an existing admin role or create one with required fields
-    admin_role = await db_session.execute(select(Role).where(Role.name == "admin"))
-    admin_role = admin_role.scalar_one_or_none()
-    if not admin_role:
-        from app.models.role import RoleType
-
-        admin_role = Role(name=RoleType.ADMIN, display_name="Administrator")
-        db_session.add(admin_role)
-        await db_session.commit()
-        await db_session.refresh(admin_role)
-
-    admin_user = User(
-        name="KRI Admin",
-        email="kri-admin@example.com",
-        role_id=admin_role.id,
-        department_id=dept_b.id,
-        access_scope=AccessScope.GLOBAL,
-        is_active=True,
-    )
-    db_session.add(admin_user)
-    await db_session.commit()
-    await db_session.refresh(admin_user)
 
     # Create risk in Department B
     risk_in_b = Risk(
@@ -718,7 +863,7 @@ async def test_kri_approval_cross_department_denied(
         description="Risk for KRI approval test",
         category="Test",
         department_id=dept_b.id,
-        owner_id=admin_user.id,
+        owner_id=test_user_cro.id,
         risk_type="operational",
         gross_probability=2,
         gross_impact=3,
@@ -757,14 +902,14 @@ async def test_kri_approval_cross_department_denied(
     assert response.status_code == 403
     assert "department" in response.json()["detail"].lower()
 
-    # Admin can create the approval and resource_name uses metric_name
+    # Privileged business user can create the approval and resource_name uses metric_name
     admin_resp = await client.post(
         "/api/v1/approvals",
-        headers={"X-Mock-User-Id": str(admin_user.id)},
+        headers={"X-Mock-User-Id": str(test_user_cro.id)},
         json={
             "resource_type": "kri",
             "resource_id": kri.id,
-            "reason": "Valid admin request",
+            "reason": "Valid privileged request",
         },
     )
     assert admin_resp.status_code == 201
@@ -781,13 +926,13 @@ async def test_kri_approval_cross_department_denied(
 @pytest.mark.asyncio
 async def test_privileged_user_cro_can_cancel_other_users_pending_request(
     client_cro: AsyncClient,
-    client_employee: AsyncClient,
+    client_approval_requester: AsyncClient,
     db_session: AsyncSession,
     test_risk,
 ):
     """Test CRO can cancel another user's pending request per §5.5."""
     # Employee creates a request
-    create_response = await client_employee.post(
+    create_response = await client_approval_requester.post(
         "/api/v1/approvals",
         json={"resource_type": "risk", "resource_id": test_risk.id, "reason": "Employee request to delete"},
     )
@@ -803,13 +948,13 @@ async def test_privileged_user_cro_can_cancel_other_users_pending_request(
 @pytest.mark.asyncio
 async def test_privileged_user_risk_manager_can_cancel_other_users_pending_request(
     client_risk_manager: AsyncClient,
-    client_employee: AsyncClient,
+    client_approval_requester: AsyncClient,
     db_session: AsyncSession,
     test_risk,
 ):
     """Test Risk Manager can cancel another user's pending request per §5.5."""
     # Employee creates a request
-    create_response = await client_employee.post(
+    create_response = await client_approval_requester.post(
         "/api/v1/approvals", json={"resource_type": "risk", "resource_id": test_risk.id, "reason": "Employee request"}
     )
     assert create_response.status_code == 201
@@ -825,6 +970,7 @@ async def test_privileged_user_risk_manager_can_cancel_other_users_pending_reque
 async def test_non_privileged_cannot_cancel_other_users_request(
     client: AsyncClient,
     db_session: AsyncSession,
+    test_role_approval_requester: Role,
     test_role_employee: Role,
 ):
     """Test non-privileged user cannot cancel other user's request per §5.5."""
@@ -841,7 +987,7 @@ async def test_non_privileged_cannot_cancel_other_users_request(
     user_a = User(
         name="User A",
         email="user-cancel-a@test.com",
-        role_id=test_role_employee.id,
+        role_id=test_role_approval_requester.id,
         department_id=dept.id,
         is_active=True,
         access_scope=AccessScope.DEPARTMENT,
@@ -901,13 +1047,13 @@ async def test_non_privileged_cannot_cancel_other_users_request(
 async def test_privileged_user_cannot_cancel_already_resolved(
     client_cro: AsyncClient,
     client_risk_manager: AsyncClient,
-    client_employee: AsyncClient,
+    client_approval_requester: AsyncClient,
     db_session: AsyncSession,
     test_risk,
 ):
     """Test privileged user cannot cancel an already approved/rejected request."""
     # Create request
-    create_response = await client_employee.post(
+    create_response = await client_approval_requester.post(
         "/api/v1/approvals", json={"resource_type": "risk", "resource_id": test_risk.id, "reason": "Test request"}
     )
     assert create_response.status_code == 201

@@ -268,10 +268,6 @@ async def _consume_sso_challenge(
     settings: Settings,
     db: AsyncSession,
 ):
-    requires_challenge = settings.auth_sso_require_challenge or payload.state is not None
-    if not requires_challenge:
-        return "/", None
-
     challenge_id = get_sso_challenge_cookie(request)
     if not challenge_id:
         await _log_failed_sso(db, entity_name=identity.email or "unknown", description="Failed SSO login: challenge missing")
@@ -280,15 +276,6 @@ async def _consume_sso_challenge(
             status_code=401,
             code="SSO_CHALLENGE_MISSING",
             detail="SSO login challenge missing or expired.",
-        )
-
-    if not payload.state:
-        await _log_failed_sso(db, entity_name=identity.email or "unknown", description="Failed SSO login: state missing")
-        return None, _challenge_response(
-            settings=settings,
-            status_code=400,
-            code="SSO_STATE_MISSING",
-            detail="SSO state is required.",
         )
 
     challenge_store = getattr(request.app.state, "sso_challenge_store", None)

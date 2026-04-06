@@ -80,6 +80,7 @@ Production runtime note:
 - `DIRECTORY_PROVIDER` must be set to `graph` in production.
 - `ENTRA_JIT_PROVISIONING_ENABLED` must be set to `false` in production.
 - `AUTH_SSO_ALLOW_EMAIL_LINK` must be set to `false` in production.
+- Every `/api/v1/auth/sso/exchange` call must come from the backend-issued SSO challenge flow; direct bare-token exchange is unsupported.
 - Production requires one explicit Entra confidential credential mode: `ENTRA_CLIENT_SECRET_FILE`, or `ENTRA_CLIENT_CERTIFICATE_THUMBPRINT` plus `ENTRA_CLIENT_CERTIFICATE_PRIVATE_KEY_FILE`.
 
 Target-specific Redis URLs:

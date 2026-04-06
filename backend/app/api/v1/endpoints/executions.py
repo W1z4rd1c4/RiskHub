@@ -20,7 +20,7 @@ from app.core.permissions import (
     get_user_department_ids,
     is_control_owner,
 )
-from app.core.security import check_permission, require_permission
+from app.core.security import check_permission, require_business_permission, require_permission
 from app.db.session import get_db
 from app.models import User
 from app.models.control import Control as ControlModel
@@ -90,7 +90,7 @@ def _apply_execution_scope_and_filters(
 @router.get("", response_model=schemas.ControlExecutionListResponse)
 async def read_executions(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("controls", "read")),
+    current_user: User = Depends(require_business_permission("controls", "read")),
     skip: int = 0,
     limit: int = 100,
     control_id: Optional[int] = None,
@@ -258,7 +258,7 @@ async def create_execution(
 async def read_execution(
     *,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user),
+    current_user: User = Depends(require_business_permission("controls", "read")),
     id: int,
 ) -> Any:
     """

@@ -94,6 +94,55 @@ async def refresh_client(db_session: AsyncSession) -> AsyncClient:
     app.dependency_overrides.clear()
 
 
+async def _start_sso_challenge(refresh_client: AsyncClient, *, return_to: str = "/") -> dict[str, str | int]:
+    response = await refresh_client.post(
+        "/api/v1/auth/sso/start",
+        json={"return_to": return_to},
+        headers={"Origin": TEST_ORIGIN},
+    )
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+async def _login_via_sso_exchange(
+    refresh_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: User,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    external_id: str,
+    expires_at: datetime | None = None,
+):
+    test_user.external_id = external_id
+    db_session.add(test_user)
+    await db_session.commit()
+
+    challenge = await _start_sso_challenge(refresh_client)
+
+    async def stub_verify_entra_id_token(*, id_token: str, settings: Settings):
+        identity_kwargs = {
+            "external_id": external_id,
+            "tenant_id": settings.entra_tenant_id or "",
+            "email": test_user.email,
+            "name": test_user.name,
+            "nonce": str(challenge["nonce"]),
+        }
+        if expires_at is not None:
+            identity_kwargs["expires_at"] = expires_at
+        return VerifiedIdentity(
+            **identity_kwargs,
+        )
+
+    monkeypatch.setattr("app.api.v1.endpoints.auth.verify_entra_id_token", stub_verify_entra_id_token)
+
+    response = await refresh_client.post(
+        "/api/v1/auth/sso/exchange",
+        json={"id_token": "fake", "state": challenge["state"]},
+    )
+    assert response.status_code == 200, response.text
+    return response
+
+
 @pytest.mark.asyncio
 async def test_refresh_endpoint_rotates_refresh_token(
     refresh_client: AsyncClient,
@@ -101,22 +150,13 @@ async def test_refresh_endpoint_rotates_refresh_token(
     test_user: User,
     monkeypatch,
 ):
-    test_user.external_id = "oid-refresh-1"
-    db_session.add(test_user)
-    await db_session.commit()
-
-    async def stub_verify_entra_id_token(*, id_token: str, settings: Settings):
-        return VerifiedIdentity(
-            external_id="oid-refresh-1",
-            tenant_id=settings.entra_tenant_id or "",
-            email=test_user.email,
-            name=test_user.name,
-        )
-
-    monkeypatch.setattr("app.api.v1.endpoints.auth.verify_entra_id_token", stub_verify_entra_id_token)
-
-    login = await refresh_client.post("/api/v1/auth/sso/exchange", json={"id_token": "fake"})
-    assert login.status_code == 200, login.text
+    await _login_via_sso_exchange(
+        refresh_client,
+        db_session,
+        test_user,
+        monkeypatch,
+        external_id="oid-refresh-1",
+    )
     first_cookie = refresh_client.cookies.get("riskhub_refresh_token")
     assert first_cookie
     assert refresh_client.cookies.get("riskhub_refresh_hint") == "1"
@@ -148,25 +188,15 @@ async def test_refresh_rotation_preserves_absolute_session_expiry_for_sso_sessio
     test_user: User,
     monkeypatch,
 ):
-    test_user.external_id = "oid-refresh-fixed-lifetime"
-    db_session.add(test_user)
-    await db_session.commit()
-
     absolute_expiry = utc_now() + timedelta(minutes=5)
-
-    async def stub_verify_entra_id_token(*, id_token: str, settings: Settings):
-        return VerifiedIdentity(
-            external_id="oid-refresh-fixed-lifetime",
-            tenant_id=settings.entra_tenant_id or "",
-            email=test_user.email,
-            name=test_user.name,
-            expires_at=absolute_expiry,
-        )
-
-    monkeypatch.setattr("app.api.v1.endpoints.auth.verify_entra_id_token", stub_verify_entra_id_token)
-
-    login = await refresh_client.post("/api/v1/auth/sso/exchange", json={"id_token": "fake"})
-    assert login.status_code == 200, login.text
+    await _login_via_sso_exchange(
+        refresh_client,
+        db_session,
+        test_user,
+        monkeypatch,
+        external_id="oid-refresh-fixed-lifetime",
+        expires_at=absolute_expiry,
+    )
 
     first_row = (
         await db_session.execute(
@@ -247,22 +277,13 @@ async def test_refresh_endpoint_blocks_parallel_replay_to_single_winner(
     test_user: User,
     monkeypatch,
 ):
-    test_user.external_id = "oid-refresh-race"
-    db_session.add(test_user)
-    await db_session.commit()
-
-    async def stub_verify_entra_id_token(*, id_token: str, settings: Settings):
-        return VerifiedIdentity(
-            external_id="oid-refresh-race",
-            tenant_id=settings.entra_tenant_id or "",
-            email=test_user.email,
-            name=test_user.name,
-        )
-
-    monkeypatch.setattr("app.api.v1.endpoints.auth.verify_entra_id_token", stub_verify_entra_id_token)
-
-    login = await refresh_client.post("/api/v1/auth/sso/exchange", json={"id_token": "fake"})
-    assert login.status_code == 200, login.text
+    await _login_via_sso_exchange(
+        refresh_client,
+        db_session,
+        test_user,
+        monkeypatch,
+        external_id="oid-refresh-race",
+    )
     initial_cookie = refresh_client.cookies.get("riskhub_refresh_token")
     csrf_token = refresh_client.cookies.get("riskhub_csrf_token")
     assert initial_cookie
@@ -304,22 +325,13 @@ async def test_logout_clears_refresh_session(
     test_user: User,
     monkeypatch,
 ):
-    test_user.external_id = "oid-refresh-logout"
-    db_session.add(test_user)
-    await db_session.commit()
-
-    async def stub_verify_entra_id_token(*, id_token: str, settings: Settings):
-        return VerifiedIdentity(
-            external_id="oid-refresh-logout",
-            tenant_id=settings.entra_tenant_id or "",
-            email=test_user.email,
-            name=test_user.name,
-        )
-
-    monkeypatch.setattr("app.api.v1.endpoints.auth.verify_entra_id_token", stub_verify_entra_id_token)
-
-    login = await refresh_client.post("/api/v1/auth/sso/exchange", json={"id_token": "fake"})
-    assert login.status_code == 200
+    login = await _login_via_sso_exchange(
+        refresh_client,
+        db_session,
+        test_user,
+        monkeypatch,
+        external_id="oid-refresh-logout",
+    )
     access_token = login.json()["access_token"]
 
     logout = await refresh_client.post(
@@ -361,22 +373,13 @@ async def test_refresh_rejects_missing_origin(
     test_user: User,
     monkeypatch,
 ):
-    test_user.external_id = "oid-refresh-missing-origin"
-    db_session.add(test_user)
-    await db_session.commit()
-
-    async def stub_verify_entra_id_token(*, id_token: str, settings: Settings):
-        return VerifiedIdentity(
-            external_id="oid-refresh-missing-origin",
-            tenant_id=settings.entra_tenant_id or "",
-            email=test_user.email,
-            name=test_user.name,
-        )
-
-    monkeypatch.setattr("app.api.v1.endpoints.auth.verify_entra_id_token", stub_verify_entra_id_token)
-
-    login = await refresh_client.post("/api/v1/auth/sso/exchange", json={"id_token": "fake"})
-    assert login.status_code == 200
+    await _login_via_sso_exchange(
+        refresh_client,
+        db_session,
+        test_user,
+        monkeypatch,
+        external_id="oid-refresh-missing-origin",
+    )
 
     refresh = await refresh_client.post(
         "/api/v1/auth/refresh",
@@ -394,22 +397,13 @@ async def test_refresh_rejects_missing_csrf_token(
     test_user: User,
     monkeypatch,
 ):
-    test_user.external_id = "oid-refresh-missing-csrf"
-    db_session.add(test_user)
-    await db_session.commit()
-
-    async def stub_verify_entra_id_token(*, id_token: str, settings: Settings):
-        return VerifiedIdentity(
-            external_id="oid-refresh-missing-csrf",
-            tenant_id=settings.entra_tenant_id or "",
-            email=test_user.email,
-            name=test_user.name,
-        )
-
-    monkeypatch.setattr("app.api.v1.endpoints.auth.verify_entra_id_token", stub_verify_entra_id_token)
-
-    login = await refresh_client.post("/api/v1/auth/sso/exchange", json={"id_token": "fake"})
-    assert login.status_code == 200
+    await _login_via_sso_exchange(
+        refresh_client,
+        db_session,
+        test_user,
+        monkeypatch,
+        external_id="oid-refresh-missing-csrf",
+    )
 
     refresh = await refresh_client.post("/api/v1/auth/refresh", headers={"Origin": TEST_ORIGIN})
 
@@ -424,22 +418,13 @@ async def test_refresh_rejects_unallowed_origin(
     test_user: User,
     monkeypatch,
 ):
-    test_user.external_id = "oid-refresh-bad-origin"
-    db_session.add(test_user)
-    await db_session.commit()
-
-    async def stub_verify_entra_id_token(*, id_token: str, settings: Settings):
-        return VerifiedIdentity(
-            external_id="oid-refresh-bad-origin",
-            tenant_id=settings.entra_tenant_id or "",
-            email=test_user.email,
-            name=test_user.name,
-        )
-
-    monkeypatch.setattr("app.api.v1.endpoints.auth.verify_entra_id_token", stub_verify_entra_id_token)
-
-    login = await refresh_client.post("/api/v1/auth/sso/exchange", json={"id_token": "fake"})
-    assert login.status_code == 200
+    await _login_via_sso_exchange(
+        refresh_client,
+        db_session,
+        test_user,
+        monkeypatch,
+        external_id="oid-refresh-bad-origin",
+    )
 
     refresh = await refresh_client.post(
         "/api/v1/auth/refresh",
@@ -457,22 +442,13 @@ async def test_logout_with_bearer_token_requires_origin_but_not_csrf(
     test_user: User,
     monkeypatch,
 ):
-    test_user.external_id = "oid-refresh-logout-bearer"
-    db_session.add(test_user)
-    await db_session.commit()
-
-    async def stub_verify_entra_id_token(*, id_token: str, settings: Settings):
-        return VerifiedIdentity(
-            external_id="oid-refresh-logout-bearer",
-            tenant_id=settings.entra_tenant_id or "",
-            email=test_user.email,
-            name=test_user.name,
-        )
-
-    monkeypatch.setattr("app.api.v1.endpoints.auth.verify_entra_id_token", stub_verify_entra_id_token)
-
-    login = await refresh_client.post("/api/v1/auth/sso/exchange", json={"id_token": "fake"})
-    assert login.status_code == 200
+    login = await _login_via_sso_exchange(
+        refresh_client,
+        db_session,
+        test_user,
+        monkeypatch,
+        external_id="oid-refresh-logout-bearer",
+    )
     access_token = login.json()["access_token"]
 
     logout = await refresh_client.post(
@@ -517,22 +493,13 @@ async def test_logout_all_revokes_existing_access_token(
     test_user: User,
     monkeypatch,
 ):
-    test_user.external_id = "oid-refresh-logout-all"
-    db_session.add(test_user)
-    await db_session.commit()
-
-    async def stub_verify_entra_id_token(*, id_token: str, settings: Settings):
-        return VerifiedIdentity(
-            external_id="oid-refresh-logout-all",
-            tenant_id=settings.entra_tenant_id or "",
-            email=test_user.email,
-            name=test_user.name,
-        )
-
-    monkeypatch.setattr("app.api.v1.endpoints.auth.verify_entra_id_token", stub_verify_entra_id_token)
-
-    login = await refresh_client.post("/api/v1/auth/sso/exchange", json={"id_token": "fake"})
-    assert login.status_code == 200
+    login = await _login_via_sso_exchange(
+        refresh_client,
+        db_session,
+        test_user,
+        monkeypatch,
+        external_id="oid-refresh-logout-all",
+    )
     access_token = login.json()["access_token"]
 
     logout_all = await refresh_client.post(
@@ -557,22 +524,13 @@ async def test_refresh_token_presented_as_bearer_is_rejected(
     test_user: User,
     monkeypatch,
 ):
-    test_user.external_id = "oid-refresh-bearer"
-    db_session.add(test_user)
-    await db_session.commit()
-
-    async def stub_verify_entra_id_token(*, id_token: str, settings: Settings):
-        return VerifiedIdentity(
-            external_id="oid-refresh-bearer",
-            tenant_id=settings.entra_tenant_id or "",
-            email=test_user.email,
-            name=test_user.name,
-        )
-
-    monkeypatch.setattr("app.api.v1.endpoints.auth.verify_entra_id_token", stub_verify_entra_id_token)
-
-    login = await refresh_client.post("/api/v1/auth/sso/exchange", json={"id_token": "fake"})
-    assert login.status_code == 200, login.text
+    await _login_via_sso_exchange(
+        refresh_client,
+        db_session,
+        test_user,
+        monkeypatch,
+        external_id="oid-refresh-bearer",
+    )
     refresh_token = refresh_client.cookies.get("riskhub_refresh_token")
     assert refresh_token
 
@@ -588,22 +546,13 @@ async def test_rotated_refresh_token_presented_as_bearer_is_rejected(
     test_user: User,
     monkeypatch,
 ):
-    test_user.external_id = "oid-refresh-rotated-bearer"
-    db_session.add(test_user)
-    await db_session.commit()
-
-    async def stub_verify_entra_id_token(*, id_token: str, settings: Settings):
-        return VerifiedIdentity(
-            external_id="oid-refresh-rotated-bearer",
-            tenant_id=settings.entra_tenant_id or "",
-            email=test_user.email,
-            name=test_user.name,
-        )
-
-    monkeypatch.setattr("app.api.v1.endpoints.auth.verify_entra_id_token", stub_verify_entra_id_token)
-
-    login = await refresh_client.post("/api/v1/auth/sso/exchange", json={"id_token": "fake"})
-    assert login.status_code == 200, login.text
+    await _login_via_sso_exchange(
+        refresh_client,
+        db_session,
+        test_user,
+        monkeypatch,
+        external_id="oid-refresh-rotated-bearer",
+    )
     first_refresh_token = refresh_client.cookies.get("riskhub_refresh_token")
     assert first_refresh_token
 
@@ -625,22 +574,13 @@ async def test_legacy_access_token_without_required_claims_is_rejected_but_refre
     test_user: User,
     monkeypatch,
 ):
-    test_user.external_id = "oid-refresh-legacy-access"
-    db_session.add(test_user)
-    await db_session.commit()
-
-    async def stub_verify_entra_id_token(*, id_token: str, settings: Settings):
-        return VerifiedIdentity(
-            external_id="oid-refresh-legacy-access",
-            tenant_id=settings.entra_tenant_id or "",
-            email=test_user.email,
-            name=test_user.name,
-        )
-
-    monkeypatch.setattr("app.api.v1.endpoints.auth.verify_entra_id_token", stub_verify_entra_id_token)
-
-    login = await refresh_client.post("/api/v1/auth/sso/exchange", json={"id_token": "fake"})
-    assert login.status_code == 200, login.text
+    await _login_via_sso_exchange(
+        refresh_client,
+        db_session,
+        test_user,
+        monkeypatch,
+        external_id="oid-refresh-legacy-access",
+    )
 
     legacy_access_token = jwt.encode(
         {

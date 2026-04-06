@@ -24,12 +24,15 @@ afterEach(() => {
 describe('SsoCallbackPage', () => {
     it('exchanges id_token and stores RiskHub JWT', async () => {
         clearAccessToken();
-        (entraAuth.handleRedirect as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({ idToken: 'id-token' });
+        (entraAuth.handleRedirect as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+            idToken: 'id-token',
+            state: 'server-state',
+        });
 
         server.use(
             http.post('*/api/v1/auth/sso/exchange', async ({ request }) => {
                 const body = await request.json();
-                expect(body).toEqual({ id_token: 'id-token' });
+                expect(body).toEqual({ id_token: 'id-token', state: 'server-state' });
                 return HttpResponse.json({
                     access_token: 'riskhub-jwt',
                     token_type: 'bearer',
@@ -53,5 +56,31 @@ describe('SsoCallbackPage', () => {
         });
 
         expect(await screen.findByText('Dashboard Home')).toBeInTheDocument();
+    });
+
+    it('returns to login without exchanging when redirect state is missing', async () => {
+        clearAccessToken();
+        let exchangeCalls = 0;
+        (entraAuth.handleRedirect as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({ idToken: 'id-token' });
+
+        server.use(
+            http.post('*/api/v1/auth/sso/exchange', async () => {
+                exchangeCalls += 1;
+                return HttpResponse.json({ detail: 'should not be called' }, { status: 500 });
+            }),
+        );
+
+        render(
+            <MemoryRouter initialEntries={['/auth/sso/callback']}>
+                <Routes>
+                    <Route path="/auth/sso/callback" element={<SsoCallbackPage />} />
+                    <Route path="/login" element={<div>Login</div>} />
+                </Routes>
+            </MemoryRouter>
+        );
+
+        expect(await screen.findByText('Login')).toBeInTheDocument();
+        expect(exchangeCalls).toBe(0);
+        expect(getAccessToken()).toBeNull();
     });
 });
