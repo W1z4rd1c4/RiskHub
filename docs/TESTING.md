@@ -13,7 +13,7 @@ This guide defines the current testing matrix for backend, frontend unit tests, 
 |---|---|---|
 | Backend RBAC/authz sweep | `cd . && PYTHONPATH=backend pytest tests/backend/pytest/test_activity_log.py tests/backend/pytest/test_orphaned_items_scan_and_stats.py tests/backend/pytest/test_executions.py tests/backend/pytest/api/v1/test_issues_rbac_api.py tests/backend/pytest/api/v1/test_dashboard_issue_metrics.py tests/backend/pytest/api/v1/test_reports_issues.py tests/backend/pytest/test_seed_rbac_parity.py -q` | Focused admin-boundary, RBAC, and seed-contract regression pack |
 | Backend targeted | `cd backend && venv/bin/pytest ../tests/backend/pytest/test_admin_docs.py -q` | Docs endpoint behavior and locale fallback |
-| Backend reliability targeted | `cd backend && pytest -q ../tests/backend/pytest/test_scheduler_runtime.py ../tests/backend/pytest/test_outbox_approval_flow.py ../tests/backend/pytest/test_aggregate_overviews.py ../tests/backend/pytest/test_orphaned_items_scan_and_stats.py` | Scheduler ownership, outbox retry path, aggregate overview endpoints, and governance overview |
+| Backend reliability targeted | `cd backend && pytest -q ../tests/backend/pytest/test_scheduler_runtime.py ../tests/backend/pytest/test_outbox_approval_flow.py ../tests/backend/pytest/test_aggregate_overviews.py ../tests/backend/pytest/test_orphaned_items_scan_and_stats.py` | Scheduler ownership, outbox fatal-vs-retry policy, SQLite single-worker guard, aggregate overview endpoints, and governance overview |
 | Backend install contract | `cd backend && pytest -q ../tests/backend/pytest/test_install_script_contracts.py ../tests/backend/pytest/test_startup_script_contracts.py` | Public `scripts/install.sh` and startup wrapper contract, including the Python-backed lifecycle control plane |
 | Backend broad | `make -f scripts/Makefile test` | Full backend regression |
 | Backend PR CI (SQLite) | `cd backend && pytest -m "not postgres" -q` | Blocking PR lane for broad backend regression on the default fast harness |
@@ -24,7 +24,7 @@ This guide defines the current testing matrix for backend, frontend unit tests, 
 | Frontend unit | `cd frontend && npm run test:run` | Component and integration tests; PR-blocking in CI |
 | Frontend KRI filter regression | `cd frontend && npm run test:run -- src/pages/__tests__/KRIsPage.monitoring-status.test.tsx` | Route-backed `/kris` monitoring/timeliness filters, rapid-click loading safety, and grouped-view parity |
 | Frontend vendor grouped-view regression | `cd frontend && npm run test:run -- src/pages/__tests__/VendorsPage.grouped-views.test.tsx` | `/vendors` grouped tabs, `By Risk` permission gating, overlapping risk-group membership, and `Unlinked Risk` fallback |
-| Frontend reliability targeted | `cd frontend && npm run test:run -- src/components/layout/__tests__/SidebarPolling.test.tsx src/components/notifications/__tests__/NotificationBell.test.tsx src/hooks/__tests__/useAdaptivePollingQuery.test.tsx src/pages/__tests__/DashboardPage.overview.test.tsx src/pages/__tests__/GovernancePage.overview.test.tsx src/pages/admin-console/__tests__/AdminConsoleOpsPanels.outbox.test.tsx src/services/__tests__/accessTokenStore.test.ts src/services/__tests__/apiClient.401-recovery.test.ts` | Aggregate polling, admin outbox panel, and auth/bootstrap regression pack |
+| Frontend reliability targeted | `cd frontend && npm run test:run -- src/components/layout/__tests__/SidebarPolling.test.tsx src/components/notifications/__tests__/NotificationBell.test.tsx src/hooks/__tests__/useAdaptivePollingQuery.test.tsx src/pages/__tests__/DashboardPage.overview.test.tsx src/pages/__tests__/GovernancePage.overview.test.tsx src/pages/admin-console/__tests__/AdminConsoleOpsPanels.outbox.test.tsx src/services/__tests__/accessTokenStore.test.ts src/services/__tests__/sessionManager.test.ts src/services/__tests__/apiClient.401-recovery.test.ts src/services/__tests__/authTimeoutFlow.test.ts src/contexts/__tests__/AuthLogoutFlow.test.tsx src/contexts/__tests__/AuthBootstrapRouteGuard.test.tsx src/contexts/__tests__/AuthSessionAuthority.test.tsx` | Aggregate polling, admin outbox panel, and canonical auth/session regression pack |
 | Frontend docs UI | `cd frontend && npm run test:run -- src/components/settings/__tests__/DocumentationSettings.test.tsx` | Docs cards/filter/audience behavior |
 | Frontend types | `cd frontend && npx tsc --noEmit` | Type safety gate |
 | Frontend quality chain | `cd frontend && npm run lint && npx tsc --noEmit && npm run quality:debt -- --report-json && node scripts/quality/validate-debt-budget-report.mjs && npm run cleanup:deadcode && node scripts/cleanup/validate-unreachable-report.mjs && node scripts/quality/validate-no-inline-styles.mjs` | Frontend lint/type/debt/dead-code/inline-style gate mirrored by CI |
@@ -48,6 +48,8 @@ This guide defines the current testing matrix for backend, frontend unit tests, 
 - Schema-sensitive changes should keep the dedicated Postgres pytest lane green; do not rely on browser E2E as the only Postgres signal.
 - When the Docker app stack is using the live `riskhub` database, point Postgres marker runs at a sibling `riskhub_test` database instead; Postgres-mode truncates tables between tests.
 - Advisory-lock coverage is only valid in Postgres mode. Do not treat SQLite-only passes as sufficient for scheduler ownership enforcement.
+- SQLite/non-Postgres outbox dispatch is intentionally single-worker only; if scheduler ownership is enabled with `API_WORKERS>1`, the runtime must fail fast instead of pretending it has Postgres claim semantics.
+- Trusted proxy ranges that cover broad private networks now fail closed in production unless `ALLOW_BROAD_TRUSTED_PROXIES_IN_PRODUCTION=true` is set deliberately.
 - The Postgres lane is the authority for migration-defined indexes and live schema typing checks, and now runs a named DB-sensitive regression contract instead of only `pytest -m postgres`.
 - Redis integration tests are marked with `@pytest.mark.redis_integration` and require Docker-backed test dependencies.
 - For docs endpoint behavior, keep role-scoped fixtures (`client_platform_admin`, `client_cro`, `client_employee`) green.
@@ -122,6 +124,9 @@ Current browser-lane caveats:
 ## Frontend Testing Notes
 
 - Unit/integration tests run with Vitest.
+- Client auth/session truth now lives in `frontend/src/services/sessionStore.ts`; `sessionManager` is the transition layer, and compatibility adapters must not be treated as independent auth sources.
+- Backend rate-limit policy/backend behavior is covered by `tests/backend/pytest/test_rate_limit_components.py`, `test_rate_limit_redis_resilience.py`, and `test_rate_limit_redis_integration.py`.
+- Graph auth boundary/cache-key behavior is covered by `tests/backend/pytest/test_graph_directory_components.py` and `test_entra_confidential_credentials.py`.
 - Docs UI behavior is covered in `DocumentationSettings.test.tsx`.
 - `/kris` route regressions must include `src/pages/__tests__/KRIsPage.monitoring-status.test.tsx`.
 - The KRI regression gate must cover URL-sourced monitoring/timeliness filters, mutual exclusion between those filters, rapid filter-click loading recovery, and grouped-view parity.

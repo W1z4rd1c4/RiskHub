@@ -1,27 +1,42 @@
-let accessToken: string | null = null;
-const listeners = new Set<(token: string | null) => void>();
-
-function notifyListeners(): void {
-    listeners.forEach((listener) => listener(accessToken));
-}
+import { getSessionSnapshot, setSessionSnapshot, subscribeSessionSnapshot } from '@/services/sessionStore';
 
 export function getAccessToken(): string | null {
-    return accessToken;
+    return getSessionSnapshot().token;
 }
 
 export function setAccessToken(token: string): void {
-    accessToken = token;
-    notifyListeners();
+    setSessionSnapshot((previous) => ({
+        ...previous,
+        token,
+        user: previous.token === token ? previous.user : null,
+        bootstrapStatus: previous.token === token && previous.user ? 'authenticated' : 'loading',
+        bootstrapError: null,
+        logoutPending: false,
+        logoutErrorKey: null,
+    }));
 }
 
 export function clearAccessToken(): void {
-    accessToken = null;
-    notifyListeners();
+    setSessionSnapshot((previous) => ({
+        ...previous,
+        token: null,
+        user: null,
+        bootstrapStatus: 'anonymous',
+        bootstrapError: null,
+        logoutPending: false,
+        logoutErrorKey: null,
+    }));
 }
 
 export function subscribeAccessToken(listener: (token: string | null) => void): () => void {
-    listeners.add(listener);
-    return () => {
-        listeners.delete(listener);
-    };
+    let previousToken = getAccessToken();
+
+    return subscribeSessionSnapshot(() => {
+        const nextToken = getAccessToken();
+        if (nextToken === previousToken) {
+            return;
+        }
+        previousToken = nextToken;
+        listener(nextToken);
+    });
 }

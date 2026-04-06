@@ -1,6 +1,6 @@
 # Production Security Checklist
 
-> **Last Updated**: 2026-04-05
+> **Last Updated**: 2026-04-06
 > **Audience**: DevOps / Security Engineering
 
 ## Config And Startup Guards
@@ -19,6 +19,7 @@ RiskHub production deploys must satisfy these invariants:
 - `ENTRA_JIT_PROVISIONING_ENABLED=false`
 - `AUTH_SSO_ALLOW_EMAIL_LINK=false`
 - reviewed `TRUSTED_PROXIES` when traffic passes through non-default proxy networks
+- if broad proxy ranges are intentionally trusted in production, set `ALLOW_BROAD_TRUSTED_PROXIES_IN_PRODUCTION=true` explicitly instead of relying on warnings
 
 ## Network
 
@@ -63,6 +64,9 @@ RiskHub production deploys must satisfy these invariants:
 - Keep `/docs` and `/openapi.json` disabled in production.
 - Keep the public `/api/v1/health` probe minimal; use `/api/v1/admin/health` for detailed runtime diagnostics.
 - Keep Redis enabled because rate limiting and account lockout depend on it.
+- Keep the segmented rate-limit boundary in mind when changing production controls:
+  - route policy now lives in `backend/app/middleware/rate_limit/policy.py`
+  - Redis vs in-memory behavior now lives in `backend/app/middleware/rate_limit/backend.py`
 - Keep `ALLOWED_HOSTS` explicit and reviewed for the real public hostname set; do not assume CORS or runtime defaults are sufficient.
 - Keep the modern header baseline only: CSP, HSTS, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Cross-Origin-Resource-Policy`, and `Permissions-Policy`. Do not reintroduce legacy `X-XSS-Protection`.
 - Keep production CSP free of `style-src 'unsafe-inline'`.
@@ -84,6 +88,7 @@ RiskHub production deploys must satisfy these invariants:
 - Store `SECRET_KEY`, database credentials, Redis password, and the active Entra confidential credential material in a secret manager when possible.
 - `ENTRA_TENANT_ID` and `ENTRA_CLIENT_ID` are not secret values.
 - Prefer file-backed certificate credential mode over shared client secret when your Entra app registration supports it; treat client-secret production mode as an explicit waiver.
+- If client-secret rotation must invalidate the in-process Graph token cache without a process restart, set `ENTRA_CREDENTIAL_FINGERPRINT` explicitly.
 - Keep certificate PEM material only in `/etc/riskhub/secrets/entra_client_certificate_private_key`; do not inline it into non-secret env files.
 - Do not print secrets into shell history or CI logs.
 

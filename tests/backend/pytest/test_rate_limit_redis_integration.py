@@ -9,7 +9,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 from app.core.config import Settings
-from app.middleware.security import RateLimitMiddleware
+from app.middleware.rate_limit import RateLimitMiddleware
 
 
 def _docker_available() -> bool:

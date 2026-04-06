@@ -1,42 +1,43 @@
 import type { AuthUser } from '@/services/authApi';
+import { getSessionSnapshot, setSessionSnapshot } from '@/services/sessionStore';
 
-export type BootstrapSession = {
+export interface BootstrapSession {
     token: string;
     user: AuthUser;
-};
-
-const BOOTSTRAP_CACHE_TTL_MS = 5_000;
-
-let cachedBootstrap: (BootstrapSession & { expiresAt: number }) | null = null;
+}
 
 export function getBootstrapSession(token: string): BootstrapSession | null {
-    if (!cachedBootstrap) {
-        return null;
-    }
-    if (cachedBootstrap.token !== token) {
-        return null;
-    }
-    if (cachedBootstrap.expiresAt <= Date.now()) {
-        cachedBootstrap = null;
+    const snapshot = getSessionSnapshot();
+    if (!snapshot.user || snapshot.token !== token) {
         return null;
     }
     return {
-        token: cachedBootstrap.token,
-        user: cachedBootstrap.user,
+        token: snapshot.token,
+        user: snapshot.user,
     };
 }
 
 export function setBootstrapSession(session: BootstrapSession): void {
-    cachedBootstrap = {
-        ...session,
-        expiresAt: Date.now() + BOOTSTRAP_CACHE_TTL_MS,
-    };
+    setSessionSnapshot((previous) => ({
+        ...previous,
+        token: session.token,
+        user: session.user,
+        bootstrapStatus: 'authenticated',
+        bootstrapError: null,
+        logoutPending: false,
+        logoutErrorKey: null,
+    }));
 }
 
 export function clearBootstrapSession(): void {
-    cachedBootstrap = null;
+    setSessionSnapshot((previous) => ({
+        ...previous,
+        user: null,
+        bootstrapStatus: previous.token ? 'loading' : 'anonymous',
+        bootstrapError: null,
+    }));
 }
 
 export function __resetBootstrapSessionCacheForTests(): void {
-    cachedBootstrap = null;
+    clearBootstrapSession();
 }

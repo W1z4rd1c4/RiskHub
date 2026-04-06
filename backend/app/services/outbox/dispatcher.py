@@ -6,8 +6,9 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.logging import get_logger
 from app.models import OutboxEvent
-from app.services.outbox.handlers import OUTBOX_EVENT_HANDLERS
+from app.services.outbox.errors import FatalOutboxError, RetryableOutboxError
 from app.services.outbox.payloads import ValidationError, get_outbox_payload_model
+from app.services.outbox.registry import OUTBOX_EVENT_HANDLERS
 from app.services.outbox.store import OUTBOX_BATCH_SIZE, OutboxService
 
 logger = get_logger("outbox")
@@ -34,6 +35,8 @@ async def dispatch_pending_outbox_events(
             if event is None or event.status != "processing":
                 continue
 
+            event_type = event.event_type
+            idempotency_key = event.idempotency_key
             payload_model = get_outbox_payload_model(event.event_type)
             handler = OUTBOX_EVENT_HANDLERS.get(event.event_type)
             if payload_model is None or handler is None:
@@ -58,16 +61,40 @@ async def dispatch_pending_outbox_events(
                 await handler(session, payload)
                 await OutboxService.mark_succeeded(session, event_id)
                 processed += 1
-            except Exception as exc:
+            except RetryableOutboxError as exc:
                 await session.rollback()
                 async with sessionmaker() as retry_session:
                     await OutboxService.mark_retry(retry_session, event_id, error_message=str(exc))
                 logger.exception(
                     "outbox_event_failed",
-                    error_category="handler_execution",
+                    error_category="retryable_handler_execution",
                     outbox_event_id=event_id,
-                    event_type=event.event_type,
-                    idempotency_key=event.idempotency_key,
+                    event_type=event_type,
+                    idempotency_key=idempotency_key,
+                    error_message=str(exc),
+                )
+            except FatalOutboxError as exc:
+                await session.rollback()
+                async with sessionmaker() as dead_letter_session:
+                    await OutboxService.mark_dead_letter(dead_letter_session, event_id, error_message=str(exc))
+                logger.exception(
+                    "outbox_event_failed",
+                    error_category="fatal_handler_execution",
+                    outbox_event_id=event_id,
+                    event_type=event_type,
+                    idempotency_key=idempotency_key,
+                    error_message=str(exc),
+                )
+            except Exception as exc:
+                await session.rollback()
+                async with sessionmaker() as dead_letter_session:
+                    await OutboxService.mark_dead_letter(dead_letter_session, event_id, error_message=str(exc))
+                logger.exception(
+                    "outbox_event_failed",
+                    error_category="unclassified_handler_execution",
+                    outbox_event_id=event_id,
+                    event_type=event_type,
+                    idempotency_key=idempotency_key,
                     error_message=str(exc),
                 )
 

@@ -16,7 +16,7 @@ from app.models.notification import Notification, NotificationType
 from app.models.risk import RiskStatus
 from app.models.risk_questionnaire import RiskQuestionnaireStatus
 from app.models.user import AccessScope
-from app.services.outbox_service import dispatch_pending_outbox_events
+from app.services.outbox import dispatch_pending_outbox_events
 from app.services.questionnaire_deadline_service import QuestionnaireDeadlineService
 
 

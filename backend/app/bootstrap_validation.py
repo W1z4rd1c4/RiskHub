@@ -78,6 +78,12 @@ def validate_settings_for_runtime(settings: Settings) -> None:
 
     broad_proxy_entries = find_broad_trusted_proxy_entries(settings.trusted_proxies)
     if broad_proxy_entries:
+        if not settings.allow_broad_trusted_proxies_in_production:
+            raise RuntimeError(
+                "FATAL: TRUSTED_PROXIES contains broad network ranges. "
+                "Use exact proxy hops in production or set "
+                "ALLOW_BROAD_TRUSTED_PROXIES_IN_PRODUCTION=true if this trust boundary is intentional."
+            )
         logger.warning(
             "trusted_proxy_broad_network_warning",
             message=(

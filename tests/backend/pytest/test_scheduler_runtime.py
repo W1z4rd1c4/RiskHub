@@ -21,6 +21,7 @@ from app.core.scheduler import (
 )
 from app.models.outbox_event import OutboxEvent
 from app.models.scheduler_job_run import SchedulerJobRun
+from app.services.outbox.store import NON_POSTGRES_OUTBOX_SINGLE_WORKER_ERROR
 
 
 def _registered_job_ids(test_scheduler: AsyncIOScheduler) -> set[str]:
@@ -179,6 +180,23 @@ async def test_scheduler_start_with_lock_denied_skips_runtime_start(
     isolated_scheduler._resolve_lock_provider = lambda: DeniedLockProvider()
 
     await start_scheduler_async()
+
+    assert isolated_scheduler.scheduler.running is False
+
+
+@pytest.mark.asyncio
+async def test_scheduler_rejects_multi_worker_non_postgres_outbox_runtime(
+    isolated_scheduler,
+    async_engine: AsyncEngine,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    if async_engine.dialect.name == "postgresql":
+        pytest.skip("Non-Postgres runtime guard only applies outside PostgreSQL")
+
+    monkeypatch.setenv("API_WORKERS", "2")
+
+    with pytest.raises(RuntimeError, match=NON_POSTGRES_OUTBOX_SINGLE_WORKER_ERROR):
+        await start_scheduler_async()
 
     assert isolated_scheduler.scheduler.running is False
 

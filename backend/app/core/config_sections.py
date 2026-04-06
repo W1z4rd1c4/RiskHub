@@ -37,6 +37,7 @@ class SessionSettingsSection(_FrozenSectionModel):
 
 class RedisSettingsSection(_FrozenSectionModel):
     redis_url: str | None
+    rate_limit_limits: dict[str, tuple[int, int]]
     rate_limit_fail_closed_prefixes: tuple[str, ...]
     lockout_fail_closed_on_backend_error: bool
 

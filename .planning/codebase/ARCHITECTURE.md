@@ -17,6 +17,7 @@ RiskHub is a containerized full-stack application:
 - `backend/app/main.py` is the thin entrypoint for logging bootstrap, `lifespan`, and `create_app`
 - DB engine/sessionmaker initialized per-app and stored on `app.state` (`backend/app/db/session.py`, `backend/app/bootstrap_runtime.py`, `backend/app/main.py`)
 - Lifespan shutdown disposes DB engine and closes Redis (`backend/app/main.py`)
+- `backend/app/core/config.py` is now the import-stable facade over the physically segmented `backend/app/core/settings/` package, preserving the flat env contract while moving field groups by concern
 
 ### API Layer
 - Router composition in `backend/app/api/v1/router.py`
@@ -28,11 +29,12 @@ RiskHub is a containerized full-stack application:
 - SQLAlchemy models in `backend/app/models/`
 - Pydantic request/response schemas in `backend/app/schemas/`
 - Business workflows in `backend/app/services/`
+- Transactional outbox responsibilities are split across store/dispatcher/registry/domain-handler modules (`backend/app/services/outbox/`)
 - Async DB session boundary in `backend/app/db/session.py` (`get_db(request)` yields `AsyncSession`; no implicit commit)
 
 ### Cross-Cutting Runtime
 - Middleware chain: CORS, trusted hosts, logging context, security headers, rate limiting, language (`backend/app/bootstrap_app.py`, `backend/app/middleware/`)
-- `backend/app/middleware/security.py` remains the import-stable facade while header and rate-limit behavior now live in `backend/app/middleware/security_headers.py` and `backend/app/middleware/rate_limit.py`
+- Header, protocol-guard, and rate-limit middleware now import directly from their focused modules/packages (`backend/app/middleware/security_headers.py`, `backend/app/middleware/security_protocol.py`, `backend/app/middleware/rate_limit/`)
 - Structured logging + audit logging (`backend/app/core/logging.py`, `backend/app/core/activity_logger.py`)
 - Background jobs via APScheduler (`backend/app/core/scheduler.py`) with DB access via a configured `sessionmaker` (`backend/app/bootstrap_runtime.py`, `backend/app/core/scheduler.py`)
 
@@ -43,7 +45,7 @@ RiskHub is a containerized full-stack application:
 - Routing: `BrowserRouter` shell in `frontend/src/App.tsx` backed by centralized route metadata in `frontend/src/routing/`
 - Domain views: page components in `frontend/src/pages/`, shared components in `frontend/src/components/`
 - API access: central `apiClient` + domain service wrappers (`frontend/src/services/`)
-- Auth/session coordination: `AuthProvider` composition plus `useAuthBootstrap`, `useAuthActions`, and `sessionManager` (`frontend/src/contexts/AuthContext.tsx`, `frontend/src/contexts/auth/`, `frontend/src/services/sessionManager.ts`)
+- Auth/session coordination: `AuthProvider` now projects a canonical in-memory session snapshot from `sessionStore`, while `useAuthBootstrap`, `useAuthActions`, and `sessionManager` perform the allowed state transitions (`frontend/src/contexts/AuthContext.tsx`, `frontend/src/contexts/auth/`, `frontend/src/services/sessionStore.ts`, `frontend/src/services/sessionManager.ts`)
 - Authorization UX: `PermissionGate`, `usePermissions`, `useAuthz` (`frontend/src/components/PermissionGate.tsx`, `frontend/src/hooks/usePermissions.ts`, `frontend/src/authz/useAuthz.ts`)
 - Entra SSO support via MSAL (`frontend/src/services/entraAuth.ts`, `frontend/src/pages/SsoCallbackPage.tsx`)
 - Preference hydration readiness now stays inside the auth provider/hook graph; the earlier module-level readiness singleton is gone (`frontend/src/contexts/auth/usePreferenceHydration.ts`, `frontend/src/contexts/AuthContext.tsx`)
@@ -52,7 +54,7 @@ RiskHub is a containerized full-stack application:
 
 ### Authenticated API request
 1. User logs in via password (`POST /api/v1/auth/login`) or SSO exchange (`POST /api/v1/auth/sso/exchange`) (`backend/app/api/v1/endpoints/auth/password.py`, `backend/app/api/v1/endpoints/auth/sso.py`)
-2. Frontend applies authenticated/bootstrap session state through `sessionManager`, which coordinates token storage and bootstrap cache (`frontend/src/services/sessionManager.ts`, `frontend/src/services/accessTokenStore.ts`, `frontend/src/services/bootstrapSessionCache.ts`)
+2. Frontend applies authenticated/bootstrap session state through `sessionManager`, which updates the canonical `sessionStore`; legacy `accessTokenStore`/`bootstrapSessionCache` modules are compatibility adapters over that same snapshot (`frontend/src/services/sessionManager.ts`, `frontend/src/services/sessionStore.ts`, `frontend/src/services/accessTokenStore.ts`, `frontend/src/services/bootstrapSessionCache.ts`)
 3. `apiClient` injects bearer token (`frontend/src/services/apiClient.ts`)
 4. Backend resolves user/permissions in dependency layer (`backend/app/api/deps.py`)
 5. Endpoint/service executes and may write audit events (`backend/app/core/activity_logger.py`)
@@ -64,7 +66,8 @@ RiskHub is a containerized full-stack application:
 
 ### Scheduled jobs
 1. App starts and conditionally starts scheduler based on `ENABLE_SCHEDULER` (`backend/app/core/scheduler.py`)
-2. Daily jobs process KRIs, questionnaires, vendor reassessment/SLA, and optional vendor signal refresh
+2. Non-Postgres runtimes are treated as single-worker only for outbox dispatch; production multi-worker scheduler ownership requires PostgreSQL (`backend/app/core/scheduler.py`, `backend/app/services/outbox/store.py`)
+3. Daily jobs process KRIs, questionnaires, vendor reassessment/SLA, and optional vendor signal refresh
 
 ## Deployment Topology
 

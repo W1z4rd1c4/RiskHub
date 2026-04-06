@@ -14,7 +14,7 @@ from app.i18n import t
 from app.models import RiskQuestionnaire, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas.risk_questionnaire import RiskQuestionnaireListItemRead, RiskQuestionnaireRead
-from app.services.outbox_service import OutboxService
+from app.services.outbox import OutboxService
 from app.services.risk_questionnaire_service import (
     QUESTIONNAIRE_TEMPLATE_KEY,
     QUESTIONNAIRE_TEMPLATE_VERSION,

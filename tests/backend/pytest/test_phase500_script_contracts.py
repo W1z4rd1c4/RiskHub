@@ -19,6 +19,8 @@ LINUX_BUNDLE_BUILDER = REPO_ROOT / "scripts" / "release" / "build_linux_bundle.s
 RELEASE_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "release.yml"
 MAKEFILE = REPO_ROOT / "scripts" / "Makefile"
 DEV_COMPOSE = REPO_ROOT / "docker-compose.yml"
+RELEASE_PARITY_AUDIT_IMPL = REPO_ROOT / "scripts" / "security" / "release_parity_audit" / "audit.py"
+FRONTEND_DOCKERFILE = REPO_ROOT / "frontend" / "Dockerfile"
 EXPECTED_PROD_BOOTSTRAP_SCRIPTS = (
     "__init__.py",
     "bootstrap_sso_user.py",
@@ -172,6 +174,11 @@ def test_install_frontend_applies_capability_hardening() -> None:
     assert "--cap-add NET_BIND_SERVICE" in text
 
 
+def test_frontend_dockerfile_uses_legacy_peer_resolution_for_container_builds() -> None:
+    text = _read(FRONTEND_DOCKERFILE)
+    assert "npm ci --include=dev --legacy-peer-deps" in text
+
+
 def test_install_redis_passes_password_file_override_for_custom_secret_dir() -> None:
     text = _script_text("install_redis.sh")
     assert 'RISKHUB_REDIS_PASSWORD_FILE=${SECRET_DIR}/redis_password' in text
@@ -240,7 +247,7 @@ def test_component_prod_wrappers_help_honors_runtime_dir_override(path: Path, ex
 
 
 def test_release_parity_audit_uses_deploy_cli_for_prod_runtime_path() -> None:
-    text = _read(REPO_ROOT / "scripts" / "security" / "run_release_parity_audit.py")
+    text = _read(RELEASE_PARITY_AUDIT_IMPL)
     assert "./scripts/deploy.sh deploy --target docker" in text
     assert "deploy_cli_prod_docker" in text
     legacy_setup_mode_prod = "./scripts/" + "setup.sh --mode prod"

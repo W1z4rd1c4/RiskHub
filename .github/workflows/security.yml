@@ -230,7 +230,6 @@ jobs:
   container-security:
     name: Container Scan (Trivy + SBOM Correlation)
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' || github.event_name == 'schedule'
 
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1

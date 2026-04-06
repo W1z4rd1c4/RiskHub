@@ -1,14 +1,11 @@
 import { authApi } from '@/services/authApi';
-import { getAccessToken } from '@/services/accessTokenStore';
 import {
-    __resetBootstrapSessionCacheForTests,
     clearBootstrapSession,
-    getBootstrapSession,
-    type BootstrapSession,
 } from '@/services/bootstrapSessionCache';
 import { isExplicitLogoutSuppressed } from '@/services/logoutSuppression';
 import { isAuthUnavailableError } from '@/services/authRequest';
 import { hasRefreshSessionHint } from '@/services/refreshSessionHint';
+import { getSessionSnapshot } from '@/services/sessionStore';
 import { silentReauthAndExchange } from '@/services/ssoSession';
 
 type CurrentUser = Awaited<ReturnType<typeof authApi.getCurrentUser>>;
@@ -23,7 +20,8 @@ export async function bootstrapAuthSession(): Promise<{ token: string | null; us
                 return { token: null, user: null };
             }
 
-            let token = getAccessToken();
+            const snapshot = getSessionSnapshot();
+            let token = snapshot.token;
             let usedRefresh = false;
 
             if (!token) {
@@ -40,13 +38,13 @@ export async function bootstrapAuthSession(): Promise<{ token: string | null; us
                 return { token: null, user: null };
             }
 
-            const cached = getBootstrapSession(token);
-            if (cached) {
+            const cachedUser = getSessionSnapshot().token === token ? getSessionSnapshot().user : null;
+            if (cachedUser) {
                 if (isExplicitLogoutSuppressed()) {
                     clearBootstrapSession();
                     return { token: null, user: null };
                 }
-                return { token: cached.token, user: cached.user };
+                return { token, user: cachedUser };
             }
 
             try {
@@ -85,8 +83,6 @@ export async function bootstrapAuthSession(): Promise<{ token: string | null; us
 
 export function __resetAuthSessionCoordinatorForTests(): void {
     bootstrapPromise = null;
-    __resetBootstrapSessionCacheForTests();
 }
 
 export { clearBootstrapSession };
-export type { BootstrapSession };

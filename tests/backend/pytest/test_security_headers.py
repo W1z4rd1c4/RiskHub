@@ -82,8 +82,6 @@ async def test_security_headers_in_production_mode():
     assert response.status_code == 200
     _required_headers_present(dict(response.headers))
     assert response.headers["strict-transport-security"] == "max-age=31536000; includeSubDomains; preload"
-    assert "cross-origin-opener-policy" not in response.headers
-    assert "cross-origin-embedder-policy" not in response.headers
 
     csp = _csp_directives(response.headers["content-security-policy"])
     assert csp["script-src"] == "script-src 'self'"
