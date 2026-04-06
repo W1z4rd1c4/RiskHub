@@ -138,6 +138,32 @@ async def get_primary_approver_for_risk(
     return None
 
 
+async def get_risk_delete_approval_metadata(
+    db: AsyncSession,
+    *,
+    risk: Risk,
+    requester_id: Optional[int] = None,
+) -> tuple[Optional[int], bool]:
+    """Return primary-approver routing and privileged escalation for a risk delete request."""
+    from app.core.permissions import is_high_risk_for_approval_async
+
+    primary_approver_id = await get_primary_approver_for_risk(db, risk.id, requester_id=requester_id)
+    requires_privileged = await is_high_risk_for_approval_async(risk, db)
+    return primary_approver_id, requires_privileged
+
+
+async def get_control_delete_approval_metadata(
+    db: AsyncSession,
+    *,
+    control: Control,
+    requester_id: Optional[int] = None,
+) -> tuple[Optional[int], bool]:
+    """Return primary-approver routing and privileged escalation for a control delete request."""
+    primary_approver_id = await get_primary_approver_for_control(db, control.id, requester_id=requester_id)
+    requires_privileged = await check_control_requires_privileged_approval(db, control.id)
+    return primary_approver_id, requires_privileged
+
+
 async def create_approval_request_with_audit(
     db: AsyncSession,
     *,

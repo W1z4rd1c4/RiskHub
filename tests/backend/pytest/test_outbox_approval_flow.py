@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from app.core.datetime_utils import coerce_utc, utc_now
-from app.models import Notification, OutboxEvent, User
+from app.models import Notification, OutboxEvent, Risk, User
 from app.models.notification import NotificationType
 from app.services.outbox.errors import FatalOutboxError, RetryableOutboxError
 from app.services.outbox.payloads import OUTBOX_PAYLOAD_MODELS
@@ -17,6 +17,37 @@ from app.services.outbox.store import OUTBOX_RECLAIM_AFTER, OutboxService
 
 def _sessionmaker(async_engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
     return async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
+
+
+async def _create_outbox_risk(
+    db_session: AsyncSession,
+    *,
+    risk_id_code: str,
+    department_id: int,
+    owner_id: int,
+) -> Risk:
+    risk = Risk(
+        risk_id_code=risk_id_code,
+        name="Outbox Queue Risk",
+        process="Outbox Test",
+        description="Risk used for approval outbox notification tests",
+        department_id=department_id,
+        owner_id=owner_id,
+        risk_type="operational",
+        category="Testing",
+        gross_probability=4,
+        gross_impact=4,
+        gross_score=16,
+        net_probability=3,
+        net_impact=4,
+        net_score=10,
+        status="active",
+        is_priority=False,
+    )
+    db_session.add(risk)
+    await db_session.commit()
+    await db_session.refresh(risk)
+    return risk
 
 
 @pytest.mark.asyncio
@@ -67,6 +98,56 @@ async def test_create_approval_request_enqueues_outbox_without_inline_notificati
         )
     ).scalars().all()
     assert delivered
+
+
+@pytest.mark.asyncio
+async def test_queue_created_approval_notifies_primary_approver_after_dispatch(
+    client_approval_requester: AsyncClient,
+    db_session: AsyncSession,
+    async_engine: AsyncEngine,
+    test_department,
+    test_user_employee: User,
+) -> None:
+    risk = await _create_outbox_risk(
+        db_session,
+        risk_id_code="OUTBOX-QUEUE-001",
+        department_id=test_department.id,
+        owner_id=test_user_employee.id,
+    )
+
+    response = await client_approval_requester.post(
+        "/api/v1/approvals",
+        json={"resource_type": "risk", "resource_id": risk.id, "reason": "Notify primary approver"},
+    )
+    assert response.status_code == 201, response.text
+    approval_id = response.json()["id"]
+
+    primary_inline = (
+        await db_session.execute(
+            select(Notification).where(
+                Notification.user_id == test_user_employee.id,
+                Notification.resource_type == "approval",
+                Notification.resource_id == approval_id,
+                Notification.type == NotificationType.APPROVAL_PENDING,
+            )
+        )
+    ).scalar_one_or_none()
+    assert primary_inline is None
+
+    processed = await dispatch_pending_outbox_events(_sessionmaker(async_engine))
+    assert processed >= 1
+
+    primary_notification = (
+        await db_session.execute(
+            select(Notification).where(
+                Notification.user_id == test_user_employee.id,
+                Notification.resource_type == "approval",
+                Notification.resource_id == approval_id,
+                Notification.type == NotificationType.APPROVAL_PENDING,
+            )
+        )
+    ).scalar_one_or_none()
+    assert primary_notification is not None
 
 
 @pytest.mark.asyncio

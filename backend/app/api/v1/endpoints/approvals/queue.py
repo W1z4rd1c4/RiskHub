@@ -8,10 +8,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api import deps
-from app.core.approval_helpers import create_approval_request_with_audit
+from app.core.approval_helpers import (
+    create_approval_request_with_audit,
+    get_control_delete_approval_metadata,
+    get_risk_delete_approval_metadata,
+)
 from app.core.permissions import can_resolve_approvals, check_department_access
 from app.db.session import get_db
 from app.models import (
+    ApprovalActionType,
     ApprovalRequest,
     ApprovalResourceType,
     ApprovalStatus,
@@ -46,11 +51,13 @@ async def create_approval_request(
 ):
     """
     Create a new approval request for resource deletion.
-    Requires the same delete authority as the underlying resource delete endpoint.
+    Mirrors the underlying delete route's authorization and delete-workflow metadata.
     """
     # Validate resource exists and get name for snapshot
     resource_name = ""
     department_id: int | None = None
+    primary_approver_id: int | None = None
+    requires_privileged_approval = False
     if request_data.resource_type == ApprovalResourceTypeEnum.risk:
         resource = await assert_can_request_delete_risk(
             db,
@@ -59,6 +66,11 @@ async def create_approval_request(
         )
         resource_name = f"{resource.risk_id_code}: {resource.description[:50] if resource.description else ''}"
         department_id = resource.department_id
+        primary_approver_id, requires_privileged_approval = await get_risk_delete_approval_metadata(
+            db,
+            risk=resource,
+            requester_id=current_user.id,
+        )
     elif request_data.resource_type == ApprovalResourceTypeEnum.control:
         resource = await assert_can_request_delete_control(
             db,
@@ -68,6 +80,11 @@ async def create_approval_request(
         control_label = (resource.name or "").strip()[:50]
         resource_name = control_label or "Unknown control"
         department_id = resource.department_id
+        primary_approver_id, requires_privileged_approval = await get_control_delete_approval_metadata(
+            db,
+            control=resource,
+            requester_id=current_user.id,
+        )
     elif request_data.resource_type == ApprovalResourceTypeEnum.kri:
         resource = await assert_can_request_delete_kri(
             db,
@@ -94,9 +111,12 @@ async def create_approval_request(
         resource_type=ApprovalResourceType(request_data.resource_type.value),
         resource_id=request_data.resource_id,
         resource_name=resource_name,
+        action_type=ApprovalActionType.DELETE,
         requested_by_id=current_user.id,
         reason=request_data.reason,
         status=ApprovalStatus.PENDING,
+        primary_approver_id=primary_approver_id,
+        requires_privileged_approval=requires_privileged_approval,
     )
 
     await create_approval_request_with_audit(

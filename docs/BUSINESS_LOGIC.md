@@ -544,6 +544,7 @@ Non-privileged users can access resources **outside their department** if they a
 > - KRIs: `is_archived = true`, `archived_at`, `archived_by_id`
 > - Vendors: `status = 'inactive'` (inactive is the archived state)
 > - Vendor SLAs: `is_archived = true`, `archived_at`, `archived_by_id`
+> - Non-privileged risk deletions use the shared **high-risk** escalation rule: `is_priority = true` or `net_score >= high_risk_min_net_score` requires privileged follow-up after primary approval.
 
 ### 8.3 Archived Visibility Defaults and Restore
 

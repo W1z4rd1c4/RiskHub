@@ -27,6 +27,7 @@ async def delete_risk(
     """
     from fastapi.responses import Response
 
+    from app.core.approval_helpers import create_approval_request_with_audit, get_risk_delete_approval_metadata
     from app.core.permissions import can_resolve_approvals
     from app.models import ApprovalRequest, ApprovalResourceType, ApprovalStatus
 
@@ -73,20 +74,12 @@ async def delete_risk(
         else (risk.description or "")
     )
 
-    # Determine primary approver: Risk Owner (if not self)
-    primary_approver_id = risk.owner_id if risk.owner_id != current_user.id else None
-
-    # Fallback to department head if no owner or self-approval
-    if not primary_approver_id and risk.department_id:
-        from app.models import Department
-
-        dept_result = await db.execute(select(Department).where(Department.id == risk.department_id))
-        dept = dept_result.scalar_one_or_none()
-        if dept and dept.manager_id and dept.manager_id != current_user.id:
-            primary_approver_id = dept.manager_id
-
-    # Determine if privileged approval is needed (priority risks)
-    requires_privileged = bool(risk.is_priority)
+    primary_approver_id, requires_privileged = await get_risk_delete_approval_metadata(
+        db,
+        risk=risk,
+        requester_id=current_user.id,
+    )
+    # Delete escalation must stay aligned with the shared high-risk rule and config threshold.
 
     from app.models import ApprovalActionType
 
@@ -101,8 +94,6 @@ async def delete_risk(
         primary_approver_id=primary_approver_id,
         requires_privileged_approval=requires_privileged,
     )
-
-    from app.core.approval_helpers import create_approval_request_with_audit
 
     await create_approval_request_with_audit(
         db,

@@ -4,9 +4,11 @@
  *
  * Coverage:
  * - Primary approval required for non-privileged users
- * - Privileged approval trigger: is_priority=true
- * - Privileged approval trigger: net_score >= high_risk_min_net_score
- * - Control linked to high-risk requires privileged approval
+ * - Approval UI surfaces requests already marked pending_privileged
+ * - Control linked to high-risk can require privileged approval
+ *
+ * Note: this spec does not deterministically create the net-score threshold
+ * delete scenario; backend pytest owns that regression coverage.
  */
 import { test, expect, DEMO_ACCOUNTS } from '../fixtures/auth.fixture';
 import { ApprovalsPage } from '../pages/ApprovalsPage';

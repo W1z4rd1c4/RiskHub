@@ -14,13 +14,17 @@ from app.models import (
     ApprovalResourceType,
     ApprovalStatus,
     Control,
+    ControlRiskLink,
+    GlobalConfig,
     KeyRiskIndicator,
     Permission,
     Role,
     RolePermission,
     OutboxEvent,
+    Risk,
     User,
 )
+from app.models.global_config import clear_config_cache
 from app.models.key_risk_indicator import KRIFrequency
 from app.models.kri_history import KRIValueHistory
 from app.models.user import AccessScope
@@ -29,6 +33,88 @@ from app.services.kri_history_service import KRIHistoryService
 
 async def _count_outbox_events(db_session: AsyncSession) -> int:
     return int(await db_session.scalar(select(func.count()).select_from(OutboxEvent)) or 0)
+
+
+async def _load_approval(db_session: AsyncSession, approval_id: int) -> ApprovalRequest:
+    result = await db_session.execute(select(ApprovalRequest).where(ApprovalRequest.id == approval_id))
+    approval = result.scalar_one_or_none()
+    assert approval is not None
+    return approval
+
+
+async def _load_risk(db_session: AsyncSession, risk_id: int) -> Risk:
+    result = await db_session.execute(select(Risk).where(Risk.id == risk_id))
+    risk = result.scalar_one_or_none()
+    assert risk is not None
+    return risk
+
+
+async def _create_queue_delete_risk(
+    db_session: AsyncSession,
+    *,
+    risk_id_code: str,
+    name: str,
+    department_id: int,
+    owner_id: int,
+    net_score: int,
+    is_priority: bool = False,
+) -> Risk:
+    risk = Risk(
+        risk_id_code=risk_id_code,
+        name=name,
+        process="Queue Approval Test",
+        description=f"{name} description",
+        department_id=department_id,
+        owner_id=owner_id,
+        risk_type="operational",
+        category="Workflow",
+        is_priority=is_priority,
+        gross_probability=4,
+        gross_impact=4,
+        gross_score=16,
+        net_probability=3,
+        net_impact=4,
+        net_score=net_score,
+        status="active",
+    )
+    db_session.add(risk)
+    await db_session.commit()
+    await db_session.refresh(risk)
+    return risk
+
+
+async def _create_control_linked_to_high_risk(
+    db_session: AsyncSession,
+    *,
+    department_id: int,
+    risk_owner_id: int,
+    control_owner_id: int | None = None,
+) -> tuple[Control, Risk]:
+    risk = await _create_queue_delete_risk(
+        db_session,
+        risk_id_code="APP-CTRL-RISK-001",
+        name="Control Linked High Risk",
+        department_id=department_id,
+        owner_id=risk_owner_id,
+        net_score=10,
+    )
+    control = Control(
+        name="Queued Control Delete",
+        description="Control linked to a high-risk risk",
+        department_id=department_id,
+        control_owner_id=control_owner_id,
+        control_form="manual",
+        frequency="monthly",
+        risk_level=3,
+        status="active",
+    )
+    db_session.add(control)
+    await db_session.commit()
+    await db_session.refresh(control)
+
+    db_session.add(ControlRiskLink(control_id=control.id, risk_id=risk.id))
+    await db_session.commit()
+    return control, risk
 
 
 @pytest.mark.asyncio
@@ -81,9 +167,191 @@ async def test_create_approval_with_reason(auth_client: AsyncClient, test_risk):
     data = response.json()
     assert data["status"] == "pending"
     assert data["resource_type"] == "risk"
+    assert data["action_type"] == "delete"
     assert data["reason"] == "No longer applicable to business"
     assert data["can_approve"] is False
     assert data["can_reject"] is True
+
+
+@pytest.mark.asyncio
+async def test_queue_created_high_threshold_risk_delete_requires_privileged_follow_up(
+    client_approval_requester: AsyncClient,
+    client_employee: AsyncClient,
+    client_risk_manager: AsyncClient,
+    db_session: AsyncSession,
+    test_department,
+    test_user_employee: User,
+):
+    risk = await _create_queue_delete_risk(
+        db_session,
+        risk_id_code="APP-RISK-HIGH-001",
+        name="Queued High Threshold Risk",
+        department_id=test_department.id,
+        owner_id=test_user_employee.id,
+        net_score=10,
+    )
+
+    create_response = await client_approval_requester.post(
+        "/api/v1/approvals",
+        json={"resource_type": "risk", "resource_id": risk.id, "reason": "Queue high-threshold delete"},
+    )
+    assert create_response.status_code == 201
+    approval_id = create_response.json()["id"]
+
+    approval = await _load_approval(db_session, approval_id)
+    assert approval.action_type == ApprovalActionType.DELETE
+    assert approval.primary_approver_id == test_user_employee.id
+    assert approval.requires_privileged_approval is True
+    assert approval.status == ApprovalStatus.PENDING
+
+    primary_response = await client_employee.post(
+        f"/api/v1/approvals/{approval_id}/approve",
+        json={"resolution_notes": "Primary owner approval"},
+    )
+    assert primary_response.status_code == 200
+    assert primary_response.json()["status"] == "pending_privileged"
+
+    approval = await _load_approval(db_session, approval_id)
+    assert approval.status == ApprovalStatus.PENDING_PRIVILEGED
+
+    risk = await _load_risk(db_session, risk.id)
+    assert risk.status == "active"
+
+    privileged_response = await client_risk_manager.post(
+        f"/api/v1/approvals/{approval_id}/approve",
+        json={"resolution_notes": "Privileged follow-up approval"},
+    )
+    assert privileged_response.status_code == 200
+    assert privileged_response.json()["status"] == "approved"
+
+    risk = await _load_risk(db_session, risk.id)
+    assert risk.status == "archived"
+
+
+@pytest.mark.asyncio
+async def test_queue_created_low_risk_delete_finalizes_after_primary_approval(
+    client_approval_requester: AsyncClient,
+    client_employee: AsyncClient,
+    db_session: AsyncSession,
+    test_department,
+    test_user_employee: User,
+):
+    risk = await _create_queue_delete_risk(
+        db_session,
+        risk_id_code="APP-RISK-LOW-001",
+        name="Queued Low Risk",
+        department_id=test_department.id,
+        owner_id=test_user_employee.id,
+        net_score=9,
+    )
+
+    create_response = await client_approval_requester.post(
+        "/api/v1/approvals",
+        json={"resource_type": "risk", "resource_id": risk.id, "reason": "Queue low-risk delete"},
+    )
+    assert create_response.status_code == 201
+    approval_id = create_response.json()["id"]
+
+    approval = await _load_approval(db_session, approval_id)
+    assert approval.primary_approver_id == test_user_employee.id
+    assert approval.requires_privileged_approval is False
+    assert approval.status == ApprovalStatus.PENDING
+
+    primary_response = await client_employee.post(
+        f"/api/v1/approvals/{approval_id}/approve",
+        json={"resolution_notes": "Primary owner approval"},
+    )
+    assert primary_response.status_code == 200
+    assert primary_response.json()["status"] == "approved"
+
+    approval = await _load_approval(db_session, approval_id)
+    assert approval.status == ApprovalStatus.APPROVED
+    assert approval.privileged_approver_id is None
+
+    risk = await _load_risk(db_session, risk.id)
+    assert risk.status == "archived"
+
+
+@pytest.mark.asyncio
+async def test_queue_created_control_delete_mirrors_direct_tiering_metadata(
+    client_approval_requester: AsyncClient,
+    db_session: AsyncSession,
+    test_department,
+    test_user_employee: User,
+):
+    control, _risk = await _create_control_linked_to_high_risk(
+        db_session,
+        department_id=test_department.id,
+        risk_owner_id=test_user_employee.id,
+    )
+
+    create_response = await client_approval_requester.post(
+        "/api/v1/approvals",
+        json={"resource_type": "control", "resource_id": control.id, "reason": "Queue control delete"},
+    )
+    assert create_response.status_code == 201
+    approval = await _load_approval(db_session, create_response.json()["id"])
+    assert approval.action_type == ApprovalActionType.DELETE
+    assert approval.primary_approver_id == test_user_employee.id
+    assert approval.requires_privileged_approval is True
+    assert approval.status == ApprovalStatus.PENDING
+
+
+@pytest.mark.asyncio
+async def test_queue_created_risk_delete_respects_configured_high_risk_threshold(
+    client_approval_requester: AsyncClient,
+    db_session: AsyncSession,
+    test_department,
+    test_user_employee: User,
+):
+    clear_config_cache()
+    try:
+        db_session.add(
+            GlobalConfig(
+                key="high_risk_min_net_score",
+                value="14",
+                value_type="int",
+                category="risk_thresholds",
+                display_name="High Risk Minimum Net Score",
+            )
+        )
+        await db_session.commit()
+        clear_config_cache()
+
+        below_threshold_risk = await _create_queue_delete_risk(
+            db_session,
+            risk_id_code="APP-RISK-CONFIG-LOW-001",
+            name="Queued Config Low Risk",
+            department_id=test_department.id,
+            owner_id=test_user_employee.id,
+            net_score=13,
+        )
+        at_threshold_risk = await _create_queue_delete_risk(
+            db_session,
+            risk_id_code="APP-RISK-CONFIG-HIGH-001",
+            name="Queued Config High Risk",
+            department_id=test_department.id,
+            owner_id=test_user_employee.id,
+            net_score=14,
+        )
+
+        below_response = await client_approval_requester.post(
+            "/api/v1/approvals",
+            json={"resource_type": "risk", "resource_id": below_threshold_risk.id, "reason": "Below configured limit"},
+        )
+        assert below_response.status_code == 201
+        below_approval = await _load_approval(db_session, below_response.json()["id"])
+        assert below_approval.requires_privileged_approval is False
+
+        at_response = await client_approval_requester.post(
+            "/api/v1/approvals",
+            json={"resource_type": "risk", "resource_id": at_threshold_risk.id, "reason": "At configured limit"},
+        )
+        assert at_response.status_code == 201
+        at_approval = await _load_approval(db_session, at_response.json()["id"])
+        assert at_approval.requires_privileged_approval is True
+    finally:
+        clear_config_cache()
 
 
 @pytest.mark.asyncio
