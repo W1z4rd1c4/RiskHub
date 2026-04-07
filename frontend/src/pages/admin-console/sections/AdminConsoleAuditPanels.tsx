@@ -42,17 +42,17 @@ function LogSettingsPanel() {
     if (isLoading || !form) return null;
 
     return (
-        <div className="bg-white/5 border border-white/10 rounded-xl p-4 mb-6">
+        <div className="admin-surface-muted mb-6 rounded-xl border p-4">
             <div className="flex items-center gap-2 mb-4">
                 <Settings2 className="h-5 w-5 text-accent" />
-                <h4 className="text-white font-medium">{t('audit.title')}</h4>
+                <h4 className="admin-title font-medium">{t('audit.title')}</h4>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4 rounded-xl border border-white/10 bg-white/[0.02] p-4">
-                    <h5 className="text-sm font-semibold text-white">{t('tabs.application_logs')}</h5>
+                <div className="admin-surface-elevated space-y-4 rounded-xl border p-4">
+                    <h5 className="admin-title text-sm font-semibold">{t('tabs.application_logs')}</h5>
                     <div className="space-y-2">
-                        <label className="text-sm text-slate-400">{t('audit.max_file_size')}</label>
+                        <label className="admin-muted text-sm">{t('audit.max_file_size')}</label>
                         <input
                             type="number"
                             value={form.app_log_rotation_size_mb}
@@ -61,10 +61,10 @@ function LogSettingsPanel() {
                             min="1"
                             max="500"
                         />
-                        <p className="text-xs text-slate-500">{t('audit.max_file_size_hint')}</p>
+                        <p className="admin-subtle text-xs">{t('audit.max_file_size_hint')}</p>
                     </div>
                     <div className="space-y-2">
-                        <label className="text-sm text-slate-400">{t('audit.retention_count')}</label>
+                        <label className="admin-muted text-sm">{t('audit.retention_count')}</label>
                         <input
                             type="number"
                             value={form.app_log_retention_count}
@@ -73,14 +73,14 @@ function LogSettingsPanel() {
                             min="1"
                             max="500"
                         />
-                        <p className="text-xs text-slate-500">{t('audit.retention_count_hint')}</p>
+                        <p className="admin-subtle text-xs">{t('audit.retention_count_hint')}</p>
                     </div>
                 </div>
 
-                <div className="space-y-4 rounded-xl border border-white/10 bg-white/[0.02] p-4">
-                    <h5 className="text-sm font-semibold text-white">{t('tabs.audit_logs')}</h5>
+                <div className="admin-surface-elevated space-y-4 rounded-xl border p-4">
+                    <h5 className="admin-title text-sm font-semibold">{t('tabs.audit_logs')}</h5>
                     <div className="space-y-2">
-                        <label className="text-sm text-slate-400">{t('audit.max_file_size')}</label>
+                        <label className="admin-muted text-sm">{t('audit.max_file_size')}</label>
                         <input
                             type="number"
                             value={form.audit_log_rotation_size_mb}
@@ -89,10 +89,10 @@ function LogSettingsPanel() {
                             min="1"
                             max="500"
                         />
-                        <p className="text-xs text-slate-500">{t('audit.max_file_size_hint')}</p>
+                        <p className="admin-subtle text-xs">{t('audit.max_file_size_hint')}</p>
                     </div>
                     <div className="space-y-2">
-                        <label className="text-sm text-slate-400">{t('audit.retention_count')}</label>
+                        <label className="admin-muted text-sm">{t('audit.retention_count')}</label>
                         <input
                             type="number"
                             value={form.audit_log_retention_count}
@@ -101,7 +101,7 @@ function LogSettingsPanel() {
                             min="1"
                             max="500"
                         />
-                        <p className="text-xs text-slate-500">{t('audit.retention_count_hint')}</p>
+                        <p className="admin-subtle text-xs">{t('audit.retention_count_hint')}</p>
                     </div>
                 </div>
             </div>
@@ -174,7 +174,7 @@ export function AuditLogsPanel() {
     };
 
     if (isLoading && !data) {
-        return <div className="text-slate-400 text-center py-8">{t('application_logs.loading')}</div>;
+        return <div className="admin-muted text-center py-8">{t('application_logs.loading')}</div>;
     }
 
     const logs = data?.entries || [];
@@ -198,10 +198,10 @@ export function AuditLogsPanel() {
 
             <div className="flex flex-wrap items-center justify-between gap-4 py-2">
                 <div className="flex items-center gap-4">
-                    <h3 className="text-lg font-semibold text-white">{t('audit.event_feed')}</h3>
-                    <div className="flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full border border-white/10">
+                    <h3 className="admin-title text-lg font-semibold">{t('audit.event_feed')}</h3>
+                    <div className="admin-surface-muted flex items-center gap-2 rounded-full border px-3 py-1">
                         <div className={cn("w-2 h-2 rounded-full", autoRefresh ? "bg-emerald-500 animate-pulse" : "bg-slate-500")} />
-                        <span className="text-xs text-slate-400">{t('audit.live')}</span>
+                        <span className="admin-muted text-xs">{t('audit.live')}</span>
                         <input
                             type="checkbox"
                             checked={autoRefresh}
@@ -235,7 +235,7 @@ export function AuditLogsPanel() {
                     <div className="flex gap-2">
                         <button
                             onClick={exportToCSV}
-                            className="flex items-center gap-2 px-3 py-1.5 text-sm bg-white/5 hover:bg-white/10 text-slate-300 rounded-lg transition-colors border border-white/10"
+                            className="admin-surface-muted admin-text flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm transition-colors hover:bg-white/10"
                             title={t('console.export_csv')}
                         >
                             <FileDown className="h-4 w-4" />
@@ -243,7 +243,7 @@ export function AuditLogsPanel() {
                         </button>
                         <button
                             onClick={exportToJSON}
-                            className="flex items-center gap-2 px-3 py-1.5 text-sm bg-white/5 hover:bg-white/10 text-slate-300 rounded-lg transition-colors border border-white/10"
+                            className="admin-surface-muted admin-text flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm transition-colors hover:bg-white/10"
                             title={t('console.export_json')}
                         >
                             <FileDown className="h-4 w-4" />
@@ -253,7 +253,7 @@ export function AuditLogsPanel() {
 
                     <button
                         onClick={() => refetch()}
-                        className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-white/5 transition-colors"
+                        className="admin-tab-inactive rounded-lg p-2 transition-colors hover:bg-white/5"
                         title={t('console.manual_refresh')}
                     >
                         <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
@@ -263,7 +263,7 @@ export function AuditLogsPanel() {
 
             <div className="overflow-x-auto border border-white/10 rounded-xl">
                 <table className="w-full text-sm text-left">
-                    <thead className="bg-white/5 text-slate-400">
+                    <thead className="admin-table-head">
                         <tr className="border-b border-white/10">
                             <th className="py-3 px-4 font-medium">{t('audit.columns.timestamp')}</th>
                             <th className="py-3 px-4 font-medium">{t('audit.columns.event')}</th>
@@ -275,14 +275,14 @@ export function AuditLogsPanel() {
                     <tbody className="divide-y divide-white/5">
                         {logs.length === 0 ? (
                             <tr>
-                                <td colSpan={5} className="py-8 text-center text-slate-500">
+                                <td colSpan={5} className="admin-subtle py-8 text-center">
                                     {t('audit.no_events')}
                                 </td>
                             </tr>
                         ) : (
                             logs.map((log, idx) => (
                                 <tr key={`${log.timestamp}-${idx}`} className="hover:bg-white/5 transition-colors">
-                                    <td className="py-3 px-4 text-slate-400 whitespace-nowrap">
+                                    <td className="admin-muted whitespace-nowrap py-3 px-4">
                                         {log.timestamp ? formatDateTimeValue(log.timestamp, i18n.language) : t('common:fallbacks.not_available')}
                                     </td>
                                     <td className="py-3 px-4">
@@ -296,10 +296,10 @@ export function AuditLogsPanel() {
                                             {log.event?.replace(/_/g, ' ') || t('common:fallbacks.unknown')}
                                         </span>
                                     </td>
-                                    <td className="py-3 px-4 text-white font-medium">
+                                    <td className="admin-title py-3 px-4 font-medium">
                                         {log.user_id ? `USR-${log.user_id}` : t('common:fallbacks.system')}
                                     </td>
-                                    <td className="py-3 px-4 text-slate-500 font-mono text-xs">
+                                    <td className="admin-subtle py-3 px-4 font-mono text-xs">
                                         {log.client_ip || t('common:fallbacks.not_available')}
                                     </td>
                                     <td className="py-3 px-4 text-right">
@@ -333,26 +333,26 @@ export function AuditLogsPanel() {
                             exit={{ opacity: 0, scale: 0.96 }}
                             className="relative w-full max-w-2xl max-h-[80vh] glass-card !p-0 overflow-hidden shadow-2xl"
                         >
-                            <div className="flex items-center justify-between px-5 py-4 border-b border-white/10 bg-white/[0.02]">
-                                <h4 className="text-sm font-bold text-white">{t('audit.details_modal.title')}</h4>
+                            <div className="admin-surface-muted flex items-center justify-between border-b px-5 py-4">
+                                <h4 className="admin-title text-sm font-bold">{t('audit.details_modal.title')}</h4>
                                 <div className="flex items-center gap-2">
                                     <button
                                         onClick={copyDetails}
-                                        className="px-3 py-1.5 text-xs rounded-lg bg-white/5 border border-white/10 text-slate-200 hover:bg-white/10 transition-colors flex items-center gap-2"
+                                        className="admin-surface-muted admin-text flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs transition-colors hover:bg-white/10"
                                     >
                                         {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                                         {copied ? t('audit.details_modal.copied') : t('audit.details_modal.copy')}
                                     </button>
                                     <button
                                         onClick={() => setSelectedLogExtra(null)}
-                                        className="px-3 py-1.5 text-xs rounded-lg bg-white/5 border border-white/10 text-slate-200 hover:bg-white/10 transition-colors"
+                                        className="admin-surface-muted admin-text rounded-lg border px-3 py-1.5 text-xs transition-colors hover:bg-white/10"
                                     >
                                         {t('common:actions.close')}
                                     </button>
                                 </div>
                             </div>
                             <div className="p-5 max-h-[60vh] overflow-auto">
-                                <pre className="text-xs text-slate-300 whitespace-pre-wrap break-all bg-black/20 border border-white/10 rounded-xl p-4">
+                                <pre className="admin-text whitespace-pre-wrap break-all rounded-xl border border-white/10 bg-black/20 p-4 text-xs">
                                     {detailsJson}
                                 </pre>
                             </div>

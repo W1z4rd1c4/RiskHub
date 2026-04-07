@@ -14,9 +14,13 @@ export interface ActivityLogFilters {
     limit?: number;
 }
 
+type ActivityLogQueryParams = Record<string, string | number | boolean | string[] | null | undefined>;
+
 export const activityLogApi = {
     async list(filters: ActivityLogFilters = {}): Promise<ActivityLogListResponse> {
-        return api.get<ActivityLogListResponse>('/activity-log', { params: filters });
+        return api.get<ActivityLogListResponse>('/activity-log', {
+            params: filters as ActivityLogQueryParams,
+        });
     },
 
     async getEntityTypes(): Promise<string[]> {

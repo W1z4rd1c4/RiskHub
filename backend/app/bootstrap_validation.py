@@ -4,10 +4,9 @@ from app.core.client_ip import find_broad_trusted_proxy_entries
 from app.core.config import Settings
 from app.core.logging import get_logger
 from app.core.production_contract import PRODUCTION_INVARIANTS
+from app.core.settings.database import DEFAULT_DATABASE_URL
 
 logger = get_logger("bootstrap")
-
-DEFAULT_DATABASE_URL = "postgresql+asyncpg://riskhub:riskhub@db:5432/riskhub"
 LOG_ROTATION_CONFIG_KEYS = (
     "app_log_rotation_size_mb",
     "app_log_retention_count",

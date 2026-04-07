@@ -1,7 +1,7 @@
 # RiskHub Testing Guide
 
 > **Version**: 1.8
-> **Last Updated**: 2026-04-05
+> **Last Updated**: 2026-04-07
 > **Audience**: Engineering, QA
 > **Source of Truth**: `tests/backend/pytest/`, `backend/pytest.ini`, `frontend/package.json`, `frontend/playwright.config.ts`
 
@@ -32,6 +32,7 @@ This guide defines the current testing matrix for backend, frontend unit tests, 
 | Frontend business-logic E2E | `cd frontend && npm run e2e:business-logic` | Focused role/scope/admin-boundary and workflow regression |
 | Production-profile smoke | `.github/workflows/e2e.yml` job `production-profile-smoke` | PR-blocking backend startup/auth/header/docs-disabled smoke under production-safe config |
 | Docs topology consistency | `cd . && make -f scripts/Makefile docs-topology-consistency` | README coverage, docs tree audit scope, and structure metrics consistency |
+| Repo artifact + script syntax contracts | `cd . && make -f scripts/Makefile quality-repo-contracts` | Blocks tracked retired artifacts, tracked ignored paths, broken startup shell syntax, and broken migration/seed script syntax |
 | Suppression budget only | `cd . && make -f scripts/Makefile quality-suppression-budget` | Enforce backend suppression allowlist max budget/no-expired entries |
 | Docs contract | `cd . && python3 scripts/check_docs_contract.py` | Header/parity/link/audience checks |
 | Production contract docs parity | `cd . && python3 scripts/security/validate_production_contract_docs.py` | Ensures `.env.example`, deployment reference, and runtime production invariants stay synchronized |
@@ -168,6 +169,7 @@ Current browser-lane caveats:
 - Backend suppression non-regression is enforced by `scripts/tools/suppression_budget.py` against:
   - `scripts/quality/backend-suppression-allowlist.json`
 - Docs topology consistency is enforced by `make -f scripts/Makefile docs-topology-consistency`.
+- Repo artifact and script syntax regressions are blocked by `make -f scripts/Makefile quality-repo-contracts`.
 - Production contract doc parity is enforced by `python3 scripts/security/validate_production_contract_docs.py`.
 
 ## Docs Change Verification (Required)

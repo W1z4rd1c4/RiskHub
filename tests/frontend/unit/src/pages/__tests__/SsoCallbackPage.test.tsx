@@ -13,7 +13,7 @@ import { http, HttpResponse } from 'msw';
 import { server } from '@test/mocks/server';
 import { mockAuthUser } from '@test/mocks/handlers';
 import SsoCallbackPage from '@/pages/SsoCallbackPage';
-import { clearAccessToken, getAccessToken } from '@/services/accessTokenStore';
+import { clearAccessToken, getAccessToken } from '@test/accessTokenStoreHarness';
 import { entraAuth } from '@/services/entraAuth';
 
 afterEach(() => {

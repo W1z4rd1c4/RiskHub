@@ -38,20 +38,20 @@ export function HealthPanel() {
     const outboxStatus = outboxQuery.data;
 
     if (healthQuery.isLoading) {
-        return <div className="text-slate-400 text-center py-8">{t('health.loading')}</div>;
+        return <div className="admin-muted text-center py-8">{t('health.loading')}</div>;
     }
 
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-white">{t('health.title')}</h3>
+                <h3 className="admin-title text-lg font-semibold">{t('health.title')}</h3>
                 <button
                     onClick={() => {
                         void healthQuery.refresh();
                         void schedulerQuery.refresh();
                         void outboxQuery.refresh();
                     }}
-                    className="flex items-center gap-2 px-3 py-1.5 text-sm text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                    className="admin-tab-inactive flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-white/10 rounded-lg transition-colors"
                 >
                     <RefreshCw className="h-4 w-4" />
                     {t('health.refresh')}
@@ -59,13 +59,13 @@ export function HealthPanel() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-white/5 rounded-xl p-4">
+                <div className="admin-surface-muted rounded-xl p-4">
                     <div className="flex items-center gap-3 mb-2">
                         <Database className={cn(
                             "h-5 w-5",
                             health?.database_status === 'connected' ? 'text-green-400' : 'text-red-400'
                         )} />
-                        <span className="text-slate-400 text-sm">{t('health.database')}</span>
+                        <span className="admin-muted text-sm">{t('health.database')}</span>
                     </div>
                     <p className={cn(
                         "text-xl font-bold",
@@ -73,46 +73,46 @@ export function HealthPanel() {
                     )}>
                         {health?.database_status === 'connected' ? t('health.connected') : t('health.error')}
                     </p>
-                    <p className="text-xs text-slate-500 mt-1">
+                    <p className="admin-subtle mt-1 text-xs">
                         {t('health.latency')}: {health?.database_latency_ms?.toFixed(2)}ms
                     </p>
                 </div>
 
-                <div className="bg-white/5 rounded-xl p-4">
+                <div className="admin-surface-muted rounded-xl p-4">
                     <div className="flex items-center gap-3 mb-2">
                         <Clock className="h-5 w-5 text-blue-400" />
-                        <span className="text-slate-400 text-sm">{t('health.uptime')}</span>
+                        <span className="admin-muted text-sm">{t('health.uptime')}</span>
                     </div>
-                    <p className="text-xl font-bold text-white">
+                    <p className="admin-title text-xl font-bold">
                         {Math.floor((health?.uptime_seconds || 0) / 3600)}h {Math.floor(((health?.uptime_seconds || 0) % 3600) / 60)}m
                     </p>
-                    <p className="text-xs text-slate-500 mt-1">
+                    <p className="admin-subtle mt-1 text-xs">
                         {t('health.since_restart')}
                     </p>
                 </div>
 
-                <div className="bg-white/5 rounded-xl p-4">
+                <div className="admin-surface-muted rounded-xl p-4">
                     <div className="flex items-center gap-3 mb-2">
                         <MemoryStick className="h-5 w-5 text-purple-400" />
-                        <span className="text-slate-400 text-sm">{t('health.memory')}</span>
+                        <span className="admin-muted text-sm">{t('health.memory')}</span>
                     </div>
-                    <p className="text-xl font-bold text-white">
+                    <p className="admin-title text-xl font-bold">
                         {health?.memory_usage_mb?.toFixed(0)} MB
                     </p>
-                    <p className="text-xs text-slate-500 mt-1">
+                    <p className="admin-subtle mt-1 text-xs">
                         {t('health.process_memory')}
                     </p>
                 </div>
 
-                <div className="bg-white/5 rounded-xl p-4">
+                <div className="admin-surface-muted rounded-xl p-4">
                     <div className="flex items-center gap-3 mb-2">
                         <Users className="h-5 w-5 text-amber-400" />
-                        <span className="text-slate-400 text-sm">{t('health.active_users')}</span>
+                        <span className="admin-muted text-sm">{t('health.active_users')}</span>
                     </div>
-                    <p className="text-xl font-bold text-white">
+                    <p className="admin-title text-xl font-bold">
                         {stats?.active_users_24h || 0}
                     </p>
-                    <p className="text-xs text-slate-500 mt-1">
+                    <p className="admin-subtle mt-1 text-xs">
                         {t('health.in_last_24h')}
                     </p>
                 </div>
@@ -121,16 +121,16 @@ export function HealthPanel() {
             <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div>
-                        <h4 className="text-base font-semibold text-white">{t('health.scheduler.title')}</h4>
-                        <p className="mt-1 text-sm text-slate-400">{t('health.scheduler.subtitle')}</p>
+                        <h4 className="admin-title text-base font-semibold">{t('health.scheduler.title')}</h4>
+                        <p className="admin-muted mt-1 text-sm">{t('health.scheduler.subtitle')}</p>
                     </div>
                     <div className="grid grid-cols-2 gap-3 text-sm lg:min-w-[360px]">
-                        <div className="rounded-xl bg-slate-950/50 px-3 py-2">
-                            <p className="text-slate-500">{t('health.scheduler.process_role')}</p>
-                            <p className="mt-1 font-medium text-white">{schedulerStatus?.process_role || 'unknown'}</p>
+                        <div className="admin-surface-elevated rounded-xl px-3 py-2">
+                            <p className="admin-subtle">{t('health.scheduler.process_role')}</p>
+                            <p className="admin-title mt-1 font-medium">{schedulerStatus?.process_role || 'unknown'}</p>
                         </div>
-                        <div className="rounded-xl bg-slate-950/50 px-3 py-2">
-                            <p className="text-slate-500">{t('health.scheduler.lock_state')}</p>
+                        <div className="admin-surface-elevated rounded-xl px-3 py-2">
+                            <p className="admin-subtle">{t('health.scheduler.lock_state')}</p>
                             <p className={cn(
                                 'mt-1 font-medium',
                                 schedulerStatus?.lock_acquired ? 'text-emerald-400' : 'text-amber-300'
@@ -138,54 +138,54 @@ export function HealthPanel() {
                                 {schedulerStatus?.lock_acquired ? t('health.scheduler.lock_held') : t('health.scheduler.lock_not_held')}
                             </p>
                         </div>
-                        <div className="rounded-xl bg-slate-950/50 px-3 py-2">
-                            <p className="text-slate-500">{t('health.scheduler.current_owner')}</p>
-                            <p className="mt-1 font-medium text-white break-all">
+                        <div className="admin-surface-elevated rounded-xl px-3 py-2">
+                            <p className="admin-subtle">{t('health.scheduler.current_owner')}</p>
+                            <p className="admin-title mt-1 break-all font-medium">
                                 {schedulerStatus?.current_owner_instance_id || t('health.scheduler.none_reported')}
                             </p>
                         </div>
-                        <div className="rounded-xl bg-slate-950/50 px-3 py-2">
-                            <p className="text-slate-500">{t('health.scheduler.lock_provider')}</p>
-                            <p className="mt-1 font-medium text-white">{schedulerStatus?.lock_provider || 'n/a'}</p>
+                        <div className="admin-surface-elevated rounded-xl px-3 py-2">
+                            <p className="admin-subtle">{t('health.scheduler.lock_provider')}</p>
+                            <p className="admin-title mt-1 font-medium">{schedulerStatus?.lock_provider || 'n/a'}</p>
                         </div>
                     </div>
                 </div>
 
                 <div className="mt-5 grid gap-4 lg:grid-cols-2">
-                    <div className="rounded-xl border border-white/10 bg-slate-950/40 p-4">
+                    <div className="admin-surface-elevated rounded-xl border p-4">
                         <div className="flex items-center justify-between">
-                            <h5 className="text-sm font-semibold text-white">{t('health.scheduler.running_jobs')}</h5>
-                            <span className="text-xs text-slate-500">{schedulerStatus?.running_jobs.length || 0}</span>
+                            <h5 className="admin-title text-sm font-semibold">{t('health.scheduler.running_jobs')}</h5>
+                            <span className="admin-subtle text-xs">{schedulerStatus?.running_jobs.length || 0}</span>
                         </div>
                         {schedulerStatus?.running_jobs.length ? (
                             <div className="mt-3 space-y-3">
                                 {schedulerStatus.running_jobs.map((job) => (
-                                    <div key={job.run_id} className="rounded-lg bg-white/5 px-3 py-2">
+                                    <div key={job.run_id} className="admin-surface-muted rounded-lg px-3 py-2">
                                         <div className="flex items-center justify-between gap-3">
-                                            <p className="text-sm font-medium text-white">{job.job_name}</p>
+                                            <p className="admin-title text-sm font-medium">{job.job_name}</p>
                                             <span className="text-xs text-sky-300">{job.status}</span>
                                         </div>
-                                        <p className="mt-1 text-xs text-slate-400">
+                                        <p className="admin-muted mt-1 text-xs">
                                             {formatDateTimeValue(job.started_at, i18n.language)}
                                         </p>
                                     </div>
                                 ))}
                             </div>
                         ) : (
-                            <p className="mt-3 text-sm text-slate-500">{t('health.scheduler.no_running_jobs')}</p>
+                            <p className="admin-subtle mt-3 text-sm">{t('health.scheduler.no_running_jobs')}</p>
                         )}
                     </div>
 
-                    <div className="rounded-xl border border-white/10 bg-slate-950/40 p-4">
+                    <div className="admin-surface-elevated rounded-xl border p-4">
                         <div className="flex items-center justify-between">
-                            <h5 className="text-sm font-semibold text-white">{t('health.scheduler.latest_runs')}</h5>
-                            <span className="text-xs text-slate-500">{schedulerStatus?.latest_runs.length || 0}</span>
+                            <h5 className="admin-title text-sm font-semibold">{t('health.scheduler.latest_runs')}</h5>
+                            <span className="admin-subtle text-xs">{schedulerStatus?.latest_runs.length || 0}</span>
                         </div>
                         <div className="mt-3 space-y-3">
                             {schedulerStatus?.latest_runs.length ? schedulerStatus.latest_runs.slice(0, 6).map((job) => (
-                                <div key={job.run_id} className="rounded-lg bg-white/5 px-3 py-2">
+                                <div key={job.run_id} className="admin-surface-muted rounded-lg px-3 py-2">
                                     <div className="flex items-center justify-between gap-3">
-                                        <p className="text-sm font-medium text-white">{job.job_name}</p>
+                                        <p className="admin-title text-sm font-medium">{job.job_name}</p>
                                         <span className={cn(
                                             'text-xs',
                                             job.status === 'succeeded' && 'text-emerald-400',
@@ -195,7 +195,7 @@ export function HealthPanel() {
                                             {job.status}
                                         </span>
                                     </div>
-                                    <div className="mt-1 flex items-center justify-between text-xs text-slate-400">
+                                    <div className="admin-muted mt-1 flex items-center justify-between text-xs">
                                         <span>{formatDateTimeValue(job.started_at, i18n.language)}</span>
                                         <span>{job.duration_ms ? `${job.duration_ms}ms` : 'n/a'}</span>
                                     </div>
@@ -203,16 +203,16 @@ export function HealthPanel() {
                                         <p className="mt-1 text-xs text-rose-300">{job.error_message}</p>
                                     )}
                                 </div>
-                            )) : <p className="text-sm text-slate-500">{t('health.scheduler.no_runs')}</p>}
+                            )) : <p className="admin-subtle text-sm">{t('health.scheduler.no_runs')}</p>}
                         </div>
                     </div>
                 </div>
 
-                <div className="mt-5 rounded-xl border border-white/10 bg-slate-950/40 p-4">
+                <div className="admin-surface-elevated mt-5 rounded-xl border p-4">
                     <div className="flex items-center justify-between">
                         <div>
-                            <h5 className="text-sm font-semibold text-white">{t('health.outbox.title')}</h5>
-                            <p className="mt-1 text-xs text-slate-500">{t('health.outbox.subtitle')}</p>
+                            <h5 className="admin-title text-sm font-semibold">{t('health.outbox.title')}</h5>
+                            <p className="admin-subtle mt-1 text-xs">{t('health.outbox.subtitle')}</p>
                         </div>
                         <span className={cn(
                             'text-xs font-medium',
@@ -223,26 +223,26 @@ export function HealthPanel() {
                     </div>
 
                     <div className="mt-4 grid gap-3 lg:grid-cols-4 text-sm">
-                        <div className="rounded-lg bg-white/5 px-3 py-2">
-                            <p className="text-slate-500">{t('health.outbox.pending')}</p>
-                            <p className="mt-1 font-medium text-white">{outboxStatus?.pending_count || 0}</p>
+                        <div className="admin-surface-muted rounded-lg px-3 py-2">
+                            <p className="admin-subtle">{t('health.outbox.pending')}</p>
+                            <p className="admin-title mt-1 font-medium">{outboxStatus?.pending_count || 0}</p>
                         </div>
-                        <div className="rounded-lg bg-white/5 px-3 py-2">
-                            <p className="text-slate-500">{t('health.outbox.processing')}</p>
-                            <p className="mt-1 font-medium text-white">{outboxStatus?.processing_count || 0}</p>
+                        <div className="admin-surface-muted rounded-lg px-3 py-2">
+                            <p className="admin-subtle">{t('health.outbox.processing')}</p>
+                            <p className="admin-title mt-1 font-medium">{outboxStatus?.processing_count || 0}</p>
                         </div>
-                        <div className="rounded-lg bg-white/5 px-3 py-2">
-                            <p className="text-slate-500">{t('health.outbox.dead_letter')}</p>
+                        <div className="admin-surface-muted rounded-lg px-3 py-2">
+                            <p className="admin-subtle">{t('health.outbox.dead_letter')}</p>
                             <p className={cn(
                                 'mt-1 font-medium',
-                                (outboxStatus?.dead_letter_count || 0) > 0 ? 'text-rose-400' : 'text-white',
+                                (outboxStatus?.dead_letter_count || 0) > 0 ? 'text-rose-400' : 'admin-title',
                             )}>
                                 {outboxStatus?.dead_letter_count || 0}
                             </p>
                         </div>
-                        <div className="rounded-lg bg-white/5 px-3 py-2">
-                            <p className="text-slate-500">{t('health.outbox.oldest_pending')}</p>
-                            <p className="mt-1 font-medium text-white">
+                        <div className="admin-surface-muted rounded-lg px-3 py-2">
+                            <p className="admin-subtle">{t('health.outbox.oldest_pending')}</p>
+                            <p className="admin-title mt-1 font-medium">
                                 {outboxStatus?.oldest_pending_age_seconds != null
                                     ? `${outboxStatus.oldest_pending_age_seconds}s`
                                     : t('health.outbox.none')}
@@ -251,11 +251,11 @@ export function HealthPanel() {
                     </div>
 
                     <div className="mt-4 grid gap-4 lg:grid-cols-2">
-                        <div className="rounded-lg bg-white/5 px-3 py-3">
-                            <h6 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                        <div className="admin-surface-muted rounded-lg px-3 py-3">
+                            <h6 className="admin-muted text-xs font-semibold uppercase tracking-wider">
                                 {t('health.outbox.last_dispatch')}
                             </h6>
-                            <div className="mt-2 space-y-1 text-sm text-slate-300">
+                            <div className="admin-text mt-2 space-y-1 text-sm">
                                 <p>{t('health.outbox.status')}: {outboxStatus?.last_dispatch_status || t('health.outbox.none')}</p>
                                 <p>{t('health.outbox.processed')}: {outboxStatus?.last_dispatch_processed ?? 0}</p>
                                 <p>{t('health.outbox.started')}: {outboxStatus?.last_dispatch_started_at ? formatDateTimeValue(outboxStatus.last_dispatch_started_at, i18n.language) : t('health.outbox.none')}</p>
@@ -266,19 +266,19 @@ export function HealthPanel() {
                             </div>
                         </div>
 
-                        <div className="rounded-lg bg-white/5 px-3 py-3">
-                            <h6 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                        <div className="admin-surface-muted rounded-lg px-3 py-3">
+                            <h6 className="admin-muted text-xs font-semibold uppercase tracking-wider">
                                 {t('health.outbox.recent_failures')}
                             </h6>
                             {outboxStatus?.recent_failures.length ? (
                                 <div className="mt-2 space-y-2">
                                     {outboxStatus.recent_failures.map((failure) => (
-                                        <div key={failure.id} className="rounded-lg bg-slate-950/50 px-3 py-2">
+                                        <div key={failure.id} className="admin-surface-elevated rounded-lg px-3 py-2">
                                             <div className="flex items-center justify-between gap-3">
-                                                <p className="text-sm font-medium text-white">{failure.event_type}</p>
+                                                <p className="admin-title text-sm font-medium">{failure.event_type}</p>
                                                 <span className="text-xs text-rose-300">{failure.status}</span>
                                             </div>
-                                            <p className="mt-1 text-xs text-slate-400">
+                                            <p className="admin-muted mt-1 text-xs">
                                                 {t('health.outbox.attempts')}: {failure.attempt_count}
                                             </p>
                                             {failure.last_error && (
@@ -288,7 +288,7 @@ export function HealthPanel() {
                                     ))}
                                 </div>
                             ) : (
-                                <p className="mt-2 text-sm text-slate-500">{t('health.outbox.no_failures')}</p>
+                                <p className="admin-subtle mt-2 text-sm">{t('health.outbox.no_failures')}</p>
                             )}
                         </div>
                     </div>
@@ -308,7 +308,7 @@ export function LogsPanel() {
     });
 
     if (isLoading) {
-        return <div className="text-slate-400 text-center py-8">{t('application_logs.loading')}</div>;
+        return <div className="admin-muted text-center py-8">{t('application_logs.loading')}</div>;
     }
 
     const eventTypes = [...new Set(logs?.map(l => l.event_type) || [])];
@@ -316,7 +316,7 @@ export function LogsPanel() {
     return (
         <div className="space-y-4">
             <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-white">{t('application_logs.title')}</h3>
+                <h3 className="admin-title text-lg font-semibold">{t('application_logs.title')}</h3>
                 <ThemedSelect
                     value={eventFilter}
                     onValueChange={setEventFilter}
@@ -329,19 +329,19 @@ export function LogsPanel() {
 
             <div className="overflow-x-auto max-h-96 overflow-y-auto">
                 <table className="w-full text-sm">
-                    <thead className="sticky top-0 bg-slate-900">
+                    <thead className="admin-table-head sticky top-0">
                         <tr className="border-b border-white/10">
-                            <th className="text-left py-2 px-3 text-slate-400 font-medium">{t('application_logs.columns.time')}</th>
-                            <th className="text-left py-2 px-3 text-slate-400 font-medium">{t('application_logs.columns.level')}</th>
-                            <th className="text-left py-2 px-3 text-slate-400 font-medium">{t('application_logs.columns.event')}</th>
-                            <th className="text-left py-2 px-3 text-slate-400 font-medium">{t('application_logs.columns.user')}</th>
-                            <th className="text-left py-2 px-3 text-slate-400 font-medium">{t('application_logs.columns.details')}</th>
+                            <th className="admin-muted text-left py-2 px-3 font-medium">{t('application_logs.columns.time')}</th>
+                            <th className="admin-muted text-left py-2 px-3 font-medium">{t('application_logs.columns.level')}</th>
+                            <th className="admin-muted text-left py-2 px-3 font-medium">{t('application_logs.columns.event')}</th>
+                            <th className="admin-muted text-left py-2 px-3 font-medium">{t('application_logs.columns.user')}</th>
+                            <th className="admin-muted text-left py-2 px-3 font-medium">{t('application_logs.columns.details')}</th>
                         </tr>
                     </thead>
                     <tbody>
                         {logs?.map((log) => (
                             <tr key={log.id} className="border-b border-white/5 hover:bg-white/5">
-                                <td className="py-2 px-3 text-slate-500 whitespace-nowrap">
+                                <td className="admin-subtle whitespace-nowrap py-2 px-3">
                                     {formatDateTimeValue(log.timestamp, i18n.language)}
                                 </td>
                                 <td className="py-2 px-3">
@@ -354,9 +354,9 @@ export function LogsPanel() {
                                         {log.level}
                                     </span>
                                 </td>
-                                <td className="py-2 px-3 text-white">{log.event_type}</td>
-                                <td className="py-2 px-3 text-slate-400">{log.user_name || t('common:fallbacks.unknown_user')}</td>
-                                <td className="py-2 px-3 text-slate-500 max-w-xs truncate" title={log.description || ''}>
+                                <td className="admin-title py-2 px-3">{log.event_type}</td>
+                                <td className="admin-muted py-2 px-3">{log.user_name || t('common:fallbacks.unknown_user')}</td>
+                                <td className="admin-subtle max-w-xs truncate py-2 px-3" title={log.description || ''}>
                                     {log.description || t('common:fallbacks.not_available')}
                                 </td>
                             </tr>
@@ -413,15 +413,15 @@ export function SessionsPanel() {
     };
 
     if (isLoading) {
-        return <div className="text-slate-400 text-center py-8">{t('sessions.loading')}</div>;
+        return <div className="admin-muted text-center py-8">{t('sessions.loading')}</div>;
     }
 
     return (
         <div className="space-y-4">
             <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-white">{t('sessions.title')}</h3>
+                <h3 className="admin-title text-lg font-semibold">{t('sessions.title')}</h3>
                 <div className="flex items-center gap-3">
-                    <p className="text-sm text-slate-500">
+                    <p className="admin-subtle text-sm">
                         {t('sessions.description')}
                     </p>
                     <button
@@ -438,7 +438,7 @@ export function SessionsPanel() {
             </div>
 
             {directorySummary && (
-                <div className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-slate-300">
+                <div className="admin-surface-muted admin-text rounded-lg border px-3 py-2 text-xs">
                     {directorySummary}
                 </div>
             )}
@@ -447,13 +447,13 @@ export function SessionsPanel() {
                 <table className="w-full">
                     <thead>
                         <tr className="border-b border-white/10">
-                            <th className="text-left py-3 px-4 text-sm font-medium text-slate-400">{t('sessions.columns.user')}</th>
-                            <th className="text-left py-3 px-4 text-sm font-medium text-slate-400">{t('sessions.columns.email')}</th>
-                            <th className="text-left py-3 px-4 text-sm font-medium text-slate-400">{t('sessions.columns.role')}</th>
-                            <th className="text-left py-3 px-4 text-sm font-medium text-slate-400">{t('sessions.columns.department')}</th>
-                            <th className="text-left py-3 px-4 text-sm font-medium text-slate-400">{t('sessions.columns.last_activity')}</th>
-                            <th className="text-left py-3 px-4 text-sm font-medium text-slate-400">{t('sessions.columns.status')}</th>
-                            <th className="text-right py-3 px-4 text-sm font-medium text-slate-400">{t('sessions.columns.actions')}</th>
+                            <th className="admin-muted text-left py-3 px-4 text-sm font-medium">{t('sessions.columns.user')}</th>
+                            <th className="admin-muted text-left py-3 px-4 text-sm font-medium">{t('sessions.columns.email')}</th>
+                            <th className="admin-muted text-left py-3 px-4 text-sm font-medium">{t('sessions.columns.role')}</th>
+                            <th className="admin-muted text-left py-3 px-4 text-sm font-medium">{t('sessions.columns.department')}</th>
+                            <th className="admin-muted text-left py-3 px-4 text-sm font-medium">{t('sessions.columns.last_activity')}</th>
+                            <th className="admin-muted text-left py-3 px-4 text-sm font-medium">{t('sessions.columns.status')}</th>
+                            <th className="admin-muted text-right py-3 px-4 text-sm font-medium">{t('sessions.columns.actions')}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -493,26 +493,26 @@ export function SessionsPanel() {
 
                             return (
                                 <tr key={session.user_id} className="border-b border-white/5 hover:bg-white/5">
-                                    <td className="py-3 px-4 text-white font-medium">{session.user_name}</td>
-                                    <td className="py-3 px-4 text-slate-400">{session.user_email}</td>
+                                    <td className="admin-title py-3 px-4 font-medium">{session.user_name}</td>
+                                    <td className="admin-muted py-3 px-4">{session.user_email}</td>
                                     <td className="py-3 px-4">
-                                        <span className="px-2 py-0.5 bg-white/10 text-slate-300 text-xs rounded-full">
+                                        <span className="admin-surface-muted admin-text rounded-full px-2 py-0.5 text-xs">
                                             {session.role}
                                         </span>
                                     </td>
-                                    <td className="py-3 px-4 text-slate-400">{session.department || t('common:fallbacks.not_available')}</td>
-                                    <td className="py-3 px-4 text-slate-500">
+                                    <td className="admin-muted py-3 px-4">{session.department || t('common:fallbacks.not_available')}</td>
+                                    <td className="admin-subtle py-3 px-4">
                                         {formatDateTimeValue(lastActivityDate, i18n.language)}
                                     </td>
                                     <td className="py-3 px-4">
                                         <div className="flex items-center gap-2">
                                             <div className={cn("w-2 h-2 rounded-full", statusColor)} />
                                             <div className="flex flex-col">
-                                                <span className="text-white text-sm font-medium">{statusText}</span>
+                                                <span className="admin-title text-sm font-medium">{statusText}</span>
                                                 {durationText && (
-                                                    <span className="text-xs text-slate-500">{durationText}</span>
+                                                    <span className="admin-subtle text-xs">{durationText}</span>
                                                 )}
-                                                <span className="text-xs text-slate-500">
+                                                <span className="admin-subtle text-xs">
                                                     {session.active_sessions} {t('sessions.devices', { defaultValue: 'devices' })}
                                                 </span>
                                             </div>

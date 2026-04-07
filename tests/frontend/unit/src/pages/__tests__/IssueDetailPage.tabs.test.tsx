@@ -181,4 +181,117 @@ describe('IssueDetailPage tabs', () => {
         await screen.findByText('Unknown risk');
         expect(screen.queryByText(/Risk #777/i)).not.toBeInTheDocument();
     });
+
+    it('re-fetches history when the loaded issue is refreshed on the history tab', async () => {
+        mockGetIssue.mockReset();
+        mockGetIssue
+            .mockResolvedValueOnce({
+                id: 42,
+                title: 'Access Review Gap',
+                severity: 'medium',
+                status: 'open',
+                source_type: 'manual',
+                source_id: null,
+                department_id: 3,
+                department_name: 'Finance',
+                owner_user_id: 8,
+                owner_user_name: 'Anna Kowalski',
+                opened_at: '2026-02-01T10:00:00Z',
+                due_at: null,
+                closed_at: null,
+                created_at: '2026-02-01T10:00:00Z',
+                updated_at: '2026-02-01T10:00:00Z',
+                risk_contexts: [],
+                description: 'Quarterly evidence was not attached.',
+                created_by_id: 8,
+                created_by_name: 'Anna Kowalski',
+                validation_note: null,
+                links: [],
+                remediation_plan: null,
+                exceptions: [],
+            })
+            .mockResolvedValueOnce({
+                id: 42,
+                title: 'Access Review Gap',
+                severity: 'medium',
+                status: 'open',
+                source_type: 'manual',
+                source_id: null,
+                department_id: 3,
+                department_name: 'Finance',
+                owner_user_id: 8,
+                owner_user_name: 'Anna Kowalski',
+                opened_at: '2026-02-01T10:00:00Z',
+                due_at: null,
+                closed_at: null,
+                created_at: '2026-02-01T10:00:00Z',
+                updated_at: '2026-02-03T10:00:00Z',
+                risk_contexts: [],
+                description: 'Quarterly evidence was not attached.',
+                created_by_id: 8,
+                created_by_name: 'Anna Kowalski',
+                validation_note: null,
+                links: [],
+                remediation_plan: null,
+                exceptions: [],
+            });
+        mockListActivity.mockReset();
+        mockListActivity
+            .mockResolvedValueOnce({
+                items: [
+                    {
+                        id: 1,
+                        entity_type: 'issue',
+                        entity_id: 42,
+                        entity_name: 'Access Review Gap',
+                        action: 'update',
+                        actor_id: 8,
+                        actor_name: 'Anna Kowalski',
+                        department_id: 3,
+                        changes: null,
+                        description: 'Issue updated',
+                        created_at: '2026-02-02T10:00:00Z',
+                    },
+                ],
+                total: 1,
+                skip: 0,
+                limit: 100,
+            })
+            .mockResolvedValueOnce({
+                items: [
+                    {
+                        id: 2,
+                        entity_type: 'issue',
+                        entity_id: 42,
+                        entity_name: 'Access Review Gap',
+                        action: 'update',
+                        actor_id: 8,
+                        actor_name: 'Anna Kowalski',
+                        department_id: 3,
+                        changes: null,
+                        description: 'Issue refreshed from API',
+                        created_at: '2026-02-03T10:00:00Z',
+                    },
+                ],
+                total: 1,
+                skip: 0,
+                limit: 100,
+            });
+
+        render(<IssueDetailPage />);
+
+        await screen.findByText('Access Review Gap');
+
+        fireEvent.click(screen.getByRole('tab', { name: /History/i }));
+        await screen.findByText('Issue updated');
+        expect(mockGetIssue).toHaveBeenCalledTimes(1);
+        expect(mockListActivity).toHaveBeenCalledTimes(1);
+
+        fireEvent.click(screen.getByRole('button', { name: /refresh/i }));
+
+        await waitFor(() => expect(mockGetIssue).toHaveBeenCalledTimes(2));
+        await waitFor(() => expect(mockListActivity).toHaveBeenCalledTimes(2));
+        expect(await screen.findByText('Issue refreshed from API')).toBeInTheDocument();
+        expect(screen.queryByText('Issue updated')).not.toBeInTheDocument();
+    });
 });

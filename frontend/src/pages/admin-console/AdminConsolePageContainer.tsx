@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 
 import { AuditLogsPanel } from './sections/AdminConsoleAuditPanels';
 import { HealthPanel, LogsPanel, SessionsPanel } from './sections/AdminConsoleOpsPanels';
+import './adminConsoleRoute.css';
 
 const tabDefs = [
     { id: 'health', labelKey: 'tabs.health', icon: Activity },
@@ -25,7 +26,7 @@ export function AdminConsolePage() {
     const [activeTab, setActiveTab] = useState<TabId>('health');
 
     if (isLoading) {
-        return <div className="flex items-center justify-center min-h-screen text-slate-400">{t('console.loading')}</div>;
+        return <div className="admin-console-route flex items-center justify-center min-h-screen admin-muted">{t('console.loading')}</div>;
     }
 
     if (!authz.canViewAdminConsole) {
@@ -33,15 +34,15 @@ export function AdminConsolePage() {
     }
 
     return (
-        <div className="space-y-6">
+        <div className="admin-console-route space-y-6">
             <header className="glass-card p-6">
                 <div className="flex items-center gap-4">
                     <div className="bg-gradient-to-br from-slate-600 to-slate-800 p-3 rounded-xl shadow-lg">
                         <Server className="h-8 w-8 text-white" />
                     </div>
                     <div>
-                        <h1 className="text-2xl font-bold text-white font-heading">{t('console.title')}</h1>
-                        <p className="text-slate-400">{t('console.subtitle')}</p>
+                        <h1 className="admin-title text-2xl font-bold font-heading">{t('console.title')}</h1>
+                        <p className="admin-text">{t('console.subtitle')}</p>
                     </div>
                 </div>
             </header>
@@ -55,7 +56,7 @@ export function AdminConsolePage() {
                             onClick={() => setActiveTab(tab.id)}
                             className={cn(
                                 'flex items-center gap-2 px-4 py-2.5 rounded-lg transition-all whitespace-nowrap',
-                                isActive ? 'bg-slate-700 text-slate-50 shadow-lg' : 'text-slate-300 hover:text-white hover:bg-white/5',
+                                isActive ? 'bg-slate-700 text-slate-50 shadow-lg' : 'admin-tab-inactive hover:bg-white/10',
                             )}
                         >
                             <tab.icon className="h-4 w-4" />

@@ -1,0 +1,31 @@
+.sidebar-nav-link--active {
+  --sidebar-active-bg: #1d4ed8;
+  background-color: var(--sidebar-active-bg) !important;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.22);
+  color: #f8fafc !important;
+}
+
+.theme-light .sidebar-nav-link--active {
+  --sidebar-active-bg: #0f172a;
+  background-color: var(--sidebar-active-bg) !important;
+}
+
+.sidebar-nav-link--active > .sidebar-nav-content {
+  background-color: var(--sidebar-active-bg) !important;
+  border-radius: 0.75rem;
+}
+
+.sidebar-nav-link--active .sidebar-nav-content,
+.sidebar-nav-link--active .sidebar-nav-icon,
+.sidebar-nav-link--active .sidebar-nav-chevron {
+  color: #f8fafc !important;
+}
+
+.sidebar-nav-badge {
+  background-color: #1e40af !important;
+  color: #f8fafc !important;
+}
+
+.theme-light .sidebar-nav-badge {
+  background-color: #1e293b !important;
+}

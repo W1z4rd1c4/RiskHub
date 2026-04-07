@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
-import { clearAccessToken, setAccessToken } from '@/services/accessTokenStore';
+import { clearAccessToken, setAccessToken } from '@test/accessTokenStoreHarness';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 
 const getCurrentUserMock = vi.fn();

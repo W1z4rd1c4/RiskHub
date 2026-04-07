@@ -7,7 +7,7 @@ import { http, HttpResponse } from 'msw';
 import { server } from '@test/mocks/server';
 import LoginPage from '@/pages/LoginPage';
 import SsoCallbackPage from '@/pages/SsoCallbackPage';
-import { clearAccessToken, getAccessToken } from '@/services/accessTokenStore';
+import { clearAccessToken, getAccessToken } from '@test/accessTokenStoreHarness';
 import { clearAuthConfigCache } from '@/services/authConfig';
 import { entraAuth } from '@/services/entraAuth';
 

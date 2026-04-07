@@ -70,7 +70,7 @@ async def bootstrap_runtime_services(app: FastAPI) -> None:
         redis = Redis.from_url(settings.redis_url, decode_responses=True)
         try:
             await redis.ping()
-        except BaseException:
+        except Exception:
             await redis.aclose()
             raise
         app.state.redis = redis

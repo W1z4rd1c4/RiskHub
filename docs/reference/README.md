@@ -8,7 +8,6 @@ Folder for `docs/reference` implementation assets.
 
 ## Contents
 
-- [`file_list.txt`](./file_list.txt)
 - [`LEGACY_PATH_MAP.md`](./LEGACY_PATH_MAP.md) - historical path/archive reference only
 - [`README_COVERAGE_POLICY.md`](./README_COVERAGE_POLICY.md)
 - [`readme_coverage.md`](./readme_coverage.md)
@@ -18,4 +17,5 @@ Folder for `docs/reference` implementation assets.
 
 ## Notes
 
+Tracked archive inventories are intentionally excluded from the live repo surface; regenerate them as one-off artifacts when needed.
 Keep this README updated when responsibilities or structure in this folder change.

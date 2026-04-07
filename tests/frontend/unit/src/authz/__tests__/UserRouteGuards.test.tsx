@@ -7,7 +7,7 @@ import { http, HttpResponse } from 'msw';
 import { AuthProviderWithReady, waitForAuthBootstrapReady } from '@test/authBootstrap';
 import { server } from '@test/mocks/server';
 import { createTestQueryClient } from '@test/queryClient';
-import { clearAccessToken, setAccessToken } from '@/services/accessTokenStore';
+import { clearAccessToken, setAccessToken } from '@test/accessTokenStoreHarness';
 import { clearBootstrapSession } from '@/services/authSessionCoordinator';
 import { DashboardFilterProvider } from '@/contexts/DashboardFilterContext';
 import { UserLifecycleRouteGuard, UsersRouteGuard } from '@/authz/BusinessRouteGuards';

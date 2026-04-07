@@ -28,7 +28,11 @@ def _describe_result(result: subprocess.CompletedProcess[str]) -> str:
 def _tracked_files() -> list[str]:
     tracked = _run_git("ls-files")
     assert tracked.returncode == 0, _describe_result(tracked)
-    return [line for line in tracked.stdout.splitlines() if line.strip()]
+    return [
+        line
+        for line in tracked.stdout.splitlines()
+        if line.strip() and (REPO_ROOT / line).exists()
+    ]
 
 
 def _tracked_ignored_paths() -> list[str]:
@@ -91,6 +95,24 @@ def test_frontend_repo_root_generated_wrappers_are_not_tracked() -> None:
         if path.startswith(forbidden_prefixes) or path.startswith("frontend/ts-trace-")
     ]
     assert leaked == [], f"unexpected tracked generated wrapper paths: {leaked}"
+
+
+def test_repository_has_no_tracked_retired_artifact_surfaces() -> None:
+    tracked = _tracked_files()
+    forbidden_exact = {
+        "docs/reference/file_list.txt",
+        "scripts/tools/generate_pdf.py",
+        "scripts/tools/generate_pdf.js",
+        "frontend/generate_pdf.js",
+    }
+    forbidden_prefixes = ("frontend/public/docs/",)
+
+    leaked = [
+        path
+        for path in tracked
+        if path in forbidden_exact or (path.startswith(forbidden_prefixes) and path != "frontend/public/docs/README.md")
+    ]
+    assert leaked == [], f"unexpected tracked retired artifact paths: {leaked}"
 
 def test_repository_has_no_tracked_ignored_paths() -> None:
     assert _tracked_ignored_paths() == []

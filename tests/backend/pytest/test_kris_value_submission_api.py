@@ -93,7 +93,14 @@ async def test_non_privileged_value_submission_returns_202(
     test_role_employee,
 ):
     """Test POST /kris/{id}/values by non-privileged user returns 202 with approval."""
-    from app.models import Department, User
+    from app.models import Department, Permission, RolePermission, User
+
+    kri_submit = Permission(resource="kri", action="submit", description="Submit KRI values")
+    db_session.add(kri_submit)
+    await db_session.commit()
+
+    db_session.add(RolePermission(role_id=test_role_employee.id, permission_id=kri_submit.id))
+    await db_session.commit()
 
     # Create a non-privileged user
     dept = Department(name="Test Dept", code="TEST-DEPT")
@@ -173,7 +180,14 @@ async def test_non_privileged_cannot_specify_period_end(
     test_role_employee,
 ):
     """Test non-privileged users cannot specify custom period_end."""
-    from app.models import Department, User
+    from app.models import Department, Permission, RolePermission, User
+
+    kri_submit = Permission(resource="kri", action="submit", description="Submit KRI values")
+    db_session.add(kri_submit)
+    await db_session.commit()
+
+    db_session.add(RolePermission(role_id=test_role_employee.id, permission_id=kri_submit.id))
+    await db_session.commit()
 
     # Create a non-privileged user
     dept = Department(name="Test Dept 2", code="TEST-DEPT-2")

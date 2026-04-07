@@ -24,7 +24,7 @@ const phase252FacadePaths = [
 ];
 
 export default defineConfig([
-  globalIgnores(["dist", "generate_pdf.js"]),
+  globalIgnores(["dist"]),
   {
     files: ["src/**/*.{ts,tsx}"],
     extends: [

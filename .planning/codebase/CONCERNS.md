@@ -27,7 +27,7 @@
 
 ## Authentication and Session Risks
 
-- Client auth/session state is now centralized in the in-memory `sessionStore`, but compatibility adapters (`frontend/src/services/accessTokenStore.ts`, `frontend/src/services/bootstrapSessionCache.ts`) still need final removal discipline in the closing cleanup loop
+- Client auth/session state is centralized in the in-memory `sessionStore`; keep `frontend/src/services/bootstrapSessionCache.ts` as a compatibility layer only and prevent new duplicate auth-state adapters from reappearing
 - Dev/demo auth paths are intentionally present and must remain production-disabled (`backend/app/main.py`, `backend/app/api/v1/endpoints/auth/demo.py`)
 - SSO token verification is monkeypatched in tests via `app.api.v1.endpoints.auth.verify_entra_id_token` and requires facade-style attribute lookup to keep patching working through refactors (`backend/app/api/v1/endpoints/auth/__init__.py`, `backend/app/api/v1/endpoints/auth/sso.py`)
 

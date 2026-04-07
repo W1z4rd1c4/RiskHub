@@ -19,6 +19,8 @@ import type {
     IssueUpdatePayload,
 } from '@/types/issue';
 
+type IssueQueryParams = Record<string, string | number | boolean | null | undefined>;
+
 export const issuesApi = {
     async listDepartments(): Promise<IssueDepartmentLookup[]> {
         return apiClient.get<IssueDepartmentLookup[]>('/issues/lookups/departments');
@@ -31,7 +33,9 @@ export const issuesApi = {
     },
 
     async list(filters: IssueListFilters = {}): Promise<IssueListResponse> {
-        return apiClient.get<IssueListResponse>('/issues', { params: filters });
+        return apiClient.get<IssueListResponse>('/issues', {
+            params: filters as IssueQueryParams,
+        });
     },
 
     async get(issueId: number): Promise<Issue> {

@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
-import { clearAccessToken, setAccessToken } from '@/services/accessTokenStore';
+import { clearAccessToken, setAccessToken } from '@test/accessTokenStoreHarness';
 import * as authSessionCoordinator from '@/services/authSessionCoordinator';
 import { clearBootstrapSession } from '@/services/authSessionCoordinator';
 import { __resetSessionStoreForTests } from '@/services/sessionStore';

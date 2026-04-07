@@ -54,7 +54,7 @@ RiskHub is a containerized full-stack application:
 
 ### Authenticated API request
 1. User logs in via password (`POST /api/v1/auth/login`) or SSO exchange (`POST /api/v1/auth/sso/exchange`) (`backend/app/api/v1/endpoints/auth/password.py`, `backend/app/api/v1/endpoints/auth/sso.py`)
-2. Frontend applies authenticated/bootstrap session state through `sessionManager`, which updates the canonical `sessionStore`; legacy `accessTokenStore`/`bootstrapSessionCache` modules are compatibility adapters over that same snapshot (`frontend/src/services/sessionManager.ts`, `frontend/src/services/sessionStore.ts`, `frontend/src/services/accessTokenStore.ts`, `frontend/src/services/bootstrapSessionCache.ts`)
+2. Frontend applies authenticated/bootstrap session state through `sessionManager`, which updates the canonical `sessionStore`; `bootstrapSessionCache` remains the only compatibility adapter over that same snapshot (`frontend/src/services/sessionManager.ts`, `frontend/src/services/sessionStore.ts`, `frontend/src/services/bootstrapSessionCache.ts`)
 3. `apiClient` injects bearer token (`frontend/src/services/apiClient.ts`)
 4. Backend resolves user/permissions in dependency layer (`backend/app/api/deps.py`)
 5. Endpoint/service executes and may write audit events (`backend/app/core/activity_logger.py`)

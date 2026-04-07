@@ -8,7 +8,7 @@ import { http, HttpResponse } from 'msw';
 import { server } from '@test/mocks/server';
 import { AuthProviderWithReady, waitForAuthBootstrapReady } from '@test/authBootstrap';
 import { createTestQueryClient } from '@test/queryClient';
-import { clearAccessToken, setAccessToken } from '@/services/accessTokenStore';
+import { clearAccessToken, setAccessToken } from '@test/accessTokenStoreHarness';
 import { DocumentationSettings } from '@/components/settings/DocumentationSettings';
 
 const makeUser = (overrides: Partial<Record<string, unknown>> = {}) => ({

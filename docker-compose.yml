@@ -1,4 +1,4 @@
-# RiskHub Development Docker Compose
+# RiskHub Development / Demo Docker Compose
 # ==============================================================================
 #
 # CANONICAL ENTRYPOINTS:
@@ -7,6 +7,9 @@
 #   ./scripts/compose.sh up --profile db-only
 #   ./scripts/compose.sh up --lan 192.168.x.x
 #   ./scripts/compose.sh reset --dataset test
+#
+# This file is the local demo/dev topology used by `./scripts/install.sh demo`
+# and `./scripts/compose.sh`. It is not the production deployment contract.
 #
 # ==============================================================================
 

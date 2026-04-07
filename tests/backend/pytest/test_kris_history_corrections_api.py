@@ -22,9 +22,16 @@ async def test_kri_correction_requires_privileged_approval(
     test_user_cro,
 ):
     """Test PATCH /kris/{id}/history/{entry_id} sets requires_privileged_approval=True per §5.3."""
-    from app.models import ApprovalRequest, User
+    from app.models import ApprovalRequest, Permission, RolePermission, User
     from app.models.user import AccessScope
     from app.services.kri_history_service import KRIHistoryService
+
+    risks_write = Permission(resource="risks", action="write", description="Edit risks")
+    db_session.add(risks_write)
+    await db_session.commit()
+
+    db_session.add(RolePermission(role_id=test_role_employee.id, permission_id=risks_write.id))
+    await db_session.commit()
 
     # Create employee user with risks:write permission
     employee = User(

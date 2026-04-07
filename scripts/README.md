@@ -71,6 +71,8 @@ cd backend
 ## Common verification commands
 
 ```bash
+make -f scripts/Makefile verify
+make -f scripts/Makefile quality-repo-contracts
 make -f scripts/Makefile verify-startup-scripts
 make -f scripts/Makefile docs-topology-consistency
 make -f scripts/Makefile security-contract-probe

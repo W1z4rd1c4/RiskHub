@@ -66,8 +66,8 @@ afterEach(async () => {
     if (typeof sessionStorage !== 'undefined') {
         sessionStorage.clear();
     }
-    const tokenStore = await import('./src/services/accessTokenStore');
-    tokenStore.clearAccessToken();
+    const sessionStore = await import('./src/services/sessionStore');
+    sessionStore.__resetSessionStoreForTests();
     // Clear auth config cache between tests to avoid cross-test leakage.
     const mod = await import('./src/services/authConfig');
     mod.clearAuthConfigCache();

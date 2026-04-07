@@ -53,6 +53,7 @@ export type VendorCreate = Omit<
     Vendor,
     | 'id'
     | 'department_name'
+    | 'linked_risks'
     | 'outsourcing_owner_name'
     | 'created_at'
     | 'updated_at'

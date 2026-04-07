@@ -129,7 +129,8 @@ frontend/playwright-report/
 frontend/.playwright-browsers/
 backend/logs/
 tests/results/
-scripts/tests/
+scripts/tests/*
+!scripts/tests/README.md
 # Canonical generated frontend audit outputs live under tests/results/quality/frontend/.
 frontend/ts-trace-*/
 scripts/runtime-artifacts/

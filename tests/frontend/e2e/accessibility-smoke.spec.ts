@@ -44,6 +44,8 @@ async function auditRoutes(
       impact: string | null;
       help: string;
       nodes: number;
+      targets: string[][];
+      failureSummaries: string[];
     }>;
   }> = [];
 
@@ -59,6 +61,8 @@ async function auditRoutes(
         impact: violation.impact ?? null,
         help: violation.help,
         nodes: violation.nodes.length,
+        targets: violation.nodes.map((node) => node.target),
+        failureSummaries: violation.nodes.map((node) => node.failureSummary),
       }));
 
     routeFindings.push({

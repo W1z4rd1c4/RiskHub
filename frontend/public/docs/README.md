@@ -1,18 +1,14 @@
 # frontend/public/docs
 
-## Purpose
+## Status
 
-Folder for `frontend/public/docs` implementation assets.
+This directory is intentionally kept out of the live product documentation flow.
 
-## Contents
+The earlier static markdown guides were placeholder assets and have been retired from tracked source. Canonical documentation now comes from the backend-powered docs library under:
 
-- `admin-guide.md`
-- `controls-guide.md`
-- `department-head-guide.md`
-- `getting-started.md`
-- `kris-guide.md`
-- `risks-guide.md`
+- `docs/user/`
+- `docs/admin/`
+- `docs/user-cs/`
+- `docs/admin-cs/`
 
-## Notes
-
-Keep this README updated when responsibilities or structure in this folder change.
+Keep this directory empty apart from this note unless a future phase explicitly restores a supported static-doc export flow.

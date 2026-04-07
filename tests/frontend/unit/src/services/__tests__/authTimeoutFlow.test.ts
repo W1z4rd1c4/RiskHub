@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { clearAccessToken, setAccessToken } from '@/services/accessTokenStore';
+import { clearAccessToken, setAccessToken } from '@test/accessTokenStoreHarness';
 import { clearAuthConfigCache, getAuthConfig } from '@/services/authConfig';
 import { AUTH_REQUEST_TIMEOUT_MS } from '@/services/authRequest';
 import { authApi } from '@/services/authApi';

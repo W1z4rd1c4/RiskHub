@@ -1,13 +1,13 @@
-"""
-KRI Migration Script
+#!/usr/bin/env python3
+"""Deterministic KRI import with dry-run/report/apply/reset contracts."""
 
-Migrates Key Risk Indicators from placeholder-kri-source.xlsx to the database.
-Links KRIs to existing risks by matching descriptions.
+from __future__ import annotations
 
-Usage: source venv/bin/activate && PYTHONPATH=. python scripts/migrate_kris.py
-"""
-
+import argparse
 import asyncio
+import re
+import sys
+from dataclasses import dataclass
 from difflib import SequenceMatcher
 from pathlib import Path
 
@@ -17,173 +17,266 @@ from sqlalchemy import delete, select
 from app.core.config import get_settings
 from app.db.session import session_context
 from app.models import KeyRiskIndicator, Risk
+from scripts.import_contracts import ImportReport, write_report
+
+KRI_SHEETS = [
+    "Provozní riziko",
+    "Neživotní upisovací riziko",
+    "Zdravotní upisovací riziko",
+    "Tržní riziko",
+    "Riziko selhání protistrany",
+]
 
 
-def normalize_string(s):
-    """Normalize string for comparison."""
-    if not s:
+@dataclass(slots=True)
+class KriImportRow:
+    sheet: str
+    row_number: int
+    process: str
+    risk_description: str
+    metric_name: str
+    current_value: float
+    lower_limit: float
+    upper_limit: float
+    unit: str
+
+
+def _parse_args(argv: list[str]) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Import KRIs from an Excel workbook.")
+    parser.add_argument("--input", required=True, help="Path to the source workbook.")
+    parser.add_argument("--apply", action="store_true", help="Persist changes. Default is dry-run.")
+    parser.add_argument(
+        "--allow-reset",
+        action="store_true",
+        help="Allow destructive reset of existing KRIs before import.",
+    )
+    parser.add_argument("--report", help="Optional path for a JSON import report.")
+    return parser.parse_args(argv)
+
+
+def _normalize_string(value: object | None) -> str:
+    if value is None:
         return ""
-    return s.lower().strip().replace("\n", " ").replace("  ", " ")
+    return " ".join(str(value).lower().strip().replace("\n", " ").split())
 
 
-def similarity_score(a, b):
-    """Calculate similarity between two strings."""
-    return SequenceMatcher(None, normalize_string(a), normalize_string(b)).ratio()
+def _similarity_score(left: str, right: str) -> float:
+    return SequenceMatcher(None, _normalize_string(left), _normalize_string(right)).ratio()
 
 
-def safe_float(val, default=0.0):
-    """Safely convert value to float."""
-    if val is None:
+def _safe_float(value: object | None, default: float = 0.0) -> float:
+    if value is None:
         return default
-    try:
-        return float(val)
-    except (ValueError, TypeError):
+    if isinstance(value, (int, float)):
+        return float(value)
+    match = re.search(r"[-+]?\d*[\.,]?\d+", str(value))
+    if match is None:
         return default
+    return float(match.group().replace(",", "."))
 
 
-async def migrate_kris():
-    """Main migration function."""
-    excel_path = Path(__file__).parent.parent.parent / "placeholder-kri-source.xlsx"
+def _unit_from_metric(metric_name: str) -> str:
+    lowered = metric_name.lower()
+    if "%" in metric_name or "procent" in lowered:
+        return "%"
+    if "dn" in lowered or "den" in lowered:
+        return "days"
+    if "počet" in lowered or "count" in lowered:
+        return "count"
+    return "value"
 
-    if not excel_path.exists():
-        print(f"❌ Excel file not found: {excel_path}")
-        return
 
-    print(f"📂 Loading: {excel_path}")
-    wb = openpyxl.load_workbook(excel_path, data_only=True)
+def _load_rows(input_path: Path, report: ImportReport) -> list[KriImportRow]:
+    workbook = openpyxl.load_workbook(input_path, data_only=True)
+    rows: list[KriImportRow] = []
 
-    # KRI sheets to process
-    kri_sheets = [
-        "Provozní riziko",
-        "Neživotní upisovací riziko",
-        "Zdravotní upisovací riziko",
-        "Tržní riziko",
-        "Riziko selhání protistrany",
-    ]
+    for sheet_name in KRI_SHEETS:
+        if sheet_name not in workbook.sheetnames:
+            report.add_warning("missing-sheet", f"Workbook is missing optional sheet {sheet_name!r}.", sheet=sheet_name)
+            continue
 
-    async with session_context(get_settings()) as session:
-        # Step 1: Load all risks for matching
-        print("\n🔍 Loading risks for matching...")
-        risks_result = await session.execute(select(Risk))
-        all_risks = list(risks_result.scalars().all())
-        print(f"   ✓ Loaded {len(all_risks)} risks")
-
-        # Build lookup by description and process
-        risk_by_desc = {}
-        risk_by_process = {}
-        for risk in all_risks:
-            key = normalize_string(risk.description)[:100]
-            risk_by_desc[key] = risk
-            process_key = normalize_string(risk.process)
-            if process_key not in risk_by_process:
-                risk_by_process[process_key] = []
-            risk_by_process[process_key].append(risk)
-
-        # Step 2: Clear existing KRIs
-        print("\n🗑️  Clearing existing KRIs...")
-        await session.execute(delete(KeyRiskIndicator))
-        await session.commit()
-        print("   ✓ Cleared KRIs")
-
-        # Step 3: Process each sheet
-        created = 0
-        unmatched = []
-
-        for sheet_name in kri_sheets:
-            if sheet_name not in wb.sheetnames:
-                print(f"\n⚠️  Sheet not found: {sheet_name}")
+        sheet = workbook[sheet_name]
+        for row_idx in range(2, sheet.max_row + 1):
+            metric_name = str(sheet.cell(row=row_idx, column=9).value or "").strip()
+            if not metric_name:
+                report.skips += 1
                 continue
 
-            sheet = wb[sheet_name]
-            print(f"\n📊 Processing sheet: {sheet_name} ({sheet.max_row - 1} rows)")
-
-            for row_idx in range(2, sheet.max_row + 1):
-                # Column mapping for KRI data:
-                # 2: Hlavní proces
-                # 3: Podproces
-                # 6: Klíčová rizika - popis
-                # 9: Metrika
-                # 10: Hodnota
-                # 11: Dolní limit
-                # 12: Horní limit
-
-                hlavni_proces = str(sheet.cell(row=row_idx, column=2).value or "").strip()
-                risk_desc = str(sheet.cell(row=row_idx, column=6).value or "").strip()
-                metric = str(sheet.cell(row=row_idx, column=9).value or "").strip()
-                value = safe_float(sheet.cell(row=row_idx, column=10).value)
-                lower_limit = safe_float(sheet.cell(row=row_idx, column=11).value, 0.0)
-                upper_limit = safe_float(sheet.cell(row=row_idx, column=12).value, 100.0)
-
-                # Skip if no metric defined
-                if not metric:
-                    continue
-
-                # Determine unit from metric name
-                if "%" in metric or "procent" in metric.lower():
-                    unit = "%"
-                elif "dn" in metric.lower() or "den" in metric.lower():
-                    unit = "days"
-                elif "počet" in metric.lower() or "count" in metric.lower():
-                    unit = "count"
-                else:
-                    unit = "value"
-
-                # Match risk
-                matched_risk = None
-                match_score = 0
-
-                # Try exact description match first
-                for risk in all_risks:
-                    sim = similarity_score(risk_desc, risk.description)
-                    if sim > match_score and sim > 0.4:
-                        matched_risk = risk
-                        match_score = sim
-
-                # Fallback: match by process
-                if not matched_risk:
-                    proc_key = normalize_string(hlavni_proces)
-                    if proc_key in risk_by_process and risk_by_process[proc_key]:
-                        matched_risk = risk_by_process[proc_key][0]
-                        match_score = 0.3
-
-                if not matched_risk:
-                    # Assign random risk from same process or any risk
-                    import random
-
-                    proc_key = normalize_string(hlavni_proces)
-                    if proc_key in risk_by_process and risk_by_process[proc_key]:
-                        matched_risk = random.choice(risk_by_process[proc_key])
-                    else:
-                        matched_risk = random.choice(all_risks)
-                    unmatched.append(f"{sheet_name} row {row_idx}: {metric} -> random: {matched_risk.risk_id_code}")
-
-                # Create KRI
-                kri = KeyRiskIndicator(
-                    risk_id=matched_risk.id,
-                    metric_name=metric[:500],
-                    current_value=value,
-                    lower_limit=lower_limit,
-                    upper_limit=upper_limit,
-                    unit=unit,
+            rows.append(
+                KriImportRow(
+                    sheet=sheet_name,
+                    row_number=row_idx,
+                    process=str(sheet.cell(row=row_idx, column=2).value or "").strip(),
+                    risk_description=str(sheet.cell(row=row_idx, column=6).value or "").strip(),
+                    metric_name=metric_name,
+                    current_value=_safe_float(sheet.cell(row=row_idx, column=10).value),
+                    lower_limit=_safe_float(sheet.cell(row=row_idx, column=11).value),
+                    upper_limit=_safe_float(sheet.cell(row=row_idx, column=12).value, 100.0),
+                    unit=_unit_from_metric(metric_name),
                 )
-                session.add(kri)
-                created += 1
+            )
 
-                if created % 20 == 0:
-                    print(f"   ... created {created} KRIs")
+    report.metadata["rows_loaded"] = len(rows)
+    if not rows and report.ok:
+        report.add_error("no-rows", "Workbook did not contain any importable KRI rows.")
+    return rows
+
+
+def _match_risk(row: KriImportRow, all_risks: list[Risk], risks_by_process: dict[str, list[Risk]]) -> Risk | None:
+    scored: list[tuple[Risk, float]] = []
+    for risk in all_risks:
+        score = _similarity_score(row.risk_description, risk.description or "")
+        if score > 0.4:
+            scored.append((risk, score))
+    if scored:
+        scored.sort(key=lambda item: (-item[1], item[0].risk_id_code))
+        return scored[0][0]
+
+    process_key = _normalize_string(row.process)
+    candidates = risks_by_process.get(process_key, [])
+    if candidates:
+        return sorted(candidates, key=lambda risk: risk.risk_id_code)[0]
+    return None
+
+
+async def _run(args: argparse.Namespace) -> int:
+    input_path = Path(args.input).expanduser().resolve()
+    report = ImportReport(
+        script="migrate_kris.py",
+        input_path=str(input_path),
+        apply=args.apply,
+        allow_reset=args.allow_reset,
+    )
+
+    if not input_path.exists():
+        report.add_error("missing-input", f"Input workbook not found: {input_path}")
+        write_report(args.report, report)
+        print(f"❌ Input workbook not found: {input_path}")
+        return 1
+
+    rows = _load_rows(input_path, report)
+
+    async with session_context(get_settings()) as session:
+        all_risks = list((await session.execute(select(Risk))).scalars().all())
+        if not all_risks:
+            report.add_error("missing-risks", "No risks found. Import or seed risks before importing KRIs.")
+
+        risks_by_process: dict[str, list[Risk]] = {}
+        for risk in all_risks:
+            risks_by_process.setdefault(_normalize_string(risk.process), []).append(risk)
+
+        existing_kris = list((await session.execute(select(KeyRiskIndicator))).scalars().all())
+        existing_by_key: dict[tuple[int, str], KeyRiskIndicator] = {}
+        for kri in existing_kris:
+            key = (kri.risk_id, _normalize_string(kri.metric_name))
+            if key in existing_by_key:
+                report.add_error(
+                    "duplicate-existing-kri",
+                    "Database already contains duplicate KRI metric names for the same risk. Resolve before importing.",
+                    details={"risk_id": kri.risk_id, "metric_name": kri.metric_name},
+                )
+                continue
+            existing_by_key[key] = kri
+
+        matched_rows: list[tuple[KriImportRow, Risk]] = []
+        planned_keys: dict[tuple[int, str], KriImportRow] = {}
+        for row in rows:
+            matched_risk = _match_risk(row, all_risks, risks_by_process)
+            if matched_risk is None:
+                report.add_error(
+                    "unmatched-kri",
+                    f"Unable to match metric {row.metric_name!r} to a risk.",
+                    sheet=row.sheet,
+                    row=row.row_number,
+                    details={"process": row.process, "risk_description": row.risk_description},
+                )
+                continue
+
+            key = (matched_risk.id, _normalize_string(row.metric_name))
+            duplicate = planned_keys.get(key)
+            if duplicate is not None:
+                report.add_error(
+                    "duplicate-kri-key",
+                    f"Workbook would import duplicate metric {row.metric_name!r} for risk {matched_risk.risk_id_code}.",
+                    sheet=row.sheet,
+                    row=row.row_number,
+                    details={"first_row": duplicate.row_number, "risk_id_code": matched_risk.risk_id_code},
+                )
+                continue
+
+            planned_keys[key] = row
+            matched_rows.append((row, matched_risk))
+
+        if args.allow_reset:
+            report.creates = len(matched_rows)
+            report.updates = 0
+            report.deletes = len(existing_kris)
+        else:
+            report.creates = sum(
+                1 for row, risk in matched_rows if (risk.id, _normalize_string(row.metric_name)) not in existing_by_key
+            )
+            report.updates = len(matched_rows) - report.creates
+
+        if not report.ok:
+            write_report(args.report, report)
+            for issue in report.errors:
+                location = f" ({issue.sheet} row {issue.row})" if issue.sheet and issue.row else ""
+                print(f"❌ {issue.code}{location}: {issue.message}")
+            return 1
+
+        if not args.apply:
+            write_report(args.report, report)
+            print("🔍 DRY-RUN: no changes applied.")
+            print(
+                f"   creates={report.creates} updates={report.updates} deletes={report.deletes} "
+                f"skips={report.skips} warnings={len(report.warnings)}"
+            )
+            return 0
+
+        if args.allow_reset:
+            await session.execute(delete(KeyRiskIndicator))
+            await session.flush()
+            existing_by_key = {}
+
+        for row, matched_risk in matched_rows:
+            key = (matched_risk.id, _normalize_string(row.metric_name))
+            kri = existing_by_key.get(key)
+            description = row.risk_description or f"Imported from {row.sheet} row {row.row_number}"
+
+            if kri is None:
+                session.add(
+                    KeyRiskIndicator(
+                        risk_id=matched_risk.id,
+                        metric_name=row.metric_name[:500],
+                        description=description,
+                        current_value=row.current_value,
+                        lower_limit=row.lower_limit,
+                        upper_limit=row.upper_limit,
+                        unit=row.unit,
+                    )
+                )
+                continue
+
+            kri.metric_name = row.metric_name[:500]
+            kri.description = description
+            kri.current_value = row.current_value
+            kri.lower_limit = row.lower_limit
+            kri.upper_limit = row.upper_limit
+            kri.unit = row.unit
 
         await session.commit()
-        print("\n✅ Migration complete!")
-        print(f"   Created: {created} KRIs")
-        print(f"   Unmatched: {len(unmatched)}")
 
-        if unmatched:
-            print("\n⚠️  Unmatched KRIs (for manual review):")
-            for item in unmatched[:10]:
-                print(f"   - {item}")
-            if len(unmatched) > 10:
-                print(f"   ... and {len(unmatched) - 10} more")
+    write_report(args.report, report)
+    print(
+        f"✅ Imported KRIs: creates={report.creates} updates={report.updates} "
+        f"deletes={report.deletes} skips={report.skips}"
+    )
+    return 0
+
+
+def main() -> int:
+    return asyncio.run(_run(_parse_args(sys.argv[1:])))
 
 
 if __name__ == "__main__":
-    asyncio.run(migrate_kris())
+    raise SystemExit(main())

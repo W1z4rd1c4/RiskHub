@@ -31,7 +31,7 @@
 
 ### JWT Authentication
 - Backend issues HS256 JWTs (`backend/app/core/security.py`, `backend/app/api/v1/endpoints/auth/password.py`, `backend/app/api/v1/endpoints/auth/sso.py`)
-- Frontend session state is now canonicalized in `sessionStore`; `sessionManager` owns state transitions, temporary compatibility adapters project token/bootstrap reads, and `apiClient` attaches `Authorization: Bearer` from that single snapshot (`frontend/src/services/sessionStore.ts`, `frontend/src/services/sessionManager.ts`, `frontend/src/services/accessTokenStore.ts`, `frontend/src/services/apiClient.ts`)
+- Frontend session state is now canonicalized in `sessionStore`; `sessionManager` owns state transitions, `bootstrapSessionCache` is the remaining compatibility projection, and `apiClient` attaches `Authorization: Bearer` from that single snapshot (`frontend/src/services/sessionStore.ts`, `frontend/src/services/sessionManager.ts`, `frontend/src/services/bootstrapSessionCache.ts`, `frontend/src/services/apiClient.ts`)
 
 ## Vendor Signal Integrations
 

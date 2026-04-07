@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { clearAccessToken, getAccessToken, setAccessToken, subscribeAccessToken } from '@/services/accessTokenStore';
+import { clearAccessToken, getAccessToken, setAccessToken, subscribeAccessToken } from '@test/accessTokenStoreHarness';
 
 type TokenWindow = Window & {
     __RISKHUB_ACCESS_TOKEN__?: string | null;

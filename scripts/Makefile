@@ -1,7 +1,7 @@
 # RiskHub Development Makefile
 # Usage: make -f scripts/Makefile <target>
 
-.PHONY: help dev dev-full docker docker-lan docker-reset stop clean test test-postgres-ci migrate logs shell db db-shell lint lint-frontend lint-backend quality-suppression-budget readme-coverage docs-tree-audit docs-topology-consistency verify verify-prod-install-scripts verify-startup-scripts security-contract-probe security-redis-resilience security-gap-round5 public-repo-hygiene public-leak-audit prod-readiness-audit-local release-parity-audit
+.PHONY: help dev dev-full docker docker-lan docker-reset stop clean test test-postgres-ci migrate logs shell db db-shell lint lint-frontend lint-backend quality-suppression-budget quality-repo-contracts readme-coverage docs-tree-audit docs-topology-consistency verify verify-prod-install-scripts verify-startup-scripts security-contract-probe security-redis-resilience security-gap-round5 public-repo-hygiene public-leak-audit prod-readiness-audit-local release-parity-audit
 
 # Default target
 help:
@@ -33,6 +33,7 @@ help:
 	@echo "  make lint-frontend - Run frontend lint + typecheck + deadcode + build + debt budget"
 	@echo "  make lint-backend - Run backend Ruff lint (app + tests/backend/pytest + backend/scripts) + suppression budget"
 	@echo "  make quality-suppression-budget - Enforce backend/app suppression allowlist budget"
+	@echo "  make quality-repo-contracts - Enforce repo artifact hygiene + script syntax contracts"
 	@echo ""
 	@echo "Utilities:"
 	@echo "  make logs         - Tail all Docker logs"
@@ -105,8 +106,9 @@ test:
 
 test-postgres-ci:
 	@test -n "$$TEST_DATABASE_URL" || (echo "TEST_DATABASE_URL is required for make test-postgres-ci" >&2; exit 1)
-	cd backend && TEST_DATABASE_URL="$$TEST_DATABASE_URL" pytest -m postgres -q
+	cd backend && TEST_DATABASE_URL="$$TEST_DATABASE_URL" pytest -m postgres -q --no-cov
 	cd backend && TEST_DATABASE_URL="$$TEST_DATABASE_URL" pytest -q \
+		--no-cov \
 		../tests/backend/pytest/test_postgres_schema_contracts.py \
 		../tests/backend/pytest/test_outbox_approval_flow.py \
 		../tests/backend/pytest/test_approval_workflow.py \
@@ -131,6 +133,11 @@ lint-backend:
 
 quality-suppression-budget:
 	python3 scripts/tools/suppression_budget.py
+
+quality-repo-contracts:
+	bash -n scripts/install.sh scripts/compose.sh scripts/dev.sh scripts/deploy.sh
+	python3 -m py_compile backend/scripts/migrate_controls.py backend/scripts/migrate_kris.py backend/scripts/migrate_risks.py backend/scripts/seed_users.py backend/scripts/seed_demo.py
+	cd backend && pytest -q ../tests/backend/pytest/test_repo_hygiene_contracts.py
 
 # Run full lint suite
 lint: lint-frontend lint-backend
@@ -200,7 +207,7 @@ docs-topology-consistency:
 	python3 scripts/tools/docs_tree_audit.py --scope canonical --max-root-hops 3 --fail-on-unreachable
 	python3 scripts/tools/structure_metrics_guard.py
 
-verify: readme-coverage
+verify: docs-topology-consistency quality-repo-contracts
 
 security-contract-probe:
 	bash scripts/security/run_protocol_contract_probe.sh

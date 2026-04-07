@@ -19,7 +19,7 @@
 ## Current Position
 
 **Milestone:** v1.0 MVP
-**Active Phases:** 252 (Quality Closure Loop) in progress; 90 (AD Emulator) remains active; 19 and 70 deferred
+**Active Phases:** 90 (AD Emulator) remains active; 19 and 70 deferred
 **Documentation Status:** Reconciled with phase folders and canonical docs (2026-04-05)
 
 ## Progress Summary
@@ -69,7 +69,7 @@
 | 201 Archived Visibility + Restore | ✅ Complete (5/5) | 2026-02-15 |
 | 250 Spaghetti Simplification | ✅ Complete (10/10) | 2026-01-10 |
 | 251 Spaghetti Simplification 2 | ✅ Complete (11/11) | 2026-01-10 |
-| 252 Quality Closure Loop | ⏳ In progress (4/10) | - |
+| 252 Quality Closure Loop | ✅ Complete (11/11) | 2026-04-07 |
 | 500 Production Installation Scripts | ✅ Complete (8/8) | 2026-02-16 |
 | 501 Production Readiness Hardening | ✅ Complete (8/8) | 2026-02-16 |
 
@@ -185,6 +185,129 @@
   - added focused selector/state tests for the new internal modules
   - verification:
     - `cd frontend && npm run test:run -- src/components/__tests__/KRIForm.vendor-context.test.tsx src/components/__tests__/KRIModal.vendor-selection.test.tsx src/pages/__tests__/KRIForms.vendor-context.test.tsx src/__tests__/approval_edit_update_handling.spec.ts src/components/kri-form/kriForm.selectors.test.ts src/components/kri-form/useKriFormState.test.tsx` -> `6 files passed`, `23 tests passed`
+    - `cd frontend && npm run lint && npx tsc --noEmit` -> passed
+
+### Phase 252 Expansion - Repo-wide Professional Quality Closure (2026-04-07)
+
+- Phase `252` is widened beyond the original narrow hotspot list and now covers five areas:
+  - data and migration safety
+  - backend workflow decomposition
+  - frontend controller/form decomposition
+  - repo professionalism and product-surface artifact hygiene
+  - systemic quality gates and test-shape cleanup
+- Execution model remains serial and GSD-aligned:
+  - research -> analyze -> baseline test capture -> implementation waves
+  - each implementation wave follows `analyze -> patch -> review -> targeted test`
+  - do not advance while the owning wave is red
+- Baseline captured before the first expansion patch:
+  - `python3 -m py_compile scripts/tools/generate_pdf.py` -> failed (broken checked-in utility)
+  - `node --check frontend/generate_pdf.js` -> failed (broken checked-in utility)
+  - `make -f scripts/Makefile docs-topology-consistency` -> failed on missing README coverage for newly added directories
+  - `cd frontend && npm run test:run` -> `89 files passed`, `305 tests passed`
+  - `cd frontend && npm run lint && npx tsc --noEmit && npm run build && npm run quality:debt -- --report-json && node scripts/quality/validate-debt-budget-report.mjs && npm run cleanup:deadcode && node scripts/cleanup/validate-unreachable-report.mjs && node scripts/quality/validate-no-inline-styles.mjs` -> failed on service query-param typing
+  - `make -f scripts/Makefile test` -> failed on pre-existing KRI submission/correction regressions plus tracked-ignored-path hygiene drift
+  - Postgres contract lane unavailable locally at baseline time (`127.0.0.1:55432` not listening)
+- Wave `252-10` completed:
+  - expanded Phase 252 planning/context to reflect the broader five-area closure scope
+  - removed broken checked-in PDF helper utilities from tracked product/reviewer surfaces
+  - retired placeholder static docs under `frontend/public/docs/` in favor of the canonical docs-reader pipeline
+  - removed the giant tracked `docs/reference/file_list.txt` archive inventory from the live repo surface
+  - repaired README coverage for the new KRI/activity-log component test directories
+  - hardened repo hygiene contracts so the retired artifact surfaces cannot be reintroduced silently
+  - fixed frontend service query-param typing regressions introduced by the newer stricter client contract
+  - verification:
+    - `make -f scripts/Makefile docs-topology-consistency`
+    - `bash -n scripts/install.sh scripts/compose.sh scripts/dev.sh scripts/deploy.sh`
+    - `python3 -m py_compile backend/scripts/migrate_controls.py backend/scripts/migrate_kris.py backend/scripts/migrate_risks.py backend/scripts/seed_users.py backend/scripts/seed_demo.py`
+    - `cd frontend && npm run test:run`
+    - `cd frontend && npm run lint && npx tsc --noEmit && npm run build && npm run quality:debt -- --report-json && node scripts/quality/validate-debt-budget-report.mjs && npm run cleanup:deadcode && node scripts/cleanup/validate-unreachable-report.mjs && node scripts/quality/validate-no-inline-styles.mjs`
+- Wave `252-11` completed:
+  - added `make -f scripts/Makefile quality-repo-contracts` to enforce startup/deploy shell syntax, migration/seed script syntax, and repo hygiene contracts in one fast local gate
+  - expanded `make -f scripts/Makefile verify` so repo artifact/script syntax drift is part of the default fast verification path
+  - wired the new repo-contract gate into the blocking GitHub lint workflow and uploaded its evidence alongside the other lint artifacts
+  - updated the testing/scripts docs to document the hardened gate as part of the normal verification matrix
+  - verification:
+    - `make -f scripts/Makefile quality-repo-contracts`
+    - `make -f scripts/Makefile verify`
+    - `make -f scripts/Makefile docs-topology-consistency`
+- Wave `252-12` completed:
+  - replaced the legacy workbook migration scripts with explicit `--input` / dry-run / `--apply` / `--allow-reset` / `--report` contracts
+  - corrected risk import so non-reset apply matches exact normalized `(process, subprocess, name)` instead of workbook-generated `risk_id_code`
+  - restored the canonical risk workbook mapping of column `F -> name` and column `G -> description`
+  - preserved existing `risk_id_code` values for matched risks and generated new non-reset risk codes via the canonical `generate_risk_id_code(...)` helper
+  - made control import upsert by normalized control name and rebuild links per imported control instead of clearing the full controls table by default
+  - removed the KRI migration script's random fallback and made unmatched rows fail closed with JSON reporting
+  - added focused backend regression tests covering dry-run non-destructiveness, risk row reordering/insertion safety, duplicate/ambiguous risk identity failure, control upsert behavior, and unmatched-KRI fail-closed behavior
+  - updated `backend/scripts/README.md` so the new import-safety contract is documented for operators
+  - verification:
+    - `python3 -m py_compile backend/scripts/import_contracts.py backend/scripts/migrate_risks.py backend/scripts/migrate_controls.py backend/scripts/migrate_kris.py`
+    - `cd backend && pytest -q ../tests/backend/pytest/test_import_migration_contracts.py`
+    - `cd backend && pytest -q ../tests/backend/pytest/test_repo_hygiene_contracts.py`
+    - `uvx ruff check backend/scripts/import_contracts.py backend/scripts/migrate_risks.py backend/scripts/migrate_controls.py backend/scripts/migrate_kris.py tests/backend/pytest/test_import_migration_contracts.py`
+- Wave `252-04` completed:
+  - replaced `VendorForm.tsx` with a stable facade over the new `frontend/src/components/vendor-form/` module set
+  - extracted vendor lookups, local form state, submit/payload mapping, and section rendering into typed internal modules
+  - preserved process/subprocess suggestions, owner-to-department autofill, and existing vendor create/update payload behavior
+  - added focused Vendor form behavior and payload regression coverage
+  - verification:
+    - `cd frontend && npm run test:run -- src/components/__tests__/VendorForm.test.tsx src/components/__tests__/VendorForm.payloads.test.ts` -> `2 files passed`, `4 tests passed`
+    - `cd frontend && npm run lint && npx tsc --noEmit` -> passed
+- Wave `252-05` completed:
+  - replaced `IssueDetailPage.tsx` with a stable route facade over typed hooks, tabs, and formatter helpers
+  - extracted issue detail loading/history fetching into bounded hooks and split overview/workflow/history rendering into dedicated modules
+  - preserved the existing route contract and human-readable “Unknown risk” fallback behavior
+  - verification:
+    - `cd frontend && npm run test:run -- src/pages/__tests__/IssueDetailPage.tabs.test.tsx` -> `1 file passed`, `2 tests passed`
+    - `cd frontend && npm run lint && npx tsc --noEmit` -> passed
+- Wave `252-06` completed:
+  - reduced `DashboardPage.tsx` to a route facade over extracted dashboard state, stat-card helpers, navigation/export helpers, and presentation sections
+  - preserved overview-query behavior, committee view switching, and dashboard export/drilldown behavior
+  - added focused dashboard stats regression coverage
+  - verification:
+    - `cd frontend && npm run test:run -- src/pages/__tests__/DashboardPage.overview.test.tsx src/pages/dashboard/dashboardStats.test.ts` -> `2 files passed`, `2 tests passed`
+    - `cd frontend && npm run lint && npx tsc --noEmit` -> passed
+- Wave `252-07` completed:
+  - decomposed `apiClient.ts` and `adminApi.ts` behind stable public imports by creating bounded internal service modules under `frontend/src/services/api/` and `frontend/src/services/admin/`
+  - preserved `401` retry handling, blob download behavior, UI message-key mapping, and the current admin API surface consumed by the frontend
+  - added focused service request-builder and error-path coverage
+  - verification:
+    - `cd frontend && npm run test:run -- src/services/__tests__/apiClient.401-recovery.test.ts src/services/__tests__/apiClient.errors.test.ts src/services/__tests__/apiClient.requestBuilder.test.ts src/pages/admin-console/__tests__/AdminConsoleOpsPanels.outbox.test.tsx src/pages/__tests__/UsersPage.sso-cta.test.tsx` -> `5 files passed`, `12 tests passed`
+    - `cd frontend && npm run lint && npx tsc --noEmit` -> passed
+- Wave `252-08` completed:
+  - deduplicated the default DB URL constant by making `bootstrap_validation.py` consume the canonical value from `app.core.settings.database`
+  - replaced the Redis ping `BaseException` catch in `bootstrap_runtime.py` with `Exception`
+  - replaced the placeholder `backend/app/core/README.md`, gave `frontend/package.json` a real package identity, clarified `docker-compose.yml` as the local demo/dev topology, and repaired dashboard-test README coverage
+  - verification:
+    - `cd backend && pytest -q ../tests/backend/pytest/test_log_rotation_config.py ../tests/backend/pytest/test_production_hardening.py ../tests/backend/pytest/test_bootstrap_split_contracts.py` -> `23 passed`
+    - `cd frontend && npm run lint && npx tsc --noEmit` -> passed
+    - `python3 scripts/check_docs_contract.py` -> passed
+    - `make -f scripts/Makefile docs-topology-consistency` -> passed
+- Wave `252-09` completed:
+  - closed the final verification loop after fixing the remaining admin/shell accessibility contrast defects
+  - added explicit sidebar active-state CSS so shell contrast no longer depends on theme-specific utility overrides
+  - expanded accessibility smoke attachments with violating node targets and failure summaries for faster future diagnosis
+  - verified the full Chromium suite against a persistent Vite server after the Playwright-managed web server proved transport-unstable mid-suite
+  - marked Phase 252 complete in roadmap/state metadata
+  - verification:
+    - `python3 scripts/check_docs_contract.py` -> passed
+    - `make -f scripts/Makefile docs-topology-consistency` -> passed
+    - `make -f scripts/Makefile quality-repo-contracts` -> `19 passed`
+    - `make -f scripts/Makefile test` -> `1029 passed, 15 skipped`
+    - `TEST_DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_dev@127.0.0.1:5432/riskhub_test make -f scripts/Makefile test-postgres-ci` -> `11 passed`, `28 passed`
+    - `cd frontend && npm run lint` -> passed
+    - `cd frontend && npx tsc --noEmit` -> passed
+    - `cd frontend && npm run test:run` -> `94 files passed`, `314 tests passed`
+    - `cd frontend && npm run build && npm run quality:debt -- --report-json && node scripts/quality/validate-debt-budget-report.mjs && npm run cleanup:deadcode && node scripts/cleanup/validate-unreachable-report.mjs && node scripts/quality/validate-no-inline-styles.mjs` -> passed
+    - `cd frontend && FRONTEND_URL=http://localhost:5173 BACKEND_URL=http://localhost:8000 npx playwright test -c playwright.config.ts --project=chromium --workers=1` -> `219 passed, 41 skipped`
+- Post-closeout Phase 252 gap closure (2026-04-07):
+  - normalized process-name department planning in `backend/scripts/migrate_risks.py` so case-only and whitespace-only process variants reuse one logical department plan and one department assignment path
+  - restored issue-history refresh in `frontend/src/pages/issues/issue-detail/useIssueHistory.ts` so History re-fetches after issue reloads while staying on the same issue ID
+  - switched reset-mode risk imports to canonical `generate_risk_id_code(...)` so reset imports and later non-reset/UI-created risks stay in the same `risk_id_code` namespace
+  - added regression coverage for mixed-case workbook process imports, reset-mode canonical ID continuity, and issue-detail refresh-driven history reload
+  - verification:
+    - `cd backend && pytest -q ../tests/backend/pytest/test_import_migration_contracts.py` -> `10 passed`
+    - `python3 -m py_compile backend/scripts/migrate_risks.py` -> passed
+    - `cd frontend && npm run test:run -- src/pages/__tests__/IssueDetailPage.tabs.test.tsx` -> `1 file passed`, `3 tests passed`
     - `cd frontend && npm run lint && npx tsc --noEmit` -> passed
 
 ### Seven-Wave Closure Plan Completion (2026-04-05)
@@ -370,7 +493,7 @@
   - remaining active-code matches are intentional:
     - `userApi.listVisibleUsers()` remains only in picker/search consumers (`frontend/src/hooks/useDepartmentDetail.ts`, `frontend/src/components/KRIForm.tsx`, `frontend/src/components/kri/KRIModal.tsx`)
     - `/api/v1/users/roles` remains only in backend tests and the business-logic/backend endpoint docs that now describe it as an Admin-only lifecycle helper
-    - `UserDetailPage` references outside active code are historical/generated artifacts (`docs/reference/file_list.txt`, `frontend/i18n-audit/*`, `tests/results/*`)
+    - `UserDetailPage` references outside active code are historical/generated artifacts (`frontend/i18n-audit/*`, `tests/results/*`)
 - Demo-account `/users` verification against the rebuilt branch runtime (`http://localhost`):
   - `admin@riskhub.local` (`System Admin`) -> `/users` stayed in access-management mode, loaded `/api/v1/access/users`, showed `Check AD` + `Add from AD`, and exposed 18 row action buttons; opening access edit showed one email input, confirming admin identity editing stayed on `/users`
   - `cro@riskhub.local` (`Anna Kowalski`) -> `/users` stayed in access-management mode, loaded `/api/v1/access/users`, showed 9 row edit actions only, and exposed zero email inputs in the access edit modal, confirming CRO access-only editing without lifecycle controls
@@ -1056,6 +1179,7 @@
 - Executed approval-auth and SSO challenge hardening: delete-request authorization now mirrors underlying delete routes, backend-issued SSO challenge flow is mandatory for exchange, and production/operator docs were verified in sync (2026-04-06).
 - Executed ownership reference validation hardening across risk/control/KRI create-update and approval-apply paths, with focused backend regression coverage for nonexistent and inactive assignees (2026-04-06).
 - Added explicit reporting-owner `risks:read` regression coverage proving reporting ownership does not bypass base KRI/risk read permission gates (`4` focused tests; ownership validation suite green) (2026-04-06).
+- Expanded Phase `252` to the repo-wide professional quality closure scope and completed Wave `252-10` for artifact hygiene, README coverage repair, and frontend query-param typing fixes (2026-04-07).
 
 ### Next Step
 
@@ -1063,4 +1187,4 @@
 
 ---
 
-*Updated: 2026-04-06*
+*Updated: 2026-04-07*

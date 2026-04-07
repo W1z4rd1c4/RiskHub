@@ -15,6 +15,7 @@ import { getSidebarNavRoutes } from '@/routing';
 import { userApi } from '@/services/userApi';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { SIDEBAR_POLL_MS } from '@/config/constants';
+import './sidebar.css';
 
 export function Sidebar() {
     const location = useLocation();
@@ -104,20 +105,20 @@ export function Sidebar() {
                                 className={cn(
                                     'group flex items-center justify-between px-3 py-3 text-sm font-medium rounded-xl transition-all duration-200',
                                     isActive
-                                        ? 'bg-accent text-slate-950 shadow-lg shadow-accent/20'
+                                        ? 'sidebar-nav-link--active'
                                         : 'text-slate-400 hover:bg-white/5 hover:text-white'
                                 )}
                             >
-                                <div className="flex items-center gap-3">
-                                    <item.icon className={cn('h-5 w-5', isActive ? 'text-slate-950' : 'text-slate-500 group-hover:text-white')} />
+                                <div className="sidebar-nav-content flex items-center gap-3">
+                                    <item.icon className={cn('sidebar-nav-icon h-5 w-5', isActive ? '' : 'text-slate-500 group-hover:text-white')} />
                                     {item.label}
                                 </div>
                                 {item.badge !== undefined && (
-                                    <span className="bg-accent text-slate-950 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                    <span className="sidebar-nav-badge text-[10px] font-bold px-2 py-0.5 rounded-full">
                                         {item.badge}
                                     </span>
                                 )}
-                                {isActive && item.badge === undefined && <ChevronRight className="h-4 w-4" />}
+                                {isActive && item.badge === undefined && <ChevronRight className="sidebar-nav-chevron h-4 w-4" />}
                             </Link>
                         );
                     })}

@@ -4,7 +4,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { clearAuthConfigCache } from '@/services/authConfig';
 import { clearBootstrapSession } from '@/services/authSessionCoordinator';
-import { clearAccessToken, getAccessToken, setAccessToken } from '@/services/accessTokenStore';
+import { clearAccessToken, getAccessToken, setAccessToken } from '@test/accessTokenStoreHarness';
 import { clearCsrfToken, __setCsrfTokenForTests } from '@/services/csrfToken';
 import { __resetExplicitLogoutSuppressionForTests, isExplicitLogoutSuppressed } from '@/services/logoutSuppression';
 import { clearRefreshSessionHint, __setRefreshSessionHintForTests } from '@/services/refreshSessionHint';

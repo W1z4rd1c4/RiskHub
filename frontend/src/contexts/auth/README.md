@@ -20,4 +20,4 @@ Focused auth-provider helpers used by `AuthContext.tsx`.
 - Keep `AuthContext.tsx` as composition glue.
 - The canonical client auth state lives in `frontend/src/services/sessionStore.ts`.
 - `sessionManager.ts` owns the allowed session-state transitions over that canonical snapshot.
-- `accessTokenStore.ts` and `bootstrapSessionCache.ts` are temporary compatibility adapters and must not become independent auth sources again.
+- `bootstrapSessionCache.ts` is a temporary compatibility adapter and must not become an independent auth source again.

@@ -1,9 +1,9 @@
-import { clearAccessToken } from '@/services/accessTokenStore';
+import { clearAccessToken } from '@test/accessTokenStoreHarness';
 import { beforeEach, describe, it, expect, vi } from 'vitest';
 
 vi.mock('@/services/ssoSession', () => ({
     silentReauthAndExchange: vi.fn(async () => {
-        const { setAccessToken } = await import('@/services/accessTokenStore');
+        const { setAccessToken } = await import('@test/accessTokenStoreHarness');
         setAccessToken('refreshed-token');
         return 'refreshed-token';
     }),

@@ -71,7 +71,7 @@ Building an enterprise risk management platform for insurance companies, startin
 - [x] **Phase 201: Archived Visibility + Restore** — Archive toggle parity and unarchive flows (5/5)
 - [x] **Phase 250: Spaghetti Simplification** — Code simplification (10/10)
 - [x] **Phase 251: Spaghetti Simplification 2** — More code cleanup (11/11)
-- [ ] **Phase 252: Quality Closure Loop** — Close remaining frontend quality hotspots, audit redaction, and scoped gate ratchets (0/10)
+- [x] **Phase 252: Quality Closure Loop** — Repo-wide professional quality closure across data safety, workflow decomposition, artifact hygiene, and systemic gates (11/11)
 - [x] **Phase 500: Production Installation Scripts** — Split backend/frontend Docker deployment with external PostgreSQL (8/8)
 
 ## Phase Details
@@ -932,6 +932,7 @@ Phases execute in numeric order: 1 → ... → 6.1 → 7 → 8 → 9 → 10 → 
 | 201. Archived Visibility + Restore | 5/5 | ✅ Complete | 2026-02-15 |
 | 250. Spaghetti Simplification | 10/10 | ✅ Complete | 2026-01-10 |
 | 251. Spaghetti Simplification 2 | 11/11 | ✅ Complete | 2026-01-10 |
+| 252. Quality Closure Loop | 11/11 | ✅ Complete | 2026-04-07 |
 | 500. Production Installation Scripts | 8/8 | ✅ Complete | 2026-02-16 |
 
 ### Phase 179: E2E Test Data

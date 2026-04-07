@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { clearAccessToken, setAccessToken } from '@/services/accessTokenStore';
+import { clearAccessToken, setAccessToken } from '@test/accessTokenStoreHarness';
 import { clearAuthenticatedSession, applyAuthenticatedSession } from '@/services/sessionManager';
 import { __resetSessionStoreForTests, getSessionSnapshot } from '@/services/sessionStore';
 

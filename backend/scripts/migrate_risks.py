@@ -1,69 +1,93 @@
-"""
-Risk Migration Script
+#!/usr/bin/env python3
+"""Deterministic risk import with safe non-reset identity matching."""
 
-Migrates risks from placeholder-risk-register.xlsx (Rizika sheet) to the database.
-Clears existing sample data and generates unique risk_id_codes.
+from __future__ import annotations
 
-Usage: PYTHONPATH=backend python backend/scripts/migrate_risks.py
-"""
-
+import argparse
 import asyncio
+import sys
 from collections import defaultdict
+from dataclasses import dataclass
 from pathlib import Path
 
 import openpyxl
 from sqlalchemy import delete, select
 
+from app.api.v1.endpoints.risks.id_generation import generate_risk_id_code
 from app.core.config import get_settings
 from app.db.session import session_context
 from app.models import ControlRiskLink, Department, KeyRiskIndicator, Risk, User
+from scripts.import_contracts import ImportReport, write_report
 
-# Process to Department Code mapping
-PROCESS_TO_DEPT_CODE = {
-    "Marketing": "MKT",
-    "Vývoj nových produktů": "DEV",
-    "Prodej": "SAL",
-    "Likvidace pojistných událostí": "CLM",
-    "Finance": "FIN",
-    "IT": "IT",
-    "HR": "HR",
-    "Compliance": "COMP",
-    "Underwriting": "UW",
-    "Operations": "OPS",
-}
-
-# Risk type mapping (Czech to enum)
-RISK_TYPE_MAP = {
-    "strategické": "strategic",
-    "strategicke": "strategic",
-    "marketingové": "operational",
-    "marketingove": "operational",
-    "upisovací": "operational",
-    "upisovaci": "operational",
-    "compliance": "operational",
-    "tržní": "operational",
-    "trzni": "operational",
-    "klienti, produkt": "operational",
-    "transakce, dodávky": "operational",
-    "obchodní": "operational",
-    "obchodni": "operational",
-}
+SHEET_NAME = "Rizika"
 
 
-def normalize_string(s):
-    """Normalize string for comparison."""
-    if not s:
+@dataclass(slots=True)
+class RiskImportRow:
+    row_number: int
+    process: str
+    subprocess: str | None
+    name: str
+    description: str
+    risk_type: str
+    category: str
+    gross_impact: int
+    gross_probability: int
+    net_impact: int
+    net_probability: int
+
+
+@dataclass(slots=True)
+class DepartmentPlan:
+    process_name: str
+    code: str
+    existing: Department | None
+
+
+def _parse_args(argv: list[str]) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Import risks from an Excel workbook.")
+    parser.add_argument("--input", required=True, help="Path to the source workbook.")
+    parser.add_argument("--apply", action="store_true", help="Persist changes. Default is dry-run.")
+    parser.add_argument(
+        "--allow-reset",
+        action="store_true",
+        help="Allow destructive reset of existing risks, KRIs, and control-risk links before import.",
+    )
+    parser.add_argument("--report", help="Optional path for a JSON import report.")
+    return parser.parse_args(argv)
+
+
+def _normalize_string(value: object | None) -> str:
+    if value is None:
         return ""
-    return s.lower().strip().replace("\n", " ")
+    return " ".join(str(value).replace("\n", " ").split()).lower().strip()
 
 
-def get_process_code(process_name):
-    """Generate a 3-letter process code."""
-    if not process_name:
-        return "UNK"
-    # Remove accents and take first 3 chars
+def _identity_key(process: object | None, subprocess: object | None, name: object | None) -> tuple[str, str, str]:
+    return (
+        _normalize_string(process),
+        _normalize_string(subprocess),
+        _normalize_string(name),
+    )
+
+
+def _process_key(process_name: object | None) -> str:
+    return _normalize_string(process_name)
+
+
+def _safe_int(value: object | None, default: int) -> int:
+    try:
+        return int(value) if value is not None and str(value).strip() else default
+    except (TypeError, ValueError):
+        return default
+
+
+def _clamp_score(value: int) -> int:
+    return max(1, min(5, value))
+
+
+def _get_process_code(process_name: str) -> str:
     clean = process_name.upper()[:3]
-    # Simple accent removal
     replacements = {
         "Á": "A",
         "É": "E",
@@ -79,166 +103,316 @@ def get_process_code(process_name):
         "Ť": "T",
         "Ď": "D",
     }
-    for k, v in replacements.items():
-        clean = clean.replace(k, v)
-    return clean
+    for source, target in replacements.items():
+        clean = clean.replace(source, target)
+    return clean or "UNK"
 
 
-async def migrate_risks():
-    """Main migration function."""
-    excel_path = Path(__file__).parent.parent.parent / "placeholder-risk-register.xlsx"
+def _load_rows(input_path: Path, report: ImportReport) -> list[RiskImportRow]:
+    workbook = openpyxl.load_workbook(input_path, data_only=True)
+    if SHEET_NAME not in workbook.sheetnames:
+        report.add_error("missing-sheet", f"Workbook does not contain required sheet {SHEET_NAME!r}.")
+        return []
 
-    if not excel_path.exists():
-        print(f"❌ Excel file not found: {excel_path}")
-        return
+    sheet = workbook[SHEET_NAME]
+    rows: list[RiskImportRow] = []
+    seen_workbook_keys: dict[tuple[str, str, str], int] = {}
+    duplicate_workbook_keys: list[dict[str, object]] = []
 
-    print(f"📂 Loading: {excel_path}")
-    wb = openpyxl.load_workbook(excel_path, data_only=True)
-    sheet = wb["Rizika"]
+    for row_idx in range(9, sheet.max_row + 1):
+        values = list(sheet.iter_rows(min_row=row_idx, max_row=row_idx, values_only=True))[0]
+        process = str(values[1]).strip() if values[1] else ""
+        subprocess = str(values[2]).strip() if values[2] else None
+        name = str(values[5]).strip() if values[5] else ""
+        description = str(values[6]).strip() if values[6] else ""
 
-    async with session_context(get_settings()) as session:
-        # Step 1: Validate prerequisites FIRST (before any destructive operations)
-        print("\n🔍 Validating prerequisites...")
-        user_result = await session.execute(select(User).limit(1))
-        default_owner = user_result.scalar_one_or_none()
+        if not process or not name:
+            report.skips += 1
+            continue
 
-        if not default_owner:
-            print("❌ No users found. Please seed base data first.")
-            print("   Run: PYTHONPATH=backend python backend/scripts/seed.py")
-            return
-        print(f"   ✓ Found default owner: {default_owner.name}")
+        row_key = _identity_key(process, subprocess, name)
+        if row_key in seen_workbook_keys:
+            duplicate = {
+                "process": process,
+                "subprocess": subprocess,
+                "name": name,
+                "first_row": seen_workbook_keys[row_key],
+                "second_row": row_idx,
+            }
+            duplicate_workbook_keys.append(duplicate)
+            report.add_error(
+                "duplicate-workbook-key",
+                (
+                    f"Workbook contains duplicate risk identity for process={process!r}, "
+                    f"subprocess={subprocess!r}, name={name!r}."
+                ),
+                sheet=SHEET_NAME,
+                row=row_idx,
+                details=duplicate,
+            )
+            continue
+        seen_workbook_keys[row_key] = row_idx
 
-        # Step 2: Clear existing data (respect FK constraints) - ONLY after user validation
-        print("\n🗑️  Clearing existing data...")
-        await session.execute(delete(ControlRiskLink))
-        await session.execute(delete(KeyRiskIndicator))
-        await session.execute(delete(Risk))
-        await session.commit()
-        print("   ✓ Cleared ControlRiskLinks, KRIs, and Risks")
+        source_risk_type = str(values[3]).strip() if values[3] else "Operační riziko"
+        risk_type = "strategic" if "strateg" in _normalize_string(source_risk_type) else "operational"
+        category = source_risk_type
 
-        # Step 3: Build department lookup (create if needed)
-        print("\n🏢 Setting up departments...")
-        dept_result = await session.execute(select(Department))
-        all_depts = list(dept_result.scalars().all())
-        existing_depts = {d.name.lower(): d for d in all_depts}
-        existing_codes = {d.code.upper(): d for d in all_depts}
-        dept_cache = {}  # process name -> department
-
-        # Step 4: Parse risks from Excel (rows 9+)
-        print("\n📊 Parsing risks...")
-        process_counters = defaultdict(int)
-        created = 0
-        skipped = 0
-        depts_created = 0
-
-        for row_idx in range(9, sheet.max_row + 1):
-            row = list(sheet.iter_rows(min_row=row_idx, max_row=row_idx, values_only=True))[0]
-
-            # Column mapping (0-indexed):
-            # A=0: P.č., B=1: Hlavní proces, C=2: Podproces, D=3: Druh rizika
-            # E=4: Solvency II, F=5: Popis, G=6: Dopad rizika
-            # H=7: Dopad/Význam (gross), I=8: Pravděpodobnost (gross)
-            # L=11: Dopad/Význam (net), M=12: Pravděpodobnost (net)
-
-            hlavni_proces = str(row[1]).strip() if row[1] else None
-            podproces = str(row[2]).strip() if row[2] else None
-            druh_rizika = str(row[3]).strip() if row[3] else "Operační riziko"
-            _solvency_cat = str(row[4]).strip() if row[4] else None
-            popis = str(row[5]).strip() if row[5] else None
-
-            # Skip empty rows
-            if not hlavni_proces or not popis:
-                skipped += 1
-                continue
-
-            # Parse scores (safely handle non-numeric values)
-            def safe_int(val, default=3):
-                try:
-                    return int(val) if val else default
-                except (ValueError, TypeError):
-                    return default
-
-            gross_impact = safe_int(row[7], 3)
-            gross_probability = safe_int(row[8], 3)
-            net_impact = safe_int(row[11], 2)
-            net_probability = safe_int(row[12], 2)
-
-            # Generate unique risk_id_code
-            proc_code = get_process_code(hlavni_proces)
-            process_counters[proc_code] += 1
-            risk_id_code = f"{proc_code}-R{process_counters[proc_code]:02d}"
-
-            # Map risk type (strategic if explicitly named, otherwise operational)
-            risk_type_lower = normalize_string(druh_rizika)
-            if "strateg" in risk_type_lower:
-                risk_type = "strategic"
-            else:
-                risk_type = "operational"
-
-            # Use Druh rizika (Column D) as the category for grouping
-            category = druh_rizika
-
-            # Get or create department based on process name
-            if hlavni_proces not in dept_cache:
-                # Look up existing or create new department
-                dept_key = hlavni_proces.lower()
-                if dept_key in existing_depts:
-                    dept_cache[hlavni_proces] = existing_depts[dept_key]
-                elif proc_code.upper() in existing_codes:
-                    # Code collision - use existing department with that code
-                    dept_cache[hlavni_proces] = existing_codes[proc_code.upper()]
-                else:
-                    # Create new department with unique code
-                    unique_code = proc_code
-                    suffix = 1
-                    while unique_code.upper() in existing_codes:
-                        unique_code = f"{proc_code}{suffix}"
-                        suffix += 1
-
-                    new_dept = Department(
-                        name=hlavni_proces, code=unique_code, description=f"Department for {hlavni_proces}"
-                    )
-                    session.add(new_dept)
-                    await session.flush()  # Get the ID
-                    dept_cache[hlavni_proces] = new_dept
-                    existing_depts[dept_key] = new_dept
-                    existing_codes[unique_code.upper()] = new_dept
-                    depts_created += 1
-                    print(f"   ✓ Created department: {hlavni_proces} ({unique_code})")
-
-            department = dept_cache[hlavni_proces]
-
-            # Create risk
-            risk = Risk(
-                risk_id_code=risk_id_code,
-                process=hlavni_proces,
-                subprocess=podproces,
+        rows.append(
+            RiskImportRow(
+                row_number=row_idx,
+                process=process,
+                subprocess=subprocess,
+                name=name,
+                description=description,
                 risk_type=risk_type,
                 category=category,
-                description=popis[:500] if popis else "",
-                department_id=department.id,
-                owner_id=default_owner.id,
-                gross_probability=max(1, min(5, gross_probability)),
-                gross_impact=max(1, min(5, gross_impact)),
-                gross_score=gross_probability * gross_impact,
-                net_probability=max(1, min(5, net_probability)),
-                net_impact=max(1, min(5, net_impact)),
-                net_score=net_probability * net_impact,
-                status="active",
-                is_priority=(gross_probability * gross_impact >= 15),
+                gross_impact=_clamp_score(_safe_int(values[7], 3)),
+                gross_probability=_clamp_score(_safe_int(values[8], 3)),
+                net_impact=_clamp_score(_safe_int(values[11], 2)),
+                net_probability=_clamp_score(_safe_int(values[12], 2)),
             )
-            session.add(risk)
-            created += 1
+        )
 
-            if created % 20 == 0:
-                print(f"   ... processed {created} risks")
+    report.metadata["rows_loaded"] = len(rows)
+    report.metadata["duplicate_workbook_keys"] = duplicate_workbook_keys
+    if not rows and report.ok:
+        report.add_error("no-rows", "Workbook did not contain any importable risk rows.", sheet=SHEET_NAME)
+    return rows
 
-        await session.commit()
-        print("\n✅ Migration complete!")
-        print(f"   Created: {created} risks")
-        print(f"   Skipped: {skipped} empty rows")
-        print(f"   Process codes: {dict(process_counters)}")
+
+def _plan_departments(rows: list[RiskImportRow], existing_departments: list[Department]) -> dict[str, DepartmentPlan]:
+    departments_by_name = {_process_key(department.name): department for department in existing_departments}
+    used_codes = {department.code.upper() for department in existing_departments}
+    plans: dict[str, DepartmentPlan] = {}
+
+    for row in rows:
+        process_key = _process_key(row.process)
+        if process_key in plans:
+            continue
+
+        existing = departments_by_name.get(process_key)
+        if existing is not None:
+            plans[process_key] = DepartmentPlan(process_name=existing.name, code=existing.code, existing=existing)
+            continue
+
+        base_code = _get_process_code(row.process)
+        candidate = base_code
+        suffix = 1
+        while candidate.upper() in used_codes:
+            candidate = f"{base_code}{suffix}"
+            suffix += 1
+        used_codes.add(candidate.upper())
+        plans[process_key] = DepartmentPlan(process_name=row.process, code=candidate, existing=None)
+
+    return plans
+
+
+def _risk_payload(
+    *,
+    row: RiskImportRow,
+    department_id: int,
+    owner_id: int | None,
+    risk_id_code: str | None = None,
+) -> dict[str, object]:
+    payload: dict[str, object] = {
+        "name": row.name[:255],
+        "process": row.process,
+        "subprocess": row.subprocess,
+        "risk_type": row.risk_type,
+        "category": row.category,
+        "description": row.description,
+        "department_id": department_id,
+        "owner_id": owner_id,
+        "gross_probability": row.gross_probability,
+        "gross_impact": row.gross_impact,
+        "gross_score": row.gross_probability * row.gross_impact,
+        "net_probability": row.net_probability,
+        "net_impact": row.net_impact,
+        "net_score": row.net_probability * row.net_impact,
+        "status": "active",
+        "is_priority": (row.gross_probability * row.gross_impact) >= 15,
+    }
+    if risk_id_code is not None:
+        payload["risk_id_code"] = risk_id_code
+    return payload
+
+
+async def _run(args: argparse.Namespace) -> int:
+    input_path = Path(args.input).expanduser().resolve()
+    report = ImportReport(
+        script="migrate_risks.py",
+        input_path=str(input_path),
+        apply=args.apply,
+        allow_reset=args.allow_reset,
+    )
+
+    if not input_path.exists():
+        report.add_error("missing-input", f"Input workbook not found: {input_path}")
+        write_report(args.report, report)
+        print(f"❌ Input workbook not found: {input_path}")
+        return 1
+
+    rows = _load_rows(input_path, report)
+
+    async with session_context(get_settings()) as session:
+        owner = (await session.execute(select(User).order_by(User.id).limit(1))).scalar_one_or_none()
+        if owner is None:
+            report.add_error("missing-owner", "No users found. Seed base data before importing risks.")
+
+        existing_departments = list((await session.execute(select(Department))).scalars().all())
+        department_plans = _plan_departments(rows, existing_departments)
+        report.metadata["departments_to_create"] = [
+            {"name": plan.process_name, "code": plan.code}
+            for plan in department_plans.values()
+            if plan.existing is None
+        ]
+
+        existing_risks = list((await session.execute(select(Risk))).scalars().all())
+        matched_rows: list[tuple[RiskImportRow, Risk]] = []
+        new_rows: list[RiskImportRow] = []
+
+        if args.allow_reset:
+            report.creates = len(rows)
+            report.updates = 0
+            report.deletes = len(existing_risks)
+        else:
+            report.metadata["identity_mode"] = "process_subprocess_name"
+            existing_by_identity: defaultdict[tuple[str, str, str], list[Risk]] = defaultdict(list)
+            for risk in existing_risks:
+                existing_by_identity[_identity_key(risk.process, risk.subprocess, risk.name)].append(risk)
+
+            ambiguous_matches: list[dict[str, object]] = []
+
+            for row in rows:
+                matches = existing_by_identity.get(_identity_key(row.process, row.subprocess, row.name), [])
+                if len(matches) == 1:
+                    matched_rows.append((row, matches[0]))
+                    continue
+                if len(matches) == 0:
+                    new_rows.append(row)
+                    continue
+
+                ambiguous = {
+                    "row": row.row_number,
+                    "process": row.process,
+                    "subprocess": row.subprocess,
+                    "name": row.name,
+                    "matched_risk_ids": [risk.id for risk in matches],
+                    "matched_risk_codes": [risk.risk_id_code for risk in matches],
+                }
+                ambiguous_matches.append(ambiguous)
+                report.add_error(
+                    "ambiguous-existing-risk-match",
+                    (
+                        f"Workbook row {row.row_number} matched multiple existing risks for "
+                        f"process={row.process!r}, subprocess={row.subprocess!r}, name={row.name!r}."
+                    ),
+                    sheet=SHEET_NAME,
+                    row=row.row_number,
+                    details=ambiguous,
+                )
+
+            report.creates = len(new_rows)
+            report.updates = len(matched_rows)
+            report.metadata["matched_count"] = len(matched_rows)
+            report.metadata["created_count"] = len(new_rows)
+            report.metadata["ambiguous_matches"] = ambiguous_matches
+
+        if not report.ok:
+            write_report(args.report, report)
+            for issue in report.errors:
+                print(f"❌ {issue.code}: {issue.message}")
+            return 1
+
+        if not args.apply:
+            write_report(args.report, report)
+            print("🔍 DRY-RUN: no changes applied.")
+            if args.allow_reset:
+                print(
+                    f"   creates={report.creates} updates={report.updates} deletes={report.deletes} "
+                    f"skips={report.skips} dept_creates={len(report.metadata['departments_to_create'])}"
+                )
+            else:
+                print(
+                    f"   creates={report.creates} updates={report.updates} deletes={report.deletes} "
+                    f"skips={report.skips} matched={report.metadata['matched_count']}"
+                )
+            return 0
+
+        if args.allow_reset:
+            await session.execute(delete(ControlRiskLink))
+            await session.execute(delete(KeyRiskIndicator))
+            await session.execute(delete(Risk))
+            await session.flush()
+
+        departments_by_process: dict[str, Department] = {}
+        for process_key, plan in department_plans.items():
+            if plan.existing is not None:
+                departments_by_process[process_key] = plan.existing
+                continue
+            department = Department(
+                name=plan.process_name,
+                code=plan.code,
+                description=f"Department for imported process {plan.process_name}",
+            )
+            session.add(department)
+            await session.flush()
+            departments_by_process[process_key] = department
+
+        if args.allow_reset:
+            for row in rows:
+                department = departments_by_process[_process_key(row.process)]
+                risk_id_code = await generate_risk_id_code(session, row.process)
+                session.add(
+                    Risk(
+                        **_risk_payload(
+                            row=row,
+                            department_id=department.id,
+                            owner_id=owner.id if owner is not None else None,
+                            risk_id_code=risk_id_code,
+                        )
+                    )
+                )
+                await session.flush()
+            await session.commit()
+        else:
+            for row, risk in matched_rows:
+                department = departments_by_process[_process_key(row.process)]
+                payload = _risk_payload(
+                    row=row,
+                    department_id=department.id,
+                    owner_id=owner.id if owner is not None else None,
+                )
+                for field_name, field_value in payload.items():
+                    setattr(risk, field_name, field_value)
+
+            for row in new_rows:
+                department = departments_by_process[_process_key(row.process)]
+                risk_id_code = await generate_risk_id_code(session, row.process)
+                risk = Risk(
+                    **_risk_payload(
+                        row=row,
+                        department_id=department.id,
+                        owner_id=owner.id if owner is not None else None,
+                        risk_id_code=risk_id_code,
+                    )
+                )
+                session.add(risk)
+                await session.flush()
+
+            await session.commit()
+
+    write_report(args.report, report)
+    print(
+        f"✅ Imported risks: creates={report.creates} updates={report.updates} "
+        f"deletes={report.deletes} skips={report.skips}"
+    )
+    return 0
+
+
+def main() -> int:
+    return asyncio.run(_run(_parse_args(sys.argv[1:])))
 
 
 if __name__ == "__main__":
-    asyncio.run(migrate_risks())
+    raise SystemExit(main())

@@ -8,7 +8,7 @@ import { clearAuthConfigCache } from '@/services/authConfig';
 import { __resetBootstrapSessionCacheForTests, setBootstrapSession } from '@/services/bootstrapSessionCache';
 import { __resetAuthSessionCoordinatorForTests, clearBootstrapSession } from '@/services/authSessionCoordinator';
 import { AUTH_REQUEST_TIMEOUT_MS } from '@/services/authRequest';
-import { clearAccessToken, setAccessToken } from '@/services/accessTokenStore';
+import { clearAccessToken, setAccessToken } from '@test/accessTokenStoreHarness';
 import { __resetSsoSessionForTests } from '@/services/ssoSession';
 
 vi.mock('@/utils/userSettingsStorage', () => ({

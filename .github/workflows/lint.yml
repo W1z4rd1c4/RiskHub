@@ -146,6 +146,11 @@ jobs:
           set -euo pipefail
           python3 scripts/tools/suppression_budget.py | tee lint-backend-suppression-budget.log
 
+      - name: Repo artifact + script syntax contracts
+        run: |
+          set -euo pipefail
+          make -f scripts/Makefile quality-repo-contracts | tee lint-repo-contracts.log
+
       - name: Validate ratchet status documentation contract
         run: |
           set -euo pipefail
@@ -176,6 +181,7 @@ jobs:
             echo "- Backend Ruff hard gate (backend/app + tests/backend/pytest + backend/scripts): PASS";
             echo "- Backend mypy (Phase 252 scope): PASS";
             echo "- Backend Ruff phase-252 ratchet (UP/SIM): PASS";
+            echo "- Repo artifact + script syntax contracts: PASS";
             echo "- Ruff ratchet status: E712=${E712_COUNT}, E402=${E402_COUNT}, E501=${E501_COUNT}";
           } > lint-summary.md
 
@@ -195,6 +201,7 @@ jobs:
             lint-backend-mypy.log
             lint-backend-ruff-phase-252.log
             lint-backend-suppression-budget.log
+            lint-repo-contracts.log
             tests/results/quality/frontend/debt-budget/debt.json
             tests/results/quality/frontend/cleanup-audit/unreachable.md
             tests/results/quality/frontend/cleanup-audit/unreachable.json
