@@ -15,18 +15,23 @@ export type NotificationType =
     | 'questionnaire_due_soon'
     | 'questionnaire_overdue'
     | 'questionnaire_submitted'
-    | 'questionnaire_clarification_requested';
+    | 'questionnaire_clarification_requested'
+    | 'issue_assigned'
+    | 'issue_due_soon'
+    | 'issue_overdue'
+    | 'issue_exception_requested'
+    | 'issue_exception_approved';
 
 export interface Notification {
     id: number;
     type: NotificationType;
     title: string;
     message: string;
-    resource_type?: string;
-    resource_id?: number;
+    resource_type?: string | null;
+    resource_id?: number | null;
     is_read: boolean;
     created_at: string;
-    expires_at?: string;
+    expires_at?: string | null;
 }
 
 export interface NotificationListResponse {

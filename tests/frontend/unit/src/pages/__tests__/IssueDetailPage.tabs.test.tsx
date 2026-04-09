@@ -1,15 +1,30 @@
+import { QueryClientProvider } from '@tanstack/react-query';
+import { act } from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createTestQueryClient } from '@test/queryClient';
 import { IssueDetailPage } from '@/pages/IssueDetailPage';
+import { __resetSessionStoreForTests, setSessionSnapshot } from '@/services/sessionStore';
 
 const mockGetIssue = vi.fn();
 const mockListActivity = vi.fn();
+const permissionState = {
+    canRead: true,
+    canWrite: true,
+    canApprove: true,
+    canViewActivityLog: true,
+};
 
 vi.mock('@/hooks/usePermissions', () => ({
     usePermissions: () => ({
         hasPermission: (resource: string, action: string) =>
-            resource === 'issues' && (action === 'read' || action === 'write' || action === 'approve'),
-        canViewActivityLog: true,
+            resource === 'issues'
+                && (
+                    (action === 'read' && permissionState.canRead)
+                    || (action === 'write' && permissionState.canWrite)
+                    || (action === 'approve' && permissionState.canApprove)
+                ),
+        canViewActivityLog: permissionState.canViewActivityLog,
     }),
 }));
 
@@ -38,9 +53,51 @@ vi.mock('react-router-dom', async () => {
     };
 });
 
+function renderIssueDetailPage() {
+    const queryClient = createTestQueryClient();
+    const rendered = render(
+        <QueryClientProvider client={queryClient}>
+            <IssueDetailPage />
+        </QueryClientProvider>,
+    );
+    return {
+        ...rendered,
+        queryClient,
+    };
+}
+
+function setAuthenticatedSession(userId: number, name: string) {
+    setSessionSnapshot({
+        token: `token-${userId}`,
+        user: {
+            id: userId,
+            email: `${userId}@riskhub.test`,
+            name,
+            role: 'administrator',
+            role_display_name: 'Administrator',
+            department_id: null,
+            department_name: null,
+            permissions: [],
+            effective_permissions: [],
+            access_scope: 'global',
+            scope_label: 'Global',
+        },
+        bootstrapStatus: 'authenticated',
+        bootstrapError: null,
+        logoutPending: false,
+        logoutErrorKey: null,
+        lastUpdatedAt: Date.now(),
+    });
+}
+
 describe('IssueDetailPage tabs', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        __resetSessionStoreForTests();
+        permissionState.canRead = true;
+        permissionState.canWrite = true;
+        permissionState.canApprove = true;
+        permissionState.canViewActivityLog = true;
         mockGetIssue.mockResolvedValue({
             id: 42,
             title: 'Access Review Gap',
@@ -109,7 +166,7 @@ describe('IssueDetailPage tabs', () => {
     });
 
     it('renders tabs and keeps business naming without raw IDs', async () => {
-        render(<IssueDetailPage />);
+        renderIssueDetailPage();
 
         await screen.findByText('Access Review Gap');
 
@@ -128,13 +185,16 @@ describe('IssueDetailPage tabs', () => {
         fireEvent.click(screen.getByRole('tab', { name: /History/i }));
         expect(screen.getByTestId('issue-history-panel')).toBeInTheDocument();
         await waitFor(() =>
-            expect(mockListActivity).toHaveBeenCalledWith({
-                entity_type: 'issue',
-                entity_id: 42,
-                limit: 100,
-            })
+            expect(mockListActivity).toHaveBeenCalledWith(
+                {
+                    entity_type: 'issue',
+                    entity_id: 42,
+                    limit: 100,
+                },
+                expect.objectContaining({ signal: expect.any(AbortSignal) }),
+            )
         );
-        expect(screen.getByText('Issue updated')).toBeInTheDocument();
+        expect(await screen.findByText('Issue updated')).toBeInTheDocument();
     });
 
     it('shows unknown linked entity label without exposing numeric IDs', async () => {
@@ -176,7 +236,7 @@ describe('IssueDetailPage tabs', () => {
             exceptions: [],
         });
 
-        render(<IssueDetailPage />);
+        renderIssueDetailPage();
 
         await screen.findByText('Unknown risk');
         expect(screen.queryByText(/Risk #777/i)).not.toBeInTheDocument();
@@ -278,7 +338,7 @@ describe('IssueDetailPage tabs', () => {
                 limit: 100,
             });
 
-        render(<IssueDetailPage />);
+        renderIssueDetailPage();
 
         await screen.findByText('Access Review Gap');
 
@@ -293,5 +353,228 @@ describe('IssueDetailPage tabs', () => {
         await waitFor(() => expect(mockListActivity).toHaveBeenCalledTimes(2));
         expect(await screen.findByText('Issue refreshed from API')).toBeInTheDocument();
         expect(screen.queryByText('Issue updated')).not.toBeInTheDocument();
+    });
+
+    it('does not request issue detail when issues:read is denied', async () => {
+        permissionState.canRead = false;
+
+        renderIssueDetailPage();
+
+        expect(screen.getByText(/permission to view issues/i)).toBeInTheDocument();
+        expect(mockGetIssue).not.toHaveBeenCalled();
+        expect(mockListActivity).not.toHaveBeenCalled();
+    });
+
+    it('shows the fatal error screen when the initial issue load fails without cached data', async () => {
+        mockGetIssue.mockReset();
+        mockGetIssue.mockRejectedValueOnce(new Error('backend unavailable'));
+
+        renderIssueDetailPage();
+
+        expect(await screen.findByText('Issue Not Found')).toBeInTheDocument();
+        expect(screen.getByText('Something went wrong. Please try again.')).toBeInTheDocument();
+        expect(screen.queryByTestId('issue-overview-panel')).not.toBeInTheDocument();
+        expect(screen.queryByText('Access Review Gap')).not.toBeInTheDocument();
+    });
+
+    it('keeps cached issue data visible when a background refetch fails', async () => {
+        mockGetIssue.mockReset();
+        mockGetIssue
+            .mockResolvedValueOnce({
+                id: 42,
+                title: 'Access Review Gap',
+                severity: 'medium',
+                status: 'open',
+                source_type: 'manual',
+                source_id: null,
+                department_id: 3,
+                department_name: 'Finance',
+                owner_user_id: 8,
+                owner_user_name: 'Anna Kowalski',
+                opened_at: '2026-02-01T10:00:00Z',
+                due_at: null,
+                closed_at: null,
+                created_at: '2026-02-01T10:00:00Z',
+                updated_at: '2026-02-01T10:00:00Z',
+                risk_contexts: [],
+                description: 'Quarterly evidence was not attached.',
+                created_by_id: 8,
+                created_by_name: 'Anna Kowalski',
+                validation_note: null,
+                links: [],
+                remediation_plan: null,
+                exceptions: [],
+            })
+            .mockRejectedValueOnce(new Error('temporary upstream failure'));
+
+        const rendered = renderIssueDetailPage();
+
+        await screen.findByText('Access Review Gap');
+        expect(screen.getByTestId('issue-overview-panel')).toBeInTheDocument();
+
+        await act(async () => {
+            try {
+                await rendered.queryClient.refetchQueries({ queryKey: ['issue'] });
+            } catch {
+                // TanStack Query surfaces the refetch failure via query state; the UI should retain cached data.
+            }
+        });
+
+        await waitFor(() => expect(mockGetIssue).toHaveBeenCalledTimes(2));
+        expect(screen.getByText('Access Review Gap')).toBeInTheDocument();
+        expect(screen.getByTestId('issue-overview-panel')).toBeInTheDocument();
+        expect(screen.queryByText('Issue Not Found')).not.toBeInTheDocument();
+    });
+
+    it('aborts the history request when the page unmounts on the history tab', async () => {
+        let capturedSignal: AbortSignal | undefined;
+        let abortNotified = false;
+        mockListActivity.mockImplementationOnce(
+            (_filters: unknown, options?: { signal?: AbortSignal }) =>
+                new Promise((resolve) => {
+                capturedSignal = options?.signal;
+                    options?.signal?.addEventListener(
+                        'abort',
+                        () => {
+                            abortNotified = true;
+                            resolve({
+                                items: [],
+                                total: 0,
+                                skip: 0,
+                                limit: 100,
+                            });
+                        },
+                        { once: true },
+                    );
+                }),
+        );
+
+        const rendered = renderIssueDetailPage();
+        await screen.findByText('Access Review Gap');
+
+        fireEvent.click(screen.getByRole('tab', { name: /History/i }));
+        await waitFor(() => expect(mockListActivity).toHaveBeenCalledTimes(1));
+
+        rendered.unmount();
+
+        await waitFor(() => expect(abortNotified).toBe(true));
+        expect(capturedSignal).toBeDefined();
+        expect(capturedSignal?.aborted).toBe(true);
+    });
+
+    it('does not reuse cached issue detail when the authenticated user changes', async () => {
+        setAuthenticatedSession(8, 'Anna Kowalski');
+        mockGetIssue.mockReset();
+        mockGetIssue
+            .mockResolvedValueOnce({
+                id: 42,
+                title: 'Access Review Gap',
+                severity: 'medium',
+                status: 'open',
+                source_type: 'manual',
+                source_id: null,
+                department_id: 3,
+                department_name: 'Finance',
+                owner_user_id: 8,
+                owner_user_name: 'Anna Kowalski',
+                opened_at: '2026-02-01T10:00:00Z',
+                due_at: null,
+                closed_at: null,
+                created_at: '2026-02-01T10:00:00Z',
+                updated_at: '2026-02-01T10:00:00Z',
+                risk_contexts: [],
+                description: 'Quarterly evidence was not attached.',
+                created_by_id: 8,
+                created_by_name: 'Anna Kowalski',
+                validation_note: null,
+                links: [],
+                remediation_plan: null,
+                exceptions: [],
+            })
+            .mockRejectedValueOnce(new Error('forbidden'));
+
+        renderIssueDetailPage();
+
+        await screen.findByText('Access Review Gap');
+
+        await act(async () => {
+            setAuthenticatedSession(99, 'External Reviewer');
+        });
+
+        expect(await screen.findByText('Issue Not Found')).toBeInTheDocument();
+        expect(screen.queryByTestId('issue-overview-panel')).not.toBeInTheDocument();
+        expect(screen.queryByText('Access Review Gap')).not.toBeInTheDocument();
+        expect(mockGetIssue).toHaveBeenCalledTimes(2);
+    });
+
+    it('clears cached issue history when the authenticated user changes', async () => {
+        setAuthenticatedSession(8, 'Anna Kowalski');
+        mockGetIssue.mockReset();
+        mockGetIssue.mockResolvedValue({
+            id: 42,
+            title: 'Access Review Gap',
+            severity: 'medium',
+            status: 'open',
+            source_type: 'manual',
+            source_id: null,
+            department_id: 3,
+            department_name: 'Finance',
+            owner_user_id: 8,
+            owner_user_name: 'Anna Kowalski',
+            opened_at: '2026-02-01T10:00:00Z',
+            due_at: null,
+            closed_at: null,
+            created_at: '2026-02-01T10:00:00Z',
+            updated_at: '2026-02-01T10:00:00Z',
+            risk_contexts: [],
+            description: 'Quarterly evidence was not attached.',
+            created_by_id: 8,
+            created_by_name: 'Anna Kowalski',
+            validation_note: null,
+            links: [],
+            remediation_plan: null,
+            exceptions: [],
+        });
+        mockListActivity.mockReset();
+        mockListActivity
+            .mockResolvedValueOnce({
+                items: [
+                    {
+                        id: 1,
+                        entity_type: 'issue',
+                        entity_id: 42,
+                        entity_name: 'Access Review Gap',
+                        action: 'update',
+                        actor_id: 8,
+                        actor_name: 'Anna Kowalski',
+                        department_id: 3,
+                        changes: null,
+                        description: 'Issue updated',
+                        created_at: '2026-02-02T10:00:00Z',
+                    },
+                ],
+                total: 1,
+                skip: 0,
+                limit: 100,
+            })
+            .mockRejectedValueOnce(new Error('forbidden'));
+
+        renderIssueDetailPage();
+
+        await screen.findByText('Access Review Gap');
+        fireEvent.click(screen.getByRole('tab', { name: /History/i }));
+        expect(await screen.findByText('Issue updated')).toBeInTheDocument();
+
+        await act(async () => {
+            setAuthenticatedSession(99, 'External Reviewer');
+        });
+
+        await waitFor(() => expect(mockListActivity).toHaveBeenCalledTimes(2));
+        await waitFor(() => {
+            expect(screen.queryByText('Issue updated')).not.toBeInTheDocument();
+        });
+        expect(
+            screen.getByText('No activity log entries found for this issue.'),
+        ).toBeInTheDocument();
     });
 });

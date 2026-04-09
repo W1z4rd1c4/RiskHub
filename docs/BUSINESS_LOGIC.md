@@ -1,7 +1,7 @@
 # RiskHub Business Logic Reference
 
 > **Version**: 1.1
-> **Last Updated**: 2026-04-05
+> **Last Updated**: 2026-04-07
 > **Audience**: Product, Engineering, QA, Compliance
 > **Source of Truth**: Backend RBAC and approval enforcement in `backend/app/`
 
@@ -478,8 +478,11 @@ Non-privileged users can access resources **outside their department** if they a
 | Role | Can Access |
 |------|-----------|
 | **Risk Owner** | The risk they own, regardless of department |
-| **Control Owner** | The control they own + its linked risks (read + view controls) |
-| **KRI Reporting Owner** | The KRI they own + its linked risk (read + view controls) |
+| **Control Owner** | The control they own + linked-risk workflows for that control, subject to endpoint permission checks |
+| **KRI Reporting Owner** | The KRI they own + its linked risk, including related linked-control workflows when endpoint permission checks pass |
+
+> [!NOTE]
+> Ownership helpers establish cross-department scope. They are not a substitute for normal write permissions. Mutation endpoints still enforce the resource write permission and any target-side access checks required by the workflow.
 
 ### 7.2 Access Inheritance
 
@@ -506,14 +509,15 @@ Non-privileged users can access resources **outside their department** if they a
 | Endpoint | Access Rule | Approval Required? |
 |----------|-------------|--------------------|
 | `GET /risks/{id}/controls` | Ownership OR department | No (read-only) |
-| `POST /risks/{id}/controls` | Ownership for risk + department for control + `risks:write` | No |
-| `DELETE /risks/{id}/controls/{id}` | Ownership for risk + department for control + `risks:write` | No |
+| `POST /risks/{id}/controls` | `risks:write` + risk access (ownership OR department) + control access (control ownership OR department) | No |
+| `DELETE /risks/{id}/controls/{id}` | `risks:write` + risk access (ownership OR department) + control access (control ownership OR department) | No |
 
 > [!NOTE]
 > Linking/unlinking controls is **not subject to approval** because:
 > - User must already have write permission
 > - It's metadata management, not entity modification
 > - Both entities must be accessible to the user
+> - Ownership on one side does not grant arbitrary cross-department linking; the other side must still be in scope by department or its own ownership rule
 
 ---
 

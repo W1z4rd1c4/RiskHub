@@ -29,16 +29,16 @@ export interface DepartmentLookup {
 /** Search result item - explicit subset of fields used for display */
 export interface SearchResultItem {
     id: number;
-    name?: string;
-    description?: string;
-    process?: string;
-    category?: string;
-    status?: string;
+    name?: string | null;
+    description?: string | null;
+    process?: string | null;
+    category?: string | null;
+    status?: string | null;
     risk_level?: number;
-    frequency?: string;
-    department?: { name?: string };
-    department_name?: string;
-    control_owner_name?: string;
+    frequency?: string | null;
+    department?: { name?: string | null };
+    department_name?: string | null;
+    control_owner_name?: string | null;
 }
 
 export interface LinkSearchPanelProps {

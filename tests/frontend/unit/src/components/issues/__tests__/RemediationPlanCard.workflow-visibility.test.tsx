@@ -1,7 +1,9 @@
+import { QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RemediationPlanCard } from '@/components/issues/RemediationPlanCard';
 import type { Issue } from '@/types/issue';
+import { createTestQueryClient } from '@test/queryClient';
 
 const mockListAssignableOwners = vi.fn();
 
@@ -65,17 +67,24 @@ describe('RemediationPlanCard workflow visibility', () => {
         vi.clearAllMocks();
     });
 
+    function renderCard(issue: Issue) {
+        const queryClient = createTestQueryClient();
+
+        return render(
+            <QueryClientProvider client={queryClient}>
+                <RemediationPlanCard
+                    issue={issue}
+                    canWrite
+                    canApprove
+                />
+            </QueryClientProvider>
+        );
+    }
+
     it('hides mutation actions when issue is closed and keeps summary visible', async () => {
         mockListAssignableOwners.mockResolvedValue([{ id: 2, name: 'Anna Kowalski', role_name: 'CRO', department_name: 'Risk Management' }]);
 
-        render(
-            <RemediationPlanCard
-                issue={makeIssue({ status: 'closed', closed_at: '2026-02-05T10:00:00Z' })}
-                canWrite
-                canApprove
-                onIssueUpdated={() => undefined}
-            />
-        );
+        renderCard(makeIssue({ status: 'closed', closed_at: '2026-02-05T10:00:00Z' }));
 
         expect(screen.getByText(/This issue is closed\./i)).toBeInTheDocument();
         expect(screen.getByTestId('workflow-summary-card')).toBeInTheDocument();
@@ -93,14 +102,7 @@ describe('RemediationPlanCard workflow visibility', () => {
     it('shows workflow actions for non-closed issue and hides approve exception when no request exists', async () => {
         mockListAssignableOwners.mockResolvedValue([{ id: 2, name: 'Anna Kowalski', role_name: 'CRO', department_name: 'Risk Management' }]);
 
-        render(
-            <RemediationPlanCard
-                issue={makeIssue({ status: 'open', exceptions: [] })}
-                canWrite
-                canApprove
-                onIssueUpdated={() => undefined}
-            />
-        );
+        renderCard(makeIssue({ status: 'open', exceptions: [] }));
 
         await waitFor(() => expect(mockListAssignableOwners).toHaveBeenCalled());
 
@@ -121,33 +123,26 @@ describe('RemediationPlanCard workflow visibility', () => {
     it('shows approve exception action only when a requested exception exists', async () => {
         mockListAssignableOwners.mockResolvedValue([{ id: 2, name: 'Anna Kowalski', role_name: 'CRO', department_name: 'Risk Management' }]);
 
-        render(
-            <RemediationPlanCard
-                issue={makeIssue({
-                    status: 'in_progress',
-                    exceptions: [
-                        {
-                            id: 9,
-                            issue_id: 11,
-                            status: 'requested',
-                            reason: 'Need temporary exception',
-                            requested_by_id: 2,
-                            requested_by_name: 'Anna Kowalski',
-                            approved_by_id: null,
-                            approved_by_name: null,
-                            requested_at: '2026-02-02T10:00:00Z',
-                            approved_at: null,
-                            expires_at: null,
-                            created_at: '2026-02-02T10:00:00Z',
-                            updated_at: '2026-02-02T10:00:00Z',
-                        },
-                    ],
-                })}
-                canWrite
-                canApprove
-                onIssueUpdated={() => undefined}
-            />
-        );
+        renderCard(makeIssue({
+            status: 'in_progress',
+            exceptions: [
+                {
+                    id: 9,
+                    issue_id: 11,
+                    status: 'requested',
+                    reason: 'Need temporary exception',
+                    requested_by_id: 2,
+                    requested_by_name: 'Anna Kowalski',
+                    approved_by_id: null,
+                    approved_by_name: null,
+                    requested_at: '2026-02-02T10:00:00Z',
+                    approved_at: null,
+                    expires_at: null,
+                    created_at: '2026-02-02T10:00:00Z',
+                    updated_at: '2026-02-02T10:00:00Z',
+                },
+            ],
+        }));
 
         await waitFor(() => expect(mockListAssignableOwners).toHaveBeenCalled());
 

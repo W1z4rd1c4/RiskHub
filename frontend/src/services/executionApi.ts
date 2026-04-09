@@ -3,6 +3,7 @@
  */
 
 import { apiClient } from './apiClient';
+import { executionListResponseSchema } from '@/services/api/schemas';
 import type { ExecutionListResponse, ExecutionResult } from '@/types/execution';
 
 export type { ExecutionAuditItem, ExecutionListResponse, ExecutionResult } from '@/types/execution';
@@ -18,6 +19,6 @@ export const executionApi = {
         skip?: number;
         limit?: number;
     } = {}): Promise<ExecutionListResponse> {
-        return apiClient.get<ExecutionListResponse>('/executions', { params });
+        return apiClient.get('/executions', { params, schema: executionListResponseSchema });
     }
 };

@@ -2,15 +2,17 @@ import { getErrorMessageKey } from '@/i18n/getErrorMessageKey';
 import { isExplicitLogoutSuppressed } from '@/services/logoutSuppression';
 import { clearAuthenticatedSession } from '@/services/sessionManager';
 import { silentReauthAndExchange } from '@/services/ssoSession';
+import type { infer as ZodInfer, ZodTypeAny } from 'zod';
 
-import { ApiClientError, parseErrorMessage, toApiClientError } from './apiErrors';
+import { ApiClientError, toApiClientError } from './apiErrors';
 import { buildPreparedRequest } from './apiRequestBuilder';
-import type { ApiClientErrorPayload, RequestExecutorOptions, RequestOptions } from './apiTypes';
-
-async function parseJsonBody<T>(response: Response): Promise<T> {
-    const payload: unknown = await response.json();
-    return payload as T;
-}
+import { parseBodyWithSchema, parseErrorResponse, readResponseBody } from './responseParsing';
+import type {
+    ApiClientErrorPayload,
+    RequestExecutorOptions,
+    RequestOptions,
+    SchemaRequestOptions,
+} from './apiTypes';
 
 export class ApiClient {
     private readonly baseUrl: string;
@@ -27,22 +29,7 @@ export class ApiClient {
     }
 
     private async parseJsonError(response: Response): Promise<ApiClientErrorPayload> {
-        const errorData: unknown = await parseJsonBody<unknown>(response).catch(
-            () => ({} as Record<string, never>),
-        );
-        const code =
-            typeof (errorData as { code?: unknown }).code === 'string'
-                ? String((errorData as { code: string }).code)
-                : typeof (errorData as { error_code?: unknown }).error_code === 'string'
-                    ? String((errorData as { error_code: string }).error_code)
-                    : undefined;
-        const rawMessage = parseErrorMessage(errorData, response.status);
-        return {
-            status: response.status,
-            code,
-            messageKey: getErrorMessageKey(code, response.status),
-            rawMessage,
-        };
+        return parseErrorResponse(response);
     }
 
     private async parseBlobError(response: Response): Promise<ApiClientErrorPayload> {
@@ -103,38 +90,52 @@ export class ApiClient {
         }
     }
 
-    private async request<T>(endpoint: string, options: RequestOptions = {}, attempt = 0): Promise<T> {
+    private async request<S extends ZodTypeAny>(
+        endpoint: string,
+        options: SchemaRequestOptions<S>,
+        attempt = 0,
+    ): Promise<ZodInfer<S>> {
         return this.executeRequest({
             endpoint,
             options,
             attempt,
             parseSuccess: async (response) => {
-                if (response.status === 204) {
-                    return {} as T;
-                }
-                return parseJsonBody<T>(response);
+                const body = await readResponseBody(response);
+                return parseBodyWithSchema(body, options.schema, response.status);
             },
         });
     }
 
-    get<T>(endpoint: string, options?: RequestOptions) {
-        return this.request<T>(endpoint, { ...options, method: 'GET' });
+    get<S extends ZodTypeAny>(endpoint: string, options: SchemaRequestOptions<S>) {
+        return this.request(endpoint, { ...options, method: 'GET' });
     }
 
-    post<T, B = unknown>(endpoint: string, body: B, options?: RequestOptions) {
-        return this.request<T>(endpoint, { ...options, method: 'POST', body: JSON.stringify(body) });
+    post<S extends ZodTypeAny, B = unknown>(
+        endpoint: string,
+        body: B,
+        options: Omit<SchemaRequestOptions<S>, 'body' | 'method'>,
+    ) {
+        return this.request(endpoint, { ...options, method: 'POST', body: JSON.stringify(body) });
     }
 
-    put<T, B = unknown>(endpoint: string, body: B, options?: RequestOptions) {
-        return this.request<T>(endpoint, { ...options, method: 'PUT', body: JSON.stringify(body) });
+    put<S extends ZodTypeAny, B = unknown>(
+        endpoint: string,
+        body: B,
+        options: Omit<SchemaRequestOptions<S>, 'body' | 'method'>,
+    ) {
+        return this.request(endpoint, { ...options, method: 'PUT', body: JSON.stringify(body) });
     }
 
-    patch<T, B = unknown>(endpoint: string, body: B, options?: RequestOptions) {
-        return this.request<T>(endpoint, { ...options, method: 'PATCH', body: JSON.stringify(body) });
+    patch<S extends ZodTypeAny, B = unknown>(
+        endpoint: string,
+        body: B,
+        options: Omit<SchemaRequestOptions<S>, 'body' | 'method'>,
+    ) {
+        return this.request(endpoint, { ...options, method: 'PATCH', body: JSON.stringify(body) });
     }
 
-    delete<T>(endpoint: string, options?: RequestOptions) {
-        return this.request<T>(endpoint, { ...options, method: 'DELETE' });
+    delete<S extends ZodTypeAny>(endpoint: string, options: SchemaRequestOptions<S>) {
+        return this.request(endpoint, { ...options, method: 'DELETE' });
     }
 
     toUiMessageKey(error: unknown): string {

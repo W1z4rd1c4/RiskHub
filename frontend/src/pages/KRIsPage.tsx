@@ -360,7 +360,7 @@ export function KRIsPage() {
             label: t('columns.risk'),
             sortable: true,
             render: (kri) => (
-                <span className="text-white text-xs font-bold block truncate max-w-[150px]" title={kri.risk_process}>
+                <span className="text-white text-xs font-bold block truncate max-w-[150px]" title={kri.risk_process ?? undefined}>
                     {kri.risk_process || t('common:fallbacks.unknown_risk')}
                 </span>
             ),
@@ -370,7 +370,7 @@ export function KRIsPage() {
             label: t('columns.description'),
             sortable: true,
             render: (kri) => (
-                <span className="text-slate-400 text-xs font-medium block truncate max-w-[200px]" title={kri.risk_description}>
+                <span className="text-slate-400 text-xs font-medium block truncate max-w-[200px]" title={kri.risk_description ?? undefined}>
                     {kri.risk_description || t('common:fallbacks.not_available')}
                 </span>
             ),

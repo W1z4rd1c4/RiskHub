@@ -38,7 +38,7 @@ class QuarterlyMetricSnapshot(Base):
     quarter_number = Column(Integer, nullable=False)  # 1-4
 
     # Snapshot type (quarter_end or manual)
-    snapshot_type = Column(
+    snapshot_type: Column[SnapshotType] = Column(
         SQLAEnum(
             SnapshotType,
             name="snapshottype",

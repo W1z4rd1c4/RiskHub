@@ -40,20 +40,20 @@ export interface KeyRiskIndicator extends KRIMonitoringFields {
     created_at: string;
     // Historization fields
     frequency: KRIFrequency;
-    reporting_owner_id?: number;
-    reporting_owner_name?: string;
-    last_period_end?: string;
-    last_reported_at?: string;
+    reporting_owner_id?: number | null;
+    reporting_owner_name?: string | null;
+    last_period_end?: string | null;
+    last_reported_at?: string | null;
     // Grouping metadata
-    risk_category?: string;
-    risk_process?: string;
-    risk_name?: string;
-    risk_description?: string;
-    risk_type?: string;
-    risk_id_code?: string;
-    risk_owner_name?: string;
-    risk_department_name?: string;
-    department_name?: string;
+    risk_category?: string | null;
+    risk_process?: string | null;
+    risk_name?: string | null;
+    risk_description?: string | null;
+    risk_type?: string | null;
+    risk_id_code?: string | null;
+    risk_owner_name?: string | null;
+    risk_department_name?: string | null;
+    department_name?: string | null;
     linked_vendors?: LinkedVendorSummary[];
 }
 
@@ -66,7 +66,7 @@ export interface KRICreate {
     upper_limit: number;
     unit?: string;
     frequency?: KRIFrequency;
-    reporting_owner_id?: number;
+    reporting_owner_id?: number | null;
     linked_vendor_ids?: number[];
     ensure_parent_risk_vendor_ids?: number[];
 }
@@ -79,7 +79,7 @@ export interface KRIUpdate {
     upper_limit?: number;
     unit?: string;
     frequency?: KRIFrequency;
-    reporting_owner_id?: number;
+    reporting_owner_id?: number | null;
     linked_vendor_ids?: number[];
 }
 
@@ -102,8 +102,8 @@ export interface KRIHistoryEntry {
     upper_limit: number;
     unit: string;
     breach_status: string;
-    recorded_by_id?: number;
-    recorded_by_name?: string;
+    recorded_by_id?: number | null;
+    recorded_by_name?: string | null;
 }
 
 export interface KRIHistoryListResponse {
@@ -132,8 +132,8 @@ export interface OverdueKRI {
     period_end: string;
     due_date: string;
     days_overdue: number;
-    reporting_owner_id?: number;
-    reporting_owner_name?: string;
+    reporting_owner_id?: number | null;
+    reporting_owner_name?: string | null;
     risk_id: number;
 }
 
@@ -145,7 +145,7 @@ export interface DueSoonKRI {
     period_end: string;
     due_date: string;
     days_until_due: number;
-    reporting_owner_id?: number;
-    reporting_owner_name?: string;
+    reporting_owner_id?: number | null;
+    reporting_owner_name?: string | null;
     risk_id: number;
 }

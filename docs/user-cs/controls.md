@@ -68,6 +68,7 @@ Logování exekuce může být také permission-gated. V praxi:
 
 - owner a delegovaný executor často mohou logovat exekuce
 - review role typicky čtou historii exekucí
+- control owner může také spravovat linky na rizika napříč odděleními, pokud má `controls:write` a zároveň přístup k cílovému riziku
 
 Výchozí seedované role s `controls:execute` jsou CRO, Risk Manager, Compliance, Internal Audit, Actuarial, Department Head a Employee.
 

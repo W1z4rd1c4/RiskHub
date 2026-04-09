@@ -3,6 +3,11 @@
  * Endpoints require privileged user access.
  */
 import { apiClient } from './apiClient';
+import {
+    accessUserReadArraySchema,
+    accessUserReadSchema,
+    roleWithPermissionsArraySchema,
+} from '@/services/api/schemas';
 import type { AccessUserRead, AccessUserUpdate, AccessUserFilters, RoleWithPermissions } from '@/types/access';
 
 export const accessApi = {
@@ -25,7 +30,7 @@ export const accessApi = {
             params.is_privileged = filters.is_privileged;
         }
 
-        return apiClient.get<AccessUserRead[]>('/access/users', { params });
+        return apiClient.get('/access/users', { params, schema: accessUserReadArraySchema });
     },
 
     /**
@@ -33,7 +38,7 @@ export const accessApi = {
      * Available to department heads and privileged users.
      */
     async listDepartmentAccessUsers(): Promise<AccessUserRead[]> {
-        return apiClient.get<AccessUserRead[]>('/access/users/my-department');
+        return apiClient.get('/access/users/my-department', { schema: accessUserReadArraySchema });
     },
 
     /**
@@ -41,7 +46,7 @@ export const accessApi = {
      * Requires privileged access.
      */
     async listAccessRoles(): Promise<RoleWithPermissions[]> {
-        return apiClient.get<RoleWithPermissions[]>('/access/roles');
+        return apiClient.get('/access/roles', { schema: roleWithPermissionsArraySchema });
     },
 
     /**
@@ -50,6 +55,6 @@ export const accessApi = {
      * Admin/CRO can edit access fields; Admin-only can include identity fields.
      */
     async updateAccessUser(userId: number, data: AccessUserUpdate): Promise<AccessUserRead> {
-        return apiClient.patch<AccessUserRead>(`/access/users/${userId}`, data);
+        return apiClient.patch(`/access/users/${userId}`, data, { schema: accessUserReadSchema });
     },
 };

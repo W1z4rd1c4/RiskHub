@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 from pathlib import Path
+import re
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -123,6 +124,23 @@ def test_lint_workflow_runs_production_contract_docs_validator() -> None:
     assert "Production contract docs gate" in text
     assert "python3 scripts/security/validate_production_contract_docs.py" in text
     assert "python3 scripts/security/validate_deprecated_imports.py" in text
+
+
+def test_lint_workflow_fetches_full_history_for_changed_target_detection() -> None:
+    text = LINT_WORKFLOW.read_text(encoding="utf-8")
+
+    pattern = re.compile(
+        r"  lint:\n"
+        r"(?:.*\n)*?"
+        r"    steps:\n"
+        r"(?:.*\n)*?"
+        r"      - uses: actions/checkout@[^\n]+\n"
+        r"        with:\n"
+        r"          fetch-depth: 0\n",
+        re.MULTILINE,
+    )
+
+    assert pattern.search(text), "lint job checkout must fetch full history"
 
 
 def test_release_parity_pr_workflow_blocks_pull_requests_with_contract_validators() -> (

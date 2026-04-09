@@ -17,7 +17,9 @@ async def is_risk_kri_reporting_owner(db, user_id: int, risk_id: int) -> bool:
     """
     Check if user is the reporting owner of any KRI linked to a specific Risk.
 
-    Used for granting cross-department READ access to risks via KRI ownership.
+    Used for granting ownership-based cross-department risk scope, including
+    read flows and related workflow mutations where the endpoint separately
+    enforces write permission and target-side access.
     """
     from sqlalchemy import select
 
@@ -80,7 +82,9 @@ async def is_risk_control_owner(db, user_id: int, risk_id: int) -> bool:
     """
     Check if user is the owner of any Control linked to a specific Risk.
 
-    Used for granting cross-department READ access to risks via control ownership.
+    Used for granting ownership-based cross-department risk scope, including
+    read flows and related workflow mutations where the endpoint separately
+    enforces write permission and target-side access.
     """
     from sqlalchemy import select
 
@@ -126,4 +130,3 @@ async def get_risk_ids_where_control_owner(db, user_id: int) -> list[int]:
         .distinct()
     )
     return [row[0] for row in result.all()]
-

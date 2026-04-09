@@ -8,6 +8,7 @@ const mockGetKRI = vi.fn();
 const mockGetHistory = vi.fn();
 const mockGetRisk = vi.fn();
 const mockUpdateKRI = vi.fn();
+const mockDeleteKRI = vi.fn();
 
 vi.mock('react-router-dom', async () => {
     const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
@@ -35,7 +36,7 @@ vi.mock('@/services/kriApi', () => ({
         getKRI: (...args: unknown[]) => mockGetKRI(...args),
         getHistory: (...args: unknown[]) => mockGetHistory(...args),
         updateKRI: (...args: unknown[]) => mockUpdateKRI(...args),
-        deleteKRI: vi.fn(),
+        deleteKRI: (...args: unknown[]) => mockDeleteKRI(...args),
         restoreKRI: vi.fn(),
     },
 }));
@@ -84,6 +85,24 @@ vi.mock('@/components/issues/IssueQuickCreateModal', () => ({
     IssueQuickCreateModal: () => null,
 }));
 
+vi.mock('@/components/ConfirmDialog', () => ({
+    ConfirmDialog: ({
+        isOpen,
+        onConfirm,
+    }: {
+        isOpen: boolean;
+        onConfirm: (inputValue?: string) => void;
+    }) =>
+        isOpen ? (
+            <button
+                type="button"
+                onClick={() => onConfirm('Delete because threshold is obsolete')}
+            >
+                confirm-kri-delete
+            </button>
+        ) : null,
+}));
+
 describe('KRIDetailPage approval-aware edit flow', () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -111,6 +130,7 @@ describe('KRIDetailPage approval-aware edit flow', () => {
             approval_id: 88,
             message: 'KRI update submitted for approval.',
         });
+        mockDeleteKRI.mockResolvedValue(undefined);
     });
 
     it('shows an approval banner and keeps the record unchanged until approval is granted', async () => {
@@ -132,5 +152,28 @@ describe('KRIDetailPage approval-aware edit flow', () => {
         expect(screen.queryByRole('button', { name: 'trigger-kri-save' })).not.toBeInTheDocument();
         expect(screen.getAllByText('Claims Leakage Ratio').length).toBeGreaterThan(0);
         expect(mockGetKRI).toHaveBeenCalledTimes(1);
+    });
+
+    it('shows an approval banner and stays on the detail page when delete requires approval', async () => {
+        mockDeleteKRI.mockResolvedValue({
+            approval_id: 89,
+            action_type: 'delete',
+            message: 'Deletion request submitted for approval',
+        });
+
+        render(<KRIDetailPage />);
+
+        await screen.findAllByText('Claims Leakage Ratio');
+        fireEvent.click(screen.getByRole('button', { name: /Delete|Smazat/i }));
+        fireEvent.click(await screen.findByRole('button', { name: 'confirm-kri-delete' }));
+
+        await waitFor(() => {
+            expect(mockDeleteKRI).toHaveBeenCalledWith(21, 'Delete because threshold is obsolete');
+        });
+
+        await screen.findByText(/Deletion request submitted for approval/i);
+        expect(screen.getAllByText('Claims Leakage Ratio').length).toBeGreaterThan(0);
+        expect(screen.queryByRole('button', { name: 'confirm-kri-delete' })).not.toBeInTheDocument();
+        expect(mockNavigate).not.toHaveBeenCalledWith('/kris');
     });
 });

@@ -32,8 +32,10 @@ DEFAULT_LOG_RETENTION_COUNT = 10
 
 
 def add_context_vars(
-    logger: logging.Logger, method_name: str, event_dict: dict[str, Any]
-) -> dict[str, Any]:
+    logger: Any,
+    method_name: str,
+    event_dict: structlog.types.EventDict,
+) -> structlog.types.EventDict:
     """Processor to add context variables to log entries."""
     if (request_id := request_id_ctx.get()) is not None:
         event_dict["request_id"] = request_id

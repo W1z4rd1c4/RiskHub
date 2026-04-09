@@ -113,7 +113,6 @@ SAFE_CHANGESET_ALLOWLIST_BY_ENTITY = {
     "risk": {"risk_id_code"},
     "role": {"display_name"},
     "user": {"password_changed", "entra_business_role"},
-    "vendor": {"legal_name"},
 }
 
 SENSITIVE_FIELD_FALSE_POSITIVES_BY_ENTITY = {

@@ -1,4 +1,15 @@
 import { apiClient } from './apiClient';
+import {
+    approvalCreatedResponseSchema,
+    controlExecutionArraySchema,
+    controlExecutionSchema,
+    controlListResponseSchema,
+    controlOrApprovalSchema,
+    controlRiskLinkArraySchema,
+    controlRiskLinkSchema,
+    controlSchema,
+    voidSchema,
+} from '@/services/api/schemas';
 import type {
     Control,
     ControlCreate,
@@ -23,49 +34,51 @@ export const controlApi = {
         include_archived?: boolean;
         monitoring_status?: ControlMonitoringStatus;
     }): Promise<ControlListResponse> {
-        return apiClient.get<ControlListResponse>('/controls', { params });
+        return apiClient.get('/controls', { params, schema: controlListResponseSchema });
     },
 
     async getControl(id: number): Promise<Control> {
-        return apiClient.get<Control>(`/controls/${id}`);
+        return apiClient.get(`/controls/${id}`, { schema: controlSchema });
     },
 
     async createControl(data: ControlCreate): Promise<Control> {
-        return apiClient.post<Control>('/controls', data);
+        return apiClient.post('/controls', data, { schema: controlSchema });
     },
 
     async updateControl(id: number, data: ControlUpdate): Promise<Control | ApprovalCreatedResponse> {
-        return apiClient.patch<Control | ApprovalCreatedResponse>(`/controls/${id}`, data);
+        return apiClient.patch(`/controls/${id}`, data, { schema: controlOrApprovalSchema });
     },
 
     async deleteControl(id: number, reason: string = 'Archived by user'): Promise<void | ApprovalCreatedResponse> {
-        return apiClient.delete<void | ApprovalCreatedResponse>(`/controls/${id}?reason=${encodeURIComponent(reason)}`);
+        return apiClient.delete(`/controls/${id}?reason=${encodeURIComponent(reason)}`, {
+            schema: approvalCreatedResponseSchema.or(voidSchema),
+        });
     },
 
     async restoreControl(id: number): Promise<Control> {
-        return apiClient.post<Control>(`/controls/${id}/restore`, {});
+        return apiClient.post(`/controls/${id}/restore`, {}, { schema: controlSchema });
     },
 
     async logExecution(controlId: number, data: ControlExecutionCreate): Promise<ControlExecution> {
-        return apiClient.post<ControlExecution>(`/controls/${controlId}/executions`, data);
+        return apiClient.post(`/controls/${controlId}/executions`, data, { schema: controlExecutionSchema });
     },
 
     async getExecutions(controlId: number): Promise<ControlExecution[]> {
-        return apiClient.get<ControlExecution[]>(`/controls/${controlId}/executions`);
+        return apiClient.get(`/controls/${controlId}/executions`, { schema: controlExecutionArraySchema });
     },
 
     async getLinkedRisks(controlId: number): Promise<ControlRiskLink[]> {
-        return apiClient.get<ControlRiskLink[]>(`/controls/${controlId}/risks`);
+        return apiClient.get(`/controls/${controlId}/risks`, { schema: controlRiskLinkArraySchema });
     },
 
     async linkRisk(
         controlId: number,
         data: { risk_id: number; effectiveness: ControlEffectiveness; notes?: string }
     ): Promise<ControlRiskLink> {
-        return apiClient.post<ControlRiskLink>(`/controls/${controlId}/risks`, data);
+        return apiClient.post(`/controls/${controlId}/risks`, data, { schema: controlRiskLinkSchema });
     },
 
     async unlinkRisk(controlId: number, riskId: number): Promise<void> {
-        return apiClient.delete<void>(`/controls/${controlId}/risks/${riskId}`);
+        return apiClient.delete(`/controls/${controlId}/risks/${riskId}`, { schema: voidSchema });
     }
 };

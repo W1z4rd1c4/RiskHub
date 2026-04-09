@@ -18,6 +18,7 @@ This guide defines the current testing matrix for backend, frontend unit tests, 
 | Backend broad | `make -f scripts/Makefile test` | Full backend regression |
 | Backend PR CI (SQLite) | `cd backend && pytest -m "not postgres" -q` | Blocking PR lane for broad backend regression on the default fast harness |
 | Backend lint + suppression budget | `make -f scripts/Makefile lint-backend` | Ruff hard gate plus backend/app suppression budget enforcement |
+| Backend changed-code type gate | `python3 scripts/tools/changed_quality_targets.py --event-name pull_request --base-ref main --kind backend-python` | Resolve the backend/app Python files that should receive blocking mypy and Ruff `UP`/`SIM` changed-code checks |
 | Backend Postgres marker | `cd backend && TEST_DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_dev@localhost:5432/riskhub_test pytest -m postgres -v` | Postgres-sensitive behavior against a dedicated test database |
 | Backend PR CI (Postgres) | `TEST_DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_test@localhost:5432/riskhub_test make -f scripts/Makefile test-postgres-ci` | Blocking PR lane for Postgres marker coverage plus the broader DB-sensitive regression contract |
 | Backend Redis integration marker | `cd backend && pytest -m redis_integration -q` | Redis fault-injection resilience checks (Docker-backed) |
@@ -45,6 +46,7 @@ This guide defines the current testing matrix for backend, frontend unit tests, 
 - SQLite in-memory is used by default test path unless `TEST_DATABASE_URL` is set.
 - Postgres-specific tests are marked with `@pytest.mark.postgres`.
 - PR CI runs a broad SQLite lane, a blocking Postgres regression contract, and a blocking frontend Vitest lane.
+- Blocking backend typing and `UP`/`SIM` ratchets now follow changed `backend/app` Python files resolved from git history instead of a fixed remediation slice; when a diff base cannot be resolved, the helper falls back to the full `backend/app` tree.
 - Installer regression coverage is anchored to the public `./scripts/install.sh` contract even though the implementation now routes through `scripts/install_cli.py` and `scripts/install_lib/`.
 - Schema-sensitive changes should keep the dedicated Postgres pytest lane green; do not rely on browser E2E as the only Postgres signal.
 - When the Docker app stack is using the live `riskhub` database, point Postgres marker runs at a sibling `riskhub_test` database instead; Postgres-mode truncates tables between tests.
@@ -52,6 +54,7 @@ This guide defines the current testing matrix for backend, frontend unit tests, 
 - SQLite/non-Postgres outbox dispatch is intentionally single-worker only; if scheduler ownership is enabled with `API_WORKERS>1`, the runtime must fail fast instead of pretending it has Postgres claim semantics.
 - Trusted proxy ranges that cover broad private networks now fail closed in production unless `ALLOW_BROAD_TRUSTED_PROXIES_IN_PRODUCTION=true` is set deliberately.
 - The Postgres lane is the authority for migration-defined indexes and live schema typing checks, and now runs a named DB-sensitive regression contract instead of only `pytest -m postgres`.
+- CI also publishes a non-blocking full-tree mypy lane for `backend/app` so repo-wide typing debt remains visible while changed-code blocking stays pragmatic.
 - Redis integration tests are marked with `@pytest.mark.redis_integration` and require Docker-backed test dependencies.
 - For docs endpoint behavior, keep role-scoped fixtures (`client_platform_admin`, `client_cro`, `client_employee`) green.
 

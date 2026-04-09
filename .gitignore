@@ -124,6 +124,7 @@ backend/*.db
 .dev-backend.pid
 .dev-frontend.pid
 dev.sh.pid
+.e2e-backend.pid
 frontend/test-results/
 frontend/playwright-report/
 frontend/.playwright-browsers/

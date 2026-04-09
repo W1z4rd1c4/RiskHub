@@ -1,9 +1,15 @@
+import type { ZodTypeAny } from 'zod';
+
 export type QueryScalar = string | number | boolean;
 export type QueryValue = QueryScalar | QueryScalar[] | null | undefined;
 export type QueryParams = URLSearchParams | Record<string, QueryValue>;
 
 export interface RequestOptions extends RequestInit {
     params?: QueryParams;
+}
+
+export interface SchemaRequestOptions<S extends ZodTypeAny> extends RequestOptions {
+    schema: S;
 }
 
 export interface PreparedRequest {

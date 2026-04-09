@@ -92,6 +92,25 @@ def test_sanitize_changes_fails_closed_for_heuristic_names() -> None:
     assert result.visible_fields == ("risk_id_code",)
 
 
+def test_sanitize_changes_redacts_vendor_legal_name() -> None:
+    result = sanitize_changes(
+        "vendor",
+        {
+            "legal_name": {
+                "old": "Secret Vendor LLC",
+                "new": "Renamed Secret Vendor LLC",
+            },
+            "status": {"old": "active", "new": "inactive"},
+        },
+    )
+
+    assert result.changes == {
+        "legal_name": {"old": "[REDACTED]", "new": "[REDACTED]"},
+        "status": {"old": "active", "new": "inactive"},
+    }
+    assert result.visible_fields == ("status",)
+
+
 def test_sanitize_activity_metadata_splits_db_and_siem_policies() -> None:
     changes = sanitize_changes(
         "risk",

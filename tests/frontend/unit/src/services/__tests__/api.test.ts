@@ -10,8 +10,9 @@ describe('controlApi', () => {
     it('fetches controls list', async () => {
         const controls = await controlApi.getControls({});
 
-        expect(Array.isArray(controls)).toBe(true);
-        expect(controls.length).toBeGreaterThan(0);
+        expect(Array.isArray(controls.items)).toBe(true);
+        expect(controls.items.length).toBeGreaterThan(0);
+        expect(typeof controls.total).toBe('number');
     });
 });
 
@@ -19,8 +20,9 @@ describe('riskApi', () => {
     it('fetches risks list', async () => {
         const risks = await riskApi.getRisks({});
 
-        expect(Array.isArray(risks)).toBe(true);
-        expect(risks.length).toBeGreaterThan(0);
+        expect(Array.isArray(risks.items)).toBe(true);
+        expect(risks.items.length).toBeGreaterThan(0);
+        expect(typeof risks.total).toBe('number');
     });
 });
 

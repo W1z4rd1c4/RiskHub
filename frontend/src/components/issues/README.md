@@ -15,3 +15,5 @@ UI components for `issues` area.
 ## Notes
 
 Keep this README updated when responsibilities or structure in this folder change.
+
+`RemediationPlanCard.tsx` depends on React Query context because it updates and invalidates issue detail/history queries.

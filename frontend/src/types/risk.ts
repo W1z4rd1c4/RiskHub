@@ -30,12 +30,12 @@ export interface Risk {
     risk_id_code: string;
     name: string;
     process: string;
-    subprocess?: string;
+    subprocess?: string | null;
     risk_type: RiskType;
-    category?: string;
+    category?: string | null;
     description: string;
-    department_id?: number;
-    owner_id?: number;
+    department_id?: number | null;
+    owner_id?: number | null;
 
     // Gross risk (before controls)
     gross_probability: number;
@@ -65,12 +65,12 @@ export interface Risk {
         id: number;
         name: string;
         email: string;
-    };
+    } | null;
     department?: {
         id: number;
         name: string;
         code: string;
-    };
+    } | null;
 }
 
 export interface RiskSummary {
@@ -79,7 +79,7 @@ export interface RiskSummary {
     name: string;
     process: string;
     risk_type: RiskType;
-    category?: string;
+    category?: string | null;
     description: string;
     gross_score: number;
     gross_probability: number;
@@ -87,8 +87,8 @@ export interface RiskSummary {
     net_score: number;
     status: RiskStatus;
     is_priority: boolean;
-    department_id?: number;
-    department_name?: string;
+    department_id?: number | null;
+    department_name?: string | null;
     owner_id?: number;
     kri_count?: number;
     has_breach?: boolean;
@@ -121,7 +121,7 @@ export interface RiskControlLink {
     control_id: number;
     risk_id: number;
     effectiveness: ControlEffectiveness;
-    notes?: string;
+    notes?: string | null;
     created_at: string;
     control?: ControlMonitoringFields & {
         id: number;

@@ -1,4 +1,20 @@
 import { apiClient } from './apiClient';
+import {
+    controlTrendSchema,
+    dashboardCommitteeSummarySchema,
+    dashboardOverviewSchema,
+    dashboardQuarterlyComparisonSchema,
+    dashboardRiskByCellItemArraySchema,
+    dashboardSummarySchema,
+    departmentMetricsSchema,
+    issueAgingResponseSchema,
+    issueDashboardSummarySchema,
+    issueSeverityBreakdownResponseSchema,
+    kriBreachTrendPointSchema,
+    riskDistributionSchema,
+    riskTrendPointSchema,
+    z,
+} from '@/services/api/schemas';
 import type {
     DashboardSummary,
     DepartmentMetrics,
@@ -115,53 +131,74 @@ export const dashboardApi = {
         params.probability = probability;
         params.impact = impact;
         params.risk_type = riskType;
-        return apiClient.get<DashboardRiskByCellItem[]>('/dashboard/risks-by-cell', { params });
+        return apiClient.get('/dashboard/risks-by-cell', {
+            params,
+            schema: dashboardRiskByCellItemArraySchema,
+        });
     },
 
     async fetchDashboardSummary(filters?: DashboardFilters): Promise<DashboardSummary> {
         const params = buildQueryParams(filters);
-        return apiClient.get<DashboardSummary>('/dashboard/summary', { params });
+        return apiClient.get('/dashboard/summary', { params, schema: dashboardSummarySchema });
     },
 
     async fetchDepartmentMetrics(filters?: DashboardFilters): Promise<DepartmentMetrics[]> {
         const params = buildQueryParams(filters);
-        return apiClient.get<DepartmentMetrics[]>('/dashboard/departments', { params });
+        return apiClient.get('/dashboard/departments', {
+            params,
+            schema: z.array(departmentMetricsSchema),
+        });
     },
 
     async fetchRiskDistribution(filters?: DashboardFilters, riskType: 'gross' | 'net' = 'net'): Promise<RiskDistribution> {
         const params = buildQueryParams(filters);
         params.risk_type = riskType;
-        return apiClient.get<RiskDistribution>('/dashboard/risk-distribution', { params });
+        return apiClient.get('/dashboard/risk-distribution', {
+            params,
+            schema: riskDistributionSchema,
+        });
     },
 
     async fetchControlTrends(filters?: DashboardFilters): Promise<ControlTrend[]> {
         const params = buildQueryParams(filters);
-        return apiClient.get<ControlTrend[]>('/dashboard/control-trends', { params });
+        return apiClient.get('/dashboard/control-trends', { params, schema: z.array(controlTrendSchema) });
     },
 
     async fetchRiskTrends(filters?: DashboardFilters): Promise<RiskTrendPoint[]> {
         const params = buildQueryParams(filters);
-        return apiClient.get<RiskTrendPoint[]>('/dashboard/risk-trends', { params });
+        return apiClient.get('/dashboard/risk-trends', { params, schema: z.array(riskTrendPointSchema) });
     },
 
     async fetchKriBreachTrends(filters?: DashboardFilters): Promise<KRIBreachTrendPoint[]> {
         const params = buildQueryParams(filters);
-        return apiClient.get<KRIBreachTrendPoint[]>('/dashboard/kri-breach-trends', { params });
+        return apiClient.get('/dashboard/kri-breach-trends', {
+            params,
+            schema: z.array(kriBreachTrendPointSchema),
+        });
     },
 
     async fetchIssuesSummary(filters?: DashboardFilters): Promise<IssueDashboardSummary> {
         const params = buildQueryParams(filters);
-        return apiClient.get<IssueDashboardSummary>('/dashboard/issues-summary', { params });
+        return apiClient.get('/dashboard/issues-summary', {
+            params,
+            schema: issueDashboardSummarySchema,
+        });
     },
 
     async fetchIssuesAging(filters?: DashboardFilters): Promise<IssueAgingResponse> {
         const params = buildQueryParams(filters);
-        return apiClient.get<IssueAgingResponse>('/dashboard/issues-aging', { params });
+        return apiClient.get('/dashboard/issues-aging', {
+            params,
+            schema: issueAgingResponseSchema,
+        });
     },
 
     async fetchIssuesBySeverity(filters?: DashboardFilters): Promise<IssueSeverityBreakdownResponse> {
         const params = buildQueryParams(filters);
-        return apiClient.get<IssueSeverityBreakdownResponse>('/dashboard/issues-by-severity', { params });
+        return apiClient.get('/dashboard/issues-by-severity', {
+            params,
+            schema: issueSeverityBreakdownResponseSchema,
+        });
     },
 
     async fetchOverview(
@@ -169,7 +206,11 @@ export const dashboardApi = {
         options?: { signal?: AbortSignal },
     ): Promise<DashboardOverview> {
         const params = buildQueryParams(filters);
-        return apiClient.get<DashboardOverview>('/dashboard/overview', { ...options, params });
+        return apiClient.get('/dashboard/overview', {
+            ...options,
+            params,
+            schema: dashboardOverviewSchema,
+        });
     },
 
     async fetchQuarterlyComparison(
@@ -179,14 +220,24 @@ export const dashboardApi = {
         const params: Record<string, string> = {};
         if (currentQuarter) params.current_quarter = currentQuarter;
         if (compareQuarter) params.compare_quarter = compareQuarter;
-        return apiClient.get<DashboardQuarterlyComparison>('/dashboard/quarterly-comparison', { params });
+        return apiClient.get('/dashboard/quarterly-comparison', {
+            params,
+            schema: dashboardQuarterlyComparisonSchema,
+        });
     },
 
     async fetchAvailablePeriods(): Promise<{ years: number[]; current_quarter: string }> {
-        return apiClient.get<{ years: number[]; current_quarter: string }>('/dashboard/available-periods');
+        return apiClient.get('/dashboard/available-periods', {
+            schema: z.object({
+                years: z.array(z.number()),
+                current_quarter: z.string(),
+            }).passthrough(),
+        });
     },
 
     async fetchCommitteeSummary(): Promise<DashboardCommitteeSummary> {
-        return apiClient.get<DashboardCommitteeSummary>('/dashboard/committee-summary');
+        return apiClient.get('/dashboard/committee-summary', {
+            schema: dashboardCommitteeSummarySchema,
+        });
     },
 };

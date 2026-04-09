@@ -34,7 +34,16 @@ function getNotificationIcon(type: NotificationType, size: 'sm' | 'md' = 'md') {
         case 'questionnaire_submitted':
             return <CheckCircle className={`${sizeClass} text-emerald-400`} />;
         case 'questionnaire_clarification_requested':
+        case 'issue_exception_requested':
             return <AlertTriangle className={`${sizeClass} text-orange-400`} />;
+        case 'issue_due_soon':
+            return <Clock className={`${sizeClass} text-amber-400`} />;
+        case 'issue_overdue':
+            return <AlertCircle className={`${sizeClass} text-rose-400`} />;
+        case 'issue_exception_approved':
+            return <CheckCircle className={`${sizeClass} text-emerald-400`} />;
+        case 'issue_assigned':
+            return <Bell className={`${sizeClass} text-sky-400`} />;
         default:
             return <Bell className={`${sizeClass} text-slate-400`} />;
     }
@@ -43,7 +52,7 @@ function getNotificationIcon(type: NotificationType, size: 'sm' | 'md' = 'md') {
 /**
  * Get navigation path for notification resource.
  */
-function getResourcePath(resourceType?: string, resourceId?: number): string | null {
+function getResourcePath(resourceType?: string | null, resourceId?: number | null): string | null {
     if (!resourceType || !resourceId) return null;
 
     switch (resourceType) {
@@ -53,6 +62,8 @@ function getResourcePath(resourceType?: string, resourceId?: number): string | n
             return `/controls/${resourceId}`;
         case 'kri':
             return `/kris/${resourceId}`;
+        case 'issue':
+            return `/issues/${resourceId}`;
         case 'approval':
             return '/approvals';
         default:

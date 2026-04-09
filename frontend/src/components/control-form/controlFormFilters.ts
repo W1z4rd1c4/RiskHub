@@ -65,5 +65,5 @@ export function getOwnerAutoDepartmentId(users: UserLookupItem[], ownerId: unkno
     if (typeof ownerId !== 'number') {
         return undefined;
     }
-    return users.find((user) => user.id === ownerId)?.department_id;
+    return users.find((user) => user.id === ownerId)?.department_id ?? undefined;
 }

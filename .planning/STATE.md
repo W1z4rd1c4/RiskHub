@@ -167,9 +167,9 @@
 - Wave `252-02` completed:
   - enabled the blocking frontend TS-safety rules and fixed the full measured offender baseline
   - added typed frontend coverage tooling and blocking thresholds (`57/47/47/58`)
-  - added backend mypy plus touched-file Ruff `UP`/`SIM` ratchets for the Phase 252 backend files only
+  - replaced the old Phase 252 backend slice with changed-file mypy plus changed-file Ruff `UP`/`SIM` ratchets for backend/app Python paths, backed by a git-diff helper with full-tree fallback
   - added backend coverage enforcement with `--cov-fail-under=69`
-  - updated CI/workflow contract tests and ratchet docs to match the new gates
+  - added a non-blocking full-tree backend/app mypy lane and updated CI/workflow contract docs to match the steady-state gates
   - verification:
     - `cd frontend && npm run lint` -> passed
     - `cd frontend && npx tsc --noEmit` -> passed

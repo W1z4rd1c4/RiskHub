@@ -10,7 +10,7 @@ export const ExecutionResult = {
 export interface ExecutionActor {
     id: number;
     name: string;
-    email?: string;
+    email?: string | null;
 }
 
 export interface ExecutionControlRef {
@@ -36,12 +36,12 @@ export interface ControlExecution {
     executed_by_id: number;
     executed_at: string;
     result: ExecutionResult;
-    findings?: string;
-    evidence_reference?: string;
-    notes?: string;
-    next_scheduled?: string;
+    findings?: string | null;
+    evidence_reference?: string | null;
+    notes?: string | null;
+    next_scheduled?: string | null;
     created_at: string;
-    executed_by?: ExecutionActor;
+    executed_by?: ExecutionActor | null;
 }
 
 export interface ExecutionAuditItem extends ControlExecution {

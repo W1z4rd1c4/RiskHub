@@ -18,6 +18,15 @@ export class ApiClientError extends Error {
     }
 }
 
+export function buildInvalidResponsePayloadError(rawMessage: string, status?: number): ApiClientError {
+    return new ApiClientError({
+        status,
+        code: 'INVALID_RESPONSE_PAYLOAD',
+        messageKey: getErrorMessageKey('REQUEST_FAILED'),
+        rawMessage,
+    });
+}
+
 export function parseErrorMessage(errorData: unknown, status: number): string {
     if (!errorData || typeof errorData !== 'object') {
         return `Request failed with status ${status}`;

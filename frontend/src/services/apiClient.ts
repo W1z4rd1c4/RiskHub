@@ -10,6 +10,7 @@ export type {
     QueryValue,
     RequestExecutorOptions,
     RequestOptions,
+    SchemaRequestOptions,
 } from '@/services/api/apiTypes';
 
 export const apiClient = new ApiClient(API_URL);

@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 
+import { issueDetailQueryKey } from '@/lib/issueQueryKeys';
 import { apiClient } from '@/services/apiClient';
 import { issuesApi } from '@/services/issuesApi';
-import type { Issue } from '@/types/issue';
+import { useSessionSnapshot } from '@/services/sessionStore';
 
 interface UseIssueDetailOptions {
     canRead: boolean;
@@ -10,43 +11,27 @@ interface UseIssueDetailOptions {
 }
 
 export function useIssueDetail({ canRead, issueId }: UseIssueDetailOptions) {
-    const [issue, setIssue] = useState<Issue | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [errorKey, setErrorKey] = useState<string | null>(null);
+    const session = useSessionSnapshot();
+    const hasValidIssueId = Number.isFinite(issueId) && issueId > 0;
+    const issueQuery = useQuery({
+        queryKey: issueDetailQueryKey(session.user?.id, issueId),
+        enabled: canRead && hasValidIssueId,
+        queryFn: ({ signal }) => issuesApi.get(issueId, { signal }),
+        staleTime: 30_000,
+    });
 
-    const fetchIssue = useCallback(async () => {
-        if (!Number.isFinite(issueId) || issueId <= 0) {
-            setErrorKey('errors.not_found');
-            setIssue(null);
-            setIsLoading(false);
-            return;
-        }
-        setIsLoading(true);
-        try {
-            const response = await issuesApi.get(issueId);
-            setIssue(response);
-            setErrorKey(null);
-        } catch (loadError) {
-            setErrorKey(apiClient.toUiMessageKey(loadError));
-            setIssue(null);
-        } finally {
-            setIsLoading(false);
-        }
-    }, [issueId]);
-
-    useEffect(() => {
-        if (!canRead) {
-            setIsLoading(false);
-            return;
-        }
-        void fetchIssue();
-    }, [canRead, fetchIssue]);
+    const issue = issueQuery.data ?? null;
+    const isLoading = canRead ? issueQuery.isLoading : false;
+    const errorKey = !hasValidIssueId
+        ? 'errors.not_found'
+        : issueQuery.error && !issue
+            ? apiClient.toUiMessageKey(issueQuery.error)
+            : null;
 
     return {
         errorKey,
-        fetchIssue,
+        refreshIssue: issueQuery.refetch,
         isLoading,
         issue,
-        setIssue,
     };
 }

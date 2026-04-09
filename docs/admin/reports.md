@@ -28,7 +28,7 @@ Admin evidence must be:
 - auditable (provenance preserved)
 - safe (no accidental leakage of secrets or unnecessary PII)
 
-RiskHub provides export surfaces primarily through the Admin Console audit feed (CSV/JSON). Application logs are also useful evidence but may require careful handling to avoid leaking sensitive payloads. Audit-log change payloads are redacted by default for sensitive fields, free text, and unknown keys so exports preserve safe structural changes without exposing secrets or unnecessary PII.
+RiskHub provides export surfaces primarily through the Admin Console audit feed (CSV/JSON). Application logs are also useful evidence but may require careful handling to avoid leaking sensitive payloads. Audit-log change payloads are redacted by default for sensitive fields, free text, unknown keys, and vendor legal names so exports preserve safe structural changes without exposing secrets or unnecessary PII.
 
 ## When To Use This
 

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { AlertCircle, CheckCircle, FileText, RefreshCw, Send } from 'lucide-react';
 import { useTranslation } from '@/i18n/hooks';
+import { batchSendResponseSchema } from '@/services/api/schemas';
 import { departmentApi } from '@/services/departmentApi';
 import { riskApi } from '@/services/riskApi';
 import { apiClient } from '@/services/apiClient';
@@ -130,7 +131,9 @@ export function RiskQuestionnairesPanel() {
                 return;
             }
 
-            const resp = await apiClient.post<BatchSendResponse>('/riskhub/questionnaires/batch-send', payload);
+            const resp = await apiClient.post('/riskhub/questionnaires/batch-send', payload, {
+                schema: batchSendResponseSchema,
+            });
             setResult(resp);
             setSelectedIds(new Set());
             await fetchRisks();

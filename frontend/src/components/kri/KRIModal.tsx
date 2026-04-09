@@ -80,7 +80,7 @@ export function KRIModal({ risk_id, kri, isOpen, onClose, onSave, onDelete }: KR
                 upper_limit: kri.upper_limit,
                 unit: kri.unit,
                 frequency: kri.frequency || 'quarterly',
-                reporting_owner_id: kri.reporting_owner_id,
+                reporting_owner_id: kri.reporting_owner_id ?? undefined,
             });
             const linkedVendorOptions = (kri.linked_vendors ?? []).map((vendor) => ({
                 id: vendor.id,

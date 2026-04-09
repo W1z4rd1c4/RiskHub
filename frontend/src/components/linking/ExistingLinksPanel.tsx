@@ -19,7 +19,7 @@ export interface ExistingLinkItem {
     control_id?: number;
     kri_id?: number;
     effectiveness: string;
-    notes?: string;
+    notes?: string | null;
     risk?: unknown;
     control?: unknown;
 }

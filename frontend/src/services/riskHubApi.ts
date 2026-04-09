@@ -1,4 +1,23 @@
 import { apiClient } from './apiClient';
+import {
+    approvalScenarioArraySchema,
+    approvalScenarioSchema,
+    departmentHubReadArraySchema,
+    departmentHubReadSchema,
+    departmentDeleteResponseSchema,
+    globalConfigArraySchema,
+    globalConfigRecordSchema,
+    globalConfigSchema,
+    publicConfigValueSchema,
+    publicRiskTypeArraySchema,
+    riskHubPermissionReadArraySchema,
+    riskTypeArraySchema,
+    riskTypeDeleteResponseSchema,
+    riskTypeSchema,
+    roleDeleteResponseSchema,
+    roleHubReadArraySchema,
+    roleHubReadSchema,
+} from '@/services/api/schemas';
 
 // ============================================================================
 // Types
@@ -138,77 +157,90 @@ export interface PublicRiskType {
 export const riskHubApi = {
     // Risk Types (CRO-only)
     getRiskTypes: (includeInactive = false) =>
-        apiClient.get<RiskType[]>('/riskhub/risk-types', { params: { include_inactive: includeInactive } }),
+        apiClient.get('/riskhub/risk-types', {
+            params: { include_inactive: includeInactive },
+            schema: riskTypeArraySchema,
+        }),
 
     // Public Risk Types (all authenticated users)
     getPublicRiskTypes: () =>
-        apiClient.get<PublicRiskType[]>('/riskhub/public-risk-types'),
+        apiClient.get('/riskhub/public-risk-types', { schema: publicRiskTypeArraySchema }),
 
     createRiskType: (data: RiskTypeCreate) =>
-        apiClient.post<RiskType>('/riskhub/risk-types', data),
+        apiClient.post('/riskhub/risk-types', data, { schema: riskTypeSchema }),
 
     updateRiskType: (id: number, data: RiskTypeUpdate) =>
-        apiClient.patch<RiskType>(`/riskhub/risk-types/${id}`, data),
+        apiClient.patch(`/riskhub/risk-types/${id}`, data, { schema: riskTypeSchema }),
 
     deleteRiskType: (id: number) =>
-        apiClient.delete<{ status: string; id: number; affected_risks: number }>(`/riskhub/risk-types/${id}`),
+        apiClient.delete(`/riskhub/risk-types/${id}`, { schema: riskTypeDeleteResponseSchema }),
 
     restoreRiskType: (id: number) =>
-        apiClient.post<RiskType>(`/riskhub/risk-types/${id}/restore`, {}),
+        apiClient.post(`/riskhub/risk-types/${id}/restore`, {}, { schema: riskTypeSchema }),
 
     // Global Config
     getAllConfig: () =>
-        apiClient.get<Record<string, GlobalConfig[]>>('/riskhub/config'),
+        apiClient.get('/riskhub/config', { schema: globalConfigRecordSchema }),
 
     getConfigCategory: (category: string) =>
-        apiClient.get<GlobalConfig[]>(`/riskhub/config/${category}`),
+        apiClient.get(`/riskhub/config/${category}`, { schema: globalConfigArraySchema }),
 
     updateConfig: (key: string, value: string) =>
-        apiClient.patch<GlobalConfig>(`/riskhub/config/${key}`, { value }),
+        apiClient.patch(`/riskhub/config/${key}`, { value }, { schema: globalConfigSchema }),
 
     // Public config read (for all authenticated users)
     getConfigValue: (key: string) =>
-        apiClient.get<{ key: string; value: unknown; value_type: string }>(`/riskhub/public-config/${key}`),
+        apiClient.get(`/riskhub/public-config/${key}`, { schema: publicConfigValueSchema }),
 
     // Approval Scenarios
     getApprovalScenarios: () =>
-        apiClient.get<ApprovalScenario[]>('/riskhub/approval-scenarios'),
+        apiClient.get('/riskhub/approval-scenarios', { schema: approvalScenarioArraySchema }),
 
     updateApprovalScenario: (key: string, data: ApprovalScenarioUpdate) =>
-        apiClient.patch<ApprovalScenario>(`/riskhub/approval-scenarios/${key}`, data),
+        apiClient.patch(`/riskhub/approval-scenarios/${key}`, data, {
+            schema: approvalScenarioSchema,
+        }),
 
     // Roles
     getPermissions: () =>
-        apiClient.get<PermissionRead[]>('/riskhub/permissions'),
+        apiClient.get('/riskhub/permissions', { schema: riskHubPermissionReadArraySchema }),
 
     getRoles: (includeInactive = false) =>
-        apiClient.get<RoleHubRead[]>('/riskhub/roles', { params: { include_inactive: includeInactive } }),
+        apiClient.get('/riskhub/roles', {
+            params: { include_inactive: includeInactive },
+            schema: roleHubReadArraySchema,
+        }),
 
     createRole: (data: RoleHubCreate) =>
-        apiClient.post<RoleHubRead>('/riskhub/roles', data),
+        apiClient.post('/riskhub/roles', data, { schema: roleHubReadSchema }),
 
     updateRole: (id: number, data: RoleHubUpdate) =>
-        apiClient.patch<RoleHubRead>(`/riskhub/roles/${id}`, data),
+        apiClient.patch(`/riskhub/roles/${id}`, data, { schema: roleHubReadSchema }),
 
     deleteRole: (id: number) =>
-        apiClient.delete<{ status: string; id: number }>(`/riskhub/roles/${id}`),
+        apiClient.delete(`/riskhub/roles/${id}`, { schema: roleDeleteResponseSchema }),
 
     restoreRole: (id: number) =>
-        apiClient.post<RoleHubRead>(`/riskhub/roles/${id}/restore`, {}),
+        apiClient.post(`/riskhub/roles/${id}/restore`, {}, { schema: roleHubReadSchema }),
 
     // Departments
     getDepartments: (includeInactive = false) =>
-        apiClient.get<DepartmentHubRead[]>('/riskhub/departments', { params: { include_inactive: includeInactive } }),
+        apiClient.get('/riskhub/departments', {
+            params: { include_inactive: includeInactive },
+            schema: departmentHubReadArraySchema,
+        }),
 
     createDepartment: (data: DepartmentHubCreate) =>
-        apiClient.post<DepartmentHubRead>('/riskhub/departments', data),
+        apiClient.post('/riskhub/departments', data, { schema: departmentHubReadSchema }),
 
     updateDepartment: (id: number, data: DepartmentHubUpdate) =>
-        apiClient.patch<DepartmentHubRead>(`/riskhub/departments/${id}`, data),
+        apiClient.patch(`/riskhub/departments/${id}`, data, { schema: departmentHubReadSchema }),
 
     deleteDepartment: (id: number) =>
-        apiClient.delete<{ status: string; id: number }>(`/riskhub/departments/${id}`),
+        apiClient.delete(`/riskhub/departments/${id}`, { schema: departmentDeleteResponseSchema }),
 
     restoreDepartment: (id: number) =>
-        apiClient.post<DepartmentHubRead>(`/riskhub/departments/${id}/restore`, {}),
+        apiClient.post(`/riskhub/departments/${id}/restore`, {}, {
+            schema: departmentHubReadSchema,
+        }),
 };

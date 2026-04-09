@@ -55,21 +55,21 @@ export interface Control {
     id: number;
     name: string;
     description: string;
-    data_source?: string;
-    methodology_reference?: string;
+    data_source?: string | null;
+    methodology_reference?: string | null;
     control_form: ControlForm;
-    process_owner_position?: string;
-    control_owner_id?: number;
-    executor_position?: string;
+    process_owner_position?: string | null;
+    control_owner_id?: number | null;
+    executor_position?: string | null;
     frequency: ControlFrequency;
     risk_level: number;
-    output_description?: string;
-    report_recipient?: string;
-    documentation_location?: string;
-    department_id?: number;
+    output_description?: string | null;
+    report_recipient?: string | null;
+    documentation_location?: string | null;
+    department_id?: number | null;
     status: ControlStatus;
-    created_by_id?: number;
-    updated_by_id?: number;
+    created_by_id?: number | null;
+    updated_by_id?: number | null;
     created_at: string;
     updated_at: string;
 
@@ -78,31 +78,31 @@ export interface Control {
         id: number;
         name: string;
         email: string;
-    };
+    } | null;
     department?: {
         id: number;
         name: string;
         code: string;
-    };
+    } | null;
 }
 
 export interface ControlSummary extends ControlMonitoringFields {
     id: number;
     name: string;
-    description?: string;
-    department_id?: number;
-    department_name?: string;
+    description?: string | null;
+    department_id?: number | null;
+    department_name?: string | null;
     frequency: ControlFrequency;
     risk_level: number;
     status: ControlStatus;
     control_form: ControlForm;
-    control_owner_name?: string;
-    risk_type?: string;
-    risk_id_code?: string;
-    risk_name?: string;
-    risk_description?: string;
-    risk_owner_name?: string;
-    risk_department_name?: string;
+    control_owner_name?: string | null;
+    risk_type?: string | null;
+    risk_id_code?: string | null;
+    risk_name?: string | null;
+    risk_description?: string | null;
+    risk_owner_name?: string | null;
+    risk_department_name?: string | null;
     linked_vendors?: LinkedVendorSummary[];
 }
 
@@ -122,7 +122,7 @@ export interface ControlRiskLink {
     control_id: number;
     risk_id: number;
     effectiveness: ControlEffectiveness;
-    notes?: string;
+    notes?: string | null;
     created_at: string;
     control?: ControlMonitoringFields & {
         id: number;

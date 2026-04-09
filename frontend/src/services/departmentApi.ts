@@ -1,4 +1,12 @@
 import { apiClient } from './apiClient';
+import {
+    controlSummarySchema,
+    departmentDetailSchema,
+    departmentSummaryArraySchema,
+    kriListResponseSchema,
+    riskSummarySchema,
+    z,
+} from '@/services/api/schemas';
 import type { ControlSummary } from '@/types/control';
 import type { KRIListResponse, KRIMonitoringStatus } from '@/types/kri';
 import type { RiskSummary } from '@/types/risk';
@@ -44,7 +52,7 @@ export interface DepartmentDetail {
     id: number;
     name: string;
     code: string;
-    description?: string;
+    description?: string | null;
     created_at: string;
     updated_at: string;
     user_count: number;
@@ -63,14 +71,14 @@ export const departmentApi = {
      * Get list of all departments with summary statistics
      */
     getDepartments: async (): Promise<DepartmentSummary[]> => {
-        return apiClient.get<DepartmentSummary[]>('/departments');
+        return apiClient.get('/departments', { schema: departmentSummaryArraySchema });
     },
 
     /**
      * Get detailed department information
      */
     getDepartment: async (id: number): Promise<DepartmentDetail> => {
-        return apiClient.get<DepartmentDetail>(`/departments/${id}`);
+        return apiClient.get(`/departments/${id}`, { schema: departmentDetailSchema });
     },
 
     /**
@@ -85,7 +93,10 @@ export const departmentApi = {
             min_net_score?: number;
         }
     ): Promise<RiskSummary[]> => {
-        return apiClient.get<RiskSummary[]>(`/departments/${id}/risks`, { params });
+        return apiClient.get(`/departments/${id}/risks`, {
+            params,
+            schema: z.array(riskSummarySchema),
+        });
     },
 
     /**
@@ -99,7 +110,10 @@ export const departmentApi = {
             status?: string;
         }
     ): Promise<ControlSummary[]> => {
-        return apiClient.get<ControlSummary[]>(`/departments/${id}/controls`, { params });
+        return apiClient.get(`/departments/${id}/controls`, {
+            params,
+            schema: z.array(controlSummarySchema),
+        });
     },
 
     /**
@@ -113,6 +127,9 @@ export const departmentApi = {
             monitoring_status?: KRIMonitoringStatus;
         }
     ): Promise<KRIListResponse> => {
-        return apiClient.get<KRIListResponse>(`/departments/${id}/kris`, { params });
+        return apiClient.get(`/departments/${id}/kris`, {
+            params,
+            schema: kriListResponseSchema,
+        });
     },
 };

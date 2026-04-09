@@ -155,7 +155,7 @@ export function RiskForm({
                 setDepartments(deptData);
 
                 // Extract unique process names
-                type RiskItem = { process?: string; subprocess?: string; category?: string };
+                type RiskItem = { process?: string | null; subprocess?: string | null; category?: string | null };
                 const processes = [...new Set(risksData.items.map((r: RiskItem) => r.process).filter(Boolean))];
                 setExistingProcesses(processes as string[]);
 

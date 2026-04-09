@@ -68,6 +68,7 @@ Execution logging may also be permission-gated. In most environments:
 
 - control owners and delegated executors can log executions
 - reviewers can read execution history
+- control owners can also manage risk links for their controls across departments when they have `controls:write` and can access the target risk
 
 Default seeded roles with `controls:execute` are CRO, Risk Manager, Compliance, Internal Audit, Actuarial, Department Head, and Employee.
 

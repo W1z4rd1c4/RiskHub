@@ -1,17 +1,26 @@
 import { apiClient } from '@/services/apiClient';
-import type { DirectoryImportResponse, DirectoryUser } from '@/types/directory';
+import {
+    directoryImportResponseSchema,
+    directoryUserArraySchema,
+    directoryUserSchema,
+} from '@/services/api/schemas';
 
 export const directoryApi = {
     searchUsers(q: string, limit = 25) {
-        return apiClient.get<DirectoryUser[]>('/directory/users/search', { params: { q, limit } });
+        return apiClient.get('/directory/users/search', {
+            params: { q, limit },
+            schema: directoryUserArraySchema,
+        });
     },
 
     getUser(oid: string) {
-        return apiClient.get<DirectoryUser>(`/directory/users/${oid}`);
+        return apiClient.get(`/directory/users/${oid}`, { schema: directoryUserSchema });
     },
 
     importUser(oid: string, roleId?: number) {
         const payload = roleId ? { role_id: roleId } : {};
-        return apiClient.post<DirectoryImportResponse>(`/directory/users/${oid}/import`, payload);
+        return apiClient.post(`/directory/users/${oid}/import`, payload, {
+            schema: directoryImportResponseSchema,
+        });
     },
 };

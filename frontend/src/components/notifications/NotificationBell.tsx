@@ -35,7 +35,16 @@ function getNotificationIcon(type: NotificationType) {
         case 'questionnaire_submitted':
             return <CheckCircle className="h-4 w-4 text-emerald-400" />;
         case 'questionnaire_clarification_requested':
+        case 'issue_exception_requested':
             return <AlertTriangle className="h-4 w-4 text-orange-400" />;
+        case 'issue_due_soon':
+            return <Clock className="h-4 w-4 text-amber-400" />;
+        case 'issue_overdue':
+            return <AlertCircle className="h-4 w-4 text-rose-400" />;
+        case 'issue_exception_approved':
+            return <CheckCircle className="h-4 w-4 text-emerald-400" />;
+        case 'issue_assigned':
+            return <Bell className="h-4 w-4 text-sky-400" />;
         default:
             return <Bell className="h-4 w-4 text-slate-400" />;
     }
@@ -53,6 +62,8 @@ function getResourcePath(notification: Notification): string | null {
             return `/controls/${resourceId}`;
         case 'kri':
             return `/kris/${resourceId}`;
+        case 'issue':
+            return `/issues/${resourceId}`;
         case 'vendor': {
             return buildVendorDetailPath(resourceId);
         }

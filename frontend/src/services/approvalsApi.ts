@@ -1,25 +1,30 @@
 import { apiClient } from './apiClient';
-import type { ApprovalRequest, ApprovalListResponse, CreateApprovalRequest, ResolveApprovalRequest } from '../types/approval';
+import {
+    approvalListResponseSchema,
+    approvalRequestSchema,
+    countSchema,
+} from '@/services/api/schemas';
+import type { CreateApprovalRequest, ResolveApprovalRequest } from '../types/approval';
 
 export const approvalsApi = {
     list: (params?: { status?: string; my_requests?: boolean; skip?: number; limit?: number }) =>
-        apiClient.get<ApprovalListResponse>('/approvals', { params }),
+        apiClient.get('/approvals', { params, schema: approvalListResponseSchema }),
 
     get: (id: number) =>
-        apiClient.get<ApprovalRequest>(`/approvals/${id}`),
+        apiClient.get(`/approvals/${id}`, { schema: approvalRequestSchema }),
 
     create: (data: CreateApprovalRequest) =>
-        apiClient.post<ApprovalRequest>('/approvals', data),
+        apiClient.post('/approvals', data, { schema: approvalRequestSchema }),
 
     approve: (id: number, data: ResolveApprovalRequest) =>
-        apiClient.post<ApprovalRequest>(`/approvals/${id}/approve`, data),
+        apiClient.post(`/approvals/${id}/approve`, data, { schema: approvalRequestSchema }),
 
     reject: (id: number, data: ResolveApprovalRequest) =>
-        apiClient.post<ApprovalRequest>(`/approvals/${id}/reject`, data),
+        apiClient.post(`/approvals/${id}/reject`, data, { schema: approvalRequestSchema }),
 
     cancel: (id: number) =>
-        apiClient.post<ApprovalRequest>(`/approvals/${id}/cancel`, {}),
+        apiClient.post(`/approvals/${id}/cancel`, {}, { schema: approvalRequestSchema }),
 
     getPendingCount: () =>
-        apiClient.get<{ count: number }>('/approvals/pending/count'),
+        apiClient.get('/approvals/pending/count', { schema: countSchema }),
 };

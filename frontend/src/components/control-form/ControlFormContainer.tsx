@@ -104,7 +104,7 @@ export function ControlForm({
     const filteredUsers = filterUsers(users, {
         ownerSearch,
         roleFilter,
-        departmentId: formData.department_id,
+        departmentId: formData.department_id ?? undefined,
     });
     const uniqueRoles = getUniqueRoles(users);
     const selectedRisk = risks.find((risk) => risk.id === selectedRiskId);

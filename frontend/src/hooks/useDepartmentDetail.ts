@@ -15,8 +15,8 @@ export interface DeptUser {
     id: number;
     name: string;
     email: string;
-    role_name?: string;
-    department_id?: number;
+    role_name?: string | null;
+    department_id?: number | null;
 }
 
 export type TabView = 'risks' | 'controls' | 'kris' | 'activity' | 'users';

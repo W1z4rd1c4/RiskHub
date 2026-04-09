@@ -2,6 +2,23 @@
  * Authentication API client for JWT-based authentication
  */
 
+import type { infer as ZodInfer, ZodTypeAny } from 'zod';
+
+import { ApiClientError } from '@/services/api/apiErrors';
+import {
+    authConfigResponseSchema,
+    authUserSchema,
+    logoutSuccessSchema,
+    ssoStartResponseSchema,
+    tokenResponseSchema,
+    voidSchema,
+} from '@/services/api/schemas';
+import {
+    extractErrorCode,
+    parseBodyWithSchema,
+    rawErrorMessageFromBody,
+    readResponseBody,
+} from '@/services/api/responseParsing';
 import { clearCsrfToken, getCsrfToken } from '@/services/csrfToken';
 import { AuthRequestError, fetchAuthResponse } from '@/services/authRequest';
 import { clearRefreshSessionHint } from '@/services/refreshSessionHint';
@@ -37,9 +54,9 @@ export interface AuthConfigResponse {
     sso: {
         enabled: boolean;
         provider: 'entra';
-        tenant_id?: string;
-        client_id?: string;
-        authority?: string;
+        tenant_id?: string | null;
+        client_id?: string | null;
+        authority?: string | null;
         scopes: string[];
     };
     sso_error?: string | null;
@@ -57,8 +74,8 @@ export interface TokenResponse {
         role: string;
         role_display_name: string;
         entra_business_role?: string | null;
-        department_id?: number;
-        department_name?: string;
+        department_id?: number | null;
+        department_name?: string | null;
         permissions: string[];
         effective_permissions: string[];
         access_scope: 'global' | 'department' | 'manager';
@@ -73,19 +90,10 @@ interface ParsedAuthError {
     code?: string;
 }
 
-async function parseAuthJson<T>(response: Response): Promise<T> {
-    const payload: unknown = await response.json();
-    return payload as T;
-}
-
 async function parseAuthError(response: Response, fallbackMessage: string): Promise<ParsedAuthError> {
-    const error: unknown = await parseAuthJson<unknown>(response).catch(
-        () => ({} as Record<string, never>),
-    );
-    const detail = (error as { detail?: string }).detail || fallbackMessage;
-    const code = typeof (error as { code?: unknown }).code === 'string'
-        ? String((error as { code: string }).code)
-        : undefined;
+    const body = await readResponseBody(response);
+    const detail = rawErrorMessageFromBody(body, response.status) || fallbackMessage;
+    const code = body.isJson ? extractErrorCode(body.json) : undefined;
     return { detail, code };
 }
 
@@ -98,13 +106,34 @@ function buildAuthRequestError(response: Response, detail: string): AuthRequestE
     });
 }
 
-async function requestAuthJson<T>(path: string, init: RequestInit, fallbackMessage: string): Promise<T> {
+async function parseValidatedAuthBody<S extends ZodTypeAny>(
+    response: Response,
+    schema: S,
+    fallbackMessage: string,
+): Promise<ZodInfer<S>> {
+    const body = await readResponseBody(response);
+    try {
+        return parseBodyWithSchema(body, schema, response.status);
+    } catch (error) {
+        if (error instanceof ApiClientError) {
+            throw buildAuthRequestError(response, error.rawMessage ?? fallbackMessage);
+        }
+        throw buildAuthRequestError(response, fallbackMessage);
+    }
+}
+
+async function requestAuthJson<S extends ZodTypeAny>(
+    path: string,
+    init: RequestInit,
+    fallbackMessage: string,
+    schema: S,
+): Promise<ZodInfer<S>> {
     const response = await fetchAuthResponse(`${API_URL}${path}`, init);
     if (!response.ok) {
         const { detail } = await parseAuthError(response, fallbackMessage);
         throw buildAuthRequestError(response, detail);
     }
-    return parseAuthJson<T>(response);
+    return parseValidatedAuthBody(response, schema, fallbackMessage);
 }
 
 async function requestAuthVoid(path: string, init: RequestInit, fallbackMessage: string): Promise<void> {
@@ -113,6 +142,7 @@ async function requestAuthVoid(path: string, init: RequestInit, fallbackMessage:
         const { detail } = await parseAuthError(response, fallbackMessage);
         throw buildAuthRequestError(response, detail);
     }
+    await parseValidatedAuthBody(response, voidSchema, fallbackMessage);
 }
 
 export const authApi = {
@@ -133,50 +163,50 @@ export const authApi = {
             });
         }
 
-        return parseAuthJson<AuthConfigResponse>(response);
+        return parseValidatedAuthBody(response, authConfigResponseSchema, 'Failed to get auth config');
     },
 
     async login(credentials: LoginRequest): Promise<TokenResponse> {
-        return requestAuthJson<TokenResponse>('/login', {
+        return requestAuthJson('/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(credentials),
             credentials: 'include',
-        }, 'Login failed');
+        }, 'Login failed', tokenResponseSchema);
     },
 
     async demoLogin(email: string): Promise<TokenResponse> {
-        return requestAuthJson<TokenResponse>('/demo-login', {
+        return requestAuthJson('/demo-login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email } satisfies DemoLoginRequest),
             credentials: 'include',
-        }, 'Demo login failed');
+        }, 'Demo login failed', tokenResponseSchema);
     },
 
     async ssoStart(returnTo?: string): Promise<{ nonce: string; state: string; expires_in: number }> {
-        return requestAuthJson<{ nonce: string; state: string; expires_in: number }>('/sso/start', {
+        return requestAuthJson('/sso/start', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ return_to: returnTo ?? '/' }),
             credentials: 'include',
-        }, 'SSO start failed');
+        }, 'SSO start failed', ssoStartResponseSchema);
     },
 
     async ssoExchange(idToken: string, state: string): Promise<TokenResponse> {
-        return requestAuthJson<TokenResponse>('/sso/exchange', {
+        return requestAuthJson('/sso/exchange', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id_token: idToken, state }),
             credentials: 'include',
-        }, 'SSO exchange failed');
+        }, 'SSO exchange failed', tokenResponseSchema);
     },
 
     async getCurrentUser(token: string): Promise<TokenResponse['user']> {
-        return requestAuthJson<TokenResponse['user']>('/me', {
+        return requestAuthJson('/me', {
             headers: { 'Authorization': `Bearer ${token}` },
             credentials: 'include',
-        }, 'Failed to get current user');
+        }, 'Failed to get current user', authUserSchema);
     },
 
     async refresh(): Promise<TokenResponse> {
@@ -207,7 +237,7 @@ export const authApi = {
                 throw buildAuthRequestError(response, parsedError.detail);
             }
 
-            return parseAuthJson<TokenResponse>(response);
+            return parseValidatedAuthBody(response, tokenResponseSchema, 'Refresh failed');
         };
 
         return performRefresh(true);
@@ -231,11 +261,11 @@ export const authApi = {
 
     async logoutAll(): Promise<void> {
         const accessToken = getSessionSnapshot().token;
-        await requestAuthVoid('/logout-all', {
+        await requestAuthJson('/logout-all', {
             method: 'POST',
             headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
             credentials: 'include',
-        }, 'Logout all failed');
+        }, 'Logout all failed', logoutSuccessSchema);
         applyAnonymousSession();
         clearRefreshSessionHint();
         clearCsrfToken();
@@ -257,10 +287,10 @@ export const authApi = {
             headers.set('X-CSRF-Token', csrfToken);
         }
 
-        await requestAuthVoid('/logout', {
+        await requestAuthJson('/logout', {
             method: 'POST',
             headers,
             credentials: 'include',
-        }, 'Logout failed');
+        }, 'Logout failed', logoutSuccessSchema);
     },
 };

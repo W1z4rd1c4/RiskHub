@@ -96,6 +96,8 @@ Zápis a archivace jsou permission-gated:
 
 - `risks:write` pro create/edit
 - `risks:delete` pro archive/restore (dle policy)
+- ownership výjimky mohou ponechat workflow pro linked controls dostupné i mimo vlastní oddělení
+- link/unlink kontroly z rizika ale stále vyžaduje `risks:write` a přístup k cílové kontrole; samotný ownership-based přístup na straně rizika nestačí
 
 ## Datový model a klíčová pole
 

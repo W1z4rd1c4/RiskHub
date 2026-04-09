@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from '@/i18n/hooks';
+import { issueDetailQueryKey, issueHistoryQueryKey } from '@/lib/issueQueryKeys';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import {
     ISSUE_ACTION_ROW,
@@ -19,13 +21,13 @@ import {
 } from './issueUi';
 import { issuesApi } from '@/services/issuesApi';
 import { apiClient } from '@/services/apiClient';
+import { useSessionSnapshot } from '@/services/sessionStore';
 import type { Issue, IssueOwnerLookup, IssueRemediationStatus, IssueStatus } from '@/types/issue';
 
 interface RemediationPlanCardProps {
     issue: Issue;
     canWrite: boolean;
     canApprove: boolean;
-    onIssueUpdated: (issue: Issue) => void;
 }
 
 const REMEDIATION_STATUSES: IssueRemediationStatus[] = ['draft', 'active', 'blocked', 'completed'];
@@ -78,8 +80,10 @@ function SummaryField({ label, value }: { label: string; value: string }) {
     );
 }
 
-export function RemediationPlanCard({ issue, canWrite, canApprove, onIssueUpdated }: RemediationPlanCardProps) {
+export function RemediationPlanCard({ issue, canWrite, canApprove }: RemediationPlanCardProps) {
     const { t, i18n } = useTranslation('issues');
+    const queryClient = useQueryClient();
+    const session = useSessionSnapshot();
 
     const [assignOwnerId, setAssignOwnerId] = useState<string>(issue.owner_user_id ? String(issue.owner_user_id) : '');
     const [assignDueAt, setAssignDueAt] = useState<string>(toDateTimeInputValue(issue.due_at));
@@ -166,9 +170,20 @@ export function RemediationPlanCard({ issue, canWrite, canApprove, onIssueUpdate
         return '';
     }, [issue.status, t]);
 
+    const syncIssue = async (updatedIssue: Issue) => {
+        queryClient.setQueryData(issueDetailQueryKey(session.user?.id, issue.id), updatedIssue);
+        await queryClient.invalidateQueries({
+            queryKey: issueHistoryQueryKey(session.user?.id, issue.id),
+        });
+    };
+
     const refreshIssue = async () => {
-        const refreshed = await issuesApi.get(issue.id);
-        onIssueUpdated(refreshed);
+        await queryClient.invalidateQueries({
+            queryKey: issueDetailQueryKey(session.user?.id, issue.id),
+        });
+        await queryClient.invalidateQueries({
+            queryKey: issueHistoryQueryKey(session.user?.id, issue.id),
+        });
     };
 
     const runMutation = async (fn: () => Promise<void>) => {
@@ -205,7 +220,7 @@ export function RemediationPlanCard({ issue, canWrite, canApprove, onIssueUpdate
                 due_at: dueAt,
                 target_date: dueAt,
             });
-            onIssueUpdated(updated);
+            await syncIssue(updated);
         });
     };
 
@@ -214,7 +229,7 @@ export function RemediationPlanCard({ issue, canWrite, canApprove, onIssueUpdate
             const updated = await issuesApi.startRemediation(issue.id, {
                 target_date: toIsoOrUndefined(assignDueAt),
             });
-            onIssueUpdated(updated);
+            await syncIssue(updated);
         });
     };
 
@@ -227,7 +242,7 @@ export function RemediationPlanCard({ issue, canWrite, canApprove, onIssueUpdate
                 blocker_reason: blockerReason || undefined,
                 completion_notes: completionNotes || undefined,
             });
-            onIssueUpdated(updated);
+            await syncIssue(updated);
         });
     };
 
@@ -275,7 +290,7 @@ export function RemediationPlanCard({ issue, canWrite, canApprove, onIssueUpdate
                 validation_note: validationNote.trim(),
                 completion_notes: completionNotes || undefined,
             });
-            onIssueUpdated(updated);
+            await syncIssue(updated);
         });
     };
 

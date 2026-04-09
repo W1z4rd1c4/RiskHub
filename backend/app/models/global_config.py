@@ -2,7 +2,7 @@
 
 import time
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Dict, TypeVar
+from typing import TYPE_CHECKING, Any, Dict, TypeVar, overload
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -173,11 +173,26 @@ def build_risk_level_ranges(medium: int, high: int, critical: int) -> dict[str, 
     }
 
 
+@overload
 async def get_config_value(
     db: "AsyncSession",
     key: str,
-    default: T = None,
-) -> T:
+) -> Any | None: ...
+
+
+@overload
+async def get_config_value(
+    db: "AsyncSession",
+    key: str,
+    default: T,
+) -> T: ...
+
+
+async def get_config_value(
+    db: "AsyncSession",
+    key: str,
+    default: T | None = None,
+) -> T | Any | None:
     """
     Fetch a typed config value from the database with caching.
 
@@ -238,7 +253,15 @@ async def get_config_float(
         return default
 
 
-def get_config_sync(key: str, default: T = None) -> T:
+@overload
+def get_config_sync(key: str) -> Any | None: ...
+
+
+@overload
+def get_config_sync(key: str, default: T) -> T: ...
+
+
+def get_config_sync(key: str, default: T | None = None) -> T | Any | None:
     """
     Get config value synchronously from cache only.
 

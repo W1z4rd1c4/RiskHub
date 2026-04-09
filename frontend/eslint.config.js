@@ -5,22 +5,13 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 import { defineConfig, globalIgnores } from "eslint/config";
 
-const phase252OwnedPaths = [
+const maintainedModulePaths = [
   "src/components/kri-form/**/*.{ts,tsx}",
   "src/components/vendor-form/**/*.{ts,tsx}",
   "src/pages/issues/issue-detail/**/*.{ts,tsx}",
   "src/pages/dashboard/**/*.{ts,tsx}",
   "src/services/api/**/*.{ts,tsx}",
   "src/services/admin/**/*.{ts,tsx}",
-];
-
-const phase252FacadePaths = [
-  "src/components/KRIForm.tsx",
-  "src/components/VendorForm.tsx",
-  "src/pages/IssueDetailPage.tsx",
-  "src/pages/DashboardPage.tsx",
-  "src/services/apiClient.ts",
-  "src/services/adminApi.ts",
 ];
 
 export default defineConfig([
@@ -89,7 +80,7 @@ export default defineConfig([
     },
   },
   {
-    files: phase252OwnedPaths,
+    files: maintainedModulePaths,
     rules: {
       "no-console": "error",
       "max-lines": [
@@ -104,9 +95,11 @@ export default defineConfig([
     },
   },
   {
-    files: phase252FacadePaths,
+    files: ["src/services/api/schemas/**/*.ts"],
     rules: {
-      "no-console": "error",
+      "max-lines": "off",
+      "max-lines-per-function": "off",
+      complexity: "off",
     },
   },
   {
@@ -121,51 +114,6 @@ export default defineConfig([
         { max: 25, skipBlankLines: true, skipComments: true, IIFEs: true },
       ],
       complexity: ["error", 2],
-    },
-  },
-  {
-    files: ["src/components/VendorForm.tsx"],
-    rules: {
-      "max-lines": [
-        "error",
-        { max: 550, skipBlankLines: true, skipComments: true },
-      ],
-    },
-  },
-  {
-    files: ["src/pages/IssueDetailPage.tsx"],
-    rules: {
-      "max-lines": [
-        "error",
-        { max: 410, skipBlankLines: true, skipComments: true },
-      ],
-    },
-  },
-  {
-    files: ["src/pages/DashboardPage.tsx"],
-    rules: {
-      "max-lines": [
-        "error",
-        { max: 480, skipBlankLines: true, skipComments: true },
-      ],
-    },
-  },
-  {
-    files: ["src/services/apiClient.ts"],
-    rules: {
-      "max-lines": [
-        "error",
-        { max: 310, skipBlankLines: true, skipComments: true },
-      ],
-    },
-  },
-  {
-    files: ["src/services/adminApi.ts"],
-    rules: {
-      "max-lines": [
-        "error",
-        { max: 225, skipBlankLines: true, skipComments: true },
-      ],
     },
   },
 ]);

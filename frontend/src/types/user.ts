@@ -57,20 +57,20 @@ export interface UserLookup {
     id: number;
     name: string;
     email: string;
-    role_name?: string;
-    department_id?: number;
-    department_name?: string;
-    manager_id?: number;
+    role_name?: string | null;
+    department_id?: number | null;
+    department_name?: string | null;
+    manager_id?: number | null;
 }
 
 export interface UserDirectoryEntry {
     id: number;
     name: string;
     email: string;
-    role_name?: string;
-    role_display_name?: string;
-    department_id?: number;
-    department_name?: string;
+    role_name?: string | null;
+    role_display_name?: string | null;
+    department_id?: number | null;
+    department_name?: string | null;
 }
 
 export interface UserDirectoryRoleFacet {

@@ -103,6 +103,6 @@ export function mapRiskToSummary(risk: Risk): RiskSummary {
         is_priority: risk.is_priority,
         department_id: risk.department_id,
         department_name: risk.department?.name ?? risk.department?.code ?? undefined,
-        owner_id: risk.owner_id,
+        owner_id: risk.owner_id ?? undefined,
     };
 }

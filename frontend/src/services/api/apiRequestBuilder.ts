@@ -37,9 +37,9 @@ export function buildUrl(baseUrl: string, endpoint: string, params?: RequestOpti
 export function buildPreparedRequest(
     baseUrl: string,
     endpoint: string,
-    options: RequestOptions = {},
+    options: RequestOptions & { schema?: unknown } = {},
 ): PreparedRequest {
-    const { params, ...init } = options;
+    const { params, schema: _schema, ...init } = options;
     const url = buildUrl(baseUrl, endpoint, params);
     const headers = new Headers(init.headers);
     const token = getSessionSnapshot().token;

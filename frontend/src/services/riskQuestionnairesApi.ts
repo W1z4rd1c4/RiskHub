@@ -1,55 +1,75 @@
 import { apiClient } from './apiClient';
+import {
+    riskQuestionnaireClarificationArraySchema,
+    riskQuestionnaireClarificationSchema,
+    riskQuestionnaireDetailSchema,
+    riskQuestionnaireListItemArraySchema,
+} from '@/services/api/schemas';
 import type {
-    RiskQuestionnaireListItem,
-    RiskQuestionnaireDetail,
     RiskQuestionnaireDraftUpdate,
     RiskQuestionnaireSubmit,
-    RiskQuestionnaireClarification,
     RiskQuestionnaireClarificationCreate,
     RiskQuestionnaireClarificationRespond,
 } from '@/types/riskQuestionnaire';
 
 export const riskQuestionnairesApi = {
     inbox: () =>
-        apiClient.get<RiskQuestionnaireListItem[]>(`/questionnaires/inbox`),
+        apiClient.get(`/questionnaires/inbox`, { schema: riskQuestionnaireListItemArraySchema }),
 
     listForRisk: (riskId: number) =>
-        apiClient.get<RiskQuestionnaireListItem[]>(`/risks/${riskId}/questionnaires`),
+        apiClient.get(`/risks/${riskId}/questionnaires`, {
+            schema: riskQuestionnaireListItemArraySchema,
+        }),
 
     sendForRisk: (riskId: number) =>
-        apiClient.post<RiskQuestionnaireDetail>(`/risks/${riskId}/questionnaires/send`, {}),
+        apiClient.post(`/risks/${riskId}/questionnaires/send`, {}, {
+            schema: riskQuestionnaireDetailSchema,
+        }),
 
     get: (questionnaireId: number, options: { includePrevious?: boolean } = {}) =>
-        apiClient.get<RiskQuestionnaireDetail>(`/questionnaires/${questionnaireId}`, {
+        apiClient.get(`/questionnaires/${questionnaireId}`, {
             params: options.includePrevious ? { include_previous: true } : undefined,
+            schema: riskQuestionnaireDetailSchema,
         }),
 
     open: (questionnaireId: number, options: { includePrevious?: boolean } = {}) =>
-        apiClient.post<RiskQuestionnaireDetail>(
+        apiClient.post(
             `/questionnaires/${questionnaireId}/open`,
             {},
-            { params: options.includePrevious ? { include_previous: true } : undefined }
+            {
+                params: options.includePrevious ? { include_previous: true } : undefined,
+                schema: riskQuestionnaireDetailSchema,
+            },
         ),
 
     saveDraft: (questionnaireId: number, answers: Record<string, unknown>) =>
-        apiClient.patch<RiskQuestionnaireDetail>(`/questionnaires/${questionnaireId}/draft`, {
+        apiClient.patch(`/questionnaires/${questionnaireId}/draft`, {
             answers,
-        } satisfies RiskQuestionnaireDraftUpdate),
+        } satisfies RiskQuestionnaireDraftUpdate, {
+            schema: riskQuestionnaireDetailSchema,
+        }),
 
     submit: (questionnaireId: number, answers: Record<string, unknown>) =>
-        apiClient.post<RiskQuestionnaireDetail>(`/questionnaires/${questionnaireId}/submit`, {
+        apiClient.post(`/questionnaires/${questionnaireId}/submit`, {
             answers,
-        } satisfies RiskQuestionnaireSubmit),
+        } satisfies RiskQuestionnaireSubmit, {
+            schema: riskQuestionnaireDetailSchema,
+        }),
 
     listClarifications: (questionnaireId: number) =>
-        apiClient.get<RiskQuestionnaireClarification[]>(`/questionnaires/${questionnaireId}/clarifications`),
+        apiClient.get(`/questionnaires/${questionnaireId}/clarifications`, {
+            schema: riskQuestionnaireClarificationArraySchema,
+        }),
 
     createClarification: (questionnaireId: number, payload: RiskQuestionnaireClarificationCreate) =>
-        apiClient.post<RiskQuestionnaireClarification>(`/questionnaires/${questionnaireId}/clarifications`, payload),
+        apiClient.post(`/questionnaires/${questionnaireId}/clarifications`, payload, {
+            schema: riskQuestionnaireClarificationSchema,
+        }),
 
     respondClarification: (questionnaireId: number, clarificationId: number, payload: RiskQuestionnaireClarificationRespond) =>
-        apiClient.post<RiskQuestionnaireClarification>(
+        apiClient.post(
             `/questionnaires/${questionnaireId}/clarifications/${clarificationId}/respond`,
-            payload
+            payload,
+            { schema: riskQuestionnaireClarificationSchema },
         ),
 };

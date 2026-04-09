@@ -74,8 +74,8 @@ type AuthMeUser = {
     effective_permissions: string[];
     access_scope: 'global' | 'department' | 'manager';
     scope_label: string;
-    department_id?: number;
-    department_name?: string;
+    department_id?: number | null;
+    department_name?: string | null;
 };
 
 type AccessUserApi = {
@@ -139,8 +139,8 @@ function makeDirectoryResponse(overrides?: {
         id: number;
         name: string;
         email: string;
-        role_name: string;
-        role_display_name: string;
+        role_name: string | null;
+        role_display_name: string | null;
         department_id: number | null;
         department_name: string | null;
     }>;
@@ -322,6 +322,52 @@ describe('UsersPage mode selection', () => {
         expect(screen.queryByText('Privileged')).not.toBeInTheDocument();
         expect(screen.queryByText('Sys Admins')).not.toBeInTheDocument();
         expect(screen.queryByTitle('Edit Access')).not.toBeInTheDocument();
+        expect(accessHandler).not.toHaveBeenCalled();
+        expect(deptAccessHandler).not.toHaveBeenCalled();
+        expect(directoryHandler).toHaveBeenCalledTimes(1);
+    });
+
+    it('renders directory users with null role and department metadata', async () => {
+        const accessHandler = vi.fn(() => HttpResponse.json([]));
+        const deptAccessHandler = vi.fn(() => HttpResponse.json([]));
+        const directoryHandler = vi.fn(() =>
+            HttpResponse.json(makeDirectoryResponse({
+                items: [
+                    {
+                        id: 302,
+                        name: 'Unassigned Colleague',
+                        email: 'unassigned@riskhub.test',
+                        role_name: null,
+                        role_display_name: null,
+                        department_id: null,
+                        department_name: null,
+                    },
+                ],
+                total: 1,
+            }))
+        );
+
+        server.use(
+            http.get('*/api/v1/auth/me', () =>
+                HttpResponse.json(
+                    makeUser({
+                        role: 'employee',
+                        role_display_name: 'Employee',
+                        access_scope: 'department',
+                        effective_permissions: ['users:read'],
+                    })
+                )
+            ),
+            http.get('*/api/v1/access/users', accessHandler),
+            http.get('*/api/v1/access/users/my-department', deptAccessHandler),
+            http.get('*/api/v1/users/directory', directoryHandler)
+        );
+
+        await renderUsersRoute();
+
+        expect(await screen.findByText('Unassigned Colleague')).toBeInTheDocument();
+        expect(screen.getAllByText('Unknown').length).toBeGreaterThan(0);
+        expect(screen.getByText('No department')).toBeInTheDocument();
         expect(accessHandler).not.toHaveBeenCalled();
         expect(deptAccessHandler).not.toHaveBeenCalled();
         expect(directoryHandler).toHaveBeenCalledTimes(1);

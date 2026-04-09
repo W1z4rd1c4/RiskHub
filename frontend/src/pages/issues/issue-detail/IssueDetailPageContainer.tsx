@@ -5,7 +5,7 @@ import { AlertTriangle, ArrowLeft, History, RefreshCw, Target, Wrench } from 'lu
 import { issuePill, issueSeverityClass, issueStatusClass } from '@/components/issues/issueUi';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useTranslation } from '@/i18n/hooks';
-import type { Issue, IssueSeverity, IssueStatus } from '@/types/issue';
+import type { IssueSeverity, IssueStatus } from '@/types/issue';
 
 import { IssueHistoryTab } from './IssueHistoryTab';
 import { IssueOverviewTab } from './IssueOverviewTab';
@@ -26,11 +26,11 @@ export function IssueDetailPageContainer() {
     const canApprove = hasPermission('issues', 'approve');
     const [activeTab, setActiveTab] = useState<IssueDetailTab>('overview');
 
-    const { errorKey, fetchIssue, isLoading, issue, setIssue } = useIssueDetail({
+    const { errorKey, refreshIssue, isLoading, issue } = useIssueDetail({
         canRead,
         issueId,
     });
-    const { historyItems, isHistoryLoading } = useIssueHistory({
+    const { historyItems, isHistoryLoading, refreshHistory } = useIssueHistory({
         activeTab,
         canViewActivityLog,
         issue,
@@ -55,10 +55,6 @@ export function IssueDetailPageContainer() {
         () => issue?.description || t('detail.messages.no_description'),
         [issue?.description, t],
     );
-
-    const handleIssueUpdated = (updatedIssue: Issue) => {
-        setIssue(updatedIssue);
-    };
 
     const tabs: Array<{ id: IssueDetailTab; label: string; icon: typeof Target }> = [
         { id: 'overview', label: t('detail.tabs.overview'), icon: Target },
@@ -145,7 +141,10 @@ export function IssueDetailPageContainer() {
                 <button
                     type="button"
                     onClick={() => {
-                        void fetchIssue();
+                        void refreshIssue();
+                        if (activeTab === 'history') {
+                            void refreshHistory();
+                        }
                     }}
                     className="p-3 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-white hover:border-accent/40 transition-all"
                     title={t('actions.refresh')}
@@ -192,7 +191,6 @@ export function IssueDetailPageContainer() {
                     canApprove={canApprove}
                     canWrite={canWrite}
                     issue={issue}
-                    onIssueUpdated={handleIssueUpdated}
                 />
             ) : null}
 

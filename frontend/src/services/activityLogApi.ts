@@ -1,4 +1,9 @@
 import { apiClient as api } from './apiClient';
+import {
+    activityLogListResponseSchema,
+    stringArraySchema,
+} from '@/services/api/schemas';
+import type { RequestOptions } from '@/services/apiClient';
 import type { ActivityLogListResponse } from '@/types/activityLog';
 
 export interface ActivityLogFilters {
@@ -17,17 +22,22 @@ export interface ActivityLogFilters {
 type ActivityLogQueryParams = Record<string, string | number | boolean | string[] | null | undefined>;
 
 export const activityLogApi = {
-    async list(filters: ActivityLogFilters = {}): Promise<ActivityLogListResponse> {
-        return api.get<ActivityLogListResponse>('/activity-log', {
+    async list(
+        filters: ActivityLogFilters = {},
+        options?: RequestOptions,
+    ): Promise<ActivityLogListResponse> {
+        return api.get('/activity-log', {
+            ...options,
             params: filters as ActivityLogQueryParams,
+            schema: activityLogListResponseSchema,
         });
     },
 
     async getEntityTypes(): Promise<string[]> {
-        return api.get('/activity-log/entity-types');
+        return api.get('/activity-log/entity-types', { schema: stringArraySchema });
     },
 
     async getActions(): Promise<string[]> {
-        return api.get('/activity-log/actions');
+        return api.get('/activity-log/actions', { schema: stringArraySchema });
     },
 };

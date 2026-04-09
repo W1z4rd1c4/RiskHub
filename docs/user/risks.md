@@ -96,6 +96,8 @@ Write and delete/archive actions are permission-gated:
 
 - `risks:write` for create/edit
 - `risks:delete` for archive/restore actions (depending on your policy)
+- ownership exceptions can keep linked-control workflows available outside your department
+- linking or unlinking a control from a risk still requires `risks:write` and access to the target control; ownership-based access on the risk side alone is not enough
 
 ## Data Model and Key Fields
 

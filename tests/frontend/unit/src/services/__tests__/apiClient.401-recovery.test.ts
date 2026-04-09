@@ -12,8 +12,11 @@ vi.mock('@/services/ssoSession', () => ({
 import { http, HttpResponse } from 'msw';
 
 import { server } from '@test/mocks/server';
+import { z } from '@/services/api/schemas';
 import { apiClient } from '@/services/apiClient';
 import { silentReauthAndExchange } from '@/services/ssoSession';
+
+const okSchema = z.object({ ok: z.boolean() }).passthrough();
 
 describe('apiClient 401 recovery', () => {
     beforeEach(() => {
@@ -36,7 +39,7 @@ describe('apiClient 401 recovery', () => {
             }),
         );
 
-        const response = await apiClient.get<{ ok: boolean }>('/test-401');
+        const response = await apiClient.get('/test-401', { schema: okSchema });
         expect(response.ok).toBe(true);
         expect(silentReauthAndExchange).toHaveBeenCalledTimes(1);
         expect(secondAuthHeader).toBe('Bearer refreshed-token');
@@ -51,7 +54,9 @@ describe('apiClient 401 recovery', () => {
 
         const originalHref = window.location.href;
 
-        await expect(apiClient.get('/test-401-fail')).rejects.toMatchObject({ status: 401 });
+        await expect(apiClient.get('/test-401-fail', { schema: okSchema })).rejects.toMatchObject({
+            status: 401,
+        });
         expect(window.location.href).toBe(originalHref);
     });
 

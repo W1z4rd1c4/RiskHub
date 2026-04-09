@@ -1,59 +1,67 @@
 import { apiClient } from '@/services/apiClient';
+import {
+    activeSessionArraySchema,
+    directoryCheckAllResponseSchema,
+    directoryCheckResultSchema,
+    documentationResponseSchema,
+    logConfigSchema,
+    outboxStatusSchema,
+    recentLogsResponseSchema,
+    schedulerStatusSchema,
+    statusMessageSchema,
+    systemHealthSchema,
+    systemStatsSchema,
+    technicalLogEntryArraySchema,
+} from '@/services/api/schemas';
 
 import type {
-    ActiveSession,
-    DirectoryCheckAllResponse,
-    DirectoryCheckResult,
-    DocumentationResponse,
     LogConfig,
-    OutboxStatus,
-    RecentLogsResponse,
-    SchedulerStatus,
-    SystemHealth,
-    SystemStats,
-    TechnicalLogEntry,
 } from './adminTypes';
 
 export const adminRequests = {
     getSystemHealth: (options?: { signal?: AbortSignal }) =>
-        apiClient.get<SystemHealth>('/admin/health', options),
+        apiClient.get('/admin/health', { ...options, schema: systemHealthSchema }),
 
     getSystemStats: () =>
-        apiClient.get<SystemStats>('/admin/stats'),
+        apiClient.get('/admin/stats', { schema: systemStatsSchema }),
 
     getSchedulerStatus: (options?: { signal?: AbortSignal }) =>
-        apiClient.get<SchedulerStatus>('/admin/jobs/status', options),
+        apiClient.get('/admin/jobs/status', { ...options, schema: schedulerStatusSchema }),
 
     getOutboxStatus: (options?: { signal?: AbortSignal }) =>
-        apiClient.get<OutboxStatus>('/admin/outbox/status', options),
+        apiClient.get('/admin/outbox/status', { ...options, schema: outboxStatusSchema }),
 
     getTechnicalLogs: (params?: { event_type?: string; limit?: number }) =>
-        apiClient.get<TechnicalLogEntry[]>('/admin/logs', { params }),
+        apiClient.get('/admin/logs', { params, schema: technicalLogEntryArraySchema }),
 
     getRecentLogs: (params?: { lines?: number; level?: string }) =>
-        apiClient.get<RecentLogsResponse>('/admin/logs/recent', { params }),
+        apiClient.get('/admin/logs/recent', { params, schema: recentLogsResponseSchema }),
 
     getAuditLogs: (params?: { lines?: number; event_type?: string }) =>
-        apiClient.get<RecentLogsResponse>('/admin/logs/audit', { params }),
+        apiClient.get('/admin/logs/audit', { params, schema: recentLogsResponseSchema }),
 
     getLogConfig: () =>
-        apiClient.get<LogConfig>('/admin/logs/config'),
+        apiClient.get('/admin/logs/config', { schema: logConfigSchema }),
 
     updateLogConfig: (config: LogConfig) =>
-        apiClient.post<LogConfig>('/admin/logs/config', config),
+        apiClient.post('/admin/logs/config', config, { schema: logConfigSchema }),
 
     getDocs: (locale: string = 'en') =>
-        apiClient.get<DocumentationResponse>('/admin/docs', { params: { locale } }),
+        apiClient.get('/admin/docs', { params: { locale }, schema: documentationResponseSchema }),
 
     getActiveSessions: () =>
-        apiClient.get<ActiveSession[]>('/admin/sessions'),
+        apiClient.get('/admin/sessions', { schema: activeSessionArraySchema }),
 
     revokeSession: (userId: number) =>
-        apiClient.post<{ status: string; message: string }>(`/admin/sessions/${userId}/revoke`, {}),
+        apiClient.post(`/admin/sessions/${userId}/revoke`, {}, { schema: statusMessageSchema }),
 
     checkDirectoryUser: (userId: number) =>
-        apiClient.post<DirectoryCheckResult>(`/admin/directory/check-user/${userId}`, {}),
+        apiClient.post(`/admin/directory/check-user/${userId}`, {}, {
+            schema: directoryCheckResultSchema,
+        }),
 
     checkAllDirectoryUsers: () =>
-        apiClient.post<DirectoryCheckAllResponse>('/admin/directory/check-all', {}),
+        apiClient.post('/admin/directory/check-all', {}, {
+            schema: directoryCheckAllResponseSchema,
+        }),
 };

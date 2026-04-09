@@ -778,6 +778,53 @@ async def test_activity_log_search_matches_safe_risk_labels_not_raw_names(
 
 
 @pytest.mark.asyncio
+async def test_vendor_legal_name_activity_log_changes_are_redacted_everywhere(
+    client_cro: AsyncClient,
+    db_session,
+    test_user: User,
+    monkeypatch,
+):
+    emitted: dict[str, object] = {}
+
+    def capture(event: str, **kwargs: object) -> None:
+        emitted["event"] = event
+        emitted.update(kwargs)
+
+    monkeypatch.setattr(audit_logger, "info", capture)
+
+    await log_activity(
+        db_session,
+        entity_type=ActivityEntityType.VENDOR,
+        entity_id=54,
+        entity_name="Vendor Profile",
+        action=ActivityAction.UPDATE,
+        actor=test_user,
+        department_id=test_user.department_id,
+        changes={
+            "legal_name": {
+                "old": "Secret Vendor LLC",
+                "new": "Renamed Secret Vendor LLC",
+            }
+        },
+        description="Updated vendor legal name",
+    )
+    await db_session.commit()
+
+    result = await db_session.execute(select(ActivityLog).where(ActivityLog.entity_id == 54))
+    entry = result.scalars().first()
+    assert entry is not None
+    assert entry.changes == {
+        "legal_name": {"old": "[REDACTED]", "new": "[REDACTED]"}
+    }
+    assert entry.description == "Updated Vendor (updated sensitive fields)"
+    assert emitted["changes"] == entry.changes
+
+    raw_search = await client_cro.get("/api/v1/activity-log?search=Secret Vendor LLC")
+    assert raw_search.status_code == 200
+    assert raw_search.json()["total"] == 0
+
+
+@pytest.mark.asyncio
 async def test_risk_type_activity_log_uses_safe_label_structured_changes_and_restore_description(
     client_cro: AsyncClient,
     db_session,

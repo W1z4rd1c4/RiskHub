@@ -9,7 +9,7 @@ interface ProfileSettingsProps {
         role: string;
         role_display_name: string;
         entra_business_role?: string | null;
-        department_name?: string;
+        department_name?: string | null;
         permissions: string[];
         effective_permissions: string[];
         access_scope: 'global' | 'department' | 'manager';

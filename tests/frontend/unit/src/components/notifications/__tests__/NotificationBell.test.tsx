@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 
 const listMock = vi.fn();
@@ -24,6 +24,11 @@ vi.mock('@/i18n/hooks', () => ({
         formatRelativeDate: () => 'just now',
     }),
 }));
+
+function LocationDisplay() {
+    const location = useLocation();
+    return <div data-testid="location">{location.pathname}</div>;
+}
 
 describe('NotificationBell', () => {
     beforeEach(() => {
@@ -66,5 +71,51 @@ describe('NotificationBell', () => {
         expect(screen.getByTestId('notification-view-all-button')).toBeInTheDocument();
 
         await waitFor(() => expect(listMock).toHaveBeenCalledTimes(1));
+    });
+
+    it('navigates to issue detail routes for issue notifications', async () => {
+        listMock.mockResolvedValue({
+            items: [
+                {
+                    id: 202,
+                    type: 'issue_due_soon',
+                    title: 'Issue due soon',
+                    message: 'Issue remediation deadline is approaching.',
+                    resource_type: 'issue',
+                    resource_id: 77,
+                    is_read: false,
+                    created_at: '2026-04-07T10:00:00Z',
+                    expires_at: null,
+                },
+            ],
+            total: 1,
+            skip: 0,
+            limit: 10,
+            unread_count: 1,
+        });
+
+        render(
+            <MemoryRouter initialEntries={['/']}>
+                <Routes>
+                    <Route
+                        path="*"
+                        element={
+                            <>
+                                <NotificationBell initialUnreadCount={1} />
+                                <LocationDisplay />
+                            </>
+                        }
+                    />
+                </Routes>
+            </MemoryRouter>
+        );
+
+        fireEvent.click(screen.getByTestId('notification-bell-button'));
+        expect(await screen.findByText('Issue due soon')).toBeInTheDocument();
+
+        fireEvent.click(screen.getByText('Issue due soon'));
+
+        await waitFor(() => expect(markAsReadMock).toHaveBeenCalledWith(202));
+        await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/issues/77'));
     });
 });

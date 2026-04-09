@@ -4,15 +4,182 @@
 import { http, HttpResponse } from 'msw';
 
 // Mock data
+const FIXTURE_CREATED_AT = '2025-12-25T10:00:00Z';
+const FIXTURE_UPDATED_AT = '2025-12-26T09:30:00Z';
+
+function paginate<T>(items: T[]) {
+    return {
+        items,
+        total: items.length,
+        skip: 0,
+        limit: items.length || 20,
+    };
+}
+
+function buildControlDetail(overrides: Record<string, unknown>) {
+    return {
+        description: 'Validates that access and approvals remain aligned with policy.',
+        data_source: null,
+        methodology_reference: null,
+        process_owner_position: null,
+        control_owner_id: 99,
+        executor_position: null,
+        output_description: null,
+        report_recipient: null,
+        documentation_location: null,
+        created_by_id: 99,
+        updated_by_id: 99,
+        created_at: FIXTURE_CREATED_AT,
+        updated_at: FIXTURE_UPDATED_AT,
+        control_owner: {
+            id: 99,
+            name: 'Test Admin',
+            email: 'admin@test.local',
+        },
+        ...overrides,
+    };
+}
+
 export const mockControls = [
-    { id: 1, name: 'Access Control Review', department_name: 'IT', frequency: 'monthly', risk_level: 3, status: 'active' },
-    { id: 2, name: 'Financial Reconciliation', department_name: 'Finance', frequency: 'daily', risk_level: 4, status: 'active' },
+    buildControlDetail({
+        id: 1,
+        name: 'Access Control Review',
+        control_form: 'manual',
+        department_id: 1,
+        department: { id: 1, name: 'IT', code: 'IT' },
+        frequency: 'monthly',
+        risk_level: 3,
+        status: 'active',
+    }),
+    buildControlDetail({
+        id: 2,
+        name: 'Financial Reconciliation',
+        control_form: 'automatic',
+        department_id: 2,
+        department: { id: 2, name: 'Finance', code: 'FIN' },
+        frequency: 'daily',
+        risk_level: 4,
+        status: 'active',
+        description: 'Ensures daily finance reconciliations complete successfully.',
+    }),
 ];
 
+export const mockControlSummaries = mockControls.map((control) => ({
+    id: control.id,
+    name: control.name,
+    description: control.description,
+    department_id: control.department_id as number,
+    department_name: (control.department as { name: string }).name,
+    frequency: control.frequency,
+    risk_level: control.risk_level,
+    status: control.status,
+    control_form: control.control_form,
+    control_owner_name: (control.control_owner as { name: string }).name,
+    risk_type: null,
+    risk_id_code: null,
+    risk_name: null,
+    risk_description: null,
+    risk_owner_name: null,
+    risk_department_name: null,
+    linked_vendors: [],
+}));
+
+function buildRiskDetail(overrides: Record<string, unknown>) {
+    return {
+        risk_id_code: 'RISK-001',
+        name: 'Authentication Drift',
+        process: 'User Authentication',
+        subprocess: null,
+        risk_type: 'operational',
+        category: 'IT',
+        description: 'Risk of access or authentication control drift.',
+        department_id: 1,
+        owner_id: 99,
+        gross_probability: 3,
+        gross_impact: 4,
+        gross_score: 12,
+        net_probability: 2,
+        net_impact: 3,
+        net_score: 6,
+        status: 'active',
+        is_priority: false,
+        created_at: FIXTURE_CREATED_AT,
+        updated_at: FIXTURE_UPDATED_AT,
+        owner: {
+            id: 99,
+            name: 'Test Admin',
+            email: 'admin@test.local',
+        },
+        department: {
+            id: 1,
+            name: 'IT',
+            code: 'IT',
+        },
+        kris: [],
+        ...overrides,
+    };
+}
+
 export const mockRisks = [
-    { id: 1, process: 'User Authentication', category: 'IT', net_score: 12, status: 'active', is_priority: true },
-    { id: 2, process: 'Data Backup', category: 'Operations', net_score: 6, status: 'emerging', is_priority: false },
+    buildRiskDetail({
+        id: 1,
+        risk_id_code: 'RISK-001',
+        name: 'Authentication Drift',
+        process: 'User Authentication',
+        category: 'IT',
+        gross_score: 12,
+        net_score: 12,
+        gross_probability: 3,
+        gross_impact: 4,
+        net_probability: 3,
+        net_impact: 4,
+        is_priority: true,
+        department_id: 1,
+        department: { id: 1, name: 'IT', code: 'IT' },
+        status: 'active',
+    }),
+    buildRiskDetail({
+        id: 2,
+        risk_id_code: 'RISK-002',
+        name: 'Backup Recovery Delay',
+        process: 'Data Backup',
+        category: 'Operations',
+        gross_score: 9,
+        net_score: 6,
+        gross_probability: 3,
+        gross_impact: 3,
+        net_probability: 2,
+        net_impact: 3,
+        is_priority: false,
+        department_id: 3,
+        department: { id: 3, name: 'Operations', code: 'OPS' },
+        status: 'emerging',
+        description: 'Risk that recovery takes longer than the expected recovery objective.',
+    }),
 ];
+
+export const mockRiskSummaries = mockRisks.map((risk) => ({
+    id: risk.id,
+    risk_id_code: risk.risk_id_code,
+    name: risk.name,
+    process: risk.process,
+    risk_type: risk.risk_type,
+    category: risk.category,
+    description: risk.description,
+    gross_score: risk.gross_score,
+    gross_probability: risk.gross_probability,
+    gross_impact: risk.gross_impact,
+    net_score: risk.net_score,
+    status: risk.status,
+    is_priority: risk.is_priority,
+    department_id: risk.department_id,
+    department_name: (risk.department as { name: string }).name,
+    owner_id: risk.owner_id,
+    kri_count: 0,
+    has_breach: false,
+    control_count: 0,
+    linked_vendors: [],
+}));
 
 export const mockDashboard = {
     total_controls: 42,
@@ -25,9 +192,45 @@ export const mockDashboard = {
     low_risks: 5,
 };
 
+function buildExecutionAuditItem(overrides: Record<string, unknown>) {
+    return {
+        id: 1,
+        control_id: 1,
+        executed_by_id: 99,
+        executed_at: '2025-12-25T10:00:00Z',
+        result: 'passed',
+        findings: 'No issues found',
+        evidence_reference: 'evidence-1',
+        notes: 'Execution completed as expected.',
+        next_scheduled: '2026-01-25T10:00:00Z',
+        created_at: '2025-12-25T10:05:00Z',
+        executed_by: {
+            id: 99,
+            name: 'Test Admin',
+            email: 'admin@test.local',
+        },
+        control: {
+            id: 1,
+            name: 'Access Control Review',
+        },
+        control_name: 'Access Control Review',
+        executed_by_name: 'Test Admin',
+        control_owner_name: 'Test Admin',
+        linked_risks: ['Authentication Drift'],
+        ...overrides,
+    };
+}
+
 export const mockExecutions = [
-    { id: 1, control_id: 1, result: 'passed', executed_at: '2025-12-25T10:00:00Z', findings: 'No issues found' },
-    { id: 2, control_id: 1, result: 'warning', executed_at: '2025-12-24T10:00:00Z', findings: 'Minor documentation gap' },
+    buildExecutionAuditItem({}),
+    buildExecutionAuditItem({
+        id: 2,
+        result: 'warning',
+        executed_at: '2025-12-24T10:00:00Z',
+        findings: 'Minor documentation gap',
+        created_at: '2025-12-24T10:05:00Z',
+        next_scheduled: '2026-01-24T10:00:00Z',
+    }),
 ];
 
 export const mockAuthUser = {
@@ -300,7 +503,7 @@ export const handlers = [
     }),
     // Controls
     http.get('*/api/v1/controls', () => {
-        return HttpResponse.json(mockControls);
+        return HttpResponse.json(paginate(mockControlSummaries));
     }),
 
     http.get('*/api/v1/controls/:id', ({ params }) => {
@@ -311,7 +514,7 @@ export const handlers = [
 
     // Risks
     http.get('*/api/v1/risks', () => {
-        return HttpResponse.json(mockRisks);
+        return HttpResponse.json(paginate(mockRiskSummaries));
     }),
 
     http.get('*/api/v1/risks/:id', ({ params }) => {
@@ -327,17 +530,17 @@ export const handlers = [
 
     // Executions
     http.get('*/api/v1/executions', () => {
-        return HttpResponse.json({
-            items: mockExecutions,
-            total: mockExecutions.length,
-            skip: 0,
-            limit: mockExecutions.length,
-        });
+        return HttpResponse.json(paginate(mockExecutions));
     }),
 
     http.post('*/api/v1/executions', async ({ request }) => {
         const body = await request.json() as Record<string, unknown>;
-        return HttpResponse.json({ id: 99, ...body, executed_at: new Date().toISOString(), created_at: new Date().toISOString() }, { status: 201 });
+        return HttpResponse.json({
+            ...buildExecutionAuditItem({ id: 99 }),
+            ...body,
+            executed_at: new Date().toISOString(),
+            created_at: new Date().toISOString(),
+        }, { status: 201 });
     }),
 
     http.get('*/api/v1/controls/:id/executions', ({ params }) => {
@@ -348,7 +551,7 @@ export const handlers = [
     http.post('*/api/v1/controls/:id/executions', async ({ request, params }) => {
         const body = await request.json() as Record<string, unknown>;
         return HttpResponse.json({
-            id: 100,
+            ...buildExecutionAuditItem({ id: 100 }),
             ...body,
             control_id: Number(params.id),
             executed_at: new Date().toISOString(),

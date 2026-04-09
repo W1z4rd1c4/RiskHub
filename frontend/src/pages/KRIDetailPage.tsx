@@ -99,8 +99,17 @@ export function KRIDetailPage() {
         if (!deleteReason) return;
         setIsDeleting(true);
         try {
-            await kriApi.deleteKRI(kri.id, deleteReason);
+            const result = await kriApi.deleteKRI(kri.id, deleteReason);
+            const parsed = parseUpdateResult(result);
             setIsDeleteDialogOpen(false);
+
+            if (parsed.kind === 'approval') {
+                setApprovalBanner({
+                    message: parsed.message,
+                });
+                return;
+            }
+
             void navigate('/kris');
         } catch (err) {
             console.error('Failed to delete KRI:', err);

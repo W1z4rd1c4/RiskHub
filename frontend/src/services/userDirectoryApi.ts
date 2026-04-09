@@ -1,5 +1,5 @@
 import { apiClient } from './apiClient';
-import type { UserDirectoryListResponse } from '@/types/user';
+import { userDirectoryListResponseSchema } from '@/services/api/schemas';
 
 export const userDirectoryApi = {
     async listDirectoryUsers(params?: {
@@ -10,6 +10,9 @@ export const userDirectoryApi = {
         skip?: number;
         limit?: number;
     }) {
-        return apiClient.get<UserDirectoryListResponse>('/users/directory', { params });
+        return apiClient.get('/users/directory', {
+            params,
+            schema: userDirectoryListResponseSchema,
+        });
     },
 };

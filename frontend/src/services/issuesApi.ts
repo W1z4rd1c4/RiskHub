@@ -1,4 +1,14 @@
 import { apiClient } from './apiClient';
+import {
+    issueDepartmentLookupArraySchema,
+    issueExceptionSchema,
+    issueLinkSchema,
+    issueListResponseSchema,
+    issueOwnerLookupArraySchema,
+    issueSchema,
+    voidSchema,
+} from '@/services/api/schemas';
+import type { RequestOptions } from '@/services/apiClient';
 import type {
     Issue,
     IssueApproveExceptionPayload,
@@ -23,66 +33,77 @@ type IssueQueryParams = Record<string, string | number | boolean | null | undefi
 
 export const issuesApi = {
     async listDepartments(): Promise<IssueDepartmentLookup[]> {
-        return apiClient.get<IssueDepartmentLookup[]>('/issues/lookups/departments');
+        return apiClient.get('/issues/lookups/departments', {
+            schema: issueDepartmentLookupArraySchema,
+        });
     },
 
     async listAssignableOwners(departmentId: number): Promise<IssueOwnerLookup[]> {
-        return apiClient.get<IssueOwnerLookup[]>('/issues/lookups/owners', {
+        return apiClient.get('/issues/lookups/owners', {
             params: { department_id: departmentId },
+            schema: issueOwnerLookupArraySchema,
         });
     },
 
     async list(filters: IssueListFilters = {}): Promise<IssueListResponse> {
-        return apiClient.get<IssueListResponse>('/issues', {
+        return apiClient.get('/issues', {
             params: filters as IssueQueryParams,
+            schema: issueListResponseSchema,
         });
     },
 
-    async get(issueId: number): Promise<Issue> {
-        return apiClient.get<Issue>(`/issues/${issueId}`);
+    async get(issueId: number, options?: RequestOptions): Promise<Issue> {
+        return apiClient.get(`/issues/${issueId}`, {
+            ...options,
+            schema: issueSchema,
+        });
     },
 
     async create(payload: IssueCreatePayload): Promise<Issue> {
-        return apiClient.post<Issue>('/issues', payload);
+        return apiClient.post('/issues', payload, { schema: issueSchema });
     },
 
     async createContextual(payload: IssueContextCreatePayload): Promise<Issue> {
-        return apiClient.post<Issue>('/issues/contextual', payload);
+        return apiClient.post('/issues/contextual', payload, { schema: issueSchema });
     },
 
     async update(issueId: number, payload: IssueUpdatePayload): Promise<Issue> {
-        return apiClient.patch<Issue>(`/issues/${issueId}`, payload);
+        return apiClient.patch(`/issues/${issueId}`, payload, { schema: issueSchema });
     },
 
     async addLink(issueId: number, payload: IssueLinkPayload): Promise<IssueLink> {
-        return apiClient.post<IssueLink>(`/issues/${issueId}/links`, payload);
+        return apiClient.post(`/issues/${issueId}/links`, payload, { schema: issueLinkSchema });
     },
 
     async deleteLink(issueId: number, linkId: number): Promise<void> {
-        await apiClient.delete(`/issues/${issueId}/links/${linkId}`);
+        await apiClient.delete(`/issues/${issueId}/links/${linkId}`, { schema: voidSchema });
     },
 
     async assign(issueId: number, payload: IssueAssignPayload): Promise<Issue> {
-        return apiClient.post<Issue>(`/issues/${issueId}/assign`, payload);
+        return apiClient.post(`/issues/${issueId}/assign`, payload, { schema: issueSchema });
     },
 
     async startRemediation(issueId: number, payload: IssueStartRemediationPayload): Promise<Issue> {
-        return apiClient.post<Issue>(`/issues/${issueId}/start-remediation`, payload);
+        return apiClient.post(`/issues/${issueId}/start-remediation`, payload, { schema: issueSchema });
     },
 
     async updateProgress(issueId: number, payload: IssueProgressPayload): Promise<Issue> {
-        return apiClient.post<Issue>(`/issues/${issueId}/update-progress`, payload);
+        return apiClient.post(`/issues/${issueId}/update-progress`, payload, { schema: issueSchema });
     },
 
     async requestException(issueId: number, payload: IssueRequestExceptionPayload): Promise<IssueException> {
-        return apiClient.post<IssueException>(`/issues/${issueId}/request-exception`, payload);
+        return apiClient.post(`/issues/${issueId}/request-exception`, payload, {
+            schema: issueExceptionSchema,
+        });
     },
 
     async approveException(issueId: number, payload: IssueApproveExceptionPayload): Promise<IssueException> {
-        return apiClient.post<IssueException>(`/issues/${issueId}/approve-exception`, payload);
+        return apiClient.post(`/issues/${issueId}/approve-exception`, payload, {
+            schema: issueExceptionSchema,
+        });
     },
 
     async close(issueId: number, payload: IssueClosePayload): Promise<Issue> {
-        return apiClient.post<Issue>(`/issues/${issueId}/close`, payload);
+        return apiClient.post(`/issues/${issueId}/close`, payload, { schema: issueSchema });
     },
 };

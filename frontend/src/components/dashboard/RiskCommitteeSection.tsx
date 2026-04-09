@@ -2,50 +2,10 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Activity, AlertTriangle, Building2, Clock, Star, Handshake } from 'lucide-react';
-import { dashboardApi } from '@/services/dashboardApi';
+import { dashboardApi, type DashboardCommitteeSummary } from '@/services/dashboardApi';
 import { useTranslation } from '@/i18n/hooks';
 import { buildVendorDetailPath } from '@/pages/vendors/vendorDetailPresentation';
 import { QuarterlyComparisonWidget } from './QuarterlyComparisonWidget';
-
-interface CommitteeSummary {
-    critical_risks: Array<{
-        id: number;
-        risk_id_code: string;
-        name: string;
-        process: string;
-        description: string;
-        net_score: number;
-        is_priority: boolean;
-        owner_name: string;
-        department_name: string;
-    }>;
-    recent_activity: Array<{
-        id: number;
-        action: string;
-        entity_type: string;
-        entity_name: string;
-        description: string;
-        created_at: string;
-    }>;
-    department_exposure: Array<{
-        id: number;
-        name: string;
-        total_exposure: number;
-        risk_count: number;
-    }>;
-    critical_vendors: Array<{
-        id: number;
-        name: string;
-        process: string;
-        subprocess?: string | null;
-        risk_score_1_5: number;
-        supports_important_core_insurance_function: boolean;
-        dora_relevant: boolean;
-        is_significant_vendor: boolean;
-        outsourcing_owner_name: string;
-        department_name: string;
-    }>;
-}
 
 const ACTION_COLORS: Record<string, string> = {
     create: 'bg-emerald-500/20 text-emerald-400',
@@ -84,7 +44,7 @@ function getVendorRiskColor(score: number): string {
 export function RiskCommitteeSection() {
     const { t } = useTranslation('dashboard');
     const navigate = useNavigate();
-    const [summary, setSummary] = useState<CommitteeSummary | null>(null);
+    const [summary, setSummary] = useState<DashboardCommitteeSummary | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 

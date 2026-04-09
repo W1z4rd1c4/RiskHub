@@ -1,5 +1,12 @@
 import { apiClient } from './apiClient';
-import type { UserRead, UserCreate, UserUpdate, UserLookup, UserShellSummary } from '../types/user';
+import {
+    userLookupArraySchema,
+    userReadArraySchema,
+    userReadSchema,
+    userShellSummarySchema,
+    voidSchema,
+} from '@/services/api/schemas';
+import type { UserCreate, UserUpdate } from '../types/user';
 
 export const userApi = {
     async listUsers(skip = 0, limit = 100, departmentId?: number, roleId?: number) {
@@ -7,23 +14,23 @@ export const userApi = {
         if (departmentId) params.department_id = departmentId;
         if (roleId) params.role_id = roleId;
 
-        return apiClient.get<UserRead[]>('/users', { params });
+        return apiClient.get('/users', { params, schema: userReadArraySchema });
     },
 
     async createUser(userData: UserCreate) {
-        return apiClient.post<UserRead>('/users', userData);
+        return apiClient.post('/users', userData, { schema: userReadSchema });
     },
 
     async updateUser(userId: number, userData: UserUpdate) {
-        return apiClient.patch<UserRead>(`/users/${userId}`, userData);
+        return apiClient.patch(`/users/${userId}`, userData, { schema: userReadSchema });
     },
 
     async deleteUser(userId: number) {
-        return apiClient.delete<void>(`/users/${userId}`);
+        return apiClient.delete(`/users/${userId}`, { schema: voidSchema });
     },
 
     async listSubordinates(userId: number) {
-        return apiClient.get<UserRead[]>(`/users/${userId}/subordinates`);
+        return apiClient.get(`/users/${userId}/subordinates`, { schema: userReadArraySchema });
     },
 
     /**
@@ -31,10 +38,13 @@ export const userApi = {
      * Returns users visible to the current user based on their access scope.
      */
     async listVisibleUsers(params?: { q?: string; include_inactive?: boolean; department_id?: number; skip?: number; limit?: number }) {
-        return apiClient.get<UserLookup[]>('/users/lookup', { params });
+        return apiClient.get('/users/lookup', { params, schema: userLookupArraySchema });
     },
 
     async getShellSummary(options?: { signal?: AbortSignal }) {
-        return apiClient.get<UserShellSummary>('/users/me/shell-summary', options);
+        return apiClient.get('/users/me/shell-summary', {
+            ...options,
+            schema: userShellSummarySchema,
+        });
     }
 };
