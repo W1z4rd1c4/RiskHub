@@ -3,7 +3,12 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.logging import reconfigure_log_rotation
+from app.core.logging import (
+    configure_logging_from_snapshot,
+    get_active_logging_config,
+    get_logger,
+    reconfigure_log_rotation,
+)
 from app.db.session import get_db
 from app.models import User
 from app.schemas.admin import LogConfig, LogConfigUpdate
@@ -11,6 +16,7 @@ from app.schemas.admin import LogConfig, LogConfigUpdate
 from ._deps import require_platform_admin
 
 router = APIRouter()
+logger = get_logger("admin.log_config")
 
 
 @router.get("/logs/config", response_model=LogConfig)
@@ -50,6 +56,8 @@ async def update_log_config(
     from app.models.global_config import GlobalConfig, clear_config_cache
 
     canonical = config.to_log_config()
+    previous_runtime_config = get_active_logging_config()
+    runtime_reconfigure_attempted = False
 
     # Helper to upsert config
     async def upsert_config(key: str, value: int, display: str, desc: str):
@@ -100,13 +108,37 @@ async def update_log_config(
         "Number of backup audit log files to keep after rotation",
     )
 
-    await db.commit()
+    try:
+        await db.flush()
+    except Exception:
+        await db.rollback()
+        raise
+
+    try:
+        runtime_reconfigure_attempted = True
+        reconfigure_log_rotation(
+            app_rotation_size_mb=canonical.app_log_rotation_size_mb,
+            app_retention_count=canonical.app_log_retention_count,
+            audit_rotation_size_mb=canonical.audit_log_rotation_size_mb,
+            audit_retention_count=canonical.audit_log_retention_count,
+        )
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        if runtime_reconfigure_attempted:
+            try:
+                configure_logging_from_snapshot(previous_runtime_config)
+            except Exception as restore_exc:
+                logger.exception(
+                    "log_config_restore_failed",
+                    message=(
+                        "Failed to restore previous runtime logging configuration "
+                        "after /admin/logs/config failure."
+                    ),
+                    restore_error=str(restore_exc),
+                )
+        raise
+
     clear_config_cache()
-    reconfigure_log_rotation(
-        app_rotation_size_mb=canonical.app_log_rotation_size_mb,
-        app_retention_count=canonical.app_log_retention_count,
-        audit_rotation_size_mb=canonical.audit_log_rotation_size_mb,
-        audit_retention_count=canonical.audit_log_retention_count,
-    )
 
     return canonical

@@ -88,6 +88,17 @@ def get_active_logging_config() -> dict[str, int | str | bool]:
     return dict(_active_logging_config)
 
 
+def configure_logging_from_snapshot(snapshot: dict[str, int | str | bool]) -> structlog.BoundLogger:
+    return configure_logging(
+        log_level=str(snapshot["log_level"]),
+        json_console=bool(snapshot["json_console"]),
+        app_rotation_size_mb=int(snapshot["app_rotation_size_mb"]),
+        app_retention_count=int(snapshot["app_retention_count"]),
+        audit_rotation_size_mb=int(snapshot["audit_rotation_size_mb"]),
+        audit_retention_count=int(snapshot["audit_retention_count"]),
+    )
+
+
 def configure_logging(
     log_level: str = "INFO",
     json_console: bool = True,
@@ -272,14 +283,15 @@ def reconfigure_log_rotation(
     audit_retention_count: int,
 ) -> structlog.BoundLogger:
     active_config = get_active_logging_config()
-    return configure_logging(
-        log_level=str(active_config["log_level"]),
-        json_console=bool(active_config["json_console"]),
-        app_rotation_size_mb=app_rotation_size_mb,
-        app_retention_count=app_retention_count,
-        audit_rotation_size_mb=audit_rotation_size_mb,
-        audit_retention_count=audit_retention_count,
+    active_config.update(
+        {
+            "app_rotation_size_mb": app_rotation_size_mb,
+            "app_retention_count": app_retention_count,
+            "audit_rotation_size_mb": audit_rotation_size_mb,
+            "audit_retention_count": audit_retention_count,
+        }
     )
+    return configure_logging_from_snapshot(active_config)
 
 
 # Module-level logger for import convenience

@@ -9,6 +9,7 @@ from sqlalchemy import select
 
 from app.core.logging import tail_log_file
 from app.models.global_config import GlobalConfig
+from app.schemas.admin import LogConfigUpdate
 
 
 class TestTailLogFile:
@@ -222,6 +223,22 @@ def _make_log_config(key: str, value: str) -> GlobalConfig:
     )
 
 
+async def _load_log_config_values(db_session) -> dict[str, str]:
+    result = await db_session.execute(
+        select(GlobalConfig).where(
+            GlobalConfig.key.in_(
+                [
+                    "app_log_rotation_size_mb",
+                    "app_log_retention_count",
+                    "audit_log_rotation_size_mb",
+                    "audit_log_retention_count",
+                ]
+            )
+        )
+    )
+    return {cfg.key: cfg.value for cfg in result.scalars().all()}
+
+
 @pytest.mark.asyncio
 async def test_apply_persisted_log_rotation_config_uses_persisted_values(
     db_session,
@@ -258,6 +275,146 @@ async def test_apply_persisted_log_rotation_config_uses_persisted_values(
         audit_retention_count=11,
     )
     clear_config_cache()
+
+
+@pytest.mark.asyncio
+async def test_admin_log_config_update_rolls_back_when_reconfigure_fails(
+    db_session,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    from app.api.v1.endpoints.admin.log_config import update_log_config
+    from app.core.logging import (
+        configure_logging,
+        configure_logging_from_snapshot,
+        get_active_logging_config,
+    )
+    from app.models.global_config import clear_config_cache
+
+    clear_config_cache()
+    original_runtime_config = get_active_logging_config()
+    try:
+        configure_logging(
+            log_level="WARNING",
+            json_console=False,
+            app_rotation_size_mb=8,
+            app_retention_count=6,
+            audit_rotation_size_mb=8,
+            audit_retention_count=6,
+        )
+        previous_runtime_config = get_active_logging_config()
+
+        db_session.add_all(
+            [
+                _make_log_config("app_log_rotation_size_mb", "8"),
+                _make_log_config("app_log_retention_count", "6"),
+                _make_log_config("audit_log_rotation_size_mb", "8"),
+                _make_log_config("audit_log_retention_count", "6"),
+            ]
+        )
+        await db_session.commit()
+
+        def failing_reconfigure(**_kwargs):
+            configure_logging(
+                log_level="ERROR",
+                json_console=True,
+                app_rotation_size_mb=12,
+                app_retention_count=9,
+                audit_rotation_size_mb=20,
+                audit_retention_count=15,
+            )
+            raise RuntimeError("reconfigure failed after mutation")
+
+        monkeypatch.setattr("app.api.v1.endpoints.admin.log_config.reconfigure_log_rotation", failing_reconfigure)
+
+        with pytest.raises(RuntimeError, match="reconfigure failed after mutation"):
+            await update_log_config(
+                LogConfigUpdate(
+                    app_log_rotation_size_mb=12,
+                    app_log_retention_count=9,
+                    audit_log_rotation_size_mb=20,
+                    audit_log_retention_count=15,
+                ),
+                db=db_session,
+                admin_user=None,
+            )
+
+        assert get_active_logging_config() == previous_runtime_config
+        db_session.expire_all()
+        assert await _load_log_config_values(db_session) == {
+            "app_log_rotation_size_mb": "8",
+            "app_log_retention_count": "6",
+            "audit_log_rotation_size_mb": "8",
+            "audit_log_retention_count": "6",
+        }
+    finally:
+        configure_logging_from_snapshot(original_runtime_config)
+        clear_config_cache()
+
+
+@pytest.mark.asyncio
+async def test_admin_log_config_update_restores_runtime_when_commit_fails(
+    db_session,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    from app.api.v1.endpoints.admin.log_config import update_log_config
+    from app.core.logging import (
+        configure_logging,
+        configure_logging_from_snapshot,
+        get_active_logging_config,
+    )
+    from app.models.global_config import clear_config_cache
+
+    clear_config_cache()
+    original_runtime_config = get_active_logging_config()
+    try:
+        configure_logging(
+            log_level="WARNING",
+            json_console=False,
+            app_rotation_size_mb=8,
+            app_retention_count=6,
+            audit_rotation_size_mb=8,
+            audit_retention_count=6,
+        )
+        previous_runtime_config = get_active_logging_config()
+
+        db_session.add_all(
+            [
+                _make_log_config("app_log_rotation_size_mb", "8"),
+                _make_log_config("app_log_retention_count", "6"),
+                _make_log_config("audit_log_rotation_size_mb", "8"),
+                _make_log_config("audit_log_retention_count", "6"),
+            ]
+        )
+        await db_session.commit()
+
+        async def failing_commit():
+            raise RuntimeError("commit failed")
+
+        monkeypatch.setattr(db_session, "commit", failing_commit)
+
+        with pytest.raises(RuntimeError, match="commit failed"):
+            await update_log_config(
+                LogConfigUpdate(
+                    app_log_rotation_size_mb=12,
+                    app_log_retention_count=9,
+                    audit_log_rotation_size_mb=20,
+                    audit_log_retention_count=15,
+                ),
+                db=db_session,
+                admin_user=None,
+            )
+
+        assert get_active_logging_config() == previous_runtime_config
+        db_session.expire_all()
+        assert await _load_log_config_values(db_session) == {
+            "app_log_rotation_size_mb": "8",
+            "app_log_retention_count": "6",
+            "audit_log_rotation_size_mb": "8",
+            "audit_log_retention_count": "6",
+        }
+    finally:
+        configure_logging_from_snapshot(original_runtime_config)
+        clear_config_cache()
 
 
 @pytest.mark.asyncio

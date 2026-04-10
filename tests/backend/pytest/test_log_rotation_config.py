@@ -92,6 +92,39 @@ class TestLogRotationConfig:
         assert active_config["app_rotation_size_mb"] == 12
         assert active_config["audit_rotation_size_mb"] == 14
 
+    def test_configure_logging_from_snapshot_restores_full_runtime_settings(self):
+        from app.core.logging import (
+            configure_logging,
+            configure_logging_from_snapshot,
+            get_active_logging_config,
+        )
+
+        original_config = get_active_logging_config()
+        try:
+            configure_logging(
+                log_level="WARNING",
+                json_console=False,
+                app_rotation_size_mb=12,
+                app_retention_count=6,
+                audit_rotation_size_mb=14,
+                audit_retention_count=7,
+            )
+            captured_config = get_active_logging_config()
+
+            configure_logging(
+                log_level="ERROR",
+                json_console=True,
+                app_rotation_size_mb=4,
+                app_retention_count=3,
+                audit_rotation_size_mb=5,
+                audit_retention_count=2,
+            )
+            configure_logging_from_snapshot(captured_config)
+
+            assert get_active_logging_config() == captured_config
+        finally:
+            configure_logging_from_snapshot(original_config)
+
     def test_parse_log_rotation_config_accepts_valid_values(self):
         from app.main import parse_log_rotation_config
 
