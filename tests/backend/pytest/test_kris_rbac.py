@@ -923,6 +923,48 @@ async def cross_dept_kri_with_reporting_owner(db_session, cross_dept_risk_for_kr
     return kri
 
 
+@pytest_asyncio.fixture
+async def cross_dept_archived_kri_with_readonly_reporting_owner(
+    db_session,
+    cross_dept_for_kri: Department,
+    test_user,
+    test_user_readonly,
+):
+    risk = Risk(
+        risk_id_code="R-XDEPT-KRI-ARCHIVED",
+        name="Cross-Dept Archived KRI Risk",
+        process="Cross-Dept Archived KRI Process",
+        description="Risk outside readonly user's department",
+        department_id=cross_dept_for_kri.id,
+        owner_id=test_user.id,
+        risk_type="operational",
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=2,
+        status=RiskStatus.active.value,
+    )
+    db_session.add(risk)
+    await db_session.commit()
+    await db_session.refresh(risk)
+
+    kri = KeyRiskIndicator(
+        risk_id=risk.id,
+        metric_name="Archived Cross-Dept KRI",
+        description="Archived KRI assigned to readonly user",
+        unit="%",
+        current_value=75.0,
+        lower_limit=0.0,
+        upper_limit=100.0,
+        reporting_owner_id=test_user_readonly.id,
+        is_archived=True,
+    )
+    db_session.add(kri)
+    await db_session.commit()
+    await db_session.refresh(kri)
+    return kri
+
+
 @pytest.mark.asyncio
 async def test_reporting_owner_can_view_kri_history_cross_department(
     auth_client: AsyncClient,
@@ -960,6 +1002,28 @@ async def test_reporting_owner_can_view_kri_history_cross_department(
     data = response.json()
     assert data["total"] >= 1
     assert len(data["items"]) >= 1
+
+
+@pytest.mark.asyncio
+async def test_archived_reporting_owner_cannot_view_cross_department_risk_detail(
+    client_readonly: AsyncClient,
+    cross_dept_archived_kri_with_readonly_reporting_owner: KeyRiskIndicator,
+):
+    response = await client_readonly.get(
+        f"/api/v1/risks/{cross_dept_archived_kri_with_readonly_reporting_owner.risk_id}"
+    )
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_archived_reporting_owner_risk_excluded_from_cross_department_risk_list(
+    client_readonly: AsyncClient,
+    cross_dept_archived_kri_with_readonly_reporting_owner: KeyRiskIndicator,
+):
+    response = await client_readonly.get("/api/v1/risks")
+    assert response.status_code == 200
+    risk_ids = {item["id"] for item in response.json()["items"]}
+    assert cross_dept_archived_kri_with_readonly_reporting_owner.risk_id not in risk_ids
 
 
 @pytest.mark.asyncio

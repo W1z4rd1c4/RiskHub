@@ -1,5 +1,6 @@
-import { getSessionSnapshot } from '@/services/sessionStore';
+import { getSessionSnapshot } from '@/services/session/store';
 
+import { getApiRuntimeOrigin } from './apiConfig';
 import type { PreparedRequest, QueryValue, RequestOptions } from './apiTypes';
 
 function appendQueryParam(url: URL, key: string, rawValue: QueryValue): void {
@@ -14,7 +15,7 @@ function appendQueryParam(url: URL, key: string, rawValue: QueryValue): void {
 }
 
 export function buildUrl(baseUrl: string, endpoint: string, params?: RequestOptions['params']): URL {
-    const baseOrigin = baseUrl.startsWith('/') ? window.location.origin : '';
+    const baseOrigin = baseUrl.startsWith('/') ? getApiRuntimeOrigin() : '';
     const url = new URL(`${baseOrigin}${baseUrl}${endpoint}`);
 
     if (!params) {
@@ -39,7 +40,7 @@ export function buildPreparedRequest(
     endpoint: string,
     options: RequestOptions & { schema?: unknown } = {},
 ): PreparedRequest {
-    const { params, schema: _schema, ...init } = options;
+    const { params, schema: _schema, timeoutMs, ...init } = options;
     const url = buildUrl(baseUrl, endpoint, params);
     const headers = new Headers(init.headers);
     const token = getSessionSnapshot().token;
@@ -58,5 +59,6 @@ export function buildPreparedRequest(
         url,
         pathname: url.pathname,
         init: { ...init, headers, credentials: 'include' },
+        timeoutMs,
     };
 }

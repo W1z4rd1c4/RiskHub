@@ -23,11 +23,23 @@ from app.models import (
     User,
 )
 from app.models.risk import RiskStatus
-from app.services.approval_execution_service import _apply_edit_risk_control, _apply_kri_generic_edit
+from app.services.approval_execution_service import approve_request_workflow
+
+
+async def _approve_pending_edit(db_session, approval: ApprovalRequest, approver: User) -> ApprovalRequest:
+    db_session.add(approval)
+    await db_session.commit()
+    await db_session.refresh(approval)
+    return await approve_request_workflow(db_session, approval.id, approver, "Approved in test")
 
 
 @pytest.mark.asyncio
-async def test_approval_edit_risk_recomputes_gross_score(db_session, test_department, test_user_cro):
+async def test_approval_edit_risk_recomputes_gross_score(
+    db_session,
+    test_department,
+    test_user_cro,
+    test_user_employee,
+):
     """Risk approval edit with gross_probability change recomputes gross_score."""
     # Create risk with known scores
     risk = Risk(
@@ -56,20 +68,14 @@ async def test_approval_edit_risk_recomputes_gross_score(db_session, test_depart
         resource_id=risk.id,
         resource_name=risk.name,
         action_type=ApprovalActionType.EDIT,
-        requested_by_id=test_user_cro.id,
+        requested_by_id=test_user_employee.id,
         reason="Testing score recomputation",
-        status=ApprovalStatus.APPROVED,
+        status=ApprovalStatus.PENDING,
         pending_changes={
             "gross_probability": {"old": 2, "new": 4},
         },
     )
-    db_session.add(approval)
-    await db_session.commit()
-    await db_session.refresh(approval)
-
-    # Apply the edit
-    await _apply_edit_risk_control(db_session, approval, test_user_cro)
-    await db_session.commit()
+    await _approve_pending_edit(db_session, approval, test_user_cro)
 
     # Refresh and verify score was recomputed
     await db_session.refresh(risk)
@@ -78,7 +84,12 @@ async def test_approval_edit_risk_recomputes_gross_score(db_session, test_depart
 
 
 @pytest.mark.asyncio
-async def test_approval_edit_risk_recomputes_net_score(db_session, test_department, test_user_cro):
+async def test_approval_edit_risk_recomputes_net_score(
+    db_session,
+    test_department,
+    test_user_cro,
+    test_user_employee,
+):
     """Risk approval edit with net_impact change recomputes net_score."""
     risk = Risk(
         name="Test Risk Net Score",
@@ -105,19 +116,14 @@ async def test_approval_edit_risk_recomputes_net_score(db_session, test_departme
         resource_id=risk.id,
         resource_name=risk.name,
         action_type=ApprovalActionType.EDIT,
-        requested_by_id=test_user_cro.id,
+        requested_by_id=test_user_employee.id,
         reason="Testing net score recomputation",
-        status=ApprovalStatus.APPROVED,
+        status=ApprovalStatus.PENDING,
         pending_changes={
             "net_impact": {"old": 2, "new": 5},
         },
     )
-    db_session.add(approval)
-    await db_session.commit()
-    await db_session.refresh(approval)
-
-    await _apply_edit_risk_control(db_session, approval, test_user_cro)
-    await db_session.commit()
+    await _approve_pending_edit(db_session, approval, test_user_cro)
 
     await db_session.refresh(risk)
     assert risk.net_impact == 5
@@ -150,18 +156,12 @@ async def test_approval_edit_control_sets_updated_by_id(
         action_type=ApprovalActionType.EDIT,
         requested_by_id=test_user_risk_manager.id,
         reason="Testing updated_by_id attribution",
-        status=ApprovalStatus.APPROVED,
+        status=ApprovalStatus.PENDING,
         pending_changes={
             "description": {"old": "Original description", "new": "Updated description"},
         },
     )
-    db_session.add(approval)
-    await db_session.commit()
-    await db_session.refresh(approval)
-
-    # CRO approves - their ID should be set as updated_by_id
-    await _apply_edit_risk_control(db_session, approval, test_user_cro)
-    await db_session.commit()
+    await _approve_pending_edit(db_session, approval, test_user_cro)
 
     await db_session.refresh(control)
     assert control.description == "Updated description"
@@ -170,7 +170,10 @@ async def test_approval_edit_control_sets_updated_by_id(
 
 @pytest.mark.asyncio
 async def test_approval_edit_risk_no_score_change_when_no_probability_impact(
-    db_session, test_department, test_user_cro
+    db_session,
+    test_department,
+    test_user_cro,
+    test_user_employee,
 ):
     """Risk approval edit without probability/impact changes does not alter scores."""
     risk = Risk(
@@ -198,19 +201,14 @@ async def test_approval_edit_risk_no_score_change_when_no_probability_impact(
         resource_id=risk.id,
         resource_name=risk.name,
         action_type=ApprovalActionType.EDIT,
-        requested_by_id=test_user_cro.id,
+        requested_by_id=test_user_employee.id,
         reason="Testing non-score field edit",
-        status=ApprovalStatus.APPROVED,
+        status=ApprovalStatus.PENDING,
         pending_changes={
             "description": {"old": "Original", "new": "Updated description"},
         },
     )
-    db_session.add(approval)
-    await db_session.commit()
-    await db_session.refresh(approval)
-
-    await _apply_edit_risk_control(db_session, approval, test_user_cro)
-    await db_session.commit()
+    await _approve_pending_edit(db_session, approval, test_user_cro)
 
     await db_session.refresh(risk)
     assert risk.description == "Updated description"
@@ -225,6 +223,7 @@ async def test_approval_edit_risk_rejects_inactive_owner_target(
     test_department,
     test_role_employee,
     test_user_cro,
+    test_user_employee,
 ):
     """Risk approval edit rejects inactive owner targets at apply time."""
     risk = Risk(
@@ -254,27 +253,25 @@ async def test_approval_edit_risk_rejects_inactive_owner_target(
     await db_session.commit()
     await db_session.refresh(risk)
     await db_session.refresh(inactive_owner)
+    expected_owner_id = test_user_cro.id
 
     approval = ApprovalRequest(
         resource_type=ApprovalResourceType.RISK,
         resource_id=risk.id,
         resource_name=risk.name,
         action_type=ApprovalActionType.EDIT,
-        requested_by_id=test_user_cro.id,
+        requested_by_id=test_user_employee.id,
         reason="Testing inactive owner validation",
-        status=ApprovalStatus.APPROVED,
+        status=ApprovalStatus.PENDING,
         pending_changes={"owner_id": {"old": risk.owner_id, "new": inactive_owner.id}},
     )
-    db_session.add(approval)
-    await db_session.commit()
-
     with pytest.raises(HTTPException) as exc_info:
-        await _apply_edit_risk_control(db_session, approval, test_user_cro)
+        await _approve_pending_edit(db_session, approval, test_user_cro)
 
     assert exc_info.value.status_code == 400
     assert exc_info.value.detail == "Risk owner is inactive"
     await db_session.refresh(risk)
-    assert risk.owner_id == test_user_cro.id
+    assert risk.owner_id == expected_owner_id
 
 
 @pytest.mark.asyncio
@@ -282,6 +279,7 @@ async def test_approval_edit_risk_rejects_missing_owner_target(
     db_session,
     test_department,
     test_user_cro,
+    test_user_employee,
 ):
     """Risk approval edit rejects missing owner targets at apply time."""
     risk = Risk(
@@ -303,27 +301,25 @@ async def test_approval_edit_risk_rejects_missing_owner_target(
     db_session.add(risk)
     await db_session.commit()
     await db_session.refresh(risk)
+    expected_owner_id = test_user_cro.id
 
     approval = ApprovalRequest(
         resource_type=ApprovalResourceType.RISK,
         resource_id=risk.id,
         resource_name=risk.name,
         action_type=ApprovalActionType.EDIT,
-        requested_by_id=test_user_cro.id,
+        requested_by_id=test_user_employee.id,
         reason="Testing missing owner validation",
-        status=ApprovalStatus.APPROVED,
+        status=ApprovalStatus.PENDING,
         pending_changes={"owner_id": {"old": risk.owner_id, "new": 999999}},
     )
-    db_session.add(approval)
-    await db_session.commit()
-
     with pytest.raises(HTTPException) as exc_info:
-        await _apply_edit_risk_control(db_session, approval, test_user_cro)
+        await _approve_pending_edit(db_session, approval, test_user_cro)
 
     assert exc_info.value.status_code == 400
     assert exc_info.value.detail == "Risk owner not found"
     await db_session.refresh(risk)
-    assert risk.owner_id == test_user_cro.id
+    assert risk.owner_id == expected_owner_id
 
 
 @pytest.mark.asyncio
@@ -355,6 +351,7 @@ async def test_approval_edit_control_rejects_inactive_owner_target(
     await db_session.commit()
     await db_session.refresh(control)
     await db_session.refresh(inactive_owner)
+    expected_owner_id = test_user_risk_manager.id
 
     approval = ApprovalRequest(
         resource_type=ApprovalResourceType.CONTROL,
@@ -363,19 +360,16 @@ async def test_approval_edit_control_rejects_inactive_owner_target(
         action_type=ApprovalActionType.EDIT,
         requested_by_id=test_user_risk_manager.id,
         reason="Testing inactive control owner validation",
-        status=ApprovalStatus.APPROVED,
+        status=ApprovalStatus.PENDING,
         pending_changes={"control_owner_id": {"old": control.control_owner_id, "new": inactive_owner.id}},
     )
-    db_session.add(approval)
-    await db_session.commit()
-
     with pytest.raises(HTTPException) as exc_info:
-        await _apply_edit_risk_control(db_session, approval, test_user_cro)
+        await _approve_pending_edit(db_session, approval, test_user_cro)
 
     assert exc_info.value.status_code == 400
     assert exc_info.value.detail == "Control owner is inactive"
     await db_session.refresh(control)
-    assert control.control_owner_id == test_user_risk_manager.id
+    assert control.control_owner_id == expected_owner_id
 
 
 @pytest.mark.asyncio
@@ -384,6 +378,7 @@ async def test_approval_edit_kri_rejects_inactive_reporting_owner_target(
     test_department,
     test_role_employee,
     test_user_cro,
+    test_user_employee,
     test_risk,
 ):
     """KRI approval edit rejects inactive reporting owner targets at apply time."""
@@ -408,6 +403,7 @@ async def test_approval_edit_kri_rejects_inactive_reporting_owner_target(
     db_session.add_all([kri, inactive_owner])
     await db_session.commit()
     await db_session.refresh(inactive_owner)
+    expected_owner_id = test_user_cro.id
     kri = (
         await db_session.execute(
             select(KeyRiskIndicator)
@@ -416,17 +412,21 @@ async def test_approval_edit_kri_rejects_inactive_reporting_owner_target(
         )
     ).scalar_one()
 
+    approval = ApprovalRequest(
+        resource_type=ApprovalResourceType.KRI,
+        resource_id=kri.id,
+        resource_name=kri.metric_name,
+        action_type=ApprovalActionType.EDIT,
+        requested_by_id=test_user_employee.id,
+        reason="Testing inactive reporting owner validation",
+        status=ApprovalStatus.PENDING,
+        pending_changes={"reporting_owner_id": {"old": kri.reporting_owner_id, "new": inactive_owner.id}},
+    )
+
     with pytest.raises(HTTPException) as exc_info:
-        await _apply_kri_generic_edit(
-            db_session,
-            kri,
-            {"reporting_owner_id": {"old": kri.reporting_owner_id, "new": inactive_owner.id}},
-            test_user_cro,
-            999,
-            test_department.id,
-        )
+        await _approve_pending_edit(db_session, approval, test_user_cro)
 
     assert exc_info.value.status_code == 400
     assert exc_info.value.detail == "Reporting owner is inactive"
     await db_session.refresh(kri)
-    assert kri.reporting_owner_id == test_user_cro.id
+    assert kri.reporting_owner_id == expected_owner_id

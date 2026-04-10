@@ -93,3 +93,5 @@ export function RiskHubPage() {
         </div>
     );
 }
+
+export default RiskHubPage;

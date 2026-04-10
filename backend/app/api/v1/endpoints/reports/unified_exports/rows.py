@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Any
 
+from app.api.mappers.risk import active_kris_for_risk
 from app.core.datetime_utils import coerce_utc
 from app.models import Control, Issue, KeyRiskIndicator, Risk, Vendor
 from app.models.issue import IssueStatus
@@ -11,6 +12,7 @@ from ._shared import _enum_value, _joined, _latest_exception
 
 
 def _risk_to_row(risk: Risk) -> dict[str, Any]:
+    active_kris = active_kris_for_risk(risk)
     return {
         "id": risk.id,
         "risk_id_code": risk.risk_id_code,
@@ -32,7 +34,7 @@ def _risk_to_row(risk: Risk) -> dict[str, Any]:
         "department_id": risk.department_id,
         "department_name": risk.department.name if getattr(risk, "department", None) else None,
         "control_count": len(risk.control_links or []),
-        "kri_count": len(risk.kris or []),
+        "kri_count": len(active_kris),
         "created_at": risk.created_at,
         "updated_at": risk.updated_at,
     }

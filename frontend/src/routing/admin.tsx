@@ -3,8 +3,8 @@ import { BookOpen, Server } from 'lucide-react';
 
 import type { AppRouteDef } from './types';
 
-const AdminConsolePage = lazy(async () => ({ default: (await import('@/pages/AdminConsolePage')).AdminConsolePage }));
-const DocumentationPage = lazy(async () => ({ default: (await import('@/pages/DocumentationPage')).DocumentationPage }));
+const AdminConsolePage = lazy(() => import('@/pages/AdminConsolePage'));
+const DocumentationPage = lazy(() => import('@/pages/DocumentationPage'));
 
 export const adminRoutes: AppRouteDef[] = [
   {

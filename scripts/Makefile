@@ -1,7 +1,7 @@
 # RiskHub Development Makefile
 # Usage: make -f scripts/Makefile <target>
 
-.PHONY: help dev dev-full docker docker-lan docker-reset stop clean test test-postgres-ci migrate logs shell db db-shell lint lint-frontend lint-backend quality-suppression-budget quality-repo-contracts readme-coverage docs-tree-audit docs-topology-consistency verify verify-prod-install-scripts verify-startup-scripts security-contract-probe security-redis-resilience security-gap-round5 public-repo-hygiene public-leak-audit prod-readiness-audit-local release-parity-audit
+.PHONY: help dev dev-full docker docker-lan docker-reset stop clean test test-fast test-db-contracts test-postgres-ci test-benchmarks migrate logs shell db db-shell lint lint-frontend lint-backend quality-suppression-budget quality-repo-contracts readme-coverage docs-tree-audit docs-topology-consistency verify verify-prod-install-scripts verify-startup-scripts security-contract-probe security-redis-resilience security-gap-round5 public-repo-hygiene public-leak-audit prod-readiness-audit-local release-parity-audit
 
 # Default target
 help:
@@ -26,7 +26,10 @@ help:
 	@echo "  make db-shell     - Open psql shell in database"
 	@echo ""
 	@echo "Testing:"
-	@echo "  make test         - Run backend tests"
+	@echo "  make test         - Run backend regression (excludes benchmark marker)"
+	@echo "  make test-fast    - Run the fast SQLite backend regression contract"
+	@echo "  make test-db-contracts - Run the blocking Postgres DB-truth contract"
+	@echo "  make test-benchmarks - Run environment-sensitive backend benchmark tests"
 	@echo "  make test-postgres-ci - Run the blocking Postgres CI regression contract"
 	@echo "  make test-e2e     - Run Playwright E2E tests"
 	@echo "  make lint         - Run frontend + backend lint"
@@ -102,7 +105,15 @@ db-shell:
 
 # Run backend tests
 test:
-	cd backend && pytest -v
+	cd backend && pytest -v -m "not benchmark"
+
+test-fast:
+	cd backend && pytest -q -m "not postgres and not benchmark"
+
+test-db-contracts: test-postgres-ci
+
+test-benchmarks:
+	cd backend && pytest -q -m benchmark --no-cov
 
 test-postgres-ci:
 	@test -n "$$TEST_DATABASE_URL" || (echo "TEST_DATABASE_URL is required for make test-postgres-ci" >&2; exit 1)

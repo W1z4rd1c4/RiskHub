@@ -126,3 +126,5 @@ export function ActivityLogPage() {
         </div>
     );
 }
+
+export default ActivityLogPage;

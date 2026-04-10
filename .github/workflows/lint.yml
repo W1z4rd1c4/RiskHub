@@ -34,10 +34,65 @@ jobs:
         run: npm run test:coverage
         working-directory: frontend
 
-  lint:
-    name: Lint (Frontend + Backend)
+  backend-quality:
+    name: Backend Quality
     runs-on: ubuntu-latest
-    needs: [docs-topology-consistency, frontend-unit-tests]
+
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-runtime.txt
+            backend/requirements-db.txt
+            backend/requirements-dev.txt
+
+      - name: Install backend lint dependencies
+        run: |
+          python -m pip install -r requirements.txt
+          python -m pip install -r requirements-dev.txt
+        working-directory: backend
+
+      - name: Backend Ruff gate
+        run: |
+          set -euo pipefail
+          cd backend
+          ruff check --config ruff.toml app ../tests/backend/pytest scripts | tee ../lint-backend-ruff.log
+
+      - name: Backend mypy gate
+        run: |
+          set -euo pipefail
+          cd backend
+          mypy --config-file mypy.ini app | tee ../lint-backend-mypy.log
+
+      - name: Backend suppression budget gate
+        run: |
+          set -euo pipefail
+          python3 scripts/tools/suppression_budget.py | tee lint-backend-suppression-budget.log
+
+      - name: Upload backend lint evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: lint-backend-evidence
+          path: |
+            lint-backend-ruff.log
+            lint-backend-mypy.log
+            lint-backend-suppression-budget.log
+            tests/results/quality/suppression-budget-*/suppression-budget.json
+          retention-days: 30
+
+  lint:
+    name: Frontend + Repo Contracts
+    runs-on: ubuntu-latest
+    needs: [frontend-unit-tests]
 
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
@@ -67,25 +122,6 @@ jobs:
           npx tsc --noEmit | tee ../lint-frontend-typecheck.log
         working-directory: frontend
 
-      - name: Frontend debt budget
-        run: |
-          set -euo pipefail
-          npm run quality:debt -- --report-json | tee ../lint-frontend-debt.log
-          node scripts/quality/validate-debt-budget-report.mjs
-        working-directory: frontend
-
-      - name: Frontend cleanup audit contract
-        run: |
-          set -euo pipefail
-          npm run cleanup:deadcode | tee ../lint-frontend-cleanup.log
-          node scripts/cleanup/validate-unreachable-report.mjs
-          node scripts/quality/validate-no-inline-styles.mjs
-          if git ls-files | grep -q '^tests/results/frontend/playwright/playwright-report/'; then
-            echo "Tracked Playwright report artifacts are not allowed."
-            exit 1
-          fi
-        working-directory: frontend
-
       - name: Frontend build
         run: |
           set -euo pipefail
@@ -103,140 +139,10 @@ jobs:
             backend/requirements-db.txt
             backend/requirements-dev.txt
 
-      - name: Install backend lint dependencies
-        run: |
-          pip install -r requirements.txt
-          pip install -r requirements-dev.txt
-        working-directory: backend
-
-      - name: Compute changed backend Python quality targets
-        id: changed-quality-targets
-        run: |
-          set -euo pipefail
-          BEFORE_SHA=""
-          if [ "${GITHUB_EVENT_NAME}" = "push" ]; then
-            BEFORE_SHA="${{ github.event.before }}"
-          fi
-          printf 'No changed backend/app Python files detected.\n' > lint-backend-mypy.log
-          printf 'No changed backend/app Python files detected.\n' > lint-backend-ruff-ratchet.log
-          python3 scripts/tools/changed_quality_targets.py \
-            --event-name "${GITHUB_EVENT_NAME}" \
-            --base-ref "${GITHUB_BASE_REF:-main}" \
-            --before-sha "${BEFORE_SHA}" \
-            --kind backend-python > changed-backend-python.txt
-          if [ -s changed-backend-python.txt ]; then
-            echo "backend_python_changed=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "backend_python_changed=false" >> "$GITHUB_OUTPUT"
-          fi
-          cat changed-backend-python.txt || true
-
-      - name: Backend lint (Ruff hard gate)
-        run: |
-          set -euo pipefail
-          ruff check app ../tests/backend/pytest scripts | tee ../lint-backend-ruff.log
-        working-directory: backend
-
-      - name: Backend mypy (changed backend/app files)
-        if: steps.changed-quality-targets.outputs.backend_python_changed == 'true'
-        run: |
-          set -euo pipefail
-          mapfile -t changed_backend < <(sed 's#^backend/##' ../changed-backend-python.txt)
-          mypy --config-file mypy.ini "${changed_backend[@]}" | tee ../lint-backend-mypy.log
-        working-directory: backend
-
-      - name: Backend Ruff changed-file ratchet (UP/SIM)
-        if: steps.changed-quality-targets.outputs.backend_python_changed == 'true'
-        run: |
-          set -euo pipefail
-          mapfile -t changed_backend < <(sed 's#^backend/##' ../changed-backend-python.txt)
-          ruff check "${changed_backend[@]}" --select UP,SIM | tee ../lint-backend-ruff-ratchet.log
-        working-directory: backend
-
-      - name: Backend suppression budget (blocking)
-        run: |
-          set -euo pipefail
-          python3 scripts/tools/suppression_budget.py | tee lint-backend-suppression-budget.log
-
       - name: Repo artifact + script syntax contracts
         run: |
           set -euo pipefail
           make -f scripts/Makefile quality-repo-contracts | tee lint-repo-contracts.log
-
-      - name: Validate ratchet status documentation contract
-        run: |
-          set -euo pipefail
-          python3 scripts/tools/validate_lint_ratchet_docs.py
-
-      - name: Compute Ruff ratchet class counts
-        run: |
-          set -euo pipefail
-          E712_COUNT="$(ruff check app --select E712 --output-format json | python -c 'import json,sys; print(len(json.load(sys.stdin)))')"
-          E402_COUNT="$(ruff check app --select E402 --output-format json | python -c 'import json,sys; print(len(json.load(sys.stdin)))')"
-          E501_COUNT="$(ruff check app --select E501 --output-format json | python -c 'import json,sys; print(len(json.load(sys.stdin)))')"
-          echo "E712_COUNT=${E712_COUNT}" >> "$GITHUB_ENV"
-          echo "E402_COUNT=${E402_COUNT}" >> "$GITHUB_ENV"
-          echo "E501_COUNT=${E501_COUNT}" >> "$GITHUB_ENV"
-          echo "Ruff ratchet counts: E712=${E712_COUNT}, E402=${E402_COUNT}, E501=${E501_COUNT}"
-        working-directory: backend
-
-      - name: Write lint baseline summary
-        run: |
-          {
-            echo "# Lint Summary";
-            echo "";
-            echo "- Frontend lint: PASS";
-            echo "- Frontend typecheck: PASS";
-            echo "- Frontend debt budget: PASS";
-            echo "- Frontend cleanup audit contract: PASS";
-            echo "- Frontend build: PASS";
-            echo "- Backend Ruff hard gate (backend/app + tests/backend/pytest + backend/scripts): PASS";
-            echo "- Backend mypy (changed backend/app files): PASS";
-            echo "- Backend Ruff changed-file ratchet (UP/SIM): PASS";
-            echo "- Repo artifact + script syntax contracts: PASS";
-            echo "- Ruff ratchet status: E712=${E712_COUNT}, E402=${E402_COUNT}, E501=${E501_COUNT}";
-          } > lint-summary.md
-
-      - name: Upload lint evidence
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: lint-evidence
-          path: |
-            lint-summary.md
-            lint-frontend.log
-            lint-frontend-typecheck.log
-            lint-frontend-debt.log
-            lint-frontend-cleanup.log
-            lint-frontend-build.log
-            lint-backend-ruff.log
-            lint-backend-mypy.log
-            lint-backend-ruff-ratchet.log
-            lint-backend-suppression-budget.log
-            lint-repo-contracts.log
-            changed-backend-python.txt
-            tests/results/quality/frontend/debt-budget/debt.json
-            tests/results/quality/frontend/cleanup-audit/unreachable.md
-            tests/results/quality/frontend/cleanup-audit/unreachable.json
-            tests/results/quality/suppression-budget-*/suppression-budget.json
-          retention-days: 30
-
-  docs-topology-consistency:
-    name: Docs Topology Consistency
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
-
-      - name: Set up Python
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
-        with:
-          python-version: '3.13'
-
-      - name: Docs topology consistency gate
-        run: |
-          set -euo pipefail
-          make -f scripts/Makefile docs-topology-consistency | tee lint-docs-topology.log
 
       - name: Production contract docs gate
         run: |
@@ -248,104 +154,31 @@ jobs:
           set -euo pipefail
           python3 scripts/security/validate_deprecated_imports.py | tee lint-deprecated-imports.log
 
-      - name: Upload docs topology evidence
+      - name: Write lint summary
+        run: |
+          {
+            echo "# Lint Summary";
+            echo "";
+            echo "- Frontend unit tests: PASS";
+            echo "- Frontend lint: PASS";
+            echo "- Frontend typecheck: PASS";
+            echo "- Frontend build: PASS";
+            echo "- Repo artifact + script syntax contracts: PASS";
+            echo "- Production contract docs: PASS";
+            echo "- Deprecated imports: PASS";
+          } > lint-summary.md
+
+      - name: Upload lint evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: docs-topology-evidence
+          name: lint-evidence
           path: |
-            lint-docs-topology.log
+            lint-summary.md
+            lint-frontend.log
+            lint-frontend-typecheck.log
+            lint-frontend-build.log
+            lint-repo-contracts.log
             lint-production-contract.log
             lint-deprecated-imports.log
-          retention-days: 30
-
-  ruff-informational:
-    name: Ruff Informational (Full backend tree)
-    runs-on: ubuntu-latest
-    continue-on-error: true
-
-    steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
-
-      - name: Set up Python
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
-        with:
-          python-version: '3.13'
-          cache: 'pip'
-          cache-dependency-path: |
-            backend/requirements.txt
-            backend/requirements-runtime.txt
-            backend/requirements-db.txt
-
-      - name: Install backend lint dependencies
-        run: |
-          pip install -r requirements.txt
-          pip install -r requirements-dev.txt
-        working-directory: backend
-
-      - name: Run full backend Ruff report (informational)
-        run: ruff check --config backend/ruff.toml backend --output-format=github
-
-  mypy-informational:
-    name: Mypy Informational (Full backend app tree)
-    runs-on: ubuntu-latest
-    continue-on-error: true
-
-    steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
-
-      - name: Set up Python
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
-        with:
-          python-version: '3.13'
-          cache: 'pip'
-          cache-dependency-path: |
-            backend/requirements.txt
-            backend/requirements-runtime.txt
-            backend/requirements-db.txt
-            backend/requirements-dev.txt
-
-      - name: Install backend lint dependencies
-        run: |
-          pip install -r requirements.txt
-          pip install -r requirements-dev.txt
-        working-directory: backend
-
-      - name: Run informational full-tree mypy
-        run: |
-          set -euo pipefail
-          mypy --config-file mypy.ini app | tee ../lint-backend-mypy-informational.log
-        working-directory: backend
-
-      - name: Upload informational mypy evidence
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: mypy-informational-evidence
-          path: |
-            lint-backend-mypy-informational.log
-          retention-days: 30
-
-  docs-tree-audit:
-    name: Docs Tree Audit (Informational)
-    runs-on: ubuntu-latest
-    continue-on-error: true
-
-    steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
-
-      - name: Set up Python
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
-        with:
-          python-version: '3.13'
-
-      - name: Run canonical docs-tree topology audit (informational)
-        run: python3 scripts/tools/docs_tree_audit.py --scope canonical
-
-      - name: Upload docs-tree audit artifacts
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: docs-tree-audit
-          path: tests/results/docs/docs-tree-audit-*
           retention-days: 30

@@ -1,12 +1,18 @@
 from __future__ import annotations
 
+from asyncio import run
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from app.bootstrap_app import configure_app_dependencies, register_routes
-from app.bootstrap_runtime import configure_default_runtime_state
-from app.bootstrap_validation import parse_log_rotation_config
 from app.core.config import Settings, get_settings
+from app.main import (
+    configure_app_dependencies,
+    configure_default_runtime_state,
+    parse_log_rotation_config,
+    register_routes,
+)
 
 
 def _settings(**overrides: object) -> Settings:
@@ -20,7 +26,7 @@ def _settings(**overrides: object) -> Settings:
     return Settings(_env_file=None, **values)
 
 
-def test_parse_log_rotation_config_stays_owned_by_validation_module() -> None:
+def test_parse_log_rotation_config_returns_canonical_values() -> None:
     parsed = parse_log_rotation_config(
         {
             "app_log_rotation_size_mb": "50",
@@ -73,3 +79,10 @@ def test_register_routes_keeps_debug_docs_pointer_behavior() -> None:
             "version": "1.0.0-test",
             "docs": "/docs",
         }
+
+
+def test_main_source_does_not_call_configure_logging_at_import() -> None:
+    main_source = Path(__file__).resolve().parents[3] / "backend" / "app" / "main.py"
+    text = main_source.read_text(encoding="utf-8")
+
+    assert "configure_logging()" not in text

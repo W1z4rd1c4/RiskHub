@@ -195,6 +195,69 @@ async def test_list_department_risks_pagination(
 
 
 @pytest.mark.asyncio
+async def test_list_department_risks_ignores_archived_kris_in_summary(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: User,
+):
+    dept = Department(name="Archived KRI Dept", code="ARCH-KRI-DEPT")
+    db_session.add(dept)
+    await db_session.commit()
+    await db_session.refresh(dept)
+
+    risk = Risk(
+        risk_id_code="R-DEPT-ARCH-KRI",
+        name="Department Archived KRI Risk",
+        process="Department Archived KRI",
+        description="Department risk summary should ignore archived KRIs",
+        category="Test",
+        department_id=dept.id,
+        owner_id=test_user.id,
+        risk_type="operational",
+        gross_probability=2,
+        gross_impact=2,
+        net_probability=2,
+        net_impact=2,
+        status=RiskStatusEnum.active.value,
+    )
+    db_session.add(risk)
+    await db_session.commit()
+    await db_session.refresh(risk)
+
+    db_session.add_all(
+        [
+            KeyRiskIndicator(
+                risk_id=risk.id,
+                metric_name="Department Active KRI",
+                description="Active KRI",
+                unit="%",
+                current_value=10.0,
+                lower_limit=0.0,
+                upper_limit=20.0,
+            ),
+            KeyRiskIndicator(
+                risk_id=risk.id,
+                metric_name="Department Archived Breach",
+                description="Archived KRI should not affect summary",
+                unit="%",
+                current_value=30.0,
+                lower_limit=0.0,
+                upper_limit=20.0,
+                is_archived=True,
+            ),
+        ]
+    )
+    await db_session.commit()
+
+    response = await auth_client.get(f"/api/v1/departments/{dept.id}/risks")
+    assert response.status_code == 200
+    payload = response.json()
+    summary = next(item for item in payload if item["risk_id_code"] == "R-DEPT-ARCH-KRI")
+    assert summary["kri_count"] == 1
+    assert summary["has_breach"] is False
+
+
+@pytest.mark.asyncio
 async def test_list_department_kris_pagination_deterministic_no_overlap(
     auth_client: AsyncClient,
     db_session: AsyncSession,

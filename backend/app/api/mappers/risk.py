@@ -5,6 +5,14 @@ from app.schemas.risk import RiskSummary
 from app.schemas.vendor_shared import LinkedVendorRead
 
 
+def filter_active_kris(kris: list | None) -> list:
+    return [kri for kri in (kris or []) if not getattr(kri, "is_archived", False)]
+
+
+def active_kris_for_risk(risk: Risk) -> list:
+    return filter_active_kris(getattr(risk, "kris", None) or [])
+
+
 def risk_to_summary(risk: Risk, *, linked_vendors: list[LinkedVendorRead] | None = None) -> RiskSummary:
     """
     Map a Risk ORM object to the RiskSummary schema.
@@ -13,7 +21,7 @@ def risk_to_summary(risk: Risk, *, linked_vendors: list[LinkedVendorRead] | None
     Risk table changes (e.g. new columns). Endpoints should eager-load relationships
     used here (department, kris, control_links) to keep this mapper pure.
     """
-    kris = getattr(risk, "kris", None) or []
+    kris = active_kris_for_risk(risk)
     control_links = getattr(risk, "control_links", None) or []
 
     return RiskSummary(

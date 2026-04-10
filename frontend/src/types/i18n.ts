@@ -6,6 +6,7 @@ export type UiErrorCode =
   | 'NOT_FOUND'
   | 'VALIDATION_ERROR'
   | 'NETWORK_ERROR'
+  | 'REQUEST_TIMEOUT'
   | 'SERVER_ERROR'
   | 'REQUEST_FAILED'
   | 'DEMO_LOGIN_FAILED'

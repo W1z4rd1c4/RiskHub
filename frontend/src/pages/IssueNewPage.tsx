@@ -44,3 +44,5 @@ export function IssueNewPage() {
         </div>
     );
 }
+
+export default IssueNewPage;

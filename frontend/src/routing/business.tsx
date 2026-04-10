@@ -15,31 +15,31 @@ import {
 import { ActivityLogRouteGuard, GovernanceRouteGuard } from '@/authz/BusinessRouteGuards';
 import type { AppRouteDef } from './types';
 
-const ApprovalsPage = lazy(async () => ({ default: (await import('@/pages/ApprovalsPage')).default }));
-const NotificationsPage = lazy(async () => ({ default: (await import('@/pages/NotificationsPage')).NotificationsPage }));
-const ControlsPage = lazy(async () => ({ default: (await import('@/pages/ControlsPage')).ControlsPage }));
-const ControlDetailPage = lazy(async () => ({ default: (await import('@/pages/ControlDetailPage')).ControlDetailPage }));
-const ControlNewPage = lazy(async () => ({ default: (await import('@/pages/ControlForms')).ControlNewPage }));
-const ControlEditPage = lazy(async () => ({ default: (await import('@/pages/ControlForms')).ControlEditPage }));
-const RisksPage = lazy(async () => ({ default: (await import('@/pages/RisksPage')).RisksPage }));
-const RiskDetailPage = lazy(async () => ({ default: (await import('@/pages/RiskDetailPage')).RiskDetailPage }));
-const RiskNewPage = lazy(async () => ({ default: (await import('@/pages/RiskForms')).RiskNewPage }));
-const RiskEditPage = lazy(async () => ({ default: (await import('@/pages/RiskForms')).RiskEditPage }));
-const IssuesPage = lazy(async () => ({ default: (await import('@/pages/IssuesPage')).IssuesPage }));
-const IssueNewPage = lazy(async () => ({ default: (await import('@/pages/IssueNewPage')).IssueNewPage }));
-const IssueDetailPage = lazy(async () => ({ default: (await import('@/pages/IssueDetailPage')).IssueDetailPage }));
-const KRIsPage = lazy(async () => ({ default: (await import('@/pages/KRIsPage')).KRIsPage }));
-const KRINewPage = lazy(async () => ({ default: (await import('@/pages/KRIForms')).KRINewPage }));
-const KRIDetailPage = lazy(async () => ({ default: (await import('@/pages/KRIDetailPage')).KRIDetailPage }));
-const DepartmentsPage = lazy(async () => ({ default: (await import('@/pages/DepartmentsPage')).DepartmentsPage }));
-const DepartmentDetailPage = lazy(async () => ({ default: (await import('@/pages/DepartmentDetailPage')).DepartmentDetailPage }));
-const VendorsPage = lazy(async () => ({ default: (await import('@/pages/VendorsPage')).VendorsPage }));
-const VendorDetailPage = lazy(async () => ({ default: (await import('@/pages/VendorDetailPage')).VendorDetailPage }));
-const VendorReportsPage = lazy(async () => ({ default: (await import('@/pages/VendorReportsPage')).VendorReportsPage }));
-const AuditTrailPage = lazy(async () => ({ default: (await import('@/pages/AuditTrailPage')).AuditTrailPage }));
-const ActivityLogPage = lazy(async () => ({ default: (await import('@/pages/ActivityLogPage')).ActivityLogPage }));
-const GovernancePage = lazy(async () => ({ default: (await import('@/pages/GovernancePage')).default }));
-const RiskHubPage = lazy(async () => ({ default: (await import('@/pages/RiskHubPage')).RiskHubPage }));
+const ApprovalsPage = lazy(() => import('@/pages/ApprovalsPage'));
+const NotificationsPage = lazy(() => import('@/pages/NotificationsPage'));
+const ControlsPage = lazy(() => import('@/pages/ControlsPage'));
+const ControlDetailPage = lazy(() => import('@/pages/ControlDetailPage'));
+const ControlNewPage = lazy(() => import('@/pages/ControlNewPage'));
+const ControlEditPage = lazy(() => import('@/pages/ControlEditPage'));
+const RisksPage = lazy(() => import('@/pages/RisksPage'));
+const RiskDetailPage = lazy(() => import('@/pages/RiskDetailPage'));
+const RiskNewPage = lazy(() => import('@/pages/RiskNewPage'));
+const RiskEditPage = lazy(() => import('@/pages/RiskEditPage'));
+const IssuesPage = lazy(() => import('@/pages/IssuesPage'));
+const IssueNewPage = lazy(() => import('@/pages/IssueNewPage'));
+const IssueDetailPage = lazy(() => import('@/pages/IssueDetailPage'));
+const KRIsPage = lazy(() => import('@/pages/KRIsPage'));
+const KRINewPage = lazy(() => import('@/pages/KRINewPage'));
+const KRIDetailPage = lazy(() => import('@/pages/KRIDetailPage'));
+const DepartmentsPage = lazy(() => import('@/pages/DepartmentsPage'));
+const DepartmentDetailPage = lazy(() => import('@/pages/DepartmentDetailPage'));
+const VendorsPage = lazy(() => import('@/pages/VendorsPage'));
+const VendorDetailPage = lazy(() => import('@/pages/VendorDetailPage'));
+const VendorReportsPage = lazy(() => import('@/pages/VendorReportsPage'));
+const AuditTrailPage = lazy(() => import('@/pages/AuditTrailPage'));
+const ActivityLogPage = lazy(() => import('@/pages/ActivityLogPage'));
+const GovernancePage = lazy(() => import('@/pages/GovernancePage'));
+const RiskHubPage = lazy(() => import('@/pages/RiskHubPage'));
 
 export const businessRoutes: AppRouteDef[] = [
   {

@@ -4,7 +4,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestQueryClient } from '@test/queryClient';
 import { IssueDetailPage } from '@/pages/IssueDetailPage';
-import { __resetSessionStoreForTests, setSessionSnapshot } from '@/services/sessionStore';
+import { __resetSessionStoreForTests, setSessionSnapshot } from '@/services/session/store';
 
 const mockGetIssue = vi.fn();
 const mockListActivity = vi.fn();

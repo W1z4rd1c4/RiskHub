@@ -6,6 +6,7 @@ export type QueryParams = URLSearchParams | Record<string, QueryValue>;
 
 export interface RequestOptions extends RequestInit {
     params?: QueryParams;
+    timeoutMs?: number | null;
 }
 
 export interface SchemaRequestOptions<S extends ZodTypeAny> extends RequestOptions {
@@ -16,6 +17,7 @@ export interface PreparedRequest {
     url: URL;
     pathname: string;
     init: RequestInit;
+    timeoutMs?: number | null;
 }
 
 export interface ApiClientErrorPayload {

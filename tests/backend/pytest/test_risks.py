@@ -5,7 +5,7 @@ Tests for Risk API endpoints.
 import pytest
 from httpx import AsyncClient
 
-from app.models import Department, User
+from app.models import Department, KeyRiskIndicator, Risk, User
 
 
 @pytest.mark.asyncio
@@ -103,6 +103,63 @@ async def test_get_risk(auth_client: AsyncClient, test_user: User, test_departme
 
 
 @pytest.mark.asyncio
+async def test_risk_detail_omits_archived_kris(
+    auth_client: AsyncClient,
+    db_session,
+    test_user: User,
+    test_department: Department,
+    seed_risk_types,
+):
+    risk = Risk(
+        risk_id_code="R-ARCH-KRI-DETAIL",
+        name="Archived KRI Detail Risk",
+        process="Archived KRI Detail",
+        description="Risk detail should omit archived KRIs",
+        department_id=test_department.id,
+        owner_id=test_user.id,
+        risk_type="operational",
+        category="Test",
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=2,
+        status="active",
+    )
+    db_session.add(risk)
+    await db_session.commit()
+    await db_session.refresh(risk)
+
+    active_kri = KeyRiskIndicator(
+        risk_id=risk.id,
+        metric_name="Active Detail KRI",
+        description="Visible KRI",
+        unit="%",
+        current_value=15.0,
+        lower_limit=0.0,
+        upper_limit=20.0,
+    )
+    archived_kri = KeyRiskIndicator(
+        risk_id=risk.id,
+        metric_name="Archived Detail KRI",
+        description="Should stay hidden on risk detail",
+        unit="%",
+        current_value=25.0,
+        lower_limit=0.0,
+        upper_limit=20.0,
+        is_archived=True,
+    )
+    db_session.add_all([active_kri, archived_kri])
+    await db_session.commit()
+    await db_session.refresh(active_kri)
+    await db_session.refresh(archived_kri)
+
+    response = await auth_client.get(f"/api/v1/risks/{risk.id}")
+    assert response.status_code == 200
+    kri_ids = {kri["id"] for kri in response.json()["kris"]}
+    assert kri_ids == {active_kri.id}
+
+
+@pytest.mark.asyncio
 async def test_update_risk(auth_client: AsyncClient, test_user: User, test_department: Department, seed_risk_types):
     """Test updating a risk."""
     # Create a risk first
@@ -174,6 +231,121 @@ async def test_filter_risks_by_status(
     assert len(data) >= 1
     for risk in data:
         assert risk["status"] == "active"
+
+
+@pytest.mark.asyncio
+async def test_risk_list_ignores_archived_kris_for_counts_breach_and_sort(
+    auth_client: AsyncClient,
+    db_session,
+    test_user: User,
+    test_department: Department,
+    seed_risk_types,
+):
+    risk_single_active = Risk(
+        risk_id_code="R-ARCH-KRI-LIST-A",
+        name="Archived KRI List A",
+        process="Archived KRI List Process",
+        description="Active count should ignore archived KRI breach",
+        department_id=test_department.id,
+        owner_id=test_user.id,
+        risk_type="operational",
+        category="Test",
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=2,
+        status="active",
+    )
+    risk_two_active = Risk(
+        risk_id_code="R-ARCH-KRI-LIST-B",
+        name="Archived KRI List B",
+        process="Archived KRI List Process",
+        description="Two active KRIs should sort first",
+        department_id=test_department.id,
+        owner_id=test_user.id,
+        risk_type="operational",
+        category="Test",
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=2,
+        status="active",
+    )
+    db_session.add_all([risk_single_active, risk_two_active])
+    await db_session.commit()
+    await db_session.refresh(risk_single_active)
+    await db_session.refresh(risk_two_active)
+
+    db_session.add_all(
+        [
+            KeyRiskIndicator(
+                risk_id=risk_single_active.id,
+                metric_name="Active Non-Breach",
+                description="Visible non-breach KRI",
+                unit="%",
+                current_value=10.0,
+                lower_limit=0.0,
+                upper_limit=20.0,
+            ),
+            KeyRiskIndicator(
+                risk_id=risk_single_active.id,
+                metric_name="Archived Breach",
+                description="Archived breach should not count",
+                unit="%",
+                current_value=30.0,
+                lower_limit=0.0,
+                upper_limit=20.0,
+                is_archived=True,
+            ),
+            KeyRiskIndicator(
+                risk_id=risk_two_active.id,
+                metric_name="Active One",
+                description="First active KRI",
+                unit="%",
+                current_value=10.0,
+                lower_limit=0.0,
+                upper_limit=20.0,
+            ),
+            KeyRiskIndicator(
+                risk_id=risk_two_active.id,
+                metric_name="Active Two",
+                description="Second active KRI",
+                unit="%",
+                current_value=12.0,
+                lower_limit=0.0,
+                upper_limit=20.0,
+            ),
+        ]
+    )
+    await db_session.commit()
+
+    list_response = await auth_client.get(
+        "/api/v1/risks",
+        params={"process": "Archived KRI List Process", "sort_by": "kri_count", "sort_order": "desc"},
+    )
+    assert list_response.status_code == 200
+    items = {item["risk_id_code"]: item for item in list_response.json()["items"]}
+    ordered_codes = [item["risk_id_code"] for item in list_response.json()["items"]]
+    assert items["R-ARCH-KRI-LIST-A"]["kri_count"] == 1
+    assert items["R-ARCH-KRI-LIST-A"]["has_breach"] is False
+    assert items["R-ARCH-KRI-LIST-B"]["kri_count"] == 2
+    assert ordered_codes[:2] == ["R-ARCH-KRI-LIST-B", "R-ARCH-KRI-LIST-A"]
+
+    breach_true = await auth_client.get(
+        "/api/v1/risks",
+        params={"process": "Archived KRI List Process", "has_breach": "true"},
+    )
+    assert breach_true.status_code == 200
+    breach_true_codes = {item["risk_id_code"] for item in breach_true.json()["items"]}
+    assert "R-ARCH-KRI-LIST-A" not in breach_true_codes
+
+    breach_false = await auth_client.get(
+        "/api/v1/risks",
+        params={"process": "Archived KRI List Process", "has_breach": "false"},
+    )
+    assert breach_false.status_code == 200
+    breach_false_codes = {item["risk_id_code"] for item in breach_false.json()["items"]}
+    assert {"R-ARCH-KRI-LIST-A", "R-ARCH-KRI-LIST-B"}.issubset(breach_false_codes)
 
 
 @pytest.mark.asyncio

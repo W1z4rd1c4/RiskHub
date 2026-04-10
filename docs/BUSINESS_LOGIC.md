@@ -901,6 +901,7 @@ Compatibility behavior:
 - `POST /api/v1/admin/logs/config` accepts canonical payloads.
 - Legacy payload (`log_rotation_size_mb`, `log_retention_count`) is accepted temporarily and mirrored to app/audit values.
 - Mixed canonical+legacy payloads are rejected (`422`).
+- Successful `POST /api/v1/admin/logs/config` persists the values and reapplies log rotation to the current backend process immediately.
 
 `GET /api/v1/admin/logs/config` returns canonical fields.
 

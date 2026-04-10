@@ -3,11 +3,19 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
-from app.models import ApprovalRequest, GlobalConfig, Risk, User
+from app.models import (
+    ApprovalActionType,
+    ApprovalRequest,
+    ApprovalResourceType,
+    GlobalConfig,
+    Risk,
+    User,
+)
 from app.models.approval_request import ApprovalStatus
 from app.models.global_config import clear_config_cache
 from app.models.risk import RiskStatus
 from app.models.notification import Notification, NotificationType
+from app.services.approval_execution_service import approve_request_workflow
 from app.services.outbox import dispatch_pending_outbox_events
 
 
@@ -151,6 +159,63 @@ class TestApprovalWorkflow:
 
         persisted_risk = await _load_risk(db_session, risk.id)
         assert persisted_risk.status == RiskStatus.archived.value
+
+    async def test_primary_approval_escalation_rolls_back_on_commit_failure(
+        self,
+        db_session: AsyncSession,
+        test_department,
+        test_user_employee: User,
+        test_user_risk_manager: User,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """Escalation failures should rollback the approval transition and keep the session usable."""
+        risk = await _create_risk_for_delete_workflow(
+            db_session,
+            risk_id_code="R-DEL-ROLLBACK-001",
+            name="Escalation Rollback Risk",
+            department_id=test_department.id,
+            owner_id=test_user_employee.id,
+            net_score=10,
+        )
+        risk_id = risk.id
+
+        approval = ApprovalRequest(
+            resource_type=ApprovalResourceType.RISK,
+            resource_id=risk.id,
+            resource_name=risk.name,
+            action_type=ApprovalActionType.DELETE,
+            requested_by_id=test_user_risk_manager.id,
+            primary_approver_id=test_user_employee.id,
+            reason="Rollback regression test",
+            status=ApprovalStatus.PENDING,
+            requires_privileged_approval=True,
+        )
+        db_session.add(approval)
+        await db_session.commit()
+        await db_session.refresh(approval)
+        approval_id = approval.id
+
+        async def failing_commit():
+            raise RuntimeError("commit failed")
+
+        monkeypatch.setattr(db_session, "commit", failing_commit)
+
+        with pytest.raises(RuntimeError, match="commit failed"):
+            await approve_request_workflow(
+                db_session,
+                approval_id,
+                test_user_employee,
+                "Owner approval before privileged review",
+            )
+
+        db_session.expire_all()
+        refreshed_approval = await _load_approval(db_session, approval_id)
+        assert refreshed_approval.status == ApprovalStatus.PENDING
+        assert refreshed_approval.primary_approved_at is None
+        assert refreshed_approval.resolved_by_id is None
+
+        persisted_risk = await _load_risk(db_session, risk_id)
+        assert persisted_risk.status == RiskStatus.active.value
 
     async def test_low_risk_delete_finalizes_after_primary_approval(
         self,

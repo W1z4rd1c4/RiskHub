@@ -5,11 +5,11 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { ProtectedRoute } from '@/App';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { clearAuthConfigCache } from '@/services/authConfig';
-import { __resetBootstrapSessionCacheForTests, setBootstrapSession } from '@/services/bootstrapSessionCache';
-import { __resetAuthSessionCoordinatorForTests, clearBootstrapSession } from '@/services/authSessionCoordinator';
+import { __resetBootstrapSessionCacheForTests, setBootstrapSession } from '@/services/session/bootstrap';
+import { __resetAuthSessionCoordinatorForTests, clearBootstrapSession } from '@/services/session/bootstrap';
 import { AUTH_REQUEST_TIMEOUT_MS } from '@/services/authRequest';
 import { clearAccessToken, setAccessToken } from '@test/accessTokenStoreHarness';
-import { __resetSsoSessionForTests } from '@/services/ssoSession';
+import { __resetSilentSessionRefreshForTests } from '@/services/session/sso';
 
 vi.mock('@/utils/userSettingsStorage', () => ({
     syncPreferencesFromServer: vi.fn(async () => undefined),
@@ -37,7 +37,7 @@ describe('ProtectedRoute bootstrap failure handling', () => {
         clearBootstrapSession();
         __resetBootstrapSessionCacheForTests();
         __resetAuthSessionCoordinatorForTests();
-        __resetSsoSessionForTests();
+        __resetSilentSessionRefreshForTests();
     });
 
     afterEach(() => {
@@ -48,7 +48,7 @@ describe('ProtectedRoute bootstrap failure handling', () => {
         clearBootstrapSession();
         __resetBootstrapSessionCacheForTests();
         __resetAuthSessionCoordinatorForTests();
-        __resetSsoSessionForTests();
+        __resetSilentSessionRefreshForTests();
     });
 
     it('redirects to login with a stable auth error reason when bootstrap times out', async () => {

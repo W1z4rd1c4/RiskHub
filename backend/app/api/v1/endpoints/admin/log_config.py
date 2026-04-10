@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.logging import reconfigure_log_rotation
 from app.db.session import get_db
 from app.models import User
 from app.schemas.admin import LogConfig, LogConfigUpdate
@@ -42,11 +43,11 @@ async def update_log_config(
 ) -> LogConfig:
     """
     Update log rotation settings (separate for app and audit logs).
-    Changes require backend restart to take full effect on file handlers.
+    Changes are persisted and applied to the current process immediately.
     """
     from sqlalchemy import select
 
-    from app.models.global_config import GlobalConfig
+    from app.models.global_config import GlobalConfig, clear_config_cache
 
     canonical = config.to_log_config()
 
@@ -100,6 +101,12 @@ async def update_log_config(
     )
 
     await db.commit()
+    clear_config_cache()
+    reconfigure_log_rotation(
+        app_rotation_size_mb=canonical.app_log_rotation_size_mb,
+        app_retention_count=canonical.app_log_retention_count,
+        audit_rotation_size_mb=canonical.audit_log_rotation_size_mb,
+        audit_retention_count=canonical.audit_log_retention_count,
+    )
 
     return canonical
-

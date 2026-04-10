@@ -71,10 +71,31 @@ class TestLogRotationConfig:
         assert app_handler.maxBytes == 15 * 1024 * 1024  # 15MB
         assert app_handler.backupCount == 8
 
-    def test_parse_log_rotation_config_accepts_valid_values(self):
-        from app.main import _parse_log_rotation_config
+    def test_reconfigure_log_rotation_preserves_active_log_level_and_console_mode(self):
+        from app.core.logging import (
+            configure_logging,
+            get_active_logging_config,
+            reconfigure_log_rotation,
+        )
 
-        parsed = _parse_log_rotation_config(
+        configure_logging(log_level="WARNING", json_console=False)
+        reconfigure_log_rotation(
+            app_rotation_size_mb=12,
+            app_retention_count=6,
+            audit_rotation_size_mb=14,
+            audit_retention_count=7,
+        )
+
+        active_config = get_active_logging_config()
+        assert active_config["log_level"] == "WARNING"
+        assert active_config["json_console"] is False
+        assert active_config["app_rotation_size_mb"] == 12
+        assert active_config["audit_rotation_size_mb"] == 14
+
+    def test_parse_log_rotation_config_accepts_valid_values(self):
+        from app.main import parse_log_rotation_config
+
+        parsed = parse_log_rotation_config(
             {
                 "app_log_rotation_size_mb": "12",
                 "app_log_retention_count": "9",
@@ -89,10 +110,10 @@ class TestLogRotationConfig:
         assert parsed["audit_log_retention_count"] == 11
 
     def test_parse_log_rotation_config_rejects_invalid_values(self):
-        from app.main import _parse_log_rotation_config
+        from app.main import parse_log_rotation_config
 
         try:
-            _parse_log_rotation_config({"app_log_rotation_size_mb": "invalid"})
+            parse_log_rotation_config({"app_log_rotation_size_mb": "invalid"})
         except ValueError as exc:
             assert "app_log_rotation_size_mb" in str(exc)
         else:  # pragma: no cover - defensive

@@ -1,4 +1,4 @@
-import { getSessionSnapshot, setSessionSnapshot, subscribeSessionSnapshot } from '@/services/sessionStore';
+import { getSessionSnapshot, setSessionSnapshot, subscribeSessionSnapshot } from '@/services/session/store';
 
 export function getAccessToken(): string | null {
     return getSessionSnapshot().token;

@@ -1,6 +1,7 @@
 """Tests for admin log endpoints."""
 
 import json
+from unittest.mock import MagicMock
 
 import pytest
 from httpx import AsyncClient
@@ -83,7 +84,11 @@ async def test_admin_log_config_get_returns_canonical_shape(auth_client: AsyncCl
 async def test_admin_log_config_update_accepts_canonical_payload(
     auth_client: AsyncClient,
     db_session,
+    monkeypatch: pytest.MonkeyPatch,
 ):
+    configure_mock = MagicMock()
+    monkeypatch.setattr("app.api.v1.endpoints.admin.log_config.reconfigure_log_rotation", configure_mock)
+
     payload = {
         "app_log_rotation_size_mb": 12,
         "app_log_retention_count": 9,
@@ -113,6 +118,41 @@ async def test_admin_log_config_update_accepts_canonical_payload(
         "audit_log_rotation_size_mb": "20",
         "audit_log_retention_count": "15",
     }
+    configure_mock.assert_called_once_with(
+        app_rotation_size_mb=12,
+        app_retention_count=9,
+        audit_rotation_size_mb=20,
+        audit_retention_count=15,
+    )
+
+
+@pytest.mark.asyncio
+async def test_admin_log_config_get_reflects_updated_values_after_cache_warm(
+    auth_client: AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    from app.models.global_config import clear_config_cache
+
+    clear_config_cache()
+    configure_mock = MagicMock()
+    monkeypatch.setattr("app.api.v1.endpoints.admin.log_config.reconfigure_log_rotation", configure_mock)
+
+    initial = await auth_client.get("/api/v1/admin/logs/config")
+    assert initial.status_code == 200
+
+    payload = {
+        "app_log_rotation_size_mb": 16,
+        "app_log_retention_count": 12,
+        "audit_log_rotation_size_mb": 24,
+        "audit_log_retention_count": 18,
+    }
+    updated = await auth_client.post("/api/v1/admin/logs/config", json=payload)
+    assert updated.status_code == 200
+
+    reread = await auth_client.get("/api/v1/admin/logs/config")
+    assert reread.status_code == 200
+    assert reread.json() == payload
+    clear_config_cache()
 
 
 @pytest.mark.asyncio
@@ -166,6 +206,95 @@ async def test_admin_log_config_update_rejects_mixed_payload(auth_client: AsyncC
     )
     assert response.status_code == 422
     assert "canonical app/audit fields or legacy log_* fields" in response.text
+
+
+def _make_log_config(key: str, value: str) -> GlobalConfig:
+    return GlobalConfig(
+        key=key,
+        value=value,
+        value_type="int",
+        category="system",
+        display_name=key,
+        description=key,
+        min_value=1,
+        max_value=500,
+        is_editable=True,
+    )
+
+
+@pytest.mark.asyncio
+async def test_apply_persisted_log_rotation_config_uses_persisted_values(
+    db_session,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    from app.main import apply_persisted_log_rotation_config
+    from app.models.global_config import clear_config_cache
+
+    clear_config_cache()
+    configure_mock = MagicMock()
+    monkeypatch.setattr("app.main.reconfigure_log_rotation", configure_mock)
+    db_session.add_all(
+        [
+            _make_log_config("app_log_rotation_size_mb", "21"),
+            _make_log_config("app_log_retention_count", "17"),
+            _make_log_config("audit_log_rotation_size_mb", "13"),
+            _make_log_config("audit_log_retention_count", "11"),
+        ]
+    )
+    await db_session.commit()
+
+    resolved = await apply_persisted_log_rotation_config(db_session)
+
+    assert resolved == {
+        "app_log_rotation_size_mb": 21,
+        "app_log_retention_count": 17,
+        "audit_log_rotation_size_mb": 13,
+        "audit_log_retention_count": 11,
+    }
+    configure_mock.assert_called_once_with(
+        app_rotation_size_mb=21,
+        app_retention_count=17,
+        audit_rotation_size_mb=13,
+        audit_retention_count=11,
+    )
+    clear_config_cache()
+
+
+@pytest.mark.asyncio
+async def test_apply_persisted_log_rotation_config_falls_back_to_defaults_for_invalid_values(
+    db_session,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    from app.main import apply_persisted_log_rotation_config
+    from app.models.global_config import clear_config_cache
+
+    clear_config_cache()
+    configure_mock = MagicMock()
+    monkeypatch.setattr("app.main.reconfigure_log_rotation", configure_mock)
+    db_session.add_all(
+        [
+            _make_log_config("app_log_rotation_size_mb", "invalid"),
+            _make_log_config("app_log_retention_count", "9"),
+            _make_log_config("audit_log_rotation_size_mb", "0"),
+        ]
+    )
+    await db_session.commit()
+
+    resolved = await apply_persisted_log_rotation_config(db_session)
+
+    assert resolved == {
+        "app_log_rotation_size_mb": 10,
+        "app_log_retention_count": 9,
+        "audit_log_rotation_size_mb": 10,
+        "audit_log_retention_count": 10,
+    }
+    configure_mock.assert_called_once_with(
+        app_rotation_size_mb=10,
+        app_retention_count=9,
+        audit_rotation_size_mb=10,
+        audit_retention_count=10,
+    )
+    clear_config_cache()
 
 
 @pytest.mark.asyncio

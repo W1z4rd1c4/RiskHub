@@ -4,13 +4,14 @@ import { authApi } from '@/services/authApi';
 import { getAuthConfig } from '@/services/authConfig';
 import { AuthRequestError } from '@/services/authRequest';
 import { entraAuth } from '@/services/entraAuth';
-import { clearExplicitLogoutSuppressed, setExplicitLogoutSuppressed } from '@/services/logoutSuppression';
+import { logError } from '@/services/logger';
+import { clearExplicitLogoutSuppressed, setExplicitLogoutSuppressed } from '@/services/session/logoutSuppression';
 import {
     applyAuthenticatedSession,
     clearAuthenticatedSession,
     setLogoutErrorState,
     setLogoutPendingState,
-} from '@/services/sessionManager';
+} from '@/services/session/manager';
 import { clearLocalSettings } from '@/utils/userSettingsStorage';
 
 interface UseAuthActionsOptions {
@@ -72,7 +73,7 @@ export function useAuthActions({
             try {
                 await entraAuth.logoutRedirect();
             } catch (error) {
-                console.error(error);
+                logError('SSO logout redirect failed.', error);
             }
         }
     }, [markPreferencesReady]);

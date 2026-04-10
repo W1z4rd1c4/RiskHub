@@ -41,99 +41,22 @@ async def approve_request(
     - Primary approver (Risk Owner): can approve PENDING requests they own.
       If requires_privileged_approval, moves to PENDING_PRIVILEGED instead of applying.
     """
-    from app.services.approval_execution_service import (
-        apply_side_effects,
-        apply_status_transition,
-        assert_can_approve,
-        load_approval,
-        log_approval_approve,
-    )
+    from app.services.approval_execution_service import approve_request_workflow
 
     logger.info(f"Processing approval request {approval_id}")
 
-    # 1) Load approval with relationships
-    approval = await load_approval(db, approval_id)
-
-    # 2) Authorize
-    is_privileged, is_primary_approver = assert_can_approve(approval, current_user)
-
-    previous_status = approval.status
-
-    # 3) Transition status
-    should_apply_changes = apply_status_transition(
-        approval,
-        current_user=current_user,
-        resolution_notes=resolve_data.resolution_notes,
-        is_privileged=is_privileged,
-        is_primary_approver=is_primary_approver,
-    )
-
-    # 4) Apply side effects if approved
-    if should_apply_changes:
-        try:
-            await apply_side_effects(db, approval, current_user)
-
-            # Log approval APPROVE action
-            if approval.status == ApprovalStatus.APPROVED:
-                await log_approval_approve(db, approval, current_user, previous_status)
-
-            # Commit changes
-            logger.info("Flushing and committing changes...")
-            await db.flush()
-            await OutboxService.enqueue(
-                db,
-                event_type="approval.request_resolved",
-                aggregate_type="approval_request",
-                aggregate_id=approval.id,
-                idempotency_key=f"approval.request_resolved:{approval.id}:{approval.status.value.lower()}",
-                payload={"approval_id": approval.id, "approved": approval.status == ApprovalStatus.APPROVED},
-            )
-            await db.commit()
-            logger.info("Commit successful")
-        except HTTPException as exc:
-            await db.rollback()
-            if exc.status_code == 400:
-                raise
-            raise
-        except Exception:
-            logger.exception("Error applying approval %s", approval_id)
-            await db.rollback()
-            raise HTTPException(status_code=500, detail="Failed to process approval request")
-    else:
-        # PENDING → PENDING_PRIVILEGED: Log escalation and notify privileged users
-        from app.services.approval_execution_service import get_approval_department_id
-
-        # Log ESCALATE activity for audit trail
-        department_id = await get_approval_department_id(db, approval)
-        await log_activity(
+    try:
+        approval = await approve_request_workflow(
             db,
-            entity_type=ActivityEntityType.APPROVAL,
-            entity_id=approval.id,
-            entity_name=approval_resource_label(approval),
-            action=ActivityAction.ESCALATE,
-            actor=current_user,
-            department_id=department_id,
-            changes={"status": {"old": previous_status.value, "new": approval.status.value}},
-            description=f"Escalated to privileged approval by {current_user.name}",
+            approval_id=approval_id,
+            current_user=current_user,
+            resolution_notes=resolve_data.resolution_notes,
         )
-
-        await OutboxService.enqueue(
-            db,
-            event_type="approval.request_created",
-            aggregate_type="approval_request",
-            aggregate_id=approval.id,
-            idempotency_key=f"approval.request_created:{approval.id}:{approval.status.value.lower()}",
-            payload={"approval_id": approval.id},
-        )
-        await db.commit()
-
-    # Reload with relationships for response
-    result = await db.execute(
-        select(ApprovalRequest)
-        .options(selectinload(ApprovalRequest.requested_by), selectinload(ApprovalRequest.resolved_by))
-        .where(ApprovalRequest.id == approval.id)
-    )
-    approval = result.scalar_one()
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Error applying approval %s", approval_id)
+        raise HTTPException(status_code=500, detail="Failed to process approval request")
 
     return _build_approval_read(approval, current_user)
 

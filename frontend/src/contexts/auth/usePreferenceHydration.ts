@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { logError } from '@/services/logger';
 import { syncPreferencesFromServer } from '@/utils/userSettingsStorage';
 
 export function usePreferenceHydration(initialReady: boolean) {
@@ -14,7 +15,7 @@ export function usePreferenceHydration(initialReady: boolean) {
         try {
             await syncPreferencesFromServer();
         } catch (error) {
-            console.error(error);
+            logError('Preference hydration failed.', error);
         } finally {
             markPreferencesReady(true);
         }

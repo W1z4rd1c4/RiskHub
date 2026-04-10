@@ -528,17 +528,20 @@ EOF
         needs_install="true"
     fi
 
-    if [ "$needs_install" = "true" ]; then
-        echo -e "${YELLOW}Installing frontend dependencies...${NC}"
-        if [ "$install_mode" = "npm_ci" ]; then
-            npm ci
-        else
-            npm install
-        fi
-        mkdir -p node_modules
-        printf '%s\n' "$expected_state" >"$state_file"
-        echo -e "${GREEN}Frontend dependencies up to date!${NC}"
-    else
+	    if [ "$needs_install" = "true" ]; then
+	        echo -e "${YELLOW}Installing frontend dependencies...${NC}"
+	        if [ "$install_mode" = "npm_ci" ]; then
+	            # Keep the lockfile install for determinism, but allow legacy peer
+	            # resolution. Our eslint toolchain currently contains a peer range
+	            # narrower than npm's default resolver (see frontend/Dockerfile).
+	            npm ci --legacy-peer-deps
+	        else
+	            npm install --legacy-peer-deps
+	        fi
+	        mkdir -p node_modules
+	        printf '%s\n' "$expected_state" >"$state_file"
+	        echo -e "${GREEN}Frontend dependencies up to date!${NC}"
+	    else
         echo -e "${GREEN}Frontend dependencies already up to date${NC}"
     fi
     : > "$FRONTEND_LOG_FILE"

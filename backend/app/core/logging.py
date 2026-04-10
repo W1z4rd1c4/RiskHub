@@ -26,9 +26,19 @@ request_id_ctx: ContextVar[str | None] = ContextVar("request_id", default=None)
 user_id_ctx: ContextVar[int | None] = ContextVar("user_id", default=None)
 client_ip_ctx: ContextVar[str | None] = ContextVar("client_ip", default=None)
 
-# Default log rotation settings (can be overridden from Risk Hub config)
+# Default log rotation settings.
 DEFAULT_LOG_ROTATION_SIZE_MB = 10
 DEFAULT_LOG_RETENTION_COUNT = 10
+_DEFAULT_JSON_CONSOLE = os.getenv("DEBUG", "false").lower() != "true"
+_DEFAULT_LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+_active_logging_config: dict[str, int | str | bool] = {
+    "log_level": _DEFAULT_LOG_LEVEL,
+    "json_console": _DEFAULT_JSON_CONSOLE,
+    "app_rotation_size_mb": DEFAULT_LOG_ROTATION_SIZE_MB,
+    "app_retention_count": DEFAULT_LOG_RETENTION_COUNT,
+    "audit_rotation_size_mb": DEFAULT_LOG_ROTATION_SIZE_MB,
+    "audit_retention_count": DEFAULT_LOG_RETENTION_COUNT,
+}
 
 
 def add_context_vars(
@@ -60,28 +70,22 @@ class NonAuditFilter(logging.Filter):
 
 def get_log_settings() -> tuple[int, int, int, int]:
     """
-    Get log rotation settings from Risk Hub config or defaults.
+    Get default log rotation settings.
 
     Returns:
         Tuple of (app_size_bytes, app_count, audit_size_bytes, audit_count)
     """
-    # Try to read from config cache synchronously
-    try:
-        from app.models.global_config import get_config_sync
-        app_size = get_config_sync("app_log_rotation_size_mb", DEFAULT_LOG_ROTATION_SIZE_MB)
-        app_count = get_config_sync("app_log_retention_count", DEFAULT_LOG_RETENTION_COUNT)
-        audit_size = get_config_sync("audit_log_rotation_size_mb", DEFAULT_LOG_ROTATION_SIZE_MB)
-        audit_count = get_config_sync("audit_log_retention_count", DEFAULT_LOG_RETENTION_COUNT)
-        return (
-            int(app_size) * 1024 * 1024,
-            int(app_count),
-            int(audit_size) * 1024 * 1024,
-            int(audit_count)
-        )
-    except Exception:
-        # Fallback to defaults if config not available
-        default_bytes = DEFAULT_LOG_ROTATION_SIZE_MB * 1024 * 1024
-        return (default_bytes, DEFAULT_LOG_RETENTION_COUNT, default_bytes, DEFAULT_LOG_RETENTION_COUNT)
+    default_bytes = DEFAULT_LOG_ROTATION_SIZE_MB * 1024 * 1024
+    return (
+        default_bytes,
+        DEFAULT_LOG_RETENTION_COUNT,
+        default_bytes,
+        DEFAULT_LOG_RETENTION_COUNT,
+    )
+
+
+def get_active_logging_config() -> dict[str, int | str | bool]:
+    return dict(_active_logging_config)
 
 
 def configure_logging(
@@ -109,6 +113,8 @@ def configure_logging(
     Returns:
         Configured structlog logger
     """
+    resolved_log_level = log_level.upper()
+
     # Ensure logs directory exists
     log_dir = Path(__file__).parent.parent.parent / "logs"
     log_dir.mkdir(exist_ok=True)
@@ -131,13 +137,34 @@ def configure_logging(
         if audit_retention_count is None:
             audit_retention_count = retention_count
 
+    resolved_app_rotation_size_mb = (
+        app_rotation_size_mb
+        if app_rotation_size_mb is not None
+        else default_app_size // (1024 * 1024)
+    )
+    resolved_app_retention_count = (
+        app_retention_count
+        if app_retention_count is not None
+        else default_app_count
+    )
+    resolved_audit_rotation_size_mb = (
+        audit_rotation_size_mb
+        if audit_rotation_size_mb is not None
+        else default_audit_size // (1024 * 1024)
+    )
+    resolved_audit_retention_count = (
+        audit_retention_count
+        if audit_retention_count is not None
+        else default_audit_count
+    )
+
     # App handler settings
-    app_size_bytes = (app_rotation_size_mb * 1024 * 1024) if app_rotation_size_mb else default_app_size
-    app_backup_count = app_retention_count if app_retention_count else default_app_count
+    app_size_bytes = resolved_app_rotation_size_mb * 1024 * 1024
+    app_backup_count = resolved_app_retention_count
 
     # Audit handler settings
-    audit_size_bytes = (audit_rotation_size_mb * 1024 * 1024) if audit_rotation_size_mb else default_audit_size
-    audit_backup_count = audit_retention_count if audit_retention_count else default_audit_count
+    audit_size_bytes = resolved_audit_rotation_size_mb * 1024 * 1024
+    audit_backup_count = resolved_audit_retention_count
 
     # Shared processors for both structlog and stdlib logging
     shared_processors: list[structlog.types.Processor] = [
@@ -202,7 +229,7 @@ def configure_logging(
     # Console handler (all logs)
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setFormatter(console_formatter)
-    console_handler.setLevel(getattr(logging, log_level.upper()))
+    console_handler.setLevel(getattr(logging, resolved_log_level))
 
     # Configure root logger
     root_logger = logging.getLogger()
@@ -222,14 +249,43 @@ def configure_logging(
         uvicorn_logger.handlers = []
         uvicorn_logger.propagate = True
 
+    _active_logging_config.update(
+        {
+            "log_level": resolved_log_level,
+            "json_console": json_console,
+            "app_rotation_size_mb": resolved_app_rotation_size_mb,
+            "app_retention_count": resolved_app_retention_count,
+            "audit_rotation_size_mb": resolved_audit_rotation_size_mb,
+            "audit_retention_count": resolved_audit_retention_count,
+        }
+    )
+
     # Get a structlog logger to return
     return structlog.get_logger("riskhub")
 
 
+def reconfigure_log_rotation(
+    *,
+    app_rotation_size_mb: int,
+    app_retention_count: int,
+    audit_rotation_size_mb: int,
+    audit_retention_count: int,
+) -> structlog.BoundLogger:
+    active_config = get_active_logging_config()
+    return configure_logging(
+        log_level=str(active_config["log_level"]),
+        json_console=bool(active_config["json_console"]),
+        app_rotation_size_mb=app_rotation_size_mb,
+        app_retention_count=app_retention_count,
+        audit_rotation_size_mb=audit_rotation_size_mb,
+        audit_retention_count=audit_retention_count,
+    )
+
+
 # Module-level logger for import convenience
 logger = configure_logging(
-    log_level=os.getenv("LOG_LEVEL", "INFO"),
-    json_console=os.getenv("DEBUG", "false").lower() != "true",
+    log_level=_DEFAULT_LOG_LEVEL,
+    json_console=_DEFAULT_JSON_CONSOLE,
 )
 
 

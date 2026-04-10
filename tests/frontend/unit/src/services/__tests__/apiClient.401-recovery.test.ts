@@ -1,8 +1,8 @@
 import { clearAccessToken } from '@test/accessTokenStoreHarness';
 import { beforeEach, describe, it, expect, vi } from 'vitest';
 
-vi.mock('@/services/ssoSession', () => ({
-    silentReauthAndExchange: vi.fn(async () => {
+vi.mock('@/services/session/sso', () => ({
+    trySilentSessionRefresh: vi.fn(async () => {
         const { setAccessToken } = await import('@test/accessTokenStoreHarness');
         setAccessToken('refreshed-token');
         return 'refreshed-token';
@@ -14,7 +14,7 @@ import { http, HttpResponse } from 'msw';
 import { server } from '@test/mocks/server';
 import { z } from '@/services/api/schemas';
 import { apiClient } from '@/services/apiClient';
-import { silentReauthAndExchange } from '@/services/ssoSession';
+import { trySilentSessionRefresh } from '@/services/session/sso';
 
 const okSchema = z.object({ ok: z.boolean() }).passthrough();
 
@@ -24,7 +24,7 @@ describe('apiClient 401 recovery', () => {
         vi.clearAllMocks();
     });
 
-    it('attempts silent reauth once and retries the request', async () => {
+    it('attempts a silent session refresh once and retries the request', async () => {
         let calls = 0;
         let secondAuthHeader: string | null = null;
 
@@ -41,12 +41,12 @@ describe('apiClient 401 recovery', () => {
 
         const response = await apiClient.get('/test-401', { schema: okSchema });
         expect(response.ok).toBe(true);
-        expect(silentReauthAndExchange).toHaveBeenCalledTimes(1);
+        expect(trySilentSessionRefresh).toHaveBeenCalledTimes(1);
         expect(secondAuthHeader).toBe('Bearer refreshed-token');
     });
 
-    it('does not redirect the browser when silent reauth fails', async () => {
-        vi.mocked(silentReauthAndExchange).mockResolvedValueOnce(null);
+    it('does not redirect the browser when silent session refresh fails', async () => {
+        vi.mocked(trySilentSessionRefresh).mockResolvedValueOnce(null);
 
         server.use(
             http.get('*/api/v1/test-401-fail', () => new HttpResponse(null, { status: 401 })),
@@ -81,7 +81,7 @@ describe('apiClient 401 recovery', () => {
         const response = await apiClient.getBlob('/test-blob-401');
         expect(response.blob).toBeInstanceOf(Blob);
         expect(response.blob.type).toBe('text/csv');
-        expect(silentReauthAndExchange).toHaveBeenCalledTimes(1);
+        expect(trySilentSessionRefresh).toHaveBeenCalledTimes(1);
         expect(secondAuthHeader).toBe('Bearer refreshed-token');
     });
 });

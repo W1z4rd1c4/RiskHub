@@ -1,15 +1,14 @@
-name: Release Parity PR Contract
+name: Release Parity Contract
 
 on:
-  pull_request:
-    branches: [main, develop]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  parity-pr:
-    name: Release Parity PR Contract
+  parity-contract:
+    name: Release Parity Contract
     runs-on: ubuntu-latest
 
     steps:

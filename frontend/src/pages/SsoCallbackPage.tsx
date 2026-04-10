@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authApi } from '@/services/authApi';
 import { entraAuth } from '@/services/entraAuth';
-import { clearExplicitLogoutSuppressed } from '@/services/logoutSuppression';
-import { applyAuthenticatedSession } from '@/services/sessionManager';
+import { clearExplicitLogoutSuppressed } from '@/services/session/logoutSuppression';
+import { applyAuthenticatedSession } from '@/services/session/manager';
 import { useTranslation } from '@/i18n/hooks';
+import { logError } from '@/services/logger';
 
 export default function SsoCallbackPage() {
     const navigate = useNavigate();
@@ -31,8 +32,8 @@ export default function SsoCallbackPage() {
                 clearExplicitLogoutSuppressed();
                 const target = applyAuthenticatedSession(tokenResponse);
                 void navigate(target, { replace: true });
-            } catch (e) {
-                console.error(e);
+            } catch (error) {
+                logError('SSO callback exchange failed.', error);
                 if (cancelled) return;
                 setErrorKey('sso_callback.exchange_failed');
             }

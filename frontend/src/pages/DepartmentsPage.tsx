@@ -146,3 +146,5 @@ export function DepartmentsPage() {
         </div>
     );
 }
+
+export default DepartmentsPage;

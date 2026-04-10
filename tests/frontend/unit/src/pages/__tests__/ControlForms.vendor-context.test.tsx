@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { ControlNewPage } from '@/pages/ControlForms';
+import { ControlNewPage } from '@/pages/ControlNewPage';
 
 const mockNavigate = vi.fn();
 const mockLinkControl = vi.fn();

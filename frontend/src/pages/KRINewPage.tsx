@@ -4,10 +4,10 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { KRIForm } from '@/components/KRIForm';
 import { useTranslation } from '@/i18n/hooks';
+import { logError } from '@/services/logger';
 import { vendorApi } from '@/services/vendorApi';
-import {
-    coerceVendorContext,
-} from './vendors/vendorDetailPresentation';
+
+import { coerceVendorContext } from './vendors/vendorDetailPresentation';
 
 export function KRINewPage() {
     const navigate = useNavigate();
@@ -36,7 +36,7 @@ export function KRINewPage() {
                 const vendor = await vendorApi.getVendor(vendorId);
                 setVendorName(vendor.name);
             } catch (error) {
-                console.error('Failed to load vendor context for KRI create:', error);
+                logError('Failed to load vendor context for KRI create.', error);
                 setVendorName(undefined);
             }
         };
@@ -90,3 +90,5 @@ export function KRINewPage() {
         </div>
     );
 }
+
+export default KRINewPage;

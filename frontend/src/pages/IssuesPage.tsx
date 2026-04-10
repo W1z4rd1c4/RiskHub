@@ -127,3 +127,5 @@ export function IssuesPage() {
         </div>
     );
 }
+
+export default IssuesPage;

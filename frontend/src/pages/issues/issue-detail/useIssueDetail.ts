@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { issueDetailQueryKey } from '@/lib/issueQueryKeys';
 import { apiClient } from '@/services/apiClient';
 import { issuesApi } from '@/services/issuesApi';
-import { useSessionSnapshot } from '@/services/sessionStore';
+import { useSessionSnapshot } from '@/services/session/store';
 
 interface UseIssueDetailOptions {
     canRead: boolean;

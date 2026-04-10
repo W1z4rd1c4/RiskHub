@@ -422,3 +422,5 @@ export function ControlDetailPage() {
         </div>
     );
 }
+
+export default ControlDetailPage;

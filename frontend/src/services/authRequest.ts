@@ -1,4 +1,11 @@
-export const AUTH_REQUEST_TIMEOUT_MS = 8_000;
+import {
+    REQUEST_TIMEOUT_MS,
+    RequestRuntimeError,
+    fetchWithTimeout,
+    isAbortError,
+} from '@/services/api/requestRuntime';
+
+export const AUTH_REQUEST_TIMEOUT_MS = REQUEST_TIMEOUT_MS;
 
 export type AuthRequestErrorCode =
     | 'AUTH_REQUEST_TIMEOUT'
@@ -27,22 +34,6 @@ export class AuthRequestError extends Error {
     }
 }
 
-function combineSignals(signalA: AbortSignal, signalB?: AbortSignal): AbortSignal {
-    if (!signalB) return signalA;
-
-    const controller = new AbortController();
-    const abort = () => controller.abort();
-
-    if (signalA.aborted || signalB.aborted) {
-        abort();
-        return controller.signal;
-    }
-
-    signalA.addEventListener('abort', abort, { once: true });
-    signalB.addEventListener('abort', abort, { once: true });
-    return controller.signal;
-}
-
 export function isAuthUnavailableError(error: unknown): boolean {
     return error instanceof AuthRequestError && (
         error.code === 'AUTH_REQUEST_TIMEOUT' ||
@@ -52,30 +43,27 @@ export function isAuthUnavailableError(error: unknown): boolean {
 }
 
 export async function fetchAuthResponse(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
-    const controller = new AbortController();
-    const timeoutId = globalThis.setTimeout(() => controller.abort(), AUTH_REQUEST_TIMEOUT_MS);
-
     try {
-        return await fetch(input, {
-            ...init,
-            signal: combineSignals(controller.signal, init.signal ?? undefined),
-        });
+        return await fetchWithTimeout(input, init);
     } catch (error) {
-        if (error instanceof DOMException && error.name === 'AbortError') {
+        if (error instanceof RequestRuntimeError && error.code === 'REQUEST_TIMEOUT') {
             throw new AuthRequestError({
                 code: 'AUTH_REQUEST_TIMEOUT',
                 message: 'Auth request timed out',
                 rawMessage: 'Auth request timed out',
             });
         }
+        if (isAbortError(error)) {
+            throw error;
+        }
 
         throw new AuthRequestError({
             code: 'AUTH_SERVICE_UNAVAILABLE',
             message: 'Auth service unavailable',
-            rawMessage: error instanceof Error ? error.message : String(error),
+            rawMessage: error instanceof RequestRuntimeError
+                ? error.rawMessage
+                : error instanceof Error ? error.message : String(error),
         });
-    } finally {
-        globalThis.clearTimeout(timeoutId);
     }
 }
 

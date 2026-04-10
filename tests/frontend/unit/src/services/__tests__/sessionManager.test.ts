@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { clearAccessToken, setAccessToken } from '@test/accessTokenStoreHarness';
-import { clearAuthenticatedSession, applyAuthenticatedSession } from '@/services/sessionManager';
-import { __resetSessionStoreForTests, getSessionSnapshot } from '@/services/sessionStore';
+import { clearAuthenticatedSession, applyAuthenticatedSession } from '@/services/session/manager';
+import { __resetSessionStoreForTests, getSessionSnapshot } from '@/services/session/store';
 
 const AUTH_RESPONSE = {
     access_token: 'riskhub-jwt',

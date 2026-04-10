@@ -4,23 +4,17 @@ import { clearAccessToken, setAccessToken } from '@test/accessTokenStoreHarness'
 import { clearAuthConfigCache, getAuthConfig } from '@/services/authConfig';
 import { AUTH_REQUEST_TIMEOUT_MS } from '@/services/authRequest';
 import { authApi } from '@/services/authApi';
-import { __resetAuthSessionCoordinatorForTests, bootstrapAuthSession, clearBootstrapSession } from '@/services/authSessionCoordinator';
+import { __resetAuthSessionCoordinatorForTests, bootstrapAuthSession, clearBootstrapSession } from '@/services/session/bootstrap';
 import { __setCsrfTokenForTests, clearCsrfToken } from '@/services/csrfToken';
 import {
     __resetExplicitLogoutSuppressionForTests,
     setExplicitLogoutSuppressed,
-} from '@/services/logoutSuppression';
+} from '@/services/session/logoutSuppression';
 import {
     __setRefreshSessionHintForTests,
     clearRefreshSessionHint,
-} from '@/services/refreshSessionHint';
-import { __resetSsoSessionForTests, silentReauthAndExchange } from '@/services/ssoSession';
-
-vi.mock('@/services/entraAuth', () => ({
-    entraAuth: {
-        acquireIdTokenSilent: vi.fn(),
-    },
-}));
+} from '@/services/session/refreshHint';
+import { __resetSilentSessionRefreshForTests, trySilentSessionRefresh } from '@/services/session/sso';
 
 function createAbortablePendingResponse(signal?: AbortSignal): Promise<Response> {
     return new Promise<Response>((_resolve, reject) => {
@@ -40,7 +34,7 @@ describe('auth timeout and retry flow', () => {
         clearRefreshSessionHint();
         __resetExplicitLogoutSuppressionForTests();
         __resetAuthSessionCoordinatorForTests();
-        __resetSsoSessionForTests();
+        __resetSilentSessionRefreshForTests();
     });
 
     afterEach(() => {
@@ -53,7 +47,7 @@ describe('auth timeout and retry flow', () => {
         clearRefreshSessionHint();
         __resetExplicitLogoutSuppressionForTests();
         __resetAuthSessionCoordinatorForTests();
-        __resetSsoSessionForTests();
+        __resetSilentSessionRefreshForTests();
     });
 
     it('times out auth config requests and clears the shared in-flight cache for retry', async () => {
@@ -176,14 +170,6 @@ describe('auth timeout and retry flow', () => {
                 || url.endsWith('/api/v1/auth/csrf')
             ) {
                 return createAbortablePendingResponse(init?.signal as AbortSignal | undefined);
-            }
-
-            if (url.endsWith('/api/v1/auth/sso/exchange')) {
-                return createAbortablePendingResponse(init?.signal as AbortSignal | undefined);
-            }
-
-            if (url.endsWith('/auth/sso/callback')) {
-                return Promise.resolve(new Response(null, { status: 200 }));
             }
 
             if (!url.endsWith('/api/v1/auth/me')) {
@@ -339,7 +325,7 @@ describe('auth timeout and retry flow', () => {
         expect(refreshCalls).toBe(2);
     });
 
-    it('times out refresh requests and clears refresh dedupe state for retry', async () => {
+    it('times out silent session refresh requests and clears refresh dedupe state for retry', async () => {
         __setRefreshSessionHintForTests();
 
         let refreshCalls = 0;
@@ -378,12 +364,12 @@ describe('auth timeout and retry flow', () => {
             }));
         });
 
-        const firstAttempt = silentReauthAndExchange();
+        const firstAttempt = trySilentSessionRefresh();
         const firstAttemptExpectation = expect(firstAttempt).rejects.toMatchObject({ code: 'AUTH_REQUEST_TIMEOUT' });
         await vi.advanceTimersByTimeAsync(AUTH_REQUEST_TIMEOUT_MS);
         await firstAttemptExpectation;
 
-        await expect(silentReauthAndExchange()).resolves.toBe('refreshed-token');
+        await expect(trySilentSessionRefresh()).resolves.toBe('refreshed-token');
         expect(refreshCalls).toBe(2);
     });
 
@@ -404,28 +390,8 @@ describe('auth timeout and retry flow', () => {
                     headers: { 'Content-Type': 'application/json' },
                 }));
             }
-            if (url.endsWith('/api/v1/auth/config')) {
-                return Promise.resolve(new Response(JSON.stringify({
-                    auth_mode: 'hybrid_dev',
-                    demo_login_enabled: true,
-                    password_login_enabled: true,
-                sso: {
-                    enabled: false,
-                    provider: 'entra',
-                    tenant_id: null,
-                    client_id: null,
-                    authority: null,
-                    scopes: ['openid', 'profile', 'email'],
-                },
-                    sso_error: null,
-                }), {
-                    status: 200,
-                    headers: { 'Content-Type': 'application/json' },
-                }));
-            }
             if (
                 !url.endsWith('/api/v1/auth/refresh')
-                && !url.endsWith('/api/v1/auth/config')
                 && !url.endsWith('/api/v1/auth/csrf')
             ) {
                 throw new Error(`Unexpected fetch call: ${url}`);
@@ -433,7 +399,7 @@ describe('auth timeout and retry flow', () => {
             throw new Error(`Unexpected fetch call: ${url}`);
         });
 
-        await expect(silentReauthAndExchange()).resolves.toBeNull();
+        await expect(trySilentSessionRefresh()).resolves.toBeNull();
         expect(refreshCalls).toBe(1);
         expect(document.cookie).not.toContain('riskhub_refresh_hint=1');
 
@@ -441,7 +407,7 @@ describe('auth timeout and retry flow', () => {
         expect(refreshCalls).toBe(1);
     });
 
-    it('suppresses bootstrap and silent reauth after explicit logout', async () => {
+    it('suppresses bootstrap and silent session refresh after explicit logout', async () => {
         __setRefreshSessionHintForTests();
         __setCsrfTokenForTests();
         setExplicitLogoutSuppressed();
@@ -450,7 +416,7 @@ describe('auth timeout and retry flow', () => {
             throw new Error('auth flows should not fetch while explicit logout suppression is active');
         });
 
-        await expect(silentReauthAndExchange()).resolves.toBeNull();
+        await expect(trySilentSessionRefresh()).resolves.toBeNull();
         await expect(bootstrapAuthSession()).resolves.toEqual({ token: null, user: null });
         expect(fetchSpy).not.toHaveBeenCalled();
     });

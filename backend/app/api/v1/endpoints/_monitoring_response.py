@@ -8,6 +8,7 @@ from sqlalchemy import inspect as sa_inspect
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import NO_VALUE
 
+from app.api.mappers.risk import filter_active_kris
 from app.schemas.control import ControlRead
 from app.schemas.kri import KRIResponse
 from app.schemas.risk import ControlBriefForLink, ControlRiskLinkRead, RiskBriefForLink, RiskRead
@@ -233,6 +234,7 @@ def serialize_kri_response(
 
 
 def serialize_risk_read(risk, context: MonitoringResponseContext) -> RiskRead:
+    active_kris = filter_active_kris(_loaded_attr(risk, "kris", []) or [])
     return RiskRead.model_validate(
         {
             **_serialize_risk_base(risk),
@@ -241,7 +243,7 @@ def serialize_risk_read(risk, context: MonitoringResponseContext) -> RiskRead:
             "net_score": risk.net_score,
             "owner": _loaded_attr(risk, "owner"),
             "department": _loaded_attr(risk, "department"),
-            "kris": [serialize_kri_response(kri, context) for kri in list(_loaded_attr(risk, "kris", []) or [])],
+            "kris": [serialize_kri_response(kri, context) for kri in active_kris],
             "created_at": risk.created_at,
             "updated_at": risk.updated_at,
         }

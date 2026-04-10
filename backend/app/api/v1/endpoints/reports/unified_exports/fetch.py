@@ -40,7 +40,7 @@ async def _fetch_risks_for_export(
     query = select(Risk).options(
         selectinload(Risk.department),
         selectinload(Risk.owner),
-        selectinload(Risk.kris),
+        selectinload(Risk.kris.and_(KeyRiskIndicator.is_archived.is_(False))),
         selectinload(Risk.control_links),
     )
 

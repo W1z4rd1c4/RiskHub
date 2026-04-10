@@ -6,6 +6,7 @@ describe('getErrorMessageKey', () => {
     expect(getErrorMessageKey('UNAUTHORIZED')).toBe('errorKeys.unauthorized');
     expect(getErrorMessageKey('FORBIDDEN')).toBe('errorKeys.forbidden');
     expect(getErrorMessageKey('VALIDATION_ERROR')).toBe('errorKeys.validation');
+    expect(getErrorMessageKey('REQUEST_TIMEOUT')).toBe('errorKeys.request_timeout');
     expect(getErrorMessageKey('DEMO_LOGIN_FAILED')).toBe('errorKeys.demo_login_failed');
   });
 

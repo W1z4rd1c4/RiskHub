@@ -36,7 +36,7 @@ jobs:
 
       - name: Run SQLite regression suite
         working-directory: backend
-        run: pytest -m "not postgres" -q
+        run: pytest -m "not postgres and not benchmark" -q
 
   postgres-tests:
     name: Backend Postgres Regression

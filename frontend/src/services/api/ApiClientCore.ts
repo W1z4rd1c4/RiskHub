@@ -1,11 +1,12 @@
 import { getErrorMessageKey } from '@/i18n/getErrorMessageKey';
-import { isExplicitLogoutSuppressed } from '@/services/logoutSuppression';
-import { clearAuthenticatedSession } from '@/services/sessionManager';
-import { silentReauthAndExchange } from '@/services/ssoSession';
+import { isExplicitLogoutSuppressed } from '@/services/session/logoutSuppression';
+import { clearAuthenticatedSession } from '@/services/session/manager';
+import { trySilentSessionRefresh } from '@/services/session/sso';
 import type { infer as ZodInfer, ZodTypeAny } from 'zod';
 
 import { ApiClientError, toApiClientError } from './apiErrors';
 import { buildPreparedRequest } from './apiRequestBuilder';
+import { fetchWithTimeout, isAbortError } from './requestRuntime';
 import { parseBodyWithSchema, parseErrorResponse, readResponseBody } from './responseParsing';
 import type {
     ApiClientErrorPayload,
@@ -21,7 +22,7 @@ export class ApiClient {
         this.baseUrl = baseUrl;
     }
 
-    private shouldAttemptSilentReauth(pathname: string, attempt: number): boolean {
+    private shouldAttemptSilentSessionRefresh(pathname: string, attempt: number): boolean {
         if (isExplicitLogoutSuppressed()) return false;
         if (attempt > 0) return false;
         if (pathname.startsWith('/api/v1/auth/')) return false;
@@ -55,11 +56,11 @@ export class ApiClient {
         const prepared = buildPreparedRequest(this.baseUrl, endpoint, options);
 
         try {
-            const response = await fetch(prepared.url.toString(), prepared.init);
+            const response = await fetchWithTimeout(prepared.url.toString(), prepared.init, prepared.timeoutMs);
 
             if (response.status === 401) {
-                if (this.shouldAttemptSilentReauth(prepared.pathname, attempt)) {
-                    const refreshedToken = await silentReauthAndExchange();
+                if (this.shouldAttemptSilentSessionRefresh(prepared.pathname, attempt)) {
+                    const refreshedToken = await trySilentSessionRefresh();
                     if (refreshedToken) {
                         return this.executeRequest({
                             endpoint,
@@ -86,6 +87,9 @@ export class ApiClient {
 
             return parseSuccess(response);
         } catch (error) {
+            if (isAbortError(error)) {
+                throw error;
+            }
             throw toApiClientError(error);
         }
     }

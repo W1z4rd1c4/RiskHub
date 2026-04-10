@@ -125,3 +125,5 @@ export function RisksPage() {
         </div>
     );
 }
+
+export default RisksPage;

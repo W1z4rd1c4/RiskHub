@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react';
-import type { SessionSnapshot } from '@/services/sessionTypes';
+
+import type { SessionSnapshot } from './types';
 
 function createInitialSessionSnapshot(): SessionSnapshot {
     return {

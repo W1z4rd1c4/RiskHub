@@ -1,43 +1,313 @@
+from __future__ import annotations
+
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.api.v1.router import api_router
+from app.core.client_ip import find_broad_trusted_proxy_entries
 from app.core.config import Settings, get_settings
-from app.core.logging import configure_logging, get_logger
-from app.core.scheduler import stop_scheduler_async
+from app.core.datetime_utils import utc_now
+from app.core.logging import (
+    DEFAULT_LOG_RETENTION_COUNT,
+    DEFAULT_LOG_ROTATION_SIZE_MB,
+    get_logger,
+    reconfigure_log_rotation,
+)
+from app.core.production_contract import PRODUCTION_INVARIANTS
+from app.core.scheduler import configure_scheduler, start_scheduler_async, stop_scheduler_async
 from app.core.schema_guard import enforce_schema_head
-from app.bootstrap import (
-    DEFAULT_DATABASE_URL,
-    apply_log_rotation_config,
-    bootstrap_runtime_services,
-    configure_app_dependencies,
-    configure_database_and_scheduler,
-    configure_default_runtime_state,
-    parse_log_rotation_config,
-    register_middleware,
-    register_routes,
-    validate_settings_for_runtime,
+from app.core.settings.database import DEFAULT_DATABASE_URL
+from app.db.session import init_app_db
+
+main_logger = get_logger("main")
+bootstrap_logger = get_logger("bootstrap")
+
+LOG_ROTATION_CONFIG_KEYS = (
+    "app_log_rotation_size_mb",
+    "app_log_retention_count",
+    "audit_log_rotation_size_mb",
+    "audit_log_retention_count",
 )
 
-configure_logging()
-logger = get_logger("main")
+ALLOWED_CORS_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+ALLOWED_CORS_HEADERS = ["Authorization", "Content-Type", "X-CSRF-Token"]
+
+
+def validate_settings_for_runtime(settings: Settings) -> None:
+    if settings.mock_auth_enabled and not settings.debug:
+        bootstrap_logger.critical(
+            "mock_auth_production_error",
+            message=(
+                "FATAL: MOCK_AUTH_ENABLED=true with DEBUG=false is forbidden. "
+                "Disable mock auth for production deployment."
+            ),
+        )
+        raise RuntimeError("MOCK_AUTH_ENABLED cannot be true in non-debug mode")
+    if settings.mock_auth_enabled and settings.debug:
+        bootstrap_logger.warning(
+            "mock_auth_warning",
+            message="MOCK_AUTH_ENABLED=true - Development mode only",
+        )
+
+    if settings.debug:
+        return
+
+    invariant_map = {item.key: item for item in PRODUCTION_INVARIANTS}
+
+    if len(settings.secret_key.strip()) < 32:
+        raise RuntimeError("FATAL: SECRET_KEY must be at least 32 characters when DEBUG=false.")
+    if settings.database_url == DEFAULT_DATABASE_URL:
+        raise RuntimeError("FATAL: DATABASE_URL must be explicitly configured for production deployment.")
+    if not settings.cors_origins:
+        raise RuntimeError(
+            f"FATAL: {invariant_map['CORS_ORIGINS'].key} must be set to an explicit allowlist in production."
+        )
+    if "*" in settings.cors_origins:
+        raise RuntimeError(
+            "FATAL: CORS_ORIGINS cannot include '*' when allow_credentials=true. "
+            "Set an explicit allowlist of origins."
+        )
+    if not settings.allowed_hosts:
+        raise RuntimeError(
+            f"FATAL: {invariant_map['ALLOWED_HOSTS'].key} must be set to an explicit allowlist when DEBUG=false."
+        )
+    if settings.auth_mode != invariant_map["AUTH_MODE"].required_value:
+        raise RuntimeError(
+            f"FATAL: AUTH_MODE must be '{invariant_map['AUTH_MODE'].required_value}' when DEBUG=false."
+        )
+    if not settings.entra_tenant_id or not settings.entra_client_id:
+        raise RuntimeError(
+            "FATAL: ENTRA_TENANT_ID and ENTRA_CLIENT_ID are required when AUTH_MODE=microsoft_sso and DEBUG=false."
+        )
+    if settings.directory_provider != invariant_map["DIRECTORY_PROVIDER"].required_value:
+        raise RuntimeError(
+            f"FATAL: DIRECTORY_PROVIDER must be '{invariant_map['DIRECTORY_PROVIDER'].required_value}' when DEBUG=false."
+        )
+    if settings.ad_emulator_base_url:
+        raise RuntimeError("FATAL: AD_EMULATOR_BASE_URL must be unset when DEBUG=false.")
+    if settings.entra_confidential_credential is None:
+        raise RuntimeError("FATAL: An Entra Graph confidential credential is required when DEBUG=false.")
+    if settings.entra_jit_provisioning_enabled:
+        raise RuntimeError(
+            f"FATAL: ENTRA_JIT_PROVISIONING_ENABLED must be {invariant_map['ENTRA_JIT_PROVISIONING_ENABLED'].required_value} when DEBUG=false."
+        )
+    if settings.auth_sso_allow_email_link:
+        raise RuntimeError(
+            f"FATAL: AUTH_SSO_ALLOW_EMAIL_LINK must be {invariant_map['AUTH_SSO_ALLOW_EMAIL_LINK'].required_value} when DEBUG=false."
+        )
+
+    broad_proxy_entries = find_broad_trusted_proxy_entries(settings.trusted_proxies)
+    if broad_proxy_entries:
+        if not settings.allow_broad_trusted_proxies_in_production:
+            raise RuntimeError(
+                "FATAL: TRUSTED_PROXIES contains broad network ranges. "
+                "Use exact proxy hops in production or set "
+                "ALLOW_BROAD_TRUSTED_PROXIES_IN_PRODUCTION=true if this trust boundary is intentional."
+            )
+        bootstrap_logger.warning(
+            "trusted_proxy_broad_network_warning",
+            message=(
+                "TRUSTED_PROXIES contains broad network ranges. "
+                "X-Forwarded-For handling, rate limiting, refresh-session IP attribution, and request logs "
+                "will trust peers inside these ranges."
+            ),
+            trusted_proxies=broad_proxy_entries,
+        )
+
+
+def parse_log_rotation_config(raw_values: dict[str, str | None]) -> dict[str, int | None]:
+    parsed: dict[str, int | None] = {}
+    for key in LOG_ROTATION_CONFIG_KEYS:
+        raw_value = raw_values.get(key)
+        if raw_value is None:
+            parsed[key] = None
+            continue
+        try:
+            parsed_value = int(str(raw_value))
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"{key} must be a positive integer, got {raw_value!r}") from exc
+        if parsed_value < 1:
+            raise ValueError(f"{key} must be >= 1, got {parsed_value}")
+        parsed[key] = parsed_value
+    return parsed
+
+
+async def apply_persisted_log_rotation_config(db: AsyncSession) -> dict[str, int]:
+    from app.models.global_config import GlobalConfig
+
+    defaults = {
+        "app_log_rotation_size_mb": DEFAULT_LOG_ROTATION_SIZE_MB,
+        "app_log_retention_count": DEFAULT_LOG_RETENTION_COUNT,
+        "audit_log_rotation_size_mb": DEFAULT_LOG_ROTATION_SIZE_MB,
+        "audit_log_retention_count": DEFAULT_LOG_RETENTION_COUNT,
+    }
+    result = await db.execute(
+        select(GlobalConfig.key, GlobalConfig.value).where(GlobalConfig.key.in_(LOG_ROTATION_CONFIG_KEYS))
+    )
+    persisted_values = {key: value for key, value in result.all()}
+
+    resolved: dict[str, int] = {}
+    for key, default in defaults.items():
+        raw_value = persisted_values.get(key)
+        if raw_value is None:
+            resolved[key] = default
+            continue
+        try:
+            parsed_value = int(str(raw_value))
+            if parsed_value < 1:
+                raise ValueError(f"{key} must be >= 1")
+        except (TypeError, ValueError):
+            bootstrap_logger.warning(
+                "startup_log_rotation_config_invalid",
+                message=f"Invalid persisted log rotation value for {key}; using default {default}.",
+                config_key=key,
+                raw_value=raw_value,
+                default_value=default,
+            )
+            resolved[key] = default
+            continue
+        resolved[key] = parsed_value
+
+    reconfigure_log_rotation(
+        app_rotation_size_mb=resolved["app_log_rotation_size_mb"],
+        app_retention_count=resolved["app_log_retention_count"],
+        audit_rotation_size_mb=resolved["audit_log_rotation_size_mb"],
+        audit_retention_count=resolved["audit_log_retention_count"],
+    )
+    bootstrap_logger.info(
+        "startup_log_rotation_config_applied",
+        app_log_rotation_size_mb=resolved["app_log_rotation_size_mb"],
+        app_log_retention_count=resolved["app_log_retention_count"],
+        audit_log_rotation_size_mb=resolved["audit_log_rotation_size_mb"],
+        audit_log_retention_count=resolved["audit_log_retention_count"],
+    )
+    return resolved
+
+
+def configure_default_runtime_state(app: FastAPI, settings: Settings) -> None:
+    app.state.settings = settings
+    app.state.redis = None
+
+    from app.services.account_lockout_service import AccountLockoutService, InMemoryAccountLockoutBackend
+    from app.services.sso_challenge_store import InMemorySsoChallengeStore
+
+    app.state.account_lockout = AccountLockoutService(InMemoryAccountLockoutBackend())
+    app.state.sso_challenge_store = InMemorySsoChallengeStore()
+    app.state.process_started_at = utc_now()
+
+
+def configure_app_dependencies(app: FastAPI, settings: Settings) -> None:
+    def _app_settings_override() -> Settings:
+        return settings
+
+    app.dependency_overrides[get_settings] = _app_settings_override
+
+
+def configure_database_and_scheduler(app: FastAPI, settings: Settings) -> None:
+    init_app_db(app, settings)
+    configure_scheduler(app.state.db_sessionmaker, app.state.db_engine)
+
+
+def register_middleware(app: FastAPI, settings: Settings) -> None:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origins,
+        allow_credentials=True,
+        allow_methods=ALLOWED_CORS_METHODS,
+        allow_headers=ALLOWED_CORS_HEADERS,
+    )
+
+    if not settings.debug:
+        app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.allowed_hosts)
+
+    from app.middleware.language import LanguageMiddleware
+    from app.middleware.logging_context import LoggingContextMiddleware
+    from app.middleware.rate_limit import RateLimitMiddleware
+    from app.middleware.security_headers import SecurityHeadersMiddleware
+    from app.middleware.security_protocol import ProtocolGuardMiddleware
+
+    app.add_middleware(LoggingContextMiddleware, trusted_proxies=settings.trusted_proxies)
+    app.add_middleware(SecurityHeadersMiddleware, enable_hsts=not settings.debug)
+    app.add_middleware(ProtocolGuardMiddleware)
+    app.add_middleware(
+        RateLimitMiddleware,
+        enabled=not settings.debug,
+        trusted_proxies=settings.trusted_proxies,
+    )
+    app.add_middleware(LanguageMiddleware)
+
+
+def register_routes(app: FastAPI, settings: Settings) -> None:
+    app.include_router(api_router, prefix="/api/v1")
+
+    @app.get("/")
+    async def root():
+        base = {"name": settings.app_name, "version": settings.app_version}
+        if settings.debug:
+            base["docs"] = "/docs"
+        return base
+
+
+async def bootstrap_runtime_services(app: FastAPI) -> None:
+    settings: Settings = app.state.settings
+
+    if not settings.debug:
+        if not settings.redis_url:
+            raise RuntimeError("FATAL: REDIS_URL is required in production mode (DEBUG=false).")
+        from redis.asyncio import Redis
+
+        redis = Redis.from_url(settings.redis_url, decode_responses=True)
+        try:
+            await redis.ping()
+        except Exception:
+            await redis.aclose()
+            raise
+        app.state.redis = redis
+    else:
+        app.state.redis = None
+
+    from app.services.account_lockout_service import (
+        AccountLockoutService,
+        InMemoryAccountLockoutBackend,
+        RedisAccountLockoutBackend,
+    )
+    from app.services.sso_challenge_store import InMemorySsoChallengeStore, RedisSsoChallengeStore
+
+    if app.state.redis is not None:
+        app.state.account_lockout = AccountLockoutService(RedisAccountLockoutBackend(app.state.redis))
+        app.state.sso_challenge_store = RedisSsoChallengeStore(app.state.redis)
+    else:
+        app.state.account_lockout = AccountLockoutService(InMemoryAccountLockoutBackend())
+        app.state.sso_challenge_store = InMemorySsoChallengeStore()
+
+    await start_scheduler_async()
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifecycle management."""
-    # Startup
-    logger.info("startup", message="RiskHub application starting")
+    main_logger.info("startup", message="RiskHub application starting")
     settings: Settings = app.state.settings
 
     db_engine = getattr(app.state, "db_engine", None)
     if db_engine is None:
         raise RuntimeError("Database not initialized; call init_app_db() during app creation.")
+    db_sessionmaker = getattr(app.state, "db_sessionmaker", None)
+    if db_sessionmaker is None:
+        raise RuntimeError("Database sessionmaker not initialized; call init_app_db() during app creation.")
     await enforce_schema_head(engine=db_engine, database_url=settings.database_url)
+    async with db_sessionmaker() as db:
+        await apply_persisted_log_rotation_config(db)
 
     await bootstrap_runtime_services(app)
     yield
-    # Shutdown
-    logger.info("shutdown", message="RiskHub application shutting down")
+
+    main_logger.info("shutdown", message="RiskHub application shutting down")
     await stop_scheduler_async()
 
     db_engine = getattr(app.state, "db_engine", None)
@@ -45,16 +315,21 @@ async def lifespan(app: FastAPI):
         try:
             await db_engine.dispose()
         except Exception as exc:
-            # Best-effort shutdown cleanup; startup/runtime failures should never be masked here.
-            logger.warning("shutdown_db_dispose_error", message=f"Failed to dispose DB engine: {exc}")
+            main_logger.warning(
+                "shutdown_db_dispose_error",
+                message=f"Failed to dispose DB engine: {exc}",
+            )
 
     redis = getattr(app.state, "redis", None)
     if redis is not None:
         try:
             await redis.aclose()
         except Exception as exc:
-            # Best-effort shutdown cleanup; startup/runtime failures should never be masked here.
-            logger.warning("shutdown_redis_close_error", message=f"Failed to close Redis client: {exc}")
+            main_logger.warning(
+                "shutdown_redis_close_error",
+                message=f"Failed to close Redis client: {exc}",
+            )
+
 
 def create_app(settings: Settings) -> FastAPI:
     validate_settings_for_runtime(settings)
@@ -74,17 +349,6 @@ def create_app(settings: Settings) -> FastAPI:
     register_middleware(app, settings)
     register_routes(app, settings)
     return app
-
-def _validate_production_settings(settings: Settings) -> None:
-    validate_settings_for_runtime(settings)
-
-
-async def _apply_log_rotation_config(app: FastAPI):
-    await apply_log_rotation_config(app)
-
-
-def _parse_log_rotation_config(raw_values: dict[str, str | None]) -> dict[str, int | None]:
-    return parse_log_rotation_config(raw_values)
 
 
 app = create_app(get_settings())

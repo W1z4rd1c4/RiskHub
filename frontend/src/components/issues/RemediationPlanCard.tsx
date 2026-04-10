@@ -21,7 +21,7 @@ import {
 } from './issueUi';
 import { issuesApi } from '@/services/issuesApi';
 import { apiClient } from '@/services/apiClient';
-import { useSessionSnapshot } from '@/services/sessionStore';
+import { useSessionSnapshot } from '@/services/session/store';
 import type { Issue, IssueOwnerLookup, IssueRemediationStatus, IssueStatus } from '@/types/issue';
 
 interface RemediationPlanCardProps {

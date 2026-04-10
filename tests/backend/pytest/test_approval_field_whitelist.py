@@ -4,14 +4,12 @@ Verifies that the EDITABLE_FIELDS whitelist prevents injection of
 protected fields like id, created_at, created_by_id through pending_changes.
 """
 
-from unittest.mock import AsyncMock, MagicMock, patch
-
 import pytest
 
-from app.models.approval_request import ApprovalResourceType
+from app.models import ApprovalActionType, ApprovalRequest, ApprovalStatus, Risk
 from app.services.approval_execution_service import (
     EDITABLE_FIELDS,
-    _apply_edit_risk_control,
+    approve_request_workflow,
 )
 
 
@@ -63,47 +61,54 @@ class TestWhitelistEnforcement:
     """Verify whitelist is actually applied during edit execution."""
 
     @pytest.mark.asyncio
-    async def test_risk_edit_rejects_protected_field(self):
+    async def test_risk_edit_rejects_protected_field(
+        self,
+        db_session,
+        test_department,
+        test_user_cro,
+        test_user_employee,
+    ):
         """Attempting to edit 'id' via pending_changes should be rejected."""
-        # This test verifies the whitelist is checked, not just defined
-        from app.models import Risk
+        risk = Risk(
+            name="Original",
+            risk_id_code="WHITELIST-001",
+            process="Whitelist Test",
+            risk_type="operational",
+            description="Risk for whitelist enforcement",
+            department_id=test_department.id,
+            owner_id=test_user_employee.id,
+            gross_probability=2,
+            gross_impact=5,
+            gross_score=10,
+            net_probability=1,
+            net_impact=5,
+            net_score=5,
+            status="active",
+        )
+        db_session.add(risk)
+        await db_session.commit()
+        await db_session.refresh(risk)
+        original_risk_id = risk.id
 
-        # Mock objects
-        mock_db = AsyncMock()
-        mock_risk = MagicMock(spec=Risk)
-        mock_risk.id = 999
-        mock_risk.gross_score = 10
-        mock_risk.net_score = 5
-        mock_risk.gross_probability = 2
-        mock_risk.gross_impact = 5
-        mock_risk.net_probability = 1
-        mock_risk.net_impact = 5
-        mock_risk.department_id = 1
-
-        # Setup mock to return risk
-        mock_result = MagicMock()
-        mock_result.scalar_one_or_none.return_value = mock_risk
-        mock_db.execute.return_value = mock_result
-
-        # Create approval with injection attempt
-        mock_approval = MagicMock()
-        mock_approval.id = 1
-        mock_approval.resource_type = ApprovalResourceType.RISK
-        mock_approval.resource_id = 999
-        mock_approval.pending_changes = {
+        approval = ApprovalRequest(
+            resource_type="risk",
+            resource_id=risk.id,
+            resource_name=risk.name,
+            action_type=ApprovalActionType.EDIT,
+            requested_by_id=test_user_employee.id,
+            reason="Whitelist enforcement",
+            status=ApprovalStatus.PENDING,
+            pending_changes={
             "id": {"old": 999, "new": 1},  # Injection attempt!
             "name": {"old": "Old", "new": "New"},  # Legitimate edit
         }
+        )
+        db_session.add(approval)
+        await db_session.commit()
+        await db_session.refresh(approval)
 
-        mock_user = MagicMock()
-        mock_user.id = 1
+        await approve_request_workflow(db_session, approval.id, test_user_cro, "Approved in test")
+        await db_session.refresh(risk)
 
-        # Execute
-        with patch("app.core.activity_logger.log_activity"):
-            await _apply_edit_risk_control(mock_db, mock_approval, mock_user)
-
-        # Verify id was NOT changed (injection blocked)
-        assert mock_risk.id == 999, "id should not have been modified"
-
-        # Verify name WAS changed (legitimate edit)
-        assert mock_risk.name == "New", "name should have been modified"
+        assert risk.id == original_risk_id, "id should not have been modified"
+        assert risk.name == "New", "name should have been modified"

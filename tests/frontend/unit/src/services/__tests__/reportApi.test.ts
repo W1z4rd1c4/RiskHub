@@ -38,6 +38,7 @@ describe('reportApi exportKRIs', () => {
 
         expect(getBlobMock).toHaveBeenCalledWith(
             '/reports/kris/export?format=csv&as_of_date=2026-03-07&monitoring_status=warning',
+            { timeoutMs: null },
         );
     });
 
@@ -52,5 +53,19 @@ describe('reportApi exportKRIs', () => {
         })).rejects.toThrow('monitoring_status and timeliness_status cannot be used together');
 
         expect(getBlobMock).not.toHaveBeenCalled();
+    });
+
+    it('disables the request timeout for long-running report downloads', async () => {
+        getBlobMock.mockResolvedValue({
+            blob: new Blob(['summary\n'], { type: 'text/csv' }),
+            headers: new Headers(),
+        });
+
+        await reportApi.downloadSummaryCsv({ departmentId: 7 });
+
+        expect(getBlobMock).toHaveBeenCalledWith(
+            '/reports/summary/export?format=csv&department_id=7',
+            { timeoutMs: null },
+        );
     });
 });

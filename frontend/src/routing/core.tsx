@@ -6,13 +6,13 @@ import { UsersRouteGuard, UserLifecycleRouteGuard } from '@/authz/BusinessRouteG
 import { useAuthz } from '@/authz/useAuthz';
 import type { AppRouteDef } from './types';
 
-const DashboardPage = lazy(async () => ({ default: (await import('@/pages/DashboardPage')).DashboardPage }));
-const SettingsPage = lazy(async () => ({ default: (await import('@/pages/SettingsPage')).SettingsPage }));
-const UsersPage = lazy(async () => ({ default: (await import('@/pages/UsersPage')).UsersPage }));
-const UserNewPage = lazy(async () => ({ default: (await import('@/pages/UserNewPage')).UserNewPage }));
-const HeroPage = lazy(async () => ({ default: (await import('@/pages/HeroPage')).HeroPage }));
-const LoginPage = lazy(async () => ({ default: (await import('@/pages/LoginPage')).default }));
-const SsoCallbackPage = lazy(async () => ({ default: (await import('@/pages/SsoCallbackPage')).default }));
+const DashboardPage = lazy(() => import('@/pages/DashboardPage'));
+const SettingsPage = lazy(() => import('@/pages/SettingsPage'));
+const UsersPage = lazy(() => import('@/pages/UsersPage'));
+const UserNewPage = lazy(() => import('@/pages/UserNewPage'));
+const HeroPage = lazy(() => import('@/pages/HeroPage'));
+const LoginPage = lazy(() => import('@/pages/LoginPage'));
+const SsoCallbackPage = lazy(() => import('@/pages/SsoCallbackPage'));
 
 function RoleBasedIndex() {
   const authz = useAuthz();

@@ -12,6 +12,9 @@ RELEASE_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "release.yml"
 RELEASE_PARITY_PR_WORKFLOW = (
     REPO_ROOT / ".github" / "workflows" / "release-parity-pr.yml"
 )
+MAINTENANCE_GOVERNANCE_WORKFLOW = (
+    REPO_ROOT / ".github" / "workflows" / "maintenance-governance.yml"
+)
 LINT_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "lint.yml"
 BACKEND_POSTGRES_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "backend-postgres.yml"
 E2E_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "e2e.yml"
@@ -115,18 +118,33 @@ def test_lint_workflow_runs_blocking_frontend_vitest_job() -> None:
     assert "frontend-unit-tests:" in text
     assert "Run frontend Vitest coverage gate" in text
     assert "npm run test:coverage" in text
-    assert "needs: [docs-topology-consistency, frontend-unit-tests]" in text
+    assert "needs: [frontend-unit-tests]" in text
+    assert "docs-topology-consistency" not in text
 
 
-def test_lint_workflow_runs_production_contract_docs_validator() -> None:
+def test_lint_workflow_restores_blocking_backend_quality_gate() -> None:
     text = LINT_WORKFLOW.read_text(encoding="utf-8")
 
+    assert "backend-quality:" in text
+    assert "Backend Ruff gate" in text
+    assert "Backend mypy gate" in text
+    assert "Backend suppression budget gate" in text
     assert "Production contract docs gate" in text
+    assert "Repo artifact + script syntax contracts" in text
     assert "python3 scripts/security/validate_production_contract_docs.py" in text
     assert "python3 scripts/security/validate_deprecated_imports.py" in text
+    for forbidden in (
+        "Frontend debt budget",
+        "Frontend cleanup audit contract",
+        "Validate ratchet status documentation contract",
+        "Compute Ruff ratchet class counts",
+        "Backend Ruff changed-file ratchet",
+        "Backend mypy (changed backend/app files)",
+    ):
+        assert forbidden not in text
 
 
-def test_lint_workflow_fetches_full_history_for_changed_target_detection() -> None:
+def test_lint_workflow_fetches_full_history_for_checkout() -> None:
     text = LINT_WORKFLOW.read_text(encoding="utf-8")
 
     pattern = re.compile(
@@ -143,12 +161,21 @@ def test_lint_workflow_fetches_full_history_for_changed_target_detection() -> No
     assert pattern.search(text), "lint job checkout must fetch full history"
 
 
-def test_release_parity_pr_workflow_blocks_pull_requests_with_contract_validators() -> (
+def test_maintenance_workflow_keeps_backend_job_informational_only() -> None:
+    text = MAINTENANCE_GOVERNANCE_WORKFLOW.read_text(encoding="utf-8")
+
+    assert "backend-maintenance-informational:" in text
+    assert "Backend Maintenance (Informational)" in text
+    assert "continue-on-error: true" in text
+
+
+def test_release_parity_contract_workflow_is_manual_only_and_keeps_contract_validators() -> (
     None
 ):
     text = RELEASE_PARITY_PR_WORKFLOW.read_text(encoding="utf-8")
 
-    assert "pull_request:" in text
+    assert "workflow_dispatch:" in text
+    assert "pull_request:" not in text
     assert "continue-on-error" not in text
     for snippet in (
         "python3 scripts/check_docs_contract.py",
@@ -207,10 +234,26 @@ def test_security_workflow_runs_container_scan_in_pull_requests() -> None:
     )
 
 
+def test_maintenance_governance_workflow_owns_docs_and_maintenance_only_gates() -> None:
+    text = MAINTENANCE_GOVERNANCE_WORKFLOW.read_text(encoding="utf-8")
+
+    assert "workflow_dispatch:" in text
+    assert "docs-topology-consistency" in text
+    assert "validate_lint_ratchet_docs.py" in text
+    assert "python3 scripts/tools/suppression_budget.py" in text
+    assert "npm run quality:debt -- --report-json" in text
+    assert "npm run cleanup:deadcode" in text
+    assert "mypy --config-file mypy.ini app" in text
+
+
 def test_startup_smoke_workflow_asserts_health_schema_headers_and_docs_exposure() -> (
     None
 ):
     text = STARTUP_SMOKE_WORKFLOW.read_text(encoding="utf-8")
+
+    assert "pull_request:" not in text
+    assert "workflow_dispatch:" in text
+    assert "schedule:" in text
 
     for snippet in (
         'assert set(health) == {"status", "database", "redis", "scheduler"}',

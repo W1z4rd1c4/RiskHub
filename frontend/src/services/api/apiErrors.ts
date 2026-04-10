@@ -1,5 +1,6 @@
 import { getErrorMessageKey } from '@/i18n/getErrorMessageKey';
 
+import { RequestRuntimeError } from './requestRuntime';
 import type { ApiClientErrorPayload } from './apiTypes';
 
 export class ApiClientError extends Error {
@@ -54,6 +55,14 @@ export function parseErrorMessage(errorData: unknown, status: number): string {
 export function toApiClientError(error: unknown): ApiClientError {
     if (error instanceof ApiClientError) {
         return error;
+    }
+
+    if (error instanceof RequestRuntimeError) {
+        return new ApiClientError({
+            code: error.code === 'REQUEST_TIMEOUT' ? 'REQUEST_TIMEOUT' : 'NETWORK_ERROR',
+            messageKey: getErrorMessageKey(error.code === 'REQUEST_TIMEOUT' ? 'REQUEST_TIMEOUT' : 'NETWORK_ERROR'),
+            rawMessage: error.rawMessage ?? error.message,
+        });
     }
 
     return new ApiClientError({

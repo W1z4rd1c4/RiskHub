@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { SafeTFunction } from '@/i18n/hooks';
 import { authApi } from '@/services/authApi';
-import { applyAuthenticatedSession } from '@/services/sessionManager';
-import { clearExplicitLogoutSuppressed } from '@/services/logoutSuppression';
+import { logError } from '@/services/logger';
+import { applyAuthenticatedSession } from '@/services/session/manager';
+import { clearExplicitLogoutSuppressed } from '@/services/session/logoutSuppression';
 import { isAuthUnavailableError } from '@/services/authRequest';
 import { entraAuth } from '@/services/entraAuth';
 
@@ -63,8 +64,8 @@ export function useLoginActions({ returnTo, translate }: UseLoginActionsOptions)
         try {
             const challenge = await authApi.ssoStart(returnTo);
             await entraAuth.loginRedirect({ nonce: challenge.nonce, state: challenge.state });
-        } catch (err) {
-            console.error(err);
+        } catch (error) {
+            logError('SSO login initiation failed.', error);
             setErrorKey('errorKeys.login_failed');
         } finally {
             setIsSsoLoading(false);

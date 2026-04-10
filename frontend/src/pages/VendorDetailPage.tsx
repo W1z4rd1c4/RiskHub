@@ -238,3 +238,5 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
         </div>
     );
 }
+
+export default VendorDetailPage;

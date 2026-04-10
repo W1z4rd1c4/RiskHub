@@ -2,7 +2,7 @@ import { apiClient } from './apiClient';
 import type { VendorReportFormat } from '@/types/vendorReport';
 
 async function downloadFile(url: string, defaultFilename: string): Promise<void> {
-    const { blob, headers } = await apiClient.getBlob(url);
+    const { blob, headers } = await apiClient.getBlob(url, { timeoutMs: null });
 
     const contentDisposition = headers.get('Content-Disposition');
     let filename = defaultFilename;

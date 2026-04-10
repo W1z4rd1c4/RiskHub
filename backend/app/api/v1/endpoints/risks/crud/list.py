@@ -105,6 +105,7 @@ async def list_risks(
         breaching_subq = (
             select(KeyRiskIndicator.risk_id)
             .where(
+                KeyRiskIndicator.is_archived.is_(False),
                 or_(
                     KeyRiskIndicator.current_value < KeyRiskIndicator.lower_limit,
                     KeyRiskIndicator.current_value > KeyRiskIndicator.upper_limit,
@@ -159,7 +160,12 @@ async def list_risks(
             order_column = Risk.net_score
         elif sort_by == "kri_count":
             order_column = (
-                select(func.count(KeyRiskIndicator.id)).where(KeyRiskIndicator.risk_id == Risk.id).scalar_subquery()
+                select(func.count(KeyRiskIndicator.id))
+                .where(
+                    KeyRiskIndicator.risk_id == Risk.id,
+                    KeyRiskIndicator.is_archived.is_(False),
+                )
+                .scalar_subquery()
             )
         elif sort_by == "control_count":
             order_column = (
@@ -176,7 +182,7 @@ async def list_risks(
     query = (
         base_query.options(
             selectinload(Risk.department),
-            selectinload(Risk.kris),
+            selectinload(Risk.kris.and_(KeyRiskIndicator.is_archived.is_(False))),
             selectinload(Risk.control_links),
             selectinload(Risk.vendor_links).selectinload(VendorRiskLink.vendor),
         )

@@ -15,24 +15,24 @@ This guide defines the current testing matrix for backend, frontend unit tests, 
 | Backend targeted | `cd backend && venv/bin/pytest ../tests/backend/pytest/test_admin_docs.py -q` | Docs endpoint behavior and locale fallback |
 | Backend reliability targeted | `cd backend && pytest -q ../tests/backend/pytest/test_scheduler_runtime.py ../tests/backend/pytest/test_outbox_approval_flow.py ../tests/backend/pytest/test_aggregate_overviews.py ../tests/backend/pytest/test_orphaned_items_scan_and_stats.py` | Scheduler ownership, outbox fatal-vs-retry policy, SQLite single-worker guard, aggregate overview endpoints, and governance overview |
 | Backend install contract | `cd backend && pytest -q ../tests/backend/pytest/test_install_script_contracts.py ../tests/backend/pytest/test_startup_script_contracts.py` | Public `scripts/install.sh` and startup wrapper contract, including the Python-backed lifecycle control plane |
-| Backend broad | `make -f scripts/Makefile test` | Full backend regression |
-| Backend PR CI (SQLite) | `cd backend && pytest -m "not postgres" -q` | Blocking PR lane for broad backend regression on the default fast harness |
-| Backend lint + suppression budget | `make -f scripts/Makefile lint-backend` | Ruff hard gate plus backend/app suppression budget enforcement |
-| Backend changed-code type gate | `python3 scripts/tools/changed_quality_targets.py --event-name pull_request --base-ref main --kind backend-python` | Resolve the backend/app Python files that should receive blocking mypy and Ruff `UP`/`SIM` changed-code checks |
+| Backend broad | `make -f scripts/Makefile test` | Full backend regression excluding the `benchmark` marker |
+| Backend fast (SQLite) | `make -f scripts/Makefile test-fast` | Fast backend regression on the default SQLite harness |
+| Backend PR CI (SQLite) | `cd backend && pytest -m "not postgres and not benchmark" -q` | Blocking PR lane for broad backend regression on the default fast harness |
+| Backend lint (maintainer lane) | `make -f scripts/Makefile lint-backend` | Maintainer-focused Ruff plus suppression budget visibility; not part of the protected PR path in Phase 253 |
 | Backend Postgres marker | `cd backend && TEST_DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_dev@localhost:5432/riskhub_test pytest -m postgres -v` | Postgres-sensitive behavior against a dedicated test database |
 | Backend PR CI (Postgres) | `TEST_DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_test@localhost:5432/riskhub_test make -f scripts/Makefile test-postgres-ci` | Blocking PR lane for Postgres marker coverage plus the broader DB-sensitive regression contract |
 | Backend Redis integration marker | `cd backend && pytest -m redis_integration -q` | Redis fault-injection resilience checks (Docker-backed) |
 | Frontend unit | `cd frontend && npm run test:run` | Component and integration tests; PR-blocking in CI |
 | Frontend KRI filter regression | `cd frontend && npm run test:run -- src/pages/__tests__/KRIsPage.monitoring-status.test.tsx` | Route-backed `/kris` monitoring/timeliness filters, rapid-click loading safety, and grouped-view parity |
 | Frontend vendor grouped-view regression | `cd frontend && npm run test:run -- src/pages/__tests__/VendorsPage.grouped-views.test.tsx` | `/vendors` grouped tabs, `By Risk` permission gating, overlapping risk-group membership, and `Unlinked Risk` fallback |
-| Frontend reliability targeted | `cd frontend && npm run test:run -- src/components/layout/__tests__/SidebarPolling.test.tsx src/components/notifications/__tests__/NotificationBell.test.tsx src/hooks/__tests__/useAdaptivePollingQuery.test.tsx src/pages/__tests__/DashboardPage.overview.test.tsx src/pages/__tests__/GovernancePage.overview.test.tsx src/pages/admin-console/__tests__/AdminConsoleOpsPanels.outbox.test.tsx src/services/__tests__/accessTokenStore.test.ts src/services/__tests__/sessionManager.test.ts src/services/__tests__/apiClient.401-recovery.test.ts src/services/__tests__/authTimeoutFlow.test.ts src/contexts/__tests__/AuthLogoutFlow.test.tsx src/contexts/__tests__/AuthBootstrapRouteGuard.test.tsx src/contexts/__tests__/AuthSessionAuthority.test.tsx` | Aggregate polling, admin outbox panel, and canonical auth/session regression pack |
+| Frontend reliability targeted | `cd frontend && npm run test:run -- src/components/layout/__tests__/SidebarPolling.test.tsx src/components/notifications/__tests__/NotificationBell.test.tsx src/hooks/__tests__/useAdaptivePollingQuery.test.tsx src/pages/__tests__/DashboardPage.overview.test.tsx src/pages/__tests__/GovernancePage.overview.test.tsx src/pages/admin-console/__tests__/AdminConsoleOpsPanels.outbox.test.tsx src/services/__tests__/accessTokenStore.test.ts src/services/__tests__/sessionManager.test.ts src/services/__tests__/apiClient.401-recovery.test.ts src/services/__tests__/authTimeoutFlow.test.ts src/contexts/__tests__/AuthLogoutFlow.test.tsx src/contexts/__tests__/AuthBootstrapRouteGuard.test.tsx src/contexts/__tests__/AuthSessionAuthority.test.tsx` | Aggregate polling, admin outbox panel, and canonical auth/session regression pack under `frontend/src/services/session/**` |
 | Frontend docs UI | `cd frontend && npm run test:run -- src/components/settings/__tests__/DocumentationSettings.test.tsx` | Docs cards/filter/audience behavior |
 | Frontend types | `cd frontend && npx tsc --noEmit` | Type safety gate |
 | Frontend quality chain | `cd frontend && npm run lint && npx tsc --noEmit && npm run quality:debt -- --report-json && node scripts/quality/validate-debt-budget-report.mjs && npm run cleanup:deadcode && node scripts/cleanup/validate-unreachable-report.mjs && node scripts/quality/validate-no-inline-styles.mjs` | Frontend lint/type/debt/dead-code/inline-style gate mirrored by CI |
 | Frontend E2E | `cd frontend && npm run e2e` | Browser-level regression |
 | Frontend business-logic E2E | `cd frontend && npm run e2e:business-logic` | Focused role/scope/admin-boundary and workflow regression |
 | Production-profile smoke | `.github/workflows/e2e.yml` job `production-profile-smoke` | PR-blocking backend startup/auth/header/docs-disabled smoke under production-safe config |
-| Docs topology consistency | `cd . && make -f scripts/Makefile docs-topology-consistency` | README coverage, docs tree audit scope, and structure metrics consistency |
+| Docs topology consistency | `cd . && make -f scripts/Makefile docs-topology-consistency` | Maintainer-facing docs governance lane for README coverage, docs tree audit scope, and structure metrics consistency |
 | Repo artifact + script syntax contracts | `cd . && make -f scripts/Makefile quality-repo-contracts` | Blocks tracked retired artifacts, tracked ignored paths, broken startup shell syntax, and broken migration/seed script syntax |
 | Suppression budget only | `cd . && make -f scripts/Makefile quality-suppression-budget` | Enforce backend suppression allowlist max budget/no-expired entries |
 | Docs contract | `cd . && python3 scripts/check_docs_contract.py` | Header/parity/link/audience checks |
@@ -43,10 +43,10 @@ This guide defines the current testing matrix for backend, frontend unit tests, 
 ## Backend Testing Notes
 
 - `backend/pytest.ini` defines discovery and default coverage settings.
-- SQLite in-memory is used by default test path unless `TEST_DATABASE_URL` is set.
+- SQLite in-memory is used by the default fast path unless `TEST_DATABASE_URL` is set.
 - Postgres-specific tests are marked with `@pytest.mark.postgres`.
-- PR CI runs a broad SQLite lane, a blocking Postgres regression contract, and a blocking frontend Vitest lane.
-- Blocking backend typing and `UP`/`SIM` ratchets now follow changed `backend/app` Python files resolved from git history instead of a fixed remediation slice; when a diff base cannot be resolved, the helper falls back to the full `backend/app` tree.
+- PR CI runs a broad SQLite lane, a blocking Postgres regression contract, a blocking frontend Vitest lane, frontend lint/type/build, and repo/security validators.
+- Backend Ruff/mypy debt remains visible in maintainer workflows, but is not part of the protected PR path in this phase.
 - Installer regression coverage is anchored to the public `./scripts/install.sh` contract even though the implementation now routes through `scripts/install_cli.py` and `scripts/install_lib/`.
 - Schema-sensitive changes should keep the dedicated Postgres pytest lane green; do not rely on browser E2E as the only Postgres signal.
 - When the Docker app stack is using the live `riskhub` database, point Postgres marker runs at a sibling `riskhub_test` database instead; Postgres-mode truncates tables between tests.
@@ -54,7 +54,7 @@ This guide defines the current testing matrix for backend, frontend unit tests, 
 - SQLite/non-Postgres outbox dispatch is intentionally single-worker only; if scheduler ownership is enabled with `API_WORKERS>1`, the runtime must fail fast instead of pretending it has Postgres claim semantics.
 - Trusted proxy ranges that cover broad private networks now fail closed in production unless `ALLOW_BROAD_TRUSTED_PROXIES_IN_PRODUCTION=true` is set deliberately.
 - The Postgres lane is the authority for migration-defined indexes and live schema typing checks, and now runs a named DB-sensitive regression contract instead of only `pytest -m postgres`.
-- CI also publishes a non-blocking full-tree mypy lane for `backend/app` so repo-wide typing debt remains visible while changed-code blocking stays pragmatic.
+- CI publishes maintainer-only backend quality visibility for suppression budget, full-tree Ruff, and full-tree mypy.
 - Redis integration tests are marked with `@pytest.mark.redis_integration` and require Docker-backed test dependencies.
 - For docs endpoint behavior, keep role-scoped fixtures (`client_platform_admin`, `client_cro`, `client_employee`) green.
 
@@ -128,7 +128,7 @@ Current browser-lane caveats:
 ## Frontend Testing Notes
 
 - Unit/integration tests run with Vitest.
-- Client auth/session truth now lives in `frontend/src/services/sessionStore.ts`; `sessionManager` is the transition layer, and compatibility adapters must not be treated as independent auth sources.
+- Client auth/session truth now lives under `frontend/src/services/session/`; `session/store.ts` is canonical state, `session/manager.ts` is the transition layer, and `session/bootstrap.ts` owns restore behavior.
 - Backend rate-limit policy/backend behavior is covered by `tests/backend/pytest/test_rate_limit_components.py`, `test_rate_limit_redis_resilience.py`, and `test_rate_limit_redis_integration.py`.
 - Graph auth boundary/cache-key behavior is covered by `tests/backend/pytest/test_graph_directory_components.py` and `test_entra_confidential_credentials.py`.
 - Docs UI behavior is covered in `DocumentationSettings.test.tsx`.
@@ -161,17 +161,18 @@ Current browser-lane caveats:
 - Evaluate `decision.json` at that path.
 - Release candidate is blocked unless parity `decision` is `GO`.
 - Fast parity audits are intentionally non-blocking and should run on `main` and/or nightly schedules for drift monitoring.
+- Release parity contract and startup smoke are maintainer-triggered lanes, not PR-required status checks.
 
 ## Quality Gate Contract (Blocking)
 
-- Frontend dead-code non-regression is enforced by `npm run cleanup:deadcode` in local Make targets and CI lint workflow.
-- Frontend debt budget non-regression is enforced by `npm run quality:debt -- --report-json`.
+- Frontend dead-code non-regression is enforced by `npm run cleanup:deadcode` in local maintainer and scheduled workflows.
+- Frontend debt budget non-regression is enforced by `npm run quality:debt -- --report-json` in local maintainer and scheduled workflows.
 - Frontend debt-budget JSON output is machine-checked by `node scripts/quality/validate-debt-budget-report.mjs`.
 - Frontend dead-code report output is machine-checked by `node scripts/cleanup/validate-unreachable-report.mjs`.
-- Frontend inline-style regressions are blocked by `node scripts/quality/validate-no-inline-styles.mjs`.
+- Frontend inline-style regressions are checked by `node scripts/quality/validate-no-inline-styles.mjs`.
 - Backend suppression non-regression is enforced by `scripts/tools/suppression_budget.py` against:
   - `scripts/quality/backend-suppression-allowlist.json`
-- Docs topology consistency is enforced by `make -f scripts/Makefile docs-topology-consistency`.
+- Docs topology consistency is enforced by `make -f scripts/Makefile docs-topology-consistency` in the maintainer governance lane.
 - Repo artifact and script syntax regressions are blocked by `make -f scripts/Makefile quality-repo-contracts`.
 - Production contract doc parity is enforced by `python3 scripts/security/validate_production_contract_docs.py`.
 

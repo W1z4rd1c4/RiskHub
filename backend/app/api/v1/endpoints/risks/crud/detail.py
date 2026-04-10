@@ -8,7 +8,7 @@ from app.core.datetime_utils import utc_now
 from app.core.permissions import check_department_access
 from app.core.security import require_permission
 from app.db.session import get_db
-from app.models import Risk, User
+from app.models import KeyRiskIndicator, Risk, User
 from app.schemas.risk import RiskRead
 
 router = APIRouter()
@@ -28,7 +28,7 @@ async def get_risk(
         .options(
             selectinload(Risk.department),
             selectinload(Risk.owner),
-            selectinload(Risk.kris),
+            selectinload(Risk.kris.and_(KeyRiskIndicator.is_archived.is_(False))),
         )
         .where(Risk.id == risk_id)
     )

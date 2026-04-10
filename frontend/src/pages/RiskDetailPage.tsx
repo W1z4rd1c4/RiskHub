@@ -464,3 +464,5 @@ export function RiskDetailPage() {
         </div>
     );
 }
+
+export default RiskDetailPage;

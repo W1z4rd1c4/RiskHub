@@ -13,7 +13,8 @@ Folder for `frontend/src/pages` implementation assets.
 - `ApprovalsPage.tsx`
 - `AuditTrailPage.tsx`
 - `ControlDetailPage.tsx`
-- `ControlForms.tsx`
+- `ControlEditPage.tsx`
+- `ControlNewPage.tsx`
 - `ControlsPage.tsx`
 - `DashboardPage.tsx`
 - `DepartmentDetailPage.tsx`
@@ -21,8 +22,12 @@ Folder for `frontend/src/pages` implementation assets.
 - `DocumentationPage.tsx`
 - `GovernancePage.tsx`
 - `HeroPage.tsx`
+- `KRINewPage.tsx`
 - `index.ts`
 - `issues/`
+- `IssueDetailPage.tsx`
+- `RiskEditPage.tsx`
+- `RiskNewPage.tsx`
 - `vendors/`
 - `...`
 

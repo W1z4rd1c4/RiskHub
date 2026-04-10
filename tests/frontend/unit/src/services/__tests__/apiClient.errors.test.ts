@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ApiClientError, apiClient } from '@/services/apiClient';
+import { toApiClientError } from '@/services/api/apiErrors';
+import { RequestRuntimeError } from '@/services/api/requestRuntime';
 import { z } from '@/services/api/schemas';
 
 const okSchema = z.object({ ok: z.boolean() }).passthrough();
@@ -30,6 +32,33 @@ describe('apiClient error helpers', () => {
             code: 'NETWORK_ERROR',
             rawMessage: 'socket closed',
         });
+    });
+
+    it('maps request timeouts to a timeout-specific UI key', () => {
+        const error = toApiClientError(
+            new RequestRuntimeError('REQUEST_TIMEOUT', 'Request timed out', 'Request timed out'),
+        );
+
+        expect(error).toMatchObject({
+            code: 'REQUEST_TIMEOUT',
+            messageKey: 'errorKeys.request_timeout',
+            rawMessage: 'Request timed out',
+        });
+    });
+
+    it('preserves caller aborts instead of converting them to timeout UI errors', async () => {
+        const controller = new AbortController();
+        vi.stubGlobal(
+            'fetch',
+            vi.fn().mockImplementation((_input, init) => {
+                controller.abort();
+                return Promise.reject(new DOMException('The operation was aborted.', 'AbortError'));
+            }),
+        );
+
+        await expect(
+            apiClient.get('/aborted', { schema: okSchema, signal: controller.signal }),
+        ).rejects.toMatchObject({ name: 'AbortError' });
     });
 
     it('rejects malformed success payloads as invalid response payloads', async () => {

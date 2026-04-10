@@ -6,6 +6,7 @@
   "not_found": "The requested resource was not found.",
   "validation": "Some fields are invalid. Please review and try again.",
   "server": "Server error. Please try again later.",
+  "request_timeout": "Request timed out. Please try again.",
   "request_failed": "Request failed. Please try again.",
   "logout_failed": "Logout failed. Please try again.",
   "demo_login_failed": "Demo login failed.",

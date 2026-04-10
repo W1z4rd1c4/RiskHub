@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { RiskNewPage } from '@/pages/RiskForms';
+import { RiskNewPage } from '@/pages/RiskNewPage';
 
 const mockNavigate = vi.fn();
 const mockLinkRisk = vi.fn();

@@ -18,6 +18,8 @@ from httpx import AsyncClient
 # Note: pytest-benchmark doesn't have native async support
 # We use time-based measurements within async tests instead
 
+pytestmark = pytest.mark.benchmark
+
 
 @pytest.mark.asyncio
 async def test_benchmark_risks_list(auth_client: AsyncClient, test_department, seed_risk_types):

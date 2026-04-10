@@ -268,3 +268,5 @@ export function DocumentationPage() {
         </div>
     );
 }
+
+export default DocumentationPage;

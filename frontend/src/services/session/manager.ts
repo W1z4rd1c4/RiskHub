@@ -1,12 +1,10 @@
 import type { TokenResponse } from '@/services/authApi';
 import { sanitizeReturnTo } from '@/services/authRedirect';
-import {
-    type BootstrapSession,
-} from '@/services/bootstrapSessionCache';
 import { clearCsrfToken } from '@/services/csrfToken';
-import { clearRefreshSessionHint } from '@/services/refreshSessionHint';
-import { getSessionSnapshot, setSessionSnapshot } from '@/services/sessionStore';
-import type { SessionBootstrapError } from '@/services/sessionTypes';
+
+import { clearRefreshSessionHint } from './refreshHint';
+import { getSessionSnapshot, setSessionSnapshot } from './store';
+import type { SessionBootstrapError } from './types';
 
 interface ClearAuthenticatedSessionOptions {
     clearBootstrap?: boolean;
@@ -15,6 +13,11 @@ interface ClearAuthenticatedSessionOptions {
 }
 
 export type SessionUser = TokenResponse['user'];
+
+export interface BootstrappedSession {
+    token: string;
+    user: SessionUser;
+}
 
 function setAuthenticatedSession(user: SessionUser, token: string): void {
     setSessionSnapshot((previous) => ({
@@ -46,11 +49,11 @@ export function syncAuthenticatedToken(token: string | null): void {
     applyAnonymousSession();
 }
 
-export function applyBootstrappedSession(session: BootstrapSession): void {
+export function applyBootstrappedSession(session: BootstrappedSession): void {
     setAuthenticatedSession(session.user, session.token);
 }
 
-export function applyBootstrappingSession(session: BootstrapSession): void {
+export function applyBootstrappingSession(session: BootstrappedSession): void {
     setSessionSnapshot((previous) => ({
         ...previous,
         token: session.token,

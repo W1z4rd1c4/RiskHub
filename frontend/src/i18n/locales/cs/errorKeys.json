@@ -6,6 +6,7 @@
   "not_found": "Požadovaný zdroj nebyl nalezen.",
   "validation": "Některá pole nejsou platná. Zkontrolujte je a zkuste to znovu.",
   "server": "Chyba serveru. Zkuste to prosím později.",
+  "request_timeout": "Vypršel časový limit požadavku. Zkuste to prosím znovu.",
   "request_failed": "Požadavek selhal. Zkuste to prosím znovu.",
   "logout_failed": "Odhlášení selhalo. Zkuste to prosím znovu.",
   "demo_login_failed": "Přihlášení do dema selhalo.",

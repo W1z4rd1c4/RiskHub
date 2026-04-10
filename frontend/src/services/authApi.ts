@@ -21,9 +21,9 @@ import {
 } from '@/services/api/responseParsing';
 import { clearCsrfToken, getCsrfToken } from '@/services/csrfToken';
 import { AuthRequestError, fetchAuthResponse } from '@/services/authRequest';
-import { clearRefreshSessionHint } from '@/services/refreshSessionHint';
-import { applyAnonymousSession } from '@/services/sessionManager';
-import { getSessionSnapshot } from '@/services/sessionStore';
+import { clearRefreshSessionHint } from '@/services/session/refreshHint';
+import { applyAnonymousSession } from '@/services/session/manager';
+import { getSessionSnapshot } from '@/services/session/store';
 
 const API_URL = '/api/v1/auth';
 
@@ -145,152 +145,163 @@ async function requestAuthVoid(path: string, init: RequestInit, fallbackMessage:
     await parseValidatedAuthBody(response, voidSchema, fallbackMessage);
 }
 
-export const authApi = {
-    async getAuthConfig(): Promise<AuthConfigResponse> {
-        const response = await fetchAuthResponse(`${API_URL}/config`, {
-            method: 'GET',
-            headers: { 'Content-Type': 'application/json' },
+async function getAuthConfig(): Promise<AuthConfigResponse> {
+    const response = await fetchAuthResponse(`${API_URL}/config`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+    });
+
+    if (!response.ok) {
+        const { detail } = await parseAuthError(response, 'Failed to get auth config');
+        throw new AuthRequestError({
+            code: response.status >= 500 ? 'AUTH_SERVICE_UNAVAILABLE' : 'AUTH_CONFIG_LOAD_FAILED',
+            message: detail,
+            rawMessage: detail,
+            status: response.status,
+        });
+    }
+
+    return parseValidatedAuthBody(response, authConfigResponseSchema, 'Failed to get auth config');
+}
+
+async function login(credentials: LoginRequest): Promise<TokenResponse> {
+    return requestAuthJson('/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(credentials),
+        credentials: 'include',
+    }, 'Login failed', tokenResponseSchema);
+}
+
+async function demoLogin(email: string): Promise<TokenResponse> {
+    return requestAuthJson('/demo-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email } satisfies DemoLoginRequest),
+        credentials: 'include',
+    }, 'Demo login failed', tokenResponseSchema);
+}
+
+async function ssoStart(returnTo?: string): Promise<{ nonce: string; state: string; expires_in: number }> {
+    return requestAuthJson('/sso/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ return_to: returnTo ?? '/' }),
+        credentials: 'include',
+    }, 'SSO start failed', ssoStartResponseSchema);
+}
+
+async function ssoExchange(idToken: string, state: string): Promise<TokenResponse> {
+    return requestAuthJson('/sso/exchange', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id_token: idToken, state }),
+        credentials: 'include',
+    }, 'SSO exchange failed', tokenResponseSchema);
+}
+
+async function getCurrentUser(token: string): Promise<TokenResponse['user']> {
+    return requestAuthJson('/me', {
+        headers: { 'Authorization': `Bearer ${token}` },
+        credentials: 'include',
+    }, 'Failed to get current user', authUserSchema);
+}
+
+async function ensureCsrf(): Promise<void> {
+    await requestAuthVoid('/csrf', {
+        method: 'GET',
+        credentials: 'include',
+    }, 'Failed to initialize CSRF protection');
+
+    if (!getCsrfToken()) {
+        throw new AuthRequestError({
+            code: 'AUTH_REQUEST_FAILED',
+            message: 'Failed to initialize CSRF protection',
+            rawMessage: 'Failed to initialize CSRF protection',
+            status: 403,
+        });
+    }
+}
+
+async function refresh(): Promise<TokenResponse> {
+    await ensureCsrf();
+    const performRefresh = async (allowCsrfRetry: boolean): Promise<TokenResponse> => {
+        const csrfToken = getCsrfToken();
+        if (!csrfToken) {
+            throw new AuthRequestError({
+                code: 'AUTH_REQUEST_FAILED',
+                message: 'CSRF token unavailable',
+                rawMessage: 'CSRF token unavailable',
+                status: 403,
+            });
+        }
+
+        const response = await fetchAuthResponse(`${API_URL}/refresh`, {
+            method: 'POST',
+            headers: { 'X-CSRF-Token': csrfToken },
             credentials: 'include',
         });
 
         if (!response.ok) {
-            const { detail } = await parseAuthError(response, 'Failed to get auth config');
-            throw new AuthRequestError({
-                code: response.status >= 500 ? 'AUTH_SERVICE_UNAVAILABLE' : 'AUTH_CONFIG_LOAD_FAILED',
-                message: detail,
-                rawMessage: detail,
-                status: response.status,
-            });
-        }
-
-        return parseValidatedAuthBody(response, authConfigResponseSchema, 'Failed to get auth config');
-    },
-
-    async login(credentials: LoginRequest): Promise<TokenResponse> {
-        return requestAuthJson('/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(credentials),
-            credentials: 'include',
-        }, 'Login failed', tokenResponseSchema);
-    },
-
-    async demoLogin(email: string): Promise<TokenResponse> {
-        return requestAuthJson('/demo-login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email } satisfies DemoLoginRequest),
-            credentials: 'include',
-        }, 'Demo login failed', tokenResponseSchema);
-    },
-
-    async ssoStart(returnTo?: string): Promise<{ nonce: string; state: string; expires_in: number }> {
-        return requestAuthJson('/sso/start', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ return_to: returnTo ?? '/' }),
-            credentials: 'include',
-        }, 'SSO start failed', ssoStartResponseSchema);
-    },
-
-    async ssoExchange(idToken: string, state: string): Promise<TokenResponse> {
-        return requestAuthJson('/sso/exchange', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id_token: idToken, state }),
-            credentials: 'include',
-        }, 'SSO exchange failed', tokenResponseSchema);
-    },
-
-    async getCurrentUser(token: string): Promise<TokenResponse['user']> {
-        return requestAuthJson('/me', {
-            headers: { 'Authorization': `Bearer ${token}` },
-            credentials: 'include',
-        }, 'Failed to get current user', authUserSchema);
-    },
-
-    async refresh(): Promise<TokenResponse> {
-        await this.ensureCsrf();
-        const performRefresh = async (allowCsrfRetry: boolean): Promise<TokenResponse> => {
-            const csrfToken = getCsrfToken();
-            if (!csrfToken) {
-                throw new AuthRequestError({
-                    code: 'AUTH_REQUEST_FAILED',
-                    message: 'CSRF token unavailable',
-                    rawMessage: 'CSRF token unavailable',
-                    status: 403,
-                });
+            const parsedError = await parseAuthError(response, 'Refresh failed');
+            if (allowCsrfRetry && response.status === 403 && parsedError.code === 'csrf_validation_failed') {
+                await ensureCsrf();
+                return performRefresh(false);
             }
-
-            const response = await fetchAuthResponse(`${API_URL}/refresh`, {
-                method: 'POST',
-                headers: { 'X-CSRF-Token': csrfToken },
-                credentials: 'include',
-            });
-
-            if (!response.ok) {
-                const parsedError = await parseAuthError(response, 'Refresh failed');
-                if (allowCsrfRetry && response.status === 403 && parsedError.code === 'csrf_validation_failed') {
-                    await this.ensureCsrf();
-                    return performRefresh(false);
-                }
-                throw buildAuthRequestError(response, parsedError.detail);
-            }
-
-            return parseValidatedAuthBody(response, tokenResponseSchema, 'Refresh failed');
-        };
-
-        return performRefresh(true);
-    },
-
-    async ensureCsrf(): Promise<void> {
-        await requestAuthVoid('/csrf', {
-            method: 'GET',
-            credentials: 'include',
-        }, 'Failed to initialize CSRF protection');
-
-        if (!getCsrfToken()) {
-            throw new AuthRequestError({
-                code: 'AUTH_REQUEST_FAILED',
-                message: 'Failed to initialize CSRF protection',
-                rawMessage: 'Failed to initialize CSRF protection',
-                status: 403,
-            });
-        }
-    },
-
-    async logoutAll(): Promise<void> {
-        const accessToken = getSessionSnapshot().token;
-        await requestAuthJson('/logout-all', {
-            method: 'POST',
-            headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
-            credentials: 'include',
-        }, 'Logout all failed', logoutSuccessSchema);
-        applyAnonymousSession();
-        clearRefreshSessionHint();
-        clearCsrfToken();
-    },
-
-    async logout(): Promise<void> {
-        const accessToken = getSessionSnapshot().token;
-        const headers = new Headers();
-        if (accessToken) {
-            headers.set('Authorization', `Bearer ${accessToken}`);
+            throw buildAuthRequestError(response, parsedError.detail);
         }
 
-        let csrfToken = getCsrfToken();
-        if (!csrfToken) {
-            await this.ensureCsrf();
-            csrfToken = getCsrfToken();
-        }
-        if (csrfToken) {
-            headers.set('X-CSRF-Token', csrfToken);
-        }
+        return parseValidatedAuthBody(response, tokenResponseSchema, 'Refresh failed');
+    };
 
-        await requestAuthJson('/logout', {
-            method: 'POST',
-            headers,
-            credentials: 'include',
-        }, 'Logout failed', logoutSuccessSchema);
-    },
+    return performRefresh(true);
+}
+
+async function logoutAll(): Promise<void> {
+    const accessToken = getSessionSnapshot().token;
+    await requestAuthJson('/logout-all', {
+        method: 'POST',
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+        credentials: 'include',
+    }, 'Logout all failed', logoutSuccessSchema);
+    applyAnonymousSession();
+    clearRefreshSessionHint();
+    clearCsrfToken();
+}
+
+async function logout(): Promise<void> {
+    const accessToken = getSessionSnapshot().token;
+    const headers = new Headers();
+    if (accessToken) {
+        headers.set('Authorization', `Bearer ${accessToken}`);
+    }
+
+    let csrfToken = getCsrfToken();
+    if (!csrfToken) {
+        await ensureCsrf();
+        csrfToken = getCsrfToken();
+    }
+    if (csrfToken) {
+        headers.set('X-CSRF-Token', csrfToken);
+    }
+
+    await requestAuthJson('/logout', {
+        method: 'POST',
+        headers,
+        credentials: 'include',
+    }, 'Logout failed', logoutSuccessSchema);
+}
+
+export const authApi = {
+    getAuthConfig,
+    login,
+    demoLogin,
+    ssoStart,
+    ssoExchange,
+    getCurrentUser,
+    refresh,
+    ensureCsrf,
+    logoutAll,
+    logout,
 };

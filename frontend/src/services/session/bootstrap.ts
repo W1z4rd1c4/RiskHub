@@ -1,16 +1,40 @@
 import { authApi } from '@/services/authApi';
-import {
-    clearBootstrapSession,
-} from '@/services/bootstrapSessionCache';
-import { isExplicitLogoutSuppressed } from '@/services/logoutSuppression';
 import { isAuthUnavailableError } from '@/services/authRequest';
-import { hasRefreshSessionHint } from '@/services/refreshSessionHint';
-import { getSessionSnapshot } from '@/services/sessionStore';
-import { silentReauthAndExchange } from '@/services/ssoSession';
+
+import { isExplicitLogoutSuppressed } from './logoutSuppression';
+import { hasRefreshSessionHint } from './refreshHint';
+import { getSessionSnapshot, setSessionSnapshot } from './store';
+import { trySilentSessionRefresh } from './sso';
 
 type CurrentUser = Awaited<ReturnType<typeof authApi.getCurrentUser>>;
 
+export interface BootstrapSession {
+    token: string;
+    user: CurrentUser;
+}
+
 let bootstrapPromise: Promise<{ token: string | null; user: CurrentUser | null }> | null = null;
+
+export function clearBootstrapSession(): void {
+    setSessionSnapshot((previous) => ({
+        ...previous,
+        user: null,
+        bootstrapStatus: previous.token ? 'loading' : 'anonymous',
+        bootstrapError: null,
+    }));
+}
+
+export function setBootstrapSession(session: BootstrapSession): void {
+    setSessionSnapshot((previous) => ({
+        ...previous,
+        token: session.token,
+        user: session.user,
+        bootstrapStatus: 'authenticated',
+        bootstrapError: null,
+        logoutPending: false,
+        logoutErrorKey: null,
+    }));
+}
 
 export async function bootstrapAuthSession(): Promise<{ token: string | null; user: CurrentUser | null }> {
     if (!bootstrapPromise) {
@@ -29,7 +53,7 @@ export async function bootstrapAuthSession(): Promise<{ token: string | null; us
                     clearBootstrapSession();
                     return { token: null, user: null };
                 }
-                token = await silentReauthAndExchange();
+                token = await trySilentSessionRefresh();
                 usedRefresh = true;
             }
 
@@ -61,7 +85,7 @@ export async function bootstrapAuthSession(): Promise<{ token: string | null; us
                 }
             }
 
-            const refreshedToken = await silentReauthAndExchange();
+            const refreshedToken = await trySilentSessionRefresh();
             if (!refreshedToken) {
                 clearBootstrapSession();
                 return { token: null, user: null };
@@ -85,4 +109,6 @@ export function __resetAuthSessionCoordinatorForTests(): void {
     bootstrapPromise = null;
 }
 
-export { clearBootstrapSession };
+export function __resetBootstrapSessionCacheForTests(): void {
+    clearBootstrapSession();
+}

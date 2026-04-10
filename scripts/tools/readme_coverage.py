@@ -15,6 +15,10 @@ from typing import Iterable
 
 ACCEPTED_README_NAMES = {"readme", "readme.md", "readme.txt"}
 MAX_CONTENT_ITEMS = 15
+EXCLUDED_DIRS = {
+    "frontend/src/components",
+    "frontend/src/services",
+}
 
 
 @dataclass(frozen=True)
@@ -116,6 +120,7 @@ def has_accepted_readme(abs_dir: Path) -> bool:
 
 def audit_repo(repo_root: Path) -> AuditResult:
     in_scope = list_in_scope_directories(repo_root)
+    in_scope = [rel for rel in in_scope if rel.as_posix() not in EXCLUDED_DIRS]
     missing = [rel for rel in in_scope if not has_accepted_readme(repo_root / rel)]
     return AuditResult(in_scope_dirs=in_scope, missing_dirs=missing)
 

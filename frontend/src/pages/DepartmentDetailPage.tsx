@@ -451,3 +451,5 @@ export function DepartmentDetailPage() {
         </div>
     );
 }
+
+export default DepartmentDetailPage;

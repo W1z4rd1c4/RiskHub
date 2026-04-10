@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { KRINewPage } from '@/pages/KRIForms';
+import { KRINewPage } from '@/pages/KRINewPage';
 
 const mockNavigate = vi.fn();
 const mockGetVendor = vi.fn();

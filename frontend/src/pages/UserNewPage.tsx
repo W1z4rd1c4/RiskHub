@@ -372,3 +372,5 @@ export function UserNewPage() {
         </div>
     );
 }
+
+export default UserNewPage;

@@ -102,7 +102,7 @@ function buildExportQueryString(params: Record<string, string | number | boolean
  */
 async function downloadFile(url: string, defaultFilename: string): Promise<void> {
     try {
-        const { blob, headers } = await apiClient.getBlob(url);
+        const { blob, headers } = await apiClient.getBlob(url, { timeoutMs: null });
 
         // Get filename from Content-Disposition header if available
         const contentDisposition = headers.get('Content-Disposition');

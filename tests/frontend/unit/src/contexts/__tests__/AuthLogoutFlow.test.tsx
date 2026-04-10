@@ -3,11 +3,11 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { clearAuthConfigCache } from '@/services/authConfig';
-import { clearBootstrapSession } from '@/services/authSessionCoordinator';
+import { clearBootstrapSession } from '@/services/session/bootstrap';
 import { clearAccessToken, getAccessToken, setAccessToken } from '@test/accessTokenStoreHarness';
 import { clearCsrfToken, __setCsrfTokenForTests } from '@/services/csrfToken';
-import { __resetExplicitLogoutSuppressionForTests, isExplicitLogoutSuppressed } from '@/services/logoutSuppression';
-import { clearRefreshSessionHint, __setRefreshSessionHintForTests } from '@/services/refreshSessionHint';
+import { __resetExplicitLogoutSuppressionForTests, isExplicitLogoutSuppressed } from '@/services/session/logoutSuppression';
+import { clearRefreshSessionHint, __setRefreshSessionHintForTests } from '@/services/session/refreshHint';
 
 const logoutRedirectMock = vi.fn();
 const clearLocalSettingsMock = vi.fn();

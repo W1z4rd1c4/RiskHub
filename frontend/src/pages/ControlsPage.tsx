@@ -84,3 +84,5 @@ export function ControlsPage() {
         </div>
     );
 }
+
+export default ControlsPage;

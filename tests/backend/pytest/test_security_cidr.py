@@ -12,7 +12,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from app.core.config import Settings
-from app.main import _validate_production_settings
+from app.main import validate_settings_for_runtime
 from app.middleware.rate_limit import RateLimitMiddleware
 
 
@@ -119,7 +119,7 @@ def test_validate_production_settings_rejects_broad_trusted_proxy_ranges() -> No
     )
 
     with pytest.raises(RuntimeError, match="ALLOW_BROAD_TRUSTED_PROXIES_IN_PRODUCTION"):
-        _validate_production_settings(settings)
+        validate_settings_for_runtime(settings)
 
 
 def test_validate_production_settings_warns_on_broad_trusted_proxy_ranges_with_override(monkeypatch):
@@ -128,7 +128,7 @@ def test_validate_production_settings_warns_on_broad_trusted_proxy_ranges_with_o
     def capture_warning(event: str, **kwargs):
         warnings.append((event, kwargs))
 
-    monkeypatch.setattr("app.bootstrap_validation.logger.warning", capture_warning)
+    monkeypatch.setattr("app.main.bootstrap_logger.warning", capture_warning)
 
     settings = Settings(
         secret_key="test-secret-key-32-chars-minimum-value",
@@ -144,7 +144,7 @@ def test_validate_production_settings_warns_on_broad_trusted_proxy_ranges_with_o
         allow_broad_trusted_proxies_in_production=True,
     )
 
-    _validate_production_settings(settings)
+    validate_settings_for_runtime(settings)
 
     assert warnings
     assert warnings[-1][0] == "trusted_proxy_broad_network_warning"

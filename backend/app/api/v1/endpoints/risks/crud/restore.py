@@ -9,7 +9,7 @@ from app.core.activity_logger import build_change_set, log_activity
 from app.core.permissions import check_department_access
 from app.core.security import require_permission
 from app.db.session import get_db
-from app.models import Risk, User
+from app.models import KeyRiskIndicator, Risk, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas.risk import RiskRead, RiskStatusEnum
 
@@ -28,7 +28,7 @@ async def restore_risk(
         .options(
             selectinload(Risk.department),
             selectinload(Risk.owner),
-            selectinload(Risk.kris),
+            selectinload(Risk.kris.and_(KeyRiskIndicator.is_archived.is_(False))),
         )
         .where(Risk.id == risk_id)
     )
@@ -70,7 +70,7 @@ async def restore_risk(
         .options(
             selectinload(Risk.department),
             selectinload(Risk.owner),
-            selectinload(Risk.kris),
+            selectinload(Risk.kris.and_(KeyRiskIndicator.is_archived.is_(False))),
         )
         .where(Risk.id == risk.id)
     )

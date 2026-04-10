@@ -11,7 +11,7 @@ from app.api.mappers.risk import risk_to_summary
 from app.core.pagination import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
 from app.core.security import check_permission, require_permission
 from app.db.session import get_db
-from app.models import Risk, User
+from app.models import KeyRiskIndicator, Risk, User
 from app.models.risk import RiskStatus
 from app.schemas.risk import RiskSummary
 
@@ -47,7 +47,7 @@ async def list_department_risks(
         select(Risk)
         .options(
             selectinload(Risk.department),
-            selectinload(Risk.kris),  # Load KRIs for count and breach check
+            selectinload(Risk.kris.and_(KeyRiskIndicator.is_archived.is_(False))),
             selectinload(Risk.control_links),
         )
         .where(Risk.department_id == department_id)
@@ -68,4 +68,3 @@ async def list_department_risks(
     risks = result.scalars().all()
 
     return [risk_to_summary(r) for r in risks]
-

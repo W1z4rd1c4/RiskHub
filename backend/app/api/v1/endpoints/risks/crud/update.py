@@ -11,7 +11,7 @@ from app.core.owner_reference_validation import validate_active_owner_reference
 from app.core.permissions import check_department_access
 from app.core.security import check_permission
 from app.db.session import get_db
-from app.models import Risk, User
+from app.models import KeyRiskIndicator, Risk, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas.risk import RiskRead, RiskStatusEnum, RiskUpdate
 
@@ -185,7 +185,7 @@ async def _reload_risk_with_relationships(db: AsyncSession, risk_id: int) -> Ris
         .options(
             selectinload(Risk.department),
             selectinload(Risk.owner),
-            selectinload(Risk.kris),
+            selectinload(Risk.kris.and_(KeyRiskIndicator.is_archived.is_(False))),
         )
         .where(Risk.id == risk_id)
     )

@@ -697,3 +697,5 @@ export function KRIsPage() {
         </div>
     );
 }
+
+export default KRIsPage;

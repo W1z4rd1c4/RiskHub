@@ -3,8 +3,9 @@ name: Startup Smoke
 on:
   push:
     branches: [main, develop]
-  pull_request:
-    branches: [main, develop]
+  schedule:
+    - cron: '45 2 * * *'
+  workflow_dispatch:
 
 permissions:
   contents: read

@@ -27,7 +27,11 @@ async def is_risk_kri_reporting_owner(db, user_id: int, risk_id: int) -> bool:
 
     result = await db.execute(
         select(KeyRiskIndicator.id)
-        .where(KeyRiskIndicator.risk_id == risk_id, KeyRiskIndicator.reporting_owner_id == user_id)
+        .where(
+            KeyRiskIndicator.risk_id == risk_id,
+            KeyRiskIndicator.reporting_owner_id == user_id,
+            KeyRiskIndicator.is_archived.is_(False),
+        )
         .limit(1)
     )
     return result.scalar_one_or_none() is not None
@@ -58,7 +62,12 @@ async def get_risk_ids_where_kri_reporting_owner(db, user_id: int) -> list[int]:
     from app.models import KeyRiskIndicator
 
     result = await db.execute(
-        select(KeyRiskIndicator.risk_id).where(KeyRiskIndicator.reporting_owner_id == user_id).distinct()
+        select(KeyRiskIndicator.risk_id)
+        .where(
+            KeyRiskIndicator.reporting_owner_id == user_id,
+            KeyRiskIndicator.is_archived.is_(False),
+        )
+        .distinct()
     )
     return [row[0] for row in result.all()]
 

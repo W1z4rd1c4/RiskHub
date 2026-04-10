@@ -423,3 +423,5 @@ export function KRIDetailPage() {
         </div >
     );
 }
+
+export default KRIDetailPage;

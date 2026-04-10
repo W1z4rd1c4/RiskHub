@@ -3,9 +3,9 @@ import { render, screen, waitFor } from '@testing-library/react';
 
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { clearAccessToken, setAccessToken } from '@test/accessTokenStoreHarness';
-import * as authSessionCoordinator from '@/services/authSessionCoordinator';
-import { clearBootstrapSession } from '@/services/authSessionCoordinator';
-import { __resetSessionStoreForTests } from '@/services/sessionStore';
+import * as authSessionCoordinator from '@/services/session/bootstrap';
+import { clearBootstrapSession } from '@/services/session/bootstrap';
+import { __resetSessionStoreForTests } from '@/services/session/store';
 
 vi.mock('@/utils/userSettingsStorage', () => ({
     syncPreferencesFromServer: vi.fn(async () => undefined),

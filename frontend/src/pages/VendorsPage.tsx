@@ -315,3 +315,5 @@ export function VendorsPage() {
         </div>
     );
 }
+
+export default VendorsPage;

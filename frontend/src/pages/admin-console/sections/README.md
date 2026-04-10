@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Extracted Admin Console section/panel components used by `AdminConsolePageContainer`.
+Extracted Admin Console section and panel components used by `frontend/src/pages/AdminConsolePage.tsx`.
 
 ## Contents
 
@@ -11,4 +11,4 @@ Extracted Admin Console section/panel components used by `AdminConsolePageContai
 
 ## Notes
 
-Keep page-level behavior in `AdminConsolePageContainer.tsx`; keep section files focused on panel rendering and local panel interactions.
+Keep page-level behavior in `frontend/src/pages/AdminConsolePage.tsx`; keep section files focused on panel rendering and local panel interactions.

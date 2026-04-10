@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Internal modules behind the public `@/pages/IssueDetailPage` route facade.
+Internal modules behind the `@/pages/IssueDetailPage` route entry.
 
 ## Notes
 

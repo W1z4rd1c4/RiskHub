@@ -102,3 +102,5 @@ export function HeroPage() {
         </div>
     );
 }
+
+export default HeroPage;

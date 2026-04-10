@@ -4,7 +4,6 @@ from pathlib import Path
 
 import pytest
 
-from app.bootstrap import validate_settings_for_runtime
 from app.core.config import Settings
 from app.core.production_contract import (
     BOOTSTRAP_RUNTIME_ENFORCED_KEYS,
@@ -13,6 +12,7 @@ from app.core.production_contract import (
     PRODUCTION_REFERENCE_REQUIRED_SNIPPETS,
     PRODUCTION_REQUIRED_CONFIG_KEYS,
 )
+from app.main import validate_settings_for_runtime
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
