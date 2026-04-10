@@ -25,6 +25,7 @@ ACCESS_TOKEN_AUDIENCE = "riskhub-api"
 # Backward-compatible alias used by auth dependencies.
 TokenDecodeError = InvalidTokenError
 
+
 # Password hashing utilities
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a plain password against a hashed password."""
@@ -120,11 +121,7 @@ async def get_current_user(
         permission_load = selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
 
         # Mock auth: get user by ID from header
-        result = await db.execute(
-            select(User)
-            .options(permission_load)
-            .where(User.id == x_mock_user_id)
-        )
+        result = await db.execute(select(User).options(permission_load).where(User.id == x_mock_user_id))
         user = result.scalar_one_or_none()
         if user:
             return user

@@ -27,10 +27,7 @@ def _coerce_rate_limit_rule(value: object) -> RateLimitRule:
 def _normalize_rate_limit_rules(raw_rules: Mapping[str, object] | None) -> dict[str, RateLimitRule]:
     if not raw_rules:
         return {}
-    return {
-        str(path): _coerce_rate_limit_rule(rule)
-        for path, rule in raw_rules.items()
-    }
+    return {str(path): _coerce_rate_limit_rule(rule) for path, rule in raw_rules.items()}
 
 
 def resolve_rate_limit_rules(
@@ -46,9 +43,7 @@ def resolve_rate_limit_rules(
 
 def get_limit_for_path(limits: Mapping[str, RateLimitRule], path: str) -> RateLimitRule:
     matches = [
-        (pattern, limit)
-        for pattern, limit in limits.items()
-        if pattern != "default" and path.startswith(pattern)
+        (pattern, limit) for pattern, limit in limits.items() if pattern != "default" and path.startswith(pattern)
     ]
     if matches:
         return max(matches, key=lambda item: len(item[0]))[1]

@@ -143,4 +143,3 @@ async def resolve_orphan(
     await db.commit()
 
     return orphan
-

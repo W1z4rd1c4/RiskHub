@@ -3,26 +3,32 @@ import type { ProdAuthCopy, ProdLanguage } from './loginPageTypes';
 
 interface SsoOnlyViewProps {
     showBootstrapUnavailableBanner: boolean;
+    ssoLogoutRecoveryMessage: string | null;
     prodCopy: ProdAuthCopy;
     prodErrorMessage: string;
     prodLanguage: ProdLanguage;
     isSsoLoading: boolean;
+    isSsoLogoutRecoveryPending: boolean;
     ssoEnabled: boolean;
     ssoError?: string | null;
     onChangeLanguage: (language: ProdLanguage) => void;
+    onRetrySsoLogout: () => void;
     onSsoLogin: () => void;
     translate: (key: string) => string;
 }
 
 export function SsoOnlyView({
     showBootstrapUnavailableBanner,
+    ssoLogoutRecoveryMessage,
     prodCopy,
     prodErrorMessage,
     prodLanguage,
     isSsoLoading,
+    isSsoLogoutRecoveryPending,
     ssoEnabled,
     ssoError,
     onChangeLanguage,
+    onRetrySsoLogout,
     onSsoLogin,
     translate,
 }: SsoOnlyViewProps) {
@@ -91,6 +97,21 @@ export function SsoOnlyView({
                                 {showBootstrapUnavailableBanner ? (
                                     <div className="mt-6 rounded-2xl border border-rose-500/25 bg-rose-500/10 px-4 py-3 text-sm leading-6 text-rose-300">
                                         {translate('login.unavailable_bootstrap_error')}
+                                    </div>
+                                ) : null}
+
+                                {ssoLogoutRecoveryMessage ? (
+                                    <div className="mt-6 rounded-2xl border border-amber-500/25 bg-amber-500/10 px-4 py-4 text-sm leading-6 text-amber-100">
+                                        <p>{ssoLogoutRecoveryMessage}</p>
+                                        <button
+                                            type="button"
+                                            onClick={onRetrySsoLogout}
+                                            disabled={isSsoLogoutRecoveryPending}
+                                            className="mt-3 inline-flex items-center justify-center gap-2 rounded-xl border border-amber-300/30 bg-amber-100/10 px-4 py-2 text-sm font-semibold text-amber-50 transition-colors hover:bg-amber-100/20 disabled:opacity-60"
+                                        >
+                                            {isSsoLogoutRecoveryPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                                            {translate('logout.complete_microsoft_sign_out')}
+                                        </button>
                                     </div>
                                 ) : null}
 

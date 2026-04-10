@@ -9,6 +9,7 @@
   "request_timeout": "Vypršel časový limit požadavku. Zkuste to prosím znovu.",
   "request_failed": "Požadavek selhal. Zkuste to prosím znovu.",
   "logout_failed": "Odhlášení selhalo. Zkuste to prosím znovu.",
+  "sso_logout_incomplete": "Odhlášení z Microsoftu se nedokončilo. Dokončete odhlášení z Microsoftu před dalším přihlášením.",
   "demo_login_failed": "Přihlášení do dema selhalo.",
   "login_failed": "Přihlášení selhalo.",
   "load_departments_failed": "Nepodařilo se načíst oddělení.",

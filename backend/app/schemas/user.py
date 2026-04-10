@@ -9,6 +9,7 @@ from app.core.email import normalize_email
 
 class AccessScopeEnum(str, Enum):
     """Access scope for user data visibility."""
+
     global_ = "global"
     department = "department"
     manager = "manager"
@@ -16,6 +17,7 @@ class AccessScopeEnum(str, Enum):
 
 class RoleBase(BaseModel):
     """Base schema for Role."""
+
     name: str
     display_name: str
     description: Optional[str] = None
@@ -23,6 +25,7 @@ class RoleBase(BaseModel):
 
 class RoleRead(RoleBase):
     """Schema for reading Role."""
+
     id: int
 
     model_config = {"from_attributes": True}
@@ -30,6 +33,7 @@ class RoleRead(RoleBase):
 
 class UserBase(BaseModel):
     """Base schema for User."""
+
     email: EmailStr
     name: str
     is_active: bool = True
@@ -45,11 +49,13 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     """Schema for creating User."""
+
     password: str  # Plain password, will be hashed
 
 
 class UserUpdate(BaseModel):
     """Schema for updating an existing user."""
+
     email: Optional[EmailStr] = None
     name: Optional[str] = None
     password: Optional[str] = None
@@ -66,6 +72,7 @@ class UserUpdate(BaseModel):
 
 class UserRead(BaseModel):
     """Schema for reading User."""
+
     id: int
     email: str
     name: str
@@ -85,6 +92,7 @@ class UserRead(BaseModel):
 
 class UserBrief(BaseModel):
     """Brief user info for current user endpoint."""
+
     id: int
     email: str
     name: str
@@ -98,12 +106,12 @@ class UserBrief(BaseModel):
     department_id: Optional[int] = None
     department_name: Optional[str] = None
 
-
     model_config = {"from_attributes": True}
 
 
 class UserLookup(BaseModel):
     """Lightweight user info for lookups/pickers."""
+
     id: int
     name: str
     email: str
@@ -149,6 +157,7 @@ class UserDirectoryListResponse(BaseModel):
 
 class UserShellSummary(BaseModel):
     """Aggregated counters for header/sidebar shell surfaces."""
+
     unread_notifications_count: int = 0
     pending_approvals_count: int = 0
     questionnaire_inbox_count: int = 0
@@ -159,6 +168,7 @@ class UserShellSummary(BaseModel):
 
 class DepartmentBase(BaseModel):
     """Base schema for Department."""
+
     name: str
     code: str
     description: Optional[str] = None
@@ -166,6 +176,7 @@ class DepartmentBase(BaseModel):
 
 class DepartmentRead(DepartmentBase):
     """Schema for reading Department."""
+
     id: int
     created_at: datetime
     updated_at: datetime

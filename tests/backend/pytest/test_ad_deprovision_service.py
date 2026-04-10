@@ -95,15 +95,17 @@ async def test_deprovision_missing_user_deactivates_revokes_and_flags_orphans(
     assert refreshed_user.token_version == 2
 
     refresh_rows = (
-        await db_session.execute(select(RefreshToken).where(RefreshToken.user_id == test_user_employee.id))
-    ).scalars().all()
+        (await db_session.execute(select(RefreshToken).where(RefreshToken.user_id == test_user_employee.id)))
+        .scalars()
+        .all()
+    )
     assert refresh_rows[0].revoked_at is not None
 
     orphans = (
-        await db_session.execute(
-            select(OrphanedItem).where(OrphanedItem.previous_owner_id == test_user_employee.id)
-        )
-    ).scalars().all()
+        (await db_session.execute(select(OrphanedItem).where(OrphanedItem.previous_owner_id == test_user_employee.id)))
+        .scalars()
+        .all()
+    )
     assert {(item.item_type, item.item_id) for item in orphans} >= {
         ("risk", risk.id),
         ("control", control.id),

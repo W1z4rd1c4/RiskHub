@@ -52,4 +52,3 @@ async def _rehydrate_department_names(
         row[department_name_field] = department_name_by_id.get(_safe_int(department_id))
 
     return rows
-

@@ -6,7 +6,7 @@ from app.models.risk import RiskStatus
 from app.models.vendor import VendorStatus
 from app.services._kri_history.periods import period_bounds_for_date
 
-from ._shared import ControlMonitoringExportStatus, KRIMonitoringExportStatus, KRIExportStatus, _contains
+from ._shared import ControlMonitoringExportStatus, KRIExportStatus, KRIMonitoringExportStatus, _contains
 
 
 def _normalize_kri_status(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -134,7 +134,11 @@ def _filter_rows_by_kri_criteria(
             last_period_end = row.get("last_period_end")
             if not (advance_date <= as_of_date < current_period_end):
                 continue
-            if last_period_end is not None and isinstance(last_period_end, date) and last_period_end >= current_period_end:
+            if (
+                last_period_end is not None
+                and isinstance(last_period_end, date)
+                and last_period_end >= current_period_end
+            ):
                 continue
             due_soon_rows.append(row)
         filtered = due_soon_rows

@@ -49,5 +49,6 @@ Before deploying:
 - confirm the release artifact version matches the intended application release
 
 After deploying:
-- verify backend health endpoint `GET /api/v1/health`
+- verify backend readiness endpoint `GET /api/v1/readyz`
+- verify diagnostic health endpoint `GET /api/v1/health`
 - check logs for startup guard failures (secrets/CORS/auth mode)

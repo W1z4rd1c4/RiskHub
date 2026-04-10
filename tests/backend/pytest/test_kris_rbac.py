@@ -196,9 +196,7 @@ async def test_create_kri_with_unauthorized_vendor_assignment_is_rejected_withou
 
     assert response.status_code == 403
     persisted = (
-        await db_session.execute(
-            select(KeyRiskIndicator).where(KeyRiskIndicator.metric_name == metric_name)
-        )
+        await db_session.execute(select(KeyRiskIndicator).where(KeyRiskIndicator.metric_name == metric_name))
     ).scalar_one_or_none()
     assert persisted is None
 
@@ -663,7 +661,8 @@ async def client_dept_head(db_session, test_user_dept_head):
 async def test_role_with_write_and_vendor_links(db_session):
     from sqlalchemy import select
 
-    from app.models import Permission, Role as RoleModel, RolePermission
+    from app.models import Permission, RolePermission
+    from app.models import Role as RoleModel
 
     role = RoleModel(
         name="dept_head_vendor_links",
@@ -763,6 +762,116 @@ async def test_non_privileged_edit_requires_approval(client_dept_head: AsyncClie
     assert "pending_changes" in data
 
 
+@pytest_asyncio.fixture
+async def test_role_with_delete(db_session):
+    from sqlalchemy import select
+
+    from app.models import Permission, RolePermission
+    from app.models import Role as RoleModel
+
+    role = RoleModel(
+        name="dept_head_delete",
+        display_name="Department Head Delete",
+        description="Non-privileged with risk read/delete permissions",
+    )
+    db_session.add(role)
+    await db_session.commit()
+
+    for action in ["read", "delete"]:
+        perm_result = await db_session.execute(
+            select(Permission).where(Permission.resource == "risks", Permission.action == action)
+        )
+        perm = perm_result.scalar_one_or_none()
+        if not perm:
+            perm = Permission(resource="risks", action=action, description=f"risks {action}")
+            db_session.add(perm)
+            await db_session.commit()
+        db_session.add(RolePermission(role_id=role.id, permission_id=perm.id))
+
+    await db_session.commit()
+    return role
+
+
+@pytest_asyncio.fixture
+async def test_user_dept_head_delete(db_session, test_department, test_role_with_delete):
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
+
+    from app.models import Role, RolePermission
+    from app.models import User as UserModel
+
+    user = UserModel(
+        name="Department Head Delete",
+        email="depthead-delete@test.com",
+        department_id=test_department.id,
+        role_id=test_role_with_delete.id,
+        is_active=True,
+    )
+    db_session.add(user)
+    await db_session.commit()
+
+    result = await db_session.execute(
+        select(UserModel)
+        .options(
+            selectinload(UserModel.role).selectinload(Role.permissions).selectinload(RolePermission.permission),
+            selectinload(UserModel.department),
+        )
+        .where(UserModel.id == user.id)
+    )
+    return result.scalar_one()
+
+
+@pytest_asyncio.fixture
+async def client_dept_head_delete(db_session, test_user_dept_head_delete):
+    from httpx import ASGITransport, AsyncClient
+
+    from app.core.config import Settings, get_settings
+    from app.db.session import get_db
+    from app.main import app
+
+    def override_settings():
+        return Settings(mock_auth_enabled=True, debug=True)
+
+    async def override_get_db():
+        yield db_session
+
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_settings] = override_settings
+
+    transport = ASGITransport(app=app)
+    headers = {"X-Mock-User-Id": str(test_user_dept_head_delete.id)}
+    async with AsyncClient(transport=transport, base_url="http://test", headers=headers) as ac:
+        yield ac
+
+    app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_non_privileged_delete_requires_approval_and_prevents_duplicates(
+    client_dept_head_delete: AsyncClient,
+    db_session,
+    test_kri: KeyRiskIndicator,
+) -> None:
+    response = await client_dept_head_delete.delete(
+        f"/api/v1/kris/{test_kri.id}?reason=Delete+request",
+    )
+
+    assert response.status_code == 202, response.text
+    data = response.json()
+    assert data["action_type"] == "delete"
+    assert "approval_id" in data
+
+    approval = await db_session.get(ApprovalRequest, data["approval_id"])
+    assert approval is not None
+    assert approval.resource_id == test_kri.id
+
+    duplicate = await client_dept_head_delete.delete(
+        f"/api/v1/kris/{test_kri.id}?reason=Delete+request",
+    )
+    assert duplicate.status_code == 400
+    assert duplicate.json()["detail"] == "Deletion request already pending"
+
+
 @pytest.mark.asyncio
 async def test_non_privileged_vendor_link_edit_is_approval_gated_and_applies_on_approval(
     client: AsyncClient,
@@ -815,12 +924,16 @@ async def test_non_privileged_vendor_link_edit_is_approval_gated_and_applies_on_
     assert test_kri.unit == "%"
     assert test_kri.frequency == "quarterly"
     current_vendor_ids = (
-        await db_session.execute(
-            select(VendorKRILink.vendor_id)
-            .where(VendorKRILink.kri_id == test_kri.id)
-            .order_by(VendorKRILink.vendor_id.asc())
+        (
+            await db_session.execute(
+                select(VendorKRILink.vendor_id)
+                .where(VendorKRILink.kri_id == test_kri.id)
+                .order_by(VendorKRILink.vendor_id.asc())
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert list(current_vendor_ids) == [test_vendor_for_kri.id]
 
     approval = await db_session.get(ApprovalRequest, data["approval_id"])
@@ -837,12 +950,16 @@ async def test_non_privileged_vendor_link_edit_is_approval_gated_and_applies_on_
     assert test_kri.unit == "count"
     assert test_kri.frequency == "monthly"
     current_vendor_ids = (
-        await db_session.execute(
-            select(VendorKRILink.vendor_id)
-            .where(VendorKRILink.kri_id == test_kri.id)
-            .order_by(VendorKRILink.vendor_id.asc())
+        (
+            await db_session.execute(
+                select(VendorKRILink.vendor_id)
+                .where(VendorKRILink.kri_id == test_kri.id)
+                .order_by(VendorKRILink.vendor_id.asc())
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert list(current_vendor_ids) == [second_test_vendor_for_kri.id]
 
 

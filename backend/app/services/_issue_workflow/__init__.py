@@ -2,4 +2,3 @@
 
 Public API is exposed via `app.services.issue_workflow_service`.
 """
-

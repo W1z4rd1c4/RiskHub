@@ -49,4 +49,3 @@ async def list_due_soon_kris(
         return filtered
 
     return due_soon
-

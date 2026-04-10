@@ -109,4 +109,3 @@ async def get_quarterly_snapshot(
         metrics=snapshot.metrics,
         message=f"Snapshot for {snapshot.quarter}",
     )
-

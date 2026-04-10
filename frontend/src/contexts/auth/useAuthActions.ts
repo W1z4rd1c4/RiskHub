@@ -74,6 +74,7 @@ export function useAuthActions({
                 await entraAuth.logoutRedirect();
             } catch (error) {
                 logError('SSO logout redirect failed.', error);
+                setLogoutErrorState('errorKeys.sso_logout_incomplete');
             }
         }
     }, [markPreferencesReady]);

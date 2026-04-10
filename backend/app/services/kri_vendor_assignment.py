@@ -28,9 +28,7 @@ def normalize_vendor_ids(vendor_ids: Sequence[int] | None) -> list[int]:
 
 async def get_kri_vendor_ids(db: AsyncSession, kri_id: int) -> list[int]:
     result = await db.execute(
-        select(VendorKRILink.vendor_id)
-        .where(VendorKRILink.kri_id == kri_id)
-        .order_by(VendorKRILink.vendor_id.asc())
+        select(VendorKRILink.vendor_id).where(VendorKRILink.kri_id == kri_id).order_by(VendorKRILink.vendor_id.asc())
     )
     return list(result.scalars().all())
 
@@ -99,8 +97,7 @@ async def assign_vendors_to_kri(
 
     if normalized_parent_vendor_ids:
         risk_link_result = await db.execute(
-            select(VendorRiskLink.vendor_id)
-            .where(
+            select(VendorRiskLink.vendor_id).where(
                 VendorRiskLink.risk_id == kri.risk_id,
                 VendorRiskLink.vendor_id.in_(normalized_parent_vendor_ids),
             )
@@ -111,9 +108,7 @@ async def assign_vendors_to_kri(
                 continue
             db.add(VendorRiskLink(vendor_id=vendor_id, risk_id=kri.risk_id))
 
-    current_link_result = await db.execute(
-        select(VendorKRILink).where(VendorKRILink.kri_id == kri.id)
-    )
+    current_link_result = await db.execute(select(VendorKRILink).where(VendorKRILink.kri_id == kri.id))
     current_links = current_link_result.scalars().all()
     current_vendor_ids = {link.vendor_id for link in current_links}
     desired_vendor_ids = set(normalized_linked_vendor_ids)

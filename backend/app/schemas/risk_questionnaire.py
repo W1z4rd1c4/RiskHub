@@ -1,4 +1,5 @@
 """Pydantic schemas for risk questionnaires."""
+
 from datetime import datetime
 from enum import Enum
 

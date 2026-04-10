@@ -12,6 +12,7 @@ const {
     msalAppMock: {
         initialize: vi.fn(async () => {}),
         loginRedirect: vi.fn(async () => {}),
+        logoutRedirect: vi.fn(async () => {}),
         handleRedirectPromise: vi.fn(async () => null),
         getActiveAccount: vi.fn(() => null),
         getAllAccounts: vi.fn(() => []),
@@ -56,6 +57,7 @@ beforeEach(() => {
 
     msalAppMock.initialize.mockClear();
     msalAppMock.loginRedirect.mockClear();
+    msalAppMock.logoutRedirect.mockClear();
     msalAppMock.handleRedirectPromise.mockClear();
     msalAppMock.getActiveAccount.mockClear();
     msalAppMock.getAllAccounts.mockClear();
@@ -89,6 +91,24 @@ describe('entraAuth', () => {
             scopes: ['openid', 'profile', 'email'],
             state: 'server-state',
             nonce: 'server-nonce',
+        });
+    });
+
+    it('passes account and logout hint to MSAL logoutRedirect when available', async () => {
+        const account = {
+            username: 'admin@riskhub.local',
+            idTokenClaims: {
+                login_hint: 'admin@riskhub.local',
+            },
+        };
+        msalAppMock.getActiveAccount.mockReturnValue(account);
+
+        await entraAuth.logoutRedirect();
+
+        expect(msalAppMock.logoutRedirect).toHaveBeenCalledWith({
+            account,
+            logoutHint: 'admin@riskhub.local',
+            postLogoutRedirectUri: `${window.location.origin}/login`,
         });
     });
 });

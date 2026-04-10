@@ -1,4 +1,5 @@
 """Schemas for orphaned items management."""
+
 from datetime import datetime
 from typing import Literal, Optional
 
@@ -7,6 +8,7 @@ from pydantic import BaseModel, ConfigDict
 
 class OrphanedItemRead(BaseModel):
     """Schema for reading orphaned item records."""
+
     id: int
     item_type: str  # "risk" | "control"
     item_id: int
@@ -24,6 +26,7 @@ class OrphanedItemRead(BaseModel):
 
 class OrphanedItemDetail(BaseModel):
     """Enhanced schema with item details for display."""
+
     id: int
     item_type: str
     item_id: int
@@ -41,6 +44,7 @@ class OrphanedItemDetail(BaseModel):
 
 class OrphanedItemResolve(BaseModel):
     """Schema for resolving an orphaned item."""
+
     new_owner_id: Optional[int] = None
     department_id: Optional[int] = None  # Optional explicit department override
     target_risk_id: Optional[int] = None  # For linking controls/kris to a specific risk
@@ -48,6 +52,7 @@ class OrphanedItemResolve(BaseModel):
 
 class OrphanedItemStats(BaseModel):
     """Statistics about orphaned items for the 4-bar layout."""
+
     risk_count: int
     control_count: int
     kri_count: int
@@ -56,11 +61,13 @@ class OrphanedItemStats(BaseModel):
 
 class OrphanScanResponse(BaseModel):
     """Response for orphan scan endpoint."""
+
     flagged: int
 
 
 class OrphanedItemsOverview(BaseModel):
     """Combined governance overview payload for polling surfaces."""
+
     stats: OrphanedItemStats
     items: list[OrphanedItemDetail]
     last_scan_at: Optional[datetime] = None
@@ -69,6 +76,7 @@ class OrphanedItemsOverview(BaseModel):
 
 class OrphanedItemCreateInternal(BaseModel):
     """Internal schema for creating orphaned item records."""
+
     item_type: Literal["risk", "control"]
     item_id: int
     previous_owner_id: int

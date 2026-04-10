@@ -10,21 +10,10 @@ def _require_postgres(db_session) -> None:  # type: ignore[no-untyped-def]
 
 
 async def _schema_types(db_session, columns: list[tuple[str, str]]) -> dict[tuple[str, str], str]:  # type: ignore[no-untyped-def]
-    bind_params = {
-        f"table_{idx}": table_name
-        for idx, (table_name, _column_name) in enumerate(columns)
-    }
-    bind_params.update(
-        {
-            f"column_{idx}": column_name
-            for idx, (_table_name, column_name) in enumerate(columns)
-        }
-    )
+    bind_params = {f"table_{idx}": table_name for idx, (table_name, _column_name) in enumerate(columns)}
+    bind_params.update({f"column_{idx}": column_name for idx, (_table_name, column_name) in enumerate(columns)})
 
-    pair_clauses = [
-        f"(c.relname = :table_{idx} AND a.attname = :column_{idx})"
-        for idx in range(len(columns))
-    ]
+    pair_clauses = [f"(c.relname = :table_{idx} AND a.attname = :column_{idx})" for idx in range(len(columns))]
 
     result = await db_session.execute(
         text(
@@ -47,10 +36,7 @@ async def _schema_types(db_session, columns: list[tuple[str, str]]) -> dict[tupl
         bind_params,
     )
 
-    return {
-        (row.table_name, row.column_name): row.type_name
-        for row in result.fetchall()
-    }
+    return {(row.table_name, row.column_name): row.type_name for row in result.fetchall()}
 
 
 @pytest.mark.asyncio

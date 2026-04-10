@@ -134,9 +134,7 @@ async def delete_issue_link(
 ):
     issue = await _get_writable_issue_or_404(db, issue_id, current_user)
     link = (
-        await db.execute(
-            select(IssueLink).where(IssueLink.id == link_id, IssueLink.issue_id == issue_id)
-        )
+        await db.execute(select(IssueLink).where(IssueLink.id == link_id, IssueLink.issue_id == issue_id))
     ).scalar_one_or_none()
     if link is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Issue link not found")

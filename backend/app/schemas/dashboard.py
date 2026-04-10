@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 
 class DashboardSummaryResponse(BaseModel):
     """Overview stats for executive dashboard."""
+
     total_controls: int = 0
     controls_by_status: dict[str, int] = Field(default_factory=dict)
     controls_by_form: dict[str, int] = Field(default_factory=dict)
@@ -24,6 +25,7 @@ class DashboardSummaryResponse(BaseModel):
 
 class DepartmentMetrics(BaseModel):
     """Per-department statistics."""
+
     department_id: int
     department_name: str
     control_count: int = 0
@@ -39,6 +41,7 @@ class DepartmentMetrics(BaseModel):
 
 class RiskDistributionItem(BaseModel):
     """Single cell in risk matrix."""
+
     probability: int
     impact: int
     count: int
@@ -46,6 +49,7 @@ class RiskDistributionItem(BaseModel):
 
 class RiskDistributionResponse(BaseModel):
     """For heatmap/risk matrix visualization."""
+
     distribution: list[RiskDistributionItem] = Field(default_factory=list)
 
     model_config = {"from_attributes": True}
@@ -53,6 +57,7 @@ class RiskDistributionResponse(BaseModel):
 
 class ControlFrequencyTrend(BaseModel):
     """Time series for control execution charts."""
+
     period: str  # e.g., "2025-W24"
     execution_count: int = 0
 
@@ -61,6 +66,7 @@ class ControlFrequencyTrend(BaseModel):
 
 class RiskTrendPoint(BaseModel):
     """Time series point for risk creation trends."""
+
     period: str  # e.g., "2025-01"
     total_new: int = 0
     critical_new: int = 0
@@ -70,6 +76,7 @@ class RiskTrendPoint(BaseModel):
 
 class KRIBreachTrendPoint(BaseModel):
     """Time series point for KRI breach trends."""
+
     period: str  # e.g., "2025-01"
     total_entries: int = 0
     breached_entries: int = 0
@@ -79,6 +86,7 @@ class KRIBreachTrendPoint(BaseModel):
 
 class IssueDashboardSummaryResponse(BaseModel):
     """Overview counters for issue remediation dashboard widgets."""
+
     open_issues: int = 0
     overdue_issues: int = 0
     high_severity_open: int = 0
@@ -87,28 +95,33 @@ class IssueDashboardSummaryResponse(BaseModel):
 
 class IssueAgingBucket(BaseModel):
     """Issue aging bucket used for charting open issue age distribution."""
+
     bucket: str
     count: int = 0
 
 
 class IssueAgingResponse(BaseModel):
     """Aging response for issue dashboard."""
+
     buckets: list[IssueAgingBucket] = Field(default_factory=list)
 
 
 class IssueSeverityBreakdownItem(BaseModel):
     """Issue severity count entry used by severity charts."""
+
     severity: str
     count: int = 0
 
 
 class IssueSeverityBreakdownResponse(BaseModel):
     """Issue severity breakdown payload."""
+
     items: list[IssueSeverityBreakdownItem] = Field(default_factory=list)
 
 
 class DashboardOverviewResponse(BaseModel):
     """Aggregate dashboard payload for the main overview screen."""
+
     summary: DashboardSummaryResponse
     department_metrics: list[DepartmentMetrics] = Field(default_factory=list)
     gross_distribution: RiskDistributionResponse

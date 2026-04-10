@@ -6,8 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api import deps
-from app.core.approval_display import approval_resource_label
 from app.core.activity_logger import log_activity
+from app.core.approval_display import approval_resource_label
 from app.core.datetime_utils import utc_now
 from app.core.permissions import can_resolve_approvals
 from app.db.session import get_db
@@ -25,6 +25,7 @@ _APPROVAL_AUTH_NOT_FOUND_RESPONSES = {
     403: {"description": "Authenticated user is not allowed to resolve this approval."},
     404: {"description": "Approval request not found."},
 }
+
 
 @router.post("/{approval_id}/approve", response_model=ApprovalRequestRead, responses=_APPROVAL_AUTH_NOT_FOUND_RESPONSES)
 async def approve_request(

@@ -1,4 +1,5 @@
 """Notification model for in-app notifications."""
+
 from datetime import UTC, datetime
 from enum import Enum as PyEnum
 from typing import TYPE_CHECKING
@@ -11,8 +12,11 @@ from app.db.base import Base
 
 if TYPE_CHECKING:
     from app.models.user import User
+
+
 class NotificationType(str, PyEnum):
     """Type of notification."""
+
     APPROVAL_PENDING = "approval_pending"
     APPROVAL_RESOLVED = "approval_resolved"
     APPROVAL_CANCELLED = "approval_cancelled"
@@ -42,6 +46,7 @@ class Notification(Base):
     - KRI deadline reminders (due soon, tomorrow, overdue)
     - KRI breach warnings (approaching limit)
     """
+
     __tablename__ = "notifications"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -51,8 +56,7 @@ class Notification(Base):
 
     # Notification content
     type: Mapped[NotificationType] = mapped_column(
-        SQLEnum(NotificationType, name="notification_type", create_constraint=True),
-        nullable=False
+        SQLEnum(NotificationType, name="notification_type", create_constraint=True), nullable=False
     )
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     message: Mapped[str] = mapped_column(Text, nullable=False)
@@ -66,9 +70,7 @@ class Notification(Base):
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(UTC),
-        nullable=False
+        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
     )
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 

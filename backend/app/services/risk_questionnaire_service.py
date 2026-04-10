@@ -1,4 +1,5 @@
 """Business rules for risk questionnaires."""
+
 from __future__ import annotations
 
 from datetime import datetime

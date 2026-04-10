@@ -749,8 +749,8 @@ def test_preflight_reports_missing_docker_prerequisite() -> None:
         real_python313 = shutil.which("python3.13") or real_python3
         assert real_python3 is not None
         assert real_python313 is not None
-        _write_exec(fake_bin / "python3", f"#!/usr/bin/env bash\nexec {real_python3!s} \"$@\"\n")
-        _write_exec(fake_bin / "python3.13", f"#!/usr/bin/env bash\nexec {real_python313!s} \"$@\"\n")
+        _write_exec(fake_bin / "python3", f'#!/usr/bin/env bash\nexec {real_python3!s} "$@"\n')
+        _write_exec(fake_bin / "python3.13", f'#!/usr/bin/env bash\nexec {real_python313!s} "$@"\n')
         _write_config(config_path)
         _write_secrets(secret_dir)
 

@@ -5,17 +5,17 @@ from datetime import UTC, datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.datetime_utils import coerce_utc
 from app.core.permissions import can_read_vendor
 from app.core.security import check_permission
-from app.core.datetime_utils import coerce_utc
 from app.models import ControlRiskLink, Issue, IssueException, IssueLink, IssueRemediationPlan, Risk, User
 from app.models.issue import IssueExceptionStatus
 from app.schemas.issue import (
     IssueExceptionRead,
     IssueLinkRead,
-    IssueRiskContext,
     IssueRead,
     IssueRemediationPlanRead,
+    IssueRiskContext,
     IssueSummary,
     IssueVendorContext,
 )
@@ -273,7 +273,9 @@ def _serialize_issue_summary(issue: Issue, current_user: User | None = None) -> 
             "created_at": issue.created_at,
             "updated_at": issue.updated_at,
             "risk_contexts": [context.model_dump() for context in _serialize_issue_risk_contexts(issue)],
-            "vendor_contexts": [context.model_dump() for context in _serialize_issue_vendor_contexts(issue, current_user)],
+            "vendor_contexts": [
+                context.model_dump() for context in _serialize_issue_vendor_contexts(issue, current_user)
+            ],
         }
     )
 

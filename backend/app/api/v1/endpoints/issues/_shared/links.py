@@ -75,4 +75,3 @@ async def _issue_link_department_ids(db: AsyncSession, issue_id: int) -> set[int
     department_ids.update(dept_id for dept_id in vendor_rows.scalars().all() if dept_id is not None)
 
     return department_ids
-

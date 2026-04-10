@@ -76,4 +76,3 @@ async def list_departments(
         )
         for dept in departments
     ]
-

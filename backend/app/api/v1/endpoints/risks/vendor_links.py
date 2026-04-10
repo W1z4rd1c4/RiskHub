@@ -43,8 +43,4 @@ async def list_risk_vendors(
 
     visible_vendors = [v for v in linked_vendors if can_read_vendor(v, current_user)]
 
-    return [
-        vendor_to_read(v).model_dump()
-        for v in visible_vendors
-    ]
-
+    return [vendor_to_read(v).model_dump() for v in visible_vendors]

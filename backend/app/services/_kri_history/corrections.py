@@ -33,9 +33,7 @@ async def apply_history_correction(
     """
     # Get the entry
     result = await db.execute(
-        select(KRIValueHistory)
-        .where(KRIValueHistory.id == entry_id)
-        .options(selectinload(KRIValueHistory.kri))
+        select(KRIValueHistory).where(KRIValueHistory.id == entry_id).options(selectinload(KRIValueHistory.kri))
     )
     entry = result.scalar_one_or_none()
 
@@ -74,4 +72,3 @@ async def apply_history_correction(
     logger.info(f"Applied correction to history entry {entry_id}: value {new_value}")
 
     return entry
-

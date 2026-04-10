@@ -18,6 +18,8 @@ from app.schemas import UserCreate, UserRead
 from ._lifecycle import require_admin_user_lifecycle
 
 router = APIRouter()
+
+
 @router.get("", response_model=list[UserRead])
 async def list_users(
     skip: int = Query(0, ge=0),

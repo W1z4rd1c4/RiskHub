@@ -6,7 +6,7 @@ from app.api import deps
 from app.api.v1.endpoints.approvals._delete_authorization import assert_can_request_delete_risk
 from app.core.activity_logger import log_activity
 from app.db.session import get_db
-from app.models import Risk, User
+from app.models import User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas.risk import RiskStatusEnum
 

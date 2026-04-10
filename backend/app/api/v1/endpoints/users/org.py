@@ -49,4 +49,3 @@ async def get_user_subordinates(
         raise HTTPException(status_code=404, detail="User not found")
 
     return user.subordinates
-

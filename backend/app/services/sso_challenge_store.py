@@ -45,9 +45,7 @@ class InMemorySsoChallengeStore:
     def _purge_expired_locked(self) -> None:
         now = utc_now()
         expired_ids = [
-            challenge_id
-            for challenge_id, challenge in self._items.items()
-            if coerce_utc(challenge.expires_at) <= now
+            challenge_id for challenge_id, challenge in self._items.items() if coerce_utc(challenge.expires_at) <= now
         ]
         for challenge_id in expired_ids:
             self._items.pop(challenge_id, None)

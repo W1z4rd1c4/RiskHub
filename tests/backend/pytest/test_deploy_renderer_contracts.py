@@ -56,9 +56,9 @@ def _parse_env(path: Path) -> dict[str, str]:
 
 def _source_shell_assignments(path: Path, *keys: str) -> dict[str, str]:
     shell_script = (
-        'set -euo pipefail; '
+        "set -euo pipefail; "
         'metadata_path="$1"; '
-        'shift; '
+        "shift; "
         'source "$metadata_path"; '
         'for key in "$@"; do printf "%s=%s\\n" "$key" "${!key}"; done'
     )

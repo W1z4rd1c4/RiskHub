@@ -109,7 +109,7 @@ async def list_risks(
                 or_(
                     KeyRiskIndicator.current_value < KeyRiskIndicator.lower_limit,
                     KeyRiskIndicator.current_value > KeyRiskIndicator.upper_limit,
-                )
+                ),
             )
             .scalar_subquery()
         )

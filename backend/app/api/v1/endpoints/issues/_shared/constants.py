@@ -5,4 +5,3 @@ UNKNOWN_CONTROL_LABEL = "Unknown control"
 UNKNOWN_EXECUTION_LABEL = "Unknown execution"
 UNKNOWN_KRI_LABEL = "Unknown KRI"
 UNKNOWN_VENDOR_LABEL = "Unknown vendor"
-

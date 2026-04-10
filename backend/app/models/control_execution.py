@@ -10,8 +10,11 @@ from app.db.base import Base
 if TYPE_CHECKING:
     from app.models.control import Control
     from app.models.user import User
+
+
 class ExecutionResult(str, PyEnum):
     """Result of a control execution."""
+
     passed = "passed"
     failed = "failed"
     warning = "warning"
@@ -24,6 +27,7 @@ class ControlExecution(Base):
 
     Enables requirement: "aby vedúci pracovník/MŘŘ/Auditor vedel overiť vykonanie kontroly"
     """
+
     __tablename__ = "control_executions"
 
     # Primary key

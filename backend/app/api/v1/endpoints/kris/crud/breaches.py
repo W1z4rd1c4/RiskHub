@@ -69,7 +69,9 @@ async def list_breaches(
             linked_vendors=[
                 LinkedVendorRead(id=link.vendor.id, name=link.vendor.name)
                 for link in getattr(kri, "vendor_links", []) or []
-                if getattr(link, "vendor", None) is not None and can_read_vendors and can_read_vendor(link.vendor, current_user)
+                if getattr(link, "vendor", None) is not None
+                and can_read_vendors
+                and can_read_vendor(link.vendor, current_user)
             ],
         )
         for kri in kris

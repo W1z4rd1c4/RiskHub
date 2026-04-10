@@ -66,10 +66,7 @@ async def get_control_trends(
         period_expr = func.to_char(ControlExecution.executed_at, 'IYYY-"W"IW')
 
         # Query control executions grouped by ISO week
-        trends_query = select(
-            period_expr.label('period'),
-            func.count(ControlExecution.id).label('execution_count')
-        )
+        trends_query = select(period_expr.label("period"), func.count(ControlExecution.id).label("execution_count"))
 
         if len(conditions) > 1:
             trends_query = trends_query.where(and_(*conditions))
@@ -77,22 +74,15 @@ async def get_control_trends(
             trends_query = trends_query.where(conditions[0])
 
         # Group and order by the period expression
-        trends_query = trends_query.group_by(
-            period_expr
-        ).order_by(
-            desc(period_expr)
-        ).limit(DASHBOARD_CONTROL_TREND_WEEKS)
+        trends_query = (
+            trends_query.group_by(period_expr).order_by(desc(period_expr)).limit(DASHBOARD_CONTROL_TREND_WEEKS)
+        )
 
         result = await db.execute(trends_query)
         rows = result.all()
 
         trends = [
-            ControlFrequencyTrend(
-                period=row.period,
-                execution_count=row.execution_count
-            )
-            for row in rows
-            if row.period
+            ControlFrequencyTrend(period=row.period, execution_count=row.execution_count) for row in rows if row.period
         ]
 
         # Reverse to show oldest first for charts

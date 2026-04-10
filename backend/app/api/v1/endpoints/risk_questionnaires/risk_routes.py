@@ -10,7 +10,6 @@ from sqlalchemy.orm import selectinload
 from app.core.activity_logger import log_activity
 from app.core.security import require_permission
 from app.db.session import get_db
-from app.i18n import t
 from app.models import RiskQuestionnaire, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas.risk_questionnaire import RiskQuestionnaireListItemRead, RiskQuestionnaireRead

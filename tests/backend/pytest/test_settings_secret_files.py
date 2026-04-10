@@ -13,7 +13,9 @@ def _write_secret(path: Path, value: str) -> Path:
     return path
 
 
-def test_settings_load_secret_values_from_supported_file_env_vars(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_settings_load_secret_values_from_supported_file_env_vars(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     database_url_file = _write_secret(
         tmp_path / "database_url",
         "postgresql+asyncpg://riskhub:secret@postgres.example.com:5432/riskhub\n",
@@ -156,7 +158,10 @@ def test_settings_support_certificate_credential_and_prefer_it_over_secret(
     assert settings.entra_confidential_credential is not None
     assert settings.entra_confidential_credential.mode == "certificate"
     assert settings.entra_confidential_credential.client_secret is None
-    assert settings.entra_confidential_credential.client_certificate_thumbprint == "ABCDEF1234567890ABCDEF1234567890ABCDEF12"
+    assert (
+        settings.entra_confidential_credential.client_certificate_thumbprint
+        == "ABCDEF1234567890ABCDEF1234567890ABCDEF12"
+    )
     assert settings.entra_confidential_credential.client_certificate_private_key is not None
 
 

@@ -43,4 +43,3 @@ async def get_approval_department_id(db: AsyncSession, approval: ApprovalRequest
         )
         return result.scalar_one_or_none()
     return None
-

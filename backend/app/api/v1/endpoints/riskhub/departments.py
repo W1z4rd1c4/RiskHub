@@ -168,9 +168,7 @@ async def update_department(
 
     if data.name is not None:
         # Check for duplicate name (excluding current)
-        existing = await db.execute(
-            select(Department).where(Department.name == data.name, Department.id != dept.id)
-        )
+        existing = await db.execute(select(Department).where(Department.name == data.name, Department.id != dept.id))
         if existing.scalar_one_or_none():
             raise HTTPException(status_code=400, detail=f"Department name '{data.name}' already exists")
         dept.name = data.name
@@ -199,9 +197,7 @@ async def update_department(
     risk_count_result = await db.execute(select(func.count(Risk.id)).where(Risk.department_id == dept.id))
     risk_count = risk_count_result.scalar() or 0
 
-    control_count_result = await db.execute(
-        select(func.count(Control.id)).where(Control.department_id == dept.id)
-    )
+    control_count_result = await db.execute(select(func.count(Control.id)).where(Control.department_id == dept.id))
     control_count = control_count_result.scalar() or 0
 
     await log_activity(
@@ -266,9 +262,7 @@ async def delete_department(
         raise HTTPException(status_code=400, detail=f"Cannot delete department with {risk_count} risks")
 
     # Check for controls
-    control_count_result = await db.execute(
-        select(func.count(Control.id)).where(Control.department_id == dept.id)
-    )
+    control_count_result = await db.execute(select(func.count(Control.id)).where(Control.department_id == dept.id))
     control_count = control_count_result.scalar() or 0
     if control_count > 0:
         raise HTTPException(status_code=400, detail=f"Cannot delete department with {control_count} controls")
@@ -300,9 +294,7 @@ async def restore_department(
     """Restore a soft-deleted department. CRO only."""
     from app.models.department import Department
 
-    result = await db.execute(
-        select(Department).options(selectinload(Department.manager)).where(Department.id == id)
-    )
+    result = await db.execute(select(Department).options(selectinload(Department.manager)).where(Department.id == id))
     dept = result.scalar_one_or_none()
 
     if not dept:

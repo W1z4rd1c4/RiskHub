@@ -8,6 +8,7 @@ This middleware:
 
 All downstream loggers automatically include this context.
 """
+
 import uuid
 
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
@@ -39,9 +40,7 @@ class LoggingContextMiddleware(BaseHTTPMiddleware):
         """Resolve effective client IP using trusted-proxy chain semantics."""
         return resolve_request_client_ip(request, self._client_ip_resolver.trusted_proxies)
 
-    async def dispatch(
-        self, request: Request, call_next: RequestResponseEndpoint
-    ) -> Response:
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         # Generate or extract request ID
         request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
 

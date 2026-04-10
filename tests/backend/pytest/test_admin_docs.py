@@ -81,7 +81,9 @@ async def test_admin_docs_endpoint_returns_localized_incident_quick_reference_fo
     assert response.status_code == 200
 
     documents = response.json()["documents"]
-    incident_doc = next((document for document in documents if document["id"] == "admin_incident-quick-reference"), None)
+    incident_doc = next(
+        (document for document in documents if document["id"] == "admin_incident-quick-reference"), None
+    )
     assert incident_doc is not None
     assert incident_doc["audience"] == "admin"
     assert incident_doc["title"] == "Rychlá reference admin incidentů"

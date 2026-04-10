@@ -36,12 +36,9 @@ def _build_approval_permissions(approval: ApprovalRequest, current_user: User) -
     is_primary_approver = approval.primary_approver_id == current_user.id
     is_pending = approval.status in (ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED)
 
-    can_approve = (
-        not is_requester
-        and (
-            (approval.status == ApprovalStatus.PENDING and (is_primary_approver or is_privileged))
-            or (approval.status == ApprovalStatus.PENDING_PRIVILEGED and is_privileged)
-        )
+    can_approve = not is_requester and (
+        (approval.status == ApprovalStatus.PENDING and (is_primary_approver or is_privileged))
+        or (approval.status == ApprovalStatus.PENDING_PRIVILEGED and is_privileged)
     )
     can_reject = is_pending and is_privileged
     return can_approve, can_reject

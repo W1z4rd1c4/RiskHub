@@ -80,5 +80,5 @@ def verify_demo(options: SharedOptions) -> None:
 
 def verify_dev(options: SharedOptions) -> None:
     run_command(["curl", "-fsS", "http://localhost:5173/login"], options=options)
-    run_command(["curl", "-fsS", "http://localhost:8000/api/v1/health"], options=options)
+    run_command(["curl", "-fsS", "http://localhost:8000/api/v1/readyz"], options=options)
     run_command(["curl", "-fsS", "http://localhost:8000/api/v1/auth/config"], options=options)

@@ -105,7 +105,7 @@ def test_protocol_contract_probe_output_schema(tmp_path: Path) -> None:
             "auth_refreshed": True,
             "auth_login_status_code": 200,
             "auth_error": None,
-            "response_excerpt": "{\"detail\":{\"code\":\"excel_export_removed\"}}",
+            "response_excerpt": '{"detail":{"code":"excel_export_removed"}}',
         }
     ]
 

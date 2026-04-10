@@ -28,21 +28,13 @@ def _describe_result(result: subprocess.CompletedProcess[str]) -> str:
 def _tracked_files() -> list[str]:
     tracked = _run_git("ls-files")
     assert tracked.returncode == 0, _describe_result(tracked)
-    return [
-        line
-        for line in tracked.stdout.splitlines()
-        if line.strip() and (REPO_ROOT / line).exists()
-    ]
+    return [line for line in tracked.stdout.splitlines() if line.strip() and (REPO_ROOT / line).exists()]
 
 
 def _tracked_ignored_paths() -> list[str]:
     tracked = _run_git("ls-files", "-ci", "--exclude-standard")
     assert tracked.returncode == 0, _describe_result(tracked)
-    return [
-        line
-        for line in tracked.stdout.splitlines()
-        if line.strip() and (REPO_ROOT / line).exists()
-    ]
+    return [line for line in tracked.stdout.splitlines() if line.strip() and (REPO_ROOT / line).exists()]
 
 
 @pytest.mark.parametrize(
@@ -89,11 +81,7 @@ def test_frontend_repo_root_generated_wrappers_are_not_tracked() -> None:
         "frontend/quality-audit/",
     )
 
-    leaked = [
-        path
-        for path in tracked
-        if path.startswith(forbidden_prefixes) or path.startswith("frontend/ts-trace-")
-    ]
+    leaked = [path for path in tracked if path.startswith(forbidden_prefixes) or path.startswith("frontend/ts-trace-")]
     assert leaked == [], f"unexpected tracked generated wrapper paths: {leaked}"
 
 
@@ -113,6 +101,7 @@ def test_repository_has_no_tracked_retired_artifact_surfaces() -> None:
         if path in forbidden_exact or (path.startswith(forbidden_prefixes) and path != "frontend/public/docs/README.md")
     ]
     assert leaked == [], f"unexpected tracked retired artifact paths: {leaked}"
+
 
 def test_repository_has_no_tracked_ignored_paths() -> None:
     assert _tracked_ignored_paths() == []

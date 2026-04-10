@@ -119,9 +119,7 @@ SENSITIVE_FIELD_FALSE_POSITIVES_BY_ENTITY = {
     "user": {"password_changed"},
 }
 
-_SENSITIVE_PATTERNS_RE = tuple(
-    re.compile(pattern, re.IGNORECASE) for pattern in SENSITIVE_FIELD_PATTERNS
-)
+_SENSITIVE_PATTERNS_RE = tuple(re.compile(pattern, re.IGNORECASE) for pattern in SENSITIVE_FIELD_PATTERNS)
 _SAFE_ENTITY_LABEL_ENTITY_TYPES = {
     "config",
     "department",
@@ -243,12 +241,10 @@ def sanitize_entity_name(
     generic_label = _entity_label(entity_type)
     normalized_raw_entity_name = (raw_entity_name or "").strip()
     normalized_safe_label = (safe_entity_label or "").strip()
-    if (
-        policy.allow_safe_entity_label
-        and normalized_safe_label
-        and entity_type in _SAFE_ENTITY_LABEL_ENTITY_TYPES
-    ):
-        return normalized_safe_label, bool(normalized_raw_entity_name and normalized_raw_entity_name != normalized_safe_label)
+    if policy.allow_safe_entity_label and normalized_safe_label and entity_type in _SAFE_ENTITY_LABEL_ENTITY_TYPES:
+        return normalized_safe_label, bool(
+            normalized_raw_entity_name and normalized_raw_entity_name != normalized_safe_label
+        )
 
     should_mark_redacted = bool(normalized_raw_entity_name) and normalized_raw_entity_name != generic_label
     return generic_label, should_mark_redacted
@@ -337,9 +333,7 @@ def _redact_value(value: object) -> object:
     return _redact_scalar(value)
 
 
-def sanitize_change_field(
-    entity_type: str, field: str, value: object
-) -> tuple[object, bool]:
+def sanitize_change_field(entity_type: str, field: str, value: object) -> tuple[object, bool]:
     if _is_redaction_sensitive_field(entity_type, field) or _is_free_text_field(field):
         return _redact_value(value), False
     if _is_safe_field(entity_type, field):

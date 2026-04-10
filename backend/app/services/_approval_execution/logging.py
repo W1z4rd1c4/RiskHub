@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.approval_display import approval_resource_label
 from app.core import activity_logger
+from app.core.approval_display import approval_resource_label
 from app.models import ApprovalRequest, ApprovalStatus, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 

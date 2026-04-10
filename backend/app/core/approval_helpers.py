@@ -1,4 +1,5 @@
 """Helper functions for approval workflow."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Optional
@@ -40,9 +41,7 @@ async def get_primary_approver_for_control(
     """
     # Get control with department for fallback
     control_result = await db.execute(
-        select(Control)
-        .options(selectinload(Control.department))
-        .where(Control.id == control_id)
+        select(Control).options(selectinload(Control.department)).where(Control.id == control_id)
     )
     control = control_result.scalar_one_or_none()
     if not control:
@@ -104,9 +103,7 @@ async def check_control_requires_privileged_approval(db: AsyncSession, control_i
 
 
 async def get_primary_approver_for_risk(
-    db: AsyncSession,
-    risk_id: int,
-    requester_id: Optional[int] = None
+    db: AsyncSession, risk_id: int, requester_id: Optional[int] = None
 ) -> Optional[int]:
     """
     Get primary approver for a Risk edit, preventing self-approval.
@@ -120,9 +117,7 @@ async def get_primary_approver_for_risk(
         User ID of the primary approver, or None if no approver found
     """
 
-    risk_result = await db.execute(
-        select(Risk).options(selectinload(Risk.department)).where(Risk.id == risk_id)
-    )
+    risk_result = await db.execute(select(Risk).options(selectinload(Risk.department)).where(Risk.id == risk_id))
     risk = risk_result.scalar_one_or_none()
     if not risk:
         return None

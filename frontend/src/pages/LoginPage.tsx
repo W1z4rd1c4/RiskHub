@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from '@/i18n/hooks';
 import { sanitizeReturnTo } from '@/services/authRedirect';
@@ -10,12 +10,19 @@ import { getProdAuthCopy } from '@/pages/login/prodAuthCopy';
 import { useAuthConfigLoader } from '@/pages/login/useAuthConfigLoader';
 import { useLoginActions } from '@/pages/login/useLoginActions';
 import { useProdLoginMetadata } from '@/pages/login/useProdLoginMetadata';
+import { entraAuth } from '@/services/entraAuth';
+import { logError } from '@/services/logger';
 import { useSessionSnapshot } from '@/services/session/store';
+
+function stripErrorKeyPrefix(errorKey: string): string {
+    return errorKey.startsWith('errorKeys.') ? errorKey.slice('errorKeys.'.length) : errorKey;
+}
 
 export default function LoginPage() {
     const { t, i18n } = useTranslation(['auth', 'errorKeys', 'common']);
     const location = useLocation();
     const navigate = useNavigate();
+    const session = useSessionSnapshot();
     const { returnTo, authErrorParam } = useMemo(() => {
         const params = new URLSearchParams(location.search);
         return {
@@ -25,7 +32,8 @@ export default function LoginPage() {
     }, [location.search]);
 
     const [prodLanguage, setProdLanguage] = useState<ProdLanguage>('cs');
-    const hasAccessToken = useSessionSnapshot().token !== null;
+    const [isCompletingSsoLogout, setIsCompletingSsoLogout] = useState(false);
+    const hasAccessToken = session.token !== null;
     const showBootstrapUnavailableBanner = authErrorParam === 'service_unavailable';
 
     useEffect(() => {
@@ -90,12 +98,28 @@ export default function LoginPage() {
         () => getProdAuthCopy(prodAuthTranslate),
         [prodAuthTranslate],
     );
+    const authConfigRecoveryMessage = session.logoutErrorKey === 'errorKeys.sso_logout_incomplete'
+        ? t(stripErrorKeyPrefix(session.logoutErrorKey), { ns: 'errorKeys' })
+        : null;
+    const ssoLogoutRecoveryMessage = session.logoutErrorKey === 'errorKeys.sso_logout_incomplete'
+        ? prodErrorTranslate(stripErrorKeyPrefix(session.logoutErrorKey))
+        : null;
     const prodErrorMessage = authErrorParam === 'sso_callback_failed'
         ? prodAuthTranslate('sso_callback.exchange_failed')
-        : errorKey ? prodErrorTranslate(errorKey) : '';
+        : errorKey ? prodErrorTranslate(stripErrorKeyPrefix(errorKey)) : '';
     const demoErrorMessage = authErrorParam === 'sso_callback_failed'
         ? t('sso_callback.exchange_failed')
         : errorKey ? t(errorKey, { ns: 'errorKeys' }) : null;
+    const handleCompleteSsoLogout = useCallback(async () => {
+        setIsCompletingSsoLogout(true);
+        try {
+            await entraAuth.logoutRedirect();
+        } catch (error) {
+            logError('Retrying SSO logout redirect failed.', error);
+        } finally {
+            setIsCompletingSsoLogout(false);
+        }
+    }, []);
 
     useProdLoginMetadata({
         enabled: authConfig?.auth_mode === 'microsoft_sso',
@@ -115,6 +139,10 @@ export default function LoginPage() {
                 retryHint={t('login.unavailable_retry_hint')}
                 retryLabel={t('common:actions.retry')}
                 onRetry={reloadAuthConfig}
+                recoveryMessage={authConfigRecoveryMessage}
+                recoveryActionLabel={t('logout.complete_microsoft_sign_out')}
+                recoveryActionPending={isCompletingSsoLogout}
+                onRecoveryAction={authConfigRecoveryMessage ? () => void handleCompleteSsoLogout() : undefined}
             />
         );
     }
@@ -123,13 +151,16 @@ export default function LoginPage() {
         return (
             <SsoOnlyView
                 showBootstrapUnavailableBanner={showBootstrapUnavailableBanner}
+                ssoLogoutRecoveryMessage={ssoLogoutRecoveryMessage}
                 prodCopy={prodCopy}
                 prodErrorMessage={prodErrorMessage}
                 prodLanguage={prodLanguage}
                 isSsoLoading={isSsoLoading}
+                isSsoLogoutRecoveryPending={isCompletingSsoLogout}
                 ssoEnabled={Boolean(authConfig.sso.enabled)}
                 ssoError={authConfig.sso_error}
                 onChangeLanguage={setProdLanguage}
+                onRetrySsoLogout={handleCompleteSsoLogout}
                 onSsoLogin={handleSsoLogin}
                 translate={t}
             />

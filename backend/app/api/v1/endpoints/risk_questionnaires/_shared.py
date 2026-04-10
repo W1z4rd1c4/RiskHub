@@ -122,4 +122,3 @@ def _serialize_clarification(c: RiskQuestionnaireClarification) -> RiskQuestionn
         responded_by_user_name=getattr(getattr(c, "responded_by_user", None), "name", None),
         responded_at=c.responded_at,
     )
-

@@ -41,9 +41,8 @@ async def _apply_delete_side_effects(
             logger.warning(f"Approval #{approval.id}: Risk {approval.resource_id} no longer exists")
             approval.status = ApprovalStatus.REJECTED
             approval.resolution_notes = (
-                (approval.resolution_notes or "")
-                + "\nAuto-rejected: Resource was deleted before approval could be applied."
-            )
+                approval.resolution_notes or ""
+            ) + "\nAuto-rejected: Resource was deleted before approval could be applied."
             return
 
         old_status = risk.status
@@ -69,9 +68,8 @@ async def _apply_delete_side_effects(
             logger.warning(f"Approval #{approval.id}: Control {approval.resource_id} no longer exists")
             approval.status = ApprovalStatus.REJECTED
             approval.resolution_notes = (
-                (approval.resolution_notes or "")
-                + "\nAuto-rejected: Resource was deleted before approval could be applied."
-            )
+                approval.resolution_notes or ""
+            ) + "\nAuto-rejected: Resource was deleted before approval could be applied."
             return
 
         old_status = control.status
@@ -97,9 +95,8 @@ async def _apply_delete_side_effects(
             logger.warning(f"Approval #{approval.id}: KRI {approval.resource_id} no longer exists")
             approval.status = ApprovalStatus.REJECTED
             approval.resolution_notes = (
-                (approval.resolution_notes or "")
-                + "\nAuto-rejected: Resource was deleted before approval could be applied."
-            )
+                approval.resolution_notes or ""
+            ) + "\nAuto-rejected: Resource was deleted before approval could be applied."
             return
 
         old_is_archived = kri.is_archived

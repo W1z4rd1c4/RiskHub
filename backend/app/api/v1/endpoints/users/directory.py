@@ -89,9 +89,7 @@ async def list_directory_users(
         for row in facet_result
     ]
 
-    total = (
-        await db.execute(select(func.count()).select_from(query.order_by(None).subquery()))
-    ).scalar_one()
+    total = (await db.execute(select(func.count()).select_from(query.order_by(None).subquery()))).scalar_one()
 
     result = await db.execute(query.order_by(User.name.asc(), User.id.asc()).offset(skip).limit(limit))
     users = result.scalars().all()

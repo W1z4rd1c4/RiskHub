@@ -11,6 +11,15 @@ import { createTestQueryClient } from '@test/queryClient';
 import LoginPage from '@/pages/LoginPage';
 import { clearAuthConfigCache } from '@/services/authConfig';
 import { AUTH_REQUEST_TIMEOUT_MS } from '@/services/authRequest';
+import { __resetSessionStoreForTests, setSessionSnapshot } from '@/services/session/store';
+
+const logoutRedirectMock = vi.fn();
+
+vi.mock('@/services/entraAuth', () => ({
+    entraAuth: {
+        logoutRedirect: (...args: unknown[]) => logoutRedirectMock(...args),
+    },
+}));
 
 function renderWithQuery(ui: React.ReactElement, initialEntry = '/login') {
     const queryClient = createTestQueryClient();
@@ -34,6 +43,8 @@ function createAbortablePendingResponse(signal?: AbortSignal): Promise<Response>
 describe('LoginPage auth modes', () => {
     afterEach(() => {
         clearAuthConfigCache();
+        __resetSessionStoreForTests();
+        logoutRedirectMock.mockReset();
         vi.restoreAllMocks();
         vi.useRealTimers();
     });
@@ -223,5 +234,80 @@ describe('LoginPage auth modes', () => {
 
         expect(await screen.findByText(/authentication service is unavailable/i)).toBeInTheDocument();
         expect(screen.getByRole('button', { name: /system admin/i })).toBeInTheDocument();
+    });
+
+    it('shows a Microsoft sign-out recovery banner and retry action after incomplete SSO logout', async () => {
+        server.use(
+            http.get('*/api/v1/auth/config', () => {
+                return HttpResponse.json({
+                    auth_mode: 'microsoft_sso',
+                    demo_login_enabled: false,
+                    password_login_enabled: false,
+                    demo_personas: [],
+                    sso: {
+                        enabled: true,
+                        provider: 'entra',
+                        tenant_id: 'tenant',
+                        client_id: 'client',
+                        authority: 'https://login.microsoftonline.com/tenant',
+                        scopes: ['openid', 'profile', 'email'],
+                    },
+                    sso_error: null,
+                });
+            }),
+        );
+        await act(async () => {
+            setSessionSnapshot((previous) => ({
+                ...previous,
+                token: null,
+                user: null,
+                bootstrapStatus: 'anonymous',
+                bootstrapError: null,
+                logoutPending: false,
+                logoutErrorKey: 'errorKeys.sso_logout_incomplete',
+            }));
+        });
+
+        const user = userEvent.setup();
+        renderWithQuery(<LoginPage />);
+
+        expect(await screen.findByText(/odhlášení z microsoftu se nedokončilo/i)).toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: /complete microsoft sign-out/i }));
+        expect(logoutRedirectMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps Microsoft sign-out recovery visible when auth config fails', async () => {
+        logoutRedirectMock.mockRejectedValueOnce(new Error('redirect failed'));
+        server.use(
+            http.get('*/api/v1/auth/config', () => {
+                return HttpResponse.json({ detail: 'unavailable' }, { status: 503 });
+            }),
+        );
+        await act(async () => {
+            setSessionSnapshot((previous) => ({
+                ...previous,
+                token: null,
+                user: null,
+                bootstrapStatus: 'anonymous',
+                bootstrapError: null,
+                logoutPending: false,
+                logoutErrorKey: 'errorKeys.sso_logout_incomplete',
+            }));
+        });
+
+        const user = userEvent.setup();
+        renderWithQuery(<LoginPage />);
+
+        expect(await screen.findByText(/login unavailable/i)).toBeInTheDocument();
+        expect(screen.getByText(/microsoft sign-out did not complete/i)).toBeInTheDocument();
+
+        const recoveryButton = screen.getByRole('button', { name: /complete microsoft sign-out/i });
+        await user.click(recoveryButton);
+
+        await waitFor(() => {
+            expect(logoutRedirectMock).toHaveBeenCalledTimes(1);
+            expect(recoveryButton).toBeEnabled();
+        });
+        expect(screen.getByText(/microsoft sign-out did not complete/i)).toBeInTheDocument();
     });
 });

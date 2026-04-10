@@ -16,7 +16,9 @@ async def test_seed_default_risk_types_creates_system_defaults(db_session):
     assert summary == {"created": 2, "repaired": 0}
 
     result = await db_session.execute(
-        select(RiskTypeConfig.code, RiskTypeConfig.display_name, RiskTypeConfig.is_system).order_by(RiskTypeConfig.sort_order)
+        select(RiskTypeConfig.code, RiskTypeConfig.display_name, RiskTypeConfig.is_system).order_by(
+            RiskTypeConfig.sort_order
+        )
     )
     rows = result.all()
 

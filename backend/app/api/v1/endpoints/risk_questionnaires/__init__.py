@@ -13,4 +13,3 @@ router.include_router(questionnaire.router)
 router.include_router(clarifications.router)
 
 __all__ = ["router", "risk_router"]
-

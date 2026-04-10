@@ -36,9 +36,7 @@ async def _resolve_demo_user_by_id(*, db: AsyncSession, user_id: int) -> User | 
 
 
 async def _resolve_demo_user_by_email(*, db: AsyncSession, email: str) -> User | None:
-    result = await db.execute(
-        select(User).options(*_user_with_demo_load()).where(email_equals(User.email, email))
-    )
+    result = await db.execute(select(User).options(*_user_with_demo_load()).where(email_equals(User.email, email)))
     return result.scalar_one_or_none()
 
 

@@ -84,13 +84,13 @@ jobs:
           # Start server in background
           uvicorn app.main:app --host 0.0.0.0 --port 8000 > ../e2e-backend.log 2>&1 &
 
-          # Wait for server readiness on the canonical API health route.
+          # Wait for server readiness on the canonical API readiness route.
           for attempt in $(seq 1 30); do
-            if curl --retry 1 --retry-delay 0 --retry-connrefused -fsS http://localhost:8000/api/v1/health >/dev/null; then
+            if curl --retry 1 --retry-delay 0 --retry-connrefused -fsS http://localhost:8000/api/v1/readyz >/dev/null; then
               break
             fi
             if [ "$attempt" -eq 30 ]; then
-              echo "Backend did not become ready on /api/v1/health" >&2
+              echo "Backend did not become ready on /api/v1/readyz" >&2
               cat ../e2e-backend.log >&2 || true
               exit 1
             fi
@@ -202,11 +202,11 @@ jobs:
           uvicorn app.main:app --host 0.0.0.0 --port 8000 > ../prod-smoke-backend.log 2>&1 &
 
           for attempt in $(seq 1 30); do
-            if curl --retry 1 --retry-delay 0 --retry-connrefused -fsS http://localhost:8000/api/v1/health >/dev/null; then
+            if curl --retry 1 --retry-delay 0 --retry-connrefused -fsS http://localhost:8000/api/v1/readyz >/dev/null; then
               break
             fi
             if [ "$attempt" -eq 30 ]; then
-              echo "Production-profile backend did not become ready on /api/v1/health" >&2
+              echo "Production-profile backend did not become ready on /api/v1/readyz" >&2
               cat ../prod-smoke-backend.log >&2 || true
               exit 1
             fi
@@ -215,21 +215,33 @@ jobs:
 
       - name: Verify production-profile health, auth config, docs, and headers
         run: |
+          curl --retry 5 --retry-delay 2 --retry-connrefused -fsS http://localhost:8000/api/v1/readyz > /tmp/prod-readyz.json
           curl --retry 5 --retry-delay 2 --retry-connrefused -fsS http://localhost:8000/api/v1/health > /tmp/prod-health.json
           python - <<'PY'
           import json
           import urllib.error
           import urllib.request
 
+          with urllib.request.urlopen("http://localhost:8000/api/v1/readyz", timeout=10) as response:
+              ready_payload = json.load(response)
+          assert set(ready_payload) == {"ready", "database", "redis", "scheduler_role", "scheduler_status"}, ready_payload
+          assert ready_payload["ready"] is True, ready_payload
+          assert ready_payload["database"] == "connected", ready_payload
+          assert ready_payload["redis"] == "connected", ready_payload
+          assert ready_payload["scheduler_role"] in {"disabled", "leader", "follower"}, ready_payload
+          assert ready_payload["scheduler_status"] in {"disabled", "leader_running", "follower_ready"}, ready_payload
+
           with urllib.request.urlopen("http://localhost:8000/api/v1/health", timeout=10) as response:
               payload = json.load(response)
               headers = response.headers
 
-          assert set(payload) == {"status", "database", "redis", "scheduler"}, payload
+          assert set(payload) == {"status", "ready", "database", "redis", "scheduler_role", "scheduler_status"}, payload
           assert payload["status"] == "healthy", payload
+          assert payload["ready"] is True, payload
           assert payload["database"] == "connected", payload
           assert payload["redis"] == "connected", payload
-          assert payload["scheduler"] in {"disabled", "stopped", "running"}, payload
+          assert payload["scheduler_role"] in {"disabled", "leader", "follower"}, payload
+          assert payload["scheduler_status"] in {"disabled", "leader_running", "follower_ready"}, payload
           assert headers["Strict-Transport-Security"] == "max-age=31536000; includeSubDomains; preload"
           csp = headers["Content-Security-Policy"]
           assert "style-src 'self' https://fonts.googleapis.com" in csp
@@ -258,5 +270,6 @@ jobs:
           name: production-profile-smoke
           path: |
             prod-smoke-backend.log
+            /tmp/prod-readyz.json
             /tmp/prod-health.json
           retention-days: 14

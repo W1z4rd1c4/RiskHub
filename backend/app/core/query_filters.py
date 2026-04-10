@@ -33,4 +33,3 @@ def vendor_visibility_clause(user: User, vendor_model: Any = Vendor) -> ClauseEl
             vendor_model.outsourcing_owner_user_id == user.id,
         ),
     )
-

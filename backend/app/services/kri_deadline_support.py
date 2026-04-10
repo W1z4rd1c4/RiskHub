@@ -32,9 +32,7 @@ async def load_kri_deadline_config(db: AsyncSession) -> dict[str, float | int]:
         "duplicate_lookback_days": await get_config_int(
             db, "duplicate_lookback_days", ConfigDefaults.DUPLICATE_LOOKBACK_DAYS
         ),
-        "reporting_grace_days": await get_config_int(
-            db, "reporting_grace_days", ConfigDefaults.REPORTING_GRACE_DAYS
-        ),
+        "reporting_grace_days": await get_config_int(db, "reporting_grace_days", ConfigDefaults.REPORTING_GRACE_DAYS),
         "advance_reminder_days": await get_config_int(
             db, "advance_reminder_days", ConfigDefaults.ADVANCE_REMINDER_DAYS
         ),
@@ -58,9 +56,7 @@ async def list_active_kris(db: AsyncSession) -> list[KeyRiskIndicator]:
 
 async def list_risk_managers(db: AsyncSession) -> list[User]:
     role_names = [role.value for role in {RoleType.RISK_MANAGER, RoleType.CRO, RoleType.ADMIN}]
-    permission_load = (
-        selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
-    )
+    permission_load = selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
     stmt = (
         select(User)
         .join(Role, User.role_id == Role.id)

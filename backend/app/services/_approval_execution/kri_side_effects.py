@@ -35,7 +35,10 @@ async def _apply_edit_kri(
 
     result = await db.execute(
         select(KeyRiskIndicator)
-        .options(selectinload(KeyRiskIndicator.risk), selectinload(KeyRiskIndicator.vendor_links).selectinload(VendorKRILink.vendor))
+        .options(
+            selectinload(KeyRiskIndicator.risk),
+            selectinload(KeyRiskIndicator.vendor_links).selectinload(VendorKRILink.vendor),
+        )
         .where(KeyRiskIndicator.id == approval.resource_id)
     )
     kri = result.scalar_one_or_none()

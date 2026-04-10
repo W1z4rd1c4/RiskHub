@@ -93,9 +93,7 @@ async def get_orphan_detail(db: AsyncSession, orphan_id: int) -> dict | None:
     from sqlalchemy.orm import selectinload
 
     result = await db.execute(
-        select(OrphanedItem)
-        .options(selectinload(OrphanedItem.previous_owner))
-        .where(OrphanedItem.id == orphan_id)
+        select(OrphanedItem).options(selectinload(OrphanedItem.previous_owner)).where(OrphanedItem.id == orphan_id)
     )
     orphan = result.scalar_one_or_none()
 
@@ -121,4 +119,3 @@ async def get_orphan_detail(db: AsyncSession, orphan_id: int) -> dict | None:
         "orphaned_at": orphan.orphaned_at,
         "status": orphan.status,
     }
-

@@ -17,6 +17,7 @@ from app.core.scheduler import (
     SchedulerLockProvider,
     configure_scheduler,
     execute_tracked_job,
+    get_scheduler_role_status,
     start_scheduler_async,
 )
 from app.models.outbox_event import OutboxEvent
@@ -26,6 +27,28 @@ from app.services.outbox.store import NON_POSTGRES_OUTBOX_SINGLE_WORKER_ERROR
 
 def _registered_job_ids(test_scheduler: AsyncIOScheduler) -> set[str]:
     return {job.id for job in test_scheduler.get_jobs()}
+
+
+def test_scheduler_role_status_reports_leader() -> None:
+    assert get_scheduler_role_status(
+        scheduler_enabled=True,
+        scheduler_running=True,
+        lock_acquired=True,
+    ) == {
+        "scheduler_role": "leader",
+        "scheduler_status": "leader_running",
+    }
+
+
+def test_scheduler_role_status_reports_follower_ready() -> None:
+    assert get_scheduler_role_status(
+        scheduler_enabled=True,
+        scheduler_running=False,
+        lock_acquired=False,
+    ) == {
+        "scheduler_role": "follower",
+        "scheduler_status": "follower_ready",
+    }
 
 
 @pytest_asyncio.fixture
@@ -71,10 +94,16 @@ async def test_scheduler_start_with_lock_acquired_starts_runtime_and_records_own
     async_session = async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
     async with async_session() as session:
         runtime_rows = (
-            await session.execute(
-                select(SchedulerJobRun).where(SchedulerJobRun.job_name == isolated_scheduler.SCHEDULER_RUNTIME_JOB_NAME)
+            (
+                await session.execute(
+                    select(SchedulerJobRun).where(
+                        SchedulerJobRun.job_name == isolated_scheduler.SCHEDULER_RUNTIME_JOB_NAME
+                    )
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         assert len(runtime_rows) == 1
 
 
@@ -98,10 +127,16 @@ async def test_scheduler_outbox_only_profile_registers_only_dispatch_job_and_rec
     async_session = async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
     async with async_session() as session:
         runtime_rows = (
-            await session.execute(
-                select(SchedulerJobRun).where(SchedulerJobRun.job_name == isolated_scheduler.SCHEDULER_RUNTIME_JOB_NAME)
+            (
+                await session.execute(
+                    select(SchedulerJobRun).where(
+                        SchedulerJobRun.job_name == isolated_scheduler.SCHEDULER_RUNTIME_JOB_NAME
+                    )
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         assert len(runtime_rows) == 1
 
 
@@ -124,10 +159,16 @@ async def test_scheduler_stop_marks_runtime_run_stopped(
     async_session = async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
     async with async_session() as session:
         runtime_rows = (
-            await session.execute(
-                select(SchedulerJobRun).where(SchedulerJobRun.job_name == isolated_scheduler.SCHEDULER_RUNTIME_JOB_NAME)
+            (
+                await session.execute(
+                    select(SchedulerJobRun).where(
+                        SchedulerJobRun.job_name == isolated_scheduler.SCHEDULER_RUNTIME_JOB_NAME
+                    )
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         assert len(runtime_rows) == 1
         assert runtime_rows[0].status == "stopped"
         assert runtime_rows[0].finished_at is not None
@@ -211,10 +252,10 @@ async def test_execute_tracked_job_records_success(async_engine: AsyncEngine, is
     async_session = async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
     async with async_session() as session:
         rows = (
-            await session.execute(
-                select(SchedulerJobRun).where(SchedulerJobRun.job_name == "test_success_job")
-            )
-        ).scalars().all()
+            (await session.execute(select(SchedulerJobRun).where(SchedulerJobRun.job_name == "test_success_job")))
+            .scalars()
+            .all()
+        )
         assert len(rows) == 1
         assert rows[0].status == "succeeded"
         assert rows[0].result_json == {"processed": 3}
@@ -231,10 +272,10 @@ async def test_execute_tracked_job_records_failure(async_engine: AsyncEngine, is
     async_session = async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
     async with async_session() as session:
         rows = (
-            await session.execute(
-                select(SchedulerJobRun).where(SchedulerJobRun.job_name == "test_failure_job")
-            )
-        ).scalars().all()
+            (await session.execute(select(SchedulerJobRun).where(SchedulerJobRun.job_name == "test_failure_job")))
+            .scalars()
+            .all()
+        )
         assert len(rows) == 1
         assert rows[0].status == "failed"
         assert rows[0].error_message == "boom"
@@ -260,6 +301,8 @@ async def test_admin_jobs_status_returns_runtime_and_latest_runs(
             "scheduler_running": False,
             "lock_provider": "noop",
             "lock_acquired": False,
+            "scheduler_role": "disabled",
+            "scheduler_status": "disabled",
         },
     )
 

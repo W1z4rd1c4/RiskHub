@@ -290,4 +290,3 @@ CONTROL_RISK_LINKS = [
     (4, 4, "high", "Reserve validation ensures adequacy"),
     (5, 0, "medium", "Invoice approval affects cash outflow"),
 ]
-

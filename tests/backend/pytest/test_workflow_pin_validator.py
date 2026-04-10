@@ -1,33 +1,24 @@
 from __future__ import annotations
 
 import importlib.util
-from pathlib import Path
 import re
-
+from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 VALIDATOR_PATH = REPO_ROOT / "scripts" / "security" / "validate_workflow_pins.py"
 SECURITY_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "security.yml"
 RELEASE_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "release.yml"
-RELEASE_PARITY_PR_WORKFLOW = (
-    REPO_ROOT / ".github" / "workflows" / "release-parity-pr.yml"
-)
-MAINTENANCE_GOVERNANCE_WORKFLOW = (
-    REPO_ROOT / ".github" / "workflows" / "maintenance-governance.yml"
-)
+RELEASE_PARITY_PR_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "release-parity-pr.yml"
+MAINTENANCE_GOVERNANCE_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "maintenance-governance.yml"
 LINT_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "lint.yml"
 BACKEND_POSTGRES_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "backend-postgres.yml"
 E2E_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "e2e.yml"
 STARTUP_SMOKE_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "startup-smoke.yml"
-LOCAL_PROD_AUDIT = (
-    REPO_ROOT / "scripts" / "security" / "run_prod_readiness_audit_local.sh"
-)
+LOCAL_PROD_AUDIT = REPO_ROOT / "scripts" / "security" / "run_prod_readiness_audit_local.sh"
 
 
 def _load_validator_module():
-    spec = importlib.util.spec_from_file_location(
-        "validate_workflow_pins", VALIDATOR_PATH
-    )
+    spec = importlib.util.spec_from_file_location("validate_workflow_pins", VALIDATOR_PATH)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -169,9 +160,7 @@ def test_maintenance_workflow_keeps_backend_job_informational_only() -> None:
     assert "continue-on-error: true" in text
 
 
-def test_release_parity_contract_workflow_is_manual_only_and_keeps_contract_validators() -> (
-    None
-):
+def test_release_parity_contract_workflow_is_manual_only_and_keeps_contract_validators() -> None:
     text = RELEASE_PARITY_PR_WORKFLOW.read_text(encoding="utf-8")
 
     assert "workflow_dispatch:" in text
@@ -198,7 +187,7 @@ def test_e2e_workflow_uses_canonical_health_route_and_no_fixed_sleep() -> None:
     text = E2E_WORKFLOW.read_text(encoding="utf-8")
 
     assert "sleep 10" not in text
-    assert "http://localhost:8000/api/v1/health" in text
+    assert "http://localhost:8000/api/v1/readyz" in text
     assert "http://localhost:8000/health" not in text
     assert "ENABLE_SCHEDULER: 'true'" in text
     assert "SCHEDULER_JOB_PROFILE: outbox_only" in text
@@ -218,7 +207,7 @@ def test_e2e_workflow_defines_production_profile_smoke_lane() -> None:
         "AUTH_SSO_ALLOW_EMAIL_LINK: 'false'",
         "REDIS_URL: redis://localhost:6379/0",
         "image: redis:7@sha256:",
-        'assert set(payload) == {"status", "database", "redis", "scheduler"}',
+        'assert set(payload) == {"status", "ready", "database", "redis", "scheduler_role", "scheduler_status"}',
         'assert payload["redis"] == "connected"',
     ):
         assert snippet in text
@@ -229,9 +218,7 @@ def test_security_workflow_runs_container_scan_in_pull_requests() -> None:
 
     assert "pull_request:" in text
     assert "container-security:" in text
-    assert (
-        "if: github.event_name == 'push' || github.event_name == 'schedule'" not in text
-    )
+    assert "if: github.event_name == 'push' || github.event_name == 'schedule'" not in text
 
 
 def test_maintenance_governance_workflow_owns_docs_and_maintenance_only_gates() -> None:
@@ -246,9 +233,7 @@ def test_maintenance_governance_workflow_owns_docs_and_maintenance_only_gates() 
     assert "mypy --config-file mypy.ini app" in text
 
 
-def test_startup_smoke_workflow_asserts_health_schema_headers_and_docs_exposure() -> (
-    None
-):
+def test_startup_smoke_workflow_asserts_health_schema_headers_and_docs_exposure() -> None:
     text = STARTUP_SMOKE_WORKFLOW.read_text(encoding="utf-8")
 
     assert "pull_request:" not in text
@@ -256,7 +241,8 @@ def test_startup_smoke_workflow_asserts_health_schema_headers_and_docs_exposure(
     assert "schedule:" in text
 
     for snippet in (
-        'assert set(health) == {"status", "database", "redis", "scheduler"}',
+        'assert set(readyz) == {"ready", "database", "redis", "scheduler_role", "scheduler_status"}',
+        'assert set(health) == {"status", "ready", "database", "redis", "scheduler_role", "scheduler_status"}',
         "grep -qi '^x-frame-options: DENY'",
         "grep -qi '^content-security-policy:'",
         "grep -q '<script type=\"module\"'",

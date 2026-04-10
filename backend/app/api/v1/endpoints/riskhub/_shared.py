@@ -51,4 +51,3 @@ def require_cro(current_user: User) -> User:
 def get_cro_user(current_user: User = Depends(get_current_user)) -> User:
     """FastAPI dependency: authenticated user with CRO role."""
     return require_cro(current_user)
-

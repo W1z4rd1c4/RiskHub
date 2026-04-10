@@ -121,7 +121,9 @@ async def list_controls(
     query = filtered_query.options(*query_options).order_by(Control.name).offset(skip).limit(limit)
     result = await db.execute(query)
     controls = result.scalars().all()
-    control_monitoring_rows = [(control, build_control_monitoring_fields(control, monitoring_context)) for control in controls]
+    control_monitoring_rows = [
+        (control, build_control_monitoring_fields(control, monitoring_context)) for control in controls
+    ]
 
     # Map to summary with department_name and risk info
     from app.core.permissions import (
@@ -172,7 +174,9 @@ async def list_controls(
                 linked_vendors=[
                     LinkedVendorRead(id=link.vendor.id, name=link.vendor.name)
                     for link in getattr(c, "vendor_links", []) or []
-                    if getattr(link, "vendor", None) is not None and can_read_vendors and can_read_vendor(link.vendor, current_user)
+                    if getattr(link, "vendor", None) is not None
+                    and can_read_vendors
+                    and can_read_vendor(link.vendor, current_user)
                 ],
                 **monitoring_fields,
             )

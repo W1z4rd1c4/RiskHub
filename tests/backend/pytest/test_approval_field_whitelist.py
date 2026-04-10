@@ -99,9 +99,9 @@ class TestWhitelistEnforcement:
             reason="Whitelist enforcement",
             status=ApprovalStatus.PENDING,
             pending_changes={
-            "id": {"old": 999, "new": 1},  # Injection attempt!
-            "name": {"old": "Old", "new": "New"},  # Legitimate edit
-        }
+                "id": {"old": 999, "new": 1},  # Injection attempt!
+                "name": {"old": "Old", "new": "New"},  # Legitimate edit
+            },
         )
         db_session.add(approval)
         await db_session.commit()

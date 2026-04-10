@@ -35,9 +35,7 @@ class User(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     external_id: Mapped[str | None] = mapped_column(String(255), unique=True, index=True, nullable=True)
     email: Mapped[str] = mapped_column(String(255), nullable=False)
-    __table_args__ = (
-        Index("ux_users_email_lower", func.lower(email), unique=True),
-    )
+    __table_args__ = (Index("ux_users_email_lower", func.lower(email), unique=True),)
     name: Mapped[str] = mapped_column(String(255))
     job_title: Mapped[str | None] = mapped_column(String(255), nullable=True)
     # Entra-owned organizational metadata. This must never drive RiskHub authorization.

@@ -103,4 +103,3 @@ async def _notify_exception_approved(
             resource_type="issue",
             resource_id=issue.id,
         )
-

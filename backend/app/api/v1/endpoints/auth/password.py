@@ -90,8 +90,10 @@ async def login(
         )
 
     # Eager load role and permissions
-    permission_load = selectinload(User.role).selectinload(User.role.property.mapper.class_.permissions).selectinload(
-        RolePermission.permission
+    permission_load = (
+        selectinload(User.role)
+        .selectinload(User.role.property.mapper.class_.permissions)
+        .selectinload(RolePermission.permission)
     )
 
     result = await db.execute(

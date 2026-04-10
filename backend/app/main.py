@@ -77,28 +77,32 @@ def validate_settings_for_runtime(settings: Settings) -> None:
             f"FATAL: {invariant_map['ALLOWED_HOSTS'].key} must be set to an explicit allowlist when DEBUG=false."
         )
     if settings.auth_mode != invariant_map["AUTH_MODE"].required_value:
-        raise RuntimeError(
-            f"FATAL: AUTH_MODE must be '{invariant_map['AUTH_MODE'].required_value}' when DEBUG=false."
-        )
+        raise RuntimeError(f"FATAL: AUTH_MODE must be '{invariant_map['AUTH_MODE'].required_value}' when DEBUG=false.")
     if not settings.entra_tenant_id or not settings.entra_client_id:
         raise RuntimeError(
             "FATAL: ENTRA_TENANT_ID and ENTRA_CLIENT_ID are required when AUTH_MODE=microsoft_sso and DEBUG=false."
         )
-    if settings.directory_provider != invariant_map["DIRECTORY_PROVIDER"].required_value:
+    required_directory_provider = invariant_map["DIRECTORY_PROVIDER"].required_value
+    if settings.directory_provider != required_directory_provider:
         raise RuntimeError(
-            f"FATAL: DIRECTORY_PROVIDER must be '{invariant_map['DIRECTORY_PROVIDER'].required_value}' when DEBUG=false."
+            "FATAL: DIRECTORY_PROVIDER must be "
+            f"'{required_directory_provider}' when DEBUG=false."
         )
     if settings.ad_emulator_base_url:
         raise RuntimeError("FATAL: AD_EMULATOR_BASE_URL must be unset when DEBUG=false.")
     if settings.entra_confidential_credential is None:
         raise RuntimeError("FATAL: An Entra Graph confidential credential is required when DEBUG=false.")
+    jit_required_value = invariant_map["ENTRA_JIT_PROVISIONING_ENABLED"].required_value
     if settings.entra_jit_provisioning_enabled:
         raise RuntimeError(
-            f"FATAL: ENTRA_JIT_PROVISIONING_ENABLED must be {invariant_map['ENTRA_JIT_PROVISIONING_ENABLED'].required_value} when DEBUG=false."
+            "FATAL: ENTRA_JIT_PROVISIONING_ENABLED must be "
+            f"{jit_required_value} when DEBUG=false."
         )
+    email_link_required_value = invariant_map["AUTH_SSO_ALLOW_EMAIL_LINK"].required_value
     if settings.auth_sso_allow_email_link:
         raise RuntimeError(
-            f"FATAL: AUTH_SSO_ALLOW_EMAIL_LINK must be {invariant_map['AUTH_SSO_ALLOW_EMAIL_LINK'].required_value} when DEBUG=false."
+            "FATAL: AUTH_SSO_ALLOW_EMAIL_LINK must be "
+            f"{email_link_required_value} when DEBUG=false."
         )
 
     broad_proxy_entries = find_broad_trusted_proxy_entries(settings.trusted_proxies)

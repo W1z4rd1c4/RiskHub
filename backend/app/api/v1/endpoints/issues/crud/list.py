@@ -77,9 +77,7 @@ async def list_issues(
     if linked_risk_id is not None:
         query = query.where(Issue.id.in_(select(IssueLink.issue_id).where(IssueLink.risk_id == linked_risk_id)))
     if linked_control_id is not None:
-        query = query.where(
-            Issue.id.in_(select(IssueLink.issue_id).where(IssueLink.control_id == linked_control_id))
-        )
+        query = query.where(Issue.id.in_(select(IssueLink.issue_id).where(IssueLink.control_id == linked_control_id)))
     if linked_vendor_id is not None:
         query = query.where(Issue.id.in_(select(IssueLink.issue_id).where(IssueLink.vendor_id == linked_vendor_id)))
 
@@ -112,7 +110,10 @@ async def list_issues(
             selectinload(Issue.department),
             selectinload(Issue.owner),
             selectinload(Issue.links).selectinload(IssueLink.risk),
-            selectinload(Issue.links).selectinload(IssueLink.control).selectinload(Control.risk_links).selectinload(ControlRiskLink.risk),
+            selectinload(Issue.links)
+            .selectinload(IssueLink.control)
+            .selectinload(Control.risk_links)
+            .selectinload(ControlRiskLink.risk),
             selectinload(Issue.links)
             .selectinload(IssueLink.execution)
             .selectinload(ControlExecution.control)

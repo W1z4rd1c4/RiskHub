@@ -63,7 +63,8 @@ RiskHub production deploys must satisfy these invariants:
 
 - Backend and frontend runtime processes must run as non-root.
 - Keep `/docs` and `/openapi.json` disabled in production.
-- Keep the public `/api/v1/health` probe minimal; use `/api/v1/admin/health` for detailed runtime diagnostics.
+- Use `/api/v1/readyz` for machine-facing readiness checks.
+- Use `/api/v1/health` for public diagnostic health detail and `/api/v1/admin/health` for deeper authenticated runtime diagnostics.
 - Keep Redis enabled because rate limiting and account lockout depend on it.
 - Keep the segmented rate-limit boundary in mind when changing production controls:
   - route policy now lives in `backend/app/middleware/rate_limit/policy.py`

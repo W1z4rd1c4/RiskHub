@@ -1,4 +1,5 @@
 """Questionnaire deadline checking service for generating notifications."""
+
 import logging
 from datetime import UTC, datetime, timedelta
 

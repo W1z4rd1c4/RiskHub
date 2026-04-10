@@ -1,9 +1,8 @@
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime
 
 import pytest
 
-from app.models.global_config import ConfigDefaults, GlobalConfig
-from app.models.global_config import clear_config_cache
+from app.models.global_config import ConfigDefaults, GlobalConfig, clear_config_cache
 from app.services._monitoring_status import (
     ControlMonitoringConfig,
     ControlMonitoringFacts,
@@ -224,12 +223,15 @@ def test_kri_monitoring_optimal_when_within_limits_and_not_near_upper_limit():
 
 
 def test_kri_upper_warning_margin_ignores_lower_boundary_proximity():
-    assert is_within_upper_warning_margin(
-        current_value=0.8,
-        lower_limit=0.0,
-        upper_limit=10.0,
-        warning_upper_margin_ratio=0.10,
-    ) is False
+    assert (
+        is_within_upper_warning_margin(
+            current_value=0.8,
+            lower_limit=0.0,
+            upper_limit=10.0,
+            warning_upper_margin_ratio=0.10,
+        )
+        is False
+    )
 
 
 @pytest.mark.asyncio

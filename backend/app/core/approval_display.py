@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from app.models import ApprovalRequest, ApprovalResourceType
 
-
 _UNKNOWN_RESOURCE_LABELS: dict[str, str] = {
     "risk": "Unknown risk",
     "control": "Unknown control",

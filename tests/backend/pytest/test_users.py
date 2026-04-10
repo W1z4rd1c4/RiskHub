@@ -395,6 +395,7 @@ async def test_mock_login_disabled_returns_404(
     test_user: User,
 ):
     """Mock login endpoint should be unavailable unless debug+mock auth are both enabled."""
+
     def override_settings_disabled():
         return Settings(secret_key="test-secret-key-32-chars-minimum-value", debug=True, mock_auth_enabled=False)
 
@@ -413,6 +414,7 @@ async def test_mock_login_enabled_in_debug_mode(
     test_user: User,
 ):
     """Mock login endpoint should work only when debug+mock auth are enabled."""
+
     def override_settings_enabled():
         return Settings(secret_key="test-secret-key-32-chars-minimum-value", debug=True, mock_auth_enabled=True)
 

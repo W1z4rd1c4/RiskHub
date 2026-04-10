@@ -100,4 +100,3 @@ def has_sensitive_field_changes(
         changed[field] = {"old": old_val, "new": new_val}
 
     return bool(changed), changed
-

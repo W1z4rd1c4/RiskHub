@@ -14,15 +14,15 @@ async function globalSetup(config: FullConfig): Promise<void> {
 
     console.log('🔍 E2E Global Setup: Verifying services...');
 
-    // Check backend health
+    // Check backend readiness
     try {
-        const backendResponse = await fetch(`${backendUrl}/api/v1/health`);
+        const backendResponse = await fetch(`${backendUrl}/api/v1/readyz`);
         if (!backendResponse.ok) {
-            throw new Error(`Backend health check failed: ${backendResponse.status}`);
+            throw new Error(`Backend readiness check failed: ${backendResponse.status}`);
         }
-        console.log('✅ Backend is healthy');
+        console.log('✅ Backend is ready');
     } catch (error) {
-        console.error('❌ Backend health check failed:', error);
+        console.error('❌ Backend readiness check failed:', error);
         console.log('   Make sure backend is running: cd backend && python -m uvicorn app.main:app --reload');
         throw new Error('Backend is not available. Start it before running E2E tests.');
     }

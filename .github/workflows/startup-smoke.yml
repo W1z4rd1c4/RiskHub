@@ -25,32 +25,47 @@ jobs:
           mkdir -p .ci-artifacts/startup-smoke
           ./scripts/compose.sh up | tee .ci-artifacts/startup-smoke/compose-up.log
 
-      - name: Verify health, headers, auth config, and docs exposure
+      - name: Verify readiness, health, headers, auth config, and docs exposure
         run: |
           set -euo pipefail
+          curl --retry 12 --retry-delay 2 --retry-connrefused -fsS http://localhost:8000/api/v1/livez | tee .ci-artifacts/startup-smoke/livez.json
+          curl --retry 12 --retry-delay 2 --retry-connrefused -fsS http://localhost:8000/api/v1/readyz | tee .ci-artifacts/startup-smoke/readyz.json
           curl --retry 12 --retry-delay 2 --retry-connrefused -fsS http://localhost:8000/api/v1/health | tee .ci-artifacts/startup-smoke/health.json
           curl --retry 12 --retry-delay 2 --retry-connrefused -fsS http://localhost:8000/api/v1/auth/config | tee .ci-artifacts/startup-smoke/auth-config.json
-          curl --retry 12 --retry-delay 2 --retry-connrefused -fsS -D .ci-artifacts/startup-smoke/health.headers http://localhost:8000/api/v1/health -o /dev/null
+          curl --retry 12 --retry-delay 2 --retry-connrefused -fsS -D .ci-artifacts/startup-smoke/readyz.headers http://localhost:8000/api/v1/readyz -o /dev/null
           curl --retry 12 --retry-delay 2 --retry-connrefused -fsS -D .ci-artifacts/startup-smoke/login.headers http://localhost/login -o .ci-artifacts/startup-smoke/login.html
           curl --retry 12 --retry-delay 2 --retry-connrefused -fsS http://localhost:8000/docs -o .ci-artifacts/startup-smoke/docs.html
           python3 - <<'PY'
           import json
           from pathlib import Path
 
+          livez = json.loads(Path(".ci-artifacts/startup-smoke/livez.json").read_text(encoding="utf-8"))
+          assert livez == {"status": "alive"}
+
+          readyz = json.loads(Path(".ci-artifacts/startup-smoke/readyz.json").read_text(encoding="utf-8"))
+          assert set(readyz) == {"ready", "database", "redis", "scheduler_role", "scheduler_status"}
+          assert readyz["ready"] is True
+          assert readyz["database"] == "connected"
+          assert readyz["redis"] in {"connected", "disabled"}
+          assert readyz["scheduler_role"] in {"disabled", "leader", "follower"}
+          assert readyz["scheduler_status"] in {"disabled", "leader_running", "follower_ready"}
+
           health = json.loads(Path(".ci-artifacts/startup-smoke/health.json").read_text(encoding="utf-8"))
-          assert set(health) == {"status", "database", "redis", "scheduler"}
-          assert health["status"] in {"healthy", "degraded"}
+          assert set(health) == {"status", "ready", "database", "redis", "scheduler_role", "scheduler_status"}
+          assert health["status"] == "healthy"
+          assert health["ready"] is True
           assert health["database"] == "connected"
           assert health["redis"] in {"connected", "disabled"}
-          assert health["scheduler"] in {"running", "disabled", "stopped"}
+          assert health["scheduler_role"] in {"disabled", "leader", "follower"}
+          assert health["scheduler_status"] in {"disabled", "leader_running", "follower_ready"}
 
           auth_config = json.loads(Path(".ci-artifacts/startup-smoke/auth-config.json").read_text(encoding="utf-8"))
           assert "auth_mode" in auth_config
           assert "sso" in auth_config
           assert "demo_login_enabled" in auth_config
           PY
-          grep -qi '^x-frame-options: DENY' .ci-artifacts/startup-smoke/health.headers
-          grep -qi '^content-security-policy:' .ci-artifacts/startup-smoke/health.headers
+          grep -qi '^x-frame-options: DENY' .ci-artifacts/startup-smoke/readyz.headers
+          grep -qi '^content-security-policy:' .ci-artifacts/startup-smoke/readyz.headers
           grep -q 'id="root"' .ci-artifacts/startup-smoke/login.html
           grep -q '<script type="module"' .ci-artifacts/startup-smoke/login.html
           grep -q 'Swagger UI' .ci-artifacts/startup-smoke/docs.html

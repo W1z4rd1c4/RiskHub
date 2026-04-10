@@ -67,9 +67,7 @@ async def link_risk_to_control(
     from app.models import Control
 
     # Verify risk exists
-    result = await db.execute(
-        select(Risk).where(Risk.id == risk_id)
-    )
+    result = await db.execute(select(Risk).where(Risk.id == risk_id))
     risk = result.scalar_one_or_none()
     if not risk:
         raise HTTPException(status_code=404, detail="Risk not found")
@@ -91,15 +89,14 @@ async def link_risk_to_control(
         raise HTTPException(status_code=403, detail="Access denied to risk")
 
     # Verify control exists
-    result = await db.execute(
-        select(Control).where(Control.id == link_data.control_id)
-    )
+    result = await db.execute(select(Control).where(Control.id == link_data.control_id))
     control = result.scalar_one_or_none()
     if not control:
         raise HTTPException(status_code=404, detail="Control not found")
 
     # Verify access for control: ownership OR department
     from app.core.permissions import is_control_owner
+
     is_ctrl_owner = await is_control_owner(db, current_user.id, control.id)
     if not is_ctrl_owner:
         check_department_access(control.department_id, current_user)

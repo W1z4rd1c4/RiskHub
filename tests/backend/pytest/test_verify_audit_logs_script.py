@@ -70,11 +70,7 @@ class TestVerifyAuditLog:
                 "request_id": "2",
             }
         )
-        log_file.write_text(
-            f"{good_line_1}\n"
-            "not valid json\n"
-            f"{good_line_2}\n"
-        )
+        log_file.write_text(f"{good_line_1}\n" "not valid json\n" f"{good_line_2}\n")
 
         result = verify_audit_log(log_file, enforce_logger=True)
         assert not result.passed

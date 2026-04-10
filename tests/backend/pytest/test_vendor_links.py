@@ -537,7 +537,9 @@ async def test_vendor_linked_kris_filter_invisible_and_support_unlink(
     await db_session.refresh(visible_risk)
     await db_session.refresh(hidden_risk)
 
-    visible_kri = _make_kri(risk_id=visible_risk.id, metric_name="Visible Vendor KRI", reporting_owner_id=test_user_employee.id)
+    visible_kri = _make_kri(
+        risk_id=visible_risk.id, metric_name="Visible Vendor KRI", reporting_owner_id=test_user_employee.id
+    )
     hidden_kri = _make_kri(risk_id=hidden_risk.id, metric_name="Hidden Vendor KRI")
     hidden_kri.is_archived = True
     db_session.add_all([visible_kri, hidden_kri])

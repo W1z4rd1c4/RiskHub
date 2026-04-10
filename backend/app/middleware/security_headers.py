@@ -26,9 +26,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         self.csp_report_uri = csp_report_uri
         self._default_settings = get_settings()
 
-    async def dispatch(
-        self, request: Request, call_next: RequestResponseEndpoint
-    ) -> Response:
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         response = await call_next(request)
         settings = getattr(request.app.state, "settings", self._default_settings)
 
@@ -36,14 +34,10 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
-        response.headers["Permissions-Policy"] = (
-            "geolocation=(), microphone=(), camera=(), payment=(), usb=()"
-        )
+        response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=(), payment=(), usb=()"
 
         if self.enable_hsts and not settings.debug:
-            response.headers["Strict-Transport-Security"] = (
-                "max-age=31536000; includeSubDomains; preload"
-            )
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains; preload"
 
         if settings.debug:
             csp_directives = [

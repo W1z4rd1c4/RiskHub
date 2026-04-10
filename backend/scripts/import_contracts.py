@@ -38,9 +38,7 @@ class ImportReport:
         row: int | None = None,
         details: dict[str, Any] | None = None,
     ) -> None:
-        self.warnings.append(
-            ImportIssue(code=code, message=message, sheet=sheet, row=row, details=details or {})
-        )
+        self.warnings.append(ImportIssue(code=code, message=message, sheet=sheet, row=row, details=details or {}))
 
     def add_error(
         self,
@@ -51,9 +49,7 @@ class ImportReport:
         row: int | None = None,
         details: dict[str, Any] | None = None,
     ) -> None:
-        self.errors.append(
-            ImportIssue(code=code, message=message, sheet=sheet, row=row, details=details or {})
-        )
+        self.errors.append(ImportIssue(code=code, message=message, sheet=sheet, row=row, details=details or {}))
 
     @property
     def ok(self) -> bool:
@@ -82,4 +78,3 @@ def write_report(path: str | None, report: ImportReport) -> None:
     report_path = Path(path)
     report_path.parent.mkdir(parents=True, exist_ok=True)
     report_path.write_text(f"{json.dumps(report.to_dict(), indent=2, ensure_ascii=True)}\n", encoding="utf-8")
-

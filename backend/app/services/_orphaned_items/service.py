@@ -76,4 +76,3 @@ class OrphanedItemService:
     @staticmethod
     async def get_orphan_detail(db: AsyncSession, orphan_id: int) -> dict | None:
         return await _get_orphan_detail(db, orphan_id)
-

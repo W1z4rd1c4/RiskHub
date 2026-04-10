@@ -1,34 +1,30 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 
 from sqlalchemy import and_, exists, false, func, literal, or_, select
 from sqlalchemy.sql import Select
 
 from app.models.control import Control
 from app.models.control_execution import ControlExecution, ExecutionResult
-from app.models.key_risk_indicator import KRIFrequency, KeyRiskIndicator
-from app.models.kri_history import KRIValueHistory
+from app.models.key_risk_indicator import KeyRiskIndicator, KRIFrequency
 from app.services._kri_history.periods import due_date, latest_closed_period_for_date, period_bounds_for_date
 
 from .types import ControlMonitoringStatus, KRIMonitoringStatus, KRITimelinessStatus
 
 
 def _latest_control_execution_subquery():
-    ranked = (
-        select(
-            ControlExecution.control_id.label("control_id"),
-            ControlExecution.executed_at.label("executed_at"),
-            ControlExecution.result.label("result"),
-            func.row_number()
-            .over(
-                partition_by=ControlExecution.control_id,
-                order_by=(ControlExecution.executed_at.desc(), ControlExecution.id.desc()),
-            )
-            .label("row_num"),
+    ranked = select(
+        ControlExecution.control_id.label("control_id"),
+        ControlExecution.executed_at.label("executed_at"),
+        ControlExecution.result.label("result"),
+        func.row_number()
+        .over(
+            partition_by=ControlExecution.control_id,
+            order_by=(ControlExecution.executed_at.desc(), ControlExecution.id.desc()),
         )
-        .subquery()
-    )
+        .label("row_num"),
+    ).subquery()
     return (
         select(
             ranked.c.control_id,

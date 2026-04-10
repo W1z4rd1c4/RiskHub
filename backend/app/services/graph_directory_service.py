@@ -14,6 +14,14 @@ from app.services.graph_directory_errors import (
 )
 from app.services.graph_directory_transport import GraphApiTransport
 
+__all__ = [
+    "GraphDirectoryService",
+    "GraphDirectoryProviderError",
+    "GraphProviderUnavailableError",
+    "GraphUserNotFoundError",
+    "reset_graph_token_cache_for_tests",
+]
+
 
 class GraphDirectoryService:
     """Microsoft Graph directory client using client-credentials flow."""
@@ -82,7 +90,8 @@ class GraphDirectoryService:
             return []
         matches = [self._to_directory_user(row) for row in items if isinstance(row, dict)]
         return [
-            row for row in matches
+            row
+            for row in matches
             if normalize_email(row.email) == normalized or normalize_email(row.user_principal_name) == normalized
         ]
 

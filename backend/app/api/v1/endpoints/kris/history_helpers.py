@@ -75,9 +75,7 @@ async def _create_kri_submission_approval(
 
     from app.core.approval_helpers import create_approval_request_with_audit
     from app.models import ApprovalActionType, ApprovalRequest, ApprovalResourceType, ApprovalStatus
-    from app.models.notification import NotificationType
     from app.services.kri_history_service import KRIHistoryService
-    from app.services.notification_service import NotificationService
 
     today = date.today()
     _, latest_closed_end = KRIHistoryService.latest_closed_period_for_date(today, kri.frequency)
@@ -173,6 +171,7 @@ async def _apply_kri_value_directly(
 
     if breach_detected:
         if kri.reporting_owner_id:
+
             async def _notify_reporting_owner() -> None:
                 await NotificationService.create_notification(
                     db=db,
@@ -190,6 +189,7 @@ async def _apply_kri_value_directly(
             )
 
         if kri.risk and kri.risk.owner_id and kri.risk.owner_id != kri.reporting_owner_id:
+
             async def _notify_risk_owner() -> None:
                 await NotificationService.create_notification(
                     db=db,

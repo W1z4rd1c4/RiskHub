@@ -69,6 +69,7 @@ async def test_shared_employee_fixture_matches_canonical_seed_contract(
     )
     role = result.scalar_one()
     fixture_permission_keys = {
-        f"{role_permission.permission.resource}:{role_permission.permission.action}" for role_permission in role.permissions
+        f"{role_permission.permission.resource}:{role_permission.permission.action}"
+        for role_permission in role.permissions
     }
     assert fixture_permission_keys == expand_permission_keys(RBAC_ROLE_PERMISSIONS["employee"])

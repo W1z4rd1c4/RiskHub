@@ -29,9 +29,7 @@ class ProtocolGuardMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self._default_settings = get_settings()
 
-    async def dispatch(
-        self, request: Request, call_next: RequestResponseEndpoint
-    ) -> Response:
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         settings = getattr(request.app.state, "settings", self._default_settings)
         if not getattr(settings, "protocol_guard_enabled", True):
             return await call_next(request)

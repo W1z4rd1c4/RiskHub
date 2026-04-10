@@ -6,7 +6,6 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[3]
 INSTALL_SCRIPT = REPO_ROOT / "scripts" / "install.sh"
 COMPOSE_SCRIPT = REPO_ROOT / "scripts" / "compose.sh"
@@ -103,16 +102,32 @@ case "${subcmd}" in
       container="${1:-}"
       case "${container}" in
         riskhub-redis)
-          if [[ "$format" == *".State.Running"* ]]; then printf 'true\\n'; else printf '%s\\n' "${RISKHUB_TEST_REDIS_IMAGE:-ghcr.io/example/riskhub-redis:v1.2.3}"; fi
+          if [[ "$format" == *".State.Running"* ]]; then
+            printf 'true\\n'
+          else
+            printf '%s\\n' "${RISKHUB_TEST_REDIS_IMAGE:-ghcr.io/example/riskhub-redis:v1.2.3}"
+          fi
           ;;
         riskhub-backend)
-          if [[ "$format" == *".State.Running"* ]]; then printf 'true\\n'; else printf '%s\\n' "${RISKHUB_TEST_BACKEND_IMAGE:-ghcr.io/example/riskhub-backend:v1.2.3}"; fi
+          if [[ "$format" == *".State.Running"* ]]; then
+            printf 'true\\n'
+          else
+            printf '%s\\n' "${RISKHUB_TEST_BACKEND_IMAGE:-ghcr.io/example/riskhub-backend:v1.2.3}"
+          fi
           ;;
         riskhub-backend-scheduler)
-          if [[ "$format" == *".State.Running"* ]]; then printf 'true\\n'; else printf '%s\\n' "${RISKHUB_TEST_BACKEND_IMAGE:-ghcr.io/example/riskhub-backend:v1.2.3}"; fi
+          if [[ "$format" == *".State.Running"* ]]; then
+            printf 'true\\n'
+          else
+            printf '%s\\n' "${RISKHUB_TEST_BACKEND_IMAGE:-ghcr.io/example/riskhub-backend:v1.2.3}"
+          fi
           ;;
         riskhub-frontend)
-          if [[ "$format" == *".State.Running"* ]]; then printf 'true\\n'; else printf '%s\\n' "${RISKHUB_TEST_FRONTEND_IMAGE:-ghcr.io/example/riskhub-frontend:v1.2.3}"; fi
+          if [[ "$format" == *".State.Running"* ]]; then
+            printf 'true\\n'
+          else
+            printf '%s\\n' "${RISKHUB_TEST_FRONTEND_IMAGE:-ghcr.io/example/riskhub-frontend:v1.2.3}"
+          fi
           ;;
         *)
           exit 1
@@ -173,7 +188,7 @@ def test_install_dev_dry_run_dispatches_to_dev_and_verification() -> None:
     assert "scripts/dev.sh" in output
     assert "--backend" in output
     assert "curl -fsS http://localhost:5173/login" in output
-    assert "curl -fsS http://localhost:8000/api/v1/health" in output
+    assert "curl -fsS http://localhost:8000/api/v1/readyz" in output
     assert "Mode: dev" in output
 
 

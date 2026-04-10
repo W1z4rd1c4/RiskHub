@@ -7,4 +7,3 @@ router.include_router(controls.router)
 router.include_router(kris.router)
 
 __all__ = ["router"]
-

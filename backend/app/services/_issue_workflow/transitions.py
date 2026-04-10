@@ -57,4 +57,3 @@ def _get_or_init_remediation(issue: Issue) -> IssueRemediationPlan:
         )
         issue.remediation_plan = remediation
     return remediation
-

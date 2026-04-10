@@ -109,7 +109,7 @@ def run_doctor(
             if options.dry_run:
                 for command in (
                     ["curl", "-fsS", "http://localhost:5173/login"],
-                    ["curl", "-fsS", "http://localhost:8000/api/v1/health"],
+                    ["curl", "-fsS", "http://localhost:8000/api/v1/readyz"],
                     ["curl", "-fsS", "http://localhost:8000/api/v1/auth/config"],
                 ):
                     run_command(command, options=options)

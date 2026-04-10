@@ -206,4 +206,63 @@ describe('AuthProvider logout flow', () => {
         expect(clearLocalSettingsMock).toHaveBeenCalledTimes(1);
         expect(logoutRedirectMock).toHaveBeenCalledTimes(1);
     });
+
+    it('keeps the user logged out and surfaces an SSO logout recovery error when redirect launch fails', async () => {
+        setAccessToken('active-token');
+        __setRefreshSessionHintForTests();
+        __setCsrfTokenForTests('existing-csrf-token');
+        logoutRedirectMock.mockRejectedValueOnce(new Error('redirect failed'));
+
+        vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+            const url = String(input);
+            if (url.endsWith('/api/v1/auth/me')) {
+                return Promise.resolve(new Response(JSON.stringify({
+                    id: 1,
+                    email: 'admin@riskhub.local',
+                    name: 'System Admin',
+                    role: 'administrator',
+                    role_display_name: 'Administrator',
+                    permissions: [],
+                    effective_permissions: [],
+                    access_scope: 'global',
+                    scope_label: 'Global',
+                }), {
+                    status: 200,
+                    headers: { 'Content-Type': 'application/json' },
+                }));
+            }
+            if (url.endsWith('/api/v1/auth/config')) {
+                return Promise.resolve(new Response(JSON.stringify(authConfigResponse('microsoft_sso')), {
+                    status: 200,
+                    headers: { 'Content-Type': 'application/json' },
+                }));
+            }
+            if (url.endsWith('/api/v1/auth/logout')) {
+                return Promise.resolve(new Response(JSON.stringify({ message: 'Logged out successfully' }), {
+                    status: 200,
+                    headers: { 'Content-Type': 'application/json' },
+                }));
+            }
+            throw new Error(`Unexpected fetch call: ${url}`);
+        });
+
+        render(
+            <AuthProvider>
+                <AuthHarness />
+            </AuthProvider>,
+        );
+
+        await waitFor(() => expect(screen.getByTestId('auth-user')).toHaveTextContent('admin@riskhub.local'));
+
+        await act(async () => {
+            fireEvent.click(screen.getByRole('button', { name: 'logout' }));
+            await Promise.resolve();
+        });
+
+        await waitFor(() => expect(screen.getByTestId('auth-user')).toHaveTextContent('anonymous'));
+        await waitFor(() => expect(screen.getByTestId('logout-error')).toHaveTextContent('errorKeys.sso_logout_incomplete'));
+        expect(getAccessToken()).toBeNull();
+        expect(isExplicitLogoutSuppressed()).toBe(true);
+        expect(logoutRedirectMock).toHaveBeenCalledTimes(1);
+    });
 });

@@ -6,4 +6,3 @@ router.include_router(control_links.router)
 router.include_router(vendor_links.router)
 
 __all__ = ["generate_risk_id_code", "router"]
-

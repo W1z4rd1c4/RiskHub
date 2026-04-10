@@ -71,8 +71,10 @@ class ADDeprovisionService:
     ) -> dict[str, Any]:
         provider = DirectoryProviderService(settings)
         users = (
-            await db.execute(select(User).where(User.external_id.is_not(None)).order_by(User.id.asc()))
-        ).scalars().all()
+            (await db.execute(select(User).where(User.external_id.is_not(None)).order_by(User.id.asc())))
+            .scalars()
+            .all()
+        )
 
         results: list[dict[str, Any]] = []
         for user in users:

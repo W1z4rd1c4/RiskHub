@@ -59,4 +59,3 @@ __all__ = [
     "_serialize_remediation",
     "_validate_user_exists",
 ]
-

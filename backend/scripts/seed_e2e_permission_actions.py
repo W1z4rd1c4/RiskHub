@@ -86,7 +86,7 @@ async def seed_control_executions(db, users, controls):
             executed_at=base_time - timedelta(days=i * 7, hours=i * 2),
             result="passed" if i % 2 == 0 else "warning",
             findings="No issues found" if i % 2 == 0 else "Minor deviations observed",
-            evidence_reference=f"/evidence/placeholder-pdf-012.pdf",
+            evidence_reference="/evidence/placeholder-pdf-012.pdf",
             notes=f"E2E-EXECUTION: Quarterly control test #{i+1}",
             next_scheduled=base_time + timedelta(days=30 - i * 7),
         )

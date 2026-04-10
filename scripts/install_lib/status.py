@@ -33,6 +33,7 @@ def demo_status_payload() -> dict:
 
 
 def dev_status_payload(paths: InstallPaths) -> dict:
+    readiness_ok = curl_ok("http://localhost:8000/api/v1/readyz")
     return {
         "mode": "dev",
         "docker": {
@@ -45,7 +46,8 @@ def dev_status_payload(paths: InstallPaths) -> dict:
         },
         "http": {
             "login": curl_ok("http://localhost:5173/login"),
-            "health": curl_ok("http://localhost:8000/api/v1/health"),
+            "health": readiness_ok,
+            "readyz": readiness_ok,
             "auth_config": curl_ok("http://localhost:8000/api/v1/auth/config"),
         },
         "dependencies": {
@@ -87,7 +89,7 @@ def run_status(mode: str, *, target: str | None, config_path: Path, secret_dir: 
                 ["lsof", "-nP", "-iTCP:5173", "-sTCP:LISTEN"],
                 ["node", "-p", "process.versions.node.split('.')[0]"],
                 ["curl", "-fsS", "http://localhost:5173/login"],
-                ["curl", "-fsS", "http://localhost:8000/api/v1/health"],
+                ["curl", "-fsS", "http://localhost:8000/api/v1/readyz"],
                 ["curl", "-fsS", "http://localhost:8000/api/v1/auth/config"],
             ):
                 run_command(command, options=options)

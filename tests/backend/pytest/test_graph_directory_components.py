@@ -79,7 +79,9 @@ def test_graph_access_token_cache_key_uses_explicit_fingerprint_not_secret_bytes
     secret_b = provider.build_token_cache_key(
         tenant_id="tenant",
         client_id="client",
-        credential=provider._settings.model_copy(update={"entra_client_secret": "secret-b"}).entra_confidential_credential,  # type: ignore[arg-type]
+        credential=provider._settings.model_copy(
+            update={"entra_client_secret": "secret-b"}
+        ).entra_confidential_credential,  # type: ignore[arg-type]
         credential_fingerprint="version-1",
     )
     secret_c = provider.build_token_cache_key(
@@ -120,7 +122,10 @@ def test_graph_access_token_cache_key_for_certificate_depends_on_thumbprint_not_
 async def test_graph_access_token_provider_classifies_missing_msal_dependency(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr("app.services.graph_directory_auth.importlib.import_module", lambda name: (_ for _ in ()).throw(ModuleNotFoundError(name)))
+    monkeypatch.setattr(
+        "app.services.graph_directory_auth.importlib.import_module",
+        lambda name: (_ for _ in ()).throw(ModuleNotFoundError(name)),
+    )
 
     provider = GraphAccessTokenProvider(_base_settings())
 

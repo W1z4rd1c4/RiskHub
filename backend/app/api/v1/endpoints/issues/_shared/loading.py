@@ -6,7 +6,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.permissions import can_read_issue_id, can_write_issue_id
-from app.models import Control, ControlExecution, ControlRiskLink, Issue, IssueException, IssueLink, IssueRemediationPlan, KeyRiskIndicator, User
+from app.models import (
+    Control,
+    ControlExecution,
+    ControlRiskLink,
+    Issue,
+    IssueException,
+    IssueLink,
+    IssueRemediationPlan,
+    KeyRiskIndicator,
+    User,
+)
 
 
 async def _get_issue_with_relations(db: AsyncSession, issue_id: int) -> Issue | None:
@@ -17,7 +27,10 @@ async def _get_issue_with_relations(db: AsyncSession, issue_id: int) -> Issue | 
             selectinload(Issue.owner),
             selectinload(Issue.created_by),
             selectinload(Issue.links).selectinload(IssueLink.risk),
-            selectinload(Issue.links).selectinload(IssueLink.control).selectinload(Control.risk_links).selectinload(ControlRiskLink.risk),
+            selectinload(Issue.links)
+            .selectinload(IssueLink.control)
+            .selectinload(Control.risk_links)
+            .selectinload(ControlRiskLink.risk),
             selectinload(Issue.links)
             .selectinload(IssueLink.execution)
             .selectinload(ControlExecution.control)

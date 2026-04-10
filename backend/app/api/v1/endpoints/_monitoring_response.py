@@ -200,11 +200,15 @@ def serialize_kri_response(
     risk_owner = _loaded_attr(risk, "owner") if risk is not None else None
     risk_department = _loaded_attr(risk, "department") if risk is not None else None
     reporting_owner = _loaded_attr(kri, "reporting_owner")
-    resolved_linked_vendors = linked_vendors if linked_vendors is not None else [
-        LinkedVendorRead(id=vendor.id, name=vendor.name)
-        for link in (_loaded_attr(kri, "vendor_links", []) or [])
-        if (vendor := _loaded_attr(link, "vendor")) is not None
-    ]
+    resolved_linked_vendors = (
+        linked_vendors
+        if linked_vendors is not None
+        else [
+            LinkedVendorRead(id=vendor.id, name=vendor.name)
+            for link in (_loaded_attr(kri, "vendor_links", []) or [])
+            if (vendor := _loaded_attr(link, "vendor")) is not None
+        ]
+    )
     return KRIResponse.model_validate(
         {
             **_serialize_kri_base(kri),

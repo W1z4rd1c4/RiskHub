@@ -13,16 +13,13 @@ from app.core.approval_helpers import (
     get_control_delete_approval_metadata,
     get_risk_delete_approval_metadata,
 )
-from app.core.permissions import can_resolve_approvals, check_department_access
+from app.core.permissions import can_resolve_approvals
 from app.db.session import get_db
 from app.models import (
     ApprovalActionType,
     ApprovalRequest,
     ApprovalResourceType,
     ApprovalStatus,
-    Control,
-    KeyRiskIndicator,
-    Risk,
     User,
 )
 from app.schemas.approval_request import (

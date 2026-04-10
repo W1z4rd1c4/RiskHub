@@ -65,6 +65,25 @@ function ensureActiveAccount(app: PublicClientApplication): AccountInfo | null {
     return selected;
 }
 
+function getLogoutHint(account: AccountInfo | null): string | undefined {
+    if (!account) {
+        return undefined;
+    }
+
+    const claims = (account.idTokenClaims ?? {}) as Record<string, unknown>;
+    const claimLogoutHint = claims.login_hint;
+    if (typeof claimLogoutHint === 'string' && claimLogoutHint) {
+        return claimLogoutHint;
+    }
+
+    const preferredUsername = claims.preferred_username;
+    if (typeof preferredUsername === 'string' && preferredUsername) {
+        return preferredUsername;
+    }
+
+    return account.username || undefined;
+}
+
 export const entraAuth = {
     async isConfigured(): Promise<boolean> {
         const config = await getAuthConfig().catch(() => null);
@@ -104,6 +123,7 @@ export const entraAuth = {
         const account = ensureActiveAccount(app);
         const request: EndSessionRequest = {
             account: account ?? undefined,
+            logoutHint: getLogoutHint(account),
             postLogoutRedirectUri: `${window.location.origin}/login`,
         };
         await app.logoutRedirect(request);

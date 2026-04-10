@@ -4,6 +4,7 @@ KRI Value History model for tracking historical KRI values over periods.
 Stores snapshots of KRI measurements with period boundaries for
 time-series analysis and historical reporting.
 """
+
 from datetime import date, datetime
 from typing import TYPE_CHECKING, Optional
 
@@ -15,6 +16,8 @@ from app.db.base import Base
 if TYPE_CHECKING:
     from app.models.key_risk_indicator import KeyRiskIndicator
     from app.models.user import User
+
+
 class KRIValueHistory(Base):
     """
     Historical record of KRI value measurements.
@@ -22,6 +25,7 @@ class KRIValueHistory(Base):
     Each entry captures a KRI value snapshot for a specific reporting period,
     along with the limits and breach status at the time of recording.
     """
+
     __tablename__ = "kri_value_history"
 
     id: Mapped[int] = mapped_column(primary_key=True)

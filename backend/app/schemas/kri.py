@@ -1,6 +1,7 @@
 """
 Pydantic schemas for Key Risk Indicators.
 """
+
 from datetime import date, datetime
 from enum import Enum
 from typing import Literal, Optional
@@ -13,6 +14,7 @@ from app.services._monitoring_status import KRIMonitoringReason, KRIMonitoringSt
 
 class KRIFrequencyEnum(str, Enum):
     """Frequency of KRI value reporting."""
+
     daily = "daily"
     weekly = "weekly"
     monthly = "monthly"
@@ -22,6 +24,7 @@ class KRIFrequencyEnum(str, Enum):
 
 class KRIBase(BaseModel):
     """Base schema for KRI."""
+
     metric_name: str = Field(..., min_length=1, max_length=500)
     description: str = Field(..., description="KRI description")
     current_value: float
@@ -34,6 +37,7 @@ class KRIBase(BaseModel):
 
 class KRICreate(KRIBase):
     """Schema for creating a KRI."""
+
     risk_id: int
     linked_vendor_ids: list[int] = Field(default_factory=list)
     ensure_parent_risk_vendor_ids: list[int] = Field(default_factory=list)
@@ -41,6 +45,7 @@ class KRICreate(KRIBase):
 
 class KRIUpdate(BaseModel):
     """Schema for updating a KRI."""
+
     metric_name: Optional[str] = Field(None, min_length=1, max_length=500)
     description: Optional[str] = Field(None, description="KRI description")
     current_value: Optional[float] = None
@@ -66,6 +71,7 @@ class KRIMonitoringBundle(BaseModel):
 
 class KRIResponse(KRIBase, KRIMonitoringBundle):
     """Schema for KRI response with computed breach status."""
+
     id: int
     risk_id: int
     is_archived: bool = False
@@ -111,6 +117,7 @@ class KRIResponse(KRIBase, KRIMonitoringBundle):
 
 class KRIListResponse(BaseModel):
     """Paginated list of KRIs."""
+
     items: list[KRIResponse]
     total: int
     page: int
@@ -119,8 +126,10 @@ class KRIListResponse(BaseModel):
 
 # History-related schemas
 
+
 class KRIHistoryEntry(BaseModel):
     """Schema for a single KRI value history entry."""
+
     id: int
     kri_id: int
     period_start: date
@@ -139,6 +148,7 @@ class KRIHistoryEntry(BaseModel):
 
 class KRIHistoryListResponse(BaseModel):
     """Paginated list of KRI history entries."""
+
     items: list[KRIHistoryEntry]
     total: int
     page: int
@@ -147,6 +157,7 @@ class KRIHistoryListResponse(BaseModel):
 
 class KRIRecordValue(BaseModel):
     """Schema for recording a new KRI value."""
+
     value: float
     recorded_at: Optional[datetime] = None  # Server default if not provided
     period_end: Optional[date] = None  # For privileged backdating
@@ -154,5 +165,6 @@ class KRIRecordValue(BaseModel):
 
 class KRIHistoryEdit(BaseModel):
     """Schema for requesting correction to a historical entry."""
+
     value: float
     reason: str = Field(..., min_length=10, max_length=500, description="Explanation for the correction")

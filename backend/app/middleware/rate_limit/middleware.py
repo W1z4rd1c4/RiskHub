@@ -37,9 +37,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self.enabled = enabled
         self.redis_key_prefix = redis_key_prefix
-        self.trusted_proxies = (
-            list(trusted_proxies) if trusted_proxies is not None else list(self.TRUSTED_PROXIES)
-        )
+        self.trusted_proxies = list(trusted_proxies) if trusted_proxies is not None else list(self.TRUSTED_PROXIES)
         self._client_ip_resolver = ClientIPResolver(self.trusted_proxies)
         self._default_settings = get_settings()
         self._memory_backend = InMemoryRateLimitBackend()

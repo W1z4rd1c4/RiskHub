@@ -122,17 +122,15 @@ async def import_directory_user(
     if normalized_email is None:
         raise HTTPException(status_code=400, detail="Directory user is missing an importable email address")
 
-    user = (
-        await db.execute(select(User).where(User.external_id == directory_user.external_id))
-    ).scalar_one_or_none()
+    user = (await db.execute(select(User).where(User.external_id == directory_user.external_id))).scalar_one_or_none()
     import_status = "updated"
     if user is None:
         existing_email_user = (
             await db.execute(select(User).where(email_equals(User.email, normalized_email)))
         ).scalar_one_or_none()
-        if (
-            existing_email_user is not None
-            and existing_email_user.external_id not in (None, directory_user.external_id)
+        if existing_email_user is not None and existing_email_user.external_id not in (
+            None,
+            directory_user.external_id,
         ):
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
@@ -202,9 +200,7 @@ async def import_directory_user(
 
     refreshed = (
         await db.execute(
-            select(User)
-            .options(selectinload(User.role), selectinload(User.department))
-            .where(User.id == user.id)
+            select(User).options(selectinload(User.role), selectinload(User.department)).where(User.id == user.id)
         )
     ).scalar_one()
 

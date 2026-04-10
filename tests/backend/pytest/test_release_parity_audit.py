@@ -4,7 +4,6 @@ import importlib.util
 import sys
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[3]
 MODULE_PATH = REPO_ROOT / "scripts" / "security" / "run_release_parity_audit.py"
 SPEC = importlib.util.spec_from_file_location("run_release_parity_audit", MODULE_PATH)

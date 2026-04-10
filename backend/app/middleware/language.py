@@ -28,7 +28,7 @@ class LanguageMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         # Get Accept-Language header
-        accept_language = request.headers.get('Accept-Language', '')
+        accept_language = request.headers.get("Accept-Language", "")
 
         # Detect locale from header
         locale = get_locale_from_header(accept_language)
@@ -43,7 +43,7 @@ class LanguageMiddleware(BaseHTTPMiddleware):
 
         # Process request and add Content-Language header to response
         response = await call_next(request)
-        response.headers['Content-Language'] = locale
+        response.headers["Content-Language"] = locale
 
         return response
 
@@ -58,4 +58,4 @@ def get_request_locale(request: Request) -> str:
     Returns:
         The detected locale code (e.g., 'en', 'cs')
     """
-    return getattr(request.state, 'locale', DEFAULT_LOCALE)
+    return getattr(request.state, "locale", DEFAULT_LOCALE)

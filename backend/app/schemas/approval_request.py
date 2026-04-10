@@ -1,4 +1,5 @@
 """Pydantic schemas for approval request API endpoints."""
+
 from datetime import datetime
 from enum import Enum
 from typing import Any
@@ -8,6 +9,7 @@ from pydantic import BaseModel, Field
 
 class ApprovalStatusEnum(str, Enum):
     """Approval request status values."""
+
     pending = "pending"
     pending_privileged = "pending_privileged"
     approved = "approved"
@@ -17,6 +19,7 @@ class ApprovalStatusEnum(str, Enum):
 
 class ApprovalResourceTypeEnum(str, Enum):
     """Type of resource being requested for deletion/edit."""
+
     risk = "risk"
     control = "control"
     kri = "kri"
@@ -24,12 +27,14 @@ class ApprovalResourceTypeEnum(str, Enum):
 
 class ApprovalActionTypeEnum(str, Enum):
     """Type of action requiring approval."""
+
     delete = "delete"
     edit = "edit"
 
 
 class ApprovalRequestCreate(BaseModel):
     """Schema for creating a new delete approval request."""
+
     resource_type: ApprovalResourceTypeEnum
     resource_id: int
     reason: str = Field(..., min_length=1, max_length=1000, description="Reason for deletion (mandatory)")
@@ -37,6 +42,7 @@ class ApprovalRequestCreate(BaseModel):
 
 class ApprovalEditRequestCreate(BaseModel):
     """Schema for creating an edit approval request."""
+
     resource_type: ApprovalResourceTypeEnum
     resource_id: int
     reason: str = Field(..., min_length=1, max_length=1000, description="Reason for edit (mandatory)")
@@ -45,11 +51,13 @@ class ApprovalEditRequestCreate(BaseModel):
 
 class ApprovalRequestResolve(BaseModel):
     """Schema for resolving (approve/reject) a request."""
+
     resolution_notes: str = Field(..., min_length=1, max_length=1000, description="Commentary (mandatory)")
 
 
 class ApprovalRequestRead(BaseModel):
     """Schema for reading approval request details."""
+
     id: int
     resource_type: ApprovalResourceTypeEnum
     resource_id: int
@@ -77,6 +85,7 @@ class ApprovalRequestRead(BaseModel):
 
 class ApprovalRequestListResponse(BaseModel):
     """Paginated response for approval requests."""
+
     items: list[ApprovalRequestRead]
     total: int
     skip: int

@@ -121,16 +121,20 @@ async def _latest_approval(
     resource_id: int,
 ) -> ApprovalRequest | None:
     return (
-        await db_session.execute(
-            select(ApprovalRequest)
-            .where(
-                ApprovalRequest.resource_type == resource_type,
-                ApprovalRequest.resource_id == resource_id,
-                ApprovalRequest.action_type == ApprovalActionType.EDIT,
+        (
+            await db_session.execute(
+                select(ApprovalRequest)
+                .where(
+                    ApprovalRequest.resource_type == resource_type,
+                    ApprovalRequest.resource_id == resource_id,
+                    ApprovalRequest.action_type == ApprovalActionType.EDIT,
+                )
+                .order_by(ApprovalRequest.id.desc())
             )
-            .order_by(ApprovalRequest.id.desc())
         )
-    ).scalars().first()
+        .scalars()
+        .first()
+    )
 
 
 async def _create_cross_department_reporting_owner_without_risks_read(
@@ -616,11 +620,14 @@ async def test_invalid_risk_owner_change_returns_400_and_creates_no_approval(
 
     assert response.status_code == 400
     assert response.json()["detail"] == "Risk owner is inactive"
-    assert await _count_approvals(
-        db_session,
-        resource_type=ApprovalResourceType.RISK,
-        resource_id=risk.id,
-    ) == 0
+    assert (
+        await _count_approvals(
+            db_session,
+            resource_type=ApprovalResourceType.RISK,
+            resource_id=risk.id,
+        )
+        == 0
+    )
     await db_session.refresh(risk)
     assert risk.owner_id == test_user_approval_requester.id
 
@@ -708,11 +715,14 @@ async def test_invalid_control_owner_change_returns_400_and_creates_no_approval(
 
     assert response.status_code == 400
     assert response.json()["detail"] == "Control owner is inactive"
-    assert await _count_approvals(
-        db_session,
-        resource_type=ApprovalResourceType.CONTROL,
-        resource_id=control.id,
-    ) == 0
+    assert (
+        await _count_approvals(
+            db_session,
+            resource_type=ApprovalResourceType.CONTROL,
+            resource_id=control.id,
+        )
+        == 0
+    )
     await db_session.refresh(control)
     assert control.control_owner_id == test_user_approval_requester.id
 
@@ -846,11 +856,14 @@ async def test_invalid_kri_reporting_owner_change_returns_400_and_creates_no_app
 
     assert response.status_code == 400
     assert response.json()["detail"] == "Reporting owner is inactive"
-    assert await _count_approvals(
-        db_session,
-        resource_type=ApprovalResourceType.KRI,
-        resource_id=kri.id,
-    ) == 0
+    assert (
+        await _count_approvals(
+            db_session,
+            resource_type=ApprovalResourceType.KRI,
+            resource_id=kri.id,
+        )
+        == 0
+    )
     await db_session.refresh(kri)
     assert kri.reporting_owner_id == test_user_approval_requester.id
 

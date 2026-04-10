@@ -24,10 +24,7 @@ def vendor_list_response(
     linked_risks_by_vendor_id: dict[int, list[VendorLinkedRiskSummary]] | None = None,
 ) -> VendorListResponse:
     return VendorListResponse(
-        items=[
-            vendor_to_read(v, linked_risks=(linked_risks_by_vendor_id or {}).get(v.id, []))
-            for v in vendors
-        ],
+        items=[vendor_to_read(v, linked_risks=(linked_risks_by_vendor_id or {}).get(v.id, [])) for v in vendors],
         total=total,
         skip=skip,
         limit=limit,

@@ -95,6 +95,7 @@ Current behavior:
 Preflight:
 
 ```bash
+curl -fsS http://localhost:8000/api/v1/readyz
 curl -fsS http://localhost:8000/api/v1/health
 curl -fsS http://localhost:8000/api/v1/auth/config
 curl -I -fsS http://localhost/login

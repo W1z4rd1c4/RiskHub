@@ -6,7 +6,6 @@ from pydantic import BaseModel
 
 from app.schemas.control import ControlMonitoringBundle, ControlStatusEnum
 from app.schemas.risk import RiskStatusEnum
-from app.schemas.vendor_shared import LinkedVendorRead
 
 
 class VendorRiskLinkCreate(BaseModel):

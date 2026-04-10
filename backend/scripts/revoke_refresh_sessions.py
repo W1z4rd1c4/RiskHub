@@ -36,10 +36,8 @@ async def _run(args: argparse.Namespace) -> int:
     settings = get_settings()
     async with session_context(settings) as db:
         active_count = (
-            await db.execute(
-                select(RefreshToken.id).where(RefreshToken.revoked_at.is_(None))
-            )
-        ).scalars().all()
+            (await db.execute(select(RefreshToken.id).where(RefreshToken.revoked_at.is_(None)))).scalars().all()
+        )
 
         if args.dry_run:
             print(f"REFRESH_REVOKE_DRY_RUN active_sessions={len(active_count)} reason={args.reason}")

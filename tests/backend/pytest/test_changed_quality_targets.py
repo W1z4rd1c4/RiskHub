@@ -4,10 +4,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-
-SCRIPT_PATH = (
-    Path(__file__).resolve().parents[3] / "scripts" / "tools" / "changed_quality_targets.py"
-)
+SCRIPT_PATH = Path(__file__).resolve().parents[3] / "scripts" / "tools" / "changed_quality_targets.py"
 
 
 def _run(cmd: list[str], cwd: Path) -> str:

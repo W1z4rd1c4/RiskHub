@@ -12,6 +12,10 @@ interface ClearAuthenticatedSessionOptions {
     clearRefreshHint?: boolean;
 }
 
+interface ApplyAnonymousSessionOptions {
+    preserveLogoutError?: boolean;
+}
+
 export type SessionUser = TokenResponse['user'];
 
 export interface BootstrappedSession {
@@ -65,7 +69,8 @@ export function applyBootstrappingSession(session: BootstrappedSession): void {
     }));
 }
 
-export function applyAnonymousSession(): void {
+export function applyAnonymousSession(options: ApplyAnonymousSessionOptions = {}): void {
+    const { preserveLogoutError = false } = options;
     setSessionSnapshot((previous) => ({
         ...previous,
         token: null,
@@ -73,7 +78,7 @@ export function applyAnonymousSession(): void {
         bootstrapStatus: 'anonymous',
         bootstrapError: null,
         logoutPending: false,
-        logoutErrorKey: null,
+        logoutErrorKey: preserveLogoutError ? previous.logoutErrorKey : null,
     }));
 }
 

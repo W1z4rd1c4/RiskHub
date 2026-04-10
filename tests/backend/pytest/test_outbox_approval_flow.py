@@ -8,10 +8,10 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from app.core.datetime_utils import coerce_utc, utc_now
 from app.models import Notification, OutboxEvent, Risk, User
 from app.models.notification import NotificationType
+from app.services.outbox import dispatch_pending_outbox_events
 from app.services.outbox.errors import FatalOutboxError, RetryableOutboxError
 from app.services.outbox.payloads import OUTBOX_PAYLOAD_MODELS
 from app.services.outbox.registry import OUTBOX_EVENT_HANDLERS
-from app.services.outbox import dispatch_pending_outbox_events
 from app.services.outbox.store import OUTBOX_RECLAIM_AFTER, OutboxService
 
 
@@ -65,23 +65,31 @@ async def test_create_approval_request_enqueues_outbox_without_inline_notificati
     approval_id = response.json()["id"]
 
     notifications = (
-        await db_session.execute(
-            select(Notification).where(
-                Notification.resource_type == "approval",
-                Notification.resource_id == approval_id,
+        (
+            await db_session.execute(
+                select(Notification).where(
+                    Notification.resource_type == "approval",
+                    Notification.resource_id == approval_id,
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert notifications == []
 
     outbox_rows = (
-        await db_session.execute(
-            select(OutboxEvent).where(
-                OutboxEvent.aggregate_id == approval_id,
-                OutboxEvent.event_type == "approval.request_created",
+        (
+            await db_session.execute(
+                select(OutboxEvent).where(
+                    OutboxEvent.aggregate_id == approval_id,
+                    OutboxEvent.event_type == "approval.request_created",
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert len(outbox_rows) == 1
     assert outbox_rows[0].status == "pending"
 
@@ -89,14 +97,18 @@ async def test_create_approval_request_enqueues_outbox_without_inline_notificati
     assert processed == 1
 
     delivered = (
-        await db_session.execute(
-            select(Notification).where(
-                Notification.resource_type == "approval",
-                Notification.resource_id == approval_id,
-                Notification.type == NotificationType.APPROVAL_PENDING,
+        (
+            await db_session.execute(
+                select(Notification).where(
+                    Notification.resource_type == "approval",
+                    Notification.resource_id == approval_id,
+                    Notification.type == NotificationType.APPROVAL_PENDING,
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert delivered
 
 
@@ -382,13 +394,17 @@ async def test_reject_approval_enqueues_resolution_outbox_and_dispatch_notifies_
     assert reject_response.status_code == 200, reject_response.text
 
     pending_resolution = (
-        await db_session.execute(
-            select(OutboxEvent).where(
-                OutboxEvent.aggregate_id == approval_id,
-                OutboxEvent.event_type == "approval.request_resolved",
+        (
+            await db_session.execute(
+                select(OutboxEvent).where(
+                    OutboxEvent.aggregate_id == approval_id,
+                    OutboxEvent.event_type == "approval.request_resolved",
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert len(pending_resolution) == 1
     assert pending_resolution[0].status == "pending"
 
@@ -447,13 +463,17 @@ async def test_cancel_approval_enqueues_outbox_without_inline_cancellation_notif
     assert outbox_row.status == "pending"
 
     inline_notifications = (
-        await db_session.execute(
-            select(Notification).where(
-                Notification.resource_id == approval_id,
-                Notification.type == NotificationType.APPROVAL_CANCELLED,
+        (
+            await db_session.execute(
+                select(Notification).where(
+                    Notification.resource_id == approval_id,
+                    Notification.type == NotificationType.APPROVAL_CANCELLED,
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert inline_notifications == []
 
     processed = await dispatch_pending_outbox_events(_sessionmaker(async_engine))

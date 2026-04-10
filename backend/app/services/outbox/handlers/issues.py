@@ -20,9 +20,7 @@ from app.services.outbox.payloads import (
 
 async def _load_issue(db: AsyncSession, issue_id: int) -> Issue | None:
     result = await db.execute(
-        select(Issue)
-        .options(selectinload(Issue.owner), selectinload(Issue.created_by))
-        .where(Issue.id == issue_id)
+        select(Issue).options(selectinload(Issue.owner), selectinload(Issue.created_by)).where(Issue.id == issue_id)
     )
     return result.scalar_one_or_none()
 

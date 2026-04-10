@@ -119,9 +119,7 @@ async def scan_uncategorised_items(db: AsyncSession) -> int:
     )
 
     stmt = (
-        select(Control)
-        .where(Control.department_id == uncat_dept.id)
-        .where(Control.id.not_in(pending_control_ids_stmt))
+        select(Control).where(Control.department_id == uncat_dept.id).where(Control.id.not_in(pending_control_ids_stmt))
     )
 
     result = await db.execute(stmt)
@@ -201,9 +199,7 @@ async def scan_uncategorised_items(db: AsyncSession) -> int:
     linked_control_ids = select(ControlRiskLink.control_id).distinct()
 
     stmt = (
-        select(Control)
-        .where(Control.id.not_in(linked_control_ids))
-        .where(Control.id.not_in(pending_control_ids_stmt))
+        select(Control).where(Control.id.not_in(linked_control_ids)).where(Control.id.not_in(pending_control_ids_stmt))
     )
 
     result = await db.execute(stmt)

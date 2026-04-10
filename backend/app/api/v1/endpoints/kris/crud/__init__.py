@@ -29,4 +29,3 @@ __all__ = [
     "router",
     "update_kri",
 ]
-

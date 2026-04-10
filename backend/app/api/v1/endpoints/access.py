@@ -1,4 +1,5 @@
 """Access management endpoints with privileged gating."""
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -151,18 +152,18 @@ async def list_department_access_users(
     if not is_dept_head and not is_priv:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only department heads or privileged users can view department access"
+            detail="Only department heads or privileged users can view department access",
         )
 
     if not current_user.department_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="You are not assigned to a department"
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="You are not assigned to a department")
 
-    query = select(User).options(
-        *user_selectinload_options(include_permissions=True)
-    ).where(User.department_id == current_user.department_id).where(User.is_active.is_(True))
+    query = (
+        select(User)
+        .options(*user_selectinload_options(include_permissions=True))
+        .where(User.department_id == current_user.department_id)
+        .where(User.is_active.is_(True))
+    )
 
     result = await db.execute(query)
     users = result.scalars().all()
@@ -179,9 +180,7 @@ async def list_access_roles(
 
     result = await db.execute(
         select(Role)
-        .options(
-            selectinload(Role.permissions).selectinload(RolePermission.permission)
-        )
+        .options(selectinload(Role.permissions).selectinload(RolePermission.permission))
         .where(Role.is_active.is_(True))
     )
     roles = result.scalars().all()
@@ -207,9 +206,7 @@ async def update_access_user(
     _require_access_user_write(current_user)
 
     result = await db.execute(
-        select(User)
-        .options(*user_selectinload_options(include_permissions=True))
-        .where(User.id == user_id)
+        select(User).options(*user_selectinload_options(include_permissions=True)).where(User.id == user_id)
     )
     user = result.scalar_one_or_none()
     if not user:
@@ -241,10 +238,7 @@ async def update_access_user(
 
     if "email" in identity_update and identity_update["email"] != user.email:
         email_check = await db.execute(
-            select(User.id)
-            .where(email_equals(User.email, identity_update["email"]))
-            .where(User.id != user.id)
-            .limit(1)
+            select(User.id).where(email_equals(User.email, identity_update["email"])).where(User.id != user.id).limit(1)
         )
         if email_check.scalar_one_or_none():
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
@@ -266,8 +260,7 @@ async def update_access_user(
             # Prevent demoting yourself from admin/CRO
             if current_user.id == user.id and old_role_is_privileged and not new_role_is_privileged:
                 raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Cannot demote yourself from admin/CRO role"
+                    status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot demote yourself from admin/CRO role"
                 )
 
             # Prevent demoting the last admin/CRO
@@ -282,8 +275,7 @@ async def update_access_user(
                 )
                 if not remaining.scalar_one_or_none():
                     raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail="Cannot demote the last admin/CRO user"
+                        status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot demote the last admin/CRO user"
                     )
 
     if "access_scope" in update_data:
@@ -337,8 +329,6 @@ async def update_access_user(
     await db.refresh(user)
 
     result = await db.execute(
-        select(User)
-        .options(*user_selectinload_options(include_permissions=True))
-        .where(User.id == user.id)
+        select(User).options(*user_selectinload_options(include_permissions=True)).where(User.id == user.id)
     )
     return _build_access_user_read(result.scalar_one())

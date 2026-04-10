@@ -4,8 +4,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
 from app.api.v1.endpoints._monitoring_response import load_monitoring_response_context, serialize_kri_response
-from app.core.datetime_utils import utc_now
 from app.core.activity_logger import build_change_set, log_activity
+from app.core.datetime_utils import utc_now
 from app.core.owner_reference_validation import validate_active_owner_reference
 from app.core.permissions import can_read_vendor, check_department_access
 from app.core.security import check_permission, require_permission
@@ -57,11 +57,7 @@ async def update_kri(
 
     update_data = data.model_dump(exclude_unset=True)
     requested_vendor_ids = update_data.pop("linked_vendor_ids", None)
-    normalized_vendor_ids = (
-        normalize_vendor_ids(requested_vendor_ids)
-        if requested_vendor_ids is not None
-        else None
-    )
+    normalized_vendor_ids = normalize_vendor_ids(requested_vendor_ids) if requested_vendor_ids is not None else None
     current_vendor_ids = sorted(link.vendor_id for link in getattr(kri, "vendor_links", []) or [])
 
     if normalized_vendor_ids is not None:

@@ -100,17 +100,13 @@ async def test_directory_import_creates_user_and_department(
     assert payload["status"] == "created"
     assert payload["external_id"] == "oid-import-create"
 
-    user = (
-        await db_session.execute(select(User).where(User.external_id == "oid-import-create"))
-    ).scalar_one()
+    user = (await db_session.execute(select(User).where(User.external_id == "oid-import-create"))).scalar_one()
     assert user.email == "imported.user@example.com"
     assert user.job_title == "Senior Risk Analyst"
     assert user.entra_business_role == "Regional Director"
     assert user.directory_sync_status == "active"
 
-    department = (
-        await db_session.execute(select(Department).where(Department.id == user.department_id))
-    ).scalar_one()
+    department = (await db_session.execute(select(Department).where(Department.id == user.department_id))).scalar_one()
     assert department.name == "Enterprise Risk"
 
 
@@ -147,9 +143,7 @@ async def test_directory_reimport_updates_existing_user_without_duplication(
     assert response.status_code == 200, response.text
     assert response.json()["status"] == "updated"
 
-    users = (
-        await db_session.execute(select(User).where(User.email == test_user_employee.email))
-    ).scalars().all()
+    users = (await db_session.execute(select(User).where(User.email == test_user_employee.email))).scalars().all()
     assert len(users) == 1
     assert users[0].name == "Employee Updated"
     assert users[0].job_title == "Updated Title"
@@ -264,9 +258,7 @@ async def test_directory_import_clears_entra_business_role_when_directory_value_
     response = await directory_import_client.post("/api/v1/directory/users/oid-role-clear/import", json={})
     assert response.status_code == 200, response.text
 
-    refreshed_user = (
-        await db_session.execute(select(User).where(User.external_id == "oid-role-clear"))
-    ).scalar_one()
+    refreshed_user = (await db_session.execute(select(User).where(User.external_id == "oid-role-clear"))).scalar_one()
     assert refreshed_user.entra_business_role is None
     assert refreshed_user.entra_business_role_last_synced_at is not None
 

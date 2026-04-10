@@ -5,6 +5,7 @@ Extracted from dashboard.py to improve readability and testability.
 This service computes period-based metrics (events that happened within a quarter)
 while snapshot-based metrics are handled by snapshot_service.py.
 """
+
 import logging
 import re
 from datetime import datetime, timezone
@@ -43,7 +44,7 @@ def parse_quarter(quarter_str: str) -> datetime:
     Raises:
         ValueError: If the quarter format is invalid
     """
-    match = re.match(r'^(\d{4})-Q([1-4])$', quarter_str)
+    match = re.match(r"^(\d{4})-Q([1-4])$", quarter_str)
     if not match:
         raise ValueError(f"Invalid quarter format: {quarter_str}. Expected 'YYYY-QN' (e.g., '2026-Q1')")
     year = int(match.group(1))
@@ -122,9 +123,7 @@ async def get_quarter_period_metrics(
     ]
     if dept_ids is not None:
         risk_conditions.append(Risk.department_id.in_(dept_ids))
-    new_risks = await db.scalar(
-        select(func.count(Risk.id)).where(*risk_conditions)
-    )
+    new_risks = await db.scalar(select(func.count(Risk.id)).where(*risk_conditions))
 
     # Risks archived in period (end-exclusive: [start, end))
     # Note: 'closed' status was merged into 'archived' in Phase 2.2
@@ -135,9 +134,7 @@ async def get_quarter_period_metrics(
     ]
     if dept_ids is not None:
         archived_conditions.append(Risk.department_id.in_(dept_ids))
-    archived_risks = await db.scalar(
-        select(func.count(Risk.id)).where(*archived_conditions)
-    )
+    archived_risks = await db.scalar(select(func.count(Risk.id)).where(*archived_conditions))
 
     # Audit activity: control executions in period (end-exclusive: [start, end))
     audit_activity_query = select(func.count(ControlExecution.id)).where(
@@ -145,9 +142,9 @@ async def get_quarter_period_metrics(
         ControlExecution.executed_at < end,
     )
     if dept_ids is not None:
-        audit_activity_query = audit_activity_query.join(
-            Control, ControlExecution.control_id == Control.id
-        ).where(Control.department_id.in_(dept_ids))
+        audit_activity_query = audit_activity_query.join(Control, ControlExecution.control_id == Control.id).where(
+            Control.department_id.in_(dept_ids)
+        )
     audit_activity = await db.scalar(audit_activity_query)
 
     # Failed audits: executions with result='failed' in period (end-exclusive: [start, end))
@@ -157,24 +154,21 @@ async def get_quarter_period_metrics(
         ControlExecution.result == ExecutionResult.failed.value,
     )
     if dept_ids is not None:
-        failed_audits_query = failed_audits_query.join(
-            Control, ControlExecution.control_id == Control.id
-        ).where(Control.department_id.in_(dept_ids))
+        failed_audits_query = failed_audits_query.join(Control, ControlExecution.control_id == Control.id).where(
+            Control.department_id.in_(dept_ids)
+        )
     failed_audits = await db.scalar(failed_audits_query)
 
     # Unaudited controls: active controls with 0 executions in period (end-exclusive: [start, end))
     controls_with_executions = select(ControlExecution.control_id.distinct()).where(
-        ControlExecution.executed_at >= start,
-        ControlExecution.executed_at < end
+        ControlExecution.executed_at >= start, ControlExecution.executed_at < end
     )
     unaudited_controls_query = select(func.count(Control.id)).where(
         Control.status == ControlStatus.active.value,
         Control.id.notin_(controls_with_executions),
     )
     if dept_ids is not None:
-        unaudited_controls_query = unaudited_controls_query.where(
-            Control.department_id.in_(dept_ids)
-        )
+        unaudited_controls_query = unaudited_controls_query.where(Control.department_id.in_(dept_ids))
     unaudited_controls = await db.scalar(unaudited_controls_query)
 
     # Activity volume: activity log entries in period (end-exclusive: [start, end))
@@ -183,9 +177,7 @@ async def get_quarter_period_metrics(
         ActivityLog.created_at < end,
     )
     if dept_ids is not None:
-        activity_volume_query = activity_volume_query.where(
-            ActivityLog.department_id.in_(dept_ids)
-        )
+        activity_volume_query = activity_volume_query.where(ActivityLog.department_id.in_(dept_ids))
     activity_volume = await db.scalar(activity_volume_query)
 
     return {
@@ -216,9 +208,15 @@ def calculate_changes(
     """
     # Metrics that require historical snapshots for valid comparison
     snapshot_metrics = {
-        "priority_risks", "kri_breaches", "pending_approvals",
-        "control_coverage", "orphaned_items", "kri_health",
-        "overdue_kris", "risks_without_kri", "active_risks",
+        "priority_risks",
+        "kri_breaches",
+        "pending_approvals",
+        "control_coverage",
+        "orphaned_items",
+        "kri_health",
+        "overdue_kris",
+        "risks_without_kri",
+        "active_risks",
         "active_vendors",
     }
 
@@ -280,12 +278,8 @@ async def build_quarterly_comparison(
     ) = calculate_quarter_boundaries(now, current_quarter, compare_quarter)
 
     # Get period-based metrics for both quarters
-    this_quarter_period = await get_quarter_period_metrics(
-        db, current_quarter_start, now, dept_ids
-    )
-    last_quarter_period = await get_quarter_period_metrics(
-        db, last_quarter_start, last_quarter_end, dept_ids
-    )
+    this_quarter_period = await get_quarter_period_metrics(db, current_quarter_start, now, dept_ids)
+    last_quarter_period = await get_quarter_period_metrics(db, last_quarter_start, last_quarter_end, dept_ids)
 
     # Get snapshot metrics
     last_quarter_label = get_quarter_label(last_quarter_start)
@@ -308,15 +302,19 @@ async def build_quarterly_comparison(
     last_quarter_combined = {**last_quarter_period, **last_quarter_snapshot}
 
     # Calculate changes
-    changes = calculate_changes(
-        this_quarter_combined, last_quarter_combined, snapshot_available
-    )
+    changes = calculate_changes(this_quarter_combined, last_quarter_combined, snapshot_available)
 
     # Snapshot metric names for response
     snapshot_metric_names = {
-        "priority_risks", "kri_breaches", "pending_approvals",
-        "control_coverage", "orphaned_items", "kri_health",
-        "overdue_kris", "risks_without_kri", "active_risks"
+        "priority_risks",
+        "kri_breaches",
+        "pending_approvals",
+        "control_coverage",
+        "orphaned_items",
+        "kri_health",
+        "overdue_kris",
+        "risks_without_kri",
+        "active_risks",
     }
 
     return {
@@ -334,8 +332,12 @@ async def build_quarterly_comparison(
             "last_quarter": last_quarter_label,
             "last_quarter_snapshot_available": snapshot_available,
             "period_metrics": [
-                "new_risks", "archived_risks", "audit_activity",
-                "failed_audits", "unaudited_controls", "activity_volume"
+                "new_risks",
+                "archived_risks",
+                "audit_activity",
+                "failed_audits",
+                "unaudited_controls",
+                "activity_volume",
             ],
             "snapshot_metrics": list(snapshot_metric_names),
         },

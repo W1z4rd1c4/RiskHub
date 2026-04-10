@@ -49,7 +49,9 @@ def _normalize_revisions(values: Iterable[str]) -> list[str]:
     return sorted({value for value in values if value})
 
 
-def inspect_schema_revisions(*, database_url: str, current_revisions: set[str], expected_heads: set[str]) -> SchemaRevisionStatus:
+def inspect_schema_revisions(
+    *, database_url: str, current_revisions: set[str], expected_heads: set[str]
+) -> SchemaRevisionStatus:
     if _is_sqlite_url(database_url):
         return SchemaRevisionStatus(
             database_url=database_url,
@@ -67,8 +69,7 @@ def inspect_schema_revisions(*, database_url: str, current_revisions: set[str], 
             current_revisions=normalized_current,
             expected_heads=normalized_expected,
             error_message=(
-                "Schema drift check failed: no Alembic heads could be resolved. "
-                f"Run `{MIGRATION_COMMAND}`."
+                "Schema drift check failed: no Alembic heads could be resolved. " f"Run `{MIGRATION_COMMAND}`."
             ),
         )
 

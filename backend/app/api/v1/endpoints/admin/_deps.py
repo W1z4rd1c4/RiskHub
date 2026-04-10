@@ -17,4 +17,3 @@ def require_platform_admin(current_user: User = Depends(get_current_user)) -> Us
     if not current_user.role or current_user.role.name != RoleType.ADMIN:
         raise HTTPException(status_code=403, detail="Admin access required")
     return current_user
-

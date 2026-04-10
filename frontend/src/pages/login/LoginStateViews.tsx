@@ -10,6 +10,10 @@ interface AuthConfigErrorViewProps {
     retryHint: string;
     retryLabel: string;
     onRetry: () => void;
+    recoveryMessage?: string | null;
+    recoveryActionLabel?: string;
+    recoveryActionPending?: boolean;
+    onRecoveryAction?: () => void;
 }
 
 interface LoginNotConfiguredViewProps {
@@ -34,6 +38,10 @@ export function AuthConfigErrorView({
     retryHint,
     retryLabel,
     onRetry,
+    recoveryMessage = null,
+    recoveryActionLabel,
+    recoveryActionPending = false,
+    onRecoveryAction,
 }: AuthConfigErrorViewProps) {
     return (
         <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white p-4">
@@ -48,6 +56,20 @@ export function AuthConfigErrorView({
                 >
                     {retryLabel}
                 </button>
+                {recoveryMessage && onRecoveryAction ? (
+                    <div className="rounded-2xl border border-amber-500/25 bg-amber-500/10 px-4 py-4 text-left text-sm leading-6 text-amber-100">
+                        <p>{recoveryMessage}</p>
+                        <button
+                            type="button"
+                            onClick={onRecoveryAction}
+                            disabled={recoveryActionPending}
+                            className="mt-3 inline-flex items-center justify-center gap-2 rounded-xl border border-amber-300/30 bg-amber-100/10 px-4 py-2 text-sm font-semibold text-amber-50 transition-colors hover:bg-amber-100/20 disabled:opacity-60"
+                        >
+                            {recoveryActionPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                            {recoveryActionLabel}
+                        </button>
+                    </div>
+                ) : null}
             </div>
         </div>
     );

@@ -6,8 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
 from app.core.datetime_utils import utc_now
-from app.core.permissions import has_permission
-from app.core.permissions import can_manage_users, ensure_business_view_access
+from app.core.permissions import can_manage_users, ensure_business_view_access, has_permission
 from app.core.ttl_cache import TTLCache
 from app.db.session import get_db
 from app.models import ApprovalRequest, ApprovalStatus, Notification, OrphanedItem, User
@@ -34,8 +33,10 @@ async def _count_pending_approvals(db: AsyncSession, current_user: User) -> int:
         .select_from(ApprovalRequest)
         .where(
             or_(
-                (ApprovalRequest.status == ApprovalStatus.PENDING) & (ApprovalRequest.requested_by_id == current_user.id),
-                (ApprovalRequest.status == ApprovalStatus.PENDING) & (ApprovalRequest.primary_approver_id == current_user.id),
+                (ApprovalRequest.status == ApprovalStatus.PENDING)
+                & (ApprovalRequest.requested_by_id == current_user.id),
+                (ApprovalRequest.status == ApprovalStatus.PENDING)
+                & (ApprovalRequest.primary_approver_id == current_user.id),
                 (ApprovalRequest.status == ApprovalStatus.PENDING_PRIVILEGED)
                 & (ApprovalRequest.requested_by_id == current_user.id),
             )
@@ -83,11 +84,7 @@ async def _build_shell_summary(db: AsyncSession, current_user: User) -> dict:
     orphan_total_count = 0
     if can_view_governance:
         orphan_total_count = (
-            await db.execute(
-                select(func.count())
-                .select_from(OrphanedItem)
-                .where(OrphanedItem.status == "pending")
-            )
+            await db.execute(select(func.count()).select_from(OrphanedItem).where(OrphanedItem.status == "pending"))
         ).scalar() or 0
 
     return {

@@ -19,8 +19,7 @@ RISKS = [
         "risk_id_code": "E2E-UW-001",
         "name": "Motor Policy Underpricing Risk",
         "description": (
-            "Risk of systematic underpricing in motor insurance policies leading to "
-            "loss ratio deterioration"
+            "Risk of systematic underpricing in motor insurance policies leading to " "loss ratio deterioration"
         ),
         "process": "Underwriting",
         "subprocess": "Motor Insurance Pricing",

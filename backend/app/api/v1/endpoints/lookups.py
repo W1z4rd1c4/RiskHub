@@ -46,7 +46,4 @@ async def get_risk_filters(
     category_result = await db.execute(category_query)
     categories = [r[0] for r in category_result.all() if r[0]]
 
-    return {
-        "processes": sorted(processes),
-        "categories": sorted(categories)
-    }
+    return {"processes": sorted(processes), "categories": sorted(categories)}

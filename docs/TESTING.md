@@ -99,6 +99,7 @@ Current behavior:
 Preflight:
 
 ```bash
+curl -fsS http://localhost:8000/api/v1/readyz
 curl -fsS http://localhost:8000/api/v1/health
 curl -fsS http://localhost:8000/api/v1/auth/config
 curl -I -fsS http://localhost/login
@@ -106,7 +107,8 @@ curl -I -fsS http://localhost/login
 
 Notes:
 
-- `GET /api/v1/health` now returns only `{"status":"healthy"|"degraded"}`; use the status code and the `status` field only.
+- `GET /api/v1/readyz` is the machine-facing readiness probe and returns `200` or `503`.
+- `GET /api/v1/health` is the diagnostic probe and returns readiness plus dependency detail for dashboards and smoke validation.
 - Browser-authenticated `POST /api/v1/auth/refresh` now requires allowed Origin/Referer plus `X-CSRF-Token`, so scripted refresh checks must seed CSRF first via `GET /api/v1/auth/csrf` when they are not using a real browser session.
 
 Docker-targeted verification commands:

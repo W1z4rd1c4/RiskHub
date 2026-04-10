@@ -205,7 +205,7 @@ fi
 
 if [[ "$DRY_RUN" == "true" ]]; then
   printf '+ curl -f -H "Host: %s" http://localhost:%s/\\n' "$resolved_host" "$host_port"
-  printf '+ curl -f -H "Host: %s" http://localhost:%s/api/v1/health\\n' "$resolved_host" "$host_port"
+  printf '+ curl -f -H "Host: %s" http://localhost:%s/api/v1/readyz\\n' "$resolved_host" "$host_port"
   printf '+ docker exec %s curl -sS -H "Host: %s" -o /dev/null -w \"%%{http_code}\" http://localhost:8000/docs\\n' "$BACKEND_CONTAINER" "$resolved_host"
   printf '+ docker exec %s curl -sS -H "Host: %s" -o /dev/null -w \"%%{http_code}\" http://localhost:8000/openapi.json\\n' "$BACKEND_CONTAINER" "$resolved_host"
   printf "+ docker exec -i %s python - <<'PY'\\n" "$BACKEND_CONTAINER"
@@ -224,8 +224,8 @@ body_excerpt() {
 attempt=1
 last_frontend_status=""
 last_frontend_body=""
-last_health_status=""
-last_health_body=""
+last_readyz_status=""
+last_readyz_body=""
 while [[ "$attempt" -le "$retries" ]]; do
   if [[ "$VERBOSE" == "true" ]]; then
     log "Smoke attempt $attempt/$retries"
@@ -235,16 +235,16 @@ while [[ "$attempt" -le "$retries" ]]; do
   last_frontend_status="$(printf '%s' "$frontend_probe" | tail -n 1 | tr -d '\r')"
   last_frontend_body="$(printf '%s' "$frontend_probe" | sed '$d')"
 
-  health_probe="$(curl -sS -H "Host: ${resolved_host}" -w $'\n%{http_code}' "http://localhost:${host_port}/api/v1/health" 2>/dev/null || true)"
-  last_health_status="$(printf '%s' "$health_probe" | tail -n 1 | tr -d '\r')"
-  last_health_body="$(printf '%s' "$health_probe" | sed '$d')"
+  readyz_probe="$(curl -sS -H "Host: ${resolved_host}" -w $'\n%{http_code}' "http://localhost:${host_port}/api/v1/readyz" 2>/dev/null || true)"
+  last_readyz_status="$(printf '%s' "$readyz_probe" | tail -n 1 | tr -d '\r')"
+  last_readyz_body="$(printf '%s' "$readyz_probe" | sed '$d')"
 
   if [[ "$VERBOSE" == "true" ]]; then
-    log "Smoke attempt statuses: root=${last_frontend_status:-n/a} health=${last_health_status:-n/a}"
+    log "Smoke attempt statuses: root=${last_frontend_status:-n/a} readyz=${last_readyz_status:-n/a}"
   fi
 
-  if [[ "$last_frontend_status" =~ ^[23][0-9][0-9]$ ]] && [[ "$last_health_status" == "200" ]]; then
-    if [[ "$last_health_body" == *"\"status\":\"healthy\""* ]] && [[ "$last_health_body" == *"\"database\":\"connected\""* ]]; then
+  if [[ "$last_frontend_status" =~ ^[23][0-9][0-9]$ ]] && [[ "$last_readyz_status" == "200" ]]; then
+    if [[ "$last_readyz_body" == *"\"ready\":true"* ]] && [[ "$last_readyz_body" == *"\"database\":\"connected\""* ]]; then
       break
     fi
   fi
@@ -254,10 +254,10 @@ while [[ "$attempt" -le "$retries" ]]; do
 done
 
 if [[ "$attempt" -gt "$retries" ]]; then
-  die "Smoke failed: frontend or /api/v1/health did not become ready (host=${resolved_host} root_status=${last_frontend_status:-n/a} root_body='$(body_excerpt "$last_frontend_body")' health_status=${last_health_status:-n/a} health_body='$(body_excerpt "$last_health_body")')"
+  die "Smoke failed: frontend or /api/v1/readyz did not become ready (host=${resolved_host} root_status=${last_frontend_status:-n/a} root_body='$(body_excerpt "$last_frontend_body")' readyz_status=${last_readyz_status:-n/a} readyz_body='$(body_excerpt "$last_readyz_body")')"
 fi
 
-log "Smoke: frontend OK and backend health OK via /api proxy"
+log "Smoke: frontend OK and backend readiness OK via /api proxy"
 
 # Backend docs disabled check (backend not published; validate in-container).
 if ! container_exists "$BACKEND_CONTAINER"; then

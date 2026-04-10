@@ -1,17 +1,14 @@
 from __future__ import annotations
 
 import importlib.util
-from pathlib import Path
 import sys
+from pathlib import Path
 
 import pytest
 
-
 REPO_ROOT = Path(__file__).resolve().parents[3]
 MODULE_PATH = REPO_ROOT / "scripts" / "security" / "validate_public_repo_hygiene.py"
-SPEC = importlib.util.spec_from_file_location(
-    "validate_public_repo_hygiene", MODULE_PATH
-)
+SPEC = importlib.util.spec_from_file_location("validate_public_repo_hygiene", MODULE_PATH)
 assert SPEC and SPEC.loader
 MODULE = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = MODULE
@@ -79,9 +76,7 @@ def test_path_findings_detect_tracked_generated_outputs() -> None:
     assert findings[0].reason == "tracked generated/local-only artifact directory"
 
 
-def test_scan_paths_limits_tracked_scan_to_requested_files(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_scan_paths_limits_tracked_scan_to_requested_files(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     docs_dir = tmp_path / "docs"
     docs_dir.mkdir()
     clean_file = docs_dir / "clean.md"
@@ -96,9 +91,7 @@ def test_scan_paths_limits_tracked_scan_to_requested_files(
     assert findings == []
 
 
-def test_scan_paths_skips_deleted_or_missing_files(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_scan_paths_skips_deleted_or_missing_files(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(MODULE, "REPO_ROOT", tmp_path)
 
     findings = MODULE.scan_paths(["docs/missing.md"])

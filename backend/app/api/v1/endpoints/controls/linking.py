@@ -19,6 +19,7 @@ router = APIRouter()
 
 # ============== Control-Risk Linking Endpoints ==============
 
+
 @router.get("/{control_id}/risks", response_model=list[ControlRiskLinkRead])
 async def list_control_risks(
     control_id: int,
@@ -34,9 +35,7 @@ async def list_control_risks(
     )
 
     # Verify control exists
-    result = await db.execute(
-        select(Control).where(Control.id == control_id)
-    )
+    result = await db.execute(select(Control).where(Control.id == control_id))
     control = result.scalar_one_or_none()
     if not control:
         raise HTTPException(status_code=404, detail="Control not found")
@@ -96,9 +95,7 @@ async def link_control_to_risk(
     from app.models import Risk
 
     # Verify control exists
-    result = await db.execute(
-        select(Control).where(Control.id == control_id)
-    )
+    result = await db.execute(select(Control).where(Control.id == control_id))
     control = result.scalar_one_or_none()
     if not control:
         raise HTTPException(status_code=404, detail="Control not found")
@@ -109,9 +106,7 @@ async def link_control_to_risk(
         check_department_access(control.department_id, current_user)
 
     # Verify risk exists
-    result = await db.execute(
-        select(Risk).where(Risk.id == link_data.risk_id)
-    )
+    result = await db.execute(select(Risk).where(Risk.id == link_data.risk_id))
     risk = result.scalar_one_or_none()
     if not risk:
         raise HTTPException(status_code=404, detail="Risk not found")

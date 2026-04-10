@@ -48,4 +48,3 @@ async def list_overdue_kris(
         return filtered
 
     return overdue
-

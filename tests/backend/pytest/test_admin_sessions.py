@@ -65,7 +65,9 @@ async def test_admin_revoke_session_revokes_refresh_rows_and_bumps_token_version
     assert refreshed_user.token_version == 4
 
     refresh_rows = (
-        await db_session.execute(select(RefreshToken).where(RefreshToken.user_id == test_user_employee.id))
-    ).scalars().all()
+        (await db_session.execute(select(RefreshToken).where(RefreshToken.user_id == test_user_employee.id)))
+        .scalars()
+        .all()
+    )
     assert len(refresh_rows) == 1
     assert refresh_rows[0].revoked_at is not None

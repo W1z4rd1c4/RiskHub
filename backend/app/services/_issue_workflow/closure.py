@@ -73,4 +73,3 @@ async def close_issue(
         changes=remediation_changes,
     )
     return issue
-

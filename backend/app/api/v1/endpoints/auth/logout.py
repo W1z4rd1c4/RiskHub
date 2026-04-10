@@ -44,9 +44,7 @@ async def _resolve_refresh_cookie_user(
     if refresh_row is None:
         return None
 
-    user = (
-        await db.execute(select(User).where(User.id == user_id))
-    ).scalar_one_or_none()
+    user = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
     if user is None or not user.is_active:
         return None
     if token_version != user.token_version or refresh_row.token_version != user.token_version:

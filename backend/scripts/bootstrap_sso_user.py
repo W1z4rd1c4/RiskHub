@@ -59,9 +59,7 @@ async def _resolve_directory_user(email_or_upn: str):
 
     matches = await provider.find_user_by_login_identifier(email_or_upn)
     if len(matches) != 1:
-        raise SystemExit(
-            f"Expected exactly one exact directory match for {email_or_upn!r}; found {len(matches)}"
-        )
+        raise SystemExit(f"Expected exactly one exact directory match for {email_or_upn!r}; found {len(matches)}")
     return matches[0]
 
 
@@ -112,7 +110,9 @@ async def _run(args: argparse.Namespace) -> int:
         if role is None:
             raise SystemExit(f"Role not found: {args.role!r} (seed roles first)")
 
-        user_by_external_id = (await db.execute(select(User).where(User.external_id == external_id))).scalar_one_or_none()
+        user_by_external_id = (
+            await db.execute(select(User).where(User.external_id == external_id))
+        ).scalar_one_or_none()
         user_by_email = (await db.execute(select(User).where(email_equals(User.email, email)))).scalar_one_or_none()
         if user_by_external_id is not None and user_by_email is not None and user_by_external_id.id != user_by_email.id:
             raise SystemExit(

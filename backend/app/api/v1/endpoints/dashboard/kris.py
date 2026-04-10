@@ -44,35 +44,28 @@ async def get_kri_breach_trends(
             conditions.append(Risk.department_id == department_id)
 
         # Query breach counts grouped by month
-        period_expr = func.to_char(KRIValueHistory.period_end, 'YYYY-MM')
-        query = select(
-            period_expr.label('period'),
-            func.count(KRIValueHistory.id).label('total_entries'),
-            func.sum(
-                case((KRIValueHistory.breach_status != 'within', 1), else_=0)
-            ).label('breached_entries')
-        ).select_from(
-            KRIValueHistory
-        ).join(
-            KeyRiskIndicator, KRIValueHistory.kri_id == KeyRiskIndicator.id
-        ).join(
-            Risk, KeyRiskIndicator.risk_id == Risk.id
-        ).where(
-            and_(*conditions)
-        ).group_by(
-            period_expr
-        ).order_by(
-            desc(period_expr)
-        ).limit(DASHBOARD_TREND_MONTHS)
+        period_expr = func.to_char(KRIValueHistory.period_end, "YYYY-MM")
+        query = (
+            select(
+                period_expr.label("period"),
+                func.count(KRIValueHistory.id).label("total_entries"),
+                func.sum(case((KRIValueHistory.breach_status != "within", 1), else_=0)).label("breached_entries"),
+            )
+            .select_from(KRIValueHistory)
+            .join(KeyRiskIndicator, KRIValueHistory.kri_id == KeyRiskIndicator.id)
+            .join(Risk, KeyRiskIndicator.risk_id == Risk.id)
+            .where(and_(*conditions))
+            .group_by(period_expr)
+            .order_by(desc(period_expr))
+            .limit(DASHBOARD_TREND_MONTHS)
+        )
 
         result = await db.execute(query)
         rows = result.all()
 
         trends = [
             KRIBreachTrendPoint(
-                period=row.period,
-                total_entries=row.total_entries or 0,
-                breached_entries=int(row.breached_entries or 0)
+                period=row.period, total_entries=row.total_entries or 0, breached_entries=int(row.breached_entries or 0)
             )
             for row in rows
             if row.period

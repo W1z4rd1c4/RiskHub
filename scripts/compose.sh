@@ -182,10 +182,10 @@ wait_for_redis_or_die() {
 smoke_check_or_die() {
   command -v curl >/dev/null 2>&1 || die "curl is required for smoke checks"
 
-  log "Smoke check: backend health"
-  if ! curl -fsS "http://localhost:8000/api/v1/health" >/dev/null; then
+  log "Smoke check: backend readiness"
+  if ! curl -fsS "http://localhost:8000/api/v1/readyz" >/dev/null; then
     docker logs riskhub-backend --tail 200 || true
-    die "Backend health endpoint not reachable."
+    die "Backend readiness endpoint not reachable."
   fi
 
   log "Smoke check: auth config"
@@ -263,7 +263,8 @@ start_full_stack() {
 
   log "Startup complete"
   log "  Frontend: http://localhost/"
-  log "  Backend:  http://localhost:8000/api/v1/health"
+  log "  Backend readiness:  http://localhost:8000/api/v1/readyz"
+  log "  Backend health:     http://localhost:8000/api/v1/health"
   log "  Database: localhost:5432"
   log "  Demo login: http://localhost/login"
 }

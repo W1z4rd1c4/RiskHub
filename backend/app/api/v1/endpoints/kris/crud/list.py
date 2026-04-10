@@ -19,7 +19,7 @@ from app.core.permissions import can_read_vendor, get_user_department_ids
 from app.core.security import check_permission, require_permission
 from app.db.session import get_db
 from app.models import KeyRiskIndicator, Risk, User, VendorKRILink
-from app.schemas.kri import KRIListResponse, KRIResponse
+from app.schemas.kri import KRIListResponse
 from app.schemas.vendor_shared import LinkedVendorRead
 from app.services._monitoring_status import (
     KRIMonitoringStatus,
@@ -128,7 +128,9 @@ async def list_kris(
             linked_vendors=[
                 LinkedVendorRead(id=link.vendor.id, name=link.vendor.name)
                 for link in getattr(kri, "vendor_links", []) or []
-                if getattr(link, "vendor", None) is not None and can_read_vendors and can_read_vendor(link.vendor, current_user)
+                if getattr(link, "vendor", None) is not None
+                and can_read_vendors
+                and can_read_vendor(link.vendor, current_user)
             ],
         )
         for kri in kris

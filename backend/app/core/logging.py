@@ -11,6 +11,7 @@ Log files:
 - logs/app.json.log: General application logs
 - logs/audit.json.log: Audit/security events only (for SIEM)
 """
+
 import logging
 import logging.handlers
 import os
@@ -58,12 +59,14 @@ def add_context_vars(
 
 class AuditFilter(logging.Filter):
     """Filter to include ONLY audit logger events."""
+
     def filter(self, record: logging.LogRecord) -> bool:
         return record.name == "audit" or record.name.startswith("audit.")
 
 
 class NonAuditFilter(logging.Filter):
     """Filter to EXCLUDE audit logger events (for app log)."""
+
     def filter(self, record: logging.LogRecord) -> bool:
         return record.name != "audit" and not record.name.startswith("audit.")
 
@@ -149,25 +152,13 @@ def configure_logging(
             audit_retention_count = retention_count
 
     resolved_app_rotation_size_mb = (
-        app_rotation_size_mb
-        if app_rotation_size_mb is not None
-        else default_app_size // (1024 * 1024)
+        app_rotation_size_mb if app_rotation_size_mb is not None else default_app_size // (1024 * 1024)
     )
-    resolved_app_retention_count = (
-        app_retention_count
-        if app_retention_count is not None
-        else default_app_count
-    )
+    resolved_app_retention_count = app_retention_count if app_retention_count is not None else default_app_count
     resolved_audit_rotation_size_mb = (
-        audit_rotation_size_mb
-        if audit_rotation_size_mb is not None
-        else default_audit_size // (1024 * 1024)
+        audit_rotation_size_mb if audit_rotation_size_mb is not None else default_audit_size // (1024 * 1024)
     )
-    resolved_audit_retention_count = (
-        audit_retention_count
-        if audit_retention_count is not None
-        else default_audit_count
-    )
+    resolved_audit_retention_count = audit_retention_count if audit_retention_count is not None else default_audit_count
 
     # App handler settings
     app_size_bytes = resolved_app_rotation_size_mb * 1024 * 1024
@@ -189,7 +180,8 @@ def configure_logging(
 
     # Configure structlog
     structlog.configure(
-        processors=shared_processors + [
+        processors=shared_processors
+        + [
             structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
         ],
         logger_factory=structlog.stdlib.LoggerFactory(),
@@ -368,8 +360,8 @@ def tail_log_file(log_path: Path, line_count: int = 100) -> tuple[list[str], int
                     # Line ends with newline, find the previous one
                     prev_newline = buffer.rfind("\n", 0, last_newline)
                     if prev_newline >= 0:
-                        line = buffer[prev_newline + 1:last_newline]
-                        buffer = buffer[:prev_newline + 1]
+                        line = buffer[prev_newline + 1 : last_newline]
+                        buffer = buffer[: prev_newline + 1]
                         if line.strip():
                             lines.append(line)
                     else:
@@ -377,8 +369,8 @@ def tail_log_file(log_path: Path, line_count: int = 100) -> tuple[list[str], int
                         break
                 else:
                     # Buffer doesn't end with newline, split at last
-                    line = buffer[last_newline + 1:]
-                    buffer = buffer[:last_newline + 1]
+                    line = buffer[last_newline + 1 :]
+                    buffer = buffer[: last_newline + 1]
                     if line.strip():
                         lines.append(line)
 

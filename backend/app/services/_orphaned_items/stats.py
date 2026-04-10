@@ -78,4 +78,3 @@ async def get_orphan_stats(db: AsyncSession, current_user: User) -> dict:
         "kri_count": int(kri_count),
         "total_count": total,
     }
-

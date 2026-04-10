@@ -1,4 +1,5 @@
 """OrphanedItem model for tracking orphaned risks/controls when users are deactivated."""
+
 from datetime import datetime
 from typing import TYPE_CHECKING
 
@@ -9,6 +10,8 @@ from app.db.base import Base
 
 if TYPE_CHECKING:
     from app.models.user import User
+
+
 class OrphanedItem(Base):
     """
     Tracks items (risks, controls) that have lost their owner due to user deactivation.
@@ -16,6 +19,7 @@ class OrphanedItem(Base):
     When a user is deactivated and they owned risks or controls, those items
     are flagged here for administrative review and reassignment.
     """
+
     __tablename__ = "orphaned_items"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -27,9 +31,7 @@ class OrphanedItem(Base):
     # Who was the previous owner
     previous_owner_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     previous_owner: Mapped["User"] = relationship(
-        "User",
-        foreign_keys=[previous_owner_id],
-        backref="orphaned_items_as_previous_owner"
+        "User", foreign_keys=[previous_owner_id], backref="orphaned_items_as_previous_owner"
     )
 
     # When did it become orphaned
@@ -38,17 +40,9 @@ class OrphanedItem(Base):
     # Resolution fields
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     resolved_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
-    resolved_by: Mapped["User"] = relationship(
-        "User",
-        foreign_keys=[resolved_by_id],
-        backref="resolved_orphans"
-    )
+    resolved_by: Mapped["User"] = relationship("User", foreign_keys=[resolved_by_id], backref="resolved_orphans")
     new_owner_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
-    new_owner: Mapped["User"] = relationship(
-        "User",
-        foreign_keys=[new_owner_id],
-        backref="inherited_orphans"
-    )
+    new_owner: Mapped["User"] = relationship("User", foreign_keys=[new_owner_id], backref="inherited_orphans")
 
     # Status
     status: Mapped[str] = mapped_column(String(20), default="pending", index=True)  # "pending" | "resolved"

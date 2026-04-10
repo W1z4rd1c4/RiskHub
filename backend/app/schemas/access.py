@@ -1,4 +1,5 @@
 """Pydantic schemas for access management endpoints."""
+
 from datetime import datetime
 from typing import Optional
 
@@ -10,6 +11,7 @@ from app.schemas.user import AccessScopeEnum, RoleRead
 
 class PermissionRead(BaseModel):
     """Schema for permission details."""
+
     resource: str
     action: str
     description: Optional[str] = None
@@ -19,6 +21,7 @@ class PermissionRead(BaseModel):
 
 class RoleWithPermissions(BaseModel):
     """Role schema with its permissions."""
+
     id: int
     name: str
     display_name: str
@@ -30,6 +33,7 @@ class RoleWithPermissions(BaseModel):
 
 class AccessUserRead(BaseModel):
     """Schema for access management user list/read."""
+
     id: int
     email: str
     name: str
@@ -63,6 +67,7 @@ class AccessUserUpdate(BaseModel):
     - access fields are restricted to admin/CRO
     - identity fields are restricted to platform Admin only
     """
+
     name: Optional[str] = None
     email: Optional[EmailStr] = None
     role_id: Optional[int] = None

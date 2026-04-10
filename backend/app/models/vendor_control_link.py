@@ -25,6 +25,4 @@ class VendorControlLink(Base):
     vendor: Mapped["Vendor"] = relationship("Vendor", back_populates="control_links")
     control: Mapped["Control"] = relationship("Control", back_populates="vendor_links")
 
-    __table_args__ = (
-        UniqueConstraint("vendor_id", "control_id", name="uq_vendor_control_link"),
-    )
+    __table_args__ = (UniqueConstraint("vendor_id", "control_id", name="uq_vendor_control_link"),)

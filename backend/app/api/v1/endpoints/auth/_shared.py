@@ -34,7 +34,11 @@ def _resolve_access_expires_delta(
     settings: Settings,
     session_expires_at: datetime | None = None,
 ) -> timedelta:
-    default_lifetime = timedelta(minutes=active_minutes) if (active_minutes := settings.access_token_expire_minutes) else timedelta(minutes=60)
+    default_lifetime = (
+        timedelta(minutes=active_minutes)
+        if (active_minutes := settings.access_token_expire_minutes)
+        else timedelta(minutes=60)
+    )
     if session_expires_at is None:
         return default_lifetime
 

@@ -35,4 +35,3 @@ async def _ensure_owner_assignable(
             status_code=denied_status,
             detail="Owner user must have global scope or belong to the issue department",
         )
-

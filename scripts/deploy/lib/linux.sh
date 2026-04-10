@@ -287,12 +287,12 @@ linux_smoke() {
 
     if [[ "$DRY_RUN" == "true" ]]; then
       run curl -fsS -H "Host: ${SERVER_NAME}" "${frontend_url}/"
-      run curl -fsS -H "Host: ${SERVER_NAME}" "${frontend_url}/api/v1/health"
+      run curl -fsS -H "Host: ${SERVER_NAME}" "${frontend_url}/api/v1/readyz"
       run curl -sS -H "Host: ${SERVER_NAME}" -o /dev/null -w "%{http_code}" "${backend_url}/docs"
       run curl -sS -H "Host: ${SERVER_NAME}" -o /dev/null -w "%{http_code}" "${backend_url}/openapi.json"
     else
       curl -fsS -H "Host: ${SERVER_NAME}" "${frontend_url}/" >/dev/null
-      curl -fsS -H "Host: ${SERVER_NAME}" "${frontend_url}/api/v1/health" >/dev/null
+      curl -fsS -H "Host: ${SERVER_NAME}" "${frontend_url}/api/v1/readyz" >/dev/null
 
       local docs_code
       docs_code="$(curl -sS -H "Host: ${SERVER_NAME}" -o /dev/null -w "%{http_code}" "${backend_url}/docs" 2>/dev/null || true)"

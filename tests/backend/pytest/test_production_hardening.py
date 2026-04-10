@@ -91,16 +91,12 @@ async def test_dev_auth_routes_are_unavailable_in_production_mode(monkeypatch: p
 
 def test_cors_guard_rejects_wildcard_origins_in_production_mode():
     with pytest.raises(RuntimeError):
-        create_app(
-            _production_settings(cors_origins=["*"])
-        )
+        create_app(_production_settings(cors_origins=["*"]))
 
 
 def test_cors_guard_requires_explicit_allowlist_in_production_mode():
     with pytest.raises(RuntimeError):
-        create_app(
-            _production_settings(cors_origins=[])
-        )
+        create_app(_production_settings(cors_origins=[]))
 
 
 def test_allowed_hosts_are_required_in_production_mode() -> None:
@@ -110,30 +106,22 @@ def test_allowed_hosts_are_required_in_production_mode() -> None:
 
 def test_auth_mode_guard_requires_microsoft_sso_in_production():
     with pytest.raises(RuntimeError, match="AUTH_MODE must be 'microsoft_sso'"):
-        create_app(
-            _production_settings(auth_mode="password")
-        )
+        create_app(_production_settings(auth_mode="password"))
 
 
 def test_auth_mode_guard_requires_entra_config_in_production():
     with pytest.raises(RuntimeError, match="ENTRA_TENANT_ID and ENTRA_CLIENT_ID are required"):
-        create_app(
-            _production_settings(entra_tenant_id=None, entra_client_id=None)
-        )
+        create_app(_production_settings(entra_tenant_id=None, entra_client_id=None))
 
 
 def test_secret_key_length_guard_triggers_in_production():
     with pytest.raises(RuntimeError, match="SECRET_KEY must be at least 32 characters"):
-        create_app(
-            _production_settings(secret_key="too-short")
-        )
+        create_app(_production_settings(secret_key="too-short"))
 
 
 def test_database_url_default_guard_triggers_in_production():
     with pytest.raises(RuntimeError, match="DATABASE_URL must be explicitly configured"):
-        create_app(
-            _production_settings(database_url=DEFAULT_DATABASE_URL)
-        )
+        create_app(_production_settings(database_url=DEFAULT_DATABASE_URL))
 
 
 def test_production_requires_graph_directory_provider() -> None:

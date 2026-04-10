@@ -181,8 +181,7 @@ async def correct_history_entry(
 
     # Verify history entry exists and belongs to this KRI
     entry_result = await db.execute(
-        select(KRIValueHistory)
-        .where(KRIValueHistory.id == entry_id, KRIValueHistory.kri_id == kri_id)
+        select(KRIValueHistory).where(KRIValueHistory.id == entry_id, KRIValueHistory.kri_id == kri_id)
     )
     entry = entry_result.scalar_one_or_none()
 
@@ -210,7 +209,7 @@ async def correct_history_entry(
                 ApprovalRequest.resource_type == ApprovalResourceType.KRI,
                 ApprovalRequest.resource_id == kri.id,
                 ApprovalRequest.action_type == ApprovalActionType.EDIT,
-                ApprovalRequest.status.in_([ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED])
+                ApprovalRequest.status.in_([ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED]),
             )
         )
         if existing.scalar_one_or_none():
@@ -244,6 +243,7 @@ async def correct_history_entry(
         )
 
         from app.core.approval_helpers import create_approval_request_with_audit
+
         await create_approval_request_with_audit(
             db,
             approval=approval,
@@ -253,6 +253,7 @@ async def correct_history_entry(
         )
 
         from fastapi.responses import JSONResponse
+
         return JSONResponse(
             status_code=202,
             content={
@@ -261,6 +262,6 @@ async def correct_history_entry(
                 "action_type": "edit",
                 "primary_approver_id": primary_approver_id,
                 "requires_privileged_approval": True,
-                "pending_changes": pending_changes
-            }
+                "pending_changes": pending_changes,
+            },
         )

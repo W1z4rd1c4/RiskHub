@@ -74,7 +74,8 @@ class _ADEmulatorDirectoryService:
             return []
         matches = await self.search_users(query=normalized, limit=25, skip=0)
         return [
-            row for row in matches
+            row
+            for row in matches
             if normalize_email(row.email) == normalized or normalize_email(row.user_principal_name) == normalized
         ]
 
@@ -112,9 +113,7 @@ class _ADEmulatorDirectoryService:
         if response.status_code >= 500:
             raise DirectoryProviderUnavailableError("AD emulator unavailable")
         if response.status_code >= 400:
-            raise DirectoryProviderError(
-                f"AD emulator request failed ({response.status_code}): {response.text[:200]}"
-            )
+            raise DirectoryProviderError(f"AD emulator request failed ({response.status_code}): {response.text[:200]}")
 
         payload: dict[str, Any] = response.json()
         return payload
@@ -199,7 +198,11 @@ class DirectoryProviderService:
         # auto mode
         if settings.entra_certificate_credential_error:
             raise DirectoryProviderUnavailableError(settings.entra_certificate_credential_error)
-        if auth_settings.entra_tenant_id and auth_settings.entra_client_id and settings.entra_confidential_credential is not None:
+        if (
+            auth_settings.entra_tenant_id
+            and auth_settings.entra_client_id
+            and settings.entra_confidential_credential is not None
+        ):
             return GraphDirectoryService(settings)
         if settings.ad_emulator_base_url:
             return _ADEmulatorDirectoryService(settings)

@@ -111,9 +111,10 @@ async def test_demo_refresh_replay_allows_single_parallel_winner(
     assert csrf_token
 
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client_a, AsyncClient(
-        transport=transport, base_url="http://test"
-    ) as client_b:
+    async with (
+        AsyncClient(transport=transport, base_url="http://test") as client_a,
+        AsyncClient(transport=transport, base_url="http://test") as client_b,
+    ):
         response_a, response_b = await asyncio.gather(
             client_a.post("/api/v1/auth/refresh", headers=_refresh_cookie_headers(initial_cookie, csrf_token)),
             client_b.post("/api/v1/auth/refresh", headers=_refresh_cookie_headers(initial_cookie, csrf_token)),

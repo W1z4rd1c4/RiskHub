@@ -1,4 +1,5 @@
 """Background task scheduler for KRI deadline checking and other periodic tasks."""
+
 import os
 from collections.abc import Awaitable, Callable
 from contextlib import asynccontextmanager
@@ -369,6 +370,36 @@ def _resolve_lock_provider() -> SchedulerLockProvider:
     return SchedulerLockProvider()
 
 
+def get_scheduler_role_status(
+    *,
+    scheduler_enabled: bool,
+    scheduler_running: bool,
+    lock_acquired: bool,
+) -> dict[str, str]:
+    if not scheduler_enabled:
+        return {
+            "scheduler_role": "disabled",
+            "scheduler_status": "disabled",
+        }
+
+    if scheduler_running and lock_acquired:
+        return {
+            "scheduler_role": "leader",
+            "scheduler_status": "leader_running",
+        }
+
+    if not scheduler_running and not lock_acquired:
+        return {
+            "scheduler_role": "follower",
+            "scheduler_status": "follower_ready",
+        }
+
+    return {
+        "scheduler_role": "leader" if lock_acquired else "follower",
+        "scheduler_status": "error",
+    }
+
+
 async def _mark_runtime_started() -> None:
     global _runtime_run_id
     _runtime_run_id = str(uuid4())
@@ -428,6 +459,12 @@ async def _release_lock_provider(*, suppress_exceptions: bool) -> None:
 def get_scheduler_runtime_state() -> dict[str, object]:
     lock_provider = _lock_provider.provider_name if _lock_provider is not None else None
     enable = os.getenv("ENABLE_SCHEDULER", "false").lower() == "true"
+    lock_acquired = bool(_lock_provider.lock_acquired) if _lock_provider is not None else False
+    state_details = get_scheduler_role_status(
+        scheduler_enabled=enable,
+        scheduler_running=scheduler.running,
+        lock_acquired=lock_acquired,
+    )
     return {
         "process_role": "scheduler" if enable else "api",
         "instance_id": PROCESS_INSTANCE_ID,
@@ -435,7 +472,8 @@ def get_scheduler_runtime_state() -> dict[str, object]:
         "scheduler_enabled": enable,
         "scheduler_running": scheduler.running,
         "lock_provider": lock_provider,
-        "lock_acquired": bool(_lock_provider.lock_acquired) if _lock_provider is not None else False,
+        "lock_acquired": lock_acquired,
+        **state_details,
     }
 
 
@@ -618,7 +656,9 @@ async def start_scheduler_async() -> None:
         logger.info("scheduler_disabled", scheduler_enabled=False, instance_id=PROCESS_INSTANCE_ID)
         return
     if _db_sessionmaker is None:
-        logger.warning("scheduler_not_started", reason="db_sessionmaker_not_configured", instance_id=PROCESS_INSTANCE_ID)
+        logger.warning(
+            "scheduler_not_started", reason="db_sessionmaker_not_configured", instance_id=PROCESS_INSTANCE_ID
+        )
         return
     if _db_engine is None:
         logger.warning("scheduler_not_started", reason="db_engine_not_configured", instance_id=PROCESS_INSTANCE_ID)

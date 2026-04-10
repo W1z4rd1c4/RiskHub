@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 
 class DepartmentBase(BaseModel):
     """Base schema for Department."""
+
     name: str = Field(..., max_length=255, description="Department name")
     code: str = Field(..., max_length=50, description="Department code")
     description: Optional[str] = Field(None, max_length=500, description="Department description")
@@ -13,6 +14,7 @@ class DepartmentBase(BaseModel):
 
 class DepartmentRead(DepartmentBase):
     """Schema for reading a Department."""
+
     id: int
     created_at: datetime
     updated_at: datetime
@@ -22,6 +24,7 @@ class DepartmentRead(DepartmentBase):
 
 class DepartmentSummary(BaseModel):
     """Minimal schema for department list views with counts."""
+
     id: int
     name: str
     code: str
@@ -38,6 +41,7 @@ class DepartmentSummary(BaseModel):
 
 class RiskDistribution(BaseModel):
     """Risk distribution by level."""
+
     low: int = 0
     medium: int = 0
     high: int = 0
@@ -46,6 +50,7 @@ class RiskDistribution(BaseModel):
 
 class ControlStats(BaseModel):
     """Control statistics."""
+
     total: int
     active: int
     inactive: int
@@ -55,6 +60,7 @@ class ControlStats(BaseModel):
 
 class RecentExecution(BaseModel):
     """Recent control execution summary."""
+
     id: int
     control_id: int
     control_name: str
@@ -67,6 +73,7 @@ class RecentExecution(BaseModel):
 
 class DepartmentDetail(DepartmentBase):
     """Detailed schema for department detail view."""
+
     id: int
     created_at: datetime
     updated_at: datetime

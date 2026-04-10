@@ -52,9 +52,7 @@ def test_sanitize_changes_keeps_safe_fields_only() -> None:
     assert result.visible_fields == ("status", "net_score", "process")
 
 
-def test_sanitize_changes_keeps_password_changed_but_hides_it_from_visible_fields() -> (
-    None
-):
+def test_sanitize_changes_keeps_password_changed_but_hides_it_from_visible_fields() -> None:
     result = sanitize_changes(
         "user",
         {

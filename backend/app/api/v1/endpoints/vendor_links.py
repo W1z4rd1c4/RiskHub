@@ -13,15 +13,20 @@ from app.api.v1.endpoints._monitoring_response import (
     serialize_control_brief_for_link,
     serialize_kri_response,
 )
-from app.core.permissions import can_read_control_id, can_read_risk_id, can_read_vendor, is_vendor_owner
-from app.core.permissions import can_read_kri_id
-from app.core.security import check_permission
 from app.core.datetime_utils import utc_now
+from app.core.permissions import (
+    can_read_control_id,
+    can_read_kri_id,
+    can_read_risk_id,
+    can_read_vendor,
+    is_vendor_owner,
+)
+from app.core.security import check_permission
 from app.db.session import get_db
 from app.models import (
     Control,
-    Risk,
     KeyRiskIndicator,
+    Risk,
     User,
     Vendor,
     VendorControlLink,
@@ -128,8 +133,7 @@ async def link_vendor_to_risk(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Risk not found")
 
     existing = await db.execute(
-        select(VendorRiskLink)
-        .where(VendorRiskLink.vendor_id == vendor_id, VendorRiskLink.risk_id == payload.risk_id)
+        select(VendorRiskLink).where(VendorRiskLink.vendor_id == vendor_id, VendorRiskLink.risk_id == payload.risk_id)
     )
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Link already exists")
@@ -254,17 +258,16 @@ async def link_vendor_to_control(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: vendors:write")
 
     result = await db.execute(
-        select(Control)
-        .options(selectinload(Control.department))
-        .where(Control.id == payload.control_id)
+        select(Control).options(selectinload(Control.department)).where(Control.id == payload.control_id)
     )
     control = result.scalar_one_or_none()
     if not control or not await _can_read_control(db, current_user, control):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Control not found")
 
     existing = await db.execute(
-        select(VendorControlLink)
-        .where(VendorControlLink.vendor_id == vendor_id, VendorControlLink.control_id == payload.control_id)
+        select(VendorControlLink).where(
+            VendorControlLink.vendor_id == vendor_id, VendorControlLink.control_id == payload.control_id
+        )
     )
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Link already exists")
@@ -295,18 +298,15 @@ async def unlink_vendor_from_control(
     if not can_modify_vendor:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: vendors:write")
 
-    result = await db.execute(
-        select(Control)
-        .options(selectinload(Control.department))
-        .where(Control.id == control_id)
-    )
+    result = await db.execute(select(Control).options(selectinload(Control.department)).where(Control.id == control_id))
     control = result.scalar_one_or_none()
     if not control or not await _can_read_control(db, current_user, control):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Control not found")
 
     result = await db.execute(
-        select(VendorControlLink)
-        .where(VendorControlLink.vendor_id == vendor_id, VendorControlLink.control_id == control_id)
+        select(VendorControlLink).where(
+            VendorControlLink.vendor_id == vendor_id, VendorControlLink.control_id == control_id
+        )
     )
     link = result.scalar_one_or_none()
     if not link:
@@ -369,11 +369,7 @@ async def list_vendor_linked_kris(
                 monitoring_status_reason=(
                     brief.monitoring_status_reason.value
                     if hasattr(brief.monitoring_status_reason, "value")
-                    else (
-                        str(brief.monitoring_status_reason)
-                        if brief.monitoring_status_reason is not None
-                        else None
-                    )
+                    else (str(brief.monitoring_status_reason) if brief.monitoring_status_reason is not None else None)
                 ),
                 is_submitted_for_required_period=brief.is_submitted_for_required_period,
                 required_period_end=brief.required_period_end,
@@ -450,7 +446,9 @@ async def unlink_vendor_from_kri(
     if not kri or not await _can_read_kri(db, current_user, kri_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="KRI not found")
 
-    result = await db.execute(select(VendorKRILink).where(VendorKRILink.vendor_id == vendor_id, VendorKRILink.kri_id == kri_id))
+    result = await db.execute(
+        select(VendorKRILink).where(VendorKRILink.vendor_id == vendor_id, VendorKRILink.kri_id == kri_id)
+    )
     link = result.scalar_one_or_none()
     if not link:
         raise HTTPException(status_code=404, detail="Link not found")

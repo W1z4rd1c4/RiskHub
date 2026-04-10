@@ -132,8 +132,7 @@ async def update_log_config(
                 logger.exception(
                     "log_config_restore_failed",
                     message=(
-                        "Failed to restore previous runtime logging configuration "
-                        "after /admin/logs/config failure."
+                        "Failed to restore previous runtime logging configuration " "after /admin/logs/config failure."
                     ),
                     restore_error=str(restore_exc),
                 )

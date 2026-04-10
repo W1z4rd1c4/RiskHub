@@ -18,4 +18,3 @@ async def validate_risk_type(db: AsyncSession, risk_type_code: str) -> None:
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Unknown risk type '{risk_type_code}'. Available types can be viewed in Risk Hub configuration.",
         )
-

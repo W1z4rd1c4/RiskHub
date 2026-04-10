@@ -1,4 +1,5 @@
 """Orphaned items API endpoints for governance."""
+
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -6,16 +7,16 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
+from app.core.permissions import can_manage_users, ensure_business_view_access
 from app.core.scheduler import execute_tracked_job_with_session
 from app.core.ttl_cache import TTLCache
-from app.core.permissions import can_manage_users, ensure_business_view_access
 from app.db.session import get_db
 from app.models import User
 from app.models.scheduler_job_run import SchedulerJobRun
 from app.schemas.orphaned_item import (
     OrphanedItemDetail,
-    OrphanedItemsOverview,
     OrphanedItemResolve,
+    OrphanedItemsOverview,
     OrphanedItemStats,
     OrphanScanResponse,
 )

@@ -69,8 +69,7 @@ MESSAGES = {
         "questionnaire_submitted_message": "{actor_name} odeslal(a) dotazník k hodnocení rizika '{risk_name}'.",
         "questionnaire_clarification_requested_title": "Žádost o upřesnění",
         "questionnaire_clarification_requested_message": (
-            "Byla požádána o upřesnění k vašemu dotazníku hodnocení rizika "
-            "'{risk_name}'."
+            "Byla požádána o upřesnění k vašemu dotazníku hodnocení rizika " "'{risk_name}'."
         ),
     },
     # Activity log action descriptions

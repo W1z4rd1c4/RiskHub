@@ -6,7 +6,18 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Control, ControlExecution, ControlRiskLink, Department, Issue, IssueLink, KeyRiskIndicator, Risk, Role, User
+from app.models import (
+    Control,
+    ControlExecution,
+    ControlRiskLink,
+    Department,
+    Issue,
+    IssueLink,
+    KeyRiskIndicator,
+    Risk,
+    Role,
+    User,
+)
 
 from .issues_api_helpers import _create_department_scoped_user
 

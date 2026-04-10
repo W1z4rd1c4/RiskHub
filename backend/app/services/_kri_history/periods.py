@@ -110,4 +110,3 @@ def is_within_reporting_window(period_end: clock.date) -> bool:
     """Check if we're currently within the reporting window for a period."""
     due = due_date(period_end)
     return clock.today() <= due
-

@@ -1,4 +1,5 @@
 """Tests for approval request endpoints."""
+
 from __future__ import annotations
 
 from datetime import UTC, date, datetime
@@ -21,11 +22,11 @@ from app.models import (
     ControlRiskLink,
     GlobalConfig,
     KeyRiskIndicator,
+    OutboxEvent,
     Permission,
+    Risk,
     Role,
     RolePermission,
-    OutboxEvent,
-    Risk,
     User,
 )
 from app.models.global_config import clear_config_cache
@@ -895,9 +896,7 @@ async def test_cannot_approve_already_resolved_request(
     assert reject_response.status_code == 200
 
     # Try to approve - should fail
-    response = await client_cro.post(
-        f"/api/v1/approvals/{approval_id}/approve", json={"resolution_notes": "Try again"}
-    )
+    response = await client_cro.post(f"/api/v1/approvals/{approval_id}/approve", json={"resolution_notes": "Try again"})
     assert response.status_code == 400
 
 
@@ -1359,7 +1358,6 @@ async def test_kri_approval_cross_department_denied(
     """
     from app.models import Department, KeyRiskIndicator, Risk, User
     from app.models.risk import RiskStatus as RiskStatusEnum
-    from app.models.role import Role
     from app.models.user import AccessScope
 
     # Create two departments

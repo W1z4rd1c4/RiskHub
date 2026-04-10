@@ -4,7 +4,6 @@ Ensures active/archived pairs across all archive-capable entity families.
 """
 
 import asyncio
-from datetime import UTC, datetime
 
 from sqlalchemy import func, select
 
@@ -101,6 +100,7 @@ VENDOR_STATUS_MATRIX = [
     {"registration_id": "E2E-VREG-001", "status": "active"},
     {"registration_id": "E2E-VREG-004", "status": "inactive"},
 ]
+
 
 async def _ensure_risk_matrix(db, users, departments):
     created = 0

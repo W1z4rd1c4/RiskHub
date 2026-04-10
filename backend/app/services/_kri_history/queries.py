@@ -193,4 +193,3 @@ async def get_due_soon_kris(
     # Sort by days until due ascending (most urgent first)
     due_soon.sort(key=lambda x: x["days_until_due"])
     return due_soon
-

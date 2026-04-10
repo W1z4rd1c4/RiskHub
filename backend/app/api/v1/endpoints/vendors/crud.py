@@ -56,11 +56,7 @@ async def _get_visible_risk_ids(
     visibility_results = await asyncio.gather(
         *(can_read_risk_id(db, current_user, risk_id) for risk_id in ordered_risk_ids)
     )
-    return {
-        risk_id
-        for risk_id, can_read in zip(ordered_risk_ids, visibility_results, strict=False)
-        if can_read
-    }
+    return {risk_id for risk_id, can_read in zip(ordered_risk_ids, visibility_results, strict=False) if can_read}
 
 
 def _serialize_vendor_linked_risks(
@@ -200,9 +196,7 @@ async def list_vendors(
     vendors = result.scalars().all()
 
     visible_risk_ids = (
-        await _get_visible_risk_ids(db, current_user=current_user, vendors=vendors)
-        if can_read_risks
-        else set()
+        await _get_visible_risk_ids(db, current_user=current_user, vendors=vendors) if can_read_risks else set()
     )
     linked_risks_by_vendor_id = _serialize_vendor_linked_risks(vendors, visible_risk_ids=visible_risk_ids)
 

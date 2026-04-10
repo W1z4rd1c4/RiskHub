@@ -1,4 +1,5 @@
 """Dependency injection utilities for FastAPI endpoints."""
+
 from datetime import timedelta
 
 from fastapi import Depends, Header, HTTPException, status
@@ -45,9 +46,7 @@ async def _resolve_bearer_user(
         raise HTTPException(status_code=401, detail="Invalid token") from exc
 
     result = await db.execute(
-        select(User)
-        .options(_user_permission_load(), selectinload(User.department))
-        .where(User.id == user_id)
+        select(User).options(_user_permission_load(), selectinload(User.department)).where(User.id == user_id)
     )
     user = result.scalar_one_or_none()
     if not user or not user.is_active:
@@ -154,6 +153,7 @@ async def get_current_user_optional(
         )
     except Exception as e:
         import logging
+
         logger = logging.getLogger(__name__)
         logger.debug(f"Optional auth failed: {str(e)}")
         pass

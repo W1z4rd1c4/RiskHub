@@ -5,8 +5,8 @@ from sqlalchemy.orm import selectinload
 
 from app.api import deps
 from app.api.v1.endpoints._monitoring_response import load_monitoring_response_context, serialize_control_read
-from app.core.datetime_utils import utc_now
 from app.core.activity_logger import build_change_set, log_activity
+from app.core.datetime_utils import utc_now
 from app.core.owner_reference_validation import validate_active_owner_reference
 from app.core.permissions import check_department_access, is_control_owner
 from app.core.security import check_permission
@@ -162,6 +162,7 @@ async def _create_control_edit_approval_if_required(
             "requires_privileged_approval": is_priority_linked,
         },
     )
+
 
 async def _reload_control_with_relationships(db: AsyncSession, control_id: int) -> Control:
     result = await db.execute(

@@ -19,4 +19,3 @@ async def get_issue(
 ) -> IssueRead:
     issue = await _get_readable_issue_or_404(db, issue_id, current_user)
     return _serialize_issue_read(issue)
-

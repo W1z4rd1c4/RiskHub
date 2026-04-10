@@ -295,7 +295,7 @@ async def test_approval_activity_log_create_and_approve(
     )
     entry = result.scalars().first()
     assert entry is not None
-    assert entry.entity_name == f"R-AL-03"
+    assert entry.entity_name == "R-AL-03"
     assert entry.description == "Archived Risk"
 
 
@@ -328,9 +328,7 @@ async def test_risk_restore_activity_log_keeps_safe_restore_description(
     assert create_response.status_code == 201
     risk_id = create_response.json()["id"]
 
-    archive_response = await auth_client.delete(
-        f"/api/v1/risks/{risk_id}?reason=Archive+for+restore+logging"
-    )
+    archive_response = await auth_client.delete(f"/api/v1/risks/{risk_id}?reason=Archive+for+restore+logging")
     assert archive_response.status_code == 204
 
     restore_response = await auth_client.post(f"/api/v1/risks/{risk_id}/restore")
@@ -374,9 +372,7 @@ async def test_control_restore_activity_log_uses_generic_safe_description(
     assert create_response.status_code == 201
     control_id = create_response.json()["id"]
 
-    archive_response = await auth_client.delete(
-        f"/api/v1/controls/{control_id}?reason=Archive+for+restore+logging"
-    )
+    archive_response = await auth_client.delete(f"/api/v1/controls/{control_id}?reason=Archive+for+restore+logging")
     assert archive_response.status_code == 204
 
     restore_response = await auth_client.post(f"/api/v1/controls/{control_id}/restore")
@@ -599,15 +595,11 @@ async def test_activity_log_search_in_changes_and_default_window(
     db_session.add(old_entry)
     await db_session.commit()
 
-    response = await client_cro.get(
-        "/api/v1/activity-log", params={"search": "search-needle"}
-    )
+    response = await client_cro.get("/api/v1/activity-log", params={"search": "search-needle"})
     assert response.status_code == 200
     assert any(item["entity_id"] == 10 for item in response.json()["items"])
 
-    response = await client_cro.get(
-        "/api/v1/activity-log", params={"search": "ancient-needle"}
-    )
+    response = await client_cro.get("/api/v1/activity-log", params={"search": "ancient-needle"})
     assert response.status_code == 200
     assert all(item["entity_id"] != 11 for item in response.json()["items"])
 
@@ -688,9 +680,7 @@ async def test_activity_log_redacts_sensitive_and_unknown_fields_and_keeps_safe_
     )
     await db_session.commit()
 
-    result = await db_session.execute(
-        select(ActivityLog).where(ActivityLog.entity_id == 40)
-    )
+    result = await db_session.execute(select(ActivityLog).where(ActivityLog.entity_id == 40))
     entry = result.scalars().first()
     assert entry is not None
     assert entry.changes["password"]["new"] == "[REDACTED]"
@@ -813,9 +803,7 @@ async def test_vendor_legal_name_activity_log_changes_are_redacted_everywhere(
     result = await db_session.execute(select(ActivityLog).where(ActivityLog.entity_id == 54))
     entry = result.scalars().first()
     assert entry is not None
-    assert entry.changes == {
-        "legal_name": {"old": "[REDACTED]", "new": "[REDACTED]"}
-    }
+    assert entry.changes == {"legal_name": {"old": "[REDACTED]", "new": "[REDACTED]"}}
     assert entry.description == "Updated Vendor (updated sensitive fields)"
     assert emitted["changes"] == entry.changes
 
@@ -946,9 +934,7 @@ async def test_approval_scenario_activity_log_uses_safe_label_and_structured_cha
 
 
 @pytest.mark.asyncio
-async def test_activity_log_uses_identical_sanitized_changes_for_db_and_siem(
-    db_session, monkeypatch
-):
+async def test_activity_log_uses_identical_sanitized_changes_for_db_and_siem(db_session, monkeypatch):
     emitted: dict[str, object] = {}
 
     def capture(event: str, **kwargs: object) -> None:
@@ -974,9 +960,7 @@ async def test_activity_log_uses_identical_sanitized_changes_for_db_and_siem(
     )
     await db_session.commit()
 
-    result = await db_session.execute(
-        select(ActivityLog).where(ActivityLog.entity_id == 41)
-    )
+    result = await db_session.execute(select(ActivityLog).where(ActivityLog.entity_id == 41))
     entry = result.scalars().first()
     assert entry is not None
     assert entry.changes["last_error"]["new"] == "[REDACTED]"
@@ -1038,9 +1022,7 @@ async def test_activity_log_is_append_only(db_session):
     )
     await db_session.commit()
 
-    result = await db_session.execute(
-        select(ActivityLog).where(ActivityLog.entity_id == 30)
-    )
+    result = await db_session.execute(select(ActivityLog).where(ActivityLog.entity_id == 30))
     entry = result.scalars().first()
     assert entry is not None
 
@@ -1067,9 +1049,7 @@ async def test_activity_log_department_scoping(db_session):
     role = Role(name="dept_head", display_name="Dept Head", description="Dept Head")
     db_session.add(role)
     await db_session.commit()
-    perm = Permission(
-        resource="activity_log", action="read", description="Read activity log"
-    )
+    perm = Permission(resource="activity_log", action="read", description="Read activity log")
     db_session.add(perm)
     await db_session.commit()
     db_session.add(RolePermission(role_id=role.id, permission_id=perm.id))
@@ -1088,9 +1068,7 @@ async def test_activity_log_department_scoping(db_session):
     result = await db_session.execute(
         select(User)
         .options(
-            selectinload(User.role)
-            .selectinload(Role.permissions)
-            .selectinload(RolePermission.permission),
+            selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission),
             selectinload(User.department),
         )
         .where(User.id == scoped_user.id)
@@ -1133,9 +1111,7 @@ async def test_activity_log_department_scoping(db_session):
 
     transport = ASGITransport(app=app)
     try:
-        async with AsyncClient(
-            transport=transport, base_url="http://test"
-        ) as scoped_client:
+        async with AsyncClient(transport=transport, base_url="http://test") as scoped_client:
             response = await scoped_client.get("/api/v1/activity-log")
             assert response.status_code == 200
             items = response.json()["items"]
@@ -1161,7 +1137,4 @@ async def test_platform_admin_is_denied_business_activity_log(
     response = await client_platform_admin.get(path)
 
     assert response.status_code == 403
-    assert (
-        response.json()["detail"]
-        == "Platform admins cannot access the business Activity Log"
-    )
+    assert response.json()["detail"] == "Platform admins cannot access the business Activity Log"

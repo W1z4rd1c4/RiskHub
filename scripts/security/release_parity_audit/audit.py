@@ -1223,7 +1223,7 @@ class ReleaseParityAudit:
 
         dev_full_result = self._run("path_dev_sh_full", "./scripts/dev.sh --daemon", timeout_sec=900)
         if dev_full_result.rc == 0:
-            backend_ready = self._wait_http("http://localhost:8000/api/v1/health", timeout_sec=90)
+            backend_ready = self._wait_http("http://localhost:8000/api/v1/readyz", timeout_sec=90)
             frontend_ready = self._wait_http("http://localhost:5173/", timeout_sec=90)
             fp = self._capture_backend_fingerprint("dev_sh_full", "http://localhost:8000")
             shot_file = self.ui_dir / "dev_sh_full_login.png"
@@ -1247,7 +1247,7 @@ class ReleaseParityAudit:
         docker_containers = ["riskhub-db", "riskhub-redis", "riskhub-backend", "riskhub-frontend"]
         compose_up_result = self._run("path_compose_sh_up_full", "./scripts/compose.sh up", timeout_sec=2400)
         if compose_up_result.rc == 0:
-            backend_ready = self._wait_http("http://localhost:8000/api/v1/health", timeout_sec=90)
+            backend_ready = self._wait_http("http://localhost:8000/api/v1/readyz", timeout_sec=90)
             frontend_ready = self._wait_http("http://localhost/", timeout_sec=90)
             fp = self._capture_backend_fingerprint("compose_sh_up_full", "http://localhost:8000")
             shot_file = self.ui_dir / "compose_sh_up_full_login.png"
@@ -1368,7 +1368,7 @@ class ReleaseParityAudit:
         backend_dev_fp = self._start_background_service(
             "path_backend_runtime_dev",
             "backend/scripts/runtime/dev.sh --port 8010 --no-reload",
-            readiness_url="http://localhost:8010/api/v1/health",
+            readiness_url="http://localhost:8010/api/v1/readyz",
             endpoint_base_url="http://localhost:8010",
         )
         backend_dev_fp["startup_path_id"] = "backend_runtime_dev"
@@ -1377,7 +1377,7 @@ class ReleaseParityAudit:
         backend_test_fp = self._start_background_service(
             "path_backend_runtime_test",
             "backend/scripts/runtime/test.sh --port 8011",
-            readiness_url="http://localhost:8011/api/v1/health",
+            readiness_url="http://localhost:8011/api/v1/readyz",
             endpoint_base_url="http://localhost:8011",
         )
         backend_test_fp["startup_path_id"] = "backend_runtime_test"

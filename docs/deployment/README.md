@@ -26,7 +26,8 @@ Common rules across both targets:
 - Scheduler ownership is enforced in-app with a Postgres advisory lock and recorded in `scheduler_job_runs`.
 - Post-commit side effects are dispatched from the transactional outbox table `app_outbox_events`.
 - Production runs with `DEBUG=false`, `MOCK_AUTH_ENABLED=false`, `AUTH_MODE=microsoft_sso`.
-- Public `GET /api/v1/health` is intentionally minimal and returns only `status`; detailed runtime health stays on admin-authenticated `/api/v1/admin/health`.
+- Public `GET /api/v1/readyz` is the machine-facing readiness probe.
+- Public `GET /api/v1/health` is the diagnostic probe with dependency state for dashboards and smoke checks.
 
 ## Read This First
 

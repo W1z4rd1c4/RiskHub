@@ -59,9 +59,7 @@ async def update_approval_scenario(
     """
 
     result = await db.execute(
-        select(ApprovalScenario)
-        .options(selectinload(ApprovalScenario.updated_by))
-        .where(ApprovalScenario.key == key)
+        select(ApprovalScenario).options(selectinload(ApprovalScenario.updated_by)).where(ApprovalScenario.key == key)
     )
     scenario = result.scalar_one_or_none()
 

@@ -118,7 +118,8 @@ def test_backend_dockerfile_copies_only_bootstrap_scripts_and_uses_python_health
     assert text.count("libpq") == 1
     assert "\n    curl\n" not in text
     assert "urllib.request" in text
-    assert "http://localhost:8000/api/v1/health" in text
+    assert "http://localhost:8000/api/v1/livez" in text
+    assert "http://localhost:8000/api/v1/readyz" not in text
 
 
 def test_dev_compose_bootstrap_uses_dbtasks_target_and_backend_inherits_image_healthcheck() -> None:
@@ -139,10 +140,12 @@ def test_linux_bundle_builder_stages_only_bootstrap_scripts_and_prunes_dotfiles(
     assert 'cp -R "${REPO_ROOT}/backend/scripts" "${BACKEND_STAGE}/scripts"' not in text
     assert 'cp -R "${REPO_ROOT}/backend/scripts" "${BACKEND_DB_STAGE}/scripts"' not in text
     assert 'cp "${REPO_ROOT}/backend/requirements-runtime.txt" "${BACKEND_STAGE}/requirements-runtime.txt"' in text
-    assert 'python3 -m pip download' in text
+    assert "python3 -m pip download" in text
     assert '-r "${REPO_ROOT}/backend/requirements-db.txt"' in text
     for script_name in EXPECTED_PROD_BOOTSTRAP_SCRIPTS:
-        assert f'cp "${{REPO_ROOT}}/backend/scripts/{script_name}" "${{BACKEND_DB_STAGE}}/scripts/{script_name}"' in text
+        assert (
+            f'cp "${{REPO_ROOT}}/backend/scripts/{script_name}" "${{BACKEND_DB_STAGE}}/scripts/{script_name}"' in text
+        )
 
     assert "../backend/requirements-runtime.txt" in text
     assert 'find "${STAGE_ROOT}" -name ".DS_Store" -delete' in text
@@ -181,7 +184,7 @@ def test_frontend_dockerfile_uses_legacy_peer_resolution_for_container_builds() 
 
 def test_install_redis_passes_password_file_override_for_custom_secret_dir() -> None:
     text = _script_text("install_redis.sh")
-    assert 'RISKHUB_REDIS_PASSWORD_FILE=${SECRET_DIR}/redis_password' in text
+    assert "RISKHUB_REDIS_PASSWORD_FILE=${SECRET_DIR}/redis_password" in text
 
 
 def test_removed_unsupported_deployment_artifacts_are_absent() -> None:
@@ -193,8 +196,16 @@ def test_removed_unsupported_deployment_artifacts_are_absent() -> None:
     ("path", "default_var", "help_var"),
     [
         (BACKEND_RUNTIME_PROD, 'DEFAULT_BACKEND_ENV="${RUNTIME_DIR}/backend.env"', "Default: ${DEFAULT_BACKEND_ENV}"),
-        (BACKEND_DB_RUNTIME_PROD, 'DEFAULT_BACKEND_ENV="${RUNTIME_DIR}/backend.env"', "Default: ${DEFAULT_BACKEND_ENV}"),
-        (FRONTEND_RUNTIME_PROD, 'DEFAULT_FRONTEND_ENV="${RUNTIME_DIR}/frontend.env"', "Default: ${DEFAULT_FRONTEND_ENV}"),
+        (
+            BACKEND_DB_RUNTIME_PROD,
+            'DEFAULT_BACKEND_ENV="${RUNTIME_DIR}/backend.env"',
+            "Default: ${DEFAULT_BACKEND_ENV}",
+        ),
+        (
+            FRONTEND_RUNTIME_PROD,
+            'DEFAULT_FRONTEND_ENV="${RUNTIME_DIR}/frontend.env"',
+            "Default: ${DEFAULT_FRONTEND_ENV}",
+        ),
     ],
 )
 def test_component_prod_wrappers_bind_default_env_paths_to_runtime_dir(

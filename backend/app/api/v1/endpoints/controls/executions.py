@@ -24,6 +24,7 @@ router = APIRouter()
 
 # ============== Control Execution Endpoints ==============
 
+
 def calculate_next_scheduled(frequency: str, executed_at: datetime) -> datetime:
     """Calculate next scheduled execution based on frequency."""
     try:
@@ -54,9 +55,7 @@ async def log_execution(
     from app.core.permissions import is_control_owner
 
     # Verify control exists
-    result = await db.execute(
-        select(Control).where(Control.id == control_id)
-    )
+    result = await db.execute(select(Control).where(Control.id == control_id))
     control = result.scalar_one_or_none()
 
     if not control:
@@ -106,9 +105,7 @@ async def list_executions(
     from app.core.permissions import is_control_owner
 
     # Verify control exists
-    result = await db.execute(
-        select(Control).where(Control.id == control_id)
-    )
+    result = await db.execute(select(Control).where(Control.id == control_id))
     control = result.scalar_one_or_none()
     if not control:
         raise HTTPException(status_code=404, detail="Control not found")

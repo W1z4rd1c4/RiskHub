@@ -85,7 +85,9 @@ def _write_backend_env(
     path.write_text("\n".join(values) + "\n", encoding="utf-8")
 
 
-def _write_secret_runtime(secret_dir: Path, runtime_dir: Path, *, include_client_secret: bool = True, include_certificate: bool = False) -> None:
+def _write_secret_runtime(
+    secret_dir: Path, runtime_dir: Path, *, include_client_secret: bool = True, include_certificate: bool = False
+) -> None:
     secret_dir.mkdir(parents=True, exist_ok=True)
     runtime_dir.mkdir(parents=True, exist_ok=True)
     (secret_dir / "secret_key").write_text("phase500-local-test-key-phase500-local-test\n", encoding="utf-8")
@@ -209,7 +211,7 @@ def test_preflight_accepts_certificate_credential_mode() -> None:
 
 
 @pytest.mark.skipif(not _docker_available(), reason="Docker daemon is required for preflight script runtime checks")
-def test_preflight_accepts_secret_mode_with_unused_certificate_placeholder() -> None:
+def test_preflight_accepts_secret_mode_with_explicit_unused_certificate_placeholder() -> None:
     with tempfile.TemporaryDirectory(prefix="riskhub-preflight-secret-unused-cert-placeholder-") as td:
         tmp = Path(td)
         backend_env = tmp / "backend.env"
@@ -386,7 +388,15 @@ def test_redis_wrapper_honors_non_default_secret_dir_override() -> None:
         (secret_dir / "redis_password").write_text("runtime-test-password\n", encoding="utf-8")
 
         build = subprocess.run(
-            ["docker", "build", "-t", image_tag, "-f", str(REPO_ROOT / "docker" / "redis" / "Dockerfile"), str(REPO_ROOT / "docker" / "redis")],
+            [
+                "docker",
+                "build",
+                "-t",
+                image_tag,
+                "-f",
+                str(REPO_ROOT / "docker" / "redis" / "Dockerfile"),
+                str(REPO_ROOT / "docker" / "redis"),
+            ],
             cwd=REPO_ROOT,
             check=False,
             capture_output=True,
@@ -427,5 +437,9 @@ def test_redis_wrapper_honors_non_default_secret_dir_override() -> None:
             assert state.returncode == 0, f"{state.stdout}\n{state.stderr}"
             assert state.stdout.strip() == "running"
         finally:
-            subprocess.run(["docker", "rm", "-f", container_name], cwd=REPO_ROOT, check=False, capture_output=True, text=True)
-            subprocess.run(["docker", "image", "rm", "-f", image_tag], cwd=REPO_ROOT, check=False, capture_output=True, text=True)
+            subprocess.run(
+                ["docker", "rm", "-f", container_name], cwd=REPO_ROOT, check=False, capture_output=True, text=True
+            )
+            subprocess.run(
+                ["docker", "image", "rm", "-f", image_tag], cwd=REPO_ROOT, check=False, capture_output=True, text=True
+            )

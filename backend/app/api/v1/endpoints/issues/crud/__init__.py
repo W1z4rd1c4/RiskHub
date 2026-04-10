@@ -10,4 +10,3 @@ router.include_router(detail.router)
 router.include_router(update.router)
 
 __all__ = ["router"]
-

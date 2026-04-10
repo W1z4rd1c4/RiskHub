@@ -31,9 +31,7 @@ async def _first_high_risk_linked_risk(db: AsyncSession, control_id: int) -> tup
     """
     from app.core.permissions import is_high_risk_for_approval_async
 
-    result = await db.execute(
-        select(Risk).join(ControlRiskLink).where(ControlRiskLink.control_id == control_id)
-    )
+    result = await db.execute(select(Risk).join(ControlRiskLink).where(ControlRiskLink.control_id == control_id))
     for risk in result.scalars():
         if await is_high_risk_for_approval_async(risk, db):
             return True, risk

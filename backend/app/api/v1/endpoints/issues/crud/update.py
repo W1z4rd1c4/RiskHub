@@ -100,4 +100,3 @@ async def update_issue(
     await db.commit()
     issue = await _get_issue_with_relations(db, issue.id)
     return _serialize_issue_read(issue)
-

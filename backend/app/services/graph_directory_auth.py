@@ -43,7 +43,8 @@ class GraphAccessTokenProvider:
         client_id = self._settings.entra_client_id
         if not tenant_id or not client_id:
             raise GraphCredentialError(
-                "Graph credentials are not configured (ENTRA_TENANT_ID, ENTRA_CLIENT_ID, and an Entra Graph credential)."
+                "Graph credentials are not configured "
+                "(ENTRA_TENANT_ID, ENTRA_CLIENT_ID, and an Entra Graph credential)."
             )
 
         if self._settings.entra_certificate_credential_error:
@@ -52,7 +53,8 @@ class GraphAccessTokenProvider:
         credential = self._settings.entra_confidential_credential
         if credential is None:
             raise GraphCredentialError(
-                "Graph credentials are not configured (ENTRA_TENANT_ID, ENTRA_CLIENT_ID, and an Entra Graph credential)."
+                "Graph credentials are not configured "
+                "(ENTRA_TENANT_ID, ENTRA_CLIENT_ID, and an Entra Graph credential)."
             )
 
         cache_key = self.build_token_cache_key(
@@ -95,7 +97,9 @@ class GraphAccessTokenProvider:
             if not isinstance(access_token, str) or not access_token:
                 raise GraphProviderUnavailableError("Graph token response missing access_token")
 
-            lifetime = int(expires_in) if isinstance(expires_in, (int, float, str)) and str(expires_in).isdigit() else 3600
+            lifetime = (
+                int(expires_in) if isinstance(expires_in, (int, float, str)) and str(expires_in).isdigit() else 3600
+            )
             expiry = now + timedelta(seconds=max(lifetime, 60))
             cache_entry.token = access_token
             cache_entry.expiry = expiry
@@ -113,9 +117,7 @@ class GraphAccessTokenProvider:
         try:
             msal = importlib.import_module("msal")
         except ModuleNotFoundError as exc:
-            raise GraphDependencyError(
-                "MSAL Python is not installed; cannot acquire Graph token."
-            ) from exc
+            raise GraphDependencyError("MSAL Python is not installed; cannot acquire Graph token.") from exc
 
         authority = f"https://login.microsoftonline.com/{tenant_id}"
         client_credential: str | dict[str, str]

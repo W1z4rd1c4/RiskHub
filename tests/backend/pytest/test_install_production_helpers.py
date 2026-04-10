@@ -1,17 +1,19 @@
 from __future__ import annotations
 
+import importlib
 import sys
 from pathlib import Path
-
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SCRIPTS_ROOT = REPO_ROOT / "scripts"
 if str(SCRIPTS_ROOT) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_ROOT))
 
-from install_lib.common import InstallPaths
-from install_lib.production_release import backup_non_secret_production_state, production_existing_install_detected
-from install_lib.production_secrets import production_scaffold_missing
+InstallPaths = importlib.import_module("install_lib.common").InstallPaths
+_production_release = importlib.import_module("install_lib.production_release")
+backup_non_secret_production_state = _production_release.backup_non_secret_production_state
+production_existing_install_detected = _production_release.production_existing_install_detected
+production_scaffold_missing = importlib.import_module("install_lib.production_secrets").production_scaffold_missing
 
 
 def _paths(tmp_path: Path) -> InstallPaths:
@@ -63,11 +65,16 @@ def test_production_existing_install_detected_uses_runtime_metadata(monkeypatch,
     paths = _paths(tmp_path)
     paths.runtime_dir.mkdir(parents=True, exist_ok=True)
 
-    monkeypatch.setattr("install_lib.production_release.load_install_state", lambda *_args, **_kwargs: {"target": "docker"})
+    monkeypatch.setattr(
+        "install_lib.production_release.load_install_state", lambda *_args, **_kwargs: {"target": "docker"}
+    )
 
-    assert production_existing_install_detected(
-        paths.config_path,
-        paths.secret_dir,
-        paths.runtime_dir,
-        paths,
-    ) is True
+    assert (
+        production_existing_install_detected(
+            paths.config_path,
+            paths.secret_dir,
+            paths.runtime_dir,
+            paths,
+        )
+        is True
+    )

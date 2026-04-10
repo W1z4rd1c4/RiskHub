@@ -172,10 +172,14 @@ async def test_refresh_endpoint_rotates_refresh_token(
     assert second_cookie != first_cookie
 
     rows = (
-        await db_session.execute(
-            select(RefreshToken).where(RefreshToken.user_id == test_user.id).order_by(RefreshToken.id.asc())
+        (
+            await db_session.execute(
+                select(RefreshToken).where(RefreshToken.user_id == test_user.id).order_by(RefreshToken.id.asc())
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert len(rows) == 2
     assert rows[0].revoked_at is not None
     assert rows[1].revoked_at is None
@@ -199,10 +203,14 @@ async def test_refresh_rotation_preserves_absolute_session_expiry_for_sso_sessio
     )
 
     first_row = (
-        await db_session.execute(
-            select(RefreshToken).where(RefreshToken.user_id == test_user.id).order_by(RefreshToken.id.asc())
+        (
+            await db_session.execute(
+                select(RefreshToken).where(RefreshToken.user_id == test_user.id).order_by(RefreshToken.id.asc())
+            )
         )
-    ).scalars().one()
+        .scalars()
+        .one()
+    )
 
     refresh = await refresh_client.post(
         "/api/v1/auth/refresh",
@@ -211,10 +219,14 @@ async def test_refresh_rotation_preserves_absolute_session_expiry_for_sso_sessio
     assert refresh.status_code == 200, refresh.text
 
     rows = (
-        await db_session.execute(
-            select(RefreshToken).where(RefreshToken.user_id == test_user.id).order_by(RefreshToken.id.asc())
+        (
+            await db_session.execute(
+                select(RefreshToken).where(RefreshToken.user_id == test_user.id).order_by(RefreshToken.id.asc())
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert len(rows) == 2
     assert abs((rows[1].expires_at - first_row.expires_at).total_seconds()) < 1.5
 
@@ -266,7 +278,9 @@ async def test_refresh_rejects_sessions_with_less_than_minimum_remaining_lifetim
     )
     assert response.status_code == 401
 
-    refreshed_row = (await db_session.execute(select(RefreshToken).where(RefreshToken.id == refresh_row.id))).scalar_one()
+    refreshed_row = (
+        await db_session.execute(select(RefreshToken).where(RefreshToken.id == refresh_row.id))
+    ).scalar_one()
     assert refreshed_row.revoked_reason == "expires_soon"
 
 
@@ -290,9 +304,10 @@ async def test_refresh_endpoint_blocks_parallel_replay_to_single_winner(
     assert csrf_token
 
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client_a, AsyncClient(
-        transport=transport, base_url="http://test"
-    ) as client_b:
+    async with (
+        AsyncClient(transport=transport, base_url="http://test") as client_a,
+        AsyncClient(transport=transport, base_url="http://test") as client_b,
+    ):
         response_a, response_b = await asyncio.gather(
             client_a.post("/api/v1/auth/refresh", headers=_refresh_cookie_headers(initial_cookie, csrf_token)),
             client_b.post("/api/v1/auth/refresh", headers=_refresh_cookie_headers(initial_cookie, csrf_token)),
@@ -308,7 +323,9 @@ async def test_refresh_endpoint_blocks_parallel_replay_to_single_winner(
     assert winner_csrf_cookie
 
     async with AsyncClient(transport=transport, base_url="http://test") as verifier:
-        stale_replay = await verifier.post("/api/v1/auth/refresh", headers=_refresh_cookie_headers(initial_cookie, csrf_token))
+        stale_replay = await verifier.post(
+            "/api/v1/auth/refresh", headers=_refresh_cookie_headers(initial_cookie, csrf_token)
+        )
         assert stale_replay.status_code == 401
 
         winner_replay = await verifier.post(
@@ -361,8 +378,7 @@ async def test_csrf_endpoint_issues_cookie(refresh_client: AsyncClient):
     assert response.status_code == 204
     assert refresh_client.cookies.get("riskhub_csrf_token")
     assert any(
-        "riskhub_csrf_token=" in header and "Path=/" in header
-        for header in response.headers.get_list("set-cookie")
+        "riskhub_csrf_token=" in header and "Path=/" in header for header in response.headers.get_list("set-cookie")
     )
 
 
@@ -428,7 +444,10 @@ async def test_refresh_rejects_unallowed_origin(
 
     refresh = await refresh_client.post(
         "/api/v1/auth/refresh",
-        headers={"Origin": "http://evil.example", "X-CSRF-Token": str(refresh_client.cookies.get("riskhub_csrf_token"))},
+        headers={
+            "Origin": "http://evil.example",
+            "X-CSRF-Token": str(refresh_client.cookies.get("riskhub_csrf_token")),
+        },
     )
 
     assert refresh.status_code == 403
@@ -477,12 +496,10 @@ async def test_refresh_failure_clears_refresh_hint_cookie(
 
     assert refresh.status_code == 401
     assert any(
-        "riskhub_refresh_hint=" in header and "Max-Age=0" in header
-        for header in refresh.headers.get_list("set-cookie")
+        "riskhub_refresh_hint=" in header and "Max-Age=0" in header for header in refresh.headers.get_list("set-cookie")
     )
     assert any(
-        "riskhub_csrf_token=" in header and "Max-Age=0" in header
-        for header in refresh.headers.get_list("set-cookie")
+        "riskhub_csrf_token=" in header and "Max-Age=0" in header for header in refresh.headers.get_list("set-cookie")
     )
 
 

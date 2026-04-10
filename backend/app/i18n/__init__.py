@@ -25,19 +25,19 @@ from .cs import MESSAGES as CS_MESSAGES
 from .en import MESSAGES as EN_MESSAGES
 
 # Supported locales
-SUPPORTED_LOCALES = {'en', 'cs'}
-DEFAULT_LOCALE = 'en'
+SUPPORTED_LOCALES = {"en", "cs"}
+DEFAULT_LOCALE = "en"
 
 # Message registry
 _MESSAGE_REGISTRY: Dict[str, Dict[str, Any]] = {
-    'en': EN_MESSAGES,
-    'cs': CS_MESSAGES,
+    "en": EN_MESSAGES,
+    "cs": CS_MESSAGES,
 }
 
 
-def get_nested_value(d: dict, key: str, default: str = '') -> str:
+def get_nested_value(d: dict, key: str, default: str = "") -> str:
     """Get nested dictionary value using dot notation (e.g., 'errors.not_found')."""
-    keys = key.split('.')
+    keys = key.split(".")
     value = d
     for k in keys:
         if isinstance(value, dict):
@@ -62,7 +62,7 @@ def get_translator(locale: str = DEFAULT_LOCALE):
         locale = DEFAULT_LOCALE
 
     messages = _MESSAGE_REGISTRY.get(locale, EN_MESSAGES)
-    fallback = EN_MESSAGES if locale != 'en' else {}
+    fallback = EN_MESSAGES if locale != "en" else {}
 
     def translate(key: str, **kwargs) -> str:
         """
@@ -124,13 +124,13 @@ def get_locale_from_header(accept_language: Optional[str]) -> str:
 
     # Parse Accept-Language header (simplified)
     # Format: "cs,en-US;q=0.9,en;q=0.8"
-    for part in accept_language.split(','):
-        lang = part.split(';')[0].strip().lower()
+    for part in accept_language.split(","):
+        lang = part.split(";")[0].strip().lower()
         # Check exact match
         if lang in SUPPORTED_LOCALES:
             return lang
         # Check language prefix (e.g., 'cs-CZ' -> 'cs')
-        lang_prefix = lang.split('-')[0]
+        lang_prefix = lang.split("-")[0]
         if lang_prefix in SUPPORTED_LOCALES:
             return lang_prefix
 
@@ -139,9 +139,9 @@ def get_locale_from_header(accept_language: Optional[str]) -> str:
 
 # Re-export for convenience
 __all__ = [
-    'get_translator',
-    't',
-    'get_locale_from_header',
-    'SUPPORTED_LOCALES',
-    'DEFAULT_LOCALE',
+    "get_translator",
+    "t",
+    "get_locale_from_header",
+    "SUPPORTED_LOCALES",
+    "DEFAULT_LOCALE",
 ]

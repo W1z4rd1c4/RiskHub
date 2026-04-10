@@ -3,11 +3,9 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.activity_logger import log_activity
-from app.core.permissions import can_read_risk_id
 from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import User

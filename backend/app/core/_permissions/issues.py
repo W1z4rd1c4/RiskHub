@@ -133,4 +133,3 @@ async def is_issue_owner_assignable_to_department(
     if access_scope == AccessScope.GLOBAL:
         return True
     return department_id == issue_department_id
-

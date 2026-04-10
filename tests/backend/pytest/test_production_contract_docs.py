@@ -14,7 +14,6 @@ from app.core.production_contract import (
 )
 from app.main import validate_settings_for_runtime
 
-
 REPO_ROOT = Path(__file__).resolve().parents[3]
 ENV_EXAMPLE = REPO_ROOT / ".env.example"
 DEPLOYMENT_REFERENCE = REPO_ROOT / "docs" / "deployment" / "reference.md"

@@ -29,8 +29,7 @@ async def test_admin_snapshot_capture_and_list_returns_manual_snapshot(
     snapshots = list_response.json()
     assert snapshots
     assert any(
-        item["quarter"] == capture_payload["quarter"] and item["snapshot_type"] == "manual"
-        for item in snapshots
+        item["quarter"] == capture_payload["quarter"] and item["snapshot_type"] == "manual" for item in snapshots
     )
 
     saved = await db_session.execute(

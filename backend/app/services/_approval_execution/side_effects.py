@@ -25,4 +25,3 @@ async def apply_side_effects(
             await _apply_edit_risk_control(db, approval, current_user)
         elif approval.resource_type == ApprovalResourceType.KRI:
             await _apply_edit_kri(db, approval, current_user)
-

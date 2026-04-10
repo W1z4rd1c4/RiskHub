@@ -81,9 +81,7 @@ def _normalize_changes(changes: dict | None) -> dict | None:
     return normalized or None
 
 
-def build_change_set(
-    model: object, updates: dict, *, extra_changes: dict | None = None
-) -> dict | None:
+def build_change_set(model: object, updates: dict, *, extra_changes: dict | None = None) -> dict | None:
     """
     Build a {field: {old, new}} change set from a model and update payload.
     Expects model to still hold OLD values (call before mutating).

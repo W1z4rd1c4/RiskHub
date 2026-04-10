@@ -10,7 +10,6 @@ from sqlalchemy import desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.api import deps
 from app.core.permissions import (
     can_access_department_id,
     check_department_access,
@@ -67,9 +66,7 @@ def _apply_execution_scope_and_filters(
 
         query = query.join(ControlModel)
         if dept_ids and owned_control_ids:
-            query = query.where(
-                or_(ControlModel.department_id.in_(dept_ids), ControlModel.id.in_(owned_control_ids))
-            )
+            query = query.where(or_(ControlModel.department_id.in_(dept_ids), ControlModel.id.in_(owned_control_ids)))
         elif dept_ids:
             query = query.where(ControlModel.department_id.in_(dept_ids))
         else:
@@ -120,13 +117,13 @@ async def read_executions(
 
     list_query = _apply_execution_scope_and_filters(
         select(ControlExecutionModel).options(
-        selectinload(ControlExecutionModel.executed_by),
-        selectinload(ControlExecutionModel.control).options(
-            selectinload(ControlModel.control_owner),
-            selectinload(ControlModel.department),
-            selectinload(ControlModel.risk_links).selectinload(ControlRiskLink.risk),
+            selectinload(ControlExecutionModel.executed_by),
+            selectinload(ControlExecutionModel.control).options(
+                selectinload(ControlModel.control_owner),
+                selectinload(ControlModel.department),
+                selectinload(ControlModel.risk_links).selectinload(ControlRiskLink.risk),
+            ),
         ),
-    ),
         dept_ids=dept_ids,
         owned_control_ids=owned_control_ids,
         control_id=control_id,

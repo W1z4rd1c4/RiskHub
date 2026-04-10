@@ -147,4 +147,3 @@ async def revoke_exception(
         )
 
     return exception
-

@@ -13,8 +13,8 @@ from app.models import (
 )
 from app.models.approval_request import ApprovalStatus
 from app.models.global_config import clear_config_cache
-from app.models.risk import RiskStatus
 from app.models.notification import Notification, NotificationType
+from app.models.risk import RiskStatus
 from app.services.approval_execution_service import approve_request_workflow
 from app.services.outbox import dispatch_pending_outbox_events
 

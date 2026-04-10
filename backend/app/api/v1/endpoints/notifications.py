@@ -1,4 +1,5 @@
 """Notification API endpoints for listing and managing user notifications."""
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -59,8 +60,7 @@ async def list_notifications(
 
     # Count unread (always returned regardless of filter)
     unread_count_query = select(func.count()).where(
-        Notification.user_id == current_user.id,
-        Notification.is_read.is_(False)
+        Notification.user_id == current_user.id, Notification.is_read.is_(False)
     )
     unread_result = await db.execute(unread_count_query)
     unread_count = unread_result.scalar() or 0
@@ -88,10 +88,7 @@ async def get_unread_count(
     Get count of unread notifications for badge display.
     """
     result = await db.execute(
-        select(func.count()).where(
-            Notification.user_id == current_user.id,
-            Notification.is_read.is_(False)
-        )
+        select(func.count()).where(Notification.user_id == current_user.id, Notification.is_read.is_(False))
     )
     count = result.scalar() or 0
     return {"count": count}
@@ -139,9 +136,7 @@ async def mark_as_read(
     Only the notification owner can mark it as read.
     Returns the updated unread count for immediate UI sync.
     """
-    result = await db.execute(
-        select(Notification).where(Notification.id == notification_id)
-    )
+    result = await db.execute(select(Notification).where(Notification.id == notification_id))
     notification = result.scalar_one_or_none()
 
     if not notification:
@@ -156,10 +151,7 @@ async def mark_as_read(
 
     # Return current unread count for UI sync
     count_result = await db.execute(
-        select(func.count()).where(
-            Notification.user_id == current_user.id,
-            Notification.is_read.is_(False)
-        )
+        select(func.count()).where(Notification.user_id == current_user.id, Notification.is_read.is_(False))
     )
     unread_count = count_result.scalar() or 0
     return {"unread_count": unread_count}
@@ -175,10 +167,7 @@ async def mark_all_as_read(
     """
     await db.execute(
         update(Notification)
-        .where(
-            Notification.user_id == current_user.id,
-            Notification.is_read.is_(False)
-        )
+        .where(Notification.user_id == current_user.id, Notification.is_read.is_(False))
         .values(is_read=True)
     )
     await db.commit()
@@ -197,10 +186,8 @@ async def trigger_kri_deadline_check(
     if not can_resolve_approvals(current_user):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Insufficient permissions. Only Admin, CRO, or Risk Manager can trigger."
+            detail="Insufficient permissions. Only Admin, CRO, or Risk Manager can trigger.",
         )
 
     result = await KRIDeadlineService.check_kri_deadlines(db)
     return {"status": "completed", "results": result}
-
-

@@ -1,4 +1,5 @@
 """Pydantic schemas for authentication."""
+
 from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
@@ -9,6 +10,7 @@ from app.schemas.user import UserBrief
 
 class LoginRequest(BaseModel):
     """Schema for login request."""
+
     email: str  # Changed from EmailStr to allow .test TLD for testing
     password: str
 
@@ -23,6 +25,7 @@ class LoginRequest(BaseModel):
 
 class DemoLoginRequest(BaseModel):
     """Schema for dev-only demo login request."""
+
     email: str
 
     @field_validator("email", mode="before")
@@ -36,6 +39,7 @@ class DemoLoginRequest(BaseModel):
 
 class TokenResponse(BaseModel):
     """Schema for JWT token response."""
+
     access_token: str
     token_type: str = "bearer"
     user: UserBrief  # Use specific schema instead of dict

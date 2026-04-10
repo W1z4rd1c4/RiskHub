@@ -10,4 +10,3 @@ def count_high_risks(risks, high_threshold: int) -> int:
         if (prob * impact) >= high_threshold:
             total += 1
     return total
-

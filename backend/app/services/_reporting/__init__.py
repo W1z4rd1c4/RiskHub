@@ -2,4 +2,3 @@
 
 Public API is exposed via `app.services.report_service`.
 """
-

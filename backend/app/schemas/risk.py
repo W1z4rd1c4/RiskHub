@@ -16,12 +16,14 @@ else:
 
 class RiskTypeEnum(str, Enum):
     """Type of risk from OS 18."""
+
     strategic = "strategic"
     operational = "operational"
 
 
 class RiskStatusEnum(str, Enum):
     """Status of the risk."""
+
     active = "active"
     emerging = "emerging"
     archived = "archived"
@@ -29,6 +31,7 @@ class RiskStatusEnum(str, Enum):
 
 class ControlStatusEnum(str, Enum):
     """Status of the control."""
+
     draft = "draft"
     active = "active"
     inactive = "inactive"
@@ -37,6 +40,7 @@ class ControlStatusEnum(str, Enum):
 
 class ControlEffectivenessEnum(str, Enum):
     """How effectively a control mitigates a risk."""
+
     high = "high"
     medium = "medium"
     low = "low"
@@ -44,8 +48,10 @@ class ControlEffectivenessEnum(str, Enum):
 
 # ============== Risk Schemas ==============
 
+
 class RiskBase(BaseModel):
     """Base schema for Risk based on OS 18 Registr rizik."""
+
     risk_id_code: Optional[str] = Field(None, max_length=50, description="Risk ID (auto-generated if not provided)")
     name: str = Field(..., max_length=255, description="Risk name (human-readable identifier)")
     process: str = Field(..., max_length=255, description="Main process")
@@ -68,21 +74,23 @@ class RiskBase(BaseModel):
     status: RiskStatusEnum = Field(RiskStatusEnum.active)
     is_priority: bool = Field(False, description="In Risk Catalog (high priority)")
 
-    @field_validator('gross_probability', 'gross_impact', 'net_probability', 'net_impact')
+    @field_validator("gross_probability", "gross_impact", "net_probability", "net_impact")
     @classmethod
     def validate_score_range(cls, v):
         if v < 1 or v > 5:
-            raise ValueError('Value must be between 1 and 5')
+            raise ValueError("Value must be between 1 and 5")
         return v
 
 
 class RiskCreate(RiskBase):
     """Schema for creating a Risk."""
+
     pass
 
 
 class RiskUpdate(BaseModel):
     """Schema for updating a Risk (all fields optional)."""
+
     risk_id_code: Optional[str] = Field(None, max_length=50)
     name: Optional[str] = Field(None, max_length=255)
     process: Optional[str] = Field(None, max_length=255)
@@ -102,6 +110,7 @@ class RiskUpdate(BaseModel):
 
 class UserBriefForRisk(BaseModel):
     """Brief user info for risk relationships."""
+
     id: int
     name: str
     email: str
@@ -111,6 +120,7 @@ class UserBriefForRisk(BaseModel):
 
 class DepartmentBriefForRisk(BaseModel):
     """Brief department info for risk relationships."""
+
     id: int
     name: str
     code: str
@@ -120,9 +130,10 @@ class DepartmentBriefForRisk(BaseModel):
 
 class RiskRead(RiskBase):
     """Schema for reading a Risk with relationships and computed scores."""
+
     id: int
     gross_score: int  # Computed: gross_probability × gross_impact
-    net_score: int    # Computed: net_probability × net_impact
+    net_score: int  # Computed: net_probability × net_impact
     owner: Optional[UserBriefForRisk] = None
     department: Optional[DepartmentBriefForRisk] = None
     kris: list["KRIResponse"] = Field(default_factory=list)
@@ -134,6 +145,7 @@ class RiskRead(RiskBase):
 
 class RiskSummary(BaseModel):
     """Minimal schema for risk list views."""
+
     id: int
     risk_id_code: str
     name: str
@@ -159,6 +171,7 @@ class RiskSummary(BaseModel):
 
 class RiskListResponse(BaseModel):
     """Paginated list of risks."""
+
     items: list[RiskSummary]
     total: int
     skip: int
@@ -167,8 +180,10 @@ class RiskListResponse(BaseModel):
 
 # ============== Control-Risk Link Schemas ==============
 
+
 class ControlRiskLinkCreate(BaseModel):
     """Schema for linking a control to a risk."""
+
     risk_id: int
     effectiveness: ControlEffectivenessEnum = Field(ControlEffectivenessEnum.medium)
     notes: Optional[str] = None
@@ -176,6 +191,7 @@ class ControlRiskLinkCreate(BaseModel):
 
 class ControlRiskLinkFromRisk(BaseModel):
     """Schema for linking from risk perspective."""
+
     control_id: int
     effectiveness: ControlEffectivenessEnum = Field(ControlEffectivenessEnum.medium)
     notes: Optional[str] = None
@@ -183,6 +199,7 @@ class ControlRiskLinkFromRisk(BaseModel):
 
 class ControlBriefForLink(BaseModel):
     """Brief control info for link display."""
+
     id: int
     name: str
     frequency: str
@@ -200,6 +217,7 @@ class ControlBriefForLink(BaseModel):
 
 class RiskBriefForLink(BaseModel):
     """Brief risk info for link display."""
+
     id: int
     risk_id_code: str
     name: str
@@ -214,6 +232,7 @@ class RiskBriefForLink(BaseModel):
 
 class ControlRiskLinkRead(BaseModel):
     """Schema for reading a control-risk link."""
+
     id: int
     control_id: int
     risk_id: int

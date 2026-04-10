@@ -1,4 +1,5 @@
 """Pydantic schemas for notification API endpoints."""
+
 from datetime import datetime
 from enum import Enum
 
@@ -7,6 +8,7 @@ from pydantic import BaseModel, Field
 
 class NotificationTypeEnum(str, Enum):
     """Notification type values."""
+
     approval_pending = "approval_pending"
     approval_resolved = "approval_resolved"
     approval_cancelled = "approval_cancelled"
@@ -29,6 +31,7 @@ class NotificationTypeEnum(str, Enum):
 
 class NotificationBase(BaseModel):
     """Base shared fields for notifications."""
+
     title: str = Field(..., max_length=255)
     message: str
     resource_type: str | None = None
@@ -37,6 +40,7 @@ class NotificationBase(BaseModel):
 
 class NotificationCreate(NotificationBase):
     """Schema for creating a notification (internal use)."""
+
     user_id: int
     type: NotificationTypeEnum
     expires_at: datetime | None = None
@@ -44,6 +48,7 @@ class NotificationCreate(NotificationBase):
 
 class NotificationRead(NotificationBase):
     """Schema for reading notification details."""
+
     id: int
     type: NotificationTypeEnum
     is_read: bool
@@ -55,6 +60,7 @@ class NotificationRead(NotificationBase):
 
 class NotificationListResponse(BaseModel):
     """Paginated response for notifications."""
+
     items: list[NotificationRead]
     total: int
     skip: int
@@ -64,6 +70,7 @@ class NotificationListResponse(BaseModel):
 
 class NotificationPreferences(BaseModel):
     """User notification preference toggles per type."""
+
     approval_pending: bool = True
     approval_resolved: bool = True
     approval_cancelled: bool = True
@@ -88,6 +95,7 @@ class NotificationPreferences(BaseModel):
 
 class NotificationPreferencesUpdate(BaseModel):
     """Partial update for notification preferences."""
+
     approval_pending: bool | None = None
     approval_resolved: bool | None = None
     approval_cancelled: bool | None = None

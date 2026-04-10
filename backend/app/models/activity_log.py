@@ -1,4 +1,5 @@
 """Activity log model for tracking all system changes."""
+
 from datetime import UTC, datetime
 from enum import Enum as PyEnum
 from typing import TYPE_CHECKING, Optional
@@ -12,8 +13,11 @@ from app.db.base import Base
 if TYPE_CHECKING:
     from app.models.department import Department
     from app.models.user import User
+
+
 class ActivityAction(str, PyEnum):
     """Type of action performed."""
+
     CREATE = "create"
     UPDATE = "update"
     DELETE = "delete"
@@ -31,6 +35,7 @@ class ActivityAction(str, PyEnum):
 
 class ActivityEntityType(str, PyEnum):
     """Type of entity being tracked."""
+
     RISK = "risk"
     CONTROL = "control"
     KRI = "kri"
@@ -60,6 +65,7 @@ class ActivityLog(Base):
     Each entry represents a single action (create/update/delete) on an entity.
     Entries are immutable - once created, they cannot be modified.
     """
+
     __tablename__ = "activity_logs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
@@ -95,10 +101,7 @@ class ActivityLog(Base):
 
     # Timestamp (immutable)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(UTC),
-        nullable=False,
-        index=True
+        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False, index=True
     )
 
     # Relationships

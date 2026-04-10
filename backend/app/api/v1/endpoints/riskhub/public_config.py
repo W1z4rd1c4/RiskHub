@@ -74,4 +74,3 @@ async def list_public_risk_types(
         )
         for t in types
     ]
-

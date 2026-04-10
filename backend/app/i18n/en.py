@@ -61,8 +61,7 @@ MESSAGES = {
         "control_overdue": "Control execution is overdue",
         "questionnaire_sent_title": "Questionnaire sent",
         "questionnaire_sent_message": (
-            "A risk assessment questionnaire for '{risk_name}' was sent to you. "
-            "Due {due_date}."
+            "A risk assessment questionnaire for '{risk_name}' was sent to you. " "Due {due_date}."
         ),
         "questionnaire_due_soon_title": "Questionnaire due soon",
         "questionnaire_due_soon_message": "Your risk assessment questionnaire for '{risk_name}' is due on {due_date}.",
@@ -74,8 +73,7 @@ MESSAGES = {
         ),
         "questionnaire_clarification_requested_title": "Clarification requested",
         "questionnaire_clarification_requested_message": (
-            "A clarification was requested for your risk assessment questionnaire for "
-            "'{risk_name}'."
+            "A clarification was requested for your risk assessment questionnaire for " "'{risk_name}'."
         ),
     },
     # Activity log action descriptions

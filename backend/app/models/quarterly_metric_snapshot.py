@@ -4,6 +4,7 @@ Quarterly Metric Snapshot model for storing historical quarter-end snapshots.
 This enables accurate quarter-over-quarter comparisons for metrics that
 represent point-in-time state rather than period-based events.
 """
+
 import enum
 
 from sqlalchemy import JSON, Column, DateTime, Index, Integer, String
@@ -15,6 +16,7 @@ from app.db.base import Base
 
 class SnapshotType(str, enum.Enum):
     """Type of metric snapshot."""
+
     QUARTER_END = "quarter_end"
     MANUAL = "manual"
 
@@ -26,6 +28,7 @@ class QuarterlyMetricSnapshot(Base):
     These snapshots capture the state of various metrics at quarter boundaries,
     enabling truthful quarter-over-quarter comparisons for the Risk Committee.
     """
+
     __tablename__ = "quarterly_metric_snapshots"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -65,9 +68,9 @@ class QuarterlyMetricSnapshot(Base):
 
     __table_args__ = (
         # Unique constraint: one snapshot per quarter per department (or global)
-        Index('ix_quarterly_snapshot_unique', 'quarter', 'department_id', unique=True),
+        Index("ix_quarterly_snapshot_unique", "quarter", "department_id", unique=True),
         # Composite index for efficient quarter lookups
-        Index('ix_quarterly_snapshot_year_quarter', 'year', 'quarter_number'),
+        Index("ix_quarterly_snapshot_year_quarter", "year", "quarter_number"),
     )
 
     def __repr__(self):

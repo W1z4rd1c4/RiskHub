@@ -15,9 +15,9 @@ from .._streaming import EXCEL_EXPORT_REMOVED_OPENAPI_RESPONSE, resolve_export_f
 from ._shared import (
     ControlMonitoringExportStatus,
     ExportFormatQuery,
+    KRIExportStatus,
     KRIMonitoringExportStatus,
     KRITimelinessExportStatus,
-    KRIExportStatus,
 )
 from .exports import _export_controls, _export_issues, _export_kris, _export_risks, _export_vendors
 

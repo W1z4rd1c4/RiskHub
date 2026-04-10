@@ -25,6 +25,4 @@ class VendorRiskLink(Base):
     vendor: Mapped["Vendor"] = relationship("Vendor", back_populates="risk_links")
     risk: Mapped["Risk"] = relationship("Risk", back_populates="vendor_links")
 
-    __table_args__ = (
-        UniqueConstraint("vendor_id", "risk_id", name="uq_vendor_risk_link"),
-    )
+    __table_args__ = (UniqueConstraint("vendor_id", "risk_id", name="uq_vendor_risk_link"),)

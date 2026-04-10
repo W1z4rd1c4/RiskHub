@@ -70,4 +70,3 @@ async def assign_issue(
         changes=remediation_changes,
     )
     return issue
-

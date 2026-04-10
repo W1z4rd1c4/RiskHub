@@ -31,4 +31,3 @@ async def list_permissions(
         )
         for p in permissions
     ]
-

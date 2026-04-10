@@ -53,8 +53,9 @@ async def lookup_users(
         skip: Number of records to skip (default 0)
         limit: Maximum number of records to return (default 50, max 200)
     """
-    from app.core.pagination import MAX_LOOKUP_SIZE
     from sqlalchemy import or_
+
+    from app.core.pagination import MAX_LOOKUP_SIZE
 
     # Enforce max lookup size
     limit = min(limit, MAX_LOOKUP_SIZE)

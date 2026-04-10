@@ -9,6 +9,7 @@
   "request_timeout": "Request timed out. Please try again.",
   "request_failed": "Request failed. Please try again.",
   "logout_failed": "Logout failed. Please try again.",
+  "sso_logout_incomplete": "Microsoft sign-out did not complete. Finish Microsoft sign-out before signing in again.",
   "demo_login_failed": "Demo login failed.",
   "login_failed": "Login failed.",
   "load_departments_failed": "Failed to load departments.",

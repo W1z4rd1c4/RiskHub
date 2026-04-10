@@ -129,4 +129,3 @@ async def get_audit_logs(
         filter_key="event" if event_type else None,
         filter_value=event_type,
     )
-

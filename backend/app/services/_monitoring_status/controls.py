@@ -64,9 +64,7 @@ def derive_control_monitoring_snapshot(
     latest_executed_at = coerce_utc(facts.latest_executed_at)
     latest_execution_result = facts.latest_execution_result
     has_execution_history = (
-        execution_log_count > 0
-        or latest_executed_at is not None
-        or latest_execution_result is not None
+        execution_log_count > 0 or latest_executed_at is not None or latest_execution_result is not None
     )
     days_since_last_execution = _elapsed_days(start=latest_executed_at, end=current_time)
 

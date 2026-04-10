@@ -10,8 +10,8 @@ import jwt
 from jwt import PyJWTError
 
 from app.core.config import Settings
-from app.core.email import normalize_email
 from app.core.datetime_utils import utc_now
+from app.core.email import normalize_email
 from app.core.outbound_guard import (
     OutboundRequestError,
     build_outbound_client,
@@ -214,11 +214,7 @@ class EntraTokenVerifier:
         if not external_id or not isinstance(external_id, str):
             raise SsoTokenVerificationError(code="missing_oid", detail="Token missing oid")
 
-        email = normalize_email(
-            claims.get("preferred_username")
-            or claims.get("upn")
-            or claims.get("email")
-        )
+        email = normalize_email(claims.get("preferred_username") or claims.get("upn") or claims.get("email"))
 
         if self._allowed_domains:
             if not email or "@" not in email:

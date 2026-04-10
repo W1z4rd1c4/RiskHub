@@ -116,4 +116,3 @@ async def record_value(
     logger.info(f"Recorded KRI {kri.id} value {value} for period {period_start} to {period_end}")
 
     return history_entry
-

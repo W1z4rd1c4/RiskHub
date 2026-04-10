@@ -77,10 +77,7 @@ async def apply_directory_profile(
     if normalized_email is not None and normalized_email != user.email:
         existing_user_id = (
             await db.execute(
-                select(User.id)
-                .where(email_equals(User.email, normalized_email))
-                .where(User.id != user.id)
-                .limit(1)
+                select(User.id).where(email_equals(User.email, normalized_email)).where(User.id != user.id).limit(1)
             )
         ).scalar_one_or_none()
         if existing_user_id is not None:

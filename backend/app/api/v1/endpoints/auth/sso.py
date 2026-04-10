@@ -137,9 +137,7 @@ def _challenge_response(
 async def _find_user_by_external_id(db: AsyncSession, external_id: str):
     permission_load = _user_permission_load()
     result = await db.execute(
-        select(User)
-        .options(permission_load, selectinload(User.department))
-        .where(User.external_id == external_id)
+        select(User).options(permission_load, selectinload(User.department)).where(User.external_id == external_id)
     )
     return result.scalar_one_or_none()
 
@@ -147,9 +145,7 @@ async def _find_user_by_external_id(db: AsyncSession, external_id: str):
 async def _find_user_by_email(db: AsyncSession, email: str):
     permission_load = _user_permission_load()
     result = await db.execute(
-        select(User)
-        .options(permission_load, selectinload(User.department))
-        .where(email_equals(User.email, email))
+        select(User).options(permission_load, selectinload(User.department)).where(email_equals(User.email, email))
     )
     return result.scalar_one_or_none()
 
@@ -254,9 +250,7 @@ async def _jit_provision_user(db: AsyncSession, *, identity):
     await db.flush()
 
     result = await db.execute(
-        select(User)
-        .options(permission_load, selectinload(User.department))
-        .where(User.id == new_user.id)
+        select(User).options(permission_load, selectinload(User.department)).where(User.id == new_user.id)
     )
     return result.scalar_one()
 
@@ -272,7 +266,9 @@ async def _consume_sso_challenge(
 ):
     challenge_id = get_sso_challenge_cookie(request)
     if not challenge_id:
-        await _log_failed_sso(db, entity_name=identity.email or "unknown", description="Failed SSO login: challenge missing")
+        await _log_failed_sso(
+            db, entity_name=identity.email or "unknown", description="Failed SSO login: challenge missing"
+        )
         return None, _challenge_response(
             settings=settings,
             status_code=401,
@@ -290,7 +286,9 @@ async def _consume_sso_challenge(
     challenge = await challenge_store.consume(challenge_id)
     clear_sso_challenge_cookie(response, settings)
     if challenge is None:
-        await _log_failed_sso(db, entity_name=identity.email or "unknown", description="Failed SSO login: challenge expired")
+        await _log_failed_sso(
+            db, entity_name=identity.email or "unknown", description="Failed SSO login: challenge expired"
+        )
         return None, _challenge_response(
             settings=settings,
             status_code=401,
@@ -299,7 +297,9 @@ async def _consume_sso_challenge(
         )
 
     if payload.state != challenge.state:
-        await _log_failed_sso(db, entity_name=identity.email or "unknown", description="Failed SSO login: state mismatch")
+        await _log_failed_sso(
+            db, entity_name=identity.email or "unknown", description="Failed SSO login: state mismatch"
+        )
         return None, _challenge_response(
             settings=settings,
             status_code=401,
@@ -308,7 +308,9 @@ async def _consume_sso_challenge(
         )
 
     if not identity.nonce:
-        await _log_failed_sso(db, entity_name=identity.email or "unknown", description="Failed SSO login: nonce missing")
+        await _log_failed_sso(
+            db, entity_name=identity.email or "unknown", description="Failed SSO login: nonce missing"
+        )
         return None, _challenge_response(
             settings=settings,
             status_code=401,
@@ -317,7 +319,9 @@ async def _consume_sso_challenge(
         )
 
     if identity.nonce != challenge.nonce:
-        await _log_failed_sso(db, entity_name=identity.email or "unknown", description="Failed SSO login: nonce mismatch")
+        await _log_failed_sso(
+            db, entity_name=identity.email or "unknown", description="Failed SSO login: nonce mismatch"
+        )
         return None, _challenge_response(
             settings=settings,
             status_code=401,

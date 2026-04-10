@@ -128,7 +128,9 @@ async def test_graph_directory_service_fails_cleanly_when_msal_is_missing(
 
     service = GraphDirectoryService(_base_settings(entra_client_secret="entra-client-secret"))
 
-    with pytest.raises(GraphProviderUnavailableError, match="MSAL Python is not installed; cannot acquire Graph token."):
+    with pytest.raises(
+        GraphProviderUnavailableError, match="MSAL Python is not installed; cannot acquire Graph token."
+    ):
         await service._get_access_token()
 
 
@@ -259,7 +261,9 @@ def test_ad_emulator_provider_ignores_business_role_field_when_feature_disabled(
 
 
 def test_directory_provider_rejects_incomplete_certificate_configuration() -> None:
-    with pytest.raises(DirectoryProviderUnavailableError, match="Incomplete Entra certificate credential configuration"):
+    with pytest.raises(
+        DirectoryProviderUnavailableError, match="Incomplete Entra certificate credential configuration"
+    ):
         DirectoryProviderService(
             _base_settings(
                 directory_provider="auto",
@@ -269,7 +273,9 @@ def test_directory_provider_rejects_incomplete_certificate_configuration() -> No
 
 
 def test_directory_provider_rejects_incomplete_certificate_configuration_even_with_ad_emulator() -> None:
-    with pytest.raises(DirectoryProviderUnavailableError, match="Incomplete Entra certificate credential configuration"):
+    with pytest.raises(
+        DirectoryProviderUnavailableError, match="Incomplete Entra certificate credential configuration"
+    ):
         DirectoryProviderService(
             _base_settings(
                 directory_provider="auto",
@@ -280,7 +286,9 @@ def test_directory_provider_rejects_incomplete_certificate_configuration_even_wi
 
 
 def test_directory_provider_reports_generalized_missing_credential_message() -> None:
-    with pytest.raises(DirectoryProviderUnavailableError, match="Set an Entra Graph credential or AD_EMULATOR_BASE_URL"):
+    with pytest.raises(
+        DirectoryProviderUnavailableError, match="Set an Entra Graph credential or AD_EMULATOR_BASE_URL"
+    ):
         DirectoryProviderService(
             _base_settings(
                 directory_provider="auto",

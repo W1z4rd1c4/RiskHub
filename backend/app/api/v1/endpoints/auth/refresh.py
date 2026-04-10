@@ -26,8 +26,8 @@ from app.db.session import get_db
 from app.models import RefreshToken, Role, RolePermission, User
 from app.schemas.auth import TokenResponse
 
-from ._shared import SESSION_RENEWAL_MINIMUM_SECONDS, _build_token_response, _issue_refresh_session
 from ._request_protection import validate_csrf, validate_request_origin
+from ._shared import SESSION_RENEWAL_MINIMUM_SECONDS, _build_token_response, _issue_refresh_session
 
 router = APIRouter()
 logger = get_logger("auth.refresh")
@@ -72,11 +72,7 @@ async def refresh_session(
         return _refresh_unauthorized_response("Invalid refresh token", settings)
 
     refresh_row = (
-        await db.execute(
-            select(RefreshToken)
-            .where(RefreshToken.user_id == user_id)
-            .where(RefreshToken.jti == jti)
-        )
+        await db.execute(select(RefreshToken).where(RefreshToken.user_id == user_id).where(RefreshToken.jti == jti))
     ).scalar_one_or_none()
     if refresh_row is None or refresh_row.revoked_at is not None:
         return _refresh_unauthorized_response("Refresh session not found", settings)
@@ -106,11 +102,7 @@ async def refresh_session(
 
     permission_load = selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
     user = (
-        await db.execute(
-            select(User)
-            .options(permission_load, selectinload(User.department))
-            .where(User.id == user_id)
-        )
+        await db.execute(select(User).options(permission_load, selectinload(User.department)).where(User.id == user_id))
     ).scalar_one_or_none()
     if user is None or not user.is_active:
         return _refresh_unauthorized_response("Unauthorized", settings)

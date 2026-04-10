@@ -94,10 +94,10 @@ async def get_scheduler_status(
 
     runtime_state = get_scheduler_runtime_state()
     recent_runs = (
-        await db.execute(
-            select(SchedulerJobRun).order_by(SchedulerJobRun.started_at.desc()).limit(200)
-        )
-    ).scalars().all()
+        (await db.execute(select(SchedulerJobRun).order_by(SchedulerJobRun.started_at.desc()).limit(200)))
+        .scalars()
+        .all()
+    )
 
     latest_by_job: dict[str, SchedulerJobRunSummary] = {}
     running_jobs: list[SchedulerJobRunSummary] = []
@@ -105,7 +105,11 @@ async def get_scheduler_status(
 
     for job_run in recent_runs:
         serialized = _serialize_scheduler_run(job_run)
-        if job_run.job_name == SCHEDULER_RUNTIME_JOB_NAME and current_owner_instance_id is None and job_run.status == "running":
+        if (
+            job_run.job_name == SCHEDULER_RUNTIME_JOB_NAME
+            and current_owner_instance_id is None
+            and job_run.status == "running"
+        ):
             current_owner_instance_id = job_run.instance_id
             continue
         if job_run.job_name == SCHEDULER_RUNTIME_JOB_NAME:
@@ -163,13 +167,17 @@ async def get_outbox_status(
         )
 
     recent_failures = (
-        await db.execute(
-            select(OutboxEvent)
-            .where((OutboxEvent.status == "dead_letter") | OutboxEvent.last_error.isnot(None))
-            .order_by(OutboxEvent.created_at.desc())
-            .limit(5)
+        (
+            await db.execute(
+                select(OutboxEvent)
+                .where((OutboxEvent.status == "dead_letter") | OutboxEvent.last_error.isnot(None))
+                .order_by(OutboxEvent.created_at.desc())
+                .limit(5)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     dispatch_state = get_outbox_dispatch_runtime_state()
     return OutboxStatusResponse(

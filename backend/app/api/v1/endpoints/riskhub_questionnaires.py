@@ -1,4 +1,5 @@
 """Risk Hub questionnaire endpoints (CRO-only batch send)."""
+
 from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -9,7 +10,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.v1.endpoints.riskhub import get_cro_user
 from app.core.activity_logger import log_activity
 from app.db.session import get_db
-from app.i18n import t
 from app.models import Risk, RiskQuestionnaire, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.models.risk_questionnaire import RiskQuestionnaireStatus

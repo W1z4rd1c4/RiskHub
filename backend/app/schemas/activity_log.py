@@ -1,4 +1,5 @@
 """Schemas for Activity Log API."""
+
 from datetime import datetime
 from typing import Optional
 
@@ -7,6 +8,7 @@ from pydantic import BaseModel
 
 class ActivityLogRead(BaseModel):
     """Response schema for activity log entry."""
+
     id: int
     entity_type: str
     entity_id: int
@@ -24,6 +26,7 @@ class ActivityLogRead(BaseModel):
 
 class ActivityLogListResponse(BaseModel):
     """Paginated activity log response."""
+
     items: list[ActivityLogRead]
     total: int
     skip: int

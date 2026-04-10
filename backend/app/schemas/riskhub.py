@@ -3,14 +3,17 @@
 Extracted from backend/app/api/v1/endpoints/riskhub.py to reduce file complexity
 and follow project conventions (schemas in dedicated modules).
 """
+
 from pydantic import BaseModel, ConfigDict, Field
 
 # ============================================================================
 # Risk Types Schemas
 # ============================================================================
 
+
 class RiskTypeRead(BaseModel):
     """Risk type response schema."""
+
     id: int
     code: str
     display_name: str
@@ -29,16 +32,18 @@ class RiskTypeRead(BaseModel):
 
 class RiskTypeCreate(BaseModel):
     """Create risk type request schema."""
-    code: str = Field(..., min_length=2, max_length=50, pattern=r'^[a-z][a-z0-9_]*$')
+
+    code: str = Field(..., min_length=2, max_length=50, pattern=r"^[a-z][a-z0-9_]*$")
     display_name: str = Field(..., min_length=2, max_length=100)
     description: str | None = None
-    color: str = Field(default="#64748b", pattern=r'^#[0-9a-fA-F]{6}$')
+    color: str = Field(default="#64748b", pattern=r"^#[0-9a-fA-F]{6}$")
     icon: str | None = None
     sort_order: int = 0
 
 
 class RiskTypeUpdate(BaseModel):
     """Update risk type request schema."""
+
     display_name: str | None = None
     description: str | None = None
     color: str | None = None
@@ -48,6 +53,7 @@ class RiskTypeUpdate(BaseModel):
 
 class PublicRiskTypeRead(BaseModel):
     """Minimal risk type schema for public access."""
+
     code: str
     display_name: str
     color: str
@@ -59,8 +65,10 @@ class PublicRiskTypeRead(BaseModel):
 # Global Config Schemas
 # ============================================================================
 
+
 class GlobalConfigRead(BaseModel):
     """Global config response schema."""
+
     id: int
     key: str
     value: str
@@ -79,6 +87,7 @@ class GlobalConfigRead(BaseModel):
 
 class GlobalConfigUpdate(BaseModel):
     """Update global config request schema."""
+
     value: str
 
 
@@ -86,8 +95,10 @@ class GlobalConfigUpdate(BaseModel):
 # Approval Scenarios Schemas
 # ============================================================================
 
+
 class ApprovalScenarioRead(BaseModel):
     """Approval scenario response schema."""
+
     id: int
     key: str
     display_name: str
@@ -102,6 +113,7 @@ class ApprovalScenarioRead(BaseModel):
 
 class ApprovalScenarioUpdate(BaseModel):
     """Update approval scenario request schema."""
+
     requires_approval: bool | None = None
     approver_roles: list[str] | None = None
 
@@ -110,8 +122,10 @@ class ApprovalScenarioUpdate(BaseModel):
 # Role Management Schemas
 # ============================================================================
 
+
 class RoleHubRead(BaseModel):
     """Role response schema for Risk Hub."""
+
     id: int
     name: str
     display_name: str
@@ -126,7 +140,8 @@ class RoleHubRead(BaseModel):
 
 class RoleHubCreate(BaseModel):
     """Create role request schema."""
-    name: str = Field(..., min_length=2, max_length=50, pattern=r'^[a-z][a-z0-9_]*$')
+
+    name: str = Field(..., min_length=2, max_length=50, pattern=r"^[a-z][a-z0-9_]*$")
     display_name: str = Field(..., min_length=2, max_length=100)
     description: str | None = None
     permission_ids: list[int] = Field(default_factory=list)
@@ -134,6 +149,7 @@ class RoleHubCreate(BaseModel):
 
 class RoleHubUpdate(BaseModel):
     """Update role request schema."""
+
     display_name: str | None = None
     description: str | None = None
     permission_ids: list[int] | None = None
@@ -141,6 +157,7 @@ class RoleHubUpdate(BaseModel):
 
 class PermissionHubRead(BaseModel):
     """Permission response schema."""
+
     id: int
     resource: str
     action: str
@@ -153,8 +170,10 @@ class PermissionHubRead(BaseModel):
 # Department Management Schemas
 # ============================================================================
 
+
 class DepartmentHubRead(BaseModel):
     """Department response schema for Risk Hub."""
+
     id: int
     name: str
     code: str | None
@@ -170,6 +189,7 @@ class DepartmentHubRead(BaseModel):
 
 class DepartmentHubCreate(BaseModel):
     """Create department request schema."""
+
     name: str = Field(..., min_length=2, max_length=100)
     code: str | None = Field(None, max_length=50)
     manager_id: int | None = None
@@ -177,6 +197,7 @@ class DepartmentHubCreate(BaseModel):
 
 class DepartmentHubUpdate(BaseModel):
     """Update department request schema."""
+
     name: str | None = None
     code: str | None = None
     manager_id: int | None = None

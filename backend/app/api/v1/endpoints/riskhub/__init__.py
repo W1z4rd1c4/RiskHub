@@ -27,4 +27,3 @@ __all__ = [
     "get_cro_user",
     "_ensure_total_assets_value_config",
 ]
-
