@@ -9,6 +9,7 @@ class SessionSettingsMixin:
     refresh_cookie_name: str = "riskhub_refresh_token"
     refresh_cookie_samesite: Literal["lax", "strict", "none"] = "lax"
     refresh_cookie_domain: str | None = None
+    refresh_token_migration_grace: bool = True
 
     @property
     def session(self) -> SessionSettingsSection:
@@ -17,6 +18,7 @@ class SessionSettingsMixin:
             refresh_cookie_name=self.refresh_cookie_name,
             refresh_cookie_samesite=self.refresh_cookie_samesite,
             refresh_cookie_domain=self.refresh_cookie_domain,
+            refresh_token_migration_grace=self.refresh_token_migration_grace,
         )
 
     @property

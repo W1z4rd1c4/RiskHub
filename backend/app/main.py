@@ -245,6 +245,15 @@ def register_middleware(app: FastAPI, settings: Settings) -> None:
     )
     app.add_middleware(LanguageMiddleware)
 
+    if settings.metrics_enabled:
+        from prometheus_fastapi_instrumentator import Instrumentator
+
+        Instrumentator(
+            should_group_status_codes=True,
+            should_group_untemplated=True,
+            excluded_handlers=["/metrics", "/"],
+        ).instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
+
 
 def register_routes(app: FastAPI, settings: Settings) -> None:
     app.include_router(api_router, prefix="/api/v1")

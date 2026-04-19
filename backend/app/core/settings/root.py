@@ -8,6 +8,7 @@ from pydantic_settings import BaseSettings, PydanticBaseSettingsSource
 from app.core.settings.app import AppSettingsMixin
 from app.core.settings.auth import AuthSettingsMixin
 from app.core.settings.database import DatabaseSettingsMixin
+from app.core.settings.metrics import MetricsSettingsMixin
 from app.core.settings.network import NetworkSettingsMixin
 from app.core.settings.outbound import OutboundSettingsMixin
 from app.core.settings.protocol_guard import ProtocolGuardSettingsMixin
@@ -68,6 +69,7 @@ def _read_secret_value(file_env_name: str, raw_path: Any) -> str:
 class Settings(
     SchedulerSettingsMixin,
     ProtocolGuardSettingsMixin,
+    MetricsSettingsMixin,
     RedisSettingsMixin,
     NetworkSettingsMixin,
     AuthSettingsMixin,

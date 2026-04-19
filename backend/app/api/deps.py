@@ -10,11 +10,13 @@ from sqlalchemy.orm import selectinload
 
 from app.core.config import Settings, get_settings
 from app.core.datetime_utils import coerce_utc, utc_now
+from app.core.logging import get_logger
 from app.core.permissions import can_view_risk_committee
 from app.core.security import TokenDecodeError, decode_access_token
 from app.db.session import get_db
 from app.models import Role, RolePermission, User
 
+logger = get_logger("api.deps")
 security = HTTPBearer(auto_error=False)
 
 
@@ -80,14 +82,10 @@ async def get_current_user(
     """
     Get current user. Supports JWT or X-Mock-User-Id (testing only).
     """
-    import logging
-
-    logger = logging.getLogger(__name__)
-
     # 1. Check Mock Auth (Development/Testing only)
     # STRICT CHECK: Must be enabled in settings AND debug mode must be True
     if x_mock_user_id and settings.mock_auth_enabled and settings.debug:
-        logger.warning(f"MOCK AUTH USED: User ID {x_mock_user_id} - DO NOT USE IN PRODUCTION")
+        logger.warning("mock_auth_used", user_id=x_mock_user_id)
         result = await db.execute(
             select(User)
             .options(_user_permission_load(), selectinload(User.department))
@@ -151,11 +149,9 @@ async def get_current_user_optional(
             update_last_active=False,
             optional=True,
         )
-    except Exception as e:
-        import logging
-
-        logger = logging.getLogger(__name__)
-        logger.debug(f"Optional auth failed: {str(e)}")
-        pass
+    except (TokenDecodeError, HTTPException) as exc:
+        logger.debug("optional_auth_failed", error=str(exc))
+    except Exception as exc:
+        logger.warning("optional_auth_unexpected_error", error=str(exc), exc_info=True)
 
     return None

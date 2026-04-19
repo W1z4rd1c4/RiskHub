@@ -50,6 +50,33 @@ async def _get_vendor(db: AsyncSession, vendor_id: int) -> Vendor | None:
     return result.scalar_one_or_none()
 
 
+async def _require_vendor_access(
+    db: AsyncSession,
+    vendor_id: int,
+    current_user: User,
+    *,
+    entity_permission: str,
+    require_write: bool = False,
+) -> Vendor:
+    """Check vendor read access (and optionally write) plus entity read permission."""
+    if not check_permission(current_user, "vendors", "read"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: vendors:read")
+    if not check_permission(current_user, entity_permission, "read"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail=f"Permission denied: {entity_permission}:read"
+        )
+
+    vendor = await _get_vendor(db, vendor_id)
+    if not vendor or not can_read_vendor(vendor, current_user):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
+
+    if require_write:
+        if not (check_permission(current_user, "vendors", "write") or is_vendor_owner(vendor, current_user)):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: vendors:write")
+
+    return vendor
+
+
 async def _can_read_risk(db: AsyncSession, current_user: User, risk_id: int) -> bool:
     return await can_read_risk_id(db, current_user, risk_id)
 
@@ -68,14 +95,7 @@ async def list_vendor_linked_risks(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
 ):
-    if not check_permission(current_user, "vendors", "read"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: vendors:read")
-    if not check_permission(current_user, "risks", "read"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: risks:read")
-
-    vendor = await _get_vendor(db, vendor_id)
-    if not vendor or not can_read_vendor(vendor, current_user):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
+    vendor = await _require_vendor_access(db, vendor_id, current_user, entity_permission="risks")
 
     result = await db.execute(
         select(VendorRiskLink)
@@ -114,18 +134,9 @@ async def link_vendor_to_risk(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
 ):
-    if not check_permission(current_user, "vendors", "read"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: vendors:read")
-    if not check_permission(current_user, "risks", "read"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: risks:read")
-
-    vendor = await _get_vendor(db, vendor_id)
-    if not vendor or not can_read_vendor(vendor, current_user):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
-
-    can_modify_vendor = check_permission(current_user, "vendors", "write") or is_vendor_owner(vendor, current_user)
-    if not can_modify_vendor:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: vendors:write")
+    vendor = await _require_vendor_access(
+        db, vendor_id, current_user, entity_permission="risks", require_write=True,
+    )
 
     result = await db.execute(select(Risk).where(Risk.id == payload.risk_id))
     risk = result.scalar_one_or_none()
@@ -151,18 +162,9 @@ async def unlink_vendor_from_risk(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
 ):
-    if not check_permission(current_user, "vendors", "read"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: vendors:read")
-    if not check_permission(current_user, "risks", "read"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: risks:read")
-
-    vendor = await _get_vendor(db, vendor_id)
-    if not vendor or not can_read_vendor(vendor, current_user):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
-
-    can_modify_vendor = check_permission(current_user, "vendors", "write") or is_vendor_owner(vendor, current_user)
-    if not can_modify_vendor:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: vendors:write")
+    vendor = await _require_vendor_access(
+        db, vendor_id, current_user, entity_permission="risks", require_write=True,
+    )
 
     result = await db.execute(select(Risk).where(Risk.id == risk_id))
     risk = result.scalar_one_or_none()
@@ -187,14 +189,7 @@ async def list_vendor_linked_controls(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
 ):
-    if not check_permission(current_user, "vendors", "read"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: vendors:read")
-    if not check_permission(current_user, "controls", "read"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: controls:read")
-
-    vendor = await _get_vendor(db, vendor_id)
-    if not vendor or not can_read_vendor(vendor, current_user):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
+    vendor = await _require_vendor_access(db, vendor_id, current_user, entity_permission="controls")
 
     result = await db.execute(
         select(VendorControlLink)
@@ -244,18 +239,9 @@ async def link_vendor_to_control(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
 ):
-    if not check_permission(current_user, "vendors", "read"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: vendors:read")
-    if not check_permission(current_user, "controls", "read"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: controls:read")
-
-    vendor = await _get_vendor(db, vendor_id)
-    if not vendor or not can_read_vendor(vendor, current_user):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
-
-    can_modify_vendor = check_permission(current_user, "vendors", "write") or is_vendor_owner(vendor, current_user)
-    if not can_modify_vendor:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: vendors:write")
+    vendor = await _require_vendor_access(
+        db, vendor_id, current_user, entity_permission="controls", require_write=True,
+    )
 
     result = await db.execute(
         select(Control).options(selectinload(Control.department)).where(Control.id == payload.control_id)
@@ -285,18 +271,9 @@ async def unlink_vendor_from_control(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
 ):
-    if not check_permission(current_user, "vendors", "read"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: vendors:read")
-    if not check_permission(current_user, "controls", "read"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: controls:read")
-
-    vendor = await _get_vendor(db, vendor_id)
-    if not vendor or not can_read_vendor(vendor, current_user):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
-
-    can_modify_vendor = check_permission(current_user, "vendors", "write") or is_vendor_owner(vendor, current_user)
-    if not can_modify_vendor:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: vendors:write")
+    vendor = await _require_vendor_access(
+        db, vendor_id, current_user, entity_permission="controls", require_write=True,
+    )
 
     result = await db.execute(select(Control).options(selectinload(Control.department)).where(Control.id == control_id))
     control = result.scalar_one_or_none()
@@ -323,14 +300,7 @@ async def list_vendor_linked_kris(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
 ):
-    if not check_permission(current_user, "vendors", "read"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: vendors:read")
-    if not check_permission(current_user, "risks", "read"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: risks:read")
-
-    vendor = await _get_vendor(db, vendor_id)
-    if not vendor or not can_read_vendor(vendor, current_user):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
+    vendor = await _require_vendor_access(db, vendor_id, current_user, entity_permission="risks")
 
     result = await db.execute(
         select(VendorKRILink)
@@ -392,18 +362,9 @@ async def link_vendor_to_kri(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
 ):
-    if not check_permission(current_user, "vendors", "read"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: vendors:read")
-    if not check_permission(current_user, "risks", "read"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: risks:read")
-
-    vendor = await _get_vendor(db, vendor_id)
-    if not vendor or not can_read_vendor(vendor, current_user):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
-
-    can_modify_vendor = check_permission(current_user, "vendors", "write") or is_vendor_owner(vendor, current_user)
-    if not can_modify_vendor:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: vendors:write")
+    vendor = await _require_vendor_access(
+        db, vendor_id, current_user, entity_permission="risks", require_write=True,
+    )
 
     result = await db.execute(select(KeyRiskIndicator).where(KeyRiskIndicator.id == payload.kri_id))
     kri = result.scalar_one_or_none()
@@ -428,18 +389,9 @@ async def unlink_vendor_from_kri(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
 ):
-    if not check_permission(current_user, "vendors", "read"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: vendors:read")
-    if not check_permission(current_user, "risks", "read"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: risks:read")
-
-    vendor = await _get_vendor(db, vendor_id)
-    if not vendor or not can_read_vendor(vendor, current_user):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
-
-    can_modify_vendor = check_permission(current_user, "vendors", "write") or is_vendor_owner(vendor, current_user)
-    if not can_modify_vendor:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: vendors:write")
+    vendor = await _require_vendor_access(
+        db, vendor_id, current_user, entity_permission="risks", require_write=True,
+    )
 
     result = await db.execute(select(KeyRiskIndicator).where(KeyRiskIndicator.id == kri_id))
     kri = result.scalar_one_or_none()

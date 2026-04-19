@@ -33,6 +33,7 @@ class SessionSettingsSection(_FrozenSectionModel):
     refresh_cookie_name: str
     refresh_cookie_samesite: Literal["lax", "strict", "none"]
     refresh_cookie_domain: str | None
+    refresh_token_migration_grace: bool
 
 
 class RedisSettingsSection(_FrozenSectionModel):
