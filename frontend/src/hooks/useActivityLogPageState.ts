@@ -231,9 +231,7 @@ export function useActivityLogPageState(
                 actor_id: viewMode === 'by_person' && selectedActorId ? selectedActorId : undefined,
                 department_id: viewMode === 'by_department' && selectedDepartmentId ? selectedDepartmentId : undefined,
                 action: action || undefined,
-                date_from: dateFrom || undefined,
-                // Convert date_to to inclusive end-of-day timestamp
-                // This ensures entries from the selected end date are included
+                date_from: dateFrom ? `${dateFrom}T00:00:00.000` : undefined,
                 date_to: dateTo ? `${dateTo}T23:59:59.999` : undefined,
             };
             const response = await activityLogApi.list(filters);

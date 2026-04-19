@@ -1,19 +1,18 @@
 from __future__ import annotations
 
-from random import SystemRandom
-
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
-from app.models import Control, ControlRiskLink, KeyRiskIndicator, Risk, User
-from app.schemas.admin import OrphanFixResponse, OrphanStatsResponse
+from app.models import Control, ControlRiskLink, KeyRiskIndicator, OrphanedItem, Risk, User
+from app.schemas.admin import OrphanFixRequest, OrphanFixResponse, OrphanStatsResponse
+from app.services._orphaned_items.resolution import validate_resolution_context
+from app.services.orphaned_item_service import OrphanedItemService
 
 from ._deps import require_platform_admin
 
 router = APIRouter()
-_RNG = SystemRandom()
 
 
 @router.get("/orphan-stats", response_model=OrphanStatsResponse)
@@ -56,61 +55,70 @@ async def get_orphan_stats(
 
 @router.post("/fix-orphans", response_model=OrphanFixResponse)
 async def fix_orphan_mappings(
+    payload: OrphanFixRequest,
     db: AsyncSession = Depends(get_db),
     admin_user: User = Depends(require_platform_admin),
 ) -> OrphanFixResponse:
     """
-    Fix orphaned entities by assigning random risks.
-    - KRIs without risk_id get a random risk assigned
-    - Controls without any risk links get a random risk link created
-    Admin only.
+    Fix orphaned items using explicit admin-supplied resolution targets.
     """
-    # Get all risks for random assignment
-    risks_result = await db.execute(select(Risk))
-    all_risks = list(risks_result.scalars().all())
-
-    if not all_risks:
-        raise HTTPException(status_code=400, detail="No risks available for assignment")
-
-    kris_fixed = 0
+    results = []
+    risks_fixed = 0
     controls_fixed = 0
-    links_created = 0
+    kris_fixed = 0
+    seen_orphan_ids: set[int] = set()
 
-    # Fix orphan KRIs (if schema allows null risk_id)
-    orphan_kris_result = await db.execute(select(KeyRiskIndicator).where(KeyRiskIndicator.risk_id.is_(None)))
-    orphan_kris = list(orphan_kris_result.scalars().all())
-
-    for kri in orphan_kris:
-        kri.risk_id = _RNG.choice(all_risks).id
-        kris_fixed += 1
-
-    # Fix controls without risk links
-    controls_without_links_result = await db.execute(
-        select(Control).where(~Control.id.in_(select(ControlRiskLink.control_id).distinct()))
-    )
-    controls_without_links = list(controls_without_links_result.scalars().all())
-
-    for control in controls_without_links:
-        # Create 1-3 random risk links
-        num_links = _RNG.randint(1, 3)
-        selected_risks = _RNG.sample(all_risks, min(num_links, len(all_risks)))
-
-        for risk in selected_risks:
-            link = ControlRiskLink(
-                control_id=control.id,
-                risk_id=risk.id,
-                effectiveness="medium",
-                notes="Auto-assigned by admin fix-orphans endpoint",
+    for resolution in payload.resolutions:
+        if resolution.orphan_id in seen_orphan_ids:
+            raise HTTPException(status_code=400, detail=f"Duplicate orphan_id in request: {resolution.orphan_id}")
+        seen_orphan_ids.add(resolution.orphan_id)
+        try:
+            context = await validate_resolution_context(
+                db,
+                orphan_id=resolution.orphan_id,
+                new_owner_id=resolution.new_owner_id,
+                department_id=resolution.department_id,
+                target_risk_id=resolution.target_risk_id,
             )
-            db.add(link)
-            links_created += 1
-        controls_fixed += 1
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    await db.commit()
+        results.append(
+            {
+                "orphan_id": context.orphan.id,
+                "item_type": context.orphan.item_type,
+                "item_id": context.orphan.item_id,
+                "applied": not payload.dry_run,
+                "new_owner_id": resolution.new_owner_id,
+                "department_id": context.target_department_id,
+                "target_risk_id": context.target_risk.id if context.target_risk else None,
+            }
+        )
+
+        if context.orphan.item_type == "risk":
+            risks_fixed += 1
+        elif context.orphan.item_type == "control":
+            controls_fixed += 1
+        elif context.orphan.item_type == "kri":
+            kris_fixed += 1
+
+    if not payload.dry_run:
+        for resolution in payload.resolutions:
+            await OrphanedItemService.resolve_orphan(
+                db=db,
+                orphan_id=resolution.orphan_id,
+                new_owner_id=resolution.new_owner_id,
+                resolved_by_id=admin_user.id,
+                department_id=resolution.department_id,
+                target_risk_id=resolution.target_risk_id,
+            )
 
     return OrphanFixResponse(
-        message=f"Fixed {kris_fixed} KRIs and {controls_fixed} controls ({links_created} links created)",
+        message="Validated orphan remediation plan" if payload.dry_run else "Applied orphan remediation plan",
+        dry_run=payload.dry_run,
+        resolved_count=len(results),
+        risks_fixed=risks_fixed,
         kris_fixed=kris_fixed,
         controls_fixed=controls_fixed,
-        links_created=links_created,
+        results=results,
     )

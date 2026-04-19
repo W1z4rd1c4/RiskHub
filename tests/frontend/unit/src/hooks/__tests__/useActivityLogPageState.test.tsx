@@ -56,6 +56,12 @@ function HookHarness() {
             <button type="button" onClick={() => state.setSelectedRiskId(null)}>
                 clear risk
             </button>
+            <button type="button" onClick={() => state.setDateFrom('2026-04-20')}>
+                set date from
+            </button>
+            <button type="button" onClick={() => state.setDateTo('2026-04-20')}>
+                set date to
+            </button>
             <span data-testid="entries-count">{state.entries.length}</span>
             <span data-testid="needs-risk-selection">{String(state.needsRiskSelection)}</span>
         </div>
@@ -127,5 +133,27 @@ describe('useActivityLogPageState', () => {
 
         expect(screen.getByTestId('entries-count')).toHaveTextContent('0');
         expect(screen.getByTestId('needs-risk-selection')).toHaveTextContent('true');
+    });
+
+    it('submits local calendar-day boundaries without forcing UTC', async () => {
+        mockList.mockResolvedValue({ items: [], total: 0, skip: 0, limit: 50 });
+
+        render(<HookHarness />);
+
+        await waitFor(() => expect(mockList).toHaveBeenCalledTimes(1));
+
+        await act(async () => {
+            screen.getByRole('button', { name: 'set date from' }).click();
+            screen.getByRole('button', { name: 'set date to' }).click();
+        });
+
+        await waitFor(() => expect(mockList).toHaveBeenCalledTimes(2));
+
+        expect(mockList).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                date_from: '2026-04-20T00:00:00.000',
+                date_to: '2026-04-20T23:59:59.999',
+            })
+        );
     });
 });
