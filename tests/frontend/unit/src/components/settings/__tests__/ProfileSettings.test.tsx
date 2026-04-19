@@ -51,4 +51,10 @@ describe('ProfileSettings', () => {
 
         expect(screen.getByText('Unassigned')).toBeInTheDocument();
     });
+
+    it('renders malformed permissions without crashing', () => {
+        render(<ProfileSettings user={makeUser({ effective_permissions: ['legacy_permission'] })} />);
+
+        expect(screen.getByText('legacy_permission')).toBeInTheDocument();
+    });
 });

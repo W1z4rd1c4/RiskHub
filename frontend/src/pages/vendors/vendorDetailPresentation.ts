@@ -12,10 +12,18 @@ export interface VendorDetailFlash {
 
 export function buildVendorDetailPath(
     vendorId: number,
-    _tab?: string | null,
-    _section?: string | null,
+    tab?: string | null,
+    section?: string | null,
 ): string {
-    return `/vendors/${vendorId}`;
+    const params = new URLSearchParams();
+    if (tab) {
+        params.set('tab', tab);
+    }
+    if (section) {
+        params.set('section', section);
+    }
+    const query = params.toString();
+    return query ? `/vendors/${vendorId}?${query}` : `/vendors/${vendorId}`;
 }
 
 export function coerceVendorContext(vendorIdRaw: string | null, returnToRaw: string | null): {

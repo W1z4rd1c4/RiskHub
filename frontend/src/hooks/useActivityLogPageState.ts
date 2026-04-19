@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useDebouncedValue } from './useDebouncedValue';
 import { activityLogApi, type ActivityLogFilters } from '@/services/activityLogApi';
 import type { ActivityLogEntry } from '@/types/activityLog';
@@ -57,6 +57,7 @@ interface UseActivityLogPageStateReturn {
     total: number;
     isLoading: boolean;
     errorType: ErrorType;
+    needsRiskSelection: boolean;
 
     // Pagination
     page: number;
@@ -125,6 +126,8 @@ export function useActivityLogPageState(
 
     // Filter options
     const [actions, setActions] = useState<string[]>([]);
+    const needsRiskSelection = viewMode === 'by_risk' && selectedRiskId === null;
+    const latestEntriesRequestIdRef = useRef(0);
 
     // If the hook is disabled, ensure we don't show stale loading/error state.
     useEffect(() => {
@@ -155,6 +158,7 @@ export function useActivityLogPageState(
     // Load filter options and lookup data for view modes
     useEffect(() => {
         if (!enabled) return;
+        let cancelled = false;
         const loadOptions = async () => {
             try {
                 const [acts, usersData, deptsData, risksData] = await Promise.all([
@@ -163,15 +167,20 @@ export function useActivityLogPageState(
                     lookupApi.getDepartments(),
                     riskApi.getRisks({ limit: 100 }) // Get first 100 risks for picker (matches backend cap)
                 ]);
-                setActions(acts);
-                setUsers(usersData);
-                setDepartments(deptsData.map((d: { id: number; name: string }) => ({ id: d.id, name: d.name })));
-                setRisks(risksData.items.map((r: { id: number; name: string }) => ({ id: r.id, name: r.name })));
+                if (!cancelled) {
+                    setActions(acts);
+                    setUsers(usersData);
+                    setDepartments(deptsData.map((d: { id: number; name: string }) => ({ id: d.id, name: d.name })));
+                    setRisks(risksData.items.map((r: { id: number; name: string }) => ({ id: r.id, name: r.name })));
+                }
             } catch (err) {
                 console.error('Failed to load filter options:', err);
             }
         };
         void loadOptions();
+        return () => {
+            cancelled = true;
+        };
     }, [enabled]);
 
     // Build entity types based on tab and view mode
@@ -198,6 +207,15 @@ export function useActivityLogPageState(
     // Fetch entries 
     const fetchEntries = useCallback(async () => {
         if (!enabled) return;
+        if (needsRiskSelection) {
+            latestEntriesRequestIdRef.current += 1;
+            setEntries([]);
+            setTotal(0);
+            setIsLoading(false);
+            setErrorType(null);
+            return;
+        }
+        const requestId = ++latestEntriesRequestIdRef.current;
         setIsLoading(true);
         setErrorType(null);
         try {
@@ -219,28 +237,35 @@ export function useActivityLogPageState(
                 date_to: dateTo ? `${dateTo}T23:59:59.999` : undefined,
             };
             const response = await activityLogApi.list(filters);
-            setEntries(response.items);
-            setTotal(response.total);
+            if (requestId === latestEntriesRequestIdRef.current) {
+                setEntries(response.items);
+                setTotal(response.total);
+            }
         } catch (error) {
             console.error('Failed to fetch activity logs:', error);
             // Distinguish 403 from other errors
-            if (error instanceof Error && 'response' in error) {
+            if (requestId === latestEntriesRequestIdRef.current && error instanceof Error && 'response' in error) {
                 const resp = (error as { response?: { status?: number } }).response;
                 if (resp?.status === 403) {
                     setErrorType('access_denied');
                 } else {
                     setErrorType('network_error');
                 }
-            } else {
+            } else if (requestId === latestEntriesRequestIdRef.current) {
                 setErrorType('network_error');
             }
-            setEntries([]);
-            setTotal(0);
+            if (requestId === latestEntriesRequestIdRef.current) {
+                setEntries([]);
+                setTotal(0);
+            }
         } finally {
-            setIsLoading(false);
+            if (requestId === latestEntriesRequestIdRef.current) {
+                setIsLoading(false);
+            }
         }
     }, [
         enabled,
+        needsRiskSelection,
         page,
         limit,
         debouncedSearch,
@@ -303,6 +328,7 @@ export function useActivityLogPageState(
         total,
         isLoading,
         errorType,
+        needsRiskSelection,
 
         // Pagination
         page,

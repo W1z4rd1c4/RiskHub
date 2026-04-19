@@ -441,6 +441,7 @@
     "all_types": "All Types",
     "risks_only": "Risks Only",
     "controls_only": "Controls Only",
+    "kris_only": "KRIs Only",
     "orphaned_items": "Orphaned Items",
     "all_clear": "All Clear",
     "no_orphans": "No orphaned items found. All risks and controls have assigned owners.",

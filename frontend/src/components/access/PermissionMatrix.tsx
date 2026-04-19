@@ -182,7 +182,19 @@ export function PermissionChips({ permissions, maxVisible = 5, className }: { pe
     return (
         <div className={cn('flex flex-wrap gap-1', className)}>
             {visible.map((perm) => {
-                const [resource, action] = perm.split(':');
+                const parts = perm.split(':');
+                if (parts.length !== 2 || !parts[0] || !parts[1]) {
+                    return (
+                        <span
+                            key={perm}
+                            className="px-1.5 py-0.5 text-[10px] font-medium rounded border bg-slate-500/20 text-slate-400 border-slate-500/30"
+                            title={perm}
+                        >
+                            {perm}
+                        </span>
+                    );
+                }
+                const [resource, action] = parts;
                 return (
                     <span
                         key={perm}

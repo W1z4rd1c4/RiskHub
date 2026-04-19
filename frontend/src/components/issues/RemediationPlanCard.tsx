@@ -23,6 +23,7 @@ import { issuesApi } from '@/services/issuesApi';
 import { apiClient } from '@/services/apiClient';
 import { useSessionSnapshot } from '@/services/session/store';
 import type { Issue, IssueOwnerLookup, IssueRemediationStatus, IssueStatus } from '@/types/issue';
+import { fromDateTimeLocalInputValue, toDateTimeLocalInputValue } from '@/utils/dateTimeLocal';
 
 interface RemediationPlanCardProps {
     issue: Issue;
@@ -31,28 +32,6 @@ interface RemediationPlanCardProps {
 }
 
 const REMEDIATION_STATUSES: IssueRemediationStatus[] = ['draft', 'active', 'blocked', 'completed'];
-
-function toDateTimeInputValue(value: string | null | undefined): string {
-    if (!value) {
-        return '';
-    }
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) {
-        return '';
-    }
-    return date.toISOString().slice(0, 16);
-}
-
-function toIsoOrUndefined(value: string): string | undefined {
-    if (!value) {
-        return undefined;
-    }
-    const parsed = new Date(value);
-    if (Number.isNaN(parsed.getTime())) {
-        return undefined;
-    }
-    return parsed.toISOString();
-}
 
 function formatDate(value: string | null | undefined, locale: string, notSetLabel: string): string {
     if (!value) {
@@ -86,7 +65,7 @@ export function RemediationPlanCard({ issue, canWrite, canApprove }: Remediation
     const session = useSessionSnapshot();
 
     const [assignOwnerId, setAssignOwnerId] = useState<string>(issue.owner_user_id ? String(issue.owner_user_id) : '');
-    const [assignDueAt, setAssignDueAt] = useState<string>(toDateTimeInputValue(issue.due_at));
+    const [assignDueAt, setAssignDueAt] = useState<string>(toDateTimeLocalInputValue(issue.due_at));
     const [progressPercent, setProgressPercent] = useState<string>(
         issue.remediation_plan ? String(issue.remediation_plan.progress_percent) : '0'
     );
@@ -108,7 +87,7 @@ export function RemediationPlanCard({ issue, canWrite, canApprove }: Remediation
 
     useEffect(() => {
         setAssignOwnerId(issue.owner_user_id ? String(issue.owner_user_id) : '');
-        setAssignDueAt(toDateTimeInputValue(issue.due_at));
+        setAssignDueAt(toDateTimeLocalInputValue(issue.due_at));
         setProgressPercent(issue.remediation_plan ? String(issue.remediation_plan.progress_percent) : '0');
         setRemediationStatus(issue.remediation_plan?.status ?? 'active');
         setBlockerReason(issue.remediation_plan?.blocker_reason ?? '');
@@ -208,7 +187,7 @@ export function RemediationPlanCard({ issue, canWrite, canApprove }: Remediation
             setErrorKey('errors.owner_invalid');
             return;
         }
-        const dueAt = toIsoOrUndefined(assignDueAt);
+        const dueAt = fromDateTimeLocalInputValue(assignDueAt);
         if (!dueAt) {
             setErrorKey('errors.due_required');
             return;
@@ -260,7 +239,7 @@ export function RemediationPlanCard({ issue, canWrite, canApprove }: Remediation
     };
 
     const handleApproveException = async () => {
-        const expiresAt = toIsoOrUndefined(exceptionExpiresAt);
+        const expiresAt = fromDateTimeLocalInputValue(exceptionExpiresAt);
         if (!expiresAt) {
             setErrorKey('errors.exception_expiry_required');
             return;

@@ -110,6 +110,7 @@ export function ActivityLogPage() {
                 entries={state.entries}
                 isLoading={state.isLoading}
                 errorType={state.errorType}
+                needsRiskSelection={state.needsRiskSelection}
                 onRetry={state.refresh}
             />
 

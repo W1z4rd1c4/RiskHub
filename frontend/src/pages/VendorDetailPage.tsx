@@ -67,10 +67,30 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
         }
 
         const params = new URLSearchParams(location.search);
-        if (params.has('tab') || params.has('section')) {
-            void navigate(location.pathname, { replace: true });
+        const tab = params.get('tab');
+        const section = params.get('section');
+        let targetId: string | null = null;
+
+        if (tab === 'assessments' && section === 'schedule') {
+            targetId = 'vendor-linked-kris';
+        } else if (tab === 'connections' && section === 'risks') {
+            targetId = 'vendor-linked-risks';
+        } else if (tab === 'connections' && section === 'controls') {
+            targetId = 'vendor-linked-controls';
         }
-    }, [location.pathname, location.search, navigate]);
+
+        if (!targetId) {
+            return;
+        }
+
+        const frameId = window.requestAnimationFrame(() => {
+            document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+
+        return () => {
+            window.cancelAnimationFrame(frameId);
+        };
+    }, [location.pathname, location.search]);
 
     const archiveVendor = async () => {
         if (!vendor) {

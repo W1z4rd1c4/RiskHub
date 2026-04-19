@@ -85,7 +85,7 @@ describe('AuthProvider logout flow', () => {
         __resetExplicitLogoutSuppressionForTests();
     });
 
-    it('keeps the user authenticated when backend logout fails', async () => {
+    it('clears local auth state when backend logout fails', async () => {
         setAccessToken('active-token');
 
         vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
@@ -139,10 +139,11 @@ describe('AuthProvider logout flow', () => {
         });
 
         await waitFor(() => expect(screen.getByTestId('logout-error')).toHaveTextContent('errorKeys.server'));
-        expect(screen.getByTestId('auth-user')).toHaveTextContent('admin@riskhub.local');
+        expect(screen.getByTestId('auth-user')).toHaveTextContent('anonymous');
         expect(screen.getByTestId('logout-pending')).toHaveTextContent('idle');
-        expect(getAccessToken()).toBe('active-token');
-        expect(isExplicitLogoutSuppressed()).toBe(false);
+        expect(getAccessToken()).toBeNull();
+        expect(isExplicitLogoutSuppressed()).toBe(true);
+        expect(clearLocalSettingsMock).toHaveBeenCalledTimes(1);
         expect(logoutRedirectMock).not.toHaveBeenCalled();
     });
 

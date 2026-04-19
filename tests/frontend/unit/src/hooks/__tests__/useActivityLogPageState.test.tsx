@@ -1,0 +1,131 @@
+import { act, render, screen, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { useActivityLogPageState } from '@/hooks/useActivityLogPageState';
+import type { ActivityLogListResponse } from '@/types/activityLog';
+
+const mockList = vi.fn();
+const mockGetActions = vi.fn();
+const mockGetUsers = vi.fn();
+const mockGetDepartments = vi.fn();
+const mockGetRisks = vi.fn();
+
+vi.mock('@/hooks/useDebouncedValue', () => ({
+    useDebouncedValue: <T,>(value: T) => value,
+}));
+
+vi.mock('@/services/activityLogApi', () => ({
+    activityLogApi: {
+        list: (...args: unknown[]) => mockList(...args),
+        getActions: () => mockGetActions(),
+    },
+}));
+
+vi.mock('@/services/lookupApi', () => ({
+    lookupApi: {
+        getUsers: () => mockGetUsers(),
+        getDepartments: () => mockGetDepartments(),
+    },
+}));
+
+vi.mock('@/services/riskApi', () => ({
+    riskApi: {
+        getRisks: (...args: unknown[]) => mockGetRisks(...args),
+    },
+}));
+
+function createDeferred<T>() {
+    let resolve!: (value: T) => void;
+    const promise = new Promise<T>((res) => {
+        resolve = res;
+    });
+    return { promise, resolve };
+}
+
+function HookHarness() {
+    const state = useActivityLogPageState();
+
+    return (
+        <div>
+            <button type="button" onClick={() => state.setViewMode('by_risk')}>
+                by risk
+            </button>
+            <button type="button" onClick={() => state.setSelectedRiskId(7)}>
+                select risk
+            </button>
+            <button type="button" onClick={() => state.setSelectedRiskId(null)}>
+                clear risk
+            </button>
+            <span data-testid="entries-count">{state.entries.length}</span>
+            <span data-testid="needs-risk-selection">{String(state.needsRiskSelection)}</span>
+        </div>
+    );
+}
+
+describe('useActivityLogPageState', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockGetActions.mockResolvedValue([]);
+        mockGetUsers.mockResolvedValue([]);
+        mockGetDepartments.mockResolvedValue([]);
+        mockGetRisks.mockResolvedValue({ items: [], total: 0, skip: 0, limit: 100 });
+    });
+
+    it('ignores stale risk responses after clearing the selected risk', async () => {
+        const deferred = createDeferred<ActivityLogListResponse>();
+        mockList
+            .mockResolvedValueOnce({ items: [], total: 0, skip: 0, limit: 50 })
+            .mockImplementationOnce(() => deferred.promise);
+
+        render(<HookHarness />);
+
+        await waitFor(() => expect(mockList).toHaveBeenCalledTimes(1));
+
+        await act(async () => {
+            screen.getByRole('button', { name: 'by risk' }).click();
+        });
+
+        expect(screen.getByTestId('needs-risk-selection')).toHaveTextContent('true');
+
+        await act(async () => {
+            screen.getByRole('button', { name: 'select risk' }).click();
+        });
+
+        await waitFor(() => expect(mockList).toHaveBeenCalledTimes(2));
+
+        await act(async () => {
+            screen.getByRole('button', { name: 'clear risk' }).click();
+        });
+
+        expect(screen.getByTestId('entries-count')).toHaveTextContent('0');
+        expect(screen.getByTestId('needs-risk-selection')).toHaveTextContent('true');
+
+        deferred.resolve({
+            items: [
+                {
+                    id: 99,
+                    entity_type: 'risk',
+                    entity_id: 7,
+                    entity_name: 'Stale Risk',
+                    action: 'update',
+                    actor_id: 5,
+                    actor_name: 'Analyst',
+                    department_id: 3,
+                    changes: null,
+                    description: 'Stale response',
+                    created_at: '2026-04-20T08:00:00Z',
+                },
+            ],
+            total: 1,
+            skip: 0,
+            limit: 50,
+        });
+
+        await act(async () => {
+            await Promise.resolve();
+        });
+
+        expect(screen.getByTestId('entries-count')).toHaveTextContent('0');
+        expect(screen.getByTestId('needs-risk-selection')).toHaveTextContent('true');
+    });
+});

@@ -14,6 +14,7 @@ export function usePendingApprovalIds(resourceType: ResourceType): Set<number> {
     const [pendingIds, setPendingIds] = useState<Set<number>>(new Set());
 
     useEffect(() => {
+        let cancelled = false;
         const fetchPending = async () => {
             try {
                 const pageSize = 100;
@@ -38,13 +39,18 @@ export function usePendingApprovalIds(resourceType: ResourceType): Set<number> {
                         .filter((a) => a.resource_type === resourceType)
                         .map((a) => a.resource_id)
                 );
-                setPendingIds(ids);
+                if (!cancelled) {
+                    setPendingIds(ids);
+                }
             } catch (error) {
                 console.error('Failed to fetch pending approvals:', error);
             }
         };
 
         void fetchPending();
+        return () => {
+            cancelled = true;
+        };
     }, [resourceType]);
 
     return pendingIds;

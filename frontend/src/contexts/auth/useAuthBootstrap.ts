@@ -32,7 +32,7 @@ export function useAuthBootstrap({
             try {
                 const session = await bootstrapAuthSession();
                 if (!isMounted) return;
-                const preserveLogoutError = getSessionSnapshot().logoutErrorKey === 'errorKeys.sso_logout_incomplete';
+                const preserveLogoutError = getSessionSnapshot().logoutErrorKey !== null;
 
                 if (!session.token || !session.user) {
                     applyAnonymousSession({ preserveLogoutError });
@@ -49,7 +49,7 @@ export function useAuthBootstrap({
                 applyBootstrappedSession({ token: session.token, user: session.user });
             } catch (error) {
                 if (isMounted) {
-                    const preserveLogoutError = getSessionSnapshot().logoutErrorKey === 'errorKeys.sso_logout_incomplete';
+                    const preserveLogoutError = getSessionSnapshot().logoutErrorKey !== null;
                     if (isAuthUnavailableError(error)) {
                         applyBootstrapError('service_unavailable');
                     } else {

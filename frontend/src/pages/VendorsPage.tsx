@@ -143,6 +143,12 @@ export function VendorsPage() {
     }, [fetchVendors]);
 
     useEffect(() => {
+        setVendors([]);
+        setTotalCount(0);
+        hasLoadedVendorsRef.current = false;
+    }, [viewMode]);
+
+    useEffect(() => {
         if (!canReadRisks && viewMode === 'risk') {
             setViewMode('all');
         }

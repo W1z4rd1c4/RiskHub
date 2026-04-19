@@ -1,6 +1,7 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { StrictMode } from 'react';
 import { createTestQueryClient } from '@test/queryClient';
 
 import { useAdaptivePollingQuery } from '@/hooks/useAdaptivePollingQuery';
@@ -97,6 +98,21 @@ describe('useAdaptivePollingQuery', () => {
 
         await waitFor(() => expect(screen.getByTestId('value')).toHaveTextContent('2'));
         expect(screen.getByTestId('poll-ms')).toHaveTextContent('20');
+    });
+
+    it('does not double-increment backoff in StrictMode after the first failure', async () => {
+        const queryFn = async () => {
+            throw new Error('boom');
+        };
+
+        render(
+            <StrictMode>
+                <TestHarness pollMs={20} queryFn={queryFn} />
+            </StrictMode>,
+            { wrapper: createWrapper() }
+        );
+
+        await waitFor(() => expect(screen.getByTestId('poll-ms')).toHaveTextContent('40'));
     });
 
     it('does not overlap requests while a fetch is still running', async () => {

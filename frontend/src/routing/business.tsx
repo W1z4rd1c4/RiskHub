@@ -12,7 +12,12 @@ import {
   Target,
 } from 'lucide-react';
 
-import { ActivityLogRouteGuard, GovernanceRouteGuard } from '@/authz/BusinessRouteGuards';
+import {
+  ActivityLogRouteGuard,
+  AuditTrailRouteGuard,
+  GovernanceRouteGuard,
+  RiskWriteRouteGuard,
+} from '@/authz/BusinessRouteGuards';
 import type { AppRouteDef } from './types';
 
 const ApprovalsPage = lazy(() => import('@/pages/ApprovalsPage'));
@@ -87,9 +92,25 @@ export const businessRoutes: AppRouteDef[] = [
       order: 40,
     },
   },
-  { key: 'risks-new', path: 'risks/new', element: <RiskNewPage /> },
+  {
+    key: 'risks-new',
+    path: 'risks/new',
+    element: (
+      <RiskWriteRouteGuard>
+        <RiskNewPage />
+      </RiskWriteRouteGuard>
+    ),
+  },
   { key: 'risks-detail', path: 'risks/:id', element: <RiskDetailPage /> },
-  { key: 'risks-edit', path: 'risks/:id/edit', element: <RiskEditPage /> },
+  {
+    key: 'risks-edit',
+    path: 'risks/:id/edit',
+    element: (
+      <RiskWriteRouteGuard>
+        <RiskEditPage />
+      </RiskWriteRouteGuard>
+    ),
+  },
   {
     key: 'issues',
     path: 'issues',
@@ -187,7 +208,11 @@ export const businessRoutes: AppRouteDef[] = [
   {
     key: 'audit-trail',
     path: 'audit-trail',
-    element: <AuditTrailPage />,
+    element: (
+      <AuditTrailRouteGuard>
+        <AuditTrailPage />
+      </AuditTrailRouteGuard>
+    ),
   },
   {
     key: 'risk-hub',

@@ -72,6 +72,7 @@ export function useDepartmentDetail({
     kriPage,
     userPage,
 }: UseDepartmentDetailParams): UseDepartmentDetailResult {
+    const [refreshNonce, setRefreshNonce] = useState(0);
     // Department metadata
     const [department, setDepartment] = useState<DepartmentDetail | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -89,15 +90,32 @@ export function useDepartmentDetail({
         if (!departmentId) return;
         setIsLoading(true);
         setError(null);
+        let cancelled = false;
         departmentApi.getDepartment(departmentId)
-            .then(setDepartment)
-            .catch(() => setError('errors.load_department_detail_failed'))
-            .finally(() => setIsLoading(false));
-    }, [departmentId]);
+            .then((data) => {
+                if (!cancelled) {
+                    setDepartment(data);
+                }
+            })
+            .catch(() => {
+                if (!cancelled) {
+                    setError('errors.load_department_detail_failed');
+                }
+            })
+            .finally(() => {
+                if (!cancelled) {
+                    setIsLoading(false);
+                }
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [departmentId, refreshNonce]);
 
     // Fetch risks when risks tab is active or page/filter changes
     useEffect(() => {
         if (!departmentId || activeTab !== 'risks') return;
+        let cancelled = false;
         const skip = (riskPage - 1) * DEPARTMENT_PAGE_SIZE;
         const params: { skip: number; limit: number; min_net_score?: number } = {
             skip,
@@ -107,22 +125,38 @@ export function useDepartmentDetail({
             params.min_net_score = HIGH_RISK_MIN_NET_SCORE;
         }
         departmentApi.getDepartmentRisks(departmentId, params)
-            .then(setRisks)
+            .then((data) => {
+                if (!cancelled) {
+                    setRisks(data);
+                }
+            })
             .catch(console.error);
-    }, [departmentId, activeTab, riskPage, riskFilter]);
+        return () => {
+            cancelled = true;
+        };
+    }, [departmentId, activeTab, riskPage, riskFilter, refreshNonce]);
 
     // Fetch controls when controls tab is active or page changes
     useEffect(() => {
         if (!departmentId || activeTab !== 'controls') return;
+        let cancelled = false;
         const skip = (controlPage - 1) * DEPARTMENT_PAGE_SIZE;
         departmentApi.getDepartmentControls(departmentId, { skip, limit: DEPARTMENT_PAGE_SIZE })
-            .then(setControls)
+            .then((data) => {
+                if (!cancelled) {
+                    setControls(data);
+                }
+            })
             .catch(console.error);
-    }, [departmentId, activeTab, controlPage]);
+        return () => {
+            cancelled = true;
+        };
+    }, [departmentId, activeTab, controlPage, refreshNonce]);
 
     // Fetch KRIs when kris tab is active or page changes
     useEffect(() => {
         if (!departmentId || activeTab !== 'kris') return;
+        let cancelled = false;
         const skip = (kriPage - 1) * DEPARTMENT_PAGE_SIZE;
         departmentApi.getDepartmentKRIs(departmentId, {
             skip,
@@ -130,20 +164,33 @@ export function useDepartmentDetail({
             monitoring_status: kriFilter === 'all' ? undefined : kriFilter,
         })
             .then((response) => {
-                setKris(response.items);
-                setKriTotalCount(response.total);
+                if (!cancelled) {
+                    setKris(response.items);
+                    setKriTotalCount(response.total);
+                }
             })
             .catch(console.error);
-    }, [departmentId, activeTab, kriFilter, kriPage]);
+        return () => {
+            cancelled = true;
+        };
+    }, [departmentId, activeTab, kriFilter, kriPage, refreshNonce]);
 
     // Fetch users when users tab is active or page changes
     useEffect(() => {
         if (!departmentId || activeTab !== 'users') return;
+        let cancelled = false;
         const skip = (userPage - 1) * DEPARTMENT_PAGE_SIZE;
         userApi.listVisibleUsers({ department_id: departmentId, skip, limit: DEPARTMENT_PAGE_SIZE })
-            .then(setUsers)
+            .then((data) => {
+                if (!cancelled) {
+                    setUsers(data);
+                }
+            })
             .catch(console.error);
-    }, [departmentId, activeTab, userPage]);
+        return () => {
+            cancelled = true;
+        };
+    }, [departmentId, activeTab, userPage, refreshNonce]);
 
     // Compute risk count based on filter
     const getRiskCount = () => {
@@ -163,11 +210,7 @@ export function useDepartmentDetail({
     // Refresh handler - re-fetches department metadata
     const refresh = () => {
         if (!departmentId) return;
-        setIsLoading(true);
-        departmentApi.getDepartment(departmentId)
-            .then(setDepartment)
-            .catch(() => setError('errors.load_department_detail_failed'))
-            .finally(() => setIsLoading(false));
+        setRefreshNonce((current) => current + 1);
     };
 
     return {

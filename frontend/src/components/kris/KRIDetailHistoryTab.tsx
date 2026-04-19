@@ -25,7 +25,7 @@ function buildHistoryChartData(history: KRIHistoryEntry[], locale: string): Hist
     return sorted.map(entry => ({
         label: formatDate(entry.period_end, locale),
         value: entry.value,
-        status: entry.breach_status === 'within' ? 'within' : 'above',
+        status: entry.breach_status === 'within' ? 'within' : entry.breach_status === 'below' ? 'below' : 'above',
     }));
 }
 

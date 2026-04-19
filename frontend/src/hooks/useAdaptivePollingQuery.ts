@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, type QueryFunction, type QueryKey, type UseQueryOptions } from '@tanstack/react-query';
 
 interface UseAdaptivePollingQueryOptions<TQueryFnData, TError = Error, TData = TQueryFnData>
@@ -30,8 +30,6 @@ export function useAdaptivePollingQuery<TQueryFnData, TError = Error, TData = TQ
 }: UseAdaptivePollingQueryOptions<TQueryFnData, TError, TData>) {
     const [isVisible, setIsVisible] = useState(getVisibilityState);
     const [failureCount, setFailureCount] = useState(0);
-    const lastSuccessAtRef = useRef(0);
-    const lastErrorAtRef = useRef(0);
 
     const query = useQuery({
         ...options,
@@ -45,18 +43,8 @@ export function useAdaptivePollingQuery<TQueryFnData, TError = Error, TData = TQ
     const { refetch } = query;
 
     useEffect(() => {
-        if (query.dataUpdatedAt > lastSuccessAtRef.current) {
-            lastSuccessAtRef.current = query.dataUpdatedAt;
-            setFailureCount(0);
-        }
-    }, [query.dataUpdatedAt]);
-
-    useEffect(() => {
-        if (query.errorUpdatedAt > lastErrorAtRef.current) {
-            lastErrorAtRef.current = query.errorUpdatedAt;
-            setFailureCount((current) => current + 1);
-        }
-    }, [query.errorUpdatedAt]);
+        setFailureCount(query.failureCount);
+    }, [query.failureCount]);
 
     useEffect(() => {
         if (typeof document === 'undefined') {
@@ -67,7 +55,6 @@ export function useAdaptivePollingQuery<TQueryFnData, TError = Error, TData = TQ
             const nowVisible = document.visibilityState === 'visible';
             setIsVisible(nowVisible);
             if (nowVisible && enabled) {
-                setFailureCount(0);
                 void refetch();
             }
         };
@@ -79,7 +66,6 @@ export function useAdaptivePollingQuery<TQueryFnData, TError = Error, TData = TQ
     }, [enabled, refetch]);
 
     const refresh = async () => {
-        setFailureCount(0);
         return refetch();
     };
 

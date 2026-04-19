@@ -71,6 +71,7 @@ export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTa
                             { value: 'all', label: t('governance.all_types') },
                             { value: 'risk', label: t('governance.risks_only') },
                             { value: 'control', label: t('governance.controls_only') },
+                            { value: 'kri', label: t('governance.kris_only') },
                         ]}
                     />
                 </div>

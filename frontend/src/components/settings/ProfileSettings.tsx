@@ -23,7 +23,11 @@ function getPermissionLabel(permission: string, permissionLabels: Record<string,
         return permissionLabels[permission];
     }
     // Fallback: format the permission string nicely
-    const [resource, action] = permission.split(':');
+    const parts = permission.split(':');
+    if (parts.length !== 2 || !parts[0] || !parts[1]) {
+        return permission;
+    }
+    const [resource, action] = parts;
     return `${action.charAt(0).toUpperCase() + action.slice(1)} ${resource.charAt(0).toUpperCase() + resource.slice(1)}`;
 }
 

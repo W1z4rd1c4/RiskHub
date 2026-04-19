@@ -76,7 +76,7 @@ export function RisksPage() {
             <ViewSwitcher
                 value={viewMode}
                 onChange={updateViewMode}
-                exclude={hasPermission('vendors', 'read') ? ['risk', 'flag'] : ['risk', 'flag', 'vendor']}
+                exclude={hasPermission('vendors', 'read') ? ['risk', 'flag', 'type'] : ['risk', 'flag', 'vendor', 'type']}
             />
 
             <RisksFilterBar

@@ -22,6 +22,7 @@ function renderEntries(entries: ActivityLogEntry[]) {
             entries={entries}
             isLoading={false}
             errorType={null}
+            needsRiskSelection={false}
             onRetry={() => {}}
         />
     );
@@ -111,5 +112,19 @@ describe('ActivityLogEntries', () => {
         ]);
 
         expect(screen.getAllByText('Future Entity Type')).toHaveLength(1);
+    });
+
+    it('shows the risk-selection empty state when by-risk mode has no selected risk', () => {
+        render(
+            <ActivityLogEntries
+                entries={[]}
+                isLoading={false}
+                errorType={null}
+                needsRiskSelection
+                onRetry={() => {}}
+            />
+        );
+
+        expect(screen.getByText('Select a risk to view activity.')).toBeInTheDocument();
     });
 });

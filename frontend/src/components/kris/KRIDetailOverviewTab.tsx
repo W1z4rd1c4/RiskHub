@@ -24,10 +24,13 @@ export function KRIDetailOverviewTab({
 }: KRIDetailOverviewTabProps) {
     const { t, i18n } = useTranslation(['kris', 'common', 'risks']);
     const monitoring = getKriMonitoringMeta(kri.monitoring_status);
-    const displayUpperLimit = kri.upper_limit > 0 ? kri.upper_limit : 1;
-    const lowerPct = Math.max(0, Math.min(100, (kri.lower_limit / displayUpperLimit) * 100));
-    const upperPct = Math.max(lowerPct, Math.min(100, (kri.upper_limit / displayUpperLimit) * 100));
-    const valuePct = Math.max(0, Math.min(100, (kri.current_value / displayUpperLimit) * 100));
+    const gaugeMin = Math.min(kri.lower_limit, kri.current_value);
+    const gaugeMax = Math.max(kri.upper_limit, kri.current_value, gaugeMin + 1);
+    const gaugeRange = gaugeMax - gaugeMin || 1;
+    const toPct = (value: number) => ((value - gaugeMin) / gaugeRange) * 100;
+    const lowerPct = Math.max(0, Math.min(100, toPct(kri.lower_limit)));
+    const upperPct = Math.max(lowerPct, Math.min(100, toPct(kri.upper_limit)));
+    const valuePct = Math.max(0, Math.min(100, toPct(kri.current_value)));
     const pointerToneClass = `${monitoring.gaugeClassName.split(' ')[0].replace(/^bg-/, 'text-')} fill-current`;
 
     return (

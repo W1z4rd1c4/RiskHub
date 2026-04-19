@@ -89,6 +89,7 @@ export function LinkManagementDialog({
     const [categories, setCategories] = useState<string[]>([]);
     const [isLoadingLookups, setIsLoadingLookups] = useState(false);
     const { hasPermission } = useAuth();
+    const latestSearchRequestIdRef = useRef(0);
 
     // -----------------------------------------------------------------------
     // Derived values
@@ -143,6 +144,7 @@ export function LinkManagementDialog({
 
     const handleSearch = useCallback(async () => {
         if (!isOpen || !showSearch) return;
+        const requestId = ++latestSearchRequestIdRef.current;
 
         try {
             setIsSearching(true);
@@ -157,10 +159,14 @@ export function LinkManagementDialog({
 
             if (mode === 'control-to-risk') {
                 const results = await riskApi.getRisks(params);
-                setSearchResults(results.items.filter(r => !linkedTargetIdSet.has(r.id)));
+                if (requestId === latestSearchRequestIdRef.current) {
+                    setSearchResults(results.items.filter(r => !linkedTargetIdSet.has(r.id)));
+                }
             } else if (mode === 'risk-to-control') {
                 const results = await controlApi.getControls(params);
-                setSearchResults(results.items.filter(c => !linkedTargetIdSet.has(c.id)));
+                if (requestId === latestSearchRequestIdRef.current) {
+                    setSearchResults(results.items.filter(c => !linkedTargetIdSet.has(c.id)));
+                }
             } else {
                 const results = await kriApi.getKRIs({
                     page: 1,
@@ -177,22 +183,26 @@ export function LinkManagementDialog({
                     if (selectedCategory && kri.risk_category !== selectedCategory) return false;
                     return true;
                 });
-                setSearchResults(
-                    filtered.map((kri) => ({
-                        id: kri.id,
-                        name: kri.metric_name,
-                        description: kri.description,
-                        status: kri.is_archived ? 'archived' : String(kri.monitoring_status ?? ''),
-                        department_name: kri.risk_department_name,
-                        process: kri.risk_process,
-                        category: kri.risk_category,
-                    }))
-                );
+                if (requestId === latestSearchRequestIdRef.current) {
+                    setSearchResults(
+                        filtered.map((kri) => ({
+                            id: kri.id,
+                            name: kri.metric_name,
+                            description: kri.description,
+                            status: kri.is_archived ? 'archived' : String(kri.monitoring_status ?? ''),
+                            department_name: kri.risk_department_name,
+                            process: kri.risk_process,
+                            category: kri.risk_category,
+                        }))
+                    );
+                }
             }
         } catch (err) {
             console.error('Search failed:', err);
         } finally {
-            setIsSearching(false);
+            if (requestId === latestSearchRequestIdRef.current) {
+                setIsSearching(false);
+            }
         }
     }, [departments, includeArchived, isOpen, linkedTargetIdSet, mode, searchQuery, selectedCategory, selectedDeptId, selectedProcess, showSearch]);
 

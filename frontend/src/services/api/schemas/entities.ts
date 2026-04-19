@@ -60,6 +60,7 @@ import type {
 
 import {
     approvalIdMessageSchema,
+    approvalCreatedResponseSchema,
     idNameCodeSchema,
     idNameEmailSchema,
     numberRecordSchema,
@@ -936,6 +937,6 @@ export const userPreferencesSchema: z.ZodType<UserPreferences> = passthroughObje
 });
 
 export const issueOrApprovalSchema = issueSchema.or(approvalIdMessageSchema);
-export const riskOrApprovalSchema = riskSchema.or(approvalIdMessageSchema);
-export const controlOrApprovalSchema = controlSchema.or(approvalIdMessageSchema);
-export const keyRiskIndicatorOrApprovalSchema = keyRiskIndicatorSchema.or(approvalIdMessageSchema);
+export const riskOrApprovalSchema = riskSchema.or(approvalCreatedResponseSchema);
+export const controlOrApprovalSchema = controlSchema.or(approvalCreatedResponseSchema);
+export const keyRiskIndicatorOrApprovalSchema = keyRiskIndicatorSchema.or(approvalCreatedResponseSchema);

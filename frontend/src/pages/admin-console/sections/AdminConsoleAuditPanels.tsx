@@ -145,6 +145,7 @@ export function AuditLogsPanel() {
 
     const exportToCSV = () => {
         if (!data?.entries.length) return;
+        const quoteCsv = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`;
         const headers = ["Timestamp", "Level", "Event", "User ID", "IP", "Request ID", "Details"];
         const rows = data.entries.map(e => [
             e.timestamp,
@@ -153,10 +154,10 @@ export function AuditLogsPanel() {
             e.user_id,
             e.client_ip,
             e.request_id,
-            JSON.stringify(e.extra).replace(/"/g, '""')
+            JSON.stringify(e.extra)
         ]);
 
-        const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
+        const csvContent = [headers, ...rows].map((row) => row.map(quoteCsv).join(",")).join("\n");
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement("a");
         link.href = URL.createObjectURL(blob);

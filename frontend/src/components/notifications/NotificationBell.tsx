@@ -5,7 +5,7 @@ import { useFormattedDate, useTranslation } from '@/i18n/hooks';
 import { notificationsApi } from '@/services/notificationsApi';
 import type { Notification, NotificationType } from '@/types/notification';
 import { NOTIFICATIONS_DROPDOWN_LIMIT } from '@/config/constants';
-import { buildVendorDetailPath } from '@/pages/vendors/vendorDetailPresentation';
+import { getNotificationPath } from './resourcePath';
 
 /**
  * Get icon for notification type.
@@ -50,48 +50,20 @@ function getNotificationIcon(type: NotificationType) {
     }
 }
 
-function getResourcePath(notification: Notification): string | null {
-    const resourceType = notification.resource_type;
-    const resourceId = notification.resource_id;
-    if (!resourceType || !resourceId) return null;
-
-    switch (resourceType) {
-        case 'risk':
-            return `/risks/${resourceId}`;
-        case 'control':
-            return `/controls/${resourceId}`;
-        case 'kri':
-            return `/kris/${resourceId}`;
-        case 'issue':
-            return `/issues/${resourceId}`;
-        case 'vendor': {
-            return buildVendorDetailPath(resourceId);
-        }
-        case 'approval':
-            return '/approvals';
-        default:
-            return null;
-    }
-}
-
 interface NotificationBellProps {
-    initialUnreadCount?: number;
+    unreadCount?: number;
+    onUnreadCountChange?: (count: number) => void;
 }
 
-export function NotificationBell({ initialUnreadCount = 0 }: NotificationBellProps) {
+export function NotificationBell({ unreadCount = 0, onUnreadCountChange }: NotificationBellProps) {
     const navigate = useNavigate();
     const { t: tCommon } = useTranslation('common');
     const { t } = useTranslation('notifications');
     const { formatRelativeDate } = useFormattedDate();
     const [isOpen, setIsOpen] = useState(false);
-    const [unreadCount, setUnreadCount] = useState(initialUnreadCount);
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [loading, setLoading] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        setUnreadCount(initialUnreadCount);
-    }, [initialUnreadCount]);
 
     // Fetch notifications when dropdown opens
     useEffect(() => {
@@ -101,7 +73,7 @@ export function NotificationBell({ initialUnreadCount = 0 }: NotificationBellPro
                 try {
                     const response = await notificationsApi.list({ limit: NOTIFICATIONS_DROPDOWN_LIMIT, unread_only: false });
                     setNotifications(response.items);
-                    setUnreadCount(response.unread_count);
+                    onUnreadCountChange?.(response.unread_count);
                 } catch (error) {
                     console.error('Failed to fetch notifications:', error);
                 } finally {
@@ -110,7 +82,7 @@ export function NotificationBell({ initialUnreadCount = 0 }: NotificationBellPro
             };
             void fetchNotifications();
         }
-    }, [isOpen]);
+    }, [isOpen, onUnreadCountChange]);
 
     // Close dropdown when clicking outside
     useEffect(() => {
@@ -132,7 +104,7 @@ export function NotificationBell({ initialUnreadCount = 0 }: NotificationBellPro
                 setNotifications(prev =>
                     prev.map(n => n.id === notification.id ? { ...n, is_read: true } : n)
                 );
-                setUnreadCount(unread_count);  // Server-authoritative count
+                onUnreadCountChange?.(unread_count);
             } catch (error) {
                 console.error('Failed to mark as read:', error);
             }
@@ -144,7 +116,7 @@ export function NotificationBell({ initialUnreadCount = 0 }: NotificationBellPro
         await markAsRead(notification);
 
         // Navigate to resource
-        const path = getResourcePath(notification);
+        const path = getNotificationPath(notification);
         if (path) {
             void navigate(path);
         }
@@ -155,7 +127,7 @@ export function NotificationBell({ initialUnreadCount = 0 }: NotificationBellPro
         try {
             await notificationsApi.markAllAsRead();
             setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
-            setUnreadCount(0);
+            onUnreadCountChange?.(0);
         } catch (error) {
             console.error('Failed to mark all as read:', error);
         }

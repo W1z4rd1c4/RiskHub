@@ -18,6 +18,8 @@ export function RiskEditPage() {
     useEffect(() => {
         const fetchRisk = async () => {
             if (!id) return;
+            setIsLoading(true);
+            setRisk(null);
             try {
                 const data = await riskApi.getRisk(parseInt(id));
                 setRisk(data);

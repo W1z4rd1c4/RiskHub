@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     ArrowLeft,
@@ -36,6 +36,7 @@ type TabView = 'overview' | 'history';
 export function ControlDetailPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const location = useLocation();
     const { t } = useTranslation(['common', 'controls', 'errorKeys']);
     const { t: tIssues } = useTranslation('issues');
     const { user, hasPermission } = useAuth();
@@ -55,6 +56,15 @@ export function ControlDetailPage() {
     const [linkErrorKey, setLinkErrorKey] = useState<string | null>(null);
     const [approvalMessage, setApprovalMessage] = useState<{ key: string; isError?: boolean } | null>(null);
     const [isIssueModalOpen, setIsIssueModalOpen] = useState(false);
+
+    useEffect(() => {
+        const flash = (location.state as { controlFlash?: { message: string; tone: 'warn' } } | null)?.controlFlash;
+        if (!flash) {
+            return;
+        }
+        setApprovalMessage({ key: flash.message, isError: false });
+        void navigate(location.pathname, { replace: true });
+    }, [location.pathname, location.state, navigate]);
 
     const fetchControl = useCallback(async () => {
         if (!id) return;
@@ -218,7 +228,9 @@ export function ControlDetailPage() {
                         <p className="text-sm font-medium">
                             {approvalMessage.key.startsWith('errorKeys.')
                                 ? t(approvalMessage.key, { ns: 'errorKeys' })
-                                : t(approvalMessage.key)}
+                                : approvalMessage.key.includes(':')
+                                    ? t(approvalMessage.key)
+                                    : approvalMessage.key}
                         </p>
                         {!approvalMessage.isError && (
                             <p className="text-xs mt-1 opacity-75">

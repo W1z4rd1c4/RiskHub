@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { executionApi } from '@/services/executionApi';
 import { reportApi } from '@/services/reportApi';
+import { usePermissions } from '@/hooks/usePermissions';
 import type { ExecutionAuditItem, ExecutionResult } from '@/types/execution';
 import { Pagination } from '@/components/tables';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
@@ -24,6 +25,7 @@ const AUDIT_TRAIL_SKELETON_ROWS = 5;
 export function AuditTrailPage() {
     const { t, i18n } = useTranslation(['controls', 'common']);
     const navigate = useNavigate();
+    const { hasPermission } = usePermissions();
 
     const [executions, setExecutions] = useState<ExecutionAuditItem[]>([]);
     const [totalCount, setTotalCount] = useState(0);
@@ -68,13 +70,15 @@ export function AuditTrailPage() {
                 </div>
 
                 <div className="flex items-center gap-3">
-                    <button
-                        onClick={() => reportApi.downloadAuditTrailCsv({ result: resultFilter || undefined }).catch(console.error)}
-                        className="px-4 py-2 text-xs font-black uppercase tracking-widest text-slate-400 hover:text-white transition-all bg-white/5 rounded-lg border border-white/10 flex items-center gap-2 hover:bg-accent/10 hover:border-accent/20"
-                    >
-                        <Sheet className="h-3.5 w-3.5" />
-                        CSV
-                    </button>
+                    {hasPermission('reports', 'read') ? (
+                        <button
+                            onClick={() => reportApi.downloadAuditTrailCsv({ result: resultFilter || undefined }).catch(console.error)}
+                            className="px-4 py-2 text-xs font-black uppercase tracking-widest text-slate-400 hover:text-white transition-all bg-white/5 rounded-lg border border-white/10 flex items-center gap-2 hover:bg-accent/10 hover:border-accent/20"
+                        >
+                            <Sheet className="h-3.5 w-3.5" />
+                            CSV
+                        </button>
+                    ) : null}
                 </div>
             </div>
 

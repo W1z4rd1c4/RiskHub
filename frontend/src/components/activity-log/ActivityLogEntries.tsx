@@ -26,6 +26,7 @@ interface ActivityLogEntriesProps {
     entries: ActivityLogEntry[];
     isLoading: boolean;
     errorType: 'access_denied' | 'network_error' | null;
+    needsRiskSelection?: boolean;
     onRetry: () => void;
 }
 
@@ -56,7 +57,7 @@ const getActionIcon = (action: string) => {
 
 const normalizeActivityLabel = (value: string) => value.trim().replace(/\s+/g, ' ').toLowerCase();
 
-export function ActivityLogEntries({ entries, isLoading, errorType, onRetry }: ActivityLogEntriesProps) {
+export function ActivityLogEntries({ entries, isLoading, errorType, needsRiskSelection = false, onRetry }: ActivityLogEntriesProps) {
     const { t, i18n } = useTranslation('common');
 
     if (isLoading && entries.length === 0) {
@@ -102,8 +103,10 @@ export function ActivityLogEntries({ entries, isLoading, errorType, onRetry }: A
         return (
             <div className="flex flex-col items-center justify-center rounded-3xl border border-white/5 bg-white/5 py-20 text-slate-400">
                 <Activity className="mb-4 h-12 w-12 opacity-20" />
-                <p>{t('empty.no_activity_logs')}</p>
-                <p className="mt-1 text-sm text-slate-500">{t('activity_log.try_adjusting_filters')}</p>
+                <p>{needsRiskSelection ? 'Select a risk to view activity.' : t('empty.no_activity_logs')}</p>
+                <p className="mt-1 text-sm text-slate-500">
+                    {needsRiskSelection ? 'Choose a risk in the filter above to load entries.' : t('activity_log.try_adjusting_filters')}
+                </p>
             </div>
         );
     }

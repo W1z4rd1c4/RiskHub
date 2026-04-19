@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import type { UserLookupItem } from '@/services/lookupApi';
 import type { Vendor } from '@/types/vendor';
@@ -19,6 +19,10 @@ interface UseVendorFormStateOptions {
 
 export function useVendorFormState({ initialData, users }: UseVendorFormStateOptions) {
     const [formData, setFormData] = useState<VendorFormData>(() => createInitialVendorFormData(initialData));
+
+    useEffect(() => {
+        setFormData(createInitialVendorFormData(initialData));
+    }, [initialData?.id]);
 
     const handleChange = (field: VendorFormField, value: unknown) => {
         setFormData((previous) => {

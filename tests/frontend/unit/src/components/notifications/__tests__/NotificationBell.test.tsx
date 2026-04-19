@@ -57,7 +57,7 @@ describe('NotificationBell', () => {
     it('renders an opaque dropdown panel when opened', async () => {
         render(
             <MemoryRouter>
-                <NotificationBell initialUnreadCount={2} />
+                <NotificationBell unreadCount={2} />
             </MemoryRouter>
         );
 
@@ -101,7 +101,7 @@ describe('NotificationBell', () => {
                         path="*"
                         element={
                             <>
-                                <NotificationBell initialUnreadCount={1} />
+                                <NotificationBell unreadCount={1} />
                                 <LocationDisplay />
                             </>
                         }
@@ -117,5 +117,51 @@ describe('NotificationBell', () => {
 
         await waitFor(() => expect(markAsReadMock).toHaveBeenCalledWith(202));
         await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/issues/77'));
+    });
+
+    it('navigates to vendor detail routes for vendor notifications', async () => {
+        listMock.mockResolvedValue({
+            items: [
+                {
+                    id: 303,
+                    type: 'approval_pending',
+                    title: 'Vendor update pending',
+                    message: 'A vendor approval needs attention.',
+                    resource_type: 'vendor',
+                    resource_id: 12,
+                    is_read: false,
+                    created_at: '2026-04-07T10:00:00Z',
+                    expires_at: null,
+                },
+            ],
+            total: 1,
+            skip: 0,
+            limit: 10,
+            unread_count: 1,
+        });
+
+        render(
+            <MemoryRouter initialEntries={['/']}>
+                <Routes>
+                    <Route
+                        path="*"
+                        element={
+                            <>
+                                <NotificationBell unreadCount={1} />
+                                <LocationDisplay />
+                            </>
+                        }
+                    />
+                </Routes>
+            </MemoryRouter>
+        );
+
+        fireEvent.click(screen.getByTestId('notification-bell-button'));
+        expect(await screen.findByText('Vendor update pending')).toBeInTheDocument();
+
+        fireEvent.click(screen.getByText('Vendor update pending'));
+
+        await waitFor(() => expect(markAsReadMock).toHaveBeenCalledWith(303));
+        await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/vendors/12'));
     });
 });

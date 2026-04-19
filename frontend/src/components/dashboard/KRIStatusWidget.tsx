@@ -19,6 +19,7 @@ export function KRIStatusWidget() {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
+        let cancelled = false;
         const fetchData = async () => {
             setIsLoading(true);
             try {
@@ -27,15 +28,22 @@ export function KRIStatusWidget() {
                     kriApi.getOverdue(params),
                     kriApi.getDueSoon(params),
                 ]);
-                setOverdueKRIs(overdue.slice(0, 5));
-                setDueSoonKRIs(dueSoon.slice(0, 5));
+                if (!cancelled) {
+                    setOverdueKRIs(overdue.slice(0, 5));
+                    setDueSoonKRIs(dueSoon.slice(0, 5));
+                }
             } catch (err) {
                 console.error('Failed to fetch KRI status:', err);
             } finally {
-                setIsLoading(false);
+                if (!cancelled) {
+                    setIsLoading(false);
+                }
             }
         };
         void fetchData();
+        return () => {
+            cancelled = true;
+        };
     }, [filters.departmentId]);
 
     const getUrgencyColor = (days: number, isOverdue: boolean) => {

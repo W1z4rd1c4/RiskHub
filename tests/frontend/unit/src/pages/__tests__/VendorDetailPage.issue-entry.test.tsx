@@ -1,10 +1,11 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { VendorDetailPage } from '@/pages/VendorDetailPage';
 
 const mockNavigate = vi.fn();
 const mockGetVendor = vi.fn();
 let canIssueWrite = true;
+let mockLocation = { pathname: '/vendors/31', search: '', state: null as null | object };
 
 vi.mock('react-router-dom', async () => {
     const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
@@ -12,7 +13,7 @@ vi.mock('react-router-dom', async () => {
         ...actual,
         useParams: () => ({ id: '31' }),
         useNavigate: () => mockNavigate,
-        useLocation: () => ({ pathname: '/vendors/31', state: null }),
+        useLocation: () => mockLocation,
     };
 });
 
@@ -48,9 +49,17 @@ vi.mock('@/services/vendorApi', () => ({
     },
 }));
 
-vi.mock('@/components/vendors/VendorLinkedRisksTab', () => ({ VendorLinkedRisksTab: () => <div>Linked risks tab</div> }));
+vi.mock('@/components/vendors/VendorLinkedRisksTab', () => ({ VendorLinkedRisksTab: () => <div id="vendor-linked-risks">Linked risks tab</div> }));
 vi.mock('@/components/vendors/VendorLinkedControlsTab', () => ({ VendorLinkedControlsTab: () => <div>Linked controls tab</div> }));
-vi.mock('@/pages/vendors/VendorOverviewTab', () => ({ VendorOverviewTab: () => <div>Overview tab</div> }));
+vi.mock('@/pages/vendors/VendorOverviewTab', () => ({
+    VendorOverviewTab: () => (
+        <div>
+            <div>Overview tab</div>
+            <div id="vendor-linked-kris" data-testid="vendor-linked-kris-target" />
+            <div id="vendor-linked-controls" />
+        </div>
+    ),
+}));
 
 vi.mock('@/components/issues/IssueQuickCreateModal', () => ({
     IssueQuickCreateModal: ({
@@ -66,6 +75,7 @@ describe('VendorDetailPage issue entry', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         canIssueWrite = true;
+        mockLocation = { pathname: '/vendors/31', search: '', state: null };
         mockGetVendor.mockResolvedValue({
             id: 31,
             name: 'Atlas Cloud Services',
@@ -135,5 +145,56 @@ describe('VendorDetailPage issue entry', () => {
         await screen.findByText('Atlas Cloud Services');
         expect(screen.queryByRole('button', { name: 'Archive' })).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Unarchive' })).toBeInTheDocument();
+    });
+
+    it('re-runs deep-link scrolling when only the vendor pathname changes', async () => {
+        let scheduledFrame: FrameRequestCallback | null = null;
+        const requestAnimationFrameSpy = vi
+            .spyOn(window, 'requestAnimationFrame')
+            .mockImplementation((callback: FrameRequestCallback) => {
+                scheduledFrame = callback;
+                return 1;
+            });
+        const cancelAnimationFrameSpy = vi
+            .spyOn(window, 'cancelAnimationFrame')
+            .mockImplementation(() => {});
+
+        mockLocation = {
+            pathname: '/vendors/31',
+            search: '?tab=assessments&section=schedule',
+            state: null,
+        };
+
+        const { rerender } = render(<VendorDetailPage />);
+
+        const target = await screen.findByTestId('vendor-linked-kris-target');
+        const scrollIntoViewMock = vi.fn();
+        Object.defineProperty(target, 'scrollIntoView', {
+            configurable: true,
+            value: scrollIntoViewMock,
+        });
+
+        await waitFor(() => expect(scheduledFrame).not.toBeNull());
+        await act(async () => {
+            scheduledFrame?.(0);
+        });
+        expect(scrollIntoViewMock).toHaveBeenCalledTimes(1);
+
+        mockLocation = {
+            pathname: '/vendors/32',
+            search: '?tab=assessments&section=schedule',
+            state: null,
+        };
+
+        rerender(<VendorDetailPage />);
+
+        await waitFor(() => expect(scheduledFrame).not.toBeNull());
+        await act(async () => {
+            scheduledFrame?.(0);
+        });
+        expect(scrollIntoViewMock).toHaveBeenCalledTimes(2);
+
+        requestAnimationFrameSpy.mockRestore();
+        cancelAnimationFrameSpy.mockRestore();
     });
 });

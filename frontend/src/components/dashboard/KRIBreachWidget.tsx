@@ -15,18 +15,26 @@ export function KRIBreachWidget() {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
+        let cancelled = false;
         const fetchBreaches = async () => {
             try {
                 const params = filters.departmentId ? { department_id: filters.departmentId } : undefined;
                 const data = await kriApi.getBreaches(params);
-                setBreaches(data.slice(0, 5)); // Show top 5
+                if (!cancelled) {
+                    setBreaches(data.slice(0, 5)); // Show top 5
+                }
             } catch (err) {
                 console.error('Failed to fetch breaches:', err);
             } finally {
-                setIsLoading(false);
+                if (!cancelled) {
+                    setIsLoading(false);
+                }
             }
         };
         void fetchBreaches();
+        return () => {
+            cancelled = true;
+        };
     }, [filters.departmentId]);
 
     if (isLoading) return (

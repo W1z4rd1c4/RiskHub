@@ -68,8 +68,8 @@ export const kriApi = {
     },
 
     // History endpoints
-    async recordValue(kriId: number, data: KRIRecordValue): Promise<KeyRiskIndicator> {
-        return apiClient.post(`/kris/${kriId}/values`, data, { schema: keyRiskIndicatorSchema });
+    async recordValue(kriId: number, data: KRIRecordValue): Promise<KeyRiskIndicator | ApprovalCreatedResponse> {
+        return apiClient.post(`/kris/${kriId}/values`, data, { schema: keyRiskIndicatorOrApprovalSchema });
     },
 
     async getHistory(

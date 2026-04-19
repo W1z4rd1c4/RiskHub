@@ -5,6 +5,7 @@ import { X, Save, Activity, Calendar, Info, CheckCircle } from 'lucide-react';
 import { kriApi } from '@/services/kriApi';
 import { apiClient } from '@/services/apiClient';
 import type { KeyRiskIndicator, KRIRecordValue } from '@/types/kri';
+import { isApprovalCreatedResponse } from '@/types/approval';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useTranslation } from '@/i18n/hooks';
 import { formatDateValue } from '@/i18n/formatters';
@@ -40,10 +41,7 @@ export function KRIValueModal({ kri, isOpen, onClose, onSuccess }: KRIValueModal
 
             const response = await kriApi.recordValue(kri.id, formData);
 
-            // Check if response indicates approval required (202 Accepted)
-            // The API returns 202 for non-privileged submissions that need approval
-            const maybeStatus = response as unknown as { status?: number };
-            if (maybeStatus.status === 202) {
+            if (isApprovalCreatedResponse(response)) {
                 setSubmitResult('pending_approval');
             } else {
                 setSubmitResult('success');

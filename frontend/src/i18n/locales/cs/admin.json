@@ -441,6 +441,7 @@
     "all_types": "Všechny typy",
     "risks_only": "Pouze rizika",
     "controls_only": "Pouze kontroly",
+    "kris_only": "Pouze KRI",
     "orphaned_items": "Osiřelé položky",
     "all_clear": "Vše v pořádku",
     "no_orphans": "Nebyly nalezeny žádné osiřelé položky. Všechna rizika a kontroly mají přiřazené vlastníky.",

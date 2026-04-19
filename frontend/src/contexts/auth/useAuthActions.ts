@@ -48,11 +48,20 @@ export function useAuthActions({
 
         const authConfig = await getAuthConfig().catch(() => null);
         const shouldUseSsoLogout = authConfig?.auth_mode === 'microsoft_sso';
+        const clearLocalSession = () => {
+            clearAuthenticatedSession({
+                clearBootstrap: true,
+                clearRefreshHint: true,
+                clearCsrf: true,
+            });
+            clearLocalSettings();
+            markPreferencesReady(true);
+        };
 
         try {
             await authApi.logout();
         } catch (error) {
-            clearExplicitLogoutSuppressed();
+            clearLocalSession();
             setLogoutErrorState(
                 error instanceof AuthRequestError && typeof error.status === 'number' && error.status >= 500
                     ? 'errorKeys.server'
@@ -61,13 +70,7 @@ export function useAuthActions({
             throw error;
         }
 
-        clearAuthenticatedSession({
-            clearBootstrap: true,
-            clearRefreshHint: true,
-            clearCsrf: true,
-        });
-        clearLocalSettings();
-        markPreferencesReady(true);
+        clearLocalSession();
 
         if (shouldUseSsoLogout) {
             try {

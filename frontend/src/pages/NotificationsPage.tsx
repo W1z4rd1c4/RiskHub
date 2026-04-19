@@ -4,6 +4,7 @@ import { Bell, CheckCircle, AlertCircle, Clock, AlertTriangle, Check, ChevronLef
 import { useFormattedDate, useTranslation } from '@/i18n/hooks';
 import { notificationsApi } from '@/services/notificationsApi';
 import type { Notification, NotificationType } from '@/types/notification';
+import { getNotificationResourcePath } from '@/components/notifications/resourcePath';
 
 /**
  * Get icon for notification type.
@@ -46,28 +47,6 @@ function getNotificationIcon(type: NotificationType, size: 'sm' | 'md' = 'md') {
             return <Bell className={`${sizeClass} text-sky-400`} />;
         default:
             return <Bell className={`${sizeClass} text-slate-400`} />;
-    }
-}
-
-/**
- * Get navigation path for notification resource.
- */
-function getResourcePath(resourceType?: string | null, resourceId?: number | null): string | null {
-    if (!resourceType || !resourceId) return null;
-
-    switch (resourceType) {
-        case 'risk':
-            return `/risks/${resourceId}`;
-        case 'control':
-            return `/controls/${resourceId}`;
-        case 'kri':
-            return `/kris/${resourceId}`;
-        case 'issue':
-            return `/issues/${resourceId}`;
-        case 'approval':
-            return '/approvals';
-        default:
-            return null;
     }
 }
 
@@ -121,7 +100,7 @@ export function NotificationsPage() {
         }
 
         // Navigate to resource
-        const path = getResourcePath(notification.resource_type, notification.resource_id);
+        const path = getNotificationResourcePath(notification.resource_type, notification.resource_id);
         if (path) {
             void navigate(path);
         }

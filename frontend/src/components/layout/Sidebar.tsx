@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from '@/i18n/hooks';
 import { cn } from '@/lib/utils';
@@ -43,6 +44,35 @@ export function Sidebar() {
         + (shellSummaryQuery.data?.questionnaire_inbox_count ?? 0);
     const orphanCount = authz.canViewGovernance ? (shellSummaryQuery.data?.orphan_total_count ?? 0) : 0;
     const unreadNotificationCount = shellSummaryQuery.data?.unread_notifications_count ?? 0;
+    const [notificationCountOverride, setNotificationCountOverride] = useState<number | null>(null);
+    const notificationRefreshTimeoutRef = useRef<number | null>(null);
+
+    useEffect(() => {
+        if (notificationCountOverride !== null && unreadNotificationCount === notificationCountOverride) {
+            setNotificationCountOverride(null);
+        }
+    }, [notificationCountOverride, unreadNotificationCount]);
+
+    const displayedUnreadNotificationCount = notificationCountOverride ?? unreadNotificationCount;
+
+    const handleUnreadCountChange = (count: number) => {
+        setNotificationCountOverride(count);
+        if (notificationRefreshTimeoutRef.current !== null) {
+            window.clearTimeout(notificationRefreshTimeoutRef.current);
+        }
+        notificationRefreshTimeoutRef.current = window.setTimeout(() => {
+            notificationRefreshTimeoutRef.current = null;
+            void shellSummaryQuery.refresh();
+        }, 150);
+    };
+
+    useEffect(() => {
+        return () => {
+            if (notificationRefreshTimeoutRef.current !== null) {
+                window.clearTimeout(notificationRefreshTimeoutRef.current);
+            }
+        };
+    }, []);
 
     const handleLogout = async () => {
         try {
@@ -92,7 +122,10 @@ export function Sidebar() {
                             )}
                         </span>
                     </div>
-                    <NotificationBell initialUnreadCount={unreadNotificationCount} />
+                    <NotificationBell
+                        unreadCount={displayedUnreadNotificationCount}
+                        onUnreadCountChange={handleUnreadCountChange}
+                    />
                 </div>
 
                 <nav className="flex-1 space-y-2 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">

@@ -37,6 +37,11 @@ interface ControlFormProps {
     firstStepBackLabel?: string;
 }
 
+interface ControlFlashState {
+    tone: 'warn';
+    message: string;
+}
+
 export function ControlForm({
     initialData,
     isEdit = false,
@@ -170,6 +175,7 @@ export function ControlForm({
             }
 
             // If a risk is selected, link it
+            let controlFlash: ControlFlashState | null = null;
             if (controlId && selectedRiskId) {
                 try {
                     await controlApi.linkRisk(controlId, {
@@ -179,13 +185,17 @@ export function ControlForm({
                     });
                 } catch (linkErr) {
                     console.error('Control created but failed to link risk:', linkErr);
+                    controlFlash = {
+                        tone: 'warn',
+                        message: 'Control created, but linking the selected risk failed.',
+                    };
                 }
             }
 
             if (onSuccess && controlId) {
                 await onSuccess(controlId);
             } else if (controlId) {
-                void navigate(`/controls/${controlId}`);
+                void navigate(`/controls/${controlId}`, controlFlash ? { state: { controlFlash } } : undefined);
             } else {
                 void navigate('/controls');
             }

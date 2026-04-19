@@ -6,6 +6,7 @@ import { issuesApi } from '@/services/issuesApi';
 import { apiClient } from '@/services/apiClient';
 import type { Issue, IssueContextEntityType, IssueSeverity } from '@/types/issue';
 import { ISSUE_FIELD, ISSUE_LABEL, ISSUE_TEXTAREA } from './issueUi';
+import { fromDateTimeLocalInputValue, toDateTimeLocalInputValue } from '@/utils/dateTimeLocal';
 
 interface IssueQuickCreateModalProps {
     isOpen: boolean;
@@ -15,22 +16,6 @@ interface IssueQuickCreateModalProps {
     contextEntityLabel: string;
     defaultTitlePrefix?: string;
     onCreated: (issue: Issue) => void;
-}
-
-function toDateTimeInputValue(value: Date): string {
-    const local = new Date(value.getTime() - value.getTimezoneOffset() * 60_000);
-    return local.toISOString().slice(0, 16);
-}
-
-function toIsoOrUndefined(value: string): string | undefined {
-    if (!value) {
-        return undefined;
-    }
-    const parsed = new Date(value);
-    if (Number.isNaN(parsed.getTime())) {
-        return undefined;
-    }
-    return parsed.toISOString();
 }
 
 export function IssueQuickCreateModal({
@@ -70,7 +55,7 @@ export function IssueQuickCreateModal({
             : `${t('quick_create.default_title_prefix')}: ${contextEntityLabel}`;
         setTitle(seedTitle);
         setSeverity('medium');
-        setDueAt(toDateTimeInputValue(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)));
+        setDueAt(toDateTimeLocalInputValue(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)));
         setDescription('');
         setErrorKey(null);
         setIsSubmitting(false);
@@ -95,7 +80,7 @@ export function IssueQuickCreateModal({
                 title: title.trim(),
                 description: description.trim() || undefined,
                 severity,
-                due_at: toIsoOrUndefined(dueAt),
+                due_at: fromDateTimeLocalInputValue(dueAt),
             });
             onCreated(created);
             onClose();

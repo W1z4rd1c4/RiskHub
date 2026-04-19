@@ -12,13 +12,14 @@ import {
 import { useTranslation } from '@/i18n/hooks';
 import { formatDateValue } from '@/i18n/formatters';
 import { vendorLinkApi } from '@/services/vendorLinkApi';
-import type { LinkedControl, LinkedKRI } from '@/types/vendorLink';
+import type { LinkedControl, LinkedKRI, LinkedRisk } from '@/types/vendorLink';
 import type { Vendor } from '@/types/vendor';
 import { VendorLinkedControlsTab } from '@/components/vendors/VendorLinkedControlsTab';
 import { VendorLinkedKRIsTab } from '@/components/vendors/VendorLinkedKRIsTab';
 import { VendorLinkedRisksTab } from '@/components/vendors/VendorLinkedRisksTab';
 
 interface VendorOverviewSummary {
+    linkedRisks: LinkedRisk[];
     linkedControls: LinkedControl[];
     linkedKRIs: LinkedKRI[];
 }
@@ -72,16 +73,19 @@ export function VendorOverviewTab({
 }: VendorOverviewTabProps) {
     const { t, i18n } = useTranslation(['vendors', 'common']);
     const [summary, setSummary] = useState<VendorOverviewSummary>({
+        linkedRisks: [],
         linkedControls: [],
         linkedKRIs: [],
     });
 
     const refreshSummary = useCallback(async () => {
-        const [linkedControlsResult, linkedKRIsResult] = await Promise.all([
+        const [linkedRisksResult, linkedControlsResult, linkedKRIsResult] = await Promise.all([
+            vendorLinkApi.getLinkedRisks(vendor.id),
             vendorLinkApi.getLinkedControls(vendor.id),
             vendorLinkApi.getLinkedKRIs(vendor.id),
         ]);
         setSummary({
+            linkedRisks: linkedRisksResult,
             linkedControls: linkedControlsResult,
             linkedKRIs: linkedKRIsResult,
         });
@@ -91,6 +95,10 @@ export function VendorOverviewTab({
         void refreshSummary();
     }, [refreshSummary]);
 
+    const activeLinkedRisks = useMemo(
+        () => summary.linkedRisks.filter((risk) => risk.status !== 'archived'),
+        [summary.linkedRisks],
+    );
     const activeLinkedControls = useMemo(
         () => summary.linkedControls.filter((control) => control.status !== 'archived'),
         [summary.linkedControls],
@@ -99,7 +107,7 @@ export function VendorOverviewTab({
         () => summary.linkedKRIs.filter((kri) => !kri.is_archived),
         [summary.linkedKRIs],
     );
-    const linkedExposureCount = vendor.linked_risks.length + activeLinkedControls.length + activeLinkedKRIs.length;
+    const linkedExposureCount = activeLinkedRisks.length + activeLinkedControls.length + activeLinkedKRIs.length;
     const vendorFlags = [
         vendor.supports_important_core_insurance_function
             ? t('flags.supports_core_function')
@@ -147,7 +155,7 @@ export function VendorOverviewTab({
                             {t('overview.summary.linked_exposure_hint', {
                                 controls: activeLinkedControls.length,
                                 kris: activeLinkedKRIs.length,
-                                risks: vendor.linked_risks.length,
+                                risks: activeLinkedRisks.length,
                             })}
                         </p>
                     </div>
@@ -254,7 +262,7 @@ export function VendorOverviewTab({
                     <div className="space-y-4">
                         <div className="flex justify-between items-center gap-4">
                             <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">{t('tabs.linked_risks')}</span>
-                            <span className="text-lg text-white font-black">{vendor.linked_risks.length}</span>
+                            <span className="text-lg text-white font-black">{activeLinkedRisks.length}</span>
                         </div>
                         <div className="flex justify-between items-center gap-4">
                             <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">{t('tabs.linked_controls')}</span>
@@ -278,22 +286,27 @@ export function VendorOverviewTab({
                 </motion.div>
             </motion.div>
 
-            <VendorLinkedRisksTab
-                vendorId={vendor.id}
-                canCreateRisk={canCreateRisk}
-                canEdit={canEdit}
-                onAddRisk={onAddRisk}
-                onNavigateToRisk={onNavigateToRisk}
-            />
+            <div id="vendor-linked-risks">
+                <VendorLinkedRisksTab
+                    vendorId={vendor.id}
+                    canCreateRisk={canCreateRisk}
+                    canEdit={canEdit}
+                    onAddRisk={onAddRisk}
+                    onNavigateToRisk={onNavigateToRisk}
+                />
+            </div>
 
-            <VendorLinkedControlsTab
-                vendorId={vendor.id}
-                canCreateControl={canCreateControl}
-                canEdit={canEdit}
-                onAddControl={onAddControl}
-                onNavigateToControl={onNavigateToControl}
-            />
+            <div id="vendor-linked-controls">
+                <VendorLinkedControlsTab
+                    vendorId={vendor.id}
+                    canCreateControl={canCreateControl}
+                    canEdit={canEdit}
+                    onAddControl={onAddControl}
+                    onNavigateToControl={onNavigateToControl}
+                />
+            </div>
 
+            <div id="vendor-linked-kris">
                 <VendorLinkedKRIsTab
                     vendorId={vendor.id}
                     canCreateKri={canCreateKri}
@@ -301,6 +314,7 @@ export function VendorOverviewTab({
                     onAddKri={onAddKri}
                     onNavigateToKri={onNavigateToKri}
                 />
+            </div>
 
             <div className="flex items-center justify-end gap-6 text-[10px] text-slate-600 font-medium">
                 <div className="flex items-center gap-1">
