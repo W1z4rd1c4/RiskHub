@@ -36,7 +36,7 @@ function setAuthenticatedSession(user: SessionUser, token: string): void {
 }
 
 export function resolvePostLoginRedirect(response: TokenResponse, fallbackReturnTo: string = '/'): string {
-    return response.post_login_redirect_to || sanitizeReturnTo(fallbackReturnTo);
+    return sanitizeReturnTo(response.post_login_redirect_to ?? fallbackReturnTo);
 }
 
 export function syncAuthenticatedToken(token: string | null): void {

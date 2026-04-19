@@ -8,13 +8,18 @@ from sqlalchemy.orm import selectinload
 
 from app.core import activity_logger
 from app.core.owner_reference_validation import validate_active_owner_reference
-from app.models import ApprovalRequest, KeyRiskIndicator, User, VendorKRILink
+from app.models import ApprovalRequest, ApprovalStatus, KeyRiskIndicator, User, VendorKRILink
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.services.kri_vendor_assignment import assign_vendors_to_kri, ensure_vendors_exist, normalize_vendor_ids
 
 from .constants import EDITABLE_FIELDS
 
 logger = logging.getLogger("app.services.approval_execution_service")
+
+
+def _auto_reject_kri_approval(approval: ApprovalRequest, reason: str) -> None:
+    approval.status = ApprovalStatus.REJECTED
+    approval.resolution_notes = ((approval.resolution_notes or "").rstrip() + f"\nAuto-rejected: {reason}").strip()
 
 
 async def _apply_edit_kri(
@@ -43,6 +48,8 @@ async def _apply_edit_kri(
     )
     kri = result.scalar_one_or_none()
     if not kri:
+        logger.warning("Approval #%s: KRI %s no longer exists", approval.id, approval.resource_id)
+        _auto_reject_kri_approval(approval, "Resource was deleted before approval could be applied.")
         return
 
     department_id = kri.risk.department_id if kri.risk else None
@@ -53,7 +60,7 @@ async def _apply_edit_kri(
 
     # Branch 2: Value submission with period_end
     elif "period_end" in changes and "current_value" in changes:
-        await _apply_kri_value_submission(db, kri, changes, current_user, approval.id, department_id)
+        await _apply_kri_value_submission(db, approval, kri, changes, current_user, approval.id, department_id)
 
     # Branch 3: Generic edit (+ optional value recording)
     else:
@@ -133,6 +140,7 @@ async def _apply_kri_history_correction(
 
 async def _apply_kri_value_submission(
     db: AsyncSession,
+    approval: ApprovalRequest,
     kri: KeyRiskIndicator,
     changes: dict,
     current_user: User,
@@ -168,7 +176,7 @@ async def _apply_kri_value_submission(
             recorded_by_id=current_user.id,
             recorded_at=recorded_at,
             period_end=period_end,
-            is_privileged=True,
+            is_privileged=False,
         )
 
         # Log KRI_VALUE creation
@@ -205,8 +213,9 @@ async def _apply_kri_value_submission(
             )
 
     except ValueError as e:
-        logger.error(f"KRI value recording failed (submit): {e}")
-        raise HTTPException(status_code=400, detail=str(e))
+        logger.warning("Approval #%s: auto-rejecting stale KRI value submission: %s", approval_id, e)
+        _auto_reject_kri_approval(approval, f"KRI value submission no longer passes apply-time validation ({e}).")
+        return
     except Exception:
         logger.exception("Unexpected error in KRI value submission approval flow")
         raise HTTPException(status_code=500, detail="Internal server error during KRI approval execution")

@@ -42,6 +42,12 @@ def test_rate_limit_policy_merges_settings_overrides() -> None:
     assert rules["default"] == (200, 60)
 
 
+def test_rate_limit_fail_closed_on_backend_error_defaults_true() -> None:
+    settings = _settings()
+
+    assert settings.redis.rate_limit_fail_closed_on_backend_error is True
+
+
 def test_in_memory_rate_limit_backend_keeps_per_key_state_bounded() -> None:
     backend = InMemoryRateLimitBackend()
     now = 1_000.0

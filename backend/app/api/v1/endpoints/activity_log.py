@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import String, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.datetime_utils import coerce_utc
 from app.core.permissions import get_user_department_ids
 from app.core.security import require_business_permission
 from app.db.session import get_db
@@ -50,6 +51,8 @@ async def list_activity_logs(
 
     Note: `search` defaults to the last 90 days unless an explicit date range is provided.
     """
+    date_from = coerce_utc(date_from)
+    date_to = coerce_utc(date_to)
     query = select(ActivityLog)
 
     # Access control: department scoping

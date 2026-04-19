@@ -19,9 +19,11 @@ describe('kriApi delete responses', () => {
             }
 
             return Promise.resolve(new Response(JSON.stringify({
+                status: 'approval_required',
                 message: 'Deletion request submitted for approval',
                 approval_id: 77,
                 action_type: 'delete',
+                pending_fields: [],
             }), {
                 status: 202,
                 headers: { 'Content-Type': 'application/json' },

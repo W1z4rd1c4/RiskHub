@@ -62,3 +62,51 @@ async def test_vendor_reports_annual_rejects_pdf_format(
 ):
     resp = await client_cro.get("/api/v1/vendor-reports/annual?year=2025&format=pdf")
     assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_dora_register_excludes_inactive_vendors(
+    client_cro: AsyncClient,
+    db_session: AsyncSession,
+    test_department: Department,
+    test_user_cro: User,
+):
+    db_session.add_all(
+        [
+            Vendor(
+                name="Active DORA Vendor",
+                process="IT",
+                subprocess=None,
+                department_id=test_department.id,
+                outsourcing_owner_user_id=test_user_cro.id,
+                vendor_type="ict",
+                risk_score_1_5=3,
+                supports_important_core_insurance_function=False,
+                dora_relevant=True,
+                is_significant_vendor=False,
+                has_alternative_providers=False,
+                status="active",
+            ),
+            Vendor(
+                name="Inactive DORA Vendor",
+                process="IT",
+                subprocess=None,
+                department_id=test_department.id,
+                outsourcing_owner_user_id=test_user_cro.id,
+                vendor_type="ict",
+                risk_score_1_5=3,
+                supports_important_core_insurance_function=False,
+                dora_relevant=True,
+                is_significant_vendor=False,
+                has_alternative_providers=False,
+                status="inactive",
+            ),
+        ]
+    )
+    await db_session.commit()
+
+    resp = await client_cro.get("/api/v1/vendor-reports/dora-register?format=csv")
+    assert resp.status_code == 200
+    body = resp.text
+    assert "Active DORA Vendor" in body
+    assert "Inactive DORA Vendor" not in body

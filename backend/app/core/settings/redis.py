@@ -16,6 +16,7 @@ class RedisSettingsMixin:
     rate_limit_fail_closed_prefixes: list[str] = Field(
         default_factory=lambda: ["/api/v1/auth", "/api/v1/admin", "/api/v1/approvals"]
     )
+    rate_limit_fail_closed_on_backend_error: bool = True
     lockout_fail_closed_on_backend_error: bool = True
 
     @property
@@ -24,6 +25,7 @@ class RedisSettingsMixin:
             redis_url=self.redis_url,
             rate_limit_limits={key: tuple(value) for key, value in self.rate_limit_limits.items()},
             rate_limit_fail_closed_prefixes=tuple(self.rate_limit_fail_closed_prefixes),
+            rate_limit_fail_closed_on_backend_error=self.rate_limit_fail_closed_on_backend_error,
             lockout_fail_closed_on_backend_error=self.lockout_fail_closed_on_backend_error,
         )
 

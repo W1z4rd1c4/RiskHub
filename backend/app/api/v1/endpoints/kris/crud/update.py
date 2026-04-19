@@ -12,6 +12,7 @@ from app.core.security import check_permission, require_permission
 from app.db.session import get_db
 from app.models import KeyRiskIndicator, Risk, User, VendorKRILink
 from app.models.activity_log import ActivityAction, ActivityEntityType
+from app.schemas.approval_request import ApprovalQueuedResponse
 from app.schemas.kri import KRIResponse, KRIUpdate
 from app.schemas.vendor_shared import LinkedVendorRead
 from app.services.kri_vendor_assignment import (
@@ -21,9 +22,10 @@ from app.services.kri_vendor_assignment import (
 )
 
 router = APIRouter()
+APPROVAL_QUEUED_RESPONSE = {202: {"model": ApprovalQueuedResponse}}
 
 
-@router.put("/{kri_id}", response_model=KRIResponse)
+@router.put("/{kri_id}", response_model=KRIResponse, responses=APPROVAL_QUEUED_RESPONSE)
 async def update_kri(
     kri_id: int,
     data: KRIUpdate,
@@ -139,17 +141,14 @@ async def update_kri(
             department_id=kri.risk.department_id,
         )
 
-        from fastapi.responses import JSONResponse
+        from app.core.approval_helpers import build_approval_queued_response
 
-        return JSONResponse(
-            status_code=202,
-            content={
-                "message": "Change requires approval",
-                "approval_id": approval.id,
-                "action_type": "edit",
-                "pending_fields": list(pending_changes.keys()),
-                "pending_changes": pending_changes,
-            },
+        return build_approval_queued_response(
+            message="Change requires approval",
+            approval_id=approval.id,
+            action_type="edit",
+            pending_fields=list(pending_changes.keys()),
+            pending_changes=pending_changes,
         )
 
     extra_changes = {}

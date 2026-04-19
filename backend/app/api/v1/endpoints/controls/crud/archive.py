@@ -8,12 +8,14 @@ from app.core.activity_logger import log_activity
 from app.db.session import get_db
 from app.models import User
 from app.models.activity_log import ActivityAction, ActivityEntityType
+from app.schemas.approval_request import ApprovalQueuedResponse
 from app.schemas.control import ControlStatusEnum
 
 router = APIRouter()
+APPROVAL_QUEUED_RESPONSE = {202: {"model": ApprovalQueuedResponse}}
 
 
-@router.delete("/{control_id}", status_code=status.HTTP_202_ACCEPTED)
+@router.delete("/{control_id}", status_code=status.HTTP_202_ACCEPTED, responses=APPROVAL_QUEUED_RESPONSE)
 async def delete_control(
     control_id: int,
     reason: str = Query(..., min_length=1, description="Reason for deletion (mandatory)"),
@@ -100,13 +102,12 @@ async def delete_control(
         department_id=control.department_id,
     )
 
-    from fastapi.responses import JSONResponse
+    from app.core.approval_helpers import build_approval_queued_response
 
-    return JSONResponse(
-        status_code=status.HTTP_202_ACCEPTED,
-        content={
-            "message": "Deletion request submitted for approval",
-            "approval_id": approval.id,
-            "action_type": "delete",
-        },
+    return build_approval_queued_response(
+        message="Deletion request submitted for approval",
+        approval_id=approval.id,
+        action_type="delete",
+        primary_approver_id=primary_approver_id,
+        requires_privileged_approval=requires_privileged,
     )

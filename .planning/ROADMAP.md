@@ -73,6 +73,7 @@ Building an enterprise risk management platform for insurance companies, startin
 - [x] **Phase 251: Spaghetti Simplification 2** — More code cleanup (11/11)
 - [x] **Phase 252: Quality Closure Loop** — Repo-wide professional quality closure across data safety, workflow decomposition, artifact hygiene, and systemic gates (11/11)
 - [ ] **Phase 253: Professionalization & AI-Signal Removal** — Simplify the public repo surface, collapse backend indirection, unify frontend conventions, and demote maintainer-only governance tooling out of the PR path (0/8)
+- [x] **Phase 253.1: Backend Audit Remediation** — Remediate verified runtime, authz, approval, and reporting defects from the deep backend audit review (4/4)
 - [x] **Phase 500: Production Installation Scripts** — Split backend/frontend Docker deployment with external PostgreSQL (8/8)
 
 ## Phase Details
@@ -1032,6 +1033,21 @@ Plans:
 - [x] 201-03: Frontend include archived toggles in list/search surfaces
 - [x] 201-04: Unarchive actions + archived linked-item grouping/muted styling
 - [x] 201-05: Tests, E2E verification, and documentation reconciliation
+
+### Phase 253.1: Backend Audit Remediation
+
+**Goal**: Remediate the verified backend runtime, authz, approval, reporting, and defense-in-depth issues surfaced by the deep backend audit review.
+**Depends on**: Phase 253 (inserted urgent phase)
+**Research**: None beyond the completed review/evidence pass
+**Status**: ✅ Complete (2026-04-20)
+**Plans**: 4 plans
+
+Plans:
+
+- [x] 253.1-01: Runtime Boundary Integrity
+- [x] 253.1-02: Approval and Authorization Integrity
+- [x] 253.1-03: Reporting and Approval Contract Normalization
+- [x] 253.1-04: KRI Workflow and Defense-in-Depth
 
 ### Phase 500: Production Installation Scripts
 

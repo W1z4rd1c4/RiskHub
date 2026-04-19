@@ -153,8 +153,11 @@ describe('RiskForm UI - Approval Response Handling', () => {
     it('should render form in edit mode with approval handling configured', async () => {
         // Mock API to return approval response
         vi.mocked(riskApi.updateRisk).mockResolvedValue({
+            status: 'approval_required',
             approval_id: 42,
             message: 'Risk edit requires approval',
+            action_type: 'edit',
+            pending_fields: [],
         });
 
         const mockRisk = createMockRisk();
@@ -216,8 +219,11 @@ describe('ControlForm UI - Approval Response Handling', () => {
     it('should show approval banner when API returns 202 approval response', async () => {
         // Mock API to return approval response
         vi.mocked(controlApi.updateControl).mockResolvedValue({
+            status: 'approval_required',
             approval_id: 99,
             message: 'Control edit requires approval',
+            action_type: 'edit',
+            pending_fields: [],
         });
 
         const mockControl = createMockControl();

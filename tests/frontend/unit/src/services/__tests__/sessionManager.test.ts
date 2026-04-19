@@ -71,4 +71,13 @@ describe('sessionManager', () => {
             bootstrapStatus: 'anonymous',
         });
     });
+
+    it('sanitizes server-provided post-login redirects before navigating', () => {
+        const redirect = applyAuthenticatedSession({
+            ...AUTH_RESPONSE,
+            post_login_redirect_to: '/\\evil.com',
+        });
+
+        expect(redirect).toBe('/');
+    });
 });

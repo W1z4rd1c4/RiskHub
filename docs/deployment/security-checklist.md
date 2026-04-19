@@ -12,6 +12,7 @@ RiskHub production deploys must satisfy these invariants:
 - `AUTH_MODE=microsoft_sso`
 - `DIRECTORY_PROVIDER=graph`
 - `SECRET_KEY` secret file length at least `32`
+- `SECRET_KEY` must not use a blocked weak default (for example `dev-secret-key-not-for-production-use`, `changeme`, `dev-secret`, `test-secret`, `secret`)
 - explicit external PostgreSQL `database_url` secret file
 - explicit `CORS_ORIGINS`
 - reachable `REDIS_URL`
@@ -66,6 +67,7 @@ RiskHub production deploys must satisfy these invariants:
 - Use `/api/v1/readyz` for machine-facing readiness checks.
 - Use `/api/v1/health` for public diagnostic health detail and `/api/v1/admin/health` for deeper authenticated runtime diagnostics.
 - Keep Redis enabled because rate limiting and account lockout depend on it.
+- Keep `RATE_LIMIT_FAIL_CLOSED_ON_BACKEND_ERROR=true` in production so Redis outages return explicit `503` responses instead of silently degrading to per-worker in-memory limits. Only disable it as an emergency rollback while Redis remediation is in progress.
 - Keep the segmented rate-limit boundary in mind when changing production controls:
   - route policy now lives in `backend/app/middleware/rate_limit/policy.py`
   - Redis vs in-memory behavior now lives in `backend/app/middleware/rate_limit/backend.py`

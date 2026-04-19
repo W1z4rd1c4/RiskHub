@@ -1223,9 +1223,11 @@ async def test_approve_kri_value_submission_with_period_end(
     test_risk,
     test_user,
     test_user_employee,
+    monkeypatch: pytest.MonkeyPatch,
 ):
     """Test approving a KRI value submission records history with period_end."""
-    today = date.today()
+    today = date(2026, 4, 10)
+    monkeypatch.setattr("app.services._kri_history.recording.clock.today", lambda: today)
     # Use closed period - after 152-03, future/open periods are rejected
     _, closed_period_end = KRIHistoryService.latest_closed_period_for_date(today, KRIFrequency.monthly.value)
 
@@ -1343,6 +1345,70 @@ async def test_approve_kri_value_submission_sanitizes_internal_500_detail(
     detail = response.json()["detail"]
     assert detail == "Internal server error during KRI approval execution"
     assert "super-sensitive" not in detail.lower()
+
+
+@pytest.mark.asyncio
+async def test_stale_kri_value_submission_auto_rejects_at_apply_time(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    test_risk,
+    test_user_employee: User,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    kri = KeyRiskIndicator(
+        risk_id=test_risk.id,
+        metric_name="Stale Approval KRI",
+        description="KRI used to test stale apply-time rejection",
+        current_value=30.0,
+        lower_limit=0.0,
+        upper_limit=100.0,
+        unit="%",
+        frequency=KRIFrequency.monthly.value,
+    )
+    db_session.add(kri)
+    await db_session.commit()
+    await db_session.refresh(kri)
+
+    approval = ApprovalRequest(
+        resource_type=ApprovalResourceType.KRI,
+        resource_id=kri.id,
+        resource_name="Stale Approval KRI (value submission)",
+        requested_by_id=test_user_employee.id,
+        reason="KRI value submission became stale",
+        action_type=ApprovalActionType.EDIT,
+        pending_changes={
+            "current_value": {"old": 30.0, "new": 55.0},
+            "period_end": date(2026, 2, 28).isoformat(),
+            "recorded_at": datetime.now(UTC).isoformat(),
+        },
+        status=ApprovalStatus.PENDING,
+    )
+    db_session.add(approval)
+    await db_session.commit()
+    await db_session.refresh(approval)
+
+    monkeypatch.setattr("app.services._kri_history.recording.clock.today", lambda: date(2026, 4, 20))
+
+    response = await auth_client.post(
+        f"/api/v1/approvals/{approval.id}/approve",
+        json={"resolution_notes": "Approve stale value submission"},
+    )
+    assert response.status_code == 200
+    assert response.json()["status"] == "rejected"
+
+    await db_session.refresh(approval)
+    await db_session.refresh(kri)
+    assert approval.status == ApprovalStatus.REJECTED
+    assert "apply-time validation" in (approval.resolution_notes or "")
+    assert kri.current_value == 30.0
+
+    result = await db_session.execute(
+        select(KRIValueHistory).where(
+            KRIValueHistory.kri_id == kri.id,
+            KRIValueHistory.period_end == date(2026, 2, 28),
+        )
+    )
+    assert result.scalar_one_or_none() is None
 
 
 @pytest.mark.asyncio

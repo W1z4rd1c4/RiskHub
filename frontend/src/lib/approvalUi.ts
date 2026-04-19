@@ -15,16 +15,21 @@ export function isApprovalCreatedResponse(response: unknown): response is Approv
     return (
         typeof response === 'object' &&
         response !== null &&
+        'status' in response &&
         'approval_id' in response &&
         typeof (response as { approval_id: unknown }).approval_id === 'number'
     );
 }
 
 export interface ApprovalCreatedResponse {
+    status: 'approval_required';
     approval_id: number;
-    message?: string;
-    action_type?: string;
-    pending_fields?: string[];
+    message: string;
+    action_type: 'delete' | 'edit';
+    pending_fields: string[];
+    pending_changes?: Record<string, unknown> | null;
+    primary_approver_id?: number | null;
+    requires_privileged_approval?: boolean;
 }
 
 export type ParseResult =
@@ -42,7 +47,7 @@ export function parseUpdateResult(response: unknown): ParseResult {
         return {
             kind: 'approval',
             approvalId: response.approval_id,
-            message: response.message || 'Submitted for approval',
+            message: response.message,
         };
     }
     return { kind: 'applied' };

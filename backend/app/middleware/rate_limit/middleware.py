@@ -20,6 +20,26 @@ from app.middleware.rate_limit.responses import (
 
 logger = get_logger("middleware.security")
 
+try:
+    from prometheus_client import Counter
+except ModuleNotFoundError:  # pragma: no cover - metrics dependency is optional in tests
+    Counter = None
+
+
+class _NoopCounter:
+    def inc(self, amount: int = 1) -> None:  # noqa: ARG002
+        return None
+
+
+RATE_LIMIT_BACKEND_UNAVAILABLE_TOTAL = (
+    Counter(
+        "riskhub_rate_limit_backend_unavailable_total",
+        "Number of requests rejected or degraded because the rate-limit backend was unavailable.",
+    )
+    if Counter is not None
+    else _NoopCounter()
+)
+
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """Thin middleware wrapper around the rate-limit policy/backends."""
@@ -69,12 +89,22 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 return True
         return False
 
+    def _should_fail_closed_on_backend_error(self, *, request: Request, path: str) -> bool:
+        settings = getattr(request.app.state, "settings", self._default_settings)
+        if getattr(settings, "debug", False):
+            return False
+        if settings.redis.rate_limit_fail_closed_on_backend_error:
+            return True
+        return self._is_fail_closed_path(request=request, path=path)
+
     async def dispatch(
         self,
         request: Request,
         call_next: RequestResponseEndpoint,
     ) -> Response:
         if not self.enabled:
+            return await call_next(request)
+        if request.method == "OPTIONS":
             return await call_next(request)
 
         now = time.time()
@@ -105,7 +135,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 return await call_next(request)
             except (RedisError, TimeoutError, OSError, RuntimeError) as exc:
                 logger.warning("rate_limit_redis_error", client_ip=client_ip, path=path, error=str(exc))
-                if self._is_fail_closed_path(request=request, path=path):
+                RATE_LIMIT_BACKEND_UNAVAILABLE_TOTAL.inc()
+                if self._should_fail_closed_on_backend_error(request=request, path=path):
                     return build_rate_limit_backend_unavailable_response()
 
         allowed, retry_after = self._memory_backend.check(

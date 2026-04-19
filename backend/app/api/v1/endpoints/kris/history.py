@@ -11,6 +11,7 @@ from app.core.permissions import check_department_access
 from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import KeyRiskIndicator, Risk, User
+from app.schemas.approval_request import ApprovalQueuedResponse
 from app.schemas.kri import (
     KRIHistoryEdit,
     KRIHistoryEntry,
@@ -27,9 +28,10 @@ from .history_helpers import (
 )
 
 router = APIRouter()
+APPROVAL_QUEUED_RESPONSE = {202: {"model": ApprovalQueuedResponse}}
 
 
-@router.post("/{kri_id}/values", response_model=KRIResponse)
+@router.post("/{kri_id}/values", response_model=KRIResponse, responses=APPROVAL_QUEUED_RESPONSE)
 async def record_kri_value(
     kri_id: int,
     data: KRIRecordValue,
@@ -145,7 +147,7 @@ async def get_kri_history(
     return KRIHistoryListResponse(items=items, total=total, page=page, size=size)
 
 
-@router.patch("/{kri_id}/history/{entry_id}", response_model=KRIHistoryEntry)
+@router.patch("/{kri_id}/history/{entry_id}", response_model=KRIHistoryEntry, responses=APPROVAL_QUEUED_RESPONSE)
 async def correct_history_entry(
     kri_id: int,
     entry_id: int,
@@ -252,16 +254,14 @@ async def correct_history_entry(
             on_duplicate_detail="A correction request is already pending for this KRI.",
         )
 
-        from fastapi.responses import JSONResponse
+        from app.core.approval_helpers import build_approval_queued_response
 
-        return JSONResponse(
-            status_code=202,
-            content={
-                "message": "History correction requires approval (CRO approval required per §5.3)",
-                "approval_id": approval.id,
-                "action_type": "edit",
-                "primary_approver_id": primary_approver_id,
-                "requires_privileged_approval": True,
-                "pending_changes": pending_changes,
-            },
+        return build_approval_queued_response(
+            message="History correction requires approval (CRO approval required per §5.3)",
+            approval_id=approval.id,
+            action_type="edit",
+            pending_fields=list(pending_changes.keys()),
+            pending_changes=pending_changes,
+            primary_approver_id=primary_approver_id,
+            requires_privileged_approval=True,
         )

@@ -11,8 +11,10 @@ from app.core.email import email_equals
 from app.core.security import get_password_hash
 from app.core.user_query_options import user_selectinload_options
 from app.db.session import get_db
-from app.models import User
+from app.models import Role, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
+from app.models.role import RoleType
+from app.models.user import AccessScope
 from app.schemas import UserRead, UserUpdate
 from app.services.directory_identity_service import requires_break_glass_for_reenable
 from app.services.orphaned_item_service import OrphanedItemService
@@ -20,6 +22,7 @@ from app.services.orphaned_item_service import OrphanedItemService
 from ._lifecycle import require_admin_user_lifecycle
 
 router = APIRouter()
+ADMIN_PRIVILEGED_ROLES: set[RoleType] = {RoleType.ADMIN, RoleType.CRO}
 
 
 @router.get("/{user_id}", response_model=UserRead)
@@ -116,12 +119,54 @@ async def update_user(
             detail="Directory-deprovisioned users require break-glass enable before reactivation.",
         )
 
+    if "role_id" in update_data:
+        new_role_id = update_data["role_id"]
+        if new_role_id != user.role_id:
+            new_role_result = await db.execute(select(Role).where(Role.id == new_role_id))
+            new_role = new_role_result.scalar_one_or_none()
+            if not new_role:
+                raise HTTPException(status_code=400, detail="Invalid role_id")
+
+            old_role_is_privileged = bool(user.role and user.role.name in ADMIN_PRIVILEGED_ROLES)
+            new_role_is_privileged = new_role.name in ADMIN_PRIVILEGED_ROLES
+
+            if current_user.id == user.id and old_role_is_privileged and not new_role_is_privileged:
+                raise HTTPException(status_code=400, detail="Cannot demote yourself from admin/CRO role")
+
+            if old_role_is_privileged and not new_role_is_privileged and user.access_scope == AccessScope.GLOBAL:
+                remaining = await db.execute(
+                    select(User.id)
+                    .join(Role)
+                    .where(Role.name.in_(ADMIN_PRIVILEGED_ROLES))
+                    .where(User.id != user.id)
+                    .where(User.access_scope == AccessScope.GLOBAL)
+                    .where(User.is_active.is_(True))
+                    .limit(1)
+                )
+                if not remaining.scalar_one_or_none():
+                    raise HTTPException(status_code=400, detail="Cannot demote the last admin/CRO user")
+
     extra_changes = {}
     if password is not None:
         user.hashed_password = get_password_hash(password)
         extra_changes["password_changed"] = {"old": None, "new": True}
 
     is_deactivating = user.is_active is True and update_data.get("is_active") is False
+    is_privileged_user = bool(user.role and user.role.name in ADMIN_PRIVILEGED_ROLES and user.access_scope == AccessScope.GLOBAL)
+    if is_deactivating and current_user.id == user.id and is_privileged_user:
+        raise HTTPException(status_code=400, detail="Cannot deactivate your own privileged access")
+    if is_deactivating and is_privileged_user:
+        remaining = await db.execute(
+            select(User.id)
+            .join(Role)
+            .where(Role.name.in_(ADMIN_PRIVILEGED_ROLES))
+            .where(User.id != user.id)
+            .where(User.access_scope == AccessScope.GLOBAL)
+            .where(User.is_active.is_(True))
+            .limit(1)
+        )
+        if not remaining.scalar_one_or_none():
+            raise HTTPException(status_code=400, detail="Cannot deactivate the last admin/CRO user")
     if is_deactivating:
         try:
             created_orphans = await OrphanedItemService.flag_orphaned_items(db, user.id)

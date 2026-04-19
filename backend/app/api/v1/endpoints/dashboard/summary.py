@@ -86,11 +86,10 @@ async def get_dashboard_summary(
     # Controls by form
     controls_by_form = {}
     for form in ControlForm:
-        # Avoid including the form filter itself in the breakdown
-        other_control_conditions = [
-            c for c in control_conditions if not (hasattr(c, "right") and str(c.right) == control_form)
+        form_filter = Control.control_form == control_form if control_form else None
+        conditions = [Control.control_form == form.value] + [
+            c for c in control_conditions if form_filter is None or c.compare(form_filter) is False
         ]
-        conditions = [Control.control_form == form.value] + other_control_conditions
         result = await db.execute(select(func.count(Control.id)).where(and_(*conditions)))
         count = result.scalar() or 0
         if count > 0:

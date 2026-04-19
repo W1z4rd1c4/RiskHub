@@ -32,8 +32,11 @@ describe('KRIValueModal', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         recordValueMock.mockResolvedValue({
+            status: 'approval_required',
             approval_id: 42,
+            action_type: 'edit',
             message: 'Value submission requires approval',
+            pending_fields: ['current_value', 'period_end', 'recorded_at'],
         });
     });
 

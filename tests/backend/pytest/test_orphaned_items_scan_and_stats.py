@@ -214,6 +214,7 @@ async def test_orphan_stats_are_scoped_by_department(
     "method,path",
     [
         ("get", "/api/v1/orphaned-items/"),
+        ("get", "/api/v1/orphaned-items/overview"),
         ("get", "/api/v1/orphaned-items/stats"),
     ],
 )

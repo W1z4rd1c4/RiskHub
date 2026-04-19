@@ -1,6 +1,7 @@
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
@@ -368,6 +369,26 @@ async def test_update_user_email_conflict(auth_client: AsyncClient, test_user: U
     response = await auth_client.patch(f"/api/v1/users/{test_user.id}", json=update_data)
     assert response.status_code == 400
     assert "Email already registered" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_update_user_rejects_self_privileged_role_demotion(
+    auth_client: AsyncClient,
+    test_user: User,
+    test_user_employee: User,
+):
+    response = await auth_client.patch(f"/api/v1/users/{test_user.id}", json={"role_id": test_user_employee.role_id})
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Cannot demote yourself from admin/CRO role"
+
+
+@pytest.mark.asyncio
+async def test_update_user_rejects_deactivating_last_privileged_user(auth_client: AsyncClient, test_user: User):
+    response = await auth_client.patch(f"/api/v1/users/{test_user.id}", json={"is_active": False})
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Cannot deactivate your own privileged access"
 
 
 @pytest.mark.asyncio

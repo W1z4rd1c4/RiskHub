@@ -186,6 +186,50 @@ async def test_sso_exchange_strict_mode_rejects_stale_tab_challenge(
 
 
 @pytest.mark.asyncio
+async def test_sso_exchange_strict_mode_sanitizes_backslash_return_to(
+    sso_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: User,
+    monkeypatch,
+):
+    test_user.external_id = "oid-sanitized-return-to"
+    db_session.add(test_user)
+    await db_session.commit()
+
+    def override_settings_strict():
+        return _sso_settings(auth_sso_require_challenge=True)
+
+    app.dependency_overrides[get_settings] = override_settings_strict
+
+    start = await sso_client.post(
+        "/api/v1/auth/sso/start",
+        json={"return_to": "/\\evil.com"},
+        headers={"Origin": "http://test"},
+    )
+    assert start.status_code == 200, start.text
+    start_payload = start.json()
+
+    async def stub_verify_entra_id_token(*, id_token: str, settings: Settings):
+        return VerifiedIdentity(
+            external_id="oid-sanitized-return-to",
+            tenant_id=settings.entra_tenant_id or "",
+            email=test_user.email,
+            name=test_user.name,
+            nonce=start_payload["nonce"],
+            expires_at=utc_now() + timedelta(minutes=10),
+        )
+
+    monkeypatch.setattr("app.api.v1.endpoints.auth.verify_entra_id_token", stub_verify_entra_id_token)
+
+    exchange = await sso_client.post(
+        "/api/v1/auth/sso/exchange",
+        json={"id_token": "fake", "state": start_payload["state"]},
+    )
+    assert exchange.status_code == 200, exchange.text
+    assert exchange.json()["post_login_redirect_to"] == "/"
+
+
+@pytest.mark.asyncio
 async def test_sso_exchange_requires_state_field(
     sso_client: AsyncClient,
     test_user: User,

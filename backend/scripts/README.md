@@ -17,6 +17,7 @@ Operational and migration entrypoints for backend-only maintenance tasks.
 - `migrate_kris.py`
 - `migrate_risk_names.py`
 - `migrate_risks.py`
+- `report_pending_kri_approval_preflight.py`
 - `revoke_refresh_sessions.py`
 - `runtime/`
 - `seed_all.py`
@@ -40,4 +41,5 @@ Operational and migration entrypoints for backend-only maintenance tasks.
   - column `F` -> risk `name`
   - column `G` -> risk `description`
 - In non-reset risk import mode, changing `process`, `subprocess`, or `name` is treated as a new identity. Use `--allow-reset` if the workbook is intentionally redefining those identity fields.
+- `report_pending_kri_approval_preflight.py` generates a JSON preflight report for pending KRI value approvals that would auto-reject under apply-time validation.
 - Keep this README updated when responsibilities or structure in this folder change.

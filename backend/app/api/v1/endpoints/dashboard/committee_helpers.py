@@ -18,7 +18,7 @@ from app.models.vendor import Vendor
 
 
 def _empty_committee_core() -> dict:
-    return {"critical_risks": [], "recent_activity": [], "department_exposure": []}
+    return {"critical_risks": [], "recent_activity": [], "department_exposure": [], "critical_vendors": []}
 
 
 def _risk_payload(risk: Risk) -> dict:

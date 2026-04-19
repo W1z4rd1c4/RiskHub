@@ -169,6 +169,31 @@ async def test_approval_edit_control_sets_updated_by_id(
 
 
 @pytest.mark.asyncio
+async def test_approval_edit_kri_auto_rejects_when_target_missing(
+    db_session,
+    test_user_cro,
+    test_user_employee,
+):
+    approval = ApprovalRequest(
+        resource_type=ApprovalResourceType.KRI,
+        resource_id=999999,
+        resource_name="Missing KRI",
+        action_type=ApprovalActionType.EDIT,
+        requested_by_id=test_user_employee.id,
+        reason="Missing target revalidation",
+        status=ApprovalStatus.PENDING,
+        pending_changes={
+            "description": {"old": "Old", "new": "New"},
+        },
+    )
+
+    resolved = await _approve_pending_edit(db_session, approval, test_user_cro)
+
+    assert resolved.status == ApprovalStatus.REJECTED
+    assert "Resource was deleted before approval could be applied" in (resolved.resolution_notes or "")
+
+
+@pytest.mark.asyncio
 async def test_approval_edit_risk_no_score_change_when_no_probability_impact(
     db_session,
     test_department,

@@ -83,7 +83,7 @@ export const kriApi = {
         kriId: number,
         entryId: number,
         data: KRIHistoryEdit
-    ): Promise<KRIHistoryEntry | { message: string; approval_id: number }> {
+    ): Promise<KRIHistoryEntry | ApprovalCreatedResponse> {
         return apiClient.patch(`/kris/${kriId}/history/${entryId}`, data, {
             schema: kriHistoryEntrySchema.or(approvalCreatedResponseSchema),
         });

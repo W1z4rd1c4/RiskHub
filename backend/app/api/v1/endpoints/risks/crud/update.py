@@ -13,11 +13,13 @@ from app.core.security import check_permission
 from app.db.session import get_db
 from app.models import KeyRiskIndicator, Risk, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
+from app.schemas.approval_request import ApprovalQueuedResponse
 from app.schemas.risk import RiskRead, RiskStatusEnum, RiskUpdate
 
 from ._shared import validate_risk_type
 
 router = APIRouter()
+APPROVAL_QUEUED_RESPONSE = {202: {"model": ApprovalQueuedResponse}}
 
 
 async def _load_risk_or_404(db: AsyncSession, risk_id: int) -> Risk:
@@ -89,9 +91,7 @@ async def _create_risk_edit_approval_if_required(
     update_data: dict,
     current_user: User,
 ):
-    from fastapi.responses import JSONResponse
-
-    from app.core.approval_helpers import create_approval_request_with_audit
+    from app.core.approval_helpers import build_approval_queued_response, create_approval_request_with_audit
     from app.core.permissions import can_resolve_approvals, has_sensitive_field_changes
     from app.models import ApprovalActionType, ApprovalRequest, ApprovalResourceType, ApprovalStatus
 
@@ -148,15 +148,12 @@ async def _create_risk_edit_approval_if_required(
         department_id=risk.department_id,
     )
 
-    return JSONResponse(
-        status_code=status.HTTP_202_ACCEPTED,
-        content={
-            "message": "Change requires approval" + (" (priority risk)" if is_priority_risk_edit else ""),
-            "approval_id": approval.id,
-            "action_type": "edit",
-            "pending_fields": list(changed.keys()),
-            "pending_changes": changed,
-        },
+    return build_approval_queued_response(
+        message="Change requires approval" + (" (priority risk)" if is_priority_risk_edit else ""),
+        approval_id=approval.id,
+        action_type="edit",
+        pending_fields=list(changed.keys()),
+        pending_changes=changed,
     )
 
 
@@ -192,7 +189,7 @@ async def _reload_risk_with_relationships(db: AsyncSession, risk_id: int) -> Ris
     return result.scalar_one()
 
 
-@router.patch("/{risk_id}", response_model=RiskRead)
+@router.patch("/{risk_id}", response_model=RiskRead, responses=APPROVAL_QUEUED_RESPONSE)
 async def update_risk(
     risk_id: int,
     risk_data: RiskUpdate,

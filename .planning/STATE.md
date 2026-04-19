@@ -19,7 +19,7 @@
 ## Current Position
 
 **Milestone:** v1.0 MVP
-**Active Phases:** 90 (AD Emulator) and 253 (Professionalization & AI-Signal Removal) remain active; 19 and 70 deferred
+**Active Phases:** 90 (AD Emulator) and 253 (Professionalization & AI-Signal Removal) remain active; 253.1 completed on 2026-04-20; 19 and 70 deferred
 **Documentation Status:** Reconciled with phase folders and canonical docs (2026-04-05)
 
 ## Progress Summary
@@ -71,10 +71,48 @@
 | 251 Spaghetti Simplification 2 | ✅ Complete (11/11) | 2026-01-10 |
 | 252 Quality Closure Loop | ✅ Complete (11/11) | 2026-04-07 |
 | 253 Professionalization & AI-Signal Removal | ⏳ In progress (0/8) | - |
+| 253.1 Backend Audit Remediation | ✅ Complete (4/4) | 2026-04-20 |
 | 500 Production Installation Scripts | ✅ Complete (8/8) | 2026-02-16 |
 | 501 Production Readiness Hardening | ✅ Complete (8/8) | 2026-02-16 |
 
 ## Session Context
+
+### Phase 253.1 Backend Audit Remediation (2026-04-20)
+
+- Inserted and completed urgent phase `253.1-backend-audit-remediation` with 4 serial plans and per-plan summaries.
+- Plan `253.1-01` completed:
+  - reordered middleware so CORS is outermost and request-id/security headers wrap short-circuit responses
+  - exempted preflight `OPTIONS` from rate limiting
+  - coerced audit/executions datetime filters with `coerce_utc()`
+  - enabled DB `pool_pre_ping`/`pool_recycle`
+  - switched production Redis limiter outages to settings-controlled fail-closed behavior
+- Plan `253.1-02` completed:
+  - auto-rejected edit approvals when targets are missing at apply time
+  - aligned orphaned-items overview authz with governance routes
+  - replaced `/admin/fix-orphans` random behavior with explicit mapping + `dry_run`
+  - restored privileged lifecycle invariants in `PATCH /users/{user_id}`
+  - blocked issue reassignment for closed issues
+- Plan `253.1-03` completed:
+  - fixed dashboard `controls_by_form`
+  - clamped quarterly comparison to `min(current_quarter_end, now)`
+  - guaranteed `critical_vendors` in committee empty responses
+  - normalized queued mutation `202` envelopes across risk/control/KRI edit+delete flows
+  - bounded executions pagination and excluded inactive vendors from DORA export
+  - updated frontend approval parsing/types and UTC date filter submission
+- Plan `253.1-04` completed:
+  - changed KRI approval execution to apply-time validation with explicit stale auto-rejects
+  - added `backend/scripts/report_pending_kri_approval_preflight.py` for rollout reporting
+  - hardened backend/frontend `return_to` sanitization and sanitized server-provided post-login redirects before navigation
+  - blocked known weak default secrets in non-debug mode
+  - updated deployment/security docs for Redis fail-closed posture and the new KRI preflight step
+- Deferred follow-ups explicitly recorded from this phase:
+  - evolve auth-route rate-limit keying beyond pure IP+path
+  - hard-fail non-Postgres outbox claim behavior under unsafe multi-worker runtime
+- Verification completed:
+  - `cd backend && ./venv/bin/pytest -q ../tests/backend/pytest/test_rate_limit_components.py ../tests/backend/pytest/test_rate_limit_redis_resilience.py ../tests/backend/pytest/test_runtime_middleware_contracts.py ../tests/backend/pytest/test_security_headers.py ../tests/backend/pytest/test_activity_log.py ../tests/backend/pytest/test_executions.py ../tests/backend/pytest/test_approval_edit_apply.py ../tests/backend/pytest/test_approval_workflow.py ../tests/backend/pytest/test_admin_orphans.py ../tests/backend/pytest/test_orphaned_items_scan_and_stats.py ../tests/backend/pytest/test_users.py ../tests/backend/pytest/test_dashboard.py ../tests/backend/pytest/test_dashboard_committee_vendor_metrics.py ../tests/backend/pytest/test_vendor_reports.py ../tests/backend/pytest/test_kris_submission_rbac_api.py ../tests/backend/pytest/test_approvals.py ../tests/backend/pytest/test_sso_exchange.py ../tests/backend/pytest/test_production_hardening.py ../tests/backend/pytest/test_pending_kri_approval_preflight.py` -> `213 passed`
+  - `cd frontend && npm run test:run -- src/services/__tests__/authRedirect.test.ts src/services/__tests__/sessionManager.test.ts src/__tests__/approval_edit_update_handling.spec.ts src/services/__tests__/dashboardApi.committee.test.ts src/components/kri/KRIValueModal.test.tsx src/pages/__tests__/KRIDetailPage.edit-approval.test.tsx src/components/__tests__/KRIForm.edit.test.tsx src/services/__tests__/kriApi.delete.test.ts src/__tests__/approval_ui_rendering.spec.tsx` -> `35 passed`
+  - `cd frontend && npx tsc --noEmit` -> passed
+- Postgres-targeted verification was attempted with `TEST_DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_test@127.0.0.1:55432/riskhub_test`, but the local test instance was unavailable (`connection refused`).
 
 ### Phase 253 Professionalization Baseline (2026-04-09)
 

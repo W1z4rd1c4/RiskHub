@@ -50,13 +50,16 @@ export interface ResolveApprovalRequest {
  * Indicates the change was queued for approval rather than applied immediately.
  */
 export interface ApprovalCreatedResponse {
+    status: 'approval_required';
     message: string;
     approval_id: number;
-    action_type?: string;
-    pending_fields?: string[];
-    pending_changes?: Record<string, { old: unknown; new: unknown }>;
+    action_type: ApprovalActionType;
+    pending_fields: string[];
+    pending_changes?: Record<string, unknown> | null;
+    primary_approver_id?: number | null;
+    requires_privileged_approval?: boolean;
 }
 
 export function isApprovalCreatedResponse(response: unknown): response is ApprovalCreatedResponse {
-    return typeof response === 'object' && response !== null && 'approval_id' in response;
+    return typeof response === 'object' && response !== null && 'approval_id' in response && 'status' in response;
 }

@@ -33,6 +33,13 @@ LOG_ROTATION_CONFIG_KEYS = (
     "audit_log_rotation_size_mb",
     "audit_log_retention_count",
 )
+KNOWN_WEAK_SECRET_KEYS = {
+    "dev-secret-key-not-for-production-use",
+    "changeme",
+    "dev-secret",
+    "test-secret",
+    "secret",
+}
 
 ALLOWED_CORS_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
 ALLOWED_CORS_HEADERS = ["Authorization", "Content-Type", "X-CSRF-Token"]
@@ -61,6 +68,8 @@ def validate_settings_for_runtime(settings: Settings) -> None:
 
     if len(settings.secret_key.strip()) < 32:
         raise RuntimeError("FATAL: SECRET_KEY must be at least 32 characters when DEBUG=false.")
+    if settings.secret_key.strip().lower() in KNOWN_WEAK_SECRET_KEYS:
+        raise RuntimeError("FATAL: SECRET_KEY uses a blocked weak default when DEBUG=false.")
     if settings.database_url == DEFAULT_DATABASE_URL:
         raise RuntimeError("FATAL: DATABASE_URL must be explicitly configured for production deployment.")
     if not settings.cors_origins:
@@ -218,25 +227,12 @@ def configure_database_and_scheduler(app: FastAPI, settings: Settings) -> None:
 
 
 def register_middleware(app: FastAPI, settings: Settings) -> None:
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=settings.cors_origins,
-        allow_credentials=True,
-        allow_methods=ALLOWED_CORS_METHODS,
-        allow_headers=ALLOWED_CORS_HEADERS,
-    )
-
-    if not settings.debug:
-        app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.allowed_hosts)
-
     from app.middleware.language import LanguageMiddleware
     from app.middleware.logging_context import LoggingContextMiddleware
     from app.middleware.rate_limit import RateLimitMiddleware
     from app.middleware.security_headers import SecurityHeadersMiddleware
     from app.middleware.security_protocol import ProtocolGuardMiddleware
 
-    app.add_middleware(LoggingContextMiddleware, trusted_proxies=settings.trusted_proxies)
-    app.add_middleware(SecurityHeadersMiddleware, enable_hsts=not settings.debug)
     app.add_middleware(ProtocolGuardMiddleware)
     app.add_middleware(
         RateLimitMiddleware,
@@ -244,6 +240,19 @@ def register_middleware(app: FastAPI, settings: Settings) -> None:
         trusted_proxies=settings.trusted_proxies,
     )
     app.add_middleware(LanguageMiddleware)
+    app.add_middleware(SecurityHeadersMiddleware, enable_hsts=not settings.debug)
+    app.add_middleware(LoggingContextMiddleware, trusted_proxies=settings.trusted_proxies)
+
+    if not settings.debug:
+        app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.allowed_hosts)
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origins,
+        allow_credentials=True,
+        allow_methods=ALLOWED_CORS_METHODS,
+        allow_headers=ALLOWED_CORS_HEADERS,
+    )
 
     if settings.metrics_enabled:
         from prometheus_fastapi_instrumentator import Instrumentator

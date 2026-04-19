@@ -71,9 +71,7 @@ async def _create_kri_submission_approval(
 ):
     from datetime import UTC, datetime
 
-    from fastapi.responses import JSONResponse
-
-    from app.core.approval_helpers import create_approval_request_with_audit
+    from app.core.approval_helpers import build_approval_queued_response, create_approval_request_with_audit
     from app.models import ApprovalActionType, ApprovalRequest, ApprovalResourceType, ApprovalStatus
     from app.services.kri_history_service import KRIHistoryService
 
@@ -123,17 +121,15 @@ async def _create_kri_submission_approval(
         on_duplicate_detail="A value submission request is already pending for this KRI.",
     )
 
-    return JSONResponse(
-        status_code=202,
-        content={
-            "message": "Value submission requires approval"
-            + (" (priority risk - privileged approval also required)" if requires_privileged else ""),
-            "approval_id": approval.id,
-            "action_type": "edit",
-            "primary_approver_id": primary_approver_id,
-            "requires_privileged_approval": requires_privileged,
-            "pending_changes": pending_changes,
-        },
+    return build_approval_queued_response(
+        message="Value submission requires approval"
+        + (" (priority risk - privileged approval also required)" if requires_privileged else ""),
+        approval_id=approval.id,
+        action_type="edit",
+        pending_fields=list(pending_changes.keys()),
+        pending_changes=pending_changes,
+        primary_approver_id=primary_approver_id,
+        requires_privileged_approval=requires_privileged,
     )
 
 

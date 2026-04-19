@@ -9,11 +9,13 @@ from app.core.datetime_utils import utc_now
 from app.db.session import get_db
 from app.models import User
 from app.models.activity_log import ActivityAction, ActivityEntityType
+from app.schemas.approval_request import ApprovalQueuedResponse
 
 router = APIRouter()
+APPROVAL_QUEUED_RESPONSE = {202: {"model": ApprovalQueuedResponse}}
 
 
-@router.delete("/{kri_id}", status_code=202)
+@router.delete("/{kri_id}", status_code=202, responses=APPROVAL_QUEUED_RESPONSE)
 async def delete_kri(
     kri_id: int,
     reason: str = Query(..., min_length=1, description="Reason for deletion (mandatory)"),
@@ -88,13 +90,10 @@ async def delete_kri(
         on_duplicate_detail="Deletion request already pending",
     )
 
-    from fastapi.responses import JSONResponse
+    from app.core.approval_helpers import build_approval_queued_response
 
-    return JSONResponse(
-        status_code=202,
-        content={
-            "message": "Deletion request submitted for approval",
-            "approval_id": approval.id,
-            "action_type": "delete",
-        },
+    return build_approval_queued_response(
+        message="Deletion request submitted for approval",
+        approval_id=approval.id,
+        action_type="delete",
     )

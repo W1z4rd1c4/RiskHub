@@ -183,8 +183,10 @@ async def test_user_with_kri_submit_can_submit_returns_202(
 
     assert response.status_code == 202
     data = response.json()
+    assert data["status"] == "approval_required"
     assert "approval_id" in data
     assert data["action_type"] == "edit"
+    assert data["pending_fields"] == ["current_value", "period_end", "recorded_at"]
 
     # Verify KRI was NOT updated yet (pending approval)
     await db_session.refresh(kri)
@@ -280,6 +282,7 @@ async def test_reporting_owner_without_kri_submit_can_submit(
 
     assert response.status_code == 202
     data = response.json()
+    assert data["status"] == "approval_required"
     assert "approval_id" in data
 
 

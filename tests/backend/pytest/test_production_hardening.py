@@ -119,6 +119,11 @@ def test_secret_key_length_guard_triggers_in_production():
         create_app(_production_settings(secret_key="too-short"))
 
 
+def test_secret_key_blocklist_rejects_known_weak_default_in_production():
+    with pytest.raises(RuntimeError, match="blocked weak default"):
+        create_app(_production_settings(secret_key="dev-secret-key-not-for-production-use"))
+
+
 def test_database_url_default_guard_triggers_in_production():
     with pytest.raises(RuntimeError, match="DATABASE_URL must be explicitly configured"):
         create_app(_production_settings(database_url=DEFAULT_DATABASE_URL))

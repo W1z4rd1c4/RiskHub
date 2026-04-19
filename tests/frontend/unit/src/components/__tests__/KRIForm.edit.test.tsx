@@ -129,8 +129,11 @@ describe("KRIForm edit flow", () => {
 
   it("shows the approval banner and stays on the edit form when the update is queued", async () => {
     mockUpdateKri.mockResolvedValue({
+      status: "approval_required",
       approval_id: 88,
+      action_type: "edit",
       message: "KRI update submitted for approval.",
+      pending_fields: ["metric_name", "description", "linked_vendor_ids"],
     });
 
     renderEditForm();

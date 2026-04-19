@@ -15,6 +15,8 @@ def create_engine(settings: Settings) -> AsyncEngine:
         settings.database_url,
         echo=settings.debug,
         future=True,
+        pool_pre_ping=True,
+        pool_recycle=1800,
     )
 
 

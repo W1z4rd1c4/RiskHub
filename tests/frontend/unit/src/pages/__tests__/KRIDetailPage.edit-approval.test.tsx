@@ -127,8 +127,11 @@ describe('KRIDetailPage approval-aware edit flow', () => {
         mockGetHistory.mockResolvedValue({ items: [], total: 0 });
         mockGetRisk.mockResolvedValue({ id: 8, name: 'Claims Ops Risk' });
         mockUpdateKRI.mockResolvedValue({
+            status: 'approval_required',
             approval_id: 88,
+            action_type: 'edit',
             message: 'KRI update submitted for approval.',
+            pending_fields: ['metric_name', 'description', 'linked_vendor_ids'],
         });
         mockDeleteKRI.mockResolvedValue(undefined);
     });
@@ -156,9 +159,11 @@ describe('KRIDetailPage approval-aware edit flow', () => {
 
     it('shows an approval banner and stays on the detail page when delete requires approval', async () => {
         mockDeleteKRI.mockResolvedValue({
+            status: 'approval_required',
             approval_id: 89,
             action_type: 'delete',
             message: 'Deletion request submitted for approval',
+            pending_fields: [],
         });
 
         render(<KRIDetailPage />);

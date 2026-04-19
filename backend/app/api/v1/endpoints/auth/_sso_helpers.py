@@ -98,8 +98,11 @@ async def _verify_sso_identity(
 def _sanitize_return_to(value: str | None) -> str:
     if not value:
         return "/"
-    if value.startswith("/") and not value.startswith("//"):
-        return value
+    normalized = value.replace("\\", "/").strip()
+    if not normalized or "\r" in normalized or "\n" in normalized:
+        return "/"
+    if normalized.startswith("/") and not normalized.startswith("//"):
+        return normalized
     return "/"
 
 

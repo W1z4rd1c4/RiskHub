@@ -13,11 +13,13 @@ from app.core.security import check_permission
 from app.db.session import get_db
 from app.models import Control, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
+from app.schemas.approval_request import ApprovalQueuedResponse
 from app.schemas.control import ControlRead, ControlUpdate
 
 from .._helpers import _build_pending_changes, _first_high_risk_linked_risk
 
 router = APIRouter()
+APPROVAL_QUEUED_RESPONSE = {202: {"model": ApprovalQueuedResponse}}
 
 
 async def _load_control_or_404(db: AsyncSession, control_id: int) -> Control:
@@ -73,9 +75,8 @@ async def _create_control_edit_approval_if_required(
     update_data: dict,
     is_owner: bool,
 ):
-    from fastapi.responses import JSONResponse
-
     from app.core.approval_helpers import (
+        build_approval_queued_response,
         check_control_requires_privileged_approval,
         create_approval_request_with_audit,
         get_primary_approver_for_control,
@@ -150,17 +151,14 @@ async def _create_control_edit_approval_if_required(
         department_id=control.department_id,
     )
 
-    return JSONResponse(
-        status_code=status.HTTP_202_ACCEPTED,
-        content={
-            "message": "Change requires approval",
-            "approval_id": approval.id,
-            "action_type": "edit",
-            "pending_fields": list(pending_changes.keys()),
-            "pending_changes": pending_changes,
-            "primary_approver_id": primary_approver_id,
-            "requires_privileged_approval": is_priority_linked,
-        },
+    return build_approval_queued_response(
+        message="Change requires approval",
+        approval_id=approval.id,
+        action_type="edit",
+        pending_fields=list(pending_changes.keys()),
+        pending_changes=pending_changes,
+        primary_approver_id=primary_approver_id,
+        requires_privileged_approval=is_priority_linked,
     )
 
 
@@ -177,7 +175,7 @@ async def _reload_control_with_relationships(db: AsyncSession, control_id: int) 
     return result.scalar_one()
 
 
-@router.patch("/{control_id}", response_model=ControlRead)
+@router.patch("/{control_id}", response_model=ControlRead, responses=APPROVAL_QUEUED_RESPONSE)
 async def update_control(
     control_id: int,
     control_data: ControlUpdate,

@@ -15,6 +15,32 @@ if TYPE_CHECKING:
     from app.models import ApprovalRequest, User
 
 
+def build_approval_queued_response(
+    *,
+    message: str,
+    approval_id: int,
+    action_type: str,
+    pending_fields: list[str] | None = None,
+    pending_changes: dict | None = None,
+    primary_approver_id: int | None = None,
+    requires_privileged_approval: bool = False,
+):
+    from fastapi.responses import JSONResponse
+
+    from app.schemas.approval_request import ApprovalQueuedResponse
+
+    payload = ApprovalQueuedResponse(
+        message=message,
+        approval_id=approval_id,
+        action_type=action_type,
+        pending_fields=pending_fields or [],
+        pending_changes=pending_changes,
+        primary_approver_id=primary_approver_id,
+        requires_privileged_approval=requires_privileged_approval,
+    )
+    return JSONResponse(status_code=202, content=payload.model_dump(mode="json"))
+
+
 async def get_primary_approver_for_control(
     db: AsyncSession,
     control_id: int,

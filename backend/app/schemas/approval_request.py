@@ -32,6 +32,19 @@ class ApprovalActionTypeEnum(str, Enum):
     edit = "edit"
 
 
+class ApprovalQueuedResponse(BaseModel):
+    """Normalized response for mutations queued for approval."""
+
+    status: str = "approval_required"
+    message: str
+    approval_id: int
+    action_type: ApprovalActionTypeEnum
+    pending_fields: list[str] = Field(default_factory=list)
+    pending_changes: dict[str, Any] | None = None
+    primary_approver_id: int | None = None
+    requires_privileged_approval: bool = False
+
+
 class ApprovalRequestCreate(BaseModel):
     """Schema for creating a new delete approval request."""
 

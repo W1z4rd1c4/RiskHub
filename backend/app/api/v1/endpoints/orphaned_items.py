@@ -102,7 +102,7 @@ async def get_orphaned_items_overview(
     status: str = Query("pending", description="Filter by status: pending, resolved"),
 ):
     """Get governance overview payload without triggering a scan."""
-    ensure_business_view_access(current_user, detail="Platform admins cannot access Governance business data")
+    _require_governance_operator(current_user)
     cache_key = (
         current_user.id,
         getattr(current_user.access_scope, "value", str(current_user.access_scope)),

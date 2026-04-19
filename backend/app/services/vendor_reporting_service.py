@@ -74,6 +74,7 @@ class VendorReportingService:
         vendor_stmt = (
             select(Vendor)
             .options(selectinload(Vendor.department), selectinload(Vendor.outsourcing_owner))
+            .where(Vendor.status == "active")
             .order_by(Vendor.name)
         )
         if dept_ids is not None:

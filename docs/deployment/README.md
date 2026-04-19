@@ -69,6 +69,7 @@ Release inputs:
 ## Runtime Notes
 
 - Redis is required in production.
+- Production rate-limited API paths fail closed with `503` when Redis is unavailable unless operators explicitly disable `RATE_LIMIT_FAIL_CLOSED_ON_BACKEND_ERROR` as an emergency rollback.
 - Production runtime requires an explicit `ALLOWED_HOSTS` value. Managed deploy/install tooling renders it from the configured public hostname for supported `docker` and `linux` targets, but operators must still verify it matches the real public host allowlist.
 - `/docs` and `/openapi.json` must stay disabled in production.
 - Cookie-authenticated auth endpoints (`/api/v1/auth/refresh`, refresh-cookie fallback logout) require allowed Origin/Referer plus double-submit CSRF.
@@ -81,3 +82,4 @@ Release inputs:
 - `./scripts/deploy.sh smoke ...` validates frontend/API readiness, disabled docs endpoints, reliability tables, one active scheduler runtime row, and zero dead-letter outbox rows.
 - `./scripts/install.sh upgrade ...` creates a timestamped non-secret backup under the runtime directory before it runs `preflight`, `upgrade`, `status`, and `smoke`.
 - Secret files and the database remain operator-managed backup responsibilities before release changes.
+- Before rolling out apply-time KRI approval validation, run `cd backend && ./venv/bin/python -m scripts.report_pending_kri_approval_preflight` and attach the JSON report to the deployment change record.

@@ -23,9 +23,40 @@ class OrphanFixResponse(BaseModel):
     """Response for orphan fix operations."""
 
     message: str
+    dry_run: bool = False
+    resolved_count: int = 0
+    risks_fixed: int = 0
     kris_fixed: int = 0
     controls_fixed: int = 0
-    links_created: int = 0
+    results: list["OrphanFixResult"] = Field(default_factory=list)
+
+
+class OrphanFixResolution(BaseModel):
+    """Explicit remediation instruction for a pending orphaned item."""
+
+    orphan_id: int
+    new_owner_id: int | None = None
+    department_id: int | None = None
+    target_risk_id: int | None = None
+
+
+class OrphanFixRequest(BaseModel):
+    """Admin orphan remediation payload."""
+
+    dry_run: bool = False
+    resolutions: list[OrphanFixResolution] = Field(default_factory=list, min_length=1)
+
+
+class OrphanFixResult(BaseModel):
+    """Result row for each orphan remediation instruction."""
+
+    orphan_id: int
+    item_type: str
+    item_id: int
+    applied: bool
+    new_owner_id: int | None = None
+    department_id: int | None = None
+    target_risk_id: int | None = None
 
 
 class OrphanStatsResponse(BaseModel):

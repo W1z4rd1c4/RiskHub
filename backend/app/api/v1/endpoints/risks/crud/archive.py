@@ -8,12 +8,14 @@ from app.core.activity_logger import log_activity
 from app.db.session import get_db
 from app.models import User
 from app.models.activity_log import ActivityAction, ActivityEntityType
+from app.schemas.approval_request import ApprovalQueuedResponse
 from app.schemas.risk import RiskStatusEnum
 
 router = APIRouter()
+APPROVAL_QUEUED_RESPONSE = {202: {"model": ApprovalQueuedResponse}}
 
 
-@router.delete("/{risk_id}", status_code=status.HTTP_202_ACCEPTED)
+@router.delete("/{risk_id}", status_code=status.HTTP_202_ACCEPTED, responses=APPROVAL_QUEUED_RESPONSE)
 async def delete_risk(
     risk_id: int,
     reason: str = Query(..., min_length=1, description="Reason for deletion (mandatory)"),
@@ -27,7 +29,11 @@ async def delete_risk(
     """
     from fastapi.responses import Response
 
-    from app.core.approval_helpers import create_approval_request_with_audit, get_risk_delete_approval_metadata
+    from app.core.approval_helpers import (
+        build_approval_queued_response,
+        create_approval_request_with_audit,
+        get_risk_delete_approval_metadata,
+    )
     from app.core.permissions import can_resolve_approvals
     from app.models import ApprovalRequest, ApprovalResourceType, ApprovalStatus
 
@@ -103,13 +109,10 @@ async def delete_risk(
         department_id=risk.department_id,
     )
 
-    from fastapi.responses import JSONResponse
-
-    return JSONResponse(
-        status_code=status.HTTP_202_ACCEPTED,
-        content={
-            "message": "Deletion request submitted for approval",
-            "approval_id": approval.id,
-            "action_type": "delete",
-        },
+    return build_approval_queued_response(
+        message="Deletion request submitted for approval",
+        approval_id=approval.id,
+        action_type="delete",
+        primary_approver_id=primary_approver_id,
+        requires_privileged_approval=requires_privileged,
     )

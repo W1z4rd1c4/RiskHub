@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import activity_logger
 from app.core.owner_reference_validation import validate_active_owner_reference
-from app.models import ApprovalRequest, ApprovalResourceType, Control, Risk, User
+from app.models import ApprovalRequest, ApprovalResourceType, ApprovalStatus, Control, Risk, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 
 from .constants import EDITABLE_FIELDS
@@ -30,6 +30,13 @@ async def _apply_edit_risk_control(
     if approval.resource_type == ApprovalResourceType.RISK:
         result = await db.execute(select(Risk).where(Risk.id == approval.resource_id))
         risk = result.scalar_one_or_none()
+        if not risk:
+            logger.warning("Approval #%s: Risk %s no longer exists", approval.id, approval.resource_id)
+            approval.status = ApprovalStatus.REJECTED
+            approval.resolution_notes = (
+                approval.resolution_notes or ""
+            ) + "\nAuto-rejected: Resource was deleted before approval could be applied."
+            return
         if risk:
             allowed_fields = EDITABLE_FIELDS.get("risk", set())
             applied_changes: dict = {}
@@ -86,6 +93,13 @@ async def _apply_edit_risk_control(
     elif approval.resource_type == ApprovalResourceType.CONTROL:
         result = await db.execute(select(Control).where(Control.id == approval.resource_id))
         control = result.scalar_one_or_none()
+        if not control:
+            logger.warning("Approval #%s: Control %s no longer exists", approval.id, approval.resource_id)
+            approval.status = ApprovalStatus.REJECTED
+            approval.resolution_notes = (
+                approval.resolution_notes or ""
+            ) + "\nAuto-rejected: Resource was deleted before approval could be applied."
+            return
         if control:
             allowed_fields = EDITABLE_FIELDS.get("control", set())
             applied_changes: dict = {}

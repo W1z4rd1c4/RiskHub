@@ -22,6 +22,9 @@ async def assign_issue(
     target_date: datetime | None,
     actor: User,
 ) -> Issue:
+    if issue.status == IssueStatus.closed.value:
+        raise ValueError("Cannot assign a closed issue")
+
     due_at = coerce_utc(due_at) or due_at
     target_date = coerce_utc(target_date) or due_at
     remediation = _get_or_init_remediation(issue)

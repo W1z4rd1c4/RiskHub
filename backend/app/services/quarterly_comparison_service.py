@@ -276,9 +276,12 @@ async def build_quarterly_comparison(
         last_quarter_start,
         last_quarter_end,
     ) = calculate_quarter_boundaries(now, current_quarter, compare_quarter)
+    effective_current_quarter_end = min(current_quarter_end, now)
 
     # Get period-based metrics for both quarters
-    this_quarter_period = await get_quarter_period_metrics(db, current_quarter_start, now, dept_ids)
+    this_quarter_period = await get_quarter_period_metrics(
+        db, current_quarter_start, effective_current_quarter_end, dept_ids
+    )
     last_quarter_period = await get_quarter_period_metrics(db, last_quarter_start, last_quarter_end, dept_ids)
 
     # Get snapshot metrics
@@ -323,7 +326,7 @@ async def build_quarterly_comparison(
         "changes": changes,
         "period": {
             "this_start": current_quarter_start.isoformat(),
-            "this_end": now.isoformat(),
+            "this_end": effective_current_quarter_end.isoformat(),
             "last_start": last_quarter_start.isoformat(),
             "last_end": last_quarter_end.isoformat(),
         },

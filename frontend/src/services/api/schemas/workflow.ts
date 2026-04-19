@@ -80,11 +80,14 @@ export const approvalListResponseSchema: z.ZodType<ApprovalListResponse> =
     offsetPaginationSchema(approvalRequestSchema);
 export const approvalCreatedResponseSchema: z.ZodType<ApprovalCreatedResponse> =
     passthroughObject({
+        status: z.literal('approval_required'),
         message: z.string(),
         approval_id: z.number(),
-        action_type: z.string().optional(),
-        pending_fields: z.array(z.string()).optional(),
-        pending_changes: changeMapSchema.optional(),
+        action_type: z.enum(['delete', 'edit']),
+        pending_fields: z.array(z.string()),
+        pending_changes: unknownRecordSchema.nullable().optional(),
+        primary_approver_id: z.number().nullable().optional(),
+        requires_privileged_approval: z.boolean().optional(),
     });
 
 export const notificationSchema: z.ZodType<Notification> = passthroughObject({

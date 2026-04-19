@@ -5,11 +5,12 @@ Control execution endpoints with RBAC and department scoping.
 from datetime import datetime
 from typing import Any, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.datetime_utils import coerce_utc
 from app.core.permissions import (
     can_access_department_id,
     check_department_access,
@@ -60,6 +61,8 @@ def _apply_execution_scope_and_filters(
     from_date: Optional[datetime],
     to_date: Optional[datetime],
 ):
+    from_date = coerce_utc(from_date)
+    to_date = coerce_utc(to_date)
     if dept_ids is not None:
         if not dept_ids and not owned_control_ids:
             return None
@@ -88,12 +91,12 @@ def _apply_execution_scope_and_filters(
 async def read_executions(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_business_permission("controls", "read")),
-    skip: int = 0,
-    limit: int = 100,
-    control_id: Optional[int] = None,
-    result: Optional[ExecutionResultEnum] = None,
-    from_date: Optional[datetime] = None,
-    to_date: Optional[datetime] = None,
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=200),
+    control_id: Optional[int] = Query(None),
+    result: Optional[ExecutionResultEnum] = Query(None),
+    from_date: Optional[datetime] = Query(None),
+    to_date: Optional[datetime] = Query(None),
 ) -> Any:
     """
     Retrieve control executions. Scoped to user's accessible departments.
