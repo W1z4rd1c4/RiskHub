@@ -15,6 +15,8 @@ from app.core.client_ip import resolve_request_client_ip
 from app.core.config import Settings
 
 REFRESH_TOKEN_TYPE = "refresh"
+REFRESH_TOKEN_AUDIENCE = "riskhub-refresh"
+REFRESH_TOKEN_ISSUER = "riskhub"
 REFRESH_SESSION_HINT_COOKIE = "riskhub_refresh_hint"
 CSRF_TOKEN_COOKIE = "riskhub_csrf_token"
 SSO_CHALLENGE_COOKIE = "riskhub_sso_challenge"
@@ -39,6 +41,8 @@ def create_refresh_token(
     expires_at = datetime.now(UTC) + (expires_delta or refresh_token_lifetime(settings))
     payload: dict[str, Any] = {
         "type": REFRESH_TOKEN_TYPE,
+        "aud": REFRESH_TOKEN_AUDIENCE,
+        "iss": REFRESH_TOKEN_ISSUER,
         "user_id": user_id,
         "token_version": token_version,
         "jti": jti,
@@ -49,7 +53,37 @@ def create_refresh_token(
 
 
 def decode_refresh_token(token: str, settings: Settings) -> dict[str, Any]:
-    return jwt.decode(token, settings.secret_key, algorithms=["HS256"])
+    try:
+        payload = jwt.decode(
+            token,
+            settings.secret_key,
+            algorithms=["HS256"],
+            audience=REFRESH_TOKEN_AUDIENCE,
+            issuer=REFRESH_TOKEN_ISSUER,
+            options={"require": ["exp", "aud", "iss", "type"]},
+        )
+    except jwt.MissingRequiredClaimError as exc:
+        if settings.session.refresh_token_migration_grace and exc.claim in {"aud", "iss"}:
+            unverified_claims = jwt.decode(
+                token,
+                options={"verify_signature": False},
+                algorithms=["HS256"],
+            )
+            # Grace mode accepts only legacy tokens that predate both claims.
+            if "aud" in unverified_claims or "iss" in unverified_claims:
+                raise
+            payload = jwt.decode(
+                token,
+                settings.secret_key,
+                algorithms=["HS256"],
+                options={"require": ["exp", "type"]},
+            )
+        else:
+            raise
+
+    if payload.get("type") != REFRESH_TOKEN_TYPE:
+        raise InvalidTokenError("Unexpected token type")
+    return payload
 
 
 def get_refresh_cookie_name(settings: Settings) -> str:

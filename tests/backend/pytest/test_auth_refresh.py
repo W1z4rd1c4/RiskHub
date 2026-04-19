@@ -15,7 +15,13 @@ from app.api import deps as api_deps
 from app.core.config import Settings, get_settings
 from app.core.datetime_utils import utc_now
 from app.core.security import create_access_token
-from app.core.tokens import create_refresh_token
+from app.core.tokens import (
+    REFRESH_TOKEN_AUDIENCE,
+    REFRESH_TOKEN_ISSUER,
+    REFRESH_TOKEN_TYPE,
+    create_refresh_token,
+    decode_refresh_token,
+)
 from app.db.session import get_db
 from app.main import app
 from app.middleware.logging_context import _extract_user_id_from_token
@@ -675,3 +681,90 @@ async def test_get_current_user_optional_returns_none_for_inactive_user(
     )
 
     assert optional_user is None
+
+
+# ── Refresh token claim validation ──────────────────────────────────
+
+
+def test_new_refresh_token_contains_aud_iss_type_claims():
+    settings = Settings(secret_key=TEST_SECRET_KEY)
+    token, _ = create_refresh_token(
+        user_id=1, token_version=1, jti="claims-jti", settings=settings,
+    )
+    payload = jwt.decode(
+        token,
+        TEST_SECRET_KEY,
+        algorithms=["HS256"],
+        audience=REFRESH_TOKEN_AUDIENCE,
+        issuer=REFRESH_TOKEN_ISSUER,
+    )
+    assert payload["aud"] == REFRESH_TOKEN_AUDIENCE
+    assert payload["iss"] == REFRESH_TOKEN_ISSUER
+    assert payload["type"] == REFRESH_TOKEN_TYPE
+
+
+def test_decode_refresh_token_rejects_wrong_audience():
+    settings = Settings(secret_key=TEST_SECRET_KEY, refresh_token_migration_grace=False)
+    wrong_aud_token = jwt.encode(
+        {"type": REFRESH_TOKEN_TYPE, "aud": "wrong-audience", "iss": REFRESH_TOKEN_ISSUER,
+         "user_id": 1, "token_version": 1, "jti": "bad-aud", "exp": datetime.now(UTC) + timedelta(hours=1)},
+        TEST_SECRET_KEY, algorithm="HS256",
+    )
+    with pytest.raises(jwt.InvalidAudienceError):
+        decode_refresh_token(wrong_aud_token, settings)
+
+
+def test_decode_refresh_token_rejects_wrong_issuer():
+    settings = Settings(secret_key=TEST_SECRET_KEY, refresh_token_migration_grace=False)
+    wrong_iss_token = jwt.encode(
+        {"type": REFRESH_TOKEN_TYPE, "aud": REFRESH_TOKEN_AUDIENCE, "iss": "wrong-issuer",
+         "user_id": 1, "token_version": 1, "jti": "bad-iss", "exp": datetime.now(UTC) + timedelta(hours=1)},
+        TEST_SECRET_KEY, algorithm="HS256",
+    )
+    with pytest.raises(jwt.InvalidIssuerError):
+        decode_refresh_token(wrong_iss_token, settings)
+
+
+def test_decode_refresh_token_grace_accepts_legacy_token():
+    settings = Settings(secret_key=TEST_SECRET_KEY, refresh_token_migration_grace=True)
+    legacy_token = jwt.encode(
+        {"type": REFRESH_TOKEN_TYPE, "user_id": 1, "token_version": 1,
+         "jti": "legacy-jti", "exp": datetime.now(UTC) + timedelta(hours=1)},
+        TEST_SECRET_KEY, algorithm="HS256",
+    )
+    payload = decode_refresh_token(legacy_token, settings)
+    assert payload["type"] == REFRESH_TOKEN_TYPE
+    assert payload["user_id"] == 1
+
+
+def test_decode_refresh_token_grace_rejects_partial_claim_migration():
+    settings = Settings(secret_key=TEST_SECRET_KEY, refresh_token_migration_grace=True)
+    partial_token = jwt.encode(
+        {"type": REFRESH_TOKEN_TYPE, "iss": "wrong-issuer", "user_id": 1, "token_version": 1,
+         "jti": "partial-jti", "exp": datetime.now(UTC) + timedelta(hours=1)},
+        TEST_SECRET_KEY, algorithm="HS256",
+    )
+    with pytest.raises(jwt.MissingRequiredClaimError):
+        decode_refresh_token(partial_token, settings)
+
+
+def test_decode_refresh_token_grace_disabled_rejects_legacy_token():
+    settings = Settings(secret_key=TEST_SECRET_KEY, refresh_token_migration_grace=False)
+    legacy_token = jwt.encode(
+        {"type": REFRESH_TOKEN_TYPE, "user_id": 1, "token_version": 1,
+         "jti": "legacy-jti", "exp": datetime.now(UTC) + timedelta(hours=1)},
+        TEST_SECRET_KEY, algorithm="HS256",
+    )
+    with pytest.raises(jwt.MissingRequiredClaimError):
+        decode_refresh_token(legacy_token, settings)
+
+
+def test_decode_refresh_token_grace_rejects_token_missing_exp():
+    settings = Settings(secret_key=TEST_SECRET_KEY, refresh_token_migration_grace=True)
+    token_missing_exp = jwt.encode(
+        {"type": REFRESH_TOKEN_TYPE, "user_id": 1, "token_version": 1, "jti": "missing-exp"},
+        TEST_SECRET_KEY,
+        algorithm="HS256",
+    )
+    with pytest.raises(jwt.MissingRequiredClaimError):
+        decode_refresh_token(token_missing_exp, settings)
