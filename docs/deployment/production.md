@@ -74,12 +74,16 @@ or
 
 If you enable read-only Entra business-role metadata in RiskHub, set `ENTRA_BUSINESS_ROLE_ATTRIBUTE_NAME=riskhubBusinessRole` in `/etc/riskhub/riskhub.env`, create that directory extension on the RiskHub app registration, and add the matching optional ID-token claim before rollout.
 
+For Entra credential rotation, follow the rolling restart runbook in `docs/deployment/runbooks/entra-credential-rotation.md`. `ENTRA_CREDENTIAL_FINGERPRINT` is a cache-key hint, not a substitute for restarting workers.
+
 Rendered production runtime config is intentionally opinionated:
 
 - `DIRECTORY_PROVIDER=graph`
 - `ENTRA_JIT_PROVISIONING_ENABLED=false`
 - `AUTH_SSO_ALLOW_EMAIL_LINK=false`
 - `AD_DEPROVISION_CHECK_INTERVAL_MINUTES=15`
+
+That 15-minute deprovision interval is the current Entra disablement revocation SLA floor. A disabled Entra user is revoked in RiskHub on the next deprovision check plus any remaining access-token lifetime.
 
 Bootstrap users are now pre-linked to Entra before first login. The bootstrap script resolves an exact directory match by email or UPN, sets `external_id`, and fails closed when zero or multiple exact matches are found.
 

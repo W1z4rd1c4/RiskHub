@@ -43,6 +43,7 @@ FULL_SCHEDULER_JOB_IDS = (
     "orphan_scan",
     "outbox_dispatch",
 )
+OPTIONAL_SCHEDULER_JOB_IDS = ("sso_jwks_refresh",)
 OUTBOX_ONLY_SCHEDULER_JOB_IDS = ("outbox_dispatch",)
 PROCESS_INSTANCE_ID = str(uuid4())
 PROCESS_STARTED_AT = utc_now()

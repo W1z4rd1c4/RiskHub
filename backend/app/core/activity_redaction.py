@@ -112,7 +112,14 @@ SAFE_CHANGESET_ALLOWLIST_BY_ENTITY = {
     "kri": {"metric_name"},
     "risk": {"risk_id_code"},
     "role": {"display_name"},
-    "user": {"password_changed", "entra_business_role"},
+    "user": {
+        "password_changed",
+        "entra_business_role",
+        "revoke_count",
+        "context_changed",
+        "failure_code",
+        "logout_scope",
+    },
 }
 
 SENSITIVE_FIELD_FALSE_POSITIVES_BY_ENTITY = {
@@ -209,6 +216,10 @@ def build_activity_description(
         "archive": "archived",
         "approve": "approved",
         "reject": "rejected",
+        "refresh": "refreshed",
+        "failed_refresh": "failed refresh for",
+        "logout": "logged out",
+        "logout_all": "logged out from all devices for",
         "status_change": "changed status of",
         "link": "linked",
         "unlink": "unlinked",

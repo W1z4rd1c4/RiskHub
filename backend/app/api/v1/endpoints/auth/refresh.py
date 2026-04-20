@@ -12,6 +12,7 @@ from starlette.responses import Response
 
 from app.core.config import Settings, get_settings
 from app.core.datetime_utils import coerce_utc, utc_now
+from app.core.activity_logger import audit_logger, log_activity
 from app.core.logging import get_logger
 from app.core.tokens import (
     clear_refresh_cookie,
@@ -24,6 +25,7 @@ from app.core.tokens import (
 )
 from app.db.session import get_db
 from app.models import RefreshToken, Role, RolePermission, User
+from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas.auth import TokenResponse
 
 from ._request_protection import validate_csrf, validate_request_origin
@@ -48,6 +50,50 @@ def _refresh_unauthorized_response(detail: str, settings: Settings) -> JSONRespo
     return response
 
 
+async def _emit_failed_refresh_activity(
+    *,
+    db: AsyncSession,
+    user: User | None,
+    failure_code: str,
+    revoke_count: int,
+) -> None:
+    if user is None:
+        return
+    await log_activity(
+        db=db,
+        actor=user,
+        action=ActivityAction.FAILED_REFRESH,
+        entity_type=ActivityEntityType.USER,
+        entity_id=user.id,
+        entity_name=user.name,
+        safe_description="User refresh failed",
+        safe_description_siem="User refresh failed",
+        changes={
+            "failure_code": failure_code,
+            "revoke_count": revoke_count,
+        },
+    )
+
+
+def _emit_failed_refresh_audit(
+    *,
+    failure_code: str,
+    detail: str,
+    user_id: int | None = None,
+) -> None:
+    audit_logger.warning(
+        "failed_refresh",
+        feature="audit",
+        event_type=ActivityAction.FAILED_REFRESH.value,
+        entity_type=ActivityEntityType.USER.value,
+        entity_id=user_id,
+        actor_id=user_id,
+        description="User refresh failed",
+        changes={"failure_code": failure_code},
+        detail=detail,
+    )
+
+
 @router.post("/refresh", response_model=TokenResponse)
 async def refresh_session(
     request: Request,
@@ -63,18 +109,25 @@ async def refresh_session(
     raw_token = get_refresh_cookie(request, settings)
     payload = token_decode_or_none(raw_token, settings)
     if not payload:
+        _emit_failed_refresh_audit(failure_code="invalid_token", detail="Invalid refresh token")
         return _refresh_unauthorized_response("Invalid refresh token", settings)
 
     user_id = payload.get("user_id")
     jti = payload.get("jti")
     token_version = payload.get("token_version")
     if not isinstance(user_id, int) or not isinstance(jti, str) or not isinstance(token_version, int):
+        _emit_failed_refresh_audit(failure_code="invalid_token", detail="Invalid refresh token")
         return _refresh_unauthorized_response("Invalid refresh token", settings)
 
     refresh_row = (
         await db.execute(select(RefreshToken).where(RefreshToken.user_id == user_id).where(RefreshToken.jti == jti))
     ).scalar_one_or_none()
     if refresh_row is None or refresh_row.revoked_at is not None:
+        _emit_failed_refresh_audit(
+            failure_code="session_not_found",
+            detail="Refresh session not found",
+            user_id=user_id,
+        )
         return _refresh_unauthorized_response("Refresh session not found", settings)
 
     now = utc_now()
@@ -86,7 +139,15 @@ async def refresh_session(
             .where(RefreshToken.revoked_at.is_(None))
             .values(revoked_at=now, revoked_reason="expired")
         )
-        if int(revoke_result.rowcount or 0) > 0:
+        revoke_count = int(revoke_result.rowcount or 0)
+        if revoke_count > 0:
+            user = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
+            await _emit_failed_refresh_activity(
+                db=db,
+                user=user,
+                failure_code="expired",
+                revoke_count=revoke_count,
+            )
             await db.commit()
         return _refresh_unauthorized_response("Refresh token expired", settings)
     if expires_at and (expires_at - now).total_seconds() <= SESSION_RENEWAL_MINIMUM_SECONDS:
@@ -96,7 +157,15 @@ async def refresh_session(
             .where(RefreshToken.revoked_at.is_(None))
             .values(revoked_at=now, revoked_reason="expires_soon")
         )
-        if int(revoke_result.rowcount or 0) > 0:
+        revoke_count = int(revoke_result.rowcount or 0)
+        if revoke_count > 0:
+            user = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
+            await _emit_failed_refresh_activity(
+                db=db,
+                user=user,
+                failure_code="expires_soon",
+                revoke_count=revoke_count,
+            )
             await db.commit()
         return _refresh_unauthorized_response("Refresh token expired", settings)
 
@@ -104,7 +173,21 @@ async def refresh_session(
     user = (
         await db.execute(select(User).options(permission_load, selectinload(User.department)).where(User.id == user_id))
     ).scalar_one_or_none()
-    if user is None or not user.is_active:
+    if user is None:
+        _emit_failed_refresh_audit(
+            failure_code="unauthorized",
+            detail="Unauthorized",
+            user_id=user_id,
+        )
+        return _refresh_unauthorized_response("Unauthorized", settings)
+    if not user.is_active:
+        await _emit_failed_refresh_activity(
+            db=db,
+            user=user,
+            failure_code="inactive_user",
+            revoke_count=0,
+        )
+        await db.commit()
         return _refresh_unauthorized_response("Unauthorized", settings)
 
     if token_version != user.token_version or refresh_row.token_version != user.token_version:
@@ -114,7 +197,14 @@ async def refresh_session(
             .where(RefreshToken.revoked_at.is_(None))
             .values(revoked_at=now, revoked_reason="token_version_mismatch")
         )
-        if int(revoke_result.rowcount or 0) > 0:
+        revoke_count = int(revoke_result.rowcount or 0)
+        if revoke_count > 0:
+            await _emit_failed_refresh_activity(
+                db=db,
+                user=user,
+                failure_code="token_version_mismatch",
+                revoke_count=revoke_count,
+            )
             await db.commit()
         return _refresh_unauthorized_response("Session revoked", settings)
 
@@ -129,6 +219,21 @@ async def refresh_session(
             "refresh_session_context_changed",
             user_id=user.id,
             refresh_token_id=refresh_row.id,
+            ip_changed=ip_changed,
+            old_ip_sha256=_telemetry_fingerprint(refresh_row.created_ip),
+            new_ip_sha256=_telemetry_fingerprint(current_ip),
+            user_agent_changed=user_agent_changed,
+            old_user_agent_sha256=_telemetry_fingerprint(refresh_row.user_agent),
+            new_user_agent_sha256=_telemetry_fingerprint(current_user_agent),
+        )
+        audit_logger.warning(
+            "refresh_session_context_changed",
+            feature="audit",
+            event_type="refresh_session_context_changed",
+            entity_type=ActivityEntityType.USER.value,
+            entity_id=user.id,
+            actor_id=user.id,
+            description="Refresh session context changed",
             ip_changed=ip_changed,
             old_ip_sha256=_telemetry_fingerprint(refresh_row.created_ip),
             new_ip_sha256=_telemetry_fingerprint(current_ip),
@@ -173,6 +278,21 @@ async def refresh_session(
         issued_at=now,
     )
 
+    await log_activity(
+        db=db,
+        actor=user,
+        action=ActivityAction.REFRESH,
+        entity_type=ActivityEntityType.USER,
+        entity_id=user.id,
+        entity_name=user.name,
+        safe_description="User refreshed session",
+        safe_description_siem="User refreshed session",
+        changes={
+            "result": "rotated",
+            "revoke_count": 1,
+            "context_changed": ip_changed or user_agent_changed,
+        },
+    )
     token_response = _build_token_response(user, settings=settings, session_expires_at=expires_at)
     await db.commit()
     return token_response

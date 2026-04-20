@@ -30,6 +30,10 @@ class ActivityAction(str, PyEnum):
     UNLINK = "unlink"
     LOGIN = "login"
     FAILED_LOGIN = "failed_login"
+    REFRESH = "refresh"
+    FAILED_REFRESH = "failed_refresh"
+    LOGOUT = "logout"
+    LOGOUT_ALL = "logout_all"
     CANCEL = "cancel"
 
 

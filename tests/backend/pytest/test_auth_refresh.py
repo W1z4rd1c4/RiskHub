@@ -25,7 +25,8 @@ from app.core.tokens import (
 from app.db.session import get_db
 from app.main import app
 from app.middleware.logging_context import _extract_user_id_from_token
-from app.models import RefreshToken, User
+from app.models import ActivityLog, RefreshToken, User
+from app.models.activity_log import ActivityAction
 from app.services.sso_token_service import VerifiedIdentity
 
 TEST_SECRET_KEY = "test-secret-key-32-chars-minimum-value"
@@ -189,6 +190,17 @@ async def test_refresh_endpoint_rotates_refresh_token(
     assert len(rows) == 2
     assert rows[0].revoked_at is not None
     assert rows[1].revoked_at is None
+
+    activity = (
+        await db_session.execute(
+            select(ActivityLog)
+            .where(ActivityLog.entity_id == test_user.id)
+            .where(ActivityLog.action == ActivityAction.REFRESH.value)
+            .order_by(ActivityLog.id.desc())
+        )
+    ).scalars().first()
+    assert activity is not None
+    assert activity.changes == {"result": "rotated", "revoke_count": 1, "context_changed": False}
 
 
 @pytest.mark.asyncio
@@ -376,6 +388,17 @@ async def test_logout_clears_refresh_session(
     assert refresh.status_code == 403
     assert refresh.json()["code"] == "csrf_validation_failed"
 
+    activity = (
+        await db_session.execute(
+            select(ActivityLog)
+            .where(ActivityLog.entity_id == test_user.id)
+            .where(ActivityLog.action == ActivityAction.LOGOUT.value)
+            .order_by(ActivityLog.id.desc())
+        )
+    ).scalars().first()
+    assert activity is not None
+    assert activity.changes == {"logout_scope": "all_devices", "revoke_count": 1, "result": "revoked"}
+
 
 @pytest.mark.asyncio
 async def test_csrf_endpoint_issues_cookie(refresh_client: AsyncClient):
@@ -510,6 +533,37 @@ async def test_refresh_failure_clears_refresh_hint_cookie(
 
 
 @pytest.mark.asyncio
+async def test_refresh_invalid_token_emits_audit_only_without_activity_log(
+    refresh_client: AsyncClient,
+    db_session: AsyncSession,
+    monkeypatch,
+):
+    from app.core.activity_logger import audit_logger
+
+    emitted: dict[str, object] = {}
+
+    def capture(event: str, **kwargs: object) -> None:
+        emitted["event"] = event
+        emitted.update(kwargs)
+
+    monkeypatch.setattr(audit_logger, "warning", capture)
+    refresh_client.cookies.set("riskhub_refresh_token", "invalid-token", path="/api/v1/auth")
+    refresh_client.cookies.set("riskhub_refresh_hint", "1", path="/")
+    refresh_client.cookies.set("riskhub_csrf_token", "csrf-token", path="/")
+
+    refresh = await refresh_client.post(
+        "/api/v1/auth/refresh",
+        headers={"Origin": TEST_ORIGIN, "X-CSRF-Token": "csrf-token"},
+    )
+
+    assert refresh.status_code == 401
+    assert emitted["event"] == "failed_refresh"
+    assert emitted["event_type"] == ActivityAction.FAILED_REFRESH.value
+    rows = (await db_session.execute(select(ActivityLog))).scalars().all()
+    assert rows == []
+
+
+@pytest.mark.asyncio
 async def test_logout_all_revokes_existing_access_token(
     refresh_client: AsyncClient,
     db_session: AsyncSession,
@@ -538,6 +592,53 @@ async def test_logout_all_revokes_existing_access_token(
     refresh = await refresh_client.post("/api/v1/auth/refresh", headers={"Origin": TEST_ORIGIN})
     assert refresh.status_code == 403
     assert refresh.json()["code"] == "csrf_validation_failed"
+
+    activity = (
+        await db_session.execute(
+            select(ActivityLog)
+            .where(ActivityLog.entity_id == test_user.id)
+            .where(ActivityLog.action == ActivityAction.LOGOUT_ALL.value)
+            .order_by(ActivityLog.id.desc())
+        )
+    ).scalars().first()
+    assert activity is not None
+    assert activity.changes == {"logout_scope": "all_devices", "revoke_count": 1, "result": "revoked"}
+
+
+@pytest.mark.asyncio
+async def test_refresh_token_version_mismatch_logs_failed_refresh(
+    refresh_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: User,
+    monkeypatch,
+):
+    await _login_via_sso_exchange(
+        refresh_client,
+        db_session,
+        test_user,
+        monkeypatch,
+        external_id="oid-refresh-failed",
+    )
+    test_user.token_version += 1
+    db_session.add(test_user)
+    await db_session.commit()
+
+    refresh = await refresh_client.post(
+        "/api/v1/auth/refresh",
+        headers={"Origin": TEST_ORIGIN, "X-CSRF-Token": str(refresh_client.cookies.get("riskhub_csrf_token"))},
+    )
+
+    assert refresh.status_code == 401
+    activity = (
+        await db_session.execute(
+            select(ActivityLog)
+            .where(ActivityLog.entity_id == test_user.id)
+            .where(ActivityLog.action == ActivityAction.FAILED_REFRESH.value)
+            .order_by(ActivityLog.id.desc())
+        )
+    ).scalars().first()
+    assert activity is not None
+    assert activity.changes == {"failure_code": "token_version_mismatch", "revoke_count": 1}
 
 
 @pytest.mark.asyncio

@@ -48,6 +48,7 @@ RiskHub production deploys must satisfy these invariants:
 - Every SSO login must start with a backend-issued challenge; `/api/v1/auth/sso/exchange` is not valid without a matching challenge cookie, `state`, and `nonce`.
 - The backend resolves the post-login redirect target server-side after challenge validation.
 - Normal logout invalidates all RiskHub app sessions for the user.
+- Entra-side disablement is not instant logout today; RiskHub revokes on the next `AD_DEPROVISION_CHECK_INTERVAL_MINUTES` cycle plus the remaining access-token lifetime.
 - Cookie-authenticated auth endpoints require same-origin browser requests via explicit Origin/Referer validation plus double-submit CSRF.
 - Keep bootstrap admin/CRO emails distinct.
 
@@ -93,6 +94,7 @@ RiskHub production deploys must satisfy these invariants:
 - `ENTRA_TENANT_ID` and `ENTRA_CLIENT_ID` are not secret values.
 - Prefer file-backed certificate credential mode over shared client secret when your Entra app registration supports it; treat client-secret production mode as an explicit waiver.
 - If client-secret rotation must invalidate the in-process Graph token cache without a process restart, set `ENTRA_CREDENTIAL_FINGERPRINT` explicitly.
+- Use the rolling restart procedure in `docs/deployment/runbooks/entra-credential-rotation.md` when rotating Entra credentials; fingerprint bump alone does not clear old in-memory Graph token cache entries.
 - Keep certificate PEM material only in `/etc/riskhub/secrets/entra_client_certificate_private_key`; do not inline it into non-secret env files.
 - Do not print secrets into shell history or CI logs.
 

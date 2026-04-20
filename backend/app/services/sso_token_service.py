@@ -9,9 +9,11 @@ import httpx
 import jwt
 from jwt import PyJWTError
 
+from app.core.activity_logger import audit_logger
 from app.core.config import Settings
 from app.core.datetime_utils import utc_now
 from app.core.email import normalize_email
+from app.core.logging import get_logger
 from app.core.outbound_guard import (
     OutboundRequestError,
     build_outbound_client,
@@ -19,6 +21,8 @@ from app.core.outbound_guard import (
     guard_resolved_outbound_url,
     guarded_get,
 )
+
+logger = get_logger("auth.sso_token_service")
 
 
 class SsoTokenVerificationError(Exception):
@@ -64,7 +68,7 @@ def _extract_kid(token: str) -> str | None:
 
 class EntraTokenVerifier:
     DISCOVERY_TTL_SECONDS = 60 * 60 * 24  # 24h
-    JWKS_TTL_SECONDS = 60 * 60  # 1h
+    JWKS_TTL_SECONDS = 60 * 15  # 15m
 
     def __init__(self, *, settings: Settings):
         auth_settings = settings.auth
@@ -191,6 +195,11 @@ class EntraTokenVerifier:
 
         # If we can see the kid and it's not in our JWKS cache, refresh once.
         if kid and not _jwks_has_kid(jwks, kid):
+            logger.info(
+                "jwks_unknown_kid_refresh",
+                kid=kid,
+                jwks_uri=jwks_uri,
+            )
             jwks = await self._get_jwks(jwks_uri=jwks_uri, now=now, force_refresh=True)
 
         try:
@@ -198,10 +207,33 @@ class EntraTokenVerifier:
         except PyJWTError as e:
             # Best-effort refresh on signature-related failures (key rotation).
             if kid:
+                logger.warning(
+                    "jwks_signature_fail_refresh",
+                    kid=kid,
+                    jwks_uri=jwks_uri,
+                    error_message=str(e),
+                )
                 jwks = await self._get_jwks(jwks_uri=jwks_uri, now=now, force_refresh=True)
                 try:
                     claims = self._decode_claims(id_token=id_token, jwks=jwks, issuer=issuer, kid=kid)
                 except PyJWTError as refreshed_error:
+                    logger.error(
+                        "jwks_fallback_exhausted",
+                        kid=kid,
+                        jwks_uri=jwks_uri,
+                        error_message=str(refreshed_error),
+                    )
+                    audit_logger.error(
+                        "jwks_fallback_exhausted",
+                        feature="audit",
+                        event_type="jwks_fallback_exhausted",
+                        entity_type="sso",
+                        entity_id=0,
+                        description="JWKS fallback exhausted",
+                        kid=kid,
+                        jwks_uri=jwks_uri,
+                        error_message=str(refreshed_error),
+                    )
                     raise SsoTokenVerificationError(code="invalid_token", detail=str(refreshed_error)) from e
             else:
                 raise SsoTokenVerificationError(code="invalid_token", detail=str(e)) from e
@@ -259,6 +291,19 @@ class EntraTokenVerifier:
             expires_at=expires_at,
         )
 
+    async def prefetch_signing_metadata(self) -> dict[str, object]:
+        now = asyncio.get_running_loop().time()
+        discovery = await self._get_discovery(now=now)
+        issuer = str(discovery["issuer"])
+        jwks_uri = str(discovery["jwks_uri"])
+        jwks = await self._get_jwks(jwks_uri=jwks_uri, now=now, force_refresh=True)
+        keys = jwks.get("keys")
+        return {
+            "issuer": issuer,
+            "jwks_uri": jwks_uri,
+            "key_count": len(keys) if isinstance(keys, list) else 0,
+        }
+
 
 _verifier_cache: dict[tuple[str, str, str, int, tuple[str, ...], str], EntraTokenVerifier] = {}
 
@@ -283,6 +328,11 @@ def _get_verifier(settings: Settings) -> EntraTokenVerifier:
     return verifier
 
 
+def get_entra_verifier(settings: Settings) -> EntraTokenVerifier:
+    """Return the cached Entra verifier used by request-time SSO validation."""
+    return _get_verifier(settings)
+
+
 async def verify_entra_id_token(*, id_token: str, settings: Settings) -> VerifiedIdentity:
-    verifier = _get_verifier(settings)
+    verifier = get_entra_verifier(settings)
     return await verifier.verify_id_token(id_token=id_token)

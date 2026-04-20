@@ -87,6 +87,20 @@ async def run_ad_deprovision_check():
     return await execute_tracked_job("ad_deprovision_check", _ad_deprovision_check_job)
 
 
+async def _sso_jwks_refresh_job() -> object:
+    from app.core.config import get_settings
+    from app.services.sso_token_service import get_entra_verifier
+
+    settings = get_settings()
+    verifier = get_entra_verifier(settings)
+    return await verifier.prefetch_signing_metadata()
+
+
+async def run_sso_jwks_refresh():
+    """Background job: Proactively refresh Entra discovery/JWKS metadata."""
+    return await execute_tracked_job("sso_jwks_refresh", _sso_jwks_refresh_job)
+
+
 async def _orphan_scan_job() -> object:
     async with get_db_context() as db:
         flagged = await OrphanedItemService.scan_uncategorised_items(db)
@@ -146,6 +160,13 @@ def _register_outbox_dispatch_job() -> None:
 
 
 def register_full_scheduler_jobs(settings) -> tuple[str, ...]:
+    registered_job_ids = [
+        "kri_deadline_check",
+        "questionnaire_deadline_check",
+        "issue_deadline_check",
+        "ad_deprovision_check",
+        "orphan_scan",
+    ]
     scheduler.add_job(
         run_kri_check,
         CronTrigger(hour=8, minute=0),
@@ -181,8 +202,24 @@ def register_full_scheduler_jobs(settings) -> tuple[str, ...]:
         name="Daily Orphan Governance Scan",
         replace_existing=True,
     )
+    if (
+        settings.auth_mode in ("microsoft_sso", "hybrid_dev")
+        and settings.entra_tenant_id
+        and settings.entra_client_id
+    ):
+        scheduler.add_job(
+            run_sso_jwks_refresh,
+            IntervalTrigger(minutes=10),
+            id="sso_jwks_refresh",
+            name="SSO JWKS Refresh",
+            replace_existing=True,
+            coalesce=True,
+            max_instances=1,
+        )
+        registered_job_ids.append("sso_jwks_refresh")
     _register_outbox_dispatch_job()
-    return FULL_SCHEDULER_JOB_IDS
+    registered_job_ids.append("outbox_dispatch")
+    return tuple(registered_job_ids)
 
 
 def register_outbox_only_scheduler_jobs() -> tuple[str, ...]:

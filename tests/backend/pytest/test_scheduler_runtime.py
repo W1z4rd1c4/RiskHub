@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from app.core.scheduler import (
     FULL_SCHEDULER_JOB_IDS,
+    OPTIONAL_SCHEDULER_JOB_IDS,
     OUTBOX_ONLY_SCHEDULER_JOB_IDS,
     PostgresAdvisoryLockProvider,
     SchedulerLockProvider,
@@ -20,6 +21,7 @@ from app.core.scheduler import (
     get_scheduler_role_status,
     start_scheduler_async,
 )
+from app.core.settings import Settings
 from app.models.outbox_event import OutboxEvent
 from app.models.scheduler_job_run import SchedulerJobRun
 from app.services.outbox.store import NON_POSTGRES_OUTBOX_SINGLE_WORKER_ERROR
@@ -27,6 +29,13 @@ from app.services.outbox.store import NON_POSTGRES_OUTBOX_SINGLE_WORKER_ERROR
 
 def _registered_job_ids(test_scheduler: AsyncIOScheduler) -> set[str]:
     return {job.id for job in test_scheduler.get_jobs()}
+
+
+def _assert_full_job_registration(job_ids: set[str]) -> None:
+    required = set(FULL_SCHEDULER_JOB_IDS)
+    optional = set(OPTIONAL_SCHEDULER_JOB_IDS)
+    assert required.issubset(job_ids)
+    assert job_ids - required <= optional
 
 
 def test_scheduler_role_status_reports_leader() -> None:
@@ -54,9 +63,11 @@ def test_scheduler_role_status_reports_follower_ready() -> None:
 @pytest_asyncio.fixture
 async def isolated_scheduler(async_engine: AsyncEngine, monkeypatch: pytest.MonkeyPatch):
     import app.core.scheduler as scheduler_module
+    import app.core.scheduler_jobs as scheduler_jobs_module
 
     test_scheduler = AsyncIOScheduler()
     monkeypatch.setattr(scheduler_module, "scheduler", test_scheduler)
+    monkeypatch.setattr(scheduler_jobs_module, "scheduler", test_scheduler)
     monkeypatch.setenv("ENABLE_SCHEDULER", "true")
     configure_scheduler(
         async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False),
@@ -89,7 +100,7 @@ async def test_scheduler_start_with_lock_acquired_starts_runtime_and_records_own
 
     assert isolated_scheduler.scheduler.running is True
     assert provider.lock_acquired is True
-    assert _registered_job_ids(isolated_scheduler.scheduler) == set(FULL_SCHEDULER_JOB_IDS)
+    _assert_full_job_registration(_registered_job_ids(isolated_scheduler.scheduler))
 
     async_session = async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
     async with async_session() as session:
@@ -338,6 +349,78 @@ async def test_admin_jobs_status_returns_runtime_and_latest_runs(
     assert payload["current_owner_instance_id"] == "scheduler-instance"
     assert payload["latest_runs"][0]["job_name"] == "kri_deadline_check"
     assert payload["latest_runs"][0]["result_json"] == {"processed": 2}
+
+
+@pytest.mark.asyncio
+async def test_sso_jwks_refresh_job_uses_cached_verifier(monkeypatch: pytest.MonkeyPatch) -> None:
+    import app.core.scheduler_jobs as scheduler_jobs_module
+
+    settings = Settings(
+        secret_key="test-secret-key-32-chars-minimum-value",
+        auth_mode="microsoft_sso",
+        entra_tenant_id="00000000-0000-0000-0000-000000000000",
+        entra_client_id="11111111-1111-1111-1111-111111111111",
+    )
+    captured: dict[str, object] = {}
+
+    class FakeVerifier:
+        async def prefetch_signing_metadata(self) -> dict[str, object]:
+            captured["prefetch_called"] = True
+            return {"issuer": "issuer", "jwks_uri": "jwks", "key_count": 1}
+
+    def fake_get_settings() -> Settings:
+        return settings
+
+    def fake_get_entra_verifier(value: Settings) -> FakeVerifier:
+        captured["settings"] = value
+        return FakeVerifier()
+
+    monkeypatch.setattr("app.core.config.get_settings", fake_get_settings)
+    monkeypatch.setattr("app.services.sso_token_service.get_entra_verifier", fake_get_entra_verifier)
+
+    payload = await scheduler_jobs_module._sso_jwks_refresh_job()
+
+    assert captured["settings"] is settings
+    assert captured["prefetch_called"] is True
+    assert payload == {"issuer": "issuer", "jwks_uri": "jwks", "key_count": 1}
+
+
+def test_register_full_scheduler_jobs_skips_sso_jwks_refresh_without_sso_config(monkeypatch: pytest.MonkeyPatch) -> None:
+    import app.core.scheduler_jobs as scheduler_jobs_module
+
+    test_scheduler = AsyncIOScheduler()
+    monkeypatch.setattr(scheduler_jobs_module, "scheduler", test_scheduler)
+
+    registered = scheduler_jobs_module.register_full_scheduler_jobs(
+        Settings(
+            secret_key="test-secret-key-32-chars-minimum-value",
+            auth_mode="password",
+        )
+    )
+
+    assert "sso_jwks_refresh" not in registered
+    assert _registered_job_ids(test_scheduler) == set(FULL_SCHEDULER_JOB_IDS)
+
+
+def test_register_full_scheduler_jobs_adds_sso_jwks_refresh_when_sso_configured(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import app.core.scheduler_jobs as scheduler_jobs_module
+
+    test_scheduler = AsyncIOScheduler()
+    monkeypatch.setattr(scheduler_jobs_module, "scheduler", test_scheduler)
+
+    registered = scheduler_jobs_module.register_full_scheduler_jobs(
+        Settings(
+            secret_key="test-secret-key-32-chars-minimum-value",
+            auth_mode="microsoft_sso",
+            entra_tenant_id="00000000-0000-0000-0000-000000000000",
+            entra_client_id="11111111-1111-1111-1111-111111111111",
+        )
+    )
+
+    assert "sso_jwks_refresh" in registered
+    assert _registered_job_ids(test_scheduler) == set(FULL_SCHEDULER_JOB_IDS).union(OPTIONAL_SCHEDULER_JOB_IDS)
 
 
 @pytest.mark.asyncio

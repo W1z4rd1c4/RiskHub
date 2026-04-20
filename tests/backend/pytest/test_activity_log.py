@@ -973,6 +973,67 @@ async def test_activity_log_uses_identical_sanitized_changes_for_db_and_siem(db_
 
 
 @pytest.mark.asyncio
+async def test_user_auth_session_fields_are_allowlisted_for_activity_logs(db_session, monkeypatch):
+    emitted: dict[str, object] = {}
+
+    def capture(event: str, **kwargs: object) -> None:
+        emitted["event"] = event
+        emitted.update(kwargs)
+
+    monkeypatch.setattr(audit_logger, "info", capture)
+
+    await log_activity(
+        db_session,
+        entity_type=ActivityEntityType.USER,
+        entity_id=77,
+        entity_name="Test User",
+        action=ActivityAction.REFRESH,
+        actor=None,
+        department_id=None,
+        changes={
+            "revoke_count": 1,
+            "context_changed": True,
+            "failure_code": "expired",
+            "logout_scope": "all_devices",
+        },
+        safe_description="User refreshed session",
+        safe_description_siem="User refreshed session",
+    )
+    await db_session.commit()
+
+    result = await db_session.execute(select(ActivityLog).where(ActivityLog.entity_id == 77))
+    entry = result.scalars().one()
+    assert entry.changes == {
+        "revoke_count": 1,
+        "context_changed": True,
+        "failure_code": "expired",
+        "logout_scope": "all_devices",
+    }
+    assert emitted["changes"] == entry.changes
+
+
+@pytest.mark.asyncio
+@pytest.mark.postgres
+async def test_activity_log_accepts_refresh_action_under_postgres_constraint(db_session):
+    await log_activity(
+        db_session,
+        entity_type=ActivityEntityType.USER,
+        entity_id=78,
+        entity_name="Postgres User",
+        action=ActivityAction.REFRESH,
+        actor=None,
+        department_id=None,
+        safe_description="User refreshed session",
+        safe_description_siem="User refreshed session",
+    )
+    await db_session.commit()
+
+    result = await db_session.execute(select(ActivityLog).where(ActivityLog.entity_id == 78))
+    entry = result.scalars().one()
+    assert entry.action == ActivityAction.REFRESH.value
+
+
+@pytest.mark.asyncio
 async def test_activity_log_rejects_invalid_enum(db_session):
     bad_action = ActivityLog(
         entity_type=ActivityEntityType.RISK.value,

@@ -5,10 +5,12 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 from app.api import deps
+from app.core.activity_logger import log_activity
 from app.core.config import Settings, get_settings
 from app.core.tokens import clear_refresh_cookie, get_refresh_cookie, token_decode_or_none
 from app.db.session import get_db
 from app.models import RefreshToken, User
+from app.models.activity_log import ActivityAction, ActivityEntityType
 
 from ._request_protection import validate_csrf, validate_request_origin
 from ._shared import _invalidate_user_sessions
@@ -80,6 +82,21 @@ async def logout(
             return forbidden_response
 
         revoked = await _invalidate_user_sessions(db=db, user=resolved_user, reason="logout")
+        await log_activity(
+            db=db,
+            actor=resolved_user,
+            action=ActivityAction.LOGOUT,
+            entity_type=ActivityEntityType.USER,
+            entity_id=resolved_user.id,
+            entity_name=resolved_user.name,
+            safe_description="User logged out",
+            safe_description_siem="User logged out",
+            changes={
+                "logout_scope": "all_devices",
+                "revoke_count": revoked,
+                "result": "revoked",
+            },
+        )
         clear_refresh_cookie(response, settings)
         await db.commit()
         return {"message": "Logged out successfully", "revoked_sessions": revoked}
@@ -96,6 +113,21 @@ async def logout_all_devices(
     settings: Settings = Depends(get_settings),
 ):
     revoked = await _invalidate_user_sessions(db=db, user=current_user, reason="logout_all")
+    await log_activity(
+        db=db,
+        actor=current_user,
+        action=ActivityAction.LOGOUT_ALL,
+        entity_type=ActivityEntityType.USER,
+        entity_id=current_user.id,
+        entity_name=current_user.name,
+        safe_description="User logged out from all devices",
+        safe_description_siem="User logged out from all devices",
+        changes={
+            "logout_scope": "all_devices",
+            "revoke_count": revoked,
+            "result": "revoked",
+        },
+    )
     clear_refresh_cookie(response, settings)
     await db.commit()
 
