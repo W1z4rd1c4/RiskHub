@@ -1,12 +1,56 @@
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
+from app.core.permissions import get_user_department_ids
+from app.models import User
 from app.models.control import ControlStatus
 from app.models.risk import RiskStatus
 from app.models.vendor import VendorStatus
 from app.services._kri_history.periods import period_bounds_for_date
 
-from ._shared import ControlMonitoringExportStatus, KRIExportStatus, KRIMonitoringExportStatus, _contains
+from ._shared import ControlMonitoringExportStatus, KRIExportStatus, KRIMonitoringExportStatus, _contains, _safe_int
+
+
+def _prefilter_department_id_for_as_of(as_of_date: date, department_id: int | None) -> int | None:
+    if department_id is not None and as_of_date < datetime.now(UTC).date():
+        return None
+    return department_id
+
+
+def _filter_rows_by_final_scope(
+    rows: list[dict[str, Any]],
+    *,
+    current_user: User,
+    department_id: int | None,
+    owner_field: str | None,
+    extra_visible_ids: set[int] | None = None,
+    exclude_unassigned_for_scoped: bool = False,
+) -> list[dict[str, Any]]:
+    dept_ids = get_user_department_ids(current_user)
+    if dept_ids is None:
+        if department_id is None:
+            return rows
+        return [row for row in rows if _safe_int(row.get("department_id")) == department_id]
+
+    if department_id is not None:
+        return [row for row in rows if _safe_int(row.get("department_id")) == department_id]
+
+    scoped_dept_ids = set(dept_ids)
+    visible_ids = extra_visible_ids or set()
+    filtered: list[dict[str, Any]] = []
+    for row in rows:
+        row_dept_id = _safe_int(row.get("department_id"))
+        if exclude_unassigned_for_scoped and row_dept_id is None:
+            continue
+        if row_dept_id in scoped_dept_ids:
+            filtered.append(row)
+            continue
+        if owner_field is not None and _safe_int(row.get(owner_field)) == current_user.id:
+            filtered.append(row)
+            continue
+        if _safe_int(row.get("id")) in visible_ids:
+            filtered.append(row)
+    return filtered
 
 
 def _normalize_kri_status(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:

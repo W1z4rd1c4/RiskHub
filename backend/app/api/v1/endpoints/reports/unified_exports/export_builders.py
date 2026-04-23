@@ -4,6 +4,7 @@ from typing import Literal
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.permissions import get_risk_ids_where_control_owner, get_risk_ids_where_kri_reporting_owner
 from app.models import User
 from app.models.activity_log import ActivityEntityType
 from app.models.issue import IssueSeverity, IssueStatus
@@ -32,10 +33,12 @@ from .fetch import (
     _fetch_risks_for_export,
 )
 from .filters import (
+    _filter_rows_by_final_scope,
     _filter_rows_by_control_criteria,
     _filter_rows_by_kri_criteria,
     _filter_rows_by_risk_criteria,
     _normalize_kri_status,
+    _prefilter_department_id_for_as_of,
 )
 from .rehydrate import _rehydrate_department_names, _rehydrate_user_names
 from .render import _render_export
@@ -207,7 +210,8 @@ async def _export_risks(
     risk_type: str | None,
     is_priority: bool | None,
 ) -> StreamingResponse:
-    models = await _fetch_risks_for_export(db, current_user=current_user, department_id=department_id)
+    fetch_department_id = _prefilter_department_id_for_as_of(as_of_date, department_id)
+    models = await _fetch_risks_for_export(db, current_user=current_user, department_id=fetch_department_id)
     rows = [_risk_to_row(risk) for risk in models]
     rows = await ExportSnapshotService.apply_as_of_snapshot(
         db,
@@ -221,6 +225,17 @@ async def _export_risks(
         rows,
         department_id_field="department_id",
         department_name_field="department_name",
+    )
+    extra_visible_ids: set[int] = set()
+    if department_id is None:
+        extra_visible_ids.update(await get_risk_ids_where_kri_reporting_owner(db, current_user.id))
+        extra_visible_ids.update(await get_risk_ids_where_control_owner(db, current_user.id))
+    rows = _filter_rows_by_final_scope(
+        rows,
+        current_user=current_user,
+        department_id=department_id,
+        owner_field="owner_id",
+        extra_visible_ids=extra_visible_ids,
     )
     rows = _filter_rows_by_risk_criteria(
         rows,
@@ -286,7 +301,8 @@ async def _export_controls(
     monitoring_status_filter: ControlMonitoringExportStatus | None,
     search: str | None,
 ) -> StreamingResponse:
-    models = await _fetch_controls_for_export(db, current_user=current_user, department_id=department_id)
+    fetch_department_id = _prefilter_department_id_for_as_of(as_of_date, department_id)
+    models = await _fetch_controls_for_export(db, current_user=current_user, department_id=fetch_department_id)
     rows = [_control_to_row(control) for control in models]
     rows = await ExportSnapshotService.apply_as_of_snapshot(
         db,
@@ -307,6 +323,12 @@ async def _export_controls(
         rows,
         department_id_field="department_id",
         department_name_field="department_name",
+    )
+    rows = _filter_rows_by_final_scope(
+        rows,
+        current_user=current_user,
+        department_id=department_id,
+        owner_field="control_owner_id",
     )
     rows = _filter_rows_by_control_criteria(
         rows,
@@ -376,7 +398,8 @@ async def _export_kris(
     timeliness_status_filter: str | None,
     search: str | None,
 ) -> StreamingResponse:
-    models = await _fetch_kris_for_export(db, current_user=current_user, department_id=department_id)
+    fetch_department_id = _prefilter_department_id_for_as_of(as_of_date, department_id)
+    models = await _fetch_kris_for_export(db, current_user=current_user, department_id=fetch_department_id)
     rows = [_kri_to_row(kri) for kri in models]
     rows = await ExportSnapshotService.apply_as_of_snapshot(
         db,
@@ -400,6 +423,12 @@ async def _export_kris(
     rows = await _apply_kri_history_as_of(db, rows, as_of_date)
     kri_monitoring_config = await get_kri_monitoring_config(db)
     rows = _apply_kri_monitoring_rows(rows, config=kri_monitoring_config, as_of_date=as_of_date)
+    rows = _filter_rows_by_final_scope(
+        rows,
+        current_user=current_user,
+        department_id=department_id,
+        owner_field="reporting_owner_id",
+    )
     rows = _filter_rows_by_kri_criteria(
         rows,
         status_filter=status_filter,

@@ -512,6 +512,286 @@ class TestUnifiedExportEndpoints:
         assert "Other Dept Risk" not in csv_payload
 
     @pytest.mark.asyncio
+    async def test_scoped_as_of_risk_export_excludes_replayed_foreign_department(
+        self,
+        client_employee: AsyncClient,
+        db_session: AsyncSession,
+        test_department: Department,
+        second_department: Department,
+        test_user_employee: User,
+    ):
+        risk = Risk(
+            risk_id_code="ASOF-SCOPE-R-001",
+            name="Historical Finance Risk",
+            process="Ops",
+            description="Currently scoped, historically foreign",
+            category="Operational",
+            department_id=test_department.id,
+            owner_id=None,
+            risk_type="operational",
+            gross_probability=3,
+            gross_impact=3,
+            net_probability=2,
+            net_impact=2,
+            status="active",
+        )
+        db_session.add(risk)
+        await db_session.flush()
+        db_session.add(
+            ActivityLog(
+                entity_type="risk",
+                entity_id=risk.id,
+                entity_name=risk.name,
+                action="update",
+                actor_id=test_user_employee.id,
+                actor_name=test_user_employee.name,
+                department_id=test_department.id,
+                changes={"department_id": {"old": second_department.id, "new": test_department.id}},
+                description="Moved risk into employee department",
+                created_at=datetime.now(UTC),
+            )
+        )
+        await db_session.commit()
+
+        as_of = (datetime.now(UTC) - timedelta(days=1)).date().isoformat()
+        response = await client_employee.get(f"/api/v1/reports/risks/export?format=csv&as_of_date={as_of}")
+        assert response.status_code == 200
+        assert "Historical Finance Risk" not in response.content.decode("utf-8")
+
+    @pytest.mark.asyncio
+    async def test_risk_export_department_filter_excludes_cross_dept_owner_exception(
+        self,
+        client_employee: AsyncClient,
+        db_session: AsyncSession,
+        test_department: Department,
+        second_department: Department,
+        test_user_employee: User,
+    ):
+        risk = Risk(
+            risk_id_code="DEPT-FILTER-R-001",
+            name="Cross Dept Owned Risk",
+            process="Finance",
+            description="Owned but outside requested department",
+            category="Operational",
+            department_id=second_department.id,
+            owner_id=test_user_employee.id,
+            risk_type="operational",
+            gross_probability=3,
+            gross_impact=3,
+            net_probability=2,
+            net_impact=2,
+            status="active",
+        )
+        db_session.add(risk)
+        await db_session.commit()
+
+        response = await client_employee.get(
+            f"/api/v1/reports/risks/export?format=csv&department_id={test_department.id}"
+        )
+        assert response.status_code == 200
+        assert "Cross Dept Owned Risk" not in response.content.decode("utf-8")
+
+    @pytest.mark.asyncio
+    async def test_control_export_department_filter_excludes_cross_dept_owner_exception(
+        self,
+        client_employee: AsyncClient,
+        db_session: AsyncSession,
+        test_department: Department,
+        second_department: Department,
+        test_user_employee: User,
+    ):
+        control = Control(
+            name="Cross Dept Owned Control",
+            description="Owned but outside requested department",
+            department_id=second_department.id,
+            control_owner_id=test_user_employee.id,
+            status="active",
+        )
+        db_session.add(control)
+        await db_session.commit()
+
+        response = await client_employee.get(
+            f"/api/v1/reports/controls/export?format=csv&department_id={test_department.id}"
+        )
+        assert response.status_code == 200
+        assert "Cross Dept Owned Control" not in response.content.decode("utf-8")
+
+    @pytest.mark.asyncio
+    async def test_kri_export_department_filter_excludes_cross_dept_reporting_exception(
+        self,
+        client_employee: AsyncClient,
+        db_session: AsyncSession,
+        test_department: Department,
+        second_department: Department,
+        test_user_employee: User,
+    ):
+        risk = Risk(
+            risk_id_code="DEPT-FILTER-KRI-R-001",
+            name="Cross Dept KRI Risk",
+            process="Finance",
+            description="Risk for cross-department KRI",
+            category="Operational",
+            department_id=second_department.id,
+            owner_id=None,
+            risk_type="operational",
+            gross_probability=3,
+            gross_impact=3,
+            net_probability=2,
+            net_impact=2,
+            status="active",
+        )
+        db_session.add(risk)
+        await db_session.flush()
+        kri = KeyRiskIndicator(
+            risk_id=risk.id,
+            metric_name="Cross Dept Reporting KRI",
+            description="Reporting owner outside requested department",
+            unit="%",
+            current_value=12.0,
+            lower_limit=1.0,
+            upper_limit=20.0,
+            reporting_owner_id=test_user_employee.id,
+            is_archived=False,
+        )
+        db_session.add(kri)
+        await db_session.commit()
+
+        response = await client_employee.get(
+            f"/api/v1/reports/kris/export?format=csv&department_id={test_department.id}"
+        )
+        assert response.status_code == 200
+        assert "Cross Dept Reporting KRI" not in response.content.decode("utf-8")
+
+    @pytest.mark.asyncio
+    async def test_unfiltered_exports_preserve_cross_dept_ownership_exceptions(
+        self,
+        client_employee: AsyncClient,
+        db_session: AsyncSession,
+        second_department: Department,
+        test_user_employee: User,
+    ):
+        risk = Risk(
+            risk_id_code="UNFILTERED-R-001",
+            name="Unfiltered Cross Dept Owned Risk",
+            process="Finance",
+            description="Visible through direct ownership",
+            category="Operational",
+            department_id=second_department.id,
+            owner_id=test_user_employee.id,
+            risk_type="operational",
+            gross_probability=3,
+            gross_impact=3,
+            net_probability=2,
+            net_impact=2,
+            status="active",
+        )
+        control = Control(
+            name="Unfiltered Cross Dept Owned Control",
+            description="Visible through control ownership",
+            department_id=second_department.id,
+            control_owner_id=test_user_employee.id,
+            status="active",
+        )
+        kri_risk = Risk(
+            risk_id_code="UNFILTERED-KRI-R-001",
+            name="Unfiltered Cross Dept KRI Risk",
+            process="Finance",
+            description="Risk for reporting-owner KRI",
+            category="Operational",
+            department_id=second_department.id,
+            owner_id=None,
+            risk_type="operational",
+            gross_probability=3,
+            gross_impact=3,
+            net_probability=2,
+            net_impact=2,
+            status="active",
+        )
+        db_session.add_all([risk, control, kri_risk])
+        await db_session.flush()
+        kri = KeyRiskIndicator(
+            risk_id=kri_risk.id,
+            metric_name="Unfiltered Cross Dept Reporting KRI",
+            description="Visible through reporting ownership",
+            unit="%",
+            current_value=12.0,
+            lower_limit=1.0,
+            upper_limit=20.0,
+            reporting_owner_id=test_user_employee.id,
+            is_archived=False,
+        )
+        db_session.add(kri)
+        await db_session.commit()
+
+        risk_response = await client_employee.get("/api/v1/reports/risks/export?format=csv")
+        control_response = await client_employee.get("/api/v1/reports/controls/export?format=csv")
+        kri_response = await client_employee.get("/api/v1/reports/kris/export?format=csv")
+
+        assert risk_response.status_code == 200
+        assert control_response.status_code == 200
+        assert kri_response.status_code == 200
+        assert "Unfiltered Cross Dept Owned Risk" in risk_response.content.decode("utf-8")
+        assert "Unfiltered Cross Dept Owned Control" in control_response.content.decode("utf-8")
+        assert "Unfiltered Cross Dept Reporting KRI" in kri_response.content.decode("utf-8")
+
+    @pytest.mark.asyncio
+    async def test_global_as_of_risk_export_filters_on_replayed_department(
+        self,
+        auth_client: AsyncClient,
+        db_session: AsyncSession,
+        test_user: User,
+    ):
+        old_department = Department(name="AsOf Filter Old", code="ASOF_FILTER_OLD", description="Old dept")
+        new_department = Department(name="AsOf Filter New", code="ASOF_FILTER_NEW", description="New dept")
+        db_session.add_all([old_department, new_department])
+        await db_session.flush()
+        risk = Risk(
+            risk_id_code="ASOF-FILTER-R-001",
+            name="AsOf Department Filter Risk",
+            process="Claims",
+            description="Replayed department filter check",
+            category="Operational",
+            department_id=new_department.id,
+            owner_id=test_user.id,
+            risk_type="operational",
+            gross_probability=3,
+            gross_impact=3,
+            net_probability=2,
+            net_impact=2,
+            status="active",
+        )
+        db_session.add(risk)
+        await db_session.flush()
+        db_session.add(
+            ActivityLog(
+                entity_type="risk",
+                entity_id=risk.id,
+                entity_name=risk.name,
+                action="update",
+                actor_id=test_user.id,
+                actor_name=test_user.name,
+                department_id=new_department.id,
+                changes={"department_id": {"old": old_department.id, "new": new_department.id}},
+                description="Moved risk after snapshot date",
+                created_at=datetime.now(UTC),
+            )
+        )
+        await db_session.commit()
+
+        as_of = (datetime.now(UTC) - timedelta(days=1)).date().isoformat()
+        new_dept_response = await auth_client.get(
+            f"/api/v1/reports/risks/export?format=csv&department_id={new_department.id}&as_of_date={as_of}"
+        )
+        old_dept_response = await auth_client.get(
+            f"/api/v1/reports/risks/export?format=csv&department_id={old_department.id}&as_of_date={as_of}"
+        )
+
+        assert new_dept_response.status_code == 200
+        assert old_dept_response.status_code == 200
+        assert "AsOf Department Filter Risk" not in new_dept_response.content.decode("utf-8")
+        assert "AsOf Department Filter Risk" in old_dept_response.content.decode("utf-8")
+
+    @pytest.mark.asyncio
     async def test_risk_as_of_export_replays_post_cutoff_status_change(
         self,
         auth_client: AsyncClient,

@@ -9,7 +9,7 @@ from app.services.export_snapshot_service import ExportSnapshotService
 
 from ._shared import ExportFormat
 from .fetch import _fetch_vendors_for_export
-from .filters import _filter_rows_by_vendor_criteria
+from .filters import _filter_rows_by_final_scope, _filter_rows_by_vendor_criteria, _prefilter_department_id_for_as_of
 from .rehydrate import _rehydrate_department_names, _rehydrate_user_names
 from .render import _render_export
 from .rows import _vendor_to_row
@@ -26,7 +26,8 @@ async def _export_vendors(
     search: str | None,
     vendor_type: str | None,
 ) -> StreamingResponse:
-    models = await _fetch_vendors_for_export(db, current_user=current_user, department_id=department_id)
+    fetch_department_id = _prefilter_department_id_for_as_of(as_of_date, department_id)
+    models = await _fetch_vendors_for_export(db, current_user=current_user, department_id=fetch_department_id)
     rows = [_vendor_to_row(vendor) for vendor in models]
     rows = await ExportSnapshotService.apply_as_of_snapshot(
         db,
@@ -45,6 +46,13 @@ async def _export_vendors(
         rows,
         department_id_field="department_id",
         department_name_field="department_name",
+    )
+    rows = _filter_rows_by_final_scope(
+        rows,
+        current_user=current_user,
+        department_id=department_id,
+        owner_field="outsourcing_owner_user_id",
+        exclude_unassigned_for_scoped=True,
     )
     rows = _filter_rows_by_vendor_criteria(rows, status_filter=status_filter, search=search, vendor_type=vendor_type)
 
