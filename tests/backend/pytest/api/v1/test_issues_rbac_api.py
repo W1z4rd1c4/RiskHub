@@ -6,9 +6,9 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Control, Department, Issue, IssueLink, IssueRemediationPlan, Role, User
+from app.models import Control, Department, Issue, IssueLink, IssueRemediationPlan, Role, User, Vendor
 
-from .issues_api_helpers import _grant
+from .issues_api_helpers import _create_department_scoped_user, _grant
 
 pytest_plugins = ("tests.backend.pytest.api.v1.issues_api_support",)
 
@@ -122,3 +122,62 @@ async def test_issue_lookup_endpoints_enforce_department_scope(
         params={"department_id": second_department_id},
     )
     assert owners_resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_issue_detail_redacts_vendor_link_name_without_vendor_read(
+    db_session: AsyncSession,
+    client: AsyncClient,
+    test_department: Department,
+):
+    department_id = test_department.id
+    role = Role(
+        name="issue_reader_no_vendor_read",
+        display_name="Issue Reader No Vendor Read",
+        description="Can read issues but not vendors",
+    )
+    db_session.add(role)
+    await db_session.flush()
+    role_id = role.id
+    await _grant(db_session, role, "issues", "read")
+    reader = await _create_department_scoped_user(
+        db_session,
+        email="issue-reader-no-vendor-read@test.com",
+        name="Issue Reader No Vendor Read",
+        department_id=department_id,
+        role_id=role_id,
+    )
+
+    vendor = Vendor(
+        name="Sensitive Linked Vendor",
+        process="Outsourced processing",
+        department_id=department_id,
+        outsourcing_owner_user_id=reader.id,
+    )
+    db_session.add(vendor)
+    await db_session.flush()
+
+    issue = Issue(
+        title="Issue with linked vendor",
+        description="Visible issue linked to a vendor",
+        severity="high",
+        status="open",
+        source_type="manual",
+        department_id=department_id,
+        owner_user_id=None,
+        created_by_id=None,
+        opened_at=datetime.now(UTC),
+    )
+    db_session.add(issue)
+    await db_session.flush()
+    db_session.add(IssueLink(issue_id=issue.id, vendor_id=vendor.id))
+    db_session.add(IssueRemediationPlan(issue_id=issue.id, status="draft", progress_percent=0))
+    await db_session.commit()
+
+    response = await client.get(f"/api/v1/issues/{issue.id}", headers={"X-Mock-User-Id": str(reader.id)})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["vendor_contexts"] == []
+    assert payload["links"][0]["linked_entity_type"] == "vendor"
+    assert payload["links"][0]["linked_entity_name"] is None

@@ -61,7 +61,7 @@ async def assign_issue(
     )
     await db.commit()
     refreshed = await _get_issue_with_relations(db, issue.id)
-    return _serialize_issue_read(refreshed)
+    return _serialize_issue_read(refreshed, current_user=current_user)
 
 
 @router.post("/issues/{issue_id}/start-remediation", response_model=IssueRead)
@@ -80,7 +80,7 @@ async def start_remediation(
     )
     await db.commit()
     refreshed = await _get_issue_with_relations(db, issue.id)
-    return _serialize_issue_read(refreshed)
+    return _serialize_issue_read(refreshed, current_user=current_user)
 
 
 @router.post("/issues/{issue_id}/update-progress", response_model=IssueRead)
@@ -103,7 +103,7 @@ async def update_remediation_progress(
     )
     await db.commit()
     refreshed = await _get_issue_with_relations(db, issue.id)
-    return _serialize_issue_read(refreshed)
+    return _serialize_issue_read(refreshed, current_user=current_user)
 
 
 @router.post("/issues/{issue_id}/close", response_model=IssueRead)
@@ -123,4 +123,4 @@ async def close_issue(
     )
     await db.commit()
     refreshed = await _get_issue_with_relations(db, issue.id)
-    return _serialize_issue_read(refreshed)
+    return _serialize_issue_read(refreshed, current_user=current_user)

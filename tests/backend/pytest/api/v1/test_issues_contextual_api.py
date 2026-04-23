@@ -287,11 +287,9 @@ async def test_contextual_create_returns_404_for_out_of_scope_source(
     db_session: AsyncSession,
     client_employee: AsyncClient,
     test_role_employee: Role,
-    test_user_employee: User,
     second_department: Department,
 ):
     second_department_id = second_department.id
-    employee_user_id = test_user_employee.id
     await _grant(db_session, test_role_employee, "issues", "write")
 
     hidden_risk = Risk(
@@ -301,7 +299,7 @@ async def test_contextual_create_returns_404_for_out_of_scope_source(
         description="Out-of-scope context risk",
         category="Operational",
         department_id=second_department_id,
-        owner_id=employee_user_id,
+        owner_id=None,
         risk_type="operational",
         gross_probability=3,
         gross_impact=3,

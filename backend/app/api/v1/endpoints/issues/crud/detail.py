@@ -18,4 +18,4 @@ async def get_issue(
     current_user: User = Depends(require_permission("issues", "read")),
 ) -> IssueRead:
     issue = await _get_readable_issue_or_404(db, issue_id, current_user)
-    return _serialize_issue_read(issue)
+    return _serialize_issue_read(issue, current_user=current_user)

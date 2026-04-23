@@ -96,7 +96,7 @@ async def add_issue_link(
         )
     ).scalar_one_or_none()
     if existing is not None:
-        return _serialize_issue_link(existing)
+        return _serialize_issue_link(existing, current_user=current_user)
 
     link = IssueLink(
         issue_id=issue.id,
@@ -122,7 +122,7 @@ async def add_issue_link(
 
     await db.commit()
     await db.refresh(link)
-    return _serialize_issue_link(link)
+    return _serialize_issue_link(link, current_user=current_user)
 
 
 @router.delete("/issues/{issue_id}/links/{link_id}", status_code=status.HTTP_204_NO_CONTENT)

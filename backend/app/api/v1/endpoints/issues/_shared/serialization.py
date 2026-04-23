@@ -56,7 +56,7 @@ def _label_or_fallback(value: str | None, fallback: str) -> str:
     return fallback
 
 
-def _link_display(link: IssueLink) -> tuple[str | None, str | None]:
+def _link_display(link: IssueLink, current_user: User | None = None) -> tuple[str | None, str | None]:
     if link.risk_id is not None:
         return "risk", _label_or_fallback(getattr(link.risk, "name", None), UNKNOWN_RISK_LABEL)
     if link.control_id is not None:
@@ -69,12 +69,18 @@ def _link_display(link: IssueLink) -> tuple[str | None, str | None]:
     if link.kri_id is not None:
         return "kri", _label_or_fallback(getattr(link.kri, "metric_name", None), UNKNOWN_KRI_LABEL)
     if link.vendor_id is not None:
+        if current_user is not None and (
+            not check_permission(current_user, "vendors", "read")
+            or link.vendor is None
+            or not can_read_vendor(link.vendor, current_user)
+        ):
+            return "vendor", None
         return "vendor", _label_or_fallback(getattr(link.vendor, "name", None), UNKNOWN_VENDOR_LABEL)
     return None, None
 
 
-def _serialize_issue_link(link: IssueLink) -> IssueLinkRead:
-    linked_entity_type, linked_entity_name = _link_display(link)
+def _serialize_issue_link(link: IssueLink, current_user: User | None = None) -> IssueLinkRead:
+    linked_entity_type, linked_entity_name = _link_display(link, current_user)
     return IssueLinkRead.model_validate(
         {
             "id": link.id,
@@ -280,8 +286,8 @@ def _serialize_issue_summary(issue: Issue, current_user: User | None = None) -> 
     )
 
 
-def _serialize_issue_read(issue: Issue) -> IssueRead:
-    summary = _serialize_issue_summary(issue)
+def _serialize_issue_read(issue: Issue, current_user: User | None = None) -> IssueRead:
+    summary = _serialize_issue_summary(issue, current_user=current_user)
     created_by_name: str | None = None
     if issue.created_by_id is not None:
         created_by_name = _label_or_fallback(getattr(issue.created_by, "name", None), UNKNOWN_USER_LABEL)
@@ -292,7 +298,7 @@ def _serialize_issue_read(issue: Issue) -> IssueRead:
             "created_by_id": issue.created_by_id,
             "created_by_name": created_by_name,
             "validation_note": issue.validation_note,
-            "links": [_serialize_issue_link(link).model_dump() for link in issue.links],
+            "links": [_serialize_issue_link(link, current_user=current_user).model_dump() for link in issue.links],
             "remediation_plan": (
                 _serialize_remediation(issue.remediation_plan).model_dump() if issue.remediation_plan else None
             ),
