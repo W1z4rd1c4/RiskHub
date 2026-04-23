@@ -35,7 +35,7 @@ async def delete_risk(
         get_risk_delete_approval_metadata,
     )
     from app.core.permissions import can_resolve_approvals
-    from app.models import ApprovalRequest, ApprovalResourceType, ApprovalStatus
+    from app.models import ApprovalActionType, ApprovalRequest, ApprovalResourceType, ApprovalStatus
 
     risk = await assert_can_request_delete_risk(
         db,
@@ -67,6 +67,7 @@ async def delete_risk(
         select(ApprovalRequest).where(
             ApprovalRequest.resource_type == ApprovalResourceType.RISK,
             ApprovalRequest.resource_id == risk.id,
+            ApprovalRequest.action_type == ApprovalActionType.DELETE,
             ApprovalRequest.status.in_([ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED]),
         )
     )
@@ -87,8 +88,6 @@ async def delete_risk(
         requester_id=current_user.id,
     )
     # Delete escalation must stay aligned with the shared high-risk rule and config threshold.
-
-    from app.models import ApprovalActionType
 
     approval = ApprovalRequest(
         resource_type=ApprovalResourceType.RISK,

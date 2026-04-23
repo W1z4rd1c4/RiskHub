@@ -30,7 +30,7 @@ async def delete_kri(
     from fastapi.responses import Response
 
     from app.core.permissions import can_resolve_approvals
-    from app.models import ApprovalRequest, ApprovalResourceType, ApprovalStatus
+    from app.models import ApprovalActionType, ApprovalRequest, ApprovalResourceType, ApprovalStatus
 
     kri = await assert_can_request_delete_kri(
         db,
@@ -64,6 +64,7 @@ async def delete_kri(
         select(ApprovalRequest).where(
             ApprovalRequest.resource_type == ApprovalResourceType.KRI,
             ApprovalRequest.resource_id == kri.id,
+            ApprovalRequest.action_type == ApprovalActionType.DELETE,
             ApprovalRequest.status.in_([ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED]),
         )
     )

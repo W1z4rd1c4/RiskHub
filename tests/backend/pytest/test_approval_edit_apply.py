@@ -21,6 +21,8 @@ from app.models import (
     KeyRiskIndicator,
     Risk,
     User,
+    Vendor,
+    VendorKRILink,
 )
 from app.models.risk import RiskStatus
 from app.services.approval_execution_service import approve_request_workflow
@@ -240,6 +242,217 @@ async def test_approval_edit_risk_no_score_change_when_no_probability_impact(
     # Scores should remain unchanged
     assert risk.gross_score == 9
     assert risk.net_score == 4
+
+
+@pytest.mark.asyncio
+async def test_approval_edit_risk_rejects_stale_field_value(
+    db_session,
+    test_department,
+    test_user_cro,
+    test_user_employee,
+):
+    """Risk approval edit rejects if the approved field changed while pending."""
+    risk = Risk(
+        name="Stale Approval Risk",
+        risk_id_code="TST-STALE-001",
+        process="Test Process",
+        risk_type="operational",
+        description="Original description",
+        department_id=test_department.id,
+        owner_id=test_user_cro.id,
+        gross_probability=3,
+        gross_impact=3,
+        gross_score=9,
+        net_probability=2,
+        net_impact=2,
+        net_score=4,
+        status=RiskStatus.active.value,
+    )
+    db_session.add(risk)
+    await db_session.commit()
+    await db_session.refresh(risk)
+
+    approval = ApprovalRequest(
+        resource_type=ApprovalResourceType.RISK,
+        resource_id=risk.id,
+        resource_name=risk.name,
+        action_type=ApprovalActionType.EDIT,
+        requested_by_id=test_user_employee.id,
+        reason="Testing stale field rejection",
+        status=ApprovalStatus.PENDING,
+        pending_changes={
+            "description": {"old": "Original description", "new": "Approved description"},
+        },
+    )
+    db_session.add(approval)
+    await db_session.commit()
+    await db_session.refresh(approval)
+
+    risk.description = "Intervening privileged edit"
+    await db_session.commit()
+
+    resolved = await approve_request_workflow(db_session, approval.id, test_user_cro, "Approved in test")
+
+    await db_session.refresh(risk)
+    assert resolved.status == ApprovalStatus.REJECTED
+    assert "changed before approval could be applied" in (resolved.resolution_notes or "")
+    assert risk.description == "Intervening privileged edit"
+
+
+@pytest.mark.asyncio
+async def test_approval_edit_kri_rejects_stale_field_value(
+    db_session,
+    test_risk,
+    test_user_cro,
+    test_user_employee,
+):
+    """KRI approval edit rejects if the approved field changed while pending."""
+    kri = KeyRiskIndicator(
+        risk_id=test_risk.id,
+        metric_name="Stale KRI Approval",
+        description="Original KRI description",
+        current_value=10.0,
+        lower_limit=0.0,
+        upper_limit=100.0,
+        unit="%",
+        frequency="monthly",
+        reporting_owner_id=test_user_cro.id,
+    )
+    db_session.add(kri)
+    await db_session.commit()
+    await db_session.refresh(kri)
+
+    approval = ApprovalRequest(
+        resource_type=ApprovalResourceType.KRI,
+        resource_id=kri.id,
+        resource_name=kri.metric_name,
+        action_type=ApprovalActionType.EDIT,
+        requested_by_id=test_user_employee.id,
+        reason="Testing stale KRI field rejection",
+        status=ApprovalStatus.PENDING,
+        pending_changes={
+            "description": {"old": "Original KRI description", "new": "Approved KRI description"},
+        },
+    )
+    db_session.add(approval)
+    await db_session.commit()
+    await db_session.refresh(approval)
+
+    kri.description = "Intervening KRI edit"
+    await db_session.commit()
+
+    resolved = await approve_request_workflow(db_session, approval.id, test_user_cro, "Approved in test")
+
+    await db_session.refresh(kri)
+    assert resolved.status == ApprovalStatus.REJECTED
+    assert "changed before approval could be applied" in (resolved.resolution_notes or "")
+    assert kri.description == "Intervening KRI edit"
+
+
+@pytest.mark.asyncio
+async def test_approval_edit_kri_rejects_stale_vendor_links_before_field_mutation(
+    db_session,
+    test_department,
+    test_risk,
+    test_user,
+    test_user_cro,
+    test_user_employee,
+):
+    """Mixed KRI approval rejects stale vendor links without applying other fields."""
+    vendor_original = Vendor(
+        name="KRI Approval Original Vendor",
+        process="KRI Approval Test",
+        department_id=test_department.id,
+        outsourcing_owner_user_id=test_user.id,
+        vendor_type="outsourcing",
+        risk_score_1_5=3,
+        status="active",
+    )
+    vendor_pending = Vendor(
+        name="KRI Approval Pending Vendor",
+        process="KRI Approval Test",
+        department_id=test_department.id,
+        outsourcing_owner_user_id=test_user.id,
+        vendor_type="outsourcing",
+        risk_score_1_5=2,
+        status="active",
+    )
+    vendor_intervening = Vendor(
+        name="KRI Approval Intervening Vendor",
+        process="KRI Approval Test",
+        department_id=test_department.id,
+        outsourcing_owner_user_id=test_user.id,
+        vendor_type="outsourcing",
+        risk_score_1_5=1,
+        status="active",
+    )
+    kri = KeyRiskIndicator(
+        risk_id=test_risk.id,
+        metric_name="KRI Vendor Stale Approval",
+        description="Original KRI vendor description",
+        current_value=10.0,
+        lower_limit=0.0,
+        upper_limit=100.0,
+        unit="%",
+        frequency="monthly",
+        reporting_owner_id=test_user_cro.id,
+    )
+    db_session.add_all([vendor_original, vendor_pending, vendor_intervening, kri])
+    await db_session.commit()
+    await db_session.refresh(vendor_original)
+    await db_session.refresh(vendor_pending)
+    await db_session.refresh(vendor_intervening)
+    await db_session.refresh(kri)
+
+    db_session.add(VendorKRILink(vendor_id=vendor_original.id, kri_id=kri.id))
+    await db_session.commit()
+
+    approval = ApprovalRequest(
+        resource_type=ApprovalResourceType.KRI,
+        resource_id=kri.id,
+        resource_name=kri.metric_name,
+        action_type=ApprovalActionType.EDIT,
+        requested_by_id=test_user_employee.id,
+        reason="Testing stale KRI vendor link rejection",
+        status=ApprovalStatus.PENDING,
+        pending_changes={
+            "description": {
+                "old": "Original KRI vendor description",
+                "new": "Approved KRI vendor description",
+            },
+            "linked_vendor_ids": {"old": [vendor_original.id], "new": [vendor_pending.id]},
+        },
+    )
+    db_session.add(approval)
+    await db_session.commit()
+    await db_session.refresh(approval)
+
+    current_links = (
+        await db_session.execute(select(VendorKRILink).where(VendorKRILink.kri_id == kri.id))
+    ).scalars()
+    for link in current_links:
+        await db_session.delete(link)
+    db_session.add(VendorKRILink(vendor_id=vendor_intervening.id, kri_id=kri.id))
+    await db_session.commit()
+
+    resolved = await approve_request_workflow(db_session, approval.id, test_user_cro, "Approved in test")
+
+    await db_session.refresh(kri)
+    vendor_ids = (
+        (
+            await db_session.execute(
+                select(VendorKRILink.vendor_id)
+                .where(VendorKRILink.kri_id == kri.id)
+                .order_by(VendorKRILink.vendor_id.asc())
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert resolved.status == ApprovalStatus.REJECTED
+    assert "changed before approval could be applied" in (resolved.resolution_notes or "")
+    assert kri.description == "Original KRI vendor description"
+    assert list(vendor_ids) == [vendor_intervening.id]
 
 
 @pytest.mark.asyncio

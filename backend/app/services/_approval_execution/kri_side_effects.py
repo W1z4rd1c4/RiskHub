@@ -13,6 +13,7 @@ from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.services.kri_vendor_assignment import assign_vendors_to_kri, ensure_vendors_exist, normalize_vendor_ids
 
 from .constants import EDITABLE_FIELDS
+from .staleness import reject_if_stale_pending_change, reject_if_stale_value
 
 logger = logging.getLogger("app.services.approval_execution_service")
 
@@ -64,7 +65,7 @@ async def _apply_edit_kri(
 
     # Branch 3: Generic edit (+ optional value recording)
     else:
-        await _apply_kri_generic_edit(db, kri, changes, current_user, approval.id, department_id)
+        await _apply_kri_generic_edit(db, approval, kri, changes, current_user, approval.id, department_id)
 
 
 async def _apply_kri_history_correction(
@@ -223,6 +224,7 @@ async def _apply_kri_value_submission(
 
 async def _apply_kri_generic_edit(
     db: AsyncSession,
+    approval: ApprovalRequest,
     kri: KeyRiskIndicator,
     changes: dict,
     current_user: User,
@@ -241,6 +243,28 @@ async def _apply_kri_generic_edit(
         "measurement_unit": "unit",
         "reporting_frequency": "frequency",
     }
+
+    for field, vals in changes.items():
+        mapped_field = legacy_field_aliases.get(field, field)
+        if mapped_field != "linked_vendor_ids":
+            continue
+        if reject_if_stale_value(
+            approval,
+            field="linked_vendor_ids",
+            current_value=current_vendor_ids,
+            expected_value=normalize_vendor_ids((vals or {}).get("old")),
+        ):
+            return
+        break
+
+    if reject_if_stale_pending_change(
+        approval,
+        target=kri,
+        changes=changes,
+        allowed_fields=allowed_fields - {"linked_vendor_ids", "current_value"},
+        field_aliases=legacy_field_aliases,
+    ):
+        return
 
     # Apply non-value field changes with whitelist enforcement
     for field, vals in changes.items():

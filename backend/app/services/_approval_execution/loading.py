@@ -20,6 +20,7 @@ async def load_approval(db: AsyncSession, approval_id: int) -> ApprovalRequest:
             selectinload(ApprovalRequest.privileged_approver),
         )
         .where(ApprovalRequest.id == approval_id)
+        .with_for_update()
     )
     approval = result.scalar_one_or_none()
     if not approval:

@@ -9,6 +9,7 @@ from app.models import ApprovalRequest, ApprovalResourceType, ApprovalStatus, Co
 from app.models.activity_log import ActivityAction, ActivityEntityType
 
 from .constants import EDITABLE_FIELDS
+from .staleness import reject_if_stale_pending_change
 
 logger = logging.getLogger("app.services.approval_execution_service")
 
@@ -41,6 +42,14 @@ async def _apply_edit_risk_control(
             allowed_fields = EDITABLE_FIELDS.get("risk", set())
             applied_changes: dict = {}
             rejected_fields: list[str] = []
+
+            if reject_if_stale_pending_change(
+                approval,
+                target=risk,
+                changes=changes,
+                allowed_fields=allowed_fields,
+            ):
+                return
 
             for field, vals in changes.items():
                 if field not in allowed_fields:
@@ -104,6 +113,14 @@ async def _apply_edit_risk_control(
             allowed_fields = EDITABLE_FIELDS.get("control", set())
             applied_changes: dict = {}
             rejected_fields: list[str] = []
+
+            if reject_if_stale_pending_change(
+                approval,
+                target=control,
+                changes=changes,
+                allowed_fields=allowed_fields,
+            ):
+                return
 
             for field, vals in changes.items():
                 if field not in allowed_fields:

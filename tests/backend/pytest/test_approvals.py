@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, date, datetime
 
 import pytest
+from fastapi import HTTPException
 from httpx import AsyncClient
 from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from sqlalchemy.orm import selectinload
 
 from app.core.activity_logger import audit_logger
 from app.models import (
@@ -33,6 +36,7 @@ from app.models.global_config import clear_config_cache
 from app.models.key_risk_indicator import KRIFrequency
 from app.models.kri_history import KRIValueHistory
 from app.models.user import AccessScope
+from app.services.approval_execution_service import approve_request_workflow
 from app.services.kri_history_service import KRIHistoryService
 
 
@@ -176,6 +180,40 @@ async def test_create_approval_with_reason(auth_client: AsyncClient, test_risk):
     assert data["reason"] == "No longer applicable to business"
     assert data["can_approve"] is False
     assert data["can_reject"] is True
+
+
+@pytest.mark.asyncio
+async def test_delete_request_allowed_when_edit_request_pending(
+    client_approval_requester: AsyncClient,
+    db_session: AsyncSession,
+    test_risk: Risk,
+):
+    edit_response = await client_approval_requester.patch(
+        f"/api/v1/risks/{test_risk.id}",
+        json={"category": "Pending edit category"},
+    )
+    assert edit_response.status_code == 202
+    assert edit_response.json()["action_type"] == "edit"
+
+    delete_response = await client_approval_requester.delete(
+        f"/api/v1/risks/{test_risk.id}",
+        params={"reason": "Delete should queue separately from edit"},
+    )
+
+    assert delete_response.status_code == 202
+    assert delete_response.json()["action_type"] == "delete"
+
+    result = await db_session.execute(
+        select(ApprovalRequest).where(
+            ApprovalRequest.resource_type == ApprovalResourceType.RISK,
+            ApprovalRequest.resource_id == test_risk.id,
+            ApprovalRequest.status == ApprovalStatus.PENDING,
+        )
+    )
+    assert {approval.action_type for approval in result.scalars()} == {
+        ApprovalActionType.EDIT,
+        ApprovalActionType.DELETE,
+    }
 
 
 @pytest.mark.asyncio
@@ -1287,6 +1325,97 @@ async def test_approve_kri_value_submission_with_period_end(
     entry = result.scalar_one_or_none()
     assert entry is not None
     assert entry.value == 55.0
+
+
+@pytest.mark.postgres
+@pytest.mark.asyncio
+async def test_concurrent_kri_value_approval_records_history_once(
+    async_engine,
+    db_session: AsyncSession,
+    test_risk,
+    test_user_cro: User,
+    test_user_employee: User,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    if async_engine.dialect.name != "postgresql":
+        pytest.skip("Requires PostgreSQL row locking")
+
+    today = date(2026, 4, 10)
+    monkeypatch.setattr("app.services._kri_history.recording.clock.today", lambda: today)
+    _, closed_period_end = KRIHistoryService.latest_closed_period_for_date(today, KRIFrequency.monthly.value)
+
+    kri = KeyRiskIndicator(
+        risk_id=test_risk.id,
+        metric_name="Concurrent Approval KRI",
+        description="KRI used to test concurrent approval locking",
+        current_value=30.0,
+        lower_limit=0.0,
+        upper_limit=100.0,
+        unit="%",
+        frequency=KRIFrequency.monthly.value,
+    )
+    db_session.add(kri)
+    await db_session.commit()
+    await db_session.refresh(kri)
+
+    approval = ApprovalRequest(
+        resource_type=ApprovalResourceType.KRI,
+        resource_id=kri.id,
+        resource_name="Concurrent Approval KRI (value submission)",
+        requested_by_id=test_user_employee.id,
+        reason="KRI value submission: 55.0",
+        action_type=ApprovalActionType.EDIT,
+        pending_changes={
+            "current_value": {"old": 30.0, "new": 55.0},
+            "period_end": closed_period_end.isoformat(),
+            "recorded_at": datetime.now(UTC).isoformat(),
+        },
+        status=ApprovalStatus.PENDING,
+    )
+    db_session.add(approval)
+    await db_session.commit()
+    await db_session.refresh(approval)
+
+    session_maker = async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
+
+    async def approve_once(note: str):
+        async with session_maker() as session:
+            result = await session.execute(
+                select(User)
+                .options(
+                    selectinload(User.role)
+                    .selectinload(Role.permissions)
+                    .selectinload(RolePermission.permission)
+                )
+                .where(User.id == test_user_cro.id)
+            )
+            approver = result.scalar_one()
+            try:
+                return await approve_request_workflow(session, approval.id, approver, note)
+            except HTTPException as exc:
+                return exc
+
+    first_result, second_result = await asyncio.gather(
+        approve_once("Concurrent approval A"),
+        approve_once("Concurrent approval B"),
+    )
+
+    results = [first_result, second_result]
+    assert (
+        sum(isinstance(result, ApprovalRequest) and result.status == ApprovalStatus.APPROVED for result in results)
+        == 1
+    )
+    assert sum(isinstance(result, HTTPException) and result.status_code == 400 for result in results) == 1
+
+    result = await db_session.execute(
+        select(func.count())
+        .select_from(KRIValueHistory)
+        .where(
+            KRIValueHistory.kri_id == kri.id,
+            KRIValueHistory.period_end == closed_period_end,
+        )
+    )
+    assert result.scalar_one() == 1
 
 
 @pytest.mark.asyncio

@@ -30,7 +30,7 @@ async def delete_control(
     from fastapi.responses import Response
 
     from app.core.permissions import can_resolve_approvals
-    from app.models import ApprovalRequest, ApprovalResourceType, ApprovalStatus
+    from app.models import ApprovalActionType, ApprovalRequest, ApprovalResourceType, ApprovalStatus
 
     control = await assert_can_request_delete_control(
         db,
@@ -62,6 +62,7 @@ async def delete_control(
         select(ApprovalRequest).where(
             ApprovalRequest.resource_type == ApprovalResourceType.CONTROL,
             ApprovalRequest.resource_id == control.id,
+            ApprovalRequest.action_type == ApprovalActionType.DELETE,
             ApprovalRequest.status.in_([ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED]),
         )
     )
@@ -75,8 +76,6 @@ async def delete_control(
         create_approval_request_with_audit,
         get_control_delete_approval_metadata,
     )
-    from app.models import ApprovalActionType
-
     primary_approver_id, requires_privileged = await get_control_delete_approval_metadata(
         db,
         control=control,
