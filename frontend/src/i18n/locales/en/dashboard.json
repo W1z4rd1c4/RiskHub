@@ -110,7 +110,7 @@
     "no_data_available": "No data available",
     "vs": "vs",
     "last_quarter": "last quarter",
-    "no_snapshot_banner": "No historical snapshot for {{period}}. Snapshot-based metrics show current values only.",
+    "no_snapshot_banner": "No snapshot for {{period}}. Snapshot-based deltas are unavailable.",
     "no_snapshot_hint": "No historical snapshot - comparison unavailable",
     "not_available": "N/A"
   },

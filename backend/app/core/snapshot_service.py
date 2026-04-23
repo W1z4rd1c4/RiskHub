@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.approval_request import ApprovalRequest, ApprovalResourceType, ApprovalStatus
 from app.models.control import Control
+from app.models.department import Department
 from app.models.key_risk_indicator import KeyRiskIndicator
 from app.models.orphaned_item import OrphanedItem
 from app.models.quarterly_metric_snapshot import QuarterlyMetricSnapshot, SnapshotType
@@ -359,3 +360,42 @@ async def capture_current_quarter_snapshot(
         captured_by_user_id=captured_by_user_id,
         notes=notes,
     )
+
+
+async def capture_current_quarter_snapshots_for_committee(
+    db: AsyncSession,
+    captured_by_user_id: Optional[int] = None,
+    notes: Optional[str] = None,
+) -> QuarterlyMetricSnapshot:
+    """
+    Capture the global current-quarter snapshot plus one snapshot per active department.
+
+    The returned snapshot is the global snapshot to preserve the admin endpoint response contract.
+    """
+    global_snapshot = await capture_current_quarter_snapshot(
+        db=db,
+        department_ids=None,
+        captured_by_user_id=captured_by_user_id,
+        notes=notes,
+    )
+
+    department_ids = (
+        (
+            await db.execute(
+                select(Department.id)
+                .where(Department.is_active.is_(True))
+                .order_by(Department.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    for department_id in department_ids:
+        await capture_current_quarter_snapshot(
+            db=db,
+            department_ids=[department_id],
+            captured_by_user_id=captured_by_user_id,
+            notes=notes,
+        )
+
+    return global_snapshot

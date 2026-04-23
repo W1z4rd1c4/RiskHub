@@ -5,6 +5,7 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models import Department
 from app.models.quarterly_metric_snapshot import QuarterlyMetricSnapshot, SnapshotType
 
 
@@ -12,6 +13,7 @@ from app.models.quarterly_metric_snapshot import QuarterlyMetricSnapshot, Snapsh
 async def test_admin_snapshot_capture_and_list_returns_manual_snapshot(
     client_platform_admin: AsyncClient,
     db_session: AsyncSession,
+    test_department: Department,
 ):
     capture_response = await client_platform_admin.post(
         "/api/v1/admin/snapshots/capture",
@@ -41,6 +43,17 @@ async def test_admin_snapshot_capture_and_list_returns_manual_snapshot(
     snapshot = saved.scalar_one()
     assert snapshot.snapshot_type == SnapshotType.MANUAL
     assert snapshot.snapshot_type.value == "manual"
+
+    scoped_saved = await db_session.execute(
+        select(QuarterlyMetricSnapshot).where(
+            QuarterlyMetricSnapshot.quarter == capture_payload["quarter"],
+            QuarterlyMetricSnapshot.department_id == test_department.id,
+        )
+    )
+    scoped_snapshot = scoped_saved.scalar_one()
+    assert scoped_snapshot.snapshot_type == SnapshotType.MANUAL
+
+    assert len(snapshots) == 1
 
 
 @pytest.mark.asyncio

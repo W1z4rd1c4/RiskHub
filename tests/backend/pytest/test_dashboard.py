@@ -11,6 +11,21 @@ from app.models import Department, Permission, Role, RolePermission
 from app.models.user import AccessScope
 
 
+def _quarter_start(dt: datetime) -> datetime:
+    return datetime(dt.year, ((dt.month - 1) // 3) * 3 + 1, 1, tzinfo=UTC)
+
+
+def _shift_quarter(start: datetime, offset: int) -> datetime:
+    quarter_index = start.year * 4 + ((start.month - 1) // 3) + offset
+    year = quarter_index // 4
+    quarter = quarter_index % 4
+    return datetime(year, quarter * 3 + 1, 1, tzinfo=UTC)
+
+
+def _quarter_label(start: datetime) -> str:
+    return f"{start.year}-Q{((start.month - 1) // 3) + 1}"
+
+
 @pytest.mark.asyncio
 async def test_dashboard_summary(auth_client: AsyncClient):
     """Test the dashboard summary endpoint."""
@@ -398,3 +413,324 @@ async def test_quarterly_comparison_scoped_for_department_head(client: AsyncClie
     assert response.status_code == 200
     payload = response.json()
     assert payload["this_quarter"]["new_risks"] == 1
+
+
+@pytest.mark.asyncio
+async def test_quarterly_comparison_empty_department_scope_marks_live_snapshot_missing(
+    client: AsyncClient,
+    db_session,
+    test_role_department_head: Role,
+):
+    """Department-scoped committee users without a department have no valid snapshot source."""
+    from app.models import User
+
+    user_no_dept = User(
+        name="Committee User Without Department",
+        email="committee.nodept@example.com",
+        role_id=test_role_department_head.id,
+        department_id=None,
+        is_active=True,
+        access_scope=AccessScope.DEPARTMENT,
+    )
+    db_session.add(user_no_dept)
+    await db_session.commit()
+    await db_session.refresh(user_no_dept)
+
+    response = await client.get(
+        "/api/v1/dashboard/quarterly-comparison",
+        headers={"X-Mock-User-Id": str(user_no_dept.id)},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert isinstance(payload["this_quarter"]["new_risks"], int)
+    assert payload["snapshot_info"]["current_quarter_snapshot_available"] is False
+    assert payload["snapshot_info"]["last_quarter_snapshot_available"] is False
+    assert payload["snapshot_info"]["snapshot_sources"] == {"current": "missing", "compare": "missing"}
+    assert "priority_risks" not in payload["this_quarter"]
+    assert "priority_risks" not in payload["last_quarter"]
+    assert "priority_risks" in payload["snapshot_info"]["missing_snapshot_metrics"]["current"]
+    assert "priority_risks" in payload["snapshot_info"]["missing_snapshot_metrics"]["compare"]
+    assert payload["changes"]["priority_risks"]["direction"] == "unknown"
+
+
+@pytest.mark.asyncio
+async def test_quarterly_comparison_historical_current_uses_stored_snapshot(client_cro: AsyncClient, db_session):
+    """Historical selected current quarters must use stored snapshots, not live metrics."""
+    from app.core.snapshot_service import save_quarter_snapshot
+
+    actual_start = _quarter_start(datetime.now(UTC))
+    selected_start = _shift_quarter(actual_start, -1)
+    compare_start = _shift_quarter(actual_start, -2)
+    selected_label = _quarter_label(selected_start)
+    compare_label = _quarter_label(compare_start)
+
+    await save_quarter_snapshot(
+        db_session,
+        selected_label,
+        selected_start.year,
+        ((selected_start.month - 1) // 3) + 1,
+        {"priority_risks": 7},
+    )
+    await save_quarter_snapshot(
+        db_session,
+        compare_label,
+        compare_start.year,
+        ((compare_start.month - 1) // 3) + 1,
+        {"priority_risks": 3},
+    )
+    await db_session.commit()
+
+    response = await client_cro.get(
+        "/api/v1/dashboard/quarterly-comparison",
+        params={"current_quarter": selected_label, "compare_quarter": compare_label},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["this_quarter"]["priority_risks"] == 7
+    assert payload["last_quarter"]["priority_risks"] == 3
+    assert payload["changes"]["priority_risks"]["absolute"] == 4
+    assert payload["snapshot_info"]["snapshot_sources"] == {"current": "stored", "compare": "stored"}
+
+
+@pytest.mark.asyncio
+async def test_quarterly_comparison_department_head_uses_scoped_snapshots(
+    client_department_head: AsyncClient,
+    db_session,
+    test_department: Department,
+):
+    """Department heads must not use global snapshots for historical comparisons."""
+    from app.core.snapshot_service import save_quarter_snapshot
+
+    actual_start = _quarter_start(datetime.now(UTC))
+    selected_start = _shift_quarter(actual_start, -1)
+    compare_start = _shift_quarter(actual_start, -2)
+    selected_label = _quarter_label(selected_start)
+    compare_label = _quarter_label(compare_start)
+
+    await save_quarter_snapshot(
+        db_session,
+        selected_label,
+        selected_start.year,
+        ((selected_start.month - 1) // 3) + 1,
+        {"priority_risks": 99},
+    )
+    await save_quarter_snapshot(
+        db_session,
+        compare_label,
+        compare_start.year,
+        ((compare_start.month - 1) // 3) + 1,
+        {"priority_risks": 88},
+    )
+    await save_quarter_snapshot(
+        db_session,
+        selected_label,
+        selected_start.year,
+        ((selected_start.month - 1) // 3) + 1,
+        {"priority_risks": 2},
+        department_id=test_department.id,
+    )
+    await save_quarter_snapshot(
+        db_session,
+        compare_label,
+        compare_start.year,
+        ((compare_start.month - 1) // 3) + 1,
+        {"priority_risks": 1},
+        department_id=test_department.id,
+    )
+    await db_session.commit()
+
+    response = await client_department_head.get(
+        "/api/v1/dashboard/quarterly-comparison",
+        params={"current_quarter": selected_label, "compare_quarter": compare_label},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["this_quarter"]["priority_risks"] == 2
+    assert payload["last_quarter"]["priority_risks"] == 1
+    assert payload["changes"]["priority_risks"]["absolute"] == 1
+
+
+@pytest.mark.asyncio
+async def test_quarterly_comparison_partial_snapshot_metric_remains_unavailable(
+    client_cro: AsyncClient,
+    db_session,
+):
+    """Missing metric keys inside an existing snapshot must not be reported as zero values."""
+    from app.core.snapshot_service import save_quarter_snapshot
+
+    actual_start = _quarter_start(datetime.now(UTC))
+    selected_start = _shift_quarter(actual_start, -1)
+    compare_start = _shift_quarter(actual_start, -2)
+    selected_label = _quarter_label(selected_start)
+    compare_label = _quarter_label(compare_start)
+
+    await save_quarter_snapshot(
+        db_session,
+        selected_label,
+        selected_start.year,
+        ((selected_start.month - 1) // 3) + 1,
+        {"priority_risks": 7, "active_vendors": 5},
+    )
+    await save_quarter_snapshot(
+        db_session,
+        compare_label,
+        compare_start.year,
+        ((compare_start.month - 1) // 3) + 1,
+        {"priority_risks": 3},
+    )
+    await db_session.commit()
+
+    response = await client_cro.get(
+        "/api/v1/dashboard/quarterly-comparison",
+        params={"current_quarter": selected_label, "compare_quarter": compare_label},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["this_quarter"]["active_vendors"] == 5
+    assert "active_vendors" not in payload["last_quarter"]
+    assert payload["changes"]["active_vendors"]["direction"] == "unknown"
+    assert "active_vendors" not in payload["snapshot_info"]["missing_snapshot_metrics"]["current"]
+    assert "active_vendors" in payload["snapshot_info"]["missing_snapshot_metrics"]["compare"]
+
+
+@pytest.mark.asyncio
+async def test_quarterly_comparison_missing_scoped_snapshots_are_unknown(
+    client_department_head: AsyncClient,
+    db_session,
+):
+    """Missing scoped snapshots must not fall back to global aggregate values."""
+    from app.core.snapshot_service import save_quarter_snapshot
+
+    actual_start = _quarter_start(datetime.now(UTC))
+    selected_start = _shift_quarter(actual_start, -1)
+    compare_start = _shift_quarter(actual_start, -2)
+    selected_label = _quarter_label(selected_start)
+    compare_label = _quarter_label(compare_start)
+
+    await save_quarter_snapshot(
+        db_session,
+        selected_label,
+        selected_start.year,
+        ((selected_start.month - 1) // 3) + 1,
+        {"priority_risks": 99},
+    )
+    await save_quarter_snapshot(
+        db_session,
+        compare_label,
+        compare_start.year,
+        ((compare_start.month - 1) // 3) + 1,
+        {"priority_risks": 88},
+    )
+    await db_session.commit()
+
+    response = await client_department_head.get(
+        "/api/v1/dashboard/quarterly-comparison",
+        params={"current_quarter": selected_label, "compare_quarter": compare_label},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert "priority_risks" not in payload["this_quarter"]
+    assert "priority_risks" not in payload["last_quarter"]
+    assert payload["changes"]["priority_risks"]["direction"] == "unknown"
+    assert selected_label in payload["snapshot_info"]["missing_snapshot_quarters"]
+    assert compare_label in payload["snapshot_info"]["missing_snapshot_quarters"]
+
+
+@pytest.mark.asyncio
+async def test_quarterly_comparison_rejects_future_and_invalid_order(client_cro: AsyncClient):
+    actual_start = _quarter_start(datetime.now(UTC))
+    future_label = _quarter_label(_shift_quarter(actual_start, 1))
+    current_label = _quarter_label(actual_start)
+
+    future_response = await client_cro.get(
+        "/api/v1/dashboard/quarterly-comparison",
+        params={"current_quarter": future_label},
+    )
+    assert future_response.status_code == 400
+
+    invalid_order_response = await client_cro.get(
+        "/api/v1/dashboard/quarterly-comparison",
+        params={"current_quarter": current_label, "compare_quarter": current_label},
+    )
+    assert invalid_order_response.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_available_periods_scoped_for_department_head(
+    client_department_head: AsyncClient,
+    db_session,
+    test_department: Department,
+):
+    """Department heads should not receive period years from other departments."""
+    from app.core.snapshot_service import save_quarter_snapshot
+    from app.models import Risk
+    from app.models.risk import RiskStatus
+
+    other_department = Department(name="Other Period Dept", code="OPD")
+    db_session.add(other_department)
+    await db_session.commit()
+    await db_session.refresh(other_department)
+
+    now = datetime.now(UTC)
+    scoped_year = now.year - 4
+    other_year = now.year - 5
+    scoped_start = datetime(scoped_year, 1, 1, tzinfo=UTC)
+    other_start = datetime(other_year, 1, 1, tzinfo=UTC)
+
+    db_session.add_all([
+        Risk(
+            risk_id_code="PER-SCOPED",
+            name="Scoped Period Risk",
+            process="Proc",
+            category="Cat",
+            description="Desc",
+            department_id=test_department.id,
+            risk_type="operational",
+            gross_probability=1,
+            gross_impact=1,
+            net_probability=1,
+            net_impact=1,
+            status=RiskStatus.active.value,
+            created_at=scoped_start,
+        ),
+        Risk(
+            risk_id_code="PER-OTHER",
+            name="Other Period Risk",
+            process="Proc",
+            category="Cat",
+            description="Desc",
+            department_id=other_department.id,
+            risk_type="operational",
+            gross_probability=1,
+            gross_impact=1,
+            net_probability=1,
+            net_impact=1,
+            status=RiskStatus.active.value,
+            created_at=other_start,
+        ),
+    ])
+    await save_quarter_snapshot(
+        db_session,
+        f"{scoped_year}-Q1",
+        scoped_year,
+        1,
+        {"priority_risks": 1},
+        department_id=test_department.id,
+    )
+    await save_quarter_snapshot(
+        db_session,
+        f"{other_year}-Q1",
+        other_year,
+        1,
+        {"priority_risks": 1},
+        department_id=other_department.id,
+    )
+    await db_session.commit()
+
+    response = await client_department_head.get("/api/v1/dashboard/available-periods")
+    assert response.status_code == 200
+    years = response.json()["years"]
+    assert scoped_year in years
+    assert other_year not in years

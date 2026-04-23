@@ -1,11 +1,12 @@
 import { MemoryRouter } from 'react-router-dom';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestQueryClient } from '@test/queryClient';
 
 const fetchOverviewMock = vi.fn();
 const fetchDashboardSummaryMock = vi.fn();
+let canViewCommitteeMock = false;
 
 vi.mock('@/contexts/DashboardFilterContext', () => ({
     useDashboardFilters: () => ({
@@ -20,7 +21,7 @@ vi.mock('@/contexts/DashboardFilterContext', () => ({
 
 vi.mock('@/authz/useAuthz', () => ({
     useAuthz: () => ({
-        canViewCommittee: false,
+        canViewCommittee: canViewCommitteeMock,
     }),
 }));
 
@@ -78,6 +79,7 @@ function createWrapper() {
 describe('DashboardPage overview aggregation', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        canViewCommitteeMock = false;
         fetchOverviewMock.mockResolvedValue({
             summary: {
                 total_controls: 10,
@@ -120,5 +122,25 @@ describe('DashboardPage overview aggregation', () => {
         expect(fetchDashboardSummaryMock).not.toHaveBeenCalled();
         expect(screen.getByText('title')).toBeInTheDocument();
         expect(screen.getByText('issue summary')).toBeInTheDocument();
+    });
+
+    it('stops overview fetching when the committee view is active', async () => {
+        canViewCommitteeMock = true;
+
+        render(
+            <MemoryRouter>
+                <DashboardPage />
+            </MemoryRouter>,
+            { wrapper: createWrapper() },
+        );
+
+        await waitFor(() => expect(fetchOverviewMock).toHaveBeenCalledTimes(1));
+        await waitFor(() => expect(screen.queryByText('loading')).not.toBeInTheDocument());
+        fetchOverviewMock.mockClear();
+
+        fireEvent.click(screen.getByRole('button', { name: /views\.risk_committee/ }));
+
+        expect(await screen.findByText('committee')).toBeInTheDocument();
+        expect(fetchOverviewMock).not.toHaveBeenCalled();
     });
 });

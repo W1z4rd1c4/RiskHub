@@ -53,6 +53,7 @@ export function DashboardPage() {
         trends,
     } = useDashboardOverviewState({
         canReadIssues,
+        enabled: activeView === 'overview' || !canViewCommittee,
         filters,
         t,
     });

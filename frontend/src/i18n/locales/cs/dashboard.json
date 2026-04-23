@@ -110,7 +110,7 @@
     "no_data_available": "Data nejsou k dispozici",
     "vs": "vs",
     "last_quarter": "minulé čtvrtletí",
-    "no_snapshot_banner": "Pro období {{period}} není historický snapshot. Snapshotové metriky zobrazují pouze aktuální hodnoty.",
+    "no_snapshot_banner": "Pro období {{period}} není snapshot. Deltové porovnání snapshotových metrik není dostupné.",
     "no_snapshot_hint": "Chybí historický snapshot - porovnání není dostupné",
     "not_available": "N/A"
   },

@@ -54,6 +54,16 @@ export interface DashboardQuarterlyComparison {
         current_quarter: string;
         last_quarter: string;
         last_quarter_snapshot_available: boolean;
+        current_quarter_snapshot_available?: boolean;
+        missing_snapshot_quarters?: string[];
+        snapshot_sources?: {
+            current: 'live' | 'stored' | 'missing';
+            compare: 'stored' | 'missing';
+        };
+        missing_snapshot_metrics?: {
+            current: string[];
+            compare: string[];
+        };
         period_metrics: string[];
         snapshot_metrics: string[];
     };

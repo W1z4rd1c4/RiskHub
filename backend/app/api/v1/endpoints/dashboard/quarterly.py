@@ -2,12 +2,12 @@ import logging
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func, select
+from sqlalchemy import false, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
 from app.core.datetime_utils import utc_now
-from app.core.permissions import has_permission
+from app.core.permissions import get_user_department_ids, has_permission
 from app.db.session import get_db
 from app.models import Risk, User
 
@@ -79,21 +79,33 @@ async def get_available_periods(
     now = utc_now()
     current_quarter_label = get_quarter_label(now)
     current_year = now.year
+    current_quarter_number = ((now.month - 1) // 3) + 1
+    previous_quarter_year = current_year - 1 if current_quarter_number == 1 else current_year
+    dept_ids = get_user_department_ids(current_user)
 
     # Get distinct years from quarterly snapshots
-    snapshot_years_result = await db.execute(
-        select(QuarterlyMetricSnapshot.year.distinct()).order_by(QuarterlyMetricSnapshot.year)
-    )
+    snapshot_years_query = select(QuarterlyMetricSnapshot.year.distinct()).order_by(QuarterlyMetricSnapshot.year)
+    if dept_ids is None:
+        snapshot_years_query = snapshot_years_query.where(QuarterlyMetricSnapshot.department_id.is_(None))
+    elif dept_ids:
+        snapshot_years_query = snapshot_years_query.where(QuarterlyMetricSnapshot.department_id.in_(dept_ids))
+    else:
+        snapshot_years_query = snapshot_years_query.where(false())
+    snapshot_years_result = await db.execute(snapshot_years_query)
     snapshot_years = set(row[0] for row in snapshot_years_result.fetchall())
 
     # Get distinct years from risk creation dates
-    risk_years_result = await db.execute(
-        select(func.extract("year", Risk.created_at).distinct()).where(Risk.created_at.isnot(None))
-    )
+    risk_years_query = select(func.extract("year", Risk.created_at).distinct()).where(Risk.created_at.isnot(None))
+    if dept_ids is not None:
+        if dept_ids:
+            risk_years_query = risk_years_query.where(Risk.department_id.in_(dept_ids))
+        else:
+            risk_years_query = risk_years_query.where(false())
+    risk_years_result = await db.execute(risk_years_query)
     risk_years = set(int(row[0]) for row in risk_years_result.fetchall() if row[0])
 
     # Combine all years and include current year
-    all_years = sorted(snapshot_years | risk_years | {current_year})
+    all_years = sorted(snapshot_years | risk_years | {current_year, previous_quarter_year})
 
     return {
         "years": all_years,

@@ -9,7 +9,7 @@ while snapshot-based metrics are handled by snapshot_service.py.
 import logging
 import re
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Literal, Optional
 
 from dateutil.relativedelta import relativedelta
 from sqlalchemy import func, select
@@ -29,6 +29,28 @@ from app.models.control_execution import ControlExecution, ExecutionResult
 from app.models.risk import RiskStatus
 
 logger = logging.getLogger(__name__)
+
+PERIOD_METRICS = [
+    "new_risks",
+    "archived_risks",
+    "audit_activity",
+    "failed_audits",
+    "unaudited_controls",
+    "activity_volume",
+]
+
+SNAPSHOT_METRICS = [
+    "priority_risks",
+    "kri_breaches",
+    "pending_approvals",
+    "control_coverage",
+    "orphaned_items",
+    "kri_health",
+    "overdue_kris",
+    "risks_without_kri",
+    "active_risks",
+    "active_vendors",
+]
 
 
 def parse_quarter(quarter_str: str) -> datetime:
@@ -93,6 +115,18 @@ def calculate_quarter_boundaries(
         last_quarter_end = current_quarter_start
 
     return current_quarter_start, current_quarter_end, last_quarter_start, last_quarter_end
+
+
+def validate_quarter_selection(
+    now: datetime,
+    current_quarter_start: datetime,
+    last_quarter_start: datetime,
+) -> None:
+    actual_current_quarter_start = datetime(now.year, ((now.month - 1) // 3) * 3 + 1, 1, tzinfo=timezone.utc)
+    if current_quarter_start > actual_current_quarter_start:
+        raise ValueError("current_quarter cannot be in the future")
+    if last_quarter_start >= current_quarter_start:
+        raise ValueError("compare_quarter must be before current_quarter")
 
 
 async def get_quarter_period_metrics(
@@ -193,7 +227,7 @@ async def get_quarter_period_metrics(
 def calculate_changes(
     this_quarter: dict,
     last_quarter: dict,
-    snapshot_available: bool,
+    unavailable_snapshot_metrics: set[str],
 ) -> dict:
     """
     Calculate percentage and absolute changes between quarters.
@@ -201,39 +235,25 @@ def calculate_changes(
     Args:
         this_quarter: Metrics for current quarter
         last_quarter: Metrics for comparison quarter
-        snapshot_available: Whether historical snapshot exists
+        unavailable_snapshot_metrics: Snapshot metrics that cannot be compared truthfully
 
     Returns:
         Dict of changes per metric with absolute, percentage, and direction
     """
-    # Metrics that require historical snapshots for valid comparison
-    snapshot_metrics = {
-        "priority_risks",
-        "kri_breaches",
-        "pending_approvals",
-        "control_coverage",
-        "orphaned_items",
-        "kri_health",
-        "overdue_kris",
-        "risks_without_kri",
-        "active_risks",
-        "active_vendors",
-    }
-
     changes = {}
-    for key in this_quarter:
-        old_val = last_quarter.get(key, 0)
-        new_val = this_quarter[key]
-
-        # For snapshot metrics without historical data, don't show misleading changes
-        if key in snapshot_metrics and not snapshot_available:
+    metric_keys = set(this_quarter) | set(last_quarter) | unavailable_snapshot_metrics
+    for key in metric_keys:
+        # For snapshot metrics without a valid source on either side, don't show misleading changes.
+        if key in unavailable_snapshot_metrics:
             changes[key] = {
                 "absolute": 0,
                 "percentage": 0,
                 "direction": "unknown",
-                "note": "No historical snapshot available",
+                "note": "Snapshot unavailable for selected period",
             }
         else:
+            old_val = last_quarter.get(key, 0)
+            new_val = this_quarter.get(key, 0)
             if old_val == 0:
                 pct_change = 100 if new_val > 0 else 0
             else:
@@ -245,6 +265,34 @@ def calculate_changes(
             }
 
     return changes
+
+
+def _resolve_snapshot_department_id(dept_ids: list[int] | None) -> int | None | Literal["unavailable"]:
+    if dept_ids is None:
+        return None
+    if len(dept_ids) == 1:
+        return dept_ids[0]
+    return "unavailable"
+
+
+async def _resolve_snapshot_metrics(
+    db: AsyncSession,
+    *,
+    quarter_label: str,
+    is_live_current_quarter: bool,
+    dept_ids: list[int] | None,
+    snapshot_department_id: int | None | Literal["unavailable"],
+) -> tuple[dict, Literal["live", "stored", "missing"]]:
+    if snapshot_department_id == "unavailable":
+        return {}, "missing"
+
+    if is_live_current_quarter:
+        return await capture_snapshot_metrics(db, dept_ids), "live"
+
+    snapshot_record = await get_quarter_snapshot(db, quarter_label, department_id=snapshot_department_id)
+    if not snapshot_record:
+        return {}, "missing"
+    return snapshot_record.metrics, "stored"
 
 
 async def build_quarterly_comparison(
@@ -276,6 +324,7 @@ async def build_quarterly_comparison(
         last_quarter_start,
         last_quarter_end,
     ) = calculate_quarter_boundaries(now, current_quarter, compare_quarter)
+    validate_quarter_selection(now, current_quarter_start, last_quarter_start)
     effective_current_quarter_end = min(current_quarter_end, now)
 
     # Get period-based metrics for both quarters
@@ -286,39 +335,43 @@ async def build_quarterly_comparison(
 
     # Get snapshot metrics
     last_quarter_label = get_quarter_label(last_quarter_start)
-    current_quarter_label = get_quarter_label(now)
+    selected_current_quarter_label = get_quarter_label(current_quarter_start)
+    actual_current_quarter_label = get_quarter_label(now)
 
-    # Current quarter snapshot = live data
-    current_snapshot = await capture_snapshot_metrics(db, dept_ids)
+    snapshot_department_id = _resolve_snapshot_department_id(dept_ids)
+    is_live_current_quarter = selected_current_quarter_label == actual_current_quarter_label
 
-    # Last quarter snapshot = from stored snapshot (if available)
-    last_quarter_snapshot_record = await get_quarter_snapshot(db, last_quarter_label)
-    snapshot_available = last_quarter_snapshot_record is not None
-    last_quarter_snapshot = (
-        last_quarter_snapshot_record.metrics
-        if last_quarter_snapshot_record
-        else current_snapshot  # Fallback: same values = no change shown
+    current_snapshot, current_snapshot_source = await _resolve_snapshot_metrics(
+        db,
+        quarter_label=selected_current_quarter_label,
+        is_live_current_quarter=is_live_current_quarter,
+        dept_ids=dept_ids,
+        snapshot_department_id=snapshot_department_id,
+    )
+    last_quarter_snapshot, last_quarter_snapshot_source = await _resolve_snapshot_metrics(
+        db,
+        quarter_label=last_quarter_label,
+        is_live_current_quarter=False,
+        dept_ids=dept_ids,
+        snapshot_department_id=snapshot_department_id,
     )
 
     # Combine period and snapshot metrics
     this_quarter_combined = {**this_quarter_period, **current_snapshot}
     last_quarter_combined = {**last_quarter_period, **last_quarter_snapshot}
 
-    # Calculate changes
-    changes = calculate_changes(this_quarter_combined, last_quarter_combined, snapshot_available)
+    missing_snapshot_quarters = []
+    if current_snapshot_source == "missing":
+        missing_snapshot_quarters.append(selected_current_quarter_label)
+    if last_quarter_snapshot_source == "missing":
+        missing_snapshot_quarters.append(last_quarter_label)
 
-    # Snapshot metric names for response
-    snapshot_metric_names = {
-        "priority_risks",
-        "kri_breaches",
-        "pending_approvals",
-        "control_coverage",
-        "orphaned_items",
-        "kri_health",
-        "overdue_kris",
-        "risks_without_kri",
-        "active_risks",
-    }
+    missing_current_snapshot_metrics = {metric for metric in SNAPSHOT_METRICS if metric not in current_snapshot}
+    missing_compare_snapshot_metrics = {metric for metric in SNAPSHOT_METRICS if metric not in last_quarter_snapshot}
+    unavailable_snapshot_metrics = missing_current_snapshot_metrics | missing_compare_snapshot_metrics
+
+    # Calculate changes
+    changes = calculate_changes(this_quarter_combined, last_quarter_combined, unavailable_snapshot_metrics)
 
     return {
         "this_quarter": this_quarter_combined,
@@ -331,17 +384,20 @@ async def build_quarterly_comparison(
             "last_end": last_quarter_end.isoformat(),
         },
         "snapshot_info": {
-            "current_quarter": current_quarter_label,
+            "current_quarter": selected_current_quarter_label,
             "last_quarter": last_quarter_label,
-            "last_quarter_snapshot_available": snapshot_available,
-            "period_metrics": [
-                "new_risks",
-                "archived_risks",
-                "audit_activity",
-                "failed_audits",
-                "unaudited_controls",
-                "activity_volume",
-            ],
-            "snapshot_metrics": list(snapshot_metric_names),
+            "last_quarter_snapshot_available": last_quarter_snapshot_source != "missing",
+            "current_quarter_snapshot_available": current_snapshot_source != "missing",
+            "missing_snapshot_quarters": missing_snapshot_quarters,
+            "snapshot_sources": {
+                "current": current_snapshot_source,
+                "compare": last_quarter_snapshot_source,
+            },
+            "missing_snapshot_metrics": {
+                "current": sorted(missing_current_snapshot_metrics),
+                "compare": sorted(missing_compare_snapshot_metrics),
+            },
+            "period_metrics": PERIOD_METRICS,
+            "snapshot_metrics": SNAPSHOT_METRICS,
         },
     }

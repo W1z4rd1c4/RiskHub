@@ -16,6 +16,16 @@ interface SnapshotInfo {
     current_quarter: string;
     last_quarter: string;
     last_quarter_snapshot_available: boolean;
+    current_quarter_snapshot_available?: boolean;
+    missing_snapshot_quarters?: string[];
+    snapshot_sources?: {
+        current: 'live' | 'stored' | 'missing';
+        compare: 'stored' | 'missing';
+    };
+    missing_snapshot_metrics?: {
+        current: string[];
+        compare: string[];
+    };
     period_metrics: string[];
     snapshot_metrics: string[];
 }
@@ -82,6 +92,23 @@ function getPreviousQuarter(year: number, quarter: number): { year: number; quar
     return { year, quarter: quarter - 1 };
 }
 
+function quarterKey(year: number, quarter: number): number {
+    return year * 4 + quarter;
+}
+
+function isAfterQuarter(year: number, quarter: number, maxYear: number, maxQuarter: number): boolean {
+    return quarterKey(year, quarter) > quarterKey(maxYear, maxQuarter);
+}
+
+function isCompareQuarterInvalid(
+    compareYear: number,
+    compareQuarter: number,
+    currentYear: number,
+    currentQuarter: number,
+): boolean {
+    return quarterKey(compareYear, compareQuarter) >= quarterKey(currentYear, currentQuarter);
+}
+
 export function QuarterlyComparisonWidget() {
     const { t } = useTranslation('dashboard');
     const [data, setData] = useState<QuarterlyData | null>(null);
@@ -90,6 +117,8 @@ export function QuarterlyComparisonWidget() {
 
     // Available periods from backend
     const [availableYears, setAvailableYears] = useState<number[]>([]);
+    const [actualCurrentYear, setActualCurrentYear] = useState<number | null>(null);
+    const [actualCurrentQ, setActualCurrentQ] = useState<number | null>(null);
 
     // Selected periods - null means "use default"
     const [currentYear, setCurrentYear] = useState<number | null>(null);
@@ -144,6 +173,8 @@ export function QuarterlyComparisonWidget() {
 
                 // Parse current quarter from response and set defaults
                 const { year, quarter } = parseQuarterLabel(periods.current_quarter);
+                setActualCurrentYear(year);
+                setActualCurrentQ(quarter);
                 setCurrentYear(year);
                 setCurrentQ(quarter);
 
@@ -157,10 +188,12 @@ export function QuarterlyComparisonWidget() {
                 const now = new Date();
                 const year = now.getFullYear();
                 const quarter = Math.floor(now.getMonth() / 3) + 1;
-                setAvailableYears([year]);
+                const prev = getPreviousQuarter(year, quarter);
+                setAvailableYears(Array.from(new Set([prev.year, year])).sort((a, b) => a - b));
+                setActualCurrentYear(year);
+                setActualCurrentQ(quarter);
                 setCurrentYear(year);
                 setCurrentQ(quarter);
-                const prev = getPreviousQuarter(year, quarter);
                 setCompareYear(prev.year);
                 setCompareQ(prev.quarter);
             }
@@ -168,20 +201,75 @@ export function QuarterlyComparisonWidget() {
         void init();
     }, []);
 
+    useEffect(() => {
+        if (!actualCurrentYear || !actualCurrentQ || !currentYear || !currentQ) {
+            return;
+        }
+        if (isAfterQuarter(currentYear, currentQ, actualCurrentYear, actualCurrentQ)) {
+            setCurrentYear(actualCurrentYear);
+            setCurrentQ(actualCurrentQ);
+        }
+    }, [actualCurrentQ, actualCurrentYear, currentQ, currentYear]);
+
+    useEffect(() => {
+        if (!currentYear || !currentQ || !compareYear || !compareQ) {
+            return;
+        }
+        if (isCompareQuarterInvalid(compareYear, compareQ, currentYear, currentQ)) {
+            const prev = getPreviousQuarter(currentYear, currentQ);
+            setCompareYear(prev.year);
+            setCompareQ(prev.quarter);
+        }
+    }, [compareQ, compareYear, currentQ, currentYear]);
+
     // Fetch data when periods change
     useEffect(() => {
         if (currentYear && currentQ && compareYear && compareQ) {
+            if (actualCurrentYear && actualCurrentQ && isAfterQuarter(currentYear, currentQ, actualCurrentYear, actualCurrentQ)) {
+                return;
+            }
+            if (isCompareQuarterInvalid(compareYear, compareQ, currentYear, currentQ)) {
+                return;
+            }
             void fetchData();
         }
-    }, [currentYear, currentQ, compareYear, compareQ, fetchData]);
+    }, [actualCurrentQ, actualCurrentYear, currentYear, currentQ, compareYear, compareQ, fetchData]);
 
     // Year options for select
-    const yearOptions = useMemo(() =>
-        availableYears.map(y => ({ value: y.toString(), label: y.toString() })),
-        [availableYears]);
+    const yearOptions = useMemo(() => {
+        const years = new Set(availableYears);
+        if (currentYear) years.add(currentYear);
+        if (compareYear) years.add(compareYear);
+        return Array.from(years).sort((a, b) => a - b).map(y => ({ value: y.toString(), label: y.toString() }));
+    }, [availableYears, compareYear, currentYear]);
 
     // Quarter options
-    const quarterOptions = QUARTERS.map((q, i) => ({ value: (i + 1).toString(), label: q }));
+    const currentQuarterOptions = QUARTERS.map((q, i) => {
+        const quarter = i + 1;
+        return {
+            value: quarter.toString(),
+            label: q,
+            disabled: Boolean(
+                actualCurrentYear
+                && actualCurrentQ
+                && currentYear
+                && isAfterQuarter(currentYear, quarter, actualCurrentYear, actualCurrentQ)
+            ),
+        };
+    });
+    const compareQuarterOptions = QUARTERS.map((q, i) => {
+        const quarter = i + 1;
+        return {
+            value: quarter.toString(),
+            label: q,
+            disabled: Boolean(
+                compareYear
+                && currentYear
+                && currentQ
+                && isCompareQuarterInvalid(compareYear, quarter, currentYear, currentQ)
+            ),
+        };
+    });
 
     if (isLoading && !data) {
         return (
@@ -212,8 +300,13 @@ export function QuarterlyComparisonWidget() {
     }
 
     const metrics = Object.keys(metricLabels);
-    const snapshotAvailable = data?.snapshot_info?.last_quarter_snapshot_available ?? true;
+    const currentSnapshotAvailable = data?.snapshot_info?.current_quarter_snapshot_available ?? true;
+    const compareSnapshotAvailable = data?.snapshot_info?.last_quarter_snapshot_available ?? true;
+    const snapshotAvailable = currentSnapshotAvailable && compareSnapshotAvailable;
     const snapshotMetrics = new Set(data?.snapshot_info?.snapshot_metrics ?? []);
+    const missingSnapshotPeriods = data?.snapshot_info?.missing_snapshot_quarters ?? [];
+    const missingCurrentSnapshotMetrics = new Set(data?.snapshot_info?.missing_snapshot_metrics?.current ?? []);
+    const missingCompareSnapshotMetrics = new Set(data?.snapshot_info?.missing_snapshot_metrics?.compare ?? []);
 
     return (
         <motion.div
@@ -242,14 +335,18 @@ export function QuarterlyComparisonWidget() {
                     <ThemedSelect
                         value={currentQ?.toString() ?? '1'}
                         onValueChange={(v) => setCurrentQ(parseInt(v))}
-                        options={quarterOptions}
+                        options={currentQuarterOptions}
                         className="min-w-[70px]"
+                        triggerTestId="quarterly-current-quarter"
+                        optionTestIdPrefix="quarterly-current-quarter-option"
                     />
                     <ThemedSelect
                         value={currentYear?.toString() ?? ''}
                         onValueChange={(v) => setCurrentYear(parseInt(v))}
                         options={yearOptions}
                         className="min-w-[90px]"
+                        triggerTestId="quarterly-current-year"
+                        optionTestIdPrefix="quarterly-current-year-option"
                     />
                 </div>
 
@@ -263,14 +360,18 @@ export function QuarterlyComparisonWidget() {
                     <ThemedSelect
                         value={compareQ?.toString() ?? '4'}
                         onValueChange={(v) => setCompareQ(parseInt(v))}
-                        options={quarterOptions}
+                        options={compareQuarterOptions}
                         className="min-w-[70px]"
+                        triggerTestId="quarterly-compare-quarter"
+                        optionTestIdPrefix="quarterly-compare-quarter-option"
                     />
                     <ThemedSelect
                         value={compareYear?.toString() ?? ''}
                         onValueChange={(v) => setCompareYear(parseInt(v))}
                         options={yearOptions}
                         className="min-w-[90px]"
+                        triggerTestId="quarterly-compare-year"
+                        optionTestIdPrefix="quarterly-compare-year-option"
                     />
                 </div>
             </div>
@@ -281,7 +382,7 @@ export function QuarterlyComparisonWidget() {
                     <AlertTriangle className="h-4 w-4 text-amber-400 flex-shrink-0" />
                     <span className="text-xs text-amber-300">
                         {t('quarterly.no_snapshot_banner', {
-                            period: data?.snapshot_info?.last_quarter ?? t('quarterly.last_quarter'),
+                            period: missingSnapshotPeriods.join(', ') || data?.snapshot_info?.last_quarter || t('quarterly.last_quarter'),
                         })}
                     </span>
                 </div>
@@ -296,19 +397,27 @@ export function QuarterlyComparisonWidget() {
                         const lastVal = data.last_quarter?.[key] ?? null;
                         const change = data.changes?.[key];
 
-                        // Skip rendering if metric is completely missing
-                        if (thisVal === null && lastVal === null) {
-                            return null;
-                        }
-
                         // Handle missing change data
                         const direction = change?.direction ?? 'same';
                         const absolute = change?.absolute ?? 0;
                         const percentage = change?.percentage ?? 0;
                         const isSnapshotMetric = snapshotMetrics.has(key);
 
+                        // Skip rendering if metric is completely missing and not explicitly unavailable.
+                        if (thisVal === null && lastVal === null && direction !== 'unknown') {
+                            return null;
+                        }
+
                         const colorClass = getChangeColor(key, direction);
-                        const showUncertainty = isSnapshotMetric && !snapshotAvailable;
+                        const showCurrentUncertainty = isSnapshotMetric && (
+                            !currentSnapshotAvailable || missingCurrentSnapshotMetrics.has(key)
+                        );
+                        const showCompareUncertainty = isSnapshotMetric && (
+                            !compareSnapshotAvailable || missingCompareSnapshotMetrics.has(key)
+                        );
+                        const showUncertainty = showCurrentUncertainty || showCompareUncertainty;
+                        const displayThisVal = showCurrentUncertainty ? '—' : (thisVal ?? '—');
+                        const displayLastVal = showCompareUncertainty ? '—' : (lastVal ?? '—');
 
                         return (
                             <motion.div
@@ -328,8 +437,8 @@ export function QuarterlyComparisonWidget() {
                                     )}
                                 </div>
                                 <div className="flex items-end gap-2 mb-1">
-                                    <span className="text-2xl font-black text-white">{thisVal ?? '—'}</span>
-                                    <span className="text-xs text-slate-600 pb-1">vs {lastVal ?? '—'}</span>
+                                    <span className="text-2xl font-black text-white">{displayThisVal}</span>
+                                    <span className="text-xs text-slate-600 pb-1">vs {displayLastVal}</span>
                                 </div>
                                 <div className={`flex items-center gap-1 text-xs font-bold ${colorClass}`}>
                                     {direction === 'up' && <TrendingUp className="h-3 w-3" />}

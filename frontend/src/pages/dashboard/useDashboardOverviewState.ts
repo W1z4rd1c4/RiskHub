@@ -8,12 +8,14 @@ import { extractDashboardOverviewData } from './dashboardOverviewData';
 
 interface UseDashboardOverviewStateOptions {
     canReadIssues: boolean;
+    enabled?: boolean;
     filters: DashboardFilters;
     t: (key: string) => string;
 }
 
 export function useDashboardOverviewState({
     canReadIssues,
+    enabled = true,
     filters,
     t,
 }: UseDashboardOverviewStateOptions) {
@@ -28,6 +30,7 @@ export function useDashboardOverviewState({
         ],
         queryFn: ({ signal }) => dashboardApi.fetchOverview(filters, { signal }),
         pollMs: DASHBOARD_POLL_MS,
+        enabled,
     });
 
     const {

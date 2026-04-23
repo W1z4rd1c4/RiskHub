@@ -872,6 +872,16 @@ export const dashboardQuarterlyComparisonSchema: z.ZodType<DashboardQuarterlyCom
             current_quarter: z.string(),
             last_quarter: z.string(),
             last_quarter_snapshot_available: z.boolean(),
+            current_quarter_snapshot_available: z.boolean().optional(),
+            missing_snapshot_quarters: z.array(z.string()).optional(),
+            snapshot_sources: passthroughObject({
+                current: z.enum(['live', 'stored', 'missing']),
+                compare: z.enum(['stored', 'missing']),
+            }).optional(),
+            missing_snapshot_metrics: passthroughObject({
+                current: z.array(z.string()),
+                compare: z.array(z.string()),
+            }).optional(),
             period_metrics: z.array(z.string()),
             snapshot_metrics: z.array(z.string()),
         }).optional(),

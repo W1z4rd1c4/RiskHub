@@ -26,12 +26,11 @@ async def capture_quarterly_snapshot(
     This endpoint should be called at the end of each quarter to capture
     point-in-time state metrics for accurate historical comparisons.
     """
-    from app.core.snapshot_service import capture_current_quarter_snapshot
+    from app.core.snapshot_service import capture_current_quarter_snapshots_for_committee
 
-    # Capture snapshot
-    snapshot = await capture_current_quarter_snapshot(
+    # Capture global snapshot plus scoped department snapshots; return the global snapshot for API compatibility.
+    snapshot = await capture_current_quarter_snapshots_for_committee(
         db=db,
-        department_ids=None,  # Global snapshot
         captured_by_user_id=admin_user.id,
         notes=notes or f"Manual capture by {admin_user.name}",
     )
@@ -60,7 +59,9 @@ async def list_quarterly_snapshots(
     from app.models.quarterly_metric_snapshot import QuarterlyMetricSnapshot
 
     result = await db.execute(
-        select(QuarterlyMetricSnapshot).order_by(
+        select(QuarterlyMetricSnapshot)
+        .where(QuarterlyMetricSnapshot.department_id.is_(None))
+        .order_by(
             QuarterlyMetricSnapshot.year.desc(),
             QuarterlyMetricSnapshot.quarter_number.desc(),
         )
