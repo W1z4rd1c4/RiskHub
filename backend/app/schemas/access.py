@@ -64,8 +64,8 @@ class AccessUserUpdate(BaseModel):
     Schema for access-management updates.
 
     Backend policy:
-    - access fields are restricted to admin/CRO
-    - identity fields are restricted to platform Admin only
+    - name/email and Admin-role assignment are restricted to platform Admin
+    - department/manager/scope and non-admin role assignment are restricted to CRO
     """
 
     name: Optional[str] = None

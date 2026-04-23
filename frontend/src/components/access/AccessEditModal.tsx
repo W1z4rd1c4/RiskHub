@@ -1,7 +1,7 @@
 /**
  * AccessEditModal component for editing user access settings.
- * Privileged users can edit role, department, manager.
- * Admin/CRO can additionally edit access_scope.
+ * Backend authorization splits platform identity/Admin-role changes from
+ * CRO-owned business access changes.
  */
 import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
@@ -30,8 +30,10 @@ const SCOPE_OPTIONS: { value: AccessScopeEnum; labelKey: string; descriptionKey:
 ];
 
 export function AccessEditModal({ isOpen, onClose, user, onSaved }: AccessEditModalProps) {
-    const { canManagePrivileged, canEditAccessUsers, canManageUsers } = usePermissions();
+    const { canEditAccessUsers, canManageUsers } = usePermissions();
     const { t } = useTranslation(['common', 'admin', 'errorKeys']);
+    const canEditPlatformFields = canManageUsers;
+    const canEditBusinessFields = canEditAccessUsers && !canManageUsers;
 
     const [roles, setRoles] = useState<RoleWithPermissions[]>([]);
     const [departments, setDepartments] = useState<DepartmentSummary[]>([]);
@@ -51,12 +53,20 @@ export function AccessEditModal({ isOpen, onClose, user, onSaved }: AccessEditMo
 
     const loadData = useCallback(async () => {
         try {
-            const [rolesData, deptsData, usersData] = await Promise.all([
-                accessApi.listAccessRoles(),
-                departmentApi.getDepartments(),
-                accessApi.listAccessUsers(),
-            ]);
-            setRoles(rolesData);
+            const rolesData = await accessApi.listAccessRoles();
+            const [deptsData, usersData] = canEditBusinessFields
+                ? await Promise.all([
+                    departmentApi.getDepartments(),
+                    accessApi.listAccessUsers(),
+                ])
+                : [[], []];
+            setRoles(
+                rolesData.filter((role) => (
+                    canEditPlatformFields
+                        ? role.name === 'admin'
+                        : role.name !== 'admin'
+                ))
+            );
             setDepartments(deptsData);
             setAllUsers(usersData.filter((u) => u.is_active && u.id !== user?.id));
             setTimeout(() => setIsInitialized(true), 100);
@@ -66,7 +76,7 @@ export function AccessEditModal({ isOpen, onClose, user, onSaved }: AccessEditMo
             setErrorMessage(null);
             setIsInitialized(true);
         }
-    }, [user?.id]);
+    }, [canEditBusinessFields, canEditPlatformFields, user?.id]);
 
     useEffect(() => {
         if (isOpen && user) {
@@ -98,33 +108,33 @@ export function AccessEditModal({ isOpen, onClose, user, onSaved }: AccessEditMo
         try {
             const accessUpdate: AccessUserUpdate = {};
 
-            if (selectedRoleId !== user.role_id) {
+            if ((canEditPlatformFields || canEditBusinessFields) && selectedRoleId !== user.role_id) {
                 accessUpdate.role_id = selectedRoleId ?? undefined;
             }
-            if (selectedDeptId !== user.department_id) {
+            if (canEditBusinessFields && selectedDeptId !== user.department_id) {
                 accessUpdate.department_id = selectedDeptId;
             }
-            if (selectedManagerId !== user.manager_id) {
+            if (canEditBusinessFields && selectedManagerId !== user.manager_id) {
                 accessUpdate.manager_id = selectedManagerId;
             }
-            if (canManagePrivileged && selectedScope !== user.access_scope) {
+            if (canEditBusinessFields && selectedScope !== user.access_scope) {
                 accessUpdate.access_scope = selectedScope;
             }
 
-            if (canManageUsers && selectedName !== user.name) {
+            if (canEditPlatformFields && selectedName !== user.name) {
                 accessUpdate.name = selectedName;
             }
-            if (canManageUsers && selectedEmail !== user.email) {
+            if (canEditPlatformFields && selectedEmail !== user.email) {
                 accessUpdate.email = selectedEmail;
             }
 
             const hasChanges =
-                selectedRoleId !== user.role_id
-                || selectedDeptId !== user.department_id
-                || selectedManagerId !== user.manager_id
-                || (canManagePrivileged && selectedScope !== user.access_scope)
-                || (canManageUsers && selectedName !== user.name)
-                || (canManageUsers && selectedEmail !== user.email);
+                ((canEditPlatformFields || canEditBusinessFields) && selectedRoleId !== user.role_id)
+                || (canEditBusinessFields && selectedDeptId !== user.department_id)
+                || (canEditBusinessFields && selectedManagerId !== user.manager_id)
+                || (canEditBusinessFields && selectedScope !== user.access_scope)
+                || (canEditPlatformFields && selectedName !== user.name)
+                || (canEditPlatformFields && selectedEmail !== user.email);
 
             if (!hasChanges) {
                 onClose();
@@ -149,11 +159,11 @@ export function AccessEditModal({ isOpen, onClose, user, onSaved }: AccessEditMo
     };
 
     const hasChanges = user && (
-        (canManageUsers && (selectedName !== user.name || selectedEmail !== user.email)) ||
-        selectedRoleId !== user.role_id ||
-        selectedDeptId !== user.department_id ||
-        selectedManagerId !== user.manager_id ||
-        (canManagePrivileged && selectedScope !== user.access_scope)
+        (canEditPlatformFields && (selectedName !== user.name || selectedEmail !== user.email)) ||
+        ((canEditPlatformFields || canEditBusinessFields) && selectedRoleId !== user.role_id) ||
+        (canEditBusinessFields && selectedDeptId !== user.department_id) ||
+        (canEditBusinessFields && selectedManagerId !== user.manager_id) ||
+        (canEditBusinessFields && selectedScope !== user.access_scope)
     );
 
     if (!user) return null;
@@ -208,7 +218,7 @@ export function AccessEditModal({ isOpen, onClose, user, onSaved }: AccessEditMo
                                     animate={{ opacity: 1 }}
                                     className="space-y-6"
                                 >
-                                    {canManageUsers && (
+                                    {canEditPlatformFields && (
                                         <div className="space-y-3">
                                             <label className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
                                                 <UserCircle className="h-4 w-4 text-accent" />
@@ -247,67 +257,72 @@ export function AccessEditModal({ isOpen, onClose, user, onSaved }: AccessEditMo
                                         </div>
                                     )}
 
-                                    {/* Role Selection */}
-                                    <div className="space-y-3">
-                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                                            <Shield className="h-4 w-4 text-purple-400" />
-                                            {t('common:labels.role')}
-                                        </label>
-                                        <div className="grid grid-cols-2 gap-2">
-                                            {roles.map((role) => (
-                                                <button
-                                                    key={role.id}
-                                                    onClick={() => setSelectedRoleId(role.id)}
-                                                    className={`p-3 rounded-xl border text-left transition-all ${selectedRoleId === role.id
-                                                        ? 'bg-purple-500/10 border-purple-500'
-                                                        : 'bg-white/5 border-white/5 hover:bg-white/10'
-                                                        }`}
-                                                >
-                                                    <p className={`text-sm font-bold ${selectedRoleId === role.id ? 'text-purple-400' : 'text-white'}`}>
-                                                        {role.display_name}
-                                                    </p>
-                                                    <p className="text-[10px] text-slate-500">{t('access.modal.permissions_count', { ns: 'admin', count: role.permissions.length })}</p>
-                                                </button>
-                                            ))}
+                                    {(canEditPlatformFields || canEditBusinessFields) && roles.length > 0 && (
+                                        <div className="space-y-3">
+                                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                                <Shield className="h-4 w-4 text-purple-400" />
+                                                {t('common:labels.role')}
+                                            </label>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                {roles.map((role) => (
+                                                    <button
+                                                        key={role.id}
+                                                        onClick={() => setSelectedRoleId(role.id)}
+                                                        className={`p-3 rounded-xl border text-left transition-all ${selectedRoleId === role.id
+                                                            ? 'bg-purple-500/10 border-purple-500'
+                                                            : 'bg-white/5 border-white/5 hover:bg-white/10'
+                                                            }`}
+                                                    >
+                                                        <p className={`text-sm font-bold ${selectedRoleId === role.id ? 'text-purple-400' : 'text-white'}`}>
+                                                            {role.display_name}
+                                                        </p>
+                                                        <p className="text-[10px] text-slate-500">{t('access.modal.permissions_count', { ns: 'admin', count: role.permissions.length })}</p>
+                                                    </button>
+                                                ))}
+                                            </div>
                                         </div>
-                                    </div>
+                                    )}
 
                                     {/* Department Selection */}
-                                    <div className="space-y-3">
-                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                                            <Building2 className="h-4 w-4 text-blue-400" />
-                                            {t('common:labels.department')}
-                                        </label>
-                                        <ThemedSelect
-                                            value={selectedDeptId?.toString() ?? ''}
-                                            onValueChange={(v) => setSelectedDeptId(v ? Number(v) : null)}
-                                            placeholder={t('access.table.no_department', { ns: 'admin' })}
-                                            allowEmpty
-                                            emptyLabel={t('access.table.no_department', { ns: 'admin' })}
-                                            className="w-full"
-                                            options={departments.map(dept => ({ value: dept.id.toString(), label: dept.name }))}
-                                        />
-                                    </div>
+                                    {canEditBusinessFields && (
+                                        <div className="space-y-3">
+                                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                                <Building2 className="h-4 w-4 text-blue-400" />
+                                                {t('common:labels.department')}
+                                            </label>
+                                            <ThemedSelect
+                                                value={selectedDeptId?.toString() ?? ''}
+                                                onValueChange={(v) => setSelectedDeptId(v ? Number(v) : null)}
+                                                placeholder={t('access.table.no_department', { ns: 'admin' })}
+                                                allowEmpty
+                                                emptyLabel={t('access.table.no_department', { ns: 'admin' })}
+                                                className="w-full"
+                                                options={departments.map(dept => ({ value: dept.id.toString(), label: dept.name }))}
+                                            />
+                                        </div>
+                                    )}
 
                                     {/* Manager Selection */}
-                                    <div className="space-y-3">
-                                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                                            <User className="h-4 w-4 text-emerald-400" />
-                                            {t('access.modal.reports_to', { ns: 'admin' })}
-                                        </label>
-                                        <ThemedSelect
-                                            value={selectedManagerId?.toString() ?? ''}
-                                            onValueChange={(v) => setSelectedManagerId(v ? Number(v) : null)}
-                                            placeholder={t('access.modal.no_manager_top_level', { ns: 'admin' })}
-                                            allowEmpty
-                                            emptyLabel={t('access.modal.no_manager_top_level', { ns: 'admin' })}
-                                            className="w-full"
-                                            options={allUsers.map(u => ({ value: u.id.toString(), label: u.name }))}
-                                        />
-                                    </div>
+                                    {canEditBusinessFields && (
+                                        <div className="space-y-3">
+                                            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                                <User className="h-4 w-4 text-emerald-400" />
+                                                {t('access.modal.reports_to', { ns: 'admin' })}
+                                            </label>
+                                            <ThemedSelect
+                                                value={selectedManagerId?.toString() ?? ''}
+                                                onValueChange={(v) => setSelectedManagerId(v ? Number(v) : null)}
+                                                placeholder={t('access.modal.no_manager_top_level', { ns: 'admin' })}
+                                                allowEmpty
+                                                emptyLabel={t('access.modal.no_manager_top_level', { ns: 'admin' })}
+                                                className="w-full"
+                                                options={allUsers.map(u => ({ value: u.id.toString(), label: u.name }))}
+                                            />
+                                        </div>
+                                    )}
 
                                     {/* Access Scope (Admin/CRO only) */}
-                                    {canManagePrivileged && (
+                                    {canEditBusinessFields && (
                                         <div className="space-y-3">
                                             <label className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
                                                 <Crown className="h-4 w-4 text-amber-400" />

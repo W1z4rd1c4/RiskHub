@@ -24,7 +24,7 @@ async def delete_control(
 ):
     """
     Request deletion of a control.
-    - Risk Manager/CRO/Admin: deletes immediately (204)
+    - Users with approval-resolution authority: deletes immediately (204)
     - Others: creates approval request (202), item stays visible
     """
     from fastapi.responses import Response

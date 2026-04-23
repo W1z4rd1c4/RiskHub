@@ -283,14 +283,15 @@ export function UsersPage() {
     const displayDirectoryUsers = !isAccessMode ? filters.filteredDirectoryUsers : [];
 
     const showAccessStats = isAccessMode && !loadErrorKey;
+    const accessRoleOptions = [
+        ...(authz.isPlatformAdmin ? [{ value: 'admin', label: t('access.roles.admins') }] : []),
+        { value: 'cro', label: t('access.roles.cros') },
+        { value: 'risk_manager', label: t('access.roles.risk_managers') },
+        { value: 'department_head', label: t('access.roles.dept_heads') },
+        { value: 'employee', label: t('access.roles.control_owners') },
+    ];
     const roleOptions = isAccessMode
-        ? [
-            { value: 'admin', label: t('access.roles.admins') },
-            { value: 'cro', label: t('access.roles.cros') },
-            { value: 'risk_manager', label: t('access.roles.risk_managers') },
-            { value: 'department_head', label: t('access.roles.dept_heads') },
-            { value: 'employee', label: t('access.roles.control_owners') },
-        ]
+        ? accessRoleOptions
         : (directoryAvailableRoles ?? []).map((role) => ({
             value: role.name,
             label: role.display_name,
@@ -308,6 +309,7 @@ export function UsersPage() {
     const isDirectoryFirstMode = isAuthModeReady && authMode !== null && authMode !== 'password';
     const allowAuthModeActions = canManageUsers && isAuthModeReady;
     const directoryTotalPages = Math.max(1, Math.ceil(directoryTotal / DIRECTORY_PAGE_SIZE));
+    const accessStatsGridClass = authz.isPlatformAdmin ? 'md:grid-cols-4' : 'md:grid-cols-3';
 
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
@@ -363,7 +365,7 @@ export function UsersPage() {
             )}
 
             {showAccessStats && (
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className={`grid grid-cols-1 ${accessStatsGridClass} gap-4`}>
                     <div className="glass-card p-4 flex items-center gap-4">
                         <div className="bg-purple-500/20 p-3 rounded-xl">
                             <Users className="h-6 w-6 text-purple-400" />
@@ -391,15 +393,17 @@ export function UsersPage() {
                             <p className="text-2xl font-bold text-white">{privilegedCount}</p>
                         </div>
                     </div>
-                    <div className="glass-card p-4 flex items-center gap-4">
-                        <div className="bg-slate-500/20 p-3 rounded-xl">
-                            <Server className="h-6 w-6 text-slate-400" />
+                    {authz.isPlatformAdmin && (
+                        <div className="glass-card p-4 flex items-center gap-4">
+                            <div className="bg-slate-500/20 p-3 rounded-xl">
+                                <Server className="h-6 w-6 text-slate-400" />
+                            </div>
+                            <div>
+                                <p className="text-sm text-slate-400">{t('access.stats.sys_admins')}</p>
+                                <p className="text-2xl font-bold text-white">{users.filter(u => u.role.name === 'admin').length}</p>
+                            </div>
                         </div>
-                        <div>
-                            <p className="text-sm text-slate-400">{t('access.stats.sys_admins')}</p>
-                            <p className="text-2xl font-bold text-white">{users.filter(u => u.role.name === 'admin').length}</p>
-                        </div>
-                    </div>
+                    )}
                 </div>
             )}
 

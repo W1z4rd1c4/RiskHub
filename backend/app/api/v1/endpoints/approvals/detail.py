@@ -30,7 +30,7 @@ async def get_approval_request(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
 ):
-    """Get a single approval request for requester, primary approver, or privileged users."""
+    """Get a single approval request for requester, primary approver, or approval resolvers."""
     result = await db.execute(
         select(ApprovalRequest)
         .options(selectinload(ApprovalRequest.requested_by), selectinload(ApprovalRequest.resolved_by))
@@ -45,7 +45,7 @@ async def get_approval_request(
     is_primary_approver = approval.primary_approver_id == current_user.id
     is_privileged = can_resolve_approvals(current_user)
 
-    # Permission check: requester, primary approver, or privileged user
+    # Permission check: requester, primary approver, or approval resolver
     if not is_requester and not is_primary_approver and not is_privileged:
         raise HTTPException(status_code=403, detail="Access denied")
 

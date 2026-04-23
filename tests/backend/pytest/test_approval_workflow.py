@@ -356,7 +356,7 @@ class TestApprovalWorkflow:
         assert response.json()["status"] != "archived"
 
     async def test_privileged_immediate_bypass(self, client_cro: AsyncClient, test_risk):
-        """Test CRO/Admin can edit/delete immediately without approval."""
+        """Test approval resolvers can edit/delete immediately without approval."""
         response = await client_cro.patch(f"/api/v1/risks/{test_risk.id}", json={"category": "VIP Edit"})
         assert response.status_code == 200
         assert response.json()["category"] == "VIP Edit"

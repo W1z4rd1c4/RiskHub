@@ -1,8 +1,32 @@
 import pytest
-from httpx import AsyncClient
+import pytest_asyncio
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import Settings, get_settings
+from app.db.session import get_db
+from app.main import app
 from app.models import User
+
+
+@pytest_asyncio.fixture
+async def client_cro_sso(db_session: AsyncSession, test_user_cro: User):
+    async def override_get_db():
+        yield db_session
+
+    def override_settings():
+        return Settings(mock_auth_enabled=True, debug=True, auth_mode="microsoft_sso")
+
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_settings] = override_settings
+
+    transport = ASGITransport(app=app)
+    headers = {"X-Mock-User-Id": str(test_user_cro.id)}
+    async with AsyncClient(transport=transport, base_url="http://test", headers=headers) as ac:
+        yield ac
+
+    app.dependency_overrides.clear()
 
 
 @pytest.mark.asyncio
@@ -17,6 +41,69 @@ async def test_access_users_list_privileged(client_risk_manager: AsyncClient):
     assert response.status_code == 200
     data = response.json()
     assert isinstance(data, list)
+
+
+@pytest.mark.asyncio
+async def test_access_users_list_hides_admins_from_cro(
+    client_cro: AsyncClient,
+    test_user_platform_admin: User,
+):
+    response = await client_cro.get("/api/v1/access/users")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert test_user_platform_admin.id not in {item["id"] for item in data}
+    assert all(item["role"]["name"] != "admin" for item in data)
+
+
+@pytest.mark.asyncio
+async def test_department_access_users_list_hides_admins_from_non_admin(
+    client_cro: AsyncClient,
+    test_user_platform_admin: User,
+):
+    response = await client_cro.get("/api/v1/access/users/my-department")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert test_user_platform_admin.id not in {item["id"] for item in data}
+    assert all(item["role"]["name"] != "admin" for item in data)
+
+
+@pytest.mark.asyncio
+async def test_access_users_list_shows_admins_to_admin(
+    client_platform_admin: AsyncClient,
+    test_user_platform_admin: User,
+):
+    response = await client_platform_admin.get("/api/v1/access/users")
+
+    assert response.status_code == 200
+    data = response.json()
+    admin_rows = [item for item in data if item["id"] == test_user_platform_admin.id]
+    assert admin_rows
+    assert admin_rows[0]["role"]["name"] == "admin"
+
+
+@pytest.mark.asyncio
+async def test_access_roles_hides_admin_role_from_cro(
+    client_cro: AsyncClient,
+    test_role_platform_admin,
+):
+    response = await client_cro.get("/api/v1/access/roles")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert all(item["name"] != "admin" for item in data)
+
+
+@pytest.mark.asyncio
+async def test_access_roles_shows_admin_role_to_admin(
+    client_platform_admin: AsyncClient,
+):
+    response = await client_platform_admin.get("/api/v1/access/roles")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert any(item["name"] == "admin" for item in data)
 
 
 @pytest.mark.asyncio
@@ -49,7 +136,7 @@ async def test_access_users_list_includes_entra_business_role(
 
 
 @pytest.mark.asyncio
-async def test_access_update_rejects_non_admin_scope_change(
+async def test_access_update_rejects_non_cro_scope_change(
     client_risk_manager: AsyncClient,
     test_user_employee: User,
 ):
@@ -61,7 +148,7 @@ async def test_access_update_rejects_non_admin_scope_change(
 
 
 @pytest.mark.asyncio
-async def test_access_update_rejects_non_admin_department_change(
+async def test_access_update_rejects_non_cro_department_change(
     client_risk_manager: AsyncClient,
     test_user_employee: User,
 ):
@@ -73,7 +160,7 @@ async def test_access_update_rejects_non_admin_department_change(
 
 
 @pytest.mark.asyncio
-async def test_access_update_rejects_non_admin_manager_change(
+async def test_access_update_rejects_non_cro_manager_change(
     client_risk_manager: AsyncClient,
     test_user_employee: User,
     test_user: User,
@@ -86,7 +173,7 @@ async def test_access_update_rejects_non_admin_manager_change(
 
 
 @pytest.mark.asyncio
-async def test_access_update_rejects_non_admin_mixed_mutation_payload(
+async def test_access_update_rejects_non_cro_mixed_mutation_payload(
     client_risk_manager: AsyncClient,
     test_user_employee: User,
     test_user: User,
@@ -99,7 +186,7 @@ async def test_access_update_rejects_non_admin_mixed_mutation_payload(
 
 
 @pytest.mark.asyncio
-async def test_access_update_allows_admin_manager_change(
+async def test_access_update_rejects_admin_manager_change(
     auth_client: AsyncClient,
     test_user_employee: User,
     test_user: User,
@@ -108,15 +195,14 @@ async def test_access_update_allows_admin_manager_change(
         f"/api/v1/access/users/{test_user_employee.id}",
         json={"manager_id": test_user.id},
     )
-    assert response.status_code == 200
-    data = response.json()
-    assert data["manager_id"] == test_user.id
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Only CRO can update user business access fields"
 
 
 @pytest.mark.asyncio
-async def test_access_prevents_self_demotion(auth_client: AsyncClient, test_user: User):
-    response = await auth_client.patch(
-        f"/api/v1/access/users/{test_user.id}",
+async def test_access_prevents_self_scope_demotion(client_cro: AsyncClient, test_user_cro: User):
+    response = await client_cro.patch(
+        f"/api/v1/access/users/{test_user_cro.id}",
         json={"access_scope": "department"},
     )
     assert response.status_code == 400
@@ -165,7 +251,7 @@ async def test_access_update_allows_admin_combined_identity_and_access(
 
 @pytest.mark.asyncio
 async def test_access_update_ignores_entra_business_role_payload(
-    auth_client: AsyncClient,
+    client_cro: AsyncClient,
     db_session,
     test_user_employee: User,
 ):
@@ -173,7 +259,7 @@ async def test_access_update_ignores_entra_business_role_payload(
     db_session.add(test_user_employee)
     await db_session.commit()
 
-    response = await auth_client.patch(
+    response = await client_cro.patch(
         f"/api/v1/access/users/{test_user_employee.id}",
         json={"department_id": None, "entra_business_role": "Tampered Role"},
     )
@@ -213,6 +299,131 @@ async def test_access_update_allows_cro_access_only_mutation(
     assert response.status_code == 200
     data = response.json()
     assert data["access_scope"] == "manager"
+
+
+@pytest.mark.asyncio
+async def test_access_update_allows_cro_business_access_mutation(
+    client_cro: AsyncClient,
+    test_user_employee: User,
+    test_user: User,
+):
+    response = await client_cro.patch(
+        f"/api/v1/access/users/{test_user_employee.id}",
+        json={"department_id": None, "manager_id": test_user.id, "access_scope": "manager"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["department_id"] is None
+    assert data["manager_id"] == test_user.id
+    assert data["access_scope"] == "manager"
+
+
+@pytest.mark.asyncio
+async def test_access_update_allows_cro_sso_department_override(
+    client_cro_sso: AsyncClient,
+    db_session,
+    test_user_employee: User,
+):
+    test_user_employee.external_id = "entra-user-123"
+    db_session.add(test_user_employee)
+    await db_session.commit()
+
+    response = await client_cro_sso.patch(
+        f"/api/v1/access/users/{test_user_employee.id}",
+        json={"department_id": None},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["department_id"] is None
+
+
+@pytest.mark.asyncio
+async def test_access_update_rejects_cro_admin_role_assignment(
+    client_cro: AsyncClient,
+    test_user_employee: User,
+    test_role,
+):
+    response = await client_cro.patch(
+        f"/api/v1/access/users/{test_user_employee.id}",
+        json={"role_id": test_role.id},
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Only Admin can assign the Admin role"
+
+
+@pytest.mark.asyncio
+async def test_access_update_conceals_admin_target_from_cro(
+    client_cro: AsyncClient,
+    db_session,
+    test_user_platform_admin: User,
+    test_role_department_head,
+):
+    original_role_id = test_user_platform_admin.role_id
+
+    response = await client_cro.patch(
+        f"/api/v1/access/users/{test_user_platform_admin.id}",
+        json={"role_id": test_role_department_head.id},
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "User not found"
+
+    await db_session.refresh(test_user_platform_admin)
+    assert test_user_platform_admin.role_id == original_role_id
+
+
+@pytest.mark.asyncio
+async def test_access_update_rejects_admin_business_role_assignment(
+    auth_client: AsyncClient,
+    test_user_employee: User,
+    test_role_department_head,
+):
+    response = await auth_client.patch(
+        f"/api/v1/access/users/{test_user_employee.id}",
+        json={"role_id": test_role_department_head.id},
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Only CRO can assign business roles"
+
+
+@pytest.mark.asyncio
+async def test_access_update_allows_cro_business_role_assignment(
+    client_cro: AsyncClient,
+    test_user_employee: User,
+    test_role_department_head,
+):
+    response = await client_cro.patch(
+        f"/api/v1/access/users/{test_user_employee.id}",
+        json={"role_id": test_role_department_head.id},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["role"]["name"] == "department_head"
+
+
+@pytest.mark.asyncio
+async def test_access_update_rejects_admin_mixed_identity_and_business_payload(
+    auth_client: AsyncClient,
+    db_session,
+    test_user_employee: User,
+):
+    original_name = test_user_employee.name
+    original_department_id = test_user_employee.department_id
+
+    response = await auth_client.patch(
+        f"/api/v1/access/users/{test_user_employee.id}",
+        json={"name": "Should Not Persist", "department_id": None},
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Only CRO can update user business access fields"
+
+    await db_session.refresh(test_user_employee)
+    assert test_user_employee.name == original_name
+    assert test_user_employee.department_id == original_department_id
 
 
 @pytest.mark.asyncio
@@ -257,15 +468,16 @@ async def test_access_update_duplicate_email_rolls_back_access_changes(
 
 @pytest.mark.asyncio
 async def test_access_update_logs_combined_user_changes(
-    auth_client: AsyncClient,
+    client_cro: AsyncClient,
     db_session,
     test_user_employee: User,
+    test_user: User,
 ):
-    response = await auth_client.patch(
+    response = await client_cro.patch(
         f"/api/v1/access/users/{test_user_employee.id}",
         json={
-            "name": "Logged Employee",
             "department_id": None,
+            "manager_id": test_user.id,
         },
     )
 
@@ -282,5 +494,5 @@ async def test_access_update_logs_combined_user_changes(
     )
     entry = result.scalars().first()
     assert entry is not None
-    assert entry.changes["name"]["new"] == "[REDACTED]"
     assert entry.changes["department_id"]["new"] is None
+    assert entry.changes["manager_id"]["new"] == "[REDACTED]"

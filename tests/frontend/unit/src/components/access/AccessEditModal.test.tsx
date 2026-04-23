@@ -124,13 +124,14 @@ describe('AccessEditModal', () => {
         accessApiMocks.listAccessRoles.mockResolvedValue([
             makeRole(1, 'admin', 'Administrator'),
             makeRole(2, 'employee', 'Employee'),
+            makeRole(3, 'department_head', 'Department Head'),
         ]);
         accessApiMocks.listAccessUsers.mockResolvedValue([]);
         accessApiMocks.updateAccessUser.mockResolvedValue(makeAccessUser());
         departmentApiMocks.getDepartments.mockResolvedValue([]);
     });
 
-    it('submits one combined PATCH for identity and access edits', async () => {
+    it('submits platform fields and admin role assignment for Admin', async () => {
         const onClose = vi.fn();
         const onSaved = vi.fn();
 
@@ -146,6 +147,15 @@ describe('AccessEditModal', () => {
         const user = userEvent.setup();
         const nameInput = await screen.findByDisplayValue('Original User');
         const emailInput = screen.getByDisplayValue('user@riskhub.test');
+
+        expect(accessApiMocks.listAccessRoles).toHaveBeenCalledTimes(1);
+        expect(departmentApiMocks.getDepartments).not.toHaveBeenCalled();
+        expect(accessApiMocks.listAccessUsers).not.toHaveBeenCalled();
+        expect(screen.queryByRole('button', { name: /employee/i })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /department head/i })).not.toBeInTheDocument();
+        expect(screen.queryByLabelText(/department/i)).not.toBeInTheDocument();
+        expect(screen.queryByLabelText(/reports to/i)).not.toBeInTheDocument();
+        expect(screen.queryByText(/global/i)).not.toBeInTheDocument();
 
         await user.clear(nameInput);
         await user.type(nameInput, 'Updated User');
@@ -209,12 +219,18 @@ describe('AccessEditModal', () => {
         expect(screen.getByDisplayValue('duplicate@riskhub.test')).toBeInTheDocument();
     });
 
-    it('submits access-only edits for CRO without identity fields', async () => {
+    it('submits business access edits for CRO without platform fields or Admin role', async () => {
         currentPermissions = {
             canManagePrivileged: true,
             canEditAccessUsers: true,
             canManageUsers: false,
         };
+        departmentApiMocks.getDepartments.mockResolvedValue([
+            { id: 20, name: 'Finance' },
+        ]);
+        accessApiMocks.listAccessUsers.mockResolvedValue([
+            makeAccessUser({ id: 77, name: 'Manager User', email: 'manager@riskhub.test' }),
+        ]);
 
         const onClose = vi.fn();
         const onSaved = vi.fn();
@@ -232,12 +248,24 @@ describe('AccessEditModal', () => {
         await screen.findByText('Employee');
         expect(screen.queryByDisplayValue('Original User')).not.toBeInTheDocument();
         expect(screen.queryByDisplayValue('user@riskhub.test')).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /administrator/i })).not.toBeInTheDocument();
+        expect(accessApiMocks.listAccessRoles).toHaveBeenCalledTimes(1);
+        expect(departmentApiMocks.getDepartments).toHaveBeenCalledTimes(1);
+        expect(accessApiMocks.listAccessUsers).toHaveBeenCalledTimes(1);
 
-        await user.click(screen.getByRole('button', { name: /administrator/i }));
+        await user.click(screen.getByRole('button', { name: /department head/i }));
+        await user.selectOptions(screen.getByLabelText(/no department/i), '20');
+        await user.selectOptions(screen.getByLabelText(/no manager/i), '77');
+        await user.click(screen.getByText(/global/i));
         await user.click(screen.getByRole('button', { name: /save/i }));
 
         await waitFor(() => {
-            expect(accessApiMocks.updateAccessUser).toHaveBeenCalledWith(42, { role_id: 1 });
+            expect(accessApiMocks.updateAccessUser).toHaveBeenCalledWith(42, {
+                role_id: 3,
+                department_id: 20,
+                manager_id: 77,
+                access_scope: 'global',
+            });
         });
         expect(onSaved).toHaveBeenCalledTimes(1);
         expect(onClose).toHaveBeenCalledTimes(1);

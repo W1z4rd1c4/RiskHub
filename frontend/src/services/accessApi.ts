@@ -1,6 +1,7 @@
 /**
  * Access management API client.
- * Endpoints require privileged user access.
+ * Endpoints require privileged user access. The backend conceals platform
+ * Admin users and the Admin role from non-Admin callers.
  */
 import { apiClient } from './apiClient';
 import {
@@ -13,7 +14,8 @@ import type { AccessUserRead, AccessUserUpdate, AccessUserFilters, RoleWithPermi
 export const accessApi = {
     /**
      * List users for access management with optional filters.
-     * Requires privileged access.
+     * Requires privileged access. Non-Admin callers do not receive platform
+     * Admin users.
      */
     async listAccessUsers(filters?: AccessUserFilters): Promise<AccessUserRead[]> {
         const params: Record<string, string | number | boolean | undefined> = {};
@@ -43,7 +45,8 @@ export const accessApi = {
 
     /**
      * List roles with their permissions.
-     * Requires privileged access.
+     * Requires privileged access. Non-Admin callers do not receive the Admin
+     * role.
      */
     async listAccessRoles(): Promise<RoleWithPermissions[]> {
         return apiClient.get('/access/roles', { schema: roleWithPermissionsArraySchema });
@@ -52,7 +55,7 @@ export const accessApi = {
     /**
      * Update access management fields for a user.
      * Requires privileged access.
-     * Admin/CRO can edit access fields; Admin-only can include identity fields.
+     * Admin owns identity/Admin-role fields; CRO owns business access fields.
      */
     async updateAccessUser(userId: number, data: AccessUserUpdate): Promise<AccessUserRead> {
         return apiClient.patch(`/access/users/${userId}`, data, { schema: accessUserReadSchema });

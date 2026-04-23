@@ -76,7 +76,7 @@ Each user has an `access_scope` that determines data visibility:
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                    PRIVILEGED USERS                         │
-│  (access_scope = GLOBAL, can approve/reject requests)       │
+│  (access_scope = GLOBAL for business-data roles)            │
 │                                                             │
 │  CEO, CFO, CRO, Risk Manager, Compliance, Legal,           │
 │  Internal Audit, Actuarial                                  │
@@ -105,15 +105,16 @@ Access-management read/list behavior and write behavior are intentionally differ
 
 | Surface | Who Can Access | Notes |
 |---------|----------------|-------|
-| `GET /api/v1/access/users` | GLOBAL-scope users | Platform-wide list/read endpoint |
-| `GET /api/v1/access/users/my-department` | Department Head OR GLOBAL-scope users | Department-scoped list/read endpoint |
-| `PATCH /api/v1/access/users/{id}` | **Admin or CRO only** | Single transactional save for `/users` access modal. Admin/CRO may update access fields (`role_id`, `department_id`, `manager_id`, `access_scope`); Admin-only may also include identity fields (`name`, `email`). Validation failures reject the whole patch. |
+| `GET /api/v1/access/users` | GLOBAL-scope users | Platform-wide list/read endpoint. Platform Admin users are returned only to platform Admin callers; all non-Admin callers receive a business-user-only list. |
+| `GET /api/v1/access/users/my-department` | Department Head OR GLOBAL-scope users | Department-scoped list/read endpoint. Platform Admin users are excluded for non-Admin callers even when they share a department. |
+| `GET /api/v1/access/roles` | GLOBAL-scope users | Role option endpoint. The `admin` role is returned only to platform Admin callers. |
+| `PATCH /api/v1/access/users/{id}` | **Admin or CRO only** | Single transactional save for `/users` access modal. CRO owns business-access fields (`department_id`, `manager_id`, `access_scope`) and non-admin `role_id` assignment for non-Admin users, including department assignment. Admin owns platform identity/lifecycle fields (`name`, `email`, authentication/local-account lifecycle) and Admin-role assignment only. Non-Admin callers cannot target platform Admin users; unavailable Admin targets are concealed with not-found behavior. Validation failures reject the whole patch. |
 
 Additional identity-governance rule for `microsoft_sso` mode:
 
-- For users with `external_id`, the following fields are Entra-authoritative and cannot be edited locally: `name`, `email`, `department_id`.
+- For users with `external_id`, `name` and `email` are Entra-authoritative and cannot be edited locally.
 - `entra_business_role`, when configured, is also Entra-authoritative metadata. It is visible to the signed-in user and admin read surfaces, but it must not be used for RiskHub authorization.
-- Local `role_id`, `access_scope`, and `manager_id` remain RiskHub-authoritative in this release.
+- Local `role_id`, `department_id`, `access_scope`, and `manager_id` remain RiskHub-authoritative in this release. CRO may override `department_id` locally even for SSO-linked users.
 - If an externally linked user was auto-deprovisioned because the directory account is missing or disabled, normal local re-enable is blocked; operators must use the explicit break-glass flow with expiry and audit.
 
 > [!IMPORTANT]
@@ -228,7 +229,8 @@ Rules:
 | `is_system` | Boolean | System departments cannot be deleted |
 
 **Who Can Manage Departments:**
-- Only Admin and CRO can create/edit/delete departments
+- Only CRO can create/edit/delete departments through Risk Hub configuration
+- Admin is platform-only and must not create/edit/delete business departments
 - Manager assignment determines fallback approval authority
 
 ---
@@ -277,20 +279,18 @@ Rules:
 | Permission | Description | Typical Roles |
 |------------|-------------|---------------|
 | `risks:read` | View risks | All (scoped by department) |
-| `risks:write` | Create/edit risks | Risk Manager, Compliance |
-| `risks:delete` | Delete risks | Privileged only (via approval) |
+| `risks:write` | Create/edit risks and design/create/edit KRIs | CRO, Risk Manager |
+| `risks:delete` | Delete risks | CRO, Risk Manager |
 | `controls:read` | View controls | All (scoped) |
-| `controls:write` | Create/edit controls | Risk Manager, Dept Head |
-| `controls:delete` | Delete controls | Privileged only (via approval) |
+| `controls:write` | Create/edit controls | CRO, Risk Manager, Compliance, Actuarial, Dept Head |
+| `controls:delete` | Delete controls | CRO, Risk Manager |
 | `controls:execute` | Log control executions | CRO, Risk Manager, Compliance, Internal Audit, Actuarial, Department Head, Employee |
-| `kri:read` | View KRIs | All (scoped) |
-| `kri:write` | Create/edit KRIs | Risk Manager |
-| `kri:submit` | Submit KRI values | Reporting Owner, Risk Owner |
+| `kri:submit` | Submit KRI values | CRO, Risk Manager, Department Head, KRI Reporting Owner, Risk Owner fallback |
 | `approvals:read` | View approval queue | All |
-| `approvals:write` | Approve/reject requests | Privileged users only |
+| `approvals:write` | Approve/reject requests | CRO, Risk Manager |
 | `users:read` | View `/users` directory mode and user directory API | Admin, CRO, Risk Manager |
 | `users:write` | Create/edit users | Admin only |
-| `activity_log:read` | View activity log | CRO, Risk Manager, Compliance, Department Head |
+| `activity_log:read` | View activity log | CRO, Risk Manager, Department Head |
 | `vendors:read` | View vendors (Vendor Risk Management) | Governance + business users (scoped) |
 | `vendors:write` | Create/edit vendors | Outsourcing Owners, Risk Manager, Department Head |
 | `vendors:delete` | Archive vendors | Privileged users only |
@@ -323,14 +323,17 @@ Rules:
 
 ### 4.2 Role-Permission Grid
 
-| Role | risks:* | controls:* | kri:* | approvals:write | users:write | Risk Hub |
-|------|---------|------------|-------|-----------------|-------------|----------|
-| CRO | ✅ Full | ✅ Full | ✅ Full | ✅ | ❌ | ✅ **Configure** |
-| Risk Manager | ✅ Full | ✅ Full | ✅ Full | ✅ | ❌ | ❌ |
-| Compliance | ✅ Read | ✅ Read | ✅ Read | ✅ | ❌ | ❌ |
-| Dept Head | ✅ Dept | ✅ Dept | ✅ Dept | ❌ | ❌ | ❌ |
-| Employee | ✅ Dept R | ✅ Dept R | ✅ Dept R | ❌ | ❌ | ❌ |
-| Admin | ❌ | ❌ | ❌ | ❌ | ✅ | ❌ |
+| Role | Risks / KRI Design | Controls | KRI Values | Approvals | Users | Risk Hub / Departments |
+|------|--------------------|----------|------------|-----------|-------|------------------------|
+| CRO | Full | Full | Submit | Resolve | Read | Configure + department lifecycle |
+| Risk Manager | Full | Full | Submit | Resolve | Read | Read departments |
+| Compliance | Read | Read/write/execute | No seeded submit | No | No | Vendor contracts |
+| Internal Audit | Read | Read/execute | No seeded submit | No | No | Read departments |
+| Actuarial | Read | Read/write/execute | No seeded submit | No | No | No seeded department read |
+| Dept Head | Read | Read/write/execute | Submit | No | No | Read departments |
+| Employee | Read | Read/execute | No seeded submit | No | No | Read departments |
+| Viewer | Read | Read | No seeded submit | No | No | Read departments |
+| Admin | No business data | No business data | No | No | Write | Platform only, read departments |
 
 ---
 
@@ -379,7 +382,7 @@ Rules:
 | Stage | Approver | Condition |
 |-------|----------|-----------|
 | **Primary Approval** | Risk Owner or Department Head | Always required for non-privileged users |
-| **Privileged Approval** | CRO, Risk Manager, or other privileged user | Required if `requires_privileged_approval = true` |
+| **Privileged Approval** | CRO or Risk Manager | Required if `requires_privileged_approval = true` |
 
 **When is Privileged Approval Required?**
 - Risk has `is_priority = true`
@@ -411,7 +414,7 @@ KRI edit notes:
 
 ### 5.5 Pending Queue Semantics
 
-- Privileged users (`CRO`, `Risk Manager`, `Admin`) see pending statuses: `PENDING` + `PENDING_PRIVILEGED`.
+- Users with approval-resolution authority (`CRO`, `Risk Manager`) see pending statuses: `PENDING` + `PENDING_PRIVILEGED`.
 - Non-privileged users see pending items by combined predicate:
   - own requests with status in `{PENDING, PENDING_PRIVILEGED}`, plus
   - items where they are `primary_approver_id` and status is `PENDING`.
@@ -424,8 +427,8 @@ KRI edit notes:
 
 | Status | Who Can Cancel | Result |
 |--------|---------------|--------|
-| `PENDING` | Request creator OR privileged users | Status → `CANCELLED` |
-| `PENDING_PRIVILEGED` | Request creator OR privileged users | Status → `CANCELLED` |
+| `PENDING` | Request creator OR approval-resolution authority | Status → `CANCELLED` |
+| `PENDING_PRIVILEGED` | Request creator OR approval-resolution authority | Status → `CANCELLED` |
 | `APPROVED` / `REJECTED` / `CANCELLED` | No one | Cannot cancel terminal states |
 
 > [!NOTE]
@@ -529,15 +532,15 @@ Non-privileged users can access resources **outside their department** if they a
 |--------|----------------|-------------------|
 | Risk | Users with `risks:write` | Creator's department |
 | Control | Users with `controls:write` | Creator's department |
-| KRI | Users with `kri:write` | Inherits from linked Risk |
+| KRI | Users with `risks:write` | Inherits from linked Risk |
 
 ### 8.2 Who Can Delete (Archive) Entities
 
 | Entity | Archive Permission | Immediate Archive | Requires Approval |
 |--------|---------------------|-------------------|-------------------|
-| Risk | `risks:delete` | Privileged users | Non-privileged: creates ApprovalRequest |
-| Control | `controls:delete` | Privileged users | Non-privileged: creates ApprovalRequest |
-| KRI | `risks:delete` | Privileged users | Non-privileged: creates ApprovalRequest |
+| Risk | `risks:delete` | Users with approval-resolution authority | Non-resolvers: creates ApprovalRequest |
+| Control | `controls:delete` | Users with approval-resolution authority | Non-resolvers: creates ApprovalRequest |
+| KRI | `risks:delete` | Users with approval-resolution authority | Non-resolvers: creates ApprovalRequest |
 | Vendor | `vendors:delete` | Immediate | No |
 | Vendor SLA | `vendors:delete` | Immediate | No |
 
@@ -575,8 +578,8 @@ User requests action (DELETE or EDIT sensitive field)
                 │
                 ▼
 ┌───────────────────────────────────────┐
-│        Is user privileged?            │
-│    (access_scope = GLOBAL)            │
+│ Does user have approval-resolution    │
+│ authority?                            │
 └───────────────────┬───────────────────┘
                     │
         Yes ───────►│◄──────── No
@@ -613,9 +616,9 @@ User requests action (DELETE or EDIT sensitive field)
 
 | Submitter | Action | Approval Required |
 |-----------|--------|-------------------|
-| KRI Reporting Owner | Submit value | Only if linked risk is high-priority |
-| Risk Owner (fallback) | Submit value | Only if risk is high-priority |
-| Privileged User | Submit value | Never (immediate) |
+| KRI Reporting Owner | Submit value | Always creates approval; high-priority linked risks also require privileged follow-up |
+| Risk Owner (fallback) | Submit value | Always creates approval; high-priority linked risks also require privileged follow-up |
+| Approval resolver (CRO/Risk Manager) | Submit value | Never (immediate) |
 
 ### 8.6 Control Execution Logging
 
@@ -623,7 +626,7 @@ User requests action (DELETE or EDIT sensitive field)
 |--------|---------------------|------------------|
 | Control Owner | `controls:execute` | Can log own controls (cross-dept) |
 | Department Member | `controls:execute` | Department controls only |
-| Privileged User | `controls:execute` | All controls |
+| GLOBAL user with `controls:execute` | `controls:execute` | All controls |
 
 Default seeded roles with `controls:execute`: `cro`, `risk_manager`, `compliance`, `internal_audit`, `actuarial`, `department_head`, `employee`.
 The canonical RBAC seed contract and the idempotent permission-convergence script must stay aligned on that same role set.
@@ -636,6 +639,7 @@ Notification types are stable string keys shared across backend model, backend A
 - Approval workflow: `approval_pending`, `approval_resolved`, `approval_cancelled`
 - KRI deadlines/breaches: `kri_due_soon`, `kri_due_tomorrow`, `kri_overdue`, `kri_near_breach`, `kri_breach_detected`
 - Questionnaires: `questionnaire_sent`, `questionnaire_due_soon`, `questionnaire_overdue`, `questionnaire_submitted`, `questionnaire_clarification_requested`
+- Issues: `issue_assigned`, `issue_due_soon`, `issue_overdue`, `issue_exception_requested`, `issue_exception_approved`
 
 ---
 
@@ -657,6 +661,9 @@ All significant actions are logged to the `activity_logs` table for audit compli
 | VENDOR_INCIDENT | CREATE, UPDATE, STATUS_CHANGE |
 | VENDOR_SLA | CREATE, UPDATE, STATUS_CHANGE |
 | VENDOR_REMEDIATION | CREATE, UPDATE, STATUS_CHANGE |
+| ISSUE | CREATE, UPDATE, STATUS_CHANGE |
+| ISSUE_REMEDIATION | CREATE, UPDATE, STATUS_CHANGE |
+| ISSUE_EXCEPTION | CREATE, UPDATE, APPROVE, REJECT |
 
 ### 9.2 Change Tracking
 

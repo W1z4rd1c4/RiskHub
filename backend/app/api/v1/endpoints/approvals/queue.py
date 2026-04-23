@@ -147,7 +147,7 @@ async def list_approval_requests(
 ):
     """
     List approval requests.
-    - Privileged users (Risk Manager, CRO, Admin): see all requests
+    - Users with approval-resolution authority see all requests
     - Other users: see only their own requests
     """
     logger.info(

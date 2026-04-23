@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.permissions import can_read_kri_id, can_read_vendor_id
+from app.core.permissions import can_read_kri_id, can_read_risk_id, can_read_vendor_id
 from app.models import Department, KeyRiskIndicator, Permission, Risk, Role, RolePermission, User, Vendor
 from app.models.risk import RiskStatus
 from app.models.user import AccessScope
@@ -102,6 +102,65 @@ async def test_can_read_vendor_id_allows_owner_exception(
 
 
 @pytest.mark.asyncio
+async def test_can_read_risk_id_allows_direct_owner_exception(
+    db_session: AsyncSession,
+    other_department: Department,
+    dept_scoped_user_with_vendor_risk_read: User,
+):
+    risk = Risk(
+        risk_id_code="R-VIS-OWNER-001",
+        name="Other Dept Risk (direct owner)",
+        process="Test Process",
+        description="desc",
+        category="Test Category",
+        department_id=other_department.id,
+        owner_id=dept_scoped_user_with_vendor_risk_read.id,
+        risk_type="operational",
+        status=RiskStatus.active.value,
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=2,
+    )
+    db_session.add(risk)
+    await db_session.commit()
+    await db_session.refresh(risk)
+
+    allowed = await can_read_risk_id(db_session, dept_scoped_user_with_vendor_risk_read, risk.id)
+    assert allowed is True
+
+
+@pytest.mark.asyncio
+async def test_can_read_risk_id_blocks_out_of_scope_non_owner(
+    db_session: AsyncSession,
+    other_department: Department,
+    test_user: User,
+    dept_scoped_user_with_vendor_risk_read: User,
+):
+    risk = Risk(
+        risk_id_code="R-VIS-NONOWNER-001",
+        name="Other Dept Risk (non-owner)",
+        process="Test Process",
+        description="desc",
+        category="Test Category",
+        department_id=other_department.id,
+        owner_id=test_user.id,
+        risk_type="operational",
+        status=RiskStatus.active.value,
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=2,
+    )
+    db_session.add(risk)
+    await db_session.commit()
+    await db_session.refresh(risk)
+
+    allowed = await can_read_risk_id(db_session, dept_scoped_user_with_vendor_risk_read, risk.id)
+    assert allowed is False
+
+
+@pytest.mark.asyncio
 async def test_can_read_kri_id_blocks_out_of_scope_risk(
     db_session: AsyncSession,
     other_department: Department,
@@ -142,3 +201,45 @@ async def test_can_read_kri_id_blocks_out_of_scope_risk(
 
     allowed = await can_read_kri_id(db_session, dept_scoped_user_with_vendor_risk_read, kri.id)
     assert allowed is False
+
+
+@pytest.mark.asyncio
+async def test_can_read_kri_id_inherits_direct_risk_owner_exception(
+    db_session: AsyncSession,
+    other_department: Department,
+    dept_scoped_user_with_vendor_risk_read: User,
+):
+    risk = Risk(
+        risk_id_code="R-VIS-KRI-OWNER-001",
+        name="Other Dept Risk (KRI owner visibility)",
+        process="Test Process",
+        description="desc",
+        category="Test Category",
+        department_id=other_department.id,
+        owner_id=dept_scoped_user_with_vendor_risk_read.id,
+        risk_type="operational",
+        status=RiskStatus.active.value,
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=2,
+    )
+    db_session.add(risk)
+    await db_session.commit()
+    await db_session.refresh(risk)
+
+    kri = KeyRiskIndicator(
+        risk_id=risk.id,
+        metric_name="KRI owner visibility",
+        description="desc",
+        current_value=1.0,
+        lower_limit=0.0,
+        upper_limit=10.0,
+        unit="count",
+    )
+    db_session.add(kri)
+    await db_session.commit()
+    await db_session.refresh(kri)
+
+    allowed = await can_read_kri_id(db_session, dept_scoped_user_with_vendor_risk_read, kri.id)
+    assert allowed is True

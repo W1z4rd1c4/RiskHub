@@ -40,7 +40,7 @@ def assert_can_approve(
         if not is_privileged:
             raise HTTPException(
                 status_code=403,
-                detail="This request requires privileged user approval (CRO/Admin/Risk Manager)",
+                detail="This request requires approval-resolution authority",
             )
     else:
         raise HTTPException(

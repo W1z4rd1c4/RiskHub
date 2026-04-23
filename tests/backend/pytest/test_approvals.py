@@ -1676,7 +1676,7 @@ async def test_non_privileged_cannot_cancel_other_users_request(
         headers={"X-Mock-User-Id": str(user_b.id)},
     )
     assert cancel_response.status_code == 403
-    assert "privileged" in cancel_response.json()["detail"].lower()
+    assert "approval resolvers" in cancel_response.json()["detail"].lower()
 
 
 @pytest.mark.asyncio

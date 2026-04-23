@@ -13,7 +13,7 @@ async def can_read_risk_id(db, user: User, risk_id: int) -> bool:
     """
     Risk visibility rule:
     - Must have risks:read permission
-    - Must be in-scope by department OR be a KRI reporting owner OR control owner on the risk
+    - Must be in-scope by department OR directly own the risk OR be a KRI reporting owner OR control owner on the risk
     """
     if not has_permission(user, "risks", "read"):
         return False
@@ -27,10 +27,12 @@ async def can_read_risk_id(db, user: User, risk_id: int) -> bool:
 
     from app.models import Risk
 
-    row = (await db.execute(select(Risk.id, Risk.department_id).where(Risk.id == risk_id))).one_or_none()
+    row = (await db.execute(select(Risk.id, Risk.department_id, Risk.owner_id).where(Risk.id == risk_id))).one_or_none()
     if row is None:
         return False
-    _, dept_id = row
+    _, dept_id, owner_id = row
+    if owner_id == user.id:
+        return True
     return can_access_department_id(user, dept_id)
 
 

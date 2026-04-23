@@ -66,8 +66,8 @@ def can_resolve_approvals(user: User) -> bool:
     """
     Check if user can approve/reject approval requests.
 
-    Only privileged users with approvals:write can approve or reject
-    deletion requests.
+    Only global-scope users with approvals:write can approve or reject
+    approval requests.
     """
     return is_privileged_user(user) and has_permission(user, "approvals", "write")
 

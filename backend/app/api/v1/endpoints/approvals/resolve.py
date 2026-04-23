@@ -38,7 +38,7 @@ async def approve_request(
     Approve a pending request and execute the action.
 
     Tiered approval flow:
-    - Privileged users (CRO/Admin/Risk Manager): can approve any PENDING or PENDING_PRIVILEGED request.
+    - Users with approval-resolution authority can approve any PENDING or PENDING_PRIVILEGED request.
     - Primary approver (Risk Owner): can approve PENDING requests they own.
       If requires_privileged_approval, moves to PENDING_PRIVILEGED instead of applying.
     """
@@ -71,11 +71,11 @@ async def reject_request(
 ):
     """
     Reject a pending request.
-    Only Risk Manager, CRO, or Admin can reject.
+    Only users with approval-resolution authority can reject.
     Requires mandatory resolution_notes.
     """
     if not can_resolve_approvals(current_user):
-        raise HTTPException(status_code=403, detail="Only Risk Manager, CRO, or Admin can reject requests")
+        raise HTTPException(status_code=403, detail="Only authorized approval resolvers can reject requests")
 
     result = await db.execute(
         select(ApprovalRequest)
@@ -151,12 +151,12 @@ async def cancel_request(
     if not approval:
         raise HTTPException(status_code=404, detail="Approval request not found")
 
-    # §5.5: Request creator OR privileged users can cancel PENDING/PENDING_PRIVILEGED requests
+    # §5.5: Request creator OR approval resolvers can cancel PENDING/PENDING_PRIVILEGED requests
     is_requester = approval.requested_by_id == current_user.id
     is_privileged = can_resolve_approvals(current_user)
 
     if not is_requester and not is_privileged:
-        raise HTTPException(status_code=403, detail="Only the requester or privileged users can cancel requests")
+        raise HTTPException(status_code=403, detail="Only the requester or approval resolvers can cancel requests")
 
     if approval.status not in (ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED):
         raise HTTPException(status_code=400, detail=f"Cannot cancel request with status: {approval.status.value}")
@@ -223,7 +223,7 @@ async def get_pending_count(
 ):
     """
     Get count of pending approvals for badge display.
-    - Privileged users: count of all pending requests (PENDING + PENDING_PRIVILEGED)
+    - Approval resolvers: count of all pending requests (PENDING + PENDING_PRIVILEGED)
     - Non-privileged users: own requests in PENDING/PENDING_PRIVILEGED plus
       primary-approver requests in PENDING
     """
