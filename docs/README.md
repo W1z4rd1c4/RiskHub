@@ -1,7 +1,7 @@
 # RiskHub Documentation Index
 
 > **Version**: 1.4
-> **Last Updated**: 2026-03-29
+> **Last Updated**: 2026-04-23
 > **Audience**: Product, Engineering, QA, Operations
 
 This file is the primary documentation index for `docs/`.
@@ -20,6 +20,7 @@ This file is the primary documentation index for `docs/`.
 | Agent | Execution rules and AGENTS mappings | [`docs/agent/README.md`](./agent/README.md) |
 | Development | Local startup and Docker development workflows | [`docs/development/README.md`](./development/README.md) |
 | Security | Security policy, reports, and closure records | [`docs/security/README.md`](./security/README.md) |
+| Audits | Point-in-time audit records for specific integrations or operating areas | [`docs/audits/README.md`](./audits/README.md) |
 | Deployment | Runtime and production deployment guidance | [`docs/deployment/README.md`](./deployment/README.md) |
 | Reference | Reference inventories and legacy path maps | [`docs/reference/README.md`](./reference/README.md) |
 | Quality | Lint/debt baseline and ratchet references | [`docs/quality/README.md`](./quality/README.md) |

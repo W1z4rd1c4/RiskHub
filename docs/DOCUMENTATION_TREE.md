@@ -18,6 +18,7 @@ AGENTS.md
 │   ├── docs/agent/README.md
 │   ├── docs/development/README.md
 │   ├── docs/security/README.md
+│   ├── docs/audits/README.md
 │   ├── docs/deployment/README.md
 │   ├── docs/reference/README.md
 │   ├── docs/quality/README.md
@@ -45,6 +46,8 @@ AGENTS.md
 - Security posture and audits:
   - [`docs/security/README.md`](./security/README.md)
   - [`docs/security/SECURITY.md`](./security/SECURITY.md)
+- Point-in-time subsystem audits:
+  - [`docs/audits/README.md`](./audits/README.md)
 - Development startup and local workflows:
   - [`docs/development/README.md`](./development/README.md)
 - Documentation screenshots and support assets:
