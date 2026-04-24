@@ -5,12 +5,10 @@ import {
     ArrowLeft,
     Edit,
     Trash2,
-    FileText,
     History,
     XCircle,
     Plus,
     Target,
-    AlertCircle,
     RotateCcw
 } from 'lucide-react';
 import { controlApi } from '@/services/controlApi';
@@ -27,9 +25,12 @@ import { IssueQuickCreateModal } from '@/components/issues/IssueQuickCreateModal
 import { useAuth } from '@/contexts/AuthContext';
 import { useTranslation } from '@/i18n/hooks';
 import { getControlMonitoringMeta } from '@/lib/monitoringStatus';
-import { isApprovalCreatedResponse } from '@/types/approval';
 import { apiClient } from '@/services/apiClient';
 import { ControlDetailOverviewTab } from '@/pages/controls/ControlDetailOverviewTab';
+import { ContextualIssueAction } from '@/pages/detail/ContextualIssueAction';
+import { DetailActionBanner, type DetailActionMessage } from '@/pages/detail/DetailActionBanner';
+import { useArchiveRestoreAction } from '@/pages/detail/useArchiveRestoreAction';
+import { useDetailResource } from '@/pages/detail/useDetailResource';
 
 type TabView = 'overview' | 'history';
 
@@ -40,10 +41,7 @@ export function ControlDetailPage() {
     const { t } = useTranslation(['common', 'controls', 'errorKeys']);
     const { t: tIssues } = useTranslation('issues');
     const { user, hasPermission } = useAuth();
-    const [control, setControl] = useState<Control | null>(null);
     const [linkedRisks, setLinkedRisks] = useState<ControlRiskLink[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [errorKey, setErrorKey] = useState<string | null>(null);
     const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
     const [isLogModalOpen, setIsLogModalOpen] = useState(false);
     const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
@@ -54,8 +52,26 @@ export function ControlDetailPage() {
     const [isLoadingRisk, setIsLoadingRisk] = useState(false);
     const [linkedRisksErrorKey, setLinkedRisksErrorKey] = useState<string | null>(null);
     const [linkErrorKey, setLinkErrorKey] = useState<string | null>(null);
-    const [approvalMessage, setApprovalMessage] = useState<{ key: string; isError?: boolean } | null>(null);
+    const [approvalMessage, setApprovalMessage] = useState<DetailActionMessage | null>(null);
     const [isIssueModalOpen, setIsIssueModalOpen] = useState(false);
+
+    const loadControl = useCallback((controlId: number) => controlApi.getControl(controlId), []);
+    const {
+        errorKey,
+        isLoading,
+        refetch: fetchControl,
+        resource: control,
+        resourceId: controlId,
+    } = useDetailResource<Control>({
+        rawId: id,
+        load: loadControl,
+        toErrorKey: (error) => apiClient.toUiMessageKey(error),
+    });
+
+    const { runArchive, runRestore } = useArchiveRestoreAction({
+        setMessage: setApprovalMessage,
+        toErrorKey: (error) => apiClient.toUiMessageKey(error),
+    });
 
     useEffect(() => {
         const flash = (location.state as { controlFlash?: { message: string; tone: 'warn' } } | null)?.controlFlash;
@@ -66,79 +82,43 @@ export function ControlDetailPage() {
         void navigate(location.pathname, { replace: true });
     }, [location.pathname, location.state, navigate]);
 
-    const fetchControl = useCallback(async () => {
-        if (!id) return;
-        const ctrlId = parseInt(id);
-
-        try {
-            setIsLoading(true);
-            const ctrlData = await controlApi.getControl(ctrlId);
-            setControl(ctrlData);
-            setErrorKey(null);
-        } catch (err) {
-            console.error('Error fetching control details:', err);
-            setErrorKey(apiClient.toUiMessageKey(err));
-            setIsLoading(false);
-            return;
-        } finally {
-            setIsLoading(false);
-        }
-    }, [id]);
-
     const fetchLinkedRisks = useCallback(async () => {
-        if (!id) return;
-        const ctrlId = parseInt(id);
+        if (controlId === null) return;
 
         try {
-            const riskData = await controlApi.getLinkedRisks(ctrlId);
+            const riskData = await controlApi.getLinkedRisks(controlId);
             setLinkedRisks(riskData);
             setLinkedRisksErrorKey(null);
         } catch (err) {
             console.error('Error fetching linked risks:', err);
             setLinkedRisksErrorKey('controls:detail.linked_risks_load_failed');
         }
-    }, [id]);
+    }, [controlId]);
 
     useEffect(() => {
-        void fetchControl();
         void fetchLinkedRisks();
-    }, [fetchControl, fetchLinkedRisks]);
+    }, [fetchLinkedRisks]);
 
     const handleArchive = async (reason: string) => {
         if (!control) return;
-        try {
-            const response = await controlApi.deleteControl(control.id, reason);
-
-            // Check if the response indicates approval was required (202)
-            if (isApprovalCreatedResponse(response)) {
-                setApprovalMessage({
-                    key: 'controls:detail.archive_approval_submitted',
-                    isError: false,
-                });
-                setIsArchiveDialogOpen(false);
-                // Don't navigate away - show the approval message
-                return;
-            }
-
-            // Immediate archive (204) - navigate away
-            void navigate('/controls');
-        } catch (err) {
-            console.error('Archive failed:', err);
-            setApprovalMessage({ key: apiClient.toUiMessageKey(err), isError: true });
-        }
+        await runArchive({
+            archive: () => controlApi.deleteControl(control.id, reason),
+            approvalKey: 'controls:detail.archive_approval_submitted',
+            closeDialog: () => setIsArchiveDialogOpen(false),
+            onImmediate: () => navigate('/controls'),
+        });
     };
 
     const handleRestore = async () => {
         if (!control) return;
-        try {
-            await controlApi.restoreControl(control.id);
-            await fetchControl();
-            await fetchLinkedRisks();
-            setApprovalMessage({ key: 'controls:detail.control_restored', isError: false });
-        } catch (err) {
-            console.error('Restore failed:', err);
-            setApprovalMessage({ key: apiClient.toUiMessageKey(err), isError: true });
-        }
+        await runRestore({
+            restore: () => controlApi.restoreControl(control.id),
+            successKey: 'controls:detail.control_restored',
+            onRestored: async () => {
+                await fetchControl();
+                await fetchLinkedRisks();
+            },
+        });
     };
 
     const handleLinkRisk = async (riskId: number, effectiveness: ControlEffectiveness, notes?: string) => {
@@ -214,39 +194,27 @@ export function ControlDetailPage() {
     const archivedLinkedRisks = linkedRisks.filter((link) => link.risk?.status === 'archived');
     const monitoring = getControlMonitoringMeta(control.monitoring_status);
     const MonitoringIcon = monitoring.icon;
+    const actionMessageText = (key: string) => (
+        key.startsWith('errorKeys.')
+            ? t(key, { ns: 'errorKeys' })
+            : key.includes(':')
+                ? t(key)
+                : key
+    );
 
     return (
         <div className="space-y-8">
             {/* Approval/Error Message Banner */}
             {approvalMessage && (
-                <div className={`p-4 rounded-xl border flex items-start gap-3 ${approvalMessage.isError
-                    ? 'bg-rose-500/10 border-rose-500/20 text-rose-400'
-                    : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
-                    }`}>
-                    <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
-                    <div>
-                        <p className="text-sm font-medium">
-                            {approvalMessage.key.startsWith('errorKeys.')
-                                ? t(approvalMessage.key, { ns: 'errorKeys' })
-                                : approvalMessage.key.includes(':')
-                                    ? t(approvalMessage.key)
-                                    : approvalMessage.key}
-                        </p>
-                        {!approvalMessage.isError && (
-                            <p className="text-xs mt-1 opacity-75">
-                                {t('controls:detail.view_pending_approvals')}{' '}
-                                <button onClick={() => navigate('/approvals')} className="underline hover:no-underline">{t('navigation:tabs.approvals')}</button>
-                                {` ${t('controls:detail.section_suffix')}`}
-                            </p>
-                        )}
-                    </div>
-                    <button
-                        onClick={() => setApprovalMessage(null)}
-                        className="ml-auto text-current opacity-50 hover:opacity-100"
-                    >
-                        <XCircle className="h-4 w-4" />
-                    </button>
-                </div>
+                <DetailActionBanner
+                    approvalsLabel={t('navigation:tabs.approvals')}
+                    message={approvalMessage}
+                    messageText={actionMessageText(approvalMessage.key)}
+                    onClose={() => setApprovalMessage(null)}
+                    onNavigateApprovals={() => navigate('/approvals')}
+                    pendingText={t('controls:detail.view_pending_approvals')}
+                    sectionSuffix={t('controls:detail.section_suffix')}
+                />
             )}
 
             {/* Header / Breadcrumb */}
@@ -273,15 +241,16 @@ export function ControlDetailPage() {
                 </div>
 
                 <div className="flex items-center gap-3">
-                    <PermissionGate resource="issues" action="write">
-                        <button
-                            onClick={() => setIsIssueModalOpen(true)}
-                            className="px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-slate-300 hover:text-white hover:border-accent/50 transition-all flex items-center gap-2"
-                        >
-                            <FileText className="h-4 w-4" />
-                            {tIssues('actions.new_issue')}
-                        </button>
-                    </PermissionGate>
+                    <ContextualIssueAction
+                        buttonLabel={tIssues('actions.new_issue')}
+                        contextEntityId={control.id}
+                        contextEntityLabel={control.name}
+                        contextEntityType="control"
+                        isOpen={isIssueModalOpen}
+                        onClose={() => setIsIssueModalOpen(false)}
+                        onCreated={(issue) => navigate(`/issues/${issue.id}`)}
+                        onOpen={() => setIsIssueModalOpen(true)}
+                    />
                     {/* Edit button: show for controls:write OR control owner */}
                     {(hasPermission('controls', 'write') || control.control_owner_id === user?.id) && (
                         <button
@@ -404,15 +373,6 @@ export function ControlDetailPage() {
                 onConfirm={handleArchive}
                 resourceType="control"
                 resourceName={control.name}
-            />
-
-            <IssueQuickCreateModal
-                isOpen={isIssueModalOpen}
-                onClose={() => setIsIssueModalOpen(false)}
-                contextEntityType="control"
-                contextEntityId={control.id}
-                contextEntityLabel={control.name}
-                onCreated={(issue) => navigate(`/issues/${issue.id}`)}
             />
 
             {/* Global Loading Overlay for Risk Fetching */}

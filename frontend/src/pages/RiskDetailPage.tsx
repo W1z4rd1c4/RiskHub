@@ -26,10 +26,10 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { RiskDetailOverviewTab } from '@/components/risks/RiskDetailOverviewTab';
 import { RiskDetailKriHistoryTab } from '@/components/risks/RiskDetailKriHistoryTab';
 import { RiskDetailQuestionnairesTab } from '@/components/risks/RiskDetailQuestionnairesTab';
-import { IssueQuickCreateModal } from '@/components/issues/IssueQuickCreateModal';
 import { useTranslation } from '@/i18n/hooks';
 import { formatDateValue, formatMetricNumberValue } from '@/i18n/formatters';
 import { isApprovalCreatedResponse } from '@/types/approval';
+import { ContextualIssueAction } from '@/pages/detail/ContextualIssueAction';
 
 type TabView = 'overview' | 'history' | 'assessment';
 
@@ -326,15 +326,16 @@ export function RiskDetailPage() {
                 </div>
 
                 <div className="flex items-center gap-3">
-                    <PermissionGate resource="issues" action="write">
-                        <button
-                            onClick={() => setIsIssueModalOpen(true)}
-                            className="px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-slate-300 hover:text-white hover:border-accent/50 transition-all flex items-center gap-2"
-                        >
-                            <FileText className="h-4 w-4" />
-                            {tIssues('actions.new_issue')}
-                        </button>
-                    </PermissionGate>
+                    <ContextualIssueAction
+                        buttonLabel={tIssues('actions.new_issue')}
+                        contextEntityId={risk.id}
+                        contextEntityLabel={risk.name}
+                        contextEntityType="risk"
+                        isOpen={isIssueModalOpen}
+                        onClose={() => setIsIssueModalOpen(false)}
+                        onCreated={(issue) => navigate(`/issues/${issue.id}`)}
+                        onOpen={() => setIsIssueModalOpen(true)}
+                    />
                     <PermissionGate resource="risks" action="write">
                         <button
                             onClick={() => navigate(`/risks/${risk.id}/edit`)}
@@ -453,14 +454,6 @@ export function RiskDetailPage() {
                 inputPlaceholder={t('common:labels.archive_reason_placeholder')}
             />
 
-            <IssueQuickCreateModal
-                isOpen={isIssueModalOpen}
-                onClose={() => setIsIssueModalOpen(false)}
-                contextEntityType="risk"
-                contextEntityId={risk.id}
-                contextEntityLabel={risk.name}
-                onCreated={(issue) => navigate(`/issues/${issue.id}`)}
-            />
         </div>
     );
 }
