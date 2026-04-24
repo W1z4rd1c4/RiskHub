@@ -23,6 +23,7 @@ from app.models import (
     Vendor,
 )
 from app.services._kri_history.periods import latest_closed_period_for_date
+from tests.backend.pytest.factories import create_test_control, create_test_risk
 
 
 @pytest_asyncio.fixture
@@ -38,57 +39,39 @@ async def second_department(db_session: AsyncSession) -> Department:
 @pytest_asyncio.fixture
 async def test_control_other_dept(db_session: AsyncSession, second_department: Department, test_user: User) -> Control:
     """Create a control in a different department."""
-    control = Control(
-        name="Finance Control",
-        description="A control in Finance dept",
+    return await create_test_control(
+        db_session,
         department_id=second_department.id,
-        control_owner_id=test_user.id,
-        status="active",
+        owner_id=test_user.id,
+        name="Finance Control",
+        overrides={"description": "A control in Finance dept"},
     )
-    db_session.add(control)
-    await db_session.commit()
-    await db_session.refresh(control)
-    return control
 
 
 @pytest_asyncio.fixture
 async def test_control_own_dept(db_session: AsyncSession, test_department: Department, test_user: User) -> Control:
     """Create a control in the test user's department."""
-    control = Control(
-        name="Test Control",
-        description="A control in test dept",
+    return await create_test_control(
+        db_session,
         department_id=test_department.id,
-        control_owner_id=test_user.id,
-        status="active",
+        owner_id=test_user.id,
+        name="Test Control",
+        overrides={"description": "A control in test dept"},
     )
-    db_session.add(control)
-    await db_session.commit()
-    await db_session.refresh(control)
-    return control
 
 
 @pytest_asyncio.fixture
 async def test_risk_other_dept(db_session: AsyncSession, second_department: Department, test_user: User) -> Risk:
     """Create a risk in a different department."""
-    risk = Risk(
+    return await create_test_risk(
+        db_session,
         risk_id_code="FIN-R01",
-        name="Finance Risk",
-        process="Finance",
-        description="Finance risk",
-        category="Financial",
         department_id=second_department.id,
         owner_id=test_user.id,
-        risk_type="operational",
-        gross_probability=3,
-        gross_impact=3,
-        net_probability=2,
-        net_impact=2,
-        status="active",
+        name="Finance Risk",
+        process="Finance",
+        overrides={"category": "Financial", "description": "Finance risk"},
     )
-    db_session.add(risk)
-    await db_session.commit()
-    await db_session.refresh(risk)
-    return risk
 
 
 class TestReportPermissions:

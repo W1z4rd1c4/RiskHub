@@ -12,89 +12,54 @@ from sqlalchemy import select
 
 from app.models import ApprovalRequest, Department, KeyRiskIndicator, Risk, Vendor, VendorKRILink, VendorRiskLink
 from app.models.risk import RiskStatus
+from tests.backend.pytest.factories import create_test_kri, create_test_risk, create_test_vendor
 
 
 @pytest_asyncio.fixture
 async def test_risk_for_kri(db_session, test_department: Department, test_user):
     """Create a risk for KRI testing."""
-    risk = Risk(
+    return await create_test_risk(
+        db_session,
         risk_id_code="R-KRI-TEST-001",
-        name="KRI Test Risk",
-        process="KRI Test Process",
-        description="Risk for KRI permission testing",
         department_id=test_department.id,
         owner_id=test_user.id,
-        risk_type="operational",
-        gross_probability=3,
-        gross_impact=3,
-        net_probability=2,
-        net_impact=2,
-        status=RiskStatus.active.value,
+        name="KRI Test Risk",
+        process="KRI Test Process",
+        overrides={"description": "Risk for KRI permission testing"},
     )
-    db_session.add(risk)
-    await db_session.commit()
-    await db_session.refresh(risk)
-    return risk
 
 
 @pytest_asyncio.fixture
 async def test_kri(db_session, test_risk_for_kri: Risk):
     """Create a KRI for testing."""
-    kri = KeyRiskIndicator(
+    return await create_test_kri(
+        db_session,
         risk_id=test_risk_for_kri.id,
         metric_name="Test KRI",
-        description="Test KRI description",
-        unit="%",
-        current_value=50.0,
-        lower_limit=0.0,
-        upper_limit=100.0,
     )
-    db_session.add(kri)
-    await db_session.commit()
-    await db_session.refresh(kri)
-    return kri
 
 
 @pytest_asyncio.fixture
 async def test_vendor_for_kri(db_session, test_department: Department, test_user):
-    vendor = Vendor(
+    return await create_test_vendor(
+        db_session,
+        department_id=test_department.id,
+        owner_id=test_user.id,
         name="KRI Vendor Alpha",
         process="KRI Test Process",
-        department_id=test_department.id,
-        outsourcing_owner_user_id=test_user.id,
-        vendor_type="outsourcing",
-        risk_score_1_5=3,
-        supports_important_core_insurance_function=False,
-        dora_relevant=False,
-        is_significant_vendor=False,
-        has_alternative_providers=True,
-        status="active",
     )
-    db_session.add(vendor)
-    await db_session.commit()
-    await db_session.refresh(vendor)
-    return vendor
 
 
 @pytest_asyncio.fixture
 async def second_test_vendor_for_kri(db_session, test_department: Department, test_user):
-    vendor = Vendor(
+    return await create_test_vendor(
+        db_session,
+        department_id=test_department.id,
+        owner_id=test_user.id,
         name="KRI Vendor Beta",
         process="KRI Test Process",
-        department_id=test_department.id,
-        outsourcing_owner_user_id=test_user.id,
-        vendor_type="outsourcing",
-        risk_score_1_5=2,
-        supports_important_core_insurance_function=False,
-        dora_relevant=False,
-        is_significant_vendor=False,
-        has_alternative_providers=True,
-        status="active",
+        overrides={"risk_score_1_5": 2},
     )
-    db_session.add(vendor)
-    await db_session.commit()
-    await db_session.refresh(vendor)
-    return vendor
 
 
 @pytest.mark.asyncio
