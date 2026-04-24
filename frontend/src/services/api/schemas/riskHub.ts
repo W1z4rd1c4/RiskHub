@@ -83,6 +83,12 @@ export const riskHubPermissionReadSchema: z.ZodType<PermissionRead> = passthroug
 });
 export const riskHubPermissionReadArraySchema = z.array(riskHubPermissionReadSchema);
 
+const riskHubActionCapabilitiesSchema = passthroughObject({
+    can_update: z.boolean(),
+    can_delete: z.boolean(),
+    can_restore: z.boolean(),
+});
+
 export const roleHubReadSchema: z.ZodType<RoleHubRead> = passthroughObject({
     id: z.number(),
     name: z.string(),
@@ -92,6 +98,7 @@ export const roleHubReadSchema: z.ZodType<RoleHubRead> = passthroughObject({
     is_active: z.boolean(),
     user_count: z.number(),
     permissions: stringArraySchema,
+    capabilities: riskHubActionCapabilitiesSchema.nullable().optional(),
 });
 export const roleHubReadArraySchema = z.array(roleHubReadSchema);
 
@@ -105,6 +112,7 @@ export const departmentHubReadSchema: z.ZodType<DepartmentHubRead> = passthrough
     user_count: z.number(),
     risk_count: z.number(),
     control_count: z.number(),
+    capabilities: riskHubActionCapabilitiesSchema.nullable().optional(),
 });
 export const departmentHubReadArraySchema = z.array(departmentHubReadSchema);
 

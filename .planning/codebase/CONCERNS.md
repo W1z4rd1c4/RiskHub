@@ -62,6 +62,7 @@
 
 - Keep explicit regression tests on approval execution and timezone-sensitive writes
 - Validate RBAC/workflow changes with both API and UI-gating/capability tests
+- Access-management and Risk Hub config changes need extra care: access-user responses carry backend capability flags, role permission replacement must validate all new permission IDs before deleting existing mappings, and department delete checks must include users, risks, controls, KRIs, vendors, and pending orphans.
 - Prefer incremental decomposition of oversized endpoint modules during feature work
 - Periodically reconcile seed scripts with `docs/BUSINESS_LOGIC.md`
 

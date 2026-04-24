@@ -10,6 +10,7 @@ from app.models import User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.models.role import RoleType
 from app.schemas.riskhub import RoleHubCreate, RoleHubRead, RoleHubUpdate
+from app.services._riskhub_config import load_role_for_update, role_to_read, validate_permission_ids
 
 from ._shared import get_cro_user
 
@@ -41,16 +42,7 @@ async def list_roles(
     roles = result.scalars().unique().all()
 
     return [
-        RoleHubRead(
-            id=r.id,
-            name=r.name,
-            display_name=r.display_name,
-            description=r.description,
-            is_system=r.is_system,
-            is_active=r.is_active,
-            user_count=len([u for u in r.users if u.is_active]),
-            permissions=[f"{rp.permission.resource}:{rp.permission.action}" for rp in r.permissions],
-        )
+        role_to_read(r)
         for r in roles
     ]
 
@@ -62,12 +54,13 @@ async def create_role(
     cro_user: User = Depends(get_cro_user),
 ) -> RoleHubRead:
     """Create a new role. CRO only."""
-    from app.models.role import Permission, Role, RolePermission
+    from app.models.role import Role, RolePermission
 
     # Check for duplicate name
     existing = await db.execute(select(Role).where(Role.name == data.name))
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail=f"Role name '{data.name}' already exists")
+    permissions = await validate_permission_ids(db, data.permission_ids)
 
     role = Role(
         name=data.name,
@@ -79,17 +72,9 @@ async def create_role(
     db.add(role)
     await db.flush()  # Get the role ID
 
-    # Add permissions (with validation)
-    if data.permission_ids:
-        perms_result = await db.execute(select(Permission).where(Permission.id.in_(data.permission_ids)))
-        permissions = perms_result.scalars().all()
-        found_ids = {p.id for p in permissions}
-        missing_ids = set(data.permission_ids) - found_ids
-        if missing_ids:
-            raise HTTPException(status_code=400, detail=f"Unknown permission IDs: {sorted(missing_ids)}")
-        for perm in permissions:
-            role_perm = RolePermission(role_id=role.id, permission_id=perm.id)
-            db.add(role_perm)
+    for perm in permissions:
+        role_perm = RolePermission(role_id=role.id, permission_id=perm.id)
+        db.add(role_perm)
 
     await db.commit()
 
@@ -113,16 +98,7 @@ async def create_role(
     )
     await db.commit()
 
-    return RoleHubRead(
-        id=role.id,
-        name=role.name,
-        display_name=role.display_name,
-        description=role.description,
-        is_system=role.is_system,
-        is_active=role.is_active,
-        user_count=0,
-        permissions=[f"{rp.permission.resource}:{rp.permission.action}" for rp in role.permissions],
-    )
+    return role_to_read(role, user_count=0)
 
 
 @router.patch("/roles/{id}", response_model=RoleHubRead)
@@ -133,20 +109,9 @@ async def update_role(
     cro_user: User = Depends(get_cro_user),
 ) -> RoleHubRead:
     """Update a role. CRO only."""
-    from app.models.role import Permission, Role, RolePermission
+    from app.models.role import RolePermission
 
-    result = await db.execute(
-        select(Role)
-        .options(
-            selectinload(Role.permissions).selectinload(RolePermission.permission),
-            selectinload(Role.users),
-        )
-        .where(Role.id == id)
-    )
-    role = result.scalar_one_or_none()
-
-    if not role:
-        raise HTTPException(status_code=404, detail="Role not found")
+    role = await load_role_for_update(db, id)
 
     # Core system roles are immutable
     if role.name in {RoleType.CRO, RoleType.ADMIN, RoleType.VIEWER}:
@@ -163,20 +128,13 @@ async def update_role(
 
     # Update permissions if provided
     if data.permission_ids is not None:
+        permissions = await validate_permission_ids(db, data.permission_ids)
         # Clear existing permissions
         await db.execute(RolePermission.__table__.delete().where(RolePermission.role_id == role.id))
 
-        # Add new permissions (with validation)
-        if data.permission_ids:
-            perms_result = await db.execute(select(Permission).where(Permission.id.in_(data.permission_ids)))
-            permissions = perms_result.scalars().all()
-            found_ids = {p.id for p in permissions}
-            missing_ids = set(data.permission_ids) - found_ids
-            if missing_ids:
-                raise HTTPException(status_code=400, detail=f"Unknown permission IDs: {sorted(missing_ids)}")
-            for perm in permissions:
-                role_perm = RolePermission(role_id=role.id, permission_id=perm.id)
-                db.add(role_perm)
+        for perm in permissions:
+            role_perm = RolePermission(role_id=role.id, permission_id=perm.id)
+            db.add(role_perm)
 
     await db.commit()
 
@@ -203,16 +161,7 @@ async def update_role(
     )
     await db.commit()
 
-    return RoleHubRead(
-        id=role.id,
-        name=role.name,
-        display_name=role.display_name,
-        description=role.description,
-        is_system=role.is_system,
-        is_active=role.is_active,
-        user_count=len([u for u in role.users if u.is_active]),
-        permissions=[f"{rp.permission.resource}:{rp.permission.action}" for rp in role.permissions],
-    )
+    return role_to_read(role)
 
 
 @router.delete("/roles/{id}")
@@ -222,13 +171,7 @@ async def delete_role(
     cro_user: User = Depends(get_cro_user),
 ) -> dict:
     """Soft-delete a role. CRO only. Cannot delete system roles or roles with users."""
-    from app.models.role import Role
-
-    result = await db.execute(select(Role).options(selectinload(Role.users)).where(Role.id == id))
-    role = result.scalar_one_or_none()
-
-    if not role:
-        raise HTTPException(status_code=404, detail="Role not found")
+    role = await load_role_for_update(db, id)
 
     # Protected roles cannot be deleted
     if role.is_system or role.name in PROTECTED_SYSTEM_ROLES:
@@ -272,17 +215,7 @@ async def restore_role(
     cro_user: User = Depends(get_cro_user),
 ) -> RoleHubRead:
     """Restore a soft-deleted role. CRO only."""
-    from app.models.role import Role, RolePermission
-
-    result = await db.execute(
-        select(Role)
-        .options(selectinload(Role.permissions).selectinload(RolePermission.permission))
-        .where(Role.id == id)
-    )
-    role = result.scalar_one_or_none()
-
-    if not role:
-        raise HTTPException(status_code=404, detail="Role not found")
+    role = await load_role_for_update(db, id)
 
     if role.is_active:
         raise HTTPException(status_code=400, detail="Role is not deleted")
@@ -305,13 +238,4 @@ async def restore_role(
     )
     await db.commit()
 
-    return RoleHubRead(
-        id=role.id,
-        name=role.name,
-        display_name=role.display_name,
-        description=role.description,
-        is_system=role.is_system,
-        is_active=role.is_active,
-        user_count=0,
-        permissions=[f"{rp.permission.resource}:{rp.permission.action}" for rp in role.permissions],
-    )
+    return role_to_read(role, user_count=0)

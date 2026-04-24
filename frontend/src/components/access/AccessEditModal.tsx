@@ -32,8 +32,9 @@ const SCOPE_OPTIONS: { value: AccessScopeEnum; labelKey: string; descriptionKey:
 export function AccessEditModal({ isOpen, onClose, user, onSaved }: AccessEditModalProps) {
     const { canEditAccessUsers, canManageUsers } = usePermissions();
     const { t } = useTranslation(['common', 'admin', 'errorKeys']);
-    const canEditPlatformFields = canManageUsers;
-    const canEditBusinessFields = canEditAccessUsers && !canManageUsers;
+    const canEditPlatformFields = user?.capabilities?.can_edit_identity ?? canManageUsers;
+    const canEditBusinessFields = user?.capabilities?.can_edit_business_access ?? (canEditAccessUsers && !canManageUsers);
+    const canEditRole = user?.capabilities?.can_edit_role ?? (canEditPlatformFields || canEditBusinessFields);
 
     const [roles, setRoles] = useState<RoleWithPermissions[]>([]);
     const [departments, setDepartments] = useState<DepartmentSummary[]>([]);
@@ -108,7 +109,7 @@ export function AccessEditModal({ isOpen, onClose, user, onSaved }: AccessEditMo
         try {
             const accessUpdate: AccessUserUpdate = {};
 
-            if ((canEditPlatformFields || canEditBusinessFields) && selectedRoleId !== user.role_id) {
+            if (canEditRole && selectedRoleId !== user.role_id) {
                 accessUpdate.role_id = selectedRoleId ?? undefined;
             }
             if (canEditBusinessFields && selectedDeptId !== user.department_id) {
@@ -129,7 +130,7 @@ export function AccessEditModal({ isOpen, onClose, user, onSaved }: AccessEditMo
             }
 
             const hasChanges =
-                ((canEditPlatformFields || canEditBusinessFields) && selectedRoleId !== user.role_id)
+                (canEditRole && selectedRoleId !== user.role_id)
                 || (canEditBusinessFields && selectedDeptId !== user.department_id)
                 || (canEditBusinessFields && selectedManagerId !== user.manager_id)
                 || (canEditBusinessFields && selectedScope !== user.access_scope)
@@ -160,7 +161,7 @@ export function AccessEditModal({ isOpen, onClose, user, onSaved }: AccessEditMo
 
     const hasChanges = user && (
         (canEditPlatformFields && (selectedName !== user.name || selectedEmail !== user.email)) ||
-        ((canEditPlatformFields || canEditBusinessFields) && selectedRoleId !== user.role_id) ||
+        (canEditRole && selectedRoleId !== user.role_id) ||
         (canEditBusinessFields && selectedDeptId !== user.department_id) ||
         (canEditBusinessFields && selectedManagerId !== user.manager_id) ||
         (canEditBusinessFields && selectedScope !== user.access_scope)
@@ -257,7 +258,7 @@ export function AccessEditModal({ isOpen, onClose, user, onSaved }: AccessEditMo
                                         </div>
                                     )}
 
-                                    {(canEditPlatformFields || canEditBusinessFields) && roles.length > 0 && (
+                                    {canEditRole && roles.length > 0 && (
                                         <div className="space-y-3">
                                             <label className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
                                                 <Shield className="h-4 w-4 text-purple-400" />

@@ -3,6 +3,7 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models import User, Vendor
 from app.models.department import Department
 
 
@@ -123,3 +124,64 @@ async def test_update_department_same_code_allowed(
     response = await client_cro.patch(f"/api/v1/riskhub/departments/{dept.id}", json=data)
     assert response.status_code == 200
     assert response.json()["name"] == "Updated Name"
+
+
+@pytest.mark.asyncio
+async def test_create_department_rejects_inactive_manager(
+    client_cro: AsyncClient,
+    db_session: AsyncSession,
+    test_user_employee: User,
+):
+    manager = User(
+        email="inactive-manager@example.com",
+        hashed_password="hash",
+        name="Inactive Manager",
+        role_id=test_user_employee.role_id,
+        department_id=test_user_employee.department_id,
+        is_active=False,
+    )
+    db_session.add(manager)
+    await db_session.commit()
+    await db_session.refresh(manager)
+
+    response = await client_cro.post(
+        "/api/v1/riskhub/departments",
+        json={"name": "Managed Department", "code": "MGR_DEPT", "manager_id": manager.id},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Department manager must be active"
+
+
+@pytest.mark.asyncio
+async def test_delete_department_blocked_by_vendor(
+    client_cro: AsyncClient,
+    db_session: AsyncSession,
+    test_user_cro: User,
+):
+    dept = Department(name="Vendor Department", code="VENDOR_DEPT", is_active=True)
+    db_session.add(dept)
+    await db_session.commit()
+    await db_session.refresh(dept)
+
+    vendor = Vendor(
+        name="Department Vendor",
+        process="IT",
+        subprocess=None,
+        department_id=dept.id,
+        outsourcing_owner_user_id=test_user_cro.id,
+        vendor_type="ict",
+        risk_score_1_5=3,
+        supports_important_core_insurance_function=False,
+        dora_relevant=True,
+        is_significant_vendor=False,
+        has_alternative_providers=False,
+        status="active",
+    )
+    db_session.add(vendor)
+    await db_session.commit()
+
+    response = await client_cro.delete(f"/api/v1/riskhub/departments/{dept.id}")
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Cannot delete department with 1 vendors"

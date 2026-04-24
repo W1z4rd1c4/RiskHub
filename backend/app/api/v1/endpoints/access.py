@@ -14,14 +14,10 @@ from app.models import Role, RolePermission, User
 from app.models.role import RoleType
 from app.models.user import AccessScope
 from app.schemas.access import AccessUserRead, AccessUserUpdate, PermissionRead, RoleWithPermissions
+from app.services._access_workflow import access_user_capabilities, is_cro, is_platform_admin
 from app.services.access_user_service import update_access_user_settings
 
 router = APIRouter()
-
-ADMIN_PRIVILEGED_ROLES: set[RoleType] = {RoleType.ADMIN, RoleType.CRO}
-PLATFORM_ADMIN_FIELDS = {"name", "email"}
-BUSINESS_ACCESS_FIELDS = {"department_id", "manager_id", "access_scope"}
-
 
 def _require_privileged(user: User) -> None:
     """
@@ -34,14 +30,6 @@ def _require_privileged(user: User) -> None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
 
 
-def _is_platform_admin(user: User) -> bool:
-    return bool(user.role and user.role.name == RoleType.ADMIN)
-
-
-def _is_cro(user: User) -> bool:
-    return bool(user.role and user.role.name == RoleType.CRO)
-
-
 def _can_manage_privileged_status(user: User) -> bool:
     """
     Check if user can submit access-management mutations.
@@ -49,7 +37,7 @@ def _can_manage_privileged_status(user: User) -> bool:
     Field-level checks split platform Admin and CRO authority after this
     coarse write gate. Not all privileged users can use this write surface.
     """
-    return _is_platform_admin(user) or _is_cro(user)
+    return is_platform_admin(user) or is_cro(user)
 
 
 def _require_access_user_write(user: User) -> None:
@@ -66,7 +54,7 @@ def _require_access_user_write(user: User) -> None:
         )
 
 
-def _build_access_user_read(user: User) -> AccessUserRead:
+def _build_access_user_read(user: User, *, current_user: User | None = None) -> AccessUserRead:
     return AccessUserRead(
         id=user.id,
         email=user.email,
@@ -89,6 +77,7 @@ def _build_access_user_read(user: User) -> AccessUserRead:
         directory_sync_status=user.directory_sync_status,
         deprovisioned_at=user.deprovisioned_at,
         deprovision_reason=user.deprovision_reason,
+        capabilities=access_user_capabilities(current_user, user) if current_user is not None else None,
     )
 
 
@@ -116,7 +105,7 @@ async def list_access_users(
     _require_privileged(current_user)
 
     query = select(User).options(*user_selectinload_options(include_permissions=True))
-    if not _is_platform_admin(current_user):
+    if not is_platform_admin(current_user):
         query = query.join(Role).where(Role.name != RoleType.ADMIN)
 
     if department_id is not None:
@@ -133,7 +122,7 @@ async def list_access_users(
 
     result = await db.execute(query)
     users = result.scalars().all()
-    return [_build_access_user_read(user) for user in users]
+    return [_build_access_user_read(user, current_user=current_user) for user in users]
 
 
 @router.get("/users/my-department", response_model=list[AccessUserRead])
@@ -168,12 +157,12 @@ async def list_department_access_users(
         .where(User.department_id == current_user.department_id)
         .where(User.is_active.is_(True))
     )
-    if not _is_platform_admin(current_user):
+    if not is_platform_admin(current_user):
         query = query.where(Role.name != RoleType.ADMIN)
 
     result = await db.execute(query)
     users = result.scalars().all()
-    return [_build_access_user_read(user) for user in users]
+    return [_build_access_user_read(user, current_user=current_user) for user in users]
 
 
 @router.get("/roles", response_model=list[RoleWithPermissions])
@@ -189,7 +178,7 @@ async def list_access_roles(
         .options(selectinload(Role.permissions).selectinload(RolePermission.permission))
         .where(Role.is_active.is_(True))
     )
-    if not _is_platform_admin(current_user):
+    if not is_platform_admin(current_user):
         query = query.where(Role.name != RoleType.ADMIN)
 
     result = await db.execute(query)
@@ -223,4 +212,4 @@ async def update_access_user(
         user_id=user_id,
         update_data=update_data,
     )
-    return _build_access_user_read(updated_user)
+    return _build_access_user_read(updated_user, current_user=current_user)

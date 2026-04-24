@@ -111,6 +111,8 @@ If creation actions are missing or disabled, first confirm that the current sess
 
 Identity fields are an Admin-only lifecycle action. CRO or other privileged reviewers should stay in the access-management scope of the modal and should not expect separate lifecycle/detail endpoints. If an identity validation fails, treat the save as unapplied and fix the validation issue before retrying.
 
+The access row returned by the backend can include action capabilities for the target user. The UI should obey those flags first, then fall back to local role checks only for older responses. If a locally privileged session cannot see identity, business-access, or role controls for a row, refresh the row and inspect the backend capability flags before escalating.
+
 ### Edit access
 
 1. In `/users`, open **Edit access**.
@@ -123,6 +125,8 @@ Identity fields are an Admin-only lifecycle action. CRO or other privileged revi
 4. Refresh and confirm the values in the user row or access panel.
 
 Changing scope to `global` is a significant expansion. Record the reason before saving.
+
+Manager changes are validated by the backend. The selected manager must exist and be active; inactive directory users must be replaced or deliberately re-enabled through the appropriate lifecycle process before they can become a department manager.
 
 ### Deactivate or reactivate a user
 

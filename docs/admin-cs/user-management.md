@@ -113,6 +113,8 @@ Pokud create akce chybí nebo jsou vypnuté, nejdřív potvrďte, že aktuální
 
 Identity fields jsou Admin-only lifecycle akce. CRO ani jiní privileged review uživatelé nemají očekávat samostatné lifecycle/detail endpointy mimo access-management část modalu. Pokud validační chyba selže na identity poli, berte celý save jako neprovedený a nejdřív opravte validaci.
 
+Access řádek vrácený backendem může obsahovat capability flagy pro cílového uživatele. UI se má řídit nejdřív těmito flagy a lokální role check použít jen jako fallback pro starší odpovědi. Pokud privileged session nevidí identity, business-access nebo role ovládání pro konkrétní řádek, refreshněte řádek a zkontrolujte backend capability flagy před eskalací.
+
 ### Upravit access
 
 1. V `/users` otevřete **Edit access**.
@@ -125,6 +127,8 @@ Identity fields jsou Admin-only lifecycle akce. CRO ani jiní privileged review 
 4. Po refreshi potvrďte hodnoty v řádku nebo access panelu.
 
 Změna scope na `global` je významná eskalace. Před uložením si zapište důvod.
+
+Změny managera validuje backend. Vybraný manager musí existovat a být active; inactive directory user musí být nahrazen nebo záměrně re-enabled přes příslušný lifecycle proces, než může být managerem oddělení.
 
 ### Deaktivovat nebo reaktivovat uživatele
 

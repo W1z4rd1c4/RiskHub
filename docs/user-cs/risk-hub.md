@@ -211,6 +211,13 @@ Důležité chování dotazníků:
 - dostupné akce pro assignee a reviewery řídí backend capabilities, ne lokální domněnka podle role v prohlížeči
 - clarification request zadává reviewer a odpovědět může assignee dotazníku
 
+Role a oddělení:
+
+- změny permissions u role jsou atomické; pokud je některé vybrané permission neplatné, backend odmítne save a ponechá aktuální permission set
+- department manager musí být active user
+- smazání oddělení je blokované, dokud oddělení stále vlastní active users, risks, controls, KRIs, vendors nebo pending orphan records
+- tlačítka pro role a oddělení používají backend capability metadata, pokud jsou dostupná; dostupnost edit/delete/restore nemá rozhodovat stale stav v prohlížeči
+
 ## Schvalování a notifikace
 
 Změny v Risk Hubu jsou governance změny.

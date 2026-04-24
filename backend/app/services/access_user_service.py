@@ -8,71 +8,17 @@ from app.core.activity_logger import build_change_set, log_activity
 from app.core.config import Settings
 from app.core.email import email_equals
 from app.core.user_query_options import user_selectinload_options
-from app.models import Role, User
+from app.models import User
 from app.models.activity_log import ActivityAction, ActivityEntityType
-from app.models.role import RoleType
 from app.models.user import AccessScope
+from app.services._access_workflow import (
+    ADMIN_PRIVILEGED_ROLES,
+    BUSINESS_ACCESS_FIELDS,
+    PLATFORM_ADMIN_FIELDS,
+    authorize_access_update_fields,
+    is_platform_admin,
+)
 from app.services.directory_identity_service import requires_break_glass_for_reenable
-
-ADMIN_PRIVILEGED_ROLES: set[RoleType] = {RoleType.ADMIN, RoleType.CRO}
-PLATFORM_ADMIN_FIELDS = {"name", "email"}
-BUSINESS_ACCESS_FIELDS = {"department_id", "manager_id", "access_scope"}
-
-
-def _is_platform_admin(user: User) -> bool:
-    return bool(user.role and user.role.name == RoleType.ADMIN)
-
-
-def _is_cro(user: User) -> bool:
-    return bool(user.role and user.role.name == RoleType.CRO)
-
-
-async def _get_role_or_400(db: AsyncSession, role_id: int) -> Role:
-    role_result = await db.execute(select(Role).where(Role.id == role_id))
-    role = role_result.scalar_one_or_none()
-    if not role:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid role_id")
-    return role
-
-
-async def _authorize_access_update_fields(
-    *,
-    db: AsyncSession,
-    current_user: User,
-    target_user: User,
-    update_data: dict,
-) -> Role | None:
-    if _is_platform_admin(target_user) and not _is_platform_admin(current_user):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-
-    platform_update = {field: value for field, value in update_data.items() if field in PLATFORM_ADMIN_FIELDS}
-    business_update = {field: value for field, value in update_data.items() if field in BUSINESS_ACCESS_FIELDS}
-    new_role: Role | None = None
-
-    if platform_update and not _is_platform_admin(current_user):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only Admin can update user identity fields",
-        )
-
-    if business_update and not _is_cro(current_user):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only CRO can update user business access fields",
-        )
-
-    if "role_id" not in update_data or update_data["role_id"] == target_user.role_id:
-        return None
-
-    new_role = await _get_role_or_400(db, update_data["role_id"])
-    assigning_admin = new_role.name == RoleType.ADMIN
-
-    if assigning_admin and not _is_platform_admin(current_user):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only Admin can assign the Admin role")
-    if not assigning_admin and not _is_cro(current_user):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only CRO can assign business roles")
-
-    return new_role
 
 
 async def update_access_user_settings(
@@ -89,11 +35,11 @@ async def update_access_user_settings(
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-    if _is_platform_admin(user) and not _is_platform_admin(current_user):
+    if is_platform_admin(user) and not is_platform_admin(current_user):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
     platform_update = {field: value for field, value in update_data.items() if field in PLATFORM_ADMIN_FIELDS}
-    new_role = await _authorize_access_update_fields(
+    new_role = await authorize_access_update_fields(
         db=db,
         current_user=current_user,
         target_user=user,

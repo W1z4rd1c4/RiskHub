@@ -45,6 +45,15 @@ export interface AccessUserRead {
     directory_sync_status?: string | null;
     deprovisioned_at?: string | null;
     deprovision_reason?: string | null;
+    capabilities?: AccessUserCapabilities | null;
+}
+
+export interface AccessUserCapabilities {
+    can_edit_identity: boolean;
+    can_edit_business_access: boolean;
+    can_edit_role: boolean;
+    can_deactivate: boolean;
+    can_revoke_sessions: boolean;
 }
 
 export interface AccessUserUpdate {

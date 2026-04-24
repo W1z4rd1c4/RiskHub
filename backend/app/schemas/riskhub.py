@@ -134,8 +134,17 @@ class RoleHubRead(BaseModel):
     is_active: bool
     user_count: int
     permissions: list[str]  # ["risks:read", "controls:write", ...]
+    capabilities: "RoleHubCapabilities | None" = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class RoleHubCapabilities(BaseModel):
+    """Backend-authoritative role action capabilities."""
+
+    can_update: bool
+    can_delete: bool
+    can_restore: bool
 
 
 class RoleHubCreate(BaseModel):
@@ -183,8 +192,17 @@ class DepartmentHubRead(BaseModel):
     user_count: int
     risk_count: int
     control_count: int
+    capabilities: "DepartmentHubCapabilities | None" = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class DepartmentHubCapabilities(BaseModel):
+    """Backend-authoritative department action capabilities."""
+
+    can_update: bool
+    can_delete: bool
+    can_restore: bool
 
 
 class DepartmentHubCreate(BaseModel):

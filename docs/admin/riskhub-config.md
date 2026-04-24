@@ -103,6 +103,10 @@ Common failure modes:
   - the change is approval-gated, or the UI is reflecting cached state, or the save never completed
 - **Questionnaire send skipped risks**:
   - missing owner, existing open questionnaire, or out-of-scope risk selection
+- **Role permission save rejected**:
+  - one or more permission IDs no longer exists; the backend rejects the whole replacement before clearing current permissions
+- **Department save/delete rejected**:
+  - manager is missing/inactive, duplicate name/code exists, or the department still has users, risks, controls, KRIs, vendors, or pending orphan records
 
 Minimal interventions admins can take safely:
 
@@ -119,6 +123,12 @@ Questionnaire-specific support:
 - batch send and single send should report the same skip reasons for missing owner and open questionnaire
 - owner-name display should show a human label or `Unknown user`; raw numeric owner IDs in the UI should be treated as a display regression
 - deadline reminder dedupe is per questionnaire instance while notification navigation remains risk-based
+
+Role/department-specific support:
+
+- Risk Hub role and department rows expose backend capability metadata for update/delete/restore actions; if an action disappears after refresh, treat the backend as authoritative.
+- Department managers must be active users. Reactivating or replacing the user is safer than bypassing this validation.
+- Department deletes are intentionally conservative because department scope drives RBAC, reports, vendors, KRIs, and orphan governance.
 
 ### 4) Boundary handling: technical vs policy
 

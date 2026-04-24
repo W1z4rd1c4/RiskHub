@@ -102,6 +102,13 @@ export interface RoleHubRead {
     is_active: boolean;
     user_count: number;
     permissions: string[];
+    capabilities?: RoleHubCapabilities | null;
+}
+
+export interface RoleHubCapabilities {
+    can_update: boolean;
+    can_delete: boolean;
+    can_restore: boolean;
 }
 
 export interface RoleHubCreate {
@@ -127,6 +134,13 @@ export interface DepartmentHubRead {
     user_count: number;
     risk_count: number;
     control_count: number;
+    capabilities?: DepartmentHubCapabilities | null;
+}
+
+export interface DepartmentHubCapabilities {
+    can_update: boolean;
+    can_delete: boolean;
+    can_restore: boolean;
 }
 
 export interface DepartmentHubCreate {

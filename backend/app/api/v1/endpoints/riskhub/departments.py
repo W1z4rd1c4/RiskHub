@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -8,6 +8,12 @@ from app.db.session import get_db
 from app.models import User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas.riskhub import DepartmentHubCreate, DepartmentHubRead, DepartmentHubUpdate
+from app.services._riskhub_config import (
+    department_to_read,
+    get_department_dependency_counts,
+    load_department_for_update,
+    validate_department_manager,
+)
 
 from ._shared import get_cro_user
 
@@ -21,7 +27,6 @@ async def list_departments_hub(
     include_inactive: bool = Query(False, description="Include soft-deleted departments"),
 ) -> list[DepartmentHubRead]:
     """List all departments with stats. CRO only."""
-    from app.models import Control, Risk, User
     from app.models.department import Department
 
     query = select(Department).options(selectinload(Department.manager)).order_by(Department.name)
@@ -32,56 +37,7 @@ async def list_departments_hub(
     result = await db.execute(query)
     departments = result.scalars().all()
 
-    dept_ids = [d.id for d in departments]
-    if not dept_ids:
-        return []
-
-    risk_counts = {
-        row[0]: row[1]
-        for row in (
-            await db.execute(
-                select(Risk.department_id, func.count(Risk.id))
-                .where(Risk.department_id.in_(dept_ids))
-                .group_by(Risk.department_id)
-            )
-        ).all()
-    }
-    control_counts = {
-        row[0]: row[1]
-        for row in (
-            await db.execute(
-                select(Control.department_id, func.count(Control.id))
-                .where(Control.department_id.in_(dept_ids))
-                .group_by(Control.department_id)
-            )
-        ).all()
-    }
-    user_counts = {
-        row[0]: row[1]
-        for row in (
-            await db.execute(
-                select(User.department_id, func.count(User.id))
-                .where(User.department_id.in_(dept_ids))
-                .where(User.is_active.is_(True))
-                .group_by(User.department_id)
-            )
-        ).all()
-    }
-
-    return [
-        DepartmentHubRead(
-            id=dept.id,
-            name=dept.name,
-            code=dept.code if hasattr(dept, "code") else None,
-            manager_id=dept.manager_id,
-            manager_name=dept.manager.name if dept.manager else None,
-            is_active=dept.is_active,
-            user_count=user_counts.get(dept.id, 0),
-            risk_count=risk_counts.get(dept.id, 0),
-            control_count=control_counts.get(dept.id, 0),
-        )
-        for dept in departments
-    ]
+    return [department_to_read(dept, await get_department_dependency_counts(db, dept.id)) for dept in departments]
 
 
 @router.post("/departments", response_model=DepartmentHubRead, status_code=201)
@@ -92,6 +48,8 @@ async def create_department(
 ) -> DepartmentHubRead:
     """Create a new department. CRO only."""
     from app.models.department import Department
+
+    await validate_department_manager(db, data.manager_id)
 
     # Check for duplicate name
     existing = await db.execute(select(Department).where(Department.name == data.name))
@@ -132,17 +90,7 @@ async def create_department(
     )
     await db.commit()
 
-    return DepartmentHubRead(
-        id=dept.id,
-        name=dept.name,
-        code=dept.code if hasattr(dept, "code") else None,
-        manager_id=dept.manager_id,
-        manager_name=dept.manager.name if dept.manager else None,
-        is_active=dept.is_active,
-        user_count=0,
-        risk_count=0,
-        control_count=0,
-    )
+    return department_to_read(dept, await get_department_dependency_counts(db, dept.id))
 
 
 @router.patch("/departments/{id}", response_model=DepartmentHubRead)
@@ -153,18 +101,9 @@ async def update_department(
     cro_user: User = Depends(get_cro_user),
 ) -> DepartmentHubRead:
     """Update a department. CRO only."""
-    from app.models import Control, Risk
     from app.models.department import Department
 
-    result = await db.execute(
-        select(Department)
-        .options(selectinload(Department.manager), selectinload(Department.users))
-        .where(Department.id == id)
-    )
-    dept = result.scalar_one_or_none()
-
-    if not dept:
-        raise HTTPException(status_code=404, detail="Department not found")
+    dept = await load_department_for_update(db, id)
 
     if data.name is not None:
         # Check for duplicate name (excluding current)
@@ -180,7 +119,8 @@ async def update_department(
         if existing_code.scalar_one_or_none():
             raise HTTPException(status_code=400, detail=f"Department code '{data.code}' already exists")
         dept.code = data.code
-    if data.manager_id is not None:
+    if "manager_id" in data.model_fields_set:
+        await validate_department_manager(db, data.manager_id)
         dept.manager_id = data.manager_id
 
     await db.commit()
@@ -192,13 +132,6 @@ async def update_department(
         .where(Department.id == dept.id)
     )
     dept = result.scalar_one()
-
-    # Get counts
-    risk_count_result = await db.execute(select(func.count(Risk.id)).where(Risk.department_id == dept.id))
-    risk_count = risk_count_result.scalar() or 0
-
-    control_count_result = await db.execute(select(func.count(Control.id)).where(Control.department_id == dept.id))
-    control_count = control_count_result.scalar() or 0
 
     await log_activity(
         db=db,
@@ -212,17 +145,7 @@ async def update_department(
     )
     await db.commit()
 
-    return DepartmentHubRead(
-        id=dept.id,
-        name=dept.name,
-        code=dept.code if hasattr(dept, "code") else None,
-        manager_id=dept.manager_id,
-        manager_name=dept.manager.name if dept.manager else None,
-        is_active=dept.is_active,
-        user_count=len([u for u in dept.users if u.is_active]),
-        risk_count=risk_count,
-        control_count=control_count,
-    )
+    return department_to_read(dept, await get_department_dependency_counts(db, dept.id))
 
 
 @router.delete("/departments/{id}")
@@ -232,14 +155,7 @@ async def delete_department(
     cro_user: User = Depends(get_cro_user),
 ) -> dict:
     """Soft-delete a department. CRO only. Cannot delete departments with users/risks/controls."""
-    from app.models import Control, Risk
-    from app.models.department import Department
-
-    result = await db.execute(select(Department).options(selectinload(Department.users)).where(Department.id == id))
-    dept = result.scalar_one_or_none()
-
-    if not dept:
-        raise HTTPException(status_code=404, detail="Department not found")
+    dept = await load_department_for_update(db, id)
 
     # System departments cannot be deleted
     if hasattr(dept, "is_system") and dept.is_system:
@@ -248,24 +164,25 @@ async def delete_department(
     if not dept.is_active:
         raise HTTPException(status_code=400, detail="Department is already deleted")
 
-    active_users = [u for u in dept.users if u.is_active]
-    if active_users:
+    counts = await get_department_dependency_counts(db, dept.id)
+    if counts.users:
         raise HTTPException(
             status_code=400,
-            detail=f"Cannot delete department with {len(active_users)} active users",
+            detail=f"Cannot delete department with {counts.users} active users",
         )
-
-    # Check for risks
-    risk_count_result = await db.execute(select(func.count(Risk.id)).where(Risk.department_id == dept.id))
-    risk_count = risk_count_result.scalar() or 0
-    if risk_count > 0:
-        raise HTTPException(status_code=400, detail=f"Cannot delete department with {risk_count} risks")
-
-    # Check for controls
-    control_count_result = await db.execute(select(func.count(Control.id)).where(Control.department_id == dept.id))
-    control_count = control_count_result.scalar() or 0
-    if control_count > 0:
-        raise HTTPException(status_code=400, detail=f"Cannot delete department with {control_count} controls")
+    if counts.risks:
+        raise HTTPException(status_code=400, detail=f"Cannot delete department with {counts.risks} risks")
+    if counts.controls:
+        raise HTTPException(status_code=400, detail=f"Cannot delete department with {counts.controls} controls")
+    if counts.kris:
+        raise HTTPException(status_code=400, detail=f"Cannot delete department with {counts.kris} KRIs")
+    if counts.vendors:
+        raise HTTPException(status_code=400, detail=f"Cannot delete department with {counts.vendors} vendors")
+    if counts.pending_orphans:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot delete department with {counts.pending_orphans} pending orphans",
+        )
 
     dept.is_active = False
     await db.commit()
@@ -292,13 +209,7 @@ async def restore_department(
     cro_user: User = Depends(get_cro_user),
 ) -> DepartmentHubRead:
     """Restore a soft-deleted department. CRO only."""
-    from app.models.department import Department
-
-    result = await db.execute(select(Department).options(selectinload(Department.manager)).where(Department.id == id))
-    dept = result.scalar_one_or_none()
-
-    if not dept:
-        raise HTTPException(status_code=404, detail="Department not found")
+    dept = await load_department_for_update(db, id)
 
     if dept.is_active:
         raise HTTPException(status_code=400, detail="Department is not deleted")
@@ -321,14 +232,4 @@ async def restore_department(
     )
     await db.commit()
 
-    return DepartmentHubRead(
-        id=dept.id,
-        name=dept.name,
-        code=dept.code if hasattr(dept, "code") else None,
-        manager_id=dept.manager_id,
-        manager_name=dept.manager.name if dept.manager else None,
-        is_active=dept.is_active,
-        user_count=0,
-        risk_count=0,
-        control_count=0,
-    )
+    return department_to_read(dept, await get_department_dependency_counts(db, dept.id))

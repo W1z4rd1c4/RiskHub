@@ -270,4 +270,33 @@ describe('AccessEditModal', () => {
         expect(onSaved).toHaveBeenCalledTimes(1);
         expect(onClose).toHaveBeenCalledTimes(1);
     });
+
+    it('uses backend capabilities to hide locally allowed access actions', async () => {
+        const onClose = vi.fn();
+        const onSaved = vi.fn();
+
+        render(
+            <AccessEditModal
+                isOpen
+                onClose={onClose}
+                user={makeAccessUser({
+                    capabilities: {
+                        can_edit_identity: false,
+                        can_edit_business_access: false,
+                        can_edit_role: false,
+                        can_deactivate: false,
+                        can_revoke_sessions: false,
+                    },
+                })}
+                onSaved={onSaved}
+            />
+        );
+
+        await screen.findByText('Original User');
+
+        expect(screen.queryByDisplayValue('Original User')).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /administrator/i })).not.toBeInTheDocument();
+        expect(screen.queryByLabelText(/department/i)).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /save/i })).toBeDisabled();
+    });
 });

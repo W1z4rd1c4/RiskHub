@@ -112,6 +112,8 @@ Access-management read/list behavior and write behavior are intentionally differ
 | `GET /api/v1/access/roles` | GLOBAL-scope users | Role option endpoint. The `admin` role is returned only to platform Admin callers. |
 | `PATCH /api/v1/access/users/{id}` | **Admin or CRO only** | Single transactional save for `/users` access modal. CRO owns business-access fields (`department_id`, `manager_id`, `access_scope`) and non-admin `role_id` assignment for non-Admin users, including department assignment. Admin owns platform identity/lifecycle fields (`name`, `email`, authentication/local-account lifecycle) and Admin-role assignment only. Non-Admin callers cannot target platform Admin users; unavailable Admin targets are concealed with not-found behavior. Validation failures reject the whole patch. |
 
+Access-user responses may include additive `capabilities` metadata (`can_edit_identity`, `can_edit_business_access`, `can_edit_role`, `can_deactivate`, `can_revoke_sessions`). The frontend should prefer those backend flags over local role guesses; when a flag is absent, older local fallback behavior remains acceptable.
+
 Additional identity-governance rule for `microsoft_sso` mode:
 
 - For users with `external_id`, `name` and `email` are Entra-authoritative and cannot be edited locally.
@@ -244,6 +246,9 @@ Rules:
 - Only CRO can create/edit/delete departments through Risk Hub configuration
 - Admin is platform-only and must not create/edit/delete business departments
 - Manager assignment determines fallback approval authority
+- Department manager assignment is validated server-side: the manager must exist and be active.
+- Department deletion is blocked while the department has active users, risks, controls, KRIs through risks, vendors, or pending orphan records.
+- Risk Hub role and department responses may include additive `capabilities` metadata. Role permission replacement is all-or-nothing: unknown permission IDs reject the request before existing permissions are removed.
 
 ---
 

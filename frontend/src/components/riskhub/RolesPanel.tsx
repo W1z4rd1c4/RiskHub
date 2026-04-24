@@ -311,7 +311,11 @@ export function RolesPanel() {
                         </tr>
                     </thead>
                     <tbody>
-                        {roles?.map((role) => (
+                        {roles?.map((role) => {
+                            const canUpdate = role.capabilities?.can_update ?? !['cro', 'admin', 'viewer'].includes(role.name);
+                            const canDelete = role.capabilities?.can_delete ?? (!role.is_system && role.is_active && !['admin', 'cro', 'viewer', 'internal_audit'].includes(role.name));
+                            const canRestore = role.capabilities?.can_restore ?? !role.is_active;
+                            return (
                             <tr
                                 key={role.id}
                                 className={cn(
@@ -374,22 +378,22 @@ export function RolesPanel() {
                                             onClick={() => { setEditingRole(role); setModalOpen(true); }}
                                             className={cn(
                                                 "p-1.5 rounded transition-colors",
-                                                ['cro', 'admin', 'viewer'].includes(role.name)
+                                                !canUpdate
                                                     ? "text-slate-600 cursor-not-allowed"
                                                     : "text-slate-400 hover:text-white hover:bg-white/10"
                                             )}
-                                            disabled={['cro', 'admin', 'viewer'].includes(role.name)}
-                                            title={['cro', 'admin', 'viewer'].includes(role.name)
+                                            disabled={!canUpdate}
+                                            title={!canUpdate
                                                 ? t('admin:roles_panel.actions.edit_disabled', { role: role.display_name })
                                                 : t('common:actions.edit')}
-                                            aria-label={['cro', 'admin', 'viewer'].includes(role.name)
+                                            aria-label={!canUpdate
                                                 ? t('admin:roles_panel.actions.edit_disabled', { role: role.display_name })
                                                 : t('common:actions.edit')}
                                         >
                                             <Edit className="h-4 w-4" aria-hidden="true" />
                                         </button>
 
-                                        {!role.is_system && role.is_active && !['admin', 'cro', 'viewer', 'internal_audit'].includes(role.name) && (
+                                        {canDelete && (
                                             <button
                                                 onClick={() => setDeleteConfirm(role)}
                                                 className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"
@@ -400,7 +404,7 @@ export function RolesPanel() {
                                             </button>
                                         )}
 
-                                        {!role.is_active && (
+                                        {canRestore && (
                                             <button
                                                 onClick={() => restoreMutation.mutate(role.id)}
                                                 className="p-1.5 text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10 rounded transition-colors"
@@ -413,7 +417,8 @@ export function RolesPanel() {
                                     </div>
                                 </td>
                             </tr>
-                        ))}
+                            );
+                        })}
                     </tbody>
                 </table>
             </div>

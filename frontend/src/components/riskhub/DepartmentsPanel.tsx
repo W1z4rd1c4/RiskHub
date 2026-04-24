@@ -250,7 +250,11 @@ export function DepartmentsPanel() {
                         </tr>
                     </thead>
                     <tbody>
-                        {departments?.map((dept) => (
+                        {departments?.map((dept) => {
+                            const canUpdate = dept.capabilities?.can_update ?? true;
+                            const canDelete = dept.capabilities?.can_delete ?? dept.is_active;
+                            const canRestore = dept.capabilities?.can_restore ?? !dept.is_active;
+                            return (
                             <tr
                                 key={dept.id}
                                 className={cn(
@@ -304,14 +308,20 @@ export function DepartmentsPanel() {
                                     <div className="flex items-center justify-end gap-2">
                                         <button
                                             onClick={() => { setEditingDept(dept); setModalOpen(true); }}
-                                            className="p-1.5 text-slate-400 hover:text-white hover:bg-white/10 rounded transition-colors"
+                                            className={cn(
+                                                "p-1.5 rounded transition-colors",
+                                                canUpdate
+                                                    ? "text-slate-400 hover:text-white hover:bg-white/10"
+                                                    : "text-slate-600 cursor-not-allowed"
+                                            )}
+                                            disabled={!canUpdate}
                                             title={t('common:actions.edit')}
                                             aria-label={t('common:actions.edit')}
                                         >
                                             <Edit className="h-4 w-4" aria-hidden="true" />
                                         </button>
 
-                                        {dept.is_active && (
+                                        {canDelete && (
                                             <button
                                                 onClick={() => setDeleteConfirm(dept)}
                                                 className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"
@@ -322,7 +332,7 @@ export function DepartmentsPanel() {
                                             </button>
                                         )}
 
-                                        {!dept.is_active && (
+                                        {canRestore && (
                                             <button
                                                 onClick={() => restoreMutation.mutate(dept.id)}
                                                 className="p-1.5 text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10 rounded transition-colors"
@@ -335,7 +345,8 @@ export function DepartmentsPanel() {
                                     </div>
                                 </td>
                             </tr>
-                        ))}
+                            );
+                        })}
                     </tbody>
                 </table>
             </div>

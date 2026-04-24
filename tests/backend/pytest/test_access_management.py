@@ -84,6 +84,21 @@ async def test_access_users_list_shows_admins_to_admin(
 
 
 @pytest.mark.asyncio
+async def test_access_users_include_backend_capabilities(
+    auth_client: AsyncClient,
+    test_user_employee: User,
+):
+    response = await auth_client.get("/api/v1/access/users")
+
+    assert response.status_code == 200
+    data = response.json()
+    target = next(item for item in data if item["id"] == test_user_employee.id)
+    assert target["capabilities"]["can_edit_identity"] is True
+    assert target["capabilities"]["can_edit_business_access"] is False
+    assert target["capabilities"]["can_edit_role"] is True
+
+
+@pytest.mark.asyncio
 async def test_access_roles_hides_admin_role_from_cro(
     client_cro: AsyncClient,
     test_role_platform_admin,

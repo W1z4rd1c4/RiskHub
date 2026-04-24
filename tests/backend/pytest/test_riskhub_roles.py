@@ -3,7 +3,7 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.role import Role, RoleType
+from app.models.role import Permission, Role, RolePermission, RoleType
 
 
 @pytest.mark.asyncio
@@ -111,6 +111,30 @@ async def test_update_role_invalid_permission_ids(
     response = await client_cro.patch(f"/api/v1/riskhub/roles/{role.id}", json=data)
     assert response.status_code == 400
     assert "Unknown permission IDs" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_update_role_invalid_permission_ids_preserves_existing_permissions(
+    client_cro: AsyncClient,
+    db_session: AsyncSession,
+):
+    """Permission replacement validates all IDs before clearing existing role permissions."""
+    permission = Permission(resource="reports", action="read", description="Read reports")
+    role = Role(name="stable_perms", display_name="Stable Perms", is_system=False, is_active=True)
+    db_session.add_all([permission, role])
+    await db_session.commit()
+    await db_session.refresh(permission)
+    await db_session.refresh(role)
+    db_session.add(RolePermission(role_id=role.id, permission_id=permission.id))
+    await db_session.commit()
+
+    response = await client_cro.patch(f"/api/v1/riskhub/roles/{role.id}", json={"permission_ids": [99999]})
+    assert response.status_code == 400
+
+    rows = (
+        await db_session.execute(select(RolePermission).where(RolePermission.role_id == role.id))
+    ).scalars().all()
+    assert [row.permission_id for row in rows] == [permission.id]
 
 
 @pytest.mark.asyncio

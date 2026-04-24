@@ -55,8 +55,19 @@ class AccessUserRead(BaseModel):
     directory_sync_status: Optional[str] = None
     deprovisioned_at: datetime | None = None
     deprovision_reason: Optional[str] = None
+    capabilities: "AccessUserCapabilities | None" = None
 
     model_config = {"from_attributes": True}
+
+
+class AccessUserCapabilities(BaseModel):
+    """Backend-authoritative access-user action capabilities."""
+
+    can_edit_identity: bool
+    can_edit_business_access: bool
+    can_edit_role: bool
+    can_deactivate: bool
+    can_revoke_sessions: bool
 
 
 class AccessUserUpdate(BaseModel):

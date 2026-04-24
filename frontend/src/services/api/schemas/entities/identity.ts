@@ -83,6 +83,13 @@ const accessPermissionReadSchema: z.ZodType<AccessPermissionRead> = passthroughO
     action: z.string(),
     description: z.string().nullable(),
 });
+const accessUserCapabilitiesSchema = passthroughObject({
+    can_edit_identity: z.boolean(),
+    can_edit_business_access: z.boolean(),
+    can_edit_role: z.boolean(),
+    can_deactivate: z.boolean(),
+    can_revoke_sessions: z.boolean(),
+});
 export const accessUserReadSchema: z.ZodType<AccessUserRead> = passthroughObject({
     id: z.number(),
     email: z.string(),
@@ -110,6 +117,7 @@ export const accessUserReadSchema: z.ZodType<AccessUserRead> = passthroughObject
     directory_sync_status: z.string().nullable().optional(),
     deprovisioned_at: z.string().nullable().optional(),
     deprovision_reason: z.string().nullable().optional(),
+    capabilities: accessUserCapabilitiesSchema.nullable().optional(),
 });
 export const accessUserReadArraySchema = z.array(accessUserReadSchema);
 export const roleWithPermissionsSchema: z.ZodType<RoleWithPermissions> = passthroughObject({

@@ -211,6 +211,13 @@ Important questionnaire behavior:
 - questionnaire actions shown to assignees and reviewers are driven by backend capabilities, so stale role assumptions in the browser should not be trusted
 - clarification requests are reviewer-driven and responses are limited to the questionnaire assignee
 
+Roles and departments:
+
+- role permission updates are atomic; if any selected permission is invalid, the backend rejects the save and keeps the current permission set
+- department manager assignment requires an active user
+- deleting a department is blocked while it still owns active users, risks, controls, KRIs, vendors, or pending orphan records
+- role and department action buttons follow backend capability metadata when available, so stale browser assumptions should not decide whether edit/delete/restore is possible
+
 ## Approvals and Notifications Behavior
 
 Risk Hub changes are governance changes.
