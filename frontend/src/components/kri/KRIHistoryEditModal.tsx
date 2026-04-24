@@ -15,9 +15,10 @@ interface KRIHistoryEditModalProps {
     kriId: number;
     entry: KRIHistoryEntry;
     onSuccess: () => void;
+    onError?: () => void;
 }
 
-export function KRIHistoryEditModal({ isOpen, onClose, kriId, entry, onSuccess }: KRIHistoryEditModalProps) {
+export function KRIHistoryEditModal({ isOpen, onClose, kriId, entry, onSuccess, onError }: KRIHistoryEditModalProps) {
     const { t, i18n } = useTranslation(['kris', 'common', 'errorKeys']);
     const [newValue, setNewValue] = useState(entry.value.toString());
     const [reason, setReason] = useState('');
@@ -52,6 +53,7 @@ export function KRIHistoryEditModal({ isOpen, onClose, kriId, entry, onSuccess }
             }, 1500);
         } catch (err: unknown) {
             setErrorKey(apiClient.toUiMessageKey(err));
+            onError?.();
         } finally {
             setIsSubmitting(false);
         }

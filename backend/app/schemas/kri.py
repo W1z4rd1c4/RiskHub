@@ -160,6 +160,12 @@ class KRIHistoryEntry(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class KRIHistoryCapabilitiesRead(BaseModel):
+    """Action capabilities for the requesting user on a KRI history response."""
+
+    can_request_correction: bool = False
+
+
 class KRIHistoryListResponse(BaseModel):
     """Paginated list of KRI history entries."""
 
@@ -167,6 +173,7 @@ class KRIHistoryListResponse(BaseModel):
     total: int
     offset: int
     limit: int
+    capabilities: KRIHistoryCapabilitiesRead | None = None
 
     @computed_field
     @property

@@ -17,7 +17,7 @@ import { IssueQuickCreateModal } from '@/components/issues/IssueQuickCreateModal
 import { getKriMonitoringMeta } from '@/lib/monitoringStatus';
 import { parseUpdateResult } from '@/lib/approvalUi';
 import { ApiClientError } from '@/services/apiClient';
-import type { KeyRiskIndicator, KRIHistoryEntry } from '@/types/kri';
+import type { KeyRiskIndicator, KRIHistoryCapabilities, KRIHistoryEntry } from '@/types/kri';
 import type { Risk } from '@/types/risk';
 import { useTranslation } from '@/i18n/hooks';
 import { formatMetricNumberValue } from '@/i18n/formatters';
@@ -42,6 +42,7 @@ export function KRIDetailPage() {
     // History state
     const [history, setHistory] = useState<KRIHistoryEntry[]>([]);
     const [historyTotal, setHistoryTotal] = useState(0);
+    const [historyCapabilities, setHistoryCapabilities] = useState<KRIHistoryCapabilities | null>(null);
     const [isLoadingHistory, setIsLoadingHistory] = useState(false);
     const [selectedHistoryEntry, setSelectedHistoryEntry] = useState<KRIHistoryEntry | null>(null);
     const [isIssueModalOpen, setIsIssueModalOpen] = useState(false);
@@ -49,7 +50,7 @@ export function KRIDetailPage() {
     const [approvalBanner, setApprovalBanner] = useState<{ message: string } | null>(null);
 
     // Permissions
-    const { canRecordKRI, user } = usePermissions();
+    const { canRecordKRI, hasPermission, user } = usePermissions();
 
     const fetchHistory = useCallback(async (kriId: number) => {
         setIsLoadingHistory(true);
@@ -57,6 +58,7 @@ export function KRIDetailPage() {
             const response = await kriApi.getHistory(kriId, { size: 50, include_archived: true });
             setHistory(response.items);
             setHistoryTotal(response.total);
+            setHistoryCapabilities(response.capabilities ?? null);
         } catch (err) {
             console.error('Failed to fetch history:', err);
         } finally {
@@ -178,6 +180,7 @@ export function KRIDetailPage() {
 
     const dueDate = calculateDueDate();
     const isOverdue = (kri?.days_overdue ?? 0) > 0;
+    const canRequestHistoryCorrection = historyCapabilities?.can_request_correction ?? hasPermission('risks', 'write');
 
     if (isLoading) {
         return (
@@ -352,6 +355,7 @@ export function KRIDetailPage() {
                     upperLimit={kri.upper_limit}
                     unit={kri.unit}
                     onSelectEntry={setSelectedHistoryEntry}
+                    canRequestCorrection={canRequestHistoryCorrection}
                 />
             )}
 
@@ -389,6 +393,7 @@ export function KRIDetailPage() {
                         kriId={kri.id}
                         entry={selectedHistoryEntry}
                         onSuccess={() => fetchHistory(kri.id)}
+                        onError={() => fetchHistory(kri.id)}
                     />
                 )
             }

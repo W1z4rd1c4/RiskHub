@@ -158,6 +158,166 @@ async def test_privileged_user_can_directly_correct_kri(
 
 
 @pytest.mark.asyncio
+async def test_cross_department_risk_owner_with_write_can_request_history_correction(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    test_user_approval_requester,
+    test_user_cro,
+):
+    """Risk owners with write permission can correct KRI history even when the risk is outside their department."""
+    from app.models import Department, Risk
+    from app.models.risk import RiskStatus
+
+    other_dept = Department(name="Correction Other Dept", code="CORR-OTHER", is_active=True)
+    db_session.add(other_dept)
+    await db_session.commit()
+    await db_session.refresh(other_dept)
+
+    risk = Risk(
+        risk_id_code="RISK-CORR-XDEPT",
+        name="Cross Department Correction Risk",
+        process="Test Process",
+        description="Cross department risk",
+        category="Test",
+        department_id=other_dept.id,
+        owner_id=test_user_approval_requester.id,
+        risk_type="operational",
+        gross_probability=2,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=3,
+        status=RiskStatus.active.value,
+    )
+    db_session.add(risk)
+    await db_session.commit()
+    await db_session.refresh(risk)
+
+    period_end = date(2026, 1, 31)
+    kri = KeyRiskIndicator(
+        risk_id=risk.id,
+        metric_name="Cross Department Correction KRI",
+        description="KRI for cross-department correction",
+        current_value=50.0,
+        lower_limit=0.0,
+        upper_limit=100.0,
+        unit="%",
+        frequency=KRIFrequency.monthly.value,
+        last_period_end=period_end,
+    )
+    db_session.add(kri)
+    await db_session.commit()
+    await db_session.refresh(kri)
+
+    history_entry = KRIValueHistory(
+        kri_id=kri.id,
+        period_start=date(2026, 1, 1),
+        period_end=period_end,
+        recorded_at=datetime.now(UTC),
+        recorded_by_id=test_user_cro.id,
+        value=50.0,
+        lower_limit=0.0,
+        upper_limit=100.0,
+        unit="%",
+        breach_status="within",
+    )
+    db_session.add(history_entry)
+    await db_session.commit()
+    await db_session.refresh(history_entry)
+
+    response = await client.patch(
+        f"/api/v1/kris/{kri.id}/history/{history_entry.id}",
+        headers={"X-Mock-User-Id": str(test_user_approval_requester.id)},
+        json={"value": 60.0, "reason": "Correcting cross-department owned KRI history"},
+    )
+
+    assert response.status_code == 202
+    assert response.json()["requires_privileged_approval"] is True
+
+
+@pytest.mark.asyncio
+async def test_reporting_owner_without_write_can_read_but_not_correct_history(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    test_user_employee,
+    test_user_cro,
+):
+    """Reporting-owner visibility is read-only unless the user also has risks:write."""
+    from app.models import Department, Risk
+    from app.models.risk import RiskStatus
+
+    other_dept = Department(name="Reporting Owner Other Dept", code="REPORT-OTHER", is_active=True)
+    db_session.add(other_dept)
+    await db_session.commit()
+    await db_session.refresh(other_dept)
+
+    risk = Risk(
+        risk_id_code="RISK-REPORT-XDEPT",
+        name="Reporting Owner Cross Department Risk",
+        process="Test Process",
+        description="Cross department risk",
+        category="Test",
+        department_id=other_dept.id,
+        owner_id=test_user_cro.id,
+        risk_type="operational",
+        gross_probability=2,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=3,
+        status=RiskStatus.active.value,
+    )
+    db_session.add(risk)
+    await db_session.commit()
+    await db_session.refresh(risk)
+
+    period_end = date(2026, 2, 28)
+    kri = KeyRiskIndicator(
+        risk_id=risk.id,
+        metric_name="Reporting Owner Read Only KRI",
+        description="KRI for reporting-owner read-only correction test",
+        current_value=50.0,
+        lower_limit=0.0,
+        upper_limit=100.0,
+        unit="%",
+        frequency=KRIFrequency.monthly.value,
+        reporting_owner_id=test_user_employee.id,
+        last_period_end=period_end,
+    )
+    db_session.add(kri)
+    await db_session.commit()
+    await db_session.refresh(kri)
+
+    history_entry = KRIValueHistory(
+        kri_id=kri.id,
+        period_start=date(2026, 2, 1),
+        period_end=period_end,
+        recorded_at=datetime.now(UTC),
+        recorded_by_id=test_user_cro.id,
+        value=50.0,
+        lower_limit=0.0,
+        upper_limit=100.0,
+        unit="%",
+        breach_status="within",
+    )
+    db_session.add(history_entry)
+    await db_session.commit()
+    await db_session.refresh(history_entry)
+
+    read_response = await client.get(
+        f"/api/v1/kris/{kri.id}/history",
+        headers={"X-Mock-User-Id": str(test_user_employee.id)},
+    )
+    assert read_response.status_code == 200
+    assert read_response.json()["capabilities"]["can_request_correction"] is False
+
+    correction_response = await client.patch(
+        f"/api/v1/kris/{kri.id}/history/{history_entry.id}",
+        headers={"X-Mock-User-Id": str(test_user_employee.id)},
+        json={"value": 60.0, "reason": "Trying to correct without write permission"},
+    )
+    assert correction_response.status_code == 403
+
+
+@pytest.mark.asyncio
 async def test_kri_initial_submission_non_priority_doesnt_require_privileged(
     client: AsyncClient,
     db_session: AsyncSession,

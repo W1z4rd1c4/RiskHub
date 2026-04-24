@@ -1,5 +1,4 @@
 import logging
-from datetime import date
 from typing import Awaitable, Callable
 
 from fastapi import HTTPException
@@ -9,9 +8,11 @@ from sqlalchemy.orm import joinedload
 
 from app.api.v1.endpoints._monitoring_response import load_monitoring_response_context, serialize_kri_response
 from app.core.datetime_utils import utc_now
-from app.core.permissions import check_department_access
 from app.models import KeyRiskIndicator, Risk, User
+from app.models.kri_history import KRIValueHistory
 from app.schemas.kri import KRIRecordValue, KRIResponse
+from app.services._kri_history.recording import DuplicateKRIPeriodError
+from app.services._kri_history.workflow import ensure_can_submit_value, latest_closed_period_end
 
 logger = logging.getLogger(__name__)
 
@@ -30,13 +31,21 @@ async def _run_best_effort_notification(
         logger.warning("%s: %s", warning_message, exc)
 
 
-async def _load_kri_with_risk_or_404(db: AsyncSession, kri_id: int) -> KeyRiskIndicator:
-    result = await db.execute(
+async def _load_kri_with_risk_or_404(
+    db: AsyncSession,
+    kri_id: int,
+    *,
+    for_update: bool = False,
+) -> KeyRiskIndicator:
+    statement = (
         select(KeyRiskIndicator)
         .join(Risk)
         .where(KeyRiskIndicator.id == kri_id)
         .options(joinedload(KeyRiskIndicator.risk))
     )
+    if for_update:
+        statement = statement.with_for_update()
+    result = await db.execute(statement)
     kri = result.scalar_one_or_none()
     if not kri:
         raise HTTPException(status_code=404, detail="KRI not found")
@@ -50,16 +59,7 @@ async def _assert_kri_submit_access(
     kri_id: int,
     current_user: User,
 ) -> None:
-    from app.core.permissions import has_permission, is_kri_reporting_owner
-
-    is_reporting_owner = await is_kri_reporting_owner(db, current_user.id, kri_id)
-    if not (is_reporting_owner or has_permission(current_user, "kri", "submit")):
-        raise HTTPException(
-            status_code=403,
-            detail="Permission denied: requires kri:submit permission or be reporting owner",
-        )
-    if not is_reporting_owner:
-        check_department_access(kri.risk.department_id, current_user)
+    await ensure_can_submit_value(db, current_user, kri)
 
 
 async def _create_kri_submission_approval(
@@ -69,17 +69,24 @@ async def _create_kri_submission_approval(
     data: KRIRecordValue,
     current_user: User,
 ):
-    from datetime import UTC, datetime
-
     from app.core.approval_helpers import build_approval_queued_response, create_approval_request_with_audit
     from app.models import ApprovalActionType, ApprovalRequest, ApprovalResourceType, ApprovalStatus
-    from app.services.kri_history_service import KRIHistoryService
 
-    today = date.today()
-    _, latest_closed_end = KRIHistoryService.latest_closed_period_for_date(today, kri.frequency)
+    latest_closed_end = latest_closed_period_end(kri)
 
     if data.period_end and data.period_end != latest_closed_end:
         raise HTTPException(status_code=400, detail="Non-privileged users cannot specify custom period_end")
+
+    existing_history = await db.scalar(
+        select(KRIValueHistory.id)
+        .where(
+            KRIValueHistory.kri_id == kri.id,
+            KRIValueHistory.period_end == latest_closed_end,
+        )
+        .limit(1)
+    )
+    if existing_history is not None:
+        raise DuplicateKRIPeriodError(f"KRI value already recorded for period ending {latest_closed_end}")
 
     existing = await db.execute(
         select(ApprovalRequest).where(
@@ -94,7 +101,7 @@ async def _create_kri_submission_approval(
 
     primary_approver_id = kri.risk.owner_id if kri.risk else None
     requires_privileged = bool(kri.risk and kri.risk.is_priority)
-    recorded_at = datetime.now(UTC).isoformat()
+    recorded_at = utc_now().isoformat()
     pending_changes = {
         "current_value": {"old": kri.current_value, "new": data.value},
         "period_end": latest_closed_end.isoformat(),

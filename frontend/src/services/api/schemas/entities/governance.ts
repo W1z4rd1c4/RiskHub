@@ -240,6 +240,9 @@ export const kriHistoryEntrySchema: z.ZodType<KRIHistoryEntry> = passthroughObje
     recorded_by_id: z.number().nullable().optional(),
     recorded_by_name: z.string().nullable().optional(),
 });
+const kriHistoryCapabilitiesSchema = passthroughObject({
+    can_request_correction: z.boolean(),
+});
 export const kriHistoryListResponseSchema: z.ZodType<KRIHistoryListResponse> =
     z.union([
         passthroughObject({
@@ -247,12 +250,14 @@ export const kriHistoryListResponseSchema: z.ZodType<KRIHistoryListResponse> =
             total: z.number(),
             offset: z.number(),
             limit: z.number(),
+            capabilities: kriHistoryCapabilitiesSchema.nullable().optional(),
         }),
         passthroughObject({
             items: z.array(kriHistoryEntrySchema),
             total: z.number(),
             page: z.number(),
             size: z.number(),
+            capabilities: kriHistoryCapabilitiesSchema.nullable().optional(),
         }),
     ]).transform((response) => {
         if ('offset' in response) {

@@ -57,6 +57,7 @@ interface KRIDetailHistoryTabProps {
     upperLimit: number;
     unit: string;
     onSelectEntry: (entry: KRIHistoryEntry) => void;
+    canRequestCorrection: boolean;
 }
 
 export function KRIDetailHistoryTab({
@@ -67,6 +68,7 @@ export function KRIDetailHistoryTab({
     upperLimit,
     unit,
     onSelectEntry,
+    canRequestCorrection,
 }: KRIDetailHistoryTabProps) {
     const { t, i18n } = useTranslation(['kris', 'common']);
     const historyChartData = useMemo(() => buildHistoryChartData(history, i18n.language), [history, i18n.language]);
@@ -117,11 +119,11 @@ export function KRIDetailHistoryTab({
                     items={timelineItems}
                     loading={isLoadingHistory}
                     emptyMessage={t('history_tab.empty_message', { ns: 'kris' })}
-                    onItemAction={(item) => {
+                    onItemAction={canRequestCorrection ? ((item) => {
                         const entry = history.find(h => h.id === item.id);
                         if (entry) onSelectEntry(entry);
-                    }}
-                    actionLabel={t('history_edit.request_correction', { ns: 'kris' })}
+                    }) : undefined}
+                    actionLabel={canRequestCorrection ? t('history_edit.request_correction', { ns: 'kris' }) : undefined}
                 />
             </motion.div>
 

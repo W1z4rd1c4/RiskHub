@@ -6,9 +6,18 @@ import { KRIDetailOverviewTab } from '@/components/kris/KRIDetailOverviewTab';
 
 const trendChartMock = vi.fn();
 const gaugeMock = vi.fn();
+const timelineMock = vi.fn();
 
 vi.mock('@/components/history', () => ({
-    HistoryTimeline: () => <div>timeline</div>,
+    HistoryTimeline: (props: { onItemAction?: (item: unknown) => void; actionLabel?: string }) => {
+        timelineMock(props);
+        return (
+            <div>
+                timeline
+                {props.onItemAction && <button type="button">{props.actionLabel}</button>}
+            </div>
+        );
+    },
     HistoryComparisonPanel: () => <div>comparison</div>,
     HistoryTrendChart: (props: unknown) => {
         trendChartMock(props);
@@ -66,12 +75,50 @@ describe('KRI detail visuals', () => {
                 upperLimit={10}
                 unit="%"
                 onSelectEntry={vi.fn()}
+                canRequestCorrection
             />
         );
 
         expect(screen.getByText('trend chart')).toBeInTheDocument();
         expect(trendChartMock).toHaveBeenCalledWith(expect.objectContaining({
             data: [expect.objectContaining({ status: 'below' })],
+        }));
+    });
+
+    it('uses history capabilities to hide or show correction actions', () => {
+        const baseProps = {
+            history: [
+                {
+                    id: 1,
+                    kri_id: 10,
+                    period_start: '2026-01-01',
+                    period_end: '2026-01-31',
+                    recorded_at: '2026-02-01T00:00:00Z',
+                    value: 4,
+                    lower_limit: 5,
+                    upper_limit: 10,
+                    unit: '%',
+                    breach_status: 'below' as const,
+                },
+            ],
+            historyTotal: 1,
+            isLoadingHistory: false,
+            lowerLimit: 5,
+            upperLimit: 10,
+            unit: '%',
+            onSelectEntry: vi.fn(),
+        };
+
+        const { rerender } = render(<KRIDetailHistoryTab {...baseProps} canRequestCorrection={false} />);
+
+        expect(screen.queryByRole('button', { name: 'history_edit.request_correction' })).not.toBeInTheDocument();
+        expect(timelineMock).toHaveBeenLastCalledWith(expect.objectContaining({ onItemAction: undefined }));
+
+        rerender(<KRIDetailHistoryTab {...baseProps} canRequestCorrection />);
+
+        expect(screen.getByRole('button', { name: 'history_edit.request_correction' })).toBeInTheDocument();
+        expect(timelineMock).toHaveBeenLastCalledWith(expect.objectContaining({
+            onItemAction: expect.any(Function),
         }));
     });
 

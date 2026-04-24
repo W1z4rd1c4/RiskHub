@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.models.key_risk_indicator import KeyRiskIndicator
 from app.models.kri_history import KRIValueHistory
 
 from .logging import logger
@@ -33,12 +34,19 @@ async def apply_history_correction(
     """
     # Get the entry
     result = await db.execute(
-        select(KRIValueHistory).where(KRIValueHistory.id == entry_id).options(selectinload(KRIValueHistory.kri))
+        select(KRIValueHistory)
+        .where(KRIValueHistory.id == entry_id)
+        .options(selectinload(KRIValueHistory.kri))
+        .with_for_update()
     )
     entry = result.scalar_one_or_none()
 
     if not entry:
         raise ValueError(f"History entry {entry_id} not found")
+    kri_result = await db.execute(select(KeyRiskIndicator).where(KeyRiskIndicator.id == entry.kri_id).with_for_update())
+    locked_kri = kri_result.scalar_one_or_none()
+    if locked_kri is None:
+        raise ValueError(f"KRI {entry.kri_id} not found")
 
     # Recalculate breach status
     if new_value < entry.lower_limit:
@@ -56,16 +64,20 @@ async def apply_history_correction(
     latest_result = await db.execute(
         select(KRIValueHistory)
         .where(KRIValueHistory.kri_id == entry.kri_id)
-        .order_by(KRIValueHistory.period_end.desc(), KRIValueHistory.recorded_at.desc())
+        .order_by(
+            KRIValueHistory.period_end.desc(),
+            KRIValueHistory.recorded_at.desc(),
+            KRIValueHistory.id.desc(),
+        )
         .limit(1)
     )
     latest_entry = latest_result.scalar_one_or_none()
 
     if latest_entry and latest_entry.id == entry.id:
         # Update KRI current value
-        entry.kri.current_value = new_value
-        if entry.kri.last_period_end is None or entry.period_end >= entry.kri.last_period_end:
-            entry.kri.last_period_end = entry.period_end
+        locked_kri.current_value = new_value
+        if locked_kri.last_period_end is None or entry.period_end >= locked_kri.last_period_end:
+            locked_kri.last_period_end = entry.period_end
         logger.info(f"Updated KRI {entry.kri_id} current_value to {new_value} from history correction")
 
     await db.flush()

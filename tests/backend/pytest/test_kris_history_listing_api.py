@@ -38,6 +38,7 @@ async def test_get_history_empty_for_new_kri(
     data = response.json()
     assert data["total"] == 0
     assert len(data["items"]) == 0
+    assert data["capabilities"]["can_request_correction"] is True
 
 
 @pytest.mark.asyncio

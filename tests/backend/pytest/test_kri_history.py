@@ -562,3 +562,51 @@ class TestHistoryCorrection:
         await db_session.refresh(test_kri_quarterly)
 
         assert test_kri_quarterly.current_value == current_value
+
+    @pytest.mark.asyncio
+    async def test_correction_updates_current_for_latest_entry_by_id_tie_breaker(
+        self, db_session: AsyncSession, test_kri_quarterly, test_user_cro
+    ):
+        """When period and recorded_at tie, the highest ID is the deterministic latest entry."""
+        period_end = date(2026, 3, 31)
+        recorded_at = datetime(2026, 4, 10, 12, 0, tzinfo=UTC)
+        first_entry = KRIValueHistory(
+            kri_id=test_kri_quarterly.id,
+            period_start=date(2026, 1, 1),
+            period_end=period_end,
+            recorded_at=recorded_at,
+            recorded_by_id=test_user_cro.id,
+            value=40.0,
+            lower_limit=0.0,
+            upper_limit=100.0,
+            unit="%",
+            breach_status="within",
+        )
+        latest_entry = KRIValueHistory(
+            kri_id=test_kri_quarterly.id,
+            period_start=date(2026, 1, 1),
+            period_end=period_end,
+            recorded_at=recorded_at,
+            recorded_by_id=test_user_cro.id,
+            value=50.0,
+            lower_limit=0.0,
+            upper_limit=100.0,
+            unit="%",
+            breach_status="within",
+        )
+        db_session.add_all([first_entry, latest_entry])
+        await db_session.commit()
+        await db_session.refresh(first_entry)
+        await db_session.refresh(latest_entry)
+        assert latest_entry.id > first_entry.id
+
+        await KRIHistoryService.apply_history_correction(
+            db=db_session,
+            entry_id=latest_entry.id,
+            new_value=90.0,
+            corrected_by_id=test_user_cro.id,
+        )
+        await db_session.commit()
+        await db_session.refresh(test_kri_quarterly)
+
+        assert test_kri_quarterly.current_value == 90.0

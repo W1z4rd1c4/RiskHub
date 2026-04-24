@@ -1541,6 +1541,83 @@ async def test_stale_kri_value_submission_auto_rejects_at_apply_time(
 
 
 @pytest.mark.asyncio
+async def test_stale_kri_value_submission_auto_rejects_when_period_already_recorded(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    test_risk,
+    test_user,
+    test_user_employee: User,
+):
+    period_end = date(2026, 2, 28)
+    kri = KeyRiskIndicator(
+        risk_id=test_risk.id,
+        metric_name="Duplicate Period Approval KRI",
+        description="KRI used to test duplicate period apply-time rejection",
+        current_value=30.0,
+        lower_limit=0.0,
+        upper_limit=100.0,
+        unit="%",
+        frequency=KRIFrequency.monthly.value,
+    )
+    db_session.add(kri)
+    await db_session.commit()
+    await db_session.refresh(kri)
+
+    existing_history = KRIValueHistory(
+        kri_id=kri.id,
+        period_start=date(2026, 2, 1),
+        period_end=period_end,
+        recorded_at=datetime.now(UTC),
+        recorded_by_id=test_user.id,
+        value=44.0,
+        lower_limit=0.0,
+        upper_limit=100.0,
+        unit="%",
+        breach_status="within",
+    )
+    db_session.add(existing_history)
+    await db_session.commit()
+
+    approval = ApprovalRequest(
+        resource_type=ApprovalResourceType.KRI,
+        resource_id=kri.id,
+        resource_name="Duplicate Period Approval KRI (value submission)",
+        requested_by_id=test_user_employee.id,
+        reason="KRI value submission duplicates an already recorded period",
+        action_type=ApprovalActionType.EDIT,
+        pending_changes={
+            "current_value": {"old": 30.0, "new": 55.0},
+            "period_end": period_end.isoformat(),
+            "recorded_at": datetime.now(UTC).isoformat(),
+        },
+        status=ApprovalStatus.PENDING,
+    )
+    db_session.add(approval)
+    await db_session.commit()
+    await db_session.refresh(approval)
+
+    response = await auth_client.post(
+        f"/api/v1/approvals/{approval.id}/approve",
+        json={"resolution_notes": "Approve duplicate period value submission"},
+    )
+    assert response.status_code == 200
+    assert response.json()["status"] == "rejected"
+
+    await db_session.refresh(approval)
+    await db_session.refresh(kri)
+    assert approval.status == ApprovalStatus.REJECTED
+    assert "already recorded" in (approval.resolution_notes or "")
+    assert kri.current_value == 30.0
+    count = await db_session.scalar(
+        select(func.count()).select_from(KRIValueHistory).where(
+            KRIValueHistory.kri_id == kri.id,
+            KRIValueHistory.period_end == period_end,
+        )
+    )
+    assert count == 1
+
+
+@pytest.mark.asyncio
 async def test_kri_approval_cross_department_denied(
     client: AsyncClient,
     db_session: AsyncSession,

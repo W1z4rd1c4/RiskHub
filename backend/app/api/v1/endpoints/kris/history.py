@@ -4,13 +4,11 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
 
 from app.api import deps
-from app.core.permissions import check_department_access
 from app.core.security import require_permission
 from app.db.session import get_db
-from app.models import KeyRiskIndicator, Risk, User
+from app.models import User
 from app.schemas.approval_request import ApprovalQueuedResponse
 from app.schemas.kri import (
     KRIHistoryEdit,
@@ -18,6 +16,12 @@ from app.schemas.kri import (
     KRIHistoryListResponse,
     KRIRecordValue,
     KRIResponse,
+)
+from app.services._kri_history.recording import DuplicateKRIPeriodError
+from app.services._kri_history.workflow import (
+    ensure_can_read_history,
+    ensure_can_request_history_correction,
+    history_capabilities,
 )
 
 from .history_helpers import (
@@ -47,7 +51,7 @@ async def record_kri_value(
     """
     from app.core.permissions import can_resolve_approvals
 
-    kri = await _load_kri_with_risk_or_404(db, kri_id)
+    kri = await _load_kri_with_risk_or_404(db, kri_id, for_update=True)
 
     # Block submissions on archived KRIs
     if kri.is_archived:
@@ -63,6 +67,8 @@ async def record_kri_value(
                 data=data,
                 current_user=current_user,
             )
+        except DuplicateKRIPeriodError as e:
+            raise HTTPException(status_code=409, detail=str(e)) from e
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e)) from e
 
@@ -73,6 +79,8 @@ async def record_kri_value(
             data=data,
             current_user=current_user,
         )
+    except DuplicateKRIPeriodError as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
@@ -92,43 +100,16 @@ async def get_kri_history(
     size: int | None = Query(None, ge=1, le=100),
 ):
     """Get paginated history for a KRI."""
-    from app.core.permissions import is_kri_reporting_owner
     from app.schemas.kri import KRIHistoryEntry
     from app.services.kri_history_service import KRIHistoryService
 
-    result = await db.execute(
-        select(KeyRiskIndicator)
-        .join(Risk)
-        .where(KeyRiskIndicator.id == kri_id)
-        .options(joinedload(KeyRiskIndicator.risk))
-    )
-    kri = result.scalar_one_or_none()
-
-    if not kri:
-        raise HTTPException(status_code=404, detail="KRI not found")
+    kri = await _load_kri_with_risk_or_404(db, kri_id)
 
     # Archived KRIs are hidden unless explicitly requested
     if kri.is_archived and not include_archived:
         raise HTTPException(status_code=404, detail="KRI not found")
 
-    # Allow access via ownership (cross-department) per BUSINESS_LOGIC.md §7.1
-    has_access = False
-    # 1. KRI reporting owner
-    if await is_kri_reporting_owner(db, current_user.id, kri_id):
-        has_access = True
-    # 2. Risk owner (of linked risk)
-    elif kri.risk and kri.risk.owner_id == current_user.id:
-        has_access = True
-    else:
-        # 3. Fall back to department access
-        try:
-            check_department_access(kri.risk.department_id, current_user)
-            has_access = True
-        except HTTPException:
-            pass
-
-    if not has_access:
-        raise HTTPException(status_code=403, detail="Access denied")
+    await ensure_can_read_history(db, current_user, kri)
 
     effective_limit = size if size is not None else limit
     effective_offset = skip if skip is not None else offset
@@ -152,7 +133,13 @@ async def get_kri_history(
             item.recorded_by_name = entry.recorded_by.name
         items.append(item)
 
-    return KRIHistoryListResponse(items=items, total=total, offset=effective_offset, limit=effective_limit)
+    return KRIHistoryListResponse(
+        items=items,
+        total=total,
+        offset=effective_offset,
+        limit=effective_limit,
+        capabilities=await history_capabilities(db, current_user, kri),
+    )
 
 
 @router.patch("/{kri_id}/history/{entry_id}", response_model=KRIHistoryEntry, responses=APPROVAL_QUEUED_RESPONSE)
@@ -176,18 +163,8 @@ async def correct_history_entry(
     from app.services.kri_history_service import KRIHistoryService
 
     # Verify KRI exists and access
-    result = await db.execute(
-        select(KeyRiskIndicator)
-        .join(Risk)
-        .where(KeyRiskIndicator.id == kri_id)
-        .options(joinedload(KeyRiskIndicator.risk))
-    )
-    kri = result.scalar_one_or_none()
-
-    if not kri:
-        raise HTTPException(status_code=404, detail="KRI not found")
-
-    check_department_access(kri.risk.department_id, current_user)
+    kri = await _load_kri_with_risk_or_404(db, kri_id, for_update=True)
+    await ensure_can_request_history_correction(db, current_user, kri)
 
     # Verify history entry exists and belongs to this KRI
     entry_result = await db.execute(

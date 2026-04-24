@@ -46,6 +46,7 @@ async def _apply_edit_kri(
             selectinload(KeyRiskIndicator.vendor_links).selectinload(VendorKRILink.vendor),
         )
         .where(KeyRiskIndicator.id == approval.resource_id)
+        .with_for_update()
     )
     kri = result.scalar_one_or_none()
     if not kri:

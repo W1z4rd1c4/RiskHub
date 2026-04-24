@@ -102,11 +102,16 @@ export interface KRIHistoryEntry {
     recorded_by_name?: string | null;
 }
 
+export interface KRIHistoryCapabilities {
+    can_request_correction: boolean;
+}
+
 export interface KRIHistoryListResponse {
     items: KRIHistoryEntry[];
     total: number;
     offset: number;
     limit: number;
+    capabilities?: KRIHistoryCapabilities | null;
 }
 
 export interface KRIRecordValue {

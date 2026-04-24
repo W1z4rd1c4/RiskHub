@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.datetime_utils import coerce_utc, utc_now
@@ -18,6 +19,10 @@ from .periods import (
     latest_closed_period_for_date,
     period_bounds_for_date,
 )
+
+
+class DuplicateKRIPeriodError(ValueError):
+    """Raised when a KRI already has a value recorded for the selected period."""
 
 
 async def record_value(
@@ -73,8 +78,20 @@ async def record_value(
             if not is_period_end_boundary(period_end, kri.frequency):
                 raise ValueError("period_end must align to a calendar period boundary")
             period_start, _ = period_bounds_for_date(period_end, kri.frequency)
-            if not is_privileged and period_end < latest_end:
-                raise ValueError("Non-privileged users cannot backdate to older periods")
+
+    existing_entry_id = await db.scalar(
+        select(KRIValueHistory.id)
+        .where(
+            KRIValueHistory.kri_id == kri.id,
+            KRIValueHistory.period_end == period_end,
+        )
+        .limit(1)
+    )
+    if existing_entry_id is not None:
+        raise DuplicateKRIPeriodError(f"KRI value already recorded for period ending {period_end}")
+
+    if not is_privileged and period_end < latest_end:
+        raise ValueError("Non-privileged users cannot backdate to older periods")
 
     # Non-privileged users must be within window even for current period
     if not is_privileged and not is_within_reporting_window(period_end):
