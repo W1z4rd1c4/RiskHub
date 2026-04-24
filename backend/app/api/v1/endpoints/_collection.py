@@ -87,6 +87,13 @@ def parse_collection_query(
     return query
 
 
+def merge_collection_filters(
+    query: CollectionQuery,
+    defaults: dict[str, Any],
+) -> dict[str, Any]:
+    return defaults | query.filters
+
+
 def coerce_optional_enum[E: Enum](enum_cls: type[E], value: Any, field_name: str) -> E | None:
     if value is None or value == "":
         return None
@@ -223,3 +230,31 @@ def build_grouped_collection_response[T](
         if any(entry.value == group_value for entry in entries)
     ]
     return grouped_items, len(grouped_items), groups
+
+
+def build_grouped_collection_page[T](
+    items: Iterable[T],
+    query: CollectionQuery,
+    *,
+    get_entries: Callable[[T, str], Iterable[CollectionGroupEntry]],
+    is_active: Callable[[T], bool] | None = None,
+    is_highlighted: Callable[[T], bool] | None = None,
+) -> tuple[list[T], int, list[dict[str, Any]]]:
+    if not query.group_by:
+        item_list = list(items)
+        return item_list, len(item_list), []
+
+    grouped_items, grouped_total, groups = build_grouped_collection_response(
+        items,
+        group_by=query.group_by,
+        group_value=query.group_value,
+        get_entries=get_entries,
+        is_active=is_active,
+        is_highlighted=is_highlighted,
+    )
+    paginated_items = (
+        grouped_items[query.offset : query.offset + query.limit]
+        if query.group_value
+        else []
+    )
+    return paginated_items, grouped_total, groups

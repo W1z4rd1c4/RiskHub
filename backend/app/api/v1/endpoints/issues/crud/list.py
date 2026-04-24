@@ -13,12 +13,13 @@ from app.models import Control, ControlExecution, ControlRiskLink, Issue, IssueL
 from app.models.issue import IssueSeverity, IssueStatus
 from app.api.v1.endpoints._collection import (
     CollectionGroupEntry,
-    build_grouped_collection_response,
+    build_grouped_collection_page,
     coerce_optional_bool,
     coerce_optional_enum,
     coerce_optional_int,
     coerce_optional_literal,
     coerce_optional_string,
+    merge_collection_filters,
     parse_collection_query,
 )
 from app.schemas.issue import IssueListResponse
@@ -114,21 +115,23 @@ async def list_issues(
         group_value=group_value,
         max_limit=100,
     )
-    filter_values = {
-        "status": status.value if status else None,
-        "severity": severity.value if severity else None,
-        "severity_group": severity_group,
-        "owner_user_id": owner_user_id,
-        "department_id": department_id,
-        "overdue": overdue,
-        "exclude_active_exceptions": exclude_active_exceptions,
-        "linked_risk_id": linked_risk_id,
-        "linked_control_id": linked_control_id,
-        "linked_vendor_id": linked_vendor_id,
-        "search": search,
-        "include_closed": include_closed,
-    }
-    filter_values.update(collection_query.filters)
+    filter_values = merge_collection_filters(
+        collection_query,
+        {
+            "status": status.value if status else None,
+            "severity": severity.value if severity else None,
+            "severity_group": severity_group,
+            "owner_user_id": owner_user_id,
+            "department_id": department_id,
+            "overdue": overdue,
+            "exclude_active_exceptions": exclude_active_exceptions,
+            "linked_risk_id": linked_risk_id,
+            "linked_control_id": linked_control_id,
+            "linked_vendor_id": linked_vendor_id,
+            "search": search,
+            "include_closed": include_closed,
+        },
+    )
     status_value = filter_values.get("status")
     status = coerce_optional_enum(IssueStatus, status_value, "status")
     severity_value = filter_values.get("severity")
@@ -240,15 +243,13 @@ async def list_issues(
     if collection_query.group_by:
         result = await db.execute(ordered_query)
         all_items = [_serialize_issue_summary(issue, current_user=current_user) for issue in result.scalars().all()]
-        grouped_items, grouped_total, groups = build_grouped_collection_response(
+        paginated_items, grouped_total, groups = build_grouped_collection_page(
             all_items,
-            group_by=collection_query.group_by,
-            group_value=collection_query.group_value,
+            collection_query,
             get_entries=_issue_group_entries,
             is_active=lambda issue: issue.status != IssueStatus.closed.value,
             is_highlighted=lambda issue: issue.severity in {IssueSeverity.high.value, IssueSeverity.critical.value},
         )
-        paginated_items = grouped_items[offset : offset + limit] if collection_query.group_value else []
         return IssueListResponse(
             items=paginated_items,
             total=grouped_total,

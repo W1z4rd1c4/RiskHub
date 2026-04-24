@@ -14,10 +14,13 @@ from app.api.v1.endpoints._monitoring_response import (
     serialize_kri_response,
 )
 from app.api.v1.endpoints._collection import (
+    CollectionGroupEntry,
+    build_grouped_collection_page,
     coerce_optional_bool,
     coerce_optional_enum,
     coerce_optional_int,
     coerce_optional_string,
+    merge_collection_filters,
     parse_collection_query,
 )
 from app.core.datetime_utils import utc_now
@@ -45,33 +48,33 @@ KRI_GROUP_UNKNOWN_RISK_TYPE = "__unknown_risk_type__"
 KRI_GROUP_UNKNOWN_RISK = "__unknown_risk__"
 
 
-def _kri_group_entries(kri, group_by: str) -> list[tuple[str, str, dict[str, str]]]:
+def _kri_group_entries(kri, group_by: str) -> list[CollectionGroupEntry]:
     if group_by == "vendor":
         vendors = getattr(kri, "linked_vendors", None) or []
         if not vendors:
-            return [(KRI_GROUP_UNLINKED_VENDOR, KRI_GROUP_UNLINKED_VENDOR, {})]
-        return [(f"vendor:{vendor.id}", vendor.name, {}) for vendor in vendors]
+            return [CollectionGroupEntry(KRI_GROUP_UNLINKED_VENDOR, KRI_GROUP_UNLINKED_VENDOR)]
+        return [CollectionGroupEntry(f"vendor:{vendor.id}", vendor.name) for vendor in vendors]
 
     if group_by == "category":
         value = kri.risk_category or KRI_GROUP_UNCATEGORIZED
-        return [(value, value, {})]
+        return [CollectionGroupEntry(value, value)]
 
     if group_by == "department":
         value = kri.department_name or KRI_GROUP_UNKNOWN_DEPARTMENT
-        return [(value, value, {})]
+        return [CollectionGroupEntry(value, value)]
 
     if group_by == "process":
         value = kri.risk_process or KRI_GROUP_NO_PROCESS
-        return [(value, value, {})]
+        return [CollectionGroupEntry(value, value)]
 
     if group_by in {"type", "risk_type"}:
         value = kri.risk_type or KRI_GROUP_UNKNOWN_RISK_TYPE
-        return [(value, value, {})]
+        return [CollectionGroupEntry(value, value)]
 
     if group_by == "risk":
         value = kri.risk_name or KRI_GROUP_UNKNOWN_RISK
         return [
-            (
+            CollectionGroupEntry(
                 value,
                 value,
                 {
@@ -83,42 +86,6 @@ def _kri_group_entries(kri, group_by: str) -> list[tuple[str, str, dict[str, str
         ]
 
     return []
-
-
-def _build_kri_group_response(items, group_by: str, group_value: str | None) -> tuple[list, int, list[dict[str, object]]]:
-    group_map: dict[str, dict[str, object]] = {}
-
-    def is_breach(item) -> bool:
-        return getattr(item, "monitoring_status", None) == "breach"
-
-    for item in items:
-        for value, label, meta in _kri_group_entries(item, group_by):
-            group = group_map.setdefault(
-                value,
-                {
-                    "value": value,
-                    "label": label,
-                    "count": 0,
-                    "active_count": 0,
-                    "highlighted_count": 0,
-                    "meta": meta,
-                },
-            )
-            group["count"] = int(group["count"]) + 1
-            group["active_count"] = int(group["active_count"]) + 1
-            if is_breach(item):
-                group["highlighted_count"] = int(group["highlighted_count"]) + 1
-
-    groups = sorted(group_map.values(), key=lambda group: str(group["label"]).lower())
-    if not group_value:
-        return [], len(items), groups
-
-    filtered_items = [
-        item
-        for item in items
-        if any(value == group_value for value, _, _ in _kri_group_entries(item, group_by))
-    ]
-    return filtered_items, len(filtered_items), groups
 
 
 @router.get("", response_model=KRIListResponse)
@@ -156,16 +123,18 @@ async def list_kris(
         group_value=group_value,
         max_limit=MAX_KRI_PAGE_SIZE,
     )
-    filter_values = {
-        "risk_id": risk_id,
-        "search": search,
-        "breach_only": breach_only,
-        "include_archived": include_archived,
-        "is_archived": None,
-        "monitoring_status": monitoring_status,
-        "timeliness_status": timeliness_status,
-    }
-    filter_values.update(collection_query.filters)
+    filter_values = merge_collection_filters(
+        collection_query,
+        {
+            "risk_id": risk_id,
+            "search": search,
+            "breach_only": breach_only,
+            "include_archived": include_archived,
+            "is_archived": None,
+            "monitoring_status": monitoring_status,
+            "timeliness_status": timeliness_status,
+        },
+    )
     risk_id = coerce_optional_int("risk_id", filter_values.get("risk_id"))
     search = coerce_optional_string("search", filter_values.get("search"))
     breach_only = coerce_optional_bool("breach_only", filter_values.get("breach_only")) or False
@@ -265,12 +234,12 @@ async def list_kris(
             )
             for kri in kris
         ]
-        grouped_items, total, groups = _build_kri_group_response(
+        paginated_items, total, groups = build_grouped_collection_page(
             all_items,
-            group_by=collection_query.group_by,
-            group_value=collection_query.group_value,
+            collection_query,
+            get_entries=_kri_group_entries,
+            is_highlighted=lambda item: getattr(item, "monitoring_status", None) == "breach",
         )
-        paginated_items = grouped_items[offset : offset + limit] if collection_query.group_value else []
         return KRIListResponse(items=paginated_items, total=total, offset=offset, limit=limit, groups=groups)
 
     count_query = select(func.count()).select_from(filtered_query.subquery())

@@ -4,6 +4,7 @@ import type { ExportDialogSubmitPayload } from '@/components/reports/ExportDialo
 import type { SortDirection, ViewMode } from '@/components/tables';
 import { DEFAULT_LIST_PAGE_SIZE } from '@/constants/list';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { loadCollectionPage } from '@/services/collectionApi';
 import { reportApi } from '@/services/reportApi';
 import { riskApi } from '@/services/riskApi';
 import type { CollectionGroup } from '@/types/collection';
@@ -56,29 +57,12 @@ export function useRisksPageState({ initialState }: UseRisksPageStateOptions) {
         try {
             setIsLoading(true);
 
-            if (!groupBy) {
-                const response = await riskApi.getRisks(
-                    buildRiskListParams({
-                        currentPage,
-                        criticalFilter,
-                        hasBreachFilter,
-                        limit,
-                        priorityFilter,
-                        search: debouncedSearch,
-                        sortDirection,
-                        sortField,
-                        statusFilter,
-                        typeFilter,
-                    })
-                );
-                if (requestId !== latestRequestIdRef.current) {
-                    return;
-                }
-                setItems(normalizeRiskSummaries(response.items));
-                setGroups([]);
-                setTotalCount(response.total);
-            } else if (selectedGroupValue) {
-                const response = await riskApi.getRisks(
+            const response = await loadCollectionPage({
+                currentPage,
+                groupBy,
+                selectedGroupValue,
+                normalizeItems: normalizeRiskSummaries,
+                loadPage: ({ currentPage, groupBy, groupValue }) => riskApi.getRisks(
                     buildRiskListParams({
                         currentPage,
                         criticalFilter,
@@ -91,38 +75,16 @@ export function useRisksPageState({ initialState }: UseRisksPageStateOptions) {
                         statusFilter,
                         typeFilter,
                         groupBy,
-                        groupValue: selectedGroupValue,
+                        groupValue,
                     })
-                );
-                if (requestId !== latestRequestIdRef.current) {
-                    return;
-                }
-                setItems(normalizeRiskSummaries(response.items));
-                setGroups(response.groups ?? []);
-                setTotalCount(response.total);
-            } else {
-                const response = await riskApi.getRisks(
-                    buildRiskListParams({
-                        currentPage: 1,
-                        criticalFilter,
-                        hasBreachFilter,
-                        limit,
-                        priorityFilter,
-                        search: debouncedSearch,
-                        sortDirection,
-                        sortField,
-                        statusFilter,
-                        typeFilter,
-                        groupBy,
-                    })
-                );
-                if (requestId !== latestRequestIdRef.current) {
-                    return;
-                }
-                setItems([]);
-                setGroups(response.groups ?? []);
-                setTotalCount(response.total);
+                ),
+            });
+            if (requestId !== latestRequestIdRef.current) {
+                return;
             }
+            setItems(response.items);
+            setGroups(response.groups);
+            setTotalCount(response.total);
 
             setErrorKey(null);
             hasLoadedRisksRef.current = true;

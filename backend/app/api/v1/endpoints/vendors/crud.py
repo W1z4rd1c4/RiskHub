@@ -12,11 +12,12 @@ from app.api import deps
 from app.api.mappers.vendor import vendor_list_response, vendor_to_read
 from app.api.v1.endpoints._collection import (
     CollectionGroupEntry,
-    build_grouped_collection_response,
+    build_grouped_collection_page,
     coerce_optional_bool,
     coerce_optional_enum,
     coerce_optional_int,
     coerce_optional_string,
+    merge_collection_filters,
     parse_collection_query,
 )
 from app.core.activity_logger import build_change_set, log_activity
@@ -172,21 +173,23 @@ async def list_vendors(
         group_value=group_value,
         max_limit=100,
     )
-    filter_values = {
-        "search": search,
-        "status": status_filter.value if status_filter else None,
-        "include_archived": include_archived,
-        "vendor_type": vendor_type.value if vendor_type else None,
-        "dora_relevant": dora_relevant,
-        "supports_important_core_insurance_function": supports_important_core_insurance_function,
-        "is_significant_vendor": is_significant_vendor,
-        "outsourcing_owner_user_id": outsourcing_owner_user_id,
-        "department_id": department_id,
-        "process": process,
-        "subprocess": subprocess,
-        "risk_score_1_5": risk_score_1_5,
-    }
-    filter_values.update(collection_query.filters)
+    filter_values = merge_collection_filters(
+        collection_query,
+        {
+            "search": search,
+            "status": status_filter.value if status_filter else None,
+            "include_archived": include_archived,
+            "vendor_type": vendor_type.value if vendor_type else None,
+            "dora_relevant": dora_relevant,
+            "supports_important_core_insurance_function": supports_important_core_insurance_function,
+            "is_significant_vendor": is_significant_vendor,
+            "outsourcing_owner_user_id": outsourcing_owner_user_id,
+            "department_id": department_id,
+            "process": process,
+            "subprocess": subprocess,
+            "risk_score_1_5": risk_score_1_5,
+        },
+    )
     search = coerce_optional_string("search", filter_values.get("search"))
     status_value = filter_values.get("status")
     status_filter = coerce_optional_enum(VendorStatusEnum, status_value, "status")
@@ -310,15 +313,13 @@ async def list_vendors(
     if collection_query.group_by:
         result = await db.execute(ordered_query)
         all_items = await serialize_vendors(list(result.scalars().all()))
-        grouped_items, grouped_total, groups = build_grouped_collection_response(
+        paginated_items, grouped_total, groups = build_grouped_collection_page(
             all_items,
-            group_by=collection_query.group_by,
-            group_value=collection_query.group_value,
+            collection_query,
             get_entries=_vendor_group_entries,
             is_active=lambda vendor: vendor.status == VendorStatusEnum.active,
             is_highlighted=lambda vendor: vendor.risk_score_1_5 >= 4,
         )
-        paginated_items = grouped_items[offset : offset + limit] if collection_query.group_value else []
         return VendorListResponse(
             items=paginated_items,
             total=grouped_total,

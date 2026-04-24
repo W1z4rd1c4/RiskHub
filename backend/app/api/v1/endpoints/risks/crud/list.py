@@ -8,11 +8,12 @@ from sqlalchemy.orm import selectinload
 from app.api.mappers.risk import risk_to_summary
 from app.api.v1.endpoints._collection import (
     CollectionGroupEntry,
-    build_grouped_collection_response,
+    build_grouped_collection_page,
     coerce_optional_bool,
     coerce_optional_enum,
     coerce_optional_int,
     coerce_optional_string,
+    merge_collection_filters,
     parse_collection_query,
 )
 from app.core.permissions import can_read_vendor, get_user_department_ids
@@ -100,19 +101,21 @@ async def list_risks(
         group_value=group_value,
         max_limit=100,
     )
-    filter_values = {
-        "department_id": department_id,
-        "status": status.value if status else None,
-        "risk_type": risk_type,
-        "is_priority": is_priority,
-        "search": search,
-        "include_archived": include_archived,
-        "has_breach": has_breach,
-        "min_net_score": min_net_score,
-        "process": process,
-        "category": category,
-    }
-    filter_values.update(collection_query.filters)
+    filter_values = merge_collection_filters(
+        collection_query,
+        {
+            "department_id": department_id,
+            "status": status.value if status else None,
+            "risk_type": risk_type,
+            "is_priority": is_priority,
+            "search": search,
+            "include_archived": include_archived,
+            "has_breach": has_breach,
+            "min_net_score": min_net_score,
+            "process": process,
+            "category": category,
+        },
+    )
     department_id = coerce_optional_int("department_id", filter_values.get("department_id"))
     status_value = filter_values.get("status")
     status = coerce_optional_enum(RiskStatusEnum, status_value, "status")
@@ -289,15 +292,13 @@ async def list_risks(
     if collection_query.group_by:
         result = await db.execute(ordered_query)
         all_items = serialize_risks(list(result.scalars().all()))
-        grouped_items, grouped_total, groups = build_grouped_collection_response(
+        paginated_items, grouped_total, groups = build_grouped_collection_page(
             all_items,
-            group_by=collection_query.group_by,
-            group_value=collection_query.group_value,
+            collection_query,
             get_entries=_risk_group_entries,
             is_active=lambda risk: risk.status == RiskStatusEnum.active.value,
             is_highlighted=lambda risk: risk.net_score >= 16,
         )
-        paginated_items = grouped_items[offset : offset + limit] if collection_query.group_value else []
         return RiskListResponse(
             items=paginated_items,
             total=grouped_total,

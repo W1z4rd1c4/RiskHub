@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { DEFAULT_LIST_PAGE_SIZE } from '@/constants/list';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { apiClient } from '@/services/apiClient';
+import { loadCollectionPage } from '@/services/collectionApi';
 import { issuesApi } from '@/services/issuesApi';
 import { reportApi } from '@/services/reportApi';
 import type { ExportDialogSubmitPayload } from '@/components/reports/ExportDialog';
@@ -61,34 +62,6 @@ export function useIssuesPageState({ canRead, initialState }: UseIssuesPageState
     const debouncedSearch = useDebouncedValue(search, 300);
     const groupBy = getIssueGroupBy(viewMode);
 
-    const listFilters = useMemo(
-        () =>
-            buildIssueListFilters({
-                currentPage,
-                debouncedSearch,
-                excludeActiveExceptions,
-                includeClosed,
-                limit,
-                overdueOnly,
-                severityFilter,
-                sortDirection,
-                sortField,
-                statusFilter,
-            }),
-        [
-            currentPage,
-            debouncedSearch,
-            excludeActiveExceptions,
-            includeClosed,
-            limit,
-            overdueOnly,
-            severityFilter,
-            sortDirection,
-            sortField,
-            statusFilter,
-        ]
-    );
-
     const fetchIssues = useCallback(async () => {
         if (!canRead) {
             setIsLoading(false);
@@ -99,11 +72,11 @@ export function useIssuesPageState({ canRead, initialState }: UseIssuesPageState
         try {
             setIsLoading(true);
 
-            let response;
-            if (!groupBy) {
-                response = await issuesApi.list(listFilters);
-            } else if (selectedGroupValue) {
-                response = await issuesApi.list(
+            const response = await loadCollectionPage({
+                currentPage,
+                groupBy,
+                selectedGroupValue,
+                loadPage: ({ currentPage, groupBy, groupValue }) => issuesApi.list(
                     buildIssueListFilters({
                         currentPage,
                         debouncedSearch,
@@ -116,31 +89,15 @@ export function useIssuesPageState({ canRead, initialState }: UseIssuesPageState
                         sortField,
                         statusFilter,
                         groupBy,
-                        groupValue: selectedGroupValue,
+                        groupValue,
                     })
-                );
-            } else {
-                response = await issuesApi.list(
-                    buildIssueListFilters({
-                        currentPage: 1,
-                        debouncedSearch,
-                        excludeActiveExceptions,
-                        includeClosed,
-                        limit,
-                        overdueOnly,
-                        severityFilter,
-                        sortDirection,
-                        sortField,
-                        statusFilter,
-                        groupBy,
-                    })
-                );
-            }
+                ),
+            });
             if (requestId !== latestRequestIdRef.current) {
                 return;
             }
             setItems(response.items);
-            setGroups(response.groups ?? []);
+            setGroups(response.groups);
             setTotalCount(response.total);
             setErrorKey(null);
             hasLoadedIssuesRef.current = true;
@@ -163,7 +120,6 @@ export function useIssuesPageState({ canRead, initialState }: UseIssuesPageState
         excludeActiveExceptions,
         groupBy,
         includeClosed,
-        listFilters,
         limit,
         overdueOnly,
         severityFilter,

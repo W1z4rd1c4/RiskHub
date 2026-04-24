@@ -6,6 +6,7 @@ import { DEFAULT_LIST_PAGE_SIZE, LIST_SEARCH_DEBOUNCE_MS } from '@/constants/lis
 import { KRI_MONITORING_FILTER_VALUES } from '@/lib/monitoringStatus';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { apiClient } from '@/services/apiClient';
+import { loadCollectionPage } from '@/services/collectionApi';
 import { kriApi } from '@/services/kriApi';
 import { reportApi } from '@/services/reportApi';
 import type { CollectionGroup } from '@/types/collection';
@@ -60,24 +61,11 @@ export function useKrisPageState({ searchParams, setSearchParams }: UseKrisPageS
         try {
             setIsLoading(true);
 
-            if (!groupBy) {
-                const response = await kriApi.getKRIs(
-                    buildKriListParams({
-                        currentPage,
-                        limit,
-                        search: debouncedSearch,
-                        statusFilter,
-                        timelinessFilter,
-                    })
-                );
-                if (requestId !== latestRequestIdRef.current) {
-                    return;
-                }
-                setItems(response.items);
-                setGroups([]);
-                setTotalCount(response.total);
-            } else if (selectedGroupValue) {
-                const response = await kriApi.getKRIs(
+            const response = await loadCollectionPage({
+                currentPage,
+                groupBy,
+                selectedGroupValue,
+                loadPage: ({ currentPage, groupBy, groupValue }) => kriApi.getKRIs(
                     buildKriListParams({
                         currentPage,
                         limit,
@@ -85,33 +73,16 @@ export function useKrisPageState({ searchParams, setSearchParams }: UseKrisPageS
                         statusFilter,
                         timelinessFilter,
                         groupBy,
-                        groupValue: selectedGroupValue,
+                        groupValue,
                     })
-                );
-                if (requestId !== latestRequestIdRef.current) {
-                    return;
-                }
-                setItems(response.items);
-                setGroups(response.groups ?? []);
-                setTotalCount(response.total);
-            } else {
-                const response = await kriApi.getKRIs(
-                    buildKriListParams({
-                        currentPage: 1,
-                        limit,
-                        search: debouncedSearch,
-                        statusFilter,
-                        timelinessFilter,
-                        groupBy,
-                    })
-                );
-                if (requestId !== latestRequestIdRef.current) {
-                    return;
-                }
-                setItems([]);
-                setGroups(response.groups ?? []);
-                setTotalCount(response.total);
+                ),
+            });
+            if (requestId !== latestRequestIdRef.current) {
+                return;
             }
+            setItems(response.items);
+            setGroups(response.groups);
+            setTotalCount(response.total);
 
             setErrorKey(null);
             hasLoadedKrisRef.current = true;

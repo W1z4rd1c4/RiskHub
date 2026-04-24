@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { ExportDialogSubmitPayload } from '@/components/reports/ExportDialog';
 import type { SortDirection, ViewMode } from '@/components/tables';
 import { DEFAULT_LIST_PAGE_SIZE } from '@/constants/list';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { apiClient } from '@/services/apiClient';
+import { loadCollectionPage } from '@/services/collectionApi';
 import { reportApi } from '@/services/reportApi';
 import { vendorApi } from '@/services/vendorApi';
 import type { CollectionGroup } from '@/types/collection';
@@ -46,41 +47,17 @@ export function useVendorsPageState({ canReadRisks }: UseVendorsPageStateOptions
     const includeArchived = statusFilter === 'inactive';
     const groupBy = getVendorGroupBy(viewMode);
 
-    const listParams = useMemo(
-        () =>
-            buildVendorListParams({
-                currentPage,
-                debouncedSearch,
-                includeArchived,
-                limit,
-                sortDirection,
-                sortField,
-                statusFilter,
-                typeFilter,
-            }),
-        [
-            currentPage,
-            debouncedSearch,
-            includeArchived,
-            limit,
-            sortDirection,
-            sortField,
-            statusFilter,
-            typeFilter,
-        ]
-    );
-
     const fetchVendors = useCallback(async () => {
         const requestId = ++latestRequestIdRef.current;
 
         try {
             setIsLoading(true);
 
-            let response;
-            if (!groupBy) {
-                response = await vendorApi.getVendors(listParams);
-            } else if (selectedGroupValue) {
-                response = await vendorApi.getVendors(
+            const response = await loadCollectionPage({
+                currentPage,
+                groupBy,
+                selectedGroupValue,
+                loadPage: ({ currentPage, groupBy, groupValue }) => vendorApi.getVendors(
                     buildVendorListParams({
                         currentPage,
                         debouncedSearch,
@@ -91,31 +68,17 @@ export function useVendorsPageState({ canReadRisks }: UseVendorsPageStateOptions
                         statusFilter,
                         typeFilter,
                         groupBy,
-                        groupValue: selectedGroupValue,
+                        groupValue,
                     })
-                );
-            } else {
-                response = await vendorApi.getVendors(
-                    buildVendorListParams({
-                        currentPage: 1,
-                        debouncedSearch,
-                        includeArchived,
-                        limit,
-                        sortDirection,
-                        sortField,
-                        statusFilter,
-                        typeFilter,
-                        groupBy,
-                    })
-                );
-            }
+                ),
+            });
 
             if (requestId !== latestRequestIdRef.current) {
                 return;
             }
 
             setItems(response.items);
-            setGroups(response.groups ?? []);
+            setGroups(response.groups);
             setTotalCount(response.total);
             setErrorKey(null);
             hasLoadedVendorsRef.current = true;
@@ -138,7 +101,6 @@ export function useVendorsPageState({ canReadRisks }: UseVendorsPageStateOptions
         groupBy,
         includeArchived,
         limit,
-        listParams,
         selectedGroupValue,
         sortDirection,
         sortField,

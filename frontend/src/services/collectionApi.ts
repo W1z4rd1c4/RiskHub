@@ -1,4 +1,4 @@
-import type { CollectionListResponse, CollectionSort } from '@/types/collection';
+import type { CollectionGroup, CollectionListResponse, CollectionSort } from '@/types/collection';
 
 type CollectionFilterValue = string | number | boolean | null | undefined;
 type CollectionFilters = Record<string, CollectionFilterValue>;
@@ -10,6 +10,26 @@ interface BuildCollectionParamsOptions {
     filters?: CollectionFilters;
     groupBy?: string | null;
     groupValue?: string | null;
+}
+
+interface LoadCollectionPageRequest {
+    currentPage: number;
+    groupBy?: string | null;
+    groupValue?: string | null;
+}
+
+interface LoadCollectionPageOptions<TItem> {
+    currentPage: number;
+    groupBy?: string | null;
+    selectedGroupValue?: string | null;
+    loadPage: (request: LoadCollectionPageRequest) => Promise<CollectionListResponse<TItem>>;
+    normalizeItems?: (items: TItem[]) => TItem[];
+}
+
+interface LoadedCollectionPage<TItem> {
+    items: TItem[];
+    groups: CollectionGroup[];
+    total: number;
 }
 
 export function buildCollectionParams({
@@ -75,5 +95,42 @@ export function normalizeCollectionResponse<TItem>(
         offset,
         limit,
         groups: response.groups ?? null,
+    };
+}
+
+export async function loadCollectionPage<TItem>({
+    currentPage,
+    groupBy,
+    selectedGroupValue,
+    loadPage,
+    normalizeItems = (items) => items,
+}: LoadCollectionPageOptions<TItem>): Promise<LoadedCollectionPage<TItem>> {
+    if (!groupBy) {
+        const response = await loadPage({ currentPage });
+        return {
+            items: normalizeItems(response.items),
+            groups: [],
+            total: response.total,
+        };
+    }
+
+    if (selectedGroupValue) {
+        const response = await loadPage({
+            currentPage,
+            groupBy,
+            groupValue: selectedGroupValue,
+        });
+        return {
+            items: normalizeItems(response.items),
+            groups: response.groups ?? [],
+            total: response.total,
+        };
+    }
+
+    const response = await loadPage({ currentPage: 1, groupBy });
+    return {
+        items: [],
+        groups: response.groups ?? [],
+        total: response.total,
     };
 }

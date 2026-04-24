@@ -5,6 +5,7 @@ import type { ViewMode } from '@/components/tables';
 import { DEFAULT_LIST_PAGE_SIZE } from '@/constants/list';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { controlApi } from '@/services/controlApi';
+import { loadCollectionPage } from '@/services/collectionApi';
 import { reportApi } from '@/services/reportApi';
 import type { CollectionGroup } from '@/types/collection';
 import type { ControlSummary } from '@/types/control';
@@ -43,55 +44,27 @@ export function useControlsPageState() {
         try {
             setIsLoading(true);
 
-            if (!groupBy) {
-                const response = await controlApi.getControls(
-                    buildControlListParams({
-                        currentPage,
-                        limit,
-                        search: debouncedSearch,
-                        statusFilter,
-                    })
-                );
-                if (requestId !== latestRequestIdRef.current) {
-                    return;
-                }
-                setItems(response.items);
-                setGroups([]);
-                setTotalCount(response.total);
-            } else if (selectedGroupValue) {
-                const response = await controlApi.getControls(
+            const response = await loadCollectionPage({
+                currentPage,
+                groupBy,
+                selectedGroupValue,
+                loadPage: ({ currentPage, groupBy, groupValue }) => controlApi.getControls(
                     buildControlListParams({
                         currentPage,
                         limit,
                         search: debouncedSearch,
                         statusFilter,
                         groupBy,
-                        groupValue: selectedGroupValue,
+                        groupValue,
                     })
-                );
-                if (requestId !== latestRequestIdRef.current) {
-                    return;
-                }
-                setItems(response.items);
-                setGroups(response.groups ?? []);
-                setTotalCount(response.total);
-            } else {
-                const response = await controlApi.getControls(
-                    buildControlListParams({
-                        currentPage: 1,
-                        limit,
-                        search: debouncedSearch,
-                        statusFilter,
-                        groupBy,
-                    })
-                );
-                if (requestId !== latestRequestIdRef.current) {
-                    return;
-                }
-                setItems([]);
-                setGroups(response.groups ?? []);
-                setTotalCount(response.total);
+                ),
+            });
+            if (requestId !== latestRequestIdRef.current) {
+                return;
             }
+            setItems(response.items);
+            setGroups(response.groups);
+            setTotalCount(response.total);
 
             setErrorKey(null);
             hasLoadedControlsRef.current = true;
