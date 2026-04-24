@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
-
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,14 +8,16 @@ from sqlalchemy.orm import selectinload
 from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import RiskQuestionnaireClarification, User
-from app.models.risk_questionnaire import RiskQuestionnaireStatus
 from app.schemas.risk_questionnaire import (
     RiskQuestionnaireClarificationCreate,
     RiskQuestionnaireClarificationRead,
     RiskQuestionnaireClarificationRespond,
 )
-from app.services.outbox import OutboxService
-from app.services.risk_questionnaire_service import can_send_questionnaire
+from app.services.risk_questionnaire_service import (
+    load_questionnaire,
+    request_questionnaire_clarification,
+    respond_to_questionnaire_clarification as respond_to_questionnaire_clarification_workflow,
+)
 
 from ._shared import _get_questionnaire_for_read, _serialize_clarification
 
@@ -31,33 +31,17 @@ async def create_questionnaire_clarification(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_permission("risks", "read")),
 ) -> RiskQuestionnaireClarificationRead:
-    if not can_send_questionnaire(current_user):
-        raise HTTPException(status_code=403, detail="Only Risk Manager or CRO can request clarifications")
-
-    questionnaire = await _get_questionnaire_for_read(db, current_user, questionnaire_id)
-    if questionnaire.status != RiskQuestionnaireStatus.submitted:
-        raise HTTPException(status_code=409, detail="Clarifications can only be requested for submitted questionnaires")
-
-    clarification = RiskQuestionnaireClarification(
-        questionnaire_id=questionnaire.id,
+    questionnaire = await load_questionnaire(db, questionnaire_id, for_update=True)
+    if questionnaire is None:
+        raise HTTPException(status_code=404, detail="Questionnaire not found")
+    await _get_questionnaire_for_read(db, current_user, questionnaire_id)
+    clarification = await request_questionnaire_clarification(
+        db=db,
+        questionnaire=questionnaire,
+        current_user=current_user,
         section_key=payload.section_key,
-        question_keys=payload.question_keys,
         request_message=payload.request_message,
-        requested_by_user_id=current_user.id,
-    )
-    db.add(clarification)
-    await db.flush()
-    await OutboxService.enqueue(
-        db,
-        event_type="questionnaire.clarification_requested",
-        aggregate_type="risk_questionnaire_clarification",
-        aggregate_id=clarification.id,
-        idempotency_key=f"questionnaire:{questionnaire.id}:clarification:{clarification.id}",
-        payload={
-            "clarification_id": clarification.id,
-            "questionnaire_id": questionnaire.id,
-            "actor_user_id": current_user.id,
-        },
+        question_keys=payload.question_keys,
     )
 
     await db.commit()
@@ -106,30 +90,17 @@ async def respond_to_questionnaire_clarification(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_permission("risks", "read")),
 ) -> RiskQuestionnaireClarificationRead:
-    questionnaire = await _get_questionnaire_for_read(db, current_user, questionnaire_id)
-    if questionnaire.assigned_to_user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Only the Risk Owner can respond to clarifications")
-
-    result = await db.execute(
-        select(RiskQuestionnaireClarification)
-        .options(
-            selectinload(RiskQuestionnaireClarification.requested_by_user),
-            selectinload(RiskQuestionnaireClarification.responded_by_user),
-        )
-        .where(
-            RiskQuestionnaireClarification.id == clarification_id,
-            RiskQuestionnaireClarification.questionnaire_id == questionnaire.id,
-        )
+    questionnaire = await load_questionnaire(db, questionnaire_id, for_update=True)
+    if questionnaire is None:
+        raise HTTPException(status_code=404, detail="Questionnaire not found")
+    await _get_questionnaire_for_read(db, current_user, questionnaire_id)
+    clarification = await respond_to_questionnaire_clarification_workflow(
+        db=db,
+        questionnaire=questionnaire,
+        clarification_id=clarification_id,
+        current_user=current_user,
+        response_message=payload.response_message,
     )
-    clarification = result.scalar_one_or_none()
-    if clarification is None:
-        raise HTTPException(status_code=404, detail="Clarification not found")
-    if clarification.response_message is not None:
-        raise HTTPException(status_code=409, detail="Clarification has already been responded to")
-
-    clarification.response_message = payload.response_message
-    clarification.responded_by_user_id = current_user.id
-    clarification.responded_at = datetime.now(UTC)
     await db.commit()
 
     result = await db.execute(

@@ -1,24 +1,14 @@
 """Risk Hub questionnaire endpoints (CRO-only batch send)."""
 
-from datetime import UTC, datetime, timedelta
-
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.endpoints.riskhub import get_cro_user
-from app.core.activity_logger import log_activity
 from app.db.session import get_db
-from app.models import Risk, RiskQuestionnaire, User
-from app.models.activity_log import ActivityAction, ActivityEntityType
-from app.models.risk_questionnaire import RiskQuestionnaireStatus
-from app.services.outbox import OutboxService
-from app.services.risk_questionnaire_service import (
-    QUESTIONNAIRE_TEMPLATE_KEY,
-    QUESTIONNAIRE_TEMPLATE_VERSION,
-    create_questionnaire_instance,
-)
+from app.models import Risk, User
+from app.services.risk_questionnaire_service import send_questionnaire_for_risk
 
 router = APIRouter(prefix="/riskhub/questionnaires", tags=["riskhub"])
 
@@ -64,77 +54,31 @@ async def batch_send_questionnaires(
             query = query.where(Risk.status == payload.filters.status)
 
         result = await db.execute(query)
-        risks = result.scalars().all()
-        target_risk_ids = [r.id for r in risks]
+        target_risk_ids = [r.id for r in result.scalars().all()]
     else:
         if not payload.risk_ids:
             raise HTTPException(status_code=400, detail="risk_ids is required when select_all=false")
         target_risk_ids = payload.risk_ids
-
-        result = await db.execute(select(Risk).where(Risk.id.in_(target_risk_ids)))
-        risks = result.scalars().all()
 
     skipped_no_owner: list[int] = []
     skipped_open_exists: list[int] = []
     errors: list[str] = []
     created_count = 0
 
-    open_result = await db.execute(
-        select(RiskQuestionnaire.risk_id)
-        .where(
-            RiskQuestionnaire.risk_id.in_(target_risk_ids),
-            RiskQuestionnaire.status.in_([RiskQuestionnaireStatus.sent, RiskQuestionnaireStatus.in_progress]),
-        )
-        .distinct()
-    )
-    open_risk_ids = {row[0] for row in open_result.all()}
-
-    now = datetime.now(UTC)
-    for risk in risks:
+    for risk_id in target_risk_ids:
         try:
-            if risk.owner_id is None:
-                skipped_no_owner.append(risk.id)
-                continue
-            if risk.id in open_risk_ids:
-                skipped_open_exists.append(risk.id)
-                continue
-
-            questionnaire = await create_questionnaire_instance(
-                db=db,
-                risk=risk,
-                assigned_to_user_id=risk.owner_id,
-                sent_by_user_id=cro_user.id,
-                template_key=QUESTIONNAIRE_TEMPLATE_KEY,
-                template_version=QUESTIONNAIRE_TEMPLATE_VERSION,
-                sent_at=now,
-                due_at=now + timedelta(days=15),
-            )
-
-            await log_activity(
-                db,
-                entity_type=ActivityEntityType.RISK_QUESTIONNAIRE,
-                entity_id=questionnaire.id,
-                entity_name=f"{risk.name} questionnaire",
-                action=ActivityAction.CREATE,
-                actor=cro_user,
-                department_id=risk.department_id,
-                description=f"Sent questionnaire for risk '{risk.name}'",
-            )
-            await OutboxService.enqueue(
-                db,
-                event_type="questionnaire.sent",
-                aggregate_type="risk_questionnaire",
-                aggregate_id=questionnaire.id,
-                idempotency_key=f"questionnaire:{questionnaire.id}:sent",
-                payload={
-                    "questionnaire_id": questionnaire.id,
-                    "actor_user_id": cro_user.id,
-                },
-            )
-
+            async with db.begin_nested():
+                await send_questionnaire_for_risk(db=db, risk_id=risk_id, current_user=cro_user)
             created_count += 1
+        except HTTPException as e:
+            if e.status_code == 400 and e.detail == "Risk owner must be set before sending a questionnaire":
+                skipped_no_owner.append(risk_id)
+            elif e.status_code == 409 and e.detail == "An open questionnaire already exists for this risk":
+                skipped_open_exists.append(risk_id)
+            else:
+                errors.append(f"risk_id={risk_id}: {e.detail}")
         except Exception as e:
-            errors.append(f"risk_id={risk.id}: {e}")
+            errors.append(f"risk_id={risk_id}: {e}")
 
     await db.commit()
     return BatchSendResponse(

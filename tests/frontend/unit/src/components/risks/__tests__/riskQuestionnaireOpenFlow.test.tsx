@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 
 import type { Risk } from '@/types/risk';
 import type { RiskQuestionnaireDetail as RiskQuestionnaireDetailType } from '@/types/riskQuestionnaire';
@@ -125,5 +125,34 @@ describe('RiskQuestionnaireDetail open flow', () => {
         });
         // …but does not attempt to open it.
         expect(riskQuestionnairesApi.open).not.toHaveBeenCalled();
+    });
+
+    it('uses backend capabilities to suppress automatic open', async () => {
+        (riskQuestionnairesApi.get as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+            ...sentQuestionnaire(),
+            capabilities: {
+                can_open: false,
+                can_save_draft: false,
+                can_submit: false,
+                can_request_clarification: false,
+                can_respond_to_clarifications: false,
+            },
+        });
+
+        render(
+            <RiskQuestionnaireDetail
+                isOpen={true}
+                onClose={() => {}}
+                questionnaireId={123}
+                risk={baseRisk}
+            />
+        );
+
+        await waitFor(() => {
+            expect(riskQuestionnairesApi.get).toHaveBeenCalled();
+        });
+        expect(riskQuestionnairesApi.open).not.toHaveBeenCalled();
+        expect(screen.queryByText('risks:questionnaire.actions.save')).not.toBeInTheDocument();
+        expect(screen.queryByText('common:actions.submit')).not.toBeInTheDocument();
     });
 });

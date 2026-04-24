@@ -1,5 +1,13 @@
 export type RiskQuestionnaireStatus = 'sent' | 'in_progress' | 'submitted';
 
+export interface RiskQuestionnaireCapabilities {
+    can_open: boolean;
+    can_save_draft: boolean;
+    can_submit: boolean;
+    can_request_clarification: boolean;
+    can_respond_to_clarifications: boolean;
+}
+
 export interface RiskQuestionnaireListItem {
     id: number;
     risk_id: number;
@@ -17,6 +25,7 @@ export interface RiskQuestionnaireListItem {
     assigned_to_user_name?: string | null;
     sent_by_user_name?: string | null;
     submitted_by_user_name?: string | null;
+    capabilities?: RiskQuestionnaireCapabilities | null;
 }
 
 export interface RiskQuestionnaireDetail extends RiskQuestionnaireListItem {

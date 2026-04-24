@@ -87,6 +87,13 @@ class RiskQuestionnaire(Base):
         Index("ix_risk_questionnaires_risk_status", "risk_id", "status"),
         Index("ix_risk_questionnaires_assignee_status", "assigned_to_user_id", "status"),
         Index("ix_risk_questionnaires_due_status", "due_at", "status"),
+        Index(
+            "ux_risk_questionnaires_one_open_per_risk",
+            "risk_id",
+            unique=True,
+            sqlite_where=status.in_([RiskQuestionnaireStatus.sent, RiskQuestionnaireStatus.in_progress]),
+            postgresql_where=status.in_([RiskQuestionnaireStatus.sent, RiskQuestionnaireStatus.in_progress]),
+        ),
     )
 
 

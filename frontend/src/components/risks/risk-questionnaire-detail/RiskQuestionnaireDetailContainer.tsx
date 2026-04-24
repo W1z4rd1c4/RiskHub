@@ -67,7 +67,7 @@ export function RiskQuestionnaireDetail({
         return new Date(questionnaire.due_at).getTime() < Date.now();
     }, [questionnaire]);
 
-    const canSubmit = useMemo(() => {
+    const localCanSubmit = useMemo(() => {
         if (!user) return false;
         if (!risk.owner_id || !risk.department_id) {
             return user.id === risk.owner_id;
@@ -75,8 +75,6 @@ export function RiskQuestionnaireDetail({
         if (user.id === risk.owner_id) return true;
         return authz.isDepartmentHead && user.department_id === risk.department_id;
     }, [authz.isDepartmentHead, risk.department_id, risk.owner_id, user]);
-
-    const isEditable = canSubmit && questionnaire?.status !== 'submitted';
 
     const defaultCompareMode = false;
 
@@ -87,8 +85,13 @@ export function RiskQuestionnaireDetail({
         [template]
     );
 
-    const canRequestClarification = authz.canRequestRiskClarification;
-    const isRiskOwner = !!user && questionnaire?.assigned_to_user_id === user.id;
+    const capabilities = questionnaire?.capabilities ?? null;
+    const canSaveDraft = capabilities?.can_save_draft ?? (localCanSubmit && questionnaire?.status !== 'submitted');
+    const canSubmitQuestionnaire = capabilities?.can_submit ?? (localCanSubmit && questionnaire?.status !== 'submitted');
+    const isEditable = canSaveDraft || canSubmitQuestionnaire;
+    const canRequestClarification = capabilities?.can_request_clarification ?? authz.canRequestRiskClarification;
+    const isRiskOwner =
+        capabilities?.can_respond_to_clarifications ?? (!!user && questionnaire?.assigned_to_user_id === user.id);
 
 	    useEffect(() => {
 	        let cancelled = false;
@@ -100,7 +103,8 @@ export function RiskQuestionnaireDetail({
 	            setLoading(true);
 	            try {
 	                let data = await riskQuestionnairesApi.get(questionnaireId, { includePrevious: defaultCompareMode });
-	                if (canSubmit && data.status === 'sent') {
+	                const canOpen = data.capabilities?.can_open ?? (localCanSubmit && data.status === 'sent');
+	                if (canOpen && data.status === 'sent') {
 	                    try {
 	                        data = await riskQuestionnairesApi.open(questionnaireId, { includePrevious: defaultCompareMode });
 	                    } catch {
@@ -124,7 +128,7 @@ export function RiskQuestionnaireDetail({
 	        return () => {
 	            cancelled = true;
 	        };
-		    }, [canSubmit, defaultCompareMode, isOpen, questionnaireId]);
+		    }, [localCanSubmit, defaultCompareMode, isOpen, questionnaireId]);
 
     useEffect(() => {
         let cancelled = false;
@@ -183,7 +187,9 @@ export function RiskQuestionnaireDetail({
         setErrorKey(null);
         try {
             const updated = await riskQuestionnairesApi.saveDraft(questionnaire.id, answers);
-            setQuestionnaire(updated);
+            const refreshed = await riskQuestionnairesApi.get(updated.id, { includePrevious: compareMode });
+            setQuestionnaire(refreshed);
+            setAnswers((refreshed.answers ?? {}) as Record<string, unknown>);
             onChanged?.();
         } catch (e) {
             setErrorKey(apiClient.toUiMessageKey(e));
@@ -202,7 +208,9 @@ export function RiskQuestionnaireDetail({
         setSubmitting(true);
         try {
             const updated = await riskQuestionnairesApi.submit(questionnaire.id, answers);
-            setQuestionnaire(updated);
+            const refreshed = await riskQuestionnairesApi.get(updated.id, { includePrevious: compareMode });
+            setQuestionnaire(refreshed);
+            setAnswers((refreshed.answers ?? {}) as Record<string, unknown>);
             onChanged?.();
         } catch (e) {
             setErrorKey(apiClient.toUiMessageKey(e));
@@ -302,6 +310,8 @@ export function RiskQuestionnaireDetail({
             });
             const data = await riskQuestionnairesApi.listClarifications(questionnaire.id);
             setClarifications(data);
+            const refreshed = await riskQuestionnairesApi.get(questionnaire.id, { includePrevious: compareMode });
+            setQuestionnaire(refreshed);
             setRequestingSectionKey(null);
             setRequestMessage('');
             setRequestQuestionKeys([]);
@@ -319,6 +329,8 @@ export function RiskQuestionnaireDetail({
             });
             const data = await riskQuestionnairesApi.listClarifications(questionnaire.id);
             setClarifications(data);
+            const refreshed = await riskQuestionnairesApi.get(questionnaire.id, { includePrevious: compareMode });
+            setQuestionnaire(refreshed);
             setRespondingClarificationId(null);
             setResponseMessage('');
         } catch (e) {
@@ -483,7 +495,7 @@ export function RiskQuestionnaireDetail({
 
                             <div className="p-6 border-t border-white/5 bg-white/[0.02] flex items-center justify-between gap-3">
                                 <div className="text-xs text-slate-500">
-                                    {!canSubmit && (
+                                    {!isEditable && (
                                         <span>{t('risks:questionnaire.readonly_hint')}</span>
                                     )}
                                 </div>
@@ -491,30 +503,34 @@ export function RiskQuestionnaireDetail({
                                 <div className="flex items-center gap-3">
                                     {isEditable && (
                                         <>
-                                            <button
-                                                onClick={handleSave}
-                                                disabled={saving || submitting}
-                                                className={cn(
-                                                    "inline-flex items-center gap-2 px-4 py-2 rounded-xl border text-xs font-black uppercase tracking-widest transition-all",
-                                                    "bg-white/5 border-white/10 text-white hover:bg-white/10",
-                                                    (saving || submitting) && "opacity-50 cursor-not-allowed"
-                                                )}
-                                            >
-                                                <Save className="h-4 w-4" />
-                                                {t('risks:questionnaire.actions.save')}
-                                            </button>
-                                            <button
-                                                onClick={handleSubmit}
-                                                disabled={saving || submitting}
-                                                className={cn(
-                                                    "inline-flex items-center gap-2 px-4 py-2 rounded-xl border text-xs font-black uppercase tracking-widest transition-all",
-                                                    "bg-accent/20 border-accent/30 text-accent hover:bg-accent/30 hover:border-accent/50",
-                                                    (saving || submitting) && "opacity-50 cursor-not-allowed"
-                                                )}
-                                            >
-                                                <Send className="h-4 w-4" />
-                                                {t('common:actions.submit')}
-                                            </button>
+                                            {canSaveDraft && (
+                                                <button
+                                                    onClick={handleSave}
+                                                    disabled={saving || submitting}
+                                                    className={cn(
+                                                        "inline-flex items-center gap-2 px-4 py-2 rounded-xl border text-xs font-black uppercase tracking-widest transition-all",
+                                                        "bg-white/5 border-white/10 text-white hover:bg-white/10",
+                                                        (saving || submitting) && "opacity-50 cursor-not-allowed"
+                                                    )}
+                                                >
+                                                    <Save className="h-4 w-4" />
+                                                    {t('risks:questionnaire.actions.save')}
+                                                </button>
+                                            )}
+                                            {canSubmitQuestionnaire && (
+                                                <button
+                                                    onClick={handleSubmit}
+                                                    disabled={saving || submitting}
+                                                    className={cn(
+                                                        "inline-flex items-center gap-2 px-4 py-2 rounded-xl border text-xs font-black uppercase tracking-widest transition-all",
+                                                        "bg-accent/20 border-accent/30 text-accent hover:bg-accent/30 hover:border-accent/50",
+                                                        (saving || submitting) && "opacity-50 cursor-not-allowed"
+                                                    )}
+                                                >
+                                                    <Send className="h-4 w-4" />
+                                                    {t('common:actions.submit')}
+                                                </button>
+                                            )}
                                         </>
                                     )}
 

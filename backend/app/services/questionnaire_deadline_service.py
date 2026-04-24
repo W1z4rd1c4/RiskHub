@@ -1,12 +1,13 @@
 """Questionnaire deadline checking service for generating notifications."""
 
 import logging
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.datetime_utils import utc_now
 from app.i18n import t
 from app.models import RiskQuestionnaire
 from app.models.global_config import ConfigDefaults, get_config_int
@@ -35,7 +36,7 @@ class QuestionnaireDeadlineService:
             "notifications_created": 0,
         }
 
-        now = now or datetime.now(UTC)
+        now = now or utc_now()
         today = now.date()
 
         pre_due_days = await get_config_int(
@@ -81,6 +82,7 @@ class QuestionnaireDeadlineService:
                         notification_type=NotificationType.QUESTIONNAIRE_DUE_SOON,
                         lookback_days=QuestionnaireDeadlineService.DUPLICATE_LOOKBACK_DAYS,
                         now=now,
+                        not_before=q.sent_at,
                     ):
                         created = await create_deadline_notification(
                             db=db,
@@ -109,6 +111,7 @@ class QuestionnaireDeadlineService:
                         notification_type=NotificationType.QUESTIONNAIRE_OVERDUE,
                         lookback_days=7,
                         now=now,
+                        not_before=q.sent_at,
                     ):
                         created = await create_deadline_notification(
                             db=db,
@@ -144,6 +147,7 @@ class QuestionnaireDeadlineService:
         notification_type: NotificationType,
         lookback_days: int,
         now: datetime,
+        not_before: datetime | None = None,
     ) -> bool:
         return await has_recent_deadline_notification(
             db,
@@ -152,4 +156,5 @@ class QuestionnaireDeadlineService:
             notification_type=notification_type,
             lookback_days=lookback_days,
             now=now,
+            not_before=not_before,
         )

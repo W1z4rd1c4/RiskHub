@@ -189,6 +189,71 @@ async def test_deadline_service_due_soon_and_duplicate_prevention(
 
 
 @pytest.mark.asyncio
+async def test_deadline_service_dedupes_per_questionnaire_not_per_risk(
+    db_session: AsyncSession,
+    test_user_employee: User,
+    risk_owned_by_employee: Risk,
+):
+    from app.models import RiskQuestionnaire
+
+    now = datetime(2026, 1, 19, 10, 0, 0, tzinfo=UTC)
+    due_at = datetime.combine(now.date() + timedelta(days=2), time(hour=12), tzinfo=UTC)
+
+    q1 = RiskQuestionnaire(
+        risk_id=risk_owned_by_employee.id,
+        assigned_to_user_id=test_user_employee.id,
+        sent_by_user_id=test_user_employee.id,
+        status=RiskQuestionnaireStatus.sent,
+        template_key="risk_owner_reassessment",
+        template_version="v1",
+        answers=None,
+        sent_at=now,
+        due_at=due_at,
+        submitted_at=None,
+        submitted_by_user_id=None,
+    )
+    db_session.add(q1)
+    await db_session.commit()
+
+    result1 = await QuestionnaireDeadlineService.check_questionnaire_deadlines(db_session, now=now)
+    assert result1["due_soon"] == 1
+
+    now2 = now + timedelta(seconds=1)
+    q1.status = RiskQuestionnaireStatus.submitted
+    q1.submitted_at = now
+    q2 = RiskQuestionnaire(
+        risk_id=risk_owned_by_employee.id,
+        assigned_to_user_id=test_user_employee.id,
+        sent_by_user_id=test_user_employee.id,
+        status=RiskQuestionnaireStatus.sent,
+        template_key="risk_owner_reassessment",
+        template_version="v1",
+        answers=None,
+        sent_at=now2,
+        due_at=due_at,
+        submitted_at=None,
+        submitted_by_user_id=None,
+    )
+    db_session.add(q2)
+    await db_session.commit()
+
+    result2 = await QuestionnaireDeadlineService.check_questionnaire_deadlines(db_session, now=now2)
+    assert result2["due_soon"] == 1
+
+    notifications = (
+        await db_session.execute(
+            select(Notification).where(
+                Notification.user_id == test_user_employee.id,
+                Notification.type == NotificationType.QUESTIONNAIRE_DUE_SOON,
+            )
+        )
+    ).scalars().all()
+    assert len(notifications) == 2
+    assert {n.resource_type for n in notifications} == {"risk"}
+    assert {n.resource_id for n in notifications} == {risk_owned_by_employee.id}
+
+
+@pytest.mark.asyncio
 async def test_deadline_service_overdue_and_duplicate_prevention(
     db_session: AsyncSession,
     test_user_employee: User,

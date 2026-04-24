@@ -13,7 +13,7 @@ from app.models.risk_questionnaire import RiskQuestionnaireStatus
 from app.models.role import RoleType
 from app.schemas.risk_questionnaire import RiskQuestionnaireListItemRead
 
-from ._shared import _serialize_list_item
+from ._shared import _serialize_list_item_for_user
 
 router = APIRouter()
 
@@ -58,4 +58,4 @@ async def get_questionnaire_inbox(
 
     result = await db.execute(query.order_by(desc(RiskQuestionnaire.due_at)))
     items = result.scalars().all()
-    return [_serialize_list_item(q) for q in items]
+    return [await _serialize_list_item_for_user(db, current_user, q) for q in items]

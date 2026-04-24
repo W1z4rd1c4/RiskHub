@@ -300,7 +300,9 @@ export function RiskQuestionnairesPanel() {
                                         <td className="px-4 py-3 text-sm font-bold text-white">{risk.name}</td>
                                         <td className="px-4 py-3 text-sm text-slate-400">{risk.description}</td>
                                         <td className="px-4 py-3 text-sm text-slate-400">{risk.department_name ?? '—'}</td>
-                                        <td className="px-4 py-3 text-sm text-slate-400">{risk.owner_id ? String(risk.owner_id) : '—'}</td>
+                                        <td className="px-4 py-3 text-sm text-slate-400">
+                                            {risk.owner_id ? (risk.owner_name ?? t('common:fallbacks.unknown_user')) : '—'}
+                                        </td>
                                     </tr>
                                 ))
                             )}

@@ -22,9 +22,12 @@ async def has_recent_deadline_notification(
     notification_type: NotificationType,
     lookback_days: int,
     now: datetime,
+    not_before: datetime | None = None,
 ) -> bool:
     """Return whether an equivalent deadline notification exists in the lookback window."""
     cutoff_date = now - timedelta(days=lookback_days)
+    if not_before is not None and not_before > cutoff_date:
+        cutoff_date = not_before
     stmt = (
         select(Notification)
         .where(

@@ -162,6 +162,8 @@ class RiskSummary(BaseModel):
     is_priority: bool
     department_id: Optional[int] = None
     department_name: Optional[str] = None
+    owner_id: Optional[int] = None
+    owner_name: Optional[str] = None
     kri_count: int = 0
     control_count: int = 0
     has_breach: bool = False

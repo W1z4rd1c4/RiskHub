@@ -267,6 +267,7 @@ async def list_risks(
 
     query_options = (
         selectinload(Risk.department),
+        selectinload(Risk.owner),
         selectinload(Risk.kris.and_(KeyRiskIndicator.is_archived.is_(False))),
         selectinload(Risk.control_links),
         selectinload(Risk.vendor_links).selectinload(VendorRiskLink.vendor),

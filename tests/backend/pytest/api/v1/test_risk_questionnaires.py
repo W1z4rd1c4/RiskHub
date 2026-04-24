@@ -2,13 +2,15 @@
 Tests for risk questionnaire API endpoints.
 """
 
+import asyncio
+
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Department, Risk, RiskQuestionnaire, User
+from app.models import Control, ControlRiskLink, Department, Risk, RiskQuestionnaire, User
 from app.models.risk import RiskStatus
 from app.models.risk_questionnaire import RiskQuestionnaireStatus
 
@@ -83,6 +85,124 @@ async def test_scoping_user_cannot_list_out_of_scope_risk(
 ):
     resp = await client_employee.get(f"/api/v1/risks/{risk_other_dept.id}/questionnaires")
     assert resp.status_code in (403, 404)
+
+
+@pytest.mark.asyncio
+async def test_cross_department_assigned_owner_can_complete_questionnaire(
+    client_cro: AsyncClient,
+    client_employee: AsyncClient,
+    db_session: AsyncSession,
+    other_department: Department,
+    test_user_employee: User,
+):
+    risk = Risk(
+        risk_id_code="R-Q-CROSS-OWNER",
+        name="Cross Department Owner Risk",
+        process="Test Process",
+        description="desc",
+        category="Test Category",
+        department_id=other_department.id,
+        owner_id=test_user_employee.id,
+        risk_type="operational",
+        status=RiskStatus.active.value,
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=2,
+    )
+    db_session.add(risk)
+    await db_session.commit()
+    await db_session.refresh(risk)
+
+    send_resp = await client_cro.post(f"/api/v1/risks/{risk.id}/questionnaires/send")
+    assert send_resp.status_code == 201
+    q_id = send_resp.json()["id"]
+
+    list_resp = await client_employee.get(f"/api/v1/risks/{risk.id}/questionnaires")
+    assert list_resp.status_code == 200
+    assert list_resp.json()[0]["capabilities"]["can_submit"] is True
+
+    open_resp = await client_employee.post(f"/api/v1/questionnaires/{q_id}/open")
+    assert open_resp.status_code == 200
+    assert open_resp.json()["status"] == "in_progress"
+
+    submit_resp = await client_employee.post(
+        f"/api/v1/questionnaires/{q_id}/submit",
+        json={
+            "answers": {
+                "risk_assessment.q1_description_changed": False,
+                "risk_assessment.q4_controls_effective": True,
+                "risk_assessment.q8_outlook_trend": "stable",
+                "risk_assessment.q9_mitigation_actions": "none",
+                "risk_assessment.q11_likelihood_12m": 3,
+                "risk_assessment.q12_worst_case_impact": 3,
+            }
+        },
+    )
+    assert submit_resp.status_code == 200
+    assert submit_resp.json()["status"] == "submitted"
+
+
+@pytest.mark.asyncio
+async def test_cross_department_control_owner_can_read_but_not_submit_questionnaire(
+    client_cro: AsyncClient,
+    client_employee: AsyncClient,
+    db_session: AsyncSession,
+    other_department: Department,
+    test_user_employee: User,
+    test_user_cro: User,
+):
+    risk = Risk(
+        risk_id_code="R-Q-CONTROL-OWNER",
+        name="Control Owner Read Risk",
+        process="Test Process",
+        description="desc",
+        category="Test Category",
+        department_id=other_department.id,
+        owner_id=test_user_cro.id,
+        risk_type="operational",
+        status=RiskStatus.active.value,
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=2,
+    )
+    control = Control(
+        name="Cross Department Control",
+        description="desc",
+        control_owner_id=test_user_employee.id,
+        department_id=other_department.id,
+        status="active",
+    )
+    db_session.add_all([risk, control])
+    await db_session.commit()
+    await db_session.refresh(risk)
+    await db_session.refresh(control)
+    db_session.add(ControlRiskLink(control_id=control.id, risk_id=risk.id))
+    await db_session.commit()
+
+    send_resp = await client_cro.post(f"/api/v1/risks/{risk.id}/questionnaires/send")
+    assert send_resp.status_code == 201
+    q_id = send_resp.json()["id"]
+
+    read_resp = await client_employee.get(f"/api/v1/questionnaires/{q_id}")
+    assert read_resp.status_code == 200
+    assert read_resp.json()["capabilities"]["can_submit"] is False
+
+    submit_resp = await client_employee.post(
+        f"/api/v1/questionnaires/{q_id}/submit",
+        json={
+            "answers": {
+                "risk_assessment.q1_description_changed": False,
+                "risk_assessment.q4_controls_effective": True,
+                "risk_assessment.q8_outlook_trend": "stable",
+                "risk_assessment.q9_mitigation_actions": "none",
+                "risk_assessment.q11_likelihood_12m": 3,
+                "risk_assessment.q12_worst_case_impact": 3,
+            }
+        },
+    )
+    assert submit_resp.status_code == 403
 
 
 @pytest.mark.asyncio
@@ -333,3 +453,32 @@ async def test_open_questionnaire_forbidden_for_ineligible_user(
 
     resp = await client_risk_manager.post(f"/api/v1/questionnaires/{q_id}/open")
     assert resp.status_code == 403
+
+
+@pytest.mark.postgres
+@pytest.mark.asyncio
+async def test_concurrent_send_creates_single_open_questionnaire(
+    db_session: AsyncSession,
+    client_cro: AsyncClient,
+    risk_owned_by_employee: Risk,
+):
+    if db_session.bind is None or db_session.bind.dialect.name != "postgresql":
+        pytest.skip("Requires PostgreSQL row locks and partial unique indexes")
+
+    responses = await asyncio.gather(
+        client_cro.post(f"/api/v1/risks/{risk_owned_by_employee.id}/questionnaires/send"),
+        client_cro.post(f"/api/v1/risks/{risk_owned_by_employee.id}/questionnaires/send"),
+    )
+    statuses = sorted(resp.status_code for resp in responses)
+    assert statuses == [201, 409]
+
+    open_count = (
+        await db_session.execute(
+            select(RiskQuestionnaire)
+            .where(
+                RiskQuestionnaire.risk_id == risk_owned_by_employee.id,
+                RiskQuestionnaire.status.in_([RiskQuestionnaireStatus.sent, RiskQuestionnaireStatus.in_progress]),
+            )
+        )
+    ).scalars().all()
+    assert len(open_count) == 1

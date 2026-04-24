@@ -188,6 +188,13 @@ export const riskQuestionnairePreviousSubmissionSchema: z.ZodType<RiskQuestionna
         template_version: z.string(),
         answers: unknownRecordSchema.nullable().optional(),
     });
+export const riskQuestionnaireCapabilitiesSchema = passthroughObject({
+    can_open: z.boolean(),
+    can_save_draft: z.boolean(),
+    can_submit: z.boolean(),
+    can_request_clarification: z.boolean(),
+    can_respond_to_clarifications: z.boolean(),
+});
 export const riskQuestionnaireListItemSchema = passthroughObject({
         id: z.number(),
         risk_id: z.number(),
@@ -204,6 +211,7 @@ export const riskQuestionnaireListItemSchema = passthroughObject({
         assigned_to_user_name: z.string().nullable().optional(),
         sent_by_user_name: z.string().nullable().optional(),
         submitted_by_user_name: z.string().nullable().optional(),
+        capabilities: riskQuestionnaireCapabilitiesSchema.nullable().optional(),
     }) satisfies z.ZodType<RiskQuestionnaireListItem>;
 export const riskQuestionnaireDetailSchema: z.ZodType<RiskQuestionnaireDetail> =
     riskQuestionnaireListItemSchema.extend({

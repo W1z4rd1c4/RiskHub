@@ -136,3 +136,19 @@ async def test_batch_send_select_all_true_filters(
     assert data["created_count"] == 1
     assert risk_owned_by_employee.id not in data["skipped_no_owner"]
     assert risk_owned_by_employee.id not in data["skipped_open_exists"]
+
+
+@pytest.mark.asyncio
+async def test_risk_list_includes_owner_name_for_questionnaire_panel(
+    client_cro: AsyncClient,
+    risk_owned_by_employee: Risk,
+    test_user_employee: User,
+):
+    resp = await client_cro.get(
+        "/api/v1/risks",
+        params={"process": "Batch Process", "category": "Batch Category", "include_archived": "false"},
+    )
+    assert resp.status_code == 200
+    item = next(r for r in resp.json()["items"] if r["id"] == risk_owned_by_employee.id)
+    assert item["owner_id"] == test_user_employee.id
+    assert item["owner_name"] == test_user_employee.name

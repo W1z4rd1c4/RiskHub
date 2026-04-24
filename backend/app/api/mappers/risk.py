@@ -40,6 +40,8 @@ def risk_to_summary(risk: Risk, *, linked_vendors: list[LinkedVendorRead] | None
         is_priority=bool(risk.is_priority),
         department_id=risk.department_id,
         department_name=risk.department.name if risk.department else None,
+        owner_id=risk.owner_id,
+        owner_name=risk.owner.name if risk.owner else None,
         kri_count=len(kris),
         control_count=len(control_links),
         has_breach=any(k.current_value < k.lower_limit or k.current_value > k.upper_limit for k in kris),

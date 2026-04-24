@@ -3,33 +3,25 @@ from __future__ import annotations
 from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
-from app.core.permissions import check_department_access
+from app.core.permissions import can_read_risk_id
 from app.models import Risk, RiskQuestionnaire, RiskQuestionnaireClarification, User
 from app.schemas.risk_questionnaire import (
+    RiskQuestionnaireCapabilitiesRead,
     RiskQuestionnaireClarificationRead,
     RiskQuestionnaireListItemRead,
     RiskQuestionnaireRead,
 )
+from app.services.risk_questionnaire_service import can_read_questionnaire, questionnaire_capabilities, questionnaire_load_options
 
 
 async def _get_risk_for_read(db: AsyncSession, current_user: User, risk_id: int) -> Risk:
-    from app.core.permissions import is_risk_control_owner, is_risk_kri_reporting_owner
-
     result = await db.execute(select(Risk).where(Risk.id == risk_id))
     risk = result.scalar_one_or_none()
     if not risk:
         raise HTTPException(status_code=404, detail="Risk not found")
 
-    if await is_risk_kri_reporting_owner(db, current_user.id, risk_id):
-        return risk
-    if await is_risk_control_owner(db, current_user.id, risk_id):
-        return risk
-
-    try:
-        check_department_access(risk.department_id, current_user)
-    except HTTPException:
+    if not await can_read_risk_id(db, current_user, risk_id):
         raise HTTPException(status_code=404, detail="Risk not found")
 
     return risk
@@ -42,23 +34,34 @@ async def _get_questionnaire_for_read(
 ) -> RiskQuestionnaire:
     result = await db.execute(
         select(RiskQuestionnaire)
-        .options(
-            selectinload(RiskQuestionnaire.risk),
-            selectinload(RiskQuestionnaire.assigned_to_user),
-            selectinload(RiskQuestionnaire.sent_by_user),
-            selectinload(RiskQuestionnaire.submitted_by_user),
-        )
+        .options(*questionnaire_load_options())
         .where(RiskQuestionnaire.id == questionnaire_id)
     )
     questionnaire = result.scalar_one_or_none()
     if not questionnaire:
         raise HTTPException(status_code=404, detail="Questionnaire not found")
 
-    await _get_risk_for_read(db, current_user, questionnaire.risk_id)
+    if not await can_read_questionnaire(db, current_user, questionnaire):
+        raise HTTPException(status_code=404, detail="Questionnaire not found")
     return questionnaire
 
 
-def _serialize_list_item(q: RiskQuestionnaire) -> RiskQuestionnaireListItemRead:
+async def _serialize_list_item_for_user(
+    db: AsyncSession,
+    current_user: User,
+    q: RiskQuestionnaire,
+) -> RiskQuestionnaireListItemRead:
+    return _serialize_list_item(
+        q,
+        capabilities=RiskQuestionnaireCapabilitiesRead(**await questionnaire_capabilities(db, current_user, q)),
+    )
+
+
+def _serialize_list_item(
+    q: RiskQuestionnaire,
+    *,
+    capabilities: RiskQuestionnaireCapabilitiesRead | None = None,
+) -> RiskQuestionnaireListItemRead:
     return RiskQuestionnaireListItemRead(
         id=q.id,
         risk_id=q.risk_id,
@@ -75,7 +78,17 @@ def _serialize_list_item(q: RiskQuestionnaire) -> RiskQuestionnaireListItemRead:
         assigned_to_user_name=getattr(getattr(q, "assigned_to_user", None), "name", None),
         sent_by_user_name=getattr(getattr(q, "sent_by_user", None), "name", None),
         submitted_by_user_name=getattr(getattr(q, "submitted_by_user", None), "name", None),
+        capabilities=capabilities,
     )
+
+
+async def _serialize_read_for_user(
+    db: AsyncSession,
+    current_user: User,
+    q: RiskQuestionnaire,
+) -> RiskQuestionnaireRead:
+    base = (await _serialize_list_item_for_user(db, current_user, q)).model_dump()
+    return RiskQuestionnaireRead(**base, answers=q.answers, previous_submission=None)
 
 
 def _serialize_read(q: RiskQuestionnaire) -> RiskQuestionnaireRead:
@@ -98,8 +111,9 @@ def _serialize_read_with_previous(
     q: RiskQuestionnaire,
     *,
     previous_submission: RiskQuestionnaire | None,
+    capabilities: RiskQuestionnaireCapabilitiesRead | None = None,
 ) -> RiskQuestionnaireRead:
-    base = _serialize_list_item(q).model_dump()
+    base = _serialize_list_item(q, capabilities=capabilities).model_dump()
     return RiskQuestionnaireRead(
         **base,
         answers=q.answers,

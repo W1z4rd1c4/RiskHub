@@ -12,6 +12,14 @@ class RiskQuestionnaireStatusEnum(str, Enum):
     submitted = "submitted"
 
 
+class RiskQuestionnaireCapabilitiesRead(BaseModel):
+    can_open: bool = False
+    can_save_draft: bool = False
+    can_submit: bool = False
+    can_request_clarification: bool = False
+    can_respond_to_clarifications: bool = False
+
+
 class RiskQuestionnaireListItemRead(BaseModel):
     id: int
     risk_id: int
@@ -29,6 +37,7 @@ class RiskQuestionnaireListItemRead(BaseModel):
     assigned_to_user_name: str | None = None
     sent_by_user_name: str | None = None
     submitted_by_user_name: str | None = None
+    capabilities: RiskQuestionnaireCapabilitiesRead | None = None
 
     model_config = {"from_attributes": True}
 
