@@ -39,6 +39,7 @@ Common rules across both targets:
 | [releasing.md](./releasing.md) | Tagging, changelog, and GitHub Release publication flow |
 | [migrations.md](./migrations.md) | Migration strategy and rollback posture |
 | [security-checklist.md](./security-checklist.md) | Hardening checklist before and after go-live |
+| [runbooks/README.md](./runbooks/README.md) | Focused production runbooks subordinate to the main deployment guides |
 
 ## Public Interface
 

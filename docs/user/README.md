@@ -1,7 +1,7 @@
 ---
 title: RiskHub User Documentation
-version: "2.2"
-last_updated: "2026-03-09"
+version: "2.3"
+last_updated: "2026-04-25"
 audience: user
 source_of_truth: "docs/BUSINESS_LOGIC.md"
 summary: "Production-grade manuals for day-to-day RiskHub usage: navigation, permissions, risk/control/KRI workflows, approvals, exports, and troubleshooting."
@@ -72,7 +72,8 @@ If you are new to RiskHub, this path gets you productive quickly:
    - [Risks](./risks.md) (the register)
    - [Controls](./controls.md) (mitigation and execution evidence)
 3. Learn workflow behavior next:
-   - [Workflow, Approvals, Notifications](./notifications.md)
+  - [Workflow, Approvals, Notifications](./notifications.md)
+  - risk questionnaires through the [Risk Hub](./risk-hub.md) and approvals inbox
 4. If your role includes monitoring and reporting:
    - [KRIs](./kris.md)
 5. If your org tracks remediation work:
@@ -92,14 +93,14 @@ This table maps what you see in the sidebar to the canonical manual page.
 | Approvals + Notifications | `/approvals`, `/notifications` | [Workflow, Approvals, Notifications](./notifications.md) | Approval lifecycle, “pending change” behavior, and how to stay unblocked | `workflow`, `approvals`, `notifications` |
 | Controls | `/controls` | [Managing Controls](./controls.md) | Control design, ownership, execution logging, evidence, and grouped `By Vendor` review | `controls`, `workflow`, `exports` |
 | Risks | `/risks` | [Managing Risks](./risks.md) | Risk register hygiene, scoring, ownership, linkage, and grouped `By Vendor` review | `risks`, `workflow`, `approvals` |
-| Issues / Findings (if enabled) | `/issues` | [Managing Issues](./issues.md) | Remediation tracking, linking to risks/controls/vendors, closure discipline, and grouped `By Vendor` review | `issues`, `workflow`, `exports` |
-| KRIs | `/kris` | [Managing KRIs](./kris.md) | Thresholds, value recording rules, vendor assignment, breach signals, vendor linkage, and grouped `By Vendor` review | `kri`, `notifications`, `exports` |
+| Issues / Findings (if enabled) | `/issues` | [Managing Issues](./issues.md) | Remediation tracking, completion validation, exception behavior, linking to risks/controls/vendors, closure discipline, and grouped `By Vendor` review | `issues`, `workflow`, `exports` |
+| KRIs | `/kris` | [Managing KRIs](./kris.md) | Thresholds, period-based value recording, correction rules, vendor assignment, breach signals, vendor linkage, and grouped `By Vendor` review | `kri`, `notifications`, `exports` |
 | Vendors (if enabled) | `/vendors` | [Managing Vendors](./vendors.md) | Core third-party register, `By Flag` grouping, linked risks/controls/KRIs, create-from-vendor risk/control/KRI flows, exports | `vendors`, `workflow`, `exports` |
 | Departments | `/departments` | [Departments](./departments.md) | Exposure by org unit, drill-down, and responsibility patterns | `departments`, `workflow`, `exports` |
 | Governance (CRO-only, non-admin) | `/governance` | [Governance](./governance.md) | Orphans, ownership gaps, and governance resolution patterns | `governance`, `audit`, `troubleshooting` |
 | Activity Log (permission-gated, non-admin) | `/activity-log` | [Activity Log](./activity-log.md) | “Who changed what”, timeline reconstruction, and audit evidence | `activity-log`, `audit`, `exports` |
 | Users / Access Management (role-gated) | `/users` | [Access Management](./access-management.md) | Visibility rules, role/scope interpretation, and access checks | `access`, `audit`, `settings` |
-| Risk Hub (CRO only) | `/risk-hub` | [Risk Hub](./risk-hub.md) | Governance configuration concepts and safe operating patterns | `riskhub`, `settings`, `approvals` |
+| Risk Hub (CRO only) | `/risk-hub` | [Risk Hub](./risk-hub.md) | Governance configuration concepts, questionnaire batch sending, and safe operating patterns | `riskhub`, `settings`, `approvals` |
 | Settings | `/settings` | [Getting Started](./getting-started.md) | Preferences (language/theme) and documentation navigation | `settings`, `onboarding`, `workflow` |
 
 ## Library Map (By Common Workflows)

@@ -1,7 +1,7 @@
 ---
 title: KRI (Key Risk Indicators)
-version: "2.1"
-last_updated: "2026-03-15"
+version: "2.2"
+last_updated: "2026-04-25"
 audience: user
 source_of_truth: "frontend/src/pages/KRIsPage.tsx + frontend/src/pages/KRIDetailPage.tsx + docs/BUSINESS_LOGIC.md"
 summary: "Jak navrhovat a provozovat KRI: thresholdy, breach/overdue logika, zápis hodnot, přiřazení dodavatelů, historie, exporty a monitoring přes notifikace."
@@ -74,6 +74,8 @@ Scope pravidla platí dál:
 
 - oddělení a ownership ovlivňují viditelnost
 - backend enforcement je autorita
+- historie KRI používá stejná backend pravidla viditelnosti jako detail KRI
+- reporting owner může číst/odesílat hodnoty pro své KRI, ale žádost o korekci vyžaduje oprávnění pro korekci (`risks:write`) a viditelnost KRI
 
 ## Datový model a klíčová pole
 
@@ -109,6 +111,13 @@ Důležitá pravidla:
 - warning pásmo je řízené konfigurací (`kri_warning_upper_margin_ratio`, default `0.10`)
 - warning pásmo sleduje jen blízkost **horního** limitu
 - `monitoring_status` a `timeliness_status` jsou v seznamech a exportech oddělené filtry; pro v1 se nekombinují
+
+Governance historie:
+
+- pro jedno KRI může existovat jen jedna hodnota pro konkrétní period end
+- pokud už hodnota pro období existuje, použijte korekci historie místo dalšího zápisu
+- duplicitní přímé zápisy se odmítnou; queued zápisy, které během čekání zastarají, se při schválení automaticky odmítnou
+- viditelnost akce korekce vychází z backend capabilities, takže tlačítko může být skryté i pro uživatele, který KRI vidí nebo zapisuje
 
 Poznámka k period end:
 
@@ -166,6 +175,8 @@ Zápis je provozní heartbeat.
 4. Uložte.
 5. Ověřte breach/within status.
 
+Period end je rozhodující. Druhá hodnota pro stejné KRI a stejný period end se nepřijímá jako nový zápis; pro opravu použijte korekci historie.
+
 Pokud nejde zapisovat:
 
 - ověřte `kri:submit`
@@ -182,6 +193,13 @@ Použijte pro:
 - podporu změny net scoringu
 
 Když měníte limity, napište „proč“, jinak bude interpretace trendu nejasná.
+
+Korekce historie:
+
+- používejte ji jen pro opravu existující zapsané hodnoty
+- podle role a policy se korekce může aplikovat rovnou nebo vytvořit schvalovací žádost
+- pokud někdo během čekání zapíše nebo opraví stejné období, stale žádost se může automaticky odmítnout
+- current value se určuje podle posledního řádku historie: period end, recorded timestamp a nakonec id jako tie-breaker
 
 ### 4) Reakce na breach a overdue
 
@@ -218,6 +236,7 @@ Změny vendor vazeb jsou součástí stejného KRI edit workflow:
 
 - neprivilegované editace KRI, včetně změn sekce **Navázaní dodavatelé**, se odesílají ke schválení místo okamžité aplikace
 - detail KRI po takovém uložení zobrazí banner o schválení a ponechá aktuální KRI i vendor vazby beze změny, dokud se schválení nevyřeší
+- stale schválené změny KRI se při aplikaci odmítnou, pokud se podkladové KRI nebo historie období změnily během čekání
 
 Praktické signály:
 

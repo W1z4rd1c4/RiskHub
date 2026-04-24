@@ -1,7 +1,7 @@
 # Authorization List/Lookup Policy (Anti-Enumeration)
 
-> **Version**: 1.1
-> **Last Updated**: 2026-02-16
+> **Version**: 1.2
+> **Last Updated**: 2026-04-25
 > **Audience**: Backend Engineering, Security Reviewers
 > **Source of Truth**: `app/core/permissions.py`, endpoint-level RBAC guards
 
@@ -44,7 +44,13 @@ Documentation audience behavior follows strict role split:
 
 This is an access-policy contract, not a UI-only behavior.
 
-## 4) Verification Expectations
+## 4) Current Workflow Visibility Notes
+
+- KRI history read uses canonical KRI visibility, including reporting-owner and linked-risk visibility paths.
+- Risk questionnaire read uses canonical risk visibility; action/submit capability remains narrower than read capability.
+- Report exports apply final-row authorization after as-of replay; explicit `department_id` filters are strict on the replayed row state.
+
+## 5) Verification Expectations
 
 - Add API tests for both allowed and denied scope paths.
 - Assert list endpoints do not leak hidden objects.

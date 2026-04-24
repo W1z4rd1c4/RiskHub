@@ -1,6 +1,6 @@
 # External Integrations
 
-**Analysis Date:** 2026-04-05
+**Analysis Date:** 2026-04-24
 
 ## Core External Services
 
@@ -10,8 +10,8 @@
 - Migration path via Alembic (`backend/alembic/`, `backend/alembic/env.py`)
 
 ### Redis
-- Used for production rate limiting and account lockout (`backend/app/bootstrap_runtime.py`, `backend/app/middleware/rate_limit/`, `backend/app/services/account_lockout_service.py`)
-- Required when `DEBUG=false` (`backend/app/bootstrap_runtime.py`)
+- Used for production rate limiting and account lockout (`backend/app/main.py`, `backend/app/middleware/rate_limit/`, `backend/app/services/account_lockout_service.py`)
+- Required when `DEBUG=false` (`backend/app/main.py`)
 
 ## Directory/Identity Integrations
 
@@ -21,7 +21,7 @@
 - Webhook signature verification via `WEBHOOK_SECRET` (required in production mode) (`backend/app/core/config.py`)
 
 ### Microsoft Entra ID (SSO)
-- Backend auth modes include Entra SSO-only production mode (`backend/app/core/config.py`, `backend/app/bootstrap_validation.py`)
+- Backend auth modes include Entra SSO-only production mode (`backend/app/core/config.py`, `backend/app/main.py`)
 - Token verification + OIDC discovery/JWKS refresh: `backend/app/services/sso_token_service.py`
 - Graph directory lookup is exposed through `graph_directory_service.py` and internally split across token/auth transport helpers (`backend/app/services/graph_directory_service.py`, `backend/app/services/graph_directory_auth.py`, `backend/app/services/graph_directory_transport.py`)
 - Graph token-cache identity now depends on tenant/client/mode plus thumbprint or explicit `ENTRA_CREDENTIAL_FINGERPRINT`, not raw secret/private-key bytes (`backend/app/services/graph_directory_auth.py`)
@@ -50,7 +50,7 @@
 - Docker-origin Playwright runs still require `FRONTEND_URL=http://localhost`, and the shared login helper is origin-aware across both the Vite and Docker nginx surfaces
 - Supported production install/admin runs are wrapper-first through `./scripts/install.sh production --target docker|linux`, `./scripts/install.sh upgrade --target docker|linux`, and `./scripts/install.sh status|logs|doctor|verify --mode production --target docker|linux`, backed internally by `scripts/install_cli.py`, `scripts/install_lib/`, `./scripts/deploy.sh --target docker|linux`, and retained `scripts/prod/*` helper scripts
 - Production lifecycle metadata is stored at `/etc/riskhub/runtime/install-state.json`; `scripts/install.sh` status/logs/doctor/upgrade consume that state to report release source, managed resources, and latest successful deploy/smoke information
-- Production runtime treats `ALLOWED_HOSTS` as an explicit allowlist invariant; managed install flows render it from the configured public hostname, but runtime enforcement does not derive it from `CORS_ORIGINS` (`backend/app/bootstrap_validation.py`, `docs/deployment/reference.md`)
+- Production runtime treats `ALLOWED_HOSTS` as an explicit allowlist invariant; managed install flows render it from the configured public hostname, but runtime enforcement does not derive it from `CORS_ORIGINS` (`backend/app/main.py`, `docs/deployment/reference.md`)
 
 ## CI/Security Integrations
 
@@ -71,11 +71,11 @@
 
 ## Configuration-Sensitive Integrations
 
-- `MOCK_AUTH_ENABLED` + demo login only intended for debug/dev (`backend/app/bootstrap_validation.py`, `backend/app/api/v1/endpoints/auth/demo.py`)
+- `MOCK_AUTH_ENABLED` + demo login only intended for debug/dev (`backend/app/main.py`, `backend/app/api/v1/endpoints/auth/demo.py`)
 - Webhook verification behavior varies by debug/production guardrails (`backend/app/api/v1/endpoints/directory.py`)
 - Scheduler execution controlled by `ENABLE_SCHEDULER=true` on exactly one process (`backend/app/core/scheduler.py`)
-- Broad `TRUSTED_PROXIES` ranges are production-fatal unless `ALLOW_BROAD_TRUSTED_PROXIES_IN_PRODUCTION=true` is set explicitly (`backend/app/bootstrap_validation.py`)
+- Broad `TRUSTED_PROXIES` ranges are production-fatal unless `ALLOW_BROAD_TRUSTED_PROXIES_IN_PRODUCTION=true` is set explicitly (`backend/app/main.py`)
 
 ---
 
-*Integration audit refreshed on 2026-04-05*
+*Integration audit refreshed on 2026-04-24*

@@ -1,6 +1,6 @@
 # Testing
 
-**Analysis Date:** 2026-04-05
+**Analysis Date:** 2026-04-24
 
 ## Test Stack Overview
 
@@ -26,8 +26,8 @@
 - Session-scoped engine disposal prevents pytest interpreter-exit hangs caused by leaked `aiosqlite` worker threads (`tests/backend/pytest/conftest.py`)
 
 ### Scale snapshot
-- Backend tests: 234 files (82 Python)
-- API-focused backend tests: 18 files under `tests/backend/pytest/api/`
+- Backend test tree: 162 tracked files (159 Python)
+- API-focused backend tests live under `tests/backend/pytest/api/` and domain-specific root test modules under `tests/backend/pytest/`
 
 ## Frontend Unit/Integration Patterns
 
@@ -66,8 +66,14 @@
 - Backend lint + suppression budget: `make -f scripts/Makefile lint-backend`
 - Backend suppression budget only: `make -f scripts/Makefile quality-suppression-budget`
 - Backend Postgres-sensitive tests: `TEST_DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_dev@localhost:5432/riskhub_test make -f scripts/Makefile test-postgres-ci`
+- Backend KRI history/value workflow: `cd backend && ./venv/bin/pytest -q ../tests/backend/pytest/test_kris_history_listing_api.py ../tests/backend/pytest/test_kris_history_corrections_api.py ../tests/backend/pytest/test_kris_value_submission_api.py ../tests/backend/pytest/test_kris_submission_rbac_api.py ../tests/backend/pytest/test_kris_rbac.py ../tests/backend/pytest/test_approvals.py`
+- Backend questionnaire workflow: `cd backend && ./venv/bin/pytest -q ../tests/backend/pytest/api/v1/test_risk_questionnaires.py ../tests/backend/pytest/api/v1/test_risk_questionnaire_review_flow.py ../tests/backend/pytest/api/v1/test_risk_questionnaires_notifications.py ../tests/backend/pytest/api/v1/test_riskhub_questionnaires.py`
+- Backend issue workflow/deadline: `cd backend && ./venv/bin/pytest -q ../tests/backend/pytest/api/v1/test_issue_workflow.py ../tests/backend/pytest/api/v1/test_issues_crud_api.py ../tests/backend/pytest/api/v1/test_issues_rbac_api.py ../tests/backend/pytest/test_issue_deadline_service.py`
+- Backend report export scope/as-of: `cd backend && ./venv/bin/pytest -q ../tests/backend/pytest/test_reports_rbac.py ../tests/backend/pytest/api/v1/test_reports_audit.py`
+- Backend dashboard committee/quarterly: `cd backend && ./venv/bin/pytest -q ../tests/backend/pytest/test_dashboard.py ../tests/backend/pytest/test_dashboard_committee_vendor_metrics.py ../tests/backend/pytest/test_admin_snapshots.py`
 - Backend Redis integration marker: `cd backend && pytest -m redis_integration -q`
 - Frontend unit tests: `cd frontend && npm run test:run` (blocking in PR CI)
+- Frontend capability/schema regressions: `cd frontend && npm run test:run -- ../tests/frontend/unit/src/services/__tests__/responseSchema.nullability.test.ts ../tests/frontend/unit/src/pages/__tests__/KRIDetailPage.edit-approval.test.tsx ../tests/frontend/unit/src/components/risks/__tests__/riskQuestionnaireOpenFlow.test.tsx ../tests/frontend/unit/src/components/riskhub/__tests__/RiskQuestionnairesPanel.test.tsx ../tests/frontend/unit/src/components/dashboard/__tests__/QuarterlyComparisonWidget.test.tsx`
 - Frontend targeted KRI routing regression: `cd frontend && npm run test:run -- src/pages/__tests__/KRIsPage.monitoring-status.test.tsx`
 - Frontend targeted vendor grouped-view regression: `cd frontend && npm run test:run -- src/pages/__tests__/VendorsPage.grouped-views.test.tsx`
 - Frontend type checks: `cd frontend && npx tsc --noEmit`
@@ -100,7 +106,11 @@
 - Public first-run and lifecycle wrapper flows rely on the `scripts/install.sh` contract staying stable while the internal implementation lives in `scripts/install_cli.py` and `scripts/install_lib/` on top of `scripts/dev.sh`, `scripts/compose.sh`, and `scripts/deploy.sh`
 - Docker-origin Playwright runs still require `FRONTEND_URL=http://localhost`
 - Authorization changes should be validated in both backend API tests and frontend gating tests
-- Approval-execution changes should include high-confidence regression tests around side effects
+- Approval-execution changes should include high-confidence regression tests around side effects, stale auto-rejection, and single-apply locking
+- KRI history/value changes should verify duplicate-period protection, deterministic latest selection, correction authorization, and approval stale handling
+- Questionnaire changes should verify canonical risk visibility, action capability metadata, one-open-questionnaire protection, and per-questionnaire reminder dedupe
+- Report export changes should verify post-replay final-row filtering for scoped and explicit department exports
+- Committee dashboard changes should verify selected-quarter validation, scoped snapshots, and missing snapshot metadata
 - `/kris` filter changes should be validated with the targeted route-backed regression covering monitoring/timeliness ownership, mutual exclusion, grouped-view parity, and rapid-click loading recovery
 - `/vendors` grouped-view changes should be validated with the targeted regression covering tab parity, `By Risk` permission gating, overlapping linked-risk membership counts, grouped fetch behavior, and the `Unlinked Risk` fallback
 - Route refactors must preserve static-route reachability (guarded by `tests/backend/pytest/test_route_shadowing.py`)
@@ -108,4 +118,4 @@
 
 ---
 
-*Testing audit refreshed on 2026-04-04*
+*Testing audit refreshed on 2026-04-24*

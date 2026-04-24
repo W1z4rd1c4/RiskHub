@@ -1,7 +1,7 @@
 # RiskHub Documentation Index
 
-> **Version**: 1.4
-> **Last Updated**: 2026-04-23
+> **Version**: 1.5
+> **Last Updated**: 2026-04-25
 > **Audience**: Product, Engineering, QA, Operations
 
 This file is the primary documentation index for `docs/`.
@@ -46,6 +46,12 @@ Current operational truth for Docker-backed live verification is intentionally c
 - [`docs/development/README.md`](./development/README.md)
 - [`docs/TESTING.md`](./TESTING.md)
 - [`docs/E2E_TESTING.md`](./E2E_TESTING.md)
+
+Current workflow truth for KRI history, risk questionnaires, issue remediation, report exports, committee snapshots, and approval execution is intentionally centralized in:
+
+- [`docs/BUSINESS_LOGIC.md`](./BUSINESS_LOGIC.md)
+- [`docs/user/README.md`](./user/README.md) and [`docs/user-cs/README.md`](./user-cs/README.md)
+- [`docs/admin/README.md`](./admin/README.md) and [`docs/admin-cs/README.md`](./admin-cs/README.md)
 
 ## Validation Commands
 

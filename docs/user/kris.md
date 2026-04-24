@@ -1,7 +1,7 @@
 ---
 title: KRIs (Key Risk Indicators)
-version: "2.1"
-last_updated: "2026-03-15"
+version: "2.2"
+last_updated: "2026-04-25"
 audience: user
 source_of_truth: "frontend/src/pages/KRIsPage.tsx + frontend/src/pages/KRIDetailPage.tsx + docs/BUSINESS_LOGIC.md"
 summary: "How to create and operate KRIs: thresholds, breach/overdue logic, value recording, vendor assignment, history review, exports, and notification-driven monitoring."
@@ -74,6 +74,8 @@ Scope rules still apply:
 
 - department and ownership influence what you can see
 - backend enforcement is authoritative
+- KRI history uses the same backend visibility rules as KRI detail
+- reporting owners can read/submit their assigned KRI, but correction requests require correction permission (`risks:write`) plus KRI visibility
 
 ## Data Model and Key Fields
 
@@ -110,6 +112,13 @@ KRI timeliness uses a separate operational filter:
 - `due_soon`: the next required reporting period is approaching its due date
 - `timeliness_status` is distinct from `monitoring_status`
 - for v1, list/filter/export flows treat `monitoring_status` and `timeliness_status` as mutually exclusive
+
+History governance rules:
+
+- each KRI can have only one recorded value for a specific period end
+- if a value already exists for that period, submit a correction rather than recording another value
+- duplicate direct submissions are rejected; queued submissions that become stale while waiting for approval are auto-rejected
+- correction action visibility comes from backend capability metadata, so the button may be hidden even when you can read or submit the KRI
 
 ## Core Workflows
 
@@ -162,6 +171,8 @@ Recording is the operational heartbeat.
 4. Save.
 5. Confirm breach/within status updates as expected.
 
+The period end matters. A second value for the same KRI and period end is not accepted as a new submission; use the history correction workflow to fix an existing period.
+
 If you cannot record:
 
 - confirm you have `kri:submit`
@@ -178,6 +189,13 @@ Use it to:
 - support changes to net risk scoring
 
 When you change limits, document why. Otherwise trend interpretation becomes ambiguous.
+
+History corrections:
+
+- use correction only to amend an existing recorded value
+- corrections may apply immediately for privileged users or queue for approval depending on your role and policy
+- if another user already recorded or corrected the period while your request was pending, the stale request can be rejected automatically
+- the current value follows the latest history row by period end, recorded timestamp, and final id tie-breaker
 
 ### 4) Respond to breach and overdue signals
 
@@ -214,6 +232,7 @@ Vendor-link changes are part of the same KRI edit workflow:
 
 - non-privileged KRI edits, including changes to **Linked Vendors**, are queued for approval instead of applying immediately
 - the KRI detail page shows an approval banner and keeps the current KRI and vendor links unchanged until approval is resolved
+- stale approved KRI changes are rejected at apply time when the underlying KRI or period history changed while the request was pending
 
 Practical signals:
 
@@ -285,6 +304,11 @@ If you export from the due-soon list mode, the export uses `timeliness_status=du
 
 - Check whether you have `kri:submit`.
 - Check whether you are the reporting owner.
+
+### I can record values but can’t request a correction
+
+- Reporting-owner access is enough for read/submit in many workflows.
+- History correction is a stronger governance action and requires correction capability from the backend.
 
 ### Breach status looks wrong
 

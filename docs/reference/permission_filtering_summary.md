@@ -1,5 +1,7 @@
 # Permission Filtering Implementation Summary
 
+> Historical implementation note. This file records an older permission-filtering pass and intentionally references pre-split endpoint paths such as `kris.py` and `dashboard.py`. Current canonical behavior lives in `docs/BUSINESS_LOGIC.md`, `docs/AUTHZ_LIST_POLICY.md`, and the package-based endpoint modules under `backend/app/api/v1/endpoints/`.
+
 ## Changes Made
 
 ### 1. KRIs Endpoint (`backend/app/api/v1/endpoints/kris.py`)

@@ -1,7 +1,7 @@
 ---
 title: Managing Issues and Findings
-version: "2.2"
-last_updated: "2026-03-09"
+version: "2.3"
+last_updated: "2026-04-25"
 audience: user
 source_of_truth: "frontend/src/pages/IssuesPage.tsx + frontend/src/pages/issues/* + issue workflows in backend"
 summary: "How to log, triage, remediate, and close Issues (findings) with clear ownership, due dates, exceptions, and audit-ready exports."
@@ -137,6 +137,10 @@ Use status consistently:
 If your organization uses a remediation plan card, keep it aligned:
 
 - plan `draft/active/blocked/completed` should not contradict the issue status
+- remediation is complete only when plan status is `completed`, progress is `100%`, and a completion timestamp exists
+- setting status to completed or progress to 100% normalizes the other completion fields
+- lowering progress below 100% moves a `ready_for_validation` issue back to `in_progress`
+- contradictory updates, such as `blocked` with 100% progress, are rejected
 
 ### 4) Close with evidence
 
@@ -150,6 +154,8 @@ Before moving to `closed`, record:
 - what monitoring will detect regression (if applicable)
 
 If validation fails, move back to `in_progress` and state the specific gap ("Evidence missing for period X", "Control execution still failing", etc.).
+
+Closure requires completed remediation. A `ready_for_validation` issue whose progress was lowered below complete cannot be closed until remediation is complete again.
 
 ### 5) Handle exceptions (when remediation cannot be completed)
 
@@ -167,6 +173,8 @@ In the Issue, be explicit:
 - what compensating controls exist
 - the expiration date and the owner of renewal/review
 
+When an approved exception expires or is revoked, closed issues reopen only if remediation is not complete. Completed remediation stays closed.
+
 ## Approvals and Notifications Behavior
 
 Issues commonly interact with workflow in two ways:
@@ -179,6 +187,7 @@ Practical rules:
 - Expect notifications when an Issue changes status, is assigned to you, or an exception is requested/approved.
 - If you save an update and it does not appear immediately, check `/approvals` and `/notifications` for a pending request.
 - Always add resolution notes for approvals. Notes are part of the audit trail.
+- If a workflow action returns a conflict, refresh the issue before retrying; the backend may have normalized or downgraded remediation state.
 
 For the complete workflow mechanics and queue triage, use: `./notifications.md`.
 
@@ -250,6 +259,12 @@ Export discipline:
 
 - Check active filters (status/severity/overdue) before exporting.
 - Retry after a refresh. If the problem persists, capture the error message and share it with support.
+
+### Close action is blocked
+
+- Confirm the issue is `ready_for_validation`.
+- Confirm remediation status is `completed`, progress is `100%`, and completion details are present.
+- If progress was reduced below 100%, update remediation back to complete before closing.
 
 ## Related Documentation
 

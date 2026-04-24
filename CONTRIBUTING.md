@@ -43,12 +43,13 @@ make -f scripts/Makefile test-e2e
 
 You do not need to run every command for every change, but your PR should explain what you ran and why that coverage matches the touched surface.
 
-For docs-only changes, verify links, commands, and referenced file paths.
+For docs-only changes, verify links, commands, referenced file paths, and any documented behavior against the current code path. When changing user-facing behavior, update `docs/BUSINESS_LOGIC.md`, relevant user/admin docs, and Czech parity docs where the workflow is documented in both languages.
 
 ## Pull Request Checklist
 
 - Describe the problem and the user-facing or operator-facing impact.
 - Call out any risk hotspots touched, especially auth, approvals, RBAC, timezone handling, or deployment behavior.
+- Update behavior documentation when the change affects workflows, API contracts, RBAC, admin operations, or user guidance.
 - Note the verification you ran.
 - Keep generated artifacts, local secrets, and runtime logs out of the diff.
 

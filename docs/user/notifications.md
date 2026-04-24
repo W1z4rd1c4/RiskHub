@@ -1,7 +1,7 @@
 ---
 title: Notifications and Approvals
-version: "2.0"
-last_updated: "2026-02-16"
+version: "2.1"
+last_updated: "2026-04-25"
 audience: user
 source_of_truth: "frontend/src/pages/ApprovalsPage.tsx + frontend/src/pages/NotificationsPage.tsx + docs/BUSINESS_LOGIC.md"
 summary: "Production workflow manual for approvals, notifications, decision notes, queue triage, and escalation patterns."
@@ -178,6 +178,8 @@ Operational pattern:
 
 - treat questionnaires like time-boxed requests
 - follow up early (before overdue) to avoid last-minute low-quality responses
+- questionnaire due-soon/overdue reminders are deduped per questionnaire instance, not just per risk
+- notifications still navigate to the parent risk so the recipient lands in the operational context
 
 ### 5) Close the loop after a decision
 
@@ -211,6 +213,8 @@ Notifications are designed to reduce scanning cost. Your job is to convert them 
 - follow up with an owner
 
 If a notification “keeps coming back”, it is usually telling you the underlying policy is not being executed (overdue KRI, repeated breach, stuck approval).
+
+Approval execution is apply-time validated. A queued change can be rejected during approval if the target record changed while the request was pending; read the resolution notes before resubmitting.
 
 ### Preference tuning
 

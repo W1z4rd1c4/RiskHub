@@ -1,7 +1,7 @@
 ---
 title: Správa nálezů (Issues)
-version: "2.2"
-last_updated: "2026-03-09"
+version: "2.3"
+last_updated: "2026-04-25"
 audience: user
 source_of_truth: "frontend/src/pages/IssuesPage.tsx + frontend/src/pages/issues/* + issue workflows in backend"
 summary: "Jak zakládat, třídit, řešit a uzavírat nálezy (Issues) s jasným ownership, termíny, výjimkami a exporty připravenými pro audit."
@@ -137,6 +137,10 @@ Doporučená interpretace statusů:
 Pokud používáte remediation plan kartu, držte konzistenci:
 
 - stav plánu `draft/active/blocked/completed` nesmí být v rozporu se statusem nálezu
+- remediace je hotová jen když má plán stav `completed`, progress `100%` a existuje completion timestamp
+- nastavení stavu na completed nebo progressu na 100 % normalizuje ostatní completion pole
+- snížení progressu pod 100 % vrací nález z `ready_for_validation` do `in_progress`
+- rozporné aktualizace, například `blocked` s 100 % progressem, se odmítnou
 
 ### 4) Uzavření s důkazy
 
@@ -150,6 +154,8 @@ Před přechodem do `closed` zapište:
 - jak se zachytí regres (pokud dává smysl)
 
 Pokud validace neprojde, vraťte do `in_progress` a napište konkrétní deficit („chybí důkaz za období X“, „kontrola stále failuje“, apod.).
+
+Uzavření vyžaduje hotovou remediaci. Nález v `ready_for_validation`, kterému byl progress snížen pod complete, nelze zavřít, dokud není remediace znovu kompletní.
 
 ### 5) Výjimky (když nejde splnit nápravu včas)
 
@@ -167,6 +173,8 @@ V Issue uveďte:
 - jaké kompenzační kontroly existují
 - expiraci + kdo vlastní obnovu/review
 
+Když schválená výjimka expiruje nebo je revokována, uzavřené nálezy se znovu otevřou jen tehdy, pokud remediace není hotová. Hotová remediace zůstává zavřená.
+
 ## Schvalování a notifikace
 
 Nálezy typicky interagují s workflow dvěma způsoby:
@@ -179,6 +187,7 @@ Praktická pravidla:
 - Počítejte s notifikacemi při změně statusu, přiřazení ownera nebo při práci s výjimkami.
 - Pokud se změna po uložení neprojeví, zkontrolujte `/approvals` a `/notifications`.
 - Ke schválení vždy pište „resolution notes“. Je to součást audit trailu.
+- Pokud workflow akce vrátí konflikt, obnovte detail nálezu před dalším pokusem; backend mohl normalizovat nebo vrátit remediation stav.
 
 Kompletní mechaniku front a triage najdete v: `./notifications.md`.
 

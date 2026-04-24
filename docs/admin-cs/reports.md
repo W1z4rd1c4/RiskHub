@@ -1,7 +1,7 @@
 ---
 title: Reporty a evidence exporty (admin runbook)
-version: "2.0"
-last_updated: "2026-03-05"
+version: "2.1"
+last_updated: "2026-04-25"
 audience: admin
 source_of_truth: "frontend/src/pages/AdminConsolePage.tsx + backend/app/api/v1/endpoints/admin/*"
 summary: "Admin runbook pro audit-ready exporty: co exportovat, jak správně omezit scope, jak zachovat provenance a jak bezpečně předat evidenci."
@@ -41,6 +41,8 @@ Použijte tento runbook, když potřebujete:
 - dodat audit artefakty se zachovanou provenance (exporty + cover note)
 
 Nepoužívejte to jako náhradu business exportů (rizika/kontroly/dodavatelé). Pokud business owner potřebuje business data, koordinujte to a využijte user exportní flow.
+
+Business list exporty aplikují autorizaci po as-of replay. Při troubleshootingu CSV porovnávejte finální replayed department a owner pole, ne jen aktuální řádek v databázi vybraný před replay.
 
 ## Předpoklady a bezpečnost
 
@@ -97,6 +99,12 @@ Ihned po exportu:
   - event pole
   - user_id (kde dává smysl)
   - request_id (kritické pro korelaci)
+
+U scoped business exportů ověřte:
+
+- explicitní `department_id` filtr je po as-of replay striktní
+- nefiltrované scoped exporty mohou obsahovat řádky díky ownership/reporting-owner výjimkám napříč odděleními
+- evidence poznámka uvádí, zda šlo o current-date nebo point-in-time (`as_of_date`) export
 
 ### 3) Získat application log evidence (opatrně)
 
@@ -176,12 +184,26 @@ Checks:
 - příliš úzké časové okno
 - špatný event filtr
 - akce se nikdy nestala (mismatch reportu)
+- u business exportů se řádek mohl k vybranému datu replaynout do jiného oddělení
 
 Akce:
 
 - rozšiřte okno (např. ±10 minut)
 - zrušte filtry a exportujte malý vzorek
 - potvrďte přes application logy nebo další audit události
+
+### Export obsahuje řádek, který requester nečekal
+
+Checks:
+
+- zda requester použil explicitní `department_id`, nebo nefiltrovaný export
+- zda je řádek viditelný přes přímý ownership nebo KRI reporting-owner pravidla
+- zda as-of replay změnil department řádku po počátečním výběru
+
+Akce:
+
+- reprodukujte se stejnými filtry a as-of datem
+- do handoffu přidejte finální replayed department/owner pole
 
 ### Export akce selhává nebo soubor stáhne prázdný
 

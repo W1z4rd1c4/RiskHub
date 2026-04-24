@@ -15,6 +15,7 @@ Paste commands, screenshots, or notes here.
 
 - [ ] No secrets, runtime logs, or private environment data were added.
 - [ ] I called out any RBAC, approval, timezone, or deployment risk if touched.
+- [ ] I updated relevant docs for user-facing, operator-facing, API, workflow, or RBAC behavior changes.
 
 ## Maintainer Notes
 

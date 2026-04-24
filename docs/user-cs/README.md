@@ -1,7 +1,7 @@
 ---
 title: Uživatelská dokumentace RiskHub
-version: "2.2"
-last_updated: "2026-03-09"
+version: "2.3"
+last_updated: "2026-04-25"
 audience: user
 source_of_truth: "docs/BUSINESS_LOGIC.md"
 summary: "Produkční manuály pro každodenní práci v RiskHubu: navigace, oprávnění, workflow (schvalování), exporty a troubleshooting."
@@ -72,7 +72,8 @@ Pokud jste v RiskHubu nový/á, toto pořadí vás rychle dostane do provozu:
    - [Rizika](./risks.md) (registr)
    - [Kontroly](./controls.md) (mitigace a evidence exekuce)
 3. Pochopte workflow:
-   - [Workflow, schvalování, notifikace](./notifications.md)
+  - [Workflow, schvalování, notifikace](./notifications.md)
+  - risk dotazníky přes [Risk Hub](./risk-hub.md) a approvals inbox
 4. Pokud monitorujete metriky:
    - [KRI](./kris.md)
 5. Pokud sledujete nálezy/remediace:
@@ -92,14 +93,14 @@ Tato tabulka mapuje položky v menu na kanonický manuál.
 | Schvalování + Notifikace | `/approvals`, `/notifications` | [Workflow, schvalování, notifikace](./notifications.md) | Životní cyklus schválení, „pending change“ chování a jak se neblokovat | `workflow`, `approvals`, `notifications` |
 | Kontroly | `/controls` | [Správa kontrol](./controls.md) | Návrh kontroly, ownership, evidence exekuce, grouped `By Vendor` review a export | `controls`, `workflow`, `exports` |
 | Rizika | `/risks` | [Správa rizik](./risks.md) | Hygiena registru, scoring, ownership, vazby a grouped `By Vendor` review | `risks`, `workflow`, `approvals` |
-| Nálezy (pokud jsou zapnuté) | `/issues` | [Správa nálezů](./issues.md) | Remediace, vazby na rizika/kontroly/dodavatele, disciplína uzavírání a grouped `By Vendor` review | `issues`, `workflow`, `exports` |
-| KRI | `/kris` | [Správa KRI](./kris.md) | Limity, zápis hodnot, přiřazení dodavatelů, breach signály, vendor linkage a grouped `By Vendor` review | `kri`, `notifications`, `exports` |
+| Nálezy (pokud jsou zapnuté) | `/issues` | [Správa nálezů](./issues.md) | Remediace, validace dokončení, výjimky, vazby na rizika/kontroly/dodavatele, disciplína uzavírání a grouped `By Vendor` review | `issues`, `workflow`, `exports` |
+| KRI | `/kris` | [Správa KRI](./kris.md) | Limity, periodický zápis hodnot, korekce historie, přiřazení dodavatelů, breach signály, vendor linkage a grouped `By Vendor` review | `kri`, `notifications`, `exports` |
 | Dodavatelé (pokud jsou zapnutí) | `/vendors` | [Správa dodavatelů](./vendors.md) | Základní registr dodavatelů, grupování `By Flag`, navázaná rizika/kontroly/KRI, create-from-vendor workflow pro rizika, kontroly a KRI a exporty | `vendors`, `workflow`, `exports` |
 | Oddělení | `/departments` | [Oddělení](./departments.md) | Expozice podle org jednotek, drill-down a odpovědnosti | `departments`, `workflow`, `exports` |
 | Governance (jen CRO, ne-admin) | `/governance` | [Governance](./governance.md) | Orphans, ownership mezery a jejich řešení | `governance`, `audit`, `troubleshooting` |
 | Activity Log (permission-gated, ne-admin) | `/activity-log` | [Activity Log](./activity-log.md) | „Kdo změnil co“, časová osa, auditní evidence | `activity-log`, `audit`, `exports` |
 | Uživatelé / přístupy (role-gated) | `/users` | [Správa přístupů](./access-management.md) | Interpretace rolí/scope a kontrola přístupů | `access`, `audit`, `settings` |
-| Risk Hub (CRO only) | `/risk-hub` | [Risk Hub](./risk-hub.md) | Konfigurační koncepty a bezpečné provozní vzory | `riskhub`, `settings`, `approvals` |
+| Risk Hub (CRO only) | `/risk-hub` | [Risk Hub](./risk-hub.md) | Konfigurační koncepty, batch odesílání dotazníků a bezpečné provozní vzory | `riskhub`, `settings`, `approvals` |
 | Nastavení | `/settings` | [Začínáme](./getting-started.md) | Preference (jazyk/téma) a navigace v dokumentaci | `settings`, `onboarding`, `workflow` |
 
 ## Mapa dokumentace (podle workflow)

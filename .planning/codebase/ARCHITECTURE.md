@@ -1,21 +1,20 @@
 # Architecture
 
-**Analysis Date:** 2026-04-05
+**Analysis Date:** 2026-04-24
 
 ## System Shape
 
 RiskHub is a containerized full-stack application:
 - Backend: FastAPI monolith with modular domain endpoints (many split into packages with subrouters) (`backend/app/api/v1/endpoints/`)
 - Frontend: React SPA with route-based pages (`frontend/src/App.tsx`, `frontend/src/pages/`)
-- Datastore: PostgreSQL, with Redis for production runtime controls (`docker-compose.yml`, `scripts/compose.sh`, `backend/app/bootstrap_runtime.py`, `scripts/deploy.sh`)
+- Datastore: PostgreSQL, with Redis for production runtime controls (`docker-compose.yml`, `scripts/compose.sh`, `backend/app/main.py`, `backend/app/middleware/rate_limit/`, `scripts/deploy.sh`)
 - Quantitative repository-size metrics are tracked in `.planning/codebase/STRUCTURE.md` as the count source of truth.
 
 ## Backend Layering
 
 ### App composition and lifecycle
-- Canonical app composition is exported through `backend/app/bootstrap.py`, which now serves as a stable facade over `backend/app/bootstrap_app.py`, `backend/app/bootstrap_runtime.py`, and `backend/app/bootstrap_validation.py`
-- `backend/app/main.py` is the thin entrypoint for logging bootstrap, `lifespan`, and `create_app`
-- DB engine/sessionmaker initialized per-app and stored on `app.state` (`backend/app/db/session.py`, `backend/app/bootstrap_runtime.py`, `backend/app/main.py`)
+- Canonical app composition now lives in `backend/app/main.py`: settings validation, logging bootstrap, middleware composition, lifespan, scheduler wiring, and `create_app`
+- DB engine/sessionmaker initialized per-app and stored on `app.state` (`backend/app/db/session.py`, `backend/app/main.py`)
 - Lifespan shutdown disposes DB engine and closes Redis (`backend/app/main.py`)
 - `backend/app/core/config.py` is now the import-stable facade over the physically segmented `backend/app/core/settings/` package, preserving the flat env contract while moving field groups by concern
 
@@ -29,14 +28,20 @@ RiskHub is a containerized full-stack application:
 - SQLAlchemy models in `backend/app/models/`
 - Pydantic request/response schemas in `backend/app/schemas/`
 - Business workflows in `backend/app/services/`
+- Internal workflow packages hold shared invariants for high-risk domains:
+  - approval execution locking/staleness (`backend/app/services/_approval_execution/`)
+  - issue remediation transitions (`backend/app/services/_issue_workflow/`)
+  - KRI history/value/correction policy (`backend/app/services/_kri_history/`)
+  - risk questionnaire lifecycle/capabilities (`backend/app/services/risk_questionnaire_service.py`)
+- Unified report exports run through a shared fetch/replay/filter/render pipeline (`backend/app/api/v1/endpoints/reports/unified_exports/`)
 - Transactional outbox responsibilities are split across store/dispatcher/registry/domain-handler modules (`backend/app/services/outbox/`)
 - Async DB session boundary in `backend/app/db/session.py` (`get_db(request)` yields `AsyncSession`; no implicit commit)
 
 ### Cross-Cutting Runtime
-- Middleware chain: CORS, trusted hosts, logging context, security headers, rate limiting, language (`backend/app/bootstrap_app.py`, `backend/app/middleware/`)
+- Middleware chain: CORS, trusted hosts, logging context, security headers, rate limiting, language (`backend/app/main.py`, `backend/app/middleware/`)
 - Header, protocol-guard, and rate-limit middleware now import directly from their focused modules/packages (`backend/app/middleware/security_headers.py`, `backend/app/middleware/security_protocol.py`, `backend/app/middleware/rate_limit/`)
 - Structured logging + audit logging (`backend/app/core/logging.py`, `backend/app/core/activity_logger.py`)
-- Background jobs via APScheduler (`backend/app/core/scheduler.py`) with DB access via a configured `sessionmaker` (`backend/app/bootstrap_runtime.py`, `backend/app/core/scheduler.py`)
+- Background jobs via APScheduler (`backend/app/core/scheduler.py`) with DB access via a configured `sessionmaker` (`backend/app/main.py`, `backend/app/core/scheduler.py`)
 
 ## Frontend Layering
 
@@ -45,8 +50,11 @@ RiskHub is a containerized full-stack application:
 - Routing: `BrowserRouter` shell in `frontend/src/App.tsx` backed by centralized route metadata in `frontend/src/routing/`
 - Domain views: page components in `frontend/src/pages/`, shared components in `frontend/src/components/`
 - API access: central `apiClient` + domain service wrappers (`frontend/src/services/`)
+- Runtime API validation schemas are split by entity/domain under `frontend/src/services/api/schemas/entities/`; aggregate exports remain stable through the public schema index
+- Detail-page primitives and shared form lookup hooks reduce duplicated route-page logic (`frontend/src/pages/detail/`, `frontend/src/components/risk-form/useRiskLookups.ts`)
 - Auth/session coordination: `AuthProvider` now projects a canonical in-memory session snapshot from `sessionStore`, while `useAuthBootstrap`, `useAuthActions`, and `sessionManager` perform the allowed state transitions (`frontend/src/contexts/AuthContext.tsx`, `frontend/src/contexts/auth/`, `frontend/src/services/sessionStore.ts`, `frontend/src/services/sessionManager.ts`)
 - Authorization UX: `PermissionGate`, `usePermissions`, `useAuthz` (`frontend/src/components/PermissionGate.tsx`, `frontend/src/hooks/usePermissions.ts`, `frontend/src/authz/useAuthz.ts`)
+- Workflow UIs prefer backend-provided capability metadata when available, then fall back to local permission hints for compatibility
 - Entra SSO support via MSAL (`frontend/src/services/entraAuth.ts`, `frontend/src/pages/SsoCallbackPage.tsx`)
 - Preference hydration readiness now stays inside the auth provider/hook graph; the earlier module-level readiness singleton is gone (`frontend/src/contexts/auth/usePreferenceHydration.ts`, `frontend/src/contexts/AuthContext.tsx`)
 
@@ -61,13 +69,13 @@ RiskHub is a containerized full-stack application:
 
 ### Approval workflow
 1. Change request enters approvals flow (`backend/app/api/v1/endpoints/approvals/`)
-2. Approval side effects are executed in service layer (`backend/app/services/approval_execution_service.py`, internal modules in `backend/app/services/_approval_execution/`)
-3. Related domain entities and activity logs are updated transactionally
+2. Approval rows are locked for resolution, side effects are preflighted for apply-time staleness, and domain mutations execute through `backend/app/services/approval_execution_service.py` plus `backend/app/services/_approval_execution/`
+3. Related domain entities and activity logs are updated transactionally; stale edit/value approvals auto-reject without applying target-resource mutations
 
 ### Scheduled jobs
 1. App starts and conditionally starts scheduler based on `ENABLE_SCHEDULER` (`backend/app/core/scheduler.py`)
 2. Non-Postgres runtimes are treated as single-worker only for outbox dispatch; production multi-worker scheduler ownership requires PostgreSQL (`backend/app/core/scheduler.py`, `backend/app/services/outbox/store.py`)
-3. Daily jobs process KRIs, questionnaires, vendor reassessment/SLA, and optional vendor signal refresh
+3. Daily jobs process KRIs, questionnaire due/overdue reminders, vendor reassessment/SLA, issue exception expiry, and optional vendor signal refresh
 
 ## Deployment Topology
 
@@ -84,10 +92,11 @@ RiskHub is a containerized full-stack application:
 ## Architectural Characteristics
 
 - Strong modularity by business domain, but still a single deployable backend service
-- Authorization is backend-authoritative; frontend mirrors with UI gating
+- Authorization is backend-authoritative; frontend mirrors with UI gating and uses additive backend capability metadata for workflow actions
 - Approval and audit concerns are deeply integrated into domain write paths
 - Previously-large endpoint modules have been progressively split into packages with subrouters to improve reviewability (e.g., `backend/app/api/v1/endpoints/{approvals,admin,users,vendors,issues,...}/`)
+- Audit-sensitive exports and dashboards treat post-transform scope as authoritative: report rows are filtered after as-of replay, and committee snapshot deltas expose missing snapshot metadata rather than fabricating values
 
 ---
 
-*Architecture analysis refreshed on 2026-04-05*
+*Architecture analysis refreshed on 2026-04-24*

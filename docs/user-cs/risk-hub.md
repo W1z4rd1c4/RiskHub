@@ -1,7 +1,7 @@
 ---
 title: Risk Hub (konfigurační pracovní prostor pro CRO)
-version: "2.0"
-last_updated: "2026-02-16"
+version: "2.1"
+last_updated: "2026-04-25"
 audience: user
 source_of_truth: "frontend/src/pages/RiskHubPage.tsx + frontend/src/components/riskhub/*"
 summary: "Manuál pro CRO: konfigurace taxonomie, thresholdů, schvalovacích scénářů, rolí, oddělení a hromadné odesílání risk dotazníků."
@@ -84,7 +84,7 @@ Risk Hub je rozdělený do tabů. Následující tabulka je praktická pomůcka.
 | Approval rules | scénář `key`, `requires_approval`, `approver_roles` (včetně speciální role `risk_owner`) | Objem workflow a kdo schvaluje | Zrušení approvals bez náhrady; špatně nastavené role schvalovatelů. |
 | Roles | role `name`, `display_name`, `description`, permissions (`resource:action`) | Enforcement přístupu napříč moduly | Příliš široká oprávnění; role proliferace; nejasný účel. |
 | Departments | `name`, `code`, `manager`, active/deleted | Routing, scope, reporting | Změna kódů rozbije kontinuitu; chybí manager. |
-| Questionnaires | filtry (department/process/category/status), select all vs selected IDs, výsledky batch-send | Tlak na risk assessment a inbox | Odeslání bez ownerů; příliš široký scope; ignorování „skipped“. |
+| Questionnaires | filtry (department/process/category/status), jména ownerů, select all vs selected IDs, výsledky batch-send | Tlak na risk assessment a inbox | Odeslání bez ownerů; příliš široký scope; ignorování „skipped“ nebo existujících otevřených dotazníků. |
 
 ## Hlavní workflow
 
@@ -203,6 +203,14 @@ Doporučený postup:
 
 Dotazníky se promítají do workflow badge a do `/approvals` (risk assessment tab).
 
+Důležité chování dotazníků:
+
+- jedno riziko může mít současně jen jeden otevřený dotazník (`sent` nebo `in_progress`)
+- single-send i batch-send používají stejná pravidla pro přeskočení chybějícího ownera a existujícího otevřeného dotazníku
+- tabulka zobrazuje jména ownerů; `Unknown user` znamená, že label ownera nejde rozpoznat a je vhodné ho před odesláním zkontrolovat
+- dostupné akce pro assignee a reviewery řídí backend capabilities, ne lokální domněnka podle role v prohlížeči
+- clarification request zadává reviewer a odpovědět může assignee dotazníku
+
 ## Schvalování a notifikace
 
 Změny v Risk Hubu jsou governance změny.
@@ -218,6 +226,7 @@ Když se změna nechová podle očekávání:
 - zkontrolujte `/activity-log` pro záznam konfigurace
 - ověřte scénář reálnou uživatelskou akcí, která má spustit očekávané chování
 - pokud se approvals nevytváří, prověřte konfiguraci scénářů
+- pokud se zdá, že questionnaire reminder byl potlačen, ověřte, zda jde o stejnou instanci dotazníku; nové instance se deduplikují samostatně
 
 Fronty jsou detailně popsané v: `./notifications.md`.
 

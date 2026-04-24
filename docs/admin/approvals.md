@@ -1,7 +1,7 @@
 ---
 title: Approvals Support (Admin Runbook)
-version: "2.0"
-last_updated: "2026-02-16"
+version: "2.1"
+last_updated: "2026-04-25"
 audience: admin
 source_of_truth: "frontend/src/pages/ApprovalsPage.tsx + backend/app/api/v1/endpoints/approvals/* + backend/app/core/activity_logger.py"
 summary: "Admin support runbook for approvals incidents: stuck requests, transition failures, missing notifications, and evidence-backed escalation."
@@ -65,6 +65,7 @@ Safety rules:
   - cancel/reject with clear notes (if policy allows)
   - session refresh (log out/in)
 - Treat missing audit trails as a high-severity reliability issue. You cannot operate safely without traceability.
+- Treat stale auto-rejections as protective behavior, not queue failure. Approval execution validates current target state before applying sensitive changes.
 
 ## Step-by-Step Procedure
 
@@ -128,6 +129,10 @@ Common safe interventions:
   - do not guess the owner
   - hand off to the business owner to decide
   - once decided, correct the routing data (often via access/governance tooling) and re-run the approval
+- **Stale auto-rejection**:
+  - inspect resolution notes and the target entity activity log
+  - ask the requester to resubmit against current values if the change is still needed
+  - do not manually reapply the stale payload
 
 Avoid:
 
@@ -142,6 +147,7 @@ After intervention:
 - if approved, the underlying entity reflects the new values
 - no duplicate pending requests remain for the same resource
 - notifications are consistent with workflow events (no repeated false reminders)
+- for KRI value approvals, only one history row exists for the target period
 
 ## Verification Checklist
 
@@ -197,6 +203,20 @@ Actions:
 - session refresh
 - verify role/scope in `/users`
 - correlate with logs for the failing request
+
+### Approval auto-rejected during approve
+
+Checks:
+
+- target risk/control/KRI changed after the request was created
+- KRI history already contains a value for the queued period
+- KRI vendor links changed before a mixed KRI edit was approved
+
+Actions:
+
+- keep the rejected approval as audit evidence
+- resubmit a fresh request with current old/new values if the business change is still valid
+- escalate only if the target state did not actually change or a partial mutation occurred
 
 ### “I saved but nothing changed” and there is no approval request
 

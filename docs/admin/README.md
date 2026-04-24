@@ -1,7 +1,7 @@
 ---
 title: RiskHub Platform Administration Documentation
-version: "2.1"
-last_updated: "2026-03-15"
+version: "2.2"
+last_updated: "2026-04-25"
 audience: admin
 source_of_truth: "docs/BUSINESS_LOGIC.md §1.5 + admin routes + admin docs endpoint"
 summary: "Incident-first documentation library for platform admins covering health triage, access operations, evidence capture, and escalation-safe support."
@@ -86,9 +86,9 @@ At the end of the first hour, you should be able to say:
 | Inspect Health, logs, sessions, and exports | `/admin` | [Admin Console](./console.md) |
 | Add a user or change role, scope, department, or manager | `/users` | [User and Access Governance](./user-management.md) |
 | Support workflow and approval questions from an operator angle | support path plus logs | [Approvals Support](./approvals.md) |
-| Export evidence for incident response or audit | `/admin` | [Reports and Evidence Exports](./reports.md) |
+| Export evidence for incident response, audit, or scoped business-report troubleshooting | `/admin` plus affected export route | [Reports and Evidence Exports](./reports.md) |
 | Troubleshoot department-scoping questions | `/users` plus handoff evidence | [Departments: Admin Support](./departments.md) |
-| Keep Risk Hub configuration issues inside the right ownership boundary | `/risk-hub` for reference only | [Risk Hub Config Boundaries](./riskhub-config.md) |
+| Keep Risk Hub configuration and questionnaire issues inside the right ownership boundary | `/risk-hub` for reference only | [Risk Hub Config Boundaries](./riskhub-config.md) |
 
 Use the map as a routing table. Do not read everything before acting. Pick the task, open the runbook, and follow the smallest safe path.
 

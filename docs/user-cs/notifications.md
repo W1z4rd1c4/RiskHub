@@ -1,7 +1,7 @@
 ---
 title: Notifikace a schvalování
-version: "2.0"
-last_updated: "2026-02-16"
+version: "2.1"
+last_updated: "2026-04-25"
 audience: user
 source_of_truth: "frontend/src/pages/ApprovalsPage.tsx + frontend/src/pages/NotificationsPage.tsx + docs/BUSINESS_LOGIC.md"
 summary: "Produkční workflow manuál pro schvalování, notifikace, rozhodovací poznámky, triage front a eskalační vzory."
@@ -176,6 +176,8 @@ Praktická disciplína:
 
 - berte dotazníky jako time-boxed request
 - follow-up dělejte dřív než je overdue, ať nevznikají low-quality odpovědi na poslední chvíli
+- due-soon/overdue reminders pro dotazníky se deduplikují podle instance dotazníku, ne jen podle rizika
+- notifikace stále navigují na parent riziko, aby uživatel skončil v provozním kontextu
 
 ### 5) Uzavření smyčky po rozhodnutí
 
@@ -209,6 +211,8 @@ Notifikace mají snížit náklady na skenování. Vaše práce je převést je 
 - follow-up s ownerem
 
 Když se notifikace „vrací“, typicky říká, že se neprovádí podkladová policy akce (overdue KRI, opakovaný breach, stuck approval).
+
+Schvalování se při aplikaci znovu validuje. Queued změna může být odmítnuta, pokud se cílový záznam změnil během čekání; před opětovným odesláním čtěte resolution notes.
 
 ### Preference tuning
 

@@ -1,7 +1,7 @@
 ---
 title: Dashboard and Reporting Overview
-version: "2.0"
-last_updated: "2026-03-07"
+version: "2.1"
+last_updated: "2026-04-25"
 audience: user
 source_of_truth: "frontend/src/pages/DashboardPage.tsx + dashboard widgets and report exports"
 summary: "How to use the Dashboard as an operational cockpit: filters, drill-downs, committee view, export discipline, and interpreting trend changes correctly."
@@ -171,6 +171,15 @@ Use committee view when:
 - you need stability and narrative clarity
 - you are preparing for formal review
 
+Committee quarterly comparison rules:
+
+- current quarter selection cannot be later than the actual current quarter
+- compare quarter must be earlier than the selected current quarter
+- live snapshot metrics are used only for the actual in-progress current quarter
+- completed quarters use stored snapshots; historical selections do not show live current values under an old label
+- department-scoped users see scoped period choices and scoped snapshots
+- if a selected snapshot or individual snapshot metric is missing, the widget shows a warning, dashes for unavailable sides, and `N/A` for that delta instead of treating missing values as zero
+
 Use overview view when:
 
 - you are doing day-to-day operational routing
@@ -211,6 +220,7 @@ Export discipline:
 - Compare filters.
 - Compare scope (global vs department).
 - Check whether archived items are included in one view and not the other.
+- In committee view, compare selected quarters and snapshot warnings; one user may be looking at live current-quarter metrics while another is looking at a stored historical quarter.
 
 ## Related Documentation
 

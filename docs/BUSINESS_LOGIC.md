@@ -1,7 +1,7 @@
 # RiskHub Business Logic Reference
 
-> **Version**: 1.1
-> **Last Updated**: 2026-04-07
+> **Version**: 1.2
+> **Last Updated**: 2026-04-25
 > **Audience**: Product, Engineering, QA, Compliance
 > **Source of Truth**: Backend RBAC and approval enforcement in `backend/app/`
 
@@ -21,6 +21,8 @@
 9. [Activity Logging & Audit Trail](#9-activity-logging--audit-trail)
 10. [Reporting Exports](#10-reporting-exports)
 11. [Issue Lifecycle](#11-issue-lifecycle)
+12. [Risk Assessment Questionnaires](#12-risk-assessment-questionnaires)
+13. [Committee Quarterly Comparisons](#13-committee-quarterly-comparisons)
 
 ---
 
@@ -220,6 +222,15 @@ Rules:
 - Supporting fields include `required_due_date`, `days_overdue`, `is_submitted_for_required_period`, and the configured warning margin ratio.
 - The upper warning margin is configuration-backed in Risk Hub global config and defaults to 10% of the configured range.
 
+**History and Value Governance:**
+- KRI history read access delegates to canonical KRI visibility (`can_read_kri_id`): department access, reporting-owner access, and linked-risk visibility are all evaluated by the backend policy layer.
+- KRI value submission is period-based. Only one value may exist for a given `(kri_id, period_end)`.
+- Direct duplicate submissions for an already-recorded period return `409 Conflict`; corrections are the supported way to change an existing period value.
+- Non-privileged value submissions queue approval requests. If an approved queued value is stale because that period was recorded while the approval was pending, approval execution auto-rejects without creating a duplicate history row.
+- History correction requires `risks:write` plus canonical KRI read access. Reporting-owner status alone grants read/submit authority, not correction authority.
+- KRI history responses expose backend capability metadata such as `can_request_correction`; frontend action visibility should consume this metadata when present.
+- Current-value correction uses deterministic latest-row selection: `period_end DESC`, then `recorded_at DESC`, then `id DESC`.
+
 ### 2.4 Department
 
 | Field | Type | Description |
@@ -398,12 +409,14 @@ Rules:
 | **Edit Risk (sensitive)** | Risk Owner → Dept Head | Required if high-risk |
 | **Edit Control (sensitive)** | Risk Owner of linked risk → Dept Head | Required if linked to high-risk |
 | **Edit KRI** | Risk Owner of linked risk | Required if linked risk is high-risk |
-| **KRI History Correction** | Risk Owner | CRO approval required |
+| **KRI History Correction** | User with `risks:write` and canonical KRI read access | Non-resolver requests require CRO/Risk Manager approval |
 
 KRI edit notes:
 
 - non-privileged KRI edits create approval requests instead of mutating immediately
 - vendor-link changes (`linked_vendor_ids`) are stored in the same approval payload and are only applied when that approval is approved
+- approval execution locks the approval row, validates stored `old` values against the current target state, and auto-rejects stale edits before mutating the target
+- KRI vendor-link staleness is preflighted before ordinary KRI fields are applied, so a rejected stale approval cannot partially mutate a KRI
 
 ### 5.4 Self-Approval Prevention
 
@@ -620,6 +633,11 @@ User requests action (DELETE or EDIT sensitive field)
 | Risk Owner (fallback) | Submit value | Always creates approval; high-priority linked risks also require privileged follow-up |
 | Approval resolver (CRO/Risk Manager) | Submit value | Never (immediate) |
 
+Additional KRI value rules:
+- Reporting period selection uses the backend KRI history clock and the latest closed required period.
+- Direct privileged writes are locked on the parent KRI before creating history.
+- Duplicate period writes return `409`; duplicate/stale approved submissions are auto-rejected during approval execution.
+
 ### 8.6 Control Execution Logging
 
 | Logger | Permission Required | Department Scope |
@@ -721,6 +739,9 @@ Exported data is always scoped to what the requesting user can access under RBAC
 - Department-scoped users only receive in-scope entities
 - Privileged/global users can export across departments
 - Ownership/reporting-owner exceptions follow the same logic as list/detail views
+- Unified exports apply scope after as-of replay and row rehydration. The final row state, not the row selected before replay, is authoritative.
+- When a caller supplies an explicit `department_id`, that filter is strict after replay for risks, controls, KRIs, and vendors. Ownership/reporting exceptions do not override an explicit department filter.
+- Without an explicit `department_id`, scoped exports preserve existing visibility exceptions such as direct risk/control/vendor ownership and KRI reporting ownership.
 
 ### 10.4 Archived/Inactive Semantics
 
@@ -768,6 +789,13 @@ Exception status transitions:
 
 Invalid transitions return `409` from backend workflow endpoints.
 
+Remediation completion invariant:
+- A remediation is complete only when `status=completed`, `progress_percent=100`, and `completed_at` is present or normalized by the workflow action.
+- `remediation_status=completed` normalizes progress to `100` and sets `completed_at` if missing.
+- `progress_percent=100` normalizes status to `completed` and sets `completed_at` if missing.
+- Contradictory payloads return `409 Conflict`, including `progress_percent=100` with `active|blocked`, or `remediation_status=completed` with explicit progress below `100`.
+- If a `ready_for_validation` issue is updated below complete progress, it moves back to `in_progress`; existing `completed_at` is preserved.
+
 Workflow mutation contract:
 - `PATCH /api/v1/issues/{id}` does **not** allow `status` updates.
 - Status changes are allowed only through workflow endpoints:
@@ -791,6 +819,7 @@ Workflow mutation contract:
 - High-severity overdue issues generate escalation notifications.
 - Approved exceptions suppress issue overdue/open dashboard counting while active.
 - Expired exceptions are auto-marked `expired`; closed issues can be re-opened when remediation is incomplete.
+- Expired exceptions do not reopen closed issues whose remediation is complete under the shared completion invariant.
 - Explicit exception revocation is available via `POST /api/v1/issues/{id}/revoke-exception`.
 - Revocation transitions exception state `approved -> revoked`.
 - Revoking an exception re-opens a closed issue to `in_progress` when remediation is not complete.
@@ -863,6 +892,47 @@ Frontend simplification rules:
   - `open|triaged`: assignment/start remediation emphasized.
   - `in_progress`: progress update and exception actions emphasized.
   - `ready_for_validation`: close action emphasized.
+
+---
+
+## 12. Risk Assessment Questionnaires
+
+Risk questionnaires are risk-assessment workflows attached to a parent risk.
+
+### 12.1 Visibility and Capabilities
+
+- Questionnaire read access delegates to canonical risk visibility (`can_read_risk_id`).
+- Users who can read a risk through ownership or linked-entity exceptions can read questionnaire history for that risk.
+- Acting on a questionnaire remains narrower than reading: the assigned risk owner or the department head for the risk department can open, save draft, submit, and respond to clarifications.
+- RM/CRO users with canonical risk read access can request clarifications for submitted questionnaires.
+- List/detail responses expose additive `capabilities` metadata (`can_open`, `can_save_draft`, `can_submit`, `can_request_clarification`, `can_respond_to_clarifications`) so UI action visibility mirrors backend authority.
+
+### 12.2 Lifecycle and Uniqueness
+
+- Normal lifecycle: `sent` -> `in_progress` -> `submitted`; clarification requests are tracked separately on submitted questionnaires.
+- Only one open questionnaire (`sent` or `in_progress`) may exist per risk. This is enforced by both a locked send path and a partial unique database index.
+- Single-send and batch-send use the same workflow helper and return/record the same skip reason when an open questionnaire already exists.
+- `GET /questionnaires/{id}` is read-only; `/open` is the explicit read-adjacent transition and is idempotent for eligible actors.
+- Draft/submit after submission return `409`.
+
+### 12.3 Notifications and Deadlines
+
+- Sent and clarification notifications continue to point users to the parent risk workflow.
+- Deadline reminder dedupe is per questionnaire instance, so a later questionnaire for the same risk can generate its own due-soon or overdue reminder.
+- Notification navigation remains risk-based (`resource_type="risk"`, `resource_id=<risk_id>`).
+
+---
+
+## 13. Committee Quarterly Comparisons
+
+- `current_quarter` must not be later than the actual current quarter.
+- `compare_quarter` must be strictly before the selected `current_quarter`.
+- Live snapshot metrics are used only for the actual in-progress current quarter.
+- Completed selected quarters use stored quarterly snapshots; historical or future labels never receive live current metrics.
+- Department-scoped users resolve department snapshots by their scoped department; global snapshots are not a fallback for scoped historical comparisons.
+- Period metrics remain numeric and comparable even when snapshot metrics are unavailable.
+- Snapshot metric deltas use `direction="unknown"` with `N/A`/dash rendering when either side is missing, and `snapshot_info` reports availability, sources, missing quarters, and missing metric keys.
+- Available period choices are scoped to the user and always include the current year plus the default previous-quarter year.
 
 ---
 

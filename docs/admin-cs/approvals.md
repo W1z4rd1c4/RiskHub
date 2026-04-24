@@ -1,7 +1,7 @@
 ---
 title: Podpora schvalování (admin runbook)
-version: "2.0"
-last_updated: "2026-02-16"
+version: "2.1"
+last_updated: "2026-04-25"
 audience: admin
 source_of_truth: "frontend/src/pages/ApprovalsPage.tsx + backend/app/api/v1/endpoints/approvals/* + backend/app/core/activity_logger.py"
 summary: "Admin runbook pro incidenty schvalování: stuck žádosti, chyby přechodů, chybějící notifikace a evidence-based eskalace."
@@ -65,6 +65,7 @@ Bezpečnostní pravidla:
   - cancel/reject s jasnou poznámkou (pokud policy dovolí)
   - refresh session (re-login)
 - Chybějící audit trail berte jako high-severity problém. Bez traceability se nedá bezpečně operovat.
+- Stale auto-rejection berte jako ochranné chování, ne jako selhání fronty. Approval execution před aplikací ověřuje aktuální stav cílového záznamu.
 
 ## Postup krok za krokem
 
@@ -126,6 +127,10 @@ Vyberte nejmenší akci, která odblokuje a neobejde governance.
   - nehádejte ownera
   - předání business ownerovi pro rozhodnutí
   - po rozhodnutí opravte routing data a re-run schvalování
+- **Stale auto-rejection**:
+  - zkontrolujte resolution notes a activity log cílové entity
+  - pokud je změna stále potřeba, požádejte o nové odeslání proti aktuálním hodnotám
+  - stale payload neaplikujte ručně
 
 Vyhněte se:
 
@@ -140,6 +145,7 @@ Po zásahu ověřte:
 - pokud approved, entita má nové hodnoty
 - nezůstaly duplicitní pending requesty
 - notifikace odpovídají workflow (žádné opakované falešné remindery)
+- u KRI value approvals existuje pro cílové období jen jeden history row
 
 ## Ověření po změně
 
@@ -195,6 +201,20 @@ Akce:
 - re-login
 - ověřte roli/scope v `/users`
 - korelujte s logy pro failing request
+
+### Approval se při schválení automaticky odmítne
+
+Checks:
+
+- cílové riziko/kontrola/KRI se změnily po vytvoření žádosti
+- historie KRI už obsahuje hodnotu pro queued období
+- vendor vazby KRI se změnily před schválením smíšeného KRI editu
+
+Akce:
+
+- ponechte odmítnuté schválení jako audit evidence
+- pokud je business změna stále platná, odešlete novou žádost s aktuálními old/new hodnotami
+- eskalujte jen když cílový stav reálně nezměnil nikdo jiný nebo vznikla částečná mutace
 
 ### “Uložil/a jsem, ale nic se nezměnilo” a neexistuje žádná žádost
 

@@ -1,6 +1,6 @@
 # Coding Conventions
 
-**Analysis Date:** 2026-02-16
+**Analysis Date:** 2026-04-24
 
 ## Backend Conventions
 
@@ -18,8 +18,10 @@
 ### Model/schema separation
 - SQLAlchemy ORM entities in `backend/app/models/`
 - Pydantic API contracts in `backend/app/schemas/`
-- Service layer handles multi-entity workflows (approvals, notifications, historization)
-- Large services may be split into internal packages under `backend/app/services/_*/` with a public facade module that re-exports stable symbols (`backend/app/services/approval_execution_service.py`, `backend/app/services/_approval_execution/`)
+- Service layer handles multi-entity workflows (approvals, notifications, historization, issue remediation, KRI history, questionnaires)
+- Large services may be split into internal packages under `backend/app/services/_*/` with a public facade module that re-exports stable symbols (`backend/app/services/approval_execution_service.py`, `backend/app/services/_approval_execution/`, `backend/app/services/_issue_workflow/`, `backend/app/services/_kri_history/`)
+- Workflow endpoints should delegate lifecycle/status/authorization invariants to shared service helpers instead of reimplementing them per route.
+- Where a frontend action depends on server-side workflow authority, expose additive backend capability metadata and have the UI mirror those booleans instead of inferring from local role state.
 
 ### Security and runtime guardrails
 - Production startup checks fail fast on unsafe config (`backend/app/main.py`)
@@ -35,8 +37,10 @@
 
 ### Data access and auth
 - Centralized fetch wrapper in `frontend/src/services/apiClient.ts`
+- Runtime response schemas are domain-split under `frontend/src/services/api/schemas/entities/`; keep public aggregate exports stable from the schema index.
 - Auth state and permissions sourced from `AuthContext` (`frontend/src/contexts/AuthContext.tsx`)
 - UI authorization gates via `PermissionGate` and `usePermissions` (`frontend/src/components/PermissionGate.tsx`, `frontend/src/hooks/usePermissions.ts`)
+- User-facing UI must not render raw numeric database IDs as fallback labels; prefer names, codes, titles, or `Unknown <entity>` text.
 - Entra ID SSO support via MSAL (`frontend/src/services/entraAuth.ts`, `frontend/src/pages/SsoCallbackPage.tsx`)
 
 ### Internationalization
@@ -49,6 +53,7 @@
 - Frontend: Vitest jsdom tests + MSW mocks (`frontend/vitest.config.ts`, `tests/frontend/unit/src/test/mocks/`)
 - E2E: Playwright multi-browser projects (`frontend/playwright.config.ts`)
 - Lint/security toolchain via ESLint + pre-commit + security workflows (`frontend/eslint.config.js`, `.pre-commit-config.yaml`, `.github/workflows/security.yml`)
+- RBAC/workflow changes should include both backend API/service assertions and frontend capability/gating tests when the UI exposes the action.
 
 ## Time and Date Handling Convention (Policy)
 
@@ -67,4 +72,4 @@
 
 ---
 
-*Conventions audit refreshed on 2026-02-16*
+*Conventions audit refreshed on 2026-04-24*

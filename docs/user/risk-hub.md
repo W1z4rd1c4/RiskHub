@@ -1,7 +1,7 @@
 ---
 title: Risk Hub (CRO Configuration Workspace)
-version: "2.0"
-last_updated: "2026-02-16"
+version: "2.1"
+last_updated: "2026-04-25"
 audience: user
 source_of_truth: "frontend/src/pages/RiskHubPage.tsx + frontend/src/components/riskhub/*"
 summary: "CRO manual for configuring RiskHub taxonomy, thresholds, approval scenarios, roles, departments, and sending risk questionnaires safely."
@@ -84,7 +84,7 @@ Risk Hub is organized into tabs. The table below is a practical reference of wha
 | Approval rules | scenario `key`, `requires_approval`, `approver_roles` (including special dynamic role `risk_owner`) | Workflow volume and who can approve | Removing approvals and losing control; misconfigured approver roles. |
 | Roles | role identifier `name`, `display_name`, `description`, permission list (`resource:action`) | Access enforcement across modules | Giving broad permissions; role proliferation; unclear role intent. |
 | Departments | `name`, `code`, `manager`, active/deleted | Routing, scope, reporting | Changing codes breaks continuity; missing manager assignment. |
-| Questionnaires | filters (department/process/category/status), select all vs selected IDs, batch send results | Risk assessment pressure and inbox volume | Sending without owners; sending too broadly; not tracking skipped items. |
+| Questionnaires | filters (department/process/category/status), owner names, select all vs selected IDs, batch send results | Risk assessment pressure and inbox volume | Sending without owners; sending too broadly; not tracking skipped items or existing open questionnaires. |
 
 ## Core Workflows
 
@@ -203,6 +203,14 @@ Recommended workflow:
 
 Questionnaires contribute to the workflow badge count and to `/approvals` (risk assessment tab).
 
+Important questionnaire behavior:
+
+- a risk can have only one open questionnaire at a time (`sent` or `in_progress`)
+- batch send and single send use the same skip semantics for missing owner and existing open questionnaire
+- the table displays owner names; `Unknown user` means the owner label could not be resolved and should be checked before sending
+- questionnaire actions shown to assignees and reviewers are driven by backend capabilities, so stale role assumptions in the browser should not be trusted
+- clarification requests are reviewer-driven and responses are limited to the questionnaire assignee
+
 ## Approvals and Notifications Behavior
 
 Risk Hub changes are governance changes.
@@ -218,6 +226,7 @@ If a change doesn’t behave as expected:
 - check `/activity-log` for the configuration update event
 - validate the scenario by performing a real user action that should trigger it
 - if an approval should exist but doesn’t, review the approval scenario configuration
+- if questionnaire reminders appear suppressed, check whether the reminder belongs to the same questionnaire instance; new questionnaire instances are deduped separately
 
 Use `./notifications.md` as the canonical queue manual.
 

@@ -1,10 +1,15 @@
 # Codebase Concerns
 
-**Analysis Date:** 2026-04-05
+**Analysis Date:** 2026-04-24
 
 ## High-Risk Hotspots (Require Extra Care)
 
 - Approval side-effect orchestration: `backend/app/services/approval_execution_service.py` and internal modules in `backend/app/services/_approval_execution/`
+- KRI history/value submission invariants: `backend/app/services/_kri_history/`, `backend/app/api/v1/endpoints/kris/history.py`, `backend/app/services/_approval_execution/kri_side_effects.py`
+- Risk questionnaire lifecycle and one-open-questionnaire invariant: `backend/app/services/risk_questionnaire_service.py`, `backend/app/api/v1/endpoints/risk_questionnaires/`, `backend/app/api/v1/endpoints/riskhub_questionnaires.py`
+- Issue remediation completion and exception expiry semantics: `backend/app/services/_issue_workflow/`, `backend/app/services/issue_deadline_service.py`
+- Unified report exports after as-of replay: `backend/app/api/v1/endpoints/reports/unified_exports/`
+- Committee quarterly snapshot semantics: `backend/app/services/quarterly_comparison_service.py`, `backend/app/api/v1/endpoints/dashboard/quarterly.py`
 - RBAC scope enforcement consistency between backend and frontend gating: `backend/app/core/permissions.py`, `backend/app/core/_permissions/`, `frontend/src/components/PermissionGate.tsx`
 - Time policy (UTC-aware timestamps) and coercion boundaries: `backend/app/core/datetime_utils.py`
 - SSO token verification + exchange flow: `backend/app/services/sso_token_service.py`, `backend/app/api/v1/endpoints/auth/sso.py`, `frontend/src/services/entraAuth.ts`
@@ -38,7 +43,7 @@
 
 ## Production Boundary Risk
 
-- Broad private-network `TRUSTED_PROXIES` values are now production-fatal unless explicitly overridden; operators need to make that trust decision deliberately (`backend/app/bootstrap_validation.py`)
+- Broad private-network `TRUSTED_PROXIES` values are production-fatal unless explicitly overridden; operators need to make that trust decision deliberately (`backend/app/main.py`, `backend/app/core/config.py`)
 - Graph auth now separates dependency, credential, token-response, and transient failures, but the boundary remains security-sensitive because it drives production directory lookups and token caching (`backend/app/services/graph_directory_auth.py`, `backend/app/services/graph_directory_errors.py`)
 
 ## Log Growth and Operational Hygiene
@@ -54,10 +59,10 @@
 ## Recommended Ongoing Mitigations
 
 - Keep explicit regression tests on approval execution and timezone-sensitive writes
-- Validate RBAC changes with both API and UI-gating tests
+- Validate RBAC/workflow changes with both API and UI-gating/capability tests
 - Prefer incremental decomposition of oversized endpoint modules during feature work
 - Periodically reconcile seed scripts with `docs/BUSINESS_LOGIC.md`
 
 ---
 
-*Concerns audit refreshed on 2026-04-05*
+*Concerns audit refreshed on 2026-04-24*

@@ -64,7 +64,9 @@ RiskHub is published as an open-source repository under the [MIT License](./LICE
 - **Run the full risk operating loop in one place.** RiskHub covers the register, controls, KRIs, issues, departments, and vendor-linked exposure instead of splitting posture across disconnected tools.
 - **Make approval-gated change normal.** Sensitive edits become structured approval requests with rationale, resolution notes, and auditability instead of silent mutations.
 - **Keep third-party risk connected to core posture.** Vendors link directly to risks, controls, and KRIs, with grouped views and create-from-vendor flows for real operating context.
-- **Turn dashboards into decisions.** The dashboard is built for drill-downs, exports, and committee-ready summaries, not vanity metrics.
+- **Turn dashboards into decisions.** The dashboard is built for drill-downs, scoped evidence exports, stored committee snapshots, and missing-data transparency, not vanity metrics.
+- **Run risk assessments as governed workflow.** Risk questionnaires have backend-enforced action capabilities, one-open-questionnaire protection, clarifications, deadlines, and owner-aware batch sending.
+- **Manage remediation to closure.** Issues include remediation progress, exception handling, expiry/revoke behavior, and closure validation tied to completed remediation evidence.
 - **Respect RBAC and scope boundaries.** Business access, admin access, department scope, manager scope, and ownership exceptions are explicit product behavior, not implied conventions.
 - **Support operators as well as business users.** Platform admins get a separate documentation and runbook surface for health checks, access support, evidence capture, and escalation-safe operations.
 
@@ -80,8 +82,8 @@ RiskHub is aimed at teams that need governance to survive contact with productio
 This repository already reflects those boundaries in product behavior and documentation:
 
 - business users and admins have separate documentation libraries
-- approvals and notifications are first-class workflows
-- dashboard, exports, and activity evidence are operational surfaces
+- approvals, notifications, questionnaires, remediation, and KRI value governance are first-class workflows
+- dashboard, committee snapshots, exports, and activity evidence are operational surfaces
 - local development and production deployment are deliberately separated
 
 ## Quick Start
@@ -143,10 +145,12 @@ RiskHub is not just a CRUD shell around a risk register. The documented operatin
 
 - **Dashboard and reporting** for posture review, drill-downs, filters, exports, and committee-ready summaries
 - **Risks and controls** for ownership, scoring, mitigation, execution logging, and evidence
-- **KRIs** for thresholds, reporting cadence, overdue tracking, and breach status
+- **KRIs** for thresholds, reporting cadence, one-value-per-period history, approval-gated corrections, overdue tracking, and breach status
+- **Issues** for remediation lifecycle, exception handling, readiness validation, and closure evidence
+- **Risk questionnaires** for assessment requests, batch sending, clarifications, deadlines, and questionnaire inbox triage
 - **Approvals and notifications** for queued changes, decision review, request cancellation, and workflow triage
 - **Vendors** for third-party register management, flag grouping, and linked risk/control/KRI context
-- **Admin operations** for platform health, access support, exports, incident triage, and escalation handoff
+- **Admin operations** for platform health, access support, scoped exports, incident triage, and escalation handoff
 
 ## Testing And Verification
 

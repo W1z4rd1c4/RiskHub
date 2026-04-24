@@ -1,7 +1,7 @@
 ---
 title: Dashboard a reporting přehled
-version: "2.0"
-last_updated: "2026-03-07"
+version: "2.1"
+last_updated: "2026-04-25"
 audience: user
 source_of_truth: "frontend/src/pages/DashboardPage.tsx + dashboard widgety a report exporty"
 summary: "Jak používat Dashboard jako provozní cockpit: filtry, drill-down, committee view, disciplína exportů a správná interpretace trendů."
@@ -178,6 +178,15 @@ Některé deploymenty mají committee/overview toggle.
 
 - committee view: stabilní, narativní, review‑ready
 - overview view: denní routing
+
+Pravidla quarterly comparison v committee view:
+
+- current quarter nesmí být pozdější než skutečný aktuální kvartál
+- compare quarter musí být dříve než vybraný current quarter
+- live snapshot metriky se používají jen pro skutečný aktuálně probíhající kvartál
+- dokončené kvartály používají uložené snapshoty; historická volba nedostane živé dnešní hodnoty pod starým labelem
+- uživatelé se scope na oddělení vidí scoped period choices a scoped snapshoty
+- pokud chybí vybraný snapshot nebo konkrétní snapshot metrika, widget zobrazí varování, pomlčky pro nedostupné strany a `N/A` pro delta místo toho, aby chybějící hodnoty bral jako nulu
 
 ### Exporty
 

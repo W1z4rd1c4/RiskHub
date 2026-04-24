@@ -43,6 +43,7 @@ AGENTS.md
   - [`docs/BUSINESS_LOGIC.md`](./BUSINESS_LOGIC.md)
   - [`docs/user/README.md`](./user/README.md)
   - [`docs/admin/README.md`](./admin/README.md)
+  - Current workflow coverage includes KRI history/value governance, risk questionnaires, issue remediation, report export scope/as-of behavior, committee snapshots, and approval execution semantics.
 - Security posture and audits:
   - [`docs/security/README.md`](./security/README.md)
   - [`docs/security/SECURITY.md`](./security/SECURITY.md)

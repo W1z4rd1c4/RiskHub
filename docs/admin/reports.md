@@ -1,7 +1,7 @@
 ---
 title: Reports and Evidence Exports (Admin Runbook)
-version: "2.0"
-last_updated: "2026-03-05"
+version: "2.1"
+last_updated: "2026-04-25"
 audience: admin
 source_of_truth: "frontend/src/pages/AdminConsolePage.tsx + backend/app/api/v1/endpoints/admin/*"
 summary: "Admin runbook for producing audit-ready evidence exports: what to export, how to scope it, how to preserve provenance, and how to hand off safely."
@@ -41,6 +41,8 @@ Use this runbook when you need to:
 - provide audit artifacts with provenance (exports + explanatory note)
 
 Do not use this runbook as a replacement for business exports (risks/controls/vendors). If a business owner needs business data, coordinate with them and use the user-facing export flows.
+
+Business list exports apply authorization after as-of replay. When troubleshooting a user-facing CSV, compare the final replayed department and owner fields, not only the current database row selected before replay.
 
 ## Preconditions and Safety
 
@@ -97,6 +99,12 @@ Immediately after export:
   - event field present
   - user_id present (where applicable)
   - request_id present (critical for correlation)
+
+For scoped business exports, verify:
+
+- explicit `department_id` filters are strict after as-of replay
+- unfiltered scoped exports may include ownership/reporting-owner exception rows across departments
+- evidence notes include whether the export was current-date or point-in-time (`as_of_date`)
 
 ### 3) Collect application log evidence (carefully)
 
@@ -176,12 +184,26 @@ Checks:
 - time window too narrow
 - wrong event filter applied
 - the action never occurred (user report mismatch)
+- for business exports, the row may replay to a different department as of the selected date
 
 Actions:
 
 - expand time window slightly (for example ±10 minutes)
 - remove filters and re-export a small sample
 - corroborate using application logs or additional audit entries
+
+### Export includes a row the requester did not expect
+
+Checks:
+
+- whether the requester used an explicit `department_id` filter or an unfiltered export
+- whether the row is visible through direct ownership or KRI reporting-owner rules
+- whether as-of replay changed the row's department after initial selection
+
+Actions:
+
+- reproduce with the same filters and as-of date
+- include final replayed department/owner fields in the handoff
 
 ### Export actions fail or files download empty
 

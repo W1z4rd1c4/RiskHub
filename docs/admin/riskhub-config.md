@@ -1,7 +1,7 @@
 ---
 title: Risk Hub Configuration Support Boundaries (Admin Runbook)
-version: "2.0"
-last_updated: "2026-02-16"
+version: "2.1"
+last_updated: "2026-04-25"
 audience: admin
 source_of_truth: "frontend/src/pages/RiskHubPage.tsx + backend/app/api/v1/endpoints/riskhub/* + authz role model"
 summary: "Admin runbook defining what admins support in Risk Hub configuration (technical enablement) vs what remains a business-owner decision, with incident triage procedures."
@@ -101,6 +101,8 @@ Common failure modes:
   - technical defect or integration failure
 - **“Saved” but did not apply**:
   - the change is approval-gated, or the UI is reflecting cached state, or the save never completed
+- **Questionnaire send skipped risks**:
+  - missing owner, existing open questionnaire, or out-of-scope risk selection
 
 Minimal interventions admins can take safely:
 
@@ -110,6 +112,13 @@ Minimal interventions admins can take safely:
   - correct the user’s role/scope only if authorized and clearly requested
 - evidence-driven escalation:
   - if the failure is 500 or inconsistent enforcement, escalate to engineering with request IDs
+
+Questionnaire-specific support:
+
+- one risk can have only one open questionnaire (`sent` or `in_progress`)
+- batch send and single send should report the same skip reasons for missing owner and open questionnaire
+- owner-name display should show a human label or `Unknown user`; raw numeric owner IDs in the UI should be treated as a display regression
+- deadline reminder dedupe is per questionnaire instance while notification navigation remains risk-based
 
 ### 4) Boundary handling: technical vs policy
 
@@ -177,6 +186,20 @@ Actions:
 
 - if 500: escalate to engineering with request ID
 - if validation: capture exact message and hand off to business owner if it’s a policy input
+
+### Questionnaire batch send skipped more rows than expected
+
+Checks:
+
+- selected risks have owners
+- selected risks do not already have open questionnaires
+- filters did not include out-of-scope or inactive records
+
+Actions:
+
+- provide the created/skipped/error summary to the CRO
+- correct missing owner data through the normal governance/access workflow
+- do not manually create duplicate open questionnaires
 
 ### Business owner requests an “admin override”
 

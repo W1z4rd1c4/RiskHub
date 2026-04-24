@@ -12,19 +12,19 @@ Use [`docs/DOCUMENTATION_TREE.md`](docs/DOCUMENTATION_TREE.md) for full cross-do
 |---|---|---|---|---|
 | Repository Knowledge Map | `docs/agent/README.md`<br>`docs/agent/AGENTS_DOC_COVERAGE.md` | full | RiskHub Maintainer | 2026-02-16 |
 | Mission | `docs/agent/CODEX_WORKING_RULES.md` | full | RiskHub Maintainer | 2026-02-16 |
-| Project Map | `.planning/codebase/STRUCTURE.md`<br>`.planning/codebase/ARCHITECTURE.md` | full | RiskHub Maintainer | 2026-04-05 |
+| Project Map | `.planning/codebase/STRUCTURE.md`<br>`.planning/codebase/ARCHITECTURE.md` | full | RiskHub Maintainer | 2026-04-25 |
 | Source-of-Truth Order | `docs/agent/CODEX_WORKING_RULES.md`<br>`.planning/codebase/CONVENTIONS.md` | full | RiskHub Maintainer | 2026-02-16 |
 | Active Work Focus (Default Bias) | `docs/agent/CODEX_WORKING_RULES.md`<br>`.planning/STATE.md`<br>`.planning/ROADMAP.md` | full | RiskHub Maintainer | 2026-02-16 |
 | Execution Protocol | `docs/agent/EXECUTION_PROTOCOL.md` | full | RiskHub Maintainer | 2026-02-16 |
-| Risk Hotspots (Mandatory Extra Care) | `.planning/codebase/CONCERNS.md`<br>`docs/agent/TIMEZONE_POLICY.md`<br>`docs/agent/ENDPOINT_INVARIANTS.md` | full | RiskHub Maintainer | 2026-02-16 |
+| Risk Hotspots (Mandatory Extra Care) | `.planning/codebase/CONCERNS.md`<br>`docs/agent/TIMEZONE_POLICY.md`<br>`docs/agent/ENDPOINT_INVARIANTS.md` | full | RiskHub Maintainer | 2026-04-25 |
 | Key Knowledge (Keep In Sync) | `docs/agent/TIMEZONE_POLICY.md`<br>`docs/agent/PYTEST_RUNTIME_NOTES.md`<br>`docs/agent/ENDPOINT_INVARIANTS.md` | full | RiskHub Maintainer | 2026-02-16 |
 | Key Knowledge > Timezone policy (UTC-aware) | `docs/agent/TIMEZONE_POLICY.md` | full | RiskHub Maintainer | 2026-02-16 |
 | Key Knowledge > Postgres test mode | `docs/agent/PYTEST_RUNTIME_NOTES.md`<br>`.planning/codebase/TESTING.md` | full | RiskHub Maintainer | 2026-02-16 |
 | Key Knowledge > Pytest exit hang (SQLite / aiosqlite) | `docs/agent/PYTEST_RUNTIME_NOTES.md` | full | RiskHub Maintainer | 2026-02-16 |
 | Key Knowledge > Endpoint package splits (maintainability) | `docs/agent/ENDPOINT_INVARIANTS.md` | full | RiskHub Maintainer | 2026-02-16 |
 | Key Knowledge > SQLAlchemy FK cycles (SQLite tests) | `docs/agent/ENDPOINT_INVARIANTS.md` | full | RiskHub Maintainer | 2026-02-16 |
-| Testing Matrix | `.planning/codebase/TESTING.md`<br>`docs/TESTING.md` | full | RiskHub Maintainer | 2026-04-05 |
-| RBAC and Business Logic Guardrails | `docs/BUSINESS_LOGIC.md`<br>`.planning/codebase/CONCERNS.md` | full | RiskHub Maintainer | 2026-02-16 |
+| Testing Matrix | `.planning/codebase/TESTING.md`<br>`docs/TESTING.md` | full | RiskHub Maintainer | 2026-04-25 |
+| RBAC and Business Logic Guardrails | `docs/BUSINESS_LOGIC.md`<br>`.planning/codebase/CONCERNS.md` | full | RiskHub Maintainer | 2026-04-25 |
 | Frontend Display Guardrails | `docs/agent/FRONTEND_DISPLAY_GUARDRAILS.md` | full | RiskHub Maintainer | 2026-02-16 |
 | Security and Production Guardrails | `docs/deployment/security-checklist.md`<br>`docs/deployment/README.md` | full | RiskHub Maintainer | 2026-02-16 |
 | Quick Commands | `scripts/install.sh`<br>`scripts/dev.sh`<br>`scripts/compose.sh`<br>`scripts/deploy.sh`<br>`scripts/Makefile`<br>`docs/development/README.md`<br>`docs/deployment/reference.md` | full | RiskHub Maintainer | 2026-04-05 |

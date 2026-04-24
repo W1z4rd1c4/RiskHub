@@ -1,7 +1,7 @@
 ---
 title: Dokumentace správy platformy RiskHub
-version: "2.1"
-last_updated: "2026-03-15"
+version: "2.2"
+last_updated: "2026-04-25"
 audience: admin
 source_of_truth: "docs/BUSINESS_LOGIC.md §1.5 + admin routes + admin docs endpoint"
 summary: "Incident-first knihovna dokumentace pro platformní adminy: health triage, access operace, evidence capture a bezpečná eskalace."
@@ -86,9 +86,9 @@ Na konci první hodiny byste měli být schopní bez váhání říct:
 | Zkontrolovat Health, logy, sessions a exporty | `/admin` | [Admin Console](./console.md) |
 | Přidat uživatele nebo změnit roli, scope, oddělení či managera | `/users` | [Správa uživatelů a přístupů](./user-management.md) |
 | Podpořit workflow a approval dotazy z operator pohledu | support path plus logy | [Podpora schvalování](./approvals.md) |
-| Vyexportovat evidenci pro incident response nebo audit | `/admin` | [Reporty a evidence exporty](./reports.md) |
+| Vyexportovat evidenci pro incident response, audit nebo troubleshooting scoped business exportů | `/admin` plus dotčená export route | [Reporty a evidence exporty](./reports.md) |
 | Řešit department-scoping otázky | `/users` plus handoff evidence | [Oddělení: admin podpora](./departments.md) |
-| Udržet Risk Hub config otázky ve správné ownership hranici | `/risk-hub` jen pro orientaci | [Hranice konfigurace Risk Hub](./riskhub-config.md) |
+| Udržet Risk Hub config a questionnaire otázky ve správné ownership hranici | `/risk-hub` jen pro orientaci | [Hranice konfigurace Risk Hub](./riskhub-config.md) |
 
 Berete to jako routing tabulku. Nečtěte všechno před akcí. Vyberte úkol, otevřete runbook a držte se nejmenší bezpečné cesty.
 

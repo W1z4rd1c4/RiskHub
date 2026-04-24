@@ -20,7 +20,7 @@
 
 **Milestone:** v1.0 MVP
 **Active Phases:** 90 (AD Emulator) and 253 (Professionalization & AI-Signal Removal) remain active; 253.1 completed on 2026-04-20; 19 and 70 deferred
-**Documentation Status:** Reconciled with phase folders and canonical docs (2026-04-05)
+**Documentation Status:** Reconciled with post-hardening workflow and architecture docs (2026-04-25)
 
 ## Progress Summary
 
@@ -76,6 +76,12 @@
 | 501 Production Readiness Hardening | ✅ Complete (8/8) | 2026-02-16 |
 
 ## Session Context
+
+### Documentation Reconciliation (2026-04-25)
+
+- Mapped recent workflow/architecture hardening commits across KRI history/value submission, risk questionnaires, issue remediation, report exports, committee snapshots, approval execution, frontend schemas/detail primitives, unified exports, and backend test factories.
+- Refreshed canonical codebase maps to remove deleted bootstrap-facade references and document `backend/app/main.py`, internal workflow service packages, backend capability metadata, split frontend schemas, detail primitives, and post-transform export/snapshot scope rules.
+- Planned documentation-only reconciliation across `docs/BUSINESS_LOGIC.md`, testing docs, GitHub-facing repository files, English/Czech user manuals, English/Czech admin runbooks, and documentation indexes.
 
 ### Phase 253.1 Backend Audit Remediation (2026-04-20)
 
