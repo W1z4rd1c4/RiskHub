@@ -105,6 +105,7 @@ For scoped business exports, verify:
 - explicit `department_id` filters are strict after as-of replay
 - unfiltered scoped exports may include ownership/reporting-owner exception rows across departments
 - evidence notes include whether the export was current-date or point-in-time (`as_of_date`)
+- audit-trail linked risk names are filtered by the requester's risk visibility, so a visible control execution may intentionally omit hidden linked risks
 - vendor annual and DORA report exports follow strict explicit department filtering too; directly owned vendors outside the selected department are excluded from those files
 
 ### 3) Collect application log evidence (carefully)

@@ -1,9 +1,11 @@
-from datetime import UTC, date, datetime
+from datetime import date
 from io import BytesIO
 from typing import Literal
 
 from fastapi import HTTPException, status
 from fastapi.responses import StreamingResponse
+
+from app.core.datetime_utils import utc_now
 
 _CSV_MEDIA_TYPE = "text/csv; charset=utf-8"
 
@@ -46,7 +48,7 @@ def resolve_export_format(export_format: ExportFormatQuery, *, replacement: str 
 
 
 def _get_filename(base: str, ext: str, as_of_date: date | None = None) -> str:
-    date_str = (as_of_date or datetime.now(UTC).date()).strftime("%Y-%m-%d")
+    date_str = (as_of_date or utc_now().date()).strftime("%Y-%m-%d")
     return f"{base}-{date_str}.{ext}"
 
 

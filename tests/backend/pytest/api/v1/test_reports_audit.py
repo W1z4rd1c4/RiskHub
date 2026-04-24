@@ -11,6 +11,7 @@ import pytest_asyncio
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models import Department
 from app.models.control import Control
 from app.models.control_execution import ControlExecution
 from app.models.risk import ControlRiskLink, Risk
@@ -131,6 +132,86 @@ async def test_audit_trail_linked_risks_prefers_risk_name(
 
     assert "Audit Test Risk" in linked_risks_value
     assert "Audit Test Process" not in linked_risks_value
+
+
+@pytest.mark.asyncio
+async def test_scoped_audit_trail_filters_linked_risks_by_visibility(
+    client_employee: AsyncClient,
+    db_session: AsyncSession,
+    test_department,
+    test_user,
+    test_user_employee,
+):
+    other_department = Department(name="Audit Hidden Department", code="AHID", description="Hidden")
+    db_session.add(other_department)
+    await db_session.flush()
+
+    control = Control(
+        name="Scoped Audit Control",
+        description="Visible execution control",
+        status="active",
+        control_form="manual",
+        frequency="monthly",
+        risk_level=3,
+        department_id=test_department.id,
+    )
+    visible_risk = Risk(
+        name="Visible Audit Linked Risk",
+        description="Visible linked risk",
+        risk_id_code="R-AUD-VIS",
+        department_id=test_department.id,
+        owner_id=test_user_employee.id,
+        process="Visible",
+        category="Operational",
+        risk_type="operational",
+        status="active",
+        gross_probability=2,
+        gross_impact=2,
+        net_probability=1,
+        net_impact=1,
+    )
+    hidden_risk = Risk(
+        name="Hidden Audit Linked Risk",
+        description="Hidden linked risk",
+        risk_id_code="R-AUD-HID",
+        department_id=other_department.id,
+        owner_id=test_user.id,
+        process="Hidden",
+        category="Operational",
+        risk_type="operational",
+        status="active",
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=2,
+    )
+    db_session.add_all([control, visible_risk, hidden_risk])
+    await db_session.flush()
+
+    db_session.add_all(
+        [
+            ControlRiskLink(control_id=control.id, risk_id=visible_risk.id),
+            ControlRiskLink(control_id=control.id, risk_id=hidden_risk.id),
+            ControlExecution(
+                control_id=control.id,
+                executed_by_id=test_user_employee.id,
+                result="passed",
+                findings="Scoped audit result",
+                executed_at=datetime.now(UTC),
+            ),
+        ]
+    )
+    await db_session.commit()
+
+    response = await client_employee.get("/api/v1/reports/audit-trail/export?format=csv")
+    assert response.status_code == 200
+
+    rows = list(csv.DictReader(StringIO(response.content.decode("utf-8"))))
+    scoped_row = next(row for row in rows if row["Control Name"] == "Scoped Audit Control")
+    linked_risks = scoped_row["Linked Risks"]
+    assert "Visible Audit Linked Risk" in linked_risks
+    assert "Hidden Audit Linked Risk" not in linked_risks
+    assert "R-AUD-HID" not in linked_risks
 
 
 @pytest.mark.asyncio

@@ -1,6 +1,7 @@
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, timedelta
 from typing import Any
 
+from app.core.datetime_utils import utc_now
 from app.core.permissions import get_user_department_ids
 from app.models import User
 from app.models.control import ControlStatus
@@ -12,7 +13,7 @@ from ._shared import ControlMonitoringExportStatus, KRIExportStatus, KRIMonitori
 
 
 def _prefilter_department_id_for_as_of(as_of_date: date, department_id: int | None) -> int | None:
-    if department_id is not None and as_of_date < datetime.now(UTC).date():
+    if department_id is not None and as_of_date < utc_now().date():
         return None
     return department_id
 

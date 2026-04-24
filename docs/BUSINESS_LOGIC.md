@@ -753,6 +753,7 @@ Exported data is always scoped to what the requesting user can access under RBAC
 - Unified exports apply scope after as-of replay and row rehydration. The final row state, not the row selected before replay, is authoritative.
 - When a caller supplies an explicit `department_id`, that filter is strict after replay for risks, controls, KRIs, and vendors. Ownership/reporting exceptions do not override an explicit department filter.
 - Without an explicit `department_id`, scoped exports preserve existing visibility exceptions such as direct risk/control/vendor ownership and KRI reporting ownership.
+- Legacy/peripheral report exports use the same department-validation context: summary exports return scoped counts, issue exports reject out-of-scope explicit departments, and audit-trail exports filter linked risk labels through canonical risk visibility.
 
 ### 10.4 Archived/Inactive Semantics
 

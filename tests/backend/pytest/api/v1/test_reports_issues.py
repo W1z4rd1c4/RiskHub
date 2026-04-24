@@ -202,6 +202,25 @@ async def test_export_issues_scope_no_leak(
 
 
 @pytest.mark.asyncio
+async def test_export_issues_rejects_out_of_scope_department_filter(
+    db_session: AsyncSession,
+    client_employee: AsyncClient,
+    test_role_employee: Role,
+    second_department: Department,
+    issue_export_data,
+):
+    second_department_id = second_department.id
+    await _grant(db_session, test_role_employee.id, "issues", "read")
+
+    as_of = datetime.now(UTC).date().isoformat()
+    response = await client_employee.get(
+        f"/api/v1/reports/issues/export?format=csv&as_of_date={as_of}&department_id={second_department_id}"
+    )
+    assert response.status_code == 403
+    assert "Access denied" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
 async def test_export_issues_overdue_only_filter(
     auth_client: AsyncClient,
     issue_export_data,

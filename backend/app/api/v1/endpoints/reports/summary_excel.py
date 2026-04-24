@@ -1,17 +1,15 @@
-from datetime import UTC, datetime
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.permissions import get_user_department_ids
 from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import Control, Risk, User
 from app.services.report_service import generate_tabular_csv
 
-from ._scoping import _user_has_no_departments, _validate_department_access
+from ._export_context import ReportExportContext, build_report_export_context
 from ._streaming import (
     EXCEL_EXPORT_REMOVED_OPENAPI_RESPONSE,
     ExportFormatQuery,
@@ -44,12 +42,8 @@ def _build_summary_rows(summary: dict[str, Any]) -> tuple[list[str], list[list[A
 async def _build_summary_payload(
     *,
     db: AsyncSession,
-    current_user: User,
-    department_id: Optional[int],
+    context: ReportExportContext,
 ) -> tuple[list[str], list[list[Any]]]:
-    dept_ids = get_user_department_ids(current_user)
-    _validate_department_access(department_id, dept_ids)
-
     summary: dict[str, Any] = {
         "total_controls": 0,
         "total_risks": 0,
@@ -58,17 +52,17 @@ async def _build_summary_payload(
         "controls_by_status": {},
     }
 
-    if not _user_has_no_departments(dept_ids):
+    if not context.empty_scope:
         controls_query = select(Control)
         risks_query = select(Risk)
 
-        if dept_ids is not None:
-            controls_query = controls_query.where(Control.department_id.in_(dept_ids))
-            risks_query = risks_query.where(Risk.department_id.in_(dept_ids))
+        if context.department_ids is not None:
+            controls_query = controls_query.where(Control.department_id.in_(context.department_ids))
+            risks_query = risks_query.where(Risk.department_id.in_(context.department_ids))
 
-        if department_id:
-            controls_query = controls_query.where(Control.department_id == department_id)
-            risks_query = risks_query.where(Risk.department_id == department_id)
+        if context.department_id is not None:
+            controls_query = controls_query.where(Control.department_id == context.department_id)
+            risks_query = risks_query.where(Risk.department_id == context.department_id)
 
         controls_result = await db.execute(controls_query)
         controls = controls_result.scalars().all()
@@ -105,8 +99,7 @@ async def download_summary_excel(
     department_id: Optional[int] = Query(None, description="Filter by department"),
     current_user: User = Depends(require_permission("reports", "read")),
 ):
-    dept_ids = get_user_department_ids(current_user)
-    _validate_department_access(department_id, dept_ids)
+    build_report_export_context(current_user=current_user, department_id=department_id)
     raise excel_export_removed(replacement="/api/v1/reports/summary/export?format=csv")
 
 
@@ -118,10 +111,11 @@ async def download_summary_export(
     current_user: User = Depends(require_permission("reports", "read")),
 ):
     export_format = resolve_export_format(format, replacement="/api/v1/reports/summary/export?format=csv")
-    headers, rows = await _build_summary_payload(db=db, current_user=current_user, department_id=department_id)
+    context = build_report_export_context(current_user=current_user, department_id=department_id)
+    headers, rows = await _build_summary_payload(db=db, context=context)
     return _stream_binary(
         filename_base="dashboard-summary",
         export_format=export_format,
         content_bytes=generate_tabular_csv(headers, rows),
-        as_of_date=datetime.now(UTC).date(),
+        as_of_date=context.export_date,
     )

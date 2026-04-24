@@ -1,16 +1,16 @@
-from datetime import UTC, date, datetime
+from datetime import date
 from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.permissions import get_user_department_ids, has_permission
+from app.core.permissions import has_permission
 from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import User
 from app.models.issue import IssueSeverity, IssueStatus
 
-from .._scoping import _validate_department_access
+from .._export_context import build_report_export_context
 from .._streaming import EXCEL_EXPORT_REMOVED_OPENAPI_RESPONSE, resolve_export_format
 from ._shared import (
     ControlMonitoringExportStatus,
@@ -37,14 +37,12 @@ async def export_risks(
     current_user: User = Depends(require_permission("reports", "read")),
 ):
     export_format = resolve_export_format(format, replacement="/api/v1/reports/risks/export?format=csv")
-    dept_ids = get_user_department_ids(current_user)
-    _validate_department_access(department_id, dept_ids)
-    as_of = as_of_date or datetime.now(UTC).date()
+    context = build_report_export_context(current_user=current_user, department_id=department_id, as_of_date=as_of_date)
     return await _export_risks(
         db=db,
         current_user=current_user,
         export_format=export_format,
-        as_of_date=as_of,
+        as_of_date=context.export_date,
         department_id=department_id,
         status_filter=status_filter,
         search=search,
@@ -65,14 +63,12 @@ async def export_controls(
     current_user: User = Depends(require_permission("reports", "read")),
 ):
     export_format = resolve_export_format(format, replacement="/api/v1/reports/controls/export?format=csv")
-    dept_ids = get_user_department_ids(current_user)
-    _validate_department_access(department_id, dept_ids)
-    as_of = as_of_date or datetime.now(UTC).date()
+    context = build_report_export_context(current_user=current_user, department_id=department_id, as_of_date=as_of_date)
     return await _export_controls(
         db=db,
         current_user=current_user,
         export_format=export_format,
-        as_of_date=as_of,
+        as_of_date=context.export_date,
         department_id=department_id,
         status_filter=status_filter,
         monitoring_status_filter=monitoring_status_filter,
@@ -99,14 +95,12 @@ async def export_kris(
         )
 
     export_format = resolve_export_format(format, replacement="/api/v1/reports/kris/export?format=csv")
-    dept_ids = get_user_department_ids(current_user)
-    _validate_department_access(department_id, dept_ids)
-    as_of = as_of_date or datetime.now(UTC).date()
+    context = build_report_export_context(current_user=current_user, department_id=department_id, as_of_date=as_of_date)
     return await _export_kris(
         db=db,
         current_user=current_user,
         export_format=export_format,
-        as_of_date=as_of,
+        as_of_date=context.export_date,
         department_id=department_id,
         status_filter=status_filter,
         monitoring_status_filter=monitoring_status_filter,
@@ -127,14 +121,12 @@ async def export_vendors(
     current_user: User = Depends(require_permission("reports", "read")),
 ):
     export_format = resolve_export_format(format, replacement="/api/v1/reports/vendors/export?format=csv")
-    dept_ids = get_user_department_ids(current_user)
-    _validate_department_access(department_id, dept_ids)
-    as_of = as_of_date or datetime.now(UTC).date()
+    context = build_report_export_context(current_user=current_user, department_id=department_id, as_of_date=as_of_date)
     return await _export_vendors(
         db=db,
         current_user=current_user,
         export_format=export_format,
-        as_of_date=as_of,
+        as_of_date=context.export_date,
         department_id=department_id,
         status_filter=status_filter,
         search=search,
@@ -163,12 +155,12 @@ async def export_issues(
             detail="Permission denied: issues:read",
         )
 
-    as_of = as_of_date or datetime.now(UTC).date()
+    context = build_report_export_context(current_user=current_user, department_id=department_id, as_of_date=as_of_date)
     return await _export_issues(
         db=db,
         current_user=current_user,
         export_format=export_format,
-        as_of_date=as_of,
+        as_of_date=context.export_date,
         department_id=department_id,
         status_filter=status_filter,
         severity_filter=severity,

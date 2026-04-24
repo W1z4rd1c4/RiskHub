@@ -70,7 +70,7 @@
 - Backend questionnaire workflow: `cd backend && ./venv/bin/pytest -q ../tests/backend/pytest/api/v1/test_risk_questionnaires.py ../tests/backend/pytest/api/v1/test_risk_questionnaire_review_flow.py ../tests/backend/pytest/api/v1/test_risk_questionnaires_notifications.py ../tests/backend/pytest/api/v1/test_riskhub_questionnaires.py`
 - Backend issue workflow/deadline: `cd backend && ./venv/bin/pytest -q ../tests/backend/pytest/api/v1/test_issue_workflow.py ../tests/backend/pytest/api/v1/test_issues_crud_api.py ../tests/backend/pytest/api/v1/test_issues_rbac_api.py ../tests/backend/pytest/test_issue_deadline_service.py`
 - Backend deadline/notification scheduler: `cd backend && ./venv/bin/pytest -q ../tests/backend/pytest/test_deadline_notifications.py ../tests/backend/pytest/test_kri_deadline_service.py ../tests/backend/pytest/test_issue_deadline_service.py ../tests/backend/pytest/api/v1/test_risk_questionnaires_notifications.py ../tests/backend/pytest/test_scheduler_runtime.py`
-- Backend report export scope/as-of: `cd backend && ./venv/bin/pytest -q ../tests/backend/pytest/test_reports_rbac.py ../tests/backend/pytest/api/v1/test_reports_audit.py`
+- Backend report export scope/as-of: `cd backend && ./venv/bin/pytest -q ../tests/backend/pytest/test_reports_rbac.py ../tests/backend/pytest/api/v1/test_reports_audit.py ../tests/backend/pytest/api/v1/test_reports_export_pipeline.py ../tests/backend/pytest/api/v1/test_reports_issues.py ../tests/backend/pytest/test_vendor_reports.py`
 - Backend vendor governance/reports: `cd backend && ./venv/bin/pytest -q ../tests/backend/pytest/test_vendors.py ../tests/backend/pytest/test_vendor_reports.py ../tests/backend/pytest/test_vendor_links.py`
 - Backend control execution/linking: `cd backend && ./venv/bin/pytest -q ../tests/backend/pytest/test_executions.py ../tests/backend/pytest/test_controls.py ../tests/backend/pytest/test_cross_department_access.py`
 - Backend dashboard committee/quarterly: `cd backend && ./venv/bin/pytest -q ../tests/backend/pytest/test_dashboard.py ../tests/backend/pytest/test_dashboard_committee_vendor_metrics.py ../tests/backend/pytest/test_admin_snapshots.py`
@@ -115,7 +115,7 @@
 - Approval-execution changes should include high-confidence regression tests around side effects, stale auto-rejection, and single-apply locking
 - KRI history/value changes should verify duplicate-period protection, deterministic latest selection, correction authorization, and approval stale handling
 - Questionnaire changes should verify canonical risk visibility, action capability metadata, one-open-questionnaire protection, and per-questionnaire reminder dedupe
-- Report export changes should verify post-replay final-row filtering for scoped and explicit department exports
+- Report export changes should verify post-replay final-row filtering for scoped and explicit department exports, issue export department validation, and audit-trail linked-risk visibility filtering
 - Committee dashboard changes should verify selected-quarter validation, scoped snapshots, and missing snapshot metadata
 - `/kris` filter changes should be validated with the targeted route-backed regression covering monitoring/timeliness ownership, mutual exclusion, grouped-view parity, and rapid-click loading recovery
 - `/vendors` grouped-view changes should be validated with the targeted regression covering tab parity, `By Risk` permission gating, overlapping linked-risk membership counts, grouped fetch behavior, and the `Unlinked Risk` fallback

@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
@@ -6,7 +6,7 @@ from sqlalchemy import Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.permissions import get_user_department_ids
+from app.core.permissions import can_read_risk_id
 from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import Control, ControlExecution, User
@@ -14,7 +14,7 @@ from app.models.risk import ControlRiskLink
 from app.schemas.execution import ExecutionResultEnum
 from app.services.report_service import generate_tabular_csv
 
-from ._scoping import _user_has_no_departments, _validate_department_access
+from ._export_context import ReportExportContext, build_report_export_context
 from ._streaming import (
     EXCEL_EXPORT_REMOVED_OPENAPI_RESPONSE,
     ExportFormatQuery,
@@ -27,8 +27,7 @@ router = APIRouter()
 
 
 def _audit_trail_query(
-    dept_ids: Optional[list[int]],
-    department_id: Optional[int],
+    context: ReportExportContext,
     result_filter: Optional[ExecutionResultEnum],
     control_id: Optional[int],
     from_date: Optional[datetime],
@@ -44,11 +43,11 @@ def _audit_trail_query(
         )
     )
 
-    if dept_ids is not None:
-        query = query.where(Control.department_id.in_(dept_ids))
+    if context.department_ids is not None:
+        query = query.where(Control.department_id.in_(context.department_ids))
 
-    if department_id:
-        query = query.where(Control.department_id == department_id)
+    if context.department_id is not None:
+        query = query.where(Control.department_id == context.department_id)
     if result_filter:
         query = query.where(ControlExecution.result == result_filter)
     if control_id:
@@ -61,7 +60,7 @@ def _audit_trail_query(
     return query.order_by(ControlExecution.executed_at.desc())
 
 
-def _execution_linked_risks(execution: ControlExecution) -> str:
+async def _execution_linked_risks(db: AsyncSession, current_user: User, execution: ControlExecution) -> str:
     if not execution.control or not hasattr(execution.control, "risk_links"):
         return ""
 
@@ -70,12 +69,18 @@ def _execution_linked_risks(execution: ControlExecution) -> str:
         risk = getattr(link, "risk", None)
         if not risk:
             continue
+        if not await can_read_risk_id(db, current_user, risk.id):
+            continue
         display_name = (risk.name or risk.process or "").strip()
         values.append(f"R-{risk.id}: {display_name[:30]}" if display_name else f"R-{risk.id}")
     return "; ".join(values)
 
 
-def _to_csv_rows(executions: list[ControlExecution]) -> tuple[list[str], list[list[object]]]:
+async def _to_csv_rows(
+    db: AsyncSession,
+    current_user: User,
+    executions: list[ControlExecution],
+) -> tuple[list[str], list[list[object]]]:
     headers = [
         "ID",
         "Executed At",
@@ -91,23 +96,24 @@ def _to_csv_rows(executions: list[ControlExecution]) -> tuple[list[str], list[li
         "Linked Risks",
     ]
 
-    rows = [
-        [
-            execution.id,
-            execution.executed_at.strftime("%Y-%m-%d %H:%M") if execution.executed_at else "",
-            execution.control_id,
-            execution.control.name if execution.control else "",
-            execution.control.department.name if execution.control and execution.control.department else "",
-            execution.executed_by.name if execution.executed_by else "",
-            execution.result or "",
-            execution.findings or "",
-            execution.evidence_reference or "",
-            execution.notes or "",
-            execution.next_scheduled.strftime("%Y-%m-%d") if execution.next_scheduled else "",
-            _execution_linked_risks(execution),
-        ]
-        for execution in executions
-    ]
+    rows = []
+    for execution in executions:
+        rows.append(
+            [
+                execution.id,
+                execution.executed_at.strftime("%Y-%m-%d %H:%M") if execution.executed_at else "",
+                execution.control_id,
+                execution.control.name if execution.control else "",
+                execution.control.department.name if execution.control and execution.control.department else "",
+                execution.executed_by.name if execution.executed_by else "",
+                execution.result or "",
+                execution.findings or "",
+                execution.evidence_reference or "",
+                execution.notes or "",
+                execution.next_scheduled.strftime("%Y-%m-%d") if execution.next_scheduled else "",
+                await _execution_linked_risks(db, current_user, execution),
+            ]
+        )
     return headers, rows
 
 
@@ -116,8 +122,7 @@ async def download_audit_trail_excel(
     department_id: Optional[int] = Query(None, description="Filter by department"),
     current_user: User = Depends(require_permission("reports", "read")),
 ):
-    dept_ids = get_user_department_ids(current_user)
-    _validate_department_access(department_id, dept_ids)
+    build_report_export_context(current_user=current_user, department_id=department_id)
     raise excel_export_removed(replacement="/api/v1/reports/audit-trail/export?format=csv")
 
 
@@ -133,19 +138,18 @@ async def download_audit_trail_export(
     current_user: User = Depends(require_permission("reports", "read")),
 ):
     export_format = resolve_export_format(format, replacement="/api/v1/reports/audit-trail/export?format=csv")
-    dept_ids = get_user_department_ids(current_user)
-    _validate_department_access(department_id, dept_ids)
+    context = build_report_export_context(current_user=current_user, department_id=department_id)
 
     executions: list[ControlExecution] = []
-    if not _user_has_no_departments(dept_ids):
-        query = _audit_trail_query(dept_ids, department_id, result, control_id, from_date, to_date)
+    if not context.empty_scope:
+        query = _audit_trail_query(context, result, control_id, from_date, to_date)
         result_set = await db.execute(query)
         executions = list(result_set.scalars().all())
 
-    headers, rows = _to_csv_rows(executions)
+    headers, rows = await _to_csv_rows(db, current_user, executions)
     return _stream_binary(
         filename_base="audit-trail",
         export_format=export_format,
         content_bytes=generate_tabular_csv(headers, rows),
-        as_of_date=datetime.now(UTC).date(),
+        as_of_date=context.export_date,
     )

@@ -264,6 +264,8 @@ Control exports now include monitoring-specific columns:
 - latest executed at
 - days since last execution
 
+Audit-trail exports can include linked risk context, but those risk labels are filtered by your risk visibility. If a control execution is visible and a linked risk is not, the export omits that hidden risk rather than exposing its name or identifier.
+
 ## Common Mistakes
 
 - Writing controls as aspirations instead of testable actions.

@@ -1,10 +1,11 @@
-from datetime import UTC, date, datetime
+from datetime import date
 from typing import Any, Literal
 
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.datetime_utils import utc_now
 from app.core.permissions import (
     get_control_ids_where_owner,
     get_issue_scope_clause,
@@ -234,7 +235,7 @@ async def _fetch_issues_for_export(
     if owner_user_id is not None:
         query = query.where(Issue.owner_user_id == owner_user_id)
     if exclude_active_exceptions:
-        query = query.where(unsuppressed_issue_clause(datetime.now(UTC)))
+        query = query.where(unsuppressed_issue_clause(utc_now()))
 
     result = await db.execute(query.order_by(Issue.id.asc()))
     return list(result.scalars().all())

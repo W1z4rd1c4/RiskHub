@@ -9,7 +9,7 @@
 - Risk questionnaire lifecycle and one-open-questionnaire invariant: `backend/app/services/risk_questionnaire_service.py`, `backend/app/api/v1/endpoints/risk_questionnaires/`, `backend/app/api/v1/endpoints/riskhub_questionnaires.py`
 - Issue remediation completion and exception expiry semantics: `backend/app/services/_issue_workflow/`, `backend/app/services/issue_deadline_service.py`
 - Control execution and risk-link serialization: `backend/app/services/_control_execution/`, `backend/app/api/v1/endpoints/executions.py`, `backend/app/api/v1/endpoints/controls/executions.py`, `backend/app/api/v1/endpoints/controls/linking.py`
-- Unified report exports after as-of replay: `backend/app/api/v1/endpoints/reports/unified_exports/`
+- Report exports after as-of replay and legacy/peripheral export scoping: `backend/app/api/v1/endpoints/reports/`
 - Vendor governance and vendor report scoping: `backend/app/services/_vendor_workflow/`, `backend/app/api/v1/endpoints/vendors/`, `backend/app/services/vendor_reporting_service.py`
 - Committee quarterly snapshot semantics: `backend/app/services/quarterly_comparison_service.py`, `backend/app/api/v1/endpoints/dashboard/quarterly.py`
 - RBAC scope enforcement consistency between backend and frontend gating: `backend/app/core/permissions.py`, `backend/app/core/_permissions/`, `frontend/src/components/PermissionGate.tsx`

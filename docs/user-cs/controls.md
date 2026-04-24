@@ -264,6 +264,8 @@ Exporty kontrol nově obsahují monitoring sloupce:
 - latest executed at
 - days since last execution
 
+Audit-trail exporty mohou obsahovat kontext navázaných rizik, ale názvy rizik se filtrují podle vaší risk visibility. Pokud je exekuce kontroly viditelná a navázané riziko ne, export toto skryté riziko vynechá místo zobrazení jeho názvu nebo identifikátoru.
+
 ## Časté chyby
 
 - Kontrola jako „přání“ místo testovatelné akce.

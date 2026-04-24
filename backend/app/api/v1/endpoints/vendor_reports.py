@@ -8,8 +8,6 @@ Exports:
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
-
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,8 +16,7 @@ from app.api.v1.endpoints.reports._streaming import (
     _stream_binary,
     resolve_export_format,
 )
-from app.api.v1.endpoints.reports._scoping import _validate_department_access
-from app.core.permissions import get_user_department_ids
+from app.api.v1.endpoints.reports._export_context import build_report_export_context
 from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import User
@@ -138,8 +135,7 @@ async def download_vendor_annual_report(
 ):
     export_format = resolve_export_format(format, replacement="/api/v1/vendor-reports/annual?format=csv")
     _require_vendor_report_role(current_user)
-    dept_ids = get_user_department_ids(current_user)
-    _validate_department_access(department_id, dept_ids)
+    context = build_report_export_context(current_user=current_user, department_id=department_id)
     report = await VendorReportingService.build_annual_report(
         db,
         year=year,
@@ -151,7 +147,7 @@ async def download_vendor_annual_report(
         filename_base=f"vendor-annual-report-{year}",
         export_format=export_format,
         content_bytes=generate_tabular_csv(headers, rows),
-        as_of_date=datetime.now(UTC).date(),
+        as_of_date=context.export_date,
     )
 
 
@@ -164,8 +160,7 @@ async def download_vendor_dora_register(
 ):
     export_format = resolve_export_format(format, replacement="/api/v1/vendor-reports/dora-register?format=csv")
     _require_vendor_report_role(current_user)
-    dept_ids = get_user_department_ids(current_user)
-    _validate_department_access(department_id, dept_ids)
+    context = build_report_export_context(current_user=current_user, department_id=department_id)
     rows = await VendorReportingService.build_dora_register(
         db,
         current_user=current_user,
@@ -176,5 +171,5 @@ async def download_vendor_dora_register(
         filename_base="vendor-dora-register",
         export_format=export_format,
         content_bytes=generate_tabular_csv(headers, data_rows),
-        as_of_date=datetime.now(UTC).date(),
+        as_of_date=context.export_date,
     )
