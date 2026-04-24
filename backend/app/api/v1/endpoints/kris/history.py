@@ -85,8 +85,11 @@ async def get_kri_history(
     include_archived: bool = Query(False, description="Include archived KRI"),
     from_date: Optional[date] = Query(None, description="Filter from date"),
     to_date: Optional[date] = Query(None, description="Filter to date"),
-    page: int = Query(1, ge=1),
-    size: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    skip: int | None = Query(None, ge=0),
+    limit: int = Query(20, ge=1, le=100),
+    page: int | None = Query(None, ge=1),
+    size: int | None = Query(None, ge=1, le=100),
 ):
     """Get paginated history for a KRI."""
     from app.core.permissions import is_kri_reporting_owner
@@ -127,13 +130,18 @@ async def get_kri_history(
     if not has_access:
         raise HTTPException(status_code=403, detail="Access denied")
 
+    effective_limit = size if size is not None else limit
+    effective_offset = skip if skip is not None else offset
+    if page is not None:
+        effective_offset = (page - 1) * effective_limit
+
     entries, total = await KRIHistoryService.get_history(
         db=db,
         kri_id=kri_id,
         from_date=from_date,
         to_date=to_date,
-        page=page,
-        size=size,
+        offset=effective_offset,
+        limit=effective_limit,
     )
 
     # Map to response with user names
@@ -144,7 +152,7 @@ async def get_kri_history(
             item.recorded_by_name = entry.recorded_by.name
         items.append(item)
 
-    return KRIHistoryListResponse(items=items, total=total, page=page, size=size)
+    return KRIHistoryListResponse(items=items, total=total, offset=effective_offset, limit=effective_limit)
 
 
 @router.patch("/{kri_id}/history/{entry_id}", response_model=KRIHistoryEntry, responses=APPROVAL_QUEUED_RESPONSE)

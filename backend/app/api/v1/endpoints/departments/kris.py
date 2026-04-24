@@ -28,7 +28,8 @@ async def list_department_kris(
     department_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_permission("departments", "read")),
-    skip: int = Query(0, ge=0),
+    offset: int = Query(0, ge=0),
+    skip: int | None = Query(None, ge=0),
     limit: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
     monitoring_status: KRIMonitoringStatus | None = Query(None),
 ):
@@ -76,14 +77,14 @@ async def list_department_kris(
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0
 
-    result = await db.execute(filtered_query.order_by(KeyRiskIndicator.id).offset(skip).limit(limit))
+    offset = skip if skip is not None else offset
+    result = await db.execute(filtered_query.order_by(KeyRiskIndicator.id).offset(offset).limit(limit))
     kris = result.scalars().unique().all()
-    page = (skip // limit) + 1
 
     # Map to response with metadata (same logic as in kris.py)
     return KRIListResponse(
         items=[serialize_kri_response(kri, monitoring_context) for kri in kris],
         total=total,
-        page=page,
-        size=limit,
+        offset=offset,
+        limit=limit,
     )

@@ -56,7 +56,7 @@ describe('IssuesPage business naming', () => {
                 },
             ],
             total: 1,
-            skip: 0,
+            offset: 0,
             limit: 20,
         });
     });

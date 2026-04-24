@@ -31,7 +31,7 @@ describe('KRIModal vendor selection', () => {
                 { id: 21, name: 'Vendor Twenty-One', status: 'active' },
             ],
             total: 2,
-            skip: 0,
+            offset: 0,
             limit: 25,
         });
     });

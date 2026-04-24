@@ -2,8 +2,9 @@ from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Optional
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, computed_field, field_validator
 
+from app.schemas.collection import CollectionGroupRead
 from app.schemas.execution import ExecutionResultEnum
 from app.schemas.vendor_shared import LinkedVendorRead
 from app.services._monitoring_status import ControlMonitoringReason, ControlMonitoringStatus
@@ -174,8 +175,14 @@ class RiskListResponse(BaseModel):
 
     items: list[RiskSummary]
     total: int
-    skip: int
+    offset: int
     limit: int
+    groups: list[CollectionGroupRead] | None = None
+
+    @computed_field
+    @property
+    def skip(self) -> int:
+        return self.offset
 
 
 # ============== Control-Risk Link Schemas ==============

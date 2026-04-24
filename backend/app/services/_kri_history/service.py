@@ -73,6 +73,8 @@ class KRIHistoryService:
         to_date: Optional[clock.date] = None,
         page: int = 1,
         size: int = 20,
+        offset: int | None = None,
+        limit: int | None = None,
     ) -> Tuple[list[KRIValueHistory], int]:
         return await _get_history(
             db=db,
@@ -81,6 +83,8 @@ class KRIHistoryService:
             to_date=to_date,
             page=page,
             size=size,
+            offset=offset,
+            limit=limit,
         )
 
     @staticmethod

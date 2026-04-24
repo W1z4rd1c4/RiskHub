@@ -1,6 +1,5 @@
 import type { SortDirection, ViewMode } from '@/components/tables';
-import { GROUPED_VIEW_FETCH_PAGE_SIZE } from '@/constants/list';
-import { issuesApi } from '@/services/issuesApi';
+import type { CollectionGroup } from '@/types/collection';
 import type {
     IssueListFilters,
     IssueSummary,
@@ -39,12 +38,6 @@ export interface IssuesPageInitialState {
     statusFilter: IssueStatus | '';
 }
 
-export interface IssueGroupedRow {
-    groupValue: string;
-    issue: IssueSummary;
-    rowId: string;
-}
-
 interface BuildIssueListFiltersOptions {
     currentPage: number;
     debouncedSearch: string;
@@ -56,6 +49,8 @@ interface BuildIssueListFiltersOptions {
     sortDirection: SortDirection;
     sortField: IssueListFilters['sort_by'] | null;
     statusFilter: IssueStatus | '';
+    groupBy?: string | null;
+    groupValue?: string | null;
 }
 
 interface BuildIssueExportFiltersOptions {
@@ -73,10 +68,11 @@ interface IssueExportFilters {
     status: IssueStatus | null;
 }
 
-const UNCATEGORIZED_LABEL = 'Uncategorized';
-const NO_PROCESS_LABEL = 'No Process';
-const NO_RISK_TYPE_LABEL = 'No Risk Type';
-const UNKNOWN_DEPARTMENT_LABEL = 'Unknown Department';
+export const ISSUE_GROUP_UNLINKED_VENDOR = '__unlinked_vendor__';
+export const ISSUE_GROUP_UNCATEGORIZED = '__uncategorized__';
+export const ISSUE_GROUP_UNKNOWN_DEPARTMENT = '__unknown_department__';
+export const ISSUE_GROUP_NO_PROCESS = '__no_process__';
+export const ISSUE_GROUP_UNKNOWN_RISK_TYPE = '__unknown_risk_type__';
 
 function parseBooleanQueryParam(value: string | null): boolean | null {
     if (value === 'true') {
@@ -161,9 +157,11 @@ export function buildIssueListFilters({
     sortDirection,
     sortField,
     statusFilter,
+    groupBy,
+    groupValue,
 }: BuildIssueListFiltersOptions): IssueListFilters {
     const filters: IssueListFilters = {
-        skip: (currentPage - 1) * limit,
+        offset: (currentPage - 1) * limit,
         limit,
         include_closed: statusFilter === 'closed' ? true : includeClosed,
     };
@@ -191,6 +189,12 @@ export function buildIssueListFilters({
         filters.sort_by = sortField;
         filters.sort_order = sortDirection;
     }
+    if (groupBy) {
+        filters.group_by = groupBy;
+    }
+    if (groupValue) {
+        filters.group_value = groupValue;
+    }
 
     return filters;
 }
@@ -210,105 +214,50 @@ export function buildIssueExportFilters({
     };
 }
 
-export async function fetchAllIssuesForGroupedView(
-    filters: Omit<BuildIssueListFiltersOptions, 'currentPage' | 'limit'>
-): Promise<{
-    items: IssueSummary[];
-    total: number;
-}> {
-    const limit = GROUPED_VIEW_FETCH_PAGE_SIZE;
-    const allItems: IssueSummary[] = [];
-    let skip = 0;
-
-    for (;;) {
-        const response = await issuesApi.list({
-            ...buildIssueListFilters({
-                ...filters,
-                currentPage: 1,
-                limit,
-            }),
-            skip,
-            limit,
-        });
-        const total = response.total;
-        allItems.push(...response.items);
-
-        if (skip + limit >= total) {
-            return { items: allItems, total };
-        }
-
-        skip += limit;
+export function getIssueGroupBy(viewMode: ViewMode): string | null {
+    switch (viewMode) {
+        case 'all':
+        case 'risk':
+        case 'flag':
+        case 'type':
+            return null;
+        case 'category':
+            return 'category';
+        case 'department':
+            return 'department';
+        case 'process':
+            return 'process';
+        case 'risk_type':
+            return 'risk_type';
+        case 'vendor':
+            return 'vendor';
     }
 }
 
-function groupedValuesForIssue(
-    issue: IssueSummary,
-    viewMode: ViewMode,
-    labels: { unlinkedVendor: string }
-): string[] {
-    if (viewMode === 'department') {
-        return [issue.department_name?.trim() || UNKNOWN_DEPARTMENT_LABEL];
+export function formatIssueGroupLabel(
+    group: CollectionGroup,
+    labels: {
+        unlinkedVendor: string;
+        uncategorized: string;
+        unknownDepartment: string;
+        noProcess: string;
+        unknownRiskType: string;
+    },
+): string {
+    switch (group.value) {
+        case ISSUE_GROUP_UNLINKED_VENDOR:
+            return labels.unlinkedVendor;
+        case ISSUE_GROUP_UNCATEGORIZED:
+            return labels.uncategorized;
+        case ISSUE_GROUP_UNKNOWN_DEPARTMENT:
+            return labels.unknownDepartment;
+        case ISSUE_GROUP_NO_PROCESS:
+            return labels.noProcess;
+        case ISSUE_GROUP_UNKNOWN_RISK_TYPE:
+            return labels.unknownRiskType;
+        default:
+            return group.label;
     }
-
-    if (viewMode === 'vendor') {
-        const values = new Set<string>();
-        for (const context of issue.vendor_contexts ?? []) {
-            if (context.vendor_name?.trim()) {
-                values.add(context.vendor_name.trim());
-            }
-        }
-        if (values.size === 0) {
-            values.add(labels.unlinkedVendor);
-        }
-        return [...values];
-    }
-
-    const values = new Set<string>();
-
-    for (const context of issue.risk_contexts ?? []) {
-        const rawValue =
-            viewMode === 'category'
-                ? context.risk_category
-                : viewMode === 'process'
-                    ? context.risk_process
-                    : viewMode === 'risk_type'
-                        ? context.risk_type
-                        : null;
-
-        if (rawValue && rawValue.trim()) {
-            values.add(rawValue.trim());
-        }
-    }
-
-    if (values.size === 0) {
-        values.add(
-            viewMode === 'category'
-                ? UNCATEGORIZED_LABEL
-                : viewMode === 'process'
-                    ? NO_PROCESS_LABEL
-                    : NO_RISK_TYPE_LABEL
-        );
-    }
-
-    return [...values];
-}
-
-export function buildIssueGroupedRows(
-    items: IssueSummary[],
-    viewMode: ViewMode,
-    labels: { unlinkedVendor: string }
-): IssueGroupedRow[] {
-    if (viewMode === 'all' || viewMode === 'risk') {
-        return [];
-    }
-
-    return items.flatMap((issue) =>
-        groupedValuesForIssue(issue, viewMode, labels).map((groupValue) => ({
-            groupValue,
-            issue,
-            rowId: `${issue.id}:${groupValue}`,
-        }))
-    );
 }
 
 export function formatIssueDateTime(

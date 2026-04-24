@@ -1,3 +1,4 @@
+import type { CollectionListResponse } from '@/types/collection';
 import type { ExecutionResult } from '@/types/execution';
 import type { LinkedVendorSummary } from '@/types/vendorLink';
 export { ExecutionResult } from '@/types/execution';
@@ -141,9 +142,4 @@ export interface ControlRiskLink {
     };
 }
 
-export interface ControlListResponse {
-    items: ControlSummary[];
-    total: number;
-    skip: number;
-    limit: number;
-}
+export type ControlListResponse = CollectionListResponse<ControlSummary>;

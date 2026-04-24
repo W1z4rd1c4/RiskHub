@@ -89,13 +89,14 @@ describe('ControlsPage archived visibility', () => {
             http.get('*/api/v1/auth/me', () => HttpResponse.json(user)),
             http.get('*/api/v1/controls', ({ request }) => {
                 const url = new URL(request.url);
-                const includeArchived = url.searchParams.get('include_archived') === 'true';
-                const status = url.searchParams.get('status');
+                const filters = JSON.parse(url.searchParams.get('filters') ?? '{}') as Record<string, unknown>;
+                const includeArchived = filters.include_archived === true;
+                const status = filters.status;
                 const items = includeArchived || status === 'archived' ? [archivedControl] : [activeControl];
                 return HttpResponse.json({
                     items,
                     total: items.length,
-                    skip: Number(url.searchParams.get('skip') ?? 0),
+                    offset: Number(url.searchParams.get('offset') ?? 0),
                     limit: Number(url.searchParams.get('limit') ?? 20),
                 });
             })
@@ -138,12 +139,13 @@ describe('ControlsPage archived visibility', () => {
             http.get('*/api/v1/auth/me', () => HttpResponse.json(user)),
             http.get('*/api/v1/controls', ({ request }) => {
                 const url = new URL(request.url);
-                const monitoringStatus = url.searchParams.get('monitoring_status');
+                const filters = JSON.parse(url.searchParams.get('filters') ?? '{}') as Record<string, unknown>;
+                const monitoringStatus = filters.monitoring_status;
                 const items = monitoringStatus === 'passed' ? [passedControl] : [failedControl];
                 return HttpResponse.json({
                     items,
                     total: items.length,
-                    skip: Number(url.searchParams.get('skip') ?? 0),
+                    offset: Number(url.searchParams.get('offset') ?? 0),
                     limit: Number(url.searchParams.get('limit') ?? 20),
                 });
             })

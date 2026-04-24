@@ -6,17 +6,21 @@ import { DEFAULT_LIST_PAGE_SIZE } from '@/constants/list';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { controlApi } from '@/services/controlApi';
 import { reportApi } from '@/services/reportApi';
+import type { CollectionGroup } from '@/types/collection';
 import type { ControlSummary } from '@/types/control';
 
 import {
     buildControlExportFilters,
     buildControlListParams,
     type ControlListStatusFilter,
-    fetchAllControlsForGroupedView,
+    getControlGroupBy,
 } from './controlsPagePresentation';
 
 export function useControlsPageState() {
     const [items, setItems] = useState<ControlSummary[]>([]);
+    const [groups, setGroups] = useState<CollectionGroup[]>([]);
+    const [selectedGroupValue, setSelectedGroupValue] = useState<string | null>(null);
+    const [selectedGroupLabel, setSelectedGroupLabel] = useState<string | null>(null);
     const [totalCount, setTotalCount] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
     const [errorKey, setErrorKey] = useState<string | null>(null);
@@ -32,13 +36,14 @@ export function useControlsPageState() {
 
     const limit = DEFAULT_LIST_PAGE_SIZE;
     const debouncedSearch = useDebouncedValue(search, 300);
+    const groupBy = getControlGroupBy(viewMode);
 
     const fetchControls = useCallback(async () => {
         const requestId = ++latestRequestIdRef.current;
         try {
             setIsLoading(true);
 
-            if (viewMode === 'all') {
+            if (!groupBy) {
                 const response = await controlApi.getControls(
                     buildControlListParams({
                         currentPage,
@@ -51,16 +56,40 @@ export function useControlsPageState() {
                     return;
                 }
                 setItems(response.items);
+                setGroups([]);
                 setTotalCount(response.total);
-            } else {
-                const response = await fetchAllControlsForGroupedView({
-                    search: debouncedSearch,
-                    statusFilter,
-                });
+            } else if (selectedGroupValue) {
+                const response = await controlApi.getControls(
+                    buildControlListParams({
+                        currentPage,
+                        limit,
+                        search: debouncedSearch,
+                        statusFilter,
+                        groupBy,
+                        groupValue: selectedGroupValue,
+                    })
+                );
                 if (requestId !== latestRequestIdRef.current) {
                     return;
                 }
                 setItems(response.items);
+                setGroups(response.groups ?? []);
+                setTotalCount(response.total);
+            } else {
+                const response = await controlApi.getControls(
+                    buildControlListParams({
+                        currentPage: 1,
+                        limit,
+                        search: debouncedSearch,
+                        statusFilter,
+                        groupBy,
+                    })
+                );
+                if (requestId !== latestRequestIdRef.current) {
+                    return;
+                }
+                setItems([]);
+                setGroups(response.groups ?? []);
                 setTotalCount(response.total);
             }
 
@@ -76,7 +105,7 @@ export function useControlsPageState() {
                 setIsLoading(false);
             }
         }
-    }, [currentPage, debouncedSearch, limit, statusFilter, viewMode]);
+    }, [currentPage, debouncedSearch, groupBy, limit, selectedGroupValue, statusFilter]);
 
     useEffect(() => {
         void fetchControls();
@@ -120,15 +149,33 @@ export function useControlsPageState() {
     const updateSearch = useCallback((value: string) => {
         setSearch(value);
         setCurrentPage(1);
+        setSelectedGroupValue(null);
+        setSelectedGroupLabel(null);
     }, []);
 
     const updateStatusFilter = useCallback((value: ControlListStatusFilter) => {
         setStatusFilter(value);
         setCurrentPage(1);
+        setSelectedGroupValue(null);
+        setSelectedGroupLabel(null);
     }, []);
 
     const updateViewMode = useCallback((value: ViewMode) => {
         setViewMode(value);
+        setCurrentPage(1);
+        setSelectedGroupValue(null);
+        setSelectedGroupLabel(null);
+    }, []);
+
+    const selectGroup = useCallback((groupValue: string, groupLabel: string) => {
+        setSelectedGroupValue(groupValue);
+        setSelectedGroupLabel(groupLabel);
+        setCurrentPage(1);
+    }, []);
+
+    const clearSelectedGroup = useCallback(() => {
+        setSelectedGroupValue(null);
+        setSelectedGroupLabel(null);
         setCurrentPage(1);
     }, []);
 
@@ -136,6 +183,7 @@ export function useControlsPageState() {
         currentPage,
         errorKey,
         fetchControls,
+        groups,
         handleExport,
         hasLoadedOnce: hasLoadedControlsRef.current,
         isExportDialogOpen,
@@ -147,6 +195,8 @@ export function useControlsPageState() {
         closeExportDialog: () => setIsExportDialogOpen(false),
         restoreControl,
         search,
+        selectedGroupLabel,
+        selectedGroupValue,
         setCurrentPage,
         statusFilter,
         totalCount,
@@ -155,5 +205,7 @@ export function useControlsPageState() {
         updateStatusFilter,
         updateViewMode,
         viewMode,
+        selectGroup,
+        clearSelectedGroup,
     };
 }

@@ -4,7 +4,9 @@ from datetime import datetime
 from decimal import Decimal
 from enum import Enum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, computed_field
+
+from app.schemas.collection import CollectionGroupRead
 
 
 class VendorStatusEnum(str, Enum):
@@ -102,5 +104,11 @@ class VendorRead(VendorBase):
 class VendorListResponse(BaseModel):
     items: list[VendorRead]
     total: int
-    skip: int
+    offset: int
     limit: int
+    groups: list[CollectionGroupRead] | None = None
+
+    @computed_field
+    @property
+    def skip(self) -> int:
+        return self.offset

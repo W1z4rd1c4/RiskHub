@@ -127,7 +127,7 @@ export function KRIModal({ risk_id, kri, isOpen, onClose, onSave, onDelete }: KR
             try {
                 setIsLoadingVendors(true);
                 const response = await vendorApi.getVendors({
-                    skip: 0,
+                    offset: 0,
                     limit: 25,
                     include_archived: true,
                     search: debouncedVendorSearch.trim() || undefined,

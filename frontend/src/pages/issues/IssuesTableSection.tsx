@@ -2,28 +2,34 @@ import { useCallback, useMemo } from 'react';
 import { AlertCircle, ChevronRight } from 'lucide-react';
 import { useTranslation } from '@/i18n/hooks';
 
-import { CategoryDrillDown, Pagination, SortableTable, type Column, type SortDirection, type ViewMode } from '@/components/tables';
+import { CollectionGroupDrillDown, Pagination, SortableTable, type Column, type SortDirection, type ViewMode } from '@/components/tables';
 import { issuePill, issueSeverityClass, issueStatusClass } from '@/components/issues/issueUi';
+import type { CollectionGroup } from '@/types/collection';
 import type { IssueListFilters, IssueStatus, IssueSummary } from '@/types/issue';
 
-import { buildIssueGroupedRows, formatIssueDateTime, type IssueGroupedRow } from './issuesPagePresentation';
+import { formatIssueDateTime, formatIssueGroupLabel } from './issuesPagePresentation';
 
 interface IssuesTableSectionProps {
     currentPage: number;
     errorKey: string | null;
+    groups: CollectionGroup[];
     hasLoadedOnce: boolean;
     isLoading: boolean;
     items: IssueSummary[];
     itemsPerPage: number;
+    onBackFromGroup: () => void;
     onPageChange: (page: number) => void;
     onRetry: () => void;
     onRowClick: (issue: IssueSummary) => void;
+    onSelectGroup: (groupValue: string, groupLabel: string) => void;
     onSortChange: (
         sortField: IssueListFilters['sort_by'] | null,
         sortDirection: SortDirection,
     ) => void;
     sortDirection: SortDirection;
     sortField: IssueListFilters['sort_by'] | null;
+    selectedGroupLabel: string | null;
+    selectedGroupValue: string | null;
     totalCount: number;
     totalPages: number;
     viewMode: ViewMode;
@@ -32,16 +38,21 @@ interface IssuesTableSectionProps {
 export function IssuesTableSection({
     currentPage,
     errorKey,
+    groups,
     hasLoadedOnce,
     isLoading,
     items,
     itemsPerPage,
+    onBackFromGroup,
     onPageChange,
     onRetry,
     onRowClick,
+    onSelectGroup,
     onSortChange,
     sortDirection,
     sortField,
+    selectedGroupLabel,
+    selectedGroupValue,
     totalCount,
     totalPages,
     viewMode,
@@ -146,11 +157,6 @@ export function IssuesTableSection({
         [i18n.language, severityLabel, sourceLabel, statusLabel, t]
     );
 
-    const groupedRows = useMemo(
-        () => buildIssueGroupedRows(items, viewMode, { unlinkedVendor: t('fallbacks.unlinked_vendor') }),
-        [items, t, viewMode]
-    );
-
     if (errorKey) {
         return (
             <div className="glass-card p-20 flex flex-col items-center justify-center text-center gap-4">
@@ -248,38 +254,37 @@ export function IssuesTableSection({
     }
 
     return (
-        <CategoryDrillDown
-            data={groupedRows}
-            groupBy={'groupValue'}
-            keyExtractor={(row) => row.rowId}
-            getStats={(groupItems) => ({ total: groupItems.length })}
-            renderTable={(groupItems: IssueGroupedRow[]) => (
+        <CollectionGroupDrillDown
+            groups={groups}
+            selectedGroupValue={selectedGroupValue}
+            selectedGroupLabel={selectedGroupLabel}
+            items={items}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalCount={totalCount}
+            itemsPerPage={itemsPerPage}
+            onPageChange={onPageChange}
+            onBack={onBackFromGroup}
+            onSelectGroup={onSelectGroup}
+            hideActive
+            groupLabel={(group) =>
+                formatIssueGroupLabel(group, {
+                    unlinkedVendor: t('fallbacks.unlinked_vendor'),
+                    uncategorized: t('fallbacks.uncategorized', 'Uncategorized'),
+                    unknownDepartment: t('fallbacks.unknown_department'),
+                    noProcess: t('fallbacks.no_process', 'No Process'),
+                    unknownRiskType: t('common:fallbacks.unknown_type'),
+                })
+            }
+            emptyMessage={t('list.empty')}
+            renderTable={(groupItems) => (
                 <SortableTable
-                    data={groupItems.map((row) => row.issue)}
+                    data={groupItems}
                     columns={columns}
                     keyExtractor={(issue) => issue.id}
                     onRowClick={onRowClick}
                     emptyMessage={t('list.empty')}
                 />
-            )}
-            renderItem={(row) => (
-                <div
-                    onClick={() => onRowClick(row.issue)}
-                    className="px-6 py-4 hover:bg-white/5 cursor-pointer flex items-center justify-between"
-                >
-                    <div className="space-y-1">
-                        <p className="text-sm font-semibold text-white">{row.issue.title}</p>
-                        <div className="flex flex-wrap items-center gap-2">
-                            <span className={issuePill(issueStatusClass(row.issue.status))}>
-                                {statusLabel(row.issue.status)}
-                            </span>
-                            <span className={issuePill(issueSeverityClass(row.issue.severity))}>
-                                {severityLabel(row.issue.severity)}
-                            </span>
-                        </div>
-                    </div>
-                    <ChevronRight className="h-4 w-4 text-slate-500" />
-                </div>
             )}
         />
     );

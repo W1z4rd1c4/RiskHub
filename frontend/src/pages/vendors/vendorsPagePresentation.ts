@@ -1,13 +1,14 @@
 import type { ViewMode } from '@/components/tables';
-import { GROUPED_VIEW_FETCH_PAGE_SIZE } from '@/constants/list';
-import { vendorApi } from '@/services/vendorApi';
+import type { CollectionGroup } from '@/types/collection';
 import type { Vendor, VendorListParams, VendorStatus, VendorType } from '@/types/vendor';
 
-export interface VendorGroupedRow {
-    groupValue: string;
-    rowId: string;
-    vendor: Vendor;
-}
+export const VENDOR_GROUP_UNASSIGNED = '__unassigned__';
+export const VENDOR_GROUP_NO_PROCESS = '__no_process__';
+export const VENDOR_GROUP_UNLINKED_RISK = '__unlinked_risk__';
+export const VENDOR_GROUP_DORA_RELEVANT = '__dora_relevant__';
+export const VENDOR_GROUP_SUPPORTS_CORE_FUNCTION = '__supports_core_function__';
+export const VENDOR_GROUP_SIGNIFICANT_VENDOR = '__significant_vendor__';
+export const VENDOR_GROUP_INSIGNIFICANT_VENDOR = '__insignificant_vendor__';
 
 interface BuildVendorListParamsOptions {
     currentPage: number;
@@ -18,6 +19,8 @@ interface BuildVendorListParamsOptions {
     sortField: VendorListParams['sort_by'] | null;
     statusFilter: VendorStatus | '';
     typeFilter: VendorType | '';
+    groupBy?: string | null;
+    groupValue?: string | null;
 }
 
 interface BuildVendorExportFiltersOptions {
@@ -35,9 +38,11 @@ export function buildVendorListParams({
     sortField,
     statusFilter,
     typeFilter,
+    groupBy,
+    groupValue,
 }: BuildVendorListParamsOptions): VendorListParams {
     const params: VendorListParams = {
-        skip: (currentPage - 1) * limit,
+        offset: (currentPage - 1) * limit,
         limit,
         include_archived: includeArchived,
     };
@@ -54,6 +59,12 @@ export function buildVendorListParams({
     if (sortField && sortDirection) {
         params.sort_by = sortField;
         params.sort_order = sortDirection;
+    }
+    if (groupBy) {
+        params.group_by = groupBy;
+    }
+    if (groupValue) {
+        params.group_value = groupValue;
     }
 
     return params;
@@ -75,97 +86,28 @@ export function buildVendorExportFilters({
     };
 }
 
-export async function fetchAllVendorsForGroupedView(
-    params: Omit<BuildVendorListParamsOptions, 'currentPage' | 'limit'>
-): Promise<{
-    items: Vendor[];
-    total: number;
-}> {
-    const limit = GROUPED_VIEW_FETCH_PAGE_SIZE;
-    const allItems: Vendor[] = [];
-    let skip = 0;
-
-    for (;;) {
-        const response = await vendorApi.getVendors({
-            ...buildVendorListParams({
-                ...params,
-                currentPage: 1,
-                limit,
-            }),
-            skip,
-            limit,
-        });
-        const total = response.total;
-        allItems.push(...response.items);
-
-        if (skip + limit >= total) {
-            return { items: allItems, total };
-        }
-
-        skip += limit;
+export function getVendorGroupBy(viewMode: ViewMode): string | null {
+    switch (viewMode) {
+        case 'all':
+        case 'category':
+        case 'risk_type':
+        case 'vendor':
+            return null;
+        case 'department':
+            return 'department';
+        case 'process':
+            return 'process';
+        case 'type':
+            return 'type';
+        case 'risk':
+            return 'risk';
+        case 'flag':
+            return 'flag';
     }
 }
 
-function linkedRiskLabel(vendor: Vendor): Array<{ groupValue: string; rowId: string }> {
-    const seen = new Set<number>();
-    const rows: Array<{ groupValue: string; rowId: string }> = [];
-
-    for (const risk of vendor.linked_risks ?? []) {
-        if (seen.has(risk.risk_id)) {
-            continue;
-        }
-        seen.add(risk.risk_id);
-        rows.push({
-            groupValue: `${risk.risk_id_code}: ${risk.risk_name}`,
-            rowId: `${vendor.id}:${risk.risk_id}`,
-        });
-    }
-
-    return rows;
-}
-
-function vendorFlagLabels(vendor: Vendor, labels: {
-    doraRelevant: string;
-    supportsCoreFunction: string;
-    significantVendor: string;
-    insignificantVendor: string;
-}): Array<{ groupValue: string; rowId: string }> {
-    const rows: Array<{ groupValue: string; rowId: string }> = [];
-
-    if (vendor.dora_relevant) {
-        rows.push({
-            groupValue: labels.doraRelevant,
-            rowId: `${vendor.id}:flag:dora`,
-        });
-    }
-
-    if (vendor.supports_important_core_insurance_function) {
-        rows.push({
-            groupValue: labels.supportsCoreFunction,
-            rowId: `${vendor.id}:flag:core`,
-        });
-    }
-
-    if (vendor.is_significant_vendor) {
-        rows.push({
-            groupValue: labels.significantVendor,
-            rowId: `${vendor.id}:flag:significant`,
-        });
-    }
-
-    if (rows.length === 0) {
-        rows.push({
-            groupValue: labels.insignificantVendor,
-            rowId: `${vendor.id}:flag:insignificant`,
-        });
-    }
-
-    return rows;
-}
-
-export function buildVendorGroupedRows(
-    items: Vendor[],
-    viewMode: ViewMode,
+export function formatVendorGroupLabel(
+    group: CollectionGroup,
     labels: {
         noProcess: string;
         typeLabel: (value: VendorType) => string;
@@ -176,65 +118,29 @@ export function buildVendorGroupedRows(
         significantVendor: string;
         insignificantVendor: string;
     }
-): VendorGroupedRow[] {
-    if (viewMode === 'all' || viewMode === 'category' || viewMode === 'risk_type' || viewMode === 'vendor') {
-        return [];
+): string {
+    switch (group.value) {
+        case VENDOR_GROUP_UNASSIGNED:
+            return labels.unassigned;
+        case VENDOR_GROUP_NO_PROCESS:
+            return labels.noProcess;
+        case VENDOR_GROUP_UNLINKED_RISK:
+            return labels.unlinkedRisk;
+        case VENDOR_GROUP_DORA_RELEVANT:
+            return labels.doraRelevant;
+        case VENDOR_GROUP_SUPPORTS_CORE_FUNCTION:
+            return labels.supportsCoreFunction;
+        case VENDOR_GROUP_SIGNIFICANT_VENDOR:
+            return labels.significantVendor;
+        case VENDOR_GROUP_INSIGNIFICANT_VENDOR:
+            return labels.insignificantVendor;
+        case 'ict':
+        case 'outsourcing':
+        case 'professional_services':
+        case 'partner':
+        case 'other':
+            return labels.typeLabel(group.value);
+        default:
+            return group.label;
     }
-
-    return items.flatMap((vendor) => {
-        if (viewMode === 'department') {
-            return [
-                {
-                    groupValue: vendor.department_name?.trim() || labels.unassigned,
-                    rowId: `${vendor.id}:department`,
-                    vendor,
-                },
-            ];
-        }
-
-        if (viewMode === 'process') {
-            return [
-                {
-                    groupValue: vendor.process?.trim() || labels.noProcess,
-                    rowId: `${vendor.id}:process`,
-                    vendor,
-                },
-            ];
-        }
-
-        if (viewMode === 'type') {
-            return [
-                {
-                    groupValue: labels.typeLabel(vendor.vendor_type),
-                    rowId: `${vendor.id}:type`,
-                    vendor,
-                },
-            ];
-        }
-
-        if (viewMode === 'flag') {
-            return vendorFlagLabels(vendor, labels).map((flag) => ({
-                groupValue: flag.groupValue,
-                rowId: flag.rowId,
-                vendor,
-            }));
-        }
-
-        const linkedRisks = linkedRiskLabel(vendor);
-        if (linkedRisks.length === 0) {
-            return [
-                {
-                    groupValue: labels.unlinkedRisk,
-                    rowId: `${vendor.id}:unlinked-risk`,
-                    vendor,
-                },
-            ];
-        }
-
-        return linkedRisks.map((risk) => ({
-            groupValue: risk.groupValue,
-            rowId: risk.rowId,
-            vendor,
-        }));
-    });
 }

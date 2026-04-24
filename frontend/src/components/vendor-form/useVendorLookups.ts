@@ -22,7 +22,7 @@ export function useVendorLookups() {
                 const [userData, departmentData, vendorData] = await Promise.all([
                     lookupApi.getUsers(),
                     lookupApi.getDepartments(),
-                    vendorApi.getVendors({ skip: 0, limit: 100 }),
+                    vendorApi.getVendors({ offset: 0, limit: 100 }),
                 ]);
                 setUsers(userData);
                 setDepartments(departmentData);

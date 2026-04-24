@@ -61,15 +61,10 @@ export type VendorCreate = Omit<
 
 export type VendorUpdate = Partial<VendorCreate>;
 
-export interface VendorListResponse {
-    items: Vendor[];
-    total: number;
-    skip: number;
-    limit: number;
-}
+export type VendorListResponse = CollectionListResponse<Vendor>;
 
 export interface VendorListParams {
-    skip?: number;
+    offset?: number;
     limit?: number;
     search?: string;
     status?: VendorStatus;
@@ -85,4 +80,7 @@ export interface VendorListParams {
     risk_score_1_5?: number;
     sort_by?: 'name' | 'status' | 'vendor_type' | 'risk_score_1_5' | 'process' | 'created_at';
     sort_order?: 'asc' | 'desc';
+    group_by?: string;
+    group_value?: string;
 }
+import type { CollectionListResponse } from '@/types/collection';

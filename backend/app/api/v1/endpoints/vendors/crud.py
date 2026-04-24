@@ -10,6 +10,15 @@ from sqlalchemy.orm import selectinload
 
 from app.api import deps
 from app.api.mappers.vendor import vendor_list_response, vendor_to_read
+from app.api.v1.endpoints._collection import (
+    CollectionGroupEntry,
+    build_grouped_collection_response,
+    coerce_optional_bool,
+    coerce_optional_enum,
+    coerce_optional_int,
+    coerce_optional_string,
+    parse_collection_query,
+)
 from app.core.activity_logger import build_change_set, log_activity
 from app.core.permissions import (
     can_read_risk_id,
@@ -35,6 +44,50 @@ from app.schemas.vendor import (
 from ._shared import _get_vendor_with_deps
 
 router = APIRouter()
+
+VENDOR_GROUP_UNASSIGNED = "__unassigned__"
+VENDOR_GROUP_NO_PROCESS = "__no_process__"
+VENDOR_GROUP_UNLINKED_RISK = "__unlinked_risk__"
+VENDOR_GROUP_DORA_RELEVANT = "__dora_relevant__"
+VENDOR_GROUP_SUPPORTS_CORE_FUNCTION = "__supports_core_function__"
+VENDOR_GROUP_SIGNIFICANT_VENDOR = "__significant_vendor__"
+VENDOR_GROUP_INSIGNIFICANT_VENDOR = "__insignificant_vendor__"
+
+
+def _vendor_group_entries(vendor: VendorRead, group_by: str) -> list[CollectionGroupEntry]:
+    if group_by == "department":
+        value = vendor.department_name or VENDOR_GROUP_UNASSIGNED
+        return [CollectionGroupEntry(value, value)]
+
+    if group_by == "process":
+        value = vendor.process or VENDOR_GROUP_NO_PROCESS
+        return [CollectionGroupEntry(value, value)]
+
+    if group_by == "type":
+        return [CollectionGroupEntry(vendor.vendor_type.value, vendor.vendor_type.value)]
+
+    if group_by == "risk":
+        linked_risks = vendor.linked_risks or []
+        if not linked_risks:
+            return [CollectionGroupEntry(VENDOR_GROUP_UNLINKED_RISK, VENDOR_GROUP_UNLINKED_RISK)]
+        return [
+            CollectionGroupEntry(f"risk:{risk.risk_id}", f"{risk.risk_id_code}: {risk.risk_name}")
+            for risk in linked_risks
+        ]
+
+    if group_by == "flag":
+        entries: list[CollectionGroupEntry] = []
+        if vendor.dora_relevant:
+            entries.append(CollectionGroupEntry(VENDOR_GROUP_DORA_RELEVANT, VENDOR_GROUP_DORA_RELEVANT))
+        if vendor.supports_important_core_insurance_function:
+            entries.append(CollectionGroupEntry(VENDOR_GROUP_SUPPORTS_CORE_FUNCTION, VENDOR_GROUP_SUPPORTS_CORE_FUNCTION))
+        if vendor.is_significant_vendor:
+            entries.append(CollectionGroupEntry(VENDOR_GROUP_SIGNIFICANT_VENDOR, VENDOR_GROUP_SIGNIFICANT_VENDOR))
+        if not entries:
+            entries.append(CollectionGroupEntry(VENDOR_GROUP_INSIGNIFICANT_VENDOR, VENDOR_GROUP_INSIGNIFICANT_VENDOR))
+        return entries
+
+    return []
 
 
 async def _get_visible_risk_ids(
@@ -88,7 +141,8 @@ def _serialize_vendor_linked_risks(
 async def list_vendors(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_permission("vendors", "read")),
-    skip: int = Query(0, ge=0),
+    offset: int = Query(0, ge=0),
+    skip: int | None = Query(None, ge=0),
     limit: int = Query(50, ge=1, le=100),
     search: Optional[str] = None,
     status_filter: Optional[VendorStatusEnum] = Query(None, alias="status"),
@@ -104,7 +158,63 @@ async def list_vendors(
     risk_score_1_5: Optional[int] = Query(None, ge=1, le=5),
     sort_by: Optional[str] = None,
     sort_order: Optional[str] = Query("asc"),
+    sort: str | None = Query(None),
+    filters: str | None = Query(None),
+    group_by: str | None = Query(None),
+    group_value: str | None = Query(None),
 ):
+    collection_query = parse_collection_query(
+        offset=skip if skip is not None else offset,
+        limit=limit,
+        sort=sort,
+        filters=filters,
+        group_by=group_by,
+        group_value=group_value,
+        max_limit=100,
+    )
+    filter_values = {
+        "search": search,
+        "status": status_filter.value if status_filter else None,
+        "include_archived": include_archived,
+        "vendor_type": vendor_type.value if vendor_type else None,
+        "dora_relevant": dora_relevant,
+        "supports_important_core_insurance_function": supports_important_core_insurance_function,
+        "is_significant_vendor": is_significant_vendor,
+        "outsourcing_owner_user_id": outsourcing_owner_user_id,
+        "department_id": department_id,
+        "process": process,
+        "subprocess": subprocess,
+        "risk_score_1_5": risk_score_1_5,
+    }
+    filter_values.update(collection_query.filters)
+    search = coerce_optional_string("search", filter_values.get("search"))
+    status_value = filter_values.get("status")
+    status_filter = coerce_optional_enum(VendorStatusEnum, status_value, "status")
+    include_archived = coerce_optional_bool("include_archived", filter_values.get("include_archived")) or False
+    vendor_type_value = filter_values.get("vendor_type")
+    vendor_type = coerce_optional_enum(VendorTypeEnum, vendor_type_value, "vendor_type")
+    dora_relevant = coerce_optional_bool("dora_relevant", filter_values.get("dora_relevant"))
+    supports_important_core_insurance_function = coerce_optional_bool(
+        "supports_important_core_insurance_function",
+        filter_values.get("supports_important_core_insurance_function"),
+    )
+    is_significant_vendor = coerce_optional_bool(
+        "is_significant_vendor", filter_values.get("is_significant_vendor")
+    )
+    outsourcing_owner_user_id = coerce_optional_int(
+        "outsourcing_owner_user_id", filter_values.get("outsourcing_owner_user_id")
+    )
+    department_id = coerce_optional_int("department_id", filter_values.get("department_id"))
+    process = coerce_optional_string("process", filter_values.get("process"))
+    subprocess = coerce_optional_string("subprocess", filter_values.get("subprocess"))
+    risk_score_1_5 = coerce_optional_int(
+        "risk_score_1_5", filter_values.get("risk_score_1_5"), min_value=1, max_value=5
+    )
+    offset = collection_query.offset
+    limit = collection_query.limit
+    sort_by = collection_query.sort.field if collection_query.sort else sort_by
+    sort_order = collection_query.sort.direction if collection_query.sort else sort_order
+
     can_read_risks = check_permission(current_user, "risks", "read")
     base_query = select(Vendor)
 
@@ -182,28 +292,53 @@ async def list_vendors(
     else:
         base_query = base_query.order_by(asc(order_column))
 
-    query = (
-        base_query.options(
-            selectinload(Vendor.department),
-            selectinload(Vendor.outsourcing_owner),
-            selectinload(Vendor.risk_links).selectinload(VendorRiskLink.risk),
-        )
-        .offset(skip)
-        .limit(limit)
+    query_options = (
+        selectinload(Vendor.department),
+        selectinload(Vendor.outsourcing_owner),
+        selectinload(Vendor.risk_links).selectinload(VendorRiskLink.risk),
     )
 
-    result = await db.execute(query)
+    ordered_query = base_query.options(*query_options)
+
+    async def serialize_vendors(vendors: list[Vendor]) -> list[VendorRead]:
+        visible_risk_ids = (
+            await _get_visible_risk_ids(db, current_user=current_user, vendors=vendors) if can_read_risks else set()
+        )
+        linked_risks_by_vendor_id = _serialize_vendor_linked_risks(vendors, visible_risk_ids=visible_risk_ids)
+        return [vendor_to_read(vendor, linked_risks=linked_risks_by_vendor_id.get(vendor.id, [])) for vendor in vendors]
+
+    if collection_query.group_by:
+        result = await db.execute(ordered_query)
+        all_items = await serialize_vendors(list(result.scalars().all()))
+        grouped_items, grouped_total, groups = build_grouped_collection_response(
+            all_items,
+            group_by=collection_query.group_by,
+            group_value=collection_query.group_value,
+            get_entries=_vendor_group_entries,
+            is_active=lambda vendor: vendor.status == VendorStatusEnum.active,
+            is_highlighted=lambda vendor: vendor.risk_score_1_5 >= 4,
+        )
+        paginated_items = grouped_items[offset : offset + limit] if collection_query.group_value else []
+        return VendorListResponse(
+            items=paginated_items,
+            total=grouped_total,
+            offset=offset,
+            limit=limit,
+            groups=groups,
+        )
+
+    result = await db.execute(ordered_query.offset(offset).limit(limit))
     vendors = result.scalars().all()
 
     visible_risk_ids = (
-        await _get_visible_risk_ids(db, current_user=current_user, vendors=vendors) if can_read_risks else set()
+        await _get_visible_risk_ids(db, current_user=current_user, vendors=list(vendors)) if can_read_risks else set()
     )
-    linked_risks_by_vendor_id = _serialize_vendor_linked_risks(vendors, visible_risk_ids=visible_risk_ids)
+    linked_risks_by_vendor_id = _serialize_vendor_linked_risks(list(vendors), visible_risk_ids=visible_risk_ids)
 
     return vendor_list_response(
-        vendors=vendors,
+        vendors=list(vendors),
         total=total,
-        skip=skip,
+        offset=offset,
         limit=limit,
         linked_risks_by_vendor_id=linked_risks_by_vendor_id,
     )

@@ -1,17 +1,18 @@
 import type { ViewMode } from '@/components/tables';
-import { DEFAULT_LIST_PAGE_SIZE, GROUPED_VIEW_FETCH_PAGE_SIZE } from '@/constants/list';
-import { controlApi } from '@/services/controlApi';
+import { DEFAULT_LIST_PAGE_SIZE } from '@/constants/list';
 import {
     ControlStatus,
     type ControlMonitoringStatus,
     type ControlSummary,
 } from '@/types/control';
+import type { CollectionGroup } from '@/types/collection';
 
-export interface ControlGroupedRow {
-    groupValue: string;
-    control: ControlSummary;
-    rowId: string;
-}
+export const CONTROL_GROUP_UNLINKED_VENDOR = '__unlinked_vendor__';
+export const CONTROL_GROUP_UNCATEGORIZED = '__uncategorized__';
+export const CONTROL_GROUP_UNKNOWN_DEPARTMENT = '__unknown_department__';
+export const CONTROL_GROUP_NO_PROCESS = '__no_process__';
+export const CONTROL_GROUP_UNKNOWN_RISK_TYPE = '__unknown_risk_type__';
+export const CONTROL_GROUP_UNKNOWN_RISK = '__unknown_risk__';
 
 export type ControlListStatusFilter = '' | 'archived' | ControlMonitoringStatus;
 
@@ -20,6 +21,8 @@ interface BuildControlListParamsOptions {
     limit?: number;
     search: string;
     statusFilter: ControlListStatusFilter;
+    groupBy?: string | null;
+    groupValue?: string | null;
 }
 
 interface BuildControlExportFiltersOptions {
@@ -32,46 +35,19 @@ export function buildControlListParams({
     limit = DEFAULT_LIST_PAGE_SIZE,
     search,
     statusFilter,
+    groupBy,
+    groupValue,
 }: BuildControlListParamsOptions) {
     return {
-        skip: (currentPage - 1) * limit,
+        offset: (currentPage - 1) * limit,
         limit,
         search: search.trim() || undefined,
         status: statusFilter === 'archived' ? ControlStatus.ARCHIVED : undefined,
         monitoring_status: statusFilter && statusFilter !== 'archived' ? statusFilter : undefined,
         include_archived: statusFilter === 'archived',
+        group_by: groupBy || undefined,
+        group_value: groupValue || undefined,
     };
-}
-
-export async function fetchAllControlsForGroupedView({
-    search,
-    statusFilter,
-}: Omit<BuildControlListParamsOptions, 'currentPage' | 'limit'>): Promise<{
-    items: ControlSummary[];
-    total: number;
-}> {
-    const limit = GROUPED_VIEW_FETCH_PAGE_SIZE;
-    const allItems: ControlSummary[] = [];
-    let skip = 0;
-    let total: number;
-
-    do {
-        const response = await controlApi.getControls({
-            ...buildControlListParams({
-                currentPage: 1,
-                limit,
-                search,
-                statusFilter,
-            }),
-            skip,
-            limit,
-        });
-        total = response.total;
-        allItems.push(...response.items);
-        skip += limit;
-    } while (skip < total);
-
-    return { items: allItems, total };
 }
 
 export function buildControlExportFilters({
@@ -113,52 +89,57 @@ export function getControlStatusColor(status: ControlStatus): string {
     }
 }
 
-export function getControlGroupByField(viewMode: ViewMode): keyof ControlSummary | null {
+export function getControlGroupBy(viewMode: ViewMode): string | null {
     switch (viewMode) {
         case 'category':
-            return 'control_form';
+            return 'category';
         case 'all':
             return null;
         case 'department':
-            return 'department_name';
+            return 'department';
         case 'process':
-            return 'frequency';
+            return 'process';
         case 'risk_type':
             return 'risk_type';
         case 'flag':
         case 'type':
-        case 'vendor':
             return null;
+        case 'vendor':
+            return 'vendor';
         case 'risk':
-            return 'risk_name';
+            return 'risk';
     }
 }
 
-export function buildControlGroupedRows(
-    items: ControlSummary[],
-    viewMode: ViewMode,
-    labels: { unlinkedVendor: string }
-): ControlGroupedRow[] {
-    if (viewMode !== 'vendor') {
-        return [];
+export function formatControlGroupLabel(
+    group: CollectionGroup,
+    labels: {
+        unlinkedVendor: string;
+        uncategorized: string;
+        unknownDepartment: string;
+        noProcess: string;
+        unknownRiskType: string;
+        unknownRisk: string;
+        controlForm: (value: string) => string;
+    },
+): string {
+    switch (group.value) {
+        case CONTROL_GROUP_UNLINKED_VENDOR:
+            return labels.unlinkedVendor;
+        case CONTROL_GROUP_UNCATEGORIZED:
+            return labels.uncategorized;
+        case CONTROL_GROUP_UNKNOWN_DEPARTMENT:
+            return labels.unknownDepartment;
+        case CONTROL_GROUP_NO_PROCESS:
+            return labels.noProcess;
+        case CONTROL_GROUP_UNKNOWN_RISK_TYPE:
+            return labels.unknownRiskType;
+        case CONTROL_GROUP_UNKNOWN_RISK:
+            return labels.unknownRisk;
+        case 'manual':
+        case 'automatic':
+            return labels.controlForm(group.value);
+        default:
+            return group.label;
     }
-
-    return items.flatMap((control) => {
-        const vendors = control.linked_vendors ?? [];
-        if (vendors.length === 0) {
-            return [
-                {
-                    groupValue: labels.unlinkedVendor,
-                    control,
-                    rowId: `${control.id}:unlinked-vendor`,
-                },
-            ];
-        }
-
-        return vendors.map((vendor) => ({
-            groupValue: vendor.name,
-            control,
-            rowId: `${control.id}:${vendor.id}`,
-        }));
-    });
 }

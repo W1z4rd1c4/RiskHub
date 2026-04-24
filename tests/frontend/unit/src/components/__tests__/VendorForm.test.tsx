@@ -92,7 +92,7 @@ describe('VendorForm', () => {
                 },
             ],
             total: 1,
-            skip: 0,
+            offset: 0,
             limit: 100,
         });
         createVendorMock.mockResolvedValue({

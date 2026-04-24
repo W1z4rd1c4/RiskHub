@@ -1,191 +1,56 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Download, Plus, RefreshCw, Search } from 'lucide-react';
 
 import { PermissionGate } from '@/components/PermissionGate';
-import { ExportDialog, type ExportDialogSubmitPayload } from '@/components/reports/ExportDialog';
-import { ViewSwitcher, type SortDirection, type ViewMode } from '@/components/tables';
-import { DEFAULT_LIST_PAGE_SIZE } from '@/constants/list';
-import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { ExportDialog } from '@/components/reports/ExportDialog';
+import { ViewSwitcher } from '@/components/tables';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useTranslation } from '@/i18n/hooks';
-import { apiClient } from '@/services/apiClient';
-import { reportApi } from '@/services/reportApi';
-import { vendorApi } from '@/services/vendorApi';
-import type { Vendor, VendorListParams, VendorStatus, VendorType } from '@/types/vendor';
+import type { VendorStatus, VendorType } from '@/types/vendor';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 
 import { VendorsTableSection } from './vendors/VendorsTableSection';
-import {
-    buildVendorExportFilters,
-    buildVendorListParams,
-    fetchAllVendorsForGroupedView,
-} from './vendors/vendorsPagePresentation';
+import { useVendorsPageState } from './vendors/useVendorsPageState';
 
 export function VendorsPage() {
     const navigate = useNavigate();
     const { t } = useTranslation('vendors');
     const { hasPermission } = usePermissions();
-
-    const [vendors, setVendors] = useState<Vendor[]>([]);
-    const [totalCount, setTotalCount] = useState(0);
-    const [isLoading, setIsLoading] = useState(true);
-    const [errorKey, setErrorKey] = useState<string | null>(null);
-
-    const [search, setSearch] = useState('');
-    const [statusFilter, setStatusFilter] = useState<VendorStatus | ''>('active');
-    const [typeFilter, setTypeFilter] = useState<VendorType | ''>('');
-    const [currentPage, setCurrentPage] = useState(1);
-    const [sortField, setSortField] = useState<VendorListParams['sort_by'] | null>(null);
-    const [sortDirection, setSortDirection] = useState<SortDirection>(null);
-    const [viewMode, setViewMode] = useState<ViewMode>('all');
-    const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
-    const [isExporting, setIsExporting] = useState(false);
-
-    const latestRequestIdRef = useRef(0);
-    const hasLoadedVendorsRef = useRef(false);
-
-    const limit = DEFAULT_LIST_PAGE_SIZE;
-    const debouncedSearch = useDebouncedValue(search, 300);
-    const includeArchived = statusFilter === 'inactive';
     const canReadRisks = hasPermission('risks', 'read');
-
-    const totalPages = Math.max(1, Math.ceil(totalCount / limit));
-
-    const listParams = useMemo(
-        () =>
-            buildVendorListParams({
-                currentPage,
-                debouncedSearch,
-                includeArchived,
-                limit,
-                sortDirection,
-                sortField,
-                statusFilter,
-                typeFilter,
-            }),
-        [
-            currentPage,
-            debouncedSearch,
-            includeArchived,
-            limit,
-            sortDirection,
-            sortField,
-            statusFilter,
-            typeFilter,
-        ]
-    );
-
-    const fetchVendors = useCallback(async () => {
-        const requestId = ++latestRequestIdRef.current;
-
-        try {
-            setIsLoading(true);
-
-            const response =
-                viewMode === 'all'
-                    ? await vendorApi.getVendors(listParams)
-                    : await fetchAllVendorsForGroupedView({
-                        debouncedSearch,
-                        includeArchived,
-                        sortDirection,
-                        sortField,
-                        statusFilter,
-                        typeFilter,
-                    });
-
-            if (requestId !== latestRequestIdRef.current) {
-                return;
-            }
-
-            setVendors(response.items);
-            setTotalCount(response.total);
-            setErrorKey(null);
-            hasLoadedVendorsRef.current = true;
-        } catch (err) {
-            if (requestId !== latestRequestIdRef.current) {
-                return;
-            }
-            console.error('Error fetching vendors:', err);
-            setErrorKey(apiClient.toUiMessageKey(err));
-            setVendors([]);
-            setTotalCount(0);
-        } finally {
-            if (requestId === latestRequestIdRef.current) {
-                setIsLoading(false);
-            }
-        }
-    }, [
-        debouncedSearch,
-        includeArchived,
-        listParams,
+    const {
+        currentPage,
+        errorKey,
+        fetchVendors,
+        groups,
+        handleExport,
+        hasLoadedOnce,
+        isExportDialogOpen,
+        isExporting,
+        isLoading,
+        items,
+        limit,
+        openExportDialog,
+        closeExportDialog,
+        restoreVendor,
+        search,
+        selectedGroupLabel,
+        selectedGroupValue,
+        setCurrentPage,
         sortDirection,
         sortField,
         statusFilter,
+        totalCount,
+        totalPages,
         typeFilter,
+        updateSearch,
+        updateSort,
+        updateStatusFilter,
+        updateTypeFilter,
+        updateViewMode,
         viewMode,
-    ]);
-
-    const handleRestoreVendor = useCallback(
-        async (vendorId: number) => {
-            try {
-                await vendorApi.restoreVendor(vendorId);
-                await fetchVendors();
-            } catch (err) {
-                console.error('Error restoring vendor:', err);
-            }
-        },
-        [fetchVendors]
-    );
-
-    useEffect(() => {
-        void fetchVendors();
-    }, [fetchVendors]);
-
-    useEffect(() => {
-        setVendors([]);
-        setTotalCount(0);
-        hasLoadedVendorsRef.current = false;
-    }, [viewMode]);
-
-    useEffect(() => {
-        if (!canReadRisks && viewMode === 'risk') {
-            setViewMode('all');
-        }
-    }, [canReadRisks, viewMode]);
-
-    const handleSort = useCallback(
-        (field: VendorListParams['sort_by'] | null, direction: SortDirection) => {
-            setSortField(field);
-            setSortDirection(direction);
-            setCurrentPage(1);
-        },
-        []
-    );
-
-    const handleExport = useCallback(
-        async ({ format, asOfDate }: ExportDialogSubmitPayload) => {
-            setIsExporting(true);
-            try {
-                await reportApi.exportVendors({
-                    format,
-                    asOfDate,
-                    filters: buildVendorExportFilters({
-                        statusFilter,
-                        search,
-                        typeFilter,
-                    }),
-                });
-                setIsExportDialogOpen(false);
-            } catch (err) {
-                console.error('Export failed:', err);
-                setErrorKey(apiClient.toUiMessageKey(err));
-            } finally {
-                setIsExporting(false);
-            }
-        },
-        [search, statusFilter, typeFilter]
-    );
+        selectGroup,
+        clearSelectedGroup,
+    } = useVendorsPageState({ canReadRisks });
 
     return (
         <div className="space-y-8">
@@ -197,7 +62,7 @@ export function VendorsPage() {
                 <div className="flex items-center gap-3">
                     <button
                         type="button"
-                        onClick={() => setIsExportDialogOpen(true)}
+                        onClick={openExportDialog}
                         data-testid="vendors-export-button"
                         disabled={isExporting}
                         className="px-4 py-2.5 glass rounded-xl text-slate-300 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-50 flex items-center gap-2 text-sm font-semibold"
@@ -221,10 +86,7 @@ export function VendorsPage() {
 
             <ViewSwitcher
                 value={viewMode}
-                onChange={(mode) => {
-                    setViewMode(mode);
-                    setCurrentPage(1);
-                }}
+                onChange={updateViewMode}
                 exclude={canReadRisks ? ['category', 'risk_type', 'vendor'] : ['category', 'risk_type', 'risk', 'vendor']}
             />
 
@@ -236,20 +98,14 @@ export function VendorsPage() {
                         type="text"
                         placeholder={t('filters.search_placeholder')}
                         value={search}
-                        onChange={(event) => {
-                            setSearch(event.target.value);
-                            setCurrentPage(1);
-                        }}
+                        onChange={(event) => updateSearch(event.target.value)}
                         className="bg-transparent border-none outline-none text-sm text-white w-full placeholder:text-slate-600"
                     />
                 </div>
                 <div className="flex gap-4">
                     <ThemedSelect
                         value={statusFilter}
-                        onValueChange={(value) => {
-                            setStatusFilter(value as VendorStatus | '');
-                            setCurrentPage(1);
-                        }}
+                        onValueChange={(value) => updateStatusFilter(value as VendorStatus | '')}
                         placeholder={t('filters.all_statuses')}
                         allowEmpty
                         emptyLabel={t('filters.all_statuses')}
@@ -263,10 +119,7 @@ export function VendorsPage() {
                     />
                     <ThemedSelect
                         value={typeFilter}
-                        onValueChange={(value) => {
-                            setTypeFilter(value as VendorType | '');
-                            setCurrentPage(1);
-                        }}
+                        onValueChange={(value) => updateTypeFilter(value as VendorType | '')}
                         placeholder={t('filters.all_types')}
                         allowEmpty
                         emptyLabel={t('filters.all_types')}
@@ -295,15 +148,20 @@ export function VendorsPage() {
             <VendorsTableSection
                 currentPage={currentPage}
                 errorKey={errorKey}
-                hasLoadedOnce={hasLoadedVendorsRef.current}
+                groups={groups}
+                hasLoadedOnce={hasLoadedOnce}
                 isLoading={isLoading}
-                items={vendors}
+                items={items}
                 itemsPerPage={limit}
+                onBackFromGroup={clearSelectedGroup}
                 onPageChange={setCurrentPage}
-                onRestoreVendor={(vendorId) => void handleRestoreVendor(vendorId)}
+                onRestoreVendor={(vendorId) => void restoreVendor(vendorId)}
                 onRetry={() => void fetchVendors()}
                 onRowClick={(vendor) => navigate(`/vendors/${vendor.id}`)}
-                onSortChange={handleSort}
+                onSelectGroup={selectGroup}
+                onSortChange={updateSort}
+                selectedGroupLabel={selectedGroupLabel}
+                selectedGroupValue={selectedGroupValue}
                 sortDirection={sortDirection}
                 sortField={sortField}
                 totalCount={totalCount}
@@ -313,7 +171,7 @@ export function VendorsPage() {
 
             <ExportDialog
                 isOpen={isExportDialogOpen}
-                onClose={() => setIsExportDialogOpen(false)}
+                onClose={closeExportDialog}
                 onSubmit={handleExport}
                 isSubmitting={isExporting}
                 dataTestId="vendors-export-dialog"

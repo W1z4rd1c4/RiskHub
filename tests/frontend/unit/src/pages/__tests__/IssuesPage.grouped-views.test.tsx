@@ -103,17 +103,69 @@ const issues = [
     },
 ];
 
+function issueGroupValues(issue: (typeof issues)[number], groupBy: string): string[] {
+    if (groupBy === 'department') {
+        return [issue.department_name || '__unknown_department__'];
+    }
+    const values = new Set<string>();
+    for (const context of issue.risk_contexts) {
+        const value =
+            groupBy === 'category'
+                ? context.risk_category
+                : groupBy === 'process'
+                    ? context.risk_process
+                    : context.risk_type;
+        if (value) {
+            values.add(value);
+        }
+    }
+    if (values.size > 0) {
+        return [...values];
+    }
+    if (groupBy === 'category') {
+        return ['__uncategorized__'];
+    }
+    if (groupBy === 'process') {
+        return ['__no_process__'];
+    }
+    return ['__unknown_risk_type__'];
+}
+
+function buildIssueGroups(groupBy: string) {
+    const counts = new Map<string, number>();
+    for (const issue of issues) {
+        for (const value of issueGroupValues(issue, groupBy)) {
+            counts.set(value, (counts.get(value) ?? 0) + 1);
+        }
+    }
+    return [...counts.entries()].map(([value, count]) => ({ value, label: value, count }));
+}
+
 describe('IssuesPage grouped views', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        mockList.mockImplementation((params?: { skip?: number; limit?: number }) =>
-            Promise.resolve({
-                items: issues,
+        mockList.mockImplementation((params?: { offset?: number; limit?: number; group_by?: string; group_value?: string }) => {
+            const offset = params?.offset ?? 0;
+            const limit = params?.limit ?? 10;
+            if (params?.group_by) {
+                const groupedItems = params.group_value
+                    ? issues.filter((issue) => issueGroupValues(issue, params.group_by as string).includes(params.group_value as string))
+                    : [];
+                return Promise.resolve({
+                    items: groupedItems.slice(offset, offset + limit),
+                    total: params.group_value ? groupedItems.length : issues.length,
+                    offset,
+                    limit,
+                    groups: buildIssueGroups(params.group_by),
+                });
+            }
+            return Promise.resolve({
+                items: issues.slice(offset, offset + limit),
                 total: issues.length,
-                skip: params?.skip ?? 0,
-                limit: params?.limit ?? 10,
-            })
-        );
+                offset,
+                limit,
+            });
+        });
     });
 
     it('keeps the default all view paginated and switches grouped views to drill-down cards', async () => {
@@ -161,7 +213,7 @@ describe('IssuesPage grouped views', () => {
 
         await ui.click(screen.getByRole('button', { name: 'By Department' }));
         await waitFor(() => {
-            expect(mockList).toHaveBeenLastCalledWith(expect.objectContaining({ skip: 0, limit: 100 }));
+            expect(mockList).toHaveBeenLastCalledWith(expect.objectContaining({ offset: 0, limit: 10, group_by: 'department' }));
         });
         const itCard = screen
             .getAllByRole('button')

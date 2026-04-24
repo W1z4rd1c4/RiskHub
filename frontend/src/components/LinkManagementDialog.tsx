@@ -149,6 +149,7 @@ export function LinkManagementDialog({
         try {
             setIsSearching(true);
             const params: Record<string, string | number | boolean> = {
+                offset: 0,
                 limit: 20
             };
             if (searchQuery) params.search = searchQuery;
@@ -169,8 +170,8 @@ export function LinkManagementDialog({
                 }
             } else {
                 const results = await kriApi.getKRIs({
-                    page: 1,
-                    size: 100,
+                    offset: 0,
+                    limit: 100,
                     include_archived: includeArchived,
                     search: searchQuery || undefined,
                 });

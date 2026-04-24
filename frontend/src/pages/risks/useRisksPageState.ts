@@ -6,12 +6,13 @@ import { DEFAULT_LIST_PAGE_SIZE } from '@/constants/list';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { reportApi } from '@/services/reportApi';
 import { riskApi } from '@/services/riskApi';
+import type { CollectionGroup } from '@/types/collection';
 import type { RiskStatus, RiskSummary } from '@/types/risk';
 
 import {
     buildRiskExportFilters,
     buildRiskListParams,
-    fetchAllRisksForGroupedView,
+    getRiskGroupBy,
     normalizeRiskSummaries,
     type RisksPageInitialState,
 } from './risksPagePresentation';
@@ -22,6 +23,9 @@ interface UseRisksPageStateOptions {
 
 export function useRisksPageState({ initialState }: UseRisksPageStateOptions) {
     const [items, setItems] = useState<RiskSummary[]>([]);
+    const [groups, setGroups] = useState<CollectionGroup[]>([]);
+    const [selectedGroupValue, setSelectedGroupValue] = useState<string | null>(null);
+    const [selectedGroupLabel, setSelectedGroupLabel] = useState<string | null>(null);
     const [totalCount, setTotalCount] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
     const [errorKey, setErrorKey] = useState<string | null>(null);
@@ -45,13 +49,14 @@ export function useRisksPageState({ initialState }: UseRisksPageStateOptions) {
 
     const limit = DEFAULT_LIST_PAGE_SIZE;
     const debouncedSearch = useDebouncedValue(search, 300);
+    const groupBy = getRiskGroupBy(viewMode);
 
     const fetchRisks = useCallback(async () => {
         const requestId = ++latestRequestIdRef.current;
         try {
             setIsLoading(true);
 
-            if (viewMode === 'all') {
+            if (!groupBy) {
                 const response = await riskApi.getRisks(
                     buildRiskListParams({
                         currentPage,
@@ -70,22 +75,52 @@ export function useRisksPageState({ initialState }: UseRisksPageStateOptions) {
                     return;
                 }
                 setItems(normalizeRiskSummaries(response.items));
+                setGroups([]);
                 setTotalCount(response.total);
-            } else {
-                const response = await fetchAllRisksForGroupedView({
-                    criticalFilter,
-                    hasBreachFilter,
-                    priorityFilter,
-                    search: debouncedSearch,
-                    sortDirection,
-                    sortField,
-                    statusFilter,
-                    typeFilter,
-                });
+            } else if (selectedGroupValue) {
+                const response = await riskApi.getRisks(
+                    buildRiskListParams({
+                        currentPage,
+                        criticalFilter,
+                        hasBreachFilter,
+                        limit,
+                        priorityFilter,
+                        search: debouncedSearch,
+                        sortDirection,
+                        sortField,
+                        statusFilter,
+                        typeFilter,
+                        groupBy,
+                        groupValue: selectedGroupValue,
+                    })
+                );
                 if (requestId !== latestRequestIdRef.current) {
                     return;
                 }
-                setItems(response.items);
+                setItems(normalizeRiskSummaries(response.items));
+                setGroups(response.groups ?? []);
+                setTotalCount(response.total);
+            } else {
+                const response = await riskApi.getRisks(
+                    buildRiskListParams({
+                        currentPage: 1,
+                        criticalFilter,
+                        hasBreachFilter,
+                        limit,
+                        priorityFilter,
+                        search: debouncedSearch,
+                        sortDirection,
+                        sortField,
+                        statusFilter,
+                        typeFilter,
+                        groupBy,
+                    })
+                );
+                if (requestId !== latestRequestIdRef.current) {
+                    return;
+                }
+                setItems([]);
+                setGroups(response.groups ?? []);
                 setTotalCount(response.total);
             }
 
@@ -105,14 +140,15 @@ export function useRisksPageState({ initialState }: UseRisksPageStateOptions) {
         currentPage,
         criticalFilter,
         debouncedSearch,
+        groupBy,
         hasBreachFilter,
         limit,
         priorityFilter,
+        selectedGroupValue,
         sortDirection,
         sortField,
         statusFilter,
         typeFilter,
-        viewMode,
     ]);
 
     useEffect(() => {
@@ -159,41 +195,69 @@ export function useRisksPageState({ initialState }: UseRisksPageStateOptions) {
     const updateSearch = useCallback((value: string) => {
         setSearch(value);
         setCurrentPage(1);
+        setSelectedGroupValue(null);
+        setSelectedGroupLabel(null);
     }, []);
 
     const updateStatusFilter = useCallback((value: RiskStatus | '') => {
         setStatusFilter(value);
         setCurrentPage(1);
+        setSelectedGroupValue(null);
+        setSelectedGroupLabel(null);
     }, []);
 
     const updateTypeFilter = useCallback((value: string) => {
         setTypeFilter(value);
         setCurrentPage(1);
+        setSelectedGroupValue(null);
+        setSelectedGroupLabel(null);
     }, []);
 
     const togglePriorityFilter = useCallback(() => {
         setPriorityFilter((current) => (current === true ? undefined : true));
         setCurrentPage(1);
+        setSelectedGroupValue(null);
+        setSelectedGroupLabel(null);
     }, []);
 
     const updateCriticalFilter = useCallback((value: boolean) => {
         setCriticalFilter(value);
         setCurrentPage(1);
+        setSelectedGroupValue(null);
+        setSelectedGroupLabel(null);
     }, []);
 
     const updateHasBreachFilter = useCallback((value: boolean | undefined) => {
         setHasBreachFilter(value);
         setCurrentPage(1);
+        setSelectedGroupValue(null);
+        setSelectedGroupLabel(null);
     }, []);
 
     const updateSort = useCallback((nextSortField: string | null, nextSortDirection: SortDirection) => {
         setSortField(nextSortField);
         setSortDirection(nextSortDirection);
         setCurrentPage(1);
+        setSelectedGroupValue(null);
+        setSelectedGroupLabel(null);
     }, []);
 
     const updateViewMode = useCallback((value: ViewMode) => {
         setViewMode(value);
+        setCurrentPage(1);
+        setSelectedGroupValue(null);
+        setSelectedGroupLabel(null);
+    }, []);
+
+    const selectGroup = useCallback((groupValue: string, groupLabel: string) => {
+        setSelectedGroupValue(groupValue);
+        setSelectedGroupLabel(groupLabel);
+        setCurrentPage(1);
+    }, []);
+
+    const clearSelectedGroup = useCallback(() => {
+        setSelectedGroupValue(null);
+        setSelectedGroupLabel(null);
         setCurrentPage(1);
     }, []);
 
@@ -202,6 +266,7 @@ export function useRisksPageState({ initialState }: UseRisksPageStateOptions) {
         currentPage,
         errorKey,
         fetchRisks,
+        groups,
         handleExport,
         hasBreachFilter,
         hasLoadedOnce: hasLoadedRisksRef.current,
@@ -215,6 +280,8 @@ export function useRisksPageState({ initialState }: UseRisksPageStateOptions) {
         priorityFilter,
         restoreRisk,
         search,
+        selectedGroupLabel,
+        selectedGroupValue,
         setCurrentPage,
         sortDirection,
         sortField,
@@ -230,6 +297,8 @@ export function useRisksPageState({ initialState }: UseRisksPageStateOptions) {
         updateTypeFilter,
         updateViewMode,
         viewMode,
+        selectGroup,
+        clearSelectedGroup,
         togglePriorityFilter,
     };
 }

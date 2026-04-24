@@ -1,4 +1,5 @@
 import { apiClient } from './apiClient';
+import { buildCollectionParams, normalizeCollectionResponse } from './collectionApi';
 import {
     approvalCreatedResponseSchema,
     dueSoonKRIArraySchema,
@@ -26,18 +27,58 @@ import type {
     DueSoonKRI,
 } from '../types/kri';
 import type { ApprovalCreatedResponse } from '../types/approval';
+
+const DEFAULT_KRI_LEGACY_PAGE_SIZE = 20;
+
+function legacyPageToOffset(
+    params: { offset?: number; limit?: number; page?: number; size?: number } | undefined,
+    defaultLimit: number,
+): number | undefined {
+    if (typeof params?.offset === 'number') {
+        return params.offset;
+    }
+    if (typeof params?.page !== 'number') {
+        return undefined;
+    }
+    return (params.page - 1) * (params.limit ?? params.size ?? defaultLimit);
+}
+
 export const kriApi = {
     async getKRIs(params?: {
         risk_id?: number;
         breach_only?: boolean;
+        offset?: number;
+        limit?: number;
         page?: number;
         size?: number;
         include_archived?: boolean;
+        is_archived?: boolean;
         search?: string;
         monitoring_status?: KRIMonitoringStatus;
         timeliness_status?: KRITimelinessStatus;
+        group_by?: string;
+        group_value?: string;
     }): Promise<KRIListResponse> {
-        return apiClient.get('/kris', { params, schema: kriListResponseSchema });
+        const offset = legacyPageToOffset(params, DEFAULT_KRI_LEGACY_PAGE_SIZE);
+        const response = await apiClient.get('/kris', {
+            params: buildCollectionParams({
+                offset,
+                limit: params?.limit ?? params?.size,
+                filters: {
+                    risk_id: params?.risk_id,
+                    breach_only: params?.breach_only,
+                    include_archived: params?.include_archived,
+                    is_archived: params?.is_archived,
+                    search: params?.search,
+                    monitoring_status: params?.monitoring_status,
+                    timeliness_status: params?.timeliness_status,
+                },
+                groupBy: params?.group_by,
+                groupValue: params?.group_value,
+            }),
+            schema: kriListResponseSchema,
+        });
+        return normalizeCollectionResponse(response);
     },
 
     async getBreaches(params?: { department_id?: number; include_archived?: boolean }): Promise<KeyRiskIndicator[]> {
@@ -74,9 +115,19 @@ export const kriApi = {
 
     async getHistory(
         kriId: number,
-        params?: { from_date?: string; to_date?: string; page?: number; size?: number; include_archived?: boolean }
+        params?: { from_date?: string; to_date?: string; offset?: number; limit?: number; page?: number; size?: number; include_archived?: boolean }
     ): Promise<KRIHistoryListResponse> {
-        return apiClient.get(`/kris/${kriId}/history`, { params, schema: kriHistoryListResponseSchema });
+        const offset = legacyPageToOffset(params, DEFAULT_KRI_LEGACY_PAGE_SIZE);
+        return apiClient.get(`/kris/${kriId}/history`, {
+            params: {
+                from_date: params?.from_date,
+                to_date: params?.to_date,
+                include_archived: params?.include_archived,
+                offset,
+                limit: params?.limit ?? params?.size,
+            },
+            schema: kriHistoryListResponseSchema,
+        });
     },
 
     async requestHistoryEdit(

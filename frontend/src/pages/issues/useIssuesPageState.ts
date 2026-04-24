@@ -7,6 +7,7 @@ import { issuesApi } from '@/services/issuesApi';
 import { reportApi } from '@/services/reportApi';
 import type { ExportDialogSubmitPayload } from '@/components/reports/ExportDialog';
 import type { SortDirection, ViewMode } from '@/components/tables';
+import type { CollectionGroup } from '@/types/collection';
 import type {
     IssueListFilters,
     IssueSeverityFilter,
@@ -17,7 +18,7 @@ import type {
 import {
     buildIssueExportFilters,
     buildIssueListFilters,
-    fetchAllIssuesForGroupedView,
+    getIssueGroupBy,
     type IssuesPageInitialState,
 } from './issuesPagePresentation';
 
@@ -28,6 +29,9 @@ interface UseIssuesPageStateOptions {
 
 export function useIssuesPageState({ canRead, initialState }: UseIssuesPageStateOptions) {
     const [items, setItems] = useState<IssueSummary[]>([]);
+    const [groups, setGroups] = useState<CollectionGroup[]>([]);
+    const [selectedGroupValue, setSelectedGroupValue] = useState<string | null>(null);
+    const [selectedGroupLabel, setSelectedGroupLabel] = useState<string | null>(null);
     const [totalCount, setTotalCount] = useState(0);
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState<IssueStatus | ''>(initialState.statusFilter);
@@ -55,6 +59,7 @@ export function useIssuesPageState({ canRead, initialState }: UseIssuesPageState
 
     const limit = DEFAULT_LIST_PAGE_SIZE;
     const debouncedSearch = useDebouncedValue(search, 300);
+    const groupBy = getIssueGroupBy(viewMode);
 
     const listFilters = useMemo(
         () =>
@@ -94,23 +99,48 @@ export function useIssuesPageState({ canRead, initialState }: UseIssuesPageState
         try {
             setIsLoading(true);
 
-            const response =
-                viewMode === 'all'
-                    ? await issuesApi.list(listFilters)
-                    : await fetchAllIssuesForGroupedView({
+            let response;
+            if (!groupBy) {
+                response = await issuesApi.list(listFilters);
+            } else if (selectedGroupValue) {
+                response = await issuesApi.list(
+                    buildIssueListFilters({
+                        currentPage,
                         debouncedSearch,
                         excludeActiveExceptions,
                         includeClosed,
+                        limit,
                         overdueOnly,
                         severityFilter,
                         sortDirection,
                         sortField,
                         statusFilter,
-                    });
+                        groupBy,
+                        groupValue: selectedGroupValue,
+                    })
+                );
+            } else {
+                response = await issuesApi.list(
+                    buildIssueListFilters({
+                        currentPage: 1,
+                        debouncedSearch,
+                        excludeActiveExceptions,
+                        includeClosed,
+                        limit,
+                        overdueOnly,
+                        severityFilter,
+                        sortDirection,
+                        sortField,
+                        statusFilter,
+                        groupBy,
+                    })
+                );
+            }
             if (requestId !== latestRequestIdRef.current) {
                 return;
             }
             setItems(response.items);
+            setGroups(response.groups ?? []);
             setTotalCount(response.total);
             setErrorKey(null);
             hasLoadedIssuesRef.current = true;
@@ -120,6 +150,7 @@ export function useIssuesPageState({ canRead, initialState }: UseIssuesPageState
             }
             setErrorKey(apiClient.toUiMessageKey(loadError));
             setItems([]);
+            setGroups([]);
             setTotalCount(0);
         } finally {
             if (requestId === latestRequestIdRef.current) {
@@ -130,14 +161,16 @@ export function useIssuesPageState({ canRead, initialState }: UseIssuesPageState
         canRead,
         debouncedSearch,
         excludeActiveExceptions,
+        groupBy,
         includeClosed,
         listFilters,
+        limit,
         overdueOnly,
         severityFilter,
+        selectedGroupValue,
         sortDirection,
         sortField,
         statusFilter,
-        viewMode,
     ]);
 
     useEffect(() => {
@@ -171,6 +204,8 @@ export function useIssuesPageState({ canRead, initialState }: UseIssuesPageState
     const updateSearch = useCallback((value: string) => {
         setSearch(value);
         setCurrentPage(1);
+        setSelectedGroupValue(null);
+        setSelectedGroupLabel(null);
     }, []);
 
     const updateStatusFilter = useCallback((value: IssueStatus | '') => {
@@ -179,21 +214,29 @@ export function useIssuesPageState({ canRead, initialState }: UseIssuesPageState
             setIncludeClosed(true);
         }
         setCurrentPage(1);
+        setSelectedGroupValue(null);
+        setSelectedGroupLabel(null);
     }, []);
 
     const updateSeverityFilter = useCallback((value: IssueSeverityFilter | '') => {
         setSeverityFilter(value);
         setCurrentPage(1);
+        setSelectedGroupValue(null);
+        setSelectedGroupLabel(null);
     }, []);
 
     const updateOverdueOnly = useCallback((value: boolean) => {
         setOverdueOnly(value);
         setCurrentPage(1);
+        setSelectedGroupValue(null);
+        setSelectedGroupLabel(null);
     }, []);
 
     const updateExcludeActiveExceptions = useCallback((value: boolean) => {
         setExcludeActiveExceptions(value);
         setCurrentPage(1);
+        setSelectedGroupValue(null);
+        setSelectedGroupLabel(null);
     }, []);
 
     const updateIncludeClosed = useCallback(
@@ -203,6 +246,8 @@ export function useIssuesPageState({ canRead, initialState }: UseIssuesPageState
                 setStatusFilter('');
             }
             setCurrentPage(1);
+            setSelectedGroupValue(null);
+            setSelectedGroupLabel(null);
         },
         [statusFilter]
     );
@@ -212,12 +257,28 @@ export function useIssuesPageState({ canRead, initialState }: UseIssuesPageState
             setSortField(nextSortField);
             setSortDirection(nextSortDirection);
             setCurrentPage(1);
+            setSelectedGroupValue(null);
+            setSelectedGroupLabel(null);
         },
         []
     );
 
     const updateViewMode = useCallback((value: ViewMode) => {
         setViewMode(value);
+        setCurrentPage(1);
+        setSelectedGroupValue(null);
+        setSelectedGroupLabel(null);
+    }, []);
+
+    const selectGroup = useCallback((groupValue: string, groupLabel: string) => {
+        setSelectedGroupValue(groupValue);
+        setSelectedGroupLabel(groupLabel);
+        setCurrentPage(1);
+    }, []);
+
+    const clearSelectedGroup = useCallback(() => {
+        setSelectedGroupValue(null);
+        setSelectedGroupLabel(null);
         setCurrentPage(1);
     }, []);
 
@@ -226,6 +287,7 @@ export function useIssuesPageState({ canRead, initialState }: UseIssuesPageState
         errorKey,
         excludeActiveExceptions,
         fetchIssues,
+        groups,
         handleExport,
         hasLoadedOnce: hasLoadedIssuesRef.current,
         includeClosed,
@@ -238,6 +300,8 @@ export function useIssuesPageState({ canRead, initialState }: UseIssuesPageState
         closeExportDialog: () => setIsExportDialogOpen(false),
         overdueOnly,
         search,
+        selectedGroupLabel,
+        selectedGroupValue,
         setCurrentPage,
         severityFilter,
         sortDirection,
@@ -254,5 +318,7 @@ export function useIssuesPageState({ canRead, initialState }: UseIssuesPageState
         updateStatusFilter,
         updateViewMode,
         viewMode,
+        selectGroup,
+        clearSelectedGroup,
     };
 }

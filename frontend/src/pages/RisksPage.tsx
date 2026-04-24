@@ -19,6 +19,7 @@ export function RisksPage() {
         currentPage,
         errorKey,
         fetchRisks,
+        groups,
         handleExport,
         hasBreachFilter,
         hasLoadedOnce,
@@ -32,6 +33,8 @@ export function RisksPage() {
         priorityFilter,
         restoreRisk,
         search,
+        selectedGroupLabel,
+        selectedGroupValue,
         setCurrentPage,
         sortDirection,
         sortField,
@@ -47,6 +50,8 @@ export function RisksPage() {
         updateTypeFilter,
         updateViewMode,
         viewMode,
+        selectGroup,
+        clearSelectedGroup,
         togglePriorityFilter,
     } = useRisksPageState({
         initialState,
@@ -103,10 +108,15 @@ export function RisksPage() {
                 isLoading={isLoading}
                 items={items}
                 itemsPerPage={limit}
+                groups={groups}
+                selectedGroupLabel={selectedGroupLabel}
+                selectedGroupValue={selectedGroupValue}
+                onBackFromGroup={clearSelectedGroup}
                 onPageChange={setCurrentPage}
                 onRestoreRisk={restoreRisk}
                 onRetry={fetchRisks}
                 onRowClick={(risk) => navigate(`/risks/${risk.id}`)}
+                onSelectGroup={selectGroup}
                 onSortChange={updateSort}
                 sortDirection={sortDirection}
                 sortField={sortField}

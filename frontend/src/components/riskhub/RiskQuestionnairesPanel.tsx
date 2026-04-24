@@ -61,7 +61,7 @@ export function RiskQuestionnairesPanel() {
         setResult(null);
         try {
             const resp = await riskApi.getRisks({
-                skip: 0,
+                offset: 0,
                 limit: 50,
                 department_id: filters.department_id,
                 process: filters.process,

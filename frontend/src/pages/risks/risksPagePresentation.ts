@@ -1,16 +1,14 @@
 import type { SortDirection, ViewMode } from '@/components/tables';
-import { DEFAULT_LIST_PAGE_SIZE, GROUPED_VIEW_FETCH_PAGE_SIZE } from '@/constants/list';
-import { riskApi } from '@/services/riskApi';
+import { DEFAULT_LIST_PAGE_SIZE } from '@/constants/list';
+import type { CollectionGroup } from '@/types/collection';
 import type { RiskStatus, RiskSummary } from '@/types/risk';
 
 export const CRITICAL_RISK_MIN_NET_SCORE = 15;
-export const UNLINKED_VENDOR_LABEL = 'Unlinked Vendor';
-
-export interface RiskGroupedRow {
-    groupValue: string;
-    risk: RiskSummary;
-    rowId: string;
-}
+export const RISK_GROUP_UNLINKED_VENDOR = '__unlinked_vendor__';
+export const RISK_GROUP_UNCATEGORIZED = '__uncategorized__';
+export const RISK_GROUP_UNKNOWN_DEPARTMENT = '__unknown_department__';
+export const RISK_GROUP_NO_PROCESS = '__no_process__';
+export const RISK_GROUP_UNKNOWN_RISK_TYPE = '__unknown_risk_type__';
 
 export interface RisksPageInitialState {
     criticalFilter: boolean;
@@ -28,6 +26,8 @@ interface BuildRiskListParamsOptions {
     sortField: string | null;
     statusFilter: RiskStatus | '';
     typeFilter: string;
+    groupBy?: string | null;
+    groupValue?: string | null;
 }
 
 interface BuildRiskExportFiltersOptions {
@@ -69,9 +69,11 @@ export function buildRiskListParams({
     sortField,
     statusFilter,
     typeFilter,
+    groupBy,
+    groupValue,
 }: BuildRiskListParamsOptions) {
     return {
-        skip: (currentPage - 1) * limit,
+        offset: (currentPage - 1) * limit,
         limit,
         search: search.trim() || undefined,
         status: statusFilter || undefined,
@@ -82,50 +84,9 @@ export function buildRiskListParams({
         sort_by: sortField || undefined,
         sort_order: sortDirection || undefined,
         include_archived: statusFilter === 'archived',
+        group_by: groupBy || undefined,
+        group_value: groupValue || undefined,
     };
-}
-
-export async function fetchAllRisksForGroupedView({
-    criticalFilter,
-    hasBreachFilter,
-    priorityFilter,
-    search,
-    sortDirection,
-    sortField,
-    statusFilter,
-    typeFilter,
-}: Omit<BuildRiskListParamsOptions, 'currentPage' | 'limit'>): Promise<{
-    items: RiskSummary[];
-    total: number;
-}> {
-    const limit = GROUPED_VIEW_FETCH_PAGE_SIZE;
-    const allItems: RiskSummary[] = [];
-    let skip = 0;
-    let total: number;
-
-    do {
-        const response = await riskApi.getRisks({
-            ...buildRiskListParams({
-                currentPage: 1,
-                limit,
-                criticalFilter,
-                hasBreachFilter,
-                priorityFilter,
-                search,
-                sortDirection,
-                sortField,
-                statusFilter,
-                typeFilter,
-            }),
-            skip,
-            limit,
-        });
-        total = response.total;
-        allItems.push(...normalizeRiskSummaries(response.items));
-        skip += limit;
-    } while (skip < total);
-
-    return { items: allItems, total };
 }
 
 export function buildRiskExportFilters({
@@ -142,50 +103,48 @@ export function buildRiskExportFilters({
     };
 }
 
-export function getRiskGroupByField(viewMode: ViewMode): keyof RiskSummary | null {
+export function getRiskGroupBy(viewMode: ViewMode): string | null {
     switch (viewMode) {
         case 'all':
+        case 'flag':
+        case 'risk':
+        case 'type':
+            return null;
         case 'category':
             return 'category';
         case 'department':
-            return 'department_name';
+            return 'department';
         case 'process':
             return 'process';
         case 'risk_type':
             return 'risk_type';
-        case 'flag':
-        case 'risk':
-        case 'type':
         case 'vendor':
-            return null;
+            return 'vendor';
     }
 }
 
-export function buildRiskGroupedRows(
-    items: RiskSummary[],
-    viewMode: ViewMode,
-    labels: { unlinkedVendor: string }
-): RiskGroupedRow[] {
-    if (viewMode !== 'vendor') {
-        return [];
+export function formatRiskGroupLabel(
+    group: CollectionGroup,
+    labels: {
+        unlinkedVendor: string;
+        uncategorized: string;
+        unknownDepartment: string;
+        noProcess: string;
+        unknownRiskType: string;
+    },
+): string {
+    switch (group.value) {
+        case RISK_GROUP_UNLINKED_VENDOR:
+            return labels.unlinkedVendor;
+        case RISK_GROUP_UNCATEGORIZED:
+            return labels.uncategorized;
+        case RISK_GROUP_UNKNOWN_DEPARTMENT:
+            return labels.unknownDepartment;
+        case RISK_GROUP_NO_PROCESS:
+            return labels.noProcess;
+        case RISK_GROUP_UNKNOWN_RISK_TYPE:
+            return labels.unknownRiskType;
+        default:
+            return group.label;
     }
-
-    return items.flatMap((risk) => {
-        const vendors = risk.linked_vendors ?? [];
-        if (vendors.length === 0) {
-            return [
-                {
-                    groupValue: labels.unlinkedVendor,
-                    risk,
-                    rowId: `${risk.id}:unlinked-vendor`,
-                },
-            ];
-        }
-
-        return vendors.map((vendor) => ({
-            groupValue: vendor.name,
-            risk,
-            rowId: `${risk.id}:${vendor.id}`,
-        }));
-    });
 }

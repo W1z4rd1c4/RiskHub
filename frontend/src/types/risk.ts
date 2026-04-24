@@ -2,6 +2,7 @@
 // Now supports arbitrary types configured in Risk Hub (not just S/O)
 
 import type { ControlMonitoringFields } from './control';
+import type { CollectionListResponse } from './collection';
 import type { KeyRiskIndicator } from './kri';
 import type { LinkedVendorSummary } from './vendorLink';
 
@@ -139,9 +140,4 @@ export interface RiskControlLink {
     };
 }
 
-export interface RiskListResponse {
-    items: RiskSummary[];
-    total: number;
-    skip: number;
-    limit: number;
-}
+export type RiskListResponse = CollectionListResponse<RiskSummary>;

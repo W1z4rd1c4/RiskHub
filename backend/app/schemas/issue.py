@@ -5,7 +5,9 @@ from __future__ import annotations
 from datetime import datetime
 from enum import Enum
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, computed_field, model_validator
+
+from app.schemas.collection import CollectionGroupRead
 
 
 class IssueSeverityEnum(str, Enum):
@@ -205,8 +207,14 @@ class IssueUpdate(BaseModel):
 class IssueListResponse(BaseModel):
     items: list[IssueSummary]
     total: int
-    skip: int
+    offset: int
     limit: int
+    groups: list[CollectionGroupRead] | None = None
+
+    @computed_field
+    @property
+    def skip(self) -> int:
+        return self.offset
 
 
 class IssueAssignRequest(BaseModel):

@@ -1,3 +1,2 @@
 export const DEFAULT_LIST_PAGE_SIZE = 10;
-export const GROUPED_VIEW_FETCH_PAGE_SIZE = 100;
 export const LIST_SEARCH_DEBOUNCE_MS = 300;

@@ -1,4 +1,5 @@
 import { apiClient } from './apiClient';
+import { buildCollectionParams, normalizeCollectionResponse } from './collectionApi';
 import { vendorListResponseSchema, vendorSchema, voidSchema } from '@/services/api/schemas';
 import type { Vendor, VendorCreate, VendorListParams, VendorListResponse, VendorUpdate } from '@/types/vendor';
 
@@ -6,10 +7,31 @@ type VendorQueryParams = Record<string, string | number | boolean | null | undef
 
 export const vendorApi = {
     async getVendors(params: VendorListParams): Promise<VendorListResponse> {
-        return apiClient.get('/vendors', {
-            params: params as VendorQueryParams,
+        const response = await apiClient.get('/vendors', {
+            params: buildCollectionParams({
+                offset: params.offset,
+                limit: params.limit,
+                filters: {
+                    search: params.search,
+                    status: params.status,
+                    include_archived: params.include_archived,
+                    vendor_type: params.vendor_type,
+                    dora_relevant: params.dora_relevant,
+                    supports_important_core_insurance_function: params.supports_important_core_insurance_function,
+                    is_significant_vendor: params.is_significant_vendor,
+                    outsourcing_owner_user_id: params.outsourcing_owner_user_id,
+                    department_id: params.department_id,
+                    process: params.process,
+                    subprocess: params.subprocess,
+                    risk_score_1_5: params.risk_score_1_5,
+                },
+                sort: params.sort_by ? { field: params.sort_by, direction: params.sort_order ?? 'asc' } : null,
+                groupBy: params.group_by,
+                groupValue: params.group_value,
+            }),
             schema: vendorListResponseSchema,
         });
+        return normalizeCollectionResponse(response);
     },
 
     async getVendor(id: number): Promise<Vendor> {

@@ -1,4 +1,5 @@
 import { apiClient } from './apiClient';
+import { buildCollectionParams, normalizeCollectionResponse } from './collectionApi';
 import {
     issueDepartmentLookupArraySchema,
     issueExceptionSchema,
@@ -46,10 +47,31 @@ export const issuesApi = {
     },
 
     async list(filters: IssueListFilters = {}): Promise<IssueListResponse> {
-        return apiClient.get('/issues', {
-            params: filters as IssueQueryParams,
+        const response = await apiClient.get('/issues', {
+            params: buildCollectionParams({
+                offset: filters.offset,
+                limit: filters.limit,
+                filters: {
+                    status: filters.status,
+                    severity: filters.severity,
+                    severity_group: filters.severity_group,
+                    owner_user_id: filters.owner_user_id,
+                    department_id: filters.department_id,
+                    overdue: filters.overdue,
+                    exclude_active_exceptions: filters.exclude_active_exceptions,
+                    linked_risk_id: filters.linked_risk_id,
+                    linked_control_id: filters.linked_control_id,
+                    linked_vendor_id: filters.linked_vendor_id,
+                    search: filters.search,
+                    include_closed: filters.include_closed,
+                },
+                sort: filters.sort_by ? { field: filters.sort_by, direction: filters.sort_order ?? 'asc' } : null,
+                groupBy: filters.group_by,
+                groupValue: filters.group_value,
+            }),
             schema: issueListResponseSchema,
         });
+        return normalizeCollectionResponse(response);
     },
 
     async get(issueId: number, options?: RequestOptions): Promise<Issue> {

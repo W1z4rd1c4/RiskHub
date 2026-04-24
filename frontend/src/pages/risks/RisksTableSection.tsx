@@ -1,9 +1,8 @@
 import { useMemo } from 'react';
-import { AlertCircle, ChevronRight, Star } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 
 import {
-    CategoryDrillDown,
-    MiniHeatmap,
+    CollectionGroupDrillDown,
     Pagination,
     SortableTable,
     type SortDirection,
@@ -13,27 +12,33 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTranslation } from '@/i18n/hooks';
 import { usePendingApprovalIds } from '@/hooks/usePendingApprovalIds';
 import { useRiskThresholds, useRiskTypes } from '@/hooks/useRiskHubConfig';
-import { buildRiskColumns, getRiskStatusColor } from '@/pages/risks/riskColumns';
+import { buildRiskColumns } from '@/pages/risks/riskColumns';
+import type { CollectionGroup } from '@/types/collection';
 import type { RiskSummary } from '@/types/risk';
 
-import { buildRiskGroupedRows, getRiskGroupByField, type RiskGroupedRow } from './risksPagePresentation';
+import { formatRiskGroupLabel } from './risksPagePresentation';
 
 interface RisksTableSectionProps {
     currentPage: number;
     errorKey: string | null;
     hasLoadedOnce: boolean;
+    groups: CollectionGroup[];
     isLoading: boolean;
     items: RiskSummary[];
     itemsPerPage: number;
+    onBackFromGroup: () => void;
     onPageChange: (page: number) => void;
     onRestoreRisk: (riskId: number) => void | Promise<void>;
     onRetry: () => void;
     onRowClick: (risk: RiskSummary) => void;
+    onSelectGroup: (groupValue: string, groupLabel: string) => void;
     onSortChange: (sortField: string | null, sortDirection: SortDirection) => void;
     sortDirection: SortDirection;
     sortField: string | null;
     totalCount: number;
     totalPages: number;
+    selectedGroupLabel: string | null;
+    selectedGroupValue: string | null;
     viewMode: ViewMode;
 }
 
@@ -41,18 +46,23 @@ export function RisksTableSection({
     currentPage,
     errorKey,
     hasLoadedOnce,
+    groups,
     isLoading,
     items,
     itemsPerPage,
+    onBackFromGroup,
     onPageChange,
     onRestoreRisk,
     onRetry,
     onRowClick,
+    onSelectGroup,
     onSortChange,
     sortDirection,
     sortField,
     totalCount,
     totalPages,
+    selectedGroupLabel,
+    selectedGroupValue,
     viewMode,
 }: RisksTableSectionProps) {
     const { t } = useTranslation('risks');
@@ -86,10 +96,6 @@ export function RisksTableSection({
             pendingApprovalIds,
             t,
         ]
-    );
-    const groupedRows = useMemo(
-        () => buildRiskGroupedRows(items, viewMode, { unlinkedVendor: t('grouping.unlinked_vendor') }),
-        [items, t, viewMode]
     );
 
     if (errorKey) {
@@ -182,83 +188,29 @@ export function RisksTableSection({
         );
     }
 
-    if (viewMode === 'vendor') {
-        return (
-            <CategoryDrillDown
-                data={groupedRows}
-                groupBy={'groupValue'}
-                keyExtractor={(row) => row.rowId}
-                getStats={(groupItems) => ({
-                    total: groupItems.length,
-                    activeCount: groupItems.filter((row) => row.risk.status === 'active').length,
-                    highRiskCount: groupItems.filter((row) => row.risk.net_score >= 16).length,
-                })}
-                renderTable={(groupItems: RiskGroupedRow[]) => (
-                    <SortableTable
-                        data={groupItems.map((row) => row.risk)}
-                        columns={columns}
-                        keyExtractor={(risk) => risk.id}
-                        onRowClick={onRowClick}
-                        emptyMessage={t('empty_state.no_risks')}
-                    />
-                )}
-                renderGroupExtra={(groupItems: RiskGroupedRow[]) => <MiniHeatmap risks={groupItems.map((row) => row.risk)} />}
-                renderItem={(row) => (
-                    <div
-                        onClick={() => onRowClick(row.risk)}
-                        className="px-6 py-4 hover:bg-white/5 cursor-pointer flex items-center justify-between"
-                    >
-                        <div className="flex items-center gap-4">
-                            <div className="flex flex-col gap-0.5">
-                                <div className="flex items-center gap-2">
-                                    <span className="text-sm font-bold text-white">{row.risk.name}</span>
-                                    {row.risk.is_priority && (
-                                        <Star className="h-3.5 w-3.5 text-amber-400 fill-amber-400" />
-                                    )}
-                                </div>
-                                <span className="text-[10px] text-slate-500">{row.risk.process}</span>
-                            </div>
-                            <span
-                                className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${getRiskStatusColor(
-                                    row.risk.status
-                                )}`}
-                            >
-                                {row.risk.status}
-                            </span>
-                        </div>
-                        <div className="flex items-center gap-4">
-                            <div
-                                className={`px-2.5 py-1 rounded-full text-[10px] font-black border ${getScoreColor(
-                                    row.risk.gross_score
-                                )}`}
-                            >
-                                G: {row.risk.gross_score}
-                            </div>
-                            <div
-                                className={`px-2.5 py-1 rounded-full text-[10px] font-black border ${getScoreColor(
-                                    row.risk.net_score
-                                )}`}
-                            >
-                                N: {row.risk.net_score}
-                            </div>
-                            <ChevronRight className="h-4 w-4 text-slate-500" />
-                        </div>
-                    </div>
-                )}
-            />
-        );
-    }
-
     return (
-        <CategoryDrillDown
-            data={items}
-            groupBy={getRiskGroupByField(viewMode) as keyof RiskSummary}
-            keyExtractor={(risk) => risk.id}
-            getStats={(groupItems) => ({
-                total: groupItems.length,
-                activeCount: groupItems.filter((risk) => risk.status === 'active').length,
-                highRiskCount: groupItems.filter((risk) => risk.net_score >= 16).length,
-            })}
+        <CollectionGroupDrillDown
+            groups={groups}
+            selectedGroupValue={selectedGroupValue}
+            selectedGroupLabel={selectedGroupLabel}
+            items={items}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalCount={totalCount}
+            itemsPerPage={itemsPerPage}
+            onPageChange={onPageChange}
+            onBack={onBackFromGroup}
+            onSelectGroup={onSelectGroup}
+            groupLabel={(group) =>
+                formatRiskGroupLabel(group, {
+                    unlinkedVendor: t('grouping.unlinked_vendor'),
+                    uncategorized: t('common:fallbacks.not_available'),
+                    unknownDepartment: t('common:fallbacks.unassigned'),
+                    noProcess: t('common:fallbacks.not_available'),
+                    unknownRiskType: t('common:fallbacks.unknown_type'),
+                })
+            }
+            emptyMessage={t('empty_state.no_risks')}
             renderTable={(groupItems) => (
                 <SortableTable
                     data={groupItems}
@@ -267,49 +219,6 @@ export function RisksTableSection({
                     onRowClick={onRowClick}
                     emptyMessage={t('empty_state.no_risks')}
                 />
-            )}
-            renderGroupExtra={(groupItems) => <MiniHeatmap risks={groupItems} />}
-            renderItem={(risk) => (
-                <div
-                    onClick={() => onRowClick(risk)}
-                    className="px-6 py-4 hover:bg-white/5 cursor-pointer flex items-center justify-between"
-                >
-                    <div className="flex items-center gap-4">
-                        <div className="flex flex-col gap-0.5">
-                            <div className="flex items-center gap-2">
-                                <span className="text-sm font-bold text-white">{risk.name}</span>
-                                {risk.is_priority && (
-                                    <Star className="h-3.5 w-3.5 text-amber-400 fill-amber-400" />
-                                )}
-                            </div>
-                            <span className="text-[10px] text-slate-500">{risk.process}</span>
-                        </div>
-                        <span
-                            className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${getRiskStatusColor(
-                                risk.status
-                            )}`}
-                        >
-                            {risk.status}
-                        </span>
-                    </div>
-                    <div className="flex items-center gap-4">
-                        <div
-                            className={`px-2.5 py-1 rounded-full text-[10px] font-black border ${getScoreColor(
-                                risk.gross_score
-                            )}`}
-                        >
-                            G: {risk.gross_score}
-                        </div>
-                        <div
-                            className={`px-2.5 py-1 rounded-full text-[10px] font-black border ${getScoreColor(
-                                risk.net_score
-                            )}`}
-                        >
-                            N: {risk.net_score}
-                        </div>
-                        <ChevronRight className="h-4 w-4 text-slate-500" />
-                    </div>
-                </div>
             )}
         />
     );

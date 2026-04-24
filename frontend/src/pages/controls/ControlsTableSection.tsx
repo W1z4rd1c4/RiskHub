@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { AlertCircle, Building2, Calendar, ChevronRight, Lock, Shield, User } from 'lucide-react';
 
 import {
-    CategoryDrillDown,
+    CollectionGroupDrillDown,
     Pagination,
     SortableTable,
     type Column,
@@ -12,27 +12,31 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTranslation } from '@/i18n/hooks';
 import { usePendingApprovalIds } from '@/hooks/usePendingApprovalIds';
 import { getControlMonitoringMeta } from '@/lib/monitoringStatus';
+import type { CollectionGroup } from '@/types/collection';
 import { ControlStatus, type ControlSummary } from '@/types/control';
 
 import {
-    buildControlGroupedRows,
-    getControlGroupByField,
+    formatControlGroupLabel,
     getControlRiskLevelColor,
     getControlStatusColor,
-    type ControlGroupedRow,
 } from './controlsPagePresentation';
 
 interface ControlsTableSectionProps {
     currentPage: number;
     errorKey: string | null;
+    groups: CollectionGroup[];
     hasLoadedOnce: boolean;
     isLoading: boolean;
     items: ControlSummary[];
     itemsPerPage: number;
+    onBackFromGroup: () => void;
     onPageChange: (page: number) => void;
     onRestoreControl: (controlId: number) => void | Promise<void>;
     onRetry: () => void;
     onRowClick: (control: ControlSummary) => void;
+    onSelectGroup: (groupValue: string, groupLabel: string) => void;
+    selectedGroupLabel: string | null;
+    selectedGroupValue: string | null;
     totalCount: number;
     totalPages: number;
     viewMode: ViewMode;
@@ -41,14 +45,19 @@ interface ControlsTableSectionProps {
 export function ControlsTableSection({
     currentPage,
     errorKey,
+    groups,
     hasLoadedOnce,
     isLoading,
     items,
     itemsPerPage,
+    onBackFromGroup,
     onPageChange,
     onRestoreControl,
     onRetry,
     onRowClick,
+    onSelectGroup,
+    selectedGroupLabel,
+    selectedGroupValue,
     totalCount,
     totalPages,
     viewMode,
@@ -170,11 +179,6 @@ export function ControlsTableSection({
         ],
         [hasPermission, onRestoreControl, pendingApprovalIds, t]
     );
-    const groupedRows = useMemo(
-        () => buildControlGroupedRows(items, viewMode, { unlinkedVendor: t('grouping.unlinked_vendor') }),
-        [items, t, viewMode]
-    );
-
     if (errorKey) {
         return (
             <div className="glass-card p-20 flex flex-col items-center justify-center text-center gap-4">
@@ -259,108 +263,77 @@ export function ControlsTableSection({
         );
     }
 
-    if (viewMode === 'vendor') {
-        return (
-            <CategoryDrillDown
-                data={groupedRows}
-                groupBy={'groupValue'}
-                keyExtractor={(row) => row.rowId}
-                getStats={(groupItems) => ({
-                    total: groupItems.length,
-                    activeCount: groupItems.filter((row) => row.control.status === ControlStatus.ACTIVE).length,
-                    highRiskCount: groupItems.filter((row) => row.control.risk_level >= 4).length,
-                })}
-                renderTable={(groupItems: ControlGroupedRow[]) => (
-                    <SortableTable
-                        data={groupItems.map((row) => row.control)}
-                        columns={columns}
-                        keyExtractor={(control) => control.id}
-                        onRowClick={onRowClick}
-                        emptyMessage={t('empty_state.no_controls')}
-                    />
-                )}
-                renderItem={(row) => (
-                    <div
-                        onClick={() => onRowClick(row.control)}
-                        className="px-6 py-4 hover:bg-white/5 cursor-pointer flex items-center justify-between"
-                    >
-                        <div className="flex items-center gap-4">
-                            <span className="text-sm font-bold text-white">{row.control.name}</span>
-                        </div>
-                        <div className="flex items-center gap-4">
-                            <div
-                                className={`px-2.5 py-1 rounded-full text-[10px] font-black border ${getControlRiskLevelColor(
-                                    row.control.risk_level
-                                )}`}
-                            >
-                                {row.control.risk_level} / 5
-                            </div>
-                            <ChevronRight className="h-4 w-4 text-slate-500" />
-                        </div>
-                    </div>
-                )}
-            />
-        );
-    }
-
     return (
-        <CategoryDrillDown
-            data={items}
-            groupBy={getControlGroupByField(viewMode) as keyof ControlSummary}
-            hideTotal={viewMode === 'risk'}
-            hideHighRisk={viewMode === 'risk'}
-            renderBody={(groupItems) => {
-                if (viewMode !== 'risk' || groupItems.length === 0) {
+        <CollectionGroupDrillDown
+            groups={groups}
+            selectedGroupValue={selectedGroupValue}
+            selectedGroupLabel={selectedGroupLabel}
+            items={items}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalCount={totalCount}
+            itemsPerPage={itemsPerPage}
+            onPageChange={onPageChange}
+            onBack={onBackFromGroup}
+            onSelectGroup={onSelectGroup}
+            hideActive={viewMode === 'risk'}
+            hideHighlighted={viewMode === 'risk'}
+            groupLabel={(group) =>
+                formatControlGroupLabel(group, {
+                    unlinkedVendor: t('grouping.unlinked_vendor'),
+                    uncategorized: t('form.labels.uncategorized'),
+                    unknownDepartment: t('common:fallbacks.unassigned'),
+                    noProcess: t('common:fallbacks.not_available'),
+                    unknownRiskType: t('common:fallbacks.unknown_type'),
+                    unknownRisk: t('common:fallbacks.unknown_risk'),
+                    controlForm: (value) => t(`form.${value}`, value),
+                })
+            }
+            renderGroupBody={(group) => {
+                if (viewMode !== 'risk') {
                     return null;
                 }
-
-                const info = groupItems[0];
                 return (
                     <div className="space-y-3 pb-2 border-b border-white/5">
                         <div className="grid grid-cols-2 gap-y-2">
                             <div
                                 className="flex items-center gap-2 text-[10px] text-slate-500 uppercase font-bold tracking-widest truncate"
                                 title={`${t('common:labels.type')}: ${
-                                    info.risk_type || t('common:fallbacks.not_available')
+                                    String(group.meta?.risk_type || '') || t('common:fallbacks.not_available')
                                 }`}
                             >
                                 <Shield className="h-3 w-3 text-accent shrink-0" />
                                 <span className="truncate">
-                                    {info.risk_type || t('common:fallbacks.unknown_type')}
+                                    {String(group.meta?.risk_type || '') || t('common:fallbacks.unknown_type')}
                                 </span>
                             </div>
                             <div
                                 className="flex items-center gap-2 text-[10px] text-slate-500 uppercase font-bold tracking-widest truncate"
                                 title={`${t('common:labels.department')}: ${
-                                    info.risk_department_name || t('common:fallbacks.not_available')
+                                    String(group.meta?.risk_department_name || '') || t('common:fallbacks.not_available')
                                 }`}
                             >
                                 <Building2 className="h-3 w-3 text-accent shrink-0" />
                                 <span className="truncate">
-                                    {info.risk_department_name || t('common:fallbacks.unassigned')}
+                                    {String(group.meta?.risk_department_name || '') || t('common:fallbacks.unassigned')}
                                 </span>
                             </div>
                             <div
                                 className="flex items-center gap-2 text-[10px] text-slate-500 uppercase font-bold tracking-widest truncate"
                                 title={`${t('common:labels.owner')}: ${
-                                    info.risk_owner_name || t('common:fallbacks.not_available')
+                                    String(group.meta?.risk_owner_name || '') || t('common:fallbacks.not_available')
                                 }`}
                             >
                                 <User className="h-3 w-3 text-accent shrink-0" />
                                 <span className="truncate">
-                                    {info.risk_owner_name || t('common:fallbacks.no_owner')}
+                                    {String(group.meta?.risk_owner_name || '') || t('common:fallbacks.no_owner')}
                                 </span>
                             </div>
                         </div>
                     </div>
                 );
             }}
-            keyExtractor={(control) => control.id}
-            getStats={(groupItems) => ({
-                total: groupItems.length,
-                activeCount: groupItems.filter((control) => control.status === ControlStatus.ACTIVE).length,
-                highRiskCount: groupItems.filter((control) => control.risk_level >= 4).length,
-            })}
+            emptyMessage={t('empty_state.no_controls')}
             renderTable={(groupItems) => (
                 <SortableTable
                     data={groupItems}
@@ -369,49 +342,6 @@ export function ControlsTableSection({
                     onRowClick={onRowClick}
                     emptyMessage={t('empty_state.no_controls')}
                 />
-            )}
-            renderItem={(control) => (
-                (() => {
-                    const monitoring = getControlMonitoringMeta(control.monitoring_status);
-                    const MonitoringIcon = monitoring.icon;
-                    return (
-                        <div
-                            onClick={() => onRowClick(control)}
-                            className="px-6 py-4 hover:bg-white/5 cursor-pointer flex items-center justify-between"
-                        >
-                            <div className="flex-1 min-w-0 mr-4">
-                                <div className="flex items-center gap-4">
-                                    <span className="text-sm font-bold text-white">{control.name}</span>
-                                    <span
-                                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${monitoring.badgeClassName}`}
-                                    >
-                                        <MonitoringIcon className="h-3 w-3" />
-                                        {t(monitoring.labelKey)}
-                                    </span>
-                                </div>
-                                {control.description && (
-                                    <p className="text-xs text-slate-500 mt-1 truncate max-w-lg">
-                                        {control.description}
-                                    </p>
-                                )}
-                            </div>
-                            <div className="flex items-center gap-4 shrink-0">
-                                <div className="flex items-center gap-2 text-xs text-slate-400 capitalize">
-                                    <Calendar className="h-3 w-3 text-accent" />
-                                    {control.frequency}
-                                </div>
-                                <div
-                                    className={`px-2.5 py-1 rounded-full text-[10px] font-black border ${getControlRiskLevelColor(
-                                        control.risk_level
-                                    )}`}
-                                >
-                                    {control.risk_level}/5
-                                </div>
-                                <ChevronRight className="h-4 w-4 text-slate-500" />
-                            </div>
-                        </div>
-                    );
-                })()
             )}
         />
     );

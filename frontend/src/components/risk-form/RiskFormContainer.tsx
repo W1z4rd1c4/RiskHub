@@ -157,15 +157,15 @@ export function RiskForm({
                 const fetchAllRisks = async () => {
                     const limit = 100;
                     const items: Risk[] = [];
-                    let skip = 0;
+                    let offset = 0;
 
                     for (;;) {
-                        const response = await riskApi.getRisks({ skip, limit });
+                        const response = await riskApi.getRisks({ offset, limit });
                         items.push(...response.items);
-                        if (skip + limit >= response.total) {
+                        if (offset + limit >= response.total) {
                             return items;
                         }
-                        skip += limit;
+                        offset += limit;
                     }
                 };
 

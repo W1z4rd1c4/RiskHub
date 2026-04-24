@@ -95,7 +95,7 @@ async function advanceToDetailsAndSelectVendor() {
 describe("KRIForm edit flow", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockGetRisks.mockResolvedValue({ items: [], total: 0, skip: 0, limit: 50 });
+    mockGetRisks.mockResolvedValue({ items: [], total: 0, offset: 0, limit: 50 });
     mockGetRisk.mockResolvedValue({
       id: 101,
       risk_id_code: "RISK-101",
@@ -122,7 +122,7 @@ describe("KRIForm edit flow", () => {
         { id: 21, name: "Vendor Twenty-One", status: "active" },
       ],
       total: 2,
-      skip: 0,
+      offset: 0,
       limit: 25,
     });
   });

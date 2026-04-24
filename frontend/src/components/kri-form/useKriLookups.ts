@@ -55,7 +55,7 @@ export function useKriLookups({
                 setIsLoadingGenericRisks(true);
                 setLookupErrorKey(null);
                 const response = await riskApi.getRisks({
-                    skip: 0,
+                    offset: 0,
                     limit: 50,
                     search: debouncedRiskSearch.trim() || undefined,
                     department_id: selectedDeptId ? parseInt(selectedDeptId, 10) : undefined,
@@ -101,7 +101,7 @@ export function useKriLookups({
             try {
                 setIsLoadingVendors(true);
                 const response = await vendorApi.getVendors({
-                    skip: 0,
+                    offset: 0,
                     limit: 25,
                     include_archived: true,
                     search: debouncedVendorSearch.trim() || undefined,

@@ -19,13 +19,13 @@ def vendor_list_response(
     *,
     vendors: list[Vendor],
     total: int,
-    skip: int,
+    offset: int,
     limit: int,
     linked_risks_by_vendor_id: dict[int, list[VendorLinkedRiskSummary]] | None = None,
 ) -> VendorListResponse:
     return VendorListResponse(
         items=[vendor_to_read(v, linked_risks=(linked_risks_by_vendor_id or {}).get(v.id, [])) for v in vendors],
         total=total,
-        skip=skip,
+        offset=offset,
         limit=limit,
     )

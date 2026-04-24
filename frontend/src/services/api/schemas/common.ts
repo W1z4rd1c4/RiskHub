@@ -61,6 +61,25 @@ export const idNameCodeSchema = passthroughObject({
     code: z.string(),
 });
 
+export const collectionGroupSchema = passthroughObject({
+    value: z.string(),
+    label: z.string(),
+    count: z.number(),
+    active_count: z.number().nullable().optional(),
+    highlighted_count: z.number().nullable().optional(),
+    meta: unknownRecordSchema.optional(),
+});
+
+export function collectionPaginationSchema<T extends z.ZodTypeAny>(itemSchema: T) {
+    return passthroughObject({
+        items: z.array(itemSchema),
+        total: z.number(),
+        offset: z.number(),
+        limit: z.number(),
+        groups: z.array(collectionGroupSchema).nullable().optional(),
+    });
+}
+
 export function offsetPaginationSchema<T extends z.ZodTypeAny>(itemSchema: T) {
     return passthroughObject({
         items: z.array(itemSchema),

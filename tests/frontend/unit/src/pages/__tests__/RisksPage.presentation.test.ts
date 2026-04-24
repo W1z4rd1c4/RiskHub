@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-    buildRiskGroupedRows,
     buildRiskListParams,
+    formatRiskGroupLabel,
+    getRiskGroupBy,
     normalizeRiskSummary,
     parseRisksPageQueryParams,
 } from '@/pages/risks/risksPagePresentation';
@@ -34,7 +35,7 @@ describe('Risks page presentation helpers', () => {
                 typeFilter: 'operational',
             })
         ).toEqual({
-            skip: 0,
+            offset: 0,
             limit: 20,
             search: 'priority',
             status: 'archived',
@@ -45,6 +46,8 @@ describe('Risks page presentation helpers', () => {
             sort_by: 'net_score',
             sort_order: 'desc',
             include_archived: true,
+            group_by: undefined,
+            group_value: undefined,
         });
 
         expect(
@@ -71,52 +74,21 @@ describe('Risks page presentation helpers', () => {
         });
     });
 
-    it('duplicates risks into vendor groups and falls back to unlinked vendor', () => {
-        const rows = buildRiskGroupedRows(
-            [
-                normalizeRiskSummary({
-                    id: 1,
-                    risk_id_code: 'R-001',
-                    name: 'Vendor risk',
-                    process: 'Operations',
-                    risk_type: 'operational',
-                    category: 'Process',
-                    description: 'Desc',
-                    gross_score: 9,
-                    gross_probability: 3,
-                    gross_impact: 3,
-                    net_score: 4,
-                    status: 'active',
-                    is_priority: false,
-                    linked_vendors: [
-                        { id: 11, name: 'Acme Cloud' },
-                        { id: 12, name: 'Shared Vendor' },
-                    ],
-                }),
-                normalizeRiskSummary({
-                    id: 2,
-                    risk_id_code: 'R-002',
-                    name: 'Standalone risk',
-                    process: 'Finance',
-                    risk_type: 'financial',
-                    category: 'Capital',
-                    description: 'Desc',
-                    gross_score: 12,
-                    gross_probability: 4,
-                    gross_impact: 3,
-                    net_score: 8,
-                    status: 'active',
-                    is_priority: false,
-                }),
-            ],
-            'vendor',
-            { unlinkedVendor: 'Unlinked Vendor' },
-        );
-
-        expect(rows.map((row) => row.groupValue)).toEqual([
-            'Acme Cloud',
-            'Shared Vendor',
-            'Unlinked Vendor',
-        ]);
+    it('maps server grouped views and fallback labels', () => {
+        expect(getRiskGroupBy('vendor')).toBe('vendor');
+        expect(getRiskGroupBy('risk_type')).toBe('risk_type');
+        expect(getRiskGroupBy('all')).toBeNull();
+        expect(
+            formatRiskGroupLabel(
+                { value: '__unlinked_vendor__', label: '__unlinked_vendor__', count: 1 },
+                {
+                    unlinkedVendor: 'Unlinked Vendor',
+                    uncategorized: 'Uncategorized',
+                    unknownDepartment: 'Unknown Department',
+                    noProcess: 'No Process',
+                    unknownRiskType: 'Unknown type',
+                },
+            )
+        ).toBe('Unlinked Vendor');
     });
 });

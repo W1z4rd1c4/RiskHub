@@ -61,6 +61,7 @@ import type {
 import {
     approvalIdMessageSchema,
     approvalCreatedResponseSchema,
+    collectionPaginationSchema,
     idNameCodeSchema,
     idNameEmailSchema,
     numberRecordSchema,
@@ -389,7 +390,7 @@ export const controlSummarySchema: z.ZodType<ControlSummary> = controlMonitoring
     linked_vendors: linkedVendorSummaryArraySchema.optional(),
 });
 export const controlListResponseSchema: z.ZodType<ControlListResponse> =
-    offsetPaginationSchema(controlSummarySchema);
+    collectionPaginationSchema(controlSummarySchema);
 
 export const keyRiskIndicatorSchema: z.ZodType<KeyRiskIndicator> = kriMonitoringFieldsSchema.extend({
     id: z.number(),
@@ -424,7 +425,7 @@ export const keyRiskIndicatorSchema: z.ZodType<KeyRiskIndicator> = kriMonitoring
 });
 export const keyRiskIndicatorArraySchema = z.array(keyRiskIndicatorSchema);
 export const kriListResponseSchema: z.ZodType<KRIListResponse> =
-    pageSizePaginationSchema(keyRiskIndicatorSchema);
+    collectionPaginationSchema(keyRiskIndicatorSchema);
 
 export const kriHistoryEntrySchema: z.ZodType<KRIHistoryEntry> = passthroughObject({
     id: z.number(),
@@ -441,7 +442,29 @@ export const kriHistoryEntrySchema: z.ZodType<KRIHistoryEntry> = passthroughObje
     recorded_by_name: z.string().nullable().optional(),
 });
 export const kriHistoryListResponseSchema: z.ZodType<KRIHistoryListResponse> =
-    pageSizePaginationSchema(kriHistoryEntrySchema);
+    z.union([
+        passthroughObject({
+            items: z.array(kriHistoryEntrySchema),
+            total: z.number(),
+            offset: z.number(),
+            limit: z.number(),
+        }),
+        passthroughObject({
+            items: z.array(kriHistoryEntrySchema),
+            total: z.number(),
+            page: z.number(),
+            size: z.number(),
+        }),
+    ]).transform((response) => {
+        if ('offset' in response) {
+            return response;
+        }
+        return {
+            ...response,
+            offset: (response.page - 1) * response.size,
+            limit: response.size,
+        };
+    });
 export const overdueKRISchema: z.ZodType<OverdueKRI> = passthroughObject({
     kri_id: z.number(),
     metric_name: z.string(),
@@ -490,7 +513,7 @@ export const riskSummarySchema: z.ZodType<RiskSummary> = passthroughObject({
     linked_vendors: linkedVendorSummaryArraySchema.optional(),
 });
 export const riskListResponseSchema: z.ZodType<RiskListResponse> =
-    offsetPaginationSchema(riskSummarySchema);
+    collectionPaginationSchema(riskSummarySchema);
 
 export const riskSchema: z.ZodType<Risk> = passthroughObject({
     id: z.number(),
@@ -611,7 +634,7 @@ export const vendorSchema: z.ZodType<Vendor> = passthroughObject({
 });
 export const vendorArraySchema = z.array(vendorSchema);
 export const vendorListResponseSchema: z.ZodType<VendorListResponse> =
-    offsetPaginationSchema(vendorSchema);
+    collectionPaginationSchema(vendorSchema);
 
 export const issueLinkSchema: z.ZodType<IssueLink> = passthroughObject({
     id: z.number(),
@@ -656,7 +679,7 @@ export const issueSummarySchema = passthroughObject({
     vendor_contexts: z.array(issueVendorContextSchema),
 }) satisfies z.ZodType<IssueSummary>;
 export const issueListResponseSchema: z.ZodType<IssueListResponse> =
-    offsetPaginationSchema(issueSummarySchema);
+    collectionPaginationSchema(issueSummarySchema);
 export const issueRemediationPlanSchema: z.ZodType<IssueRemediationPlan> = passthroughObject({
     id: z.number(),
     issue_id: z.number(),

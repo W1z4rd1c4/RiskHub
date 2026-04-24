@@ -121,6 +121,50 @@ function filterVendors(params: VendorListParams = {}) {
     });
 }
 
+function vendorGroupValues(vendor: Vendor, groupBy: string): string[] {
+    if (groupBy === 'department') {
+        return [vendor.department_name || '__unassigned__'];
+    }
+    if (groupBy === 'process') {
+        return [vendor.process || '__no_process__'];
+    }
+    if (groupBy === 'type') {
+        return [vendor.vendor_type];
+    }
+    if (groupBy === 'risk') {
+        return vendor.linked_risks.length > 0
+            ? vendor.linked_risks.map((risk) => `risk:${risk.risk_id}`)
+            : ['__unlinked_risk__'];
+    }
+    if (groupBy === 'flag') {
+        const values: string[] = [];
+        if (vendor.dora_relevant) values.push('__dora_relevant__');
+        if (vendor.supports_important_core_insurance_function) values.push('__supports_core_function__');
+        if (vendor.is_significant_vendor) values.push('__significant_vendor__');
+        return values.length > 0 ? values : ['__insignificant_vendor__'];
+    }
+    return [];
+}
+
+function vendorGroupLabel(value: string): string {
+    if (value.startsWith('risk:')) {
+        const riskId = Number(value.replace('risk:', ''));
+        const risk = vendors.flatMap((vendor) => vendor.linked_risks).find((item) => item.risk_id === riskId);
+        return risk ? `${risk.risk_id_code}: ${risk.risk_name}` : value;
+    }
+    return value;
+}
+
+function buildVendorGroups(items: Vendor[], groupBy: string) {
+    const counts = new Map<string, number>();
+    for (const vendor of items) {
+        for (const value of vendorGroupValues(vendor, groupBy)) {
+            counts.set(value, (counts.get(value) ?? 0) + 1);
+        }
+    }
+    return [...counts.entries()].map(([value, count]) => ({ value, label: vendorGroupLabel(value), count }));
+}
+
 vi.mock('@/hooks/usePermissions', () => ({
     usePermissions: () => ({
         hasPermission: (resource: string, action: string) => {
@@ -166,12 +210,24 @@ describe('VendorsPage grouped views', () => {
         vi.clearAllMocks();
         mockGetVendors.mockImplementation((params: VendorListParams = {}) => {
             const filtered = filterVendors(params);
-            const skip = params.skip ?? 0;
+            const offset = params.offset ?? 0;
             const limit = params.limit ?? 10;
+            if (params.group_by) {
+                const groupedItems = params.group_value
+                    ? filtered.filter((vendor) => vendorGroupValues(vendor, params.group_by as string).includes(params.group_value as string))
+                    : [];
+                return Promise.resolve({
+                    items: groupedItems.slice(offset, offset + limit),
+                    total: params.group_value ? groupedItems.length : filtered.length,
+                    offset,
+                    limit,
+                    groups: buildVendorGroups(filtered, params.group_by),
+                });
+            }
             return Promise.resolve({
-                items: filtered.slice(skip, skip + limit),
+                items: filtered.slice(offset, offset + limit),
                 total: filtered.length,
-                skip,
+                offset,
                 limit,
             });
         });
@@ -210,8 +266,9 @@ describe('VendorsPage grouped views', () => {
         await waitFor(() => {
             expect(mockGetVendors).toHaveBeenLastCalledWith(
                 expect.objectContaining({
-                    skip: 0,
-                    limit: 100,
+                    offset: 0,
+                    limit: 10,
+                    group_by: 'risk',
                     include_archived: false,
                     status: 'active',
                 })
@@ -248,7 +305,7 @@ describe('VendorsPage grouped views', () => {
             expect(mockGetVendors).toHaveBeenLastCalledWith(
                 expect.objectContaining({
                     search: 'AML',
-                    skip: 0,
+                    offset: 0,
                     limit: 10,
                 })
             );
@@ -260,8 +317,9 @@ describe('VendorsPage grouped views', () => {
             expect(mockGetVendors).toHaveBeenLastCalledWith(
                 expect.objectContaining({
                     search: 'AML',
-                    skip: 0,
-                    limit: 100,
+                    offset: 0,
+                    limit: 10,
+                    group_by: 'department',
                 })
             );
         });

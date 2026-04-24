@@ -259,7 +259,7 @@ Common filters include:
 RiskHub supports view modes that change how you interpret the list:
 
 - all risks (paged)
-- grouped views (requires fetching more data for accurate counts)
+- grouped views (server-calculated summaries with paged drilldown)
 
 Grouped modes now include **By Vendor**.
 

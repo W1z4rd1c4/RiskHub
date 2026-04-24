@@ -37,7 +37,7 @@ describe('IssuesPage layout parity', () => {
         mockList.mockResolvedValue({
             items: [],
             total: 0,
-            skip: 0,
+            offset: 0,
             limit: 20,
         });
     });

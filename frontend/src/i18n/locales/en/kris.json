@@ -105,6 +105,10 @@
     "export": "Export",
     "export_excel": "Export CSV"
   },
+  "errors": {
+    "title": "Error Loading KRIs",
+    "try_again": "Try Again"
+  },
   "alerts": {
     "breach_alert": "Breach Alert",
     "value_breached": "This KRI has breached its limits",

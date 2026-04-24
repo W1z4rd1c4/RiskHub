@@ -74,7 +74,7 @@ describe('useActivityLogPageState', () => {
         mockGetActions.mockResolvedValue([]);
         mockGetUsers.mockResolvedValue([]);
         mockGetDepartments.mockResolvedValue([]);
-        mockGetRisks.mockResolvedValue({ items: [], total: 0, skip: 0, limit: 100 });
+        mockGetRisks.mockResolvedValue({ items: [], total: 0, offset: 0, limit: 100 });
     });
 
     it('ignores stale risk responses after clearing the selected risk', async () => {

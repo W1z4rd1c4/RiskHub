@@ -1,4 +1,5 @@
 import { apiClient } from './apiClient';
+import { buildCollectionParams, normalizeCollectionResponse } from './collectionApi';
 import {
     approvalCreatedResponseSchema,
     controlExecutionArraySchema,
@@ -25,6 +26,7 @@ import type { ControlExecution, ControlExecutionCreate } from '@/types/execution
 export const controlApi = {
     async getControls(params: {
         skip?: number;
+        offset?: number;
         limit?: number;
         department_id?: number;
         status?: string;
@@ -33,8 +35,28 @@ export const controlApi = {
         category?: string;
         include_archived?: boolean;
         monitoring_status?: ControlMonitoringStatus;
+        group_by?: string;
+        group_value?: string;
     }): Promise<ControlListResponse> {
-        return apiClient.get('/controls', { params, schema: controlListResponseSchema });
+        const response = await apiClient.get('/controls', {
+            params: buildCollectionParams({
+                offset: params.offset ?? params.skip,
+                limit: params.limit,
+                filters: {
+                    department_id: params.department_id,
+                    status: params.status,
+                    search: params.search,
+                    process: params.process,
+                    category: params.category,
+                    include_archived: params.include_archived,
+                    monitoring_status: params.monitoring_status,
+                },
+                groupBy: params.group_by,
+                groupValue: params.group_value,
+            }),
+            schema: controlListResponseSchema,
+        });
+        return normalizeCollectionResponse(response);
     },
 
     async getControl(id: number): Promise<Control> {

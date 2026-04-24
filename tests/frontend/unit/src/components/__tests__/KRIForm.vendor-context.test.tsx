@@ -90,7 +90,7 @@ describe('KRIForm vendor and vendor-assignment flows', () => {
                 },
             ],
             total: 2,
-            skip: 0,
+            offset: 0,
             limit: 50,
         });
         mockGetLinkedRisks.mockResolvedValue([
@@ -116,7 +116,7 @@ describe('KRIForm vendor and vendor-assignment flows', () => {
                 { id: 21, name: 'Vendor Twenty-One', status: 'active' },
             ],
             total: 2,
-            skip: 0,
+            offset: 0,
             limit: 25,
         });
         mockCreateKri.mockResolvedValue({ id: 55 });

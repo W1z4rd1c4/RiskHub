@@ -26,6 +26,8 @@ async def get_history(
     to_date: Optional[clock.date] = None,
     page: int = 1,
     size: int = 20,
+    offset: int | None = None,
+    limit: int | None = None,
 ) -> Tuple[list[KRIValueHistory], int]:
     """
     Get paginated history for a KRI.
@@ -60,8 +62,11 @@ async def get_history(
     total = total_result.scalar() or 0
 
     # Paginate and order by recorded_at desc
+    effective_limit = limit if limit is not None else size
+    effective_offset = offset if offset is not None else (page - 1) * effective_limit
+
     query = query.order_by(KRIValueHistory.recorded_at.desc())
-    query = query.offset((page - 1) * size).limit(size)
+    query = query.offset(effective_offset).limit(effective_limit)
 
     result = await db.execute(query)
     entries = result.scalars().all()

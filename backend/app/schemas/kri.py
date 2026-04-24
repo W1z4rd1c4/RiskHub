@@ -8,6 +8,7 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel, Field, computed_field
 
+from app.schemas.collection import CollectionGroupRead
 from app.schemas.vendor_shared import LinkedVendorRead
 from app.services._monitoring_status import KRIMonitoringReason, KRIMonitoringStatus
 
@@ -120,8 +121,21 @@ class KRIListResponse(BaseModel):
 
     items: list[KRIResponse]
     total: int
-    page: int
-    size: int
+    offset: int
+    limit: int
+    groups: list[CollectionGroupRead] | None = None
+
+    @computed_field
+    @property
+    def page(self) -> int:
+        if self.limit <= 0:
+            return 1
+        return (self.offset // self.limit) + 1
+
+    @computed_field
+    @property
+    def size(self) -> int:
+        return self.limit
 
 
 # History-related schemas
@@ -151,8 +165,20 @@ class KRIHistoryListResponse(BaseModel):
 
     items: list[KRIHistoryEntry]
     total: int
-    page: int
-    size: int
+    offset: int
+    limit: int
+
+    @computed_field
+    @property
+    def page(self) -> int:
+        if self.limit <= 0:
+            return 1
+        return (self.offset // self.limit) + 1
+
+    @computed_field
+    @property
+    def size(self) -> int:
+        return self.limit
 
 
 class KRIRecordValue(BaseModel):

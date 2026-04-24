@@ -93,15 +93,10 @@ export interface Issue extends IssueSummary {
     exceptions: IssueException[];
 }
 
-export interface IssueListResponse {
-    items: IssueSummary[];
-    total: number;
-    skip: number;
-    limit: number;
-}
+export type IssueListResponse = CollectionListResponse<IssueSummary>;
 
 export interface IssueListFilters {
-    skip?: number;
+    offset?: number;
     limit?: number;
     status?: IssueStatus;
     severity?: IssueSeverity;
@@ -117,6 +112,8 @@ export interface IssueListFilters {
     include_closed?: boolean;
     sort_by?: 'title' | 'severity' | 'status' | 'opened_at' | 'due_at' | 'updated_at' | 'created_at';
     sort_order?: 'asc' | 'desc';
+    group_by?: string;
+    group_value?: string;
 }
 
 export interface IssueCreatePayload {
@@ -206,3 +203,4 @@ export interface IssueContextCreatePayload {
     due_at?: string;
     owner_user_id?: number;
 }
+import type { CollectionListResponse } from '@/types/collection';

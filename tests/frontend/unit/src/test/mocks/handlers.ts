@@ -16,6 +16,15 @@ function paginate<T>(items: T[]) {
     };
 }
 
+function paginateCollection<T>(items: T[]) {
+    return {
+        items,
+        total: items.length,
+        offset: 0,
+        limit: items.length || 20,
+    };
+}
+
 function buildControlDetail(overrides: Record<string, unknown>) {
     return {
         description: 'Validates that access and approvals remain aligned with policy.',
@@ -503,7 +512,7 @@ export const handlers = [
     }),
     // Controls
     http.get('*/api/v1/controls', () => {
-        return HttpResponse.json(paginate(mockControlSummaries));
+        return HttpResponse.json(paginateCollection(mockControlSummaries));
     }),
 
     http.get('*/api/v1/controls/:id', ({ params }) => {
@@ -514,7 +523,7 @@ export const handlers = [
 
     // Risks
     http.get('*/api/v1/risks', () => {
-        return HttpResponse.json(paginate(mockRiskSummaries));
+        return HttpResponse.json(paginateCollection(mockRiskSummaries));
     }),
 
     http.get('*/api/v1/risks/:id', ({ params }) => {

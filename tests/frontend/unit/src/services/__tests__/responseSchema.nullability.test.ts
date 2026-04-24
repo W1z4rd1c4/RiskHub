@@ -396,12 +396,14 @@ describe('response schema nullability alignment', () => {
             return Promise.resolve(jsonResponse({
                 items: [buildNullableKri()],
                 total: 1,
-                page: 1,
-                size: 50,
+                offset: 0,
+                limit: 50,
             }));
         });
 
         await expect(kriApi.getKRIs()).resolves.toMatchObject({
+            offset: 0,
+            limit: 50,
             items: [
                 {
                     reporting_owner_id: null,
@@ -452,6 +454,8 @@ describe('response schema nullability alignment', () => {
         });
 
         await expect(kriApi.getHistory(9)).resolves.toMatchObject({
+            offset: 0,
+            limit: 50,
             items: [
                 {
                     recorded_by_id: null,
@@ -459,6 +463,41 @@ describe('response schema nullability alignment', () => {
                 },
             ],
         });
+    });
+
+    it.each([
+        ['KRI page-only pagination', () => kriApi.getKRIs({ page: 2 }), '/api/v1/kris', { offset: '20', limit: null }],
+        ['KRI page-size pagination', () => kriApi.getKRIs({ page: 2, size: 50 }), '/api/v1/kris', { offset: '50', limit: '50' }],
+        ['KRI history page-only pagination', () => kriApi.getHistory(9, { page: 2 }), '/api/v1/kris/9/history', { offset: '20', limit: null }],
+        ['KRI history page-limit pagination', () => kriApi.getHistory(9, { page: 2, limit: 10 }), '/api/v1/kris/9/history', { offset: '10', limit: '10' }],
+        ['KRI explicit offset precedence', () => kriApi.getKRIs({ offset: 75, page: 2, size: 50 }), '/api/v1/kris', { offset: '75', limit: '50' }],
+    ])('emits canonical offsets for %s', async (_label, request, expectedPath, expectedParams) => {
+        let requestedUrl: URL | null = null;
+        vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+            requestedUrl = new URL(responseUrl(input));
+            if (!requestedUrl.pathname.endsWith(expectedPath)) {
+                throw new Error(`Unexpected fetch call: ${requestedUrl.toString()}`);
+            }
+            if (requestedUrl.pathname.endsWith('/history')) {
+                return Promise.resolve(jsonResponse({
+                    items: [],
+                    total: 0,
+                    offset: Number(expectedParams.offset),
+                    limit: Number(expectedParams.limit ?? 20),
+                }));
+            }
+            return Promise.resolve(jsonResponse({
+                items: [],
+                total: 0,
+                offset: Number(expectedParams.offset),
+                limit: Number(expectedParams.limit ?? 20),
+            }));
+        });
+
+        await request();
+
+        expect(requestedUrl?.searchParams.get('offset')).toBe(expectedParams.offset);
+        expect(requestedUrl?.searchParams.get('limit')).toBe(expectedParams.limit);
     });
 
     it('accepts overdue KRI responses with null reporting-owner fields', async () => {

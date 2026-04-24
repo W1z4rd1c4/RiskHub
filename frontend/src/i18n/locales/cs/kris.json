@@ -105,6 +105,10 @@
     "export": "Export",
     "export_excel": "Exportovat CSV"
   },
+  "errors": {
+    "title": "Chyba při načítání KRI",
+    "try_again": "Zkusit znovu"
+  },
   "alerts": {
     "breach_alert": "Upozornění na překročení",
     "value_breached": "Tento KRI překročil své limity",

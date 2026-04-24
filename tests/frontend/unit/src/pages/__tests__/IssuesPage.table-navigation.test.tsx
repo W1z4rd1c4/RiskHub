@@ -57,7 +57,7 @@ describe('IssuesPage table navigation', () => {
                 },
             ],
             total: 1,
-            skip: 0,
+            offset: 0,
             limit: 20,
         });
     });

@@ -11,6 +11,16 @@ from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import Control, ControlExecution, ControlRiskLink, Issue, IssueLink, KeyRiskIndicator, User
 from app.models.issue import IssueSeverity, IssueStatus
+from app.api.v1.endpoints._collection import (
+    CollectionGroupEntry,
+    build_grouped_collection_response,
+    coerce_optional_bool,
+    coerce_optional_enum,
+    coerce_optional_int,
+    coerce_optional_literal,
+    coerce_optional_string,
+    parse_collection_query,
+)
 from app.schemas.issue import IssueListResponse
 from app.services.issue_visibility_service import unsuppressed_issue_clause
 
@@ -18,12 +28,63 @@ from .._shared import _serialize_issue_summary
 
 router = APIRouter()
 
+ISSUE_GROUP_UNLINKED_VENDOR = "__unlinked_vendor__"
+ISSUE_GROUP_UNCATEGORIZED = "__uncategorized__"
+ISSUE_GROUP_UNKNOWN_DEPARTMENT = "__unknown_department__"
+ISSUE_GROUP_NO_PROCESS = "__no_process__"
+ISSUE_GROUP_UNKNOWN_RISK_TYPE = "__unknown_risk_type__"
+
+
+def _issue_context_values(issue, *, group_by: str) -> set[str]:
+    values: set[str] = set()
+    for context in issue.risk_contexts or []:
+        if group_by == "category":
+            raw_value = context.risk_category
+        elif group_by == "process":
+            raw_value = context.risk_process
+        elif group_by in {"risk_type", "type"}:
+            raw_value = context.risk_type
+        else:
+            raw_value = None
+        if raw_value and raw_value.strip():
+            values.add(raw_value.strip())
+    return values
+
+
+def _issue_group_entries(issue, group_by: str) -> list[CollectionGroupEntry]:
+    if group_by == "department":
+        value = issue.department_name or ISSUE_GROUP_UNKNOWN_DEPARTMENT
+        return [CollectionGroupEntry(value, value)]
+
+    if group_by == "vendor":
+        vendor_names = {
+            context.vendor_name.strip()
+            for context in issue.vendor_contexts or []
+            if context.vendor_name and context.vendor_name.strip()
+        }
+        if not vendor_names:
+            return [CollectionGroupEntry(ISSUE_GROUP_UNLINKED_VENDOR, ISSUE_GROUP_UNLINKED_VENDOR)]
+        return [CollectionGroupEntry(name, name) for name in sorted(vendor_names)]
+
+    values = _issue_context_values(issue, group_by=group_by)
+    if values:
+        return [CollectionGroupEntry(value, value) for value in sorted(values)]
+
+    if group_by == "category":
+        return [CollectionGroupEntry(ISSUE_GROUP_UNCATEGORIZED, ISSUE_GROUP_UNCATEGORIZED)]
+    if group_by == "process":
+        return [CollectionGroupEntry(ISSUE_GROUP_NO_PROCESS, ISSUE_GROUP_NO_PROCESS)]
+    if group_by in {"risk_type", "type"}:
+        return [CollectionGroupEntry(ISSUE_GROUP_UNKNOWN_RISK_TYPE, ISSUE_GROUP_UNKNOWN_RISK_TYPE)]
+    return []
+
 
 @router.get("/issues", response_model=IssueListResponse)
 async def list_issues(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_permission("issues", "read")),
-    skip: int = Query(0, ge=0),
+    offset: int = Query(0, ge=0),
+    skip: int | None = Query(None, ge=0),
     limit: int = Query(50, ge=1, le=100),
     status: Optional[IssueStatus] = None,
     severity: Optional[IssueSeverity] = None,
@@ -39,7 +100,59 @@ async def list_issues(
     include_closed: bool = Query(True),
     sort_by: Optional[str] = Query(None),
     sort_order: Optional[str] = Query(None),
+    sort: str | None = Query(None),
+    filters: str | None = Query(None),
+    group_by: str | None = Query(None),
+    group_value: str | None = Query(None),
 ) -> IssueListResponse:
+    collection_query = parse_collection_query(
+        offset=skip if skip is not None else offset,
+        limit=limit,
+        sort=sort,
+        filters=filters,
+        group_by=group_by,
+        group_value=group_value,
+        max_limit=100,
+    )
+    filter_values = {
+        "status": status.value if status else None,
+        "severity": severity.value if severity else None,
+        "severity_group": severity_group,
+        "owner_user_id": owner_user_id,
+        "department_id": department_id,
+        "overdue": overdue,
+        "exclude_active_exceptions": exclude_active_exceptions,
+        "linked_risk_id": linked_risk_id,
+        "linked_control_id": linked_control_id,
+        "linked_vendor_id": linked_vendor_id,
+        "search": search,
+        "include_closed": include_closed,
+    }
+    filter_values.update(collection_query.filters)
+    status_value = filter_values.get("status")
+    status = coerce_optional_enum(IssueStatus, status_value, "status")
+    severity_value = filter_values.get("severity")
+    severity = coerce_optional_enum(IssueSeverity, severity_value, "severity")
+    severity_group = coerce_optional_literal(
+        "severity_group", filter_values.get("severity_group"), {"high_critical"}
+    )
+    owner_user_id = coerce_optional_int("owner_user_id", filter_values.get("owner_user_id"))
+    department_id = coerce_optional_int("department_id", filter_values.get("department_id"))
+    overdue = coerce_optional_bool("overdue", filter_values.get("overdue"))
+    exclude_active_exceptions = (
+        coerce_optional_bool("exclude_active_exceptions", filter_values.get("exclude_active_exceptions")) or False
+    )
+    linked_risk_id = coerce_optional_int("linked_risk_id", filter_values.get("linked_risk_id"))
+    linked_control_id = coerce_optional_int("linked_control_id", filter_values.get("linked_control_id"))
+    linked_vendor_id = coerce_optional_int("linked_vendor_id", filter_values.get("linked_vendor_id"))
+    search = coerce_optional_string("search", filter_values.get("search"))
+    include_closed = coerce_optional_bool("include_closed", filter_values.get("include_closed"))
+    include_closed = True if include_closed is None else include_closed
+    offset = collection_query.offset
+    limit = collection_query.limit
+    sort_by = collection_query.sort.field if collection_query.sort else sort_by
+    sort_order = collection_query.sort.direction if collection_query.sort else sort_order
+
     query = select(Issue)
     now = datetime.now(UTC)
     scope_clause = await get_issue_scope_clause(db, current_user)
@@ -105,31 +218,51 @@ async def list_issues(
         query = query.order_by(Issue.opened_at.desc(), Issue.id.desc())
 
     total = (await db.execute(select(func.count()).select_from(query.subquery()))).scalar() or 0
-    result = await db.execute(
-        query.options(
-            selectinload(Issue.department),
-            selectinload(Issue.owner),
-            selectinload(Issue.links).selectinload(IssueLink.risk),
-            selectinload(Issue.links)
-            .selectinload(IssueLink.control)
-            .selectinload(Control.risk_links)
-            .selectinload(ControlRiskLink.risk),
-            selectinload(Issue.links)
-            .selectinload(IssueLink.execution)
-            .selectinload(ControlExecution.control)
-            .selectinload(Control.risk_links)
-            .selectinload(ControlRiskLink.risk),
-            selectinload(Issue.links).selectinload(IssueLink.kri).selectinload(KeyRiskIndicator.risk),
-            selectinload(Issue.links).selectinload(IssueLink.vendor),
-        )
-        .offset(skip)
-        .limit(limit)
+    query_options = (
+        selectinload(Issue.department),
+        selectinload(Issue.owner),
+        selectinload(Issue.links).selectinload(IssueLink.risk),
+        selectinload(Issue.links)
+        .selectinload(IssueLink.control)
+        .selectinload(Control.risk_links)
+        .selectinload(ControlRiskLink.risk),
+        selectinload(Issue.links)
+        .selectinload(IssueLink.execution)
+        .selectinload(ControlExecution.control)
+        .selectinload(Control.risk_links)
+        .selectinload(ControlRiskLink.risk),
+        selectinload(Issue.links).selectinload(IssueLink.kri).selectinload(KeyRiskIndicator.risk),
+        selectinload(Issue.links).selectinload(IssueLink.vendor),
     )
+
+    ordered_query = query.options(*query_options)
+
+    if collection_query.group_by:
+        result = await db.execute(ordered_query)
+        all_items = [_serialize_issue_summary(issue, current_user=current_user) for issue in result.scalars().all()]
+        grouped_items, grouped_total, groups = build_grouped_collection_response(
+            all_items,
+            group_by=collection_query.group_by,
+            group_value=collection_query.group_value,
+            get_entries=_issue_group_entries,
+            is_active=lambda issue: issue.status != IssueStatus.closed.value,
+            is_highlighted=lambda issue: issue.severity in {IssueSeverity.high.value, IssueSeverity.critical.value},
+        )
+        paginated_items = grouped_items[offset : offset + limit] if collection_query.group_value else []
+        return IssueListResponse(
+            items=paginated_items,
+            total=grouped_total,
+            offset=offset,
+            limit=limit,
+            groups=groups,
+        )
+
+    result = await db.execute(ordered_query.offset(offset).limit(limit))
     issues = result.scalars().all()
 
     return IssueListResponse(
         items=[_serialize_issue_summary(issue, current_user=current_user) for issue in issues],
         total=total,
-        skip=skip,
+        offset=offset,
         limit=limit,
     )

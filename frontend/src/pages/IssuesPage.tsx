@@ -26,6 +26,7 @@ export function IssuesPage() {
         errorKey,
         excludeActiveExceptions,
         fetchIssues,
+        groups,
         handleExport,
         hasLoadedOnce,
         includeClosed,
@@ -38,6 +39,8 @@ export function IssuesPage() {
         closeExportDialog,
         overdueOnly,
         search,
+        selectedGroupLabel,
+        selectedGroupValue,
         setCurrentPage,
         severityFilter,
         sortDirection,
@@ -54,6 +57,8 @@ export function IssuesPage() {
         updateStatusFilter,
         updateViewMode,
         viewMode,
+        selectGroup,
+        clearSelectedGroup,
     } = useIssuesPageState({
         canRead,
         initialState,
@@ -106,13 +111,18 @@ export function IssuesPage() {
                 totalCount={totalCount}
                 itemsPerPage={limit}
                 items={items}
+                groups={groups}
+                selectedGroupLabel={selectedGroupLabel}
+                selectedGroupValue={selectedGroupValue}
                 errorKey={errorKey}
                 hasLoadedOnce={hasLoadedOnce}
                 isLoading={isLoading}
+                onBackFromGroup={clearSelectedGroup}
                 sortField={sortField}
                 sortDirection={sortDirection}
                 onRetry={fetchIssues}
                 onRowClick={(issue) => navigate(`/issues/${issue.id}`)}
+                onSelectGroup={selectGroup}
                 onSortChange={updateSort}
                 onPageChange={setCurrentPage}
                 viewMode={viewMode}

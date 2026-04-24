@@ -1,3 +1,4 @@
+import type { CollectionListResponse } from '@/types/collection';
 import type { LinkedVendorSummary } from '@/types/vendorLink';
 
 export type KRIBreachStatus = 'above' | 'below' | 'within';
@@ -83,12 +84,7 @@ export interface KRIUpdate {
     linked_vendor_ids?: number[];
 }
 
-export interface KRIListResponse {
-    items: KeyRiskIndicator[];
-    total: number;
-    page: number;
-    size: number;
-}
+export type KRIListResponse = CollectionListResponse<KeyRiskIndicator>;
 
 // History types
 export interface KRIHistoryEntry {
@@ -109,8 +105,8 @@ export interface KRIHistoryEntry {
 export interface KRIHistoryListResponse {
     items: KRIHistoryEntry[];
     total: number;
-    page: number;
-    size: number;
+    offset: number;
+    limit: number;
 }
 
 export interface KRIRecordValue {

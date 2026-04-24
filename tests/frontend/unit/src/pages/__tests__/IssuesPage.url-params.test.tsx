@@ -58,7 +58,7 @@ describe('IssuesPage URL filter initialization', () => {
         mockList.mockResolvedValue({
             items: [],
             total: 0,
-            skip: 0,
+            offset: 0,
             limit: 20,
         });
         mockExportIssues.mockResolvedValue(undefined);
@@ -89,7 +89,7 @@ describe('IssuesPage URL filter initialization', () => {
 
         await waitFor(() => {
             expect(mockList).toHaveBeenCalledWith({
-                skip: 0,
+                offset: 0,
                 limit: DEFAULT_LIST_PAGE_SIZE,
                 include_closed: false,
             });

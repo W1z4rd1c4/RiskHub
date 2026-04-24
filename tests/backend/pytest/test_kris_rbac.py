@@ -3,6 +3,8 @@ RBAC tests for KRI endpoints.
 Validates that KRI mutations require risks:* permissions.
 """
 
+import json
+
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
@@ -1227,6 +1229,74 @@ async def test_read_scoped_user_can_list_archived_kri_with_include_archived(
     assert include_resp.status_code == 200
     include_ids = {item["id"] for item in include_resp.json()["items"]}
     assert archived_kri.id in include_ids
+
+
+@pytest.mark.asyncio
+async def test_kri_list_filters_archived_before_pagination_and_grouping(
+    auth_client: AsyncClient,
+    db_session,
+    test_risk_for_kri: Risk,
+):
+    """Archived-only collection filters must apply before paging and grouped summaries."""
+    from datetime import UTC, datetime
+
+    active_kri = KeyRiskIndicator(
+        risk_id=test_risk_for_kri.id,
+        metric_name="AAA Active KRI",
+        description="Active KRI that would sort before archived rows",
+        unit="%",
+        current_value=50.0,
+        lower_limit=0.0,
+        upper_limit=100.0,
+    )
+    archived_kri_one = KeyRiskIndicator(
+        risk_id=test_risk_for_kri.id,
+        metric_name="MMM Archived KRI",
+        description="First archived KRI",
+        unit="%",
+        current_value=45.0,
+        lower_limit=0.0,
+        upper_limit=100.0,
+        is_archived=True,
+        archived_at=datetime.now(UTC),
+    )
+    archived_kri_two = KeyRiskIndicator(
+        risk_id=test_risk_for_kri.id,
+        metric_name="ZZZ Archived KRI",
+        description="Second archived KRI",
+        unit="%",
+        current_value=55.0,
+        lower_limit=0.0,
+        upper_limit=100.0,
+        is_archived=True,
+        archived_at=datetime.now(UTC),
+    )
+    db_session.add_all([active_kri, archived_kri_one, archived_kri_two])
+    await db_session.commit()
+
+    filters = json.dumps({"is_archived": True})
+    page_resp = await auth_client.get("/api/v1/kris", params={"filters": filters, "offset": 0, "limit": 1})
+    assert page_resp.status_code == 200
+    page_payload = page_resp.json()
+    assert page_payload["total"] == 2
+    assert page_payload["offset"] == 0
+    assert page_payload["limit"] == 1
+    assert len(page_payload["items"]) == 1
+    assert page_payload["items"][0]["is_archived"] is True
+    assert page_payload["items"][0]["id"] != active_kri.id
+
+    grouped_resp = await auth_client.get(
+        "/api/v1/kris",
+        params={"filters": filters, "group_by": "category", "offset": 0, "limit": 10},
+    )
+    assert grouped_resp.status_code == 200
+    grouped_payload = grouped_resp.json()
+    assert grouped_payload["items"] == []
+    assert grouped_payload["total"] == 2
+    uncategorized_group = next(
+        group for group in grouped_payload["groups"] if group["value"] == "__uncategorized__"
+    )
+    assert uncategorized_group["count"] == 2
 
 
 @pytest.mark.asyncio

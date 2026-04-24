@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
@@ -11,6 +11,8 @@ import { createTestQueryClient } from '@test/queryClient';
 import { clearAccessToken, setAccessToken } from '@test/accessTokenStoreHarness';
 import { clearBootstrapSession } from '@/services/session/bootstrap';
 import { KRIsPage } from '@/pages/KRIsPage';
+
+const UNLINKED_VENDOR_GROUP = '__unlinked_vendor__';
 
 vi.mock('@/utils/userSettingsStorage', async () => {
     const actual = await vi.importActual<typeof import('@/utils/userSettingsStorage')>('@/utils/userSettingsStorage');
@@ -125,22 +127,72 @@ async function renderKriPage(route: string) {
     await waitForAuthBootstrapReady();
 }
 
-function installKriHandlers(requestQueries: string[]) {
-    const user = makeUser();
+function parseKriRequest(url: URL) {
+    const filtersRaw = url.searchParams.get('filters');
+    const filters = filtersRaw ? JSON.parse(filtersRaw) as Record<string, unknown> : {};
+    return {
+        raw: url.searchParams.toString(),
+        filters,
+        groupBy: url.searchParams.get('group_by'),
+        groupValue: url.searchParams.get('group_value'),
+        offset: Number(url.searchParams.get('offset') ?? 0),
+        limit: Number(url.searchParams.get('limit') ?? 20),
+    };
+}
+
+function buildVendorGroups(items: Array<ReturnType<typeof makeKri>>) {
+    const groups = new Map<string, { value: string; label: string; count: number; active_count: number; highlighted_count: number; meta: Record<string, unknown> }>();
+
+    for (const item of items) {
+        const vendors = item.linked_vendors ?? [];
+        const memberships = vendors.length > 0
+            ? vendors.map((vendor) => ({ value: `vendor:${vendor.id}`, label: vendor.name }))
+            : [{ value: UNLINKED_VENDOR_GROUP, label: UNLINKED_VENDOR_GROUP }];
+
+        for (const membership of memberships) {
+            const group = groups.get(membership.value) ?? {
+                ...membership,
+                count: 0,
+                active_count: 0,
+                highlighted_count: 0,
+                meta: {},
+            };
+            group.count += 1;
+            group.active_count += 1;
+            if (item.monitoring_status === 'breach') {
+                group.highlighted_count += 1;
+            }
+            groups.set(membership.value, group);
+        }
+    }
+
+    return [...groups.values()];
+}
+
+function installKriHandlers(
+    requestQueries: Array<ReturnType<typeof parseKriRequest>>,
+    userOverrides: Partial<Record<string, unknown>> = {},
+) {
+    const user = makeUser(userOverrides);
 
     server.use(
         http.get('*/api/v1/auth/me', () => HttpResponse.json(user)),
         http.get('*/api/v1/kris', async ({ request }) => {
             const url = new URL(request.url);
-            const monitoringStatus = url.searchParams.get('monitoring_status');
-            const timelinessStatus = url.searchParams.get('timeliness_status');
-            const includeArchived = url.searchParams.get('include_archived') === 'true';
-            requestQueries.push(url.searchParams.toString());
+            const requestInfo = parseKriRequest(url);
+            const monitoringStatus = requestInfo.filters.monitoring_status;
+            const timelinessStatus = requestInfo.filters.timeliness_status;
+            const includeArchived = requestInfo.filters.include_archived === true;
+            const archivedOnly = requestInfo.filters.is_archived === true;
+            requestQueries.push(requestInfo);
 
             let items = [allKri, unlinkedVendorKri];
             let delayMs = 5;
 
-            if (includeArchived) {
+            if (archivedOnly) {
+                items = [archivedKri];
+                delayMs = 15;
+            } else if (includeArchived) {
                 items = [archivedKri, archivedCompanionKri];
                 delayMs = 15;
             } else if (timelinessStatus === 'due_soon') {
@@ -159,11 +211,71 @@ function installKriHandlers(requestQueries: string[]) {
 
             await new Promise((resolve) => window.setTimeout(resolve, delayMs));
 
+            if (requestInfo.groupBy === 'vendor') {
+                if (requestInfo.groupValue) {
+                    const groupedItems = requestInfo.groupValue === UNLINKED_VENDOR_GROUP
+                        ? items.filter((item) => (item.linked_vendors ?? []).length === 0)
+                        : items.filter((item) => (item.linked_vendors ?? []).some((vendor) => `vendor:${vendor.id}` === requestInfo.groupValue));
+
+                    return HttpResponse.json({
+                        items: groupedItems,
+                        total: groupedItems.length,
+                        offset: requestInfo.offset,
+                        limit: requestInfo.limit,
+                        groups: buildVendorGroups(items),
+                    });
+                }
+
+                return HttpResponse.json({
+                    items: [],
+                    total: items.length,
+                    offset: requestInfo.offset,
+                    limit: requestInfo.limit,
+                    groups: buildVendorGroups(items),
+                });
+            }
+
+            if (requestInfo.groupBy === 'category') {
+                if (requestInfo.groupValue) {
+                    const groupedItems = items.filter((item) => (item.risk_category ?? '__uncategorized__') === requestInfo.groupValue);
+                    return HttpResponse.json({
+                        items: groupedItems,
+                        total: groupedItems.length,
+                        offset: requestInfo.offset,
+                        limit: requestInfo.limit,
+                        groups: [{
+                            value: 'Finance',
+                            label: 'Finance',
+                            count: items.length,
+                            active_count: items.length,
+                            highlighted_count: items.filter((item) => item.monitoring_status === 'breach').length,
+                            meta: {},
+                        }],
+                    });
+                }
+
+                return HttpResponse.json({
+                    items: [],
+                    total: items.length,
+                    offset: requestInfo.offset,
+                    limit: requestInfo.limit,
+                    groups: [{
+                        value: 'Finance',
+                        label: 'Finance',
+                        count: items.length,
+                        active_count: items.length,
+                        highlighted_count: items.filter((item) => item.monitoring_status === 'breach').length,
+                        meta: {},
+                    }],
+                });
+            }
+
             return HttpResponse.json({
                 items,
                 total: items.length,
-                page: Number(url.searchParams.get('page') ?? 1),
-                size: Number(url.searchParams.get('size') ?? 20),
+                offset: requestInfo.offset,
+                limit: requestInfo.limit,
+                groups: null,
             });
         }),
     );
@@ -181,7 +293,7 @@ describe('KRIsPage monitoring status filters', () => {
     });
 
     it('initializes not-submitted mode from the route and requests monitoring_status', async () => {
-        const requestQueries: string[] = [];
+        const requestQueries: Array<ReturnType<typeof parseKriRequest>> = [];
         installKriHandlers(requestQueries);
 
         await renderKriPage('/kris?monitoring_status=not_submitted');
@@ -191,11 +303,11 @@ describe('KRIsPage monitoring status filters', () => {
         expect(screen.queryByText('All KRI')).not.toBeInTheDocument();
         expect(screen.getByTestId('kris-status-filter-not_submitted')).toHaveClass('bg-accent');
         expect(screen.getByTestId('kri-route-search')).toHaveTextContent('?monitoring_status=not_submitted');
-        expect(requestQueries.some((query) => query.includes('monitoring_status=not_submitted'))).toBe(true);
+        expect(requestQueries.some((query) => query.filters.monitoring_status === 'not_submitted')).toBe(true);
     });
 
     it('initializes due-soon mode from the route and requests timeliness_status', async () => {
-        const requestQueries: string[] = [];
+        const requestQueries: Array<ReturnType<typeof parseKriRequest>> = [];
         installKriHandlers(requestQueries);
 
         await renderKriPage('/kris?timeliness_status=due_soon');
@@ -205,11 +317,11 @@ describe('KRIsPage monitoring status filters', () => {
         expect(screen.queryByText('All KRI')).not.toBeInTheDocument();
         expect(screen.getByTestId('kris-status-filter-due_soon')).toHaveClass('bg-accent');
         expect(screen.getByTestId('kri-route-search')).toHaveTextContent('?timeliness_status=due_soon');
-        expect(requestQueries.some((query) => query.includes('timeliness_status=due_soon'))).toBe(true);
+        expect(requestQueries.some((query) => query.filters.timeliness_status === 'due_soon')).toBe(true);
     });
 
     it('keeps the last rapid filter click authoritative and clears loading after stale requests resolve', async () => {
-        const requestQueries: string[] = [];
+        const requestQueries: Array<ReturnType<typeof parseKriRequest>> = [];
         installKriHandlers(requestQueries);
 
         await renderKriPage('/kris');
@@ -236,16 +348,17 @@ describe('KRIsPage monitoring status filters', () => {
         expect(screen.queryByText('Not Submitted KRI')).not.toBeInTheDocument();
         expect(screen.queryByText('Due Soon KRI')).not.toBeInTheDocument();
         expect(screen.queryByText('Active Companion KRI')).not.toBeInTheDocument();
-        expect(requestQueries.some((query) => query.includes('monitoring_status=warning'))).toBe(true);
-        expect(requestQueries.some((query) => query.includes('monitoring_status=breach'))).toBe(true);
-        expect(requestQueries.some((query) => query.includes('monitoring_status=not_submitted'))).toBe(true);
-        expect(requestQueries.some((query) => query.includes('timeliness_status=due_soon'))).toBe(true);
-        expect(requestQueries.at(-1)).toContain('include_archived=true');
-        expect(requestQueries.at(-1)).toContain('size=100');
+        expect(screen.queryByTestId('kri-unarchive-25')).not.toBeInTheDocument();
+        expect(requestQueries.some((query) => query.filters.monitoring_status === 'warning')).toBe(true);
+        expect(requestQueries.some((query) => query.filters.monitoring_status === 'breach')).toBe(true);
+        expect(requestQueries.some((query) => query.filters.monitoring_status === 'not_submitted')).toBe(true);
+        expect(requestQueries.some((query) => query.filters.timeliness_status === 'due_soon')).toBe(true);
+        expect(requestQueries.at(-1)?.filters.is_archived).toBe(true);
+        expect(requestQueries.at(-1)?.filters.include_archived).toBeUndefined();
     });
 
     it('uses the same route-backed monitoring filter in grouped views', async () => {
-        const requestQueries: string[] = [];
+        const requestQueries: Array<ReturnType<typeof parseKriRequest>> = [];
         installKriHandlers(requestQueries);
 
         await renderKriPage('/kris?monitoring_status=warning');
@@ -262,11 +375,12 @@ describe('KRIsPage monitoring status filters', () => {
         expect(screen.getByTestId('kris-status-filter-warning')).toHaveClass('bg-accent');
         expect(screen.getByTestId('kri-route-search')).toHaveTextContent('?monitoring_status=warning');
         expect(screen.queryByText('All KRI')).not.toBeInTheDocument();
-        expect(requestQueries.some((query) => query.includes('monitoring_status=warning'))).toBe(true);
+        expect(requestQueries.some((query) => query.filters.monitoring_status === 'warning')).toBe(true);
+        expect(requestQueries.some((query) => query.groupBy === 'category')).toBe(true);
     });
 
     it('groups KRIs by vendor and keeps an unlinked vendor fallback bucket', async () => {
-        const requestQueries: string[] = [];
+        const requestQueries: Array<ReturnType<typeof parseKriRequest>> = [];
         installKriHandlers(requestQueries);
 
         await renderKriPage('/kris');
@@ -282,6 +396,111 @@ describe('KRIsPage monitoring status filters', () => {
         await uiUser.click(screen.getByRole('button', { name: /Primary Vendor/i }));
         await screen.findByText('All KRI');
 
-        expect(requestQueries.some((query) => query.includes('size=100'))).toBe(true);
+        expect(requestQueries.some((query) => query.groupBy === 'vendor')).toBe(true);
+        expect(requestQueries.some((query) => query.groupBy === 'vendor' && query.groupValue === 'vendor:400')).toBe(true);
+    });
+
+    it('clears stale grouped drilldown selection when search changes', async () => {
+        const requestQueries: Array<ReturnType<typeof parseKriRequest>> = [];
+        installKriHandlers(requestQueries);
+
+        await renderKriPage('/kris');
+
+        await screen.findByText('All KRI');
+
+        const uiUser = userEvent.setup();
+        await uiUser.click(screen.getByRole('button', { name: 'By Category' }));
+        await screen.findByRole('button', { name: /Finance/i });
+        await uiUser.click(screen.getByRole('button', { name: /Finance/i }));
+        await screen.findByText('All KRI');
+
+        await uiUser.type(screen.getByTestId('kris-search-input'), 'close');
+
+        await waitFor(() => {
+            const searchedCategoryRequests = requestQueries.filter(
+                (query) => query.groupBy === 'category' && query.filters.search === 'close'
+            );
+            expect(searchedCategoryRequests.at(-1)?.groupValue).toBeNull();
+        });
+    });
+
+    it('sorts KRI table rows by metric name on the client', async () => {
+        const requestQueries: Array<ReturnType<typeof parseKriRequest>> = [];
+        installKriHandlers(requestQueries);
+
+        await renderKriPage('/kris');
+
+        await screen.findByText('All KRI');
+        await screen.findByText('Unlinked Vendor KRI');
+
+        const metricOrder = () => screen.getAllByRole('row')
+            .map((row) => {
+                if (within(row).queryByText('All KRI')) return 'All KRI';
+                if (within(row).queryByText('Unlinked Vendor KRI')) return 'Unlinked Vendor KRI';
+                return null;
+            })
+            .filter(Boolean);
+
+        expect(metricOrder()).toEqual(['All KRI', 'Unlinked Vendor KRI']);
+
+        const uiUser = userEvent.setup();
+        await uiUser.click(screen.getByRole('columnheader', { name: /Metric/i }));
+        await uiUser.click(screen.getByRole('columnheader', { name: /Metric/i }));
+
+        expect(metricOrder()).toEqual(['Unlinked Vendor KRI', 'All KRI']);
+    });
+
+    it('shows archived KRI restore only when the user can delete risks', async () => {
+        const requestQueries: Array<ReturnType<typeof parseKriRequest>> = [];
+        installKriHandlers(requestQueries, {
+            effective_permissions: ['risks:read', 'risks:delete', 'vendors:read'],
+        });
+
+        await renderKriPage('/kris?status=archived');
+
+        await screen.findByText('Archived KRI');
+
+        expect(screen.getByTestId('kri-unarchive-25')).toBeInTheDocument();
+    });
+
+    it('translates load errors from the errorKeys namespace', async () => {
+        server.use(
+            http.get('*/api/v1/auth/me', () => HttpResponse.json(makeUser())),
+            http.get('*/api/v1/kris', () => HttpResponse.json({ detail: 'Failed' }, { status: 500 })),
+        );
+
+        await renderKriPage('/kris');
+
+        await screen.findByText('Server error. Please try again later.');
+
+        expect(screen.getByText('Error Loading KRIs')).toBeInTheDocument();
+        expect(screen.getByText('Try Again')).toBeInTheDocument();
+        expect(screen.queryByText('errorKeys.server')).not.toBeInTheDocument();
+    });
+
+    it('uses backend archived-only filtering for grouped summaries and drilldown', async () => {
+        const requestQueries: Array<ReturnType<typeof parseKriRequest>> = [];
+        installKriHandlers(requestQueries);
+
+        await renderKriPage('/kris?status=archived');
+
+        await screen.findByText('Archived KRI');
+
+        const uiUser = userEvent.setup();
+        await uiUser.click(screen.getByRole('button', { name: 'By Category' }));
+
+        await screen.findByRole('button', { name: /Finance/i });
+        await uiUser.click(screen.getByRole('button', { name: /Finance/i }));
+        await screen.findByText('Archived KRI');
+
+        expect(screen.queryByText('Active Companion KRI')).not.toBeInTheDocument();
+        expect(requestQueries.some((query) => query.groupBy === 'category' && query.filters.is_archived === true)).toBe(true);
+        expect(
+            requestQueries.some((query) =>
+                query.groupBy === 'category' &&
+                query.groupValue === 'Finance' &&
+                query.filters.is_archived === true
+            )
+        ).toBe(true);
     });
 });

@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-    buildControlGroupedRows,
     buildControlListParams,
-    getControlGroupByField,
+    formatControlGroupLabel,
+    getControlGroupBy,
     getControlStatusColor,
 } from '@/pages/controls/controlsPagePresentation';
 import { ControlStatus } from '@/types/control';
@@ -18,12 +18,14 @@ describe('Controls page presentation helpers', () => {
                 statusFilter: 'archived',
             })
         ).toEqual({
-            skip: 20,
+            offset: 20,
             limit: 20,
             search: 'evidence',
             status: 'archived',
             monitoring_status: undefined,
             include_archived: true,
+            group_by: undefined,
+            group_value: undefined,
         });
     });
 
@@ -36,60 +38,38 @@ describe('Controls page presentation helpers', () => {
                 statusFilter: 'passed',
             })
         ).toEqual({
-            skip: 0,
+            offset: 0,
             limit: 20,
             search: 'passed',
             status: undefined,
             monitoring_status: 'passed',
             include_archived: false,
+            group_by: undefined,
+            group_value: undefined,
         });
     });
 
     it('maps supported grouped views and status colors', () => {
-        expect(getControlGroupByField('risk')).toBe('risk_name');
-        expect(getControlGroupByField('all')).toBeNull();
+        expect(getControlGroupBy('risk')).toBe('risk');
+        expect(getControlGroupBy('vendor')).toBe('vendor');
+        expect(getControlGroupBy('all')).toBeNull();
         expect(getControlStatusColor(ControlStatus.ARCHIVED)).toContain('text-yellow-400');
     });
 
-    it('duplicates controls into vendor groups and falls back to unlinked vendor', () => {
-        const rows = buildControlGroupedRows(
-            [
+    it('formats server group fallback labels', () => {
+        expect(
+            formatControlGroupLabel(
+                { value: '__unlinked_vendor__', label: '__unlinked_vendor__', count: 1 },
                 {
-                    id: 1,
-                    name: 'Vendor control',
-                    description: 'Desc',
-                    department_id: 2,
-                    department_name: 'IT',
-                    frequency: 'monthly',
-                    risk_level: 3,
-                    status: ControlStatus.ACTIVE,
-                    control_form: 'manual',
-                    linked_vendors: [
-                        { id: 4, name: 'Acme Cloud' },
-                        { id: 5, name: 'Shared Vendor' },
-                    ],
+                    unlinkedVendor: 'Unlinked Vendor',
+                    uncategorized: 'Uncategorized',
+                    unknownDepartment: 'Unknown Department',
+                    noProcess: 'No Process',
+                    unknownRiskType: 'Unknown type',
+                    unknownRisk: 'Unknown risk',
+                    controlForm: (value) => value.toUpperCase(),
                 },
-                {
-                    id: 2,
-                    name: 'Standalone control',
-                    description: 'Desc',
-                    department_id: 3,
-                    department_name: 'Finance',
-                    frequency: 'quarterly',
-                    risk_level: 2,
-                    status: ControlStatus.ACTIVE,
-                    control_form: 'manual',
-                    linked_vendors: [],
-                },
-            ],
-            'vendor',
-            { unlinkedVendor: 'Unlinked Vendor' },
-        );
-
-        expect(rows.map((row) => row.groupValue)).toEqual([
-            'Acme Cloud',
-            'Shared Vendor',
-            'Unlinked Vendor',
-        ]);
+            )
+        ).toBe('Unlinked Vendor');
     });
 });

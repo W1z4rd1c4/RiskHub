@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { AlertCircle, Building2, ChevronRight, User } from 'lucide-react';
 
 import {
-    CategoryDrillDown,
+    CollectionGroupDrillDown,
     Pagination,
     SortableTable,
     type Column,
@@ -11,9 +11,10 @@ import {
 } from '@/components/tables';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useTranslation } from '@/i18n/hooks';
+import type { CollectionGroup } from '@/types/collection';
 import type { Vendor, VendorListParams } from '@/types/vendor';
 
-import { buildVendorGroupedRows, type VendorGroupedRow } from './vendorsPagePresentation';
+import { formatVendorGroupLabel } from './vendorsPagePresentation';
 
 function scorePill(score: number) {
     if (score >= 5) return 'text-rose-400 bg-rose-400/10 border-rose-400/20';
@@ -26,20 +27,25 @@ function scorePill(score: number) {
 interface VendorsTableSectionProps {
     currentPage: number;
     errorKey: string | null;
+    groups: CollectionGroup[];
     hasLoadedOnce: boolean;
     isLoading: boolean;
     items: Vendor[];
     itemsPerPage: number;
+    onBackFromGroup: () => void;
     onPageChange: (page: number) => void;
     onRestoreVendor: (vendorId: number) => void | Promise<void>;
     onRetry: () => void;
     onRowClick: (vendor: Vendor) => void;
+    onSelectGroup: (groupValue: string, groupLabel: string) => void;
     onSortChange: (
         sortField: VendorListParams['sort_by'] | null,
         sortDirection: SortDirection,
     ) => void;
     sortDirection: SortDirection;
     sortField: VendorListParams['sort_by'] | null;
+    selectedGroupLabel: string | null;
+    selectedGroupValue: string | null;
     totalCount: number;
     totalPages: number;
     viewMode: ViewMode;
@@ -48,17 +54,22 @@ interface VendorsTableSectionProps {
 export function VendorsTableSection({
     currentPage,
     errorKey,
+    groups,
     hasLoadedOnce,
     isLoading,
     items,
     itemsPerPage,
+    onBackFromGroup,
     onPageChange,
     onRestoreVendor,
     onRetry,
     onRowClick,
+    onSelectGroup,
     onSortChange,
     sortDirection,
     sortField,
+    selectedGroupLabel,
+    selectedGroupValue,
     totalCount,
     totalPages,
     viewMode,
@@ -167,21 +178,6 @@ export function VendorsTableSection({
         [hasPermission, onRestoreVendor, t]
     );
 
-    const groupedRows = useMemo(
-        () =>
-            buildVendorGroupedRows(items, viewMode, {
-                noProcess: t('grouping.no_process'),
-                typeLabel: (value) => t(`type.${value}`, value),
-                unassigned: t('labels.unassigned'),
-                unlinkedRisk: t('grouping.unlinked_risk'),
-                doraRelevant: t('flags.dora_relevant'),
-                supportsCoreFunction: t('flags.supports_core_function'),
-                significantVendor: t('flags.significant_vendor'),
-                insignificantVendor: t('grouping.insignificant_vendor'),
-            }),
-        [items, t, viewMode]
-    );
-
     if (errorKey) {
         return (
             <div className="glass-card p-20 flex flex-col items-center justify-center text-center gap-4">
@@ -272,31 +268,42 @@ export function VendorsTableSection({
     }
 
     return (
-        <CategoryDrillDown
-            key={`${viewMode}:${items.length}`}
-            data={groupedRows}
-            groupBy="groupValue"
-            keyExtractor={(row) => row.rowId}
-            getStats={(groupItems) => ({ total: groupItems.length })}
-            renderTable={(groupItems: VendorGroupedRow[]) => (
+        <CollectionGroupDrillDown
+            groups={groups}
+            selectedGroupValue={selectedGroupValue}
+            selectedGroupLabel={selectedGroupLabel}
+            items={items}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalCount={totalCount}
+            itemsPerPage={itemsPerPage}
+            onPageChange={onPageChange}
+            onBack={onBackFromGroup}
+            onSelectGroup={onSelectGroup}
+            hideActive
+            hideHighlighted
+            groupLabel={(group) =>
+                formatVendorGroupLabel(group, {
+                    noProcess: t('grouping.no_process'),
+                    typeLabel: (value) => t(`type.${value}`, value),
+                    unassigned: t('labels.unassigned'),
+                    unlinkedRisk: t('grouping.unlinked_risk'),
+                    doraRelevant: t('flags.dora_relevant'),
+                    supportsCoreFunction: t('flags.supports_core_function'),
+                    significantVendor: t('flags.significant_vendor'),
+                    insignificantVendor: t('grouping.insignificant_vendor'),
+                })
+            }
+            emptyMessage={t('empty_state.no_vendors')}
+            renderTable={(groupItems) => (
                 <SortableTable
                     data={groupItems}
-                    columns={columns.map<Column<VendorGroupedRow>>((column) => ({
-                        ...column,
-                        sortable: false,
-                        render: (row, index) => {
-                            if (column.render) {
-                                return column.render(row.vendor, index);
-                            }
-                            return String(row.vendor[column.key as keyof Vendor] ?? '');
-                        },
-                    }))}
-                    keyExtractor={(row) => row.rowId}
-                    onRowClick={(row) => onRowClick(row.vendor)}
+                    columns={columns}
+                    keyExtractor={(vendor) => vendor.id}
+                    onRowClick={onRowClick}
                     emptyMessage={t('empty_state.no_vendors')}
                 />
             )}
-            renderItem={(row) => row.vendor.name}
         />
     );
 }

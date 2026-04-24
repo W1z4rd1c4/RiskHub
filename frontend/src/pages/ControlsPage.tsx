@@ -14,6 +14,7 @@ export function ControlsPage() {
         currentPage,
         errorKey,
         fetchControls,
+        groups,
         handleExport,
         hasLoadedOnce,
         isExportDialogOpen,
@@ -25,6 +26,8 @@ export function ControlsPage() {
         closeExportDialog,
         restoreControl,
         search,
+        selectedGroupLabel,
+        selectedGroupValue,
         setCurrentPage,
         statusFilter,
         totalCount,
@@ -33,6 +36,8 @@ export function ControlsPage() {
         updateStatusFilter,
         updateViewMode,
         viewMode,
+        selectGroup,
+        clearSelectedGroup,
     } = useControlsPageState();
 
     return (
@@ -65,10 +70,15 @@ export function ControlsPage() {
                 isLoading={isLoading}
                 items={items}
                 itemsPerPage={limit}
+                groups={groups}
+                selectedGroupLabel={selectedGroupLabel}
+                selectedGroupValue={selectedGroupValue}
+                onBackFromGroup={clearSelectedGroup}
                 onPageChange={setCurrentPage}
                 onRestoreControl={restoreControl}
                 onRetry={fetchControls}
                 onRowClick={(control) => navigate(`/controls/${control.id}`)}
+                onSelectGroup={selectGroup}
                 totalCount={totalCount}
                 totalPages={totalPages}
                 viewMode={viewMode}
