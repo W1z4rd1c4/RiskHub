@@ -6,8 +6,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.orphaned_item import OrphanedItem
+from app.models.user import User
 
 from .core import _get_item_details
+from .workflow import can_view_orphan, orphan_capabilities
 
 
 async def get_pending_orphans(
@@ -39,6 +41,7 @@ async def get_pending_orphans_with_details(
     db: AsyncSession,
     item_type: Optional[str] = None,
     status: str = "pending",
+    current_user: User | None = None,
 ) -> list[dict]:
     """
     Get orphaned items with full details including item names and owner info.
@@ -61,6 +64,8 @@ async def get_pending_orphans_with_details(
 
     details = []
     for orphan in orphans:
+        if current_user is not None and not await can_view_orphan(db, current_user, orphan):
+            continue
         item_name, item_description, item_identifier, department_name = await _get_item_details(
             db,
             orphan.item_type,
@@ -80,13 +85,14 @@ async def get_pending_orphans_with_details(
                 "previous_owner_email": orphan.previous_owner.email if orphan.previous_owner else "unknown@example.com",
                 "orphaned_at": orphan.orphaned_at,
                 "status": orphan.status,
+                "capabilities": orphan_capabilities(orphan),
             }
         )
 
     return details
 
 
-async def get_orphan_detail(db: AsyncSession, orphan_id: int) -> dict | None:
+async def get_orphan_detail(db: AsyncSession, orphan_id: int, current_user: User | None = None) -> dict | None:
     """
     Get detailed information about a single orphaned item.
     """
@@ -98,6 +104,8 @@ async def get_orphan_detail(db: AsyncSession, orphan_id: int) -> dict | None:
     orphan = result.scalar_one_or_none()
 
     if not orphan:
+        return None
+    if current_user is not None and not await can_view_orphan(db, current_user, orphan):
         return None
 
     item_name, item_description, item_identifier, department_name = await _get_item_details(
@@ -118,4 +126,5 @@ async def get_orphan_detail(db: AsyncSession, orphan_id: int) -> dict | None:
         "previous_owner_email": orphan.previous_owner.email if orphan.previous_owner else "unknown@example.com",
         "orphaned_at": orphan.orphaned_at,
         "status": orphan.status,
+        "capabilities": orphan_capabilities(orphan),
     }

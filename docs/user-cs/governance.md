@@ -76,6 +76,7 @@ Rezoluce má reálný dopad na viditelnost:
 
 - změna ownera může otevřít viditelnost přes ownership výjimku
 - změna oddělení může posunout položku do/ze scope
+- backend před aplikací rezoluce znovu ověřuje aktuální cílovou entitu; pokud ji už někdo přeřadil, request se odmítne místo přepsání novějšího stavu
 
 Pracujte podle principu „least surprise“: vyberte ownera a oddělení tak, aby to odpovídalo reálné odpovědnosti.
 
@@ -92,6 +93,7 @@ Governance pracuje s orphaned položkami, které mají společný tvar.
 | Previous owner | Poslední známý owner (jméno/email) | Diagnostický kontext, ne nutně cíl přiřazení. |
 | Orphaned at | Čas, kdy se položka stala orphaned | Pomáhá rozhodnout urgentnost a možnost „stale“ dat. |
 | Status | `pending` nebo `resolved` | `resolved` dávejte až po reálném opravení. |
+| Capabilities | Backend action flags | UI je používá pro rozhodnutí, zda je dostupná rezoluce/detail a která pole jsou povinná. |
 
 Rezoluce může požadovat:
 
@@ -225,6 +227,7 @@ Pokud potřebujete audit evidence, čistý postup je:
 
 - Refresh a znovu otevřete položku.
 - Pokud je zapnuté schvalování, může rezoluce čekat v `/approvals`.
+- Pokud jiný workflow mezitím změnil ownera, oddělení nebo vazbu, backend stale rezoluci odmítne, aby zachoval novější stav.
 - Zkontrolujte `/activity-log` pro důkaz změny.
 
 ## Související dokumentace

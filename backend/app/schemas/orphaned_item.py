@@ -38,6 +38,7 @@ class OrphanedItemDetail(BaseModel):
     previous_owner_email: str
     orphaned_at: datetime
     status: str
+    capabilities: Optional[dict[str, bool]] = None
 
     model_config = ConfigDict(from_attributes=True)
 

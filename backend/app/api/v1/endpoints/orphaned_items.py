@@ -20,6 +20,7 @@ from app.schemas.orphaned_item import (
     OrphanedItemStats,
     OrphanScanResponse,
 )
+from app.services._orphaned_items.workflow import OrphanResolutionConflict
 from app.services.orphaned_item_service import OrphanedItemService
 
 logger = logging.getLogger(__name__)
@@ -69,6 +70,7 @@ async def list_orphaned_items(
         db=db,
         item_type=item_type,
         status=status,
+        current_user=current_user,
     )
     return orphans
 
@@ -90,6 +92,7 @@ async def scan_orphaned_items(
         lambda session: _run_manual_orphan_scan(session),
         trigger_type="manual",
     )
+    ORPHAN_OVERVIEW_CACHE.clear()
     flagged = int((result or {}).get("flagged", 0))
     return OrphanScanResponse(flagged=flagged)
 
@@ -120,6 +123,7 @@ async def get_orphaned_items_overview(
         db=db,
         item_type=item_type,
         status=status,
+        current_user=current_user,
     )
     last_scan = await _get_latest_orphan_scan(db)
     payload = {
@@ -159,7 +163,7 @@ async def get_orphan_detail(
     """
     _require_governance_operator(current_user)
 
-    orphan = await OrphanedItemService.get_orphan_detail(db, orphan_id)
+    orphan = await OrphanedItemService.get_orphan_detail(db, orphan_id, current_user=current_user)
     if not orphan:
         raise HTTPException(status_code=404, detail="Orphaned item not found")
 
@@ -190,6 +194,7 @@ async def resolve_orphan(
             department_id=body.department_id,
             target_risk_id=body.target_risk_id,
         )
+        ORPHAN_OVERVIEW_CACHE.clear()
 
         return {
             "status": "resolved",
@@ -197,5 +202,7 @@ async def resolve_orphan(
             "new_owner_id": body.new_owner_id,
         }
 
+    except OrphanResolutionConflict as e:
+        raise HTTPException(status_code=409, detail=str(e))
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

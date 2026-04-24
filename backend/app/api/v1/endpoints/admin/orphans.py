@@ -8,6 +8,7 @@ from app.db.session import get_db
 from app.models import Control, ControlRiskLink, KeyRiskIndicator, OrphanedItem, Risk, User
 from app.schemas.admin import OrphanFixRequest, OrphanFixResponse, OrphanStatsResponse
 from app.services._orphaned_items.resolution import validate_resolution_context
+from app.services._orphaned_items.workflow import OrphanResolutionConflict
 from app.services.orphaned_item_service import OrphanedItemService
 
 from ._deps import require_platform_admin
@@ -80,6 +81,8 @@ async def fix_orphan_mappings(
                 department_id=resolution.department_id,
                 target_risk_id=resolution.target_risk_id,
             )
+        except OrphanResolutionConflict as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -104,14 +107,19 @@ async def fix_orphan_mappings(
 
     if not payload.dry_run:
         for resolution in payload.resolutions:
-            await OrphanedItemService.resolve_orphan(
-                db=db,
-                orphan_id=resolution.orphan_id,
-                new_owner_id=resolution.new_owner_id,
-                resolved_by_id=admin_user.id,
-                department_id=resolution.department_id,
-                target_risk_id=resolution.target_risk_id,
-            )
+            try:
+                await OrphanedItemService.resolve_orphan(
+                    db=db,
+                    orphan_id=resolution.orphan_id,
+                    new_owner_id=resolution.new_owner_id,
+                    resolved_by_id=admin_user.id,
+                    department_id=resolution.department_id,
+                    target_risk_id=resolution.target_risk_id,
+                )
+            except OrphanResolutionConflict as exc:
+                raise HTTPException(status_code=409, detail=str(exc)) from exc
+            except ValueError as exc:
+                raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     return OrphanFixResponse(
         message="Validated orphan remediation plan" if payload.dry_run else "Applied orphan remediation plan",

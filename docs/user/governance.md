@@ -76,6 +76,7 @@ Resolution actions can have broad visibility impact:
 
 - changing owner can grant visibility through ownership exceptions
 - changing department can move items in/out of department scope
+- the backend rechecks the current target entity before applying resolution; if someone already reassigned the item, the request is rejected instead of overwriting that newer state
 
 Operate Governance with an explicit "least surprise" mindset: pick owners and departments that match how the organization actually works.
 
@@ -92,6 +93,7 @@ Governance works with **orphaned items**, which have a common shape.
 | Previous owner | The last known owner name/email | This is diagnostic context, not a target assignment. |
 | Orphaned at | Timestamp when it became orphaned | Use it to judge urgency and whether data might be stale. |
 | Status | `pending` or `resolved` | Resolve only when ownership/linkage is truly fixed. |
+| Capabilities | Backend action flags | The UI uses these to decide whether resolve/detail actions are available and which fields are required. |
 
 Governance resolution can request:
 
@@ -225,6 +227,7 @@ If you need evidence for an audit, the clean approach is:
 
 - Refresh and re-open the orphan item.
 - If approvals are enabled, the resolution might be waiting in `/approvals`.
+- If another workflow already changed the underlying owner, department, or linkage, the backend rejects the stale resolution to preserve that newer state.
 - Check `/activity-log` for evidence of the update.
 
 ## Related Documentation

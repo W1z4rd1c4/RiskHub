@@ -7,6 +7,7 @@ from app.models import Control, Department, OrphanedItem, Risk, Role, User
 from app.models.risk import RiskStatus
 from app.models.scheduler_job_run import SchedulerJobRun
 from app.models.user import AccessScope
+from app.services.orphaned_item_service import OrphanedItemService
 
 
 @pytest.mark.asyncio
@@ -207,6 +208,115 @@ async def test_orphan_stats_are_scoped_by_department(
     assert data["risk_count"] == 1
     assert data["control_count"] == 0
     assert data["total_count"] == 1
+
+
+@pytest.mark.asyncio
+async def test_orphan_list_and_detail_are_scoped_by_current_department(
+    db_session: AsyncSession,
+    test_department: Department,
+    test_user: User,
+    test_user_cro: User,
+):
+    test_user_cro.access_scope = AccessScope.DEPARTMENT
+    test_user_cro.department_id = test_department.id
+
+    dept2 = Department(name="Orphan Hidden Department", code="OHID", description="Hidden")
+    db_session.add(dept2)
+    await db_session.flush()
+
+    risk_in = Risk(
+        risk_id_code="R-ORPH-IN",
+        name="Scoped Orphan Risk",
+        process="Test",
+        description="",
+        category="Test",
+        department_id=test_department.id,
+        owner_id=test_user.id,
+        risk_type="operational",
+        gross_probability=2,
+        gross_impact=2,
+        net_probability=2,
+        net_impact=2,
+        status=RiskStatus.active.value,
+    )
+    risk_out = Risk(
+        risk_id_code="R-ORPH-OUT",
+        name="Hidden Orphan Risk",
+        process="Test",
+        description="",
+        category="Test",
+        department_id=dept2.id,
+        owner_id=test_user.id,
+        risk_type="operational",
+        gross_probability=2,
+        gross_impact=2,
+        net_probability=2,
+        net_impact=2,
+        status=RiskStatus.active.value,
+    )
+    db_session.add_all([risk_in, risk_out])
+    await db_session.flush()
+    orphan_in = OrphanedItem(item_type="risk", item_id=risk_in.id, previous_owner_id=test_user.id, status="pending")
+    orphan_out = OrphanedItem(item_type="risk", item_id=risk_out.id, previous_owner_id=test_user.id, status="pending")
+    db_session.add_all([orphan_in, orphan_out])
+    await db_session.flush()
+    orphan_out_id = orphan_out.id
+    await db_session.commit()
+
+    items = await OrphanedItemService.get_pending_orphans_with_details(db_session, current_user=test_user_cro)
+    names = {item["item_name"] for item in items}
+    assert "Scoped Orphan Risk" in names
+    assert "Hidden Orphan Risk" not in names
+    assert items[0]["capabilities"]["can_resolve"] is True
+
+    hidden_detail = await OrphanedItemService.get_orphan_detail(db_session, orphan_out_id, current_user=test_user_cro)
+    assert hidden_detail is None
+
+
+@pytest.mark.asyncio
+async def test_stale_orphan_resolution_rejects_without_overwriting_target(
+    client_cro: AsyncClient,
+    db_session: AsyncSession,
+    test_department: Department,
+    test_user: User,
+    test_user_employee: User,
+    test_user_cro: User,
+):
+    risk = Risk(
+        risk_id_code="R-STALE-ORPH",
+        name="Stale Orphan Risk",
+        process="Test",
+        description="",
+        category="Test",
+        department_id=test_department.id,
+        owner_id=test_user.id,
+        risk_type="operational",
+        gross_probability=2,
+        gross_impact=2,
+        net_probability=2,
+        net_impact=2,
+        status=RiskStatus.active.value,
+    )
+    db_session.add(risk)
+    await db_session.flush()
+    orphan = OrphanedItem(item_type="risk", item_id=risk.id, previous_owner_id=test_user.id, status="pending")
+    db_session.add(orphan)
+    await db_session.flush()
+    orphan_id = orphan.id
+
+    risk.owner_id = test_user_employee.id
+    await db_session.commit()
+
+    response = await client_cro.post(
+        f"/api/v1/orphaned-items/{orphan_id}/resolve",
+        json={"new_owner_id": test_user_cro.id, "department_id": test_department.id},
+    )
+    assert response.status_code == 409
+
+    await db_session.refresh(risk)
+    await db_session.refresh(orphan)
+    assert risk.owner_id == test_user_employee.id
+    assert orphan.status == "pending"
 
 
 @pytest.mark.asyncio

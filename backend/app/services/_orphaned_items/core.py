@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.control import Control
 from app.models.orphaned_item import OrphanedItem
 from app.models.risk import Risk
+from app.core.datetime_utils import utc_now
 
 from .logging import logger
 
@@ -43,7 +44,7 @@ async def _create_orphan(
         item_id=item_id,
         previous_owner_id=previous_owner_id,
         status="pending",
-        orphaned_at=orphaned_at or datetime.now(UTC),
+        orphaned_at=orphaned_at or utc_now(),
     )
     db.add(orphan)
     logger.info(f"Flagged orphaned {item_type}: id={item_id}")

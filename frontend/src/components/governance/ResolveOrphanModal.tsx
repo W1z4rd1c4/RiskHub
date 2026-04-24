@@ -210,8 +210,10 @@ export function ResolveOrphanModal({ isOpen, onClose, orphan, onResolved }: Reso
         setSelectedDepartmentId(user.department_id);
     };
 
-    const shouldShowOwner = !isKri;
-    const shouldShowRisk = isKri || (
+    const requiresOwner = orphan.capabilities?.requires_owner ?? !isKri;
+    const requiresRisk = orphan.capabilities?.requires_risk ?? isKri;
+    const shouldShowOwner = requiresOwner;
+    const shouldShowRisk = requiresRisk || (
         orphan.item_type === 'control' && (isInitialized && linkedRisks.length === 0)
     );
 

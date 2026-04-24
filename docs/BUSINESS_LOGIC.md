@@ -320,6 +320,12 @@ Rules:
 > [!NOTE]
 > Platform admins are console-only and are explicitly blocked from business Activity Log and Governance surfaces, including direct route/API access.
 
+Orphaned item governance uses backend workflow helpers:
+- Orphan list/detail payloads are scoped from the current target entity department, not only orphan metadata.
+- Responses may include additive `capabilities` metadata for resolve/detail visibility and required resolution fields.
+- Resolution locks the orphan row and target entity, validates the orphan is still pending, and rejects stale resolutions with conflict semantics instead of overwriting a target that has already been reassigned.
+- Admin batch orphan fixes use the same validation and resolution helper as the business Governance endpoint.
+
 > [!NOTE]
 > User discovery and user administration are separate contracts. `/api/v1/users/lookup` is the authenticated picker/search primitive used by forms and filters. `/api/v1/users/directory` is the explicit paginated collection for `/users` directory mode and requires `users:read`. Its response also carries `available_roles` facet metadata derived from the caller's visible directory universe so the frontend role filter stays backend-driven. `/api/v1/access/users*` remains the access-management contract for privileged and department-head access views.
 

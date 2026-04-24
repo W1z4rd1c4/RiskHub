@@ -94,6 +94,7 @@ export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTa
                         {filteredItems.map((item) => {
                             const Icon = typeIcons[item.item_type] || AlertTriangle;
                             const old = isOld(item.orphaned_at);
+                            const canResolve = item.capabilities?.can_resolve ?? item.status === 'pending';
 
                             return (
                                 <tr
@@ -148,16 +149,18 @@ export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTa
                                         </span>
                                     </td>
                                     <td className="px-4 py-3 text-right">
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                onResolve(item);
-                                            }}
-                                            className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-accent text-white hover:text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all border border-white/10 group-hover:border-accent/50 shadow-sm active:scale-95"
-                                        >
-                                            <UserCheck className="h-3.5 w-3.5" />
-                                            {t('governance.resolve')}
-                                        </button>
+                                        {canResolve && (
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    onResolve(item);
+                                                }}
+                                                className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-accent text-white hover:text-white text-xs font-black uppercase tracking-widest rounded-xl transition-all border border-white/10 group-hover:border-accent/50 shadow-sm active:scale-95"
+                                            >
+                                                <UserCheck className="h-3.5 w-3.5" />
+                                                {t('governance.resolve')}
+                                            </button>
+                                        )}
                                     </td>
                                 </tr>
                             );

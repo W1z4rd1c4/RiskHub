@@ -66,13 +66,15 @@ class OrphanedItemService:
         db: AsyncSession,
         item_type: Optional[str] = None,
         status: str = "pending",
+        current_user: User | None = None,
     ) -> list[dict]:
         return await _get_pending_orphans_with_details(
             db=db,
             item_type=item_type,
             status=status,
+            current_user=current_user,
         )
 
     @staticmethod
-    async def get_orphan_detail(db: AsyncSession, orphan_id: int) -> dict | None:
-        return await _get_orphan_detail(db, orphan_id)
+    async def get_orphan_detail(db: AsyncSession, orphan_id: int, current_user: User | None = None) -> dict | None:
+        return await _get_orphan_detail(db, orphan_id, current_user=current_user)

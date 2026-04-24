@@ -1,3 +1,11 @@
+export interface OrphanedItemCapabilities {
+    can_resolve: boolean;
+    can_view_detail: boolean;
+    requires_owner: boolean;
+    requires_risk: boolean;
+    requires_department: boolean;
+}
+
 export interface OrphanedItem {
     id: number;
     item_type: "risk" | "control" | "kri";
@@ -10,6 +18,7 @@ export interface OrphanedItem {
     previous_owner_email: string;
     orphaned_at: string;
     status: "pending" | "resolved";
+    capabilities?: OrphanedItemCapabilities | null;
 }
 
 export interface OrphanStats {

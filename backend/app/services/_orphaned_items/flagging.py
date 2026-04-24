@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
-
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.datetime_utils import utc_now
 from app.models.control import Control
 from app.models.department import Department
 from app.models.orphaned_item import OrphanedItem
@@ -106,7 +105,7 @@ async def scan_uncategorised_items(db: AsyncSession) -> int:
             item_id=risk.id,
             previous_owner_id=prev_owner_id,
             status="pending",
-            orphaned_at=datetime.now(UTC),
+            orphaned_at=utc_now(),
         )
         db.add(orphan)
         new_orphans_count += 1
@@ -138,7 +137,7 @@ async def scan_uncategorised_items(db: AsyncSession) -> int:
             item_id=control.id,
             previous_owner_id=prev_owner_id,
             status="pending",
-            orphaned_at=datetime.now(UTC),
+            orphaned_at=utc_now(),
         )
         db.add(orphan)
         new_orphans_count += 1
@@ -185,7 +184,7 @@ async def scan_uncategorised_items(db: AsyncSession) -> int:
             item_id=kri.id,
             previous_owner_id=prev_owner_id,
             status="pending",
-            orphaned_at=datetime.now(UTC),
+            orphaned_at=utc_now(),
         )
         db.add(orphan)
         new_orphans_count += 1
@@ -218,7 +217,7 @@ async def scan_uncategorised_items(db: AsyncSession) -> int:
             item_id=control.id,
             previous_owner_id=prev_owner_id,
             status="pending",
-            orphaned_at=datetime.now(UTC),
+            orphaned_at=utc_now(),
         )
         db.add(orphan)
         new_orphans_count += 1

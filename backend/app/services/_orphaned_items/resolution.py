@@ -15,6 +15,7 @@ from app.models.user import User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 
 from .logging import logger
+from .workflow import OrphanResolutionConflict, assert_orphan_still_matches_target_state
 
 
 async def _get_fallback_owner_id(db: AsyncSession) -> int | None:
@@ -40,14 +41,18 @@ async def validate_resolution_context(
     new_owner_id: int | None = None,
     department_id: int | None = None,
     target_risk_id: int | None = None,
+    for_update: bool = False,
 ) -> OrphanResolutionContext:
-    result = await db.execute(select(OrphanedItem).where(OrphanedItem.id == orphan_id))
+    orphan_stmt = select(OrphanedItem).where(OrphanedItem.id == orphan_id)
+    if for_update:
+        orphan_stmt = orphan_stmt.with_for_update()
+    result = await db.execute(orphan_stmt)
     orphan = result.scalar_one_or_none()
 
     if not orphan:
         raise ValueError(f"Orphaned item {orphan_id} not found")
-    if orphan.status == "resolved":
-        raise ValueError(f"Orphaned item {orphan_id} is already resolved")
+    if orphan.status != "pending":
+        raise OrphanResolutionConflict(f"Orphaned item {orphan_id} is already resolved")
 
     new_owner = None
     if new_owner_id is not None:
@@ -131,6 +136,7 @@ async def resolve_orphan(
         new_owner_id=new_owner_id,
         department_id=department_id,
         target_risk_id=target_risk_id,
+        for_update=True,
     )
     orphan = context.orphan
     new_owner = context.new_owner
@@ -140,10 +146,11 @@ async def resolve_orphan(
 
     # Update the actual item's owner and department
     if orphan.item_type == "risk":
-        risk_result = await db.execute(select(Risk).where(Risk.id == orphan.item_id))
+        risk_result = await db.execute(select(Risk).where(Risk.id == orphan.item_id).with_for_update())
         risk = risk_result.scalar_one_or_none()
         if not risk:
             raise ValueError(f"Risk {orphan.item_id} no longer exists")
+        await assert_orphan_still_matches_target_state(db, orphan=orphan, target_entity=risk)
         risk_changes = build_change_set(
             risk,
             {
@@ -168,10 +175,11 @@ async def resolve_orphan(
         logger.info("Reassigned risk %s to user %s, dept %s", risk.id, new_owner_id, target_dept_id)
 
     elif orphan.item_type == "control":
-        control_result = await db.execute(select(Control).where(Control.id == orphan.item_id))
+        control_result = await db.execute(select(Control).where(Control.id == orphan.item_id).with_for_update())
         control = control_result.scalar_one_or_none()
         if not control:
             raise ValueError(f"Control {orphan.item_id} no longer exists")
+        await assert_orphan_still_matches_target_state(db, orphan=orphan, target_entity=control)
         control_changes = build_change_set(
             control,
             {
@@ -215,10 +223,15 @@ async def resolve_orphan(
         logger.info("Reassigned control %s to user %s, dept %s", control.id, new_owner_id, target_dept_id)
 
     elif orphan.item_type == "kri":
-        kri_result = await db.execute(select(KeyRiskIndicator).where(KeyRiskIndicator.id == orphan.item_id))
+        kri_result = await db.execute(
+            select(KeyRiskIndicator).where(KeyRiskIndicator.id == orphan.item_id).with_for_update()
+        )
         kri = kri_result.scalar_one_or_none()
         if not kri:
             raise ValueError(f"KRI {orphan.item_id} no longer exists")
+        await assert_orphan_still_matches_target_state(db, orphan=orphan, target_entity=kri)
+        if target_risk is None:
+            raise ValueError("target_risk_id is required to resolve orphaned KRIs")
         kri_changes = build_change_set(kri, {"risk_id": target_risk.id})
         kri.risk_id = target_risk.id
         await log_activity(

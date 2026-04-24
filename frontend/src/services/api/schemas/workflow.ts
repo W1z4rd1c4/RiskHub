@@ -157,6 +157,13 @@ export const orphanedItemSchema: z.ZodType<OrphanedItem> = passthroughObject({
     previous_owner_email: z.string(),
     orphaned_at: z.string(),
     status: z.enum(['pending', 'resolved']),
+    capabilities: passthroughObject({
+        can_resolve: z.boolean(),
+        can_view_detail: z.boolean(),
+        requires_owner: z.boolean(),
+        requires_risk: z.boolean(),
+        requires_department: z.boolean(),
+    }).nullable().optional(),
 });
 export const orphanedItemArraySchema = z.array(orphanedItemSchema);
 export const orphanStatsSchema: z.ZodType<OrphanStats> = passthroughObject({
@@ -178,7 +185,7 @@ export const orphanScanResponseSchema = passthroughObject({
 export const resolveOrphanResponseSchema = passthroughObject({
     status: z.string(),
     orphan_id: z.number(),
-    new_owner_id: z.number(),
+    new_owner_id: z.number().nullable().optional(),
 });
 
 export const riskQuestionnairePreviousSubmissionSchema: z.ZodType<RiskQuestionnairePreviousSubmission> =
