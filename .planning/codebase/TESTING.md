@@ -71,6 +71,7 @@
 - Backend issue workflow/deadline: `cd backend && ./venv/bin/pytest -q ../tests/backend/pytest/api/v1/test_issue_workflow.py ../tests/backend/pytest/api/v1/test_issues_crud_api.py ../tests/backend/pytest/api/v1/test_issues_rbac_api.py ../tests/backend/pytest/test_issue_deadline_service.py`
 - Backend report export scope/as-of: `cd backend && ./venv/bin/pytest -q ../tests/backend/pytest/test_reports_rbac.py ../tests/backend/pytest/api/v1/test_reports_audit.py`
 - Backend vendor governance/reports: `cd backend && ./venv/bin/pytest -q ../tests/backend/pytest/test_vendors.py ../tests/backend/pytest/test_vendor_reports.py ../tests/backend/pytest/test_vendor_links.py`
+- Backend control execution/linking: `cd backend && ./venv/bin/pytest -q ../tests/backend/pytest/test_executions.py ../tests/backend/pytest/test_controls.py ../tests/backend/pytest/test_cross_department_access.py`
 - Backend dashboard committee/quarterly: `cd backend && ./venv/bin/pytest -q ../tests/backend/pytest/test_dashboard.py ../tests/backend/pytest/test_dashboard_committee_vendor_metrics.py ../tests/backend/pytest/test_admin_snapshots.py`
 - Backend Redis integration marker: `cd backend && pytest -m redis_integration -q`
 - Frontend unit tests: `cd frontend && npm run test:run` (blocking in PR CI)
@@ -78,6 +79,7 @@
 - Frontend targeted KRI routing regression: `cd frontend && npm run test:run -- src/pages/__tests__/KRIsPage.monitoring-status.test.tsx`
 - Frontend targeted vendor grouped-view regression: `cd frontend && npm run test:run -- src/pages/__tests__/VendorsPage.grouped-views.test.tsx`
 - Frontend vendor governance/report regressions: `cd frontend && npm run test:run -- ../tests/frontend/unit/src/components/__tests__/VendorForm.test.tsx ../tests/frontend/unit/src/components/__tests__/VendorForm.payloads.test.ts ../tests/frontend/unit/src/pages/__tests__/VendorsPage.grouped-views.test.tsx ../tests/frontend/unit/src/pages/__tests__/VendorDetailPage.presentation.test.ts ../tests/frontend/unit/src/services/__tests__/vendorReportApi.test.ts`
+- Frontend control execution/detail regressions: `cd frontend && npm run test:run -- ../tests/frontend/unit/src/components/__tests__/ExecutionHistory.test.tsx ../tests/frontend/unit/src/pages/__tests__/ControlDetailPage.execution-status.test.tsx ../tests/frontend/unit/src/pages/__tests__/ControlsPage.presentation.test.ts`
 - Frontend type checks: `cd frontend && npx tsc --noEmit`
 - Frontend quality gate chain: `cd frontend && npm run lint && npx tsc --noEmit && npm run quality:debt -- --report-json && node scripts/quality/validate-debt-budget-report.mjs && npm run cleanup:deadcode && node scripts/cleanup/validate-unreachable-report.mjs && node scripts/quality/validate-no-inline-styles.mjs`
 - E2E: `make -f scripts/Makefile test-e2e` or `cd frontend && npm run e2e`

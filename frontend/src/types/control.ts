@@ -46,6 +46,12 @@ export interface ControlMonitoringFields {
     execution_log_count?: number;
 }
 
+export interface ControlCapabilities {
+    can_log_execution: boolean;
+    can_link_risk: boolean;
+    can_unlink_risk: boolean;
+}
+
 export interface Control {
     monitoring_status?: ControlMonitoringStatus;
     monitoring_status_reason?: ControlMonitoringReason;
@@ -85,6 +91,7 @@ export interface Control {
         name: string;
         code: string;
     } | null;
+    capabilities?: ControlCapabilities | null;
 }
 
 export interface ControlSummary extends ControlMonitoringFields {
@@ -105,6 +112,7 @@ export interface ControlSummary extends ControlMonitoringFields {
     risk_owner_name?: string | null;
     risk_department_name?: string | null;
     linked_vendors?: LinkedVendorSummary[];
+    capabilities?: ControlCapabilities | null;
 }
 
 export type ControlCreate = Omit<Control, 'id' | 'created_at' | 'updated_at' | 'control_owner' | 'department'>;

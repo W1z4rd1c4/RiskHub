@@ -64,6 +64,12 @@ export const controlMonitoringFieldsSchema = passthroughObject({
         execution_log_count: z.number().optional(),
     }) satisfies z.ZodType<ControlMonitoringFields>;
 
+const controlCapabilitiesSchema = passthroughObject({
+    can_log_execution: z.boolean(),
+    can_link_risk: z.boolean(),
+    can_unlink_risk: z.boolean(),
+});
+
 export const linkedRiskSchema: z.ZodType<LinkedRisk> = passthroughObject({
     id: z.number(),
     risk_id_code: z.string(),
@@ -158,6 +164,7 @@ export const controlSchema: z.ZodType<Control> = controlMonitoringFieldsSchema.e
     updated_at: z.string(),
     control_owner: idNameEmailSchema.nullable().optional(),
     department: idNameCodeSchema.nullable().optional(),
+    capabilities: controlCapabilitiesSchema.nullable().optional(),
 });
 
 export const controlSummarySchema: z.ZodType<ControlSummary> = controlMonitoringFieldsSchema.extend({
@@ -187,6 +194,7 @@ export const controlSummarySchema: z.ZodType<ControlSummary> = controlMonitoring
     risk_owner_name: z.string().nullable().optional(),
     risk_department_name: z.string().nullable().optional(),
     linked_vendors: linkedVendorSummaryArraySchema.optional(),
+    capabilities: controlCapabilitiesSchema.nullable().optional(),
 });
 export const controlListResponseSchema: z.ZodType<ControlListResponse> =
     collectionPaginationSchema(controlSummarySchema);

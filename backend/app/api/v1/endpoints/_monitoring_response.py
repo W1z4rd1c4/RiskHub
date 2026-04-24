@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import NO_VALUE
 
 from app.api.mappers.risk import filter_active_kris
-from app.schemas.control import ControlRead
+from app.schemas.control import ControlCapabilities, ControlRead
 from app.schemas.kri import KRIResponse
 from app.schemas.risk import ControlBriefForLink, ControlRiskLinkRead, RiskBriefForLink, RiskRead
 from app.schemas.vendor_shared import LinkedVendorRead
@@ -145,7 +145,12 @@ def build_kri_monitoring_fields(kri, context: MonitoringResponseContext) -> dict
     }
 
 
-def serialize_control_read(control, context: MonitoringResponseContext) -> ControlRead:
+def serialize_control_read(
+    control,
+    context: MonitoringResponseContext,
+    *,
+    capabilities: ControlCapabilities | None = None,
+) -> ControlRead:
     return ControlRead.model_validate(
         {
             **_serialize_control_base(control),
@@ -154,6 +159,7 @@ def serialize_control_read(control, context: MonitoringResponseContext) -> Contr
             "department": _loaded_attr(control, "department"),
             "created_by_id": control.created_by_id,
             "updated_by_id": control.updated_by_id,
+            "capabilities": capabilities,
             "created_at": control.created_at,
             "updated_at": control.updated_at,
             **build_control_monitoring_fields(control, context),

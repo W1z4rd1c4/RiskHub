@@ -6,8 +6,9 @@ import pytest
 import pytest_asyncio
 from httpx import AsyncClient
 
-from app.models import Control, Department, User
+from app.models import Control, ControlRiskLink, Department, Permission, Risk, Role, RolePermission, User
 from app.models.control_execution import ControlExecution
+from app.models.user import AccessScope
 
 
 @pytest.mark.asyncio
@@ -45,6 +46,142 @@ async def test_create_execution(auth_client: AsyncClient, test_user: User, test_
     assert data["control_id"] == control_id
     assert data["result"] == "passed"
     assert data["findings"] == "Control executed successfully with no issues"
+
+
+@pytest.mark.asyncio
+async def test_create_execution_rejects_archived_control(
+    auth_client: AsyncClient,
+    db_session,
+    test_user: User,
+    test_department: Department,
+):
+    control = Control(
+        name="Archived Execution Control",
+        description="Archived controls cannot be executed",
+        department_id=test_department.id,
+        control_owner_id=test_user.id,
+        control_form="manual",
+        frequency="monthly",
+        risk_level=3,
+        status="archived",
+    )
+    db_session.add(control)
+    await db_session.commit()
+    await db_session.refresh(control)
+
+    response = await auth_client.post(
+        "/api/v1/executions",
+        json={"control_id": control.id, "result": "passed", "findings": "Should be rejected"},
+    )
+
+    assert response.status_code == 409
+    assert "archived control" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_control_execution_endpoint_rejects_archived_control(
+    auth_client: AsyncClient,
+    db_session,
+    test_user: User,
+    test_department: Department,
+):
+    control = Control(
+        name="Archived Nested Execution Control",
+        description="Archived controls cannot be executed through nested route",
+        department_id=test_department.id,
+        control_owner_id=test_user.id,
+        control_form="manual",
+        frequency="monthly",
+        risk_level=3,
+        status="archived",
+    )
+    db_session.add(control)
+    await db_session.commit()
+    await db_session.refresh(control)
+
+    response = await auth_client.post(
+        f"/api/v1/controls/{control.id}/executions",
+        json={"result": "passed", "findings": "Should be rejected"},
+    )
+
+    assert response.status_code == 409
+    assert "archived control" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_execution_create_hides_linked_risks_without_risk_read(
+    client: AsyncClient,
+    db_session,
+    test_department: Department,
+):
+    role = Role(
+        name="control_executor_no_risk_read",
+        display_name="Control Executor No Risk Read",
+        description="Can execute controls without reading risks",
+    )
+    db_session.add(role)
+    await db_session.commit()
+
+    permissions = [
+        Permission(resource="controls", action="execute", description="Execute controls"),
+        Permission(resource="controls", action="read", description="Read controls"),
+    ]
+    db_session.add_all(permissions)
+    await db_session.commit()
+    db_session.add_all([RolePermission(role_id=role.id, permission_id=permission.id) for permission in permissions])
+    await db_session.commit()
+
+    user = User(
+        name="Executor Without Risk Read",
+        email="executor-no-risk-read@example.com",
+        role_id=role.id,
+        department_id=test_department.id,
+        access_scope=AccessScope.DEPARTMENT,
+        is_active=True,
+    )
+    db_session.add(user)
+    await db_session.commit()
+    await db_session.refresh(user)
+
+    risk = Risk(
+        risk_id_code="RISK-NO-READ",
+        name="Hidden Linked Risk",
+        process="Hidden Process",
+        description="Risk should not be serialized in execution response",
+        department_id=test_department.id,
+        owner_id=user.id,
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=2,
+        status="active",
+    )
+    control = Control(
+        name="Execution Linked Risk Filter Control",
+        description="Control linked to hidden risk",
+        department_id=test_department.id,
+        control_owner_id=user.id,
+        control_form="manual",
+        frequency="monthly",
+        risk_level=3,
+        status="active",
+    )
+    db_session.add_all([risk, control])
+    await db_session.commit()
+    await db_session.refresh(risk)
+    await db_session.refresh(control)
+
+    db_session.add(ControlRiskLink(control_id=control.id, risk_id=risk.id, effectiveness="medium"))
+    await db_session.commit()
+
+    response = await client.post(
+        "/api/v1/executions",
+        headers={"X-Mock-User-Id": str(user.id)},
+        json={"control_id": control.id, "result": "passed", "findings": "No risk leak"},
+    )
+
+    assert response.status_code == 201
+    assert response.json()["linked_risks"] == []
 
 
 @pytest.mark.asyncio

@@ -146,6 +146,7 @@ Pattern:
 - linkněte na každé riziko, které kontrola reálně mitigují
 - zvolte efektivitu (high/medium/low) podle reality
 - přidejte notes s mechanismem („preventuje X“, „detekuje Y“, „limituje Z“)
+- tlačítka pro linkování rizik používají backend capability metadata, pokud jsou dostupná; pokud akce po refreshi zmizí, backend ji už pro vaši aktuální roli, ownership nebo scope nepovažuje za platnou
 
 Pokud je kontrola linknutá na příliš mnoho rizik, ověřte, zda to není spíše „program“ nebo „proces“.
 
@@ -163,6 +164,8 @@ Postup:
    - jaké výjimky byly
 5. Přidejte evidence reference.
 6. Uložte.
+
+Archivované kontroly nepřijímají nové exekuční logy. Pokud backend při uložení zjistí archivovanou kontrolu, vrátí conflict a stránku je potřeba před dalším pokusem obnovit. Názvy navázaných rizik v exekučních pohledech se filtrují podle vaší risk visibility, takže exekuce může být viditelná, ale část risk kontextu záměrně chybí.
 
 Interpretace výsledků:
 

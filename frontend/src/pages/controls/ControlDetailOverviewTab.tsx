@@ -2,7 +2,6 @@ import type { MouseEvent } from 'react';
 import { motion } from 'framer-motion';
 import { AlertCircle, BarChart3, BookOpen, Building2, Calendar, ShieldAlert, User } from 'lucide-react';
 
-import { PermissionGate } from '@/components/PermissionGate';
 import { LinkManagementDialog } from '@/components/LinkManagementDialog';
 import { RiskQuickViewModal } from '@/components/RiskQuickViewModal';
 import type { Control, ControlRiskLink } from '@/types/control';
@@ -16,6 +15,8 @@ type ControlDetailOverviewTabProps = {
     linkedRisks: ControlRiskLink[];
     activeLinkedRisks: ControlRiskLink[];
     archivedLinkedRisks: ControlRiskLink[];
+    canLinkRisk: boolean;
+    canUnlinkRisk: boolean;
     linkErrorKey: string | null;
     linkedRisksErrorKey: string | null;
     isLinkDialogOpen: boolean;
@@ -55,6 +56,8 @@ export function ControlDetailOverviewTab({
     linkedRisks,
     activeLinkedRisks,
     archivedLinkedRisks,
+    canLinkRisk,
+    canUnlinkRisk,
     linkErrorKey,
     linkedRisksErrorKey,
     isLinkDialogOpen,
@@ -261,14 +264,14 @@ export function ControlDetailOverviewTab({
                     </div>
                 )}
 
-                <PermissionGate resource="controls" action="write">
+                {(canLinkRisk || canUnlinkRisk) && (
                     <button
                         onClick={onOpenLinkDialog}
                         className="w-full mt-4 py-3 border border-dashed border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-white hover:border-accent/40 hover:bg-white/5 transition-all"
                     >
                         {t('controls:detail.manage_risk_linkage')}
                     </button>
-                </PermissionGate>
+                )}
 
                 <LinkManagementDialog
                     isOpen={isLinkDialogOpen}

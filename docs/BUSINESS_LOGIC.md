@@ -186,6 +186,7 @@ Rules:
 - `passed`: latest execution result is `passed`.
 - Supporting fields include `latest_execution_result`, `latest_executed_at`, `days_since_last_execution`, and `execution_log_count`.
 - Thresholds are configuration-backed in Risk Hub global config, not hardcoded in UI code.
+- Control detail responses may include additive `capabilities` metadata for execution logging and risk-link management. The frontend should prefer those flags over local permission guesses and refresh after `403` or `409` mutation failures.
 
 ### 2.3 Key Risk Indicator (KRI)
 
@@ -651,6 +652,8 @@ Additional KRI value rules:
 
 Default seeded roles with `controls:execute`: `cro`, `risk_manager`, `compliance`, `internal_audit`, `actuarial`, `department_head`, `employee`.
 The canonical RBAC seed contract and the idempotent permission-convergence script must stay aligned on that same role set.
+
+Execution creation is locked on the parent control row. Archived controls reject new execution logs with `409 Conflict`. Both `/api/v1/executions` and `/api/v1/controls/{id}/executions` use the same next-scheduled calculation and the same department-or-control-owner access policy. Generic execution list/detail/create responses filter linked risk names through canonical risk visibility before serialization.
 
 ### 8.7 Notification Types (Stable Keys)
 

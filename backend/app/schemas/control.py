@@ -74,6 +74,14 @@ class ControlMonitoringBundle(BaseModel):
     execution_log_count: int = 0
 
 
+class ControlCapabilities(BaseModel):
+    """Backend-authoritative control detail/list action capabilities."""
+
+    can_log_execution: bool
+    can_link_risk: bool
+    can_unlink_risk: bool
+
+
 # ============== Control Schemas ==============
 
 
@@ -170,6 +178,7 @@ class ControlRead(ControlBase, ControlMonitoringBundle):
     department: Optional[DepartmentBriefForControl] = None
     created_by_id: Optional[int] = None
     updated_by_id: Optional[int] = None
+    capabilities: ControlCapabilities | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -196,6 +205,7 @@ class ControlSummary(ControlMonitoringBundle):
     risk_owner_name: Optional[str] = None
     risk_department_name: Optional[str] = None
     linked_vendors: list[LinkedVendorRead] = Field(default_factory=list)
+    capabilities: ControlCapabilities | None = None
 
     model_config = {"from_attributes": True}
 

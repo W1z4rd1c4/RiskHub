@@ -146,6 +146,7 @@ Linking pattern:
 - link to each risk the control materially mitigates
 - choose effectiveness (high/medium/low) based on reality, not optimism
 - add notes explaining the mechanism (“prevents X”, “detects Y”, “limits Z”)
+- risk-link buttons follow backend capability metadata when available; if a link action disappears after refresh, the backend no longer considers the action valid for your current role, ownership, or scope
 
 If a control is linked to many risks, confirm it’s not actually a “program” or “process” that should be modeled differently.
 
@@ -163,6 +164,8 @@ Operational procedure:
    - what exceptions were found
 5. Add an evidence reference.
 6. Save.
+
+Archived controls cannot receive new execution logs. If the backend detects an archived control during save, it returns a conflict and the page should be refreshed before retrying. Linked risk names in execution views are filtered by your risk visibility, so an execution can be visible while some linked risk context is intentionally omitted.
 
 Interpretation of results:
 

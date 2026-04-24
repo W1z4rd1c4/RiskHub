@@ -194,6 +194,9 @@ export function ControlDetailPage() {
     const archivedLinkedRisks = linkedRisks.filter((link) => link.risk?.status === 'archived');
     const monitoring = getControlMonitoringMeta(control.monitoring_status);
     const MonitoringIcon = monitoring.icon;
+    const canLogExecution = control.capabilities?.can_log_execution ?? hasPermission('controls', 'execute');
+    const canLinkRisk = control.capabilities?.can_link_risk ?? hasPermission('controls', 'write');
+    const canUnlinkRisk = control.capabilities?.can_unlink_risk ?? hasPermission('controls', 'write');
     const actionMessageText = (key: string) => (
         key.startsWith('errorKeys.')
             ? t(key, { ns: 'errorKeys' })
@@ -312,6 +315,8 @@ export function ControlDetailPage() {
                     linkedRisks={linkedRisks}
                     activeLinkedRisks={activeLinkedRisks}
                     archivedLinkedRisks={archivedLinkedRisks}
+                    canLinkRisk={canLinkRisk}
+                    canUnlinkRisk={canUnlinkRisk}
                     linkErrorKey={linkErrorKey}
                     linkedRisksErrorKey={linkedRisksErrorKey}
                     isLinkDialogOpen={isLinkDialogOpen}
@@ -341,7 +346,7 @@ export function ControlDetailPage() {
                             <History className="h-4 w-4 text-accent" />
                             {t('controls:detail.execution_audit_trail')}
                         </h3>
-                        <PermissionGate resource="controls" action="execute">
+                        {canLogExecution && (
                             <button
                                 onClick={() => setIsLogModalOpen(true)}
                                 className="px-4 py-2 bg-accent/10 border border-accent/20 rounded-xl text-accent text-[10px] font-black uppercase tracking-widest hover:bg-accent hover:text-white transition-all flex items-center gap-2 group-hover:shadow-lg group-hover:shadow-accent/30"
@@ -349,7 +354,7 @@ export function ControlDetailPage() {
                                 <Plus className="h-3.5 w-3.5" />
                                 {t('controls:execution.log_execution')}
                             </button>
-                        </PermissionGate>
+                        )}
                     </div>
 
                     <ExecutionHistory key={historyKey} controlId={control.id} />

@@ -10,6 +10,7 @@ from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import Control, User
 from app.schemas.control import ControlRead
+from app.services._control_execution import control_capabilities
 
 router = APIRouter()
 
@@ -42,7 +43,8 @@ async def get_control(
 
     # Allow access if user is control owner (cross-department)
     if await is_control_owner(db, current_user.id, control_id):
-        return serialize_control_read(control, monitoring_context)
+        capabilities = await control_capabilities(db, current_user=current_user, control=control)
+        return serialize_control_read(control, monitoring_context, capabilities=capabilities)
 
     # Otherwise verify department access
     try:
@@ -50,4 +52,5 @@ async def get_control(
     except HTTPException:
         raise HTTPException(status_code=404, detail="Control not found")
 
-    return serialize_control_read(control, monitoring_context)
+    capabilities = await control_capabilities(db, current_user=current_user, control=control)
+    return serialize_control_read(control, monitoring_context, capabilities=capabilities)
