@@ -3,14 +3,18 @@
 import logging
 from datetime import UTC, date, datetime, timedelta
 
-from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.permissions import can_read_kri_id
 from app.models.global_config import ConfigDefaults
 from app.models.key_risk_indicator import KeyRiskIndicator
-from app.models.notification import Notification, NotificationType
+from app.models.notification import NotificationType
 from app.models.user import User
+from app.services.deadline_notifications import (
+    create_deadline_notification,
+    has_recent_deadline_notification,
+    increment_deadline_results,
+)
 from app.services.kri_deadline_support import (
     initialize_results,
     list_active_kris,
@@ -18,7 +22,6 @@ from app.services.kri_deadline_support import (
     load_kri_deadline_config,
 )
 from app.services.kri_history_service import KRIHistoryService
-from app.services.notification_service import NotificationService
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +85,7 @@ class KRIDeadlineService:
             if not await KRIDeadlineService._check_duplicate_notification(
                 db, kri.id, NotificationType.KRI_DUE_SOON, lookback_days=config["duplicate_lookback_days"]
             ):
-                await NotificationService.create_notification(
+                await create_deadline_notification(
                     db=db,
                     user_id=reporting_owner,
                     notification_type=NotificationType.KRI_DUE_SOON,
@@ -95,8 +98,7 @@ class KRIDeadlineService:
                     resource_type="kri",
                     resource_id=kri.id,
                 )
-                results["notifications_created"] += 1
-                results["due_soon"] += 1
+                increment_deadline_results(results, "notifications_created", "due_soon")
             return
 
         if today == due:
@@ -106,7 +108,7 @@ class KRIDeadlineService:
                 NotificationType.KRI_DUE_TOMORROW,
                 lookback_days=config["duplicate_lookback_days"],
             ):
-                await NotificationService.create_notification(
+                await create_deadline_notification(
                     db=db,
                     user_id=reporting_owner,
                     notification_type=NotificationType.KRI_DUE_TOMORROW,
@@ -119,8 +121,7 @@ class KRIDeadlineService:
                     resource_type="kri",
                     resource_id=kri.id,
                 )
-                results["notifications_created"] += 1
-                results["deadline"] += 1
+                increment_deadline_results(results, "notifications_created", "deadline")
             return
 
         if today <= due:
@@ -137,7 +138,7 @@ class KRIDeadlineService:
             NotificationType.KRI_OVERDUE,
             lookback_days=config["duplicate_lookback_days"],
         ):
-            await NotificationService.create_notification(
+            await create_deadline_notification(
                 db=db,
                 user_id=reporting_owner,
                 notification_type=NotificationType.KRI_OVERDUE,
@@ -149,8 +150,7 @@ class KRIDeadlineService:
                 resource_type="kri",
                 resource_id=kri.id,
             )
-            results["notifications_created"] += 1
-            results["overdue"] += 1
+            increment_deadline_results(results, "notifications_created", "overdue")
 
     @staticmethod
     async def _check_breach_notifications(
@@ -180,7 +180,7 @@ class KRIDeadlineService:
             )
             owner_id = kri.risk.owner_id if kri.risk else None
             if owner_id:
-                await NotificationService.create_notification(
+                await create_deadline_notification(
                     db=db,
                     user_id=owner_id,
                     notification_type=NotificationType.KRI_BREACH_DETECTED,
@@ -189,14 +189,14 @@ class KRIDeadlineService:
                     resource_type="kri",
                     resource_id=kri.id,
                 )
-                results["notifications_created"] += 1
+                increment_deadline_results(results, "notifications_created")
 
             for rm in risk_managers:
                 if rm.id == owner_id:
                     continue
                 if not await can_read_kri_id(db, rm, kri.id):
                     continue
-                await NotificationService.create_notification(
+                await create_deadline_notification(
                     db=db,
                     user_id=rm.id,
                     notification_type=NotificationType.KRI_BREACH_DETECTED,
@@ -205,9 +205,9 @@ class KRIDeadlineService:
                     resource_type="kri",
                     resource_id=kri.id,
                 )
-                results["notifications_created"] += 1
+                increment_deadline_results(results, "notifications_created")
 
-            results["breached"] += 1
+            increment_deadline_results(results, "breached")
             return
 
         range_size = kri.upper_limit - kri.lower_limit
@@ -228,7 +228,7 @@ class KRIDeadlineService:
 
         owner_id = kri.risk.owner_id if kri.risk else None
         if owner_id:
-            await NotificationService.create_notification(
+            await create_deadline_notification(
                 db=db,
                 user_id=owner_id,
                 notification_type=NotificationType.KRI_NEAR_BREACH,
@@ -240,8 +240,7 @@ class KRIDeadlineService:
                 resource_type="kri",
                 resource_id=kri.id,
             )
-            results["notifications_created"] += 1
-            results["near_breach"] += 1
+            increment_deadline_results(results, "notifications_created", "near_breach")
 
     @staticmethod
     async def _process_single_kri(
@@ -337,24 +336,14 @@ class KRIDeadlineService:
 
         Returns True if duplicate exists (should skip), False if OK to send.
         """
-        cutoff_date = datetime.now(UTC) - timedelta(days=lookback_days)
-
-        stmt = (
-            select(Notification)
-            .where(
-                and_(
-                    Notification.resource_type == "kri",
-                    Notification.resource_id == kri_id,
-                    Notification.type == notification_type,
-                    Notification.created_at >= cutoff_date,
-                )
-            )
-            .limit(1)
+        return await has_recent_deadline_notification(
+            db,
+            resource_type="kri",
+            resource_id=kri_id,
+            notification_type=notification_type,
+            lookback_days=lookback_days,
+            now=datetime.now(UTC),
         )
-        result = await db.execute(stmt)
-        existing = result.scalar_one_or_none()
-
-        return existing is not None
 
     @staticmethod
     async def _get_risk_managers(db: AsyncSession) -> list[User]:

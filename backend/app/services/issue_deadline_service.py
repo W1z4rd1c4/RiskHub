@@ -18,7 +18,7 @@ from app.models.global_config import ConfigDefaults, get_config_int
 from app.models.issue import IssueExceptionStatus, IssueRemediationStatus, IssueSeverity, IssueStatus
 from app.models.notification import NotificationType
 from app.models.role import Permission, RoleType
-from app.services.notification_service import NotificationService
+from app.services.deadline_notifications import create_deadline_notification, increment_deadline_results
 
 logger = logging.getLogger(__name__)
 
@@ -105,9 +105,7 @@ class IssueDeadlineService:
         message: str,
         now: datetime,
     ) -> bool:
-        if not await can_read_issue_id(db, user, issue.id):
-            return False
-        created = await NotificationService.create_notification(
+        return await create_deadline_notification(
             db=db,
             user_id=user.id,
             notification_type=notification_type,
@@ -116,8 +114,8 @@ class IssueDeadlineService:
             resource_type="issue",
             resource_id=issue.id,
             created_at=now,
+            visibility_check=lambda: can_read_issue_id(db, user, issue.id),
         )
-        return created is not None
 
     @staticmethod
     async def _expire_exceptions(db: AsyncSession, issue: Issue, now: datetime) -> tuple[int, bool]:
@@ -212,9 +210,9 @@ class IssueDeadlineService:
             try:
                 expired_count, reopened = await IssueDeadlineService._expire_exceptions(db, issue, now)
                 if expired_count:
-                    results["exceptions_expired"] += expired_count
+                    increment_deadline_results(results, "exceptions_expired", count=expired_count)
                 if reopened:
-                    results["reopened"] += 1
+                    increment_deadline_results(results, "reopened")
 
                 # Skip deadline notifications for issues suppressed by active approved exception.
                 if IssueDeadlineService._active_exception(issue, now) is not None:
@@ -258,8 +256,8 @@ class IssueDeadlineService:
                         if created_for_issue:
                             issue.last_due_soon_notified_at = now
                             db.add(issue)
-                            results["due_soon"] += 1
-                            results["notifications_created"] += created_for_issue
+                            increment_deadline_results(results, "due_soon")
+                            increment_deadline_results(results, "notifications_created", count=created_for_issue)
 
                 if due_at < now:
                     if (
@@ -282,8 +280,8 @@ class IssueDeadlineService:
                         if created_for_issue:
                             issue.last_overdue_notified_at = now
                             db.add(issue)
-                            results["overdue"] += 1
-                            results["notifications_created"] += created_for_issue
+                            increment_deadline_results(results, "overdue")
+                            increment_deadline_results(results, "notifications_created", count=created_for_issue)
 
                     if issue.severity in {IssueSeverity.high.value, IssueSeverity.critical.value}:
                         if issue.last_escalated_at is None or coerce_utc(issue.last_escalated_at) < escalation_cutoff:
@@ -309,8 +307,8 @@ class IssueDeadlineService:
                             if created_escalations:
                                 issue.last_escalated_at = now
                                 db.add(issue)
-                                results["escalated"] += 1
-                                results["notifications_created"] += created_escalations
+                                increment_deadline_results(results, "escalated")
+                                increment_deadline_results(results, "notifications_created", count=created_escalations)
 
             except Exception as exc:
                 logger.error("Issue deadline check failed for issue_id=%s: %s", issue.id, exc)

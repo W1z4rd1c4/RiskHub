@@ -3,16 +3,20 @@
 import logging
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import and_, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.i18n import t
 from app.models import RiskQuestionnaire
 from app.models.global_config import ConfigDefaults, get_config_int
-from app.models.notification import Notification, NotificationType
+from app.models.notification import NotificationType
 from app.models.risk_questionnaire import RiskQuestionnaireStatus
-from app.services.notification_service import NotificationService
+from app.services.deadline_notifications import (
+    create_deadline_notification,
+    has_recent_deadline_notification,
+    increment_deadline_results,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +82,7 @@ class QuestionnaireDeadlineService:
                         lookback_days=QuestionnaireDeadlineService.DUPLICATE_LOOKBACK_DAYS,
                         now=now,
                     ):
-                        created = await NotificationService.create_notification(
+                        created = await create_deadline_notification(
                             db=db,
                             user_id=assignee.id,
                             notification_type=NotificationType.QUESTIONNAIRE_DUE_SOON,
@@ -94,8 +98,7 @@ class QuestionnaireDeadlineService:
                             created_at=now,
                         )
                         if created:
-                            results["notifications_created"] += 1
-                            results["due_soon"] += 1
+                            increment_deadline_results(results, "notifications_created", "due_soon")
 
                 # Overdue: due date passed; send on configured weekday (default Monday), deduped weekly.
                 if q.due_at < now and today.weekday() == overdue_weekday:
@@ -107,7 +110,7 @@ class QuestionnaireDeadlineService:
                         lookback_days=7,
                         now=now,
                     ):
-                        created = await NotificationService.create_notification(
+                        created = await create_deadline_notification(
                             db=db,
                             user_id=assignee.id,
                             notification_type=NotificationType.QUESTIONNAIRE_OVERDUE,
@@ -123,8 +126,7 @@ class QuestionnaireDeadlineService:
                             created_at=now,
                         )
                         if created:
-                            results["notifications_created"] += 1
-                            results["overdue"] += 1
+                            increment_deadline_results(results, "notifications_created", "overdue")
 
             except Exception as e:
                 logger.error(f"Error checking questionnaire {getattr(q, 'id', None)}: {e}")
@@ -143,19 +145,11 @@ class QuestionnaireDeadlineService:
         lookback_days: int,
         now: datetime,
     ) -> bool:
-        cutoff_date = now - timedelta(days=lookback_days)
-        stmt = (
-            select(Notification)
-            .where(
-                and_(
-                    Notification.resource_type == resource_type,
-                    Notification.resource_id == resource_id,
-                    Notification.type == notification_type,
-                    Notification.created_at >= cutoff_date,
-                )
-            )
-            .limit(1)
+        return await has_recent_deadline_notification(
+            db,
+            resource_type=resource_type,
+            resource_id=resource_id,
+            notification_type=notification_type,
+            lookback_days=lookback_days,
+            now=now,
         )
-        result = await db.execute(stmt)
-        existing = result.scalar_one_or_none()
-        return existing is not None
