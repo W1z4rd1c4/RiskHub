@@ -24,13 +24,24 @@ async function downloadFile(url: string, defaultFilename: string): Promise<void>
 }
 
 export const vendorReportApi = {
-    async downloadAnnual(year: number, format: VendorReportFormat): Promise<void> {
-        const url = `/vendor-reports/annual?year=${encodeURIComponent(String(year))}&format=${encodeURIComponent(format)}`;
+    async downloadAnnual(year: number, format: VendorReportFormat, departmentId?: number | null): Promise<void> {
+        const params = new URLSearchParams({
+            year: String(year),
+            format,
+        });
+        if (departmentId) {
+            params.set('department_id', String(departmentId));
+        }
+        const url = `/vendor-reports/annual?${params.toString()}`;
         await downloadFile(url, `vendor-annual-report-${year}.${format}`);
     },
 
-    async downloadDoraRegister(): Promise<void> {
-        const url = '/vendor-reports/dora-register?format=csv';
+    async downloadDoraRegister(departmentId?: number | null): Promise<void> {
+        const params = new URLSearchParams({ format: 'csv' });
+        if (departmentId) {
+            params.set('department_id', String(departmentId));
+        }
+        const url = `/vendor-reports/dora-register?${params.toString()}`;
         await downloadFile(url, 'vendor-dora-register.csv');
     },
 };

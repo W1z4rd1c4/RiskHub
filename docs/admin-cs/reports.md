@@ -105,6 +105,7 @@ U scoped business exportů ověřte:
 - explicitní `department_id` filtr je po as-of replay striktní
 - nefiltrované scoped exporty mohou obsahovat řádky díky ownership/reporting-owner výjimkám napříč odděleními
 - evidence poznámka uvádí, zda šlo o current-date nebo point-in-time (`as_of_date`) export
+- vendor annual a DORA report exporty používají stejnou striktnost explicitního filtru oddělení; přímo vlastnění dodavatelé mimo vybrané oddělení se do těchto souborů nepřidají
 
 ### 3) Získat application log evidence (opatrně)
 

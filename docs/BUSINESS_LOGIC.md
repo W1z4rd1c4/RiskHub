@@ -327,6 +327,9 @@ Rules:
 > Vendor visibility and vendor-linked risk visibility are related but not identical. A user can have enough access to view a vendor while still lacking permission or scope to read linked risks. In that case the vendor remains visible, but risk-linked summaries and the frontend `By Risk` grouping must only expose readable risks; otherwise the UI must fall back to an unlinked/no-readable-risk bucket rather than leaking risk names.
 
 > [!NOTE]
+> Vendor governance uses a shared backend policy. Unfiltered scoped vendor lists include vendors in the user's department scope plus directly owned vendors, but unassigned vendors remain global-only. When a caller supplies an explicit `department_id`, the filter is strict: owner exceptions do not include vendors from another department. Vendor responses may include additive `capabilities` metadata for update, archive/restore, and link actions; the frontend should prefer those flags over local permission guesses.
+
+> [!NOTE]
 > Vendor detail now mirrors the individual risk page interaction model for linked entities. `Link Existing` remains governed by vendor edit access (`vendors:write` or vendor ownership rules), while `Add Risk` and `Add Control` require that same vendor edit access plus the corresponding domain write permission (`risks:write` or `controls:write`). Create-from-vendor uses routed forms and auto-links the new entity back to the originating vendor after save.
 
 > [!NOTE]
@@ -769,6 +772,8 @@ Specialized report exports are CSV:
 - `/api/v1/reports/audit-trail/export?format=csv`
 - `/api/v1/vendor-reports/annual?format=csv`
 - `/api/v1/vendor-reports/dora-register?format=csv`
+
+Vendor annual and DORA report endpoints also accept optional `department_id`. This is always a strict department filter. For scoped users, a department outside their scope is rejected and directly owned vendors in other departments are not included in a selected department's evidence export.
 
 Legacy Excel endpoints return `410` with replacement metadata.
 

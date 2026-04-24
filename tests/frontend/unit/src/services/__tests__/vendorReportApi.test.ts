@@ -35,4 +35,25 @@ describe('vendorReportApi downloads', () => {
             { timeoutMs: null },
         );
     });
+
+    it('includes department filters for vendor reports', async () => {
+        getBlobMock.mockResolvedValue({
+            blob: new Blob(['vendor\n'], { type: 'text/csv' }),
+            headers: new Headers(),
+        });
+
+        await vendorReportApi.downloadAnnual(2026, 'csv', 42);
+        await vendorReportApi.downloadDoraRegister(42);
+
+        expect(getBlobMock).toHaveBeenNthCalledWith(
+            1,
+            '/vendor-reports/annual?year=2026&format=csv&department_id=42',
+            { timeoutMs: null },
+        );
+        expect(getBlobMock).toHaveBeenNthCalledWith(
+            2,
+            '/vendor-reports/dora-register?format=csv&department_id=42',
+            { timeoutMs: null },
+        );
+    });
 });

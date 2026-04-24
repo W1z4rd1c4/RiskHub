@@ -49,6 +49,7 @@ This is an access-policy contract, not a UI-only behavior.
 - KRI history read uses canonical KRI visibility, including reporting-owner and linked-risk visibility paths.
 - Risk questionnaire read uses canonical risk visibility; action/submit capability remains narrower than read capability.
 - Report exports apply final-row authorization after as-of replay; explicit `department_id` filters are strict on the replayed row state.
+- Vendor list and report filters share the same explicit-department rule: unfiltered scoped lists may include directly owned vendors, but `department_id=<id>` is strict and does not include owner-exception rows from other departments.
 
 ## 5) Verification Expectations
 

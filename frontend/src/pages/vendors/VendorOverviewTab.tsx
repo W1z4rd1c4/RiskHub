@@ -28,7 +28,9 @@ interface VendorOverviewTabProps {
     canCreateControl: boolean;
     canCreateKri: boolean;
     canCreateRisk: boolean;
-    canEdit: boolean;
+    canLinkControl: boolean;
+    canLinkKri: boolean;
+    canLinkRisk: boolean;
     onAddControl: () => void;
     onAddKri: () => void;
     onAddRisk: () => void;
@@ -62,7 +64,9 @@ export function VendorOverviewTab({
     canCreateControl,
     canCreateKri,
     canCreateRisk,
-    canEdit,
+    canLinkControl,
+    canLinkKri,
+    canLinkRisk,
     onAddControl,
     onAddKri,
     onAddRisk,
@@ -290,7 +294,7 @@ export function VendorOverviewTab({
                 <VendorLinkedRisksTab
                     vendorId={vendor.id}
                     canCreateRisk={canCreateRisk}
-                    canEdit={canEdit}
+                    canEdit={canLinkRisk}
                     onAddRisk={onAddRisk}
                     onNavigateToRisk={onNavigateToRisk}
                 />
@@ -300,7 +304,7 @@ export function VendorOverviewTab({
                 <VendorLinkedControlsTab
                     vendorId={vendor.id}
                     canCreateControl={canCreateControl}
-                    canEdit={canEdit}
+                    canEdit={canLinkControl}
                     onAddControl={onAddControl}
                     onNavigateToControl={onNavigateToControl}
                 />
@@ -310,7 +314,7 @@ export function VendorOverviewTab({
                 <VendorLinkedKRIsTab
                     vendorId={vendor.id}
                     canCreateKri={canCreateKri}
-                    canEdit={canEdit}
+                    canEdit={canLinkKri}
                     onAddKri={onAddKri}
                     onNavigateToKri={onNavigateToKri}
                 />

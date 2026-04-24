@@ -11,6 +11,8 @@ import {
 
 interface UseVendorDetailStateOptions {
     canDeleteVendor: boolean;
+    canReadControls: boolean;
+    canReadRisks: boolean;
     canWriteVendor: boolean;
     currentUserId: number | null | undefined;
     mode: VendorDetailMode;
@@ -19,6 +21,8 @@ interface UseVendorDetailStateOptions {
 
 export function useVendorDetailState({
     canDeleteVendor,
+    canReadControls,
+    canReadRisks,
     canWriteVendor,
     currentUserId,
     mode,
@@ -74,14 +78,20 @@ export function useVendorDetailState({
     }, [fetchVendor, vendor]);
 
     const canEditByOwnership = canEditVendorByOwnership(vendor, currentUserId);
-    const canEdit = canWriteVendor || canEditByOwnership;
-    const canArchive = Boolean(vendor?.status === 'active' && canDeleteVendor);
-    const canRestore = Boolean(vendor?.status === 'inactive' && canDeleteVendor);
+    const canEdit = vendor?.capabilities?.can_update ?? (canWriteVendor || canEditByOwnership);
+    const canArchive = vendor?.capabilities?.can_archive ?? Boolean(vendor?.status === 'active' && canDeleteVendor);
+    const canRestore = vendor?.capabilities?.can_restore ?? Boolean(vendor?.status === 'inactive' && canDeleteVendor);
+    const canLinkRisk = vendor?.capabilities?.can_link_risk ?? Boolean(canEdit && canReadRisks);
+    const canLinkControl = vendor?.capabilities?.can_link_control ?? Boolean(canEdit && canReadControls);
+    const canLinkKri = vendor?.capabilities?.can_link_kri ?? Boolean(canEdit && canReadRisks);
 
     return {
         canArchive,
         canEdit,
         canEditByOwnership,
+        canLinkControl,
+        canLinkKri,
+        canLinkRisk,
         canRestore,
         error,
         fetchVendor,

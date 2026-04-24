@@ -90,11 +90,21 @@ class VendorLinkedRiskSummary(BaseModel):
     risk_name: str
 
 
+class VendorCapabilities(BaseModel):
+    can_update: bool
+    can_archive: bool
+    can_restore: bool
+    can_link_risk: bool
+    can_link_control: bool
+    can_link_kri: bool
+
+
 class VendorRead(VendorBase):
     id: int
     department_name: str | None = None
     outsourcing_owner_name: str | None = None
     linked_risks: list[VendorLinkedRiskSummary] = Field(default_factory=list)
+    capabilities: VendorCapabilities | None = None
     created_at: datetime
     updated_at: datetime
 

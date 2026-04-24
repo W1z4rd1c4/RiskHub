@@ -21,13 +21,7 @@ from app.api.v1.endpoints._collection import (
     parse_collection_query,
 )
 from app.core.activity_logger import build_change_set, log_activity
-from app.core.permissions import (
-    can_read_risk_id,
-    can_read_vendor,
-    check_department_access,
-    get_user_department_ids,
-    is_vendor_owner,
-)
+from app.core.permissions import can_read_risk_id, can_read_vendor, is_vendor_owner
 from app.core.security import check_permission, require_permission
 from app.db.session import get_db
 from app.models import User, Vendor, VendorRiskLink
@@ -40,6 +34,11 @@ from app.schemas.vendor import (
     VendorStatusEnum,
     VendorTypeEnum,
     VendorUpdate,
+)
+from app.services._vendor_workflow import (
+    apply_vendor_visibility_scope,
+    load_vendor_for_update,
+    validate_vendor_governance_assignment,
 )
 
 from ._shared import _get_vendor_with_deps
@@ -221,21 +220,7 @@ async def list_vendors(
     can_read_risks = check_permission(current_user, "risks", "read")
     base_query = select(Vendor)
 
-    dept_ids = get_user_department_ids(current_user)
-    if dept_ids is not None:
-        if dept_ids:
-            base_query = base_query.where(
-                or_(
-                    Vendor.department_id.in_(dept_ids),
-                    Vendor.outsourcing_owner_user_id == current_user.id,
-                )
-            )
-        else:
-            base_query = base_query.where(Vendor.outsourcing_owner_user_id == current_user.id)
-
-        base_query = base_query.where(Vendor.department_id.is_not(None))
-    elif department_id is not None:
-        base_query = base_query.where(Vendor.department_id == department_id)
+    base_query = apply_vendor_visibility_scope(base_query, current_user, department_id=department_id)
 
     if status_filter is not None:
         base_query = base_query.where(Vendor.status == status_filter.value)
@@ -308,7 +293,14 @@ async def list_vendors(
             await _get_visible_risk_ids(db, current_user=current_user, vendors=vendors) if can_read_risks else set()
         )
         linked_risks_by_vendor_id = _serialize_vendor_linked_risks(vendors, visible_risk_ids=visible_risk_ids)
-        return [vendor_to_read(vendor, linked_risks=linked_risks_by_vendor_id.get(vendor.id, [])) for vendor in vendors]
+        return [
+            vendor_to_read(
+                vendor,
+                current_user=current_user,
+                linked_risks=linked_risks_by_vendor_id.get(vendor.id, []),
+            )
+            for vendor in vendors
+        ]
 
     if collection_query.group_by:
         result = await db.execute(ordered_query)
@@ -325,6 +317,7 @@ async def list_vendors(
             total=grouped_total,
             offset=offset,
             limit=limit,
+            current_user=current_user,
             groups=groups,
         )
 
@@ -341,6 +334,7 @@ async def list_vendors(
         total=total,
         offset=offset,
         limit=limit,
+        current_user=current_user,
         linked_risks_by_vendor_id=linked_risks_by_vendor_id,
     )
 
@@ -351,7 +345,12 @@ async def create_vendor(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_permission("vendors", "write")),
 ):
-    check_department_access(payload.department_id, current_user)
+    await validate_vendor_governance_assignment(
+        db,
+        current_user=current_user,
+        department_id=payload.department_id,
+        owner_user_id=payload.outsourcing_owner_user_id,
+    )
 
     vendor = Vendor(**payload.model_dump())
     db.add(vendor)
@@ -376,7 +375,7 @@ async def create_vendor(
         .where(Vendor.id == vendor.id)
     )
     vendor = result.scalar_one()
-    return vendor_to_read(vendor)
+    return vendor_to_read(vendor, current_user=current_user)
 
 
 @router.get("/{vendor_id}", response_model=VendorRead)
@@ -392,7 +391,7 @@ async def get_vendor(
     if not can_read_vendor(vendor, current_user):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
 
-    return vendor_to_read(vendor)
+    return vendor_to_read(vendor, current_user=current_user)
 
 
 @router.patch("/{vendor_id}", response_model=VendorRead)
@@ -405,7 +404,7 @@ async def update_vendor(
     if not check_permission(current_user, "vendors", "read"):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: vendors:read")
 
-    vendor = await _get_vendor_with_deps(db, vendor_id)
+    vendor = await load_vendor_for_update(db, vendor_id)
     if not vendor or not can_read_vendor(vendor, current_user):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
 
@@ -416,7 +415,7 @@ async def update_vendor(
 
     updates = {field: getattr(payload, field) for field in payload.model_fields_set}
     if not updates:
-        return vendor_to_read(vendor)
+        return vendor_to_read(vendor, current_user=current_user)
 
     restricted_fields = {"department_id", "outsourcing_owner_user_id", "status"}
     if not can_write and (restricted_fields & set(updates.keys())):
@@ -424,8 +423,15 @@ async def update_vendor(
             status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions to change governance fields"
         )
 
-    if can_write and "department_id" in updates:
-        check_department_access(updates["department_id"], current_user)
+    next_department_id = updates.get("department_id", vendor.department_id)
+    next_owner_user_id = updates.get("outsourcing_owner_user_id", vendor.outsourcing_owner_user_id)
+    if can_write and ({"department_id", "outsourcing_owner_user_id"} & set(updates.keys())):
+        await validate_vendor_governance_assignment(
+            db,
+            current_user=current_user,
+            department_id=next_department_id,
+            owner_user_id=next_owner_user_id,
+        )
 
     changes = build_change_set(vendor, updates)
     for field, value in updates.items():
@@ -451,4 +457,4 @@ async def update_vendor(
     vendor = await _get_vendor_with_deps(db, vendor.id)
     if not vendor:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
-    return vendor_to_read(vendor)
+    return vendor_to_read(vendor, current_user=current_user)

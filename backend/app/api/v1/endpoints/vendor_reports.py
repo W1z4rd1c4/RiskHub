@@ -18,6 +18,8 @@ from app.api.v1.endpoints.reports._streaming import (
     _stream_binary,
     resolve_export_format,
 )
+from app.api.v1.endpoints.reports._scoping import _validate_department_access
+from app.core.permissions import get_user_department_ids
 from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import User
@@ -130,12 +132,20 @@ def _dora_register_rows(rows) -> tuple[list[str], list[list[object]]]:
 async def download_vendor_annual_report(
     year: int = Query(..., ge=2000, le=2100),
     format: ExportFormatQuery = Query("csv", description="Export format: csv"),
+    department_id: int | None = Query(None, description="Filter by department"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_permission("reports", "read")),
 ):
     export_format = resolve_export_format(format, replacement="/api/v1/vendor-reports/annual?format=csv")
     _require_vendor_report_role(current_user)
-    report = await VendorReportingService.build_annual_report(db, year=year, current_user=current_user)
+    dept_ids = get_user_department_ids(current_user)
+    _validate_department_access(department_id, dept_ids)
+    report = await VendorReportingService.build_annual_report(
+        db,
+        year=year,
+        current_user=current_user,
+        department_id=department_id,
+    )
     headers, rows = _annual_report_rows(report)
     return _stream_binary(
         filename_base=f"vendor-annual-report-{year}",
@@ -148,12 +158,19 @@ async def download_vendor_annual_report(
 @router.get("/vendor-reports/dora-register")
 async def download_vendor_dora_register(
     format: ExportFormatQuery = Query("csv", description="Export format: csv"),
+    department_id: int | None = Query(None, description="Filter by department"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_permission("reports", "read")),
 ):
     export_format = resolve_export_format(format, replacement="/api/v1/vendor-reports/dora-register?format=csv")
     _require_vendor_report_role(current_user)
-    rows = await VendorReportingService.build_dora_register(db, current_user=current_user)
+    dept_ids = get_user_department_ids(current_user)
+    _validate_department_access(department_id, dept_ids)
+    rows = await VendorReportingService.build_dora_register(
+        db,
+        current_user=current_user,
+        department_id=department_id,
+    )
     headers, data_rows = _dora_register_rows(rows)
     return _stream_binary(
         filename_base="vendor-dora-register",

@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.endpoints.vendors import crud as vendor_crud
 from app.models import Department, Permission, Risk, Role, RolePermission, User, Vendor, VendorRiskLink
+from app.models.user import AccessScope
 
 
 async def _grant(db_session: AsyncSession, role: Role, resource: str, action: str) -> None:
@@ -113,6 +114,12 @@ async def test_vendors_list_scoping_includes_cross_department_owner(
     assert "Cross Dept Owned" in names
     assert "Other Dept Vendor" not in names
 
+    dept_resp = await client_employee.get(f"/api/v1/vendors?department_id={test_department.id}")
+    assert dept_resp.status_code == 200
+    dept_names = {v["name"] for v in dept_resp.json()["items"]}
+    assert "Dept Vendor" in dept_names
+    assert "Cross Dept Owned" not in dept_names
+
 
 @pytest.mark.asyncio
 async def test_vendor_owner_can_update_without_vendors_write(
@@ -145,9 +152,59 @@ async def test_vendor_owner_can_update_without_vendors_write(
     resp = await client_employee.patch(f"/api/v1/vendors/{vendor.id}", json={"name": "Owned Vendor Updated"})
     assert resp.status_code == 200
     assert resp.json()["name"] == "Owned Vendor Updated"
+    assert resp.json()["capabilities"]["can_update"] is True
+    assert resp.json()["capabilities"]["can_archive"] is False
 
     resp = await client_employee.patch(f"/api/v1/vendors/{vendor.id}", json={"department_id": None})
     assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_vendor_governance_owner_must_match_department_for_scoped_writer(
+    db_session: AsyncSession,
+    client_department_head: AsyncClient,
+    test_department: Department,
+    test_role_department_head: Role,
+    test_user_employee: User,
+):
+    await _grant(db_session, test_role_department_head, "vendors", "write")
+
+    other_dept = Department(name="Owner Other Department", code="OOWN", description="Other")
+    db_session.add(other_dept)
+    await db_session.commit()
+    await db_session.refresh(other_dept)
+
+    other_owner = User(
+        email="vendor-owner-other@example.com",
+        name="Vendor Owner Other",
+        hashed_password="x",
+        role_id=test_role_department_head.id,
+        department_id=other_dept.id,
+        access_scope=AccessScope.DEPARTMENT,
+        is_active=True,
+    )
+    db_session.add(other_owner)
+    await db_session.commit()
+    await db_session.refresh(other_owner)
+
+    resp = await client_department_head.post(
+        "/api/v1/vendors",
+        json={
+            "name": "Mismatch Owner Vendor",
+            "process": "IT",
+            "department_id": test_department.id,
+            "outsourcing_owner_user_id": other_owner.id,
+            "vendor_type": "ict",
+            "risk_score_1_5": 3,
+            "supports_important_core_insurance_function": False,
+            "dora_relevant": False,
+            "is_significant_vendor": False,
+            "has_alternative_providers": False,
+            "status": "active",
+        },
+    )
+    assert resp.status_code == 400
+    assert "selected department" in resp.json()["detail"]
 
 
 @pytest.mark.asyncio
@@ -250,6 +307,37 @@ async def test_vendors_include_archived_toggle(
     assert include_resp.status_code == 200
     include_names = {v["name"] for v in include_resp.json()["items"]}
     assert "Inactive Toggle Vendor" in include_names
+
+
+@pytest.mark.asyncio
+async def test_vendors_scoped_users_do_not_see_unassigned_vendors(
+    db_session: AsyncSession,
+    client_employee: AsyncClient,
+    test_role_employee: Role,
+    test_user_employee: User,
+):
+    await _grant(db_session, test_role_employee, "vendors", "read")
+
+    vendor = Vendor(
+        name="Unassigned Scoped Hidden Vendor",
+        process="IT",
+        subprocess=None,
+        department_id=None,
+        outsourcing_owner_user_id=test_user_employee.id,
+        vendor_type="ict",
+        risk_score_1_5=3,
+        supports_important_core_insurance_function=False,
+        dora_relevant=False,
+        is_significant_vendor=False,
+        has_alternative_providers=False,
+        status="active",
+    )
+    db_session.add(vendor)
+    await db_session.commit()
+
+    response = await client_employee.get("/api/v1/vendors")
+    assert response.status_code == 200
+    assert "Unassigned Scoped Hidden Vendor" not in {item["name"] for item in response.json()["items"]}
 
 
 @pytest.mark.asyncio

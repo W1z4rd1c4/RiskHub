@@ -26,6 +26,8 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
     const location = useLocation();
     const { t } = useTranslation('vendors');
     const { user, hasPermission } = useAuth();
+    const canReadRisk = hasPermission('risks', 'read');
+    const canReadControl = hasPermission('controls', 'read');
     const canCreateRisk = hasPermission('risks', 'write');
     const canCreateControl = hasPermission('controls', 'write');
     const canCreateKri = hasPermission('risks', 'write');
@@ -33,6 +35,9 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
     const {
         canArchive,
         canEdit,
+        canLinkControl,
+        canLinkKri,
+        canLinkRisk,
         canRestore,
         closeIssueModal,
         error,
@@ -44,6 +49,8 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
     } = useVendorDetailState({
         mode,
         currentUserId: user?.id,
+        canReadControls: canReadControl,
+        canReadRisks: canReadRisk,
         canWriteVendor: hasPermission('vendors', 'write'),
         canDeleteVendor: hasPermission('vendors', 'delete'),
         notFoundMessage: t('errors.not_found'),
@@ -223,10 +230,12 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
 
                 <VendorOverviewTab
                     vendor={vendor}
-                    canEdit={canEdit}
-                    canCreateControl={canEdit && canCreateControl}
-                    canCreateKri={canEdit && canCreateKri}
-                    canCreateRisk={canEdit && canCreateRisk}
+                    canLinkControl={canLinkControl}
+                    canLinkKri={canLinkKri}
+                    canLinkRisk={canLinkRisk}
+                    canCreateControl={canLinkControl && canCreateControl}
+                    canCreateKri={canLinkKri && canCreateKri}
+                    canCreateRisk={canLinkRisk && canCreateRisk}
                     onAddControl={() => navigate(`/controls/new?vendor_id=${vendor.id}&return_to=${encodeURIComponent(buildVendorDetailPath(vendor.id))}`)}
                     onAddKri={() => navigate(`/kris/new?vendor_id=${vendor.id}&return_to=${encodeURIComponent(buildVendorDetailPath(vendor.id))}`)}
                     onAddRisk={() => navigate(`/risks/new?vendor_id=${vendor.id}&return_to=${encodeURIComponent(buildVendorDetailPath(vendor.id))}`)}

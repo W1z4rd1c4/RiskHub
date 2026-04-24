@@ -15,6 +15,15 @@ export interface VendorLinkedRiskSummary {
     risk_name: string;
 }
 
+export interface VendorCapabilities {
+    can_update: boolean;
+    can_archive: boolean;
+    can_restore: boolean;
+    can_link_risk: boolean;
+    can_link_control: boolean;
+    can_link_kri: boolean;
+}
+
 export interface Vendor {
     id: number;
 
@@ -33,6 +42,7 @@ export interface Vendor {
     outsourcing_owner_user_id: number;
     outsourcing_owner_name?: string | null;
     linked_risks: VendorLinkedRiskSummary[];
+    capabilities?: VendorCapabilities | null;
 
     vendor_type: VendorType;
     risk_score_1_5: number;

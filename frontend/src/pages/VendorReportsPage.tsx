@@ -1,14 +1,18 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from '@/i18n/hooks';
 import { Download, FileSpreadsheet } from 'lucide-react';
 import { vendorReportApi } from '@/services/vendorReportApi';
 import { useAuth } from '@/contexts/AuthContext';
 import { PermissionGate } from '@/components/PermissionGate';
+import { departmentApi, type DepartmentSummary } from '@/services/departmentApi';
 
 export function VendorReportsPage() {
     const { t } = useTranslation('vendors');
+    const { t: tCommon } = useTranslation('common');
     const { user } = useAuth();
     const [year, setYear] = useState<number>(new Date().getFullYear());
+    const [departmentId, setDepartmentId] = useState<number | null>(null);
+    const [departments, setDepartments] = useState<DepartmentSummary[]>([]);
     const [isDownloading, setIsDownloading] = useState(false);
 
     const canAccessRole = useMemo(() => {
@@ -24,6 +28,54 @@ export function VendorReportsPage() {
             setIsDownloading(false);
         }
     };
+
+    useEffect(() => {
+        if (!canAccessRole) {
+            setDepartments([]);
+            setDepartmentId(null);
+            return;
+        }
+
+        let cancelled = false;
+        departmentApi.getDepartments()
+            .then((items) => {
+                if (cancelled) return;
+                setDepartments(items);
+                if (items.length === 1) {
+                    setDepartmentId(items[0].id);
+                }
+            })
+            .catch(() => {
+                if (!cancelled) {
+                    setDepartments([]);
+                    setDepartmentId(null);
+                }
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [canAccessRole]);
+
+    const renderDepartmentSelector = () => departments.length > 0 ? (
+        <div className="flex items-center gap-3">
+            <label className="text-xs font-bold uppercase tracking-widest text-slate-500">
+                {tCommon('labels.department')}
+            </label>
+            <select
+                value={departmentId ?? ''}
+                onChange={(event) => setDepartmentId(event.target.value ? Number(event.target.value) : null)}
+                className="min-w-48 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white font-medium"
+            >
+                <option value="">{tCommon('filters.all_departments')}</option>
+                {departments.map((dept) => (
+                    <option key={dept.id} value={dept.id}>
+                        {dept.name}
+                    </option>
+                ))}
+            </select>
+        </div>
+    ) : null;
 
     return (
         <PermissionGate resource="reports" action="read">
@@ -58,11 +110,12 @@ export function VendorReportsPage() {
                                     max={2100}
                                 />
                             </div>
+                            {renderDepartmentSelector()}
 
                             <div className="flex flex-wrap gap-2">
                                 <button
                                     disabled={isDownloading}
-                                    onClick={() => download(() => vendorReportApi.downloadAnnual(year, 'csv'))}
+                                    onClick={() => download(() => vendorReportApi.downloadAnnual(year, 'csv', departmentId))}
                                     className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-slate-200 font-bold hover:bg-white/10 transition-colors disabled:opacity-60 flex items-center gap-2"
                                 >
                                     <FileSpreadsheet className="h-4 w-4" />
@@ -79,9 +132,10 @@ export function VendorReportsPage() {
                             <p className="text-sm text-slate-300 font-medium">
                                 {t('reports.dora.subtitle')}
                             </p>
+                            {renderDepartmentSelector()}
                             <button
                                 disabled={isDownloading}
-                                onClick={() => download(() => vendorReportApi.downloadDoraRegister())}
+                                onClick={() => download(() => vendorReportApi.downloadDoraRegister(departmentId))}
                                 className="px-4 py-2 rounded-xl bg-accent/20 border border-accent/30 text-accent font-bold hover:bg-accent/30 transition-colors disabled:opacity-60 flex items-center gap-2 w-fit"
                             >
                                 <Download className="h-4 w-4" />

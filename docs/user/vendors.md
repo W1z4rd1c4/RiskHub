@@ -66,6 +66,8 @@ Vendor detail is intentionally simpler than Risks or Issues, but visibility stil
 - `vendors:read` is required to open the vendor register and the individual vendor page
 - `vendors:write` allows full edit behavior for vendor records and vendor links
 - vendor ownership rules can allow certain mutation actions even without broad vendor-admin privileges
+- unfiltered scoped views can include vendors you directly own across departments, but an explicit department filter is strict and only shows vendors in that department
+- action buttons use backend-provided capability metadata when available, so stale local role assumptions do not decide whether archive, restore, edit, or link actions are available
 - linked risks remain separately scope-filtered, so a user can still see the vendor even if some linked risks are omitted from the page
 - linked controls are also filtered by normal control visibility rules before card grids are rendered
 - linked KRIs follow the same read-scope and ownership rules as the KRI register, so unreadable KRIs are omitted from vendor detail and grouped views
@@ -214,6 +216,7 @@ The vendor register supports:
 - export from the vendor register
 
 Exports now reflect only retained core vendor fields.
+Specialized annual and DORA vendor reports may offer a department filter. When you choose a department, the export is strict to that department; vendors you own in another department are not added to that evidence file. If an owner name cannot be resolved, the UI shows an unknown-user label rather than a numeric user id.
 
 ## Common Mistakes
 

@@ -66,6 +66,8 @@ Detail dodavatele je jednodušší než Rizika nebo Nálezy, ale stále respektu
 - `vendors:read` je nutné pro otevření registru i detailu dodavatele
 - `vendors:write` dovoluje plnou editaci vendor záznamu a vendor vazeb
 - ownership pravidla mohou některé mutační akce povolit i bez širšího vendor-admin oprávnění
+- nefiltrované scoped pohledy mohou obsahovat dodavatele, které přímo vlastníte napříč odděleními, ale explicitní filtr oddělení je striktní a ukazuje jen dodavatele v daném oddělení
+- akční tlačítka používají backend capability metadata, pokud jsou dostupná, takže dostupnost archivace, obnovy, editace a linkování neurčují jen lokální předpoklady o roli
 - navázaná rizika jsou dál scope-filtrovaná samostatně, takže uživatel může vidět dodavatele i tehdy, když část navázaných rizik na stránce chybí
 - navázané kontroly se také filtrují podle běžných pravidel viditelnosti kontrol ještě před vykreslením card gridu
 - navázaná KRI se filtrují podle stejného read scope a ownership pravidel jako registr KRI, takže nečitelná KRI na detailu a v grupovaných pohledech chybí
@@ -214,6 +216,7 @@ Registr dodavatelů podporuje:
 - export z registru dodavatelů
 
 Exporty nyní obsahují pouze zachovaná základní vendor pole.
+Specializované annual a DORA vendor reporty mohou nabídnout filtr oddělení. Když vyberete oddělení, export je striktní pro toto oddělení; dodavatelé, které vlastníte v jiném oddělení, se do evidence souboru nepřidají. Pokud nelze zjistit jméno ownera, UI zobrazí neznámého uživatele místo číselného user id.
 
 ## Časté chyby
 

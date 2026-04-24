@@ -410,6 +410,15 @@ export const vendorLinkedRiskSummarySchema: z.ZodType<VendorLinkedRiskSummary> =
         risk_name: z.string(),
     });
 
+const vendorCapabilitiesSchema = passthroughObject({
+    can_update: z.boolean(),
+    can_archive: z.boolean(),
+    can_restore: z.boolean(),
+    can_link_risk: z.boolean(),
+    can_link_control: z.boolean(),
+    can_link_kri: z.boolean(),
+});
+
 export const vendorSchema: z.ZodType<Vendor> = passthroughObject({
     id: z.number(),
     name: z.string(),
@@ -425,6 +434,7 @@ export const vendorSchema: z.ZodType<Vendor> = passthroughObject({
     outsourcing_owner_user_id: z.number(),
     outsourcing_owner_name: z.string().nullable().optional(),
     linked_risks: z.array(vendorLinkedRiskSummarySchema),
+    capabilities: vendorCapabilitiesSchema.nullable().optional(),
     vendor_type: z.enum(['ict', 'outsourcing', 'professional_services', 'partner', 'other']),
     risk_score_1_5: z.number(),
     supports_important_core_insurance_function: z.boolean(),

@@ -157,7 +157,7 @@ export function VendorsTableSection({
                 sortable: false,
                 render: (vendor) => (
                     <div className="flex items-center justify-end gap-2">
-                        {vendor.status === 'inactive' && hasPermission('vendors', 'delete') && (
+                        {(vendor.capabilities?.can_restore ?? (vendor.status === 'inactive' && hasPermission('vendors', 'delete'))) && (
                             <button
                                 type="button"
                                 onClick={(event) => {

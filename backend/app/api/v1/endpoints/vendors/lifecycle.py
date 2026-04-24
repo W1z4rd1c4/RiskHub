@@ -12,6 +12,7 @@ from app.db.session import get_db
 from app.models import User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas.vendor import VendorRead, VendorStatusEnum
+from app.services._vendor_workflow import load_vendor_for_update
 
 from ._shared import _get_vendor_with_deps
 
@@ -27,9 +28,12 @@ async def archive_vendor(
     if not check_permission(current_user, "vendors", "delete"):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: vendors:delete")
 
-    vendor = await _get_vendor_with_deps(db, vendor_id)
+    vendor = await load_vendor_for_update(db, vendor_id)
     if not vendor or not can_read_vendor(vendor, current_user):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
+
+    if vendor.status == VendorStatusEnum.inactive.value:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Vendor is already archived")
 
     changes = build_change_set(vendor, {"status": "inactive"})
     vendor.status = "inactive"
@@ -60,7 +64,7 @@ async def restore_vendor(
     if not check_permission(current_user, "vendors", "delete"):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: vendors:delete")
 
-    vendor = await _get_vendor_with_deps(db, vendor_id)
+    vendor = await load_vendor_for_update(db, vendor_id)
     if not vendor or not can_read_vendor(vendor, current_user):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
 
@@ -88,4 +92,4 @@ async def restore_vendor(
     vendor = await _get_vendor_with_deps(db, vendor.id)
     if not vendor:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
-    return vendor_to_read(vendor)
+    return vendor_to_read(vendor, current_user=current_user)

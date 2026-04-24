@@ -5,7 +5,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.datetime_utils import utc_now
-from app.core.permissions import get_user_department_ids
 from app.models import User, Vendor
 from app.schemas.vendor_reports import (
     VendorAnnualReportData,
@@ -13,13 +12,19 @@ from app.schemas.vendor_reports import (
     VendorAnnualReportVendorRow,
     VendorDoraRegisterRow,
 )
+from app.services._vendor_workflow import apply_vendor_report_scope
 
 
 class VendorReportingService:
     @staticmethod
-    async def build_annual_report(db: AsyncSession, *, year: int, current_user: User) -> VendorAnnualReportData:
+    async def build_annual_report(
+        db: AsyncSession,
+        *,
+        year: int,
+        current_user: User,
+        department_id: int | None = None,
+    ) -> VendorAnnualReportData:
         now = utc_now()
-        dept_ids = get_user_department_ids(current_user)
 
         vendor_stmt = (
             select(Vendor)
@@ -27,8 +32,7 @@ class VendorReportingService:
             .options(selectinload(Vendor.department), selectinload(Vendor.outsourcing_owner))
             .order_by(Vendor.name)
         )
-        if dept_ids is not None:
-            vendor_stmt = vendor_stmt.where(Vendor.department_id.in_(dept_ids))
+        vendor_stmt = apply_vendor_report_scope(vendor_stmt, current_user, department_id=department_id)
 
         vendors = (await db.execute(vendor_stmt)).scalars().all()
 
@@ -69,16 +73,19 @@ class VendorReportingService:
         )
 
     @staticmethod
-    async def build_dora_register(db: AsyncSession, *, current_user: User) -> list[VendorDoraRegisterRow]:
-        dept_ids = get_user_department_ids(current_user)
+    async def build_dora_register(
+        db: AsyncSession,
+        *,
+        current_user: User,
+        department_id: int | None = None,
+    ) -> list[VendorDoraRegisterRow]:
         vendor_stmt = (
             select(Vendor)
             .options(selectinload(Vendor.department), selectinload(Vendor.outsourcing_owner))
             .where(Vendor.status == "active")
             .order_by(Vendor.name)
         )
-        if dept_ids is not None:
-            vendor_stmt = vendor_stmt.where(Vendor.department_id.in_(dept_ids))
+        vendor_stmt = apply_vendor_report_scope(vendor_stmt, current_user, department_id=department_id)
 
         vendors = (await db.execute(vendor_stmt)).scalars().all()
         return [
