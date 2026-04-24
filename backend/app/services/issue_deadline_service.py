@@ -15,9 +15,10 @@ from app.core.permissions import can_read_issue_id
 from app.models import Issue, Role, RolePermission, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.models.global_config import ConfigDefaults, get_config_int
-from app.models.issue import IssueExceptionStatus, IssueRemediationStatus, IssueSeverity, IssueStatus
+from app.models.issue import IssueExceptionStatus, IssueSeverity, IssueStatus
 from app.models.notification import NotificationType
 from app.models.role import Permission, RoleType
+from app.services._issue_workflow.transitions import _is_remediation_complete, _status_value
 from app.services.deadline_notifications import create_deadline_notification, increment_deadline_results
 
 logger = logging.getLogger(__name__)
@@ -145,13 +146,9 @@ class IssueDeadlineService:
             )
 
         if expired_count:
-            remediation = issue.remediation_plan
-            remediation_done = (
-                remediation is not None
-                and remediation.status == IssueRemediationStatus.completed.value
-                and remediation.progress_percent >= 100
-            )
-            if issue.status == IssueStatus.closed.value and not remediation_done:
+            if _status_value(issue.status) == IssueStatus.closed.value and not _is_remediation_complete(
+                issue.remediation_plan
+            ):
                 issue.status = IssueStatus.in_progress.value
                 issue.closed_at = None
                 db.add(issue)

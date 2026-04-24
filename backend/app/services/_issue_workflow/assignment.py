@@ -10,7 +10,7 @@ from app.models import Issue, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.models.issue import IssueStatus
 
-from .transitions import _get_or_init_remediation
+from .transitions import _ensure_issue_not_closed, _get_or_init_remediation
 
 
 async def assign_issue(
@@ -22,8 +22,7 @@ async def assign_issue(
     target_date: datetime | None,
     actor: User,
 ) -> Issue:
-    if issue.status == IssueStatus.closed.value:
-        raise ValueError("Cannot assign a closed issue")
+    _ensure_issue_not_closed(issue, "assign")
 
     due_at = coerce_utc(due_at) or due_at
     target_date = coerce_utc(target_date) or due_at

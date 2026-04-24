@@ -9,9 +9,9 @@ from app.core.activity_logger import build_change_set, log_activity
 from app.core.datetime_utils import coerce_utc
 from app.models import Issue, IssueException, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
-from app.models.issue import IssueExceptionStatus, IssueRemediationStatus, IssueStatus
+from app.models.issue import IssueExceptionStatus, IssueStatus
 
-from .transitions import _conflict
+from .transitions import _conflict, _is_remediation_complete, _status_value
 
 
 async def request_exception(
@@ -118,13 +118,7 @@ async def revoke_exception(
         description=f"Revoked exception for issue {issue.title}",
     )
 
-    remediation = issue.remediation_plan
-    remediation_done = (
-        remediation is not None
-        and remediation.status == IssueRemediationStatus.completed.value
-        and remediation.progress_percent >= 100
-    )
-    if issue.status == IssueStatus.closed.value and not remediation_done:
+    if _status_value(issue.status) == IssueStatus.closed.value and not _is_remediation_complete(issue.remediation_plan):
         issue_updates = {
             "status": IssueStatus.in_progress.value,
             "closed_at": None,

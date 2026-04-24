@@ -12,10 +12,13 @@ from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.models.issue import IssueRemediationStatus, IssueStatus
 
 from .transitions import (
+    _completion_updates,
     _conflict,
     _ensure_issue_transition,
     _ensure_remediation_transition,
     _get_or_init_remediation,
+    _is_remediation_complete,
+    _status_value,
 )
 
 
@@ -87,6 +90,7 @@ async def update_progress(
         _conflict(f"Issue must be in progress to update remediation (current={issue.status})")
 
     remediation_updates: dict[str, object] = {}
+    target_status = _status_value(remediation_status)
     if progress_percent is not None:
         if progress_percent < 0 or progress_percent > 100:
             raise HTTPException(
@@ -94,32 +98,47 @@ async def update_progress(
                 detail="progress_percent must be between 0 and 100",
             )
         remediation_updates["progress_percent"] = progress_percent
+    if progress_percent == 100 and target_status in {
+        IssueRemediationStatus.active.value,
+        IssueRemediationStatus.blocked.value,
+    }:
+        _conflict("Cannot mark remediation active or blocked with 100% progress")
+    if target_status == IssueRemediationStatus.completed.value and progress_percent is not None and progress_percent < 100:
+        _conflict("Completed remediation requires 100% progress")
+
     if remediation_status is not None:
-        _ensure_remediation_transition(remediation.status, remediation_status)
-        remediation_updates["status"] = remediation_status
+        reactivating_ready_issue = (
+            _status_value(issue.status) == IssueStatus.ready_for_validation.value
+            and _status_value(remediation.status) == IssueRemediationStatus.completed.value
+            and target_status in {IssueRemediationStatus.active.value, IssueRemediationStatus.blocked.value}
+        )
+        if not reactivating_ready_issue:
+            _ensure_remediation_transition(remediation.status, remediation_status)
+        remediation_updates["status"] = target_status
     if blocker_reason is not None:
         remediation_updates["blocker_reason"] = blocker_reason
     if completion_notes is not None:
         remediation_updates["completion_notes"] = completion_notes
 
-    if progress_percent == 100 and remediation.status != IssueRemediationStatus.completed.value:
-        remediation_updates["status"] = IssueRemediationStatus.completed.value
-        remediation_updates["completed_at"] = datetime.now(UTC)
+    if target_status == IssueRemediationStatus.completed.value or progress_percent == 100:
+        now = datetime.now(UTC)
+        remediation_updates.update(_completion_updates(remediation, now))
 
     remediation_changes = build_change_set(remediation, remediation_updates)
     for key, value in remediation_updates.items():
         setattr(remediation, key, value)
 
     issue_updates: dict[str, object] = {}
+    remediation_status_value = _status_value(remediation.status)
     if (
-        remediation.status == IssueRemediationStatus.completed.value
-        and issue.status != IssueStatus.ready_for_validation.value
+        _is_remediation_complete(remediation)
+        and _status_value(issue.status) != IssueStatus.ready_for_validation.value
     ):
         _ensure_issue_transition(issue.status, IssueStatus.ready_for_validation.value)
         issue_updates["status"] = IssueStatus.ready_for_validation.value
     elif (
-        remediation.status == IssueRemediationStatus.active.value
-        and issue.status == IssueStatus.ready_for_validation.value
+        not _is_remediation_complete(remediation)
+        and _status_value(issue.status) == IssueStatus.ready_for_validation.value
     ):
         _ensure_issue_transition(issue.status, IssueStatus.in_progress.value)
         issue_updates["status"] = IssueStatus.in_progress.value

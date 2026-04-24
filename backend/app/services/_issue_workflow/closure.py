@@ -7,9 +7,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.activity_logger import build_change_set, log_activity
 from app.models import Issue, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
-from app.models.issue import IssueRemediationStatus, IssueStatus
+from app.models.issue import IssueStatus
 
-from .transitions import _conflict, _get_or_init_remediation
+from .transitions import _completion_updates, _conflict, _get_or_init_remediation, _is_remediation_complete
 
 
 async def close_issue(
@@ -21,7 +21,7 @@ async def close_issue(
     actor: User,
 ) -> Issue:
     remediation = _get_or_init_remediation(issue)
-    if remediation.status != IssueRemediationStatus.completed.value and remediation.progress_percent < 100:
+    if not _is_remediation_complete(remediation):
         _conflict("Issue cannot be closed until remediation is completed")
 
     if issue.status != IssueStatus.ready_for_validation.value:
@@ -37,11 +37,7 @@ async def close_issue(
     for key, value in issue_updates.items():
         setattr(issue, key, value)
 
-    remediation_updates: dict[str, object] = {}
-    if remediation.status != IssueRemediationStatus.completed.value:
-        remediation_updates["status"] = IssueRemediationStatus.completed.value
-    remediation_updates["completed_at"] = remediation.completed_at or now
-    remediation_updates["progress_percent"] = 100
+    remediation_updates: dict[str, object] = _completion_updates(remediation, now)
     if completion_notes is not None:
         remediation_updates["completion_notes"] = completion_notes
     remediation_changes = build_change_set(remediation, remediation_updates)

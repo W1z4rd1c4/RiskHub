@@ -188,6 +188,234 @@ async def test_close_requires_completed_remediation(
 
 
 @pytest.mark.asyncio
+async def test_status_only_completion_normalizes_remediation_and_allows_close(
+    auth_client: AsyncClient,
+    test_department,
+    test_user_employee: User,
+):
+    create_resp = await auth_client.post(
+        "/api/v1/issues",
+        json={
+            "title": "Status-only completion",
+            "severity": "high",
+            "source_type": "manual",
+            "department_id": test_department.id,
+            "owner_user_id": test_user_employee.id,
+            "due_at": (datetime.now(UTC) + timedelta(days=5)).isoformat(),
+        },
+    )
+    assert create_resp.status_code == 201
+    issue_id = create_resp.json()["id"]
+
+    start_resp = await auth_client.post(f"/api/v1/issues/{issue_id}/start-remediation", json={})
+    assert start_resp.status_code == 200
+
+    progress_resp = await auth_client.post(
+        f"/api/v1/issues/{issue_id}/update-progress",
+        json={"remediation_status": "completed"},
+    )
+    assert progress_resp.status_code == 200
+    payload = progress_resp.json()
+    assert payload["status"] == "ready_for_validation"
+    assert payload["remediation_plan"]["status"] == "completed"
+    assert payload["remediation_plan"]["progress_percent"] == 100
+    assert payload["remediation_plan"]["completed_at"] is not None
+
+    close_resp = await auth_client.post(
+        f"/api/v1/issues/{issue_id}/close",
+        json={"validation_note": "Validated status-only completion"},
+    )
+    assert close_resp.status_code == 200
+    assert close_resp.json()["status"] == "closed"
+
+
+@pytest.mark.asyncio
+async def test_full_progress_completion_without_status_normalizes_remediation(
+    auth_client: AsyncClient,
+    test_department,
+    test_user_employee: User,
+):
+    create_resp = await auth_client.post(
+        "/api/v1/issues",
+        json={
+            "title": "Progress-only completion",
+            "severity": "high",
+            "source_type": "manual",
+            "department_id": test_department.id,
+            "owner_user_id": test_user_employee.id,
+            "due_at": (datetime.now(UTC) + timedelta(days=5)).isoformat(),
+        },
+    )
+    assert create_resp.status_code == 201
+    issue_id = create_resp.json()["id"]
+
+    await auth_client.post(f"/api/v1/issues/{issue_id}/start-remediation", json={})
+    progress_resp = await auth_client.post(
+        f"/api/v1/issues/{issue_id}/update-progress",
+        json={"progress_percent": 100},
+    )
+
+    assert progress_resp.status_code == 200
+    payload = progress_resp.json()
+    assert payload["status"] == "ready_for_validation"
+    assert payload["remediation_plan"]["status"] == "completed"
+    assert payload["remediation_plan"]["progress_percent"] == 100
+    assert payload["remediation_plan"]["completed_at"] is not None
+
+
+@pytest.mark.asyncio
+async def test_closed_issue_assignment_returns_conflict(
+    auth_client: AsyncClient,
+    test_department,
+    test_user_employee: User,
+):
+    create_resp = await auth_client.post(
+        "/api/v1/issues",
+        json={
+            "title": "Closed assignment conflict",
+            "severity": "high",
+            "source_type": "manual",
+            "department_id": test_department.id,
+            "owner_user_id": test_user_employee.id,
+            "due_at": (datetime.now(UTC) + timedelta(days=5)).isoformat(),
+        },
+    )
+    issue_id = create_resp.json()["id"]
+
+    await auth_client.post(f"/api/v1/issues/{issue_id}/start-remediation", json={})
+    await auth_client.post(f"/api/v1/issues/{issue_id}/update-progress", json={"progress_percent": 100})
+    close_resp = await auth_client.post(
+        f"/api/v1/issues/{issue_id}/close",
+        json={"validation_note": "Closed"},
+    )
+    assert close_resp.status_code == 200
+
+    assign_resp = await auth_client.post(
+        f"/api/v1/issues/{issue_id}/assign",
+        json={
+            "owner_user_id": test_user_employee.id,
+            "due_at": (datetime.now(UTC) + timedelta(days=7)).isoformat(),
+        },
+    )
+    assert assign_resp.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_contradictory_completion_payloads_return_conflict(
+    auth_client: AsyncClient,
+    test_department,
+    test_user_employee: User,
+):
+    create_resp = await auth_client.post(
+        "/api/v1/issues",
+        json={
+            "title": "Contradictory completion payload",
+            "severity": "high",
+            "source_type": "manual",
+            "department_id": test_department.id,
+            "owner_user_id": test_user_employee.id,
+            "due_at": (datetime.now(UTC) + timedelta(days=5)).isoformat(),
+        },
+    )
+    issue_id = create_resp.json()["id"]
+    await auth_client.post(f"/api/v1/issues/{issue_id}/start-remediation", json={})
+
+    blocked_resp = await auth_client.post(
+        f"/api/v1/issues/{issue_id}/update-progress",
+        json={"progress_percent": 100, "remediation_status": "blocked"},
+    )
+    completed_resp = await auth_client.post(
+        f"/api/v1/issues/{issue_id}/update-progress",
+        json={"progress_percent": 50, "remediation_status": "completed"},
+    )
+
+    assert blocked_resp.status_code == 409
+    assert completed_resp.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_ready_for_validation_issue_can_return_to_active_remediation(
+    auth_client: AsyncClient,
+    test_department,
+    test_user_employee: User,
+):
+    create_resp = await auth_client.post(
+        "/api/v1/issues",
+        json={
+            "title": "Return to active remediation",
+            "severity": "high",
+            "source_type": "manual",
+            "department_id": test_department.id,
+            "owner_user_id": test_user_employee.id,
+            "due_at": (datetime.now(UTC) + timedelta(days=5)).isoformat(),
+        },
+    )
+    issue_id = create_resp.json()["id"]
+    await auth_client.post(f"/api/v1/issues/{issue_id}/start-remediation", json={})
+    complete_resp = await auth_client.post(
+        f"/api/v1/issues/{issue_id}/update-progress",
+        json={"progress_percent": 100},
+    )
+    completed_at = complete_resp.json()["remediation_plan"]["completed_at"]
+
+    active_resp = await auth_client.post(
+        f"/api/v1/issues/{issue_id}/update-progress",
+        json={"progress_percent": 80, "remediation_status": "active"},
+    )
+
+    assert active_resp.status_code == 200
+    payload = active_resp.json()
+    assert payload["status"] == "in_progress"
+    assert payload["remediation_plan"]["status"] == "active"
+    assert payload["remediation_plan"]["progress_percent"] == 80
+    assert payload["remediation_plan"]["completed_at"].rstrip("Z") == completed_at.rstrip("Z")
+
+
+@pytest.mark.asyncio
+async def test_ready_for_validation_issue_returns_to_progress_when_progress_drops_below_complete(
+    auth_client: AsyncClient,
+    test_department,
+    test_user_employee: User,
+):
+    create_resp = await auth_client.post(
+        "/api/v1/issues",
+        json={
+            "title": "Return to progress on lower percent",
+            "severity": "high",
+            "source_type": "manual",
+            "department_id": test_department.id,
+            "owner_user_id": test_user_employee.id,
+            "due_at": (datetime.now(UTC) + timedelta(days=5)).isoformat(),
+        },
+    )
+    issue_id = create_resp.json()["id"]
+    await auth_client.post(f"/api/v1/issues/{issue_id}/start-remediation", json={})
+    complete_resp = await auth_client.post(
+        f"/api/v1/issues/{issue_id}/update-progress",
+        json={"progress_percent": 100},
+    )
+    completed_at = complete_resp.json()["remediation_plan"]["completed_at"]
+
+    lower_progress_resp = await auth_client.post(
+        f"/api/v1/issues/{issue_id}/update-progress",
+        json={"progress_percent": 80},
+    )
+
+    assert lower_progress_resp.status_code == 200
+    payload = lower_progress_resp.json()
+    assert payload["status"] == "in_progress"
+    assert payload["remediation_plan"]["status"] == "completed"
+    assert payload["remediation_plan"]["progress_percent"] == 80
+    assert payload["remediation_plan"]["completed_at"].rstrip("Z") == completed_at.rstrip("Z")
+
+    close_resp = await auth_client.post(
+        f"/api/v1/issues/{issue_id}/close",
+        json={"validation_note": "Cannot close incomplete progress"},
+    )
+    assert close_resp.status_code == 409
+
+
+@pytest.mark.asyncio
 async def test_approve_exception_requires_issues_approve_permission(
     db_session: AsyncSession,
     client_cro: AsyncClient,
@@ -422,6 +650,62 @@ async def test_revoke_exception_reopens_closed_issue_with_incomplete_remediation
     refreshed_issue = (await db_session.execute(select(Issue).where(Issue.id == issue_id))).scalar_one()
     assert refreshed_issue.status == "in_progress"
     assert refreshed_issue.closed_at is None
+
+
+@pytest.mark.asyncio
+async def test_revoke_exception_does_not_reopen_closed_issue_with_completed_remediation(
+    db_session: AsyncSession,
+    auth_client: AsyncClient,
+    test_department,
+):
+    create_resp = await auth_client.post(
+        "/api/v1/issues",
+        json={
+            "title": "Keep closed on revoke",
+            "severity": "high",
+            "source_type": "manual",
+            "department_id": test_department.id,
+        },
+    )
+    assert create_resp.status_code == 201
+    issue_id = create_resp.json()["id"]
+
+    request_resp = await auth_client.post(
+        f"/api/v1/issues/{issue_id}/request-exception",
+        json={"reason": "Temporary exception"},
+    )
+    assert request_resp.status_code == 201
+    exception_id = request_resp.json()["id"]
+
+    approve_resp = await auth_client.post(
+        f"/api/v1/issues/{issue_id}/approve-exception",
+        json={
+            "exception_id": exception_id,
+            "expires_at": (datetime.now(UTC) + timedelta(days=14)).isoformat(),
+        },
+    )
+    assert approve_resp.status_code == 200
+
+    issue = (await db_session.execute(select(Issue).where(Issue.id == issue_id))).scalar_one()
+    remediation = (
+        await db_session.execute(select(IssueRemediationPlan).where(IssueRemediationPlan.issue_id == issue_id))
+    ).scalar_one()
+    issue.status = "closed"
+    issue.closed_at = datetime.now(UTC)
+    remediation.status = "completed"
+    remediation.progress_percent = 100
+    remediation.completed_at = datetime.now(UTC)
+    await db_session.commit()
+
+    revoke_resp = await auth_client.post(
+        f"/api/v1/issues/{issue_id}/revoke-exception",
+        json={"exception_id": exception_id},
+    )
+    assert revoke_resp.status_code == 200
+
+    refreshed_issue = (await db_session.execute(select(Issue).where(Issue.id == issue_id))).scalar_one()
+    assert refreshed_issue.status == "closed"
+    assert refreshed_issue.closed_at is not None
 
 
 @pytest.mark.asyncio

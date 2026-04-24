@@ -177,3 +177,62 @@ async def test_issue_deadline_service_expires_exception_and_reopens_issue(
     assert refreshed_exception.status == "expired"
     assert refreshed_issue.status == "in_progress"
     assert refreshed_issue.closed_at is None
+
+
+@pytest.mark.asyncio
+async def test_issue_deadline_service_expired_exception_keeps_completed_issue_closed(
+    db_session: AsyncSession,
+    test_department,
+    test_user,
+):
+    now = datetime.now(UTC).replace(microsecond=0)
+    department_id = test_department.id
+    user_id = test_user.id
+
+    issue = Issue(
+        title="Completed exception-expired issue",
+        severity="critical",
+        status="closed",
+        source_type="manual",
+        department_id=department_id,
+        owner_user_id=user_id,
+        created_by_id=user_id,
+        opened_at=now - timedelta(days=30),
+        closed_at=now - timedelta(days=5),
+        due_at=now - timedelta(days=10),
+    )
+    db_session.add(issue)
+    await db_session.flush()
+
+    remediation = IssueRemediationPlan(
+        issue_id=issue.id,
+        status="completed",
+        progress_percent=100,
+        completed_at=now - timedelta(days=5),
+        owner_user_id=user_id,
+    )
+    exception = IssueException(
+        issue_id=issue.id,
+        status="approved",
+        reason="Temporary acceptance",
+        requested_by_id=user_id,
+        approved_by_id=user_id,
+        requested_at=now - timedelta(days=20),
+        approved_at=now - timedelta(days=15),
+        expires_at=now - timedelta(hours=1),
+    )
+    db_session.add_all([remediation, exception])
+    await db_session.commit()
+
+    result = await IssueDeadlineService.check_issue_deadlines(db_session, now=now)
+    assert result["exceptions_expired"] == 1
+    assert result["reopened"] == 0
+
+    refreshed_issue = (await db_session.execute(select(Issue).where(Issue.id == issue.id))).scalar_one()
+    refreshed_exception = (
+        await db_session.execute(select(IssueException).where(IssueException.id == exception.id))
+    ).scalar_one()
+
+    assert refreshed_exception.status == "expired"
+    assert refreshed_issue.status == "closed"
+    assert refreshed_issue.closed_at is not None
