@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import {
     Save,
     X,
@@ -9,16 +9,13 @@ import {
     Info,
     User,
     Activity,
-    Clock,
-    CheckCircle
 } from 'lucide-react';
 import { useTranslation } from '@/i18n/hooks';
 import { StepIndicator } from '@/components/ui/StepIndicator';
+import { ApprovalQueuedBanner } from '@/components/forms/ApprovalQueuedBanner';
 import { riskApi } from '@/services/riskApi';
 import { ApiClientError } from '@/services/apiClient';
-import { lookupApi } from '@/services/lookupApi';
 import { riskHubApi } from '@/services/riskHubApi';
-import type { UserLookupItem } from '@/services/lookupApi';
 import type { Risk, RiskCreate, RiskUpdate } from '@/types/risk';
 import { RiskStatus } from '@/types/risk';
 import { useRiskTypes, useTotalAssetsValue, useRiskThresholds } from '@/hooks/useRiskHubConfig';
@@ -27,6 +24,7 @@ import { RiskFormIdentityStep } from './RiskFormIdentityStep';
 import { RiskFormOwnershipStep } from './RiskFormOwnershipStep';
 import { RiskFormScoringStep } from './RiskFormScoringStep';
 import { resolveRiskTypeCode } from './riskTypeDefaults';
+import { useRiskLookups } from './useRiskLookups';
 
 interface RiskFormProps {
     initialData?: Risk;
@@ -105,18 +103,13 @@ export function RiskForm({
     // Validation errors (inline)
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
-    interface DepartmentLookup {
-        id: number;
-        name: string;
-        code?: string;
-    }
-
-    // Lookups
-    const [users, setUsers] = useState<UserLookupItem[]>([]);
-    const [departments, setDepartments] = useState<DepartmentLookup[]>([]);
-    const [existingProcesses, setExistingProcesses] = useState<string[]>([]);
-    const [existingCategories, setExistingCategories] = useState<string[]>([]);
-    const [subprocessesByProcess, setSubprocessesByProcess] = useState<Record<string, string[]>>({});
+    const {
+        departments,
+        existingCategories,
+        existingProcesses,
+        subprocessesByProcess,
+        users,
+    } = useRiskLookups();
     const [showProcessDropdown, setShowProcessDropdown] = useState(false);
     const [showSubprocessDropdown, setShowSubprocessDropdown] = useState(false);
     const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
@@ -150,59 +143,6 @@ export function RiskForm({
             };
         });
     }, [formData.risk_type, riskTypes]);
-
-    useEffect(() => {
-        const loadLookups = async () => {
-            try {
-                const fetchAllRisks = async () => {
-                    const limit = 100;
-                    const items: Risk[] = [];
-                    let offset = 0;
-
-                    for (;;) {
-                        const response = await riskApi.getRisks({ offset, limit });
-                        items.push(...response.items);
-                        if (offset + limit >= response.total) {
-                            return items;
-                        }
-                        offset += limit;
-                    }
-                };
-
-                const [userData, deptData, risksData] = await Promise.all([
-                    lookupApi.getUsers(),
-                    lookupApi.getDepartments(),
-                    fetchAllRisks(),
-                ]);
-                setUsers(userData);
-                setDepartments(deptData);
-
-                // Extract unique process names
-                type RiskItem = { process?: string | null; subprocess?: string | null; category?: string | null };
-                const processes = [...new Set(risksData.map((r: RiskItem) => r.process).filter(Boolean))];
-                setExistingProcesses(processes as string[]);
-
-                // Extract unique categories
-                const categories = [...new Set(risksData.map((r: RiskItem) => r.category).filter(Boolean))];
-                setExistingCategories(categories as string[]);
-
-                // Build subprocess map by process
-                const subprocMap: Record<string, string[]> = {};
-                risksData.forEach((r: RiskItem) => {
-                    if (r.process && r.subprocess) {
-                        if (!subprocMap[r.process]) subprocMap[r.process] = [];
-                        if (!subprocMap[r.process].includes(r.subprocess)) {
-                            subprocMap[r.process].push(r.subprocess);
-                        }
-                    }
-                });
-                setSubprocessesByProcess(subprocMap);
-            } catch (err) {
-                console.error('Failed to load lookups:', err);
-            }
-        };
-        void loadLookups();
-    }, []);
 
     const handleInputChange = (field: keyof Risk, value: unknown) => {
         setFormData(prev => {
@@ -374,33 +314,13 @@ export function RiskForm({
             <div className="glass-card min-h-[480px] flex flex-col">
                 {/* Approval-queued banner */}
                 {approvalQueued && (
-                    <div className="mb-6 p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-start gap-3 animate-in fade-in slide-in-from-top-2">
-                        <Clock className="h-5 w-5 text-amber-400 flex-shrink-0 mt-0.5" />
-                        <div className="flex-1">
-                            <p className="text-amber-200 text-sm font-medium">
-                                {t('approval_submitted', { ns: 'errorKeys' })}
-                            </p>
-                            <p className="text-amber-400/80 text-xs mt-1">
-                                {approvalQueued.message.startsWith('errorKeys.') ? t(approvalQueued.message, { ns: 'errorKeys' }) : approvalQueued.message}
-                            </p>
-                            <div className="mt-3 flex gap-3">
-                                <Link
-                                    to="/approvals"
-                                    className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-300 hover:text-amber-100 transition-colors"
-                                >
-                                    <CheckCircle className="h-3.5 w-3.5" />
-                                    {t('common:actions.view')} {t('approvals:title', { ns: 'approvals', defaultValue: 'Approvals' })}
-                                </Link>
-                                <button
-                                    type="button"
-                                    onClick={() => setApprovalQueued(null)}
-                                    className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
-                                >
-                                    {t('common:actions.close')}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+                    <ApprovalQueuedBanner
+                        closeLabel={t('common:actions.close')}
+                        message={approvalQueued.message.startsWith('errorKeys.') ? t(approvalQueued.message, { ns: 'errorKeys' }) : approvalQueued.message}
+                        onClose={() => setApprovalQueued(null)}
+                        title={t('approval_submitted', { ns: 'errorKeys' })}
+                        viewApprovalsLabel={`${t('common:actions.view')} ${t('approvals:title', { ns: 'approvals', defaultValue: 'Approvals' })}`}
+                    />
                 )}
 
                 {error && (

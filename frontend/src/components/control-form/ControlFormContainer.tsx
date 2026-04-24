@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import {
     Save,
     X,
@@ -11,12 +11,11 @@ import {
     Settings,
     ShieldCheck,
     Link as LinkIcon,
-    Clock,
-    CheckCircle
 } from 'lucide-react';
 import { parseUpdateResult } from '@/lib/approvalUi';
 import { useTranslation } from '@/i18n/hooks';
 import { StepIndicator } from '@/components/ui/StepIndicator';
+import { ApprovalQueuedBanner } from '@/components/forms/ApprovalQueuedBanner';
 import { controlApi } from '@/services/controlApi';
 import type { Control, ControlCreate, ControlUpdate } from '@/types/control';
 import { ControlForm as ControlFormType, ControlFrequency, ControlStatus } from '@/types/control';
@@ -257,33 +256,13 @@ export function ControlForm({
             <div className="glass-card min-h-[400px] flex flex-col">
                 {/* Approval-queued banner */}
                 {approvalQueued && (
-                    <div className="mb-6 p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-start gap-3 animate-in fade-in slide-in-from-top-2">
-                        <Clock className="h-5 w-5 text-amber-400 flex-shrink-0 mt-0.5" />
-                        <div className="flex-1">
-                            <p className="text-amber-200 text-sm font-medium">
-                                {t('approval_submitted', { ns: 'errorKeys' })}
-                            </p>
-                            <p className="text-amber-400/80 text-xs mt-1">
-                                {approvalQueued.message.startsWith('errorKeys.') ? t(approvalQueued.message, { ns: 'errorKeys' }) : approvalQueued.message}
-                            </p>
-                            <div className="mt-3 flex gap-3">
-                                <Link
-                                    to="/approvals"
-                                    className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-300 hover:text-amber-100 transition-colors"
-                                >
-                                    <CheckCircle className="h-3.5 w-3.5" />
-                                    {t('common:actions.view')} {t('approvals:title', { ns: 'approvals', defaultValue: 'Approvals' })}
-                                </Link>
-                                <button
-                                    type="button"
-                                    onClick={() => setApprovalQueued(null)}
-                                    className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
-                                >
-                                    {t('common:actions.close')}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+                    <ApprovalQueuedBanner
+                        closeLabel={t('common:actions.close')}
+                        message={approvalQueued.message.startsWith('errorKeys.') ? t(approvalQueued.message, { ns: 'errorKeys' }) : approvalQueued.message}
+                        onClose={() => setApprovalQueued(null)}
+                        title={t('approval_submitted', { ns: 'errorKeys' })}
+                        viewApprovalsLabel={`${t('common:actions.view')} ${t('approvals:title', { ns: 'approvals', defaultValue: 'Approvals' })}`}
+                    />
                 )}
 
                 {visibleError && (
