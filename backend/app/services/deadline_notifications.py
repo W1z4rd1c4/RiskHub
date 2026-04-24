@@ -23,6 +23,7 @@ async def has_recent_deadline_notification(
     lookback_days: int,
     now: datetime,
     not_before: datetime | None = None,
+    message_contains: str | None = None,
 ) -> bool:
     """Return whether an equivalent deadline notification exists in the lookback window."""
     cutoff_date = now - timedelta(days=lookback_days)
@@ -40,6 +41,8 @@ async def has_recent_deadline_notification(
         )
         .limit(1)
     )
+    if message_contains is not None:
+        stmt = stmt.where(Notification.message.contains(message_contains))
     existing = (await db.execute(stmt)).scalar_one_or_none()
     return existing is not None
 

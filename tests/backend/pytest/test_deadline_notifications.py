@@ -78,6 +78,48 @@ async def test_has_recent_deadline_notification_ignores_out_of_window_match(
 
 
 @pytest.mark.asyncio
+async def test_has_recent_deadline_notification_can_scope_by_message(
+    db_session: AsyncSession,
+    test_user: User,
+):
+    now = datetime(2026, 4, 24, 12, 0, tzinfo=UTC)
+    db_session.add(
+        Notification(
+            user_id=test_user.id,
+            type=NotificationType.KRI_DUE_SOON,
+            title="Prior period",
+            message="KRI reporting period ends on 2026-03-31.",
+            resource_type="kri",
+            resource_id=103,
+            created_at=now - timedelta(days=2),
+        )
+    )
+    await db_session.commit()
+
+    same_period = await has_recent_deadline_notification(
+        db_session,
+        resource_type="kri",
+        resource_id=103,
+        notification_type=NotificationType.KRI_DUE_SOON,
+        lookback_days=7,
+        now=now,
+        message_contains="2026-03-31",
+    )
+    next_period = await has_recent_deadline_notification(
+        db_session,
+        resource_type="kri",
+        resource_id=103,
+        notification_type=NotificationType.KRI_DUE_SOON,
+        lookback_days=7,
+        now=now,
+        message_contains="2026-04-30",
+    )
+
+    assert same_period is True
+    assert next_period is False
+
+
+@pytest.mark.asyncio
 async def test_create_deadline_notification_respects_visibility_gate(
     db_session: AsyncSession,
     test_user: User,

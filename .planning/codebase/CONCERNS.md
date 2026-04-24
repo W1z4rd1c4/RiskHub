@@ -42,6 +42,7 @@
 
 - Background scheduler can duplicate jobs if enabled in more than one backend process
 - Non-Postgres runtimes now fail fast if scheduler/outbox execution is started with multiple workers, but duplicate-job risk still depends on deployment discipline for PostgreSQL-backed scheduler ownership (`backend/app/core/scheduler.py`, `backend/app/services/outbox/store.py`)
+- Deadline notification dedupe must remain scoped to the real business event, not only the resource row. KRI reporting reminders are period-aware, KRI breach reminders are state/message-aware, and questionnaire reminders are per questionnaire instance while still navigating to the parent risk.
 
 ## Production Boundary Risk
 

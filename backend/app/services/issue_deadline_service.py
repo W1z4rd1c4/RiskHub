@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.activity_logger import log_activity
-from app.core.datetime_utils import coerce_utc
+from app.core.datetime_utils import coerce_utc, utc_now
 from app.core.permissions import can_read_issue_id
 from app.models import Issue, Role, RolePermission, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
@@ -169,7 +169,7 @@ class IssueDeadlineService:
 
     @staticmethod
     async def check_issue_deadlines(db: AsyncSession, *, now: datetime | None = None) -> dict[str, int]:
-        now = now or datetime.now(UTC)
+        now = now or utc_now()
         config = await IssueDeadlineService._load_config(db)
 
         results = {

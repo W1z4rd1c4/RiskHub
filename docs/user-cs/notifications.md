@@ -176,6 +176,8 @@ Praktická disciplína:
 
 - berte dotazníky jako time-boxed request
 - follow-up dělejte dřív než je overdue, ať nevznikají low-quality odpovědi na poslední chvíli
+- KRI due/overdue reminders jsou period-aware; starší reminder pro minulou periodu nemá skrýt novou periodu, kterou je potřeba reportovat
+- KRI breach reminders jsou state-aware; změna směru breach nebo threshold kontextu může vytvořit novou notifikaci
 - due-soon/overdue reminders pro dotazníky se deduplikují podle instance dotazníku, ne jen podle rizika
 - notifikace stále navigují na parent riziko, aby uživatel skončil v provozním kontextu
 

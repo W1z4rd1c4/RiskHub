@@ -261,22 +261,13 @@ async def test_deadline_service_returns_due_soon_count(
 
 @pytest.mark.asyncio
 async def test_due_soon_notification_type(
-    monkeypatch,
     db_session: AsyncSession,
     test_risk,
     test_user_cro,
 ):
     """Test due soon reminders use KRI_DUE_SOON notification type."""
-    import app.services.kri_deadline_service as deadline_service
-
     fixed_today = date(2025, 1, 24)  # 7 days before Jan 31
-
-    class FixedDate(date):
-        @classmethod
-        def today(cls):
-            return fixed_today
-
-    monkeypatch.setattr(deadline_service, "date", FixedDate)
+    fixed_now = datetime(2025, 1, 24, 9, 0, tzinfo=UTC)
 
     kri = KeyRiskIndicator(
         risk_id=test_risk.id,
@@ -294,7 +285,7 @@ async def test_due_soon_notification_type(
     await db_session.commit()
     await db_session.refresh(kri)
 
-    await KRIDeadlineService.check_kri_deadlines(db_session)
+    await KRIDeadlineService.check_kri_deadlines(db_session, today=fixed_today, now=fixed_now)
 
     stmt = select(Notification).where(
         Notification.resource_type == "kri",
@@ -303,6 +294,59 @@ async def test_due_soon_notification_type(
     )
     notifications = (await db_session.execute(stmt)).scalars().all()
     assert len(notifications) >= 1
+
+
+@pytest.mark.asyncio
+async def test_due_soon_dedupe_allows_new_reporting_period(
+    db_session: AsyncSession,
+    test_risk,
+    test_user_cro,
+):
+    fixed_now = datetime(2025, 1, 24, 9, 0, tzinfo=UTC)
+    kri = KeyRiskIndicator(
+        risk_id=test_risk.id,
+        metric_name="Period Scoped Due Soon",
+        description="Test KRI for period-scoped due soon dedupe",
+        current_value=50.0,
+        lower_limit=0.0,
+        upper_limit=100.0,
+        unit="%",
+        frequency="monthly",
+        reporting_owner_id=test_user_cro.id,
+        last_period_end=date(2024, 12, 31),
+    )
+    db_session.add(kri)
+    await db_session.commit()
+    await db_session.refresh(kri)
+
+    db_session.add(
+        Notification(
+            user_id=test_user_cro.id,
+            type=NotificationType.KRI_DUE_SOON,
+            title="Prior period",
+            message="KRI 'Period Scoped Due Soon' reporting period ends on 2024-12-31.",
+            resource_type="kri",
+            resource_id=kri.id,
+            created_at=fixed_now - timedelta(days=2),
+        )
+    )
+    await db_session.commit()
+
+    result = await KRIDeadlineService.check_kri_deadlines(
+        db_session,
+        today=date(2025, 1, 24),
+        now=fixed_now,
+    )
+
+    assert result["due_soon"] >= 1
+    stmt = select(Notification).where(
+        Notification.resource_type == "kri",
+        Notification.resource_id == kri.id,
+        Notification.type == NotificationType.KRI_DUE_SOON,
+        Notification.message.contains("2025-01-31"),
+    )
+    notifications = (await db_session.execute(stmt)).scalars().all()
+    assert len(notifications) == 1
 
 
 @pytest.mark.asyncio

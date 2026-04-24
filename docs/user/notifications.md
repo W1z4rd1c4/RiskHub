@@ -178,6 +178,8 @@ Operational pattern:
 
 - treat questionnaires like time-boxed requests
 - follow up early (before overdue) to avoid last-minute low-quality responses
+- KRI due/overdue reminders are period-aware; an older period reminder should not hide a new period that needs reporting
+- KRI breach reminders are state-aware; a changed breach direction or threshold context can create a new notification
 - questionnaire due-soon/overdue reminders are deduped per questionnaire instance, not just per risk
 - notifications still navigate to the parent risk so the recipient lands in the operational context
 

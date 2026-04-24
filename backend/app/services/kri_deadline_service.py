@@ -1,10 +1,11 @@
 """KRI deadline and breach checking service for generating notifications."""
 
 import logging
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, datetime, timedelta
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.datetime_utils import utc_now
 from app.core.permissions import can_read_kri_id
 from app.models.global_config import ConfigDefaults
 from app.models.key_risk_indicator import KeyRiskIndicator
@@ -73,6 +74,7 @@ class KRIDeadlineService:
         period_end: date,
         due: date,
         today: date,
+        now: datetime,
         config: dict,
         results: dict[str, int],
     ) -> None:
@@ -83,7 +85,12 @@ class KRIDeadlineService:
 
         if today == advance_date:
             if not await KRIDeadlineService._check_duplicate_notification(
-                db, kri.id, NotificationType.KRI_DUE_SOON, lookback_days=config["duplicate_lookback_days"]
+                db,
+                kri.id,
+                NotificationType.KRI_DUE_SOON,
+                lookback_days=config["duplicate_lookback_days"],
+                now=now,
+                message_contains=period_end.isoformat(),
             ):
                 await create_deadline_notification(
                     db=db,
@@ -97,6 +104,7 @@ class KRIDeadlineService:
                     ),
                     resource_type="kri",
                     resource_id=kri.id,
+                    created_at=now,
                 )
                 increment_deadline_results(results, "notifications_created", "due_soon")
             return
@@ -107,6 +115,8 @@ class KRIDeadlineService:
                 kri.id,
                 NotificationType.KRI_DUE_TOMORROW,
                 lookback_days=config["duplicate_lookback_days"],
+                now=now,
+                message_contains=period_end.isoformat(),
             ):
                 await create_deadline_notification(
                     db=db,
@@ -120,6 +130,7 @@ class KRIDeadlineService:
                     ),
                     resource_type="kri",
                     resource_id=kri.id,
+                    created_at=now,
                 )
                 increment_deadline_results(results, "notifications_created", "deadline")
             return
@@ -137,6 +148,8 @@ class KRIDeadlineService:
             kri.id,
             NotificationType.KRI_OVERDUE,
             lookback_days=config["duplicate_lookback_days"],
+            now=now,
+            message_contains=period_end.isoformat(),
         ):
             await create_deadline_notification(
                 db=db,
@@ -149,6 +162,7 @@ class KRIDeadlineService:
                 ),
                 resource_type="kri",
                 resource_id=kri.id,
+                created_at=now,
             )
             increment_deadline_results(results, "notifications_created", "overdue")
 
@@ -158,6 +172,7 @@ class KRIDeadlineService:
         *,
         kri: KeyRiskIndicator,
         risk_managers: list[User],
+        now: datetime,
         config: dict,
         results: dict[str, int],
     ) -> None:
@@ -169,6 +184,8 @@ class KRIDeadlineService:
                 kri.id,
                 NotificationType.KRI_BREACH_DETECTED,
                 lookback_days=config["duplicate_lookback_days"],
+                now=now,
+                message_contains=f"is {breach_status} limit",
             ):
                 return
 
@@ -188,6 +205,7 @@ class KRIDeadlineService:
                     message=message,
                     resource_type="kri",
                     resource_id=kri.id,
+                    created_at=now,
                 )
                 increment_deadline_results(results, "notifications_created")
 
@@ -204,6 +222,7 @@ class KRIDeadlineService:
                     message=message,
                     resource_type="kri",
                     resource_id=kri.id,
+                    created_at=now,
                 )
                 increment_deadline_results(results, "notifications_created")
 
@@ -223,6 +242,8 @@ class KRIDeadlineService:
             kri.id,
             NotificationType.KRI_NEAR_BREACH,
             lookback_days=config["duplicate_lookback_days"],
+            now=now,
+            message_contains=f"Upper limit: {kri.upper_limit}",
         ):
             return
 
@@ -239,6 +260,7 @@ class KRIDeadlineService:
                 ),
                 resource_type="kri",
                 resource_id=kri.id,
+                created_at=now,
             )
             increment_deadline_results(results, "notifications_created", "near_breach")
 
@@ -248,6 +270,7 @@ class KRIDeadlineService:
         *,
         kri: KeyRiskIndicator,
         today: date,
+        now: datetime,
         config: dict,
         risk_managers: list[User],
         results: dict[str, int],
@@ -265,6 +288,7 @@ class KRIDeadlineService:
                 period_end=period_end,
                 due=due,
                 today=today,
+                now=now,
                 config=config,
                 results=results,
             )
@@ -273,12 +297,18 @@ class KRIDeadlineService:
             db,
             kri=kri,
             risk_managers=risk_managers,
+            now=now,
             config=config,
             results=results,
         )
 
     @staticmethod
-    async def check_kri_deadlines(db: AsyncSession) -> dict[str, int]:
+    async def check_kri_deadlines(
+        db: AsyncSession,
+        *,
+        today: date | None = None,
+        now: datetime | None = None,
+    ) -> dict[str, int]:
         """
         Check all KRIs and generate notifications for:
         1. Due soon (advance reminder before period end)
@@ -296,7 +326,8 @@ class KRIDeadlineService:
 
         results = initialize_results()
 
-        today = date.today()
+        now = now or utc_now()
+        today = today or now.date()
 
         # Fetch all ACTIVE (non-archived) KRIs with their relationships
         kris = await list_active_kris(db)
@@ -311,6 +342,7 @@ class KRIDeadlineService:
                     db,
                     kri=kri,
                     today=today,
+                    now=now,
                     config=config,
                     risk_managers=risk_managers,
                     results=results,
@@ -329,6 +361,8 @@ class KRIDeadlineService:
         kri_id: int,
         notification_type: NotificationType,
         lookback_days: int = 7,
+        now: datetime | None = None,
+        message_contains: str | None = None,
     ) -> bool:
         """
         Check if a notification of the same type was sent for this KRI recently.
@@ -342,7 +376,8 @@ class KRIDeadlineService:
             resource_id=kri_id,
             notification_type=notification_type,
             lookback_days=lookback_days,
-            now=datetime.now(UTC),
+            now=now or utc_now(),
+            message_contains=message_contains,
         )
 
     @staticmethod
