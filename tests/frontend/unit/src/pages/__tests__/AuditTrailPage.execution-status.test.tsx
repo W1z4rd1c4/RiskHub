@@ -28,6 +28,12 @@ vi.mock('@/services/reportApi', () => ({
     },
 }));
 
+vi.mock('@/hooks/usePermissions', () => ({
+    usePermissions: () => ({
+        hasPermission: () => true,
+    }),
+}));
+
 describe('AuditTrailPage execution status rendering', () => {
     beforeEach(() => {
         vi.clearAllMocks();

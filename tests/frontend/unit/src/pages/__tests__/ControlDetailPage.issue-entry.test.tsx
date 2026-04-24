@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
 import { ControlDetailPage } from '@/pages/ControlDetailPage';
 
 const mockNavigate = vi.fn();
@@ -101,7 +102,11 @@ describe('ControlDetailPage issue entry', () => {
     });
 
     it('shows create-issue action and opens contextual modal with control name', async () => {
-        render(<ControlDetailPage />);
+        render(
+            <MemoryRouter initialEntries={['/controls/13']}>
+                <ControlDetailPage />
+            </MemoryRouter>
+        );
 
         await screen.findByText('Quarterly Access Review');
         fireEvent.click(screen.getByRole('button', { name: 'New Issue' }));
@@ -112,10 +117,13 @@ describe('ControlDetailPage issue entry', () => {
 
     it('hides create-issue action when user lacks issues:write', async () => {
         canIssueWrite = false;
-        render(<ControlDetailPage />);
+        render(
+            <MemoryRouter initialEntries={['/controls/13']}>
+                <ControlDetailPage />
+            </MemoryRouter>
+        );
 
         await screen.findByText('Quarterly Access Review');
         expect(screen.queryByRole('button', { name: 'New Issue' })).not.toBeInTheDocument();
     });
 });
-

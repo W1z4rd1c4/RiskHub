@@ -7,9 +7,9 @@ import {
 } from '@/pages/vendors/vendorDetailPresentation';
 
 describe('Vendor detail presentation helpers', () => {
-    it('builds the canonical vendor detail path without tab parameters', () => {
+    it('builds the vendor detail path and preserves optional tab parameters', () => {
         expect(buildVendorDetailPath(42)).toBe('/vendors/42');
-        expect(buildVendorDetailPath(42, 'operations', 'sla')).toBe('/vendors/42');
+        expect(buildVendorDetailPath(42, 'operations', 'sla')).toBe('/vendors/42?tab=operations&section=sla');
     });
 
     it('grants ownership edit access only to the outsourcing owner', () => {

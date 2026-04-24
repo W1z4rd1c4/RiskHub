@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
 
 import { ControlDetailPage } from '@/pages/ControlDetailPage';
 
@@ -107,7 +108,11 @@ describe('ControlDetailPage execution status refresh', () => {
     });
 
     it('refetches control detail and refreshes history after execution logging succeeds', async () => {
-        render(<ControlDetailPage />);
+        render(
+            <MemoryRouter initialEntries={['/controls/13']}>
+                <ControlDetailPage />
+            </MemoryRouter>
+        );
 
         await screen.findByText('Quarterly Access Review');
         expect(screen.getByText('controls:monitoring.failed')).toBeInTheDocument();
