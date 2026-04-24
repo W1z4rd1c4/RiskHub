@@ -10,8 +10,8 @@ from app.services.export_snapshot_service import ExportSnapshotService
 from ._shared import ExportFormat
 from .fetch import _fetch_vendors_for_export
 from .filters import _filter_rows_by_final_scope, _filter_rows_by_vendor_criteria, _prefilter_department_id_for_as_of
+from .pipeline import ExportPipelineDefinition, render_export_pipeline
 from .rehydrate import _rehydrate_department_names, _rehydrate_user_names
-from .render import _render_export
 from .rows import _vendor_to_row
 
 
@@ -29,48 +29,62 @@ async def _export_vendors(
     fetch_department_id = _prefilter_department_id_for_as_of(as_of_date, department_id)
     models = await _fetch_vendors_for_export(db, current_user=current_user, department_id=fetch_department_id)
     rows = [_vendor_to_row(vendor) for vendor in models]
-    rows = await ExportSnapshotService.apply_as_of_snapshot(
-        db,
-        rows=rows,
-        entity_type=ActivityEntityType.VENDOR,
+    return await render_export_pipeline(
+        definition=ExportPipelineDefinition(
+            title=f"Vendor Export (as of {as_of_date.isoformat()})",
+            sheet_name="Vendors",
+            filename_base="vendors",
+            headers=[
+                "Name",
+                "Legal Name",
+                "Type",
+                "Process",
+                "Subprocess",
+                "Department",
+                "Owner",
+                "Risk Score",
+                "DORA Relevant",
+                "Significant",
+                "Status",
+            ],
+        ),
+        export_format=export_format,
         as_of_date=as_of_date,
-    )
-    rows = await _rehydrate_user_names(
-        db,
-        rows,
-        user_id_field="outsourcing_owner_user_id",
-        user_name_field="owner_name",
-    )
-    rows = await _rehydrate_department_names(
-        db,
-        rows,
-        department_id_field="department_id",
-        department_name_field="department_name",
-    )
-    rows = _filter_rows_by_final_scope(
-        rows,
-        current_user=current_user,
-        department_id=department_id,
-        owner_field="outsourcing_owner_user_id",
-        exclude_unassigned_for_scoped=True,
-    )
-    rows = _filter_rows_by_vendor_criteria(rows, status_filter=status_filter, search=search, vendor_type=vendor_type)
-
-    headers = [
-        "Name",
-        "Legal Name",
-        "Type",
-        "Process",
-        "Subprocess",
-        "Department",
-        "Owner",
-        "Risk Score",
-        "DORA Relevant",
-        "Significant",
-        "Status",
-    ]
-    data_rows = [
-        [
+        rows=rows,
+        stages=[
+            lambda current: ExportSnapshotService.apply_as_of_snapshot(
+                db,
+                rows=current,
+                entity_type=ActivityEntityType.VENDOR,
+                as_of_date=as_of_date,
+            ),
+            lambda current: _rehydrate_user_names(
+                db,
+                current,
+                user_id_field="outsourcing_owner_user_id",
+                user_name_field="owner_name",
+            ),
+            lambda current: _rehydrate_department_names(
+                db,
+                current,
+                department_id_field="department_id",
+                department_name_field="department_name",
+            ),
+            lambda current: _filter_rows_by_final_scope(
+                current,
+                current_user=current_user,
+                department_id=department_id,
+                owner_field="outsourcing_owner_user_id",
+                exclude_unassigned_for_scoped=True,
+            ),
+            lambda current: _filter_rows_by_vendor_criteria(
+                current,
+                status_filter=status_filter,
+                search=search,
+                vendor_type=vendor_type,
+            ),
+        ],
+        row_values=lambda row: [
             row.get("name"),
             row.get("legal_name"),
             row.get("vendor_type"),
@@ -82,16 +96,5 @@ async def _export_vendors(
             "yes" if row.get("dora_relevant") else "no",
             "yes" if row.get("is_significant_vendor") else "no",
             row.get("status"),
-        ]
-        for row in rows
-    ]
-
-    return _render_export(
-        title=f"Vendor Export (as of {as_of_date.isoformat()})",
-        sheet_name="Vendors",
-        filename_base="vendors",
-        export_format=export_format,
-        headers=headers,
-        data_rows=data_rows,
-        as_of_date=as_of_date,
+        ],
     )
