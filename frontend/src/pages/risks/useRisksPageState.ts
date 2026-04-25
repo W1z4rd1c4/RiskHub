@@ -18,6 +18,12 @@ import {
     normalizeRiskSummaries,
     type RisksPageInitialState,
 } from './risksPagePresentation';
+import {
+    getTotalPages,
+    useCollectionGroupSelection,
+    useExportDialogState,
+    useLatestRequestGuard,
+} from '../shared/collectionPageState';
 
 interface UseRisksPageStateOptions {
     initialState: RisksPageInitialState;
@@ -26,8 +32,6 @@ interface UseRisksPageStateOptions {
 export function useRisksPageState({ initialState }: UseRisksPageStateOptions) {
     const [items, setItems] = useState<RiskSummary[]>([]);
     const [groups, setGroups] = useState<CollectionGroup[]>([]);
-    const [selectedGroupValue, setSelectedGroupValue] = useState<string | null>(null);
-    const [selectedGroupLabel, setSelectedGroupLabel] = useState<string | null>(null);
     const [totalCount, setTotalCount] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
     const [errorKey, setErrorKey] = useState<string | null>(null);
@@ -37,8 +41,6 @@ export function useRisksPageState({ initialState }: UseRisksPageStateOptions) {
     const [priorityFilter, setPriorityFilter] = useState<boolean | undefined>(undefined);
     const [currentPage, setCurrentPage] = useState(1);
     const [viewMode, setViewMode] = useState<ViewMode>('all');
-    const [isExporting, setIsExporting] = useState(false);
-    const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
     const [hasBreachFilter, setHasBreachFilter] = useState<boolean | undefined>(
         initialState.hasBreachFilter
     );
@@ -46,15 +48,33 @@ export function useRisksPageState({ initialState }: UseRisksPageStateOptions) {
     const [sortField, setSortField] = useState<string | null>(null);
     const [sortDirection, setSortDirection] = useState<SortDirection>(null);
 
-    const latestRequestIdRef = useRef(0);
+    const { beginRequest, isCurrentRequest } = useLatestRequestGuard();
+    const {
+        resetGroupSelection,
+        selectGroup: setSelectedGroup,
+        selectedGroupLabel,
+        selectedGroupValue,
+    } = useCollectionGroupSelection();
+    const {
+        closeExportDialog,
+        isExportDialogOpen,
+        isExporting,
+        openExportDialog,
+        setIsExporting,
+    } = useExportDialogState();
     const hasLoadedRisksRef = useRef(false);
 
     const limit = DEFAULT_LIST_PAGE_SIZE;
     const debouncedSearch = useDebouncedValue(search, 300);
     const groupBy = getRiskGroupBy(viewMode);
 
+    const resetGroupAndPage = useCallback(() => {
+        resetGroupSelection();
+        setCurrentPage(1);
+    }, [resetGroupSelection]);
+
     const fetchRisks = useCallback(async () => {
-        const requestId = ++latestRequestIdRef.current;
+        const requestId = beginRequest();
         try {
             setIsLoading(true);
 
@@ -80,7 +100,7 @@ export function useRisksPageState({ initialState }: UseRisksPageStateOptions) {
                     })
                 ),
             });
-            if (requestId !== latestRequestIdRef.current) {
+            if (!isCurrentRequest(requestId)) {
                 return;
             }
             setItems(response.items);
@@ -91,20 +111,22 @@ export function useRisksPageState({ initialState }: UseRisksPageStateOptions) {
             hasLoadedRisksRef.current = true;
         } catch (error) {
             logError('[RisksPage] Error fetching risks:', error);
-            if (requestId === latestRequestIdRef.current) {
+            if (isCurrentRequest(requestId)) {
                 setErrorKey('errors.load_failed');
             }
         } finally {
-            if (requestId === latestRequestIdRef.current) {
+            if (isCurrentRequest(requestId)) {
                 setIsLoading(false);
             }
         }
     }, [
+        beginRequest,
         currentPage,
         criticalFilter,
         debouncedSearch,
         groupBy,
         hasBreachFilter,
+        isCurrentRequest,
         limit,
         priorityFilter,
         selectedGroupValue,
@@ -145,84 +167,66 @@ export function useRisksPageState({ initialState }: UseRisksPageStateOptions) {
                         typeFilter,
                     }),
                 });
-                setIsExportDialogOpen(false);
+                closeExportDialog();
             } catch (error) {
                 logError('Export failed:', error);
             } finally {
                 setIsExporting(false);
             }
         },
-        [priorityFilter, search, statusFilter, typeFilter]
+        [closeExportDialog, priorityFilter, search, setIsExporting, statusFilter, typeFilter]
     );
 
     const updateSearch = useCallback((value: string) => {
         setSearch(value);
-        setCurrentPage(1);
-        setSelectedGroupValue(null);
-        setSelectedGroupLabel(null);
-    }, []);
+        resetGroupAndPage();
+    }, [resetGroupAndPage]);
 
     const updateStatusFilter = useCallback((value: RiskStatus | '') => {
         setStatusFilter(value);
-        setCurrentPage(1);
-        setSelectedGroupValue(null);
-        setSelectedGroupLabel(null);
-    }, []);
+        resetGroupAndPage();
+    }, [resetGroupAndPage]);
 
     const updateTypeFilter = useCallback((value: string) => {
         setTypeFilter(value);
-        setCurrentPage(1);
-        setSelectedGroupValue(null);
-        setSelectedGroupLabel(null);
-    }, []);
+        resetGroupAndPage();
+    }, [resetGroupAndPage]);
 
     const togglePriorityFilter = useCallback(() => {
         setPriorityFilter((current) => (current === true ? undefined : true));
-        setCurrentPage(1);
-        setSelectedGroupValue(null);
-        setSelectedGroupLabel(null);
-    }, []);
+        resetGroupAndPage();
+    }, [resetGroupAndPage]);
 
     const updateCriticalFilter = useCallback((value: boolean) => {
         setCriticalFilter(value);
-        setCurrentPage(1);
-        setSelectedGroupValue(null);
-        setSelectedGroupLabel(null);
-    }, []);
+        resetGroupAndPage();
+    }, [resetGroupAndPage]);
 
     const updateHasBreachFilter = useCallback((value: boolean | undefined) => {
         setHasBreachFilter(value);
-        setCurrentPage(1);
-        setSelectedGroupValue(null);
-        setSelectedGroupLabel(null);
-    }, []);
+        resetGroupAndPage();
+    }, [resetGroupAndPage]);
 
     const updateSort = useCallback((nextSortField: string | null, nextSortDirection: SortDirection) => {
         setSortField(nextSortField);
         setSortDirection(nextSortDirection);
-        setCurrentPage(1);
-        setSelectedGroupValue(null);
-        setSelectedGroupLabel(null);
-    }, []);
+        resetGroupAndPage();
+    }, [resetGroupAndPage]);
 
     const updateViewMode = useCallback((value: ViewMode) => {
         setViewMode(value);
-        setCurrentPage(1);
-        setSelectedGroupValue(null);
-        setSelectedGroupLabel(null);
-    }, []);
+        resetGroupAndPage();
+    }, [resetGroupAndPage]);
 
     const selectGroup = useCallback((groupValue: string, groupLabel: string) => {
-        setSelectedGroupValue(groupValue);
-        setSelectedGroupLabel(groupLabel);
+        setSelectedGroup(groupValue, groupLabel);
         setCurrentPage(1);
-    }, []);
+    }, [setSelectedGroup]);
 
     const clearSelectedGroup = useCallback(() => {
-        setSelectedGroupValue(null);
-        setSelectedGroupLabel(null);
+        resetGroupSelection();
         setCurrentPage(1);
-    }, []);
+    }, [resetGroupSelection]);
 
     return {
         criticalFilter,
@@ -238,8 +242,8 @@ export function useRisksPageState({ initialState }: UseRisksPageStateOptions) {
         isLoading,
         items,
         limit,
-        openExportDialog: () => setIsExportDialogOpen(true),
-        closeExportDialog: () => setIsExportDialogOpen(false),
+        openExportDialog,
+        closeExportDialog,
         priorityFilter,
         restoreRisk,
         search,
@@ -250,7 +254,7 @@ export function useRisksPageState({ initialState }: UseRisksPageStateOptions) {
         sortField,
         statusFilter,
         totalCount,
-        totalPages: Math.ceil(totalCount / limit) || 1,
+        totalPages: getTotalPages(totalCount, limit),
         typeFilter,
         updateCriticalFilter,
         updateHasBreachFilter,

@@ -1,133 +1,40 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { TrendingUp, TrendingDown, Minus, Calendar, AlertTriangle, HelpCircle, RefreshCw } from 'lucide-react';
+import { Calendar, RefreshCw } from 'lucide-react';
+
 import { useTranslation } from '@/i18n/hooks';
-import { dashboardApi } from '@/services/dashboardApi';
-import { ThemedSelect } from '@/components/ui/ThemedSelect';
-import { logError } from '@/services/logger';
 
-interface MetricChange {
-    absolute: number;
-    percentage: number;
-    direction: 'up' | 'down' | 'same' | 'unknown';
-    note?: string;
-}
-
-interface SnapshotInfo {
-    current_quarter: string;
-    last_quarter: string;
-    last_quarter_snapshot_available: boolean;
-    current_quarter_snapshot_available?: boolean;
-    missing_snapshot_quarters?: string[];
-    snapshot_sources?: {
-        current: 'live' | 'stored' | 'missing';
-        compare: 'stored' | 'missing';
-    };
-    missing_snapshot_metrics?: {
-        current: string[];
-        compare: string[];
-    };
-    period_metrics: string[];
-    snapshot_metrics: string[];
-}
-
-interface QuarterlyData {
-    this_quarter: Record<string, number>;
-    last_quarter: Record<string, number>;
-    changes: Record<string, MetricChange>;
-    period: { this_start: string; this_end: string; last_start: string; last_end: string };
-    snapshot_info?: SnapshotInfo;
-}
-
-const QUARTERS = ['Q1', 'Q2', 'Q3', 'Q4'];
-
-const METRIC_COLORS: Record<string, { positive: string; negative: string }> = {
-    // Row 1: Risk Posture
-    new_risks: { positive: 'text-rose-400', negative: 'text-emerald-400' },
-    archived_risks: { positive: 'text-emerald-400', negative: 'text-rose-400' },
-    active_risks: { positive: 'text-rose-400', negative: 'text-emerald-400' },
-    priority_risks: { positive: 'text-rose-400', negative: 'text-emerald-400' },
-    kri_breaches: { positive: 'text-rose-400', negative: 'text-emerald-400' },
-    pending_approvals: { positive: 'text-amber-400', negative: 'text-emerald-400' },
-    // Row 2: Audit & Control Effectiveness
-    audit_activity: { positive: 'text-emerald-400', negative: 'text-rose-400' },
-    failed_audits: { positive: 'text-rose-400', negative: 'text-emerald-400' },
-    control_coverage: { positive: 'text-emerald-400', negative: 'text-rose-400' },
-    unaudited_controls: { positive: 'text-rose-400', negative: 'text-emerald-400' },
-    // Row 3: Governance Health
-    orphaned_items: { positive: 'text-rose-400', negative: 'text-emerald-400' },
-    kri_health: { positive: 'text-emerald-400', negative: 'text-rose-400' },
-    overdue_kris: { positive: 'text-rose-400', negative: 'text-emerald-400' },
-    activity_volume: { positive: 'text-slate-400', negative: 'text-slate-400' },
-    risks_without_kri: { positive: 'text-rose-400', negative: 'text-emerald-400' },
-    // Row 4: Vendor Register
-    active_vendors: { positive: 'text-slate-400', negative: 'text-slate-400' },
-};
-
-function getChangeColor(key: string, direction: string): string {
-    const colors = METRIC_COLORS[key] || { positive: 'text-slate-400', negative: 'text-slate-400' };
-    if (direction === 'same' || direction === 'unknown') return 'text-slate-400';
-    return direction === 'up' ? colors.positive : colors.negative;
-}
-
-/** Parse quarter label like '2026-Q1' into { year, quarter } */
-function parseQuarterLabel(label: string): { year: number; quarter: number } {
-    const match = label.match(/^(\d{4})-Q([1-4])$/);
-    if (!match) {
-        const now = new Date();
-        return { year: now.getFullYear(), quarter: Math.floor(now.getMonth() / 3) + 1 };
-    }
-    return { year: parseInt(match[1]), quarter: parseInt(match[2]) };
-}
-
-/** Format year and quarter number into API format '2026-Q1' */
-function toQuarterLabel(year: number, quarter: number): string {
-    return `${year}-Q${quarter}`;
-}
-
-/** Get previous quarter from a given quarter */
-function getPreviousQuarter(year: number, quarter: number): { year: number; quarter: number } {
-    if (quarter === 1) {
-        return { year: year - 1, quarter: 4 };
-    }
-    return { year, quarter: quarter - 1 };
-}
-
-function quarterKey(year: number, quarter: number): number {
-    return year * 4 + quarter;
-}
-
-function isAfterQuarter(year: number, quarter: number, maxYear: number, maxQuarter: number): boolean {
-    return quarterKey(year, quarter) > quarterKey(maxYear, maxQuarter);
-}
-
-function isCompareQuarterInvalid(
-    compareYear: number,
-    compareQuarter: number,
-    currentYear: number,
-    currentQuarter: number,
-): boolean {
-    return quarterKey(compareYear, compareQuarter) >= quarterKey(currentYear, currentQuarter);
-}
+import { QuarterMetricCard } from './QuarterMetricCard';
+import { QuarterPeriodSelector } from './QuarterPeriodSelector';
+import { QuarterlyComparisonFrame, QuarterlyComparisonSkeleton } from './QuarterlyComparisonFrame';
+import { SnapshotAvailabilityNotice } from './SnapshotAvailabilityNotice';
+import {
+    buildCompareQuarterOptions,
+    buildCurrentQuarterOptions,
+    buildYearOptions,
+    getSnapshotAvailability,
+} from './quarterlyComparisonPresentation';
+import { useQuarterlyComparisonData } from './useQuarterlyComparisonData';
 
 export function QuarterlyComparisonWidget() {
     const { t } = useTranslation('dashboard');
-    const [data, setData] = useState<QuarterlyData | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const {
+        actualCurrentQuarter,
+        actualCurrentYear,
+        availableYears,
+        compareQuarter,
+        compareYear,
+        currentQuarter,
+        currentYear,
+        data,
+        error,
+        isLoading,
+        setCompareQuarter,
+        setCompareYear,
+        setCurrentQuarter,
+        setCurrentYear,
+    } = useQuarterlyComparisonData();
 
-    // Available periods from backend
-    const [availableYears, setAvailableYears] = useState<number[]>([]);
-    const [actualCurrentYear, setActualCurrentYear] = useState<number | null>(null);
-    const [actualCurrentQ, setActualCurrentQ] = useState<number | null>(null);
-
-    // Selected periods - null means "use default"
-    const [currentYear, setCurrentYear] = useState<number | null>(null);
-    const [currentQ, setCurrentQ] = useState<number | null>(null);
-    const [compareYear, setCompareYear] = useState<number | null>(null);
-    const [compareQ, setCompareQ] = useState<number | null>(null);
-
-    // Metric labels with translations
     const metricLabels: Record<string, string> = useMemo(() => ({
         new_risks: t('quarterly.new_risks'),
         archived_risks: t('quarterly.archived_risks'),
@@ -147,167 +54,31 @@ export function QuarterlyComparisonWidget() {
         active_vendors: t('quarterly.active_vendors'),
     }), [t]);
 
-    // Build quarter label for API, or undefined if using defaults
-    const currentQuarterLabel = currentYear && currentQ ? toQuarterLabel(currentYear, currentQ) : undefined;
-    const compareQuarterLabel = compareYear && compareQ ? toQuarterLabel(compareYear, compareQ) : undefined;
-
-    const fetchData = useCallback(async () => {
-        setIsLoading(true);
-        setError(null);
-        try {
-            const result = await dashboardApi.fetchQuarterlyComparison(currentQuarterLabel, compareQuarterLabel);
-            setData(result);
-        } catch (err) {
-            logError('Failed to fetch quarterly comparison:', err);
-            setError(t('errors.load_failed'));
-        } finally {
-            setIsLoading(false);
-        }
-    }, [compareQuarterLabel, currentQuarterLabel, t]);
-
-    // Load available periods and initial data
-    useEffect(() => {
-        async function init() {
-            try {
-                const periods = await dashboardApi.fetchAvailablePeriods();
-                setAvailableYears(periods.years);
-
-                // Parse current quarter from response and set defaults
-                const { year, quarter } = parseQuarterLabel(periods.current_quarter);
-                setActualCurrentYear(year);
-                setActualCurrentQ(quarter);
-                setCurrentYear(year);
-                setCurrentQ(quarter);
-
-                // Set compare to previous quarter
-                const prev = getPreviousQuarter(year, quarter);
-                setCompareYear(prev.year);
-                setCompareQ(prev.quarter);
-            } catch (err) {
-                logError('Failed to fetch available periods:', err);
-                // Fall back to current date
-                const now = new Date();
-                const year = now.getFullYear();
-                const quarter = Math.floor(now.getMonth() / 3) + 1;
-                const prev = getPreviousQuarter(year, quarter);
-                setAvailableYears(Array.from(new Set([prev.year, year])).sort((a, b) => a - b));
-                setActualCurrentYear(year);
-                setActualCurrentQ(quarter);
-                setCurrentYear(year);
-                setCurrentQ(quarter);
-                setCompareYear(prev.year);
-                setCompareQ(prev.quarter);
-            }
-        }
-        void init();
-    }, []);
-
-    useEffect(() => {
-        if (!actualCurrentYear || !actualCurrentQ || !currentYear || !currentQ) {
-            return;
-        }
-        if (isAfterQuarter(currentYear, currentQ, actualCurrentYear, actualCurrentQ)) {
-            setCurrentYear(actualCurrentYear);
-            setCurrentQ(actualCurrentQ);
-        }
-    }, [actualCurrentQ, actualCurrentYear, currentQ, currentYear]);
-
-    useEffect(() => {
-        if (!currentYear || !currentQ || !compareYear || !compareQ) {
-            return;
-        }
-        if (isCompareQuarterInvalid(compareYear, compareQ, currentYear, currentQ)) {
-            const prev = getPreviousQuarter(currentYear, currentQ);
-            setCompareYear(prev.year);
-            setCompareQ(prev.quarter);
-        }
-    }, [compareQ, compareYear, currentQ, currentYear]);
-
-    // Fetch data when periods change
-    useEffect(() => {
-        if (currentYear && currentQ && compareYear && compareQ) {
-            if (actualCurrentYear && actualCurrentQ && isAfterQuarter(currentYear, currentQ, actualCurrentYear, actualCurrentQ)) {
-                return;
-            }
-            if (isCompareQuarterInvalid(compareYear, compareQ, currentYear, currentQ)) {
-                return;
-            }
-            void fetchData();
-        }
-    }, [actualCurrentQ, actualCurrentYear, currentYear, currentQ, compareYear, compareQ, fetchData]);
-
-    // Year options for select
     const yearOptions = useMemo(() => {
-        const years = new Set(availableYears);
-        if (currentYear) years.add(currentYear);
-        if (compareYear) years.add(compareYear);
-        return Array.from(years).sort((a, b) => a - b).map(y => ({ value: y.toString(), label: y.toString() }));
+        return buildYearOptions(availableYears, currentYear, compareYear);
     }, [availableYears, compareYear, currentYear]);
 
-    // Quarter options
-    const currentQuarterOptions = QUARTERS.map((q, i) => {
-        const quarter = i + 1;
-        return {
-            value: quarter.toString(),
-            label: q,
-            disabled: Boolean(
-                actualCurrentYear
-                && actualCurrentQ
-                && currentYear
-                && isAfterQuarter(currentYear, quarter, actualCurrentYear, actualCurrentQ)
-            ),
-        };
-    });
-    const compareQuarterOptions = QUARTERS.map((q, i) => {
-        const quarter = i + 1;
-        return {
-            value: quarter.toString(),
-            label: q,
-            disabled: Boolean(
-                compareYear
-                && currentYear
-                && currentQ
-                && isCompareQuarterInvalid(compareYear, quarter, currentYear, currentQ)
-            ),
-        };
-    });
+    const currentQuarterOptions = buildCurrentQuarterOptions(
+        currentYear,
+        actualCurrentYear,
+        actualCurrentQuarter,
+    );
+    const compareQuarterOptions = buildCompareQuarterOptions(compareYear, currentYear, currentQuarter);
 
     if (isLoading && !data) {
-        return (
-            <div className="glass-card">
-                <div className="flex items-center gap-2 mb-6">
-                    <Calendar className="h-5 w-5 text-accent" />
-                    <h3 className="text-lg font-bold text-white">{t('sections.quarterly_comparison')}</h3>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                    {Array(6).fill(0).map((_, i) => (
-                        <div key={i} className="animate-pulse bg-white/5 rounded-xl h-24" />
-                    ))}
-                </div>
-            </div>
-        );
+        return <QuarterlyComparisonSkeleton title={t('sections.quarterly_comparison')} />;
     }
 
     if (error && !data) {
         return (
-            <div className="glass-card">
-                <div className="flex items-center gap-2 mb-6">
-                    <Calendar className="h-5 w-5 text-accent" />
-                    <h3 className="text-lg font-bold text-white">{t('sections.quarterly_comparison')}</h3>
-                </div>
+            <QuarterlyComparisonFrame title={t('sections.quarterly_comparison')}>
                 <p className="text-slate-500 text-sm">{error || t('quarterly.no_data_available')}</p>
-            </div>
+            </QuarterlyComparisonFrame>
         );
     }
 
     const metrics = Object.keys(metricLabels);
-    const currentSnapshotAvailable = data?.snapshot_info?.current_quarter_snapshot_available ?? true;
-    const compareSnapshotAvailable = data?.snapshot_info?.last_quarter_snapshot_available ?? true;
-    const snapshotAvailable = currentSnapshotAvailable && compareSnapshotAvailable;
-    const snapshotMetrics = new Set(data?.snapshot_info?.snapshot_metrics ?? []);
-    const missingSnapshotPeriods = data?.snapshot_info?.missing_snapshot_quarters ?? [];
-    const missingCurrentSnapshotMetrics = new Set(data?.snapshot_info?.missing_snapshot_metrics?.current ?? []);
-    const missingCompareSnapshotMetrics = new Set(data?.snapshot_info?.missing_snapshot_metrics?.compare ?? []);
+    const snapshot = getSnapshotAvailability(data);
 
     return (
         <motion.div
@@ -326,134 +97,47 @@ export function QuarterlyComparisonWidget() {
                 )}
             </div>
 
-            {/* Period Selector */}
-            <div className="flex flex-wrap items-center gap-3 mb-4 pb-4 border-b border-white/5">
-                {/* Current Period */}
-                <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                        {t('quarterly.current_period')}
-                    </span>
-                    <ThemedSelect
-                        value={currentQ?.toString() ?? '1'}
-                        onValueChange={(v) => setCurrentQ(parseInt(v))}
-                        options={currentQuarterOptions}
-                        className="min-w-[70px]"
-                        triggerTestId="quarterly-current-quarter"
-                        optionTestIdPrefix="quarterly-current-quarter-option"
-                    />
-                    <ThemedSelect
-                        value={currentYear?.toString() ?? ''}
-                        onValueChange={(v) => setCurrentYear(parseInt(v))}
-                        options={yearOptions}
-                        className="min-w-[90px]"
-                        triggerTestId="quarterly-current-year"
-                        optionTestIdPrefix="quarterly-current-year-option"
-                    />
-                </div>
+            <QuarterPeriodSelector
+                compareQuarter={compareQuarter}
+                compareQuarterOptions={compareQuarterOptions}
+                compareYear={compareYear}
+                currentQuarter={currentQuarter}
+                currentQuarterOptions={currentQuarterOptions}
+                currentYear={currentYear}
+                onCompareQuarterChange={setCompareQuarter}
+                onCompareYearChange={setCompareYear}
+                onCurrentQuarterChange={setCurrentQuarter}
+                onCurrentYearChange={setCurrentYear}
+                t={t}
+                yearOptions={yearOptions}
+            />
 
-                <span className="text-xs text-slate-600 font-bold">{t('quarterly.vs')}</span>
-
-                {/* Compare Period */}
-                <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
-                        {t('quarterly.compare_period')}
-                    </span>
-                    <ThemedSelect
-                        value={compareQ?.toString() ?? '4'}
-                        onValueChange={(v) => setCompareQ(parseInt(v))}
-                        options={compareQuarterOptions}
-                        className="min-w-[70px]"
-                        triggerTestId="quarterly-compare-quarter"
-                        optionTestIdPrefix="quarterly-compare-quarter-option"
-                    />
-                    <ThemedSelect
-                        value={compareYear?.toString() ?? ''}
-                        onValueChange={(v) => setCompareYear(parseInt(v))}
-                        options={yearOptions}
-                        className="min-w-[90px]"
-                        triggerTestId="quarterly-compare-year"
-                        optionTestIdPrefix="quarterly-compare-year-option"
-                    />
-                </div>
-            </div>
-
-            {/* Warning banner when historical snapshot is missing */}
-            {!snapshotAvailable && (
-                <div className="mb-4 flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
-                    <AlertTriangle className="h-4 w-4 text-amber-400 flex-shrink-0" />
-                    <span className="text-xs text-amber-300">
-                        {t('quarterly.no_snapshot_banner', {
-                            period: missingSnapshotPeriods.join(', ') || data?.snapshot_info?.last_quarter || t('quarterly.last_quarter'),
-                        })}
-                    </span>
-                </div>
+            {!snapshot.snapshotAvailable && (
+                <SnapshotAvailabilityNotice
+                    fallbackPeriod={data?.snapshot_info?.last_quarter ?? t('quarterly.last_quarter')}
+                    missingPeriods={snapshot.missingSnapshotPeriods}
+                    t={t}
+                />
             )}
 
-            {/* Metrics Grid */}
             {data && (
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
                     {metrics.map((key) => {
-                        // Defensive: handle missing metrics gracefully
-                        const thisVal = data.this_quarter?.[key] ?? null;
-                        const lastVal = data.last_quarter?.[key] ?? null;
-                        const change = data.changes?.[key];
-
-                        // Handle missing change data
-                        const direction = change?.direction ?? 'same';
-                        const absolute = change?.absolute ?? 0;
-                        const percentage = change?.percentage ?? 0;
-                        const isSnapshotMetric = snapshotMetrics.has(key);
-
-                        // Skip rendering if metric is completely missing and not explicitly unavailable.
-                        if (thisVal === null && lastVal === null && direction !== 'unknown') {
-                            return null;
-                        }
-
-                        const colorClass = getChangeColor(key, direction);
-                        const showCurrentUncertainty = isSnapshotMetric && (
-                            !currentSnapshotAvailable || missingCurrentSnapshotMetrics.has(key)
-                        );
-                        const showCompareUncertainty = isSnapshotMetric && (
-                            !compareSnapshotAvailable || missingCompareSnapshotMetrics.has(key)
-                        );
-                        const showUncertainty = showCurrentUncertainty || showCompareUncertainty;
-                        const displayThisVal = showCurrentUncertainty ? '—' : (thisVal ?? '—');
-                        const displayLastVal = showCompareUncertainty ? '—' : (lastVal ?? '—');
-
                         return (
-                            <motion.div
+                            <QuarterMetricCard
                                 key={key}
-                                initial={{ opacity: 0, scale: 0.95 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                className={`bg-white/5 rounded-xl p-4 border ${showUncertainty ? 'border-amber-500/20' : 'border-white/5'}`}
-                            >
-                                <div className="flex items-center justify-between mb-2">
-                                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                                        {metricLabels[key] || key}
-                                    </p>
-                                    {showUncertainty && (
-                                        <span title={t('quarterly.no_snapshot_hint')}>
-                                            <HelpCircle className="h-3 w-3 text-amber-400" />
-                                        </span>
-                                    )}
-                                </div>
-                                <div className="flex items-end gap-2 mb-1">
-                                    <span className="text-2xl font-black text-white">{displayThisVal}</span>
-                                    <span className="text-xs text-slate-600 pb-1">vs {displayLastVal}</span>
-                                </div>
-                                <div className={`flex items-center gap-1 text-xs font-bold ${colorClass}`}>
-                                    {direction === 'up' && <TrendingUp className="h-3 w-3" />}
-                                    {direction === 'down' && <TrendingDown className="h-3 w-3" />}
-                                    {direction === 'same' && <Minus className="h-3 w-3" />}
-                                    {direction === 'unknown' && <HelpCircle className="h-3 w-3" />}
-                                    <span>
-                                        {direction === 'unknown'
-                                            ? t('quarterly.not_available')
-                                            : `${absolute > 0 ? '+' : ''}${absolute} (${percentage}%)`
-                                        }
-                                    </span>
-                                </div>
-                            </motion.div>
+                                change={data.changes?.[key]}
+                                compareSnapshotAvailable={snapshot.compareSnapshotAvailable}
+                                currentSnapshotAvailable={snapshot.currentSnapshotAvailable}
+                                isSnapshotMetric={snapshot.snapshotMetrics.has(key)}
+                                keyName={key}
+                                label={metricLabels[key] ?? key}
+                                lastValue={data.last_quarter?.[key] ?? null}
+                                missingCompareSnapshotMetric={snapshot.missingCompareSnapshotMetrics.has(key)}
+                                missingCurrentSnapshotMetric={snapshot.missingCurrentSnapshotMetrics.has(key)}
+                                t={t}
+                                thisValue={data.this_quarter?.[key] ?? null}
+                            />
                         );
                     })}
                 </div>

@@ -17,12 +17,16 @@ import {
     type ControlListStatusFilter,
     getControlGroupBy,
 } from './controlsPagePresentation';
+import {
+    getTotalPages,
+    useCollectionGroupSelection,
+    useExportDialogState,
+    useLatestRequestGuard,
+} from '../shared/collectionPageState';
 
 export function useControlsPageState() {
     const [items, setItems] = useState<ControlSummary[]>([]);
     const [groups, setGroups] = useState<CollectionGroup[]>([]);
-    const [selectedGroupValue, setSelectedGroupValue] = useState<string | null>(null);
-    const [selectedGroupLabel, setSelectedGroupLabel] = useState<string | null>(null);
     const [totalCount, setTotalCount] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
     const [errorKey, setErrorKey] = useState<string | null>(null);
@@ -30,18 +34,33 @@ export function useControlsPageState() {
     const [statusFilter, setStatusFilter] = useState<ControlListStatusFilter>('');
     const [currentPage, setCurrentPage] = useState(1);
     const [viewMode, setViewMode] = useState<ViewMode>('all');
-    const [isExporting, setIsExporting] = useState(false);
-    const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
-
-    const latestRequestIdRef = useRef(0);
+    const { beginRequest, isCurrentRequest } = useLatestRequestGuard();
+    const {
+        resetGroupSelection,
+        selectGroup: setSelectedGroup,
+        selectedGroupLabel,
+        selectedGroupValue,
+    } = useCollectionGroupSelection();
+    const {
+        closeExportDialog,
+        isExportDialogOpen,
+        isExporting,
+        openExportDialog,
+        setIsExporting,
+    } = useExportDialogState();
     const hasLoadedControlsRef = useRef(false);
 
     const limit = DEFAULT_LIST_PAGE_SIZE;
     const debouncedSearch = useDebouncedValue(search, 300);
     const groupBy = getControlGroupBy(viewMode);
 
+    const resetGroupAndPage = useCallback(() => {
+        resetGroupSelection();
+        setCurrentPage(1);
+    }, [resetGroupSelection]);
+
     const fetchControls = useCallback(async () => {
-        const requestId = ++latestRequestIdRef.current;
+        const requestId = beginRequest();
         try {
             setIsLoading(true);
 
@@ -60,7 +79,7 @@ export function useControlsPageState() {
                     })
                 ),
             });
-            if (requestId !== latestRequestIdRef.current) {
+            if (!isCurrentRequest(requestId)) {
                 return;
             }
             setItems(response.items);
@@ -71,15 +90,15 @@ export function useControlsPageState() {
             hasLoadedControlsRef.current = true;
         } catch (error) {
             logError('Error fetching controls:', error);
-            if (requestId === latestRequestIdRef.current) {
+            if (isCurrentRequest(requestId)) {
                 setErrorKey('errors.load_failed');
             }
         } finally {
-            if (requestId === latestRequestIdRef.current) {
+            if (isCurrentRequest(requestId)) {
                 setIsLoading(false);
             }
         }
-    }, [currentPage, debouncedSearch, groupBy, limit, selectedGroupValue, statusFilter]);
+    }, [beginRequest, currentPage, debouncedSearch, groupBy, isCurrentRequest, limit, selectedGroupValue, statusFilter]);
 
     useEffect(() => {
         void fetchControls();
@@ -110,48 +129,40 @@ export function useControlsPageState() {
                         search,
                     }),
                 });
-                setIsExportDialogOpen(false);
+                closeExportDialog();
             } catch (error) {
                 logError('Export failed:', error);
             } finally {
                 setIsExporting(false);
             }
         },
-        [search, statusFilter]
+        [closeExportDialog, search, setIsExporting, statusFilter]
     );
 
     const updateSearch = useCallback((value: string) => {
         setSearch(value);
-        setCurrentPage(1);
-        setSelectedGroupValue(null);
-        setSelectedGroupLabel(null);
-    }, []);
+        resetGroupAndPage();
+    }, [resetGroupAndPage]);
 
     const updateStatusFilter = useCallback((value: ControlListStatusFilter) => {
         setStatusFilter(value);
-        setCurrentPage(1);
-        setSelectedGroupValue(null);
-        setSelectedGroupLabel(null);
-    }, []);
+        resetGroupAndPage();
+    }, [resetGroupAndPage]);
 
     const updateViewMode = useCallback((value: ViewMode) => {
         setViewMode(value);
-        setCurrentPage(1);
-        setSelectedGroupValue(null);
-        setSelectedGroupLabel(null);
-    }, []);
+        resetGroupAndPage();
+    }, [resetGroupAndPage]);
 
     const selectGroup = useCallback((groupValue: string, groupLabel: string) => {
-        setSelectedGroupValue(groupValue);
-        setSelectedGroupLabel(groupLabel);
+        setSelectedGroup(groupValue, groupLabel);
         setCurrentPage(1);
-    }, []);
+    }, [setSelectedGroup]);
 
     const clearSelectedGroup = useCallback(() => {
-        setSelectedGroupValue(null);
-        setSelectedGroupLabel(null);
+        resetGroupSelection();
         setCurrentPage(1);
-    }, []);
+    }, [resetGroupSelection]);
 
     return {
         currentPage,
@@ -165,8 +176,8 @@ export function useControlsPageState() {
         isLoading,
         items,
         limit,
-        openExportDialog: () => setIsExportDialogOpen(true),
-        closeExportDialog: () => setIsExportDialogOpen(false),
+        openExportDialog,
+        closeExportDialog,
         restoreControl,
         search,
         selectedGroupLabel,
@@ -174,7 +185,7 @@ export function useControlsPageState() {
         setCurrentPage,
         statusFilter,
         totalCount,
-        totalPages: Math.ceil(totalCount / limit) || 1,
+        totalPages: getTotalPages(totalCount, limit),
         updateSearch,
         updateStatusFilter,
         updateViewMode,

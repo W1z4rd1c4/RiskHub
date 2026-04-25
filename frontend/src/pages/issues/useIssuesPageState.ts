@@ -22,6 +22,12 @@ import {
     getIssueGroupBy,
     type IssuesPageInitialState,
 } from './issuesPagePresentation';
+import {
+    getTotalPages,
+    useCollectionGroupSelection,
+    useExportDialogState,
+    useLatestRequestGuard,
+} from '../shared/collectionPageState';
 
 interface UseIssuesPageStateOptions {
     canRead: boolean;
@@ -31,8 +37,6 @@ interface UseIssuesPageStateOptions {
 export function useIssuesPageState({ canRead, initialState }: UseIssuesPageStateOptions) {
     const [items, setItems] = useState<IssueSummary[]>([]);
     const [groups, setGroups] = useState<CollectionGroup[]>([]);
-    const [selectedGroupValue, setSelectedGroupValue] = useState<string | null>(null);
-    const [selectedGroupLabel, setSelectedGroupLabel] = useState<string | null>(null);
     const [totalCount, setTotalCount] = useState(0);
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState<IssueStatus | ''>(initialState.statusFilter);
@@ -52,15 +56,31 @@ export function useIssuesPageState({ canRead, initialState }: UseIssuesPageState
     const [sortDirection, setSortDirection] = useState<SortDirection>(initialState.sortDirection);
     const [isLoading, setIsLoading] = useState(canRead);
     const [errorKey, setErrorKey] = useState<string | null>(null);
-    const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
-    const [isExporting, setIsExporting] = useState(false);
 
-    const latestRequestIdRef = useRef(0);
+    const { beginRequest, isCurrentRequest } = useLatestRequestGuard();
+    const {
+        resetGroupSelection,
+        selectGroup: setSelectedGroup,
+        selectedGroupLabel,
+        selectedGroupValue,
+    } = useCollectionGroupSelection();
+    const {
+        closeExportDialog,
+        isExportDialogOpen,
+        isExporting,
+        openExportDialog,
+        setIsExporting,
+    } = useExportDialogState();
     const hasLoadedIssuesRef = useRef(false);
 
     const limit = DEFAULT_LIST_PAGE_SIZE;
     const debouncedSearch = useDebouncedValue(search, 300);
     const groupBy = getIssueGroupBy(viewMode);
+
+    const resetGroupAndPage = useCallback(() => {
+        resetGroupSelection();
+        setCurrentPage(1);
+    }, [resetGroupSelection]);
 
     const fetchIssues = useCallback(async () => {
         if (!canRead) {
@@ -68,7 +88,7 @@ export function useIssuesPageState({ canRead, initialState }: UseIssuesPageState
             return;
         }
 
-        const requestId = ++latestRequestIdRef.current;
+        const requestId = beginRequest();
         try {
             setIsLoading(true);
 
@@ -93,7 +113,7 @@ export function useIssuesPageState({ canRead, initialState }: UseIssuesPageState
                     })
                 ),
             });
-            if (requestId !== latestRequestIdRef.current) {
+            if (!isCurrentRequest(requestId)) {
                 return;
             }
             setItems(response.items);
@@ -102,7 +122,7 @@ export function useIssuesPageState({ canRead, initialState }: UseIssuesPageState
             setErrorKey(null);
             hasLoadedIssuesRef.current = true;
         } catch (loadError) {
-            if (requestId !== latestRequestIdRef.current) {
+            if (!isCurrentRequest(requestId)) {
                 return;
             }
             setErrorKey(apiClient.toUiMessageKey(loadError));
@@ -110,17 +130,19 @@ export function useIssuesPageState({ canRead, initialState }: UseIssuesPageState
             setGroups([]);
             setTotalCount(0);
         } finally {
-            if (requestId === latestRequestIdRef.current) {
+            if (isCurrentRequest(requestId)) {
                 setIsLoading(false);
             }
         }
     }, [
+        beginRequest,
         canRead,
         currentPage,
         debouncedSearch,
         excludeActiveExceptions,
         groupBy,
         includeClosed,
+        isCurrentRequest,
         limit,
         overdueOnly,
         severityFilter,
@@ -148,53 +170,43 @@ export function useIssuesPageState({ canRead, initialState }: UseIssuesPageState
                         excludeActiveExceptions,
                     }),
                 });
-                setIsExportDialogOpen(false);
+                closeExportDialog();
             } catch (exportError) {
                 setErrorKey(apiClient.toUiMessageKey(exportError));
             } finally {
                 setIsExporting(false);
             }
         },
-        [excludeActiveExceptions, overdueOnly, severityFilter, statusFilter]
+        [closeExportDialog, excludeActiveExceptions, overdueOnly, setIsExporting, severityFilter, statusFilter]
     );
 
     const updateSearch = useCallback((value: string) => {
         setSearch(value);
-        setCurrentPage(1);
-        setSelectedGroupValue(null);
-        setSelectedGroupLabel(null);
-    }, []);
+        resetGroupAndPage();
+    }, [resetGroupAndPage]);
 
     const updateStatusFilter = useCallback((value: IssueStatus | '') => {
         setStatusFilter(value);
         if (value === 'closed') {
             setIncludeClosed(true);
         }
-        setCurrentPage(1);
-        setSelectedGroupValue(null);
-        setSelectedGroupLabel(null);
-    }, []);
+        resetGroupAndPage();
+    }, [resetGroupAndPage]);
 
     const updateSeverityFilter = useCallback((value: IssueSeverityFilter | '') => {
         setSeverityFilter(value);
-        setCurrentPage(1);
-        setSelectedGroupValue(null);
-        setSelectedGroupLabel(null);
-    }, []);
+        resetGroupAndPage();
+    }, [resetGroupAndPage]);
 
     const updateOverdueOnly = useCallback((value: boolean) => {
         setOverdueOnly(value);
-        setCurrentPage(1);
-        setSelectedGroupValue(null);
-        setSelectedGroupLabel(null);
-    }, []);
+        resetGroupAndPage();
+    }, [resetGroupAndPage]);
 
     const updateExcludeActiveExceptions = useCallback((value: boolean) => {
         setExcludeActiveExceptions(value);
-        setCurrentPage(1);
-        setSelectedGroupValue(null);
-        setSelectedGroupLabel(null);
-    }, []);
+        resetGroupAndPage();
+    }, [resetGroupAndPage]);
 
     const updateIncludeClosed = useCallback(
         (value: boolean) => {
@@ -202,42 +214,34 @@ export function useIssuesPageState({ canRead, initialState }: UseIssuesPageState
             if (!value && statusFilter === 'closed') {
                 setStatusFilter('');
             }
-            setCurrentPage(1);
-            setSelectedGroupValue(null);
-            setSelectedGroupLabel(null);
+            resetGroupAndPage();
         },
-        [statusFilter]
+        [resetGroupAndPage, statusFilter]
     );
 
     const updateSort = useCallback(
         (nextSortField: IssueListFilters['sort_by'] | null, nextSortDirection: SortDirection) => {
             setSortField(nextSortField);
             setSortDirection(nextSortDirection);
-            setCurrentPage(1);
-            setSelectedGroupValue(null);
-            setSelectedGroupLabel(null);
+            resetGroupAndPage();
         },
-        []
+        [resetGroupAndPage]
     );
 
     const updateViewMode = useCallback((value: ViewMode) => {
         setViewMode(value);
-        setCurrentPage(1);
-        setSelectedGroupValue(null);
-        setSelectedGroupLabel(null);
-    }, []);
+        resetGroupAndPage();
+    }, [resetGroupAndPage]);
 
     const selectGroup = useCallback((groupValue: string, groupLabel: string) => {
-        setSelectedGroupValue(groupValue);
-        setSelectedGroupLabel(groupLabel);
+        setSelectedGroup(groupValue, groupLabel);
         setCurrentPage(1);
-    }, []);
+    }, [setSelectedGroup]);
 
     const clearSelectedGroup = useCallback(() => {
-        setSelectedGroupValue(null);
-        setSelectedGroupLabel(null);
+        resetGroupSelection();
         setCurrentPage(1);
-    }, []);
+    }, [resetGroupSelection]);
 
     return {
         currentPage,
@@ -253,8 +257,8 @@ export function useIssuesPageState({ canRead, initialState }: UseIssuesPageState
         isLoading,
         items,
         limit,
-        openExportDialog: () => setIsExportDialogOpen(true),
-        closeExportDialog: () => setIsExportDialogOpen(false),
+        openExportDialog,
+        closeExportDialog,
         overdueOnly,
         search,
         selectedGroupLabel,
@@ -265,7 +269,7 @@ export function useIssuesPageState({ canRead, initialState }: UseIssuesPageState
         sortField,
         statusFilter,
         totalCount,
-        totalPages: Math.ceil(totalCount / limit) || 1,
+        totalPages: getTotalPages(totalCount, limit),
         updateExcludeActiveExceptions,
         updateIncludeClosed,
         updateOverdueOnly,

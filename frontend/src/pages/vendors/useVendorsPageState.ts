@@ -16,6 +16,12 @@ import {
     buildVendorListParams,
     getVendorGroupBy,
 } from './vendorsPagePresentation';
+import {
+    getTotalPages,
+    useCollectionGroupSelection,
+    useExportDialogState,
+    useLatestRequestGuard,
+} from '../shared/collectionPageState';
 
 interface UseVendorsPageStateOptions {
     canReadRisks: boolean;
@@ -24,8 +30,6 @@ interface UseVendorsPageStateOptions {
 export function useVendorsPageState({ canReadRisks }: UseVendorsPageStateOptions) {
     const [items, setItems] = useState<Vendor[]>([]);
     const [groups, setGroups] = useState<CollectionGroup[]>([]);
-    const [selectedGroupValue, setSelectedGroupValue] = useState<string | null>(null);
-    const [selectedGroupLabel, setSelectedGroupLabel] = useState<string | null>(null);
     const [totalCount, setTotalCount] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
     const [errorKey, setErrorKey] = useState<string | null>(null);
@@ -36,10 +40,20 @@ export function useVendorsPageState({ canReadRisks }: UseVendorsPageStateOptions
     const [sortField, setSortField] = useState<VendorListParams['sort_by'] | null>(null);
     const [sortDirection, setSortDirection] = useState<SortDirection>(null);
     const [viewMode, setViewMode] = useState<ViewMode>('all');
-    const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
-    const [isExporting, setIsExporting] = useState(false);
-
-    const latestRequestIdRef = useRef(0);
+    const { beginRequest, isCurrentRequest } = useLatestRequestGuard();
+    const {
+        resetGroupSelection: clearGroupSelection,
+        selectGroup: setSelectedGroup,
+        selectedGroupLabel,
+        selectedGroupValue,
+    } = useCollectionGroupSelection();
+    const {
+        closeExportDialog,
+        isExportDialogOpen,
+        isExporting,
+        openExportDialog,
+        setIsExporting,
+    } = useExportDialogState();
     const hasLoadedVendorsRef = useRef(false);
 
     const limit = DEFAULT_LIST_PAGE_SIZE;
@@ -48,7 +62,7 @@ export function useVendorsPageState({ canReadRisks }: UseVendorsPageStateOptions
     const groupBy = getVendorGroupBy(viewMode);
 
     const fetchVendors = useCallback(async () => {
-        const requestId = ++latestRequestIdRef.current;
+        const requestId = beginRequest();
 
         try {
             setIsLoading(true);
@@ -73,7 +87,7 @@ export function useVendorsPageState({ canReadRisks }: UseVendorsPageStateOptions
                 ),
             });
 
-            if (requestId !== latestRequestIdRef.current) {
+            if (!isCurrentRequest(requestId)) {
                 return;
             }
 
@@ -83,7 +97,7 @@ export function useVendorsPageState({ canReadRisks }: UseVendorsPageStateOptions
             setErrorKey(null);
             hasLoadedVendorsRef.current = true;
         } catch (error) {
-            if (requestId !== latestRequestIdRef.current) {
+            if (!isCurrentRequest(requestId)) {
                 return;
             }
             setErrorKey(apiClient.toUiMessageKey(error));
@@ -91,15 +105,17 @@ export function useVendorsPageState({ canReadRisks }: UseVendorsPageStateOptions
             setGroups([]);
             setTotalCount(0);
         } finally {
-            if (requestId === latestRequestIdRef.current) {
+            if (isCurrentRequest(requestId)) {
                 setIsLoading(false);
             }
         }
     }, [
+        beginRequest,
         currentPage,
         debouncedSearch,
         groupBy,
         includeArchived,
+        isCurrentRequest,
         limit,
         selectedGroupValue,
         sortDirection,
@@ -115,16 +131,14 @@ export function useVendorsPageState({ canReadRisks }: UseVendorsPageStateOptions
     useEffect(() => {
         if (!canReadRisks && viewMode === 'risk') {
             setViewMode('all');
-            setSelectedGroupValue(null);
-            setSelectedGroupLabel(null);
+            clearGroupSelection();
         }
-    }, [canReadRisks, viewMode]);
+    }, [canReadRisks, clearGroupSelection, viewMode]);
 
     const resetGroupSelection = useCallback(() => {
-        setSelectedGroupValue(null);
-        setSelectedGroupLabel(null);
+        clearGroupSelection();
         setCurrentPage(1);
-    }, []);
+    }, [clearGroupSelection]);
 
     const restoreVendor = useCallback(
         async (vendorId: number) => {
@@ -151,14 +165,14 @@ export function useVendorsPageState({ canReadRisks }: UseVendorsPageStateOptions
                         typeFilter,
                     }),
                 });
-                setIsExportDialogOpen(false);
+                closeExportDialog();
             } catch (error) {
                 setErrorKey(apiClient.toUiMessageKey(error));
             } finally {
                 setIsExporting(false);
             }
         },
-        [search, statusFilter, typeFilter]
+        [closeExportDialog, search, setIsExporting, statusFilter, typeFilter]
     );
 
     const updateSearch = useCallback((value: string) => {
@@ -188,10 +202,9 @@ export function useVendorsPageState({ canReadRisks }: UseVendorsPageStateOptions
     }, [resetGroupSelection]);
 
     const selectGroup = useCallback((groupValue: string, groupLabel: string) => {
-        setSelectedGroupValue(groupValue);
-        setSelectedGroupLabel(groupLabel);
+        setSelectedGroup(groupValue, groupLabel);
         setCurrentPage(1);
-    }, []);
+    }, [setSelectedGroup]);
 
     return {
         currentPage,
@@ -205,8 +218,8 @@ export function useVendorsPageState({ canReadRisks }: UseVendorsPageStateOptions
         isLoading,
         items,
         limit,
-        openExportDialog: () => setIsExportDialogOpen(true),
-        closeExportDialog: () => setIsExportDialogOpen(false),
+        openExportDialog,
+        closeExportDialog,
         restoreVendor,
         search,
         selectedGroupLabel,
@@ -216,7 +229,7 @@ export function useVendorsPageState({ canReadRisks }: UseVendorsPageStateOptions
         sortField,
         statusFilter,
         totalCount,
-        totalPages: Math.ceil(totalCount / limit) || 1,
+        totalPages: getTotalPages(totalCount, limit),
         typeFilter,
         updateSearch,
         updateSort,
