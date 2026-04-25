@@ -118,6 +118,7 @@ async def test_directory_reimport_updates_existing_user_without_duplication(
     monkeypatch,
 ):
     test_user_employee.external_id = "oid-existing-import"
+    original_department_id = test_user_employee.department_id
     db_session.add(test_user_employee)
     await db_session.commit()
 
@@ -148,6 +149,45 @@ async def test_directory_reimport_updates_existing_user_without_duplication(
     assert users[0].name == "Employee Updated"
     assert users[0].job_title == "Updated Title"
     assert users[0].entra_business_role == "Claims Manager"
+    assert users[0].department_id == original_department_id
+
+
+@pytest.mark.asyncio
+async def test_directory_import_preserves_email_matched_user_department(
+    directory_import_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user_employee,
+    monkeypatch,
+):
+    original_department_id = test_user_employee.department_id
+    assert original_department_id is not None
+    test_user_employee.external_id = None
+    db_session.add(test_user_employee)
+    await db_session.commit()
+
+    async def stub_get_user(self, external_id: str):
+        assert external_id == "oid-email-match"
+        return DirectoryUserRead(
+            external_id=external_id,
+            display_name="Email Matched User",
+            email=test_user_employee.email.upper(),
+            user_principal_name=test_user_employee.email.upper(),
+            department="Directory Should Not Win",
+            job_title="Directory Title",
+            business_role="Directory Role",
+            account_enabled=True,
+            source="ad_emulator",
+        )
+
+    monkeypatch.setattr("app.services.directory_provider_service.DirectoryProviderService.get_user", stub_get_user)
+
+    response = await directory_import_client.post("/api/v1/directory/users/oid-email-match/import", json={})
+    assert response.status_code == 200, response.text
+    assert response.json()["status"] == "updated"
+
+    refreshed = (await db_session.execute(select(User).where(User.id == test_user_employee.id))).scalar_one()
+    assert refreshed.external_id == "oid-email-match"
+    assert refreshed.department_id == original_department_id
 
 
 @pytest.mark.asyncio

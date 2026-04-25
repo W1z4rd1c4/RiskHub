@@ -1,6 +1,7 @@
 import { apiClient } from '@/services/apiClient';
 import {
     activeSessionArraySchema,
+    directoryBreakGlassResponseSchema,
     directoryCheckAllResponseSchema,
     directoryCheckResultSchema,
     documentationResponseSchema,
@@ -63,5 +64,10 @@ export const adminRequests = {
     checkAllDirectoryUsers: () =>
         apiClient.post('/admin/directory/check-all', {}, {
             schema: directoryCheckAllResponseSchema,
+        }),
+
+    breakGlassEnableDirectoryUser: (userId: number, payload: { reason: string; expires_in_hours: number }) =>
+        apiClient.post(`/admin/directory/break-glass-enable/${userId}`, payload, {
+            schema: directoryBreakGlassResponseSchema,
         }),
 };

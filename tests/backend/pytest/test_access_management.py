@@ -9,6 +9,7 @@ from app.db.session import get_db
 from app.main import app
 from app.models import User
 from app.models.user import AccessScope
+from app.services.ad_deprovision_service import ADDeprovisionService
 
 
 @pytest_asyncio.fixture
@@ -97,6 +98,43 @@ async def test_access_users_include_backend_capabilities(
     assert target["capabilities"]["can_edit_identity"] is True
     assert target["capabilities"]["can_edit_business_access"] is False
     assert target["capabilities"]["can_edit_role"] is True
+    assert target["capabilities"]["can_change_active_status"] is True
+    assert target["capabilities"]["can_deactivate"] is True
+    assert target["capabilities"]["can_break_glass_enable"] is False
+
+
+@pytest.mark.asyncio
+async def test_access_users_do_not_advertise_lifecycle_capability_to_cro(
+    client_cro: AsyncClient,
+    test_user_employee: User,
+):
+    response = await client_cro.get("/api/v1/access/users")
+
+    assert response.status_code == 200
+    target = next(item for item in response.json() if item["id"] == test_user_employee.id)
+    assert target["capabilities"]["can_change_active_status"] is False
+    assert target["capabilities"]["can_deactivate"] is False
+    assert target["capabilities"]["can_break_glass_enable"] is False
+
+
+@pytest.mark.asyncio
+async def test_access_users_include_break_glass_capability_for_directory_deprovisioned_user(
+    auth_client: AsyncClient,
+    db_session,
+    test_user_employee: User,
+):
+    test_user_employee.external_id = "oid-break-glass-capability"
+    test_user_employee.is_active = False
+    test_user_employee.deprovision_reason = ADDeprovisionService.DEPROVISION_REASON_DIRECTORY_DISABLED
+    db_session.add(test_user_employee)
+    await db_session.commit()
+
+    response = await auth_client.get("/api/v1/access/users")
+
+    assert response.status_code == 200
+    target = next(item for item in response.json() if item["id"] == test_user_employee.id)
+    assert target["capabilities"]["can_change_active_status"] is True
+    assert target["capabilities"]["can_break_glass_enable"] is True
 
 
 @pytest.mark.asyncio

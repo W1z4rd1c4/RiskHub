@@ -8,7 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
 from app.core.datetime_utils import utc_now
-from app.models import Control, OrphanedItem, RefreshToken, Risk, User
+from app.models import Control, Department, OrphanedItem, RefreshToken, Risk, User
+from app.models.user import AccessScope
 from app.schemas.directory import DirectoryUserRead
 from app.services.ad_deprovision_service import ADDeprovisionService
 from app.services.directory_provider_service import DirectoryUserNotFoundError
@@ -153,6 +154,62 @@ async def test_deprovision_active_user_updates_sync_metadata(
     assert refreshed_user.entra_business_role == "Regional Director"
     assert refreshed_user.directory_last_checked_at is not None
     assert refreshed_user.directory_last_seen_at is not None
+
+
+@pytest.mark.asyncio
+async def test_directory_check_preserves_local_department_assignment(
+    db_session: AsyncSession,
+    test_user_employee: User,
+    test_user_risk_manager: User,
+    test_department,
+    monkeypatch,
+):
+    local_department = Department(
+        name="Locally Assigned Department",
+        code="LOCAL-DIR-PRESERVE",
+        description="Department assigned inside RiskHub",
+    )
+    db_session.add(local_department)
+    await db_session.flush()
+
+    test_user_employee.external_id = "oid-preserve-local-department"
+    test_user_employee.department_id = local_department.id
+    test_user_employee.manager_id = test_user_risk_manager.id
+    test_user_employee.access_scope = AccessScope.MANAGER
+    original_role_id = test_user_employee.role_id
+    db_session.add(test_user_employee)
+    await db_session.commit()
+
+    async def stub_get_user(self, external_id: str):
+        return DirectoryUserRead(
+            external_id=external_id,
+            display_name="Directory Updated Name",
+            email=test_user_employee.email,
+            user_principal_name=test_user_employee.email,
+            department=test_department.name,
+            job_title="Directory Title",
+            business_role="Directory Role",
+            account_enabled=True,
+            source="ad_emulator",
+        )
+
+    monkeypatch.setattr("app.services.directory_provider_service.DirectoryProviderService.get_user", stub_get_user)
+
+    result = await ADDeprovisionService.check_user_by_id(
+        db_session,
+        user_id=test_user_employee.id,
+        settings=_service_settings(),
+        trigger="pytest",
+    )
+    assert result["status"] == "active"
+
+    refreshed_user = (await db_session.execute(select(User).where(User.id == test_user_employee.id))).scalar_one()
+    assert refreshed_user.department_id == local_department.id
+    assert refreshed_user.role_id == original_role_id
+    assert refreshed_user.access_scope == AccessScope.MANAGER
+    assert refreshed_user.manager_id == test_user_risk_manager.id
+    assert refreshed_user.name == "Directory Updated Name"
+    assert refreshed_user.job_title == "Directory Title"
 
 
 @pytest.mark.asyncio

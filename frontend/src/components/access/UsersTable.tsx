@@ -11,7 +11,8 @@ import {
     Crown,
     ChevronDown,
     ChevronRight,
-    Server
+    Server,
+    ShieldAlert
 } from 'lucide-react';
 import type { AccessUserRead } from '@/types/access';
 import type { UserDirectoryEntry } from '@/types/user';
@@ -37,6 +38,7 @@ interface UsersTableProps {
     canManageUsers: boolean;
     onEditAccess: (user: AccessUserRead) => void;
     onToggleStatus: (user: AccessUserRead) => void;
+    onBreakGlassEnable?: (user: AccessUserRead) => void;
     canRunDirectoryChecks?: boolean;
     checkingDirectoryUserId?: number | null;
     onCheckDirectory?: (user: AccessUserRead) => void;
@@ -53,6 +55,7 @@ export function UsersTable({
     canManageUsers,
     onEditAccess,
     onToggleStatus,
+    onBreakGlassEnable,
     canRunDirectoryChecks = false,
     checkingDirectoryUserId = null,
     onCheckDirectory,
@@ -83,7 +86,13 @@ export function UsersTable({
                             </tr>
                         ))
                     ) : isAccessMode && accessUsers.length > 0 ? (
-                        accessUsers.map((user) => (
+                        accessUsers.map((user) => {
+                            const canChangeActiveStatus =
+                                user.capabilities?.can_change_active_status
+                                ?? user.capabilities?.can_deactivate
+                                ?? canManageUsers;
+                            const canBreakGlassEnable = user.capabilities?.can_break_glass_enable ?? false;
+                            return (
                             <React.Fragment key={user.id}>
                                 <tr className="group hover:bg-white/5 transition-colors">
                                     <td className="py-4 px-4">
@@ -224,7 +233,7 @@ export function UsersTable({
                                                     <Edit2 className="h-4 w-4" aria-hidden="true" />
                                                 </button>
                                             )}
-                                            {canManageUsers && (
+                                            {canChangeActiveStatus && (
                                                 <button
                                                     onClick={() => onToggleStatus(user)}
                                                     className={cn(
@@ -237,6 +246,18 @@ export function UsersTable({
                                                     aria-label={user.is_active ? t('access.actions.deactivate') : t('access.actions.activate')}
                                                 >
                                                     {user.is_active ? <UserX className="h-4 w-4" aria-hidden="true" /> : <UserCheck className="h-4 w-4" aria-hidden="true" />}
+                                                </button>
+                                            )}
+                                            {canBreakGlassEnable && onBreakGlassEnable && (
+                                                <button
+                                                    onClick={() => onBreakGlassEnable(user)}
+                                                    className="rounded-lg border border-amber-500/30 px-2.5 py-1.5 text-xs text-amber-300 transition hover:bg-amber-500/10"
+                                                    title={t('users.break_glass_enable', { defaultValue: 'Break-glass enable' })}
+                                                >
+                                                    <span className="inline-flex items-center gap-1.5">
+                                                        <ShieldAlert className="h-3.5 w-3.5" aria-hidden="true" />
+                                                        {t('users.break_glass', { defaultValue: 'Break-glass' })}
+                                                    </span>
                                                 </button>
                                             )}
                                             {canRunDirectoryChecks && user.external_id && onCheckDirectory && (
@@ -329,7 +350,8 @@ export function UsersTable({
                                     </tr>
                                 )}
                             </React.Fragment>
-                        ))
+                            );
+                        })
                     ) : !isAccessMode && directoryUsers.length > 0 ? (
                         directoryUsers.map((user) => (
                             <tr key={user.id} className="group hover:bg-white/5 transition-colors">

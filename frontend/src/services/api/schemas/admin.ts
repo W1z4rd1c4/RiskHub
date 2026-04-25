@@ -1,6 +1,7 @@
 import type {
     ActiveSession,
     DirectoryCheckAllResponse,
+    DirectoryBreakGlassResponse,
     DirectoryCheckResult,
     DocumentationEntry,
     DocumentationResponse,
@@ -157,4 +158,9 @@ export const directoryCheckAllResponseSchema: z.ZodType<DirectoryCheckAllRespons
         errors: z.number(),
         skipped: z.number(),
         results: z.array(directoryCheckResultSchema),
+    });
+export const directoryBreakGlassResponseSchema: z.ZodType<DirectoryBreakGlassResponse> =
+    passthroughObject({
+        status: z.literal('success'),
+        user_id: z.number(),
     });

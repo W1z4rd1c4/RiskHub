@@ -124,6 +124,7 @@ async def import_directory_user(
 
     user = (await db.execute(select(User).where(User.external_id == directory_user.external_id))).scalar_one_or_none()
     import_status = "updated"
+    seed_directory_department = False
     if user is None:
         existing_email_user = (
             await db.execute(select(User).where(email_equals(User.email, normalized_email)))
@@ -150,6 +151,7 @@ async def import_directory_user(
             )
             db.add(user)
             import_status = "created"
+            seed_directory_department = True
 
     if payload.role_id is not None and import_status == "updated":
         role = await _resolve_role_for_import(db, override_role_id=payload.role_id)
@@ -161,6 +163,7 @@ async def import_directory_user(
             user=user,
             directory_user=directory_user,
             sync_business_role=settings.entra_business_role_enabled,
+            seed_department=seed_directory_department,
         )
     except DirectoryIdentityConflictError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc

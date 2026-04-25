@@ -63,6 +63,10 @@ export function UsersPage() {
     const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
     const [userToToggle, setUserToToggle] = useState<AccessUserRead | null>(null);
     const [isToggling, setIsToggling] = useState(false);
+    const [breakGlassUser, setBreakGlassUser] = useState<AccessUserRead | null>(null);
+    const [breakGlassReason, setBreakGlassReason] = useState('');
+    const [breakGlassHours, setBreakGlassHours] = useState<number | ''>(4);
+    const [isBreakGlassSubmitting, setIsBreakGlassSubmitting] = useState(false);
 
     const { canManageUsers, user: currentUser } = usePermissions();
     const authz = useAuthz();
@@ -177,6 +181,7 @@ export function UsersPage() {
     }, [t]);
 
     const handleToggleClick = (user: AccessUserRead) => {
+        setDirectoryMessage(null);
         setUserToToggle(user);
         setConfirmDialogOpen(true);
     };
@@ -190,10 +195,57 @@ export function UsersPage() {
             await fetchUsers();
         } catch (error) {
             console.error('Failed to update user status:', error);
+            setDirectoryMessage(
+                apiClient.getRawErrorMessage(error)
+                ?? t('users.user_status_update_failed', { defaultValue: 'Failed to update user status.' })
+            );
         } finally {
             setIsToggling(false);
             setConfirmDialogOpen(false);
             setUserToToggle(null);
+        }
+    };
+
+    const handleBreakGlassOpen = (user: AccessUserRead) => {
+        setDirectoryMessage(null);
+        setBreakGlassUser(user);
+        setBreakGlassReason('');
+        setBreakGlassHours(4);
+    };
+
+    const handleBreakGlassClose = () => {
+        if (isBreakGlassSubmitting) return;
+        setBreakGlassUser(null);
+        setBreakGlassReason('');
+        setBreakGlassHours(4);
+    };
+
+    const handleBreakGlassSubmit = async () => {
+        if (!breakGlassUser || !breakGlassReason.trim() || breakGlassHours === '') return;
+        try {
+            setIsBreakGlassSubmitting(true);
+            await adminApi.breakGlassEnableDirectoryUser(breakGlassUser.id, {
+                reason: breakGlassReason.trim(),
+                expires_in_hours: breakGlassHours,
+            });
+            setDirectoryMessage(
+                t('users.break_glass_success', {
+                    defaultValue: `${breakGlassUser.name} enabled through break-glass access.`,
+                    name: breakGlassUser.name,
+                })
+            );
+            setBreakGlassUser(null);
+            setBreakGlassReason('');
+            setBreakGlassHours(4);
+            await fetchUsers();
+        } catch (error) {
+            console.error('Break-glass enable failed:', error);
+            setDirectoryMessage(
+                apiClient.getRawErrorMessage(error)
+                ?? t('users.break_glass_failed', { defaultValue: 'Break-glass enable failed.' })
+            );
+        } finally {
+            setIsBreakGlassSubmitting(false);
         }
     };
 
@@ -465,6 +517,7 @@ export function UsersPage() {
                         canManageUsers={canManageUsers}
                         onEditAccess={handleEditAccess}
                         onToggleStatus={handleToggleClick}
+                        onBreakGlassEnable={handleBreakGlassOpen}
                         canRunDirectoryChecks={authz.isPlatformAdmin}
                         checkingDirectoryUserId={checkingDirectoryUserId}
                         onCheckDirectory={handleCheckSingleDirectory}
@@ -511,6 +564,83 @@ export function UsersPage() {
                 onClose={() => setIsADPickerOpen(false)}
                 onImported={handleDirectoryImported}
             />
+
+            {breakGlassUser && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                    <button
+                        type="button"
+                        className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"
+                        onClick={handleBreakGlassClose}
+                        aria-label={t('actions.cancel', { ns: 'common' })}
+                    />
+                    <div className="relative w-full max-w-md rounded-2xl border border-amber-500/20 bg-slate-900 p-6 shadow-2xl">
+                        <h3 className="text-lg font-bold text-white">
+                            {t('users.break_glass_enable', { defaultValue: 'Break-glass enable' })}
+                        </h3>
+                        <p className="mt-2 text-sm text-slate-300">
+                            {t('users.break_glass_message', {
+                                defaultValue: `Temporarily re-enable ${breakGlassUser.name} with an audited expiry.`,
+                                name: breakGlassUser.name,
+                            })}
+                        </p>
+                        <label
+                            htmlFor="break-glass-reason"
+                            className="mt-5 block text-xs font-bold uppercase tracking-widest text-slate-400"
+                        >
+                            {t('users.break_glass_reason', { defaultValue: 'Reason' })}
+                        </label>
+                        <textarea
+                            id="break-glass-reason"
+                            value={breakGlassReason}
+                            onChange={(event) => setBreakGlassReason(event.target.value)}
+                            className="mt-2 min-h-24 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none transition focus:border-amber-400/70"
+                            maxLength={255}
+                        />
+                        <label
+                            htmlFor="break-glass-expires-in-hours"
+                            className="mt-4 block text-xs font-bold uppercase tracking-widest text-slate-400"
+                        >
+                            {t('users.break_glass_expires_in_hours', { defaultValue: 'Expires in hours' })}
+                        </label>
+                        <input
+                            id="break-glass-expires-in-hours"
+                            type="number"
+                            min={1}
+                            max={24}
+                            value={breakGlassHours}
+                            onChange={(event) => {
+                                if (event.target.value === '') {
+                                    setBreakGlassHours('');
+                                    return;
+                                }
+                                const value = Number(event.target.value);
+                                setBreakGlassHours(Math.min(24, Math.max(1, Number.isFinite(value) ? value : 1)));
+                            }}
+                            className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none transition focus:border-amber-400/70"
+                        />
+                        <div className="mt-6 flex justify-end gap-3">
+                            <button
+                                type="button"
+                                onClick={handleBreakGlassClose}
+                                disabled={isBreakGlassSubmitting}
+                                className="rounded-xl border border-white/10 px-4 py-2 text-sm text-slate-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                {t('actions.cancel', { ns: 'common' })}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleBreakGlassSubmit}
+                                disabled={isBreakGlassSubmitting || !breakGlassReason.trim() || breakGlassHours === ''}
+                                className="rounded-xl bg-amber-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                {isBreakGlassSubmitting
+                                    ? t('users.break_glass_enabling', { defaultValue: 'Enabling...' })
+                                    : t('users.break_glass_enable', { defaultValue: 'Break-glass enable' })}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

@@ -67,6 +67,8 @@ class AccessUserCapabilities(BaseModel):
     can_edit_business_access: bool
     can_edit_role: bool
     can_deactivate: bool
+    can_change_active_status: bool
+    can_break_glass_enable: bool
     can_revoke_sessions: bool
 
 

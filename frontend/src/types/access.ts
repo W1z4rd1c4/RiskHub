@@ -53,6 +53,8 @@ export interface AccessUserCapabilities {
     can_edit_business_access: boolean;
     can_edit_role: boolean;
     can_deactivate: boolean;
+    can_change_active_status?: boolean;
+    can_break_glass_enable?: boolean;
     can_revoke_sessions: boolean;
 }
 

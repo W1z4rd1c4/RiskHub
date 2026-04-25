@@ -97,6 +97,17 @@ type AccessUserApi = {
     access_scope: 'global' | 'department' | 'manager';
     scope_label: string;
     effective_permissions: string[];
+    external_id?: string | null;
+    deprovision_reason?: string | null;
+    capabilities?: {
+        can_edit_identity: boolean;
+        can_edit_business_access: boolean;
+        can_edit_role: boolean;
+        can_deactivate: boolean;
+        can_change_active_status?: boolean;
+        can_break_glass_enable?: boolean;
+        can_revoke_sessions: boolean;
+    } | null;
 };
 
 const makeUser = (overrides: Partial<AuthMeUser>): AuthMeUser => ({
@@ -131,6 +142,17 @@ const makeAccessUser = (overrides: Partial<AccessUserApi> = {}): AccessUserApi =
     access_scope: 'department',
     scope_label: 'Department',
     effective_permissions: ['risks:read'],
+    external_id: null,
+    deprovision_reason: null,
+    capabilities: {
+        can_edit_identity: true,
+        can_edit_business_access: false,
+        can_edit_role: true,
+        can_deactivate: true,
+        can_change_active_status: true,
+        can_break_glass_enable: false,
+        can_revoke_sessions: true,
+    },
     ...overrides,
 });
 
@@ -242,6 +264,175 @@ describe('UsersPage mode selection', () => {
         expect(accessHandler).toHaveBeenCalledTimes(1);
         expect(deptAccessHandler).not.toHaveBeenCalled();
         expect(directoryHandler).not.toHaveBeenCalled();
+    });
+
+    it('uses backend capabilities to hide active status changes', async () => {
+        server.use(
+            http.get('*/api/v1/auth/me', () =>
+                HttpResponse.json(
+                    makeUser({
+                        role: 'admin',
+                        role_display_name: 'Administrator',
+                        access_scope: 'global',
+                        effective_permissions: ['users:read', 'users:write'],
+                    })
+                )
+            ),
+            http.get('*/api/v1/access/users', () =>
+                HttpResponse.json([
+                    makeAccessUser({
+                        capabilities: {
+                            can_edit_identity: true,
+                            can_edit_business_access: false,
+                            can_edit_role: true,
+                            can_deactivate: false,
+                            can_change_active_status: false,
+                            can_break_glass_enable: false,
+                            can_revoke_sessions: true,
+                        },
+                    }),
+                ])
+            ),
+            http.get('*/api/v1/access/users/my-department', () => HttpResponse.json([])),
+            http.get('*/api/v1/users/directory', () => HttpResponse.json(makeDirectoryResponse()))
+        );
+
+        await renderUsersRoute();
+
+        expect(await screen.findByText('Employee One')).toBeInTheDocument();
+        expect(screen.queryByLabelText('Deactivate')).not.toBeInTheDocument();
+    });
+
+    it('falls back to local user-management permission when capability metadata is absent', async () => {
+        server.use(
+            http.get('*/api/v1/auth/me', () =>
+                HttpResponse.json(
+                    makeUser({
+                        role: 'admin',
+                        role_display_name: 'Administrator',
+                        access_scope: 'global',
+                        effective_permissions: ['users:read', 'users:write'],
+                    })
+                )
+            ),
+            http.get('*/api/v1/access/users', () =>
+                HttpResponse.json([
+                    makeAccessUser({
+                        capabilities: null,
+                    }),
+                ])
+            ),
+            http.get('*/api/v1/access/users/my-department', () => HttpResponse.json([])),
+            http.get('*/api/v1/users/directory', () => HttpResponse.json(makeDirectoryResponse()))
+        );
+
+        await renderUsersRoute();
+
+        expect(await screen.findByText('Employee One')).toBeInTheDocument();
+        expect(screen.getByLabelText('Deactivate')).toBeInTheDocument();
+    });
+
+    it('shows backend active status rejection messages', async () => {
+        server.use(
+            http.get('*/api/v1/auth/me', () =>
+                HttpResponse.json(
+                    makeUser({
+                        role: 'admin',
+                        role_display_name: 'Administrator',
+                        access_scope: 'global',
+                        effective_permissions: ['users:read', 'users:write'],
+                    })
+                )
+            ),
+            http.get('*/api/v1/access/users', () =>
+                HttpResponse.json([
+                    makeAccessUser({
+                        is_active: false,
+                        capabilities: {
+                            can_edit_identity: true,
+                            can_edit_business_access: false,
+                            can_edit_role: true,
+                            can_deactivate: true,
+                            can_change_active_status: true,
+                            can_break_glass_enable: false,
+                            can_revoke_sessions: true,
+                        },
+                    }),
+                ])
+            ),
+            http.patch('*/api/v1/users/:id', () =>
+                HttpResponse.json(
+                    { detail: 'Directory-deprovisioned users require break-glass enable before reactivation.' },
+                    { status: 403 }
+                )
+            ),
+            http.get('*/api/v1/access/users/my-department', () => HttpResponse.json([])),
+            http.get('*/api/v1/users/directory', () => HttpResponse.json(makeDirectoryResponse()))
+        );
+
+        await renderUsersRoute();
+
+        const user = userEvent.setup();
+        await user.click(await screen.findByLabelText('Activate'));
+        await user.click(screen.getByRole('button', { name: 'Reactivate' }));
+
+        expect(
+            await screen.findByText('Directory-deprovisioned users require break-glass enable before reactivation.')
+        ).toBeInTheDocument();
+    });
+
+    it('submits break-glass enable for eligible directory users', async () => {
+        const breakGlassHandler = vi.fn(async ({ request }) => {
+            const body = await request.json() as { reason: string; expires_in_hours: number };
+            expect(body).toEqual({ reason: 'Emergency owner handoff', expires_in_hours: 6 });
+            return HttpResponse.json({ status: 'success', user_id: 200 });
+        });
+
+        server.use(
+            http.get('*/api/v1/auth/me', () =>
+                HttpResponse.json(
+                    makeUser({
+                        role: 'admin',
+                        role_display_name: 'Administrator',
+                        access_scope: 'global',
+                        effective_permissions: ['users:read', 'users:write'],
+                    })
+                )
+            ),
+            http.get('*/api/v1/access/users', () =>
+                HttpResponse.json([
+                    makeAccessUser({
+                        is_active: false,
+                        external_id: 'oid-break-glass-ui',
+                        deprovision_reason: 'directory_disabled',
+                        capabilities: {
+                            can_edit_identity: true,
+                            can_edit_business_access: false,
+                            can_edit_role: true,
+                            can_deactivate: true,
+                            can_change_active_status: true,
+                            can_break_glass_enable: true,
+                            can_revoke_sessions: true,
+                        },
+                    }),
+                ])
+            ),
+            http.post('*/api/v1/admin/directory/break-glass-enable/:id', breakGlassHandler),
+            http.get('*/api/v1/access/users/my-department', () => HttpResponse.json([])),
+            http.get('*/api/v1/users/directory', () => HttpResponse.json(makeDirectoryResponse()))
+        );
+
+        await renderUsersRoute();
+
+        const user = userEvent.setup();
+        await user.click(await screen.findByRole('button', { name: /Break-glass/i }));
+        await user.type(screen.getByLabelText('Reason'), 'Emergency owner handoff');
+        await user.clear(screen.getByLabelText('Expires in hours'));
+        await user.type(screen.getByLabelText('Expires in hours'), '6');
+        await user.click(screen.getByRole('button', { name: 'Break-glass enable' }));
+
+        await waitFor(() => expect(breakGlassHandler).toHaveBeenCalledTimes(1));
+        expect(await screen.findByText('Employee One enabled through break-glass access.')).toBeInTheDocument();
     });
 
     it('uses department access mode for department heads', async () => {

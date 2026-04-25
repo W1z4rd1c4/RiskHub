@@ -71,6 +71,7 @@ async def apply_directory_profile(
     user: User,
     directory_user: DirectoryUserRead,
     sync_business_role: bool = False,
+    seed_department: bool = False,
 ):
     now = utc_now()
     normalized_email = resolve_directory_email(directory_user)
@@ -95,7 +96,7 @@ async def apply_directory_profile(
     user.directory_last_seen_at = now
     user.directory_sync_status = "active" if directory_user.account_enabled else "directory_disabled"
 
-    if directory_user.department:
+    if seed_department and directory_user.department:
         department = await resolve_or_create_department(db, directory_user.department)
         user.department_id = department.id
 

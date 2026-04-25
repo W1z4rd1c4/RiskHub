@@ -4,9 +4,11 @@ from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.datetime_utils import utc_now
 from app.models import Role, User
 from app.models.role import RoleType
 from app.schemas.access import AccessUserCapabilities
+from app.services.directory_identity_service import has_auto_deprovision_reason
 
 ADMIN_PRIVILEGED_ROLES: set[RoleType] = {RoleType.ADMIN, RoleType.CRO}
 PLATFORM_ADMIN_FIELDS = {"name", "email"}
@@ -26,11 +28,25 @@ def access_user_capabilities(current_user: User, target_user: User) -> AccessUse
     current_is_admin = is_platform_admin(current_user)
     current_is_cro = is_cro(current_user)
     hidden_from_current = target_is_admin and not current_is_admin
+    can_change_active_status = bool(
+        current_is_admin
+        and current_user.id != target_user.id
+        and not hidden_from_current
+    )
+    can_break_glass_enable = bool(
+        current_is_admin
+        and target_user.external_id
+        and has_auto_deprovision_reason(target_user)
+        and not target_user.has_active_break_glass(now=utc_now())
+        and not hidden_from_current
+    )
     return AccessUserCapabilities(
         can_edit_identity=bool(current_is_admin and not hidden_from_current),
         can_edit_business_access=bool(current_is_cro and not hidden_from_current),
         can_edit_role=bool((current_is_admin or current_is_cro) and not hidden_from_current),
-        can_deactivate=bool((current_is_admin or current_is_cro) and current_user.id != target_user.id and not hidden_from_current),
+        can_deactivate=can_change_active_status,
+        can_change_active_status=can_change_active_status,
+        can_break_glass_enable=can_break_glass_enable,
         can_revoke_sessions=bool(current_is_admin and current_user.id != target_user.id and not hidden_from_current),
     )
 

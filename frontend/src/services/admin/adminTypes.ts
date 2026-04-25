@@ -148,3 +148,8 @@ export interface DirectoryCheckAllResponse {
     skipped: number;
     results: DirectoryCheckResult[];
 }
+
+export interface DirectoryBreakGlassResponse {
+    status: 'success';
+    user_id: number;
+}

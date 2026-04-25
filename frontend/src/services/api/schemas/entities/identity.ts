@@ -88,6 +88,8 @@ const accessUserCapabilitiesSchema = passthroughObject({
     can_edit_business_access: z.boolean(),
     can_edit_role: z.boolean(),
     can_deactivate: z.boolean(),
+    can_change_active_status: z.boolean().optional(),
+    can_break_glass_enable: z.boolean().optional(),
     can_revoke_sessions: z.boolean(),
 });
 export const accessUserReadSchema: z.ZodType<AccessUserRead> = passthroughObject({
