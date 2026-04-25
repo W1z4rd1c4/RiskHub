@@ -115,14 +115,30 @@ export const kriHistoryListResponseSchema: z.ZodType<KRIHistoryListResponse> =
             size: z.number(),
             capabilities: kriHistoryCapabilitiesSchema.nullable().optional(),
         }),
-    ]).transform((response) => {
-        if ('offset' in response) {
-            return response;
+    ]).transform((response): KRIHistoryListResponse => {
+        const pagination = response as {
+            offset?: unknown;
+            limit?: unknown;
+            page?: unknown;
+            size?: unknown;
+        };
+        if (typeof pagination.offset === 'number' && typeof pagination.limit === 'number') {
+            return {
+                items: response.items,
+                total: response.total,
+                offset: pagination.offset,
+                limit: pagination.limit,
+                capabilities: response.capabilities,
+            };
         }
+        const page = pagination.page as number;
+        const size = pagination.size as number;
         return {
-            ...response,
-            offset: (response.page - 1) * response.size,
-            limit: response.size,
+            items: response.items,
+            total: response.total,
+            offset: (page - 1) * size,
+            limit: size,
+            capabilities: response.capabilities,
         };
     });
 export const overdueKRISchema: z.ZodType<OverdueKRI> = passthroughObject({

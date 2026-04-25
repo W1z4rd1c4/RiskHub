@@ -151,6 +151,7 @@ class RiskSummary(BaseModel):
     risk_id_code: str
     name: str
     process: str
+    subprocess: Optional[str] = None
     risk_type: str
     category: Optional[str] = None
     description: str

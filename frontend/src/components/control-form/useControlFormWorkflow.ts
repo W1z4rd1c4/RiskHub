@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { parseUpdateResult } from '@/lib/approvalUi';
 import { controlApi } from '@/services/controlApi';
 import { logError } from '@/services/logger';
+import type { SafeTFunction } from '@/i18n/hooks';
 import type { UserLookupItem } from '@/services/lookupApi';
 import type { Control, ControlCreate, ControlUpdate } from '@/types/control';
 import { ControlForm as ControlFormType, ControlFrequency, ControlStatus } from '@/types/control';
@@ -23,7 +24,7 @@ interface UseControlFormWorkflowArgs {
     isEdit: boolean;
     onSuccess?: (controlId: number) => void | Promise<void>;
     users: UserLookupItem[];
-    t: (key: string, options?: Record<string, unknown>) => string;
+    t: SafeTFunction;
 }
 
 interface ControlFlashState {

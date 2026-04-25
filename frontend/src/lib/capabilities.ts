@@ -5,10 +5,10 @@ export function resolveCapability(
     return typeof backendValue === 'boolean' ? backendValue : fallbackValue;
 }
 
-export function resolveCapabilityFlag<T extends Record<string, boolean>>(
+export function resolveCapabilityFlag<T extends object, K extends keyof T>(
     capabilities: T | null | undefined,
-    key: keyof T,
+    key: K,
     fallbackValue: boolean,
 ): boolean {
-    return resolveCapability(capabilities?.[key], fallbackValue);
+    return resolveCapability(capabilities?.[key] as boolean | null | undefined, fallbackValue);
 }

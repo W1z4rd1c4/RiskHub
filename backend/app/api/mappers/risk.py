@@ -29,6 +29,7 @@ def risk_to_summary(risk: Risk, *, linked_vendors: list[LinkedVendorRead] | None
         risk_id_code=risk.risk_id_code,
         name=risk.name,
         process=risk.process,
+        subprocess=risk.subprocess,
         risk_type=risk.risk_type,
         category=risk.category,
         description=risk.description,

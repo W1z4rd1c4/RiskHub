@@ -17,4 +17,23 @@ describe('capability resolution helpers', () => {
         expect(resolveCapabilityFlag({ can_update: false }, 'can_update', true)).toBe(false);
         expect(resolveCapabilityFlag(null, 'can_update', true)).toBe(true);
     });
+
+    it('supports shaped capability interfaces without string index signatures', () => {
+        interface ExampleCapabilities {
+            can_update: boolean;
+            can_restore?: boolean | null;
+        }
+
+        const capabilities: ExampleCapabilities = {
+            can_update: false,
+            can_restore: null,
+        };
+
+        expect(resolveCapabilityFlag(capabilities, 'can_update', true)).toBe(false);
+        expect(resolveCapabilityFlag(capabilities, 'can_restore', true)).toBe(true);
+    });
+
+    it('falls back defensively when a capability field is not boolean', () => {
+        expect(resolveCapabilityFlag({ can_update: 'yes' }, 'can_update', false)).toBe(false);
+    });
 });

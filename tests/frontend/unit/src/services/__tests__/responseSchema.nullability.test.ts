@@ -481,6 +481,32 @@ describe('response schema nullability alignment', () => {
         });
     });
 
+    it('accepts KRI history responses with offset-limit pagination', async () => {
+        vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+            const url = responseUrl(input);
+            if (!url.endsWith('/api/v1/kris/9/history')) {
+                throw new Error(`Unexpected fetch call: ${url}`);
+            }
+            return Promise.resolve(jsonResponse({
+                items: [],
+                total: 0,
+                offset: 20,
+                limit: 10,
+                capabilities: {
+                    can_request_correction: true,
+                },
+            }));
+        });
+
+        await expect(kriApi.getHistory(9)).resolves.toMatchObject({
+            offset: 20,
+            limit: 10,
+            capabilities: {
+                can_request_correction: true,
+            },
+        });
+    });
+
     it.each([
         ['KRI page-only pagination', () => kriApi.getKRIs({ page: 2 }), '/api/v1/kris', { offset: '20', limit: null }],
         ['KRI page-size pagination', () => kriApi.getKRIs({ page: 2, size: 50 }), '/api/v1/kris', { offset: '50', limit: '50' }],
@@ -613,6 +639,61 @@ describe('response schema nullability alignment', () => {
             owner_id: null,
             owner: null,
             department: null,
+        });
+    });
+
+    it('accepts risk list summaries with subprocess values', async () => {
+        vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+            const url = responseUrl(input);
+            if (!url.endsWith('/api/v1/risks')) {
+                throw new Error(`Unexpected fetch call: ${url}`);
+            }
+            return Promise.resolve(jsonResponse({
+                items: [
+                    {
+                        id: 12,
+                        risk_id_code: 'R-12',
+                        name: 'Privilege Escalation',
+                        process: 'Access Management',
+                        subprocess: 'Privileged access review',
+                        risk_type: 'operational',
+                        category: null,
+                        description: 'Risk of improper privilege growth.',
+                        gross_probability: 3,
+                        gross_impact: 4,
+                        gross_score: 12,
+                        net_score: 6,
+                        status: 'active',
+                        is_priority: false,
+                    },
+                    {
+                        id: 13,
+                        risk_id_code: 'R-13',
+                        name: 'Missing subprocess',
+                        process: 'Access Management',
+                        subprocess: null,
+                        risk_type: 'operational',
+                        category: null,
+                        description: 'Risk summary with no subprocess.',
+                        gross_probability: 2,
+                        gross_impact: 3,
+                        gross_score: 6,
+                        net_score: 4,
+                        status: 'active',
+                        is_priority: false,
+                    },
+                ],
+                total: 2,
+                offset: 0,
+                limit: 50,
+            }));
+        });
+
+        await expect(riskApi.getRisks({})).resolves.toMatchObject({
+            items: [
+                { subprocess: 'Privileged access review' },
+                { subprocess: null },
+            ],
         });
     });
 

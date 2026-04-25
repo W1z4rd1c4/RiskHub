@@ -10,6 +10,7 @@ export const riskSummarySchema: z.ZodType<RiskSummary> = passthroughObject({
     risk_id_code: z.string(),
     name: z.string(),
     process: z.string(),
+    subprocess: z.string().nullable().optional(),
     risk_type: z.string(),
     category: z.string().nullable().optional(),
     description: z.string(),

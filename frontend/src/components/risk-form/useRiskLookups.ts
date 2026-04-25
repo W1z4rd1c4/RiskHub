@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { lookupApi, type UserLookupItem } from '@/services/lookupApi';
 import { riskApi } from '@/services/riskApi';
-import type { Risk } from '@/types/risk';
+import type { RiskSummary } from '@/types/risk';
 import { logError } from '@/services/logger';
 
 export interface RiskDepartmentLookup {
@@ -17,9 +17,9 @@ interface RiskLookupItem {
     category?: string | null;
 }
 
-async function fetchAllRisksForLookups(): Promise<Risk[]> {
+async function fetchAllRisksForLookups(): Promise<RiskSummary[]> {
     const limit = 100;
-    const items: Risk[] = [];
+    const items: RiskSummary[] = [];
     let offset = 0;
 
     for (;;) {

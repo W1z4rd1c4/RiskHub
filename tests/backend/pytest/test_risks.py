@@ -40,13 +40,14 @@ async def test_create_risk(auth_client: AsyncClient, test_user: User, test_depar
 @pytest.mark.asyncio
 async def test_list_risks(auth_client: AsyncClient, test_user: User, test_department: Department, seed_risk_types):
     """Test listing risks with pagination."""
-    # Create a risk first
-    await auth_client.post(
+    # Create risks first
+    with_subprocess = await auth_client.post(
         "/api/v1/risks",
         json={
             "risk_id_code": "R-102",
             "name": "List Test Risk R-102",
             "process": "List Test Risk",
+            "subprocess": "List Subprocess",
             "description": "Risk for list test",
             "department_id": test_department.id,
             "owner_id": test_user.id,
@@ -59,14 +60,36 @@ async def test_list_risks(auth_client: AsyncClient, test_user: User, test_depart
             "status": "active",
         },
     )
+    assert with_subprocess.status_code == 201
+    without_subprocess = await auth_client.post(
+        "/api/v1/risks",
+        json={
+            "risk_id_code": "R-102-NOSUB",
+            "name": "List Test Risk Without Subprocess",
+            "process": "List Test Risk",
+            "description": "Risk for list test without subprocess",
+            "department_id": test_department.id,
+            "owner_id": test_user.id,
+            "risk_type": "strategic",
+            "category": "Financial",
+            "gross_probability": 2,
+            "gross_impact": 5,
+            "net_probability": 1,
+            "net_impact": 4,
+            "status": "active",
+        },
+    )
+    assert without_subprocess.status_code == 201
 
-    response = await auth_client.get("/api/v1/risks")
+    response = await auth_client.get("/api/v1/risks", params={"process": "List Test Risk"})
 
     assert response.status_code == 200
     data = response.json()
     items = data.get("items", [])
     assert isinstance(items, list)
-    assert len(items) >= 1
+    by_code = {item["risk_id_code"]: item for item in items}
+    assert by_code["R-102"]["subprocess"] == "List Subprocess"
+    assert by_code["R-102-NOSUB"]["subprocess"] is None
 
 
 @pytest.mark.asyncio

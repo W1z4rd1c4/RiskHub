@@ -79,6 +79,7 @@ export interface RiskSummary {
     risk_id_code: string;
     name: string;
     process: string;
+    subprocess?: string | null;
     risk_type: RiskType;
     category?: string | null;
     description: string;

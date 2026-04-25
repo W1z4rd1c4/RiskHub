@@ -45,7 +45,7 @@ export async function fetchWithTimeout(
     const effectiveTimeoutMs = timeoutMs === undefined ? REQUEST_TIMEOUT_MS : timeoutMs;
     const controller = effectiveTimeoutMs === null ? null : new AbortController();
     let didTimeout = false;
-    const timeoutId = controller
+    const timeoutId = controller && effectiveTimeoutMs !== null
         ? globalThis.setTimeout(() => {
             didTimeout = true;
             controller.abort();
