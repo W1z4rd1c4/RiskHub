@@ -1236,6 +1236,7 @@
 - Executed ownership reference validation hardening across risk/control/KRI create-update and approval-apply paths, with focused backend regression coverage for nonexistent and inactive assignees (2026-04-06).
 - Added explicit reporting-owner `risks:read` regression coverage proving reporting ownership does not bypass base KRI/risk read permission gates (`4` focused tests; ownership validation suite green) (2026-04-06).
 - Expanded Phase `252` to the repo-wide professional quality closure scope and completed Wave `252-10` for artifact hygiene, README coverage repair, and frontend query-param typing fixes (2026-04-07).
+- Executed the multi-wave codebase hardening program across vendor governance, control execution/linking, access/Risk Hub config, deadline notifications, report exports, orphan governance, frontend capability/display guardrails, and auth/SSO/session workflow. Each wave was committed and pushed independently; cross-wave aggregate backend/frontend/docs verification passed after README coverage and structure metrics reconciliation (2026-04-25).
 
 ### Next Step
 
@@ -1243,4 +1244,4 @@
 
 ---
 
-*Updated: 2026-04-07*
+*Updated: 2026-04-25*
