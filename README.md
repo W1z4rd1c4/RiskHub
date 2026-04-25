@@ -1,94 +1,50 @@
 # RiskHub
 
 <p align="center">
-  <strong>Enterprise risk operations for teams that need governed change, clear ownership, and audit-ready visibility.</strong>
+  <strong>Open-source risk operations for teams that need ownership, approvals, evidence, and operating clarity in one place.</strong>
 </p>
 
 <p align="center">
-  RiskHub brings risks, controls, KRIs, vendors, approvals, and platform operations into one workflow-driven surface built for real enterprise use, not slideware.
+  RiskHub is designed to help risk, compliance, audit, vendor, and platform teams run the daily work around risks, controls, KRIs, issues, approvals, and governance without falling back to spreadsheet handoffs.
+</p>
+
+<p align="center">
+  <a href="https://github.com/W1z4rd1c4/RIskHub/actions/workflows/backend-postgres.yml"><img alt="Backend Tests" src="https://github.com/W1z4rd1c4/RIskHub/actions/workflows/backend-postgres.yml/badge.svg" /></a>
+  <a href="https://github.com/W1z4rd1c4/RIskHub/actions/workflows/lint.yml"><img alt="Lint" src="https://github.com/W1z4rd1c4/RIskHub/actions/workflows/lint.yml/badge.svg" /></a>
+  <a href="https://github.com/W1z4rd1c4/RIskHub/actions/workflows/e2e.yml"><img alt="E2E Tests" src="https://github.com/W1z4rd1c4/RIskHub/actions/workflows/e2e.yml/badge.svg" /></a>
+  <a href="https://github.com/W1z4rd1c4/RIskHub/actions/workflows/security.yml"><img alt="Security Scanning" src="https://github.com/W1z4rd1c4/RIskHub/actions/workflows/security.yml/badge.svg" /></a>
+  <a href="./LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue.svg" /></a>
 </p>
 
 <p align="center">
   <a href="#quick-start"><strong>Quick Start</strong></a>
   ·
-  <a href="#stack-at-a-glance"><strong>Architecture / Stack</strong></a>
+  <a href="#how-riskhub-works"><strong>Product Tour</strong></a>
   ·
-  <a href="#documentation-map"><strong>Documentation</strong></a>
+  <a href="#architecture"><strong>Architecture</strong></a>
+  ·
+  <a href="#documentation"><strong>Documentation</strong></a>
+  ·
+  <a href="./CONTRIBUTING.md"><strong>Contribute</strong></a>
 </p>
 
-## Open Source Status
-
-RiskHub is published as an open-source repository under the [MIT License](./LICENSE).
-
-- Contributions are accepted through forks, issues, and pull requests.
-- Security issues should follow [SECURITY.md](./SECURITY.md), not public issue threads.
-- The contribution workflow and verification expectations live in [CONTRIBUTING.md](./CONTRIBUTING.md).
-- Merges to `main` are maintainer-controlled. Public PRs are welcome, but merge authority is intentionally restricted.
-
-## What It Looks Like
-
-<table>
-  <tr>
-    <td width="50%">
-      <img src="./docs/assets/readme/landing-page.png" alt="RiskHub landing page with enterprise positioning, secure access CTA, and platform highlights." width="100%" />
-    </td>
-    <td width="50%">
-      <img src="./docs/assets/readme/risk-hub-page.png" alt="RiskHub administration screen for configuring risk management policies, approval rules, and supporting settings." width="100%" />
-    </td>
-  </tr>
-  <tr>
-    <td valign="top">
-      <strong>Designed for serious operating environments</strong><br />
-      The product surface is positioned around enterprise risk management, secure access, and role-aware navigation instead of generic dashboard chrome.
-    </td>
-    <td valign="top">
-      <strong>Governance is built into the product</strong><br />
-      Risk Hub configuration, approval rules, departments, and role structures are part of the operating model rather than external admin debt.
-    </td>
-  </tr>
-  <tr>
-    <td colspan="2">
-      <img src="./docs/assets/readme/approvals-page.png" alt="RiskHub approvals queue showing workflow decisions, status tracking, and structured governance review." width="100%" />
-    </td>
-  </tr>
-  <tr>
-    <td colspan="2" valign="top">
-      <strong>Approval workflows stay visible</strong><br />
-      Notifications, approvals, decision notes, and queue triage are first-class workflows, so sensitive changes do not disappear into email or side-channel process.
-    </td>
-  </tr>
-</table>
+![RiskHub dashboard showing portfolio health, risk posture, and operational work queues.](./docs/assets/readme/hero-dashboard.png)
 
 ## Why RiskHub
 
-- **Run the full risk operating loop in one place.** RiskHub covers the register, controls, KRIs, issues, departments, and vendor-linked exposure instead of splitting posture across disconnected tools.
-- **Make approval-gated change normal.** Sensitive edits become structured approval requests with rationale, resolution notes, and auditability instead of silent mutations.
-- **Keep third-party risk connected to core posture.** Vendors link directly to risks, controls, and KRIs, with grouped views and create-from-vendor flows for real operating context.
-- **Turn dashboards into decisions.** The dashboard is built for drill-downs, scoped evidence exports, stored committee snapshots, and missing-data transparency, not vanity metrics.
-- **Run risk assessments as governed workflow.** Risk questionnaires have backend-enforced action capabilities, one-open-questionnaire protection, clarifications, deadlines, and owner-aware batch sending.
-- **Manage remediation to closure.** Issues include remediation progress, exception handling, expiry/revoke behavior, and closure validation tied to completed remediation evidence.
-- **Respect RBAC and scope boundaries.** Business access, admin access, department scope, manager scope, and ownership exceptions are explicit product behavior, not implied conventions.
-- **Support operators as well as business users.** Platform admins get a separate documentation and runbook surface for health checks, access support, evidence capture, and escalation-safe operations.
+Risk work gets messy when the register, controls, vendor context, approvals, remediation, and evidence all live in different places. RiskHub brings those workflows into one product surface so teams can see who owns the work, what changed, what still needs approval, and where evidence lives.
 
-## Built For Real Operating Workflows
+RiskHub is built for teams that need:
 
-RiskHub is aimed at teams that need governance to survive contact with production:
-
-- CROs, risk managers, compliance, internal audit, and department heads who need a live view of posture, ownership, and remediation pressure
-- Business users who need clear workflows for risks, controls, KRIs, issues, notifications, and approvals
-- Vendor and outsourcing stakeholders who need third-party exposure tied back to enterprise risks and monitoring
-- Platform admins who need health, access, audit, and incident-support runbooks without becoming accidental business-data superusers
-
-This repository already reflects those boundaries in product behavior and documentation:
-
-- business users and admins have separate documentation libraries
-- approvals, notifications, questionnaires, remediation, and KRI value governance are first-class workflows
-- dashboard, committee snapshots, exports, and activity evidence are operational surfaces
-- local development and production deployment are deliberately separated
+- a governed risk register with owners, departments, statuses, scoring, and linked work
+- controls, KRIs, issues, vendors, and questionnaires connected to the same operating model
+- approval-gated change for sensitive updates
+- activity history, audit logs, exports, and dashboard evidence for reviews
+- separate user manuals and admin runbooks for business users and platform operators
 
 ## Quick Start
 
-Recommended for most people: use the Docker onboarding path.
+Use the Docker onboarding path for the fastest local demo.
 
 ```bash
 ./scripts/install.sh demo
@@ -96,39 +52,76 @@ Recommended for most people: use the Docker onboarding path.
 
 Then open `http://localhost/login`.
 
-If you need a deterministic Docker-backed reset for browser verification and seeded demo data:
+For deterministic seeded data before screenshots, E2E checks, or product review:
 
 ```bash
 ./scripts/install.sh demo --reset test
 ```
 
-Use the canonical startup guide for current caveats, reset behavior, and environment details:
-
-- [Development startup guide](./docs/development/README.md)
-
-## Local Development
-
-Use local runtimes when you are actively iterating on backend or frontend code.
+For local development with Docker-backed infrastructure and local backend/frontend runtimes:
 
 ```bash
 ./scripts/install.sh dev
 ```
 
-What this path gives you:
+Production deployment is intentionally separate from local startup:
 
-- Docker-backed PostgreSQL and Redis infrastructure
-- local backend on `http://localhost:8000`
-- local Vite frontend on `http://localhost:5173`
-- demo-friendly auth defaults for development
+```bash
+./scripts/install.sh production --target docker|linux
+```
 
-Contributor notes:
+Current startup details, reset behavior, and local runtime notes live in the [development guide](./docs/development/README.md).
 
-- Docker is still part of the supported local workflow
-- Node major `24` is the expected local frontend runtime
-- `./scripts/install.sh` remains the supported public entrypoint even though it now delegates internally to `./scripts/install_cli.py` and `./scripts/install_lib/`
-- production deployment remains separate and should use `./scripts/install.sh production --target docker|linux`
+## How RiskHub Works
 
-## Stack At A Glance
+### 1. Run the risk operating loop
+
+RiskHub gives teams one place to review risk posture, triage the register, connect controls and KRIs, and follow linked work into the right detail page.
+
+![Risk register with filters, ownership context, and lifecycle status.](./docs/assets/readme/risk-register.png)
+
+The same workflow continues on detail pages, where linked controls, KRIs, vendors, issues, and history stay close to the risk record instead of becoming side-channel notes.
+
+![Risk detail page showing connected risk work and operating context.](./docs/assets/readme/risk-detail-linked-work.png)
+
+### 2. Keep third-party risk connected
+
+Vendors are not a separate spreadsheet. Vendor pages support ownership, risk scoring, DORA/significance indicators, and linked exposure panels where the workflow needs them.
+
+![Vendor detail page showing risk flags, ownership, and linked exposure panels.](./docs/assets/readme/vendor-linked-context.png)
+
+### 3. Put sensitive change through approvals
+
+RiskHub supports approval queues, notifications, decision notes, and activity evidence so important changes do not disappear into chat or email.
+
+![Approvals queue with pending workflow decisions and review context.](./docs/assets/readme/approvals-workflow.png)
+
+### 4. Resolve governance gaps and run the platform
+
+Governance review helps teams resolve orphaned or incomplete records, while platform admins get a separate admin console for operational checks, sessions, logs, and support workflows.
+
+![Governance queue for resolving records that need ownership or linkage.](./docs/assets/readme/governance-queue.png)
+
+Risk Hub configuration keeps the risk operating model visible to the CRO workflow, including appetite, monitoring, approval, questionnaire, and reminder settings.
+
+![Risk Hub configuration page for risk policy, approvals, monitoring, and questionnaire settings.](./docs/assets/readme/risk-hub-configuration.png)
+
+![Admin console showing platform health and operations panels.](./docs/assets/readme/admin-console-ops.png)
+
+## Product Surface
+
+RiskHub includes workflows for:
+
+- **Dashboard and reporting**: posture review, drill-downs, dashboard filters, committee snapshots, and exports where the app exposes export controls
+- **Risks and controls**: ownership, scoring, mitigation, execution logging, linked context, and evidence
+- **KRIs**: thresholds, reporting cadence, value history, overdue tracking, breach status, and approval-aware corrections
+- **Issues and remediation**: assignments, progress, exceptions, expiry/revoke behavior, validation, and closure evidence
+- **Risk questionnaires**: assessment requests, deadlines, clarifications, submission review, and questionnaire inbox workflows
+- **Approvals and notifications**: queued changes, request cancellation, decision review, and workflow triage
+- **Vendors**: third-party register management, flags, grouped views, and linked risk/control/KRI context
+- **Admin operations**: health, logs, sessions, access support, documentation, and operational runbooks
+
+## Architecture
 
 | Layer | Technology |
 |---|---|
@@ -139,22 +132,19 @@ Contributor notes:
 | Testing | pytest, Vitest, Playwright |
 | Delivery model | Docker-first onboarding, separate production deployment workflows |
 
-## Product Surface
+Repository layout:
 
-RiskHub is not just a CRUD shell around a risk register. The documented operating surface includes:
+| Path | Purpose |
+|---|---|
+| `backend/` | FastAPI app, services, models, migrations, backend tooling |
+| `frontend/` | React app, frontend services, unit tests, and browser tooling |
+| `docs/` | User manuals, admin runbooks, deployment, testing, and reference docs |
+| `scripts/` | Local development, Docker onboarding, deployment, and quality entrypoints |
+| `tests/` | Centralized backend, frontend, E2E, and test artifact structure |
 
-- **Dashboard and reporting** for posture review, drill-downs, filters, exports, and committee-ready summaries
-- **Risks and controls** for ownership, scoring, mitigation, execution logging, and evidence
-- **KRIs** for thresholds, reporting cadence, one-value-per-period history, approval-gated corrections, overdue tracking, and breach status
-- **Issues** for remediation lifecycle, exception handling, readiness validation, and closure evidence
-- **Risk questionnaires** for assessment requests, batch sending, clarifications, deadlines, and questionnaire inbox triage
-- **Approvals and notifications** for queued changes, decision review, request cancellation, and workflow triage
-- **Vendors** for third-party register management, flag grouping, and linked risk/control/KRI context
-- **Admin operations** for platform health, access support, scoped exports, incident triage, and escalation handoff
+## Verification
 
-## Testing And Verification
-
-Use the smallest relevant verification path for the surface you touch:
+Use the smallest check that matches the work you changed:
 
 ```bash
 make -f scripts/Makefile test
@@ -163,66 +153,46 @@ cd frontend && npx tsc --noEmit
 make -f scripts/Makefile test-e2e
 ```
 
-For Postgres-sensitive backend behavior, E2E notes, and the current deterministic test guidance, use the canonical docs:
+For the current test matrix and deterministic E2E guidance, see:
 
 - [Testing guide](./docs/TESTING.md)
 - [E2E testing guide](./docs/E2E_TESTING.md)
 
-## Documentation Map
+## Documentation
 
-Start here depending on what you need:
+Start here:
 
-- [Development startup](./docs/development/README.md)
-- [Full documentation index](./docs/README.md)
-- [Business logic and RBAC reference](./docs/BUSINESS_LOGIC.md)
-- [User workflows](./docs/user/README.md)
+- [Documentation index](./docs/README.md)
+- [User manuals](./docs/user/README.md)
 - [Platform admin runbooks](./docs/admin/README.md)
+- [Business logic and RBAC reference](./docs/BUSINESS_LOGIC.md)
+- [Development startup](./docs/development/README.md)
 - [Deployment and production operations](./docs/deployment/README.md)
-- [Testing matrix](./docs/TESTING.md)
-
-## Repository Layout
-
-| Path | Purpose |
-|---|---|
-| `backend/` | FastAPI application, services, models, migrations, backend tooling |
-| `frontend/` | React application, frontend services, tests, and build tooling |
-| `docs/` | User, admin, deployment, testing, and reference documentation |
-| `scripts/` | Local development, Docker onboarding, deployment, and quality entrypoints |
-| `tests/` | Centralized backend and frontend test suites and test artifacts |
-
-## Deployment
-
-Production deployment is intentionally separate from local startup and Docker onboarding.
-
-Use:
-
-```bash
-./scripts/install.sh production --target docker|linux
-```
-
-Day 2 operations:
-
-```bash
-./scripts/install.sh status --mode production --target docker|linux
-./scripts/install.sh logs --mode production --target docker|linux --tail 200 --follow
-./scripts/install.sh doctor --mode production --target docker|linux [--repair]
-./scripts/install.sh upgrade --target docker|linux
-```
-
-Operator contract notes:
-
-- `./scripts/install.sh` stays the public shell surface for `production`, `upgrade`, `status`, `logs`, and `doctor`
-- the lifecycle control plane behind it now lives in `./scripts/install_cli.py` and `./scripts/install_lib/`
-- production runtime expects an explicit `ALLOWED_HOSTS` allowlist; see the deployment docs before rollout
-
-Before touching production, read:
-
-- [Deployment overview](./docs/deployment/README.md)
 - [Security checklist](./docs/deployment/security-checklist.md)
+- [Agent documentation index](./docs/agent/README.md)
+
+README screenshots are generated from the demo app. The asset manifest and capture command live in [docs/assets/readme](./docs/assets/readme/README.md).
+
+## Open Source Status
+
+RiskHub is published under the [MIT License](./LICENSE).
+
+- Contributions are handled through forks, issues, and pull requests.
+- Security issues should follow [SECURITY.md](./SECURITY.md), not public issue threads.
+- Contribution expectations and verification notes live in [CONTRIBUTING.md](./CONTRIBUTING.md).
+- Public PRs are welcome; merges to `main` remain maintainer-controlled.
+
+## GitHub Repository Setup
+
+Maintainers can use these settings to keep the public repository presentation aligned with this README:
+
+- Description: `Open-source risk operations for governed risks, controls, KRIs, vendors, approvals, and evidence.`
+- Topics: `risk-management`, `grc`, `compliance`, `fastapi`, `react`, `postgresql`, `open-source`
+- Social preview: upload `docs/assets/readme/social-preview.png` in GitHub repository settings.
 
 ## Source Of Truth
 
-This README is the GitHub-facing project landing page. For operational truth, prefer the canonical docs:
+This README is the GitHub-facing landing page. For operating truth, prefer the canonical docs:
 
 - startup and contributor workflows: [docs/development/README.md](./docs/development/README.md)
 - business behavior and permissions: [docs/BUSINESS_LOGIC.md](./docs/BUSINESS_LOGIC.md)

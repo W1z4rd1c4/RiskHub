@@ -1,7 +1,7 @@
 import {
-    approvalCreatedResponseSchema,
     approvalIdMessageSchema,
 } from '../common';
+import { approvalCreatedResponseSchema } from '../workflow';
 import type { ZodType } from 'zod';
 
 import {
