@@ -8,7 +8,7 @@ from app.core.activity_logger import build_change_set, log_activity
 from app.core.config import Settings
 from app.core.email import email_equals
 from app.core.user_query_options import user_selectinload_options
-from app.models import User
+from app.models import Role, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.models.user import AccessScope
 from app.services._access_workflow import (

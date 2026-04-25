@@ -114,6 +114,37 @@ async def test_update_role_invalid_permission_ids(
 
 
 @pytest.mark.asyncio
+async def test_update_role_returns_reloaded_editable_role(
+    client_cro: AsyncClient,
+    db_session: AsyncSession,
+):
+    """Successful role updates reload permissions/users before returning."""
+    role = Role(
+        name="editable_role",
+        display_name="Editable Role",
+        description="Before update",
+        is_system=False,
+        is_active=True,
+    )
+    db_session.add(role)
+    await db_session.commit()
+    await db_session.refresh(role)
+
+    response = await client_cro.patch(
+        f"/api/v1/riskhub/roles/{role.id}",
+        json={
+            "display_name": "Editable Role Updated",
+            "description": "After update",
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["display_name"] == "Editable Role Updated"
+    assert data["description"] == "After update"
+
+
+@pytest.mark.asyncio
 async def test_update_role_invalid_permission_ids_preserves_existing_permissions(
     client_cro: AsyncClient,
     db_session: AsyncSession,

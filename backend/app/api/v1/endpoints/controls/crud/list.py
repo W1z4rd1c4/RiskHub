@@ -233,11 +233,24 @@ async def list_controls(
         cross_dept_risk_ids = set(reporting_owner_risk_ids) | set(control_owner_risk_ids)
     can_read_vendors = check_permission(current_user, "vendors", "read")
     process_group_entries_by_control_id: dict[int, list[CollectionGroupEntry]] = {}
+    risk_group_entries_by_control_id: dict[int, list[CollectionGroupEntry]] = {}
 
     def risk_is_visible(risk: Risk) -> bool:
         if not can_read_risks:
             return False
         return can_access_department_id(current_user, risk.department_id) or risk.id in cross_dept_risk_ids
+
+    def risk_group_entry(risk: Risk) -> CollectionGroupEntry:
+        value = risk.name or CONTROL_GROUP_UNKNOWN_RISK
+        return CollectionGroupEntry(
+            value,
+            value,
+            {
+                "risk_type": risk.risk_type or "",
+                "risk_department_name": risk.department.name if risk.department else "",
+                "risk_owner_name": risk.owner.name if risk.owner else "",
+            },
+        )
 
     def serialize_controls(controls: list[Control]) -> list[ControlSummary]:
         items = []
@@ -260,6 +273,11 @@ async def list_controls(
             if not process_entries:
                 process_entries = [CollectionGroupEntry(CONTROL_GROUP_NO_PROCESS, CONTROL_GROUP_NO_PROCESS)]
             process_group_entries_by_control_id[c.id] = process_entries
+            risk_group_entries_by_control_id[c.id] = (
+                [risk_group_entry(risk) for risk in visible_linked_risks]
+                if visible_linked_risks
+                else [CollectionGroupEntry(CONTROL_GROUP_UNKNOWN_RISK, CONTROL_GROUP_UNKNOWN_RISK)]
+            )
 
             items.append(
                 ControlSummary(
@@ -298,6 +316,11 @@ async def list_controls(
             return process_group_entries_by_control_id.get(
                 control.id,
                 [CollectionGroupEntry(CONTROL_GROUP_NO_PROCESS, CONTROL_GROUP_NO_PROCESS)],
+            )
+        if group_by == "risk":
+            return risk_group_entries_by_control_id.get(
+                control.id,
+                [CollectionGroupEntry(CONTROL_GROUP_UNKNOWN_RISK, CONTROL_GROUP_UNKNOWN_RISK)],
             )
         return _control_group_entries(control, group_by)
 

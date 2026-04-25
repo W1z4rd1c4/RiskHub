@@ -8,6 +8,7 @@ from app.core.config import Settings, get_settings
 from app.db.session import get_db
 from app.main import app
 from app.models import User
+from app.models.user import AccessScope
 
 
 @pytest_asyncio.fixture
@@ -417,6 +418,69 @@ async def test_access_update_allows_cro_business_role_assignment(
 
     assert response.status_code == 200
     assert response.json()["role"]["name"] == "department_head"
+
+
+@pytest.mark.asyncio
+async def test_access_update_allows_privileged_role_demotion_when_another_privileged_user_remains(
+    client_cro: AsyncClient,
+    db_session,
+    test_department,
+    test_role_cro,
+    test_role_department_head,
+):
+    target_cro = User(
+        email="second.cro@example.com",
+        hashed_password="hash",
+        name="Second CRO",
+        role_id=test_role_cro.id,
+        department_id=test_department.id,
+        access_scope=AccessScope.GLOBAL,
+        is_active=True,
+    )
+    db_session.add(target_cro)
+    await db_session.commit()
+
+    response = await client_cro.patch(
+        f"/api/v1/access/users/{target_cro.id}",
+        json={"role_id": test_role_department_head.id},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["role"]["name"] == "department_head"
+
+    await db_session.refresh(target_cro)
+    assert target_cro.role_id == test_role_department_head.id
+
+
+@pytest.mark.asyncio
+async def test_access_update_allows_privileged_scope_downgrade_when_another_privileged_user_remains(
+    client_cro: AsyncClient,
+    db_session,
+    test_department,
+    test_role_cro,
+):
+    target_cro = User(
+        email="scoped.cro@example.com",
+        hashed_password="hash",
+        name="Scoped CRO",
+        role_id=test_role_cro.id,
+        department_id=test_department.id,
+        access_scope=AccessScope.GLOBAL,
+        is_active=True,
+    )
+    db_session.add(target_cro)
+    await db_session.commit()
+
+    response = await client_cro.patch(
+        f"/api/v1/access/users/{target_cro.id}",
+        json={"access_scope": "department"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["access_scope"] == "department"
+
+    await db_session.refresh(target_cro)
+    assert target_cro.access_scope == AccessScope.DEPARTMENT
 
 
 @pytest.mark.asyncio

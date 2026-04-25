@@ -109,7 +109,7 @@ async def update_role(
     cro_user: User = Depends(get_cro_user),
 ) -> RoleHubRead:
     """Update a role. CRO only."""
-    from app.models.role import RolePermission
+    from app.models.role import Role, RolePermission
 
     role = await load_role_for_update(db, id)
 

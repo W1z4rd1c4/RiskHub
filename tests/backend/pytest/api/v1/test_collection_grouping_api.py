@@ -188,6 +188,25 @@ async def test_controls_grouped_contract_returns_summary_and_drilldown(
     await db_session.commit()
     await db_session.refresh(risk)
 
+    secondary_risk = Risk(
+        risk_id_code="GRP-CONTROL-RISK-002",
+        name="Grouped Control Secondary Risk",
+        process="Grouped Control Process",
+        description="Second risk linked to grouped control",
+        department_id=test_department.id,
+        owner_id=test_user.id,
+        risk_type="operational",
+        category="Grouped Control Category",
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=2,
+        status="active",
+    )
+    db_session.add(secondary_risk)
+    await db_session.commit()
+    await db_session.refresh(secondary_risk)
+
     create_response = await auth_client.post(
         "/api/v1/controls",
         json={
@@ -203,7 +222,12 @@ async def test_controls_grouped_contract_returns_summary_and_drilldown(
     )
     assert create_response.status_code == 201
     control_id = create_response.json()["id"]
-    db_session.add(ControlRiskLink(control_id=control_id, risk_id=risk.id))
+    db_session.add_all(
+        [
+            ControlRiskLink(control_id=control_id, risk_id=risk.id),
+            ControlRiskLink(control_id=control_id, risk_id=secondary_risk.id),
+        ]
+    )
     await db_session.commit()
 
     summary_response = await auth_client.get(
@@ -228,6 +252,38 @@ async def test_controls_grouped_contract_returns_summary_and_drilldown(
     drilldown = drilldown_response.json()
     assert any(item["id"] == control_id for item in drilldown["items"])
     assert _group_by_value(drilldown["groups"], "Grouped Control Process") is not None
+
+    risk_summary_response = await auth_client.get(
+        "/api/v1/controls",
+        params={"offset": 0, "limit": 10, "group_by": "risk"},
+    )
+    assert risk_summary_response.status_code == 200
+    risk_summary = risk_summary_response.json()
+    primary_group = _group_by_value(risk_summary["groups"], "Grouped Control Risk")
+    secondary_group = _group_by_value(risk_summary["groups"], "Grouped Control Secondary Risk")
+    assert primary_group is not None, risk_summary["groups"]
+    assert secondary_group is not None, risk_summary["groups"]
+    assert primary_group["count"] >= 1
+    assert secondary_group["count"] >= 1
+
+    primary_drilldown_response = await auth_client.get(
+        "/api/v1/controls",
+        params={"offset": 0, "limit": 10, "group_by": "risk", "group_value": "Grouped Control Risk"},
+    )
+    assert primary_drilldown_response.status_code == 200
+    assert any(item["id"] == control_id for item in primary_drilldown_response.json()["items"])
+
+    secondary_drilldown_response = await auth_client.get(
+        "/api/v1/controls",
+        params={
+            "offset": 0,
+            "limit": 10,
+            "group_by": "risk",
+            "group_value": "Grouped Control Secondary Risk",
+        },
+    )
+    assert secondary_drilldown_response.status_code == 200
+    assert any(item["id"] == control_id for item in secondary_drilldown_response.json()["items"])
 
 
 @pytest.mark.asyncio
