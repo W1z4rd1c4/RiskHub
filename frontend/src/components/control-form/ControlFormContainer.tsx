@@ -12,22 +12,19 @@ import {
     ShieldCheck,
     Link as LinkIcon,
 } from 'lucide-react';
-import { parseUpdateResult } from '@/lib/approvalUi';
 import { useTranslation } from '@/i18n/hooks';
 import { StepIndicator } from '@/components/ui/StepIndicator';
 import { ApprovalQueuedBanner } from '@/components/forms/ApprovalQueuedBanner';
-import { controlApi } from '@/services/controlApi';
-import type { Control, ControlCreate, ControlUpdate } from '@/types/control';
-import { ControlForm as ControlFormType, ControlFrequency, ControlStatus } from '@/types/control';
+import type { Control } from '@/types/control';
 import type { ControlEffectiveness } from '@/types/risk';
-import { ThemedSelect } from '@/components/ui/ThemedSelect';
+import { ControlFormExecutionStep } from './ControlFormExecutionStep';
+import { ControlFormIdentityStep } from './ControlFormIdentityStep';
 import { ControlFormOwnershipStep } from './ControlFormOwnershipStep';
 import { ControlFormRiskLinkStep } from './ControlFormRiskLinkStep';
-import { collectRiskFilterOptions, filterRisks, filterUsers, getOwnerAutoDepartmentId, getUniqueRoles } from './controlFormFilters';
-import { getControlFormSubmissionError, getControlFormStepError } from './controlFormValidation';
-import { formatFrequencyLabel, getControlFormErrorKey } from './controlFormUtils';
+import { ControlFormStatusStep } from './ControlFormStatusStep';
+import { collectRiskFilterOptions, filterRisks, filterUsers, getUniqueRoles } from './controlFormFilters';
 import { useControlFormLookups } from './useControlFormLookups';
-import { logError } from '@/services/logger';
+import { useControlFormWorkflow } from './useControlFormWorkflow';
 
 interface ControlFormProps {
     initialData?: Control;
@@ -35,11 +32,6 @@ interface ControlFormProps {
     onSuccess?: (controlId: number) => void | Promise<void>;
     onCancel?: () => void;
     firstStepBackLabel?: string;
-}
-
-interface ControlFlashState {
-    tone: 'warn';
-    message: string;
 }
 
 export function ControlForm({
@@ -58,12 +50,6 @@ export function ControlForm({
         { id: 'risk', title: t('controls:form.steps.risk_status'), icon: ShieldCheck },
         { id: 'link_risk', title: t('controls:form.steps.link_risk'), icon: LinkIcon }
     ];
-    const [currentStep, setCurrentStep] = useState(0);
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-
-    // Approval-queued state for edit flows (HTTP 202)
-    const [approvalQueued, setApprovalQueued] = useState<{ message: string } | null>(null);
     const {
         users,
         departments,
@@ -89,14 +75,24 @@ export function ControlForm({
     const [selectedProcess, setSelectedProcess] = useState('');
     const [selectedCategory, setSelectedCategory] = useState('');
 
-    const [formData, setFormData] = useState<Partial<Control>>({
-        name: '',
-        description: '',
-        status: ControlStatus.DRAFT,
-        control_form: ControlFormType.MANUAL,
-        frequency: ControlFrequency.MONTHLY,
-        risk_level: 3,
-        ...initialData
+    const {
+        approvalQueued,
+        currentStep,
+        error,
+        formData,
+        isSubmitting,
+        handleInputChange,
+        setApprovalQueued,
+        setCurrentStep,
+        setError,
+        submit,
+        validateStep,
+    } = useControlFormWorkflow({
+        initialData,
+        isEdit,
+        onSuccess,
+        users,
+        t,
     });
 
     const { uniqueDepartments, uniqueProcesses, uniqueCategories } = collectRiskFilterOptions(risks);
@@ -115,96 +111,9 @@ export function ControlForm({
     const selectedRisk = risks.find((risk) => risk.id === selectedRiskId);
     const visibleError = error ?? dataErrorKey;
 
-    const handleInputChange = (field: keyof Control, value: unknown) => {
-        setFormData(prev => {
-            const newData = { ...prev, [field]: value };
-
-            // Auto-fill department when owner is selected
-            if (field === 'control_owner_id' && value) {
-                const departmentId = getOwnerAutoDepartmentId(users, value);
-                if (departmentId) {
-                    newData.department_id = departmentId;
-                }
-            }
-
-            return newData;
-        });
-        setError(null); // Clear error on change
-    };
-
-    const validateStep = (stepIndex: number) => {
-        const nextError = getControlFormStepError(stepIndex, formData, t);
-        if (nextError) {
-            setError(nextError);
-            return false;
-        }
-        return true;
-    };
-
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-
-        // Final validation before submit
-        const submissionError = getControlFormSubmissionError(formData, t);
-        if (submissionError) {
-            setError(submissionError);
-            return;
-        }
-
-        try {
-            setIsSubmitting(true);
-            setError(null);
-            setApprovalQueued(null);
-
-            let controlId = initialData?.id;
-
-            if (isEdit && initialData) {
-                const result = await controlApi.updateControl(initialData.id, formData as ControlUpdate);
-                // Use standardized helper to check for 202 approval-queued response
-                const parsed = parseUpdateResult(result);
-                if (parsed.kind === 'approval') {
-                    setApprovalQueued({
-                        message: parsed.message,
-                    });
-                    setIsSubmitting(false);
-                    return; // Stay on form, don't navigate
-                }
-            } else {
-                const newControl = await controlApi.createControl(formData as ControlCreate);
-                controlId = newControl.id;
-            }
-
-            // If a risk is selected, link it
-            let controlFlash: ControlFlashState | null = null;
-            if (controlId && selectedRiskId) {
-                try {
-                    await controlApi.linkRisk(controlId, {
-                        risk_id: selectedRiskId,
-                        effectiveness: riskEffectiveness,
-                        notes: linkNotes
-                    });
-                } catch (linkErr) {
-                    logError('Control created but failed to link risk:', linkErr);
-                    controlFlash = {
-                        tone: 'warn',
-                        message: 'Control created, but linking the selected risk failed.',
-                    };
-                }
-            }
-
-            if (onSuccess && controlId) {
-                await onSuccess(controlId);
-            } else if (controlId) {
-                void navigate(`/controls/${controlId}`, controlFlash ? { state: { controlFlash } } : undefined);
-            } else {
-                void navigate('/controls');
-            }
-        } catch (err: unknown) {
-            logError('Error saving control:', err);
-            setError(getControlFormErrorKey(err, 'errorKeys.save_control_failed'));
-        } finally {
-            setIsSubmitting(false);
-        }
+        await submit({ selectedRiskId, riskEffectiveness, linkNotes });
     };
 
     const nextStep = () => {
@@ -288,30 +197,7 @@ export function ControlForm({
 
                 <div className="flex-1 space-y-6">
                     {currentStep === 0 && (
-                        <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-                            <div>
-                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">{t('controls:fields.name')}</label>
-                                <input
-                                    type="text"
-                                    required
-                                    value={formData.name}
-                                    onChange={(e) => handleInputChange('name', e.target.value)}
-                                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all placeholder:text-slate-400"
-                                    placeholder={t('form.placeholders.name')}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">{t('common:labels.description')}</label>
-                                <textarea
-                                    required
-                                    rows={4}
-                                    value={formData.description}
-                                    onChange={(e) => handleInputChange('description', e.target.value)}
-                                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all placeholder:text-slate-400 resize-none"
-                                    placeholder={t('form.placeholders.description')}
-                                />
-                            </div>
-                        </div>
+                        <ControlFormIdentityStep formData={formData} handleInputChange={handleInputChange} t={t} />
                     )}
 
                     {currentStep === 1 && (
@@ -335,85 +221,11 @@ export function ControlForm({
 
 
                     {currentStep === 2 && (
-                        <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-                            <div className="grid md:grid-cols-2 gap-6">
-                                <div>
-                                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">{t('common:labels.frequency')}</label>
-                                    <ThemedSelect
-                                        value={formData.frequency || ControlFrequency.MONTHLY}
-                                        onValueChange={(v) => handleInputChange('frequency', v)}
-                                        className="w-full"
-                                        options={Object.values(ControlFrequency).map((f) => ({ value: f, label: formatFrequencyLabel(f) }))}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">{t('common:labels.form')}</label>
-                                    <ThemedSelect
-                                        value={formData.control_form || ControlFormType.MANUAL}
-                                        onValueChange={(v) => handleInputChange('control_form', v)}
-                                        className="w-full"
-                                        options={Object.values(ControlFormType).map(f => ({ value: f, label: f.toUpperCase() }))}
-                                    />
-                                </div>
-                            </div>
-                            <div>
-                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">{t('controls:form.labels.data_source_methodology')}</label>
-                                <div className="space-y-4">
-                                    <input
-                                        type="text"
-                                        value={formData.data_source || ''}
-                                        onChange={(e) => handleInputChange('data_source', e.target.value)}
-                                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all"
-                                        placeholder={t('form.placeholders.data_source')}
-                                    />
-                                    <input
-                                        type="text"
-                                        value={formData.methodology_reference || ''}
-                                        onChange={(e) => handleInputChange('methodology_reference', e.target.value)}
-                                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all"
-                                        placeholder={t('form.placeholders.methodology_reference')}
-                                    />
-                                </div>
-                            </div>
-                        </div>
+                        <ControlFormExecutionStep formData={formData} handleInputChange={handleInputChange} t={t} />
                     )}
 
                     {currentStep === 3 && (
-                        <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-                            <div>
-                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">{t('controls:form.labels.inherent_risk_level')}</label>
-                                <div className="flex items-center gap-4">
-                                    <input
-                                        type="range"
-                                        min="1"
-                                        max="5"
-                                        step="1"
-                                        value={formData.risk_level}
-                                        onChange={(e) => handleInputChange('risk_level', parseInt(e.target.value))}
-                                        className="flex-1 accent-accent"
-                                    />
-                                    <span className="w-12 h-12 rounded-xl bg-accent text-white flex items-center justify-center font-black text-xl shadow-lg shadow-accent/25">
-                                        {formData.risk_level}
-                                    </span>
-                                </div>
-                            </div>
-                            <div>
-                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">{t('controls:form.labels.initial_status')}</label>
-                                <div className="grid grid-cols-2 gap-4">
-                                    {[ControlStatus.DRAFT, ControlStatus.ACTIVE].map(s => (
-                                        <button
-                                            key={s}
-                                            type="button"
-                                            onClick={() => handleInputChange('status', s)}
-                                            className={`py-3 rounded-xl border-2 font-bold uppercase tracking-widest text-[10px] transition-all ${formData.status === s ? 'bg-accent/10 border-accent text-accent' : 'bg-white/5 border-white/5 text-slate-500 hover:text-white'
-                                                }`}
-                                        >
-                                            {s}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
+                        <ControlFormStatusStep formData={formData} handleInputChange={handleInputChange} t={t} />
                     )}
 
                     {currentStep === 4 && (

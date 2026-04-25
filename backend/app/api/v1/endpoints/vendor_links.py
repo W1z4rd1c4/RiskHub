@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
@@ -90,6 +91,61 @@ async def _can_read_kri(db: AsyncSession, current_user: User, kri_id: int) -> bo
     return await can_read_kri_id(db, current_user, kri_id)
 
 
+async def _get_existing_link(
+    db: AsyncSession,
+    link_model: type[Any],
+    vendor_id: int,
+    entity_field: str,
+    entity_id: int,
+) -> Any | None:
+    result = await db.execute(
+        select(link_model).where(
+            link_model.vendor_id == vendor_id,
+            getattr(link_model, entity_field) == entity_id,
+        )
+    )
+    return result.scalar_one_or_none()
+
+
+async def _ensure_link_absent(
+    db: AsyncSession,
+    link_model: type[Any],
+    vendor_id: int,
+    entity_field: str,
+    entity_id: int,
+) -> None:
+    if await _get_existing_link(db, link_model, vendor_id, entity_field, entity_id):
+        raise HTTPException(status_code=400, detail="Link already exists")
+
+
+async def _create_vendor_link(
+    db: AsyncSession,
+    link_model: type[Any],
+    vendor_id: int,
+    entity_field: str,
+    entity_id: int,
+) -> dict[str, str]:
+    await _ensure_link_absent(db, link_model, vendor_id, entity_field, entity_id)
+    db.add(link_model(vendor_id=vendor_id, **{entity_field: entity_id}))
+    await db.commit()
+    return {"status": "linked"}
+
+
+async def _delete_vendor_link(
+    db: AsyncSession,
+    link_model: type[Any],
+    vendor_id: int,
+    entity_field: str,
+    entity_id: int,
+) -> None:
+    link = await _get_existing_link(db, link_model, vendor_id, entity_field, entity_id)
+    if not link:
+        raise HTTPException(status_code=404, detail="Link not found")
+
+    await db.delete(link)
+    await db.commit()
+
+
 @router.get("/vendors/{vendor_id}/linked-risks", response_model=list[LinkedRiskRead])
 async def list_vendor_linked_risks(
     vendor_id: int,
@@ -144,16 +200,7 @@ async def link_vendor_to_risk(
     if not risk or not await _can_read_risk(db, current_user, payload.risk_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Risk not found")
 
-    existing = await db.execute(
-        select(VendorRiskLink).where(VendorRiskLink.vendor_id == vendor_id, VendorRiskLink.risk_id == payload.risk_id)
-    )
-    if existing.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="Link already exists")
-
-    link = VendorRiskLink(vendor_id=vendor_id, risk_id=payload.risk_id)
-    db.add(link)
-    await db.commit()
-    return {"status": "linked"}
+    return await _create_vendor_link(db, VendorRiskLink, vendor_id, "risk_id", payload.risk_id)
 
 
 @router.delete("/vendors/{vendor_id}/linked-risks/{risk_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -172,15 +219,7 @@ async def unlink_vendor_from_risk(
     if not risk or not await _can_read_risk(db, current_user, risk_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Risk not found")
 
-    result = await db.execute(
-        select(VendorRiskLink).where(VendorRiskLink.vendor_id == vendor_id, VendorRiskLink.risk_id == risk_id)
-    )
-    link = result.scalar_one_or_none()
-    if not link:
-        raise HTTPException(status_code=404, detail="Link not found")
-
-    await db.delete(link)
-    await db.commit()
+    await _delete_vendor_link(db, VendorRiskLink, vendor_id, "risk_id", risk_id)
     return None
 
 
@@ -251,18 +290,7 @@ async def link_vendor_to_control(
     if not control or not await _can_read_control(db, current_user, control):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Control not found")
 
-    existing = await db.execute(
-        select(VendorControlLink).where(
-            VendorControlLink.vendor_id == vendor_id, VendorControlLink.control_id == payload.control_id
-        )
-    )
-    if existing.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="Link already exists")
-
-    link = VendorControlLink(vendor_id=vendor_id, control_id=payload.control_id)
-    db.add(link)
-    await db.commit()
-    return {"status": "linked"}
+    return await _create_vendor_link(db, VendorControlLink, vendor_id, "control_id", payload.control_id)
 
 
 @router.delete("/vendors/{vendor_id}/linked-controls/{control_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -281,17 +309,7 @@ async def unlink_vendor_from_control(
     if not control or not await _can_read_control(db, current_user, control):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Control not found")
 
-    result = await db.execute(
-        select(VendorControlLink).where(
-            VendorControlLink.vendor_id == vendor_id, VendorControlLink.control_id == control_id
-        )
-    )
-    link = result.scalar_one_or_none()
-    if not link:
-        raise HTTPException(status_code=404, detail="Link not found")
-
-    await db.delete(link)
-    await db.commit()
+    await _delete_vendor_link(db, VendorControlLink, vendor_id, "control_id", control_id)
     return None
 
 
@@ -372,15 +390,7 @@ async def link_vendor_to_kri(
     if not kri or not await _can_read_kri(db, current_user, payload.kri_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="KRI not found")
 
-    existing = await db.execute(
-        select(VendorKRILink).where(VendorKRILink.vendor_id == vendor_id, VendorKRILink.kri_id == payload.kri_id)
-    )
-    if existing.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="Link already exists")
-
-    db.add(VendorKRILink(vendor_id=vendor_id, kri_id=payload.kri_id))
-    await db.commit()
-    return {"status": "linked"}
+    return await _create_vendor_link(db, VendorKRILink, vendor_id, "kri_id", payload.kri_id)
 
 
 @router.delete("/vendors/{vendor_id}/linked-kris/{kri_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -399,13 +409,5 @@ async def unlink_vendor_from_kri(
     if not kri or not await _can_read_kri(db, current_user, kri_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="KRI not found")
 
-    result = await db.execute(
-        select(VendorKRILink).where(VendorKRILink.vendor_id == vendor_id, VendorKRILink.kri_id == kri_id)
-    )
-    link = result.scalar_one_or_none()
-    if not link:
-        raise HTTPException(status_code=404, detail="Link not found")
-
-    await db.delete(link)
-    await db.commit()
+    await _delete_vendor_link(db, VendorKRILink, vendor_id, "kri_id", kri_id)
     return None

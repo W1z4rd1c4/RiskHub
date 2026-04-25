@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Save,
@@ -13,19 +13,18 @@ import {
 import { useTranslation } from '@/i18n/hooks';
 import { StepIndicator } from '@/components/ui/StepIndicator';
 import { ApprovalQueuedBanner } from '@/components/forms/ApprovalQueuedBanner';
-import { riskApi } from '@/services/riskApi';
-import { ApiClientError } from '@/services/apiClient';
-import { riskHubApi } from '@/services/riskHubApi';
-import type { Risk, RiskCreate, RiskUpdate } from '@/types/risk';
-import { RiskStatus } from '@/types/risk';
-import { useRiskTypes, useTotalAssetsValue, useRiskThresholds } from '@/hooks/useRiskHubConfig';
-import { parseUpdateResult } from '@/lib/approvalUi';
+import type { Risk } from '@/types/risk';
+import { useRiskTypes, useTotalAssetsValue } from '@/hooks/useRiskHubConfig';
 import { RiskFormIdentityStep } from './RiskFormIdentityStep';
 import { RiskFormOwnershipStep } from './RiskFormOwnershipStep';
 import { RiskFormScoringStep } from './RiskFormScoringStep';
-import { resolveRiskTypeCode } from './riskTypeDefaults';
+import {
+    filterRiskOwners,
+    getUniqueRiskOwnerRoles,
+    useRiskFormWorkflow,
+    useRiskScorePresentation,
+} from './riskFormWorkflow';
 import { useRiskLookups } from './useRiskLookups';
-import { logError } from '@/services/logger';
 
 interface RiskFormProps {
     initialData?: Risk;
@@ -42,26 +41,6 @@ export function RiskForm({
     onCancel,
     firstStepBackLabel,
 }: RiskFormProps) {
-    const createInitialFormData = (risk?: Risk): Partial<Risk> => ({
-        name: '',
-        process: '',
-        subprocess: '',
-        risk_type: risk?.risk_type,
-        category: '',
-        description: '',
-        status: RiskStatus.ACTIVE,
-        is_priority: false,
-        gross_probability: 3,
-        gross_impact: 3,
-        net_probability: 2,
-        net_impact: 2,
-        kri_indicator: '',
-        kri_threshold_green: '',
-        kri_threshold_yellow: '',
-        kri_threshold_red: '',
-        ...risk,
-    });
-
     const navigate = useNavigate();
     const { t } = useTranslation(['risks', 'common', 'errorKeys', 'approvals']);
     const steps = [
@@ -69,40 +48,9 @@ export function RiskForm({
         { id: 'ownership', title: t('risks:form.steps.ownership'), icon: User },
         { id: 'scoring', title: t('risks:form.steps.scoring'), icon: Activity },
     ];
-    const [currentStep, setCurrentStep] = useState(0);
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-
-    // Approval-queued state for edit flows (HTTP 202)
-    const [approvalQueued, setApprovalQueued] = useState<{ message: string } | null>(null);
-
-    // Fetch risk types from Risk Hub
     const { riskTypes, isLoading: riskTypesLoading } = useRiskTypes();
-
-    // Fetch total assets for financial loss calculations
     const { totalAssets } = useTotalAssetsValue();
-
-    // Get thresholds for score-based colors
-    const { thresholds } = useRiskThresholds();
-
-    // Helper to get text color class based on score
-    const getScoreTextColor = (score: number) => {
-        if (score >= thresholds.critical) return 'text-rose-400';
-        if (score >= thresholds.high) return 'text-orange-400';
-        if (score >= thresholds.medium) return 'text-amber-400';
-        return 'text-emerald-400';
-    };
-
-    // Helper to get slider accent color based on score
-    const getSliderAccent = (score: number) => {
-        if (score >= thresholds.critical) return 'accent-rose-500';
-        if (score >= thresholds.high) return 'accent-orange-500';
-        if (score >= thresholds.medium) return 'accent-amber-500';
-        return 'accent-emerald-500';
-    };
-
-    // Validation errors (inline)
-    const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+    const { getScoreTextColor, getSliderAccent } = useRiskScorePresentation();
 
     const {
         departments,
@@ -119,188 +67,34 @@ export function RiskForm({
     const [ownerSearch, setOwnerSearch] = useState('');
     const [roleFilter, setRoleFilter] = useState<string>('');
 
-    const [formData, setFormData] = useState<Partial<Risk>>(() => createInitialFormData(initialData));
-
-    useEffect(() => {
-        setFormData(createInitialFormData(initialData));
-        setFieldErrors({});
-        setError(null);
-        setApprovalQueued(null);
-    }, [initialData]);
-
-    useEffect(() => {
-        const resolvedRiskType = resolveRiskTypeCode(formData.risk_type, riskTypes);
-        if (formData.risk_type === resolvedRiskType) {
-            return;
-        }
-
-        setFormData((prev) => {
-            if (prev.risk_type === resolvedRiskType) {
-                return prev;
-            }
-            return {
-                ...prev,
-                risk_type: resolvedRiskType,
-            };
-        });
-    }, [formData.risk_type, riskTypes]);
-
-    const handleInputChange = (field: keyof Risk, value: unknown) => {
-        setFormData(prev => {
-            const newData = { ...prev, [field]: value };
-
-            // Auto-fill department when owner is selected
-            if (field === 'owner_id' && value) {
-                const selectedUser = users.find(u => u.id === value);
-                if (selectedUser?.department_id) {
-                    newData.department_id = selectedUser.department_id;
-                }
-            }
-
-            return newData;
-        });
-
-        // Clear errors outside of setFormData to avoid stale closure
-        setFieldErrors(prev => {
-            const newErrors = { ...prev };
-            if (prev[field]) {
-                newErrors[field] = '';
-            }
-            // Also clear department error when auto-filled
-            if (field === 'owner_id' && prev.department_id) {
-                newErrors.department_id = '';
-            }
-            return newErrors;
-        });
-    };
-
-    // Validate Step 1: Identity
-    const validateStep1 = (): boolean => {
-        const errors: Record<string, string> = {};
-
-        if (!formData.name?.trim()) {
-            errors.name = 'Risk Name is required';
-        }
-        if (!formData.process?.trim()) {
-            errors.process = 'Main Process is required';
-        }
-        if (!formData.category?.trim()) {
-            errors.category = 'Category is required';
-        }
-        if (!formData.description?.trim()) {
-            errors.description = 'Risk Description is required';
-        }
-
-        setFieldErrors(errors);
-        return Object.keys(errors).length === 0;
-    };
-
-    // Validate Step 2: Details & Owner
-    const validateStep2 = (): boolean => {
-        const errors: Record<string, string> = {};
-
-        if (!formData.department_id) {
-            errors.department_id = 'Department is required';
-        }
-        if (!formData.owner_id) {
-            errors.owner_id = 'Risk Owner is required';
-        }
-
-        setFieldErrors(errors);
-        return Object.keys(errors).length === 0;
-    };
-
-    // Filtered users based on search, role, AND department
-    const filteredUsers = users.filter(user => {
-        const matchesSearch = !ownerSearch ||
-            user.name?.toLowerCase().includes(ownerSearch.toLowerCase()) ||
-            user.email?.toLowerCase().includes(ownerSearch.toLowerCase());
-        const matchesRole = !roleFilter || user.role_name === roleFilter;
-        // If department is selected, filter to that department's users
-        const matchesDepartment = !formData.department_id || user.department_id === formData.department_id;
-        return matchesSearch && matchesRole && matchesDepartment;
+    const {
+        approvalQueued,
+        currentStep,
+        error,
+        fieldErrors,
+        formData,
+        isSubmitting,
+        handleInputChange,
+        nextStep,
+        prevStep,
+        setApprovalQueued,
+        setCurrentStep,
+        submit,
+    } = useRiskFormWorkflow({
+        initialData,
+        isEdit,
+        onSuccess,
+        riskTypes,
+        users,
     });
-
-    // Get unique roles for filter - role is an object with name property
-    const uniqueRoles: string[] = [...new Set(users.map(u => u.role_name).filter((r): r is string => !!r))];
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-
-        // Validate all steps before submission
-        if (!validateStep1()) {
-            setCurrentStep(0);
-            return;
-        }
-        if (!validateStep2()) {
-            setCurrentStep(1);
-            return;
-        }
-
-        try {
-            setIsSubmitting(true);
-            setError(null);
-            setApprovalQueued(null);
-
-            if (isEdit && initialData) {
-                const result = await riskApi.updateRisk(initialData.id, formData as RiskUpdate);
-                // Use standardized helper to check for 202 approval-queued response
-                const parsed = parseUpdateResult(result);
-                if (parsed.kind === 'approval') {
-                    setApprovalQueued({
-                        message: parsed.message,
-                    });
-                    setIsSubmitting(false);
-                    return; // Stay on form, don't navigate
-                }
-            } else {
-                const riskTypeOptions = await riskHubApi.getPublicRiskTypes().catch(() => riskTypes);
-                const resolvedRiskType = resolveRiskTypeCode(formData.risk_type, riskTypeOptions);
-                const createPayload = {
-                    ...formData,
-                    risk_type: resolvedRiskType,
-                } as RiskCreate;
-
-                if (formData.risk_type !== resolvedRiskType) {
-                    setFormData((prev) => ({
-                        ...prev,
-                        risk_type: resolvedRiskType,
-                    }));
-                }
-
-                const newRisk = await riskApi.createRisk(createPayload);
-                if (onSuccess) {
-                    await onSuccess(newRisk.id);
-                } else {
-                    void navigate(`/risks/${newRisk.id}`);
-                }
-                return;
-            }
-
-            void navigate(`/risks/${initialData?.id}`);
-        } catch (err: unknown) {
-            logError('Error saving risk:', err);
-            if (err instanceof ApiClientError) {
-                setError(err.messageKey);
-            } else {
-                setError('errorKeys.save_risk_failed');
-            }
-        } finally {
-            setIsSubmitting(false);
-        }
+        await submit();
     };
 
-    const nextStep = (e?: React.MouseEvent) => {
-        if (e) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
-        // Validate current step before proceeding
-        if (currentStep === 0 && !validateStep1()) return;
-        if (currentStep === 1 && !validateStep2()) return;
-        setCurrentStep(prev => Math.min(prev + 1, steps.length - 1));
-    };
-    const prevStep = () => setCurrentStep(prev => Math.max(prev - 1, 0));
+    const filteredUsers = filterRiskOwners(users, ownerSearch, roleFilter, formData.department_id);
+    const uniqueRoles = getUniqueRiskOwnerRoles(users);
 
     return (
         <form onSubmit={handleSubmit} className="space-y-8 max-w-4xl mx-auto">

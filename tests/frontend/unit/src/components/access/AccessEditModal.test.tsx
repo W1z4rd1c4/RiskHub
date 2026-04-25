@@ -219,6 +219,59 @@ describe('AccessEditModal', () => {
         expect(screen.getByDisplayValue('duplicate@riskhub.test')).toBeInTheDocument();
     });
 
+    it('clears stale submit errors when reopened for a new edit session', async () => {
+        accessApiMocks.updateAccessUser.mockRejectedValueOnce(
+            new ApiClientError({
+                status: 400,
+                code: 'REQUEST_FAILED',
+                messageKey: 'errorKeys.request_failed',
+                rawMessage: 'Email already registered',
+            })
+        );
+
+        const onClose = vi.fn();
+        const onSaved = vi.fn();
+        const modalUser = makeAccessUser();
+
+        const { rerender } = render(
+            <AccessEditModal
+                isOpen
+                onClose={onClose}
+                user={modalUser}
+                onSaved={onSaved}
+            />
+        );
+
+        const user = userEvent.setup();
+        const emailInput = await screen.findByDisplayValue('user@riskhub.test');
+        await user.clear(emailInput);
+        await user.type(emailInput, 'duplicate@riskhub.test');
+        await user.click(screen.getByRole('button', { name: /administrator/i }));
+        await user.click(screen.getByRole('button', { name: /save/i }));
+
+        expect(await screen.findByText('Email already registered')).toBeInTheDocument();
+
+        rerender(
+            <AccessEditModal
+                isOpen={false}
+                onClose={onClose}
+                user={modalUser}
+                onSaved={onSaved}
+            />
+        );
+        rerender(
+            <AccessEditModal
+                isOpen
+                onClose={onClose}
+                user={modalUser}
+                onSaved={onSaved}
+            />
+        );
+
+        await screen.findByDisplayValue('user@riskhub.test');
+        expect(screen.queryByText('Email already registered')).not.toBeInTheDocument();
+    });
+
     it('submits business access edits for CRO without platform fields or Admin role', async () => {
         currentPermissions = {
             canManagePrivileged: true,

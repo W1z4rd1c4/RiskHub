@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from dataclasses import dataclass
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -52,6 +53,26 @@ VENDOR_GROUP_DORA_RELEVANT = "__dora_relevant__"
 VENDOR_GROUP_SUPPORTS_CORE_FUNCTION = "__supports_core_function__"
 VENDOR_GROUP_SIGNIFICANT_VENDOR = "__significant_vendor__"
 VENDOR_GROUP_INSIGNIFICANT_VENDOR = "__insignificant_vendor__"
+
+
+@dataclass(frozen=True)
+class VendorListCriteria:
+    offset: int
+    limit: int
+    search: str | None
+    status_filter: VendorStatusEnum | None
+    include_archived: bool
+    vendor_type: VendorTypeEnum | None
+    dora_relevant: bool | None
+    supports_important_core_insurance_function: bool | None
+    is_significant_vendor: bool | None
+    outsourcing_owner_user_id: int | None
+    department_id: int | None
+    process: str | None
+    subprocess: str | None
+    risk_score_1_5: int | None
+    sort_by: str | None
+    sort_order: str | None
 
 
 def _vendor_group_entries(vendor: VendorRead, group_by: str) -> list[CollectionGroupEntry]:
@@ -139,6 +160,143 @@ def _serialize_vendor_linked_risks(
     return linked_risks_by_vendor_id
 
 
+def _coerce_vendor_list_criteria(
+    collection_query: Any,
+    *,
+    search: str | None,
+    status_filter: VendorStatusEnum | None,
+    include_archived: bool,
+    vendor_type: VendorTypeEnum | None,
+    dora_relevant: bool | None,
+    supports_important_core_insurance_function: bool | None,
+    is_significant_vendor: bool | None,
+    outsourcing_owner_user_id: int | None,
+    department_id: int | None,
+    process: str | None,
+    subprocess: str | None,
+    risk_score_1_5: int | None,
+    sort_by: str | None,
+    sort_order: str | None,
+) -> VendorListCriteria:
+    filter_values = merge_collection_filters(
+        collection_query,
+        {
+            "search": search,
+            "status": status_filter.value if status_filter else None,
+            "include_archived": include_archived,
+            "vendor_type": vendor_type.value if vendor_type else None,
+            "dora_relevant": dora_relevant,
+            "supports_important_core_insurance_function": supports_important_core_insurance_function,
+            "is_significant_vendor": is_significant_vendor,
+            "outsourcing_owner_user_id": outsourcing_owner_user_id,
+            "department_id": department_id,
+            "process": process,
+            "subprocess": subprocess,
+            "risk_score_1_5": risk_score_1_5,
+        },
+    )
+    return VendorListCriteria(
+        offset=collection_query.offset,
+        limit=collection_query.limit,
+        search=coerce_optional_string("search", filter_values.get("search")),
+        status_filter=coerce_optional_enum(VendorStatusEnum, filter_values.get("status"), "status"),
+        include_archived=coerce_optional_bool("include_archived", filter_values.get("include_archived")) or False,
+        vendor_type=coerce_optional_enum(VendorTypeEnum, filter_values.get("vendor_type"), "vendor_type"),
+        dora_relevant=coerce_optional_bool("dora_relevant", filter_values.get("dora_relevant")),
+        supports_important_core_insurance_function=coerce_optional_bool(
+            "supports_important_core_insurance_function",
+            filter_values.get("supports_important_core_insurance_function"),
+        ),
+        is_significant_vendor=coerce_optional_bool(
+            "is_significant_vendor", filter_values.get("is_significant_vendor")
+        ),
+        outsourcing_owner_user_id=coerce_optional_int(
+            "outsourcing_owner_user_id", filter_values.get("outsourcing_owner_user_id")
+        ),
+        department_id=coerce_optional_int("department_id", filter_values.get("department_id")),
+        process=coerce_optional_string("process", filter_values.get("process")),
+        subprocess=coerce_optional_string("subprocess", filter_values.get("subprocess")),
+        risk_score_1_5=coerce_optional_int(
+            "risk_score_1_5", filter_values.get("risk_score_1_5"), min_value=1, max_value=5
+        ),
+        sort_by=collection_query.sort.field if collection_query.sort else sort_by,
+        sort_order=collection_query.sort.direction if collection_query.sort else sort_order,
+    )
+
+
+def _apply_vendor_list_filters(query: Any, current_user: User, criteria: VendorListCriteria) -> Any:
+    query = apply_vendor_visibility_scope(query, current_user, department_id=criteria.department_id)
+
+    if criteria.status_filter is not None:
+        query = query.where(Vendor.status == criteria.status_filter.value)
+    elif not criteria.include_archived:
+        query = query.where(Vendor.status == VendorStatusEnum.active.value)
+    if criteria.vendor_type is not None:
+        query = query.where(Vendor.vendor_type == criteria.vendor_type.value)
+    if criteria.dora_relevant is not None:
+        query = query.where(Vendor.dora_relevant == criteria.dora_relevant)
+    if criteria.supports_important_core_insurance_function is not None:
+        query = query.where(
+            Vendor.supports_important_core_insurance_function
+            == criteria.supports_important_core_insurance_function
+        )
+    if criteria.is_significant_vendor is not None:
+        query = query.where(Vendor.is_significant_vendor == criteria.is_significant_vendor)
+    if criteria.outsourcing_owner_user_id is not None:
+        query = query.where(Vendor.outsourcing_owner_user_id == criteria.outsourcing_owner_user_id)
+    if criteria.process is not None:
+        query = query.where(Vendor.process == criteria.process)
+    if criteria.subprocess is not None:
+        query = query.where(Vendor.subprocess == criteria.subprocess)
+    if criteria.risk_score_1_5 is not None:
+        query = query.where(Vendor.risk_score_1_5 == criteria.risk_score_1_5)
+    if criteria.search:
+        pattern = f"%{criteria.search}%"
+        query = query.where(
+            or_(
+                Vendor.name.ilike(pattern),
+                Vendor.legal_name.ilike(pattern),
+                Vendor.registration_id.ilike(pattern),
+                Vendor.process.ilike(pattern),
+            )
+        )
+
+    return query
+
+
+def _vendor_order_column(sort_by: str | None) -> Any:
+    sort_columns: dict[str, Any] = {
+        "name": Vendor.name,
+        "status": Vendor.status,
+        "vendor_type": Vendor.vendor_type,
+        "risk_score_1_5": Vendor.risk_score_1_5,
+        "process": Vendor.process,
+        "created_at": Vendor.created_at,
+    }
+    return sort_columns.get(sort_by or "", Vendor.name)
+
+
+async def _serialize_vendor_reads(
+    db: AsyncSession,
+    vendors: list[Vendor],
+    *,
+    current_user: User,
+    can_read_risks: bool,
+) -> list[VendorRead]:
+    visible_risk_ids = (
+        await _get_visible_risk_ids(db, current_user=current_user, vendors=vendors) if can_read_risks else set()
+    )
+    linked_risks_by_vendor_id = _serialize_vendor_linked_risks(vendors, visible_risk_ids=visible_risk_ids)
+    return [
+        vendor_to_read(
+            vendor,
+            current_user=current_user,
+            linked_risks=linked_risks_by_vendor_id.get(vendor.id, []),
+        )
+        for vendor in vendors
+    ]
+
+
 @router.get("", response_model=VendorListResponse)
 async def list_vendors(
     db: AsyncSession = Depends(get_db),
@@ -174,110 +332,33 @@ async def list_vendors(
         group_value=group_value,
         max_limit=100,
     )
-    filter_values = merge_collection_filters(
+    criteria = _coerce_vendor_list_criteria(
         collection_query,
-        {
-            "search": search,
-            "status": status_filter.value if status_filter else None,
-            "include_archived": include_archived,
-            "vendor_type": vendor_type.value if vendor_type else None,
-            "dora_relevant": dora_relevant,
-            "supports_important_core_insurance_function": supports_important_core_insurance_function,
-            "is_significant_vendor": is_significant_vendor,
-            "outsourcing_owner_user_id": outsourcing_owner_user_id,
-            "department_id": department_id,
-            "process": process,
-            "subprocess": subprocess,
-            "risk_score_1_5": risk_score_1_5,
-        },
+        search=search,
+        status_filter=status_filter,
+        include_archived=include_archived,
+        vendor_type=vendor_type,
+        dora_relevant=dora_relevant,
+        supports_important_core_insurance_function=supports_important_core_insurance_function,
+        is_significant_vendor=is_significant_vendor,
+        outsourcing_owner_user_id=outsourcing_owner_user_id,
+        department_id=department_id,
+        process=process,
+        subprocess=subprocess,
+        risk_score_1_5=risk_score_1_5,
+        sort_by=sort_by,
+        sort_order=sort_order,
     )
-    search = coerce_optional_string("search", filter_values.get("search"))
-    status_value = filter_values.get("status")
-    status_filter = coerce_optional_enum(VendorStatusEnum, status_value, "status")
-    include_archived = coerce_optional_bool("include_archived", filter_values.get("include_archived")) or False
-    vendor_type_value = filter_values.get("vendor_type")
-    vendor_type = coerce_optional_enum(VendorTypeEnum, vendor_type_value, "vendor_type")
-    dora_relevant = coerce_optional_bool("dora_relevant", filter_values.get("dora_relevant"))
-    supports_important_core_insurance_function = coerce_optional_bool(
-        "supports_important_core_insurance_function",
-        filter_values.get("supports_important_core_insurance_function"),
-    )
-    is_significant_vendor = coerce_optional_bool(
-        "is_significant_vendor", filter_values.get("is_significant_vendor")
-    )
-    outsourcing_owner_user_id = coerce_optional_int(
-        "outsourcing_owner_user_id", filter_values.get("outsourcing_owner_user_id")
-    )
-    department_id = coerce_optional_int("department_id", filter_values.get("department_id"))
-    process = coerce_optional_string("process", filter_values.get("process"))
-    subprocess = coerce_optional_string("subprocess", filter_values.get("subprocess"))
-    risk_score_1_5 = coerce_optional_int(
-        "risk_score_1_5", filter_values.get("risk_score_1_5"), min_value=1, max_value=5
-    )
-    offset = collection_query.offset
-    limit = collection_query.limit
-    sort_by = collection_query.sort.field if collection_query.sort else sort_by
-    sort_order = collection_query.sort.direction if collection_query.sort else sort_order
 
     can_read_risks = check_permission(current_user, "risks", "read")
-    base_query = select(Vendor)
-
-    base_query = apply_vendor_visibility_scope(base_query, current_user, department_id=department_id)
-
-    if status_filter is not None:
-        base_query = base_query.where(Vendor.status == status_filter.value)
-    elif not include_archived:
-        base_query = base_query.where(Vendor.status == VendorStatusEnum.active.value)
-    if vendor_type is not None:
-        base_query = base_query.where(Vendor.vendor_type == vendor_type.value)
-    if dora_relevant is not None:
-        base_query = base_query.where(Vendor.dora_relevant == dora_relevant)
-    if supports_important_core_insurance_function is not None:
-        base_query = base_query.where(
-            Vendor.supports_important_core_insurance_function == supports_important_core_insurance_function
-        )
-    if is_significant_vendor is not None:
-        base_query = base_query.where(Vendor.is_significant_vendor == is_significant_vendor)
-    if outsourcing_owner_user_id is not None:
-        base_query = base_query.where(Vendor.outsourcing_owner_user_id == outsourcing_owner_user_id)
-    if process is not None:
-        base_query = base_query.where(Vendor.process == process)
-    if subprocess is not None:
-        base_query = base_query.where(Vendor.subprocess == subprocess)
-    if risk_score_1_5 is not None:
-        base_query = base_query.where(Vendor.risk_score_1_5 == risk_score_1_5)
-
-    if search:
-        pattern = f"%{search}%"
-        base_query = base_query.where(
-            or_(
-                Vendor.name.ilike(pattern),
-                Vendor.legal_name.ilike(pattern),
-                Vendor.registration_id.ilike(pattern),
-                Vendor.process.ilike(pattern),
-            )
-        )
+    base_query = _apply_vendor_list_filters(select(Vendor), current_user, criteria)
 
     count_query = select(func.count()).select_from(base_query.subquery())
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0
 
-    order_column: Any = Vendor.name
-    if sort_by:
-        if sort_by == "name":
-            order_column = Vendor.name
-        elif sort_by == "status":
-            order_column = Vendor.status
-        elif sort_by == "vendor_type":
-            order_column = Vendor.vendor_type
-        elif sort_by == "risk_score_1_5":
-            order_column = Vendor.risk_score_1_5
-        elif sort_by == "process":
-            order_column = Vendor.process
-        elif sort_by == "created_at":
-            order_column = Vendor.created_at
-
-    if sort_order == "desc":
+    order_column = _vendor_order_column(criteria.sort_by)
+    if criteria.sort_order == "desc":
         base_query = base_query.order_by(desc(order_column))
     else:
         base_query = base_query.order_by(asc(order_column))
@@ -290,23 +371,14 @@ async def list_vendors(
 
     ordered_query = base_query.options(*query_options)
 
-    async def serialize_vendors(vendors: list[Vendor]) -> list[VendorRead]:
-        visible_risk_ids = (
-            await _get_visible_risk_ids(db, current_user=current_user, vendors=vendors) if can_read_risks else set()
-        )
-        linked_risks_by_vendor_id = _serialize_vendor_linked_risks(vendors, visible_risk_ids=visible_risk_ids)
-        return [
-            vendor_to_read(
-                vendor,
-                current_user=current_user,
-                linked_risks=linked_risks_by_vendor_id.get(vendor.id, []),
-            )
-            for vendor in vendors
-        ]
-
     if collection_query.group_by:
         result = await db.execute(ordered_query)
-        all_items = await serialize_vendors(list(result.scalars().all()))
+        all_items = await _serialize_vendor_reads(
+            db,
+            list(result.scalars().all()),
+            current_user=current_user,
+            can_read_risks=can_read_risks,
+        )
         paginated_items, grouped_total, groups = build_grouped_collection_page(
             all_items,
             collection_query,
@@ -317,12 +389,12 @@ async def list_vendors(
         return VendorListResponse(
             items=paginated_items,
             total=grouped_total,
-            offset=offset,
-            limit=limit,
+            offset=criteria.offset,
+            limit=criteria.limit,
             groups=groups,
         )
 
-    result = await db.execute(ordered_query.offset(offset).limit(limit))
+    result = await db.execute(ordered_query.offset(criteria.offset).limit(criteria.limit))
     vendors = result.scalars().all()
 
     visible_risk_ids = (
@@ -333,8 +405,8 @@ async def list_vendors(
     return vendor_list_response(
         vendors=list(vendors),
         total=total,
-        offset=offset,
-        limit=limit,
+        offset=criteria.offset,
+        limit=criteria.limit,
         current_user=current_user,
         linked_risks_by_vendor_id=linked_risks_by_vendor_id,
     )
