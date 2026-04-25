@@ -11,7 +11,12 @@ from jwt.algorithms import RSAAlgorithm
 
 from app.core.config import Settings
 from app.core.activity_logger import audit_logger
-from app.services.sso_token_service import EntraTokenVerifier, SsoTokenVerificationError
+from app.services.sso_token_service import (
+    EntraTokenVerifier,
+    SsoProviderUnavailableError,
+    SsoTokenVerificationError,
+    _verifier_key,
+)
 
 
 def _make_rsa_keypair() -> tuple[bytes, rsa.RSAPublicKey]:
@@ -26,6 +31,47 @@ def _make_rsa_keypair() -> tuple[bytes, rsa.RSAPublicKey]:
 
 async def _allow_resolved_outbound_guard(*_args, **_kwargs) -> None:
     return None
+
+
+def test_sso_verifier_cache_key_separates_security_relevant_settings():
+    base = {
+        "secret_key": "test-secret-key-32-chars-minimum-value",
+        "auth_mode": "microsoft_sso",
+        "entra_tenant_id": "tenant-a",
+        "entra_client_id": "client-a",
+        "entra_oidc_discovery_url": "https://login.example.test/tenant-a/.well-known/openid-configuration",
+        "entra_allowed_email_domains": ["example.com"],
+        "entra_business_role_attribute_name": "riskhubBusinessRole",
+    }
+    base_key = _verifier_key(Settings(**base))
+
+    variants = [
+        {"entra_tenant_id": "tenant-b"},
+        {"entra_client_id": "client-b"},
+        {"entra_oidc_discovery_url": "https://login.other.test/tenant-a/.well-known/openid-configuration"},
+        {"entra_allowed_email_domains": ["other.example"]},
+        {"entra_business_role_attribute_name": "riskhubBusinessRoleV2"},
+        {"entra_clock_skew_seconds": 30},
+    ]
+
+    for variant in variants:
+        assert _verifier_key(Settings(**{**base, **variant})) != base_key
+
+
+@pytest.mark.asyncio
+async def test_sso_fetch_json_uses_outbound_guard_for_discovery_urls():
+    settings = Settings(
+        debug=False,
+        secret_key="test-secret-key-32-chars-minimum-value",
+        auth_mode="microsoft_sso",
+        entra_tenant_id="00000000-0000-0000-0000-000000000000",
+        entra_client_id="11111111-1111-1111-1111-111111111111",
+        entra_oidc_discovery_url="http://127.0.0.1:8080/.well-known/openid-configuration",
+    )
+    verifier = EntraTokenVerifier(settings=settings)
+
+    with pytest.raises(SsoProviderUnavailableError, match="Private/local outbound destination is blocked"):
+        await verifier._fetch_json("http://127.0.0.1:8080/.well-known/openid-configuration")
 
 
 @pytest.mark.asyncio

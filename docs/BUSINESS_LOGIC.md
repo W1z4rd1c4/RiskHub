@@ -114,12 +114,15 @@ Access-management read/list behavior and write behavior are intentionally differ
 
 Access-user responses may include additive `capabilities` metadata (`can_edit_identity`, `can_edit_business_access`, `can_edit_role`, `can_deactivate`, `can_revoke_sessions`). The frontend should prefer those backend flags over local role guesses; when a flag is absent, older local fallback behavior remains acceptable.
 
+Admin session operations use the shared auth-session workflow. `/api/v1/admin/sessions` lists only active users with unrevoked, unexpired refresh-token sessions; inactive or deleted users are excluded from the active-session projection. `/api/v1/admin/sessions/{user_id}/revoke` rejects self-revocation, locks the target user row, revokes active refresh-token rows, bumps the target `token_version` exactly once, and writes the admin activity entry in the same transaction.
+
 Additional identity-governance rule for `microsoft_sso` mode:
 
 - For users with `external_id`, `name` and `email` are Entra-authoritative and cannot be edited locally.
 - `entra_business_role`, when configured, is also Entra-authoritative metadata. It is visible to the signed-in user and admin read surfaces, but it must not be used for RiskHub authorization.
 - Local `role_id`, `department_id`, `access_scope`, and `manager_id` remain RiskHub-authoritative in this release. CRO may override `department_id` locally even for SSO-linked users.
 - If an externally linked user was auto-deprovisioned because the directory account is missing or disabled, normal local re-enable is blocked; operators must use the explicit break-glass flow with expiry and audit.
+- Entra ID token verifier instances are cached only across equivalent security settings: tenant, client, discovery URL, clock skew, allowed email domains, and business-role token claim must all match. Discovery and JWKS fetches stay behind the outbound egress guard.
 
 > [!IMPORTANT]
 > `admin` is a platform role, not a business-data superuser. Admin capabilities must not be interpreted as unrestricted business access. Direct business `/governance` and `/activity-log` access remains blocked for `admin`, including direct route/API requests.

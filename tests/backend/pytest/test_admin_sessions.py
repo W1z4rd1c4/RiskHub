@@ -1,17 +1,18 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.datetime_utils import utc_now
 from app.models import RefreshToken, User
 
 
 def _active_refresh_row(*, user_id: int, jti: str) -> RefreshToken:
-    now = datetime.now(UTC)
+    now = utc_now()
     return RefreshToken(
         user_id=user_id,
         jti=jti,
@@ -48,6 +49,22 @@ async def test_admin_sessions_lists_real_refresh_sessions(
 
 
 @pytest.mark.asyncio
+async def test_admin_sessions_excludes_inactive_users(
+    client_platform_admin: AsyncClient,
+    db_session: AsyncSession,
+    test_user_employee: User,
+):
+    test_user_employee.is_active = False
+    db_session.add(test_user_employee)
+    db_session.add(_active_refresh_row(user_id=test_user_employee.id, jti="jti-inactive-session"))
+    await db_session.commit()
+
+    response = await client_platform_admin.get("/api/v1/admin/sessions")
+    assert response.status_code == 200, response.text
+    assert test_user_employee.id not in {item["user_id"] for item in response.json()}
+
+
+@pytest.mark.asyncio
 async def test_admin_revoke_session_revokes_refresh_rows_and_bumps_token_version(
     client_platform_admin: AsyncClient,
     db_session: AsyncSession,
@@ -71,3 +88,14 @@ async def test_admin_revoke_session_revokes_refresh_rows_and_bumps_token_version
     )
     assert len(refresh_rows) == 1
     assert refresh_rows[0].revoked_at is not None
+
+
+@pytest.mark.asyncio
+async def test_admin_revoke_session_blocks_self_revoke(
+    client_platform_admin: AsyncClient,
+    test_user_platform_admin: User,
+):
+    response = await client_platform_admin.post(f"/api/v1/admin/sessions/{test_user_platform_admin.id}/revoke")
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Cannot revoke your own session"

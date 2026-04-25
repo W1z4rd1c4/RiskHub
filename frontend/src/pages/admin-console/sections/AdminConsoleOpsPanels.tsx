@@ -4,6 +4,7 @@ import { useTranslation } from '@/i18n/hooks';
 import { Users, RefreshCw, Database, Clock, MemoryStick, UserX } from 'lucide-react';
 
 import { adminApi, type ActiveSession } from '@/services/adminApi';
+import { ApiClientError } from '@/services/apiClient';
 import { useAdaptivePollingQuery } from '@/hooks/useAdaptivePollingQuery';
 import { cn } from '@/lib/utils';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
@@ -374,6 +375,7 @@ export function SessionsPanel() {
     const [pendingRevokeSession, setPendingRevokeSession] = useState<ActiveSession | null>(null);
     const [directorySummary, setDirectorySummary] = useState<string | null>(null);
     const [directorySyncing, setDirectorySyncing] = useState(false);
+    const [revokeError, setRevokeError] = useState<string | null>(null);
 
     const { data: sessions, isLoading } = useQuery({
         queryKey: ['adminSessions'],
@@ -382,7 +384,15 @@ export function SessionsPanel() {
 
     const revokeMutation = useMutation({
         mutationFn: (userId: number) => adminApi.revokeSession(userId),
+        onMutate: () => setRevokeError(null),
         onSuccess: () => queryClient.invalidateQueries({ queryKey: ['adminSessions'] }),
+        onError: (error) => {
+            const message = error instanceof ApiClientError
+                ? (error.rawMessage ?? error.messageKey)
+                : t('sessions.revoke_failed', { defaultValue: 'Failed to revoke session.' });
+            setRevokeError(message);
+            void queryClient.invalidateQueries({ queryKey: ['adminSessions'] });
+        },
     });
 
     const handleConfirmRevoke = () => {
@@ -440,6 +450,11 @@ export function SessionsPanel() {
             {directorySummary && (
                 <div className="admin-surface-muted admin-text rounded-lg border px-3 py-2 text-xs">
                     {directorySummary}
+                </div>
+            )}
+            {revokeError && (
+                <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-100">
+                    {revokeError}
                 </div>
             )}
 

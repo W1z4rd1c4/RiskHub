@@ -1,16 +1,15 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 from starlette.requests import Request
 
 from app.core.datetime_utils import coerce_utc, utc_now
 from app.db.session import get_db
-from app.models import Control, KeyRiskIndicator, OutboxEvent, RefreshToken, Risk, User
+from app.models import Control, KeyRiskIndicator, OutboxEvent, Risk, User
 from app.models.scheduler_job_run import SchedulerJobRun
 from app.schemas.admin import (
     ActiveSessionResponse,
@@ -21,6 +20,11 @@ from app.schemas.admin import (
     SystemHealthResponse,
     SystemStatsResponse,
     TechnicalLogEntry,
+)
+from app.services._auth_session_workflow import (
+    SessionWorkflowError,
+    list_active_session_projections,
+    revoke_user_sessions,
 )
 
 from ._deps import require_platform_admin
@@ -39,8 +43,6 @@ async def get_system_health(
     Admin only.
     """
     import time
-    from datetime import UTC, datetime
-
     import psutil
 
     # Measure database latency
@@ -56,15 +58,16 @@ async def get_system_health(
     process = psutil.Process()
     memory_mb = process.memory_info().rss / 1024 / 1024
 
-    process_started_at = getattr(request.app.state, "process_started_at", datetime.now(UTC))
-    uptime_seconds = max(0, int((datetime.now(UTC) - process_started_at).total_seconds()))
+    now = utc_now()
+    process_started_at = coerce_utc(getattr(request.app.state, "process_started_at", None)) or now
+    uptime_seconds = max(0, int((now - process_started_at).total_seconds()))
 
     return SystemHealthResponse(
         database_status=db_status,
         database_latency_ms=round(latency_ms, 2),
         uptime_seconds=uptime_seconds,
         memory_usage_mb=round(memory_mb, 2),
-        last_check=datetime.now(UTC).isoformat(),
+        last_check=now.isoformat(),
     )
 
 
@@ -215,8 +218,6 @@ async def get_system_stats(
     Get platform statistics including user counts and entity totals.
     Admin only.
     """
-    from datetime import UTC, datetime, timedelta
-
     from app.models import ApprovalRequest
 
     # Total users
@@ -228,7 +229,7 @@ async def get_system_stats(
     from app.models.activity_log import ActivityLog
 
     # Timezone-aware datetime works for both PostgreSQL and SQLite via SQLAlchemy
-    yesterday = datetime.now(UTC) - timedelta(hours=24)
+    yesterday = utc_now() - timedelta(hours=24)
     active_users_result = await db.execute(
         select(func.count(func.distinct(ActivityLog.actor_id))).where(ActivityLog.created_at >= yesterday)
     )
@@ -314,50 +315,19 @@ async def get_active_sessions(
     Get active refresh-token sessions (real server-side session view).
     Admin only.
     """
-    from app.core.datetime_utils import utc_now
-
-    now = utc_now()
-    session_subquery = (
-        select(
-            RefreshToken.user_id.label("user_id"),
-            func.count(RefreshToken.id).label("active_sessions"),
-            func.max(func.coalesce(RefreshToken.last_used_at, RefreshToken.issued_at)).label("last_activity"),
-            func.max(RefreshToken.issued_at).label("last_login"),
-        )
-        .where(RefreshToken.revoked_at.is_(None))
-        .where(RefreshToken.expires_at > now)
-        .group_by(RefreshToken.user_id)
-        .subquery()
-    )
-
-    query = (
-        select(
-            User,
-            session_subquery.c.active_sessions,
-            session_subquery.c.last_activity,
-            session_subquery.c.last_login,
-        )
-        .join(session_subquery, User.id == session_subquery.c.user_id)
-        .options(selectinload(User.role), selectinload(User.department))
-        .order_by(session_subquery.c.last_activity.desc())
-    )
-
-    result = await db.execute(query)
-    rows = result.all()
-
     return [
         ActiveSessionResponse(
-            user_id=user.id,
-            user_name=user.name,
-            user_email=user.email,
-            role=user.role.display_name if user.role else "Unknown",
-            department=user.department.name if user.department else None,
-            last_activity=last_activity.isoformat() if last_activity else "",
-            is_active=bool(user.is_active and active_sessions),
-            last_login=last_login.isoformat() if last_login else None,
-            active_sessions=int(active_sessions or 0),
+            user_id=session.user_id,
+            user_name=session.user_name,
+            user_email=session.user_email,
+            role=session.role,
+            department=session.department,
+            last_activity=session.last_activity.isoformat() if session.last_activity else "",
+            is_active=True,
+            last_login=session.last_login.isoformat() if session.last_login else None,
+            active_sessions=session.active_sessions,
         )
-        for user, active_sessions, last_activity, last_login in rows
+        for session in await list_active_session_projections(db)
     ]
 
 
@@ -371,40 +341,10 @@ async def revoke_user_session(
     Force logout a user's active sessions.
     Admin only.
     """
-    if user_id == admin_user.id:
-        raise HTTPException(status_code=400, detail="Cannot revoke your own session")
-
-    # Get user
-    result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
-
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    # Revoke all active refresh sessions and bump token version for immediate JWT invalidation.
-    now = datetime.now(UTC)
-    revoked_rows = await db.execute(
-        update(RefreshToken)
-        .where(RefreshToken.user_id == user_id)
-        .where(RefreshToken.revoked_at.is_(None))
-        .values(revoked_at=now, revoked_reason=f"admin_revoke:{admin_user.id}")
-    )
-    revoked_count = int(revoked_rows.rowcount or 0)
-    user.token_version += 1
-    db.add(user)
-
-    from app.core.activity_logger import log_activity
-    from app.models.activity_log import ActivityAction, ActivityEntityType
-
-    await log_activity(
-        db=db,
-        actor=admin_user,
-        action=ActivityAction.UPDATE,
-        entity_type=ActivityEntityType.USER,
-        entity_id=user_id,
-        entity_name=user.name,
-        description=f"Sessions revoked for user {user.email} by admin (count={revoked_count})",
-    )
+    try:
+        result = await revoke_user_sessions(db, target_user_id=user_id, admin_user=admin_user)
+    except SessionWorkflowError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
     await db.commit()
 
-    return {"status": "success", "message": f"Revoked {revoked_count} active sessions for {user.email}"}
+    return {"status": "success", "message": f"Revoked {result.revoked_count} active sessions for {result.user.email}"}

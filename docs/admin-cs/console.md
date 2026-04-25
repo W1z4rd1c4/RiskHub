@@ -110,12 +110,13 @@ Bezpečnostní pravidla:
 1. Otevřete **Sessions**.
 2. Najděte uživatele podle emailu nebo jména.
 3. Ověřte last activity, last login, roli a department kontext.
+   - neaktivní/deprovisioned uživatelé se v active sessions nezobrazují, i když existují starší refresh záznamy
 4. Revokujte session jen když je to nutné:
    - podezření na kompromitaci
    - offboarding
    - zaseknutý auth/session stav
 
-Revokace session je nevratná. Recovery cesta je re-auth uživatele.
+Revokace session je nevratná. Backend ji provádí jako jeden workflow: revokuje aktivní refresh záznamy, zvýší target uživateli token version a ve stejné transakci zapíše admin activity entry. Recovery cesta je re-auth uživatele.
 
 ### 5) Log konfigurace
 

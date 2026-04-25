@@ -109,12 +109,13 @@ Safety rules:
 1. Open **Sessions**.
 2. Identify the user by email or name.
 3. Confirm last activity, last login, role, and department context.
+   - inactive/deprovisioned users are not shown as active sessions even if old refresh rows still exist
 4. Revoke sessions only when needed:
    - suspected compromise
    - offboarding
    - stuck auth/session behavior
 
-Session revocation is not reversible. The recovery path is user re-authentication.
+Session revocation is not reversible. The backend performs revocation as one workflow: active refresh rows are revoked, the target user's token version is bumped, and the admin activity entry is written in the same transaction. The recovery path is user re-authentication.
 
 ### 5) Log configuration
 

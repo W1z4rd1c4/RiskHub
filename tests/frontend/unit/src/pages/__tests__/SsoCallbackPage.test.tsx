@@ -83,4 +83,34 @@ describe('SsoCallbackPage', () => {
         expect(exchangeCalls).toBe(0);
         expect(getAccessToken()).toBeNull();
     });
+
+    it('shows the existing callback error when SSO exchange is denied', async () => {
+        clearAccessToken();
+        (entraAuth.handleRedirect as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+            idToken: 'id-token',
+            state: 'server-state',
+        });
+
+        server.use(
+            http.post('*/api/v1/auth/sso/exchange', async () => (
+                HttpResponse.json(
+                    { detail: 'Email domain not allowed', code: 'email_domain_not_allowed' },
+                    { status: 403 },
+                )
+            )),
+        );
+
+        render(
+            <MemoryRouter initialEntries={['/auth/sso/callback']}>
+                <Routes>
+                    <Route path="/auth/sso/callback" element={<SsoCallbackPage />} />
+                    <Route path="/login" element={<div>Login</div>} />
+                </Routes>
+            </MemoryRouter>
+        );
+
+        expect(await screen.findByText('Sign-in failed')).toBeInTheDocument();
+        expect(screen.getByText('Single sign-on failed. Please try again.')).toBeInTheDocument();
+        expect(getAccessToken()).toBeNull();
+    });
 });
