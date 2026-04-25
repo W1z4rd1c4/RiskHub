@@ -142,7 +142,13 @@ jobs:
       - name: Repo artifact + script syntax contracts
         run: |
           set -euo pipefail
-          make -f scripts/Makefile quality-repo-contracts | tee lint-repo-contracts.log
+          AUTHZ_CONTRACT_BASE_REF=HEAD
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            AUTHZ_CONTRACT_BASE_REF="origin/${{ github.base_ref }}"
+          elif [ "${{ github.event_name }}" = "push" ] && [ -n "${{ github.event.before }}" ] && [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]; then
+            AUTHZ_CONTRACT_BASE_REF="${{ github.event.before }}"
+          fi
+          AUTHZ_CONTRACT_BASE_REF="$AUTHZ_CONTRACT_BASE_REF" make -f scripts/Makefile quality-repo-contracts | tee lint-repo-contracts.log
 
       - name: Production contract docs gate
         run: |

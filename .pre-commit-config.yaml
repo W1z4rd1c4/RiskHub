@@ -62,6 +62,11 @@ repos:
         name: Public Repo Hygiene
         entry: python3 scripts/security/validate_public_repo_hygiene.py
         language: system
+      - id: authz-capability-contract
+        name: Authorization Capability Contract
+        entry: python3 scripts/security/validate_authz_capability_contract.py
+        language: system
+        pass_filenames: false
       - id: eslint
         name: ESLint
         entry: npm --prefix frontend exec eslint --

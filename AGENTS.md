@@ -24,7 +24,7 @@ Use [`docs/DOCUMENTATION_TREE.md`](docs/DOCUMENTATION_TREE.md) for full cross-do
 | Key Knowledge > Endpoint package splits (maintainability) | `docs/agent/ENDPOINT_INVARIANTS.md` | full | RiskHub Maintainer | 2026-02-16 |
 | Key Knowledge > SQLAlchemy FK cycles (SQLite tests) | `docs/agent/ENDPOINT_INVARIANTS.md` | full | RiskHub Maintainer | 2026-02-16 |
 | Testing Matrix | `.planning/codebase/TESTING.md`<br>`docs/TESTING.md` | full | RiskHub Maintainer | 2026-04-25 |
-| RBAC and Business Logic Guardrails | `docs/BUSINESS_LOGIC.md`<br>`.planning/codebase/CONCERNS.md` | full | RiskHub Maintainer | 2026-04-25 |
+| RBAC and Business Logic Guardrails | `docs/security/authorization-capability-contract.md`<br>`docs/security/authorization-capability-contract.json`<br>`docs/BUSINESS_LOGIC.md`<br>`.planning/codebase/CONCERNS.md` | full | RiskHub Maintainer | 2026-04-26 |
 | Frontend Display Guardrails | `docs/agent/FRONTEND_DISPLAY_GUARDRAILS.md` | full | RiskHub Maintainer | 2026-02-16 |
 | Security and Production Guardrails | `docs/deployment/security-checklist.md`<br>`docs/deployment/README.md` | full | RiskHub Maintainer | 2026-02-16 |
 | Quick Commands | `scripts/install.sh`<br>`scripts/dev.sh`<br>`scripts/compose.sh`<br>`scripts/deploy.sh`<br>`scripts/Makefile`<br>`docs/development/README.md`<br>`docs/deployment/reference.md` | full | RiskHub Maintainer | 2026-04-05 |
@@ -187,14 +187,22 @@ Testing expectations:
 
 ## RBAC and Business Logic Guardrails
 
-Canonical Source: `docs/BUSINESS_LOGIC.md`, `.planning/codebase/CONCERNS.md`
+Canonical Source: `docs/security/authorization-capability-contract.md`, `docs/security/authorization-capability-contract.json`, `docs/BUSINESS_LOGIC.md`, `.planning/codebase/CONCERNS.md`
 
 - Keep backend enforcement as the authority; frontend gating must mirror, not replace, backend checks.
+- Frontend action visibility must prefer backend `capabilities` metadata when available.
+- Local frontend permission checks are compatibility fallbacks only, not authoritative policy.
 - For permission changes, reconcile:
   - endpoint guards/dependencies
   - service-level authorization checks
+  - response `capabilities` shape and semantics
   - frontend `PermissionGate` / permission hooks
+  - reports, exports, dashboards, departments, and vendor-linked visibility
+  - `docs/security/authorization-capability-contract.md`
+  - `docs/security/authorization-capability-contract.json`
   - `docs/BUSINESS_LOGIC.md`
+- Do not introduce new frontend-only action gates for protected mutations when backend capability metadata can be exposed instead.
+- Authorization-sensitive changes must pass `python3 scripts/security/validate_authz_capability_contract.py`.
 
 ## Frontend Display Guardrails
 

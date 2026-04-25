@@ -47,6 +47,7 @@ AGENTS.md
   - User manuals are task-oriented product content. Admin docs are operator runbooks. Engineering details belong in `docs/`, `.planning/codebase/`, and frontmatter metadata rather than user-facing manual body text.
 - Security posture and audits:
   - [`docs/security/README.md`](./security/README.md)
+  - [`docs/security/authorization-capability-contract.md`](./security/authorization-capability-contract.md)
   - [`docs/security/SECURITY.md`](./security/SECURITY.md)
 - Point-in-time subsystem audits:
   - [`docs/audits/README.md`](./audits/README.md)

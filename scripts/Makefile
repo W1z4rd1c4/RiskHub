@@ -1,6 +1,8 @@
 # RiskHub Development Makefile
 # Usage: make -f scripts/Makefile <target>
 
+AUTHZ_CONTRACT_BASE_REF ?= HEAD
+
 .PHONY: help dev dev-full docker docker-lan docker-reset stop clean test test-fast test-db-contracts test-postgres-ci test-benchmarks migrate logs shell db db-shell lint lint-frontend lint-backend quality-suppression-budget quality-repo-contracts readme-coverage docs-tree-audit docs-topology-consistency verify verify-prod-install-scripts verify-startup-scripts security-contract-probe security-redis-resilience security-gap-round5 public-repo-hygiene public-leak-audit prod-readiness-audit-local release-parity-audit
 
 # Default target
@@ -148,6 +150,7 @@ quality-suppression-budget:
 quality-repo-contracts:
 	bash -n scripts/install.sh scripts/compose.sh scripts/dev.sh scripts/deploy.sh
 	python3 -m py_compile backend/scripts/migrate_controls.py backend/scripts/migrate_kris.py backend/scripts/migrate_risks.py backend/scripts/seed_users.py backend/scripts/seed_demo.py
+	python3 scripts/security/validate_authz_capability_contract.py --base-ref "$(AUTHZ_CONTRACT_BASE_REF)"
 	cd backend && pytest -q ../tests/backend/pytest/test_repo_hygiene_contracts.py
 
 # Run full lint suite
