@@ -9,14 +9,6 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/W1z4rd1c4/RIskHub/actions/workflows/backend-postgres.yml"><img alt="Backend Tests" src="https://github.com/W1z4rd1c4/RIskHub/actions/workflows/backend-postgres.yml/badge.svg" /></a>
-  <a href="https://github.com/W1z4rd1c4/RIskHub/actions/workflows/lint.yml"><img alt="Lint" src="https://github.com/W1z4rd1c4/RIskHub/actions/workflows/lint.yml/badge.svg" /></a>
-  <a href="https://github.com/W1z4rd1c4/RIskHub/actions/workflows/e2e.yml"><img alt="E2E Tests" src="https://github.com/W1z4rd1c4/RIskHub/actions/workflows/e2e.yml/badge.svg" /></a>
-  <a href="https://github.com/W1z4rd1c4/RIskHub/actions/workflows/security.yml"><img alt="Security Scanning" src="https://github.com/W1z4rd1c4/RIskHub/actions/workflows/security.yml/badge.svg" /></a>
-  <a href="./LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue.svg" /></a>
-</p>
-
-<p align="center">
   <a href="#quick-start"><strong>Quick Start</strong></a>
   ·
   <a href="#how-riskhub-works"><strong>Product Tour</strong></a>
@@ -27,8 +19,6 @@
   ·
   <a href="./CONTRIBUTING.md"><strong>Contribute</strong></a>
 </p>
-
-![RiskHub dashboard showing portfolio health, risk posture, and operational work queues.](./docs/assets/readme/hero-dashboard.png)
 
 ## Why RiskHub
 
