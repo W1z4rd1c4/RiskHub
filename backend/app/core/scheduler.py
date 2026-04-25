@@ -6,15 +6,57 @@ from contextlib import asynccontextmanager
 from uuid import uuid4
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from sqlalchemy import select, text
-from sqlalchemy.ext.asyncio import AsyncConnection, AsyncEngine, AsyncSession, async_sessionmaker
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
-from app.core.datetime_utils import coerce_utc, utc_now
+from app.core.datetime_utils import utc_now
 from app.core.logging import get_logger
+from app.core.scheduler_locks import (
+    SCHEDULER_LOCK_CLASS_ID,
+    SCHEDULER_LOCK_OBJECT_ID,
+    PostgresAdvisoryLockProvider,
+    SchedulerLockProvider,
+)
+from app.core.scheduler_runtime import (
+    get_outbox_dispatch_runtime_state,
+    get_scheduler_role_status,
+    outbox_dispatch_state,
+)
+from app.core.scheduler_tracking import compute_duration_ms as _compute_duration_ms
+from app.core.scheduler_tracking import execute_tracked_job as _execute_tracked_job
+from app.core.scheduler_tracking import execute_tracked_job_with_session as _execute_tracked_job_with_session
+from app.core.scheduler_tracking import record_job_start as _record_job_start_impl
 from app.models.scheduler_job_run import SchedulerJobRun
 from app.services.outbox.store import ensure_outbox_runtime_supported
 
 logger = get_logger("scheduler")
+
+__all__ = [
+    "DEFAULT_SCHEDULER_JOB_PROFILE",
+    "FULL_SCHEDULER_JOB_IDS",
+    "OPTIONAL_SCHEDULER_JOB_IDS",
+    "OUTBOX_ONLY_SCHEDULER_JOB_IDS",
+    "PROCESS_INSTANCE_ID",
+    "PROCESS_STARTED_AT",
+    "SCHEDULER_JOB_PROFILE_ENV",
+    "SCHEDULER_LOCK_CLASS_ID",
+    "SCHEDULER_LOCK_OBJECT_ID",
+    "SCHEDULER_RUNTIME_JOB_NAME",
+    "PostgresAdvisoryLockProvider",
+    "SchedulerLockProvider",
+    "configure_scheduler",
+    "execute_tracked_job",
+    "execute_tracked_job_with_session",
+    "get_db_context",
+    "get_outbox_dispatch_runtime_state",
+    "get_scheduler_runtime_state",
+    "scheduler",
+    "setup_scheduler",
+    "start_scheduler",
+    "start_scheduler_async",
+    "stop_scheduler",
+    "stop_scheduler_async",
+]
 
 # Global scheduler instance
 scheduler = AsyncIOScheduler()
@@ -22,16 +64,8 @@ _db_sessionmaker: async_sessionmaker[AsyncSession] | None = None
 _db_engine: AsyncEngine | None = None
 _lock_provider: "SchedulerLockProvider | None" = None
 _runtime_run_id: str | None = None
-_outbox_dispatch_state: dict[str, object | None] = {
-    "last_started_at": None,
-    "last_finished_at": None,
-    "last_status": None,
-    "last_processed": None,
-    "last_error": None,
-}
+_outbox_dispatch_state = outbox_dispatch_state
 
-SCHEDULER_LOCK_CLASS_ID = 424242
-SCHEDULER_LOCK_OBJECT_ID = 1
 SCHEDULER_RUNTIME_JOB_NAME = "__scheduler_runtime__"
 SCHEDULER_JOB_PROFILE_ENV = "SCHEDULER_JOB_PROFILE"
 DEFAULT_SCHEDULER_JOB_PROFILE = "full"
@@ -47,70 +81,6 @@ OPTIONAL_SCHEDULER_JOB_IDS = ("sso_jwks_refresh",)
 OUTBOX_ONLY_SCHEDULER_JOB_IDS = ("outbox_dispatch",)
 PROCESS_INSTANCE_ID = str(uuid4())
 PROCESS_STARTED_AT = utc_now()
-
-
-class SchedulerLockProvider:
-    """Scheduler ownership abstraction."""
-
-    provider_name = "noop"
-
-    def __init__(self) -> None:
-        self.lock_acquired = False
-
-    async def acquire(self) -> bool:
-        self.lock_acquired = True
-        return True
-
-    async def release(self) -> None:
-        self.lock_acquired = False
-
-
-class PostgresAdvisoryLockProvider(SchedulerLockProvider):
-    """Holds a Postgres advisory lock on a dedicated connection for scheduler ownership."""
-
-    provider_name = "postgres_advisory_lock"
-
-    def __init__(self, engine: AsyncEngine) -> None:
-        super().__init__()
-        self._engine = engine
-        self._connection: AsyncConnection | None = None
-
-    async def acquire(self) -> bool:
-        if self._connection is not None:
-            return self.lock_acquired
-
-        connection = await self._engine.connect()
-        acquired = bool(
-            (
-                await connection.execute(
-                    text("SELECT pg_try_advisory_lock(:class_id, :object_id)"),
-                    {"class_id": SCHEDULER_LOCK_CLASS_ID, "object_id": SCHEDULER_LOCK_OBJECT_ID},
-                )
-            ).scalar()
-        )
-        if acquired:
-            self._connection = connection
-            self.lock_acquired = True
-            return True
-
-        await connection.close()
-        self.lock_acquired = False
-        return False
-
-    async def release(self) -> None:
-        if self._connection is None:
-            self.lock_acquired = False
-            return
-
-        try:
-            await self._connection.execute(
-                text("SELECT pg_advisory_unlock(:class_id, :object_id)"),
-                {"class_id": SCHEDULER_LOCK_CLASS_ID, "object_id": SCHEDULER_LOCK_OBJECT_ID},
-            )
-        finally:
-            await self._connection.close()
-            self._connection = None
-            self.lock_acquired = False
 
 
 def configure_scheduler(sessionmaker: async_sessionmaker[AsyncSession], engine: AsyncEngine) -> None:
@@ -132,19 +102,6 @@ async def get_db_context():
             await session.close()
 
 
-def _normalize_result(result: object) -> dict | None:
-    if result is None:
-        return None
-    if isinstance(result, dict):
-        return result
-    return {"result": result}
-
-
-def _compute_duration_ms(started_at) -> int:
-    started = coerce_utc(started_at) or utc_now()
-    return int((utc_now() - started).total_seconds() * 1000)
-
-
 async def _record_job_start(
     *,
     job_name: str,
@@ -152,42 +109,14 @@ async def _record_job_start(
     trigger_type: str = "scheduled",
     scheduled_for=None,
 ) -> SchedulerJobRun:
-    async with get_db_context() as db:
-        job_run = SchedulerJobRun(
-            job_name=job_name,
-            run_id=run_id,
-            status="running",
-            trigger_type=trigger_type,
-            instance_id=PROCESS_INSTANCE_ID,
-            scheduled_for=scheduled_for,
-            started_at=utc_now(),
-        )
-        db.add(job_run)
-        await db.commit()
-        await db.refresh(job_run)
-        return job_run
-
-
-async def _record_job_finish(
-    *,
-    job_run_id: str,
-    status: str,
-    result_json: dict | None = None,
-    error_message: str | None = None,
-) -> None:
-    async with get_db_context() as db:
-        job_run = await db.get(SchedulerJobRun, job_run_id)
-        if job_run is None:
-            return
-
-        finished_at = utc_now()
-        job_run.status = status
-        job_run.finished_at = finished_at
-        job_run.duration_ms = _compute_duration_ms(job_run.started_at)
-        job_run.result_json = result_json
-        job_run.error_message = error_message
-        db.add(job_run)
-        await db.commit()
+    return await _record_job_start_impl(
+        db_context=get_db_context,
+        instance_id=PROCESS_INSTANCE_ID,
+        job_name=job_name,
+        run_id=run_id,
+        trigger_type=trigger_type,
+        scheduled_for=scheduled_for,
+    )
 
 
 async def execute_tracked_job(
@@ -197,37 +126,14 @@ async def execute_tracked_job(
     trigger_type: str = "scheduled",
 ) -> dict | None:
     """Run a scheduled job with durable execution tracking."""
-    run_id = str(uuid4())
-    job_run = await _record_job_start(job_name=job_name, run_id=run_id, trigger_type=trigger_type)
-    logger.info(
-        "scheduler_job_started",
-        job_name=job_name,
-        run_id=run_id,
+    return await _execute_tracked_job(
+        job_name,
+        job_func,
+        db_context=get_db_context,
         instance_id=PROCESS_INSTANCE_ID,
+        logger=logger,
         trigger_type=trigger_type,
     )
-    try:
-        result = _normalize_result(await job_func())
-    except Exception as exc:
-        await _record_job_finish(job_run_id=job_run.id, status="failed", error_message=str(exc))
-        logger.exception(
-            "scheduler_job_failed",
-            job_name=job_name,
-            run_id=run_id,
-            instance_id=PROCESS_INSTANCE_ID,
-            error_message=str(exc),
-        )
-        raise
-
-    await _record_job_finish(job_run_id=job_run.id, status="succeeded", result_json=result)
-    logger.info(
-        "scheduler_job_succeeded",
-        job_name=job_name,
-        run_id=run_id,
-        instance_id=PROCESS_INSTANCE_ID,
-        result=result,
-    )
-    return result
 
 
 async def execute_tracked_job_with_session(
@@ -238,100 +144,20 @@ async def execute_tracked_job_with_session(
     trigger_type: str = "manual",
 ) -> dict | None:
     """Run a tracked job using an existing session, for request-driven manual operations."""
-    run_id = str(uuid4())
-    job_run = SchedulerJobRun(
-        job_name=job_name,
-        run_id=run_id,
-        status="running",
-        trigger_type=trigger_type,
+    return await _execute_tracked_job_with_session(
+        db,
+        job_name,
+        job_func,
         instance_id=PROCESS_INSTANCE_ID,
-        started_at=utc_now(),
-    )
-    db.add(job_run)
-    await db.commit()
-    await db.refresh(job_run)
-    logger.info(
-        "scheduler_job_started",
-        job_name=job_name,
-        run_id=run_id,
-        instance_id=PROCESS_INSTANCE_ID,
+        logger=logger,
         trigger_type=trigger_type,
     )
-
-    try:
-        result = _normalize_result(await job_func(db))
-    except Exception as exc:
-        await db.rollback()
-        tracked_run = await db.get(SchedulerJobRun, job_run.id)
-        if tracked_run is not None:
-            tracked_run.status = "failed"
-            tracked_run.finished_at = utc_now()
-            tracked_run.duration_ms = _compute_duration_ms(tracked_run.started_at)
-            tracked_run.error_message = str(exc)
-            db.add(tracked_run)
-            await db.commit()
-        logger.exception(
-            "scheduler_job_failed",
-            job_name=job_name,
-            run_id=run_id,
-            instance_id=PROCESS_INSTANCE_ID,
-            error_message=str(exc),
-        )
-        raise
-
-    tracked_run = await db.get(SchedulerJobRun, job_run.id)
-    if tracked_run is not None:
-        tracked_run.status = "succeeded"
-        tracked_run.finished_at = utc_now()
-        tracked_run.duration_ms = _compute_duration_ms(tracked_run.started_at)
-        tracked_run.result_json = result
-        tracked_run.error_message = None
-        db.add(tracked_run)
-        await db.commit()
-    logger.info(
-        "scheduler_job_succeeded",
-        job_name=job_name,
-        run_id=run_id,
-        instance_id=PROCESS_INSTANCE_ID,
-        result=result,
-    )
-    return result
 
 
 def _resolve_lock_provider() -> SchedulerLockProvider:
     if _db_engine is not None and _db_engine.dialect.name == "postgresql":
         return PostgresAdvisoryLockProvider(_db_engine)
     return SchedulerLockProvider()
-
-
-def get_scheduler_role_status(
-    *,
-    scheduler_enabled: bool,
-    scheduler_running: bool,
-    lock_acquired: bool,
-) -> dict[str, str]:
-    if not scheduler_enabled:
-        return {
-            "scheduler_role": "disabled",
-            "scheduler_status": "disabled",
-        }
-
-    if scheduler_running and lock_acquired:
-        return {
-            "scheduler_role": "leader",
-            "scheduler_status": "leader_running",
-        }
-
-    if not scheduler_running and not lock_acquired:
-        return {
-            "scheduler_role": "follower",
-            "scheduler_status": "follower_ready",
-        }
-
-    return {
-        "scheduler_role": "leader" if lock_acquired else "follower",
-        "scheduler_status": "error",
-    }
 
 
 async def _mark_runtime_started() -> None:
@@ -408,16 +234,6 @@ def get_scheduler_runtime_state() -> dict[str, object]:
         "lock_provider": lock_provider,
         "lock_acquired": lock_acquired,
         **state_details,
-    }
-
-
-def get_outbox_dispatch_runtime_state() -> dict[str, object | None]:
-    return {
-        "last_started_at": _outbox_dispatch_state["last_started_at"],
-        "last_finished_at": _outbox_dispatch_state["last_finished_at"],
-        "last_status": _outbox_dispatch_state["last_status"],
-        "last_processed": _outbox_dispatch_state["last_processed"],
-        "last_error": _outbox_dispatch_state["last_error"],
     }
 
 

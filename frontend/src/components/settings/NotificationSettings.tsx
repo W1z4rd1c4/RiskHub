@@ -4,6 +4,7 @@ import { useTranslation } from '@/i18n/hooks';
 import { notificationsApi } from '@/services/notificationsApi';
 import type { NotificationPreferences } from '@/types/notification';
 import { cn } from '@/lib/utils';
+import { logError } from '@/services/logger';
 
 interface ToggleItemProps {
     label: string;
@@ -59,7 +60,7 @@ export function NotificationSettings() {
             setPreferences(prefs);
         } catch (err) {
             setErrorKey('notifications.load_failed');
-            console.error('Failed to load notification preferences:', err);
+            logError('Failed to load notification preferences:', err);
         } finally {
             setLoading(false);
         }
@@ -79,7 +80,7 @@ export function NotificationSettings() {
         } catch (err) {
             // Rollback on error
             setPreferences({ ...preferences, [key]: previousValue });
-            console.error('Failed to update preference:', err);
+            logError('Failed to update preference:', err);
         } finally {
             setUpdating(null);
         }

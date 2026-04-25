@@ -5,6 +5,7 @@ import { useFormattedDate, useTranslation } from '@/i18n/hooks';
 import { notificationsApi } from '@/services/notificationsApi';
 import type { Notification, NotificationType } from '@/types/notification';
 import { getNotificationResourcePath } from '@/components/notifications/resourcePath';
+import { logError } from '@/services/logger';
 
 /**
  * Get icon for notification type.
@@ -75,7 +76,7 @@ export function NotificationsPage() {
             setTotal(response.total);
             setUnreadCount(response.unread_count);
         } catch (error) {
-            console.error('Failed to fetch notifications:', error);
+            logError('Failed to fetch notifications:', error);
         } finally {
             setLoading(false);
         }
@@ -95,7 +96,7 @@ export function NotificationsPage() {
                 );
                 setUnreadCount(unread_count);  // Server-authoritative count
             } catch (error) {
-                console.error('Failed to mark as read:', error);
+                logError('Failed to mark as read:', error);
             }
         }
 
@@ -112,7 +113,7 @@ export function NotificationsPage() {
             setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
             setUnreadCount(0);
         } catch (error) {
-            console.error('Failed to mark all as read:', error);
+            logError('Failed to mark all as read:', error);
         }
     };
 

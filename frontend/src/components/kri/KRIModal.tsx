@@ -14,6 +14,7 @@ import { ApiClientError } from '@/services/apiClient';
 import { userApi } from '@/services/userApi';
 import { vendorApi } from '@/services/vendorApi';
 import { KRIFrequencies, type KRICreate, type KRIFrequency, type KeyRiskIndicator, type KRIUpdate } from '@/types/kri';
+import { logError } from '@/services/logger';
 
 export type KRIModalSaveResult =
     | { kind: 'updated' }
@@ -112,7 +113,7 @@ export function KRIModal({ risk_id, kri, isOpen, onClose, onSave, onDelete }: KR
                 const userList = await userApi.listVisibleUsers();
                 setUsers(userList);
             } catch (err) {
-                console.error('Error loading users:', err);
+                logError('Error loading users:', err);
             }
         };
         void loadUsers();
@@ -140,7 +141,7 @@ export function KRIModal({ risk_id, kri, isOpen, onClose, onSave, onDelete }: KR
                     })),
                 );
             } catch (err) {
-                console.error('Error loading vendors for KRI modal:', err);
+                logError('Error loading vendors for KRI modal:', err);
             } finally {
                 setIsLoadingVendors(false);
             }
@@ -188,7 +189,7 @@ export function KRIModal({ risk_id, kri, isOpen, onClose, onSave, onDelete }: KR
             await onSave(data, selectedVendorIds);
             onClose();
         } catch (err) {
-            console.error('Save failed:', err);
+            logError('Save failed:', err);
             if (err instanceof ApiClientError) {
                 setError(err.rawMessage ?? err.messageKey);
                 return;
@@ -210,7 +211,7 @@ export function KRIModal({ risk_id, kri, isOpen, onClose, onSave, onDelete }: KR
             await onDelete(kri.id);
             onClose();
         } catch (err) {
-            console.error('Delete failed:', err);
+            logError('Delete failed:', err);
         } finally {
             setIsDeleting(false);
             setIsDeleteDialogOpen(false);

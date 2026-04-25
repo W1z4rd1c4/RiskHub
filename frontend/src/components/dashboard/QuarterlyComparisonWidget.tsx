@@ -4,6 +4,7 @@ import { TrendingUp, TrendingDown, Minus, Calendar, AlertTriangle, HelpCircle, R
 import { useTranslation } from '@/i18n/hooks';
 import { dashboardApi } from '@/services/dashboardApi';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
+import { logError } from '@/services/logger';
 
 interface MetricChange {
     absolute: number;
@@ -157,7 +158,7 @@ export function QuarterlyComparisonWidget() {
             const result = await dashboardApi.fetchQuarterlyComparison(currentQuarterLabel, compareQuarterLabel);
             setData(result);
         } catch (err) {
-            console.error('Failed to fetch quarterly comparison:', err);
+            logError('Failed to fetch quarterly comparison:', err);
             setError(t('errors.load_failed'));
         } finally {
             setIsLoading(false);
@@ -183,7 +184,7 @@ export function QuarterlyComparisonWidget() {
                 setCompareYear(prev.year);
                 setCompareQ(prev.quarter);
             } catch (err) {
-                console.error('Failed to fetch available periods:', err);
+                logError('Failed to fetch available periods:', err);
                 // Fall back to current date
                 const now = new Date();
                 const year = now.getFullYear();

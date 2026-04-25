@@ -6,6 +6,7 @@ import { useDashboardFilters } from '@/contexts/DashboardFilterContext';
 import { kriApi } from '@/services/kriApi';
 import { useTranslation } from '@/i18n/hooks';
 import type { KeyRiskIndicator } from '@/types/kri';
+import { logError } from '@/services/logger';
 
 export function KRIBreachWidget() {
     const { t } = useTranslation('dashboard');
@@ -24,7 +25,7 @@ export function KRIBreachWidget() {
                     setBreaches(data.slice(0, 5)); // Show top 5
                 }
             } catch (err) {
-                console.error('Failed to fetch breaches:', err);
+                logError('Failed to fetch breaches:', err);
             } finally {
                 if (!cancelled) {
                     setIsLoading(false);

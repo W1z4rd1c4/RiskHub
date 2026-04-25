@@ -4,6 +4,7 @@ import { activityLogApi, type ActivityLogFilters } from '@/services/activityLogA
 import type { ActivityLogEntry } from '@/types/activityLog';
 import { lookupApi, type UserLookupItem } from '@/services/lookupApi';
 import { riskApi } from '@/services/riskApi';
+import { logError } from '@/services/logger';
 
 /** View modes for the activity log */
 export type ViewMode = 'chronological' | 'by_person' | 'by_department' | 'by_risk';
@@ -174,7 +175,7 @@ export function useActivityLogPageState(
                     setRisks(risksData.items.map((r: { id: number; name: string }) => ({ id: r.id, name: r.name })));
                 }
             } catch (err) {
-                console.error('Failed to load filter options:', err);
+                logError('Failed to load filter options:', err);
             }
         };
         void loadOptions();
@@ -240,7 +241,7 @@ export function useActivityLogPageState(
                 setTotal(response.total);
             }
         } catch (error) {
-            console.error('Failed to fetch activity logs:', error);
+            logError('Failed to fetch activity logs:', error);
             // Distinguish 403 from other errors
             if (requestId === latestEntriesRequestIdRef.current && error instanceof Error && 'response' in error) {
                 const resp = (error as { response?: { status?: number } }).response;

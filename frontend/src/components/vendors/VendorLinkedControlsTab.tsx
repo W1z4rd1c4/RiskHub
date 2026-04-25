@@ -8,6 +8,7 @@ import { VendorLinkedControlCard } from '@/components/vendors/VendorLinkedContro
 import { useTranslation } from '@/i18n/hooks';
 import { vendorLinkApi } from '@/services/vendorLinkApi';
 import type { LinkedControl } from '@/types/vendorLink';
+import { logError } from '@/services/logger';
 
 interface VendorLinkedControlsTabProps {
     vendorId: number;
@@ -40,7 +41,7 @@ export function VendorLinkedControlsTab({
             setLinkedControls(data);
             setError(null);
         } catch (err) {
-            console.error('Failed to load linked controls:', err);
+            logError('Failed to load linked controls:', err);
             setError(t('errors.load_failed'));
         } finally {
             setIsLoading(false);

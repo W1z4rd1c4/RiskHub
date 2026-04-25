@@ -8,6 +8,7 @@ import { adminApi, type LogConfig } from '@/services/adminApi';
 import { cn } from '@/lib/utils';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { formatDateTimeValue } from '@/i18n/formatters';
+import { logError } from '@/services/logger';
 
 function LogSettingsPanel() {
     const { t } = useTranslation('admin');
@@ -189,7 +190,7 @@ export function AuditLogsPanel() {
             setCopied(true);
             window.setTimeout(() => setCopied(false), 1500);
         } catch (err) {
-            console.error('Failed to copy audit log details:', err);
+            logError('Failed to copy audit log details:', err);
         }
     };
 

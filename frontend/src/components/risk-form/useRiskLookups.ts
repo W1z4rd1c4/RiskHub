@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { lookupApi, type UserLookupItem } from '@/services/lookupApi';
 import { riskApi } from '@/services/riskApi';
 import type { Risk } from '@/types/risk';
+import { logError } from '@/services/logger';
 
 export interface RiskDepartmentLookup {
     id: number;
@@ -75,7 +76,7 @@ export function useRiskLookups() {
                 setExistingCategories(options.existingCategories);
                 setSubprocessesByProcess(options.subprocessesByProcess);
             } catch (error) {
-                console.error('Failed to load risk form lookups:', error);
+                logError('Failed to load risk form lookups:', error);
             }
         };
         void loadLookups();

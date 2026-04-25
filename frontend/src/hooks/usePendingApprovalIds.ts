@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { approvalsApi } from '@/services/approvalsApi';
+import { logError } from '@/services/logger';
 
 type ResourceType = 'risk' | 'control' | 'kri';
 
@@ -43,7 +44,7 @@ export function usePendingApprovalIds(resourceType: ResourceType): Set<number> {
                     setPendingIds(ids);
                 }
             } catch (error) {
-                console.error('Failed to fetch pending approvals:', error);
+                logError('Failed to fetch pending approvals:', error);
             }
         };
 

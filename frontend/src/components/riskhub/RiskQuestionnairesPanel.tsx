@@ -8,6 +8,7 @@ import { apiClient } from '@/services/apiClient';
 import type { RiskSummary, RiskStatus } from '@/types/risk';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { cn } from '@/lib/utils';
+import { logError } from '@/services/logger';
 
 type BatchSendResponse = {
     created_count: number;
@@ -40,7 +41,7 @@ export function RiskQuestionnairesPanel() {
                 setDepartments(depts.map(d => ({ value: String(d.id), label: d.name })));
             } catch (e) {
                 // Non-blocking
-                console.error('Failed to load departments', e);
+                logError('Failed to load departments', e);
             }
         };
         void loadDepartments();
@@ -72,7 +73,7 @@ export function RiskQuestionnairesPanel() {
             setRisks(resp.items);
         } catch (e) {
             setErrorKey('errors.failed_to_load');
-            console.error(e);
+            logError('Failed to load questionnaire risks.', e);
         } finally {
             setLoading(false);
         }

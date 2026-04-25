@@ -8,6 +8,7 @@ import { KRIGaugeCard } from '@/components/kri/KRIGaugeCard';
 import { useTranslation } from '@/i18n/hooks';
 import { vendorLinkApi } from '@/services/vendorLinkApi';
 import type { LinkedKRI } from '@/types/vendorLink';
+import { logError } from '@/services/logger';
 
 interface VendorLinkedKRIsTabProps {
     vendorId: number;
@@ -40,7 +41,7 @@ export function VendorLinkedKRIsTab({
             setLinkedKRIs(data);
             setError(null);
         } catch (err) {
-            console.error('Failed to load linked KRIs:', err);
+            logError('Failed to load linked KRIs:', err);
             setError(t('errors.load_failed'));
         } finally {
             setIsLoading(false);

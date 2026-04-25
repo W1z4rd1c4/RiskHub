@@ -12,6 +12,7 @@ import type { ControlExecution } from '@/types/execution';
 import { useTranslation } from '@/i18n/hooks';
 import { formatDateTimeValue, formatDateValue } from '@/i18n/formatters';
 import { getExecutionResultMeta } from '@/lib/executionResult';
+import { logError } from '@/services/logger';
 
 interface ExecutionHistoryProps {
     controlId: number;
@@ -29,7 +30,7 @@ export function ExecutionHistory({ controlId }: ExecutionHistoryProps) {
             const data = await controlApi.getExecutions(controlId);
             setExecutions(data);
         } catch (err) {
-            console.error('Error fetching execution history:', err);
+            logError('Error fetching execution history:', err);
         } finally {
             setIsLoading(false);
         }

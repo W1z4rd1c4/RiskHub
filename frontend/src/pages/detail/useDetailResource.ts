@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { logError } from '@/services/logger';
 
 interface UseDetailResourceOptions<T> {
     rawId: string | undefined;
@@ -39,7 +40,7 @@ export function useDetailResource<T>({
             setResource(data);
             setErrorKey(null);
         } catch (error) {
-            console.error('Error fetching detail resource:', error);
+            logError('Error fetching detail resource:', error);
             setResource(null);
             setErrorKey(toErrorKeyRef.current(error));
         } finally {

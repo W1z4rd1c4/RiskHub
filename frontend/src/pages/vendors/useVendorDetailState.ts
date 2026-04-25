@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 
+import { logError } from '@/services/logger';
 import { vendorApi } from '@/services/vendorApi';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import type { Vendor } from '@/types/vendor';
@@ -51,7 +52,7 @@ export function useVendorDetailState({
             setVendor(data);
             setError(null);
         } catch (loadError) {
-            console.error('Error fetching vendor:', loadError);
+            logError('Error fetching vendor:', loadError);
             setError(notFoundMessage);
         } finally {
             setIsLoading(false);
@@ -74,7 +75,7 @@ export function useVendorDetailState({
             await vendorApi.restoreVendor(vendor.id);
             await fetchVendor();
         } catch (restoreError) {
-            console.error('Error restoring vendor:', restoreError);
+            logError('Error restoring vendor:', restoreError);
         }
     }, [fetchVendor, vendor]);
 

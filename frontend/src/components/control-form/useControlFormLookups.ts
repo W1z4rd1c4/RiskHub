@@ -7,6 +7,7 @@ import { riskApi } from '@/services/riskApi';
 import type { RiskSummary } from '@/types/risk';
 
 import { getControlFormErrorKey } from './controlFormUtils';
+import { logError } from '@/services/logger';
 
 export function useControlFormLookups() {
     const [users, setUsers] = useState<UserLookupItem[]>([]);
@@ -26,7 +27,7 @@ export function useControlFormLookups() {
             setUsers(usersData);
             setDepartments(departmentData);
         } catch (error) {
-            console.error('Failed to load control form lookups:', error);
+            logError('Failed to load control form lookups:', error);
             setDataErrorKey(getControlFormErrorKey(error));
         } finally {
             setIsLoadingLookups(false);
@@ -39,7 +40,7 @@ export function useControlFormLookups() {
             const response = await riskApi.getRisks({ limit: 100 });
             setRisks(response?.items ?? []);
         } catch (error) {
-            console.error('Failed to load risks:', error);
+            logError('Failed to load risks:', error);
             setDataErrorKey(getControlFormErrorKey(error));
         } finally {
             setIsLoadingRisks(false);

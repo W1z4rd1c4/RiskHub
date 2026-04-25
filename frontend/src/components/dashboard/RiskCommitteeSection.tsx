@@ -6,6 +6,7 @@ import { dashboardApi, type DashboardCommitteeSummary } from '@/services/dashboa
 import { useTranslation } from '@/i18n/hooks';
 import { buildVendorDetailPath } from '@/pages/vendors/vendorDetailPresentation';
 import { QuarterlyComparisonWidget } from './QuarterlyComparisonWidget';
+import { logError } from '@/services/logger';
 
 const ACTION_COLORS: Record<string, string> = {
     create: 'bg-emerald-500/20 text-emerald-400',
@@ -52,7 +53,7 @@ export function RiskCommitteeSection() {
         dashboardApi.fetchCommitteeSummary()
             .then(setSummary)
             .catch((err) => {
-                console.error('Failed to fetch committee summary:', err);
+                logError('Failed to fetch committee summary:', err);
                 setError(t('errors.load_failed'));
             })
             .finally(() => setIsLoading(false));

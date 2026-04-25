@@ -27,6 +27,7 @@ import { collectRiskFilterOptions, filterRisks, filterUsers, getOwnerAutoDepartm
 import { getControlFormSubmissionError, getControlFormStepError } from './controlFormValidation';
 import { formatFrequencyLabel, getControlFormErrorKey } from './controlFormUtils';
 import { useControlFormLookups } from './useControlFormLookups';
+import { logError } from '@/services/logger';
 
 interface ControlFormProps {
     initialData?: Control;
@@ -183,7 +184,7 @@ export function ControlForm({
                         notes: linkNotes
                     });
                 } catch (linkErr) {
-                    console.error('Control created but failed to link risk:', linkErr);
+                    logError('Control created but failed to link risk:', linkErr);
                     controlFlash = {
                         tone: 'warn',
                         message: 'Control created, but linking the selected risk failed.',
@@ -199,7 +200,7 @@ export function ControlForm({
                 void navigate('/controls');
             }
         } catch (err: unknown) {
-            console.error('Error saving control:', err);
+            logError('Error saving control:', err);
             setError(getControlFormErrorKey(err, 'errorKeys.save_control_failed'));
         } finally {
             setIsSubmitting(false);

@@ -6,6 +6,7 @@ import { useTranslation } from '@/i18n/hooks';
 import { useDashboardFilters } from '@/contexts/DashboardFilterContext';
 import { kriApi } from '@/services/kriApi';
 import type { OverdueKRI, DueSoonKRI } from '@/types/kri';
+import { logError } from '@/services/logger';
 
 type TabType = 'upcoming' | 'overdue';
 
@@ -33,7 +34,7 @@ export function KRIStatusWidget() {
                     setDueSoonKRIs(dueSoon.slice(0, 5));
                 }
             } catch (err) {
-                console.error('Failed to fetch KRI status:', err);
+                logError('Failed to fetch KRI status:', err);
             } finally {
                 if (!cancelled) {
                     setIsLoading(false);

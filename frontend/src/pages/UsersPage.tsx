@@ -1,176 +1,74 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useTranslation } from '@/i18n/hooks';
-import {
-    Users,
-    UserPlus,
-    UserCheck,
-    Crown,
-    Server,
-    RefreshCw,
-    Building2,
-} from 'lucide-react';
-import { accessApi } from '@/services/accessApi';
-import { adminApi } from '@/services/adminApi';
-import { apiClient } from '@/services/apiClient';
-import { userDirectoryApi } from '@/services/userDirectoryApi';
-import { logError } from '@/services/logger';
-import type { AuthMode } from '@/services/authApi';
-import { getAuthConfig } from '@/services/authConfig';
-import { isAuthUnavailableError } from '@/services/authRequest';
-import type { AccessUserRead } from '@/types/access';
-import type { DirectoryImportResponse } from '@/types/directory';
-import type { UserDirectoryEntry, UserDirectoryRoleFacet } from '@/types/user';
-import { usePermissions } from '@/hooks/usePermissions';
-import { useAuthz } from '@/authz/useAuthz';
+import { useEffect, useState } from 'react';
+import { RefreshCw } from 'lucide-react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+
+import { useAuthz } from '@/authz/useAuthz';
 import { AccessEditModal } from '@/components/access/AccessEditModal';
-import { ConfirmDialog } from '@/components/ConfirmDialog';
-import { useUsersPageFilters } from '@/hooks/useUsersPageFilters';
 import { UsersFilterBar } from '@/components/access/UsersFilterBar';
 import { UsersTable } from '@/components/access/UsersTable';
-import { ADUserPicker } from '@/components/users/ADUserPicker';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Pagination } from '@/components/tables/Pagination';
+import { ADUserPicker } from '@/components/users/ADUserPicker';
+import { usePermissions } from '@/hooks/usePermissions';
+import { useTranslation } from '@/i18n/hooks';
+import { adminApi } from '@/services/adminApi';
+import { logError } from '@/services/logger';
+import type { AccessUserRead } from '@/types/access';
+import type { DirectoryImportResponse } from '@/types/directory';
+
+import { BreakGlassEnableDialog } from './users/BreakGlassEnableDialog';
 import { useUserLifecycleActions } from './users/useUserLifecycleActions';
+import { useUsersAuthMode } from './users/useUsersAuthMode';
+import { DIRECTORY_PAGE_SIZE, useUsersPageData } from './users/useUsersPageData';
+import { UsersAccessStats } from './users/UsersAccessStats';
+import { UsersPageHeader } from './users/UsersPageHeader';
+import type { UsersPageLocationState, UsersPageMode } from './users/usersPageTypes';
 
-const DIRECTORY_PAGE_SIZE = 50;
-
-type UsersPageMode = 'access' | 'department-access' | 'directory' | 'forbidden';
-type UsersPageLocationState = {
-    importedUserId?: number;
-    importedUserName?: string;
-} | null;
+function resolveUsersPageMode(authz: ReturnType<typeof useAuthz>): UsersPageMode {
+    if (authz.canViewAccessUsers) return 'access';
+    if (authz.canViewDepartmentAccessUsers) return 'department-access';
+    if (authz.canViewUserDirectory) return 'directory';
+    return 'forbidden';
+}
 
 export function UsersPage() {
     const { t } = useTranslation(['admin', 'common', 'errorKeys']);
-    const [users, setUsers] = useState<AccessUserRead[]>([]);
-    const [directoryUsers, setDirectoryUsers] = useState<UserDirectoryEntry[]>([]);
-    const [directoryAvailableRoles, setDirectoryAvailableRoles] = useState<UserDirectoryRoleFacet[]>([]);
-    const [directoryTotal, setDirectoryTotal] = useState(0);
-    const [directoryPage, setDirectoryPage] = useState(1);
-    const [isLoading, setIsLoading] = useState(true);
+    const { canManageUsers, user: currentUser } = usePermissions();
+    const authz = useAuthz();
+    const location = useLocation();
+    const navigate = useNavigate();
     const [expandedUserId, setExpandedUserId] = useState<number | null>(null);
     const [editModalOpen, setEditModalOpen] = useState(false);
     const [selectedUser, setSelectedUser] = useState<AccessUserRead | null>(null);
     const [isADPickerOpen, setIsADPickerOpen] = useState(false);
     const [directoryMessage, setDirectoryMessage] = useState<string | null>(null);
-    const [loadErrorKey, setLoadErrorKey] = useState<string | null>(null);
     const [isCheckingAllDirectory, setIsCheckingAllDirectory] = useState(false);
     const [checkingDirectoryUserId, setCheckingDirectoryUserId] = useState<number | null>(null);
-    const [authMode, setAuthMode] = useState<AuthMode | null>(null);
-    const [authModeStatus, setAuthModeStatus] = useState<'loading' | 'ready' | 'error'>('loading');
-    const [authModeError, setAuthModeError] = useState<string | null>(null);
 
-    const { canManageUsers, user: currentUser } = usePermissions();
-    const authz = useAuthz();
-    const location = useLocation();
-    const navigate = useNavigate();
     const locationState = location.state as UsersPageLocationState;
-    const pageMode: UsersPageMode = authz.canViewAccessUsers
-        ? 'access'
-        : authz.canViewDepartmentAccessUsers
-            ? 'department-access'
-            : authz.canViewUserDirectory
-                ? 'directory'
-                : 'forbidden';
+    const pageMode = resolveUsersPageMode(authz);
     const isAccessMode = pageMode === 'access' || pageMode === 'department-access';
     const isDirectoryMode = pageMode === 'directory';
-
-    const filters = useUsersPageFilters({
-        accessUsers: users,
-        directoryUsers: directoryUsers,
+    const {
+        authMode,
+        authModeError,
+        authModeStatus,
+        isAuthModeReady,
+    } = useUsersAuthMode();
+    const {
+        directoryAvailableRoles,
+        directoryPage,
+        directoryTotal,
+        fetchUsers,
+        filters,
+        isLoading,
+        loadErrorKey,
+        setDirectoryPage,
+        users,
+    } = useUsersPageData({
+        currentUserLoaded: Boolean(currentUser),
+        pageMode,
     });
-
-    const fetchUsers = useCallback(async () => {
-        try {
-            setIsLoading(true);
-            setLoadErrorKey(null);
-            if (pageMode === 'access') {
-                const data = await accessApi.listAccessUsers();
-                setUsers(data);
-                setDirectoryUsers([]);
-                setDirectoryAvailableRoles([]);
-                setDirectoryTotal(0);
-            } else if (pageMode === 'department-access') {
-                const data = await accessApi.listDepartmentAccessUsers();
-                setUsers(data);
-                setDirectoryUsers([]);
-                setDirectoryAvailableRoles([]);
-                setDirectoryTotal(0);
-            } else if (pageMode === 'directory') {
-                const data = await userDirectoryApi.listDirectoryUsers({
-                    q: filters.searchTerm || undefined,
-                    role_name: filters.roleFilter !== 'all' ? filters.roleFilter : undefined,
-                    skip: (directoryPage - 1) * DIRECTORY_PAGE_SIZE,
-                    limit: DIRECTORY_PAGE_SIZE,
-                });
-                setUsers([]);
-                setDirectoryUsers(data.items);
-                setDirectoryAvailableRoles(data.available_roles ?? []);
-                setDirectoryTotal(data.total);
-            } else {
-                setUsers([]);
-                setDirectoryUsers([]);
-                setDirectoryAvailableRoles([]);
-                setDirectoryTotal(0);
-            }
-        } catch (error) {
-            logError('Failed to fetch users.', error);
-            setUsers([]);
-            setDirectoryUsers([]);
-            setDirectoryAvailableRoles([]);
-            setDirectoryTotal(0);
-            setLoadErrorKey(apiClient.toUiMessageKey(error));
-        } finally {
-            setIsLoading(false);
-        }
-    }, [directoryPage, filters.roleFilter, filters.searchTerm, pageMode]);
-
-    useEffect(() => {
-        // Wait for user to be loaded before fetching
-        if (currentUser && pageMode !== 'forbidden') {
-            void fetchUsers();
-        }
-    }, [currentUser, fetchUsers, pageMode]);
-
-    useEffect(() => {
-        if (isDirectoryMode) {
-            setDirectoryPage(1);
-        }
-    }, [filters.roleFilter, filters.searchTerm, isDirectoryMode]);
-
-    useEffect(() => {
-        let cancelled = false;
-
-        const run = async () => {
-            try {
-                const config = await getAuthConfig();
-                if (cancelled) return;
-                setAuthMode(config.auth_mode);
-                setAuthModeStatus('ready');
-                setAuthModeError(null);
-            } catch (error) {
-                if (cancelled) return;
-                logError('Failed to load auth mode for UsersPage.', error);
-                setAuthMode(null);
-                setAuthModeStatus('error');
-                setAuthModeError(
-                    isAuthUnavailableError(error)
-                        ? t('users.auth_mode_service_unavailable', {
-                            defaultValue: 'Authentication mode is temporarily unavailable. User data remains visible, but create and directory actions are disabled until configuration is available again.',
-                        })
-                        : t('users.auth_mode_load_failed', {
-                            defaultValue: 'Unable to load authentication mode. User data remains visible, but create and directory actions are disabled until the page can load configuration.',
-                        }),
-                );
-            }
-        };
-
-        void run();
-
-        return () => {
-            cancelled = true;
-        };
-    }, [t]);
 
     const {
         breakGlassHours,
@@ -275,10 +173,8 @@ export function UsersPage() {
         return <Navigate to="/" replace />;
     }
 
-    // Compute display values
     const displayUsers = isAccessMode ? filters.filteredAccessUsers : [];
     const displayDirectoryUsers = !isAccessMode ? filters.filteredDirectoryUsers : [];
-
     const showAccessStats = isAccessMode && !loadErrorKey;
     const accessRoleOptions = [
         ...(authz.isPlatformAdmin ? [{ value: 'admin', label: t('access.roles.admins') }] : []),
@@ -293,61 +189,27 @@ export function UsersPage() {
             value: role.name,
             label: role.display_name,
         }));
-
-    // Stats
     const totalCount = isAccessMode ? users.length : directoryTotal;
     const activeCount = isAccessMode
-        ? users.filter(u => u.is_active).length
-        : directoryTotal; // Directory mode only requests active users today.
+        ? users.filter((user) => user.is_active).length
+        : directoryTotal;
     const privilegedCount = isAccessMode
-        ? users.filter(u => u.access_scope === 'global' && u.role.name !== 'admin').length
+        ? users.filter((user) => user.access_scope === 'global' && user.role.name !== 'admin').length
         : 0;
-    const isAuthModeReady = authModeStatus === 'ready';
     const isDirectoryFirstMode = isAuthModeReady && authMode !== null && authMode !== 'password';
     const allowAuthModeActions = canManageUsers && isAuthModeReady;
     const directoryTotalPages = Math.max(1, Math.ceil(directoryTotal / DIRECTORY_PAGE_SIZE));
-    const accessStatsGridClass = authz.isPlatformAdmin ? 'md:grid-cols-4' : 'md:grid-cols-3';
 
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight text-white flex items-center gap-3">
-                        <Users className="h-8 w-8 text-accent" />
-                        {isAccessMode ? t('access.title') : t('users.title')}
-                    </h1>
-                    <p className="text-slate-400 mt-1">
-                        {isAccessMode ? t('access.subtitle') : t('users.subtitle', { defaultValue: 'View platform users and their roles.' })}
-                    </p>
-                </div>
-                {allowAuthModeActions && (
-                    <div className="flex flex-wrap items-center gap-2">
-                        {authz.isPlatformAdmin && (
-                            <button
-                                onClick={handleCheckAllDirectory}
-                                disabled={isCheckingAllDirectory}
-                                className="rounded-xl border border-sky-500/30 bg-sky-500/10 px-4 py-2 text-sky-200 transition hover:bg-sky-500/20 disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                                <span className="inline-flex items-center gap-2">
-                                    <RefreshCw className={`h-4 w-4 ${isCheckingAllDirectory ? 'animate-spin' : ''}`} />
-                                    {isCheckingAllDirectory
-                                        ? t('users.checking_directory', { defaultValue: 'Checking...' })
-                                        : t('users.check_directory', { defaultValue: 'Check AD' })}
-                                </span>
-                            </button>
-                        )}
-                        <button
-                            onClick={() => navigate('/users/new')}
-                            className="bg-accent hover:bg-accent/80 text-white px-4 py-2 rounded-xl flex items-center gap-2 shadow-lg shadow-accent/20 transition-all active:scale-95"
-                        >
-                            {isDirectoryFirstMode ? <Building2 className="h-5 w-5" /> : <UserPlus className="h-5 w-5" />}
-                            {isDirectoryFirstMode
-                                ? t('users.add_from_ad', { defaultValue: 'Add from AD' })
-                                : t('access.add_user')}
-                        </button>
-                    </div>
-                )}
-            </div>
+            <UsersPageHeader
+                allowAuthModeActions={allowAuthModeActions}
+                canRunDirectoryCheck={authz.isPlatformAdmin}
+                isAccessMode={isAccessMode}
+                isCheckingAllDirectory={isCheckingAllDirectory}
+                isDirectoryFirstMode={isDirectoryFirstMode}
+                onCheckAllDirectory={handleCheckAllDirectory}
+            />
 
             {authModeStatus === 'error' && authModeError && (
                 <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
@@ -362,46 +224,13 @@ export function UsersPage() {
             )}
 
             {showAccessStats && (
-                <div className={`grid grid-cols-1 ${accessStatsGridClass} gap-4`}>
-                    <div className="glass-card p-4 flex items-center gap-4">
-                        <div className="bg-purple-500/20 p-3 rounded-xl">
-                            <Users className="h-6 w-6 text-purple-400" />
-                        </div>
-                        <div>
-                            <p className="text-sm text-slate-400">{t('access.stats.total_users')}</p>
-                            <p className="text-2xl font-bold text-white">{totalCount}</p>
-                        </div>
-                    </div>
-                    <div className="glass-card p-4 flex items-center gap-4">
-                        <div className="bg-emerald-500/20 p-3 rounded-xl">
-                            <UserCheck className="h-6 w-6 text-emerald-400" />
-                        </div>
-                        <div>
-                            <p className="text-sm text-slate-400">{t('access.stats.active')}</p>
-                            <p className="text-2xl font-bold text-white">{activeCount}</p>
-                        </div>
-                    </div>
-                    <div className="glass-card p-4 flex items-center gap-4">
-                        <div className="bg-amber-500/20 p-3 rounded-xl">
-                            <Crown className="h-6 w-6 text-amber-400" />
-                        </div>
-                        <div>
-                            <p className="text-sm text-slate-400">{t('access.stats.privileged')}</p>
-                            <p className="text-2xl font-bold text-white">{privilegedCount}</p>
-                        </div>
-                    </div>
-                    {authz.isPlatformAdmin && (
-                        <div className="glass-card p-4 flex items-center gap-4">
-                            <div className="bg-slate-500/20 p-3 rounded-xl">
-                                <Server className="h-6 w-6 text-slate-400" />
-                            </div>
-                            <div>
-                                <p className="text-sm text-slate-400">{t('access.stats.sys_admins')}</p>
-                                <p className="text-2xl font-bold text-white">{users.filter(u => u.role.name === 'admin').length}</p>
-                            </div>
-                        </div>
-                    )}
-                </div>
+                <UsersAccessStats
+                    activeCount={activeCount}
+                    isPlatformAdmin={authz.isPlatformAdmin}
+                    privilegedCount={privilegedCount}
+                    totalCount={totalCount}
+                    users={users}
+                />
             )}
 
             <div className="glass-card p-6">
@@ -481,7 +310,6 @@ export function UsersPage() {
                 )}
             </div>
 
-            {/* Access Edit Modal */}
             <AccessEditModal
                 isOpen={editModalOpen}
                 onClose={() => setEditModalOpen(false)}
@@ -489,7 +317,6 @@ export function UsersPage() {
                 onSaved={handleAccessSaved}
             />
 
-            {/* User Status Toggle Confirmation Dialog */}
             <ConfirmDialog
                 isOpen={confirmDialogOpen}
                 onClose={handleToggleClose}
@@ -510,82 +337,16 @@ export function UsersPage() {
                 onImported={handleDirectoryImported}
             />
 
-            {breakGlassUser && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-                    <button
-                        type="button"
-                        className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"
-                        onClick={handleBreakGlassClose}
-                        aria-label={t('actions.cancel', { ns: 'common' })}
-                    />
-                    <div className="relative w-full max-w-md rounded-2xl border border-amber-500/20 bg-slate-900 p-6 shadow-2xl">
-                        <h3 className="text-lg font-bold text-white">
-                            {t('users.break_glass_enable', { defaultValue: 'Break-glass enable' })}
-                        </h3>
-                        <p className="mt-2 text-sm text-slate-300">
-                            {t('users.break_glass_message', {
-                                defaultValue: `Temporarily re-enable ${breakGlassUser.name} with an audited expiry.`,
-                                name: breakGlassUser.name,
-                            })}
-                        </p>
-                        <label
-                            htmlFor="break-glass-reason"
-                            className="mt-5 block text-xs font-bold uppercase tracking-widest text-slate-400"
-                        >
-                            {t('users.break_glass_reason', { defaultValue: 'Reason' })}
-                        </label>
-                        <textarea
-                            id="break-glass-reason"
-                            value={breakGlassReason}
-                            onChange={(event) => setBreakGlassReason(event.target.value)}
-                            className="mt-2 min-h-24 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none transition focus:border-amber-400/70"
-                            maxLength={255}
-                        />
-                        <label
-                            htmlFor="break-glass-expires-in-hours"
-                            className="mt-4 block text-xs font-bold uppercase tracking-widest text-slate-400"
-                        >
-                            {t('users.break_glass_expires_in_hours', { defaultValue: 'Expires in hours' })}
-                        </label>
-                        <input
-                            id="break-glass-expires-in-hours"
-                            type="number"
-                            min={1}
-                            max={24}
-                            value={breakGlassHours}
-                            onChange={(event) => {
-                                if (event.target.value === '') {
-                                    setBreakGlassHours('');
-                                    return;
-                                }
-                                const value = Number(event.target.value);
-                                setBreakGlassHours(Math.min(24, Math.max(1, Number.isFinite(value) ? value : 1)));
-                            }}
-                            className="mt-2 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none transition focus:border-amber-400/70"
-                        />
-                        <div className="mt-6 flex justify-end gap-3">
-                            <button
-                                type="button"
-                                onClick={handleBreakGlassClose}
-                                disabled={isBreakGlassSubmitting}
-                                className="rounded-xl border border-white/10 px-4 py-2 text-sm text-slate-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                                {t('actions.cancel', { ns: 'common' })}
-                            </button>
-                            <button
-                                type="button"
-                                onClick={handleBreakGlassSubmit}
-                                disabled={isBreakGlassSubmitting || !breakGlassReason.trim() || breakGlassHours === ''}
-                                className="rounded-xl bg-amber-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                                {isBreakGlassSubmitting
-                                    ? t('users.break_glass_enabling', { defaultValue: 'Enabling...' })
-                                    : t('users.break_glass_enable', { defaultValue: 'Break-glass enable' })}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <BreakGlassEnableDialog
+                breakGlassHours={breakGlassHours}
+                breakGlassReason={breakGlassReason}
+                breakGlassUser={breakGlassUser}
+                isBreakGlassSubmitting={isBreakGlassSubmitting}
+                onClose={handleBreakGlassClose}
+                onHoursChange={setBreakGlassHours}
+                onReasonChange={setBreakGlassReason}
+                onSubmit={handleBreakGlassSubmit}
+            />
         </div>
     );
 }

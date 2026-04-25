@@ -7,6 +7,7 @@ import { riskApi } from '@/services/riskApi';
 import type { OrphanedItem } from '@/types/orphanedItem';
 import { useTranslation } from '@/i18n/hooks';
 import { formatRelativeDateValue } from '@/i18n/formatters';
+import { logError } from '@/services/logger';
 
 interface OrphanQuickViewModalProps {
     isOpen: boolean;
@@ -67,7 +68,7 @@ export function OrphanQuickViewModal({ isOpen, onClose, orphan }: OrphanQuickVie
                     if (!cancelled) setIsInitialized(true);
                 }, 150);
             } catch (err) {
-                console.error('Failed to fetch item details:', err);
+                logError('Failed to fetch item details:', err);
                 initTimeout = setTimeout(() => {
                     if (!cancelled) setIsInitialized(true);
                 }, 0);

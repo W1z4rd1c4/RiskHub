@@ -8,6 +8,7 @@ import { VendorLinkedRiskCard } from '@/components/vendors/VendorLinkedRiskCard'
 import { useTranslation } from '@/i18n/hooks';
 import { vendorLinkApi } from '@/services/vendorLinkApi';
 import type { LinkedRisk } from '@/types/vendorLink';
+import { logError } from '@/services/logger';
 
 interface VendorLinkedRisksTabProps {
     vendorId: number;
@@ -40,7 +41,7 @@ export function VendorLinkedRisksTab({
             setLinkedRisks(data);
             setError(null);
         } catch (err) {
-            console.error('Failed to load linked risks:', err);
+            logError('Failed to load linked risks:', err);
             setError(t('errors.load_failed'));
         } finally {
             setIsLoading(false);

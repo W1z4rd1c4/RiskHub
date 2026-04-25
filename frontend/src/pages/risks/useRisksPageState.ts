@@ -5,6 +5,7 @@ import type { SortDirection, ViewMode } from '@/components/tables';
 import { DEFAULT_LIST_PAGE_SIZE } from '@/constants/list';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { loadCollectionPage } from '@/services/collectionApi';
+import { logError } from '@/services/logger';
 import { reportApi } from '@/services/reportApi';
 import { riskApi } from '@/services/riskApi';
 import type { CollectionGroup } from '@/types/collection';
@@ -89,7 +90,7 @@ export function useRisksPageState({ initialState }: UseRisksPageStateOptions) {
             setErrorKey(null);
             hasLoadedRisksRef.current = true;
         } catch (error) {
-            console.error('[RisksPage] Error fetching risks:', error);
+            logError('[RisksPage] Error fetching risks:', error);
             if (requestId === latestRequestIdRef.current) {
                 setErrorKey('errors.load_failed');
             }
@@ -123,7 +124,7 @@ export function useRisksPageState({ initialState }: UseRisksPageStateOptions) {
                 await riskApi.restoreRisk(riskId);
                 await fetchRisks();
             } catch (error) {
-                console.error('Failed to restore risk:', error);
+                logError('Failed to restore risk:', error);
                 setErrorKey('errors.load_failed');
             }
         },
@@ -146,7 +147,7 @@ export function useRisksPageState({ initialState }: UseRisksPageStateOptions) {
                 });
                 setIsExportDialogOpen(false);
             } catch (error) {
-                console.error('Export failed:', error);
+                logError('Export failed:', error);
             } finally {
                 setIsExporting(false);
             }

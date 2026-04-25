@@ -25,6 +25,7 @@ import { usePermissions } from '@/hooks/usePermissions';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { DirectoryUserImportPanel } from '@/components/users/DirectoryUserImportPanel';
 import { useTranslation } from '@/i18n/hooks';
+import { logError } from '@/services/logger';
 
 // Safe roles that can be selected by default (non-privileged)
 const SAFE_ROLE_NAMES = ['control_owner', 'viewer', 'department_head'];
@@ -62,7 +63,7 @@ export function UserNewPage() {
                 setAuthConfig(config);
             } catch (err) {
                 if (cancelled) return;
-                console.error('Failed to load auth mode:', err);
+                logError('Failed to load auth mode:', err);
                 setAuthConfigError(
                     isAuthUnavailableError(err)
                         ? t('user_new.auth_mode_service_unavailable', {
@@ -109,7 +110,7 @@ export function UserNewPage() {
             }
             // If no safe role found, role_id stays 0 and form validation will catch it
         } catch (err) {
-            console.error('Failed to fetch roles:', err);
+            logError('Failed to fetch roles:', err);
         }
     }, []);
 
@@ -118,7 +119,7 @@ export function UserNewPage() {
             const data = await departmentApi.getDepartments();
             setDepartments(data);
         } catch (err) {
-            console.error('Failed to fetch departments:', err);
+            logError('Failed to fetch departments:', err);
         }
     }, []);
 

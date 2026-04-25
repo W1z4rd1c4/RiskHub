@@ -16,6 +16,7 @@ import { resolveCapabilityFlag } from '@/lib/capabilities';
 import type { AccessUserRead, AccessUserUpdate, RoleWithPermissions, AccessScopeEnum } from '@/types/access';
 import type { DepartmentSummary } from '@/services/departmentApi';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
+import { logError } from '@/services/logger';
 
 interface AccessEditModalProps {
     isOpen: boolean;
@@ -73,7 +74,7 @@ export function AccessEditModal({ isOpen, onClose, user, onSaved }: AccessEditMo
             setAllUsers(usersData.filter((u) => u.is_active && u.id !== user?.id));
             setTimeout(() => setIsInitialized(true), 100);
         } catch (err) {
-            console.error('Failed to load data:', err);
+            logError('Failed to load data:', err);
             setErrorKey('errorKeys.request_failed');
             setErrorMessage(null);
             setIsInitialized(true);
@@ -147,7 +148,7 @@ export function AccessEditModal({ isOpen, onClose, user, onSaved }: AccessEditMo
             onSaved();
             onClose();
         } catch (err: unknown) {
-            console.error('Failed to update user access:', err);
+            logError('Failed to update user access:', err);
             const messageKey = apiClient.toUiMessageKey(err);
             setErrorKey(messageKey);
             setErrorMessage(

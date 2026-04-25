@@ -25,6 +25,7 @@ import { RiskFormOwnershipStep } from './RiskFormOwnershipStep';
 import { RiskFormScoringStep } from './RiskFormScoringStep';
 import { resolveRiskTypeCode } from './riskTypeDefaults';
 import { useRiskLookups } from './useRiskLookups';
+import { logError } from '@/services/logger';
 
 interface RiskFormProps {
     initialData?: Risk;
@@ -278,7 +279,7 @@ export function RiskForm({
 
             void navigate(`/risks/${initialData?.id}`);
         } catch (err: unknown) {
-            console.error('Error saving risk:', err);
+            logError('Error saving risk:', err);
             if (err instanceof ApiClientError) {
                 setError(err.messageKey);
             } else {

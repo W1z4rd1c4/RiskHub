@@ -4,6 +4,7 @@ import { userApi } from '@/services/userApi';
 import type { RiskSummary } from '@/types/risk';
 import type { ControlSummary } from '@/types/control';
 import type { KeyRiskIndicator, KRIMonitoringStatus } from '@/types/kri';
+import { logError } from '@/services/logger';
 
 // Pagination constants - must match backend MAX_PAGE_SIZE
 export const DEPARTMENT_PAGE_SIZE = 100;
@@ -130,7 +131,9 @@ export function useDepartmentDetail({
                     setRisks(data);
                 }
             })
-            .catch(console.error);
+            .catch((error: unknown) => {
+                logError('Failed to load department risks.', error);
+            });
         return () => {
             cancelled = true;
         };
@@ -147,7 +150,9 @@ export function useDepartmentDetail({
                     setControls(data);
                 }
             })
-            .catch(console.error);
+            .catch((error: unknown) => {
+                logError('Failed to load department controls.', error);
+            });
         return () => {
             cancelled = true;
         };
@@ -169,7 +174,9 @@ export function useDepartmentDetail({
                     setKriTotalCount(response.total);
                 }
             })
-            .catch(console.error);
+            .catch((error: unknown) => {
+                logError('Failed to load department KRIs.', error);
+            });
         return () => {
             cancelled = true;
         };
@@ -186,7 +193,9 @@ export function useDepartmentDetail({
                     setUsers(data);
                 }
             })
-            .catch(console.error);
+            .catch((error: unknown) => {
+                logError('Failed to load department users.', error);
+            });
         return () => {
             cancelled = true;
         };

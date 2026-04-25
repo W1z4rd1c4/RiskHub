@@ -1,6 +1,7 @@
 import { apiClient } from './apiClient';
 import type { ExecutionResult } from '@/types/execution';
 import type { KRIMonitoringStatus, KRITimelinessStatus } from '@/types/kri';
+import { logError } from '@/services/logger';
 
 interface ReportFilters {
     departmentId?: number | null;
@@ -124,7 +125,7 @@ async function downloadFile(url: string, defaultFilename: string): Promise<void>
         document.body.removeChild(link);
         window.URL.revokeObjectURL(downloadUrl);
     } catch (error) {
-        console.error('Download error:', error);
+        logError('Download error:', error);
         throw error;
     }
 }

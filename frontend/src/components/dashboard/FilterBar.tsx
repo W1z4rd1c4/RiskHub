@@ -13,6 +13,7 @@ import { useDashboardFilters, type RiskLevel } from '../../contexts/DashboardFil
 import { lookupApi } from '../../services/lookupApi';
 import { ThemedSelect } from '../ui/ThemedSelect';
 import { useTranslation } from '@/i18n/hooks';
+import { logError } from '@/services/logger';
 
 interface Department {
     id: number;
@@ -58,7 +59,9 @@ export function FilterBar() {
     ];
 
     useEffect(() => {
-        lookupApi.getDepartments().then(setDepartments).catch(console.error);
+        lookupApi.getDepartments().then(setDepartments).catch((error: unknown) => {
+            logError('Failed to load dashboard departments.', error);
+        });
     }, []);
 
     const activeFilterChips = [

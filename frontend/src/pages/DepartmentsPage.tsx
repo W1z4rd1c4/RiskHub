@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Building2, Users, ShieldAlert, AlertCircle, RefreshCw, ClipboardList, Activity, TrendingUp } from 'lucide-react';
 import { useTranslation } from '@/i18n/hooks';
 import { departmentApi, type DepartmentSummary } from '@/services/departmentApi';
+import { logError } from '@/services/logger';
 
 export function DepartmentsPage() {
     const navigate = useNavigate();
@@ -19,7 +20,7 @@ export function DepartmentsPage() {
             setDepartments(data);
         } catch (err) {
             setErrorKey('errorKeys.load_departments_failed');
-            console.error('Error fetching departments:', err);
+            logError('Error fetching departments:', err);
         } finally {
             setIsLoading(false);
         }

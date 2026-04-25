@@ -11,6 +11,7 @@ import { VendorOverviewTab } from './vendors/VendorOverviewTab';
 import { VendorDetailHeader } from './vendors/VendorDetailHeader';
 import { VendorFormView } from './vendors/VendorFormView';
 import { useVendorDetailState } from './vendors/useVendorDetailState';
+import { logError } from '@/services/logger';
 import {
     buildVendorDetailPath,
     type VendorDetailFlash,
@@ -108,7 +109,7 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
             await vendorApi.deleteVendor(vendor.id);
             void navigate('/vendors');
         } catch (error) {
-            console.error('Failed to archive vendor:', error);
+            logError('Failed to archive vendor:', error);
             setActionMessage({
                 tone: 'danger',
                 message: t('errors.load_failed'),

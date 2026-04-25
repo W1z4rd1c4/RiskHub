@@ -31,6 +31,7 @@ import { ContextualIssueAction } from '@/pages/detail/ContextualIssueAction';
 import { DetailActionBanner, type DetailActionMessage } from '@/pages/detail/DetailActionBanner';
 import { useArchiveRestoreAction } from '@/pages/detail/useArchiveRestoreAction';
 import { useDetailResource } from '@/pages/detail/useDetailResource';
+import { logError } from '@/services/logger';
 
 type TabView = 'overview' | 'history';
 
@@ -90,7 +91,7 @@ export function ControlDetailPage() {
             setLinkedRisks(riskData);
             setLinkedRisksErrorKey(null);
         } catch (err) {
-            console.error('Error fetching linked risks:', err);
+            logError('Error fetching linked risks:', err);
             setLinkedRisksErrorKey('controls:detail.linked_risks_load_failed');
         }
     }, [controlId]);
@@ -129,7 +130,7 @@ export function ControlDetailPage() {
             const riskData = await controlApi.getLinkedRisks(control.id);
             setLinkedRisks(riskData);
         } catch (err) {
-            console.error('Linking failed:', err);
+            logError('Linking failed:', err);
             setLinkErrorKey(apiClient.toUiMessageKey(err));
         }
     };
@@ -142,7 +143,7 @@ export function ControlDetailPage() {
             const riskData = await controlApi.getLinkedRisks(control.id);
             setLinkedRisks(riskData);
         } catch (err) {
-            console.error('Unlinking failed:', err);
+            logError('Unlinking failed:', err);
             setLinkErrorKey(apiClient.toUiMessageKey(err));
         }
     };
@@ -155,7 +156,7 @@ export function ControlDetailPage() {
             setSelectedRisk(risk);
             setIsRiskModalOpen(true);
         } catch (err) {
-            console.error('Failed to fetch risk details:', err);
+            logError('Failed to fetch risk details:', err);
         } finally {
             setIsLoadingRisk(false);
         }

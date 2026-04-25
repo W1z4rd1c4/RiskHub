@@ -17,6 +17,7 @@ import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { useTranslation } from '@/i18n/hooks';
 import { formatRelativeDateValue } from '@/i18n/formatters';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
+import { logError } from '@/services/logger';
 
 interface ResolveOrphanModalProps {
     isOpen: boolean;
@@ -131,7 +132,7 @@ export function ResolveOrphanModal({ isOpen, onClose, orphan, onResolved }: Reso
             // Small artificial delay to prevent sub-millisecond flicker if cache hits
             setTimeout(() => setIsInitialized(true), 150);
         } catch (err) {
-            console.error('Failed to initialize resolution data:', err);
+            logError('Failed to initialize resolution data:', err);
             setErrorKey(apiClient.toUiMessageKey(err));
         }
     }, [fetchControlStatus, loadDepartments, loadRisks, loadUsers, orphan?.item_type]);
@@ -170,7 +171,7 @@ export function ResolveOrphanModal({ isOpen, onClose, orphan, onResolved }: Reso
             onResolved();
             onClose();
         } catch (err: unknown) {
-            console.error('Failed to resolve orphan:', err);
+            logError('Failed to resolve orphan:', err);
             setErrorKey(apiClient.toUiMessageKey(err));
         } finally {
             setIsSubmitting(false);

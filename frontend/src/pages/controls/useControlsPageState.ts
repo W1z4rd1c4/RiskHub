@@ -6,6 +6,7 @@ import { DEFAULT_LIST_PAGE_SIZE } from '@/constants/list';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { controlApi } from '@/services/controlApi';
 import { loadCollectionPage } from '@/services/collectionApi';
+import { logError } from '@/services/logger';
 import { reportApi } from '@/services/reportApi';
 import type { CollectionGroup } from '@/types/collection';
 import type { ControlSummary } from '@/types/control';
@@ -69,7 +70,7 @@ export function useControlsPageState() {
             setErrorKey(null);
             hasLoadedControlsRef.current = true;
         } catch (error) {
-            console.error('Error fetching controls:', error);
+            logError('Error fetching controls:', error);
             if (requestId === latestRequestIdRef.current) {
                 setErrorKey('errors.load_failed');
             }
@@ -90,7 +91,7 @@ export function useControlsPageState() {
                 await controlApi.restoreControl(controlId);
                 await fetchControls();
             } catch (error) {
-                console.error('Restore failed:', error);
+                logError('Restore failed:', error);
                 setErrorKey('errors.load_failed');
             }
         },
@@ -111,7 +112,7 @@ export function useControlsPageState() {
                 });
                 setIsExportDialogOpen(false);
             } catch (error) {
-                console.error('Export failed:', error);
+                logError('Export failed:', error);
             } finally {
                 setIsExporting(false);
             }

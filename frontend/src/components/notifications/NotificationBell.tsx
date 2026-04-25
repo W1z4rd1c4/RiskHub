@@ -6,6 +6,7 @@ import { notificationsApi } from '@/services/notificationsApi';
 import type { Notification, NotificationType } from '@/types/notification';
 import { NOTIFICATIONS_DROPDOWN_LIMIT } from '@/config/constants';
 import { getNotificationPath } from './resourcePath';
+import { logError } from '@/services/logger';
 
 /**
  * Get icon for notification type.
@@ -75,7 +76,7 @@ export function NotificationBell({ unreadCount = 0, onUnreadCountChange }: Notif
                     setNotifications(response.items);
                     onUnreadCountChange?.(response.unread_count);
                 } catch (error) {
-                    console.error('Failed to fetch notifications:', error);
+                    logError('Failed to fetch notifications:', error);
                 } finally {
                     setLoading(false);
                 }
@@ -106,7 +107,7 @@ export function NotificationBell({ unreadCount = 0, onUnreadCountChange }: Notif
                 );
                 onUnreadCountChange?.(unread_count);
             } catch (error) {
-                console.error('Failed to mark as read:', error);
+                logError('Failed to mark as read:', error);
             }
         }
     };
@@ -129,7 +130,7 @@ export function NotificationBell({ unreadCount = 0, onUnreadCountChange }: Notif
             setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
             onUnreadCountChange?.(0);
         } catch (error) {
-            console.error('Failed to mark all as read:', error);
+            logError('Failed to mark all as read:', error);
         }
     };
 

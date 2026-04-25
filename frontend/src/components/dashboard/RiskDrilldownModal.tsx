@@ -7,6 +7,7 @@ import { dashboardApi } from '../../services/dashboardApi';
 import { useTranslation } from '@/i18n/hooks';
 
 import { useDashboardFilters } from '../../contexts/DashboardFilterContext';
+import { logError } from '@/services/logger';
 
 interface RiskInCell {
     id: number;
@@ -43,7 +44,7 @@ export function RiskDrilldownModal({ isOpen, onClose, probability, impact, riskT
             const data = await dashboardApi.fetchRisksByCell(probability, impact, filters, riskType);
             setRisks(data);
         } catch (err) {
-            console.error('Error fetching risks:', err);
+            logError('Error fetching risks:', err);
             setError(t('errors.load_failed'));
         } finally {
             setIsLoading(false);

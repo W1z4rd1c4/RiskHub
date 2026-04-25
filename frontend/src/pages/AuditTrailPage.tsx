@@ -19,6 +19,7 @@ import { Pagination } from '@/components/tables';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { formatDateValue, formatTimeValue } from '@/i18n/formatters';
 import { getExecutionResultMeta } from '@/lib/executionResult';
+import { logError } from '@/services/logger';
 
 const AUDIT_TRAIL_SKELETON_ROWS = 5;
 
@@ -46,7 +47,7 @@ export function AuditTrailPage() {
             setExecutions(data.items);
             setTotalCount(data.total);
         } catch (err) {
-            console.error('Failed to fetch audit trail:', err);
+            logError('Failed to fetch audit trail:', err);
         } finally {
             setIsLoading(false);
         }
@@ -72,7 +73,9 @@ export function AuditTrailPage() {
                 <div className="flex items-center gap-3">
                     {hasPermission('reports', 'read') ? (
                         <button
-                            onClick={() => reportApi.downloadAuditTrailCsv({ result: resultFilter || undefined }).catch(console.error)}
+                            onClick={() => reportApi.downloadAuditTrailCsv({ result: resultFilter || undefined }).catch((error: unknown) => {
+                                logError('Failed to download audit trail CSV.', error);
+                            })}
                             className="px-4 py-2 text-xs font-black uppercase tracking-widest text-slate-400 hover:text-white transition-all bg-white/5 rounded-lg border border-white/10 flex items-center gap-2 hover:bg-accent/10 hover:border-accent/20"
                         >
                             <Sheet className="h-3.5 w-3.5" />

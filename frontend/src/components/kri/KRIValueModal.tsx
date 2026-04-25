@@ -9,6 +9,7 @@ import { isApprovalCreatedResponse } from '@/types/approval';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useTranslation } from '@/i18n/hooks';
 import { formatDateValue } from '@/i18n/formatters';
+import { logError } from '@/services/logger';
 
 interface KRIValueModalProps {
     kri: KeyRiskIndicator;
@@ -52,7 +53,7 @@ export function KRIValueModal({ kri, isOpen, onClose, onSuccess }: KRIValueModal
                 }, 1500);
             }
         } catch (err: unknown) {
-            console.error('Record value failed:', err);
+            logError('Record value failed:', err);
             setErrorKey(apiClient.toUiMessageKey(err));
         } finally {
             setIsSaving(false);

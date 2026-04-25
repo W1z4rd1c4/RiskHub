@@ -3,6 +3,7 @@ import { useTranslation as useI18nextTranslation } from 'react-i18next';
 import { type SupportedLanguage, STORAGE_KEY } from './index';
 import type { Namespace } from './types';
 import { useAuth } from '@/contexts/AuthContext';
+import { logError } from '@/services/logger';
 import { saveLanguageToServer } from '@/utils/userSettingsStorage';
 import {
     formatDateTimeValue,
@@ -192,7 +193,9 @@ export function useLanguage() {
         (newLang: SupportedLanguage) => {
             void i18nInstance.changeLanguage(newLang);
             if (isAuthenticated) {
-                void saveLanguageToServer(newLang).catch(console.error);
+                void saveLanguageToServer(newLang).catch((error: unknown) => {
+                    logError('Failed to save language preference.', error);
+                });
             } else {
                 localStorage.setItem(STORAGE_KEY, newLang);
             }

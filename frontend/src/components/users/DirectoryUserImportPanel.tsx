@@ -5,6 +5,7 @@ import { useTranslation } from '@/i18n/hooks';
 import { apiClient, ApiClientError } from '@/services/apiClient';
 import { directoryApi } from '@/services/directoryApi';
 import type { DirectoryImportResponse, DirectoryUser } from '@/types/directory';
+import { logError } from '@/services/logger';
 
 interface DirectoryUserImportPanelProps {
     onImported: (result: DirectoryImportResponse) => void | Promise<void>;
@@ -51,7 +52,7 @@ export function DirectoryUserImportPanel({
                 setShowProviderSetupHint(false);
                 onProviderUnavailableChange?.(false);
             } catch (err) {
-                console.error('Directory search failed', err);
+                logError('Directory search failed', err);
                 const providerUnavailable = isProviderUnavailableError(err);
                 setShowProviderSetupHint(providerUnavailable);
                 onProviderUnavailableChange?.(providerUnavailable);
@@ -81,7 +82,7 @@ export function DirectoryUserImportPanel({
             setShowProviderSetupHint(false);
             onProviderUnavailableChange?.(false);
         } catch (err) {
-            console.error('Directory import failed', err);
+            logError('Directory import failed', err);
             const providerUnavailable = isProviderUnavailableError(err);
             setShowProviderSetupHint(providerUnavailable);
             onProviderUnavailableChange?.(providerUnavailable);

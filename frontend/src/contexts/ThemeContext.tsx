@@ -4,6 +4,7 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { getLocalTheme, saveThemeToServer, THEME_KEY } from '@/utils/userSettingsStorage';
+import { logError } from '@/services/logger';
 
 export type Theme = 'dark' | 'light' | 'riskhub';
 
@@ -59,7 +60,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     const setTheme = (newTheme: Theme) => {
         setThemeState(newTheme);
         if (isAuthenticated) {
-            saveThemeToServer(newTheme).catch(console.error);
+            saveThemeToServer(newTheme).catch((error: unknown) => {
+                logError('Failed to save theme preference.', error);
+            });
         } else {
             // Guest mode: just save locally
             localStorage.setItem(THEME_KEY, newTheme);
