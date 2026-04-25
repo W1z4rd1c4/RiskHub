@@ -9,17 +9,12 @@ from datetime import datetime, timezone
 from typing import Any, Optional
 from typing import cast as typing_cast
 
-from sqlalchemy import String, cast, func, or_, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.approval_request import ApprovalRequest, ApprovalResourceType, ApprovalStatus
-from app.models.control import Control
+from app.core._snapshot_metrics import capture_snapshot_metrics
 from app.models.department import Department
-from app.models.key_risk_indicator import KeyRiskIndicator
-from app.models.orphaned_item import OrphanedItem
 from app.models.quarterly_metric_snapshot import QuarterlyMetricSnapshot, SnapshotType
-from app.models.risk import ControlRiskLink, Risk, RiskStatus
-from app.models.vendor import Vendor
 
 
 def get_quarter_label(dt: datetime) -> str:
@@ -45,179 +40,6 @@ def get_quarter_end(year: int, quarter_num: int) -> datetime:
         return datetime(year + 1, 1, 1, tzinfo=timezone.utc)
     else:
         return datetime(year, quarter_num * 3 + 1, 1, tzinfo=timezone.utc)
-
-
-async def capture_snapshot_metrics(
-    db: AsyncSession,
-    department_ids: Optional[list[int]] = None,
-) -> dict:
-    """
-    Capture current state metrics that represent point-in-time snapshots.
-
-    These are the metrics that cannot be derived from period-based events
-    and need to be captured at quarter boundaries for accurate comparisons.
-
-    Args:
-        db: Database session
-        department_ids: Optional list of department IDs to scope metrics (None = global)
-
-    Returns:
-        Dictionary of snapshot metric values
-    """
-    # Priority risks (current state)
-    priority_conditions = [
-        Risk.is_priority.is_(True),
-        Risk.status != RiskStatus.archived.value,
-    ]
-    if department_ids is not None:
-        priority_conditions.append(Risk.department_id.in_(department_ids))
-    priority_count = await db.scalar(select(func.count(Risk.id)).where(*priority_conditions))
-
-    # KRI breaches (current state)
-    kri_breach_query = select(func.count(KeyRiskIndicator.id)).where(
-        or_(
-            KeyRiskIndicator.current_value < KeyRiskIndicator.lower_limit,
-            KeyRiskIndicator.current_value > KeyRiskIndicator.upper_limit,
-        )
-    )
-    if department_ids is not None:
-        kri_breach_query = kri_breach_query.join(Risk, KeyRiskIndicator.risk_id == Risk.id).where(
-            Risk.department_id.in_(department_ids)
-        )
-    kri_breaches = await db.scalar(kri_breach_query)
-
-    # Pending approvals (current state)
-    pending_status_values = [ApprovalStatus.PENDING.value, ApprovalStatus.PENDING_PRIVILEGED.value]
-    pending_approval_conditions = [cast(ApprovalRequest.status, String).in_(pending_status_values)]
-    if department_ids is None:
-        pending_approvals = await db.scalar(select(func.count(ApprovalRequest.id)).where(*pending_approval_conditions))
-    else:
-        pending_risks = await db.scalar(
-            select(func.count(ApprovalRequest.id))
-            .join(
-                Risk,
-                (ApprovalRequest.resource_type == ApprovalResourceType.RISK) & (ApprovalRequest.resource_id == Risk.id),
-            )
-            .where(*pending_approval_conditions, Risk.department_id.in_(department_ids))
-        )
-        pending_controls = await db.scalar(
-            select(func.count(ApprovalRequest.id))
-            .join(
-                Control,
-                (ApprovalRequest.resource_type == ApprovalResourceType.CONTROL)
-                & (ApprovalRequest.resource_id == Control.id),
-            )
-            .where(*pending_approval_conditions, Control.department_id.in_(department_ids))
-        )
-        pending_kris = await db.scalar(
-            select(func.count(ApprovalRequest.id))
-            .join(
-                KeyRiskIndicator,
-                (ApprovalRequest.resource_type == ApprovalResourceType.KRI)
-                & (ApprovalRequest.resource_id == KeyRiskIndicator.id),
-            )
-            .join(Risk, KeyRiskIndicator.risk_id == Risk.id)
-            .where(*pending_approval_conditions, Risk.department_id.in_(department_ids))
-        )
-        pending_approvals = (pending_risks or 0) + (pending_controls or 0) + (pending_kris or 0)
-
-    # Control coverage (current state)
-    total_active_risk_conditions = [Risk.status == RiskStatus.active.value]
-    if department_ids is not None:
-        total_active_risk_conditions.append(Risk.department_id.in_(department_ids))
-    total_active_risks = await db.scalar(select(func.count(Risk.id)).where(*total_active_risk_conditions)) or 1
-
-    risks_with_controls_query = (
-        select(func.count(Risk.id.distinct()))
-        .select_from(Risk)
-        .join(ControlRiskLink, ControlRiskLink.risk_id == Risk.id)
-        .where(Risk.status == RiskStatus.active.value)
-    )
-    if department_ids is not None:
-        risks_with_controls_query = risks_with_controls_query.where(Risk.department_id.in_(department_ids))
-    risks_with_controls = await db.scalar(risks_with_controls_query)
-    control_coverage = round((risks_with_controls or 0) / total_active_risks * 100)
-
-    # Orphaned items (current state)
-    if department_ids is None:
-        orphaned_items = await db.scalar(select(func.count(OrphanedItem.id)).where(OrphanedItem.resolved_at.is_(None)))
-    else:
-        orphaned_risks = await db.scalar(
-            select(func.count(OrphanedItem.id))
-            .join(Risk, (OrphanedItem.item_type == "risk") & (OrphanedItem.item_id == Risk.id))
-            .where(OrphanedItem.resolved_at.is_(None), Risk.department_id.in_(department_ids))
-        )
-        orphaned_controls = await db.scalar(
-            select(func.count(OrphanedItem.id))
-            .join(Control, (OrphanedItem.item_type == "control") & (OrphanedItem.item_id == Control.id))
-            .where(OrphanedItem.resolved_at.is_(None), Control.department_id.in_(department_ids))
-        )
-        orphaned_items = (orphaned_risks or 0) + (orphaned_controls or 0)
-
-    # KRI health (current state)
-    total_kris_query = select(func.count(KeyRiskIndicator.id))
-    kris_within_query = select(func.count(KeyRiskIndicator.id)).where(
-        KeyRiskIndicator.current_value >= KeyRiskIndicator.lower_limit,
-        KeyRiskIndicator.current_value <= KeyRiskIndicator.upper_limit,
-    )
-    if department_ids is not None:
-        total_kris_query = total_kris_query.join(Risk, KeyRiskIndicator.risk_id == Risk.id).where(
-            Risk.department_id.in_(department_ids)
-        )
-        kris_within_query = kris_within_query.join(Risk, KeyRiskIndicator.risk_id == Risk.id).where(
-            Risk.department_id.in_(department_ids)
-        )
-    total_kris = await db.scalar(total_kris_query) or 1
-    kris_within = await db.scalar(kris_within_query)
-    kri_health = round((kris_within or 0) / total_kris * 100)
-
-    # Overdue KRIs (current state)
-    overdue_kris_query = select(func.count(KeyRiskIndicator.id)).where(
-        KeyRiskIndicator.last_period_end.isnot(None),
-        func.date(KeyRiskIndicator.last_period_end) + 15 < func.current_date(),
-    )
-    if department_ids is not None:
-        overdue_kris_query = overdue_kris_query.join(Risk, KeyRiskIndicator.risk_id == Risk.id).where(
-            Risk.department_id.in_(department_ids)
-        )
-    overdue_kris = await db.scalar(overdue_kris_query)
-
-    # Risks without KRI (current state)
-    risks_with_kri = select(KeyRiskIndicator.risk_id.distinct())
-    risks_without_kri_query = select(func.count(Risk.id)).where(
-        Risk.status == RiskStatus.active.value,
-        Risk.id.notin_(risks_with_kri),
-    )
-    if department_ids is not None:
-        risks_without_kri_query = risks_without_kri_query.where(Risk.department_id.in_(department_ids))
-    risks_without_kri = await db.scalar(risks_without_kri_query)
-
-    # Active risks (current state) - only count active, not emerging
-    active_conditions = [
-        Risk.status == RiskStatus.active.value,
-    ]
-    if department_ids is not None:
-        active_conditions.append(Risk.department_id.in_(department_ids))
-    active_risks = await db.scalar(select(func.count(Risk.id)).where(*active_conditions))
-
-    # Vendor snapshot metrics (Phase 18-11)
-    vendor_conditions = [Vendor.status == "active"]
-    if department_ids is not None:
-        vendor_conditions.append(Vendor.department_id.in_(department_ids))
-    active_vendors = await db.scalar(select(func.count(Vendor.id)).where(*vendor_conditions))
-
-    return {
-        "priority_risks": priority_count or 0,
-        "kri_breaches": kri_breaches or 0,
-        "pending_approvals": pending_approvals or 0,
-        "control_coverage": control_coverage,
-        "orphaned_items": orphaned_items or 0,
-        "kri_health": kri_health,
-        "overdue_kris": overdue_kris or 0,
-        "risks_without_kri": risks_without_kri or 0,
-        "active_risks": active_risks or 0,
-        "active_vendors": active_vendors or 0,
-    }
 
 
 async def save_quarter_snapshot(

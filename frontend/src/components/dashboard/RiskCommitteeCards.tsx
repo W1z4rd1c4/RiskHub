@@ -1,0 +1,307 @@
+import { motion } from 'framer-motion';
+import type { NavigateFunction } from 'react-router-dom';
+import { Activity, AlertTriangle, Building2, Clock, Handshake, Star } from 'lucide-react';
+import type { DashboardCommitteeSummary } from '@/services/dashboardApi';
+import type { SafeTFunction } from '@/i18n/hooks';
+import { buildVendorDetailPath } from '@/pages/vendors/vendorDetailPresentation';
+import { QuarterlyComparisonWidget } from './QuarterlyComparisonWidget';
+
+const ACTION_COLORS: Record<string, string> = {
+    create: 'bg-emerald-500/20 text-emerald-400',
+    delete: 'bg-rose-500/20 text-rose-400',
+    archive: 'bg-slate-500/20 text-slate-400',
+    approve: 'bg-blue-500/20 text-blue-400',
+    reject: 'bg-amber-500/20 text-amber-400',
+};
+
+function formatTimeAgo(dateStr: string, t: SafeTFunction): string {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) return t('risk_committee.today');
+    if (diffDays === 1) return t('risk_committee.yesterday');
+    if (diffDays < 7) return t('risk_committee.days_ago', { count: diffDays });
+    if (diffDays < 30) return t('risk_committee.weeks_ago', { count: Math.floor(diffDays / 7) });
+    return t('risk_committee.months_ago', { count: Math.floor(diffDays / 30) });
+}
+
+function getRiskScoreColor(score: number): string {
+    if (score >= 15) return 'text-rose-400';
+    if (score >= 10) return 'text-orange-400';
+    if (score >= 5) return 'text-amber-400';
+    return 'text-emerald-400';
+}
+
+function getVendorRiskColor(score: number): string {
+    if (score >= 4) return 'text-rose-400';
+    if (score >= 3) return 'text-amber-400';
+    return 'text-emerald-400';
+}
+
+export function RiskCommitteeLoadingState() {
+    return (
+        <div className="space-y-6">
+            <QuarterlyComparisonWidget />
+            <div className="grid gap-6 lg:grid-cols-3">
+                {Array(3).fill(0).map((_, i) => (
+                    <div key={i} className="glass-card animate-pulse">
+                        <div className="h-8 bg-white/5 rounded mb-4 w-1/3" />
+                        <div className="space-y-3">
+                            {Array(3).fill(0).map((_, j) => (
+                                <div key={j} className="h-16 bg-white/5 rounded" />
+                            ))}
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+export function RiskCommitteeErrorState({ message, t }: { message: string | null; t: SafeTFunction }) {
+    return (
+        <div className="space-y-6">
+            <QuarterlyComparisonWidget />
+            <div className="glass-card">
+                <p className="text-slate-500 text-sm">{message || t('risk_committee.no_summary_data')}</p>
+            </div>
+        </div>
+    );
+}
+
+function CriticalRisksCard({ summary, t }: { summary: DashboardCommitteeSummary; t: SafeTFunction }) {
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="glass-card"
+        >
+            <div className="flex items-center gap-2 mb-6">
+                <AlertTriangle className="h-5 w-5 text-rose-400" />
+                <h3 className="text-lg font-bold text-white">{t('risk_committee.critical_risks')}</h3>
+            </div>
+
+            {summary.critical_risks.length === 0 ? (
+                <p className="text-slate-500 text-sm">{t('risk_committee.no_critical_risks')}</p>
+            ) : (
+                <div className="space-y-3">
+                    {summary.critical_risks.map((risk) => (
+                        <div
+                            key={risk.id}
+                            className="bg-white/5 rounded-xl p-4 border border-white/5 hover:border-white/10 transition-colors"
+                        >
+                            <div className="flex items-start justify-between gap-2 mb-2">
+                                <div className="flex flex-col gap-0.5">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-sm font-bold text-white leading-tight">
+                                            {risk.name}
+                                        </span>
+                                        {risk.is_priority && (
+                                            <Star className="h-3 w-3 text-amber-400 fill-amber-400 shrink-0" />
+                                        )}
+                                    </div>
+                                    <div className="flex items-center gap-2 text-[10px] text-slate-500 font-bold uppercase tracking-widest">
+                                        <span>{risk.process}</span>
+                                    </div>
+                                </div>
+                                <span className={`text-sm font-black shrink-0 ${getRiskScoreColor(risk.net_score)}`}>
+                                    {risk.net_score}
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-3 mb-3 text-[10px] text-slate-400 font-medium bg-white/5 w-fit px-2 py-1 rounded-lg border border-white/5">
+                                <div className="flex items-center gap-1.5">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-accent/50" />
+                                    <span>{risk.owner_name}</span>
+                                </div>
+                                <span className="w-px h-2 bg-white/10" />
+                                <span>{risk.department_name}</span>
+                            </div>
+                            <p className="text-xs text-slate-400 line-clamp-3 leading-relaxed">
+                                {risk.description}
+                            </p>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </motion.div>
+    );
+}
+
+function CriticalVendorsCard({
+    summary,
+    navigate,
+    t,
+}: {
+    summary: DashboardCommitteeSummary;
+    navigate: NavigateFunction;
+    t: SafeTFunction;
+}) {
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+            className="glass-card"
+        >
+            <div className="flex items-center gap-2 mb-6">
+                <Handshake className="h-5 w-5 text-blue-400" />
+                <h3 className="text-lg font-bold text-white">{t('risk_committee.critical_vendors')}</h3>
+            </div>
+
+            {summary.critical_vendors.length === 0 ? (
+                <p className="text-slate-500 text-sm">{t('risk_committee.no_vendors_in_scope')}</p>
+            ) : (
+                <div className="space-y-3">
+                    {summary.critical_vendors.map((v) => (
+                        <button
+                            key={v.id}
+                            onClick={() => navigate(buildVendorDetailPath(v.id, 'assessments', 'schedule'))}
+                            className="w-full text-left bg-white/5 rounded-xl p-4 border border-white/5 hover:border-white/10 transition-colors"
+                        >
+                            <div className="flex items-center justify-between mb-2">
+                                <p className="text-sm font-bold text-white truncate">{v.name}</p>
+                                <span className={`text-sm font-black ${getVendorRiskColor(v.risk_score_1_5)}`}>
+                                    {v.risk_score_1_5}/5
+                                </span>
+                            </div>
+                            <p className="text-[10px] text-slate-500 uppercase tracking-widest">
+                                {v.department_name} · {v.process}{v.subprocess ? ` / ${v.subprocess}` : ''}
+                            </p>
+                        </button>
+                    ))}
+                </div>
+            )}
+        </motion.div>
+    );
+}
+
+function DepartmentExposureCard({ summary, t }: { summary: DashboardCommitteeSummary; t: SafeTFunction }) {
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.25 }}
+            className="glass-card"
+        >
+            <div className="flex items-center gap-2 mb-6">
+                <Building2 className="h-5 w-5 text-purple-400" />
+                <h3 className="text-lg font-bold text-white">{t('sections.risk_exposure_by_dept')}</h3>
+            </div>
+
+            {summary.department_exposure.length === 0 ? (
+                <p className="text-slate-500 text-sm">{t('risk_committee.no_department_exposure_data')}</p>
+            ) : (
+                <div className="space-y-3">
+                    {summary.department_exposure.map((dept, index) => {
+                        const maxExposure = summary.department_exposure[0]?.total_exposure || 1;
+                        const barWidth = (dept.total_exposure / maxExposure) * 100;
+
+                        return (
+                            <div
+                                key={dept.id}
+                                className="bg-white/5 rounded-xl p-4 border border-white/5"
+                            >
+                                <div className="flex items-center justify-between mb-2">
+                                    <span className="text-sm font-bold text-white">{dept.name}</span>
+                                    <span className={`text-sm font-black ${getRiskScoreColor(dept.total_exposure)}`}>
+                                        {dept.total_exposure}
+                                    </span>
+                                </div>
+                                <div className="flex items-center gap-2 mb-2">
+                                    <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
+                                        <motion.div
+                                            initial={{ width: 0 }}
+                                            animate={{ width: `${barWidth}%` }}
+                                            transition={{ delay: 0.3 + index * 0.1, duration: 0.5 }}
+                                            className="h-full bg-gradient-to-r from-purple-500 to-rose-500 rounded-full"
+                                        />
+                                    </div>
+                                </div>
+                                <p className="text-[10px] text-slate-500 uppercase tracking-widest">
+                                    {dept.risk_count} risk{dept.risk_count !== 1 ? 's' : ''}
+                                </p>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+        </motion.div>
+    );
+}
+
+function RecentActivityCard({ summary, t }: { summary: DashboardCommitteeSummary; t: SafeTFunction }) {
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="glass-card"
+        >
+            <div className="flex items-center gap-2 mb-6">
+                <Activity className="h-5 w-5 text-accent" />
+                <h3 className="text-lg font-bold text-white">{t('sections.recent_activity')}</h3>
+            </div>
+
+            {summary.recent_activity.length === 0 ? (
+                <p className="text-slate-500 text-sm">{t('risk_committee.no_recent_significant_activity')}</p>
+            ) : (
+                <div className="space-y-3 max-h-80 overflow-y-auto">
+                    {summary.recent_activity.map((activity) => (
+                        <div
+                            key={activity.id}
+                            className="bg-white/5 rounded-xl p-3 border border-white/5"
+                        >
+                            <div className="flex items-start gap-2">
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${ACTION_COLORS[activity.action] || 'bg-slate-500/20 text-slate-400'}`}>
+                                    {t(`risk_committee.actions.${activity.action}`, activity.action)}
+                                </span>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-xs text-white font-medium truncate">
+                                        {activity.entity_name}
+                                    </p>
+                                    <p className="text-[10px] text-slate-500 flex items-center gap-1 mt-1">
+                                        <Clock className="h-3 w-3" />
+                                        {formatTimeAgo(activity.created_at, t)}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </motion.div>
+    );
+}
+
+export function RiskCommitteeSummaryContent({
+    navigate,
+    summary,
+    t,
+}: {
+    navigate: NavigateFunction;
+    summary: DashboardCommitteeSummary;
+    t: SafeTFunction;
+}) {
+    return (
+        <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="space-y-6"
+        >
+            <QuarterlyComparisonWidget />
+
+            <div className="grid gap-6 lg:grid-cols-2">
+                <CriticalRisksCard summary={summary} t={t} />
+                <CriticalVendorsCard summary={summary} navigate={navigate} t={t} />
+            </div>
+
+            <div className="grid gap-6 lg:grid-cols-2">
+                <DepartmentExposureCard summary={summary} t={t} />
+                <RecentActivityCard summary={summary} t={t} />
+            </div>
+        </motion.div>
+    );
+}
