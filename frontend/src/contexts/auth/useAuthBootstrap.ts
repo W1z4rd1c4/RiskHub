@@ -1,13 +1,13 @@
 import { useEffect } from 'react';
-import { bootstrapAuthSession } from '@/services/session/bootstrap';
 import { isAuthUnavailableError } from '@/services/authRequest';
 import {
     applyAnonymousSession,
+    bootstrapAuthSession,
     applyBootstrappingSession,
     applyBootstrappedSession,
     applyBootstrapError,
-} from '@/services/session/manager';
-import { getSessionSnapshot } from '@/services/session/store';
+    getSessionSnapshot,
+} from '@/services/session';
 
 interface UseAuthBootstrapOptions {
     token: string | null;

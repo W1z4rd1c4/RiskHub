@@ -18,6 +18,13 @@ class SsoChallenge:
     expires_at: datetime
 
 
+def _coerce_required_utc(value: datetime) -> datetime:
+    coerced = coerce_utc(value)
+    if coerced is None:  # pragma: no cover - value type excludes None; defensive for future callers
+        raise ValueError("SSO challenge timestamps must not be null")
+    return coerced
+
+
 class InMemorySsoChallengeStore:
     def __init__(self) -> None:
         self._lock = asyncio.Lock()
@@ -38,14 +45,16 @@ class InMemorySsoChallengeStore:
             challenge = self._items.pop(challenge_id, None)
             if challenge is None:
                 return None
-            if coerce_utc(challenge.expires_at) <= utc_now():
+            if _coerce_required_utc(challenge.expires_at) <= utc_now():
                 return None
             return challenge
 
     def _purge_expired_locked(self) -> None:
         now = utc_now()
         expired_ids = [
-            challenge_id for challenge_id, challenge in self._items.items() if coerce_utc(challenge.expires_at) <= now
+            challenge_id
+            for challenge_id, challenge in self._items.items()
+            if _coerce_required_utc(challenge.expires_at) <= now
         ]
         for challenge_id in expired_ids:
             self._items.pop(challenge_id, None)
@@ -69,7 +78,8 @@ return value
         return f"{self.KEY_PREFIX}:{challenge_id}"
 
     async def store(self, challenge: SsoChallenge) -> None:
-        ttl_seconds = max(int((coerce_utc(challenge.expires_at) - utc_now()).total_seconds()), 1)
+        expires_at = _coerce_required_utc(challenge.expires_at)
+        ttl_seconds = max(int((expires_at - utc_now()).total_seconds()), 1)
         await self._redis.set(self._key(challenge.challenge_id), self._serialize(challenge), ex=ttl_seconds)
 
     async def delete(self, challenge_id: str) -> None:
@@ -80,15 +90,15 @@ return value
         if not payload:
             return None
         challenge = self._deserialize(str(payload))
-        if coerce_utc(challenge.expires_at) <= utc_now():
+        if _coerce_required_utc(challenge.expires_at) <= utc_now():
             return None
         return challenge
 
     @staticmethod
     def _serialize(challenge: SsoChallenge) -> str:
         payload = asdict(challenge)
-        payload["issued_at"] = coerce_utc(challenge.issued_at).isoformat()
-        payload["expires_at"] = coerce_utc(challenge.expires_at).isoformat()
+        payload["issued_at"] = _coerce_required_utc(challenge.issued_at).isoformat()
+        payload["expires_at"] = _coerce_required_utc(challenge.expires_at).isoformat()
         return json.dumps(payload)
 
     @staticmethod
@@ -99,6 +109,6 @@ return value
             nonce=str(data["nonce"]),
             state=str(data["state"]),
             return_to=str(data["return_to"]),
-            issued_at=coerce_utc(datetime.fromisoformat(str(data["issued_at"]))),
-            expires_at=coerce_utc(datetime.fromisoformat(str(data["expires_at"]))),
+            issued_at=_coerce_required_utc(datetime.fromisoformat(str(data["issued_at"]))),
+            expires_at=_coerce_required_utc(datetime.fromisoformat(str(data["expires_at"]))),
         )

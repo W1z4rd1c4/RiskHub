@@ -10,6 +10,8 @@ import httpx
 
 from app.core.config import Settings
 
+type IPAddress = ipaddress.IPv4Address | ipaddress.IPv6Address
+
 
 class OutboundRequestError(RuntimeError):
     """Raised when an outbound request violates security guardrails."""
@@ -40,7 +42,7 @@ def _is_private_or_local_host(host: str) -> bool:
     )
 
 
-def _is_disallowed_ip(ip: ipaddress._BaseAddress) -> bool:
+def _is_disallowed_ip(ip: IPAddress) -> bool:
     return bool(
         ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast or ip.is_unspecified
     )
@@ -80,7 +82,7 @@ def guard_outbound_url(
         raise OutboundRequestError(f"Private/local outbound destination is blocked: {host}")
 
 
-async def resolve_outbound_ips(host: str) -> set[ipaddress._BaseAddress]:
+async def resolve_outbound_ips(host: str) -> set[IPAddress]:
     try:
         addr_info = await asyncio.get_running_loop().getaddrinfo(
             host,
@@ -91,7 +93,7 @@ async def resolve_outbound_ips(host: str) -> set[ipaddress._BaseAddress]:
     except socket.gaierror as exc:
         raise OutboundRequestError(f"Failed to resolve outbound host: {host}") from exc
 
-    resolved_ips: set[ipaddress._BaseAddress] = set()
+    resolved_ips: set[IPAddress] = set()
     for _family, _socktype, _proto, _canonname, sockaddr in addr_info:
         resolved_ips.add(ipaddress.ip_address(str(sockaddr[0])))
     if not resolved_ips:

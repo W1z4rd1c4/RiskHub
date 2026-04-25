@@ -125,7 +125,7 @@ export function RiskForm({
         setFieldErrors({});
         setError(null);
         setApprovalQueued(null);
-    }, [initialData?.id]);
+    }, [initialData]);
 
     useEffect(() => {
         const resolvedRiskType = resolveRiskTypeCode(formData.risk_type, riskTypes);

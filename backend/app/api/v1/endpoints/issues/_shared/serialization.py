@@ -33,14 +33,11 @@ from .constants import (
 
 def _active_exception(issue: Issue) -> IssueException | None:
     now = datetime.now(UTC)
-    approved = [
-        ex
-        for ex in issue.exceptions
-        if ex.status == IssueExceptionStatus.approved.value
-        and ex.expires_at is not None
-        and coerce_utc(ex.expires_at) is not None
-        and coerce_utc(ex.expires_at) > now
-    ]
+    approved = []
+    for ex in issue.exceptions:
+        expires_at = coerce_utc(ex.expires_at)
+        if ex.status == IssueExceptionStatus.approved.value and expires_at is not None and expires_at > now:
+            approved.append(ex)
     if not approved:
         return None
     approved.sort(
@@ -163,13 +160,15 @@ def _link_risks(link: IssueLink) -> list[Risk]:
     if link.risk is not None:
         return [link.risk]
 
-    if getattr(link.kri, "risk", None) is not None:
-        return [link.kri.risk]
+    kri = link.kri
+    if kri is not None and kri.risk is not None:
+        return [kri.risk]
 
-    if getattr(link.execution, "control", None) is not None:
+    execution = link.execution
+    if execution is not None and execution.control is not None:
         return [
             risk_link.risk
-            for risk_link in getattr(link.execution.control, "risk_links", [])
+            for risk_link in getattr(execution.control, "risk_links", [])
             if isinstance(risk_link, ControlRiskLink) and risk_link.risk is not None
         ]
 
@@ -300,7 +299,9 @@ def _serialize_issue_read(issue: Issue, current_user: User | None = None) -> Iss
             "validation_note": issue.validation_note,
             "links": [_serialize_issue_link(link, current_user=current_user).model_dump() for link in issue.links],
             "remediation_plan": (
-                _serialize_remediation(issue.remediation_plan).model_dump() if issue.remediation_plan else None
+                serialized_remediation.model_dump()
+                if (serialized_remediation := _serialize_remediation(issue.remediation_plan)) is not None
+                else None
             ),
             "exceptions": [_serialize_exception(exception).model_dump() for exception in issue.exceptions],
         }

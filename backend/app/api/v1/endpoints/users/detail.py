@@ -146,13 +146,17 @@ async def update_user(
                 if not remaining.scalar_one_or_none():
                     raise HTTPException(status_code=400, detail="Cannot demote the last admin/CRO user")
 
-    extra_changes = {}
+    extra_changes: dict[str, dict[str, object]] = {}
     if password is not None:
         user.hashed_password = get_password_hash(password)
         extra_changes["password_changed"] = {"old": None, "new": True}
 
     is_deactivating = user.is_active is True and update_data.get("is_active") is False
-    is_privileged_user = bool(user.role and user.role.name in ADMIN_PRIVILEGED_ROLES and user.access_scope == AccessScope.GLOBAL)
+    is_privileged_user = bool(
+        user.role
+        and user.role.name in ADMIN_PRIVILEGED_ROLES
+        and user.access_scope == AccessScope.GLOBAL
+    )
     if is_deactivating and current_user.id == user.id and is_privileged_user:
         raise HTTPException(status_code=400, detail="Cannot deactivate your own privileged access")
     if is_deactivating and is_privileged_user:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -285,7 +286,9 @@ async def bootstrap_runtime_services(app: FastAPI) -> None:
 
         redis = Redis.from_url(settings.redis_url, decode_responses=True)
         try:
-            await redis.ping()
+            ping_result = redis.ping()
+            if inspect.isawaitable(ping_result):
+                await ping_result
         except Exception:
             await redis.aclose()
             raise

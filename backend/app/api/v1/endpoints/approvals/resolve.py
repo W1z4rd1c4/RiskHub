@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,7 +22,7 @@ from ._shared import _build_approval_read, _get_approval_department_id, logger
 
 router = APIRouter()
 
-_APPROVAL_AUTH_NOT_FOUND_RESPONSES = {
+_APPROVAL_AUTH_NOT_FOUND_RESPONSES: dict[int | str, dict[str, Any]] = {
     401: {"description": "Authentication required."},
     403: {"description": "Authenticated user is not allowed to resolve this approval."},
     404: {"description": "Approval request not found."},

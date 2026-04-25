@@ -19,6 +19,11 @@ from .periods import (
 )
 
 
+def _int_sort_value(row: dict[str, object], key: str) -> int:
+    value = row.get(key)
+    return value if isinstance(value, int) else 0
+
+
 async def get_history(
     db: AsyncSession,
     kri_id: int,
@@ -131,7 +136,7 @@ async def get_overdue_kris(
             )
 
     # Sort by days overdue descending
-    overdue.sort(key=lambda x: x["days_overdue"], reverse=True)
+    overdue.sort(key=lambda x: _int_sort_value(x, "days_overdue"), reverse=True)
     return overdue
 
 
@@ -196,5 +201,5 @@ async def get_due_soon_kris(
             )
 
     # Sort by days until due ascending (most urgent first)
-    due_soon.sort(key=lambda x: x["days_until_due"])
+    due_soon.sort(key=lambda x: _int_sort_value(x, "days_until_due"))
     return due_soon

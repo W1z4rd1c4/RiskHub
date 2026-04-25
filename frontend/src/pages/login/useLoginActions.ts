@@ -3,8 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import type { SafeTFunction } from '@/i18n/hooks';
 import { authApi } from '@/services/authApi';
 import { logError } from '@/services/logger';
-import { applyAuthenticatedSession } from '@/services/session/manager';
-import { clearExplicitLogoutSuppressed } from '@/services/session/logoutSuppression';
+import { applyAuthenticatedSession, clearExplicitLogoutSuppressed } from '@/services/session';
 import { isAuthUnavailableError } from '@/services/authRequest';
 import { entraAuth } from '@/services/entraAuth';
 

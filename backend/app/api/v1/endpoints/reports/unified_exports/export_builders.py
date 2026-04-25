@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from typing import Literal
 
 from fastapi.responses import StreamingResponse
@@ -33,8 +33,8 @@ from .fetch import (
     _fetch_risks_for_export,
 )
 from .filters import (
-    _filter_rows_by_final_scope,
     _filter_rows_by_control_criteria,
+    _filter_rows_by_final_scope,
     _filter_rows_by_kri_criteria,
     _filter_rows_by_risk_criteria,
     _normalize_kri_status,
@@ -43,6 +43,38 @@ from .filters import (
 from .rehydrate import _rehydrate_department_names, _rehydrate_user_names
 from .render import _render_export
 from .rows import _control_to_row, _issue_to_row, _kri_to_row, _risk_to_row
+
+
+def _datetime_or_none(value: object) -> datetime | None:
+    return value if isinstance(value, datetime) else None
+
+
+def _date_or_none(value: object) -> date | None:
+    return value if isinstance(value, date) and not isinstance(value, datetime) else None
+
+
+def _str_or_none(value: object) -> str | None:
+    return value if isinstance(value, str) else None
+
+
+def _int_value(value: object, default: int = 0) -> int:
+    if isinstance(value, int):
+        return value
+    if isinstance(value, (float, str)):
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return default
+    return default
+
+
+def _float_value(value: object, default: float = 0) -> float:
+    if isinstance(value, (int, float, str)):
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return default
+    return default
 
 
 def _apply_control_monitoring_rows(
@@ -55,10 +87,10 @@ def _apply_control_monitoring_rows(
     for row in rows:
         snapshot = derive_control_monitoring_snapshot(
             ControlMonitoringFacts(
-                created_at=row.get("created_at"),
-                latest_execution_result=row.get("latest_execution_result"),
-                latest_executed_at=row.get("latest_executed_at"),
-                execution_log_count=int(row.get("execution_log_count") or 0),
+                created_at=_datetime_or_none(row.get("created_at")),
+                latest_execution_result=_str_or_none(row.get("latest_execution_result")),
+                latest_executed_at=_datetime_or_none(row.get("latest_executed_at")),
+                execution_log_count=_int_value(row.get("execution_log_count")),
             ),
             config,
             now=as_of_dt,
@@ -81,12 +113,12 @@ def _apply_kri_monitoring_rows(
     for row in rows:
         snapshot = derive_kri_monitoring_snapshot(
             KRIMonitoringFacts(
-                current_value=float(row.get("current_value") or 0),
-                lower_limit=float(row.get("lower_limit") or 0),
-                upper_limit=float(row.get("upper_limit") or 0),
+                current_value=_float_value(row.get("current_value")),
+                lower_limit=_float_value(row.get("lower_limit")),
+                upper_limit=_float_value(row.get("upper_limit")),
                 breach_status=str(row.get("breach_status") or "within"),
                 frequency=str(row.get("frequency") or "quarterly"),
-                last_period_end=row.get("last_period_end"),
+                last_period_end=_date_or_none(row.get("last_period_end")),
                 has_submission_history=bool(row.get("last_period_end")),
             ),
             config,

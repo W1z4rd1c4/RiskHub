@@ -134,7 +134,8 @@ class GraphAccessTokenProvider:
             client_credential = credential.client_secret
 
         try:
-            app = msal.ConfidentialClientApplication(  # type: ignore[attr-defined]
+            confidential_client_application = getattr(msal, "ConfidentialClientApplication")
+            app = confidential_client_application(
                 client_id=client_id,
                 authority=authority,
                 client_credential=client_credential,

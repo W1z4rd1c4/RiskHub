@@ -174,11 +174,12 @@ async def _apply_kri_value_directly(
 
     if breach_detected:
         if kri.reporting_owner_id:
+            reporting_owner_id = kri.reporting_owner_id
 
             async def _notify_reporting_owner() -> None:
                 await NotificationService.create_notification(
                     db=db,
-                    user_id=kri.reporting_owner_id,
+                    user_id=reporting_owner_id,
                     notification_type=NotificationType.KRI_BREACH_DETECTED,
                     title="KRI Breach Detected",
                     message=f"KRI '{kri.metric_name}' breached limits! {breach_msg}",
@@ -192,11 +193,12 @@ async def _apply_kri_value_directly(
             )
 
         if kri.risk and kri.risk.owner_id and kri.risk.owner_id != kri.reporting_owner_id:
+            risk_owner_id = kri.risk.owner_id
 
             async def _notify_risk_owner() -> None:
                 await NotificationService.create_notification(
                     db=db,
-                    user_id=kri.risk.owner_id,
+                    user_id=risk_owner_id,
                     notification_type=NotificationType.KRI_BREACH_DETECTED,
                     title="Risk KRI Breach",
                     message=f"KRI for your risk '{kri.risk.risk_id_code}' breached limits! {breach_msg}",

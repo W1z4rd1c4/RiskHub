@@ -51,7 +51,7 @@ async def list_active_kris(db: AsyncSession) -> list[KeyRiskIndicator]:
             selectinload(KeyRiskIndicator.reporting_owner),
         )
     )
-    return (await db.execute(stmt)).scalars().all()
+    return list((await db.execute(stmt)).scalars().all())
 
 
 async def list_risk_managers(db: AsyncSession) -> list[User]:
@@ -64,4 +64,4 @@ async def list_risk_managers(db: AsyncSession) -> list[User]:
         .where(User.is_active.is_(True))
         .where(Role.name.in_(role_names))
     )
-    return (await db.execute(stmt)).scalars().all()
+    return list((await db.execute(stmt)).scalars().all())

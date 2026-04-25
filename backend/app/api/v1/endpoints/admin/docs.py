@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import re
 from pathlib import Path
+from typing import Literal
 
 from fastapi import APIRouter, Depends
 
@@ -221,7 +222,7 @@ async def get_documentation(
     docs_base = _resolve_docs_base()
 
     role = current_user.role.name if current_user.role else ""
-    audience = "admin" if role == RoleType.ADMIN else "user"
+    audience: Literal["admin", "user"] = "admin" if role == RoleType.ADMIN else "user"
 
     # Select one audience directory only (strict split by role)
     english_dir = docs_base / audience

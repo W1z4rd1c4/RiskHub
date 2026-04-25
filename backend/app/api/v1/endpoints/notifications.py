@@ -13,25 +13,27 @@ from app.schemas.notification import (
     NotificationListResponse,
     NotificationPreferences,
     NotificationPreferencesUpdate,
+    NotificationRead,
+    NotificationTypeEnum,
 )
 from app.services.kri_deadline_service import KRIDeadlineService
 
 router = APIRouter()
 
 
-def _build_notification_read(notification: Notification) -> dict:
+def _build_notification_read(notification: Notification) -> NotificationRead:
     """Build NotificationRead dict from model."""
-    return {
-        "id": notification.id,
-        "type": notification.type.value,
-        "title": notification.title,
-        "message": notification.message,
-        "resource_type": notification.resource_type,
-        "resource_id": notification.resource_id,
-        "is_read": notification.is_read,
-        "created_at": notification.created_at,
-        "expires_at": notification.expires_at,
-    }
+    return NotificationRead(
+        id=notification.id,
+        type=NotificationTypeEnum(notification.type.value),
+        title=notification.title,
+        message=notification.message,
+        resource_type=notification.resource_type,
+        resource_id=notification.resource_id,
+        is_read=notification.is_read,
+        created_at=notification.created_at,
+        expires_at=notification.expires_at,
+    )
 
 
 @router.get("", response_model=NotificationListResponse)

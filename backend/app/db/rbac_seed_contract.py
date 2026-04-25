@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
+from typing import cast
 
 RBAC_ROLES: tuple[dict[str, object], ...] = (
     {
@@ -139,7 +140,7 @@ PERMISSION_BY_KEY: dict[str, dict[str, str]] = {
     f"{permission['resource']}:{permission['action']}": permission for permission in RBAC_PERMISSIONS
 }
 
-ROLE_BY_NAME: dict[str, dict[str, object]] = {role["name"]: role for role in RBAC_ROLES}
+ROLE_BY_NAME: dict[str, dict[str, object]] = {cast(str, role["name"]): role for role in RBAC_ROLES}
 
 
 def expand_permission_keys(permission_keys: Iterable[str]) -> set[str]:

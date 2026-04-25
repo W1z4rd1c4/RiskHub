@@ -28,7 +28,12 @@ async def test_fix_orphans_requires_explicit_resolutions(
     )
     db_session.add(risk)
     await db_session.flush()
-    orphan = OrphanedItem(item_type="risk", item_id=risk.id, previous_owner_id=test_user_platform_admin.id, status="pending")
+    orphan = OrphanedItem(
+        item_type="risk",
+        item_id=risk.id,
+        previous_owner_id=test_user_platform_admin.id,
+        status="pending",
+    )
     db_session.add(orphan)
     await db_session.commit()
 
@@ -68,7 +73,12 @@ async def test_fix_orphans_dry_run_validates_explicit_mapping(
     )
     db_session.add_all([target_risk, control])
     await db_session.flush()
-    orphan = OrphanedItem(item_type="control", item_id=control.id, previous_owner_id=test_user_platform_admin.id, status="pending")
+    orphan = OrphanedItem(
+        item_type="control",
+        item_id=control.id,
+        previous_owner_id=test_user_platform_admin.id,
+        status="pending",
+    )
     db_session.add(orphan)
     await db_session.commit()
 
@@ -131,7 +141,12 @@ async def test_fix_orphans_rejects_duplicate_orphan_ids_in_batch(
     )
     db_session.add_all([target_risk, control])
     await db_session.flush()
-    orphan = OrphanedItem(item_type="control", item_id=control.id, previous_owner_id=test_user_platform_admin.id, status="pending")
+    orphan = OrphanedItem(
+        item_type="control",
+        item_id=control.id,
+        previous_owner_id=test_user_platform_admin.id,
+        status="pending",
+    )
     db_session.add(orphan)
     await db_session.commit()
 
@@ -198,7 +213,12 @@ async def test_fix_orphans_applies_explicit_resolution(
     )
     db_session.add_all([target_risk, control])
     await db_session.flush()
-    orphan = OrphanedItem(item_type="control", item_id=control.id, previous_owner_id=test_user_platform_admin.id, status="pending")
+    orphan = OrphanedItem(
+        item_type="control",
+        item_id=control.id,
+        previous_owner_id=test_user_platform_admin.id,
+        status="pending",
+    )
     db_session.add(orphan)
     await db_session.commit()
 

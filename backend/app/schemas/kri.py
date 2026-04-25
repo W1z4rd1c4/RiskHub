@@ -104,7 +104,6 @@ class KRIResponse(KRIBase, KRIMonitoringBundle):
     created_at: datetime
 
     @computed_field
-    @property
     def breach_status(self) -> Literal["above", "below", "within"]:
         """Compute breach status based on value vs limits."""
         if self.current_value < self.lower_limit:
@@ -126,14 +125,12 @@ class KRIListResponse(BaseModel):
     groups: list[CollectionGroupRead] | None = None
 
     @computed_field
-    @property
     def page(self) -> int:
         if self.limit <= 0:
             return 1
         return (self.offset // self.limit) + 1
 
     @computed_field
-    @property
     def size(self) -> int:
         return self.limit
 
@@ -176,14 +173,12 @@ class KRIHistoryListResponse(BaseModel):
     capabilities: KRIHistoryCapabilitiesRead | None = None
 
     @computed_field
-    @property
     def page(self) -> int:
         if self.limit <= 0:
             return 1
         return (self.offset // self.limit) + 1
 
     @computed_field
-    @property
     def size(self) -> int:
         return self.limit
 

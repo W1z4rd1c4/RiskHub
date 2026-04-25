@@ -1,3 +1,5 @@
+from typing import cast
+
 from pydantic import AliasChoices, Field
 
 from app.core.config_sections import RedisSettingsSection
@@ -23,7 +25,10 @@ class RedisSettingsMixin:
     def redis(self) -> RedisSettingsSection:
         return RedisSettingsSection(
             redis_url=self.redis_url,
-            rate_limit_limits={key: tuple(value) for key, value in self.rate_limit_limits.items()},
+            rate_limit_limits={
+                key: cast(tuple[int, int], tuple(value))
+                for key, value in self.rate_limit_limits.items()
+            },
             rate_limit_fail_closed_prefixes=tuple(self.rate_limit_fail_closed_prefixes),
             rate_limit_fail_closed_on_backend_error=self.rate_limit_fail_closed_on_backend_error,
             lockout_fail_closed_on_backend_error=self.lockout_fail_closed_on_backend_error,

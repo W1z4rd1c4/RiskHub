@@ -27,12 +27,12 @@ def build_approval_queued_response(
 ):
     from fastapi.responses import JSONResponse
 
-    from app.schemas.approval_request import ApprovalQueuedResponse
+    from app.schemas.approval_request import ApprovalActionTypeEnum, ApprovalQueuedResponse
 
     payload = ApprovalQueuedResponse(
         message=message,
         approval_id=approval_id,
-        action_type=action_type,
+        action_type=ApprovalActionTypeEnum(action_type),
         pending_fields=pending_fields or [],
         pending_changes=pending_changes,
         primary_approver_id=primary_approver_id,

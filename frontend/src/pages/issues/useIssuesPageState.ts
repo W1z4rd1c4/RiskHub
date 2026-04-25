@@ -116,6 +116,7 @@ export function useIssuesPageState({ canRead, initialState }: UseIssuesPageState
         }
     }, [
         canRead,
+        currentPage,
         debouncedSearch,
         excludeActiveExceptions,
         groupBy,

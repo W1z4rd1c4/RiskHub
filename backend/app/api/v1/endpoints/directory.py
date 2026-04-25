@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Literal
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -123,7 +125,7 @@ async def import_directory_user(
         raise HTTPException(status_code=400, detail="Directory user is missing an importable email address")
 
     user = (await db.execute(select(User).where(User.external_id == directory_user.external_id))).scalar_one_or_none()
-    import_status = "updated"
+    import_status: Literal["created", "updated"] = "updated"
     seed_directory_department = False
     if user is None:
         existing_email_user = (

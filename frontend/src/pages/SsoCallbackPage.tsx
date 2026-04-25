@@ -2,8 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authApi } from '@/services/authApi';
 import { entraAuth } from '@/services/entraAuth';
-import { clearExplicitLogoutSuppressed } from '@/services/session/logoutSuppression';
-import { applyAuthenticatedSession } from '@/services/session/manager';
+import { applyAuthenticatedSession, clearExplicitLogoutSuppressed } from '@/services/session';
 import { useTranslation } from '@/i18n/hooks';
 import { logError } from '@/services/logger';
 

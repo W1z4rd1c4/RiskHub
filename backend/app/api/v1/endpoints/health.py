@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Literal, cast
 
 from fastapi import APIRouter, Depends, Request, Response, status
 from pydantic import BaseModel
@@ -64,12 +64,17 @@ async def _build_readiness_response(
     scheduler_runtime = get_scheduler_runtime_state()
 
     ready = database == "connected" and scheduler_runtime["scheduler_status"] != "error"
+    scheduler_role = cast(Literal["disabled", "leader", "follower"], scheduler_runtime["scheduler_role"])
+    scheduler_status = cast(
+        Literal["disabled", "leader_running", "follower_ready", "error"],
+        scheduler_runtime["scheduler_status"],
+    )
     return ReadinessResponse(
         ready=ready,
         database=database,
         redis=redis,
-        scheduler_role=scheduler_runtime["scheduler_role"],
-        scheduler_status=scheduler_runtime["scheduler_status"],
+        scheduler_role=scheduler_role,
+        scheduler_status=scheduler_status,
     )
 
 
@@ -98,7 +103,9 @@ async def health_check(request: Request, db: AsyncSession = Depends(get_db)) -> 
     """Diagnostic health endpoint for humans and dashboards."""
 
     readiness = await _build_readiness_response(request, db)
-    health_status = "healthy" if readiness.ready and readiness.redis != "disconnected" else "degraded"
+    health_status: Literal["healthy", "degraded"] = (
+        "healthy" if readiness.ready and readiness.redis != "disconnected" else "degraded"
+    )
 
     return HealthResponse(
         status=health_status,

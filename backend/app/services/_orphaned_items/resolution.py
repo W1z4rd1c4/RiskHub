@@ -7,12 +7,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.activity_logger import build_change_set, log_activity
 from app.core.datetime_utils import utc_now
+from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.models.control import Control
 from app.models.key_risk_indicator import KeyRiskIndicator
 from app.models.orphaned_item import OrphanedItem
 from app.models.risk import Risk
 from app.models.user import User
-from app.models.activity_log import ActivityAction, ActivityEntityType
 
 from .logging import logger
 from .workflow import OrphanResolutionConflict, assert_orphan_still_matches_target_state
@@ -139,7 +139,6 @@ async def resolve_orphan(
         for_update=True,
     )
     orphan = context.orphan
-    new_owner = context.new_owner
     target_risk = context.target_risk
     target_dept_id = context.target_department_id
     resolving_user = await db.get(User, resolved_by_id)

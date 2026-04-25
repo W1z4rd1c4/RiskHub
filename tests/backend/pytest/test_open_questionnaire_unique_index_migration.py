@@ -7,7 +7,6 @@ from pathlib import Path
 import pytest
 import sqlalchemy as sa
 
-
 REPO_ROOT = Path(__file__).resolve().parents[3]
 MIGRATION_PATH = (
     REPO_ROOT

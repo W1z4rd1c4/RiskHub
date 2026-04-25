@@ -86,10 +86,10 @@ async def scan_uncategorised_items(db: AsyncSession) -> int:
         OrphanedItem.status == "pending",
     )
 
-    stmt = select(Risk).where(Risk.department_id == uncat_dept.id).where(Risk.id.not_in(pending_risk_ids_stmt))
+    risk_stmt = select(Risk).where(Risk.department_id == uncat_dept.id).where(Risk.id.not_in(pending_risk_ids_stmt))
 
-    result = await db.execute(stmt)
-    uncat_risks = result.scalars().all()
+    risk_result = await db.execute(risk_stmt)
+    uncat_risks = risk_result.scalars().all()
 
     for risk in uncat_risks:
         # Determine previous owner
@@ -117,12 +117,12 @@ async def scan_uncategorised_items(db: AsyncSession) -> int:
         OrphanedItem.status == "pending",
     )
 
-    stmt = (
+    control_stmt = (
         select(Control).where(Control.department_id == uncat_dept.id).where(Control.id.not_in(pending_control_ids_stmt))
     )
 
-    result = await db.execute(stmt)
-    uncat_controls = result.scalars().all()
+    control_result = await db.execute(control_stmt)
+    uncat_controls = control_result.scalars().all()
 
     for control in uncat_controls:
         # Controls have more fallback options
@@ -160,7 +160,7 @@ async def scan_uncategorised_items(db: AsyncSession) -> int:
 
     from app.models.key_risk_indicator import KeyRiskIndicator
 
-    stmt = (
+    kri_stmt = (
         select(KeyRiskIndicator)
         .options(selectinload(KeyRiskIndicator.risk))
         .join(Risk)
@@ -168,8 +168,8 @@ async def scan_uncategorised_items(db: AsyncSession) -> int:
         .where(KeyRiskIndicator.id.not_in(pending_kri_ids_stmt))
     )
 
-    result = await db.execute(stmt)
-    uncat_kris = result.scalars().all()
+    kri_result = await db.execute(kri_stmt)
+    uncat_kris = kri_result.scalars().all()
 
     for kri in uncat_kris:
         # KRIs don't have separate owners, they follow the Risk owner
@@ -197,12 +197,12 @@ async def scan_uncategorised_items(db: AsyncSession) -> int:
     # Controls with NO risk links
     linked_control_ids = select(ControlRiskLink.control_id).distinct()
 
-    stmt = (
+    unlinked_control_stmt = (
         select(Control).where(Control.id.not_in(linked_control_ids)).where(Control.id.not_in(pending_control_ids_stmt))
     )
 
-    result = await db.execute(stmt)
-    unlinked_controls = result.scalars().all()
+    unlinked_control_result = await db.execute(unlinked_control_stmt)
+    unlinked_controls = unlinked_control_result.scalars().all()
 
     for control in unlinked_controls:
         if control.id in processed_control_ids:

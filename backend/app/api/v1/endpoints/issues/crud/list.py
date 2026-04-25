@@ -6,11 +6,6 @@ from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.permissions import get_issue_scope_clause
-from app.core.security import require_permission
-from app.db.session import get_db
-from app.models import Control, ControlExecution, ControlRiskLink, Issue, IssueLink, KeyRiskIndicator, User
-from app.models.issue import IssueSeverity, IssueStatus
 from app.api.v1.endpoints._collection import (
     CollectionGroupEntry,
     build_grouped_collection_page,
@@ -22,6 +17,11 @@ from app.api.v1.endpoints._collection import (
     merge_collection_filters,
     parse_collection_query,
 )
+from app.core.permissions import get_issue_scope_clause
+from app.core.security import require_permission
+from app.db.session import get_db
+from app.models import Control, ControlExecution, ControlRiskLink, Issue, IssueLink, KeyRiskIndicator, User
+from app.models.issue import IssueSeverity, IssueStatus
 from app.schemas.issue import IssueListResponse
 from app.services.issue_visibility_service import unsuppressed_issue_clause
 
@@ -136,21 +136,21 @@ async def list_issues(
     status = coerce_optional_enum(IssueStatus, status_value, "status")
     severity_value = filter_values.get("severity")
     severity = coerce_optional_enum(IssueSeverity, severity_value, "severity")
-    severity_group = coerce_optional_literal(
+    severity_group_filter = coerce_optional_literal(
         "severity_group", filter_values.get("severity_group"), {"high_critical"}
     )
     owner_user_id = coerce_optional_int("owner_user_id", filter_values.get("owner_user_id"))
     department_id = coerce_optional_int("department_id", filter_values.get("department_id"))
     overdue = coerce_optional_bool("overdue", filter_values.get("overdue"))
-    exclude_active_exceptions = (
+    exclude_active_exceptions_filter = (
         coerce_optional_bool("exclude_active_exceptions", filter_values.get("exclude_active_exceptions")) or False
     )
     linked_risk_id = coerce_optional_int("linked_risk_id", filter_values.get("linked_risk_id"))
     linked_control_id = coerce_optional_int("linked_control_id", filter_values.get("linked_control_id"))
     linked_vendor_id = coerce_optional_int("linked_vendor_id", filter_values.get("linked_vendor_id"))
     search = coerce_optional_string("search", filter_values.get("search"))
-    include_closed = coerce_optional_bool("include_closed", filter_values.get("include_closed"))
-    include_closed = True if include_closed is None else include_closed
+    include_closed_filter = coerce_optional_bool("include_closed", filter_values.get("include_closed"))
+    include_closed = True if include_closed_filter is None else include_closed_filter
     offset = collection_query.offset
     limit = collection_query.limit
     sort_by = collection_query.sort.field if collection_query.sort else sort_by
@@ -166,13 +166,13 @@ async def list_issues(
         query = query.where(Issue.department_id == department_id)
     if status is not None:
         query = query.where(Issue.status == status.value)
-    if severity_group == "high_critical":
+    if severity_group_filter == "high_critical":
         query = query.where(Issue.severity.in_((IssueSeverity.high.value, IssueSeverity.critical.value)))
     elif severity is not None:
         query = query.where(Issue.severity == severity.value)
     if owner_user_id is not None:
         query = query.where(Issue.owner_user_id == owner_user_id)
-    if exclude_active_exceptions:
+    if exclude_active_exceptions_filter:
         query = query.where(unsuppressed_issue_clause(now))
     if not include_closed:
         query = query.where(Issue.status != IssueStatus.closed.value)

@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 ENDPOINTS_DIR = Path(__file__).resolve().parents[3] / "backend" / "app" / "api" / "v1" / "endpoints"
 AUTH_DIR = ENDPOINTS_DIR / "auth"
 FORBIDDEN_401_PATTERNS = (

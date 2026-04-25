@@ -38,7 +38,7 @@ _MESSAGE_REGISTRY: Dict[str, Dict[str, Any]] = {
 def get_nested_value(d: dict, key: str, default: str = "") -> str:
     """Get nested dictionary value using dot notation (e.g., 'errors.not_found')."""
     keys = key.split(".")
-    value = d
+    value: Any = d
     for k in keys:
         if isinstance(value, dict):
             value = value.get(k)

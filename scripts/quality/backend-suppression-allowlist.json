@@ -4,16 +4,8 @@
   "owner": "RiskHub Maintainer",
   "entries": [
     {
-      "path": "backend/app/api/v1/endpoints/auth/password.py",
-      "line": 41,
-      "match": "noqa: BLE001",
-      "owner": "RiskHub Maintainer",
-      "expires_on": "2026-05-31",
-      "reason": "Lockout backend implementations can raise provider-specific runtime errors; endpoint applies explicit fail-open/fail-closed policy."
-    },
-    {
       "path": "backend/app/api/v1/endpoints/kris/history_helpers.py",
-      "line": 25,
+      "line": 28,
       "match": "noqa: BLE001",
       "owner": "RiskHub Maintainer",
       "expires_on": "2026-05-31",

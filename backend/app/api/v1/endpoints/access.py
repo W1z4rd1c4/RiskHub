@@ -14,6 +14,7 @@ from app.models import Role, RolePermission, User
 from app.models.role import RoleType
 from app.models.user import AccessScope
 from app.schemas.access import AccessUserRead, AccessUserUpdate, PermissionRead, RoleWithPermissions
+from app.schemas.user import AccessScopeEnum, RoleRead
 from app.services._access_workflow import access_user_capabilities, is_cro, is_platform_admin
 from app.services.access_user_service import update_access_user_settings
 
@@ -61,12 +62,12 @@ def _build_access_user_read(user: User, *, current_user: User | None = None) -> 
         name=user.name,
         is_active=user.is_active,
         role_id=user.role_id,
-        role=user.role,
+        role=RoleRead.model_validate(user.role),
         department_id=user.department_id,
         department_name=user.department.name if user.department else None,
         manager_id=user.manager_id,
         manager_name=user.manager.name if user.manager else None,
-        access_scope=user.access_scope,
+        access_scope=AccessScopeEnum(user.access_scope.value),
         scope_label=get_scope_label(user),
         effective_permissions=get_effective_permissions(user),
         external_id=user.external_id,

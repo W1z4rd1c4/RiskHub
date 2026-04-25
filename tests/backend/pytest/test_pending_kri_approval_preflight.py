@@ -2,13 +2,12 @@ from __future__ import annotations
 
 from datetime import date
 
+from app.models import ApprovalActionType, ApprovalRequest, ApprovalResourceType, ApprovalStatus, KeyRiskIndicator
+from app.models.key_risk_indicator import KRIFrequency
 from scripts.report_pending_kri_approval_preflight import (
     build_pending_kri_approval_report,
     inspect_pending_kri_value_approval,
 )
-
-from app.models import ApprovalActionType, ApprovalRequest, ApprovalResourceType, ApprovalStatus, KeyRiskIndicator
-from app.models.key_risk_indicator import KRIFrequency
 
 
 def _approval(*, approval_id: int, period_end: str, status: ApprovalStatus = ApprovalStatus.PENDING) -> ApprovalRequest:

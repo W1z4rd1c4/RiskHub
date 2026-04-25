@@ -134,7 +134,11 @@ async def load_questionnaire(
     *,
     for_update: bool = False,
 ) -> RiskQuestionnaire | None:
-    stmt = select(RiskQuestionnaire).options(*questionnaire_load_options()).where(RiskQuestionnaire.id == questionnaire_id)
+    stmt = (
+        select(RiskQuestionnaire)
+        .options(*questionnaire_load_options())
+        .where(RiskQuestionnaire.id == questionnaire_id)
+    )
     if for_update:
         stmt = stmt.with_for_update()
     result = await db.execute(stmt)

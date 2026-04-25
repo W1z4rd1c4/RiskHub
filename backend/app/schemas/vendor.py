@@ -119,6 +119,5 @@ class VendorListResponse(BaseModel):
     groups: list[CollectionGroupRead] | None = None
 
     @computed_field
-    @property
     def skip(self) -> int:
         return self.offset

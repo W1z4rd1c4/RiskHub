@@ -9,12 +9,15 @@ from app.core.policy import PROTECTED_SYSTEM_ROLES
 from app.models.role import Permission, Role, RolePermission, RoleType
 from app.schemas.riskhub import RoleHubCapabilities, RoleHubRead
 
-
 IMMUTABLE_ROLE_NAMES = {RoleType.CRO, RoleType.ADMIN, RoleType.VIEWER}
 
 
 def role_capabilities(role: Role, *, active_user_count: int | None = None) -> RoleHubCapabilities:
-    active_users = active_user_count if active_user_count is not None else len([user for user in role.users if user.is_active])
+    active_users = (
+        active_user_count
+        if active_user_count is not None
+        else len([user for user in role.users if user.is_active])
+    )
     protected = role.is_system or role.name in PROTECTED_SYSTEM_ROLES
     mutable = role.name not in IMMUTABLE_ROLE_NAMES
     return RoleHubCapabilities(
@@ -59,7 +62,7 @@ async def validate_permission_ids(db: AsyncSession, permission_ids: list[int]) -
     if not permission_ids:
         return []
     perms_result = await db.execute(select(Permission).where(Permission.id.in_(permission_ids)))
-    permissions = perms_result.scalars().all()
+    permissions = list(perms_result.scalars().all())
     found_ids = {permission.id for permission in permissions}
     missing_ids = set(permission_ids) - found_ids
     if missing_ids:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import timedelta
+from typing import cast
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select
@@ -43,6 +44,7 @@ async def get_system_health(
     Admin only.
     """
     import time
+
     import psutil
 
     # Measure database latency
@@ -188,11 +190,11 @@ async def get_outbox_status(
         processing_count=processing_count,
         dead_letter_count=dead_letter_count,
         oldest_pending_age_seconds=oldest_pending_age_seconds,
-        last_dispatch_started_at=dispatch_state["last_started_at"],
-        last_dispatch_finished_at=dispatch_state["last_finished_at"],
-        last_dispatch_status=dispatch_state["last_status"],
-        last_dispatch_processed=dispatch_state["last_processed"],
-        last_dispatch_error=dispatch_state["last_error"],
+        last_dispatch_started_at=cast(str | None, dispatch_state["last_started_at"]),
+        last_dispatch_finished_at=cast(str | None, dispatch_state["last_finished_at"]),
+        last_dispatch_status=cast(str | None, dispatch_state["last_status"]),
+        last_dispatch_processed=cast(int | None, dispatch_state["last_processed"]),
+        last_dispatch_error=cast(str | None, dispatch_state["last_error"]),
         recent_failures=[
             OutboxEventFailureSummary(
                 id=event.id,

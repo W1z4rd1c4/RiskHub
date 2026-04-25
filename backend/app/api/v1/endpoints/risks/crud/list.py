@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import asc, desc, func, or_, select
@@ -224,7 +224,7 @@ async def list_risks(
     total = total_result.scalar() or 0
 
     # Determine sort column
-    order_column = Risk.risk_id_code  # Default sort
+    order_column: Any = Risk.risk_id_code  # Default sort
 
     if sort_by:
         if sort_by == "name":

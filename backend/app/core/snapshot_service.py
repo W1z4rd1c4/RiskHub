@@ -6,7 +6,8 @@ for truthful quarter-over-quarter comparisons.
 """
 
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Any, Optional
+from typing import cast as typing_cast
 
 from sqlalchemy import String, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -266,14 +267,15 @@ async def save_quarter_snapshot(
     snapshot = existing.scalar_one_or_none()
 
     if snapshot:
+        writable_snapshot = typing_cast(Any, snapshot)
         # Update existing snapshot
-        snapshot.metrics = metrics
-        snapshot.captured_at = datetime.now(timezone.utc)
-        snapshot.snapshot_type = snapshot_type
+        writable_snapshot.metrics = metrics
+        writable_snapshot.captured_at = datetime.now(timezone.utc)
+        writable_snapshot.snapshot_type = snapshot_type
         if captured_by_user_id:
-            snapshot.captured_by_user_id = captured_by_user_id
+            writable_snapshot.captured_by_user_id = captured_by_user_id
         if notes:
-            snapshot.notes = notes
+            writable_snapshot.notes = notes
     else:
         # Create new snapshot
         snapshot = QuarterlyMetricSnapshot(

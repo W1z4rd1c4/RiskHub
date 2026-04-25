@@ -5,10 +5,6 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.api.v1.endpoints._monitoring_response import (
-    build_control_monitoring_fields,
-    load_monitoring_response_context,
-)
 from app.api.v1.endpoints._collection import (
     CollectionGroupEntry,
     build_grouped_collection_page,
@@ -18,6 +14,10 @@ from app.api.v1.endpoints._collection import (
     coerce_optional_string,
     merge_collection_filters,
     parse_collection_query,
+)
+from app.api.v1.endpoints._monitoring_response import (
+    build_control_monitoring_fields,
+    load_monitoring_response_context,
 )
 from app.core.datetime_utils import utc_now
 from app.core.permissions import can_read_vendor

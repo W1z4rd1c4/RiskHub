@@ -12,7 +12,7 @@ import { useLoginActions } from '@/pages/login/useLoginActions';
 import { useProdLoginMetadata } from '@/pages/login/useProdLoginMetadata';
 import { entraAuth } from '@/services/entraAuth';
 import { logError } from '@/services/logger';
-import { useSessionSnapshot } from '@/services/session/store';
+import { useSessionSnapshot } from '@/services/session';
 
 function stripErrorKeyPrefix(errorKey: string): string {
     return errorKey.startsWith('errorKeys.') ? errorKey.slice('errorKeys.'.length) : errorKey;

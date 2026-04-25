@@ -18,7 +18,6 @@ from app.core.tokens import (
     set_sso_challenge_cookie,
 )
 from app.db.session import get_db
-from app.models import User
 from app.schemas.auth import SsoExchangeRequest, SsoStartRequest, SsoStartResponse, TokenResponse
 from app.services.sso_challenge_store import SsoChallenge
 
@@ -156,7 +155,10 @@ async def sso_exchange(
         return JSONResponse(status_code=403, content={"detail": "User account is inactive", "code": "USER_INACTIVE"})
 
     now = utc_now()
-    session_expires_at = min(now + refresh_token_lifetime(settings), coerce_utc(identity.expires_at))
+    identity_expires_at = coerce_utc(identity.expires_at)
+    if identity_expires_at is None:
+        return JSONResponse(status_code=401, content={"detail": "SSO token expired", "code": "SSO_TOKEN_EXPIRED"})
+    session_expires_at = min(now + refresh_token_lifetime(settings), identity_expires_at)
     remaining_lifetime = session_expires_at - now
     if remaining_lifetime.total_seconds() <= SESSION_RENEWAL_MINIMUM_SECONDS:
         await _log_failed_sso(

@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, Edit2, Trash2, Target, Plus, Clock, History, RotateCcw, FileText } from 'lucide-react';
 import { kriApi } from '@/services/kriApi';
 import { riskApi } from '@/services/riskApi';
+import { logError } from '@/services/logger';
 import { PermissionGate } from '@/components/PermissionGate';
 import { usePermissions } from '@/hooks/usePermissions';
 import { KRIModal } from '@/components/kri/KRIModal';
@@ -61,7 +62,7 @@ export function KRIDetailPage() {
             setHistoryTotal(response.total);
             setHistoryCapabilities(response.capabilities ?? null);
         } catch (err) {
-            console.error('Failed to fetch history:', err);
+            logError('Failed to fetch history.', err);
         } finally {
             setIsLoadingHistory(false);
         }
@@ -84,7 +85,7 @@ export function KRIDetailPage() {
             // Fetch history
             void fetchHistory(kriId);
         } catch (err) {
-            console.error('Failed to fetch KRI:', err);
+            logError('Failed to fetch KRI.', err);
         } finally {
             setIsLoading(false);
         }
@@ -115,7 +116,7 @@ export function KRIDetailPage() {
 
             void navigate('/kris');
         } catch (err) {
-            console.error('Failed to delete KRI:', err);
+            logError('Failed to delete KRI.', err);
         } finally {
             setIsDeleting(false);
         }
@@ -127,7 +128,7 @@ export function KRIDetailPage() {
             await kriApi.restoreKRI(kri.id);
             await fetchKRI(kri.id);
         } catch (err) {
-            console.error('Failed to restore KRI:', err);
+            logError('Failed to restore KRI.', err);
         }
     };
 

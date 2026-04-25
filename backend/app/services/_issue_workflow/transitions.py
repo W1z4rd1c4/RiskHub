@@ -12,8 +12,9 @@ def _conflict(detail: str) -> None:
     raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail)
 
 
-def _status_value(value: object) -> object:
-    return getattr(value, "value", value)
+def _status_value(value: object) -> str:
+    raw_value = getattr(value, "value", value)
+    return str(raw_value)
 
 
 def _is_remediation_complete(remediation: IssueRemediationPlan | None) -> bool:

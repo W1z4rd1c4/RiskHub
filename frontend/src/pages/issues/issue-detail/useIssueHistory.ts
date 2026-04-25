@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 
 import { issueHistoryQueryKey } from '@/lib/issueQueryKeys';
 import { activityLogApi } from '@/services/activityLogApi';
-import { useSessionSnapshot } from '@/services/session/store';
+import { useSessionSnapshot } from '@/services/session';
 import type { Issue } from '@/types/issue';
 
 import type { IssueDetailTab } from './issueDetail.types';

@@ -26,7 +26,11 @@ def _normalize_origin(value: str | None) -> str | None:
 
 
 def _allowed_origins(settings: Settings) -> set[str]:
-    return {_normalize_origin(origin) for origin in settings.cors_origins if _normalize_origin(origin)}
+    return {
+        normalized_origin
+        for origin in settings.cors_origins
+        if (normalized_origin := _normalize_origin(origin)) is not None
+    }
 
 
 def validate_request_origin(request: Request, settings: Settings) -> JSONResponse | None:

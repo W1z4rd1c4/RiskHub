@@ -12,6 +12,8 @@ from app.services.risk_questionnaire_service import (
     can_send_questionnaire,
     load_questionnaire,
     questionnaire_load_options,
+)
+from app.services.risk_questionnaire_service import (
     send_questionnaire_for_risk as send_questionnaire_for_risk_workflow,
 )
 
@@ -51,6 +53,6 @@ async def send_questionnaire_for_risk(
     async with db.begin_nested():
         questionnaire = await send_questionnaire_for_risk_workflow(db=db, risk_id=risk_id, current_user=current_user)
     await db.commit()
-    questionnaire = await load_questionnaire(db, questionnaire.id)
-    assert questionnaire is not None
-    return await _serialize_read_for_user(db, current_user, questionnaire)
+    reloaded_questionnaire = await load_questionnaire(db, questionnaire.id)
+    assert reloaded_questionnaire is not None
+    return await _serialize_read_for_user(db, current_user, reloaded_questionnaire)

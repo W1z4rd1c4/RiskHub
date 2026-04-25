@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends
 from app.api import deps
 from app.core.permissions import get_effective_permissions, get_scope_label
 from app.models import User
-from app.schemas.user import UserBrief
+from app.schemas.user import AccessScopeEnum, UserBrief
 
 router = APIRouter()
 
@@ -31,7 +31,7 @@ async def get_current_user_info(current_user: User = Depends(deps.get_current_us
         role_display_name=current_user.role.display_name,
         permissions=effective_permissions,
         effective_permissions=effective_permissions,
-        access_scope=current_user.access_scope,
+        access_scope=AccessScopeEnum(current_user.access_scope.value),
         scope_label=get_scope_label(current_user),
         entra_business_role=current_user.entra_business_role,
         department_id=current_user.department_id,

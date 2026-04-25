@@ -3,6 +3,7 @@ from typing import Literal, Optional
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql.elements import ColumnElement
 
 from app.core.permissions import get_user_department_ids, has_permission
 from app.core.security import require_permission
@@ -34,8 +35,8 @@ async def get_dashboard_summary(
 
     # Apply department filtering
     dept_ids = get_user_department_ids(current_user)
-    control_dept_filter = None
-    risk_dept_filter = None
+    control_dept_filter: ColumnElement[bool] | None = None
+    risk_dept_filter: ColumnElement[bool] | None = None
 
     if dept_ids is not None:
         control_dept_filter = Control.department_id.in_(dept_ids)
@@ -45,7 +46,7 @@ async def get_dashboard_summary(
         risk_dept_filter = Risk.department_id == department_id
 
     # Build control filters
-    control_conditions = []
+    control_conditions: list[ColumnElement[bool]] = []
     if control_dept_filter is not None:
         control_conditions.append(control_dept_filter)
     if control_status:
@@ -57,7 +58,7 @@ async def get_dashboard_summary(
         control_conditions.append(Control.control_form == control_form)
 
     # Build risk filters
-    risk_conditions = []
+    risk_conditions: list[ColumnElement[bool]] = []
     if risk_dept_filter is not None:
         risk_conditions.append(risk_dept_filter)
     if not include_archived:

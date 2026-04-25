@@ -1,3 +1,5 @@
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,7 +14,7 @@ from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas.approval_request import ApprovalQueuedResponse
 
 router = APIRouter()
-APPROVAL_QUEUED_RESPONSE = {202: {"model": ApprovalQueuedResponse}}
+APPROVAL_QUEUED_RESPONSE: dict[int | str, dict[str, Any]] = {202: {"model": ApprovalQueuedResponse}}
 
 
 @router.delete("/{kri_id}", status_code=202, responses=APPROVAL_QUEUED_RESPONSE)

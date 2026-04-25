@@ -1,3 +1,5 @@
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,7 +21,7 @@ from app.schemas.control import ControlRead, ControlUpdate
 from .._helpers import _build_pending_changes, _first_high_risk_linked_risk
 
 router = APIRouter()
-APPROVAL_QUEUED_RESPONSE = {202: {"model": ApprovalQueuedResponse}}
+APPROVAL_QUEUED_RESPONSE: dict[int | str, dict[str, Any]] = {202: {"model": ApprovalQueuedResponse}}
 
 
 async def _load_control_or_404(db: AsyncSession, control_id: int) -> Control:
@@ -99,7 +101,10 @@ async def _create_control_edit_approval_if_required(
         pending_changes = _build_pending_changes(control, update_data)
 
     if not requires_approval:
-        old_data = {"control_owner_id": control.control_owner_id, "department_id": control.department_id}
+        old_data: dict[str, object] = {
+            "control_owner_id": control.control_owner_id,
+            "department_id": control.department_id,
+        }
         has_sensitive, changed = has_sensitive_field_changes("control", old_data, update_data)
         if has_sensitive:
             requires_approval = True

@@ -31,14 +31,11 @@ class IssueDeadlineService:
 
     @staticmethod
     def _active_exception(issue: Issue, now: datetime):
-        approved = [
-            ex
-            for ex in issue.exceptions
-            if ex.status == IssueExceptionStatus.approved.value
-            and ex.expires_at is not None
-            and coerce_utc(ex.expires_at) is not None
-            and coerce_utc(ex.expires_at) > now
-        ]
+        approved = []
+        for ex in issue.exceptions:
+            expires_at = coerce_utc(ex.expires_at)
+            if ex.status == IssueExceptionStatus.approved.value and expires_at is not None and expires_at > now:
+                approved.append(ex)
         if not approved:
             return None
         approved.sort(
@@ -129,7 +126,7 @@ class IssueDeadlineService:
                 continue
 
             old_status = ex.status
-            ex.status = IssueExceptionStatus.expired.value
+            ex.status = IssueExceptionStatus.expired
             db.add(ex)
             expired_count += 1
 
@@ -149,7 +146,7 @@ class IssueDeadlineService:
             if _status_value(issue.status) == IssueStatus.closed.value and not _is_remediation_complete(
                 issue.remediation_plan
             ):
-                issue.status = IssueStatus.in_progress.value
+                issue.status = IssueStatus.in_progress
                 issue.closed_at = None
                 db.add(issue)
                 reopened = True
@@ -233,10 +230,8 @@ class IssueDeadlineService:
                 recipients = [users_by_id[uid] for uid in owner_ids if uid in users_by_id]
 
                 if now <= due_at <= due_soon_cutoff:
-                    if (
-                        issue.last_due_soon_notified_at is None
-                        or coerce_utc(issue.last_due_soon_notified_at) < due_soon_backoff
-                    ):
+                    last_due_soon_notified_at = coerce_utc(issue.last_due_soon_notified_at)
+                    if last_due_soon_notified_at is None or last_due_soon_notified_at < due_soon_backoff:
                         created_for_issue = 0
                         for user in recipients:
                             created = await IssueDeadlineService._create_issue_notification(
@@ -257,10 +252,8 @@ class IssueDeadlineService:
                             increment_deadline_results(results, "notifications_created", count=created_for_issue)
 
                 if due_at < now:
-                    if (
-                        issue.last_overdue_notified_at is None
-                        or coerce_utc(issue.last_overdue_notified_at) < overdue_cutoff
-                    ):
+                    last_overdue_notified_at = coerce_utc(issue.last_overdue_notified_at)
+                    if last_overdue_notified_at is None or last_overdue_notified_at < overdue_cutoff:
                         created_for_issue = 0
                         for user in recipients:
                             created = await IssueDeadlineService._create_issue_notification(
@@ -281,7 +274,8 @@ class IssueDeadlineService:
                             increment_deadline_results(results, "notifications_created", count=created_for_issue)
 
                     if issue.severity in {IssueSeverity.high.value, IssueSeverity.critical.value}:
-                        if issue.last_escalated_at is None or coerce_utc(issue.last_escalated_at) < escalation_cutoff:
+                        last_escalated_at = coerce_utc(issue.last_escalated_at)
+                        if last_escalated_at is None or last_escalated_at < escalation_cutoff:
                             created_escalations = 0
                             recipient_ids = {u.id for u in escalation_users} - {u.id for u in recipients}
                             for user in escalation_users:

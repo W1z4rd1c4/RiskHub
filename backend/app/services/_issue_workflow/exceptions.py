@@ -57,21 +57,21 @@ async def approve_exception(
     if exception.status != IssueExceptionStatus.requested.value:
         _conflict(f"Only requested exceptions can be approved (current={exception.status})")
 
-    expires_at = coerce_utc(expires_at)
-    if expires_at is None:
+    coerced_expires_at = coerce_utc(expires_at)
+    if coerced_expires_at is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="expires_at is required")
     now = datetime.now(UTC)
-    if expires_at <= now:
+    if coerced_expires_at <= now:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="expires_at must be in the future")
     updates = {
         "status": IssueExceptionStatus.approved.value,
         "approved_by_id": actor.id,
         "approved_at": now,
-        "expires_at": expires_at,
+        "expires_at": coerced_expires_at,
     }
     changes = build_change_set(exception, updates)
-    for key, value in updates.items():
-        setattr(exception, key, value)
+    for key, exception_value in updates.items():
+        setattr(exception, key, exception_value)
     db.add(exception)
 
     await log_activity(
@@ -102,8 +102,8 @@ async def revoke_exception(
         "status": IssueExceptionStatus.revoked.value,
     }
     changes = build_change_set(exception, updates)
-    for key, value in updates.items():
-        setattr(exception, key, value)
+    for key, exception_value in updates.items():
+        setattr(exception, key, exception_value)
     db.add(exception)
 
     await log_activity(
@@ -124,8 +124,8 @@ async def revoke_exception(
             "closed_at": None,
         }
         issue_changes = build_change_set(issue, issue_updates)
-        for key, value in issue_updates.items():
-            setattr(issue, key, value)
+        for key, issue_value in issue_updates.items():
+            setattr(issue, key, issue_value)
         db.add(issue)
 
         await log_activity(

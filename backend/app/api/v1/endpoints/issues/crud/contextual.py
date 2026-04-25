@@ -54,16 +54,16 @@ async def _resolve_contextual_entity(
         return row[1], IssueSourceType.control_execution, {"control_id": entity_id}
 
     if entity_type == IssueContextEntityTypeEnum.execution:
-        row = (
+        execution_row = (
             await db.execute(
                 select(ControlExecution.id, ControlExecution.control_id, Control.department_id)
                 .join(Control, ControlExecution.control_id == Control.id)
                 .where(ControlExecution.id == entity_id)
             )
         ).one_or_none()
-        if row is None or not await can_read_control_id(db, current_user, row[1]):
+        if execution_row is None or not await can_read_control_id(db, current_user, execution_row[1]):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Source execution not found")
-        return row[2], IssueSourceType.control_execution, {"execution_id": entity_id}
+        return execution_row[2], IssueSourceType.control_execution, {"execution_id": entity_id}
 
     if entity_type == IssueContextEntityTypeEnum.kri:
         row = (
@@ -162,5 +162,7 @@ async def create_contextual_issue(
     )
 
     await db.commit()
-    issue = await _get_issue_with_relations(db, issue.id)
-    return _serialize_issue_read(issue, current_user=current_user)
+    reloaded_issue = await _get_issue_with_relations(db, issue.id)
+    if reloaded_issue is None:
+        raise HTTPException(status_code=404, detail="Issue not found")
+    return _serialize_issue_read(reloaded_issue, current_user=current_user)

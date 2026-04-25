@@ -22,7 +22,7 @@ export function useVendorFormState({ initialData, users }: UseVendorFormStateOpt
 
     useEffect(() => {
         setFormData(createInitialVendorFormData(initialData));
-    }, [initialData?.id]);
+    }, [initialData]);
 
     const handleChange = (field: VendorFormField, value: unknown) => {
         setFormData((previous) => {

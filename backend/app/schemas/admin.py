@@ -268,18 +268,27 @@ class LogConfigUpdate(BaseModel):
     def to_log_config(self) -> LogConfig:
         """Normalize canonical or legacy payload into canonical app/audit shape."""
         if self.log_rotation_size_mb is not None:
+            if self.log_retention_count is None:
+                raise ValueError("Legacy payload must include log_retention_count")
             return LogConfig(
                 app_log_rotation_size_mb=self.log_rotation_size_mb,
-                app_log_retention_count=self.log_retention_count,  # validated non-None
+                app_log_retention_count=self.log_retention_count,
                 audit_log_rotation_size_mb=self.log_rotation_size_mb,
-                audit_log_retention_count=self.log_retention_count,  # validated non-None
+                audit_log_retention_count=self.log_retention_count,
             )
 
+        if (
+            self.app_log_rotation_size_mb is None
+            or self.app_log_retention_count is None
+            or self.audit_log_rotation_size_mb is None
+            or self.audit_log_retention_count is None
+        ):
+            raise ValueError("Canonical payload must include all 4 fields")
         return LogConfig(
-            app_log_rotation_size_mb=self.app_log_rotation_size_mb,  # validated non-None
-            app_log_retention_count=self.app_log_retention_count,  # validated non-None
-            audit_log_rotation_size_mb=self.audit_log_rotation_size_mb,  # validated non-None
-            audit_log_retention_count=self.audit_log_retention_count,  # validated non-None
+            app_log_rotation_size_mb=self.app_log_rotation_size_mb,
+            app_log_retention_count=self.app_log_retention_count,
+            audit_log_rotation_size_mb=self.audit_log_rotation_size_mb,
+            audit_log_retention_count=self.audit_log_retention_count,
         )
 
 

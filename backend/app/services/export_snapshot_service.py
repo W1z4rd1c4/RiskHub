@@ -115,16 +115,16 @@ class ExportSnapshotService:
             kri_id = row.get(id_key)
             if kri_id is None:
                 continue
-            entry = latest_by_kri.get(int(kri_id))
-            if entry is None:
+            latest_entry = latest_by_kri.get(int(kri_id))
+            if latest_entry is None:
                 continue
-            row["current_value"] = entry.value
-            row["lower_limit"] = entry.lower_limit
-            row["upper_limit"] = entry.upper_limit
-            row["unit"] = entry.unit
-            row["breach_status"] = entry.breach_status
-            row["last_period_end"] = entry.period_end
-            row["last_reported_at"] = entry.recorded_at
+            row["current_value"] = latest_entry.value
+            row["lower_limit"] = latest_entry.lower_limit
+            row["upper_limit"] = latest_entry.upper_limit
+            row["unit"] = latest_entry.unit
+            row["breach_status"] = latest_entry.breach_status
+            row["last_period_end"] = latest_entry.period_end
+            row["last_reported_at"] = latest_entry.recorded_at
 
         return rows
 

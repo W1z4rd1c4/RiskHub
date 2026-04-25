@@ -27,7 +27,7 @@ except ModuleNotFoundError:  # pragma: no cover - metrics dependency is optional
 
 
 class _NoopCounter:
-    def inc(self, amount: int = 1) -> None:  # noqa: ARG002
+    def inc(self, _amount: int = 1) -> None:
         return None
 
 

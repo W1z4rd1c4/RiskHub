@@ -13,7 +13,7 @@ from app.db.session import get_db
 from app.models import User
 from app.schemas.dashboard import DashboardOverviewResponse
 
-from .controls import get_control_trends
+from .controls import build_control_trends
 from .departments import get_department_metrics
 from .issues_metrics import get_issue_aging, get_issue_summary, get_issues_by_severity
 from .kris import get_kri_breach_trends
@@ -83,7 +83,7 @@ async def get_dashboard_overview(
         risk_type="net",
         include_archived=include_archived,
     )
-    control_trends = await get_control_trends(
+    control_trends = await build_control_trends(
         db=db,
         current_user=current_user,
         department_id=department_id,

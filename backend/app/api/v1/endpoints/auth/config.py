@@ -1,11 +1,13 @@
 from fastapi import APIRouter, Depends
 
 from app.core.config import Settings, get_settings
-from app.schemas.auth import AuthConfigResponse
+from app.schemas.auth import AuthConfigResponse, AuthSsoConfig, DemoPersonaRead
 
 router = APIRouter()
 
-DEMO_PERSONAS = [
+DEMO_PERSONAS: list[DemoPersonaRead] = [
+    DemoPersonaRead.model_validate(persona)
+    for persona in [
     {
         "section": "privileged",
         "name": "System Admin",
@@ -75,6 +77,7 @@ DEMO_PERSONAS = [
         "dept_key": "auth:login_demo.departments.it",
         "color": "sky",
     },
+    ]
 ]
 
 
@@ -96,13 +99,13 @@ async def get_auth_config(settings: Settings = Depends(get_settings)) -> AuthCon
         auth_mode=settings.auth_mode,
         demo_login_enabled=demo_login_enabled,
         password_login_enabled=password_login_enabled,
-        sso={
-            "enabled": sso_enabled,
-            "tenant_id": tenant_id,
-            "client_id": client_id,
-            "authority": authority,
-            "scopes": ["openid", "profile", "email"],
-        },
+        sso=AuthSsoConfig(
+            enabled=sso_enabled,
+            tenant_id=tenant_id,
+            client_id=client_id,
+            authority=authority,
+            scopes=["openid", "profile", "email"],
+        ),
         sso_error=sso_error,
         demo_personas=DEMO_PERSONAS if demo_login_enabled else [],
     )

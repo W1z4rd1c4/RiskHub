@@ -25,7 +25,7 @@ def _lookup_raw_value(data: dict[str, Any], *keys: str) -> tuple[bool, Any]:
 
 
 def _normalize_alias_keys_for_settings(
-    settings_cls: type["Settings"],
+    settings_cls: type[BaseSettings],
     data: dict[str, Any],
 ) -> dict[str, Any]:
     normalized = dict(data)

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import require_permission
@@ -61,6 +61,8 @@ async def assign_issue(
     )
     await db.commit()
     refreshed = await _get_issue_with_relations(db, issue.id)
+    if refreshed is None:
+        raise HTTPException(status_code=404, detail="Issue not found")
     return _serialize_issue_read(refreshed, current_user=current_user)
 
 
@@ -80,6 +82,8 @@ async def start_remediation(
     )
     await db.commit()
     refreshed = await _get_issue_with_relations(db, issue.id)
+    if refreshed is None:
+        raise HTTPException(status_code=404, detail="Issue not found")
     return _serialize_issue_read(refreshed, current_user=current_user)
 
 
@@ -103,6 +107,8 @@ async def update_remediation_progress(
     )
     await db.commit()
     refreshed = await _get_issue_with_relations(db, issue.id)
+    if refreshed is None:
+        raise HTTPException(status_code=404, detail="Issue not found")
     return _serialize_issue_read(refreshed, current_user=current_user)
 
 
@@ -123,4 +129,6 @@ async def close_issue(
     )
     await db.commit()
     refreshed = await _get_issue_with_relations(db, issue.id)
+    if refreshed is None:
+        raise HTTPException(status_code=404, detail="Issue not found")
     return _serialize_issue_read(refreshed, current_user=current_user)

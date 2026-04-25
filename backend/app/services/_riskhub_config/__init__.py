@@ -9,9 +9,9 @@ from .departments import (
     validate_department_manager,
 )
 from .roles import (
+    load_role_for_update,
     role_capabilities,
     role_to_read,
-    load_role_for_update,
     validate_permission_ids,
 )
 

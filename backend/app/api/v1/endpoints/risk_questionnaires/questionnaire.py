@@ -43,7 +43,9 @@ async def get_questionnaire(
     previous = None
     if include_previous:
         previous = await get_previous_submitted_questionnaire(db, questionnaire=questionnaire)
-    capabilities = RiskQuestionnaireCapabilitiesRead(**await questionnaire_capabilities(db, current_user, questionnaire))
+    capabilities = RiskQuestionnaireCapabilitiesRead(
+        **await questionnaire_capabilities(db, current_user, questionnaire)
+    )
     return _serialize_read_with_previous(questionnaire, previous_submission=previous, capabilities=capabilities)
 
 
@@ -73,7 +75,9 @@ async def open_questionnaire(
     previous = None
     if include_previous:
         previous = await get_previous_submitted_questionnaire(db, questionnaire=questionnaire)
-    capabilities = RiskQuestionnaireCapabilitiesRead(**await questionnaire_capabilities(db, current_user, questionnaire))
+    capabilities = RiskQuestionnaireCapabilitiesRead(
+        **await questionnaire_capabilities(db, current_user, questionnaire)
+    )
     return _serialize_read_with_previous(questionnaire, previous_submission=previous, capabilities=capabilities)
 
 

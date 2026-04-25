@@ -63,7 +63,7 @@ async def _questionnaire_rm_cro_recipients(db: AsyncSession, *, actor_user_id: i
         )
         .options(permission_load)
     )
-    return (await db.execute(recipients_stmt)).scalars().all()
+    return list((await db.execute(recipients_stmt)).scalars().all())
 
 
 async def handle_questionnaire_sent(db: AsyncSession, payload: QuestionnaireSentPayload) -> None:

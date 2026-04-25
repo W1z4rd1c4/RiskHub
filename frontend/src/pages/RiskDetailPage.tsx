@@ -16,6 +16,7 @@ import {
 import { riskApi } from '@/services/riskApi';
 import { kriApi } from '@/services/kriApi';
 import { apiClient } from '@/services/apiClient';
+import { logError } from '@/services/logger';
 import type { Risk, RiskControlLink, ControlEffectiveness } from '@/types/risk';
 import type { OverdueKRI } from '@/types/kri';
 import type { HistoryTimelineItem } from '@/types/history';
@@ -80,7 +81,7 @@ export function RiskDetailPage() {
             setOverdueKRIs(overdueData);
             setErrorKey(null);
         } catch (err) {
-            console.error('Error fetching risk details:', err);
+            logError('Error fetching risk details.', err);
             setErrorKey(apiClient.toUiMessageKey(err));
         } finally {
             setIsLoading(false);
@@ -134,7 +135,7 @@ export function RiskDetailPage() {
                 flatItems.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
                 setKriHistoryItems(flatItems);
             } catch (err) {
-                console.error('Failed to fetch KRI history:', err);
+                logError('Failed to fetch KRI history.', err);
             } finally {
                 if (!cancelled) setIsHistoryLoading(false);
             }
@@ -169,7 +170,7 @@ export function RiskDetailPage() {
             // Immediate archive (204) - navigate away
             void navigate('/risks');
         } catch (err) {
-            console.error('Error deleting risk:', err);
+            logError('Error deleting risk.', err);
             setApprovalMessage({ key: apiClient.toUiMessageKey(err), isError: true });
         } finally {
             setIsDeleting(false);
@@ -184,7 +185,7 @@ export function RiskDetailPage() {
             await fetchData();
             setApprovalMessage({ key: 'risks:messages.restore_success', isError: false });
         } catch (err) {
-            console.error('Error restoring risk:', err);
+            logError('Error restoring risk.', err);
             setApprovalMessage({ key: apiClient.toUiMessageKey(err), isError: true });
         }
     };
@@ -197,7 +198,7 @@ export function RiskDetailPage() {
             const controlsData = await riskApi.getLinkedControls(risk.id);
             setLinkedControls(controlsData);
         } catch (err) {
-            console.error('Linking failed:', err);
+            logError('Linking failed.', err);
             setLinkErrorKey(apiClient.toUiMessageKey(err));
         }
     };
@@ -210,7 +211,7 @@ export function RiskDetailPage() {
             const controlsData = await riskApi.getLinkedControls(risk.id);
             setLinkedControls(controlsData);
         } catch (err) {
-            console.error('Unlinking failed:', err);
+            logError('Unlinking failed.', err);
             setLinkErrorKey(apiClient.toUiMessageKey(err));
         }
     };

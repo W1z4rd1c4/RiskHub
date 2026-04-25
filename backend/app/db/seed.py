@@ -2,6 +2,7 @@
 
 import asyncio
 from datetime import UTC, datetime, timedelta
+from typing import Any, cast
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -51,6 +52,9 @@ DEFAULT_RISK_TYPES = (
     },
 )
 
+RiskTypeSeed = dict[str, str | bool | int]
+SeedPayload = dict[str, Any]
+
 
 def _risk_type_text_missing(value: str | None) -> bool:
     return value is None or not value.strip()
@@ -62,16 +66,19 @@ def _format_risk_type_seed_summary(summary: dict[str, int]) -> str:
 
 async def seed_default_risk_types(db: AsyncSession) -> dict[str, int]:
     """Ensure the canonical system risk types exist and remain usable."""
+    risk_type_defaults = cast(tuple[RiskTypeSeed, ...], DEFAULT_RISK_TYPES)
     result = await db.execute(
-        select(RiskTypeConfig).where(RiskTypeConfig.code.in_([risk_type["code"] for risk_type in DEFAULT_RISK_TYPES]))
+        select(RiskTypeConfig).where(
+            RiskTypeConfig.code.in_([cast(str, risk_type["code"]) for risk_type in risk_type_defaults])
+        )
     )
     existing_by_code = {risk_type.code: risk_type for risk_type in result.scalars().all()}
     summary = {"created": 0, "repaired": 0}
 
-    for risk_type_defaults in DEFAULT_RISK_TYPES:
-        existing = existing_by_code.get(risk_type_defaults["code"])
+    for risk_type_default in risk_type_defaults:
+        existing = existing_by_code.get(cast(str, risk_type_default["code"]))
         if existing is None:
-            db.add(RiskTypeConfig(**risk_type_defaults))
+            db.add(RiskTypeConfig(**risk_type_default))
             summary["created"] += 1
             continue
 
@@ -83,16 +90,16 @@ async def seed_default_risk_types(db: AsyncSession) -> dict[str, int]:
             existing.is_system = True
             repaired = True
         if _risk_type_text_missing(existing.display_name):
-            existing.display_name = risk_type_defaults["display_name"]
+            existing.display_name = cast(str, risk_type_default["display_name"])
             repaired = True
         if _risk_type_text_missing(existing.description):
-            existing.description = risk_type_defaults["description"]
+            existing.description = cast(str, risk_type_default["description"])
             repaired = True
         if _risk_type_text_missing(existing.color):
-            existing.color = risk_type_defaults["color"]
+            existing.color = cast(str, risk_type_default["color"])
             repaired = True
         if existing.sort_order is None:
-            existing.sort_order = risk_type_defaults["sort_order"]
+            existing.sort_order = cast(int, risk_type_default["sort_order"])
             repaired = True
         if repaired:
             summary["repaired"] += 1
@@ -172,19 +179,21 @@ async def seed_database():
 
         # Create test users
         users = {}
-        for user_data in TEST_USERS:
-            role = roles[user_data["role"]]
-            dept = departments.get(user_data["department"]) if user_data["department"] else None
+        for user_data_raw in TEST_USERS:
+            user_data = cast(SeedPayload, user_data_raw)
+            role = roles[cast(str, user_data["role"])]
+            department_code = cast(str | None, user_data["department"])
+            user_department = departments.get(department_code) if department_code else None
             user = User(
-                email=user_data["email"],
-                name=user_data["name"],
+                email=cast(str, user_data["email"]),
+                name=cast(str, user_data["name"]),
                 role_id=role.id,
-                department_id=dept.id if dept else None,
+                department_id=user_department.id if user_department else None,
                 is_active=True,
-                access_scope=AccessScope(user_data.get("access_scope", AccessScope.DEPARTMENT)),
+                access_scope=AccessScope(cast(str, user_data.get("access_scope", AccessScope.DEPARTMENT))),
             )
             db.add(user)
-            users[user_data["email"]] = user
+            users[cast(str, user_data["email"])] = user
         await db.flush()
         print(f"Created {len(TEST_USERS)} test users")
 
@@ -209,8 +218,8 @@ async def seed_controls_and_risks(db: AsyncSession):
     # Create controls
     controls = []
     for ctrl_data in SAMPLE_CONTROLS:
-        control_payload = dict(ctrl_data)
-        dept = departments.get(control_payload.pop("department"))
+        control_payload = cast(SeedPayload, dict(ctrl_data))
+        dept = departments.get(cast(str, control_payload.pop("department")))
         control = Control(
             **control_payload,
             department_id=dept.id if dept else None,
@@ -243,10 +252,10 @@ async def seed_controls_and_risks(db: AsyncSession):
     # Create risks
     risks = []
     for risk_data in SAMPLE_RISKS:
-        risk_payload = dict(risk_data)
-        dept = departments.get(risk_payload.pop("department"))
-        gross_score = risk_payload["gross_probability"] * risk_payload["gross_impact"]
-        net_score = risk_payload["net_probability"] * risk_payload["net_impact"]
+        risk_payload = cast(SeedPayload, dict(risk_data))
+        dept = departments.get(cast(str, risk_payload.pop("department")))
+        gross_score = cast(int, risk_payload["gross_probability"]) * cast(int, risk_payload["gross_impact"])
+        net_score = cast(int, risk_payload["net_probability"]) * cast(int, risk_payload["net_impact"])
         risk = Risk(
             **risk_payload,
             gross_score=gross_score,

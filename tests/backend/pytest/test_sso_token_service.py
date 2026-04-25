@@ -9,8 +9,8 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from jwt.algorithms import RSAAlgorithm
 
-from app.core.config import Settings
 from app.core.activity_logger import audit_logger
+from app.core.config import Settings
 from app.services.sso_token_service import (
     EntraTokenVerifier,
     SsoProviderUnavailableError,

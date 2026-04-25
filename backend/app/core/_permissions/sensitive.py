@@ -6,7 +6,7 @@ _NOT_PROVIDED = object()
 SENSITIVE_FIELDS: dict[str, set[str]] = {
     "risk": {"owner_id", "department_id", "category", "is_priority"},
     "control": {"control_owner_id", "department_id"},
-    "kri": {},  # KRIs inherit sensitivity from linked risk
+    "kri": set(),  # KRIs inherit sensitivity from linked risk
 }
 
 

@@ -8,11 +8,10 @@ from apscheduler.triggers.interval import IntervalTrigger
 from app.core.datetime_utils import utc_now
 from app.core.logging import get_logger
 from app.core.scheduler import (
-    FULL_SCHEDULER_JOB_IDS,
+    DEFAULT_SCHEDULER_JOB_PROFILE,
     OUTBOX_ONLY_SCHEDULER_JOB_IDS,
     PROCESS_INSTANCE_ID,
     SCHEDULER_JOB_PROFILE_ENV,
-    DEFAULT_SCHEDULER_JOB_PROFILE,
     _outbox_dispatch_state,
     execute_tracked_job,
     get_db_context,

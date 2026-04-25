@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -130,7 +130,7 @@ async def update_role(
     if data.permission_ids is not None:
         permissions = await validate_permission_ids(db, data.permission_ids)
         # Clear existing permissions
-        await db.execute(RolePermission.__table__.delete().where(RolePermission.role_id == role.id))
+        await db.execute(delete(RolePermission).where(RolePermission.role_id == role.id))
 
         for perm in permissions:
             role_perm = RolePermission(role_id=role.id, permission_id=perm.id)

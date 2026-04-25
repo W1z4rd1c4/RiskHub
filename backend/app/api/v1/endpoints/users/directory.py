@@ -74,7 +74,7 @@ async def list_directory_users(
             facet_query.c.role_id,
             Role.name,
             Role.display_name,
-            func.count().label("count"),
+            func.count().label("role_count"),
         )
         .join(Role, Role.id == facet_query.c.role_id)
         .group_by(facet_query.c.role_id, Role.name, Role.display_name)
@@ -84,7 +84,7 @@ async def list_directory_users(
         UserDirectoryRoleFacet(
             name=row.name,
             display_name=row.display_name,
-            count=row.count,
+            count=row.role_count,
         )
         for row in facet_result
     ]

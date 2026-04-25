@@ -39,16 +39,16 @@ async def _resolve_link_department_and_access(
         return row[1]
 
     if payload.execution_id is not None:
-        row = (
+        execution_row = (
             await db.execute(
                 select(ControlExecution.id, ControlExecution.control_id, Control.department_id)
                 .join(Control, ControlExecution.control_id == Control.id)
                 .where(ControlExecution.id == payload.execution_id)
             )
         ).one_or_none()
-        if row is None or not await can_read_control_id(db, current_user, row[1]):
+        if execution_row is None or not await can_read_control_id(db, current_user, execution_row[1]):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Linked execution not found")
-        return row[2]
+        return execution_row[2]
 
     if payload.kri_id is not None:
         row = (

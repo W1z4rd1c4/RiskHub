@@ -9,6 +9,8 @@ from typing import Any, Literal
 from fastapi import HTTPException, status
 from pydantic import BaseModel, Field, ValidationError
 
+from app.schemas.collection import CollectionGroupRead
+
 
 class CollectionSort(BaseModel):
     field: str
@@ -188,7 +190,7 @@ def build_grouped_collection_response[T](
     get_entries: Callable[[T, str], Iterable[CollectionGroupEntry]],
     is_active: Callable[[T], bool] | None = None,
     is_highlighted: Callable[[T], bool] | None = None,
-) -> tuple[list[T], int, list[dict[str, Any]]]:
+) -> tuple[list[T], int, list[CollectionGroupRead]]:
     item_entries: list[tuple[T, list[CollectionGroupEntry]]] = []
     group_map: dict[str, dict[str, Any]] = {}
 
@@ -219,7 +221,10 @@ def build_grouped_collection_response[T](
             if is_highlighted is not None and is_highlighted(item):
                 group["highlighted_count"] += 1
 
-    groups = sorted(group_map.values(), key=lambda group: str(group["label"]).lower())
+    groups = [
+        CollectionGroupRead.model_validate(group)
+        for group in sorted(group_map.values(), key=lambda group: str(group["label"]).lower())
+    ]
 
     if not group_value:
         return [], len(item_entries), groups
@@ -239,7 +244,7 @@ def build_grouped_collection_page[T](
     get_entries: Callable[[T, str], Iterable[CollectionGroupEntry]],
     is_active: Callable[[T], bool] | None = None,
     is_highlighted: Callable[[T], bool] | None = None,
-) -> tuple[list[T], int, list[dict[str, Any]]]:
+) -> tuple[list[T], int, list[CollectionGroupRead]]:
     if not query.group_by:
         item_list = list(items)
         return item_list, len(item_list), []

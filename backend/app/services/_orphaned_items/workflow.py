@@ -25,7 +25,9 @@ async def get_orphan_item_department_id(db: AsyncSession, orphan: OrphanedItem) 
     if orphan.item_type == "risk":
         return (await db.execute(select(Risk.department_id).where(Risk.id == orphan.item_id))).scalar_one_or_none()
     if orphan.item_type == "control":
-        return (await db.execute(select(Control.department_id).where(Control.id == orphan.item_id))).scalar_one_or_none()
+        return (
+            await db.execute(select(Control.department_id).where(Control.id == orphan.item_id))
+        ).scalar_one_or_none()
     if orphan.item_type == "kri":
         return (
             await db.execute(

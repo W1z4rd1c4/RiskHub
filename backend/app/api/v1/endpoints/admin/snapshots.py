@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from datetime import datetime
+from typing import Any, cast
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,6 +14,17 @@ from app.schemas.admin import SnapshotListItem, SnapshotResponse
 from ._deps import require_platform_admin
 
 router = APIRouter()
+
+
+def _snapshot_response(snapshot, *, message: str) -> SnapshotResponse:
+    return SnapshotResponse(
+        quarter=cast(str, snapshot.quarter),
+        year=cast(int, snapshot.year),
+        quarter_number=cast(int, snapshot.quarter_number),
+        captured_at=cast(datetime, snapshot.captured_at).isoformat(),
+        metrics=cast(dict[Any, Any], snapshot.metrics),
+        message=message,
+    )
 
 
 @router.post("/snapshots/capture", response_model=SnapshotResponse)
@@ -37,14 +51,7 @@ async def capture_quarterly_snapshot(
 
     await db.commit()
 
-    return SnapshotResponse(
-        quarter=snapshot.quarter,
-        year=snapshot.year,
-        quarter_number=snapshot.quarter_number,
-        captured_at=snapshot.captured_at.isoformat(),
-        metrics=snapshot.metrics,
-        message=f"Successfully captured snapshot for {snapshot.quarter}",
-    )
+    return _snapshot_response(snapshot, message=f"Successfully captured snapshot for {snapshot.quarter}")
 
 
 @router.get("/snapshots", response_model=list[SnapshotListItem])
@@ -70,11 +77,11 @@ async def list_quarterly_snapshots(
 
     return [
         SnapshotListItem(
-            id=s.id,
-            quarter=s.quarter,
-            year=s.year,
-            quarter_number=s.quarter_number,
-            captured_at=s.captured_at.isoformat(),
+            id=cast(int, s.id),
+            quarter=cast(str, s.quarter),
+            year=cast(int, s.year),
+            quarter_number=cast(int, s.quarter_number),
+            captured_at=cast(datetime, s.captured_at).isoformat(),
             snapshot_type=s.snapshot_type.value,
             has_metrics=bool(s.metrics),
         )
@@ -102,11 +109,4 @@ async def get_quarterly_snapshot(
     if not snapshot:
         raise HTTPException(status_code=404, detail=f"No snapshot found for {quarter}")
 
-    return SnapshotResponse(
-        quarter=snapshot.quarter,
-        year=snapshot.year,
-        quarter_number=snapshot.quarter_number,
-        captured_at=snapshot.captured_at.isoformat(),
-        metrics=snapshot.metrics,
-        message=f"Snapshot for {snapshot.quarter}",
-    )
+    return _snapshot_response(snapshot, message=f"Snapshot for {snapshot.quarter}")

@@ -292,7 +292,7 @@ async def _resolve_snapshot_metrics(
     snapshot_record = await get_quarter_snapshot(db, quarter_label, department_id=snapshot_department_id)
     if not snapshot_record:
         return {}, "missing"
-    return snapshot_record.metrics, "stored"
+    return dict(snapshot_record.metrics or {}), "stored"
 
 
 async def build_quarterly_comparison(

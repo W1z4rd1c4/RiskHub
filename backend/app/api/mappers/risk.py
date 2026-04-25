@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from app.models import Risk
-from app.schemas.risk import RiskSummary
+from app.schemas.risk import RiskStatusEnum, RiskSummary
 from app.schemas.vendor_shared import LinkedVendorRead
 
 
@@ -36,7 +36,7 @@ def risk_to_summary(risk: Risk, *, linked_vendors: list[LinkedVendorRead] | None
         gross_probability=risk.gross_probability,
         gross_impact=risk.gross_impact,
         net_score=risk.net_score,
-        status=risk.status,
+        status=RiskStatusEnum(risk.status),
         is_priority=bool(risk.is_priority),
         department_id=risk.department_id,
         department_name=risk.department.name if risk.department else None,

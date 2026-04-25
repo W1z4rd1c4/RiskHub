@@ -100,13 +100,16 @@ async def get_current_user(
     if not credentials:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
-    return await _resolve_bearer_user(
+    bearer_user = await _resolve_bearer_user(
         db=db,
         settings=settings,
         token=credentials.credentials,
         update_last_active=True,
         optional=False,
     )
+    if bearer_user is None:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    return bearer_user
 
 
 async def get_current_committee_user(

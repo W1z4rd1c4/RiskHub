@@ -5,8 +5,8 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
-from app.models import Control, ControlRiskLink, KeyRiskIndicator, OrphanedItem, Risk, User
-from app.schemas.admin import OrphanFixRequest, OrphanFixResponse, OrphanStatsResponse
+from app.models import Control, ControlRiskLink, KeyRiskIndicator, Risk, User
+from app.schemas.admin import OrphanFixRequest, OrphanFixResponse, OrphanFixResult, OrphanStatsResponse
 from app.services._orphaned_items.resolution import validate_resolution_context
 from app.services._orphaned_items.workflow import OrphanResolutionConflict
 from app.services.orphaned_item_service import OrphanedItemService
@@ -87,15 +87,15 @@ async def fix_orphan_mappings(
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
         results.append(
-            {
-                "orphan_id": context.orphan.id,
-                "item_type": context.orphan.item_type,
-                "item_id": context.orphan.item_id,
-                "applied": not payload.dry_run,
-                "new_owner_id": resolution.new_owner_id,
-                "department_id": context.target_department_id,
-                "target_risk_id": context.target_risk.id if context.target_risk else None,
-            }
+            OrphanFixResult(
+                orphan_id=context.orphan.id,
+                item_type=context.orphan.item_type,
+                item_id=context.orphan.item_id,
+                applied=not payload.dry_run,
+                new_owner_id=resolution.new_owner_id,
+                department_id=context.target_department_id,
+                target_risk_id=context.target_risk.id if context.target_risk else None,
+            )
         )
 
         if context.orphan.item_type == "risk":

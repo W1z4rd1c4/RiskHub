@@ -5,8 +5,7 @@ from dataclasses import dataclass
 from fastapi import HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import aliased
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import aliased, selectinload
 
 from app.models import Control, KeyRiskIndicator, OrphanedItem, Risk, User, Vendor
 from app.models.department import Department
@@ -92,7 +91,9 @@ async def get_department_dependency_counts(db: AsyncSession, department_id: int)
             select(func.count(User.id)).where(User.department_id == department_id).where(User.is_active.is_(True))
         )
     ).scalar() or 0
-    risk_count = (await db.execute(select(func.count(Risk.id)).where(Risk.department_id == department_id))).scalar() or 0
+    risk_count = (
+        await db.execute(select(func.count(Risk.id)).where(Risk.department_id == department_id))
+    ).scalar() or 0
     control_count = (
         await db.execute(select(func.count(Control.id)).where(Control.department_id == department_id))
     ).scalar() or 0
@@ -111,7 +112,10 @@ async def get_department_dependency_counts(db: AsyncSession, department_id: int)
             select(func.count(OrphanedItem.id))
             .outerjoin(orphan_risk, (OrphanedItem.item_type == "risk") & (orphan_risk.id == OrphanedItem.item_id))
             .outerjoin(Control, (OrphanedItem.item_type == "control") & (Control.id == OrphanedItem.item_id))
-            .outerjoin(KeyRiskIndicator, (OrphanedItem.item_type == "kri") & (KeyRiskIndicator.id == OrphanedItem.item_id))
+            .outerjoin(
+                KeyRiskIndicator,
+                (OrphanedItem.item_type == "kri") & (KeyRiskIndicator.id == OrphanedItem.item_id),
+            )
             .outerjoin(orphan_kri_risk, orphan_kri_risk.id == KeyRiskIndicator.risk_id)
             .where(OrphanedItem.status == "pending")
             .where(

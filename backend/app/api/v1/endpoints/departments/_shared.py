@@ -53,12 +53,16 @@ def _clamp_pagination(skip: int, limit: int) -> tuple[int, int]:
     return max(0, skip), min(limit, MAX_PAGE_SIZE)
 
 
+def _counts_by_department(rows) -> dict[int, int]:
+    return {dept_id: int(count) for dept_id, count in rows if dept_id is not None}
+
+
 async def _count_active_users_by_dept(db: AsyncSession) -> dict[int, int]:
     """Active user count per department."""
     result = await db.execute(
         select(User.department_id, func.count(User.id)).where(User.is_active.is_(True)).group_by(User.department_id)
     )
-    return dict(result.all())
+    return _counts_by_department(result.all())
 
 
 async def _count_risks_by_dept(db: AsyncSession) -> dict[int, int]:
@@ -68,7 +72,7 @@ async def _count_risks_by_dept(db: AsyncSession) -> dict[int, int]:
         .where(Risk.status != RiskStatus.archived.value)
         .group_by(Risk.department_id)
     )
-    return dict(result.all())
+    return _counts_by_department(result.all())
 
 
 async def _count_high_risks_by_dept(db: AsyncSession) -> dict[int, int]:
@@ -81,7 +85,7 @@ async def _count_high_risks_by_dept(db: AsyncSession) -> dict[int, int]:
         .where(and_(Risk.status != RiskStatus.archived.value, Risk.net_score >= ConfigDefaults.HIGH_RISK_MIN_NET_SCORE))
         .group_by(Risk.department_id)
     )
-    return dict(result.all())
+    return _counts_by_department(result.all())
 
 
 async def _count_controls_by_dept(db: AsyncSession) -> dict[int, int]:
@@ -91,7 +95,7 @@ async def _count_controls_by_dept(db: AsyncSession) -> dict[int, int]:
         .where(Control.status != ControlStatus.archived.value)
         .group_by(Control.department_id)
     )
-    return dict(result.all())
+    return _counts_by_department(result.all())
 
 
 async def _count_kris_by_dept(db: AsyncSession) -> dict[int, int]:
@@ -102,7 +106,7 @@ async def _count_kris_by_dept(db: AsyncSession) -> dict[int, int]:
         .where(Risk.status != RiskStatus.archived.value)
         .group_by(Risk.department_id)
     )
-    return dict(result.all())
+    return _counts_by_department(result.all())
 
 
 async def _count_breaching_kris_by_dept(db: AsyncSession) -> dict[int, int]:
@@ -121,7 +125,7 @@ async def _count_breaching_kris_by_dept(db: AsyncSession) -> dict[int, int]:
         )
         .group_by(Risk.department_id)
     )
-    return dict(result.all())
+    return _counts_by_department(result.all())
 
 
 async def _sum_net_scores_by_dept(db: AsyncSession) -> dict[int, int]:

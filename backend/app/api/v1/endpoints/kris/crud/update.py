@@ -1,3 +1,5 @@
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,7 +24,7 @@ from app.services.kri_vendor_assignment import (
 )
 
 router = APIRouter()
-APPROVAL_QUEUED_RESPONSE = {202: {"model": ApprovalQueuedResponse}}
+APPROVAL_QUEUED_RESPONSE: dict[int | str, dict[str, Any]] = {202: {"model": ApprovalQueuedResponse}}
 
 
 @router.put("/{kri_id}", response_model=KRIResponse, responses=APPROVAL_QUEUED_RESPONSE)

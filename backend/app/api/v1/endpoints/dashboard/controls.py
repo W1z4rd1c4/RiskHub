@@ -4,6 +4,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy import and_, desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql.elements import ColumnElement
 
 from app.core.limits import DASHBOARD_CONTROL_TREND_WEEKS
 from app.core.permissions import get_user_department_ids
@@ -18,11 +19,28 @@ logger = logging.getLogger(__name__)
 
 @router.get("/control-trends", response_model=list[ControlFrequencyTrend])
 async def get_control_trends(
+    response: Response,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_permission("risks", "read")),
-    response: Response = None,
     department_id: Optional[int] = Query(None, description="Filter by department"),
     control_status: Optional[str] = Query(None, description="Filter by control status"),
+):
+    return await build_control_trends(
+        db=db,
+        current_user=current_user,
+        response=response,
+        department_id=department_id,
+        control_status=control_status,
+    )
+
+
+async def build_control_trends(
+    *,
+    db: AsyncSession,
+    current_user: User,
+    response: Response | None = None,
+    department_id: Optional[int] = None,
+    control_status: Optional[str] = None,
 ):
     """Get control execution trends by week (last 8 weeks) with optional filters."""
 
@@ -34,12 +52,12 @@ async def get_control_trends(
             return []  # User has no department access - return empty results
 
         # Build base conditions
-        conditions = [ControlExecution.executed_at.isnot(None)]
+        conditions: list[ColumnElement[bool]] = [ControlExecution.executed_at.isnot(None)]
 
         # For department filtering, we need to join with Control
         if dept_ids is not None or department_id or control_status:
             # Build subquery for control IDs matching filters
-            control_conditions = []
+            control_conditions: list[ColumnElement[bool]] = []
             if dept_ids is not None:
                 control_conditions.append(Control.department_id.in_(dept_ids))
             elif department_id:

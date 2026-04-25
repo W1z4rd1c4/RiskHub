@@ -70,6 +70,7 @@ def _control_to_row(control: Control) -> dict[str, Any]:
 def _kri_to_row(kri: KeyRiskIndicator) -> dict[str, Any]:
     risk = kri.risk
     status = "archived" if kri.is_archived else "active"
+    reporting_owner = getattr(kri, "reporting_owner", None)
     return {
         "id": kri.id,
         "risk_id": kri.risk_id,
@@ -92,7 +93,7 @@ def _kri_to_row(kri: KeyRiskIndicator) -> dict[str, Any]:
         "archived_at": kri.archived_at,
         "archived_by_id": kri.archived_by_id,
         "reporting_owner_id": kri.reporting_owner_id,
-        "reporting_owner_name": kri.reporting_owner.name if getattr(kri, "reporting_owner", None) else None,
+        "reporting_owner_name": reporting_owner.name if reporting_owner else None,
         "last_reported_at": kri.last_reported_at,
         "last_period_end": kri.last_period_end,
         "created_at": kri.created_at,

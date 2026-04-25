@@ -10,9 +10,15 @@ from app.schemas.risk_questionnaire import (
     RiskQuestionnaireCapabilitiesRead,
     RiskQuestionnaireClarificationRead,
     RiskQuestionnaireListItemRead,
+    RiskQuestionnairePreviousSubmissionRead,
     RiskQuestionnaireRead,
+    RiskQuestionnaireStatusEnum,
 )
-from app.services.risk_questionnaire_service import can_read_questionnaire, questionnaire_capabilities, questionnaire_load_options
+from app.services.risk_questionnaire_service import (
+    can_read_questionnaire,
+    questionnaire_capabilities,
+    questionnaire_load_options,
+)
 
 
 async def _get_risk_for_read(db: AsyncSession, current_user: User, risk_id: int) -> Risk:
@@ -68,7 +74,7 @@ def _serialize_list_item(
         risk_name=getattr(getattr(q, "risk", None), "name", None),
         assigned_to_user_id=q.assigned_to_user_id,
         sent_by_user_id=q.sent_by_user_id,
-        status=q.status.value if hasattr(q.status, "value") else q.status,
+        status=RiskQuestionnaireStatusEnum(q.status.value if hasattr(q.status, "value") else q.status),
         template_key=q.template_key,
         template_version=q.template_version,
         sent_at=q.sent_at,
@@ -96,15 +102,15 @@ def _serialize_read(q: RiskQuestionnaire) -> RiskQuestionnaireRead:
     return RiskQuestionnaireRead(**base, answers=q.answers, previous_submission=None)
 
 
-def _serialize_previous_submission(q: RiskQuestionnaire | None) -> dict | None:
+def _serialize_previous_submission(q: RiskQuestionnaire | None) -> RiskQuestionnairePreviousSubmissionRead | None:
     if q is None or q.submitted_at is None:
         return None
-    return {
-        "id": q.id,
-        "submitted_at": q.submitted_at,
-        "template_version": q.template_version,
-        "answers": q.answers,
-    }
+    return RiskQuestionnairePreviousSubmissionRead(
+        id=q.id,
+        submitted_at=q.submitted_at,
+        template_version=q.template_version,
+        answers=q.answers,
+    )
 
 
 def _serialize_read_with_previous(

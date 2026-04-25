@@ -61,7 +61,7 @@ async def get_risk_distribution(
 
     # Group risks by selected probability and impact
     distribution_query = select(
-        prob_col.label("probability"), impact_col.label("impact"), func.count(Risk.id).label("count")
+        prob_col.label("probability"), impact_col.label("impact"), func.count(Risk.id).label("item_count")
     )
 
     if conditions:
@@ -73,7 +73,7 @@ async def get_risk_distribution(
     rows = result.all()
 
     distribution = [
-        RiskDistributionItem(probability=row.probability, impact=row.impact, count=row.count)
+        RiskDistributionItem(probability=row.probability, impact=row.impact, count=row.item_count)
         for row in rows
         if row.probability and row.impact
     ]

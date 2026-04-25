@@ -5,13 +5,14 @@ import { getAuthConfig } from '@/services/authConfig';
 import { AuthRequestError } from '@/services/authRequest';
 import { entraAuth } from '@/services/entraAuth';
 import { logError } from '@/services/logger';
-import { clearExplicitLogoutSuppressed, setExplicitLogoutSuppressed } from '@/services/session/logoutSuppression';
 import {
     applyAuthenticatedSession,
     clearAuthenticatedSession,
+    clearExplicitLogoutSuppressed,
     setLogoutErrorState,
     setLogoutPendingState,
-} from '@/services/session/manager';
+    setExplicitLogoutSuppressed,
+} from '@/services/session';
 import { clearLocalSettings } from '@/utils/userSettingsStorage';
 
 interface UseAuthActionsOptions {

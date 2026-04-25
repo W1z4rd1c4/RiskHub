@@ -4,7 +4,7 @@ import { hasUserPermission } from '@/contexts/auth/permissions';
 import { usePreferenceHydration } from '@/contexts/auth/usePreferenceHydration';
 import { useAuthBootstrap } from '@/contexts/auth/useAuthBootstrap';
 import { useAuthActions } from '@/contexts/auth/useAuthActions';
-import { useSessionSnapshot } from '@/services/session/store';
+import { useSessionSnapshot } from '@/services/session';
 
 type User = AuthUser;
 

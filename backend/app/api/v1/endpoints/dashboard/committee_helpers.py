@@ -174,7 +174,7 @@ async def _fetch_vendor_sections(
 ):
     vendor_scope_filter = Vendor.department_id.in_(dept_ids) if dept_ids is not None else None
 
-    sections = {
+    sections: dict[str, list[dict[str, object]]] = {
         "critical_vendors": [],
     }
     if not can_read_vendors:

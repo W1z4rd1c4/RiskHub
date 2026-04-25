@@ -13,7 +13,6 @@ from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.models.user import AccessScope
 from app.services._access_workflow import (
     ADMIN_PRIVILEGED_ROLES,
-    BUSINESS_ACCESS_FIELDS,
     PLATFORM_ADMIN_FIELDS,
     authorize_access_update_fields,
     is_platform_admin,

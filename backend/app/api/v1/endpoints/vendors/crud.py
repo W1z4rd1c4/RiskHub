@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Optional
+from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import asc, desc, func, or_, select
@@ -80,7 +80,9 @@ def _vendor_group_entries(vendor: VendorRead, group_by: str) -> list[CollectionG
         if vendor.dora_relevant:
             entries.append(CollectionGroupEntry(VENDOR_GROUP_DORA_RELEVANT, VENDOR_GROUP_DORA_RELEVANT))
         if vendor.supports_important_core_insurance_function:
-            entries.append(CollectionGroupEntry(VENDOR_GROUP_SUPPORTS_CORE_FUNCTION, VENDOR_GROUP_SUPPORTS_CORE_FUNCTION))
+            entries.append(
+                CollectionGroupEntry(VENDOR_GROUP_SUPPORTS_CORE_FUNCTION, VENDOR_GROUP_SUPPORTS_CORE_FUNCTION)
+            )
         if vendor.is_significant_vendor:
             entries.append(CollectionGroupEntry(VENDOR_GROUP_SIGNIFICANT_VENDOR, VENDOR_GROUP_SIGNIFICANT_VENDOR))
         if not entries:
@@ -260,7 +262,7 @@ async def list_vendors(
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0
 
-    order_column = Vendor.name
+    order_column: Any = Vendor.name
     if sort_by:
         if sort_by == "name":
             order_column = Vendor.name
@@ -317,7 +319,6 @@ async def list_vendors(
             total=grouped_total,
             offset=offset,
             limit=limit,
-            current_user=current_user,
             groups=groups,
         )
 

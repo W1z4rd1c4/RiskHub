@@ -1,5 +1,5 @@
 from datetime import date
-from typing import Optional
+from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
@@ -11,6 +11,7 @@ from app.db.session import get_db
 from app.models import User
 from app.schemas.approval_request import ApprovalQueuedResponse
 from app.schemas.kri import (
+    KRIHistoryCapabilitiesRead,
     KRIHistoryEdit,
     KRIHistoryEntry,
     KRIHistoryListResponse,
@@ -32,7 +33,7 @@ from .history_helpers import (
 )
 
 router = APIRouter()
-APPROVAL_QUEUED_RESPONSE = {202: {"model": ApprovalQueuedResponse}}
+APPROVAL_QUEUED_RESPONSE: dict[int | str, dict[str, Any]] = {202: {"model": ApprovalQueuedResponse}}
 
 
 @router.post("/{kri_id}/values", response_model=KRIResponse, responses=APPROVAL_QUEUED_RESPONSE)
@@ -138,7 +139,7 @@ async def get_kri_history(
         total=total,
         offset=effective_offset,
         limit=effective_limit,
-        capabilities=await history_capabilities(db, current_user, kri),
+        capabilities=KRIHistoryCapabilitiesRead(**await history_capabilities(db, current_user, kri)),
     )
 
 

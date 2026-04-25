@@ -1,3 +1,5 @@
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,7 +21,7 @@ from app.schemas.risk import RiskRead, RiskStatusEnum, RiskUpdate
 from ._shared import validate_risk_type
 
 router = APIRouter()
-APPROVAL_QUEUED_RESPONSE = {202: {"model": ApprovalQueuedResponse}}
+APPROVAL_QUEUED_RESPONSE: dict[int | str, dict[str, Any]] = {202: {"model": ApprovalQueuedResponse}}
 
 
 async def _load_risk_or_404(db: AsyncSession, risk_id: int) -> Risk:
@@ -98,7 +100,7 @@ async def _create_risk_edit_approval_if_required(
     if can_resolve_approvals(current_user):
         return None
 
-    old_data = {
+    old_data: dict[str, object] = {
         "owner_id": risk.owner_id,
         "department_id": risk.department_id,
         "category": risk.category,

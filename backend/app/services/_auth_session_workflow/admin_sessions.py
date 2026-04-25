@@ -118,7 +118,7 @@ async def revoke_user_sessions(
         .where(RefreshToken.revoked_at.is_(None))
         .values(revoked_at=current_time, revoked_reason=f"admin_revoke:{admin_user.id}")
     )
-    revoked_count = int(revoked_rows.rowcount or 0)
+    revoked_count = int(getattr(revoked_rows, "rowcount", 0) or 0)
     user.token_version += 1
     db.add(user)
 

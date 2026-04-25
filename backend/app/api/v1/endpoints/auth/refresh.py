@@ -10,9 +10,9 @@ from sqlalchemy.orm import selectinload
 from starlette.requests import Request
 from starlette.responses import Response
 
+from app.core.activity_logger import audit_logger, log_activity
 from app.core.config import Settings, get_settings
 from app.core.datetime_utils import coerce_utc, utc_now
-from app.core.activity_logger import audit_logger, log_activity
 from app.core.logging import get_logger
 from app.core.tokens import (
     clear_refresh_cookie,
@@ -139,7 +139,7 @@ async def refresh_session(
             .where(RefreshToken.revoked_at.is_(None))
             .values(revoked_at=now, revoked_reason="expired")
         )
-        revoke_count = int(revoke_result.rowcount or 0)
+        revoke_count = int(getattr(revoke_result, "rowcount", 0) or 0)
         if revoke_count > 0:
             user = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
             await _emit_failed_refresh_activity(
@@ -157,7 +157,7 @@ async def refresh_session(
             .where(RefreshToken.revoked_at.is_(None))
             .values(revoked_at=now, revoked_reason="expires_soon")
         )
-        revoke_count = int(revoke_result.rowcount or 0)
+        revoke_count = int(getattr(revoke_result, "rowcount", 0) or 0)
         if revoke_count > 0:
             user = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
             await _emit_failed_refresh_activity(
@@ -197,7 +197,7 @@ async def refresh_session(
             .where(RefreshToken.revoked_at.is_(None))
             .values(revoked_at=now, revoked_reason="token_version_mismatch")
         )
-        revoke_count = int(revoke_result.rowcount or 0)
+        revoke_count = int(getattr(revoke_result, "rowcount", 0) or 0)
         if revoke_count > 0:
             await _emit_failed_refresh_activity(
                 db=db,
@@ -243,6 +243,8 @@ async def refresh_session(
         )
 
     child_jti = new_token_jti()
+    if expires_at is None:
+        return _refresh_unauthorized_response("Refresh token expired", settings)
     child_lifetime = expires_at - now
     child_refresh_token, child_expires_at = create_refresh_token(
         user_id=user.id,
@@ -264,7 +266,7 @@ async def refresh_session(
             last_used_at=now,
         )
     )
-    if int(rotate_result.rowcount or 0) != 1:
+    if int(getattr(rotate_result, "rowcount", 0) or 0) != 1:
         return _refresh_unauthorized_response("Refresh session not found", settings)
 
     await _issue_refresh_session(

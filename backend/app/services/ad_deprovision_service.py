@@ -273,7 +273,7 @@ class ADDeprovisionService:
             .where(RefreshToken.revoked_at.is_(None))
             .values(revoked_at=now, revoked_reason=f"{deprovision_reason}:{trigger}")
         )
-        revoked_sessions = int(revoked_rows.rowcount or 0)
+        revoked_sessions = int(getattr(revoked_rows, "rowcount", 0) or 0)
 
         orphaned_items = await OrphanedItemService.flag_orphaned_items(db, user.id)
         orphan_count = len(orphaned_items)

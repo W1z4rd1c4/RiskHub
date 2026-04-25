@@ -65,9 +65,11 @@ async def get_issue_summary(
     now = utc_now()
     issues = await _load_scoped_issues(db, current_user, department_id=department_id)
     open_issues = _open_unsuppressed_issues(issues, now)
-    overdue = [
-        issue for issue in open_issues if coerce_utc(issue.due_at) is not None and coerce_utc(issue.due_at) < now
-    ]
+    overdue = []
+    for issue in open_issues:
+        due_at = coerce_utc(issue.due_at)
+        if due_at is not None and due_at < now:
+            overdue.append(issue)
     high_severity = [
         issue for issue in open_issues if issue.severity in (IssueSeverity.high.value, IssueSeverity.critical.value)
     ]

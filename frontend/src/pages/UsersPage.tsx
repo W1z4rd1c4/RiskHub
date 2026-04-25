@@ -12,8 +12,8 @@ import {
 import { accessApi } from '@/services/accessApi';
 import { adminApi } from '@/services/adminApi';
 import { apiClient } from '@/services/apiClient';
-import { userApi } from '@/services/userApi';
 import { userDirectoryApi } from '@/services/userDirectoryApi';
+import { logError } from '@/services/logger';
 import type { AuthMode } from '@/services/authApi';
 import { getAuthConfig } from '@/services/authConfig';
 import { isAuthUnavailableError } from '@/services/authRequest';
@@ -30,6 +30,7 @@ import { UsersFilterBar } from '@/components/access/UsersFilterBar';
 import { UsersTable } from '@/components/access/UsersTable';
 import { ADUserPicker } from '@/components/users/ADUserPicker';
 import { Pagination } from '@/components/tables/Pagination';
+import { useUserLifecycleActions } from './users/useUserLifecycleActions';
 
 const DIRECTORY_PAGE_SIZE = 50;
 
@@ -58,15 +59,6 @@ export function UsersPage() {
     const [authMode, setAuthMode] = useState<AuthMode | null>(null);
     const [authModeStatus, setAuthModeStatus] = useState<'loading' | 'ready' | 'error'>('loading');
     const [authModeError, setAuthModeError] = useState<string | null>(null);
-
-    // Confirm dialog state for user status toggle (only used in access mode)
-    const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
-    const [userToToggle, setUserToToggle] = useState<AccessUserRead | null>(null);
-    const [isToggling, setIsToggling] = useState(false);
-    const [breakGlassUser, setBreakGlassUser] = useState<AccessUserRead | null>(null);
-    const [breakGlassReason, setBreakGlassReason] = useState('');
-    const [breakGlassHours, setBreakGlassHours] = useState<number | ''>(4);
-    const [isBreakGlassSubmitting, setIsBreakGlassSubmitting] = useState(false);
 
     const { canManageUsers, user: currentUser } = usePermissions();
     const authz = useAuthz();
@@ -122,7 +114,7 @@ export function UsersPage() {
                 setDirectoryTotal(0);
             }
         } catch (error) {
-            console.error('Failed to fetch users:', error);
+            logError('Failed to fetch users.', error);
             setUsers([]);
             setDirectoryUsers([]);
             setDirectoryAvailableRoles([]);
@@ -158,7 +150,7 @@ export function UsersPage() {
                 setAuthModeError(null);
             } catch (error) {
                 if (cancelled) return;
-                console.error('Failed to load auth mode for UsersPage', error);
+                logError('Failed to load auth mode for UsersPage.', error);
                 setAuthMode(null);
                 setAuthModeStatus('error');
                 setAuthModeError(
@@ -180,74 +172,27 @@ export function UsersPage() {
         };
     }, [t]);
 
-    const handleToggleClick = (user: AccessUserRead) => {
-        setDirectoryMessage(null);
-        setUserToToggle(user);
-        setConfirmDialogOpen(true);
-    };
-
-    const toggleUserStatus = async () => {
-        if (!userToToggle) return;
-
-        try {
-            setIsToggling(true);
-            await userApi.updateUser(userToToggle.id, { is_active: !userToToggle.is_active });
-            await fetchUsers();
-        } catch (error) {
-            console.error('Failed to update user status:', error);
-            setDirectoryMessage(
-                apiClient.getRawErrorMessage(error)
-                ?? t('users.user_status_update_failed', { defaultValue: 'Failed to update user status.' })
-            );
-        } finally {
-            setIsToggling(false);
-            setConfirmDialogOpen(false);
-            setUserToToggle(null);
-        }
-    };
-
-    const handleBreakGlassOpen = (user: AccessUserRead) => {
-        setDirectoryMessage(null);
-        setBreakGlassUser(user);
-        setBreakGlassReason('');
-        setBreakGlassHours(4);
-    };
-
-    const handleBreakGlassClose = () => {
-        if (isBreakGlassSubmitting) return;
-        setBreakGlassUser(null);
-        setBreakGlassReason('');
-        setBreakGlassHours(4);
-    };
-
-    const handleBreakGlassSubmit = async () => {
-        if (!breakGlassUser || !breakGlassReason.trim() || breakGlassHours === '') return;
-        try {
-            setIsBreakGlassSubmitting(true);
-            await adminApi.breakGlassEnableDirectoryUser(breakGlassUser.id, {
-                reason: breakGlassReason.trim(),
-                expires_in_hours: breakGlassHours,
-            });
-            setDirectoryMessage(
-                t('users.break_glass_success', {
-                    defaultValue: `${breakGlassUser.name} enabled through break-glass access.`,
-                    name: breakGlassUser.name,
-                })
-            );
-            setBreakGlassUser(null);
-            setBreakGlassReason('');
-            setBreakGlassHours(4);
-            await fetchUsers();
-        } catch (error) {
-            console.error('Break-glass enable failed:', error);
-            setDirectoryMessage(
-                apiClient.getRawErrorMessage(error)
-                ?? t('users.break_glass_failed', { defaultValue: 'Break-glass enable failed.' })
-            );
-        } finally {
-            setIsBreakGlassSubmitting(false);
-        }
-    };
+    const {
+        breakGlassHours,
+        breakGlassReason,
+        breakGlassUser,
+        confirmDialogOpen,
+        handleBreakGlassClose,
+        handleBreakGlassOpen,
+        handleBreakGlassSubmit,
+        handleToggleClose,
+        handleToggleClick,
+        isBreakGlassSubmitting,
+        isToggling,
+        setBreakGlassHours,
+        setBreakGlassReason,
+        toggleUserStatus,
+        userToToggle,
+    } = useUserLifecycleActions({
+        refreshUsers: fetchUsers,
+        setDirectoryMessage,
+        t,
+    });
 
     const handleEditAccess = (user: AccessUserRead) => {
         setSelectedUser(user);
@@ -282,7 +227,7 @@ export function UsersPage() {
             );
             await fetchUsers();
         } catch (error) {
-            console.error('Directory check-all failed', error);
+            logError('Directory check-all failed.', error);
             setDirectoryMessage(t('users.directory_check_failed', { defaultValue: 'Directory check failed.' }));
         } finally {
             setIsCheckingAllDirectory(false);
@@ -302,7 +247,7 @@ export function UsersPage() {
             );
             await fetchUsers();
         } catch (error) {
-            console.error('Directory single-user check failed', error);
+            logError('Directory single-user check failed.', error);
             setDirectoryMessage(t('users.directory_check_failed', { defaultValue: 'Directory check failed.' }));
         } finally {
             setCheckingDirectoryUserId(null);
@@ -547,7 +492,7 @@ export function UsersPage() {
             {/* User Status Toggle Confirmation Dialog */}
             <ConfirmDialog
                 isOpen={confirmDialogOpen}
-                onClose={() => { setConfirmDialogOpen(false); setUserToToggle(null); }}
+                onClose={handleToggleClose}
                 onConfirm={toggleUserStatus}
                 title={userToToggle?.is_active ? t('access.confirmation.deactivate_user_title') : t('access.confirmation.reactivate_user_title')}
                 message={t('access.confirmation.toggle_user_message', {

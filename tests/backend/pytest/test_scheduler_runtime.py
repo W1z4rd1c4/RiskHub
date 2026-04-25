@@ -385,7 +385,9 @@ async def test_sso_jwks_refresh_job_uses_cached_verifier(monkeypatch: pytest.Mon
     assert payload == {"issuer": "issuer", "jwks_uri": "jwks", "key_count": 1}
 
 
-def test_register_full_scheduler_jobs_skips_sso_jwks_refresh_without_sso_config(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_register_full_scheduler_jobs_skips_sso_jwks_refresh_without_sso_config(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     import app.core.scheduler_jobs as scheduler_jobs_module
 
     test_scheduler = AsyncIOScheduler()

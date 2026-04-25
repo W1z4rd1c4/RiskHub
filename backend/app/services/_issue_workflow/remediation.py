@@ -38,14 +38,14 @@ async def start_remediation(
     _ensure_issue_transition(issue.status, IssueStatus.in_progress.value)
     issue_updates = {"status": IssueStatus.in_progress.value}
     issue_changes = build_change_set(issue, issue_updates)
-    issue.status = IssueStatus.in_progress.value
+    issue.status = IssueStatus.in_progress
 
     remediation_updates = {
         "status": IssueRemediationStatus.active.value,
         "target_date": target_date,
     }
     remediation_changes = build_change_set(remediation, remediation_updates)
-    remediation.status = IssueRemediationStatus.active.value
+    remediation.status = IssueRemediationStatus.active
     remediation.target_date = target_date
 
     db.add(issue)
@@ -103,7 +103,11 @@ async def update_progress(
         IssueRemediationStatus.blocked.value,
     }:
         _conflict("Cannot mark remediation active or blocked with 100% progress")
-    if target_status == IssueRemediationStatus.completed.value and progress_percent is not None and progress_percent < 100:
+    if (
+        target_status == IssueRemediationStatus.completed.value
+        and progress_percent is not None
+        and progress_percent < 100
+    ):
         _conflict("Completed remediation requires 100% progress")
 
     if remediation_status is not None:
@@ -129,7 +133,6 @@ async def update_progress(
         setattr(remediation, key, value)
 
     issue_updates: dict[str, object] = {}
-    remediation_status_value = _status_value(remediation.status)
     if (
         _is_remediation_complete(remediation)
         and _status_value(issue.status) != IssueStatus.ready_for_validation.value

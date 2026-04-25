@@ -1,6 +1,6 @@
 from datetime import date
 from io import BytesIO
-from typing import Literal
+from typing import Any, Literal
 
 from fastapi import HTTPException, status
 from fastapi.responses import StreamingResponse
@@ -13,7 +13,7 @@ ExportFormat = Literal["csv"]
 ExportFormatQuery = Literal["xlsx", "csv"]
 
 EXCEL_EXPORT_REMOVED_CODE = "excel_export_removed"
-EXCEL_EXPORT_REMOVED_OPENAPI_RESPONSE = {
+EXCEL_EXPORT_REMOVED_OPENAPI_RESPONSE: dict[int | str, dict[str, Any]] = {
     410: {
         "description": "Excel export has been removed. Use CSV export instead.",
         "content": {

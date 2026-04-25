@@ -16,6 +16,8 @@ from app.schemas.risk_questionnaire import (
 from app.services.risk_questionnaire_service import (
     load_questionnaire,
     request_questionnaire_clarification,
+)
+from app.services.risk_questionnaire_service import (
     respond_to_questionnaire_clarification as respond_to_questionnaire_clarification_workflow,
 )
 

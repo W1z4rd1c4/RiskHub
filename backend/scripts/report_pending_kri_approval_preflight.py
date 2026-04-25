@@ -18,7 +18,6 @@ from app.services._kri_history.periods import (
     latest_closed_period_for_date,
 )
 
-
 PENDING_KRI_STATUSES = (ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED)
 
 

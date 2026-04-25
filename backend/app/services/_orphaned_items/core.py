@@ -5,10 +5,10 @@ from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.datetime_utils import utc_now
 from app.models.control import Control
 from app.models.orphaned_item import OrphanedItem
 from app.models.risk import Risk
-from app.core.datetime_utils import utc_now
 
 from .logging import logger
 
@@ -93,8 +93,8 @@ async def _get_item_details(
     elif item_type == "kri":
         from app.models.key_risk_indicator import KeyRiskIndicator
 
-        result = await db.execute(select(KeyRiskIndicator).where(KeyRiskIndicator.id == item_id))
-        kri = result.scalar_one_or_none()
+        kri_result = await db.execute(select(KeyRiskIndicator).where(KeyRiskIndicator.id == item_id))
+        kri = kri_result.scalar_one_or_none()
         if kri:
             item_name = kri.metric_name or "Unknown KRI"
             item_description = kri.description
@@ -102,8 +102,8 @@ async def _get_item_details(
             risk_res = await db.execute(
                 select(Risk).options(selectinload(Risk.department)).where(Risk.id == kri.risk_id)
             )
-            risk = risk_res.scalar_one_or_none()
-            if risk and risk.department:
-                department_name = risk.department.name
+            kri_risk = risk_res.scalar_one_or_none()
+            if kri_risk and kri_risk.department:
+                department_name = kri_risk.department.name
 
     return item_name, item_description, item_identifier, department_name

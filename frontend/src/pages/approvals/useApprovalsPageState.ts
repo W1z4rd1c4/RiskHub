@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { riskQuestionnairesApi } from '@/services/riskQuestionnairesApi';
 import { apiClient } from '@/services/apiClient';
+import { logError } from '@/services/logger';
 import type { ApprovalRequest } from '@/types/approval';
 import type { RiskQuestionnaireListItem } from '@/types/riskQuestionnaire';
 import { approvalsApi } from '@/services/approvalsApi';
@@ -35,7 +36,7 @@ export function useApprovalsPageState({ canResolve }: UseApprovalsPageStateOptio
             setApprovals(response.items);
             setErrorKey(null);
         } catch (error) {
-            console.error('Failed to fetch approvals:', error);
+            logError('Failed to fetch approvals.', error);
             setErrorKey(apiClient.toUiMessageKey(error));
         } finally {
             setLoading(false);
@@ -48,7 +49,7 @@ export function useApprovalsPageState({ canResolve }: UseApprovalsPageStateOptio
             const items = await riskQuestionnairesApi.inbox();
             setQuestionnaires(items);
         } catch (error) {
-            console.error('Failed to fetch questionnaire inbox:', error);
+            logError('Failed to fetch questionnaire inbox.', error);
         } finally {
             setQuestionnairesLoading(false);
         }
@@ -115,7 +116,7 @@ export function useApprovalsPageState({ canResolve }: UseApprovalsPageStateOptio
             void fetchApprovals();
             closeDialog();
         } catch (error: unknown) {
-            console.error('Failed to resolve request:', error);
+            logError('Failed to resolve request.', error);
             setErrorKey(apiClient.toUiMessageKey(error));
         } finally {
             setIsSubmitting(false);
@@ -139,7 +140,7 @@ export function useApprovalsPageState({ canResolve }: UseApprovalsPageStateOptio
             await approvalsApi.cancel(cancelApprovalId);
             void fetchApprovals();
         } catch (error) {
-            console.error('Failed to cancel request:', error);
+            logError('Failed to cancel request.', error);
             setErrorKey(apiClient.toUiMessageKey(error));
         } finally {
             setCancelApprovalId(null);

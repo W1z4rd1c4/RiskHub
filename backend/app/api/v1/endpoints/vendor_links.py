@@ -33,6 +33,7 @@ from app.models import (
     VendorKRILink,
     VendorRiskLink,
 )
+from app.schemas.control import ControlStatusEnum as ControlReadStatusEnum
 from app.schemas.vendor_links import (
     LinkedControlRead,
     LinkedKRIRead,
@@ -95,7 +96,7 @@ async def list_vendor_linked_risks(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
 ):
-    vendor = await _require_vendor_access(db, vendor_id, current_user, entity_permission="risks")
+    await _require_vendor_access(db, vendor_id, current_user, entity_permission="risks")
 
     result = await db.execute(
         select(VendorRiskLink)
@@ -134,7 +135,7 @@ async def link_vendor_to_risk(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
 ):
-    vendor = await _require_vendor_access(
+    await _require_vendor_access(
         db, vendor_id, current_user, entity_permission="risks", require_write=True,
     )
 
@@ -162,7 +163,7 @@ async def unlink_vendor_from_risk(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
 ):
-    vendor = await _require_vendor_access(
+    await _require_vendor_access(
         db, vendor_id, current_user, entity_permission="risks", require_write=True,
     )
 
@@ -189,7 +190,7 @@ async def list_vendor_linked_controls(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
 ):
-    vendor = await _require_vendor_access(db, vendor_id, current_user, entity_permission="controls")
+    await _require_vendor_access(db, vendor_id, current_user, entity_permission="controls")
 
     result = await db.execute(
         select(VendorControlLink)
@@ -220,7 +221,7 @@ async def list_vendor_linked_controls(
                     risk_level=control_brief.risk_level,
                     department_id=ctrl.department_id,
                     department_name=ctrl.department.name if getattr(ctrl, "department", None) else None,
-                    status=control_brief.status,
+                    status=ControlReadStatusEnum(control_brief.status.value),
                     monitoring_status=control_brief.monitoring_status,
                     monitoring_status_reason=control_brief.monitoring_status_reason,
                     latest_execution_result=control_brief.latest_execution_result,
@@ -239,7 +240,7 @@ async def link_vendor_to_control(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
 ):
-    vendor = await _require_vendor_access(
+    await _require_vendor_access(
         db, vendor_id, current_user, entity_permission="controls", require_write=True,
     )
 
@@ -271,7 +272,7 @@ async def unlink_vendor_from_control(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
 ):
-    vendor = await _require_vendor_access(
+    await _require_vendor_access(
         db, vendor_id, current_user, entity_permission="controls", require_write=True,
     )
 
@@ -300,7 +301,7 @@ async def list_vendor_linked_kris(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
 ):
-    vendor = await _require_vendor_access(db, vendor_id, current_user, entity_permission="risks")
+    await _require_vendor_access(db, vendor_id, current_user, entity_permission="risks")
 
     result = await db.execute(
         select(VendorKRILink)
@@ -362,7 +363,7 @@ async def link_vendor_to_kri(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
 ):
-    vendor = await _require_vendor_access(
+    await _require_vendor_access(
         db, vendor_id, current_user, entity_permission="risks", require_write=True,
     )
 
@@ -389,7 +390,7 @@ async def unlink_vendor_from_kri(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
 ):
-    vendor = await _require_vendor_access(
+    await _require_vendor_access(
         db, vendor_id, current_user, entity_permission="risks", require_write=True,
     )
 

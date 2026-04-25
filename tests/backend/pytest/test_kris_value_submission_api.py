@@ -213,11 +213,10 @@ async def test_non_privileged_value_submission_uses_kri_history_clock(
     monkeypatch: pytest.MonkeyPatch,
 ):
     """Latest closed period for non-privileged submissions should be driven by the injectable KRI clock."""
+    import app.services._kri_history.clock as kri_clock
     from app.models import Department, Permission, Risk, RolePermission, User
     from app.models.risk import RiskStatus
     from app.models.user import AccessScope
-
-    import app.services._kri_history.clock as kri_clock
 
     monkeypatch.setattr(kri_clock, "today", lambda: date(2026, 4, 10))
 

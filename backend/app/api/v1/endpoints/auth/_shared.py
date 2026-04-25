@@ -21,6 +21,7 @@ from app.core.tokens import (
 )
 from app.models import RefreshToken, Role, User
 from app.schemas.auth import TokenResponse
+from app.schemas.user import AccessScopeEnum, UserBrief
 
 SESSION_RENEWAL_MINIMUM_SECONDS = 60
 
@@ -42,7 +43,10 @@ def _resolve_access_expires_delta(
     if session_expires_at is None:
         return default_lifetime
 
-    remaining = coerce_utc(session_expires_at) - utc_now()
+    coerced_session_expires_at = coerce_utc(session_expires_at)
+    if coerced_session_expires_at is None:
+        return default_lifetime
+    remaining = coerced_session_expires_at - utc_now()
     if remaining.total_seconds() <= SESSION_RENEWAL_MINIMUM_SECONDS:
         raise ValueError("session_expiring")
     return min(default_lifetime, remaining)
@@ -57,20 +61,20 @@ def _build_token_response(
 ) -> TokenResponse:
     effective_permissions = get_effective_permissions(user)
     scope_label = get_scope_label(user)
-    user_data = {
-        "id": user.id,
-        "email": user.email,
-        "name": user.name,
-        "role": user.role.name,
-        "role_display_name": user.role.display_name,
-        "entra_business_role": user.entra_business_role,
-        "department_id": user.department_id,
-        "department_name": user.department.name if user.department else None,
-        "permissions": effective_permissions,
-        "effective_permissions": effective_permissions,
-        "access_scope": user.access_scope,
-        "scope_label": scope_label,
-    }
+    user_data = UserBrief(
+        id=user.id,
+        email=user.email,
+        name=user.name,
+        role=user.role.name,
+        role_display_name=user.role.display_name,
+        entra_business_role=user.entra_business_role,
+        department_id=user.department_id,
+        department_name=user.department.name if user.department else None,
+        permissions=effective_permissions,
+        effective_permissions=effective_permissions,
+        access_scope=AccessScopeEnum(user.access_scope.value),
+        scope_label=scope_label,
+    )
     access_token = create_access_token(
         data={"sub": user.email, "user_id": user.id, "token_version": user.token_version},
         expires_delta=_resolve_access_expires_delta(settings=settings, session_expires_at=session_expires_at),
@@ -107,7 +111,8 @@ async def _issue_refresh_session(
         refresh_token, expires_at = refresh_token_and_expiry
 
     now = issued_at or utc_now()
-    cookie_max_age = max(int((coerce_utc(expires_at) - now).total_seconds()), 0)
+    coerced_expires_at = coerce_utc(expires_at)
+    cookie_max_age = max(int(((coerced_expires_at or now) - now).total_seconds()), 0)
     refresh_row = RefreshToken(
         user_id=user.id,
         jti=jti,
@@ -143,7 +148,7 @@ async def _revoke_user_refresh_tokens(
         .where(RefreshToken.revoked_at.is_(None))
         .values(revoked_at=now, revoked_reason=reason)
     )
-    return int(result.rowcount or 0)
+    return int(getattr(result, "rowcount", 0) or 0)
 
 
 async def _invalidate_user_sessions(

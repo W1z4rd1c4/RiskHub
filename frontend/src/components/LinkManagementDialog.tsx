@@ -16,6 +16,7 @@ import { X, Link as LinkIcon } from 'lucide-react';
 import { controlApi } from '@/services/controlApi';
 import { kriApi } from '@/services/kriApi';
 import { riskApi } from '@/services/riskApi';
+import { logError } from '@/services/logger';
 import { lookupApi } from '@/services/lookupApi';
 import type { ControlEffectiveness } from '@/types/risk';
 import { LinkSearchPanel, type DepartmentLookup, type SearchResultItem } from './linking/LinkSearchPanel';
@@ -123,7 +124,7 @@ export function LinkManagementDialog({
                 setCategories(filterData.categories);
             } catch (err) {
                 if (!cancelled) {
-                    console.error('Failed to load search lookups:', err);
+                    logError('Failed to load search lookups.', err);
                 }
             } finally {
                 if (!cancelled) {
@@ -199,7 +200,7 @@ export function LinkManagementDialog({
                 }
             }
         } catch (err) {
-            console.error('Search failed:', err);
+            logError('Search failed.', err);
         } finally {
             if (requestId === latestSearchRequestIdRef.current) {
                 setIsSearching(false);
@@ -246,7 +247,7 @@ export function LinkManagementDialog({
             await onLink(selectedTargetId, 'medium', '');
             onClose();
         } catch (err) {
-            console.error('Linking failed:', err);
+            logError('Linking failed.', err);
         } finally {
             setIsLinking(false);
         }
@@ -262,7 +263,7 @@ export function LinkManagementDialog({
             setIsUnlinking(unlinkTargetId);
             await onUnlink(unlinkTargetId);
         } catch (err) {
-            console.error('Unlinking failed:', err);
+            logError('Unlinking failed.', err);
         } finally {
             setIsUnlinking(null);
             setUnlinkTargetId(null);
@@ -280,7 +281,7 @@ export function LinkManagementDialog({
             }
             await handleSearch();
         } catch (err) {
-            console.error('Unarchive failed:', err);
+            logError('Unarchive failed.', err);
         }
     };
 

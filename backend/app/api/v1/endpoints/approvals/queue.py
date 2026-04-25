@@ -56,41 +56,41 @@ async def create_approval_request(
     primary_approver_id: int | None = None
     requires_privileged_approval = False
     if request_data.resource_type == ApprovalResourceTypeEnum.risk:
-        resource = await assert_can_request_delete_risk(
+        risk = await assert_can_request_delete_risk(
             db,
             risk_id=request_data.resource_id,
             current_user=current_user,
         )
-        resource_name = f"{resource.risk_id_code}: {resource.description[:50] if resource.description else ''}"
-        department_id = resource.department_id
+        resource_name = f"{risk.risk_id_code}: {risk.description[:50] if risk.description else ''}"
+        department_id = risk.department_id
         primary_approver_id, requires_privileged_approval = await get_risk_delete_approval_metadata(
             db,
-            risk=resource,
+            risk=risk,
             requester_id=current_user.id,
         )
     elif request_data.resource_type == ApprovalResourceTypeEnum.control:
-        resource = await assert_can_request_delete_control(
+        control = await assert_can_request_delete_control(
             db,
             control_id=request_data.resource_id,
             current_user=current_user,
         )
-        control_label = (resource.name or "").strip()[:50]
+        control_label = (control.name or "").strip()[:50]
         resource_name = control_label or "Unknown control"
-        department_id = resource.department_id
+        department_id = control.department_id
         primary_approver_id, requires_privileged_approval = await get_control_delete_approval_metadata(
             db,
-            control=resource,
+            control=control,
             requester_id=current_user.id,
         )
     elif request_data.resource_type == ApprovalResourceTypeEnum.kri:
-        resource = await assert_can_request_delete_kri(
+        kri = await assert_can_request_delete_kri(
             db,
             kri_id=request_data.resource_id,
             current_user=current_user,
         )
-        kri_label = (resource.metric_name or "").strip()[:50]
+        kri_label = (kri.metric_name or "").strip()[:50]
         resource_name = kri_label or "Unknown KRI"
-        department_id = resource.risk.department_id
+        department_id = kri.risk.department_id
 
     # Check for existing pending request (both PENDING and PENDING_PRIVILEGED)
     existing = await db.execute(
@@ -216,7 +216,7 @@ async def list_approval_requests(
     result = await db.execute(query)
     approvals = result.scalars().all()
 
-    valid_items = []
+    valid_items: list[ApprovalRequestRead] = []
     for a in approvals:
         try:
             valid_items.append(_build_approval_read(a, current_user))

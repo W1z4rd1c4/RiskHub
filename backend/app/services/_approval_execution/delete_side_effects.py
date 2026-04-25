@@ -34,8 +34,8 @@ async def _apply_delete_side_effects(
     as REJECTED with an explanatory note for audit purposes.
     """
     if approval.resource_type == ApprovalResourceType.RISK:
-        result = await db.execute(select(Risk).where(Risk.id == approval.resource_id))
-        risk = result.scalar_one_or_none()
+        risk_result = await db.execute(select(Risk).where(Risk.id == approval.resource_id))
+        risk = risk_result.scalar_one_or_none()
         if not risk:
             # Orphaned approval - resource was deleted externally
             logger.warning(f"Approval #{approval.id}: Risk {approval.resource_id} no longer exists")
@@ -61,8 +61,8 @@ async def _apply_delete_side_effects(
         )
 
     elif approval.resource_type == ApprovalResourceType.CONTROL:
-        result = await db.execute(select(Control).where(Control.id == approval.resource_id))
-        control = result.scalar_one_or_none()
+        control_result = await db.execute(select(Control).where(Control.id == approval.resource_id))
+        control = control_result.scalar_one_or_none()
         if not control:
             # Orphaned approval - resource was deleted externally
             logger.warning(f"Approval #{approval.id}: Control {approval.resource_id} no longer exists")
@@ -88,8 +88,8 @@ async def _apply_delete_side_effects(
         )
 
     elif approval.resource_type == ApprovalResourceType.KRI:
-        result = await db.execute(select(KeyRiskIndicator).where(KeyRiskIndicator.id == approval.resource_id))
-        kri = result.scalar_one_or_none()
+        kri_result = await db.execute(select(KeyRiskIndicator).where(KeyRiskIndicator.id == approval.resource_id))
+        kri = kri_result.scalar_one_or_none()
         if not kri:
             # Orphaned approval - resource was deleted externally
             logger.warning(f"Approval #{approval.id}: KRI {approval.resource_id} no longer exists")

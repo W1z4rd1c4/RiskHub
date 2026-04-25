@@ -35,7 +35,7 @@ async def list_risk_controls(
 
     owned_control_ids = set(await get_control_ids_where_owner(db, current_user.id))
 
-    result = await db.execute(
+    link_result = await db.execute(
         select(ControlRiskLink)
         .options(
             selectinload(ControlRiskLink.control).selectinload(Control.executions),
@@ -43,7 +43,7 @@ async def list_risk_controls(
         )
         .where(ControlRiskLink.risk_id == risk_id)
     )
-    links = result.scalars().all()
+    links = link_result.scalars().all()
     visible_links: list[ControlRiskLink] = []
     for link in links:
         if not link.control:
@@ -102,7 +102,7 @@ async def link_risk_to_control(
         check_department_access(control.department_id, current_user)
 
     # Check if link already exists
-    result = await db.execute(
+    link_result = await db.execute(
         select(ControlRiskLink)
         .where(ControlRiskLink.risk_id == risk_id)
         .where(ControlRiskLink.control_id == link_data.control_id)
@@ -122,7 +122,7 @@ async def link_risk_to_control(
     await db.refresh(link)
 
     # Reload with relationships
-    result = await db.execute(
+    link_result = await db.execute(
         select(ControlRiskLink)
         .options(
             selectinload(ControlRiskLink.control).selectinload(Control.executions),
@@ -132,7 +132,7 @@ async def link_risk_to_control(
     )
     now = utc_now()
     monitoring_context = await load_monitoring_response_context(db, now=now, today=now.date())
-    return serialize_control_risk_link(result.scalar_one(), monitoring_context)
+    return serialize_control_risk_link(link_result.scalar_one(), monitoring_context)
 
 
 @router.delete("/{risk_id}/controls/{control_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -145,19 +145,19 @@ async def unlink_risk_from_control(
     """Remove link between risk and control."""
     from app.core.permissions import is_risk_control_owner, is_risk_kri_reporting_owner
 
-    result = await db.execute(
+    delete_link_result = await db.execute(
         select(ControlRiskLink)
         .where(ControlRiskLink.risk_id == risk_id)
         .where(ControlRiskLink.control_id == control_id)
     )
-    link = result.scalar_one_or_none()
+    link = delete_link_result.scalar_one_or_none()
 
     if not link:
         raise HTTPException(status_code=404, detail="Link not found")
 
     # Verify access for risk (ownership or department)
-    result = await db.execute(select(Risk).where(Risk.id == risk_id))
-    risk = result.scalar_one_or_none()
+    risk_result = await db.execute(select(Risk).where(Risk.id == risk_id))
+    risk = risk_result.scalar_one_or_none()
     if risk:
         has_risk_access = False
         if await is_risk_kri_reporting_owner(db, current_user.id, risk_id):
@@ -174,8 +174,8 @@ async def unlink_risk_from_control(
         if not has_risk_access:
             raise HTTPException(status_code=403, detail="Access denied to risk")
 
-    result = await db.execute(select(Control).where(Control.id == control_id))
-    control = result.scalar_one_or_none()
+    control_result = await db.execute(select(Control).where(Control.id == control_id))
+    control = control_result.scalar_one_or_none()
     if control:
         is_ctrl_owner = await is_control_owner(db, current_user.id, control.id)
         if not is_ctrl_owner:
