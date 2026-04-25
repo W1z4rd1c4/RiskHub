@@ -12,6 +12,7 @@ import { accessApi } from '@/services/accessApi';
 import { apiClient } from '@/services/apiClient';
 import { departmentApi } from '@/services/departmentApi';
 import { usePermissions } from '@/hooks/usePermissions';
+import { resolveCapabilityFlag } from '@/lib/capabilities';
 import type { AccessUserRead, AccessUserUpdate, RoleWithPermissions, AccessScopeEnum } from '@/types/access';
 import type { DepartmentSummary } from '@/services/departmentApi';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
@@ -32,9 +33,9 @@ const SCOPE_OPTIONS: { value: AccessScopeEnum; labelKey: string; descriptionKey:
 export function AccessEditModal({ isOpen, onClose, user, onSaved }: AccessEditModalProps) {
     const { canEditAccessUsers, canManageUsers } = usePermissions();
     const { t } = useTranslation(['common', 'admin', 'errorKeys']);
-    const canEditPlatformFields = user?.capabilities?.can_edit_identity ?? canManageUsers;
-    const canEditBusinessFields = user?.capabilities?.can_edit_business_access ?? (canEditAccessUsers && !canManageUsers);
-    const canEditRole = user?.capabilities?.can_edit_role ?? (canEditPlatformFields || canEditBusinessFields);
+    const canEditPlatformFields = resolveCapabilityFlag(user?.capabilities, 'can_edit_identity', canManageUsers);
+    const canEditBusinessFields = resolveCapabilityFlag(user?.capabilities, 'can_edit_business_access', canEditAccessUsers && !canManageUsers);
+    const canEditRole = resolveCapabilityFlag(user?.capabilities, 'can_edit_role', canEditPlatformFields || canEditBusinessFields);
 
     const [roles, setRoles] = useState<RoleWithPermissions[]>([]);
     const [departments, setDepartments] = useState<DepartmentSummary[]>([]);

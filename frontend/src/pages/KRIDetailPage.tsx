@@ -16,6 +16,7 @@ import { KRIDetailHistoryTab } from '@/components/kris/KRIDetailHistoryTab';
 import { IssueQuickCreateModal } from '@/components/issues/IssueQuickCreateModal';
 import { getKriMonitoringMeta } from '@/lib/monitoringStatus';
 import { parseUpdateResult } from '@/lib/approvalUi';
+import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { ApiClientError } from '@/services/apiClient';
 import type { KeyRiskIndicator, KRIHistoryCapabilities, KRIHistoryEntry } from '@/types/kri';
 import type { Risk } from '@/types/risk';
@@ -180,7 +181,7 @@ export function KRIDetailPage() {
 
     const dueDate = calculateDueDate();
     const isOverdue = (kri?.days_overdue ?? 0) > 0;
-    const canRequestHistoryCorrection = historyCapabilities?.can_request_correction ?? hasPermission('risks', 'write');
+    const canRequestHistoryCorrection = resolveCapabilityFlag(historyCapabilities, 'can_request_correction', hasPermission('risks', 'write'));
 
     if (isLoading) {
         return (

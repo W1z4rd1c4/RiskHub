@@ -5,6 +5,7 @@ import { riskHubApi } from '@/services/riskHubApi';
 import { accessApi } from '@/services/accessApi';
 import { apiClient } from '@/services/apiClient';
 import type { DepartmentHubCreate, DepartmentHubUpdate, DepartmentHubRead } from '@/services/riskHubApi';
+import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { cn } from '@/lib/utils';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { useTranslation } from '@/i18n/hooks';
@@ -251,9 +252,9 @@ export function DepartmentsPanel() {
                     </thead>
                     <tbody>
                         {departments?.map((dept) => {
-                            const canUpdate = dept.capabilities?.can_update ?? true;
-                            const canDelete = dept.capabilities?.can_delete ?? dept.is_active;
-                            const canRestore = dept.capabilities?.can_restore ?? !dept.is_active;
+                            const canUpdate = resolveCapabilityFlag(dept.capabilities, 'can_update', true);
+                            const canDelete = resolveCapabilityFlag(dept.capabilities, 'can_delete', dept.is_active);
+                            const canRestore = resolveCapabilityFlag(dept.capabilities, 'can_restore', !dept.is_active);
                             return (
                             <tr
                                 key={dept.id}

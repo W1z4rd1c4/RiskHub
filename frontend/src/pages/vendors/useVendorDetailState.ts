@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 
 import { vendorApi } from '@/services/vendorApi';
+import { resolveCapabilityFlag } from '@/lib/capabilities';
 import type { Vendor } from '@/types/vendor';
 
 import {
@@ -78,12 +79,12 @@ export function useVendorDetailState({
     }, [fetchVendor, vendor]);
 
     const canEditByOwnership = canEditVendorByOwnership(vendor, currentUserId);
-    const canEdit = vendor?.capabilities?.can_update ?? (canWriteVendor || canEditByOwnership);
-    const canArchive = vendor?.capabilities?.can_archive ?? Boolean(vendor?.status === 'active' && canDeleteVendor);
-    const canRestore = vendor?.capabilities?.can_restore ?? Boolean(vendor?.status === 'inactive' && canDeleteVendor);
-    const canLinkRisk = vendor?.capabilities?.can_link_risk ?? Boolean(canEdit && canReadRisks);
-    const canLinkControl = vendor?.capabilities?.can_link_control ?? Boolean(canEdit && canReadControls);
-    const canLinkKri = vendor?.capabilities?.can_link_kri ?? Boolean(canEdit && canReadRisks);
+    const canEdit = resolveCapabilityFlag(vendor?.capabilities, 'can_update', canWriteVendor || canEditByOwnership);
+    const canArchive = resolveCapabilityFlag(vendor?.capabilities, 'can_archive', Boolean(vendor?.status === 'active' && canDeleteVendor));
+    const canRestore = resolveCapabilityFlag(vendor?.capabilities, 'can_restore', Boolean(vendor?.status === 'inactive' && canDeleteVendor));
+    const canLinkRisk = resolveCapabilityFlag(vendor?.capabilities, 'can_link_risk', Boolean(canEdit && canReadRisks));
+    const canLinkControl = resolveCapabilityFlag(vendor?.capabilities, 'can_link_control', Boolean(canEdit && canReadControls));
+    const canLinkKri = resolveCapabilityFlag(vendor?.capabilities, 'can_link_kri', Boolean(canEdit && canReadRisks));
 
     return {
         canArchive,

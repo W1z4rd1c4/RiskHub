@@ -12,6 +12,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useAuthz } from '@/authz/useAuthz';
 import { useTotalAssetsValue } from '@/hooks/useRiskHubConfig';
 import { IMPACT_DESCRIPTIONS, PROBABILITY_DESCRIPTIONS, formatFinancialRange } from '@/constants/riskScoreDescriptions';
+import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { cn } from '@/lib/utils';
 import { formatDateTimeValue, formatDateValue } from '@/i18n/formatters';
 import { getRiskOwnerReassessmentTemplate } from '../riskQuestionnaireQuestions';
@@ -86,12 +87,12 @@ export function RiskQuestionnaireDetail({
     );
 
     const capabilities = questionnaire?.capabilities ?? null;
-    const canSaveDraft = capabilities?.can_save_draft ?? (localCanSubmit && questionnaire?.status !== 'submitted');
-    const canSubmitQuestionnaire = capabilities?.can_submit ?? (localCanSubmit && questionnaire?.status !== 'submitted');
+    const canSaveDraft = resolveCapabilityFlag(capabilities, 'can_save_draft', localCanSubmit && questionnaire?.status !== 'submitted');
+    const canSubmitQuestionnaire = resolveCapabilityFlag(capabilities, 'can_submit', localCanSubmit && questionnaire?.status !== 'submitted');
     const isEditable = canSaveDraft || canSubmitQuestionnaire;
-    const canRequestClarification = capabilities?.can_request_clarification ?? authz.canRequestRiskClarification;
+    const canRequestClarification = resolveCapabilityFlag(capabilities, 'can_request_clarification', authz.canRequestRiskClarification);
     const isRiskOwner =
-        capabilities?.can_respond_to_clarifications ?? (!!user && questionnaire?.assigned_to_user_id === user.id);
+        resolveCapabilityFlag(capabilities, 'can_respond_to_clarifications', !!user && questionnaire?.assigned_to_user_id === user.id);
 
 	    useEffect(() => {
 	        let cancelled = false;
@@ -103,7 +104,7 @@ export function RiskQuestionnaireDetail({
 	            setLoading(true);
 	            try {
 	                let data = await riskQuestionnairesApi.get(questionnaireId, { includePrevious: defaultCompareMode });
-	                const canOpen = data.capabilities?.can_open ?? (localCanSubmit && data.status === 'sent');
+	                const canOpen = resolveCapabilityFlag(data.capabilities, 'can_open', localCanSubmit && data.status === 'sent');
 	                if (canOpen && data.status === 'sent') {
 	                    try {
 	                        data = await riskQuestionnairesApi.open(questionnaireId, { includePrevious: defaultCompareMode });

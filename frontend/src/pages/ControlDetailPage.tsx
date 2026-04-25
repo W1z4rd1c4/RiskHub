@@ -24,6 +24,7 @@ import { ArchiveConfirmDialog } from '@/components/ArchiveConfirmDialog';
 import { IssueQuickCreateModal } from '@/components/issues/IssueQuickCreateModal';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTranslation } from '@/i18n/hooks';
+import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { getControlMonitoringMeta } from '@/lib/monitoringStatus';
 import { apiClient } from '@/services/apiClient';
 import { ControlDetailOverviewTab } from '@/pages/controls/ControlDetailOverviewTab';
@@ -194,9 +195,9 @@ export function ControlDetailPage() {
     const archivedLinkedRisks = linkedRisks.filter((link) => link.risk?.status === 'archived');
     const monitoring = getControlMonitoringMeta(control.monitoring_status);
     const MonitoringIcon = monitoring.icon;
-    const canLogExecution = control.capabilities?.can_log_execution ?? hasPermission('controls', 'execute');
-    const canLinkRisk = control.capabilities?.can_link_risk ?? hasPermission('controls', 'write');
-    const canUnlinkRisk = control.capabilities?.can_unlink_risk ?? hasPermission('controls', 'write');
+    const canLogExecution = resolveCapabilityFlag(control.capabilities, 'can_log_execution', hasPermission('controls', 'execute'));
+    const canLinkRisk = resolveCapabilityFlag(control.capabilities, 'can_link_risk', hasPermission('controls', 'write'));
+    const canUnlinkRisk = resolveCapabilityFlag(control.capabilities, 'can_unlink_risk', hasPermission('controls', 'write'));
     const actionMessageText = (key: string) => (
         key.startsWith('errorKeys.')
             ? t(key, { ns: 'errorKeys' })

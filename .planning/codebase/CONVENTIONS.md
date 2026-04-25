@@ -21,7 +21,8 @@
 - Service layer handles multi-entity workflows (approvals, notifications, historization, issue remediation, KRI history, questionnaires)
 - Large services may be split into internal packages under `backend/app/services/_*/` with a public facade module that re-exports stable symbols (`backend/app/services/approval_execution_service.py`, `backend/app/services/_approval_execution/`, `backend/app/services/_issue_workflow/`, `backend/app/services/_kri_history/`)
 - Workflow endpoints should delegate lifecycle/status/authorization invariants to shared service helpers instead of reimplementing them per route.
-- Where a frontend action depends on server-side workflow authority, expose additive backend capability metadata and have the UI mirror those booleans instead of inferring from local role state.
+- Where a frontend action depends on server-side workflow authority, expose additive backend capability metadata and resolve the action through `frontend/src/lib/capabilities.ts`: backend booleans win, local permission checks are fallback only when metadata is absent.
+- User-facing components must not render raw numeric IDs as fallback labels; show names/codes/business identifiers or `Unknown <entity>` copy and keep raw IDs limited to payloads, telemetry, tests, and developer-only diagnostics.
 
 ### Security and runtime guardrails
 - Production startup checks fail fast on unsafe config (`backend/app/main.py`)

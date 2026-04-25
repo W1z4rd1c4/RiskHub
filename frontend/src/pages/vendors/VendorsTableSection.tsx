@@ -11,6 +11,7 @@ import {
 } from '@/components/tables';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useTranslation } from '@/i18n/hooks';
+import { resolveCapabilityFlag } from '@/lib/capabilities';
 import type { CollectionGroup } from '@/types/collection';
 import type { Vendor, VendorListParams } from '@/types/vendor';
 
@@ -157,7 +158,7 @@ export function VendorsTableSection({
                 sortable: false,
                 render: (vendor) => (
                     <div className="flex items-center justify-end gap-2">
-                        {(vendor.capabilities?.can_restore ?? (vendor.status === 'inactive' && hasPermission('vendors', 'delete'))) && (
+                        {resolveCapabilityFlag(vendor.capabilities, 'can_restore', vendor.status === 'inactive' && hasPermission('vendors', 'delete')) && (
                             <button
                                 type="button"
                                 onClick={(event) => {

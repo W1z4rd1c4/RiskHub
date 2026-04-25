@@ -4,6 +4,7 @@ import { Shield, Plus, Edit, Trash2, RotateCcw, AlertCircle, Users } from 'lucid
 import { riskHubApi } from '@/services/riskHubApi';
 import { apiClient } from '@/services/apiClient';
 import type { RoleHubCreate, RoleHubUpdate, RoleHubRead, PermissionRead } from '@/services/riskHubApi';
+import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { cn } from '@/lib/utils';
 import { useTranslation } from '@/i18n/hooks';
 
@@ -312,9 +313,9 @@ export function RolesPanel() {
                     </thead>
                     <tbody>
                         {roles?.map((role) => {
-                            const canUpdate = role.capabilities?.can_update ?? !['cro', 'admin', 'viewer'].includes(role.name);
-                            const canDelete = role.capabilities?.can_delete ?? (!role.is_system && role.is_active && !['admin', 'cro', 'viewer', 'internal_audit'].includes(role.name));
-                            const canRestore = role.capabilities?.can_restore ?? !role.is_active;
+                            const canUpdate = resolveCapabilityFlag(role.capabilities, 'can_update', !['cro', 'admin', 'viewer'].includes(role.name));
+                            const canDelete = resolveCapabilityFlag(role.capabilities, 'can_delete', !role.is_system && role.is_active && !['admin', 'cro', 'viewer', 'internal_audit'].includes(role.name));
+                            const canRestore = resolveCapabilityFlag(role.capabilities, 'can_restore', !role.is_active);
                             return (
                             <tr
                                 key={role.id}

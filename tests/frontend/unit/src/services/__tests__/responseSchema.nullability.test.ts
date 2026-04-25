@@ -290,6 +290,11 @@ describe('response schema nullability alignment', () => {
                 updated_at: '2026-04-07T10:00:00Z',
                 control_owner: null,
                 department: null,
+                capabilities: {
+                    can_log_execution: false,
+                    can_link_risk: false,
+                    can_unlink_risk: false,
+                },
             }));
         });
 
@@ -299,6 +304,11 @@ describe('response schema nullability alignment', () => {
             department_id: null,
             control_owner: null,
             department: null,
+            capabilities: {
+                can_log_execution: false,
+                can_link_risk: false,
+                can_unlink_risk: false,
+            },
         });
     });
 
@@ -450,6 +460,9 @@ describe('response schema nullability alignment', () => {
                 total: 1,
                 page: 1,
                 size: 50,
+                capabilities: {
+                    can_request_correction: false,
+                },
             }));
         });
 
@@ -462,6 +475,9 @@ describe('response schema nullability alignment', () => {
                     recorded_by_name: null,
                 },
             ],
+            capabilities: {
+                can_request_correction: false,
+            },
         });
     });
 

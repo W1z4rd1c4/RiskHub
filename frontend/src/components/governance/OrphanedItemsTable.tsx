@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { ShieldAlert, ClipboardList, AlertTriangle, UserCheck, Filter, Building2 } from 'lucide-react';
 import { useTranslation } from '@/i18n/hooks';
 import { formatRelativeDateValue } from '@/i18n/formatters';
+import { resolveCapabilityFlag } from '@/lib/capabilities';
 import type { OrphanedItem } from '@/types/orphanedItem';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 
@@ -94,7 +95,7 @@ export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTa
                         {filteredItems.map((item) => {
                             const Icon = typeIcons[item.item_type] || AlertTriangle;
                             const old = isOld(item.orphaned_at);
-                            const canResolve = item.capabilities?.can_resolve ?? item.status === 'pending';
+                            const canResolve = resolveCapabilityFlag(item.capabilities, 'can_resolve', item.status === 'pending');
 
                             return (
                                 <tr

@@ -16,6 +16,7 @@ import type { OrphanedItem } from '@/types/orphanedItem';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { useTranslation } from '@/i18n/hooks';
 import { formatRelativeDateValue } from '@/i18n/formatters';
+import { resolveCapabilityFlag } from '@/lib/capabilities';
 
 interface ResolveOrphanModalProps {
     isOpen: boolean;
@@ -210,8 +211,8 @@ export function ResolveOrphanModal({ isOpen, onClose, orphan, onResolved }: Reso
         setSelectedDepartmentId(user.department_id);
     };
 
-    const requiresOwner = orphan.capabilities?.requires_owner ?? !isKri;
-    const requiresRisk = orphan.capabilities?.requires_risk ?? isKri;
+    const requiresOwner = resolveCapabilityFlag(orphan.capabilities, 'requires_owner', !isKri);
+    const requiresRisk = resolveCapabilityFlag(orphan.capabilities, 'requires_risk', isKri);
     const shouldShowOwner = requiresOwner;
     const shouldShowRisk = requiresRisk || (
         orphan.item_type === 'control' && (isInitialized && linkedRisks.length === 0)
