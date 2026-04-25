@@ -9,6 +9,7 @@ import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { cn } from '@/lib/utils';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { useTranslation } from '@/i18n/hooks';
+import { RiskHubFieldError, RiskHubModalActions, RiskHubModalFrame } from './panelPrimitives';
 
 interface DepartmentModalProps {
     isOpen: boolean;
@@ -72,12 +73,7 @@ function DepartmentModal({ isOpen, onClose, department, onSave }: DepartmentModa
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-            <div className="bg-slate-900 border border-white/10 shadow-2xl rounded-2xl w-full max-w-md p-6">
-                <h2 className="text-xl font-bold text-white mb-4">
-                    {department ? t('admin:departments_panel.modal.edit_title') : t('admin:departments_panel.modal.new_title')}
-                </h2>
-
+        <RiskHubModalFrame title={department ? t('admin:departments_panel.modal.edit_title') : t('admin:departments_panel.modal.new_title')}>
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
                         <label className="block text-sm font-medium text-slate-300 mb-1">{t('admin:departments_panel.modal.fields.department_name')}</label>
@@ -116,32 +112,15 @@ function DepartmentModal({ isOpen, onClose, department, onSave }: DepartmentModa
                         />
                     </div>
 
-                    {errorKey && (
-                        <div className="flex items-center gap-2 text-red-400 text-sm">
-                            <AlertCircle className="h-4 w-4" />
-                            {t(errorKey, { ns: 'errorKeys' })}
-                        </div>
-                    )}
-
-                    <div className="flex justify-end gap-3 pt-4 border-t border-white/10">
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className="px-4 py-2 text-slate-400 hover:text-white transition-colors"
-                        >
-                            {t('common:actions.cancel')}
-                        </button>
-                        <button
-                            type="submit"
-                            disabled={saving}
-                            className="px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 disabled:opacity-50 transition-colors"
-                        >
-                            {saving ? t('admin:departments_panel.modal.saving') : t('admin:departments_panel.modal.save_department')}
-                        </button>
-                    </div>
+                    <RiskHubFieldError errorKey={errorKey} />
+                    <RiskHubModalActions
+                        onCancel={onClose}
+                        saveLabel={t('admin:departments_panel.modal.save_department')}
+                        saving={saving}
+                        savingLabel={t('admin:departments_panel.modal.saving')}
+                    />
                 </form>
-            </div>
-        </div>
+        </RiskHubModalFrame>
     );
 }
 

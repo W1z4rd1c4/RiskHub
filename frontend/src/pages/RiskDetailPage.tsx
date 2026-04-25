@@ -1,4 +1,3 @@
-import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
     ArrowLeft,
@@ -13,14 +12,6 @@ import {
     XCircle,
     RotateCcw
 } from 'lucide-react';
-import { riskApi } from '@/services/riskApi';
-import { kriApi } from '@/services/kriApi';
-import { apiClient } from '@/services/apiClient';
-import { logError } from '@/services/logger';
-import type { Risk, RiskControlLink, ControlEffectiveness } from '@/types/risk';
-import type { OverdueKRI } from '@/types/kri';
-import type { HistoryTimelineItem } from '@/types/history';
-import type { Vendor } from '@/types/vendor';
 import { PermissionGate } from '@/components/PermissionGate';
 import { useRiskTypes } from '@/hooks/useRiskHubConfig';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
@@ -28,193 +19,48 @@ import { RiskDetailOverviewTab } from '@/components/risks/RiskDetailOverviewTab'
 import { RiskDetailKriHistoryTab } from '@/components/risks/RiskDetailKriHistoryTab';
 import { RiskDetailQuestionnairesTab } from '@/components/risks/RiskDetailQuestionnairesTab';
 import { useTranslation } from '@/i18n/hooks';
-import { formatDateValue, formatMetricNumberValue } from '@/i18n/formatters';
-import { isApprovalCreatedResponse } from '@/types/approval';
+import { DetailActionBanner } from '@/pages/detail/DetailActionBanner';
 import { ContextualIssueAction } from '@/pages/detail/ContextualIssueAction';
-
-type TabView = 'overview' | 'history' | 'assessment';
+import { useRiskDetailState } from '@/pages/detail/useRiskDetailState';
 
 export function RiskDetailPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
-    const { t, i18n } = useTranslation('common');
+    const { t } = useTranslation('common');
     const { t: tIssues } = useTranslation('issues');
     const { getColor, getDisplayName } = useRiskTypes();
-    const [risk, setRisk] = useState<Risk | null>(null);
-    const [linkedControls, setLinkedControls] = useState<RiskControlLink[]>([]);
-    const [linkedVendors, setLinkedVendors] = useState<Vendor[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [errorKey, setErrorKey] = useState<string | null>(null);
-    const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
-    const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-    const [dialogMode, setDialogMode] = useState<'both' | 'search-only' | 'links-only'>('both');
-    const [activeTab, setActiveTab] = useState<TabView>('overview');
-
-    // Delete confirmation dialog state
-    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-    const [isDeleting, setIsDeleting] = useState(false);
-    const [approvalMessage, setApprovalMessage] = useState<{ key: string; isError: boolean } | null>(null);
-    const [linkErrorKey, setLinkErrorKey] = useState<string | null>(null);
-    const [isIssueModalOpen, setIsIssueModalOpen] = useState(false);
-
-    // KRI History State
-    const [kriHistoryItems, setKriHistoryItems] = useState<HistoryTimelineItem[]>([]);
-    const [isHistoryLoading, setIsHistoryLoading] = useState(false);
-
-    // Overdue KRI State
-    const [overdueKRIs, setOverdueKRIs] = useState<OverdueKRI[]>([]);
-
-    const fetchData = useCallback(async () => {
-        if (!id) return;
-        try {
-            setIsLoading(true);
-            const riskId = parseInt(id);
-            const [riskData, controlsData, vendorsData, overdueData] = await Promise.all([
-                riskApi.getRisk(riskId),
-                riskApi.getLinkedControls(riskId),
-                riskApi.getLinkedVendors(riskId),
-                kriApi.getOverdue()
-            ]);
-            setRisk(riskData);
-            setLinkedControls(controlsData);
-            setLinkedVendors(vendorsData);
-            setOverdueKRIs(overdueData);
-            setErrorKey(null);
-        } catch (err) {
-            logError('Error fetching risk details.', err);
-            setErrorKey(apiClient.toUiMessageKey(err));
-        } finally {
-            setIsLoading(false);
-        }
-    }, [id]);
-
-    useEffect(() => {
-        void fetchData();
-    }, [fetchData]);
-
-    // Fetch KRI history when History tab is active
-    useEffect(() => {
-        let cancelled = false;
-
-        const fetchKriHistory = async () => {
-            if (activeTab !== 'history' || !risk?.kris || risk.kris.length === 0) {
-                setKriHistoryItems((prev) => (prev.length === 0 ? prev : []));
-                setIsHistoryLoading(false);
-                return;
-            }
-
-            setIsHistoryLoading(true);
-            try {
-                const historyPromises = risk.kris.map(kri =>
-                    kriApi.getHistory(kri.id, { size: 50 }).then(res => ({ kri, items: res.items }))
-                );
-                const results = await Promise.all(historyPromises);
-
-                if (cancelled) return;
-
-                // Flatten all history entries with KRI name
-                const flatItems: HistoryTimelineItem[] = [];
-                for (const { kri, items } of results) {
-                    for (const entry of items) {
-                        flatItems.push({
-                            id: `${kri.id}-${entry.id}`,
-                            title: `${kri.metric_name}: ${formatMetricNumberValue(entry.value, i18n.language)} ${entry.unit}`,
-                            subtitle: `Period end ${formatDateValue(entry.period_end, i18n.language)}`,
-                            timestamp: entry.recorded_at,
-                            status: entry.breach_status === 'within' ? 'success' : 'danger',
-                            badge: entry.breach_status === 'within' ? 'OK' : 'BREACH',
-                            meta: [
-                                { label: 'KRI', value: kri.metric_name },
-                                { label: t('risks:history.recorded_by'), value: entry.recorded_by_name ?? t('risks:history.system') },
-                            ],
-                        });
-                    }
-                }
-
-                // Sort by recorded_at descending
-                flatItems.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-                setKriHistoryItems(flatItems);
-            } catch (err) {
-                logError('Failed to fetch KRI history.', err);
-            } finally {
-                if (!cancelled) setIsHistoryLoading(false);
-            }
-        };
-
-        void fetchKriHistory();
-
-        return () => {
-            cancelled = true;
-        };
-    }, [activeTab, i18n.language, risk?.kris, t]);
-
-    const handleDelete = async (reason?: string) => {
-        if (!risk) return;
-        try {
-            setIsDeleting(true);
-            const response = await riskApi.deleteRisk(risk.id, reason || 'Archived by user');
-
-            // Check if the response indicates approval was required (202)
-            if (isApprovalCreatedResponse(response)) {
-                setApprovalMessage(
-                    {
-                        key: 'risks:messages.archive_submitted_for_approval',
-                        isError: false,
-                    }
-                );
-                setIsDeleteDialogOpen(false);
-                // Don't navigate away - show the approval message
-                return;
-            }
-
-            // Immediate archive (204) - navigate away
-            void navigate('/risks');
-        } catch (err) {
-            logError('Error deleting risk.', err);
-            setApprovalMessage({ key: apiClient.toUiMessageKey(err), isError: true });
-        } finally {
-            setIsDeleting(false);
-            setIsDeleteDialogOpen(false);
-        }
-    };
-
-    const handleRestore = async () => {
-        if (!risk) return;
-        try {
-            await riskApi.restoreRisk(risk.id);
-            await fetchData();
-            setApprovalMessage({ key: 'risks:messages.restore_success', isError: false });
-        } catch (err) {
-            logError('Error restoring risk.', err);
-            setApprovalMessage({ key: apiClient.toUiMessageKey(err), isError: true });
-        }
-    };
-
-    const handleLinkControl = async (controlId: number, effectiveness: ControlEffectiveness, notes?: string) => {
-        if (!risk) return;
-        setLinkErrorKey(null);
-        try {
-            await riskApi.linkControl(risk.id, { control_id: controlId, effectiveness, notes });
-            const controlsData = await riskApi.getLinkedControls(risk.id);
-            setLinkedControls(controlsData);
-        } catch (err) {
-            logError('Linking failed.', err);
-            setLinkErrorKey(apiClient.toUiMessageKey(err));
-        }
-    };
-
-    const handleUnlinkControl = async (controlId: number) => {
-        if (!risk) return;
-        setLinkErrorKey(null);
-        try {
-            await riskApi.unlinkControl(risk.id, controlId);
-            const controlsData = await riskApi.getLinkedControls(risk.id);
-            setLinkedControls(controlsData);
-        } catch (err) {
-            logError('Unlinking failed.', err);
-            setLinkErrorKey(apiClient.toUiMessageKey(err));
-        }
-    };
+    const {
+        activeTab,
+        approvalMessage,
+        dialogMode,
+        errorKey,
+        handleArchive,
+        handleLinkControl,
+        handleRestore,
+        handleUnlinkControl,
+        isCreateDialogOpen,
+        isDeleteDialogOpen,
+        isDeleting,
+        isHistoryLoading,
+        isIssueModalOpen,
+        isLinkDialogOpen,
+        isLoading,
+        kriHistoryItems,
+        linkErrorKey,
+        linkedControls,
+        linkedVendors,
+        overdueKRIs,
+        refreshData,
+        risk,
+        setActiveTab,
+        setApprovalMessage,
+        setDialogMode,
+        setIsCreateDialogOpen,
+        setIsDeleteDialogOpen,
+        setIsIssueModalOpen,
+        setIsLinkDialogOpen,
+        setLinkErrorKey,
+    } = useRiskDetailState({ rawId: id });
 
     const getStatusColor = (status: string) => {
         switch (status) {
@@ -261,34 +107,15 @@ export function RiskDetailPage() {
         <div className="space-y-8">
             {/* Approval/Error Message Banner */}
             {approvalMessage && (
-                <div className={`p-4 rounded-xl border flex items-start gap-3 ${approvalMessage.isError
-                    ? 'bg-rose-500/10 border-rose-500/20 text-rose-400'
-                    : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
-                    }`}>
-                    <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
-                    <div>
-                        <p className="text-sm font-medium">
-                            {approvalMessage.isError
-                                ? t(approvalMessage.key, { ns: 'errorKeys' })
-                                : t(approvalMessage.key)}
-                        </p>
-                        {!approvalMessage.isError && (
-                            <p className="text-xs mt-1 opacity-75">
-                                {t('risks:messages.view_pending_approvals_prefix')}{' '}
-                                <button onClick={() => navigate('/approvals')} className="underline hover:no-underline">
-                                    {t('navigation:tabs.approvals')}
-                                </button>{' '}
-                                {t('risks:messages.view_pending_approvals_suffix')}
-                            </p>
-                        )}
-                    </div>
-                    <button
-                        onClick={() => setApprovalMessage(null)}
-                        className="ml-auto text-current opacity-50 hover:opacity-100"
-                    >
-                        <XCircle className="h-4 w-4" />
-                    </button>
-                </div>
+                <DetailActionBanner
+                    approvalsLabel={t('navigation:tabs.approvals')}
+                    message={approvalMessage}
+                    messageText={approvalMessage.isError ? t(approvalMessage.key, { ns: 'errorKeys' }) : t(approvalMessage.key)}
+                    onClose={() => setApprovalMessage(null)}
+                    onNavigateApprovals={() => navigate('/approvals')}
+                    pendingText={t('risks:messages.view_pending_approvals_prefix')}
+                    sectionSuffix={t('risks:messages.view_pending_approvals_suffix')}
+                />
             )}
 
             {/* Link Error Message */}
@@ -416,7 +243,7 @@ export function RiskDetailPage() {
                     onOpenCreateControl={() => setIsCreateDialogOpen(true)}
                     onNavigateToControl={(controlId) => navigate(`/controls/${controlId}`)}
                     onNavigateToVendor={(vendorId) => navigate(`/vendors/${vendorId}`)}
-                    onRefreshData={fetchData}
+                    onRefreshData={refreshData}
                     isLinkDialogOpen={isLinkDialogOpen}
                     setIsLinkDialogOpen={setIsLinkDialogOpen}
                     dialogMode={dialogMode}
@@ -444,7 +271,7 @@ export function RiskDetailPage() {
             <ConfirmDialog
                 isOpen={isDeleteDialogOpen}
                 onClose={() => setIsDeleteDialogOpen(false)}
-                onConfirm={handleDelete}
+                onConfirm={handleArchive}
                 title={t('risks:confirmation.archive_title')}
                 message={t('risks:confirmation.archive_message', { riskName: risk?.name })}
                 confirmLabel={t('common:actions.archive')}

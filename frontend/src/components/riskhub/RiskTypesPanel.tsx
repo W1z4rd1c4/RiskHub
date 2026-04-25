@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Palette, Plus, Edit, Trash2, RotateCcw, AlertCircle } from 'lucide-react';
+import { Palette, Plus, Edit, Trash2, RotateCcw } from 'lucide-react';
 import { ColorSwatch } from '@/components/ui/ColorSwatch';
 import { riskHubApi } from '@/services/riskHubApi';
 import { apiClient } from '@/services/apiClient';
 import type { RiskType, RiskTypeCreate, RiskTypeUpdate } from '@/services/riskHubApi';
 import { cn } from '@/lib/utils';
 import { useTranslation } from '@/i18n/hooks';
+import { RiskHubFieldError, RiskHubModalActions, RiskHubModalFrame } from './panelPrimitives';
 
 interface RiskTypeModalProps {
     isOpen: boolean;
@@ -59,12 +60,7 @@ function RiskTypeModal({ isOpen, onClose, riskType, onSave }: RiskTypeModalProps
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-            <div className="bg-slate-900 border border-white/10 shadow-2xl rounded-2xl w-full max-w-md p-6">
-                <h2 className="text-xl font-bold text-white mb-4">
-                    {riskType ? t('admin:risk_types_panel.modal.edit_title') : t('admin:risk_types_panel.modal.new_title')}
-                </h2>
-
+        <RiskHubModalFrame title={riskType ? t('admin:risk_types_panel.modal.edit_title') : t('admin:risk_types_panel.modal.new_title')}>
                 <form onSubmit={handleSubmit} className="space-y-4">
                     {!riskType && (
                         <div>
@@ -135,32 +131,14 @@ function RiskTypeModal({ isOpen, onClose, riskType, onSave }: RiskTypeModalProps
                         </div>
                     </div>
 
-                    {errorKey && (
-                        <div className="flex items-center gap-2 text-red-400 text-sm">
-                            <AlertCircle className="h-4 w-4" />
-                            {t(errorKey, { ns: 'errorKeys' })}
-                        </div>
-                    )}
-
-                    <div className="flex justify-end gap-3 pt-4 border-t border-white/10 mt-6">
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className="px-4 py-2 text-slate-400 hover:text-white transition-colors"
-                        >
-                            {t('common:actions.cancel')}
-                        </button>
-                        <button
-                            type="submit"
-                            disabled={saving}
-                            className="px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 disabled:opacity-50 transition-colors"
-                        >
-                            {saving ? t('admin:risk_types_panel.modal.saving') : t('common:actions.save')}
-                        </button>
-                    </div>
+                    <RiskHubFieldError errorKey={errorKey} />
+                    <RiskHubModalActions
+                        onCancel={onClose}
+                        saving={saving}
+                        savingLabel={t('admin:risk_types_panel.modal.saving')}
+                    />
                 </form>
-            </div>
-        </div>
+        </RiskHubModalFrame>
     );
 }
 

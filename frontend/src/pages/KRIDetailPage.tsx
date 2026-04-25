@@ -1,12 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Edit2, Trash2, Target, Plus, Clock, History, RotateCcw, FileText } from 'lucide-react';
-import { kriApi } from '@/services/kriApi';
-import { riskApi } from '@/services/riskApi';
-import { logError } from '@/services/logger';
 import { PermissionGate } from '@/components/PermissionGate';
-import { usePermissions } from '@/hooks/usePermissions';
 import { KRIModal } from '@/components/kri/KRIModal';
 import { KRIValueModal } from '@/components/kri/KRIValueModal';
 import { KRIHistoryEditModal } from '@/components/kri/KRIHistoryEditModal';
@@ -16,16 +11,9 @@ import { KRIDetailOverviewTab } from '@/components/kris/KRIDetailOverviewTab';
 import { KRIDetailHistoryTab } from '@/components/kris/KRIDetailHistoryTab';
 import { IssueQuickCreateModal } from '@/components/issues/IssueQuickCreateModal';
 import { getKriMonitoringMeta } from '@/lib/monitoringStatus';
-import { parseUpdateResult } from '@/lib/approvalUi';
-import { resolveCapabilityFlag } from '@/lib/capabilities';
-import { ApiClientError } from '@/services/apiClient';
-import type { KeyRiskIndicator, KRIHistoryCapabilities, KRIHistoryEntry } from '@/types/kri';
-import type { Risk } from '@/types/risk';
 import { useTranslation } from '@/i18n/hooks';
 import { formatMetricNumberValue } from '@/i18n/formatters';
-import type { KRIModalSaveResult } from '@/components/kri/KRIModal';
-
-type TabView = 'overview' | 'history';
+import { useKriDetailState } from '@/pages/detail/useKriDetailState';
 
 export function KRIDetailPage() {
     const { id } = useParams<{ id: string }>();
@@ -33,156 +21,43 @@ export function KRIDetailPage() {
     const { t, i18n } = useTranslation('common');
     const { t: tErrors } = useTranslation('errorKeys');
     const { t: tIssues } = useTranslation('issues');
-    const [kri, setKri] = useState<KeyRiskIndicator | null>(null);
-    const [linkedRisk, setLinkedRisk] = useState<Risk | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-    const [isValueModalOpen, setIsValueModalOpen] = useState(false);
-    const [isDeleting, setIsDeleting] = useState(false);
-    const [activeTab, setActiveTab] = useState<TabView>('overview');
-
-    // History state
-    const [history, setHistory] = useState<KRIHistoryEntry[]>([]);
-    const [historyTotal, setHistoryTotal] = useState(0);
-    const [historyCapabilities, setHistoryCapabilities] = useState<KRIHistoryCapabilities | null>(null);
-    const [isLoadingHistory, setIsLoadingHistory] = useState(false);
-    const [selectedHistoryEntry, setSelectedHistoryEntry] = useState<KRIHistoryEntry | null>(null);
-    const [isIssueModalOpen, setIsIssueModalOpen] = useState(false);
-    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-    const [approvalBanner, setApprovalBanner] = useState<{ message: string } | null>(null);
-
-    // Permissions
-    const { canRecordKRI, hasPermission, user } = usePermissions();
-
-    const fetchHistory = useCallback(async (kriId: number) => {
-        setIsLoadingHistory(true);
-        try {
-            const response = await kriApi.getHistory(kriId, { size: 50, include_archived: true });
-            setHistory(response.items);
-            setHistoryTotal(response.total);
-            setHistoryCapabilities(response.capabilities ?? null);
-        } catch (err) {
-            logError('Failed to fetch history.', err);
-        } finally {
-            setIsLoadingHistory(false);
-        }
-    }, []);
-
-    const fetchKRI = useCallback(async (kriId: number) => {
-        setIsLoading(true);
-        try {
-            const data = await kriApi.getKRI(kriId, { include_archived: true });
-            setKri(data);
-            // Fetch linked risk name
-            if (data.risk_id) {
-                try {
-                    const risk = await riskApi.getRisk(data.risk_id);
-                    setLinkedRisk(risk);
-                } catch {
-                    // Silently fail, card will show empty state
-                }
-            }
-            // Fetch history
-            void fetchHistory(kriId);
-        } catch (err) {
-            logError('Failed to fetch KRI.', err);
-        } finally {
-            setIsLoading(false);
-        }
-    }, [fetchHistory]);
-
-    useEffect(() => {
-        if (id) {
-            void fetchKRI(parseInt(id));
-        }
-    }, [id, fetchKRI]);
-
-    const handleDelete = async (reason?: string) => {
-        if (!kri) return;
-        const deleteReason = reason?.trim();
-        if (!deleteReason) return;
-        setIsDeleting(true);
-        try {
-            const result = await kriApi.deleteKRI(kri.id, deleteReason);
-            const parsed = parseUpdateResult(result);
-            setIsDeleteDialogOpen(false);
-
-            if (parsed.kind === 'approval') {
-                setApprovalBanner({
-                    message: parsed.message,
-                });
-                return;
-            }
-
-            void navigate('/kris');
-        } catch (err) {
-            logError('Failed to delete KRI.', err);
-        } finally {
-            setIsDeleting(false);
-        }
-    };
-
-    const handleRestore = async () => {
-        if (!kri) return;
-        try {
-            await kriApi.restoreKRI(kri.id);
-            await fetchKRI(kri.id);
-        } catch (err) {
-            logError('Failed to restore KRI.', err);
-        }
-    };
-
-    const handleSave = async (data: Partial<KeyRiskIndicator>, vendorIds: number[]): Promise<KRIModalSaveResult> => {
-        if (!kri) {
-            throw new Error(tErrors('save_kri_failed'));
-        }
-        try {
-            const result = await kriApi.updateKRI(kri.id, {
-                ...data,
-                linked_vendor_ids: vendorIds,
-            });
-            const parsed = parseUpdateResult(result);
-            if (parsed.kind === 'approval') {
-                setApprovalBanner({
-                    message: parsed.message,
-                });
-                setIsEditModalOpen(false);
-                return parsed;
-            }
-
-            await fetchKRI(kri.id);
-            setIsEditModalOpen(false);
-            return { kind: 'updated' };
-        } catch (error) {
-            if (error instanceof ApiClientError) {
-                throw error;
-            }
-            if (error instanceof Error) {
-                throw error;
-            }
-            throw new Error(tErrors('save_kri_failed'), { cause: error });
-        }
-    };
-
-    const handleRecordSuccess = () => {
-        if (kri) {
-            void fetchKRI(kri.id);
-        }
-    };
+    const {
+        activeTab,
+        approvalBanner,
+        canRecordValue,
+        canRequestHistoryCorrection,
+        dueDate,
+        handleDelete,
+        handleRecordSuccess,
+        handleRestore,
+        handleSave,
+        history,
+        historyTotal,
+        isDeleteDialogOpen,
+        isDeleting,
+        isEditModalOpen,
+        isIssueModalOpen,
+        isLoading,
+        isLoadingHistory,
+        isOverdue,
+        isValueModalOpen,
+        kri,
+        linkedRisk,
+        refreshHistory,
+        selectedHistoryEntry,
+        setActiveTab,
+        setApprovalBanner,
+        setIsDeleteDialogOpen,
+        setIsEditModalOpen,
+        setIsIssueModalOpen,
+        setIsValueModalOpen,
+        setSelectedHistoryEntry,
+    } = useKriDetailState({ rawId: id });
 
     // formatNumber is still needed for overview tab
     const formatNumber = (val: number): string => {
         return formatMetricNumberValue(val, i18n.language);
     };
-
-    const calculateDueDate = (): Date | null => {
-        if (!kri?.required_due_date) return null;
-        return new Date(kri.required_due_date);
-    };
-
-    const dueDate = calculateDueDate();
-    const isOverdue = (kri?.days_overdue ?? 0) > 0;
-    const canRequestHistoryCorrection = resolveCapabilityFlag(historyCapabilities, 'can_request_correction', hasPermission('risks', 'write'));
 
     if (isLoading) {
         return (
@@ -264,7 +139,7 @@ export function KRIDetailPage() {
                             <FileText className="h-4 w-4 mr-1" /> {tIssues('actions.new_issue')}
                         </Button>
                     </PermissionGate>
-                    {(canRecordKRI || (!!kri && !!user?.id && kri.reporting_owner_id === user.id)) && (
+                    {canRecordValue && (
                         <Button onClick={() => setIsValueModalOpen(true)} className="bg-emerald-600 hover:bg-emerald-500">
                             <Plus className="h-4 w-4 mr-1" /> {t('kris:value_modal.title')}
                         </Button>
@@ -394,8 +269,8 @@ export function KRIDetailPage() {
                         onClose={() => setSelectedHistoryEntry(null)}
                         kriId={kri.id}
                         entry={selectedHistoryEntry}
-                        onSuccess={() => fetchHistory(kri.id)}
-                        onError={() => fetchHistory(kri.id)}
+                        onSuccess={() => refreshHistory(kri.id)}
+                        onError={() => refreshHistory(kri.id)}
                     />
                 )
             }

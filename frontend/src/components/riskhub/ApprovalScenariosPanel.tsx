@@ -5,6 +5,7 @@ import type { ApprovalScenario, ApprovalScenarioUpdate } from '@/services/riskHu
 import { cn } from '@/lib/utils';
 import { useState, useMemo, useEffect } from 'react';
 import { useTranslation } from '@/i18n/hooks';
+import { RiskHubModalActions, RiskHubModalFrame } from './panelPrimitives';
 
 // Special dynamic role entry for risk owner (not a system role in roles table)
 const SPECIAL_ROLE_VALUES = ['risk_owner'] as const;
@@ -66,12 +67,7 @@ function EditScenarioModal({ isOpen, onClose, scenario, availableRoles, rolesLoa
     if (!isOpen || !scenario) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-            <div className="bg-slate-900 border border-white/10 shadow-2xl rounded-2xl w-full max-w-md p-6">
-                <h2 className="text-xl font-bold text-white mb-4">
-                    {t('admin:approval_scenarios.modal.configure', { name: scenario.display_name })}
-                </h2>
-
+        <RiskHubModalFrame title={t('admin:approval_scenarios.modal.configure', { name: scenario.display_name })}>
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="flex items-center justify-between">
                         <span className="text-slate-300">{t('admin:approval_scenarios.requires_approval')}</span>
@@ -154,25 +150,13 @@ function EditScenarioModal({ isOpen, onClose, scenario, availableRoles, rolesLoa
                         </div>
                     )}
 
-                    <div className="flex justify-end gap-3 pt-4">
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className="px-4 py-2 text-slate-400 hover:text-white transition-colors"
-                        >
-                            {t('common:actions.cancel')}
-                        </button>
-                        <button
-                            type="submit"
-                            disabled={saving || rolesLoading}
-                            className="px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 disabled:opacity-50 transition-colors"
-                        >
-                            {saving ? t('common:loading.generic') : t('common:actions.save')}
-                        </button>
-                    </div>
+                    <RiskHubModalActions
+                        disableSave={rolesLoading}
+                        onCancel={onClose}
+                        saving={saving}
+                    />
                 </form>
-            </div>
-        </div>
+        </RiskHubModalFrame>
     );
 }
 

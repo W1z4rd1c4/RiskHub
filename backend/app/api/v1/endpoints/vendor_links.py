@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import UTC
-from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
@@ -14,22 +13,23 @@ from app.api.v1.endpoints._monitoring_response import (
     serialize_control_brief_for_link,
     serialize_kri_response,
 )
+from app.api.v1.endpoints.vendor_link_helpers import (
+    create_vendor_link,
+    delete_vendor_link,
+    require_vendor_access,
+)
 from app.core.datetime_utils import utc_now
 from app.core.permissions import (
     can_read_control_id,
     can_read_kri_id,
     can_read_risk_id,
-    can_read_vendor,
-    is_vendor_owner,
 )
-from app.core.security import check_permission
 from app.db.session import get_db
 from app.models import (
     Control,
     KeyRiskIndicator,
     Risk,
     User,
-    Vendor,
     VendorControlLink,
     VendorKRILink,
     VendorRiskLink,
@@ -47,38 +47,6 @@ from app.schemas.vendor_links import (
 router = APIRouter()
 
 
-async def _get_vendor(db: AsyncSession, vendor_id: int) -> Vendor | None:
-    result = await db.execute(select(Vendor).where(Vendor.id == vendor_id))
-    return result.scalar_one_or_none()
-
-
-async def _require_vendor_access(
-    db: AsyncSession,
-    vendor_id: int,
-    current_user: User,
-    *,
-    entity_permission: str,
-    require_write: bool = False,
-) -> Vendor:
-    """Check vendor read access (and optionally write) plus entity read permission."""
-    if not check_permission(current_user, "vendors", "read"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: vendors:read")
-    if not check_permission(current_user, entity_permission, "read"):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail=f"Permission denied: {entity_permission}:read"
-        )
-
-    vendor = await _get_vendor(db, vendor_id)
-    if not vendor or not can_read_vendor(vendor, current_user):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
-
-    if require_write:
-        if not (check_permission(current_user, "vendors", "write") or is_vendor_owner(vendor, current_user)):
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: vendors:write")
-
-    return vendor
-
-
 async def _can_read_risk(db: AsyncSession, current_user: User, risk_id: int) -> bool:
     return await can_read_risk_id(db, current_user, risk_id)
 
@@ -91,68 +59,13 @@ async def _can_read_kri(db: AsyncSession, current_user: User, kri_id: int) -> bo
     return await can_read_kri_id(db, current_user, kri_id)
 
 
-async def _get_existing_link(
-    db: AsyncSession,
-    link_model: type[Any],
-    vendor_id: int,
-    entity_field: str,
-    entity_id: int,
-) -> Any | None:
-    result = await db.execute(
-        select(link_model).where(
-            link_model.vendor_id == vendor_id,
-            getattr(link_model, entity_field) == entity_id,
-        )
-    )
-    return result.scalar_one_or_none()
-
-
-async def _ensure_link_absent(
-    db: AsyncSession,
-    link_model: type[Any],
-    vendor_id: int,
-    entity_field: str,
-    entity_id: int,
-) -> None:
-    if await _get_existing_link(db, link_model, vendor_id, entity_field, entity_id):
-        raise HTTPException(status_code=400, detail="Link already exists")
-
-
-async def _create_vendor_link(
-    db: AsyncSession,
-    link_model: type[Any],
-    vendor_id: int,
-    entity_field: str,
-    entity_id: int,
-) -> dict[str, str]:
-    await _ensure_link_absent(db, link_model, vendor_id, entity_field, entity_id)
-    db.add(link_model(vendor_id=vendor_id, **{entity_field: entity_id}))
-    await db.commit()
-    return {"status": "linked"}
-
-
-async def _delete_vendor_link(
-    db: AsyncSession,
-    link_model: type[Any],
-    vendor_id: int,
-    entity_field: str,
-    entity_id: int,
-) -> None:
-    link = await _get_existing_link(db, link_model, vendor_id, entity_field, entity_id)
-    if not link:
-        raise HTTPException(status_code=404, detail="Link not found")
-
-    await db.delete(link)
-    await db.commit()
-
-
 @router.get("/vendors/{vendor_id}/linked-risks", response_model=list[LinkedRiskRead])
 async def list_vendor_linked_risks(
     vendor_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
 ):
-    await _require_vendor_access(db, vendor_id, current_user, entity_permission="risks")
+    await require_vendor_access(db, vendor_id, current_user, entity_permission="risks")
 
     result = await db.execute(
         select(VendorRiskLink)
@@ -191,7 +104,7 @@ async def link_vendor_to_risk(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
 ):
-    await _require_vendor_access(
+    await require_vendor_access(
         db, vendor_id, current_user, entity_permission="risks", require_write=True,
     )
 
@@ -200,7 +113,7 @@ async def link_vendor_to_risk(
     if not risk or not await _can_read_risk(db, current_user, payload.risk_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Risk not found")
 
-    return await _create_vendor_link(db, VendorRiskLink, vendor_id, "risk_id", payload.risk_id)
+    return await create_vendor_link(db, VendorRiskLink, vendor_id, "risk_id", payload.risk_id)
 
 
 @router.delete("/vendors/{vendor_id}/linked-risks/{risk_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -210,7 +123,7 @@ async def unlink_vendor_from_risk(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
 ):
-    await _require_vendor_access(
+    await require_vendor_access(
         db, vendor_id, current_user, entity_permission="risks", require_write=True,
     )
 
@@ -219,7 +132,7 @@ async def unlink_vendor_from_risk(
     if not risk or not await _can_read_risk(db, current_user, risk_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Risk not found")
 
-    await _delete_vendor_link(db, VendorRiskLink, vendor_id, "risk_id", risk_id)
+    await delete_vendor_link(db, VendorRiskLink, vendor_id, "risk_id", risk_id)
     return None
 
 
@@ -229,7 +142,7 @@ async def list_vendor_linked_controls(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
 ):
-    await _require_vendor_access(db, vendor_id, current_user, entity_permission="controls")
+    await require_vendor_access(db, vendor_id, current_user, entity_permission="controls")
 
     result = await db.execute(
         select(VendorControlLink)
@@ -279,7 +192,7 @@ async def link_vendor_to_control(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
 ):
-    await _require_vendor_access(
+    await require_vendor_access(
         db, vendor_id, current_user, entity_permission="controls", require_write=True,
     )
 
@@ -290,7 +203,7 @@ async def link_vendor_to_control(
     if not control or not await _can_read_control(db, current_user, control):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Control not found")
 
-    return await _create_vendor_link(db, VendorControlLink, vendor_id, "control_id", payload.control_id)
+    return await create_vendor_link(db, VendorControlLink, vendor_id, "control_id", payload.control_id)
 
 
 @router.delete("/vendors/{vendor_id}/linked-controls/{control_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -300,7 +213,7 @@ async def unlink_vendor_from_control(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
 ):
-    await _require_vendor_access(
+    await require_vendor_access(
         db, vendor_id, current_user, entity_permission="controls", require_write=True,
     )
 
@@ -309,7 +222,7 @@ async def unlink_vendor_from_control(
     if not control or not await _can_read_control(db, current_user, control):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Control not found")
 
-    await _delete_vendor_link(db, VendorControlLink, vendor_id, "control_id", control_id)
+    await delete_vendor_link(db, VendorControlLink, vendor_id, "control_id", control_id)
     return None
 
 
@@ -319,7 +232,7 @@ async def list_vendor_linked_kris(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
 ):
-    await _require_vendor_access(db, vendor_id, current_user, entity_permission="risks")
+    await require_vendor_access(db, vendor_id, current_user, entity_permission="risks")
 
     result = await db.execute(
         select(VendorKRILink)
@@ -381,7 +294,7 @@ async def link_vendor_to_kri(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
 ):
-    await _require_vendor_access(
+    await require_vendor_access(
         db, vendor_id, current_user, entity_permission="risks", require_write=True,
     )
 
@@ -390,7 +303,7 @@ async def link_vendor_to_kri(
     if not kri or not await _can_read_kri(db, current_user, payload.kri_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="KRI not found")
 
-    return await _create_vendor_link(db, VendorKRILink, vendor_id, "kri_id", payload.kri_id)
+    return await create_vendor_link(db, VendorKRILink, vendor_id, "kri_id", payload.kri_id)
 
 
 @router.delete("/vendors/{vendor_id}/linked-kris/{kri_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -400,7 +313,7 @@ async def unlink_vendor_from_kri(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
 ):
-    await _require_vendor_access(
+    await require_vendor_access(
         db, vendor_id, current_user, entity_permission="risks", require_write=True,
     )
 
@@ -409,5 +322,5 @@ async def unlink_vendor_from_kri(
     if not kri or not await _can_read_kri(db, current_user, kri_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="KRI not found")
 
-    await _delete_vendor_link(db, VendorKRILink, vendor_id, "kri_id", kri_id)
+    await delete_vendor_link(db, VendorKRILink, vendor_id, "kri_id", kri_id)
     return None
