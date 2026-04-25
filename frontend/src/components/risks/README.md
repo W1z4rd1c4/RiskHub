@@ -7,6 +7,7 @@ UI components for `risks` area.
 ## Contents
 
 - `__tests__/`
+- `detail-overview/`
 - `RiskDetailKriHistoryTab.tsx`
 - `RiskDetailOverviewTab.tsx`
 - `RiskDetailQuestionnairesTab.tsx`
@@ -15,8 +16,10 @@ UI components for `risks` area.
 
 ## Notes
 
-`RiskDetailOverviewTab.tsx` owns the top summary cards on the Risk detail page,
-including `Classification`, `Ownership`, and `Connections`.
+`RiskDetailOverviewTab.tsx` is the stable route-facing composition component for
+the Risk detail overview. Focused sections live under `detail-overview/`,
+including assessment matrices, summary cards, linked controls, linked vendors,
+KRI cards, timestamps, and linked-control grouping helpers.
 
 Risk-linked KRI and control cards in this area consume backend-derived
 `monitoring_status` fields through shared display metadata rather than local

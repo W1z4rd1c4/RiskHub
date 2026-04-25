@@ -4,66 +4,23 @@
  */
 
 import { Trash2, AlertCircle, Loader2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { useTranslation } from '@/i18n/hooks';
+import {
+    getExistingLinkDisplayName,
+    getExistingLinkTargetId,
+    getMetadataBadgeClassName,
+} from './existingLinksPresentation';
+import type { ExistingLinkItem, LinkMode } from './linkTypes';
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-/** Existing link item - accepts RiskControlLink or ControlRiskLink shapes */
-export interface ExistingLinkItem {
-    display_name?: string;
-    id: number;
-    risk_id?: number;
-    control_id?: number;
-    kri_id?: number;
-    effectiveness: string;
-    notes?: string | null;
-    risk?: unknown;
-    control?: unknown;
-}
+export type { ExistingLinkItem } from './linkTypes';
 
 export interface ExistingLinksPanelProps {
-    mode: 'control-to-risk' | 'risk-to-control' | 'vendor-to-kri';
+    mode: LinkMode;
     existingLinks: ExistingLinkItem[];
     onUnlink: (targetId: number) => void;
     isUnlinking: number | null;
     showMetadataBadge?: boolean;
 }
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function getEffectivenessColor(eff: string): string {
-    switch (eff) {
-        case 'high': return 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20';
-        case 'medium': return 'text-amber-400 bg-amber-400/10 border-amber-400/20';
-        case 'low': return 'text-rose-400 bg-rose-400/10 border-rose-400/20';
-        default: return 'text-slate-400 bg-slate-400/10 border-slate-400/20';
-    }
-}
-
-function getRiskDescription(risk: unknown): string | null {
-    if (!risk || typeof risk !== 'object' || !('description' in risk)) {
-        return null;
-    }
-    const description = (risk as { description?: unknown }).description;
-    return typeof description === 'string' && description.length > 0 ? description : null;
-}
-
-function getControlName(control: unknown): string | null {
-    if (!control || typeof control !== 'object' || !('name' in control)) {
-        return null;
-    }
-    const name = (control as { name?: unknown }).name;
-    return typeof name === 'string' && name.length > 0 ? name : null;
-}
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
 
 export function ExistingLinksPanel({
     mode,
@@ -73,22 +30,6 @@ export function ExistingLinksPanel({
     showMetadataBadge = true,
 }: ExistingLinksPanelProps) {
     const { t } = useTranslation(['common', 'controls', 'kris', 'risks']);
-    const getTargetId = (link: ExistingLinkItem): number => {
-        return Number(mode === 'control-to-risk' ? link.risk_id : mode === 'risk-to-control' ? link.control_id : link.kri_id);
-    };
-
-    const getDisplayName = (link: ExistingLinkItem): string => {
-        if (link.display_name) {
-            return link.display_name;
-        }
-        if (mode === 'control-to-risk') {
-            return getRiskDescription(link.risk) || t('common:labels.unknown');
-        }
-        if (mode === 'vendor-to-kri') {
-            return link.display_name || t('common:labels.unknown');
-        }
-        return getControlName(link.control) || t('common:labels.unknown');
-    };
 
     return (
         <section className="space-y-4">
@@ -105,7 +46,7 @@ export function ExistingLinksPanel({
             ) : (
                 <div className="space-y-3">
                     {existingLinks.map((link) => {
-                        const targetId = getTargetId(link);
+                        const targetId = getExistingLinkTargetId(link, mode);
                         const isCurrentlyUnlinking = isUnlinking === targetId;
 
                         return (
@@ -116,13 +57,10 @@ export function ExistingLinksPanel({
                                 <div className="flex-1 min-w-0 pr-4">
                                     <div className="flex items-center gap-3 mb-1">
                                         <span className="text-xs font-bold text-white truncate">
-                                            {getDisplayName(link)}
+                                            {getExistingLinkDisplayName(link, mode, t)}
                                         </span>
                                         {showMetadataBadge && (
-                                            <span className={cn(
-                                                "px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border font-mono",
-                                                getEffectivenessColor(link.effectiveness)
-                                            )}>
+                                            <span className={getMetadataBadgeClassName(link.effectiveness)}>
                                                 {link.effectiveness}
                                             </span>
                                         )}
