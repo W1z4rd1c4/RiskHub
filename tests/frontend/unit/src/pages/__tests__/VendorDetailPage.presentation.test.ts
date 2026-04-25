@@ -4,6 +4,7 @@ import {
     buildVendorDetailPath,
     canEditVendorByOwnership,
     coerceVendorContext,
+    getVendorDetailScrollTargetId,
 } from '@/pages/vendors/vendorDetailPresentation';
 
 describe('Vendor detail presentation helpers', () => {
@@ -35,5 +36,12 @@ describe('Vendor detail presentation helpers', () => {
             vendorId: null,
             returnTo: null,
         });
+    });
+
+    it('maps supported vendor detail query sections to scroll targets', () => {
+        expect(getVendorDetailScrollTargetId('assessments', 'schedule')).toBe('vendor-linked-kris');
+        expect(getVendorDetailScrollTargetId('connections', 'risks')).toBe('vendor-linked-risks');
+        expect(getVendorDetailScrollTargetId('connections', 'controls')).toBe('vendor-linked-controls');
+        expect(getVendorDetailScrollTargetId('connections', 'unknown')).toBeNull();
     });
 });

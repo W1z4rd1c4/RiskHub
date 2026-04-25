@@ -26,6 +26,19 @@ export function buildVendorDetailPath(
     return query ? `/vendors/${vendorId}?${query}` : `/vendors/${vendorId}`;
 }
 
+export function getVendorDetailScrollTargetId(tab: string | null, section: string | null): string | null {
+    if (tab === 'assessments' && section === 'schedule') {
+        return 'vendor-linked-kris';
+    }
+    if (tab === 'connections' && section === 'risks') {
+        return 'vendor-linked-risks';
+    }
+    if (tab === 'connections' && section === 'controls') {
+        return 'vendor-linked-controls';
+    }
+    return null;
+}
+
 export function coerceVendorContext(vendorIdRaw: string | null, returnToRaw: string | null): {
     vendorId: number | null;
     returnTo: string | null;
