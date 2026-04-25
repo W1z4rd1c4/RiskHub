@@ -8,6 +8,7 @@ Extracted Admin Console section and panel components used by `frontend/src/pages
 
 - `AdminConsoleAuditPanels.tsx`
 - `AdminConsoleOpsPanels.tsx`
+- `ops/` - focused operational panel modules re-exported through `AdminConsoleOpsPanels.tsx`
 
 ## Notes
 

@@ -7,6 +7,7 @@ import { ApiClientError } from '@/services/apiClient';
 
 const getActiveSessionsMock = vi.fn();
 const revokeSessionMock = vi.fn();
+const checkAllDirectoryUsersMock = vi.fn();
 const invalidateQueriesMock = vi.fn();
 
 vi.mock('@/i18n/hooks', () => ({
@@ -20,6 +21,7 @@ vi.mock('@/services/adminApi', () => ({
     adminApi: {
         getActiveSessions: (...args: unknown[]) => getActiveSessionsMock(...args),
         revokeSession: (...args: unknown[]) => revokeSessionMock(...args),
+        checkAllDirectoryUsers: (...args: unknown[]) => checkAllDirectoryUsersMock(...args),
     },
 }));
 
@@ -54,6 +56,14 @@ describe('SessionsPanel', () => {
                 is_active: true,
             },
         ]);
+        checkAllDirectoryUsersMock.mockResolvedValue({
+            checked: 3,
+            deprovisioned: 1,
+            active: 2,
+            errors: 0,
+            skipped: 0,
+            results: [],
+        });
     });
 
     it('shows user names and emails without raw user id fallback', async () => {
@@ -83,5 +93,31 @@ describe('SessionsPanel', () => {
         await waitFor(() => {
             expect(invalidateQueriesMock).toHaveBeenCalledWith({ queryKey: ['adminSessions'] });
         });
+    });
+
+    it('runs directory check-all, shows the summary, and refreshes sessions', async () => {
+        render(<SessionsPanel />, { wrapper: createWrapper() });
+
+        await screen.findByText('Session User');
+        fireEvent.click(screen.getByRole('button', { name: 'users.check_directory' }));
+
+        await waitFor(() => {
+            expect(checkAllDirectoryUsersMock).toHaveBeenCalledTimes(1);
+        });
+        expect(await screen.findByText('users.directory_check_all_success')).toBeInTheDocument();
+        await waitFor(() => {
+            expect(invalidateQueriesMock).toHaveBeenCalledWith({ queryKey: ['adminSessions'] });
+        });
+    });
+
+    it('shows a directory check failure message when check-all fails', async () => {
+        checkAllDirectoryUsersMock.mockRejectedValueOnce(new Error('directory unavailable'));
+
+        render(<SessionsPanel />, { wrapper: createWrapper() });
+
+        await screen.findByText('Session User');
+        fireEvent.click(screen.getByRole('button', { name: 'users.check_directory' }));
+
+        expect(await screen.findByText('users.directory_check_failed')).toBeInTheDocument();
     });
 });
