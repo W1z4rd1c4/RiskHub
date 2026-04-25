@@ -20,7 +20,7 @@
 
 **Milestone:** v1.0 MVP
 **Active Phases:** 90 (AD Emulator) remains active; 253 and 253.1 completed; 19 and 70 deferred
-**Documentation Status:** Reconciled with post-hardening workflow and architecture docs (2026-04-25)
+**Documentation Status:** User manuals, codebase map, docs contract, and in-app reader metadata reconciled after maintainability/refactor waves (2026-04-25)
 
 ## Progress Summary
 
@@ -76,6 +76,14 @@
 | 501 Production Readiness Hardening | ✅ Complete (8/8) | 2026-02-16 |
 
 ## Session Context
+
+### Documentation Reconciliation and Codebase Map Refresh (2026-04-25)
+
+- Refreshed the GSD codebase map documents in `.planning/codebase/` after the recent frontend/backend maintainability sweeps.
+- Converted the in-app user documentation contract from technical reference sections to task-oriented user-manual sections in English and Czech.
+- Rewrote `docs/user/` and `docs/user-cs/` as manual-style product content, keeping implementation details in frontmatter, admin runbooks, and engineering docs.
+- Updated the in-app documentation reader so user manuals hide maintainer-only source references and raw version chips while admin runbooks can still show operator references.
+- Reconciled documentation indexes and testing guidance for the new manual contract and reader verification.
 
 ### Phase 253 Professionalization Closeout (2026-04-25)
 

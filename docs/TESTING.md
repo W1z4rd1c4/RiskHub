@@ -54,7 +54,7 @@ This guide defines the current testing matrix for backend, frontend unit tests, 
 | Docs topology consistency | `cd . && make -f scripts/Makefile docs-topology-consistency` | Maintainer-facing docs governance lane for README coverage, docs tree audit scope, and structure metrics consistency |
 | Repo artifact + script syntax contracts | `cd . && make -f scripts/Makefile quality-repo-contracts` | Blocks tracked retired artifacts, tracked ignored paths, broken startup shell syntax, and broken migration/seed script syntax |
 | Suppression budget only | `cd . && make -f scripts/Makefile quality-suppression-budget` | Enforce backend suppression allowlist max budget/no-expired entries |
-| Docs contract | `cd . && python3 scripts/check_docs_contract.py` | Header/parity/link/audience checks |
+| Docs contract | `cd . && python3 scripts/check_docs_contract.py` | Header/parity/link/audience/manual-section checks |
 | Production contract docs parity | `cd . && python3 scripts/security/validate_production_contract_docs.py` | Ensures `.env.example`, deployment reference, and runtime production invariants stay synchronized |
 | Release parity (fast, non-blocking lane) | `python3 scripts/security/run_release_parity_audit.py --run-id <utc-ts> --skip-prod-readiness` | Monitoring lane for startup/dependency/UI parity checks (main/nightly; not PR-blocking) |
 | Release parity (full) | `python3 scripts/security/run_release_parity_audit.py --run-id <utc-ts>` | Final pre-release parity gate including prod-readiness execution/ingestion |
@@ -158,6 +158,7 @@ Current browser-lane caveats:
 - Backend rate-limit policy/backend behavior is covered by `tests/backend/pytest/test_rate_limit_components.py`, `test_rate_limit_redis_resilience.py`, and `test_rate_limit_redis_integration.py`.
 - Graph auth boundary/cache-key behavior is covered by `tests/backend/pytest/test_graph_directory_components.py` and `test_entra_confidential_credentials.py`.
 - Docs UI behavior is covered in `DocumentationSettings.test.tsx`.
+- In-app documentation changes should cover both settings-embedded docs and the full documentation page, including user-manual metadata hiding and admin runbook metadata visibility.
 - `/kris` route regressions must include `src/pages/__tests__/KRIsPage.monitoring-status.test.tsx`.
 - The KRI regression gate must cover URL-sourced monitoring/timeliness filters, mutual exclusion between those filters, rapid filter-click loading recovery, and grouped-view parity.
 - `/vendors` grouped-view regressions must include `src/pages/__tests__/VendorsPage.grouped-views.test.tsx`.
@@ -215,7 +216,7 @@ cd backend
 venv/bin/pytest ../tests/backend/pytest/test_admin_docs.py -q
 
 cd ../frontend
-npm run test:run -- src/components/settings/__tests__/DocumentationSettings.test.tsx
+npm run test:run -- src/components/settings/__tests__/DocumentationSettings.test.tsx src/pages/__tests__/DocumentationPage.test.tsx src/components/documentation
 npx tsc --noEmit
 ```
 

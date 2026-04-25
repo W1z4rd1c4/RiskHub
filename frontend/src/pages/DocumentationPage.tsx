@@ -7,6 +7,11 @@ import { useTranslation } from '@/i18n/hooks';
 import { adminApi } from '@/services/adminApi';
 import { DocumentationMarkdown } from '@/components/documentation';
 import { stripDuplicateLeadingTitle } from '@/components/documentation/contentFormatting';
+import {
+    formatDocumentationTag,
+    getMaintainerReference,
+    shouldShowRawVersion,
+} from '@/components/documentation/documentationPresentation';
 
 export function DocumentationPage() {
     const { t, i18n } = useTranslation('common');
@@ -49,6 +54,7 @@ export function DocumentationPage() {
             : ''),
         [activeDoc],
     );
+    const maintainerReference = getMaintainerReference(activeDoc);
 
     useEffect(() => {
         if (selectedTag !== 'all' && !availableTags.includes(selectedTag)) {
@@ -125,7 +131,7 @@ export function DocumentationPage() {
                             <span className="docs-reader-meta-chip bg-blue-500/20 text-blue-200 border border-blue-400/30">
                                 {audienceLabel}
                             </span>
-                            {activeDoc.version && (
+                            {shouldShowRawVersion(activeDoc) && (
                                 <span className="docs-reader-meta-chip">
                                     v{activeDoc.version}
                                 </span>
@@ -140,14 +146,14 @@ export function DocumentationPage() {
                                     key={tag}
                                     className="docs-reader-meta-chip"
                                 >
-                                    {tag}
+                                    {formatDocumentationTag(tag)}
                                 </span>
                             ))}
                         </div>
 
-                        {activeDoc.source_of_truth && (
+                        {maintainerReference && (
                             <p className="docs-reader-meta-source">
-                                Source: {activeDoc.source_of_truth}
+                                Maintainer reference: {maintainerReference}
                             </p>
                         )}
                     </div>
@@ -253,7 +259,7 @@ export function DocumentationPage() {
                                         key={`${doc.id}-${tag}`}
                                         className="px-2 py-0.5 rounded text-[10px] uppercase tracking-wider font-semibold bg-white/5 text-slate-300"
                                     >
-                                        {tag}
+                                        {formatDocumentationTag(tag)}
                                     </span>
                                 ))}
                             </div>

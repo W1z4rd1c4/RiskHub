@@ -1,6 +1,6 @@
 ---
 title: Risk Hub (CRO Configuration Workspace)
-version: "2.1"
+version: "2.4"
 last_updated: "2026-04-25"
 audience: user
 source_of_truth: "frontend/src/pages/RiskHubPage.tsx + frontend/src/components/riskhub/*"
@@ -13,283 +13,123 @@ tags:
   - notifications
   - troubleshooting
 ---
-
 # Risk Hub (CRO Configuration Workspace)
 
 **On this page**
-- [Overview](#overview)
+- [What This Page Helps You Do](#what-this-page-helps-you-do)
+- [Before You Start](#before-you-start)
 - [Where To Find It](#where-to-find-it)
-- [Roles, Scope, and Visibility](#roles-scope-and-visibility)
-- [Data Model and Key Fields](#data-model-and-key-fields)
-- [Core Workflows](#core-workflows)
-- [Approvals and Notifications Behavior](#approvals-and-notifications-behavior)
-- [Filters, Views, and Exports](#filters-views-and-exports)
-- [Common Mistakes](#common-mistakes)
+- [What You Can See and Change](#what-you-can-see-and-change)
+- [How To Complete Common Tasks](#how-to-complete-common-tasks)
+- [Approvals and Notifications](#approvals-and-notifications)
+- [Finding, Filtering, and Evidence](#finding-filtering-and-evidence)
+- [Tips and Common Mistakes](#tips-and-common-mistakes)
 - [Troubleshooting](#troubleshooting)
-- [Related Documentation](#related-documentation)
+- [Related Manuals](#related-manuals)
 
-## Overview
+## What This Page Helps You Do
 
-Risk Hub is the CRO-facing configuration workspace. It exists because some changes are *policy-level* decisions, not day-to-day record edits.
+Use this manual when you need to manage the business settings that shape risk classification, questionnaires, roles, departments, and operating expectations. It is written for CRO users configuring business risk management settings, so it focuses on what to do in the app, what to check before you act, and what result to expect after the work is done.
 
-In Risk Hub you can:
+The page is not a technical reference. It explains the everyday operating pattern: start from the right Risk Hub tab, confirm the configuration or questionnaire item, make the smallest useful change, and then verify the saved state in the panel.
 
-- define the risk type taxonomy used throughout the UI
-- maintain system settings (thresholds, approvals, notifications configuration)
-- configure approval scenarios and approver roles
-- manage roles and permission bundles
-- manage departments used for routing and reporting
-- send risk questionnaires in batches (risk assessment workflow)
+You will use this area most often for:
 
-Primary route: `/risk-hub`
+- risk types
+- questionnaires
+- roles
+- departments
+- configuration panels
+- send questionnaire flow
 
-Think of Risk Hub as "configuration with blast radius". A small change can impact dashboards, scoring, and workflow volume.
+## Before You Start
+
+Before working in this area, confirm three things. First, make sure you are signed in with the role you normally use for business work. Second, clear any old filters if the list looks incomplete. Third, check whether the record already has pending work in Approvals or Notifications.
+
+If a button or tab is missing, treat that as a normal access signal, not as an error. RiskHub only shows actions that fit your role, scope, record ownership, and the current record state. When an action is unavailable, ask the record owner or your access contact to review it instead of trying to work around the screen.
+
+Have the record name, code, owner, and department ready before asking for help. Those details make support and audit conversations much faster.
 
 ## Where To Find It
 
-- Sidebar item **Risk Hub** → `/risk-hub`
+Primary route: `/risk-hub`
 
-If you do not see Risk Hub:
+You can usually reach this area from the left sidebar. Risk Hub is a tabbed workspace for configuration panels and questionnaire workflows. Work stays inside the active tab, row, modal, or questionnaire action.
 
-- Risk Hub is visible only to the CRO role
-- if you believe you are CRO but cannot access it, verify your role assignment and re-authenticate
+Common navigation pattern:
 
-## Roles, Scope, and Visibility
+1. Open Risk Hub.
+2. Choose the relevant tab: risk types, settings, approval rules, roles, departments, or questionnaires.
+3. Clear filters or search fields where the panel provides them.
+4. Open the row, modal, or questionnaire action offered by that panel.
+5. Verify the saved state before leaving the tab.
 
-Risk Hub is intentionally restricted:
+## What You Can See and Change
 
-- the CRO role is expected to operate cross-department governance
-- configuration changes affect many users and can change how approvals and notifications behave
+What you can see depends on your role, department scope, and record ownership. A user with broad review responsibility may see more records than a user responsible for one department. A record owner may be able to act on a record even when it is outside the owner’s usual department view.
 
-Before making changes, answer:
+Typical information in this area includes:
 
-- Who will be impacted?
-- What will change in their workflow tomorrow morning?
-- What verification proves the change did what we intended?
+- Risk type labels
+- Questionnaire templates
+- Assignees
+- Reviewers
+- Role names
+- Department names
+- Status and due dates
 
-If you are delegating configuration work, use a clear handoff with:
+Changes should be practical and easy to explain. If the change affects ownership, scoring, closure, archive state, or other governance-sensitive information, expect a review step in some environments. Read-only users can still use the page for investigation, filtering, and evidence gathering.
 
-- the intended outcome
-- the rollback plan
-- a verification checklist (see sections below)
+## How To Complete Common Tasks
 
-## Data Model and Key Fields
+Follow this basic workflow unless your team has a stricter local procedure:
 
-Risk Hub is organized into tabs. The table below is a practical reference of what matters.
+1. Review risk taxonomy.
+2. Send questionnaires to owners.
+3. Monitor questionnaire status.
+4. Review clarifications.
+5. Maintain role intent.
+6. Keep department ownership clean.
 
-| Tab | Key fields | What it affects | Common pitfalls |
-|---|---|---|---|
-| Risk types | `code`, `display_name`, `description`, `color`, `sort_order`, active/deleted | Risk register taxonomy, grouping, badges | Renaming without communication; inconsistent codes; too many types. |
-| System settings | config `key`, `value`, `value_type` (bool/int/string), min/max, editable | Threshold behavior, approval/notification tuning | Treating settings as “tweak until it feels right” without a baseline. |
-| Approval rules | scenario `key`, `requires_approval`, `approver_roles` (including special dynamic role `risk_owner`) | Workflow volume and who can approve | Removing approvals and losing control; misconfigured approver roles. |
-| Roles | role identifier `name`, `display_name`, `description`, permission list (`resource:action`) | Access enforcement across modules | Giving broad permissions; role proliferation; unclear role intent. |
-| Departments | `name`, `code`, `manager`, active/deleted | Routing, scope, reporting | Changing codes breaks continuity; missing manager assignment. |
-| Questionnaires | filters (department/process/category/status), owner names, select all vs selected IDs, batch send results | Risk assessment pressure and inbox volume | Sending without owners; sending too broadly; not tracking skipped items or existing open questionnaires. |
+After saving or submitting, verify the result in the same Risk Hub panel and any expected notification or questionnaire status. If the page reports that the item changed while you were working, refresh and review the current row before trying again.
 
-## Core Workflows
+When linking records, choose only relationships that are useful to another reviewer. A link should explain a real business relationship: a control reduces a risk, a KRI monitors a risk, a vendor contributes to an exposure, or an issue tracks remediation for a specific problem.
 
-### 1) Maintain risk type taxonomy (Risk Types tab)
+## Approvals and Notifications
 
-A good taxonomy is stable and minimal.
+Risk Hub changes can affect many users. Use focused changes, review the visible impact, and check approval or notification queues when configuration changes are sensitive.
 
-Recommended process:
+Use approval notes to explain the business reason, not just the button you clicked. A good note says what changed, why it is appropriate, and what evidence supports the decision. Notifications are reminders and pointers; Risk Hub panels and Activity Log entries show the current context.
 
-1. Review existing risk types and confirm each has a distinct meaning.
-2. Add a new type only when a real reporting or governance need exists.
-3. Use `code` as the stable identifier (lowercase + underscore style).
-4. Use `display_name` for user-facing labels.
-5. Pick colors that communicate category without creating “severity” confusion.
-6. Use `sort_order` to keep the UI predictable.
+If you receive a stale or rejected approval, do not immediately resubmit the same change. Reopen the relevant Risk Hub panel, compare the current state with your intended update, and submit a new focused change only if it is still needed.
 
-When you deprecate a type:
+## Finding, Filtering, and Evidence
 
-- prefer marking as deleted/inactive rather than renaming to something else
-- communicate the change and update any guidance that references the old type
+Use Risk Hub summaries, status tables, and linked questionnaire views for operating reviews. Risk Hub is a configuration workspace and does not provide a general export button.
 
-### 2) Adjust system settings safely (System Settings tab)
+For reliable results, work in this order:
 
-System settings are usually grouped (for example: thresholds, approvals, notifications).
+1. Open the relevant configuration panel or questionnaire view.
+2. Filter or scan to the role, department, risk type, or questionnaire batch you need.
+3. Open the relevant row, modal, or questionnaire action before changing settings.
+4. Verify the saved state and any notifications created by the workflow.
 
-Safe change protocol:
+For formal evidence, use questionnaire history, the saved panel state, or Activity Log rather than expecting a Risk Hub export from this page.
 
-1. Identify the exact key you intend to change.
-2. Write down the current value.
-3. Decide the target value and why.
-4. Save the smallest change.
-5. Verify the behavior in the impacted module.
+## Tips and Common Mistakes
 
-Examples of good verification:
+- Keep role names understandable to business users.
+- Do not send questionnaires until owners and due dates are clear.
+- Use clarification requests when an answer is incomplete instead of rejecting the whole assessment too early.
 
-- thresholds: a risk or KRI crosses the threshold and the UI reflects it correctly
-- notifications: the intended notification appears (not 10 extra ones)
-- approvals: a sensitive change creates a workflow request and lands in `/approvals`
-
-### 3) Configure approval scenarios (Approval Rules tab)
-
-Approval scenarios define:
-
-- whether an action requires approval
-- which roles can approve
-
-Good governance is not “approvals everywhere”. It is approvals for actions with real policy impact.
-
-Recommended approach:
-
-1. Keep approvals enabled for ownership/department/risk-scoring changes unless you have a documented alternative control.
-2. Use approver roles that match accountability.
-3. Use the `risk_owner` dynamic role when the risk owner is the right approver (and conflict-of-interest rules allow it).
-4. Avoid “no approvers configured” states: they create stuck requests.
-
-After changing an approval scenario, run a real end-to-end test (create a request and verify resolution).
-
-### 4) Manage roles and permissions (Roles tab)
-
-Roles are permission bundles.
-
-Recommended operating model:
-
-- keep the number of roles small
-- each role should have a clear description (what it is for and what it is not)
-- grant the minimum permissions needed
-
-Permissions are expressed as `resource:action` (for example `vendors:read`, `issues:write`).
-
-Before saving a role change:
-
-- list which modules will be newly visible
-- list which write actions become possible
-- confirm whether this changes who can view governance surfaces (risk hub, governance, users access mode)
-
-If you remove permissions:
-
-- communicate it (people will experience it as “the app broke”)
-- provide an alternative workflow if needed
-
-### 5) Manage departments (Departments tab)
-
-Departments affect reporting and routing.
-
-Safe process:
-
-1. Create a department with a stable `code`.
-2. Assign a manager where possible (helps routing and accountability).
-3. Avoid renaming codes unless you have a clear migration plan.
-4. If you delete/deactivate a department, verify what happens to:
-   - risks and controls assigned to it
-   - users assigned to it
-   - dashboard grouping
-
-### 6) Send risk questionnaires (Questionnaires tab)
-
-Questionnaires are a structured “risk assessment request” workflow.
-
-Batch sending has two modes:
-
-- **Select all**: send to all risks matching filters
-- **Selected IDs**: send to only the checked risks
-
-Recommended workflow:
-
-1. Filter to the intended scope (department/process/category/status).
-2. Verify that risks have owners (or you will see “skipped_no_owner”).
-3. Prefer “Selected IDs” for high-stakes cycles (reduces accidental spam).
-4. Send.
-5. Review results:
-   - created count
-   - skipped because no owner
-   - skipped because an open questionnaire already exists
-   - error list
-6. Follow up on skipped items (assign owners or close existing questionnaires).
-
-Questionnaires contribute to the workflow badge count and to `/approvals` (risk assessment tab).
-
-Important questionnaire behavior:
-
-- a risk can have only one open questionnaire at a time (`sent` or `in_progress`)
-- batch send and single send use the same skip semantics for missing owner and existing open questionnaire
-- the table displays owner names; `Unknown user` means the owner label could not be resolved and should be checked before sending
-- questionnaire actions shown to assignees and reviewers are driven by backend capabilities, so stale role assumptions in the browser should not be trusted
-- clarification requests are reviewer-driven and responses are limited to the questionnaire assignee
-
-Roles and departments:
-
-- role permission updates are atomic; if any selected permission is invalid, the backend rejects the save and keeps the current permission set
-- department manager assignment requires an active user
-- deleting a department is blocked while it still owns active users, risks, controls, KRIs, vendors, or pending orphan records
-- role and department action buttons follow backend capability metadata when available, so stale browser assumptions should not decide whether edit/delete/restore is possible
-
-## Approvals and Notifications Behavior
-
-Risk Hub changes are governance changes.
-
-Expect:
-
-- immediate impact on UI behavior (taxonomy, thresholds)
-- potential workflow impact (more or fewer approval requests)
-- notifications and audit trails for important changes
-
-If a change doesn’t behave as expected:
-
-- check `/activity-log` for the configuration update event
-- validate the scenario by performing a real user action that should trigger it
-- if an approval should exist but doesn’t, review the approval scenario configuration
-- if questionnaire reminders appear suppressed, check whether the reminder belongs to the same questionnaire instance; new questionnaire instances are deduped separately
-
-Use `./notifications.md` as the canonical queue manual.
-
-## Filters, Views, and Exports
-
-Risk Hub uses lightweight “show deleted/inactive” toggles in several tabs.
-
-Practical guidance:
-
-- keep deleted items hidden during normal operation (reduces mistakes)
-- enable “show deleted” only when restoring or investigating
-
-Exports are not the primary surface here. If you need evidence:
-
-- use Activity Log for configuration change proof
-- export affected entities from their module pages (risks, controls, issues)
-
-## Common Mistakes
-
-- Changing taxonomy (risk types) during an active reporting cycle without communication.
-- Disabling approvals to “reduce friction” and accidentally removing a key control.
-- Adding roles for one-off cases instead of adjusting permissions deliberately.
-- Batch-sending questionnaires too broadly (creates inbox spam and erodes trust).
-- Treating system settings as an experimentation playground without a baseline and rollback.
+Common mistakes are usually caused by stale panel data, unclear ownership, duplicate-looking names, or trying to make a broad change when a focused change would be easier to review. If something looks wrong, first refresh the page and confirm the same result in the active panel.
 
 ## Troubleshooting
 
-### I can’t access `/risk-hub`
+If the page is empty, clear filters and search by a known record name. If the page is missing from the sidebar, your role may not include that work area. If a save fails, read the message, refresh the record, and check whether another user changed it first.
 
-- Risk Hub is CRO-only. Confirm your role.
-- Log out and back in to refresh role state.
+If a linked record is missing, you may not have access to that related item. Ask for the business name or code rather than a technical identifier. For support, include your role, the route you were using, the record name, the action you attempted, and the exact message shown on screen.
 
-### A configuration change doesn’t appear to apply
+## Related Manuals
 
-- Refresh the page.
-- Check whether the change is blocked by network errors.
-- Use `/activity-log` (if you have access) to confirm the update event.
-
-### Questionnaires are skipped
-
-- `skipped_no_owner`: assign owners to the risks, then re-send.
-- `skipped_open_exists`: close or resolve existing open questionnaires before re-sending.
-
-### Approvals are stuck after a scenario change
-
-- Ensure approver roles are configured.
-- Verify at least one user actually has the approver role and the needed permissions.
-- If stuck, revert the scenario and re-test.
-
-## Related Documentation
-
-- `./notifications.md`
-- `./risks.md`
-- `./kris.md`
-- `./controls.md`
-- `./issues.md`
-- `./departments.md`
-- `./access-management.md`
-- `./activity-log.md`
+Start with [Risks](./risks.md), [Notifications](./notifications.md), [Governance](./governance.md), [Access Management](./access-management.md), [Departments](./departments.md). These manuals explain the connected workflows and help you follow the record from signal to action to evidence.

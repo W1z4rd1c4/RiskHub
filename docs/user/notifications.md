@@ -1,6 +1,6 @@
 ---
 title: Notifications and Approvals
-version: "2.1"
+version: "2.4"
 last_updated: "2026-04-25"
 audience: user
 source_of_truth: "frontend/src/pages/ApprovalsPage.tsx + frontend/src/pages/NotificationsPage.tsx + docs/BUSINESS_LOGIC.md"
@@ -12,292 +12,120 @@ tags:
   - audit
   - troubleshooting
 ---
-
 # Notifications and Approvals
 
 **On this page**
-- [Overview](#overview)
+- [What This Page Helps You Do](#what-this-page-helps-you-do)
+- [Before You Start](#before-you-start)
 - [Where To Find It](#where-to-find-it)
-- [Roles, Scope, and Visibility](#roles-scope-and-visibility)
-- [Data Model and Key Fields](#data-model-and-key-fields)
-- [Core Workflows](#core-workflows)
-- [Approvals and Notifications Behavior](#approvals-and-notifications-behavior)
-- [Filters, Views, and Exports](#filters-views-and-exports)
-- [Common Mistakes](#common-mistakes)
+- [What You Can See and Change](#what-you-can-see-and-change)
+- [How To Complete Common Tasks](#how-to-complete-common-tasks)
+- [Approvals and Notifications](#approvals-and-notifications)
+- [Finding, Filtering, and Evidence](#finding-filtering-and-evidence)
+- [Tips and Common Mistakes](#tips-and-common-mistakes)
 - [Troubleshooting](#troubleshooting)
-- [Related Documentation](#related-documentation)
+- [Related Manuals](#related-manuals)
 
-## Overview
+## What This Page Helps You Do
 
-RiskHub uses workflow for governance. The workflow system shows up in two places:
+Use this manual when you need to understand what needs your attention, decide approval requests consistently, respond to reminders, and know where to look when a change is waiting. It is written for users who receive tasks, approval requests, reminders, or workflow updates, so it focuses on what to do in the app, what to check before you act, and what result to expect after the work is done.
 
-- **Notifications** (`/notifications`): your operational inbox
-- **Approvals** (`/approvals`): the queue of approval requests and risk assessment questionnaires
+The page is not a technical reference. It explains the everyday operating pattern: start from Notifications or Approvals, review the message or request, act only when the action is clear, and then verify the item state.
 
-The mental model that works in production:
+You will use this area most often for:
 
-- Notifications tell you *what needs attention*.
-- Approvals tell you *what needs a decision*.
-- Activity Log (if you have access) tells you *what actually changed*.
+- notification bell
+- notifications page
+- approvals page
+- decision notes
+- linked records
 
-A healthy workflow culture is not “approve everything quickly”. It is:
+## Before You Start
 
-- decisions with explicit rationale
-- predictable escalation
-- minimal backlog
-- clear ownership of next actions
+Before working in this area, confirm three things. First, make sure you are signed in with the role you normally use for business work. Second, clear any old filters if the list looks incomplete. Third, check whether the record already has pending work in Approvals or Notifications.
 
-Primary routes:
+If a button or tab is missing, treat that as a normal access signal, not as an error. RiskHub only shows actions that fit your role, scope, record ownership, and the current record state. When an action is unavailable, ask the record owner or your access contact to review it instead of trying to work around the screen.
 
-- `/notifications`
-- `/approvals`
+Have the record name, code, owner, and department ready before asking for help. Those details make support and audit conversations much faster.
 
 ## Where To Find It
 
-- Sidebar item **Approvals** → `/approvals`
-- Sidebar item **Notifications** → `/notifications`
+Primary route: `/notifications`
 
-If you don’t see these routes:
+You can usually reach this area from the left sidebar or notification bell. Notifications and Approvals are inbox surfaces with tabs, lists, row expansion, decision dialogs, and pagination. A notification may take you to a supported related page; otherwise, work stays in the inbox.
 
-- approvals are usually visible to most business users, but the ability to resolve depends on permissions
-- notifications are typically visible if your account receives workflow events
+Common navigation pattern:
 
-If access seems wrong, validate your role and permissions as described in `./access-management.md`.
+1. Open Notifications or Approvals.
+2. Choose All, Unread, Pending, or the relevant approval tab.
+3. Read the message, requester, due date, and current state.
+4. Expand the row or open the decision dialog when available.
+5. Follow a related page link only when the notification provides one.
 
-## Roles, Scope, and Visibility
+## What You Can See and Change
 
-### Who can resolve approvals?
+What you can see depends on your role, department scope, and record ownership. A user with broad review responsibility may see more records than a user responsible for one department. A record owner may be able to act on a record even when it is outside the owner’s usual department view.
 
-Approvals have two audiences:
+Typical information in this area includes:
 
-- **requesters**: people who propose a change (they should be able to track status)
-- **resolvers**: people who can approve/reject (policy-driven)
+- Notification title
+- Related record
+- Due date
+- Approval requester
+- Decision note
+- Current status
 
-In the UI, the ability to resolve approvals is permission-gated. A common pattern is:
+Changes should be practical and easy to explain. If the change affects ownership, scoring, closure, archive state, or other governance-sensitive information, expect a review step in some environments. Read-only users can still use the page for investigation, filtering, and evidence gathering.
 
-- `approvals:write` is required to approve/reject
-- users without resolver permissions still see “My requests” and can cancel their own requests
+## How To Complete Common Tasks
 
-### Scope matters
+Follow this basic workflow unless your team has a stricter local procedure:
 
-Approvals are tied to resources (risk/control/kri) and your visibility is still governed by scope.
+1. Open a notification.
+2. Follow it to the related record.
+3. Review an approval request.
+4. Approve or reject with a clear note.
+5. Clear reminders after the underlying work is complete.
 
-If you can’t find an approval someone references:
+After approving, rejecting, cancelling, or marking items read, verify that the inbox row updates and the badge count changes. If the page reports that the item changed while you were working, refresh and review the current row before trying again.
 
-- you may not have visibility to the underlying resource
-- or the approval is not assigned to your scope/role group
+When acting from a notification, make the decision from the current message and related context, not from memory of an older state.
 
-### Admin vs business users
+## Approvals and Notifications
 
-Platform admins are intentionally separated from business workflow. They should support workflow from the platform side, not act as business approvers.
+Approvals are the control point for sensitive changes. Review the record context, compare the requested change with the current state, and write a decision note that another reviewer can understand.
 
-## Data Model and Key Fields
+Use approval notes to explain the business reason, not just the button you clicked. A good note says what changed, why it is appropriate, and what evidence supports the decision. Notifications are reminders and pointers; the inbox row and Activity Log help reconstruct the workflow.
 
-### Approval requests
+If you receive a stale or rejected approval, do not immediately resubmit the same change. Refresh the inbox, compare the current row with your intended update, and submit a new focused change only if it is still needed.
 
-| Field | Meaning | Notes |
-|---|---|---|
-| Resource type | `risk`, `control`, `kri` | Which domain the request affects. |
-| Action type | `edit` or `delete` | Deletion includes archive/restore-like governance depending on policy. |
-| Pending changes | Field-level deltas (old → new) | Review these carefully; don’t approve blind. |
-| Reason | Requester’s rationale | Should answer “why now” and “why safe”. |
-| Status | `pending`, `pending_privileged`, `approved`, `rejected`, `cancelled` | `pending_privileged` indicates higher-sensitivity gating. |
-| Requested by | Who initiated | Use for follow-up questions. |
-| Resolved by / at | Who decided and when | This is audit-critical. |
-| Resolution notes | The decision narrative | Required in the UI for approvals/rejections. |
+## Finding, Filtering, and Evidence
 
-### Notifications
+Use filters and status cues to triage notifications and approvals. The Notifications and Approvals pages do not provide an export button, so use them to make decisions and reconstruct workflow context.
 
-Notifications are typed events. Common categories:
+For reliable results, work in this order:
 
-- approvals: `approval_pending`, `approval_resolved`, `approval_cancelled`
-- KRIs: due/overdue and breach detection
-- questionnaires: sent/due/overdue/submitted/clarification
+1. Start with the unread, pending, or most recent items.
+2. Open the related page before approving, rejecting, or escalating when the notification provides one.
+3. Record clear decision notes when you act.
+4. Use Activity Log and the current inbox state when you need an evidence trail.
 
-Each notification includes:
+For formal evidence, use the Activity Log entry and the current inbox or approval row that records the decision.
 
-- title/message for quick scanning
-- a resource pointer (type/id) when it is tied to an entity
-- read/unread state
-- timestamps (created and sometimes expires)
+## Tips and Common Mistakes
 
-## Core Workflows
+- Do not approve a change you cannot explain.
+- If the record changed since the request was created, reject or ask for a fresh request.
+- Use reminders as prompts to complete the work, not as evidence by themselves.
 
-### 1) Daily queue triage (recommended cadence)
-
-Run this twice daily in most environments (morning + late afternoon):
-
-1. Open `/notifications`.
-2. Switch to **Unread**.
-3. Process in priority order:
-   - approval pending
-   - overdue KRI / questionnaire
-   - breach alerts
-4. Open `/approvals` and clear pending decisions you are responsible for.
-5. Re-check `/notifications` for outcomes.
-
-This keeps backlog low and prevents “silent drift” where risky changes accumulate without oversight.
-
-### 2) Approve or reject a request
-
-When you resolve an approval, do it like a control:
-
-1. Open the approval request.
-2. Read the **reason**.
-3. Review **pending changes** field by field.
-4. Ask: “If this were wrong, what would break?” (scope, reporting, ownership routing, thresholds).
-5. Decide approve or reject.
-6. Write resolution notes that a third party could understand in six months.
-
-Good resolution notes include:
-
-- why it is approved/rejected
-- what evidence you relied on
-- any conditions or follow-up actions
-
-### 3) Cancel a request you created
-
-If you are the requester and the request is no longer valid:
-
-- cancel it instead of letting it expire in pending
-- leave a short note in your team channel or ticket system explaining the cancellation
-
-Cancellation is a governance action: it reduces queue noise and prevents stale changes from being approved later.
-
-### 4) Risk assessment questionnaires (Approvals tab)
-
-The approvals page can include a “risk assessment” view powered by questionnaires.
-
-Use it to:
-
-- see which risk owners have outstanding questionnaires
-- follow up on overdue submissions
-- track clarifications
-
-Operational pattern:
-
-- treat questionnaires like time-boxed requests
-- follow up early (before overdue) to avoid last-minute low-quality responses
-- KRI due/overdue reminders are period-aware; an older period reminder should not hide a new period that needs reporting
-- KRI breach reminders are state-aware; a changed breach direction or threshold context can create a new notification
-- questionnaire due-soon/overdue reminders are deduped per questionnaire instance, not just per risk
-- notifications still navigate to the parent risk so the recipient lands in the operational context
-
-### 5) Close the loop after a decision
-
-Approvals are only valuable if the operational world updates accordingly.
-
-After approving a sensitive change:
-
-- confirm the entity reflects the new state
-- confirm stakeholders were notified (or that the change is visible where expected)
-- if the change affects reporting, note the date so reviewers understand breakpoints
-
-## Approvals and Notifications Behavior
-
-### The most important behavior: 202 “queued changes”
-
-Some edits are not applied immediately. Instead, the backend returns a queued approval response (often surfaced as “pending changes” in the UI).
-
-Practical consequences:
-
-- the list may show a “pending” indicator on the item
-- the old value may remain visible until approval
-- you must check `/approvals` to see whether the request exists and who can resolve it
-
-### Notifications are signals, not actions
-
-Notifications are designed to reduce scanning cost. Your job is to convert them into actions:
-
-- resolve an approval
-- update an entity
-- create an Issue
-- follow up with an owner
-
-If a notification “keeps coming back”, it is usually telling you the underlying policy is not being executed (overdue KRI, repeated breach, stuck approval).
-
-Approval execution is apply-time validated. A queued change can be rejected during approval if the target record changed while the request was pending; read the resolution notes before resubmitting.
-
-### Preference tuning
-
-Notification preferences may be configurable in Settings depending on your deployment. If you are overwhelmed:
-
-- do not mute everything
-- tune high-volume categories while keeping governance-critical categories on (approvals, breaches)
-
-## Filters, Views, and Exports
-
-### Approvals filters
-
-The approvals page supports operational filters:
-
-- **Pending**: the active queue
-- **My requests**: what you submitted (useful for follow-up)
-- **All**: history (useful for audits and “why did this change?” questions)
-- **Risk assessment**: questionnaires view
-
-Use “Pending” as your primary queue view.
-
-### Notifications filters
-
-Notifications typically support:
-
-- **All** vs **Unread**
-- pagination
-- mark all as read
-
-Treat “mark all read” as a decision: only do it when you have either acted or consciously deferred.
-
-### Exports
-
-Approvals and notifications are not primarily export surfaces.
-
-If you need evidence:
-
-- export the underlying entities (risks, controls, issues)
-- use Activity Log for timestamped change proof
-- capture approval IDs and resolution notes in your audit pack narrative
-
-## Common Mistakes
-
-- Approving without reading pending changes.
-- Using one-line resolution notes (“ok”) for complex governance changes.
-- Letting “pending” build up because nobody owns queue discipline.
-- Treating notifications as “FYI” and not converting them into actions.
-- Muting approvals/breaches because they are noisy (fix the underlying cause instead).
+Common mistakes are usually caused by stale inbox data, unread filters, unclear requester context, or acting from an old notification. If something looks wrong, first refresh the page and confirm the same result in the inbox row.
 
 ## Troubleshooting
 
-### I am not receiving notifications I expect
+If the page is empty, clear filters and search by a known record name. If the page is missing from the sidebar, your role may not include that work area. If a save fails, read the message, refresh the record, and check whether another user changed it first.
 
-- Check whether you are the owner/requester of the entity.
-- Check whether preferences are disabled (if configurable).
-- Validate that the action actually occurred (Activity Log is best if you have access).
+If a linked record is missing, you may not have access to that related item. Ask for the business name or code rather than a technical identifier. For support, include your role, the route you were using, the record name, the action you attempted, and the exact message shown on screen.
 
-### My edit saved but the value didn’t change
+## Related Manuals
 
-- You likely triggered an approval queue.
-- Check `/approvals` for a pending request.
-- Check `/notifications` for resolution outcomes.
-
-### I can see approvals but can’t resolve them
-
-- You probably have `approvals:read` but not `approvals:write`.
-- Escalate to your workflow owner to confirm approver role assignment.
-
-### Approvals are “stuck”
-
-- Confirm the request has an eligible approver.
-- Confirm approvers are active users.
-- If the request is invalid, cancel and re-submit with clearer rationale.
-
-## Related Documentation
-
-- `./getting-started.md`
-- `./access-management.md`
-- `./activity-log.md`
-- `./risks.md`
-- `./controls.md`
-- `./kris.md`
-- `./issues.md`
-- `./vendors.md`
+Start with [Activity Log](./activity-log.md), [Risks](./risks.md), [Controls](./controls.md), [Kris](./kris.md), [Issues](./issues.md). These manuals explain the connected workflows and help you follow the record from signal to action to evidence.

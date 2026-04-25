@@ -1,6 +1,6 @@
 ---
 title: Správa nálezů (Issues)
-version: "2.3"
+version: "2.4"
 last_updated: "2026-04-25"
 audience: user
 source_of_truth: "frontend/src/pages/IssuesPage.tsx + frontend/src/pages/issues/* + issue workflows in backend"
@@ -13,258 +13,125 @@ tags:
   - exports
   - troubleshooting
 ---
-
 # Správa nálezů (Issues)
 
 **Na této stránce**
-- [Přehled](#prehled)
+- [S čím vám tato stránka pomůže](#s-čím-vám-tato-stránka-pomůže)
+- [Než začnete](#než-začnete)
 - [Kde to najdete](#kde-to-najdete)
-- [Role, scope a viditelnost](#role-scope-a-viditelnost)
-- [Datový model a klíčová pole](#datovy-model-a-klicova-pole)
-- [Hlavní workflow](#hlavni-workflow)
-- [Schvalování a notifikace](#schvalovani-a-notifikace)
-- [Filtry, pohledy a exporty](#filtry-pohledy-a-exporty)
-- [Časté chyby](#caste-chyby)
+- [Co můžete vidět a měnit](#co-můžete-vidět-a-měnit)
+- [Jak dokončit běžné úkoly](#jak-dokončit-běžné-úkoly)
+- [Schvalování a notifikace](#schvalování-a-notifikace)
+- [Vyhledávání, filtrování a evidence](#vyhledávání-filtrování-a-evidence)
+- [Tipy a časté chyby](#tipy-a-časté-chyby)
 - [Troubleshooting](#troubleshooting)
-- [Související dokumentace](#souvisejici-dokumentace)
+- [Související manuály](#související-manuály)
 
-## Přehled
+## S čím vám tato stránka pomůže
 
-Nálezy (Issues) jsou v RiskHubu základní provozní nástroj pro evidenci problému, jeho nápravu (remediaci), sledování termínů a uložení důkazů. Záměrně nejsou „komplexní ticketing“ systém. Smysl je rychle a auditovatelně popsat „co“, „proč je to důležité“ a „kdo/za kdy“.
+Tento manuál použijte, když potřebujete zapisovat nálezy, přiřazovat remediation, sledovat postup, řešit výjimky a uzavírat s důkazem. Je určen pro uživatele odpovědné za remediation a uzavírání nálezů, proto popisuje praktický postup v aplikaci: kde začít, co ověřit před akcí a jak poznat, že je práce dokončená.
 
-Použijte Issue, když:
+Text není technická reference. Vysvětluje běžný provozní postup: otevřít správnou stránku, ověřit správný záznam, provést nejmenší užitečnou změnu a zkontrolovat výsledek v seznamu, detailu, notifikacích nebo aktivitě.
 
-- selhala nebo byla neúplná exekuce kontroly
-- KRI překročilo limit a je potřeba nápravná akce
-- audit/review identifikoval gap
-- někdo nahlásí opakující se problém, který je potřeba řídit přes status a termín
+Tuto oblast budete používat hlavně pro:
 
-Issue je kvalitní, když čtenář dokáže bez doplňujících otázek odpovědět:
+- seznam nálezů
+- detail nálezu
+- remediation plán
+- přiřazení
+- postup
+- výjimky
+- kontroly před uzavřením
 
-- Co přesně je špatně?
-- Kdo je owner dalšího kroku?
-- Jaký je termín a co hrozí při zpoždění?
-- Jaký důkaz ukáže, že oprava je hotová?
+## Než začnete
 
-Hlavní route: `/issues`
+Před prací si ověřte tři věci. Zaprvé, že jste přihlášeni rolí, se kterou běžně pracujete. Zadruhé, že staré filtry neskrývají očekávaná data. Zatřetí, že na záznamu už nečeká práce ve Schvalování nebo Notifikacích.
+
+Pokud tlačítko nebo záložka chybí, berte to jako běžný signál přístupu, ne jako chybu. RiskHub zobrazuje akce podle vaší role, rozsahu, ownership a aktuálního stavu záznamu. Když akce není dostupná, požádejte vlastníka záznamu nebo správce přístupů o kontrolu.
+
+Pro podporu mějte připravený název záznamu, kód, vlastníka a oddělení. Tyto údaje výrazně zrychlují komunikaci.
 
 ## Kde to najdete
 
-- seznam nálezů (register): `/issues`
-- detail nálezu: otevřete libovolný řádek ze seznamu
-- kontextové odkazy: v některých modulech můžete vidět nálezy navázané na Rizika/Kontroly/KRI/Dodavatele (podle oprávnění)
+Primární cesta: `/issues`
 
-Pokud **Issues** nevidíte v levém menu:
+Většinou se sem dostanete z levého menu. Detail otevřete výběrem řádku nebo karty s vazbou. Pokud jste přišli z jiného záznamu, použijte návrat nebo odkazy na související záznamy.
 
-- pravděpodobně nemáte oprávnění `issues:read` (resource `issues`, action `read`)
-- nebo máte role/scope, které neumožňují viditelnost mimo vaše oddělení
+Běžný postup navigace:
 
-Začněte kontrolou přístupu v `/settings` a poté požádejte správce přístupů o ověření „effective permissions“.
+1. Otevřete seznam.
+2. Vyčistěte filtry, pokud si nejste jistí viditelností.
+3. Hledejte podle názvu, vlastníka, dodavatele nebo oddělení.
+4. Otevřete záznam.
+5. Před úpravou zkontrolujte vazby a poslední aktivitu.
 
-## Role, scope a viditelnost
+## Co můžete vidět a měnit
 
-Nálezy respektují stejný model viditelnosti jako další business entity:
+Viditelnost závisí na roli, rozsahu oddělení a ownership. Uživatel se širší review odpovědností může vidět více záznamů než uživatel jednoho oddělení. Vlastník záznamu může mít možnost jednat i mimo svůj běžný pohled.
 
-- **nejdřív scope**: globální role obvykle vidí více oddělení; oddělové role typicky jen své oddělení
-- **ownership výjimky**: ownership může otevřít viditelnost i mimo oddělení
-- **backend rozhoduje**: UI může skrývat tlačítka, ale autorita je API
+Typické informace v této oblasti:
 
-Typické odpovědnosti (popisně, ne jako „policy“):
+- Název
+- Závažnost
+- Vlastník
+- Termín
+- Navázané riziko/kontrola/dodavatel
+- Plán
+- Postup
+- Důkaz uzavření
 
-- **autor nálezu**: založí první verzi s jasným kontextem
-- **owner**: odpovídá za aktuální status, termín a koordinaci nápravy
-- **reviewer/2nd line**: validuje kvalitu uzavření a rozhoduje o výjimkách
+Změny mají být praktické a snadno vysvětlitelné. Pokud změna ovlivňuje ownership, scoring, uzavření, archivaci nebo jiné citlivé údaje, počítejte v některých prostředích s review krokem. Uživatelé jen pro čtení mohou stránku používat pro kontrolu, filtrování a evidenci.
 
-Zápis je vždy permission-gated:
+## Jak dokončit běžné úkoly
 
-- `issues:write` řídí zakládání a úpravy
-- některé přechody statusu mohou být řízené workflow (např. validace uzavření)
+Pokud váš tým nemá přísnější postup, použijte tento základní workflow:
 
-## Datový model a klíčová pole
+1. Založit nález.
+2. Přiřadit vlastníka a termín.
+3. Napsat plán.
+4. Aktualizovat postup.
+5. Požádat o výjimku.
+6. Uzavřít s důkazem.
 
-Tabulka níže shrnuje pole, která mají největší dopad na kvalitu řízení.
+Po uložení nebo odeslání ověřte výsledek. Seznam má ukázat nový stav, detail má odpovídat záměru a očekávaná notifikace nebo schválení má být dohledatelné. Pokud stránka hlásí, že záznam mezitím změnil někdo jiný, obnovte data a znovu posuďte aktuální stav.
 
-| Pole | Význam | Poznámky / časté chyby |
-|---|---|---|
-| Title | Krátký, vyhledatelný popis nálezu | Vyhněte se názvům typu „Issue“ nebo „Problem“. Dejte objekt + failure mód. |
-| Description | Co se stalo, co se mělo stát, dopad | Popište minimální reprodukovatelný kontext. Neřešte „vinu“. |
-| Severity | Prioritizační signál (low → critical) | Severity má odrážet dopad + urgentnost, ne „kdo tlačí“. |
-| Status | Stav (`open`, `triaged`, `in_progress`, `ready_for_validation`, `closed`) | Status je závazek. Neuzavírejte bez důkazů. |
-| Department | Kontext pro routing/reporting | Vyberte oddělení, které vlastní nápravu, ne nutně to, které nález našlo. |
-| Owner | Osoba odpovědná za další krok | Bez ownera se workflow rozpadá (a některé batch akce mohou přeskočit). |
-| Due date | Termín nápravy | Příliš ambiciózní termíny generují šum; příliš vzdálené maskují riziko. |
-| Source | Původ (manual, audit, KRI breach, control execution) | Pomáhá interpretovat očekávané důkazy. |
-| Remediation plan | Volitelný plán/rychlost nápravy | Udržujte plán v souladu se statusem. |
-| Exceptions | Časově omezená výjimka | Výjimka není uzavření. Musí mít expiraci a vlastníka revize. |
-
-Pokud si nejste jistí, optimalizujte pro *auditovatelnost*: i za několik měsíců musí být jasné, proč se rozhodlo tak, jak se rozhodlo.
-
-## Hlavní workflow
-
-### 1) Založení nového nálezu
-
-1. Otevřete `/issues`.
-2. Klikněte **New**.
-3. Vyplňte `Title` a `Description` tak, aby bylo možné jednat.
-4. Nastavte `Severity` a `Due date`.
-5. Vyberte `Department` a `Owner`.
-6. Uložte.
-7. Ověřte, že se nález zobrazuje ve správném scope.
-
-První verze „dost dobrá“ je lepší než perfektní pozdě. Pokud ještě neznáte ownera, napište do popisu explicitní další krok („Určit ownera do 2 dnů“).
-
-### 2) Triage
-
-Triage znamená udělat nález akční:
-
-- potvrdit severity
-- doplnit ownera a termín
-- rozhodnout, zda jde o quick fix nebo větší nápravu s plánem
-- pokud to vaše workflow podporuje, propojit kontext (riziko/kontrola/kri/dodavatel)
-
-Použijte `triaged`, když je jasné „kdo“ a „co dál“.
-
-### 3) Remediace a práce se statusem
-
-Doporučená interpretace statusů:
-
-- `open`: nově založené, ještě neroutované
-- `triaged`: přiřazeno + termín, práce je naplánovaná
-- `in_progress`: práce běží
-- `ready_for_validation`: oprava hotová, čeká na kontrolu
-- `closed`: ověřeno a uložené jako důkaz
-
-Pokud používáte remediation plan kartu, držte konzistenci:
-
-- stav plánu `draft/active/blocked/completed` nesmí být v rozporu se statusem nálezu
-- remediace je hotová jen když má plán stav `completed`, progress `100%` a existuje completion timestamp
-- nastavení stavu na completed nebo progressu na 100 % normalizuje ostatní completion pole
-- snížení progressu pod 100 % vrací nález z `ready_for_validation` do `in_progress`
-- rozporné aktualizace, například `blocked` s 100 % progressem, se odmítnou
-
-### 4) Uzavření s důkazy
-
-Uzavření je důkazní akt, ne jen klik.
-
-Před přechodem do `closed` zapište:
-
-- co se změnilo
-- jak jste ověřili funkčnost
-- kde leží důkaz (odkaz, ticket, reference ID)
-- jak se zachytí regres (pokud dává smysl)
-
-Pokud validace neprojde, vraťte do `in_progress` a napište konkrétní deficit („chybí důkaz za období X“, „kontrola stále failuje“, apod.).
-
-Uzavření vyžaduje hotovou remediaci. Nález v `ready_for_validation`, kterému byl progress snížen pod complete, nelze zavřít, dokud není remediace znovu kompletní.
-
-### 5) Výjimky (když nejde splnit nápravu včas)
-
-Výjimka je časově omezená akceptace rizika.
-
-Použijte ji, když:
-
-- náprava je blokovaná externí závislostí
-- náprava je neúměrná a existuje kompenzační kontrola
-- náprava je naplánovaná, ale nelze splnit termín z legitimních důvodů
-
-V Issue uveďte:
-
-- jaký požadavek se „waivuje“
-- jaké kompenzační kontroly existují
-- expiraci + kdo vlastní obnovu/review
-
-Když schválená výjimka expiruje nebo je revokována, uzavřené nálezy se znovu otevřou jen tehdy, pokud remediace není hotová. Hotová remediace zůstává zavřená.
+Při propojování záznamů vybírejte jen vazby, které dávají smysl dalšímu reviewerovi. Vazba má popsat skutečný business vztah: kontrola snižuje riziko, KRI riziko monitoruje, dodavatel vytváří expozici nebo nález řeší konkrétní problém.
 
 ## Schvalování a notifikace
 
-Nálezy typicky interagují s workflow dvěma způsoby:
+Některé změny mohou čekat na review, hlavně uzavření, výjimky a citlivé změny ownership. Pokud je uzavření blokované, doplňte chybějící důkaz.
 
-1. **Status a výjimky** mohou (podle policy) generovat schvalovací žádosti.
-2. **Navázané entity** (rizika/kontroly/kri) mohou generovat schvalování a Issue slouží jako kontext a odůvodnění.
+Poznámky ke schválení mají vysvětlit business důvod. Dobrá poznámka říká, co se změnilo, proč je to správně a jaký důkaz změnu podporuje. Notifikace jsou připomínky a navigace; detail záznamu zůstává nejlepším místem pro celý kontext.
 
-Praktická pravidla:
+Pokud je schválení stale nebo zamítnuté, neposílejte hned stejnou změnu znovu. Otevřete záznam, porovnejte aktuální stav se záměrem a odešlete novou úzkou změnu jen tehdy, pokud je stále potřeba.
 
-- Počítejte s notifikacemi při změně statusu, přiřazení ownera nebo při práci s výjimkami.
-- Pokud se změna po uložení neprojeví, zkontrolujte `/approvals` a `/notifications`.
-- Ke schválení vždy pište „resolution notes“. Je to součást audit trailu.
-- Pokud workflow akce vrátí konflikt, obnovte detail nálezu před dalším pokusem; backend mohl normalizovat nebo vrátit remediation stav.
+## Vyhledávání, filtrování a evidence
 
-Kompletní mechaniku front a triage najdete v: `./notifications.md`.
+Používejte pohledy podle vlastníka, závažnosti, stavu, termínu nebo dodavatele. Pro audit použijte detailní historii.
 
-## Filtry, pohledy a exporty
+Pro spolehlivý výsledek filtrujte v tomto pořadí:
 
-Seznam nálezů je navržený jako inbox.
+1. Začněte dost široce, abyste ověřili existenci záznamu.
+2. Zužte pohled podle oddělení, vlastníka, stavu, dodavatele nebo data.
+3. Otevřete vzorek záznamu a ověřte, že filtr odpovídá záměru.
+4. Exportujte jen filtrovaný pohled potřebný pro review.
 
-Nejpoužívanější filtry:
+Exporty jsou evidence. Udržujte je malé, popište časové období a nesdílejte zbytečné osobní nebo citlivé informace.
 
-- **Status**: `open/triaged` pro routing, `in_progress` pro tlak na exekuci, `ready_for_validation` pro review práci
-- **Severity**: izolujte `high` a `critical`
-- **Overdue**: rychle najdete porušené závazky
-- **Exclude active exceptions**: soustřeďte se na nálezy, které stále vyžadují akci (ne dočasně waived)
-- **Search**: používejte stabilní klíčová slova (systém/proces/dodavatel)
+## Tipy a časté chyby
 
-Grupované pohledy nyní obsahují i **By Vendor**.
+- Plán má být ověřitelný jinou osobou.
+- Výjimku používejte střídmě a vždy s důvodem.
+- Nález se neuzavírá jen proto, že uplynul termín.
 
-`By Vendor` je multi-membership:
-
-- nález se zobrazí pod každým čitelným vendor kontextem, na který je navázaný
-- contextual issues založené z detailu dodavatele se grupují přímo pod daného dodavatele
-- issues bez čitelného vendor kontextu spadnou do fallback bucketu pro nepropojené záznamy
-
-Linky z dashboardu a dalších modulů mohou otevřít `/issues` s už přednastavenými filtry. Berte query parametry jako vstupní pohled pro triage, ne jako živě ukládaný view, který se během práce sám přepisuje.
-
-Řazení pomáhá při review:
-
-- `due_at` pro časový tlak
-- `updated_at` pro „stále otevřené, ale bez pohybu“
-
-### Exporty
-
-Používejte **Export** pro review balíčky a audit evidence.
-
-Doporučená disciplína:
-
-- exportujte s jasným „as of“ datem
-- exportujte co nejmenší nezbytný scope
-- zachovejte původní export (pokud transformujete, neztrácejte auditovatelnost)
-
-## Časté chyby
-
-- **chybí owner**: nález bez ownera se stává „poštovní schránkou“.
-- **termín bez kapacity**: nereálné termíny naučí organizaci termíny ignorovat.
-- **status inflace**: `ready_for_validation` bez důkazů, `closed` bez ověření.
-- **zneužití severity**: když je vše „high“, filtr nic neříká.
-- **drift v popisu**: měníte problém během remediace bez vysvětlení.
+Časté chyby vznikají ze starých filtrů, nejasného ownership, duplicitních záznamů nebo příliš široké změny. Pokud něco vypadá špatně, nejdřív stránku obnovte a ověřte stejný výsledek v detailu.
 
 ## Troubleshooting
 
-### Nevidím `/issues` v menu
+Pokud je stránka prázdná, vyčistěte filtry a hledejte známý název záznamu. Pokud stránka chybí v menu, vaše role pravděpodobně tuto oblast nezahrnuje. Pokud uložení selže, přečtěte zprávu, obnovte záznam a zkontrolujte, zda ho mezitím nezměnil někdo jiný.
 
-- Ověřte `issues:read`.
-- Ověřte, že nejste přihlášeni jako platform admin (admin nepoužívá business moduly).
-- Pokud jste dostali oprávnění nedávno, odhlaste/přihlaste pro refresh.
+Pokud chybí navázaný záznam, nemusíte k němu mít přístup. Ptejte se na business název nebo kód, ne na technický identifikátor. Pro podporu uveďte roli, cestu v aplikaci, název záznamu, akci a přesné znění zprávy na obrazovce.
 
-### Vidím nálezy, ale nejdou zakládat nebo upravovat
+## Související manuály
 
-- Pravděpodobně máte `issues:read`, ale ne `issues:write`.
-- Některé přechody mohou být řízené schvalováním; zkontrolujte `/approvals`.
-
-### Uložil(a) jsem změnu, ale neprojevila se
-
-- Pravděpodobně čeká ve schvalování. Otevřete `/approvals`.
-- Výsledek sledujte v `/notifications`.
-
-### Export nefunguje nebo je „divný“
-
-- Zkontrolujte aktivní filtry před exportem.
-- Zkuste refresh a opakujte. Pokud problém trvá, pošlete podporě chybovou hlášku.
-
-## Související dokumentace
-
-- `./notifications.md`
-- `./risks.md`
-- `./controls.md`
-- `./kris.md`
-- `./vendors.md`
-- `./departments.md`
-- `./activity-log.md`
+Začněte s [Risks](./risks.md), [Controls](./controls.md), [Vendors](./vendors.md), [Notifications](./notifications.md), [Activity Log](./activity-log.md). Tyto manuály vysvětlují navázaná workflow a pomohou sledovat záznam od signálu přes akci až po evidenci.

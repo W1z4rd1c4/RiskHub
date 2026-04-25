@@ -44,6 +44,20 @@ const docsPayload = {
     ],
 };
 
+const userDocsPayload = {
+    documents: [
+        makeDoc({
+            id: 'user_getting-started',
+            slug: 'getting-started',
+            title: 'Getting Started with RiskHub',
+            summary: 'User onboarding guide.',
+            content: '# Getting Started with RiskHub\nUser onboarding guide.',
+            audience: 'user',
+            tags: ['onboarding', 'overview'],
+        }),
+    ],
+};
+
 const linkedDocsPayload = {
     documents: [
         makeDoc({
@@ -210,5 +224,35 @@ describe('DocumentationPage', () => {
 
         expect(scrollToMock).toHaveBeenCalledWith({ top: expect.any(Number), left: 0, behavior: 'smooth' });
         expect(scrollIntoViewMock).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' });
+    });
+
+    it('hides maintainer metadata for user manual pages', async () => {
+        server.use(
+            http.get('*/api/v1/admin/docs', () => HttpResponse.json(userDocsPayload)),
+        );
+
+        await renderDocumentationPage();
+
+        const uiUser = userEvent.setup();
+        await uiUser.click(await screen.findByRole('button', { name: /Getting Started with RiskHub/i }));
+
+        expect(await screen.findByRole('heading', { level: 2, name: 'Getting Started with RiskHub' })).toBeInTheDocument();
+        expect(screen.queryByText('v2.0')).not.toBeInTheDocument();
+        expect(screen.queryByText(/Maintainer reference:/i)).not.toBeInTheDocument();
+        expect(screen.queryByText('docs/BUSINESS_LOGIC.md')).not.toBeInTheDocument();
+    });
+
+    it('shows maintainer metadata for admin runbooks', async () => {
+        server.use(
+            http.get('*/api/v1/admin/docs', () => HttpResponse.json(docsPayload)),
+        );
+
+        await renderDocumentationPage();
+
+        const uiUser = userEvent.setup();
+        await uiUser.click(await screen.findByRole('button', { name: /Getting Started with RiskHub/i }));
+
+        expect(await screen.findByText('v2.0')).toBeInTheDocument();
+        expect(screen.getByText(/Maintainer reference: docs\/BUSINESS_LOGIC\.md/i)).toBeInTheDocument();
     });
 });

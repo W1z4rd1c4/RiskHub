@@ -5,7 +5,7 @@ Validate in-app documentation contract for RiskHub manuals.
 This checker enforces:
 - EN/CS filename parity for user/admin libraries
 - required frontmatter keys + tag taxonomy
-- minimum richness (word count + required H2 sections)
+- minimum richness (word count + required H2 sections; user docs use manual-style sections)
 - link contract:
   - doc-to-doc links must be `./file.md` (same directory) and stay inside the reader
   - app route links must be `/path`
@@ -76,29 +76,29 @@ WORD_PATTERN = re.compile(r"\b[\w-]+\b")
 
 # Required section titles (H2) for module/runbook pages.
 USER_EN_REQUIRED_H2 = [
-    "Overview",
+    "What This Page Helps You Do",
+    "Before You Start",
     "Where To Find It",
-    "Roles, Scope, and Visibility",
-    "Data Model and Key Fields",
-    "Core Workflows",
-    "Approvals and Notifications Behavior",
-    "Filters, Views, and Exports",
-    "Common Mistakes",
+    "What You Can See and Change",
+    "How To Complete Common Tasks",
+    "Approvals and Notifications",
+    "Finding, Filtering, and Evidence",
+    "Tips and Common Mistakes",
     "Troubleshooting",
-    "Related Documentation",
+    "Related Manuals",
 ]
 
 USER_CS_REQUIRED_H2 = [
-    "Přehled",
+    "S čím vám tato stránka pomůže",
+    "Než začnete",
     "Kde to najdete",
-    "Role, scope a viditelnost",
-    "Datový model a klíčová pole",
-    "Hlavní workflow",
+    "Co můžete vidět a měnit",
+    "Jak dokončit běžné úkoly",
     "Schvalování a notifikace",
-    "Filtry, pohledy a exporty",
-    "Časté chyby",
+    "Vyhledávání, filtrování a evidence",
+    "Tipy a časté chyby",
     "Troubleshooting",
-    "Související dokumentace",
+    "Související manuály",
 ]
 
 ADMIN_EN_REQUIRED_H2 = [
@@ -127,31 +127,29 @@ ADMIN_CS_REQUIRED_H2 = [
 
 # Required section titles (H2) for README/index pages.
 USER_README_EN_REQUIRED_H2 = [
-    "Who Should Use This Library",
-    "What You Can Expect From These Manuals",
-    "Quick Start (30 Minutes)",
-    "Library Map (By Sidebar Module)",
-    "Library Map (By Common Workflows)",
-    "How Permissions and Scope Affect What You See",
-    "How To Use Links Inside Manuals",
-    "How To Use Tags and Filters In The Reader",
-    "How To Report Documentation Issues",
-    "Change Policy and Source of Truth",
-    "Related Documentation",
+    "Who This Manual Is For",
+    "Start Here",
+    "Manuals by Area",
+    "Manuals by Task",
+    "How Your Role Affects What You See",
+    "How To Use This Reader",
+    "How To Search and Filter Manuals",
+    "How To Ask For Help",
+    "What Changed Recently",
+    "Related Manuals",
 ]
 
 USER_README_CS_REQUIRED_H2 = [
-    "Kdo má tuto knihovnu používat",
-    "Co můžete od manuálů čekat",
-    "Rychlý start (30 minut)",
-    "Mapa dokumentace (podle modulu v menu)",
-    "Mapa dokumentace (podle workflow)",
-    "Jak fungují oprávnění a scope",
-    "Jak fungují odkazy v manuálech",
-    "Tagy a rychlé filtrování v knihovně",
-    "Jak hlásit problém v dokumentaci",
-    "Politika změn a zdroj pravdy",
-    "Související dokumentace",
+    "Pro koho je tento manuál",
+    "Začněte tady",
+    "Manuály podle oblasti",
+    "Manuály podle úkolu",
+    "Jak vaše role ovlivňuje zobrazení",
+    "Jak používat čtečku manuálů",
+    "Jak vyhledávat a filtrovat manuály",
+    "Jak požádat o pomoc",
+    "Co se nedávno změnilo",
+    "Související manuály",
 ]
 
 ADMIN_README_EN_REQUIRED_H2 = [

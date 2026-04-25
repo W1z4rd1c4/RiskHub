@@ -1,7 +1,7 @@
 ---
 title: Managing Vendors
 version: "2.4"
-last_updated: "2026-03-15"
+last_updated: "2026-04-25"
 audience: user
 source_of_truth: "frontend/src/pages/VendorsPage.tsx + frontend/src/pages/VendorDetailPage.tsx + frontend/src/pages/vendors/*"
 summary: "User guide for the core vendor register: ownership, classification, vendor flags, risk-detail-style linked sections, linked KRIs, routed create-from-vendor flows for risks/controls/KRIs, exports, and issue context."
@@ -13,241 +13,126 @@ tags:
   - controls
   - issues
 ---
-
 # Managing Vendors
 
-## Overview
+**On this page**
+- [What This Page Helps You Do](#what-this-page-helps-you-do)
+- [Before You Start](#before-you-start)
+- [Where To Find It](#where-to-find-it)
+- [What You Can See and Change](#what-you-can-see-and-change)
+- [How To Complete Common Tasks](#how-to-complete-common-tasks)
+- [Approvals and Notifications](#approvals-and-notifications)
+- [Finding, Filtering, and Evidence](#finding-filtering-and-evidence)
+- [Tips and Common Mistakes](#tips-and-common-mistakes)
+- [Troubleshooting](#troubleshooting)
+- [Related Manuals](#related-manuals)
 
-The Vendors area is now a core third-party register. Use it to answer:
+## What This Page Helps You Do
 
-- Who owns the vendor relationship?
-- Which process and department does the vendor support?
-- What is the current vendor classification and risk score?
-- Which enterprise risks, controls, and KRIs are linked to the vendor?
+Use this manual when you need to maintain the vendor register, understand vendor flags, connect vendors to risks, controls, KRIs, and issues, and review third-party concentration. It is written for users reviewing third-party risk and vendor-linked work, so it focuses on what to do in the app, what to check before you act, and what result to expect after the work is done.
 
-Primary route: `/vendors`
+The page is not a technical reference. It explains the everyday operating pattern: start from the right screen, confirm the record is the one you intend to update, make the smallest useful change, and then verify the result in the list, detail page, notifications, or activity history.
+
+You will use this area most often for:
+
+- vendor list
+- vendor detail
+- linked risks
+- linked controls
+- linked KRIs
+- issues
+- vendor reports
+
+## Before You Start
+
+Before working in this area, confirm three things. First, make sure you are signed in with the role you normally use for business work. Second, clear any old filters if the list looks incomplete. Third, check whether the record already has pending work in Approvals or Notifications.
+
+If a button or tab is missing, treat that as a normal access signal, not as an error. RiskHub only shows actions that fit your role, scope, record ownership, and the current record state. When an action is unavailable, ask the record owner or your access contact to review it instead of trying to work around the screen.
+
+Have the record name, code, owner, and department ready before asking for help. Those details make support and audit conversations much faster.
 
 ## Where To Find It
 
-- Vendor list: `/vendors`
-- Vendor detail: open a vendor row from the register
-- Create vendor: `/vendors/new`
+Primary route: `/vendors`
 
-Required permissions:
+You can usually reach this area from the left sidebar. Detail pages open by selecting a row or a linked card. If you arrive from another record, use the back button or the related-record links to return to the broader context.
 
-- `vendors:read` to open the register and detail pages
-- `vendors:write` to create or edit vendor records
-- `vendors:delete` to archive or restore vendor records unless ownership rules grant access
+Common navigation pattern:
 
-### What A Vendor Record Contains
+1. Open the list page.
+2. Clear filters if you are not sure what should be visible.
+3. Search by name, owner, vendor, or department.
+4. Open the record.
+5. Review linked records and recent activity before changing anything.
 
-Core vendor data includes:
+## What You Can See and Change
 
-- identity: name, legal name, registration ID, country, website
-- ownership: department, outsourcing owner, process, subprocess
-- classification: vendor type, risk score, DORA relevance, significance, replaceability
-- lifecycle: active/inactive status, archive/restore
-- links: linked risks, linked controls, and linked KRIs
+What you can see depends on your role, department scope, and record ownership. A user with broad review responsibility may see more records than a user responsible for one department. A record owner may be able to act on a record even when it is outside the owner’s usual department view.
 
-The vendor detail page is a single core view. It keeps:
+Typical information in this area includes:
 
-- header and lifecycle actions
-- a summary surface for risk score, status, exposure, and vendor flags
-- summary cards for classification, ownership, and connections
-- a linked KRIs section using the same card-grid and archived-group treatment as the linked risks and controls sections
-- embedded linked risks section using the same section chrome and card-grid interaction model as the individual risk page
-- embedded linked controls section using the same action bar, gauge-card style, and archived grouping pattern as the individual risk page
-- contextual issue creation from the vendor page
+- Vendor name
+- Owner
+- Department
+- Criticality
+- Service description
+- Linked risks
+- Linked controls
+- Linked kris
+- Open issues
 
-## Roles, Scope, and Visibility
+Changes should be practical and easy to explain. If the change affects ownership, scoring, closure, archive state, or other governance-sensitive information, expect a review step in some environments. Read-only users can still use the page for investigation, filtering, and evidence gathering.
 
-Vendor detail is intentionally simpler than Risks or Issues, but visibility still follows backend RBAC and scope rules.
+## How To Complete Common Tasks
 
-- `vendors:read` is required to open the vendor register and the individual vendor page
-- `vendors:write` allows full edit behavior for vendor records and vendor links
-- vendor ownership rules can allow certain mutation actions even without broad vendor-admin privileges
-- unfiltered scoped views can include vendors you directly own across departments, but an explicit department filter is strict and only shows vendors in that department
-- action buttons use backend-provided capability metadata when available, so stale local role assumptions do not decide whether archive, restore, edit, or link actions are available
-- linked risks remain separately scope-filtered, so a user can still see the vendor even if some linked risks are omitted from the page
-- linked controls are also filtered by normal control visibility rules before card grids are rendered
-- linked KRIs follow the same read-scope and ownership rules as the KRI register, so unreadable KRIs are omitted from vendor detail and grouped views
+Follow this basic workflow unless your team has a stricter local procedure:
 
-This matters on the page because:
+1. Create or update a vendor.
+2. Set owner and classification.
+3. Review flags and criticality.
+4. Link existing risks, controls, or kris.
+5. Create new linked records from vendor context.
+6. Export vendor evidence.
 
-- `Link Existing` and `Manage Existing Links` only appear when the user can mutate vendor links
-- `Add Risk` appears only when the user can both edit the vendor context and create risks
-- `Add Control` appears only when the user can both edit the vendor context and create controls
-- `Add KRI` appears only when the user can both edit the vendor context and create KRIs (`risks:write`)
-- `Link Existing` for KRIs appears only when the user can mutate vendor links and can read the target KRIs
-- the vendor page never leaks unreadable risk, control, or KRI names just to preserve counts or layout symmetry
+After saving or submitting, verify the result. The list should show the new state, the detail page should match your intent, and any expected notification or approval item should be visible. If the page reports that the record changed while you were working, refresh and review the current record before trying again.
 
-## Data Model and Key Fields
+When linking records, choose only relationships that are useful to another reviewer. A link should explain a real business relationship: a control reduces a risk, a KRI monitors a risk, a vendor contributes to an exposure, or an issue tracks remediation for a specific problem.
 
-The vendor record is now a core register entry, not a workflow container. Keep the following fields accurate:
+## Approvals and Notifications
 
-- identity: vendor name, legal name, registration ID, country, website
-- ownership: outsourcing owner, department, process, subprocess
-- classification: vendor type, risk score, DORA relevance, significant-vendor flag, replaceability, alternative-provider flag
-- lifecycle: active/inactive status with archive or restore actions
-- links: enterprise risks, mitigating controls, and monitoring KRIs connected to the vendor
+Vendor edits may be reviewed when they affect ownership, classification, archive state, or linked governance work. Link actions appear only when your current access allows the target record.
 
-The linked sections now use richer summary data:
+Use approval notes to explain the business reason, not just the button you clicked. A good note says what changed, why it is appropriate, and what evidence supports the decision. Notifications are reminders and pointers; the record detail remains the best place to understand the full context.
 
-- linked risk cards show the risk code, risk type, gross score, net score, process, department, and priority marker
-- linked control cards show the same gauge-style summary used on the individual risk page, including monitoring status, frequency, and risk level
-- linked KRI cards show the monitoring status, latest due-date context, value, and related risk metadata used by the KRI register and vendor detail page
-- archived linked items remain visible in separate secondary groups so historical context is not lost
+If you receive a stale or rejected approval, do not immediately resubmit the same change. Open the record, compare the current state with your intended update, and submit a new focused change only if it is still needed.
 
-## Core Workflows
+## Finding, Filtering, and Evidence
 
-### 1. Create or update a vendor
+Use By Flag, By Risk, and linked-record views to choose the right evidence. Vendor exports cover the vendor list fields: name, legal name, type, process, subprocess, department, owner, risk score, DORA relevance, significance, and status. Linked risks, linked controls, linked KRIs, and open issues must be reviewed in the vendor detail tabs or their own pages; they are not included in the vendor export.
 
-Use create/edit when you need to maintain vendor master data:
+For reliable results, filter in this order:
 
-- assign the correct department and outsourcing owner
-- set the vendor type and risk score
-- mark DORA relevance and significance where applicable
-- keep process and subprocess current
+1. Start broad enough to confirm the record exists.
+2. Narrow by department, owner, status, vendor, or date.
+3. Open a sample record to confirm the filter matches your intent.
+4. Export only the filtered view needed for the review.
 
-### 2. Link vendor exposure
+Exports are evidence. Keep them small, label the time period, and avoid sharing unrelated personal or sensitive information.
 
-Use linked risks, linked controls, and linked KRIs to connect the vendor to enterprise risk posture:
+## Tips and Common Mistakes
 
-- use **Link Existing** to attach existing risks, controls, or KRIs
-- use **Add Risk**, **Add Control**, or **Add KRI** to create a brand-new item from the vendor page
-- review active and archived linked items in separate visual groups
-- use **Manage Existing Links** to remove stale relationships when they are no longer valid
+- Avoid duplicate vendors with slightly different names.
+- Link a vendor to the specific risk or control, not only to the department.
+- Use vendor context when creating KRIs so the third-party relationship stays visible.
 
-### 2a. Group vendors by flag
-
-The vendor register also supports a grouped **By Flag** view for concentration review:
-
-- `DORA relevant`
-- `Supports core function`
-- `Significant vendor`
-- `Insignificant vendors` for vendors that have none of the three flags
-
-This grouping is multi-membership:
-
-- a vendor can appear in more than one flag bucket
-- a vendor with no active flags appears only in `Insignificant vendors`
-
-### 2b. Use grouped vendor views from other modules
-
-Risks, Controls, Issues, and KRIs now support a grouped **By Vendor** view.
-
-Use it when you want to answer questions like:
-
-- which risks are concentrated around one vendor
-- which controls mitigate exposure for a specific vendor
-- which issues are currently open against one vendor context
-- which KRIs monitor vendor-related exposure
-
-### 3. Create a new risk, control, or KRI from vendor detail
-
-The vendor page now supports routed create-from-vendor flows:
-
-- **Add Risk** opens the full risk create form at `/risks/new?vendor_id=:id&return_to=/vendors/:id`
-- **Add Control** opens the full control create form at `/controls/new?vendor_id=:id&return_to=/vendors/:id`
-- **Add KRI** opens the full KRI create form at `/kris/new?vendor_id=:id&return_to=/vendors/:id`
-- after save, the app returns to vendor detail with the new item already linked back to the vendor
-- after create, you are returned to the vendor detail page with a confirmation banner and a direct link to the created item
-- vendor-context KRI create keeps the parent risk mandatory and defaults the step-1 risk picker to risks already linked to that vendor
-- if you choose a risk that is not linked to the vendor, the form prompts you to link the risk first or continue without linking it
-- if you choose **Link risk and continue**, the backend creates the missing vendor-risk link and the KRI in one transaction
-- if vendor assignment or requested risk-linking fails, the KRI is not partially created; the form stays open and shows the blocking error
-
-Create buttons follow normal permissions:
-
-- you must be able to edit the vendor link context
-- and you must also have `risks:write` or `controls:write` for the corresponding create action
-
-### 3a. Assign vendors directly inside the KRI form
-
-KRI create and edit now also support vendor assignment outside vendor detail:
-
-- the KRI form includes a **Linked Vendors** multi-select section
-- a KRI still belongs to exactly one parent risk
-- vendor linkage is secondary monitoring context and can include more than one vendor
-- when opened from vendor detail, the current vendor is included automatically in the same save and the selector can be used for additional vendors
-- non-privileged KRI edits that change linked vendors are approval-gated as part of the normal KRI edit request
-
-### 4. Raise an issue from vendor context
-
-Use **New Issue** on the vendor detail page when a vendor-related problem needs formal tracking.
-
-The issue remains part of the Issues domain. Vendor context is only used to prefill linkage and navigation.
-
-### 5. Archive or restore vendors
-
-Archive vendors that should leave active operating views but must remain historically visible.
-
-Typical reasons:
-
-- the relationship ended
-- the vendor is no longer in scope
-- the record was replaced by another active vendor entry
-
-## Approvals and Notifications Behavior
-
-The vendor page itself does not run a separate approval workflow anymore. That is an intentional product boundary.
-
-- vendor create/edit follows the standard vendor permission model
-- create-from-vendor for risks, controls, and KRIs uses the normal routed forms
-- if a newly created risk, control, or KRI would normally trigger approval behavior in its own domain, that behavior still applies there
-- vendor detail only handles the post-create return path, confirmation banner, and link management for existing risks, controls, and KRIs
-
-In practice this means:
-
-- approvals belong to Risks, Controls, Issues, or Governance where those domains require them
-- vendor detail remains a clean operating surface for ownership, classification, and exposure linkage
-- vendor problems that need formal remediation should become Issues, not ad hoc vendor-only workflow records
-- there are no vendor-specific workflow notifications in the core vendor model; use Issues, linked risks, and linked controls for follow-up context
-
-## Filters, Views, and Exports
-
-The vendor register supports:
-
-- search
-- status filtering
-- vendor type filtering
-- grouped views that respect linked-risk visibility
-- grouped `By Flag` review for DORA, core-function, significant, and insignificant vendor buckets
-- export from the vendor register
-
-Exports now reflect only retained core vendor fields.
-Specialized annual and DORA vendor reports may offer a department filter. When you choose a department, the export is strict to that department; vendors you own in another department are not added to that evidence file. If an owner name cannot be resolved, the UI shows an unknown-user label rather than a numeric user id.
-
-## Common Mistakes
-
-- Treating the vendor record as a workflow engine instead of a clean register entry.
-- Leaving owner, department, or process blank.
-- Forgetting that **Add Risk**, **Add Control**, and **Add KRI** return to the vendor page after create.
-- Keeping stale risk/control links after relationship changes.
-- Creating duplicate vendor records instead of updating the existing one.
+Common mistakes are usually caused by stale filters, unclear ownership, duplicate records, or trying to make a broad change when a focused change would be easier to review. If something looks wrong, first refresh the page and confirm the same result in the detail view.
 
 ## Troubleshooting
 
-### I cannot edit a vendor
+If the page is empty, clear filters and search by a known record name. If the page is missing from the sidebar, your role may not include that work area. If a save fails, read the message, refresh the record, and check whether another user changed it first.
 
-Check:
+If a linked record is missing, you may not have access to that related item. Ask for the business name or code rather than a technical identifier. For support, include your role, the route you were using, the record name, the action you attempted, and the exact message shown on screen.
 
-- do you have `vendors:write`?
-- are you the outsourcing owner?
-- is the record in a department outside your scope?
+## Related Manuals
 
-### I cannot see linked risks
-
-The vendor can remain visible even when linked risks are not. This usually means you can read vendors but not the linked risks in that scope.
-
-### I need remediation tracking for a vendor problem
-
-Create an Issue from vendor context. Do not expect vendor detail to hold a separate remediation workflow.
-
-## Related Documentation
-
-- [Getting Started](./getting-started.md)
-- [Workflow, Approvals, Notifications](./notifications.md)
-- [Managing Risks](./risks.md)
-- [Managing Controls](./controls.md)
-- [Managing Issues](./issues.md)
+Start with [Risks](./risks.md), [Controls](./controls.md), [Kris](./kris.md), [Issues](./issues.md), [Dashboard](./dashboard.md). These manuals explain the connected workflows and help you follow the record from signal to action to evidence.

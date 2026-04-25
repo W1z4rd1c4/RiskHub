@@ -140,6 +140,8 @@ Rules:
 - `GET /api/v1/admin/docs` always returns exactly one audience (`admin` or `user`) per request.
 - Payload includes metadata for UI navigation (`audience`, `tags`) so clients can show tag filters.
 - Locale lookup uses per-file fallback to English if a localized file is missing.
+- User-audience documents are written as task-oriented manuals. The reader hides maintainer-only source references and raw version chips for user manuals, while preserving those metadata fields in the response for validation and admin/operator documentation.
+- Admin-audience documents remain operator runbooks and may expose maintainer references where they help platform support or incident handoff.
 
 ---
 

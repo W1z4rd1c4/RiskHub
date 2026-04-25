@@ -1,7 +1,7 @@
 ---
 title: Governance: Orphaned Items and Ownership Hygiene
-version: "2.1"
-last_updated: "2026-03-07"
+version: "2.4"
+last_updated: "2026-04-25"
 audience: user
 source_of_truth: "frontend/src/pages/GovernancePage.tsx + frontend/src/components/governance/*"
 summary: "How to use Governance to detect and resolve orphaned Risks, Controls, and KRIs so ownership, scope, and reporting stay correct."
@@ -12,230 +12,121 @@ tags:
   - troubleshooting
   - access
 ---
-
 # Governance: Orphaned Items and Ownership Hygiene
 
 **On this page**
-- [Overview](#overview)
+- [What This Page Helps You Do](#what-this-page-helps-you-do)
+- [Before You Start](#before-you-start)
 - [Where To Find It](#where-to-find-it)
-- [Roles, Scope, and Visibility](#roles-scope-and-visibility)
-- [Data Model and Key Fields](#data-model-and-key-fields)
-- [Core Workflows](#core-workflows)
-- [Approvals and Notifications Behavior](#approvals-and-notifications-behavior)
-- [Filters, Views, and Exports](#filters-views-and-exports)
-- [Common Mistakes](#common-mistakes)
+- [What You Can See and Change](#what-you-can-see-and-change)
+- [How To Complete Common Tasks](#how-to-complete-common-tasks)
+- [Approvals and Notifications](#approvals-and-notifications)
+- [Finding, Filtering, and Evidence](#finding-filtering-and-evidence)
+- [Tips and Common Mistakes](#tips-and-common-mistakes)
 - [Troubleshooting](#troubleshooting)
-- [Related Documentation](#related-documentation)
+- [Related Manuals](#related-manuals)
 
-## Overview
+## What This Page Helps You Do
 
-Governance is a *hygiene* module. It helps you find and fix "orphaned" items: risks, controls, or KRIs that lost their intended ownership or linkage state.
+Use this manual when you need to find records that need an owner, department, or risk link, resolve them safely, and avoid overwriting newer work from another user. It is written for CRO and governance users resolving missing ownership or context, so it focuses on what to do in the app, what to check before you act, and what result to expect after the work is done.
 
-Orphaned items usually happen when:
+The page is not a technical reference. It explains the everyday operating pattern: start from the governance queue, confirm the orphaned item in quick view, make the smallest safe resolution, and then verify the item leaves the queue.
 
-- a user leaves and their owned entities are not reassigned
-- departments are reorganized
-- a control or KRI is created without being properly linked
-- data is migrated or imported and some references are missing
+You will use this area most often for:
 
-Why this matters:
+- governance overview
+- pending orphaned items
+- quick view
+- resolution modal
+- owner and department selection
 
-- ownership drives accountability and workflow routing
-- department assignment drives scope and reporting
-- orphaned items create false comfort ("it exists" but nobody owns it)
+## Before You Start
 
-Primary route: `/governance`
+Before working in this area, confirm three things. First, make sure you are signed in with the role you normally use for business work. Second, clear any old filters if the list looks incomplete. Third, check whether the record already has pending work in Approvals or Notifications.
+
+If a button or tab is missing, treat that as a normal access signal, not as an error. RiskHub only shows actions that fit your role, scope, record ownership, and the current record state. When an action is unavailable, ask the record owner or your access contact to review it instead of trying to work around the screen.
+
+Have the record name, code, owner, and department ready before asking for help. Those details make support and audit conversations much faster.
 
 ## Where To Find It
 
-- Sidebar item **Governance** → `/governance`
+Primary route: `/governance`
 
-If you do not see Governance:
+You can usually reach this area from the left sidebar. The Governance page is a queue with summary cards, tabs, a quick-view modal, refresh, and a resolution dialog. Work stays in the queue, quick view, and resolver.
 
-- your account likely cannot view Governance (`canViewGovernance` is CRO-only in the default contract)
-- platform admins do not use business Governance; direct route/API access is blocked and they use admin tooling instead
+Common navigation pattern:
 
-Governance is designed as a review surface. Treat it as a periodic control:
+1. Open Governance.
+2. Choose the risk, control, or KRI queue.
+3. Review the summary counts and pending rows.
+4. Open quick view when you need more context.
+5. Use Resolve only after confirming the missing owner, department, or risk link.
 
-- daily for high-change environments
-- weekly at minimum for stable environments
-- before any committee/board pack is finalized
+## What You Can See and Change
 
-Opening `/governance` does not start a maintenance scan anymore. The page reads the latest overview snapshot and current pending items, then refreshes that read model on its normal polling interval.
+What you can see depends on your role, department scope, and record ownership. A user with broad review responsibility may see more records than a user responsible for one department. A record owner may be able to act on a record even when it is outside the owner’s usual department view.
 
-## Roles, Scope, and Visibility
+Typical information in this area includes:
 
-Governance is intentionally restricted because it can expose cross-department ownership data.
+- Orphan type
+- Current owner
+- Current department
+- Missing field
+- Candidate risks
+- Candidate owners
+- Resolution notes
 
-Typical access pattern:
+Changes should be practical and easy to explain. If the change affects ownership, scoring, closure, archive state, or other governance-sensitive information, expect a review step in some environments. Read-only users can still use the page for investigation, filtering, and evidence gathering.
 
-- CRO (or a delegated global owner) reviews and resolves orphans
-- department stakeholders provide context, but Governance resolution is done centrally
+## How To Complete Common Tasks
 
-Resolution actions can have broad visibility impact:
+Follow this basic workflow unless your team has a stricter local procedure:
 
-- changing owner can grant visibility through ownership exceptions
-- changing department can move items in/out of department scope
-- the backend rechecks the current target entity before applying resolution; if someone already reassigned the item, the request is rejected instead of overwriting that newer state
+1. Review the current governance queue.
+2. Open quick view or Resolve for an orphaned item.
+3. Select the right owner or department.
+4. Link a kri or control to a risk when required.
+5. Submit the resolution and verify it disappears from the queue.
 
-Operate Governance with an explicit "least surprise" mindset: pick owners and departments that match how the organization actually works.
+After submitting, verify that the item disappears from the current queue and the summary counts update. If the page reports that the item changed while you were working, refresh and review the current row before trying again.
 
-## Data Model and Key Fields
+When linking records, choose only relationships that are useful to another reviewer. A link should explain a real business relationship: a control reduces a risk, a KRI monitors a risk, a vendor contributes to an exposure, or an issue tracks remediation for a specific problem.
 
-Governance works with **orphaned items**, which have a common shape.
+## Approvals and Notifications
 
-| Field | Meaning | Notes |
-|---|---|---|
-| Item type | `risk`, `control`, or `kri` | Use the tabs to focus on one type. |
-| Item identifier | Human-friendly code / identifier | Prefer this in communication instead of internal IDs. |
-| Item name | Primary label (risk name/control name/KRI name) | If name is unclear, fix the name as part of remediation. |
-| Department | Current department (may be empty) | Empty department is a common source of scope confusion. |
-| Previous owner | The last known owner name/email | This is diagnostic context, not a target assignment. |
-| Orphaned at | Timestamp when it became orphaned | Use it to judge urgency and whether data might be stale. |
-| Status | `pending` or `resolved` | Resolve only when ownership/linkage is truly fixed. |
-| Capabilities | Backend action flags | The UI uses these to decide whether resolve/detail actions are available and which fields are required. |
+Governance resolutions are applied only when the record is still in the state you reviewed. If someone else fixed or changed it first, refresh and review the current state before submitting again.
 
-Governance resolution can request:
+Use resolution notes to explain the business reason, not just the button you clicked. A good note says what changed, why it is appropriate, and what evidence supports the decision. Quick view and Activity Log entries help explain the current context.
 
-- `new_owner_id` (for risks/controls)
-- `department_id` (for all orphan types)
-- `target_risk_id` (for KRIs, and for controls that have no linked risks)
+If a resolution is stale or rejected, do not immediately resubmit the same change. Refresh the queue, compare the current row with your intended update, and submit a new focused resolution only if it is still needed.
 
-## Core Workflows
+## Finding, Filtering, and Evidence
 
-### 1) Daily/weekly governance sweep
+Use the governance list, quick view, and resolution dialog for cleanup work. The Governance page does not provide an export button; it is designed to help you resolve ownership and linkage gaps safely.
 
-1. Open `/governance`.
-2. Review the headline counts.
-3. Start with **risks** (they are the root entity) and resolve high-impact items first.
-4. Move to **controls** and ensure each control is linked to the risks it mitigates.
-5. Move to **KRIs** and ensure each KRI is linked to the correct risk.
-6. Re-check totals and confirm nothing remains unintentionally pending.
+For reliable results, work in this order:
 
-### 2) Resolve an orphaned risk
+1. Review the pending item type and missing information.
+2. Narrow the queue by the visible category or owner context.
+3. Open the quick view and confirm the target record still needs action.
+4. Resolve the item, refresh the queue, and verify it is gone.
 
-When a risk is orphaned, it usually means owner or department is missing/incorrect.
+For formal evidence, cite the Activity Log entry that records the change or the governance queue state after refresh.
 
-Resolution procedure:
+## Tips and Common Mistakes
 
-1. Open the orphan row.
-2. Choose a new owner who is accountable for the risk’s lifecycle.
-3. Confirm or set the correct department.
-4. Submit resolution.
-5. Verify the risk now appears correctly in `/risks` and department views.
+- Do not assign ownership to a placeholder person.
+- When linking a KRI or control, choose the risk it actually monitors or mitigates.
+- Refresh before resolving older queue items.
 
-If there is no clear owner, do not guess. Assign a temporary owner (for example, a central coordinator) and create an Issue to complete reassignment.
-
-### 3) Resolve an orphaned control
-
-Controls need two things to be operationally meaningful:
-
-- ownership + department context
-- linkage to the risks they mitigate
-
-Resolution procedure:
-
-1. Open the orphan control.
-2. Set the owner and department.
-3. Check whether the control already has linked risks.
-4. If it has no linked risks, select a **target risk** that the control mitigates.
-5. Submit resolution.
-6. Verify the control appears correctly in `/controls` and is linked on the risk detail page.
-
-### 4) Resolve an orphaned KRI
-
-KRIs are risk sub-entities. In practice:
-
-- a KRI without a risk linkage is not actionable
-
-Resolution procedure:
-
-1. Open the orphan KRI.
-2. Select the correct **target risk**.
-3. Confirm department context.
-4. Submit resolution.
-5. Verify the KRI appears under the risk and in `/kris`.
-
-### 5) Document the “why” (audit hygiene)
-
-Governance fixes are governance decisions.
-
-After resolving a significant orphan (high exposure risk, widely used control, critical KRI), record the decision context:
-
-- why this owner is the right long-term accountable party
-- why the department is correct
-- what follow-up is needed (for example, update descriptions, add controls, adjust KRIs)
-
-If your organization uses Issues for follow-ups, create one and reference the orphan resolution.
-
-## Approvals and Notifications Behavior
-
-Governance resolution is a structural action. Depending on your environment, it can:
-
-- trigger workflow approvals (if ownership/department changes are governed)
-- generate notifications for the new owner or affected stakeholders
-- create activity log entries
-
-Practical checks:
-
-- if the change does not appear immediately after submission, check `/approvals`
-- check `/notifications` for any routing events
-- use `/activity-log` (if you have access) to confirm the recorded change
-
-## Filters, Views, and Exports
-
-Governance is optimized for action, not reporting.
-
-What you can do effectively:
-
-- switch tabs by orphan type (risk/control/kri)
-- focus on `pending` items
-- open the quick view to inspect context before resolution
-
-What you typically should not do:
-
-- treat Governance counts as “performance” metrics
-- export orphan lists as evidence without also resolving them
-
-If you need evidence for an audit, the clean approach is:
-
-1. Resolve orphans.
-2. Use the Activity Log or standard exports from `/risks` and `/controls` to show the corrected state.
-
-## Common Mistakes
-
-- Resolving with the "nearest" owner instead of the *accountable* owner.
-- Assigning department based on where the issue was discovered, not where the work belongs.
-- Linking a control to a risk just to clear the orphan list (creates reporting distortion).
-- Ignoring orphans because they look like “data quality” rather than “control quality”.
+Common mistakes are usually caused by stale queue data, unclear ownership, duplicate-looking names, or trying to make a broad change when a focused resolution would be easier to review. If something looks wrong, first refresh the queue and confirm the same result in quick view.
 
 ## Troubleshooting
 
-### Governance shows counts but the list is empty
+If the page is empty, switch tabs and refresh the queue. If the page is missing from the sidebar, your role may not include that work area. If a save fails, read the message, refresh the queue, and check whether another user resolved the item first.
 
-- Refresh the page.
-- The page shows the latest completed scan snapshot; opening it does not trigger a new scan.
-- The orphan scan can still be best-effort; if scanning is blocked, existing items should still be readable.
-- If it persists, capture the timestamp and ask support to verify orphan stats vs orphan list.
+If a related item is missing from the resolver, you may not have access to it or it may no longer be eligible. Ask for the business name or code rather than a technical identifier. For support, include your role, the route you were using, the item name, the action you attempted, and the exact message shown on screen.
 
-### I can open Governance but can’t resolve
+## Related Manuals
 
-- You may have read access but not the permissions to resolve.
-- Capture the orphan item identifier and escalate to your access owner.
-
-### I resolved an orphan but it still shows as pending
-
-- Refresh and re-open the orphan item.
-- If approvals are enabled, the resolution might be waiting in `/approvals`.
-- If another workflow already changed the underlying owner, department, or linkage, the backend rejects the stale resolution to preserve that newer state.
-- Check `/activity-log` for evidence of the update.
-
-## Related Documentation
-
-- `./risks.md`
-- `./controls.md`
-- `./kris.md`
-- `./departments.md`
-- `./issues.md`
-- `./access-management.md`
-- `./activity-log.md`
+Start with [Departments](./departments.md), [Risks](./risks.md), [Controls](./controls.md), [Kris](./kris.md), [Activity Log](./activity-log.md). These manuals explain the connected workflows and help you follow the record from signal to action to evidence.

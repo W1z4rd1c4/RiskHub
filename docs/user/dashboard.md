@@ -1,6 +1,6 @@
 ---
 title: Dashboard and Reporting Overview
-version: "2.1"
+version: "2.4"
 last_updated: "2026-04-25"
 audience: user
 source_of_truth: "frontend/src/pages/DashboardPage.tsx + dashboard widgets and report exports"
@@ -12,224 +12,119 @@ tags:
   - audit
   - troubleshooting
 ---
-
 # Dashboard and Reporting Overview
 
 **On this page**
-- [Overview](#overview)
+- [What This Page Helps You Do](#what-this-page-helps-you-do)
+- [Before You Start](#before-you-start)
 - [Where To Find It](#where-to-find-it)
-- [Roles, Scope, and Visibility](#roles-scope-and-visibility)
-- [Data Model and Key Fields](#data-model-and-key-fields)
-- [Core Workflows](#core-workflows)
-- [Approvals and Notifications Behavior](#approvals-and-notifications-behavior)
-- [Filters, Views, and Exports](#filters-views-and-exports)
-- [Common Mistakes](#common-mistakes)
+- [What You Can See and Change](#what-you-can-see-and-change)
+- [How To Complete Common Tasks](#how-to-complete-common-tasks)
+- [Approvals and Notifications](#approvals-and-notifications)
+- [Finding, Filtering, and Evidence](#finding-filtering-and-evidence)
+- [Tips and Common Mistakes](#tips-and-common-mistakes)
 - [Troubleshooting](#troubleshooting)
-- [Related Documentation](#related-documentation)
+- [Related Manuals](#related-manuals)
 
-## Overview
+## What This Page Helps You Do
 
-The Dashboard is your operational cockpit. It summarizes posture and highlights where attention is needed *today*.
+Use this manual when you need to read the main signals, compare periods, open supporting records, and export evidence without changing any business data. It is written for users who need a quick view of current risk posture, so it focuses on what to do in the app, what to check before you act, and what result to expect after the work is done.
 
-A dashboard is only useful when:
+The page is not a technical reference. It explains the everyday operating pattern: start from the dashboard view, confirm the metric or widget, drill into supporting lists when available, and export the summary when you need evidence.
 
-- filters are understood and controlled
-- metrics are interpreted with scope context
-- drill-downs are used to find the underlying drivers
+You will use this area most often for:
 
-Primary route: `/`
+- summary cards
+- risk heat map
+- KRI widgets
+- quarterly comparison
+- committee view
+- exports
 
-The dashboard is live-updating (polling). Treat it as “current posture”, not a static report.
+## Before You Start
+
+Before working in this area, confirm three things. First, make sure you are signed in with the role you normally use for business work. Second, clear any old filters if the list looks incomplete. Third, check whether the record already has pending work in Approvals or Notifications.
+
+If a button or tab is missing, treat that as a normal access signal, not as an error. RiskHub only shows actions that fit your role, scope, record ownership, and the current record state. When an action is unavailable, ask the record owner or your access contact to review it instead of trying to work around the screen.
+
+Have the record name, code, owner, and department ready before asking for help. Those details make support and audit conversations much faster.
 
 ## Where To Find It
 
-- Sidebar item **Dashboard** → `/`
+Primary route: `/`
 
-Drill-down links commonly take you to:
+You can usually reach this area from the left sidebar or the home route. Dashboard is a summary surface with filters, widgets, matrix drilldowns, committee view, and export. Work stays in widgets, views, drilldowns, and supporting lists.
 
-- `/risks` (including critical filters)
-- `/controls`
-- `/kris`
-- `/departments`
-- `/vendors` (if you have `vendors:read`)
-- `/issues` (if you have `issues:read`)
+Common navigation pattern:
 
-## Roles, Scope, and Visibility
+1. Open Dashboard.
+2. Clear or set the department filter.
+3. Review the widget, chart, or matrix that raised the question.
+4. Use available drilldowns to open the supporting list.
+5. Export the dashboard summary only after confirming the filters.
 
-Dashboard data respects your scope.
+## What You Can See and Change
 
-Practical consequences:
+What you can see depends on your role, department scope, and record ownership. A user with broad review responsibility may see more records than a user responsible for one department. A record owner may be able to act on a record even when it is outside the owner’s usual department view.
 
-- a department-scoped user will see a different posture than a global-scope reviewer
-- if you are missing a widget entirely, it may be permission-gated (for example, issues widgets only appear if you can read issues)
+Typical information in this area includes:
 
-Some organizations also have a "committee" view, available to certain roles/scopes, which emphasizes review-ready summaries.
+- Risk counts and scores
+- Control status
+- Kri status
+- Vendor concentration signals
+- Quarterly comparison notes
 
-## Data Model and Key Fields
+Changes should be practical and easy to explain. If the change affects ownership, scoring, closure, archive state, or other governance-sensitive information, expect a review step in some environments. Read-only users can still use the page for investigation, filtering, and evidence gathering.
 
-Dashboard widgets are aggregates across core entities.
+## How To Complete Common Tasks
 
-| Widget / metric | What it usually represents | How to interpret |
-|---|---|---|
-| Total controls | Count of controls in scope | A high number is not “good”; execution quality matters more. |
-| Active departments | Departments with meaningful exposure | Use as navigation, not as performance. |
-| Critical risks | Net score above a threshold | Thresholds matter; confirm how “critical” is defined in your environment. |
-| Average net risk score | Mean residual exposure | Useful only alongside distribution (high/critical concentration). |
-| Vendors | Vendor count in scope | Only visible if you can read vendors. |
-| Open issues | Findings count | Only visible if you can read issues. |
-| Risk distribution (gross/net) | Heatmap of scoring | Use drill-down to find the top drivers. |
-| KRI breach widgets | Breach / due / overdue signals | Treat as monitoring discipline + risk pressure signals. |
-| Trends | Time series for risks/controls/breaches | Use to detect change points and follow up with evidence. |
+Follow this basic workflow unless your team has a stricter local procedure:
 
-KRI status drill-downs use canonical KRI list filters:
+1. Review today’s risk posture.
+2. Filter by department or time period.
+3. Open supporting risks, controls, kris, or vendors.
+4. Prepare a compact evidence export.
 
-- overdue widget drill-down: `/kris?monitoring_status=not_submitted`
-- upcoming widget drill-down: `/kris?timeliness_status=due_soon`
+After changing filters or switching views, verify that the dashboard widgets, charts, and summary counts match your intent. If the page reloads while you are working, refresh and review the current filters before using the numbers.
 
-## Core Workflows
+When linking records, choose only relationships that are useful to another reviewer. A link should explain a real business relationship: a control reduces a risk, a KRI monitors a risk, a vendor contributes to an exposure, or an issue tracks remediation for a specific problem.
 
-### 1) Start-of-day routine (5–10 minutes)
+## Approvals and Notifications
 
-1. Open `/`.
-2. Confirm filters are correct.
-3. Scan for urgent signals:
-   - critical risks
-   - KRI breaches and overdue items
-   - open issues (if visible)
-4. Click through to the underlying list pages and take action.
-5. Check workflow queues (`/notifications`, `/approvals`) before you start editing.
+Dashboard pages do not approve changes. They show the current state after normal workflow rules have been applied. Pending approvals may explain why a number has not changed yet.
 
-### 2) Prepare a review/committee pack
+Use approval notes to explain the business reason, not just the button you clicked. A good note says what changed, why it is appropriate, and what evidence supports the decision. Notifications are reminders and pointers; dashboard widgets and supporting lists help explain the current context.
 
-Dashboard is a starting point, not the final artifact.
+If you receive a stale or rejected approval, do not immediately resubmit the same change. Open the supporting list or source page, compare the current state with your intended update, and submit a new focused change only if it is still needed.
 
-Recommended approach:
+## Finding, Filtering, and Evidence
 
-1. Use department metrics to identify where exposure concentrates.
-2. Use risk distribution to identify high/critical clusters.
-3. Export entity lists with explicit filters:
-   - `/risks` (critical, priority, breached)
-   - `/controls` (status, risk level)
-   - `/kris` (breach, overdue)
-   - `/issues` (overdue, high/critical)
-4. Write the narrative using “drivers”, not just counts.
+Use filters first, then export. For committee or quarterly views, note whether the selected period has complete historical snapshots or whether the page marks part of the comparison as unavailable.
 
-### 3) Diagnose a sudden metric shift
+For reliable results, filter in this order:
 
-If a number changes suddenly:
+1. Start broad enough to confirm the record exists.
+2. Narrow by department, owner, status, vendor, or date.
+3. Open a supporting list or drilldown, when available, to confirm the filter matches your intent.
+4. Export only the filtered view needed for the review.
 
-- check whether filters changed
-- check whether statuses changed (active ↔ archived)
-- check whether ownership/department edits moved items in/out of scope
+Exports are evidence. Keep them small, label the time period, and avoid sharing unrelated personal or sensitive information.
 
-Use `/activity-log` (if you have access) to confirm what changed, when, and by whom.
+## Tips and Common Mistakes
 
-### 4) Use drill-downs responsibly
+- Treat missing comparison data as a snapshot availability question, not as a zero value.
+- Open the supporting list before escalating a dashboard number.
+- Use the same filters in the export that you used while reviewing the screen.
 
-Many widgets support drill-down:
-
-- a heatmap cell can open a risk list filtered to that cell
-- “critical risks” can open `/risks?critical=true`
-- KRI status widget uses canonical KRI filters instead of legacy overdue query flags
-
-When you share a drill-down result, always state:
-
-- the active filters
-- the as-of date/time
-- the scope (global vs department)
-
-## Approvals and Notifications Behavior
-
-Dashboard is mostly read-only. It does not directly create approvals.
-
-However, it is often the *reason* approvals happen:
-
-- dashboard highlights pressure → someone edits scoring/ownership → approval request is queued
-
-Operational discipline:
-
-- if you plan to change sensitive fields, check `/approvals` and use clear reasons
-- treat KRI breach/overdue widgets as triggers to create Issues and route remediation
-
-## Filters, Views, and Exports
-
-### Filters
-
-Dashboard filters (such as department filters) change what you see everywhere.
-
-Rules:
-
-- always confirm the filter bar before interpreting a number
-- reset filters when switching between personal work and presentation work
-
-### Views
-
-Some deployments support a committee/overview toggle.
-
-Use committee view when:
-
-- you need stability and narrative clarity
-- you are preparing for formal review
-
-Committee quarterly comparison rules:
-
-- current quarter selection cannot be later than the actual current quarter
-- compare quarter must be earlier than the selected current quarter
-- live snapshot metrics are used only for the actual in-progress current quarter
-- completed quarters use stored snapshots; historical selections do not show live current values under an old label
-- department-scoped users see scoped period choices and scoped snapshots
-- if a selected snapshot or individual snapshot metric is missing, the widget shows a warning, dashes for unavailable sides, and `N/A` for that delta instead of treating missing values as zero
-
-Use overview view when:
-
-- you are doing day-to-day operational routing
-
-### Exports
-
-Dashboard supports a summary export (CSV download).
-
-Export discipline:
-
-- export only when you need a snapshot for a decision or audit
-- attach the context: filter settings and timestamp
-- keep the raw exported file unchanged
-
-## Common Mistakes
-
-- Reading metrics without checking filters.
-- Treating counts as KPIs (more controls ≠ better control environment).
-- Sharing screenshots or exports without stating scope and as-of time.
-- Overreacting to a single breach without checking trend and context.
+Common mistakes are usually caused by stale filters, unclear department scope, or reading a summary without checking the supporting list. If something looks wrong, first refresh the page and confirm the same result in the dashboard widgets.
 
 ## Troubleshooting
 
-### Dashboard looks empty or incomplete
+If the page is empty, clear filters and search by a known record name. If the page is missing from the sidebar, your role may not include that work area. If a save fails, read the message, refresh the record, and check whether another user changed it first.
 
-- Confirm you are authenticated.
-- Confirm your permissions (issues/vendors widgets may be hidden).
-- Try refresh; dashboard is live-updating.
+If a linked record is missing, you may not have access to that related item. Ask for the business name or code rather than a technical identifier. For support, include your role, the route you were using, the record name, the action you attempted, and the exact message shown on screen.
 
-### Export button fails
+## Related Manuals
 
-- Retry.
-- Confirm you have a stable connection.
-- If it persists, capture the error and escalate.
-
-### Numbers don’t match a colleague’s screen
-
-- Compare filters.
-- Compare scope (global vs department).
-- Check whether archived items are included in one view and not the other.
-- In committee view, compare selected quarters and snapshot warnings; one user may be looking at live current-quarter metrics while another is looking at a stored historical quarter.
-
-## Related Documentation
-
-- `./getting-started.md`
-- `./risks.md`
-- `./controls.md`
-- `./kris.md`
-- `./issues.md`
-- `./vendors.md`
-- `./departments.md`
-- `./notifications.md`
-- `./activity-log.md`
+Start with [Risks](./risks.md), [Controls](./controls.md), [Kris](./kris.md), [Vendors](./vendors.md), [Notifications](./notifications.md). These manuals explain the connected workflows and help you follow the record from signal to action to evidence.

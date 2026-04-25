@@ -1,7 +1,7 @@
 ---
 title: Access Management and the Users Directory
-version: "2.2"
-last_updated: "2026-03-29"
+version: "2.4"
+last_updated: "2026-04-25"
 audience: user
 source_of_truth: "frontend/src/pages/UsersPage.tsx + frontend/src/authz/policy.ts + backend access APIs"
 summary: "How to use /users in directory mode and access mode, understand roles and scopes, and request/verify permission changes safely."
@@ -12,261 +12,126 @@ tags:
   - troubleshooting
   - settings
 ---
-
 # Access Management and the Users Directory
 
 **On this page**
-- [Overview](#overview)
+- [What This Page Helps You Do](#what-this-page-helps-you-do)
+- [Before You Start](#before-you-start)
 - [Where To Find It](#where-to-find-it)
-- [Roles, Scope, and Visibility](#roles-scope-and-visibility)
-- [Data Model and Key Fields](#data-model-and-key-fields)
-- [Core Workflows](#core-workflows)
-- [Approvals and Notifications Behavior](#approvals-and-notifications-behavior)
-- [Filters, Views, and Exports](#filters-views-and-exports)
-- [Common Mistakes](#common-mistakes)
+- [What You Can See and Change](#what-you-can-see-and-change)
+- [How To Complete Common Tasks](#how-to-complete-common-tasks)
+- [Approvals and Notifications](#approvals-and-notifications)
+- [Finding, Filtering, and Evidence](#finding-filtering-and-evidence)
+- [Tips and Common Mistakes](#tips-and-common-mistakes)
 - [Troubleshooting](#troubleshooting)
-- [Related Documentation](#related-documentation)
+- [Related Manuals](#related-manuals)
 
-## Overview
+## What This Page Helps You Do
 
-The `/users` page serves two distinct purposes depending on your privileges:
+Use this manual when you need to find users, understand their access scope, verify directory status, request or perform allowed lifecycle actions, and use break-glass only when justified. It is written for authorized users who review user access, directory status, and lifecycle state, so it focuses on what to do in the app, what to check before you act, and what result to expect after the work is done.
 
-1. **Users directory** (read-only): quickly find colleagues and understand who is responsible for what.
-2. **Access management view** (privileged): see roles, scopes, and permissions for users and (in some environments) manage them.
+The page is not a technical reference. It explains the everyday operating pattern: start from the Users table, confirm the person and current access state, make the smallest useful change, and then verify the result in the row, status message, notifications, or activity history.
 
-This manual explains both, and more importantly: how to *request and verify* access changes without breaking scope boundaries.
+You will use this area most often for:
 
-Primary route: `/users`
+- users table
+- directory mode
+- access mode
+- Add from AD
+- Check AD
+- status actions
+- break-glass dialog
 
-Important contract split:
+## Before You Start
 
-- `/users` directory mode is backed by the dedicated user-directory API.
-- `/access/users*` remains the access-management contract for privileged reviews and edits.
-- `/users/lookup` stays a generic picker/search primitive for forms and filters. It is not the `/users` page contract.
-- `/users` does not expose a standalone colleague detail page. Directory rows are informational, and privileged edits stay in the `/users` modal workflow.
-- Admin-only lifecycle/detail endpoints remain separate from access-management review. Role-selection data for the active UI comes from `/access/roles`, not from legacy `/users` lifecycle helpers.
-- directory-mode role filter options come from `/users/directory` facet metadata for your visible colleague universe; if a role is missing from the filter, there are currently no visible directory users for that role in scope.
-- Directory mode remains a supported contract, but the current seeded demo matrix does not include a canonical directory-only actor. Manual demo-account verification therefore focuses on access modes until product intentionally assigns `users:read` to a non-access-view role.
+Before working in this area, confirm three things. First, make sure you are signed in with the role you normally use for business work. Second, clear any old filters if the list looks incomplete. Third, check whether the record already has pending work in Approvals or Notifications.
+
+If a button or tab is missing, treat that as a normal access signal, not as an error. RiskHub only shows actions that fit your role, scope, record ownership, and the current record state. When an action is unavailable, ask the record owner or your access contact to review it instead of trying to work around the screen.
+
+Have the record name, code, owner, and department ready before asking for help. Those details make support and audit conversations much faster.
 
 ## Where To Find It
 
-- Sidebar item **Users** → `/users`
+Primary route: `/users`
 
-If you do not see **Users**:
+You can usually reach this area from the left sidebar. The Users page is a table and workflow surface: use filters, row actions, the access edit modal, Add from AD, Check AD, and break-glass dialogs. Work stays in the table, action buttons, and modals.
 
-- your account likely lacks both directory entitlement (`users:read`) and access-view entitlement
-- ask your access owner to validate whether you should have directory access
+Common navigation pattern:
 
-## Roles, Scope, and Visibility
+1. Open Users.
+2. Clear filters if you are not sure what should be visible.
+3. Search by name, email, role, department, directory status, or active state.
+4. Review the row and available row actions for the right person.
+5. Refresh after directory checks, access edits, lifecycle actions, or break-glass changes.
 
-RiskHub access is built on three layers:
+## What You Can See and Change
 
-- **Role**: what kind of user you are (what responsibilities you have)
-- **Scope**: how wide your visibility is (global vs department vs manager)
-- **Permissions**: what actions you can do per resource (read/write/delete/submit)
+What you can see depends on your role, department scope, and record ownership. A user with broad review responsibility may see more records than a user responsible for one department. A record owner may be able to act on a record even when it is outside the owner’s usual department view.
 
-### Directory mode vs access mode
+Typical information in this area includes:
 
-The `/users` page chooses a mode based on your authorization:
+- Name
+- Email
+- Role
+- Department
+- Manager
+- Access scope
+- Directory status
+- Active state
+- Break-glass expiry
 
-- **Access mode** (privileged): you can see users with their scopes and capability details.
-  - global privileged users use the full access-management view
-  - department heads use the department access view
-- **Directory mode** (standard): you can search a visible user list but you will not see full permission details.
+Changes should be practical and easy to explain. If the change affects ownership, scoring, closure, archive state, or other governance-sensitive information, expect a review step in some environments. Read-only users can still use the page for investigation, filtering, and evidence gathering.
 
-Mode precedence matters:
+## How To Complete Common Tasks
 
-1. access-management mode for global privileged users
-2. department access mode for department heads
-3. directory mode for users who have `users:read` but not an access-management view
+Follow this basic workflow unless your team has a stricter local procedure:
 
-If you do not match any of those modes, the route should redirect away instead of rendering a partial or misleading users screen.
+1. Search for a user.
+2. Review role and scope.
+3. Import a directory user.
+4. Check directory status for one user or all users.
+5. Activate or deactivate only when the action is offered.
+6. Temporarily enable break-glass for an auto-disabled external user.
 
-### Platform admin is different
+After saving or submitting, verify the result in the Users table and the directory/status message area. Any expected notification or approval item should also be visible. If the page reports that the user changed while you were working, refresh and review the current row before trying again.
 
-Platform admins are intentionally separated:
+When changing access, choose the smallest action that explains the business need. Broad role, scope, lifecycle, or break-glass changes should be easy for another reviewer to understand later.
 
-- they do not browse business modules
-- they use admin console and admin documentation
-- business routes such as `/governance` and `/activity-log` stay blocked for them, even via direct route/API access
+## Approvals and Notifications
 
-If you are platform admin, these user docs are not your primary manual.
+Access changes may be restricted to platform administrators or other authorized roles. If an action is not shown, do not work around it; ask the access owner to review the account.
 
-## Data Model and Key Fields
+Use approval notes to explain the business reason, not just the button you clicked. A good note says what changed, why it is appropriate, and what evidence supports the decision. Notifications are reminders and pointers; the Users row and activity history show the current account context.
 
-In access mode, you will typically see:
+If you receive a stale or rejected approval, do not immediately resubmit the same change. Find the user row again, compare the current state with your intended update, and submit a new focused change only if it is still needed.
 
-| Field | Meaning | Pitfalls / notes |
-|---|---|---|
-| Name / email | Identity of the user | Emails are stable identifiers; names can change. |
-| Role | What the user is responsible for (e.g., CRO, risk manager, department head) | Role alone does not determine visibility; scope + permissions matter. |
-| Access scope | `global`, `department`, or `manager` | Scope governs “how wide” visibility is. |
-| Department | Home department (if assigned) | Department is routing context, not necessarily ownership. |
-| Active status | Whether the account is enabled | Disabling is a governance action; treat it as reversible but audited. |
-| Permissions | Resource + action (e.g., `risks:read`, `vendors:write`) | Effective permissions can differ from expected; always verify. |
+## Finding, Filtering, and Evidence
 
-In directory mode, the UI focuses on identity and discoverability rather than enforcement details. It is intentionally separate from the authenticated `/users/lookup` picker used by assignment/search widgets elsewhere in the product. Directory results are server-filtered and paginated; searching and role filtering are part of the `/users` page contract rather than a client-side lookup fallback.
+Use search, role filters, directory status, pagination, and refresh to prepare access review evidence. The Users page does not provide an export button, so treat the filtered screen as a review surface and use approved reporting channels when a formal access-review file is required.
 
-## Core Workflows
+For reliable results, work in this order:
 
-### 1) Find the right person (ownership discovery)
+1. Start broad enough to confirm the user exists.
+2. Narrow by name, email, role, department, directory status, or active state.
+3. Open or review the row details to confirm you have the right person.
+4. Refresh after directory checks, lifecycle actions, or break-glass changes before recording the result.
 
-When you need to route work:
+For evidence, record the review date, the user name or email, the visible role/scope, and the action taken. Avoid sharing full user lists unless the review process explicitly requires it.
 
-1. Open `/users`.
-2. Search by name or email.
-3. Confirm department context.
-4. Use this to assign owners in risks, controls, KRIs, and issues.
+## Tips and Common Mistakes
 
-This is a simple workflow, but it prevents one of the most common failure modes: assigning work to the wrong person.
+- Directory updates should not overwrite local ownership decisions such as department or manager assignments.
+- Break-glass is temporary and needs a clear reason.
+- After a directory check, refresh the list before reporting the result.
 
-### 2) Understand “why can’t I see / edit X?”
-
-Access problems are usually one of these:
-
-- missing permission (resource/action)
-- wrong scope (department-only vs global)
-- wrong department assignment
-- ownership not set (so ownership exception doesn’t apply)
-
-Use this diagnostic loop:
-
-1. Identify the entity and its department + owner.
-2. Confirm your own scope.
-3. Confirm your permissions for the resource:
-   - risks: `risks:read` / `risks:write`
-   - controls: `controls:read` / `controls:write` / `controls:execute` (execution logging)
-   - vendors: `vendors:read` / `vendors:write`
-   - issues: `issues:read` / `issues:write`
-   - business activity log: `activity_log:read` (non-admin only)
-4. If needed, ask a privileged user to compare your effective permissions.
-
-### 3) Request an access change (safe pattern)
-
-When you request access, provide what an admin needs to approve quickly:
-
-- which resource and action you need (`vendors:read`, `issues:write`, etc.)
-- why you need it (role responsibility)
-- the smallest scope that is sufficient
-- how long you need it (temporary vs permanent)
-
-Avoid requesting `*:*` or broad permissions as a shortcut. Broad access creates audit and privacy risk.
-
-### 4) Verify an access change (don’t assume it worked)
-
-After an access change is applied:
-
-1. Log out and log back in (refresh effective permissions).
-2. Re-open `/users` and confirm expected mode (directory vs access) if applicable.
-3. Navigate to the module and try the exact action you needed.
-4. Check `/notifications` and `/approvals` for any workflow gating.
-
-If verification fails, report:
-
-- the user email
-- the time you tested
-- the route and action that failed
-
-### 5) Manage users (only if you have authority)
-
-Some environments allow privileged business users to review access users. Manual lifecycle actions are narrower.
-
-If you can manage users, use a “least privilege” process:
-
-- on `/users`, the create CTA is auth-mode dependent: **Add from AD** in directory-first auth modes and **Add user** in password mode
-- create or import accounts only when onboarding is confirmed and your role is authorized for lifecycle actions
-- after a successful directory import, stay on `/users` and complete the onboarding fields in the edit modal instead of looking for a separate user detail page
-- assign the minimum role and permissions needed
-- set the correct department
-- verify that dashboards and lists match the expected scope
-
-If you are not platform admin, do not expect admin lifecycle/detail endpoints to be available even if you can still review or edit access fields in `/users`.
-
-If you do not have edit rights, treat `/users` as a read surface and escalate changes to the platform admin team.
-
-If `/users` shows a retry banner instead of user rows, treat that as a load failure, not as proof that there are no matching users.
-
-## Approvals and Notifications Behavior
-
-Access changes are governance-sensitive.
-
-What to expect:
-
-- some changes may be approval-gated (policy dependent)
-- users may receive notifications when their access changes
-- access-related actions often leave a trail in the Activity Log
-
-If you are validating the change as platform admin, use admin console audit/log exports instead of the business Activity Log route.
-  - platform admins should use admin console audit/log exports instead of the business Activity Log route
-
-If you suspect a change is pending:
-
-- check `/approvals` for access-related requests
-- check `/notifications` for results
-
-## Filters, Views, and Exports
-
-### Filters
-
-`/users` includes filtering to make audits and reviews practical:
-
-- search (name/email)
-- role filter
-- scope filter (in access mode)
-- capability filter (resource + action) in access mode
-
-These filters are valuable for questions like:
-
-- “Who has `vendors:write`?”
-- “Which users are global scope?”
-- “Who is a department head?”
-
-### Views
-
-- directory mode: simplified view intended for discoverability
-- access mode: richer view intended for governance and reviews
-
-### Exports
-
-The Users page is not primarily an export surface.
-
-If you need evidence for an audit:
-
-- use Activity Log entries for change proof when you are a business user
-- coordinate with platform admins for formal exports where required
-
-## Common Mistakes
-
-- Treating role as the full story (scope and permissions matter).
-- Granting broad permissions to “make it work” rather than fixing ownership/department routing.
-- Forgetting to verify after a change.
-- Disabling users without documenting why and what follow-up is required.
+Common mistakes are usually caused by stale filters, unclear ownership, duplicate accounts, or trying to make a broad change when a focused change would be easier to review. If something looks wrong, first refresh the page and confirm the same result in the Users table.
 
 ## Troubleshooting
 
-### I expected access mode but I see only a directory
+If the page is empty, clear filters and search by a known user name or email. If the page is missing from the sidebar, your role may not include that work area. If a save fails, read the message, refresh the table, and check whether another user changed the account first.
 
-- You likely do not have global scope or department-head access.
-- Confirm whether you should have `users:read` and whether you should also have a global or department access view.
+If a user is missing, you may be in the wrong mode, scope, or filter state. Ask for the business name or email rather than a technical identifier. For support, include your role, the route you were using, the user name or email, the action you attempted, and the exact message shown on screen.
 
-### I can see permissions but can’t edit
+## Related Manuals
 
-- Viewing access data and editing are separate privileges.
-- In many setups, lifecycle actions such as direct create/import are Admin-only even when broader read or access-review surfaces are available.
-
-### A user still can’t see a module after granting access
-
-- Make sure the permission is correct (resource/action).
-- Verify the user logged out and back in.
-- Confirm department assignment and ownership where relevant.
-
-## Related Documentation
-
-- `./departments.md`
-- `./notifications.md`
-- `./activity-log.md`
-- `./getting-started.md`
-- `./risks.md`
-- `./controls.md`
-- `./vendors.md`
-- `./issues.md`
+Start with [Getting Started](./getting-started.md), [Activity Log](./activity-log.md), [Governance](./governance.md), [Notifications](./notifications.md), [Risk Hub](./risk-hub.md). These manuals explain the connected workflows and help you follow the record from signal to action to evidence.

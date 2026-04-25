@@ -1,6 +1,6 @@
 # Testing
 
-**Analysis Date:** 2026-04-24
+**Analysis Date:** 2026-04-25
 
 ## Test Stack Overview
 
@@ -26,7 +26,7 @@
 - Session-scoped engine disposal prevents pytest interpreter-exit hangs caused by leaked `aiosqlite` worker threads (`tests/backend/pytest/conftest.py`)
 
 ### Scale snapshot
-- Backend test tree: 162 tracked files (159 Python)
+- Backend test tree: 166 files
 - API-focused backend tests live under `tests/backend/pytest/api/` and domain-specific root test modules under `tests/backend/pytest/`
 
 ## Frontend Unit/Integration Patterns
@@ -79,6 +79,7 @@
 - Frontend unit tests: `cd frontend && npm run test:run` (blocking in PR CI)
 - Frontend capability/schema regressions: `cd frontend && npm run test:run -- ../tests/frontend/unit/src/services/__tests__/responseSchema.nullability.test.ts ../tests/frontend/unit/src/pages/__tests__/KRIDetailPage.edit-approval.test.tsx ../tests/frontend/unit/src/components/risks/__tests__/riskQuestionnaireOpenFlow.test.tsx ../tests/frontend/unit/src/components/riskhub/__tests__/RiskQuestionnairesPanel.test.tsx ../tests/frontend/unit/src/components/dashboard/__tests__/QuarterlyComparisonWidget.test.tsx`
 - Access/Risk Hub config regressions: `cd backend && ./venv/bin/pytest -q ../tests/backend/pytest/test_access_management.py ../tests/backend/pytest/test_users.py ../tests/backend/pytest/test_riskhub_roles.py ../tests/backend/pytest/test_riskhub_departments.py ../tests/backend/pytest/test_admin_sessions.py` and `cd frontend && npm run test:run -- ../tests/frontend/unit/src/components/access/AccessEditModal.test.tsx ../tests/frontend/unit/src/pages/__tests__/UsersPage.sso-cta.test.tsx`
+- Directory identity lifecycle regressions: `cd backend && ./venv/bin/pytest -q ../tests/backend/pytest/test_directory_import.py ../tests/backend/pytest/test_ad_deprovision_service.py ../tests/backend/pytest/test_admin_directory_sync.py ../tests/backend/pytest/test_access_management.py ../tests/backend/pytest/test_users.py` and `cd frontend && npm run test:run -- ../tests/frontend/unit/src/pages/__tests__/UsersPage.modes.test.tsx ../tests/frontend/unit/src/pages/__tests__/UsersPage.sso-cta.test.tsx`
 - Auth/SSO/session boundary regressions: `cd backend && ./venv/bin/pytest -q ../tests/backend/pytest/test_admin_sessions.py ../tests/backend/pytest/test_sso_token_service.py ../tests/backend/pytest/test_sso_exchange.py ../tests/backend/pytest/test_auth_refresh.py ../tests/backend/pytest/test_auth_config_endpoint.py` and `cd frontend && npm run test:run -- ../tests/frontend/unit/src/pages/__tests__/SsoCallbackPage.test.tsx ../tests/frontend/unit/src/pages/__tests__/UserNewPage.sso.test.tsx ../tests/frontend/unit/src/pages/__tests__/UsersPage.sso-cta.test.tsx ../tests/frontend/unit/src/pages/admin-console/__tests__/AdminConsoleOpsPanels.sessions.test.tsx`
 - Orphan governance regressions: `cd backend && ./venv/bin/pytest -q ../tests/backend/pytest/test_admin_orphans.py ../tests/backend/pytest/test_orphaned_items_scan_and_stats.py ../tests/backend/pytest/test_user_deactivation_orphans.py` and `cd frontend && npm run test:run -- ../tests/frontend/unit/src/components/governance/OrphanedItemsTable.test.tsx ../tests/frontend/unit/src/pages/__tests__/GovernancePage.overview.test.tsx`
 - Frontend targeted KRI routing regression: `cd frontend && npm run test:run -- src/pages/__tests__/KRIsPage.monitoring-status.test.tsx`
@@ -86,6 +87,7 @@
 - Frontend vendor governance/report regressions: `cd frontend && npm run test:run -- ../tests/frontend/unit/src/components/__tests__/VendorForm.test.tsx ../tests/frontend/unit/src/components/__tests__/VendorForm.payloads.test.ts ../tests/frontend/unit/src/pages/__tests__/VendorsPage.grouped-views.test.tsx ../tests/frontend/unit/src/pages/__tests__/VendorDetailPage.presentation.test.ts ../tests/frontend/unit/src/services/__tests__/vendorReportApi.test.ts`
 - Frontend control execution/detail regressions: `cd frontend && npm run test:run -- ../tests/frontend/unit/src/components/__tests__/ExecutionHistory.test.tsx ../tests/frontend/unit/src/pages/__tests__/ControlDetailPage.execution-status.test.tsx ../tests/frontend/unit/src/pages/__tests__/ControlsPage.presentation.test.ts`
 - Frontend capability/display guardrails: `cd frontend && npm run test:run -- ../tests/frontend/unit/src/lib/capabilities.test.ts ../tests/frontend/unit/src/quality/noRawIdDisplay.test.ts`
+- Frontend in-app documentation reader/manual regressions: `cd frontend && npm run test:run -- src/components/settings/__tests__/DocumentationSettings.test.tsx src/pages/__tests__/DocumentationPage.test.tsx src/components/documentation`
 - Frontend type checks: `cd frontend && npx tsc --noEmit`
 - Frontend quality gate chain: `cd frontend && npm run lint && npx tsc --noEmit && npm run quality:debt -- --report-json && node scripts/quality/validate-debt-budget-report.mjs && npm run cleanup:deadcode && node scripts/cleanup/validate-unreachable-report.mjs && node scripts/quality/validate-no-inline-styles.mjs`
 - E2E: `make -f scripts/Makefile test-e2e` or `cd frontend && npm run e2e`
@@ -93,6 +95,7 @@
 - Docker-targeted polish audit: `cd frontend && FRONTEND_URL=http://localhost POLISH_AUDIT_DEEP=1 npx playwright test -c playwright.config.ts ../tests/frontend/e2e/polish-audit.spec.ts --project=chromium`
 - Production-profile backend smoke: see `.github/workflows/e2e.yml` job `production-profile-smoke`
 - Docs topology consistency: `make -f scripts/Makefile docs-topology-consistency`
+- In-app documentation contract: `python3 scripts/check_docs_contract.py`
 - Production contract doc parity: `python3 scripts/security/validate_production_contract_docs.py`
 - Release parity (fast loop): `python3 scripts/security/run_release_parity_audit.py --run-id <utc-ts> --skip-prod-readiness`
 - Release parity (full gate): `python3 scripts/security/run_release_parity_audit.py --run-id <utc-ts>`
@@ -128,4 +131,4 @@
 
 ---
 
-*Testing audit refreshed on 2026-04-24*
+*Testing audit refreshed on 2026-04-25*

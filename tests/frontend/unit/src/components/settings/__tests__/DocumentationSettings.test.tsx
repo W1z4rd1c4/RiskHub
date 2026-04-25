@@ -254,6 +254,38 @@ describe('DocumentationSettings', () => {
         expect(screen.getByTestId('settings-docs-audience')).toHaveTextContent('User documentation');
     });
 
+    it('hides maintainer metadata when reading user manuals', async () => {
+        server.use(
+            http.get('*/api/v1/auth/me', () => HttpResponse.json(makeUser({ role: 'employee' }))),
+            http.get('*/api/v1/admin/docs', () => HttpResponse.json(userDocsPayload)),
+        );
+
+        await renderDocumentationSettings();
+
+        const uiUser = userEvent.setup();
+        await uiUser.click(await screen.findByTestId('settings-doc-card-user_getting-started'));
+
+        expect(await screen.findByRole('heading', { level: 2, name: 'Getting Started with RiskHub' })).toBeInTheDocument();
+        expect(screen.queryByText('v2.0')).not.toBeInTheDocument();
+        expect(screen.queryByText(/Maintainer reference:/i)).not.toBeInTheDocument();
+        expect(screen.queryByText('docs/BUSINESS_LOGIC.md')).not.toBeInTheDocument();
+    });
+
+    it('keeps maintainer metadata visible for admin runbooks', async () => {
+        server.use(
+            http.get('*/api/v1/auth/me', () => HttpResponse.json(makeUser({ role: 'admin' }))),
+            http.get('*/api/v1/admin/docs', () => HttpResponse.json(adminDocsPayload)),
+        );
+
+        await renderDocumentationSettings();
+
+        const uiUser = userEvent.setup();
+        await uiUser.click(await screen.findByTestId('settings-doc-card-admin_getting-started'));
+
+        expect(await screen.findByText('v2.0')).toBeInTheDocument();
+        expect(screen.getByText(/Maintainer reference: docs\/BUSINESS_LOGIC\.md/i)).toBeInTheDocument();
+    });
+
     it('scrolls to toc target when clicking in-document toc link', async () => {
         server.use(
             http.get('*/api/v1/auth/me', () => HttpResponse.json(makeUser({ role: 'admin' }))),

@@ -1,228 +1,130 @@
 ---
 title: Activity Log (Audit Trail for Business Changes)
-version: "2.0"
-last_updated: "2026-03-05"
+version: "2.4"
+last_updated: "2026-04-25"
 audience: user
 source_of_truth: "frontend/src/pages/ActivityLogPage.tsx + backend activity log endpoints"
 summary: "How to use the Activity Log to investigate changes, confirm approvals, and build an audit-ready narrative without exposing sensitive data."
 tags:
   - activity-log
   - audit
+  - overview
   - troubleshooting
   - workflow
-  - exports
 ---
-
 # Activity Log (Audit Trail for Business Changes)
 
 **On this page**
-- [Overview](#overview)
+- [What This Page Helps You Do](#what-this-page-helps-you-do)
+- [Before You Start](#before-you-start)
 - [Where To Find It](#where-to-find-it)
-- [Roles, Scope, and Visibility](#roles-scope-and-visibility)
-- [Data Model and Key Fields](#data-model-and-key-fields)
-- [Core Workflows](#core-workflows)
-- [Approvals and Notifications Behavior](#approvals-and-notifications-behavior)
-- [Filters, Views, and Exports](#filters-views-and-exports)
-- [Common Mistakes](#common-mistakes)
+- [What You Can See and Change](#what-you-can-see-and-change)
+- [How To Complete Common Tasks](#how-to-complete-common-tasks)
+- [Approvals and Notifications](#approvals-and-notifications)
+- [Finding, Filtering, and Evidence](#finding-filtering-and-evidence)
+- [Tips and Common Mistakes](#tips-and-common-mistakes)
 - [Troubleshooting](#troubleshooting)
-- [Related Documentation](#related-documentation)
+- [Related Manuals](#related-manuals)
 
-## Overview
+## What This Page Helps You Do
 
-The Activity Log is the business-facing audit trail for changes inside RiskHub. It answers questions like:
+Use this manual when you need to find who changed what, when it happened, which record was affected, and how the change relates to approvals or follow-up work. It is written for users who need to reconstruct business changes, so it focuses on what to do in the app, what to check before you act, and what result to expect after the work is done.
 
-- Who changed this risk and what exactly changed?
-- When did this control get archived or restored?
-- Did an approval apply yet, or is it still pending?
-- Why did visibility change for a department?
+The page is not a technical reference. It explains the everyday operating pattern: start from the Activity Log, narrow the timeline, review the entry card and change summary, and then record the evidence you need.
 
-The Activity Log is not a "report". It is a forensic tool. Use it to confirm facts, reduce back-and-forth, and prepare clean evidence for reviews.
+You will use this area most often for:
 
-Primary app route: `/activity-log`
+- activity list
+- filters
+- record links
+- event details
+
+## Before You Start
+
+Before working in this area, confirm three things. First, make sure you are signed in with the role you normally use for business work. Second, clear any old filters if the list looks incomplete. Third, check whether the record already has pending work in Approvals or Notifications.
+
+If a button or tab is missing, treat that as a normal access signal, not as an error. RiskHub only shows actions that fit your role, scope, record ownership, and the current record state. When an action is unavailable, ask the record owner or your access contact to review it instead of trying to work around the screen.
+
+Have the record name, code, owner, and department ready before asking for help. Those details make support and audit conversations much faster.
 
 ## Where To Find It
 
-- Sidebar item **Activity Log** → `/activity-log`
+Primary route: `/activity-log`
 
-If you do not see Activity Log:
+You can usually reach this area from the left sidebar. The Activity Log is a timeline surface with tabs, filters, entry cards, refresh, and pagination. Work stays in the filtered timeline.
 
-- you likely do not have `activity_log:read` (resource `activity_log`, action `read`)
-- platform admins are explicitly blocked from business Activity Log, including direct route/API access (admins should use admin console logs instead)
+Common navigation pattern:
 
-## Roles, Scope, and Visibility
+1. Open Activity Log.
+2. Pick the right tab for the type of activity you need.
+3. Clear filters if you are not sure what should be visible.
+4. Search by person, action, record type, record name, department, or date.
+5. Review the matching entry cards and change summaries.
 
-Activity Log access is usually limited because it can reveal:
+## What You Can See and Change
 
-- cross-department activity
-- sensitive workflow decisions (approvals/rejections)
-- user and ownership changes
+What you can see depends on your role, department scope, and record ownership. A user with broad review responsibility may see more records than a user responsible for one department. A record owner may be able to act on a record even when it is outside the owner’s usual department view.
 
-Typical use cases by role:
+Typical information in this area includes:
 
-- risk managers and second line: validate changes and enforce policy consistency
-- compliance / audit: spot-check evidence and change control quality
-- department leadership (if granted): investigate why a metric changed
+- Event time
+- Actor
+- Action
+- Record type
+- Record name or code
+- Change summary
+- Related approval when available
 
-Remember: the log is evidence, not authority. If a change is incorrect, you still need to fix the underlying entity.
+Changes should be practical and easy to explain. If the change affects ownership, scoring, closure, archive state, or other governance-sensitive information, expect a review step in some environments. Read-only users can still use the page for investigation, filtering, and evidence gathering.
 
-## Data Model and Key Fields
+## How To Complete Common Tasks
 
-Each Activity Log entry represents one action.
+Follow this basic workflow unless your team has a stricter local procedure:
 
-| Field | Meaning | How to use it |
-|---|---|---|
-| Entity type | What kind of object changed (risk/control/kri/user/etc) | Use it to narrow the search to the right domain. |
-| Entity name | Safe identifier or generic entity label | Prefer stable codes/labels over raw titles. |
-| Action | `create`, `update`, `archive`, `approve`, `reject`, `link`, etc | Action tells you what kind of event it is. |
-| Actor | Who performed it (may be null for system actions) | If actor is missing, treat as system-generated. |
-| Department | Context label for routing | Helps explain why something appeared/disappeared in department scope. |
-| Changes | Field-level `old` → `new` deltas | Use it to prove the exact edit without opening the entity. |
-| Description | Sanitized short narrative context | Good for quick scanning, intentionally template-based for sensitive events. |
-| Timestamp | When it happened (`created_at`) | Use a tight date range when investigating. |
+1. Search by date, person, record, or action.
+2. Review the matching entry cards.
+3. Compare activity timestamps with approvals.
+4. Capture the focused timeline details for audit notes or support.
 
-Changes can include structured values. The UI formats them defensively:
+After filtering or refreshing, verify that the timeline shows the expected event, actor, action, and change summary. If the page reloads while you are working, review the current filters before recording the result.
 
-- empty values show as `(empty)`
-- objects are displayed as truncated JSON
-- long diffs are intentionally condensed
+When using the Activity Log as evidence, keep the time window, actor, action, record type, and change summary together so another reviewer can reconstruct the sequence.
 
-## Core Workflows
+## Approvals and Notifications
 
-### 1) Confirm whether an edit is applied
+Approved changes may appear as both a request and an applied change. Use the timestamps and actor names to explain the sequence rather than assuming the same person performed every step.
 
-If you changed an entity and it looks unchanged:
+Use approval notes to explain the business reason, not just the button you clicked. A good note says what changed, why it is appropriate, and what evidence supports the decision. Notifications are reminders and pointers; Activity Log entries show the timeline of what happened.
 
-1. Open `/activity-log`.
-2. Switch to the entity type tab (Risk / Control / KRI / User).
-3. Search for a stable identifier, safe label, or actor name.
-4. Look for `update` or `status_change` entries.
-5. If you see no update, check `/approvals` for a pending request.
+If you receive a stale or rejected approval, do not immediately resubmit the same change. Compare the approval timestamps with the Activity Log and submit a new focused change only if it is still needed.
 
-This is the fastest way to separate UI cache issues from workflow gating.
+## Finding, Filtering, and Evidence
 
-### 2) Explain a metric change during a review
+Use the time window, actor, action, and record filters to narrow the timeline. The business Activity Log page is for investigation and review; it does not provide a user-facing export button.
 
-When a dashboard number changes unexpectedly (risk totals, critical count, breaches):
+For reliable results, work in this order:
 
-1. Use Activity Log to find recent changes in the relevant entity type.
-2. Filter by date range to the review window.
-3. Identify the specific edits that moved an item in/out of scope:
-   - status changes (active → archived)
-   - department changes
-   - ownership changes
-   - threshold changes (for KRIs)
-4. Summarize the narrative with timestamps.
+1. Start with the smallest time window that could contain the event.
+2. Narrow by person, action, record type, or record name.
+3. Review the entry description and change summary when you need business context.
+4. Capture the filtered view details in your audit notes or support handoff.
 
-### 3) Investigate "Why can’t I see this anymore?"
+For formal evidence, record the filtered time window, actor, action, and related record name in your audit notes or support handoff.
 
-Visibility changes are often caused by department or ownership edits.
+## Tips and Common Mistakes
 
-Use Activity Log to:
+- Use business names or codes in your search notes.
+- If a record name changed, search around the time of the change and compare the old and new names shown in the entry.
+- Do not treat missing access to a linked record as proof that the activity is wrong.
 
-- find the entry that changed department or owner
-- confirm who made the change and when
-- identify whether the change is policy-correct or accidental
-
-Then fix the root cause in the entity record (and document why).
-
-### 4) Validate governance actions
-
-After resolving an orphaned item or approving a sensitive change:
-
-1. Find the corresponding Activity Log entry.
-2. Confirm the `approve` / `update` event exists.
-3. Capture the timestamp and the delta as evidence for your review pack.
-
-## Approvals and Notifications Behavior
-
-Activity Log is closely related to workflow, but it is not the workflow queue.
-
-Use these rules:
-
-- If you see a change as `approve` or `reject`, it usually means a workflow decision occurred.
-- If you see the entity-level update but stakeholders claim they were not notified, check `/notifications`.
-- If you do not see an expected update, check `/approvals` for a pending request.
-
-A useful habit is to always correlate:
-
-- Activity Log (what changed)
-- Approvals (why it changed / who decided)
-- Notifications (who was informed)
-
-## Filters, Views, and Exports
-
-Activity Log supports two dimensions of investigation: *what* and *how you want to group it*.
-
-### Tabs (what)
-
-The top tabs let you focus by entity family:
-
-- KRI
-- Risk
-- Control
-- User
-
-### View modes (how)
-
-You can switch between view modes:
-
-- **Chronological**: the default “timeline”
-- **By person**: filter to one actor
-- **By department**: filter to one department
-- **By risk**: filter to one risk context
-
-### Filters
-
-Use filters to control noise:
-
-- search (safe labels, actor names, sanitized descriptions)
-- action (create/update/archive/link/etc)
-- date range (from/to)
-
-### Exports
-
-The business Activity Log UI does not provide a first-class export button.
-
-If you need exportable evidence:
-
-- export the underlying entities (risks/controls/issues) and reference the Activity Log timestamps
-- for platform-level audit exports, a platform admin can use admin console audit logs
-
-Avoid copying full diffs into external channels unless the recipient is authorized.
-
-## Common Mistakes
-
-- Using Activity Log as a substitute for fixing the underlying record.
-- Searching with unstable terms (nicknames, informal abbreviations) instead of entity names/codes.
-- Expanding the date range too widely and then missing the relevant entry.
-- Sharing log excerpts that include sensitive context with unauthorized audiences.
+Common mistakes are usually caused by stale filters, wrong tabs, unclear actor names, or a time window that is too narrow. If something looks wrong, first refresh the page and confirm the same result in the filtered timeline.
 
 ## Troubleshooting
 
-### I don’t have access to `/activity-log`
+If the page is empty, clear filters, switch tabs, and search by a known record name or actor. If the page is missing from the sidebar, your role may not include that work area. If loading fails, read the message and refresh the timeline.
 
-- Confirm `activity_log:read`.
-- Confirm you are not logged in as platform admin.
-- If you should have access, ask your access owner to review your role and effective permissions.
+If an expected activity is missing, you may be outside the right date range, tab, or department scope. Ask for the business name or code rather than a technical identifier. For support, include your role, the route you were using, the record name, filters, and exact message shown on screen.
 
-### The log loads but doesn’t show the event I expect
+## Related Manuals
 
-- Tighten the entity type tab.
-- Try a different search term (entity code / safe label, actor name).
-- Expand the date range slightly.
-- If the change was approval-gated, look for approval events instead of entity edits.
-
-### I see “network error”
-
-- Refresh the page.
-- If it persists, capture the time and the error message and escalate to support.
-
-## Related Documentation
-
-- `./notifications.md`
-- `./governance.md`
-- `./risks.md`
-- `./controls.md`
-- `./kris.md`
-- `./issues.md`
-- `./departments.md`
+Start with [Notifications](./notifications.md), [Risks](./risks.md), [Controls](./controls.md), [Issues](./issues.md), [Access Management](./access-management.md). These manuals explain the connected workflows and help you follow the record from signal to action to evidence.

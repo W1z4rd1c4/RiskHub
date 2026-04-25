@@ -1,7 +1,7 @@
 ---
 title: Začínáme s RiskHub
-version: "2.0"
-last_updated: "2026-03-07"
+version: "2.4"
+last_updated: "2026-04-25"
 audience: user
 source_of_truth: "docs/BUSINESS_LOGIC.md + frontend onboarding routy"
 summary: "Onboarding manuál pro non-admin uživatele: ověření scope, navigace, workflow připravenost a nejčastější chyby na začátku."
@@ -12,255 +12,119 @@ tags:
   - notifications
   - troubleshooting
 ---
-
 # Začínáme s RiskHub
 
 **Na této stránce**
-- [Přehled](#prehled)
+- [S čím vám tato stránka pomůže](#s-čím-vám-tato-stránka-pomůže)
+- [Než začnete](#než-začnete)
 - [Kde to najdete](#kde-to-najdete)
-- [Role, scope a viditelnost](#role-scope-a-viditelnost)
-- [Datový model a klíčová pole](#datovy-model-a-klicova-pole)
-- [Hlavní workflow](#hlavni-workflow)
-- [Schvalování a notifikace](#schvalovani-a-notifikace)
-- [Filtry, pohledy a exporty](#filtry-pohledy-a-exporty)
-- [Časté chyby](#caste-chyby)
+- [Co můžete vidět a měnit](#co-můžete-vidět-a-měnit)
+- [Jak dokončit běžné úkoly](#jak-dokončit-běžné-úkoly)
+- [Schvalování a notifikace](#schvalování-a-notifikace)
+- [Vyhledávání, filtrování a evidence](#vyhledávání-filtrování-a-evidence)
+- [Tipy a časté chyby](#tipy-a-časté-chyby)
 - [Troubleshooting](#troubleshooting)
-- [Související dokumentace](#souvisejici-dokumentace)
+- [Související manuály](#související-manuály)
 
-## Přehled
+## S čím vám tato stránka pomůže
 
-Tento průvodce vás dostane od prvního přihlášení k produktivní denní práci. Fokus je na provozní připravenost:
+Tento manuál použijte, když potřebujete zorientovat se v pracovním prostoru, ověřit co vidíte a naučit se bezpečné první kroky před úpravou záznamů. Je určen pro nové uživatele RiskHubu, proto popisuje praktický postup v aplikaci: kde začít, co ověřit před akcí a jak poznat, že je práce dokončená.
 
-- ověřit, že přístup je správně
-- pochopit, jak scope ovlivňuje viditelnost
-- osvojit si „workflow mindset“ (approvals + notifikace)
-- vytvořit dobré návyky pro filtry a exporty
+Text není technická reference. Vysvětluje běžný provozní postup: otevřít správnou stránku, ověřit položku, kterou chcete zkontrolovat nebo změnit, provést nejmenší užitečnou změnu a zkontrolovat výsledek ve viditelném seznamu, panelu, modálu, notifikaci nebo aktivitě.
 
-Nejrychlejší cesta k hodnotě:
+Tuto oblast budete používat hlavně pro:
 
-- dashboard pro detekci tlaku
-- fronty pro workflow
-- akční rizika a kontroly (ownership + evidence)
+- Dashboard
+- Rizika
+- Kontroly
+- KRI
+- Dodavatelé
+- Schvalování
+- Nastavení
+
+## Než začnete
+
+Před prací si ověřte tři věci. Zaprvé, že jste přihlášeni rolí, se kterou běžně pracujete. Zadruhé, že staré filtry neskrývají očekávaná data. Zatřetí, že na záznamu už nečeká práce ve Schvalování nebo Notifikacích.
+
+Pokud tlačítko nebo záložka chybí, berte to jako běžný signál přístupu, ne jako chybu. RiskHub zobrazuje akce podle vaší role, rozsahu, ownership a aktuálního stavu záznamu. Když akce není dostupná, požádejte vlastníka záznamu nebo správce přístupů o kontrolu.
+
+Pro podporu mějte připravený název záznamu, kód, vlastníka a oddělení. Tyto údaje výrazně zrychlují komunikaci.
 
 ## Kde to najdete
 
-Tyto routy budete používat často:
+Primární cesta: `/settings`
 
-- dashboard: `/`
-- schvalování: `/approvals`
-- notifikace: `/notifications`
-- rizika: `/risks`
-- kontroly: `/controls`
-- KRI: `/kris`
-- nálezy: `/issues` (pokud je povoleno)
-- dodavatelé: `/vendors` (pokud je povoleno)
-- oddělení: `/departments`
-- governance: `/governance` (jen CRO)
-- nastavení (včetně dokumentace): `/settings`
+Většinou se sem dostanete z levého menu. Různé moduly používají různé vzory: tabulky, záložky, karty, modály, drilldowny nebo samostatné stránky. Řiďte se ovládacími prvky, které na dané stránce skutečně vidíte.
 
-Pokud routu neotevřete, berte to nejdřív jako access/scope problém, ne jako „bug“.
+Běžný postup navigace:
 
-## Role, scope a viditelnost
+1. Otevřete seznam.
+2. Vyčistěte filtry, pokud si nejste jistí viditelností.
+3. Hledejte podle názvu, vlastníka, dodavatele nebo oddělení.
+4. Otevřete řádek, kartu, modál, drilldown nebo samostatnou stránku jen tehdy, když to daný modul nabízí.
+5. Před úpravou zkontrolujte vazby a poslední aktivitu.
 
-Chování RiskHubu závisí na:
+## Co můžete vidět a měnit
 
-- roli (odpovědnost)
-- scope (global vs department vs manager)
-- permissions (resource + action)
+Viditelnost závisí na roli, rozsahu oddělení a ownership. Uživatel se širší review odpovědností může vidět více záznamů než uživatel jednoho oddělení. Vlastník záznamu může mít možnost jednat i mimo svůj běžný pohled.
 
-Praktické příklady:
+Typické informace v této oblasti:
 
-- `/vendors` uvidíte jen s `vendors:read`
-- `/issues` uvidíte jen s `issues:read`
-- `/governance` uvidíte ve výchozím kontraktu jen jako CRO
-- `/activity-log` uvidíte jen s `activity_log:read` (a nejste platform admin)
+- Profil
+- Jazyk a vzhled
+- Moduly v menu
+- Manuály pro vaši roli
 
-Scope určuje *jak široko* je baseline viditelnost. Ownership může vytvářet výjimky.
+Změny mají být praktické a snadno vysvětlitelné. Pokud změna ovlivňuje ownership, scoring, uzavření, archivaci nebo jiné citlivé údaje, počítejte v některých prostředích s review krokem. Uživatelé jen pro čtení mohou stránku používat pro kontrolu, filtrování a evidenci.
 
-Rozdíl, který se vyplatí držet v hlavě:
+## Jak dokončit běžné úkoly
 
-- **permission** určí, zda vůbec můžete modul otevřít a číst/zapisovat
-- **scope** určí, jak velký výřez dat v modulu uvidíte
-- **ownership** může vytvořit výjimky (např. uvidíte detail záznamu, který vlastníte, i mimo department scope)
+Pokud váš tým nemá přísnější postup, použijte tento základní workflow:
 
-Pokud něco “chybí”, nejdřív si odpovězte: chybí modul (permission), nebo chybí data uvnitř modulu (scope/filtry)?
+1. Přihlásit se a zkontrolovat profil.
+2. Otevřít hlavní oblasti.
+3. Rozlišit chybějící stránku od skrytých dat.
+4. Najít schvalování a notifikace.
 
-Pokud první den vidíte „divná“ data (chybí týmová rizika, nebo vidíte nesouvisející oddělení), řešte scope hned. Scope chyby stojí nejvíc času.
+Po uložení nebo odeslání ověřte výsledek na stránce, kterou jste použili: seznam, tabulka, panel, modál, notifikace nebo Activity Log mají ukazovat očekávaný stav. Pokud stránka hlásí, že položku mezitím změnil někdo jiný, obnovte data a znovu posuďte aktuální stav.
 
-## Datový model a klíčová pole
-
-Pro úspěch první den nepotřebujete všechny detaily. Potřebujete „control pointy“, které řídí denní provoz.
-
-| Koncept | Co sledovat | Proč |
-|---|---|---|
-| Ownership | owner u rizik/kontrol, reporting owner u KRI | Ownership řídí odpovědnost a routing. |
-| Department | oddělení u klíčových entit | Oddělení řídí reporting a baseline scope. |
-| Status | active/emerging/archived, open/closed | Status ovlivňuje viditelnost a priority. |
-| Scoring | net vs gross | Kvantifikace posture a trend. |
-| Due/overdue | KRI due date, Issue due date | Overdue je governance signál. |
-| Workflow notes | reason + resolution notes | Notes jsou součást audit trailu. |
-
-Praktická rada:
-
-- Pokud se v organizaci nedaří workflow, problém je skoro vždy v ownershipu (není jasné “kdo má udělat další krok”). První týden se vyplatí ownership stabilizovat dřív, než začnete řešit jemné detaily scoringu.
-
-## Hlavní workflow
-
-### 1) Checklist prvního přihlášení (15 minut)
-
-1. Přihlaste se a ověřte jméno + roli.
-   - V produkci má přihlašovací stránka před ověřením dočasný přepínač `CZ / EN`.
-   - Tento přepínač mění pouze text na přihlašovací stránce a neukládá dlouhodobou preferenci.
-2. Otevřete `/settings`:
-   - nastavte trvalou jazykovou preferenci
-   - ověřte přístup do dokumentace
-3. Otevřete `/` a ověřte, že data dávají smysl pro váš scope.
-4. Otevřete `/notifications` a zkontrolujte unread.
-5. Otevřete `/approvals` a ověřte pending žádosti.
-6. Otevřete `/departments` a ověřte, že oddělení kontext existuje.
-
-### 2) Denní rutina
-
-Jednoduchá rutina, která škáluje:
-
-1. Dashboard: critical a breach signály.
-2. Workflow: vyčistěte approvals a notifikace, které vlastníte.
-3. Exekuce:
-   - update rizik
-   - logování exekuce kontrol
-   - zapisování KRI (nebo follow-up na reporting ownera)
-4. Dokumentace:
-   - pište jasné poznámky
-   - zakládejte Issues pro remediaci
-5. Exportujte jen když je potřeba evidence.
-
-### 3) Týdenní hygiena
-
-1. Projděte overdue KRI.
-2. Projděte open Issues podle severity.
-3. Projděte top net rizika po odděleních.
-4. Ověřte, že kontroly s vysokým risk levelem mají recent exekuci.
-
-### 4) První týden: stabilizace odpovědností
-
-Pokud onboarding probíhá ve větší organizaci, první týden typicky narazíte na:
-
-- chybějící owner u rizik/kontrol
-- reporting owner u KRI nastavený “na nikoho”
-- oddělení kontext nedává smysl po reorganizaci
-
-Doporučený postup:
-
-1. U 10 nejkritičtějších rizik ověřte owner + oddělení.
-2. U KRI ověřte reporting owner a pravidelnost zápisu.
-3. Pokud něco není jasné, vytvořte Issue a přiřaďte vlastníka. “Nejasné” se samo nespraví.
+Při propojování záznamů vybírejte jen vazby, které dávají smysl dalšímu reviewerovi. Vazba má popsat skutečný business vztah: kontrola snižuje riziko, KRI riziko monitoruje, dodavatel vytváří expozici nebo nález řeší konkrétní problém.
 
 ## Schvalování a notifikace
 
-Nejdůležitější chování:
+První kroky jsou většinou jen pro čtení. Jakmile budete upravovat rizika, kontroly, KRI, nálezy nebo dodavatele, některé změny mohou čekat na schválení.
 
-- některé editace se neaplikují hned; zařadí se do schvalování
+Poznámky ke schválení mají vysvětlit business důvod. Dobrá poznámka říká, co se změnilo, proč je to správně a jaký důkaz změnu podporuje. Notifikace jsou připomínky a navigace; aktuální stránka a Activity Log pomáhají rekonstruovat kontext.
 
-Jak to vypadá:
+Pokud je schválení stale nebo zamítnuté, neposílejte hned stejnou změnu znovu. Vraťte se na stránku, kde práce začala, porovnejte aktuální stav se záměrem a odešlete novou úzkou změnu jen tehdy, pokud je stále potřeba.
 
-- save proběhne
-- hodnota se nezmění
-- objeví se „pending changes“
+## Vyhledávání, filtrování a evidence
 
-Když to uvidíte:
+Tato stránka slouží k naučení hledání informací, čištění filtrů a ověření, zda vaše role zobrazuje očekávaný pohled. Onboarding a Nastavení nemají exportní ovládací prvky.
 
-1. Otevřete `/approvals`.
-2. Sledujte status.
-3. Výsledek v `/notifications`.
+Pro spolehlivý výsledek postupujte takto:
 
-Pište kvalitní reason. Špatný reason generuje reject a rework.
+1. Otevřete modul, který potřebujete, z levého menu.
+2. Vyčistěte filtry, než usoudíte, že data chybí.
+3. Zužte pohled podle vlastníka, oddělení, stavu, dodavatele nebo data tam, kde takové filtry existují.
+4. Ověřte názvy, kódy, vlastníky a stav v seznamu, panelu, modálu, drilldownu nebo samostatné stránce, kterou daný modul nabízí, než provedete akci.
 
-Poznámka k statusům:
+Pro onboarding evidenci zapište cestu v aplikaci, viditelnou roli, použité filtry a název nebo kód kontrolovaného záznamu.
 
-- Některé prostředí používá i citlivější pending stav (např. `pending_privileged`). Princip je stejný: změna se neaplikuje, dokud není vyřízená.
-- Pokud jste omylem poslali špatnou žádost, hledejte možnost cancel (nebo požádejte schvalovatele o reject s jasnou poznámkou).
+## Tipy a časté chyby
 
-## Filtry, pohledy a exporty
+- Používejte názvy, kódy a vlastníky.
+- Když modul chybí, nejdřív ověřte roli.
+- Nechte manuál otevřený při učení nového postupu.
 
-### Filtry
-
-Většina list stránek má filtry. Dvě pravidla vyřeší 80 % zmatků:
-
-1. Před interpretací čísla vždy zkontrolujte filtry.
-2. Při změně úkolu filtry vyčistěte (hlavně před exportem).
-
-### Pohledy
-
-Některé stránky mají grouped view. Používejte pro review packy, ne pro rychlé denní editace.
-
-### Exporty
-
-Exporty jsou evidence.
-
-Disciplína:
-
-- export s „as of“ datem
-- raw export neměnit
-- odvozenou analýzu držet zvlášť
-
-Při porovnávání čísel mezi lidmi vždy uveďte:
-
-- filtry
-- scope
-- as-of čas
-
-Bez toho se i “správná čísla” budou jevit jako konflikt.
-
-## Časté chyby
-
-- Brát access problém jako bug bez ověření role/scope.
-- Měnit mnoho governance-citlivých polí najednou.
-- Ignorovat workflow fronty, dokud nejsou urgentní.
-- Sdílet export bez filtrů a as-of.
+Časté chyby vznikají ze starých filtrů, nejasného ownership, podobných názvů nebo příliš široké změny. Pokud něco vypadá špatně, nejdřív stránku obnovte a ověřte stejný výsledek ve viditelném seznamu, panelu nebo modálu.
 
 ## Troubleshooting
 
-### Nevidím modul, který vidí kolega
+Pokud je stránka prázdná, vyčistěte filtry a hledejte známý název záznamu. Pokud stránka chybí v menu, vaše role pravděpodobně tuto oblast nezahrnuje. Pokud uložení selže, přečtěte zprávu, obnovte záznam a zkontrolujte, zda ho mezitím nezměnil někdo jiný.
 
-- Porovnejte permissions (`resource:read`).
-- Porovnejte scope.
-- Ověřte ownership.
+Pokud chybí navázaný záznam, nemusíte k němu mít přístup. Ptejte se na business název nebo kód, ne na technický identifikátor. Pro podporu uveďte roli, cestu v aplikaci, název záznamu, akci a přesné znění zprávy na obrazovce.
 
-### Modul vidím, ale seznam je prázdný
+## Související manuály
 
-- Resetujte filtry.
-- Ověřte, že nejste v archived-only režimu.
-- Zkuste otevřít konkrétní záznam z notifikace (pokud existuje).
-
-### Změny se neaplikovaly
-
-- Zkontrolujte `/approvals`.
-- Outcome v `/notifications`.
-
-### Dostávám forbidden / permission denied
-
-- Pokud se vám změnila role/scope, udělejte re-login (stale session).
-- Ověřte, že máte očekávané oprávnění (`resource:action`).
-- Pokud oprávnění sedí, zachyťte čas + route + text chyby a eskalujte.
-
-### Dokumentace v aplikaci vypadá špatně
-
-- Non-admin by měl vidět user dokumentaci.
-- Pokud se zobrazuje admin dokumentace, je možné, že je špatně role.
-
-### Jazyk je nekonzistentní
-
-- Nastavte jazyk v `/settings`.
-- Refresh a znovu otevřete docs.
-
-## Související dokumentace
-
-- [Uživatelská dokumentace (index)](./README.md)
-- [Schvalování a notifikace](./notifications.md)
-- [Správa rizik](./risks.md)
-- [Správa kontrol](./controls.md)
-- [Správa KRI](./kris.md)
-- [Správa nálezů](./issues.md)
-- [Správa dodavatelů](./vendors.md)
-- [Oddělení](./departments.md)
-- [Správa přístupů](./access-management.md)
+Začněte s [Dashboard](./dashboard.md), [Risks](./risks.md), [Controls](./controls.md), [Notifications](./notifications.md), [Access Management](./access-management.md). Tyto manuály vysvětlují navázaná workflow a pomohou sledovat záznam od signálu přes akci až po evidenci.

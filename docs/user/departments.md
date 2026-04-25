@@ -1,239 +1,131 @@
 ---
 title: Departments and Organizational Scope
-version: "2.0"
-last_updated: "2026-03-07"
+version: "2.4"
+last_updated: "2026-04-25"
 audience: user
 source_of_truth: "frontend/src/pages/DepartmentsPage.tsx + frontend/src/services/departmentApi.ts"
 summary: "How to use Departments to understand scope, exposure, and ownership routing across risks, controls, KRIs, users, and activity."
 tags:
   - departments
   - access
+  - overview
   - workflow
-  - exports
   - troubleshooting
 ---
-
 # Departments and Organizational Scope
 
 **On this page**
-- [Overview](#overview)
+- [What This Page Helps You Do](#what-this-page-helps-you-do)
+- [Before You Start](#before-you-start)
 - [Where To Find It](#where-to-find-it)
-- [Roles, Scope, and Visibility](#roles-scope-and-visibility)
-- [Data Model and Key Fields](#data-model-and-key-fields)
-- [Core Workflows](#core-workflows)
-- [Approvals and Notifications Behavior](#approvals-and-notifications-behavior)
-- [Filters, Views, and Exports](#filters-views-and-exports)
-- [Common Mistakes](#common-mistakes)
+- [What You Can See and Change](#what-you-can-see-and-change)
+- [How To Complete Common Tasks](#how-to-complete-common-tasks)
+- [Approvals and Notifications](#approvals-and-notifications)
+- [Finding, Filtering, and Evidence](#finding-filtering-and-evidence)
+- [Tips and Common Mistakes](#tips-and-common-mistakes)
 - [Troubleshooting](#troubleshooting)
-- [Related Documentation](#related-documentation)
+- [Related Manuals](#related-manuals)
 
-## Overview
+## What This Page Helps You Do
 
-Departments in RiskHub are not just a directory. They are the primary way the platform expresses organizational scope:
+Use this manual when you need to understand how records are grouped by department, review ownership gaps, and open related risks, controls, KRIs, vendors, or issues from one place. It is written for users who review ownership and exposure by organizational area, so it focuses on what to do in the app, what to check before you act, and what result to expect after the work is done.
 
-- what data you can see
-- who should own remediation work
-- how reporting is grouped
-- which exposures are considered “local” vs “cross-functional”
+The page is not a technical reference. It explains the everyday operating pattern: start from the right screen, confirm the record is the one you intend to update, make the smallest useful change, and then verify the result in the list, detail page, notifications, or activity history.
 
-A department record also acts as a landing page for exposure metrics. From a single department you can quickly answer:
+You will use this area most often for:
 
-- How many risks and controls sit in this area?
-- Are there KRIs breaching limits that need attention?
-- Is the total exposure trending high (net score sum)?
+- department list
+- department detail
+- owners
+- risk/control/KRI summaries
+- linked records
 
-Primary routes:
+## Before You Start
 
-- departments overview: `/departments`
-- department details: `/departments/<id>` (opened by clicking a department card)
+Before working in this area, confirm three things. First, make sure you are signed in with the role you normally use for business work. Second, clear any old filters if the list looks incomplete. Third, check whether the record already has pending work in Approvals or Notifications.
+
+If a button or tab is missing, treat that as a normal access signal, not as an error. RiskHub only shows actions that fit your role, scope, record ownership, and the current record state. When an action is unavailable, ask the record owner or your access contact to review it instead of trying to work around the screen.
+
+Have the record name, code, owner, and department ready before asking for help. Those details make support and audit conversations much faster.
 
 ## Where To Find It
 
-- Sidebar item **Departments** → `/departments`
-- Click any department card to open its details page
+Primary route: `/departments`
 
-If you do not see **Departments**:
+You can usually reach this area from the left sidebar. Detail pages open by selecting a row or a linked card. If you arrive from another record, use the back button or the related-record links to return to the broader context.
 
-- you may be in a restricted environment or have an unusual permission set
-- ask your access owner to confirm your role and effective permissions
+Common navigation pattern:
 
-In most organizations, departments are broadly readable because they are the backbone of scope decisions.
+1. Open the list page.
+2. Clear filters if you are not sure what should be visible.
+3. Search by name, owner, vendor, or department.
+4. Open the record.
+5. Review linked records and recent activity before changing anything.
 
-## Roles, Scope, and Visibility
+## What You Can See and Change
 
-Department visibility and the meaning of department affiliation depends on role and scope.
+What you can see depends on your role, department scope, and record ownership. A user with broad review responsibility may see more records than a user responsible for one department. A record owner may be able to act on a record even when it is outside the owner’s usual department view.
 
-### How department scope typically works
+Typical information in this area includes:
 
-- **Global scope** users can usually see all departments and their exposure metrics.
-- **Department scope** users generally see their own department’s context and the entities tied to it.
-- **Ownership exceptions** can allow you to see risks/controls outside your department when you are the owner.
+- Department name
+- Manager
+- Risk count
+- Control count
+- Kri count
+- Vendor and issue context
 
-### Why this matters
+Changes should be practical and easy to explain. If the change affects ownership, scoring, closure, archive state, or other governance-sensitive information, expect a review step in some environments. Read-only users can still use the page for investigation, filtering, and evidence gathering.
 
-Departments are used in multiple workflows:
+## How To Complete Common Tasks
 
-- **routing**: who should triage and remediate an Issue
-- **reporting**: how exports and dashboards group results
-- **approvals**: who is a natural reviewer (even if workflow is role-based)
+Follow this basic workflow unless your team has a stricter local procedure:
 
-If your department assignment is wrong, many other things will look “broken” (missing risks, empty dashboards, approvals you can’t act on).
+1. Open a department.
+2. Review its current exposure.
+3. Check owners and managers.
+4. Open related records.
+5. Prepare a department-focused evidence set.
 
-## Data Model and Key Fields
+After saving or submitting, verify the result. The list should show the new state, the detail page should match your intent, and any expected notification or approval item should be visible. If the page reports that the record changed while you were working, refresh and review the current record before trying again.
 
-The department detail view aggregates data from multiple modules.
+When linking records, choose only relationships that are useful to another reviewer. A link should explain a real business relationship: a control reduces a risk, a KRI monitors a risk, a vendor contributes to an exposure, or an issue tracks remediation for a specific problem.
 
-| Field / metric | Meaning | Pitfalls / notes |
-|---|---|---|
-| Name | Human-readable department name | Don’t overload the name with abbreviations; use `Code` for that. |
-| Code | Short identifier used in reporting | Codes should be stable; changing them causes confusion in exports. |
-| Description | Optional context for what the department covers | Keep it practical (scope boundaries, not org-chart history). |
-| User count | How many users are assigned | This is not necessarily “how many can see the data” (ownership can differ). |
-| Risk count | Number of risks tied to the department | If you archive risks, the count can change based on archived inclusion. |
-| Control count | Number of controls tied to the department | Controls linked to risks can still be in a different department (cross-functional). |
-| KRI count | Number of KRIs under risks in this area | KRIs inherit context from risks; treat them as risk sub-entities. |
-| High risk count | Count of critical/high exposure risks | Use as a prioritization signal, not as a performance metric. |
-| Breaching KRI count | How many KRIs are outside limits | A single breaching KRI can be more important than the count suggests. |
-| KRI monitoring counts | Count split by `new`, `not_submitted`, `breach`, `warning`, `optimal` | These are canonical monitoring-status counts used by the department KRI tab and summary cards. |
-| Total net score | Aggregated net exposure | This is a summary; investigate the top drivers before presenting it. |
+## Approvals and Notifications
 
-Department details can also include:
+Department pages are mostly review surfaces. Changes to ownership or department assignment happen from the record itself or from authorized governance workflows and may require review.
 
-- risk distribution (low/medium/high/critical)
-- risk by status (active/emerging/etc)
-- control stats (active/inactive and breakdown)
-- KRI monitoring counts (`new`, `not_submitted`, `breach`, `warning`, `optimal`)
-- recent control executions (useful for operational pulse)
+Use approval notes to explain the business reason, not just the button you clicked. A good note says what changed, why it is appropriate, and what evidence supports the decision. Notifications are reminders and pointers; the record detail remains the best place to understand the full context.
 
-## Core Workflows
+If you receive a stale or rejected approval, do not immediately resubmit the same change. Open the record, compare the current state with your intended update, and submit a new focused change only if it is still needed.
 
-### 1) Use departments to understand your “blast radius”
+## Finding, Filtering, and Evidence
 
-When you start a day or a review cycle:
+Use department pages to confirm scope, ownership, and related-record context. The Departments page is a review and navigation surface; it does not provide its own export button.
 
-1. Open `/departments`.
-2. Identify departments with breaching KRIs or high-risk counts.
-3. Drill into a department and scan the top risks and active controls.
-4. Decide where you need deeper action: risk updates, control execution follow-ups, or new Issues.
+For reliable results, work in this order:
 
-This workflow is especially useful before a committee meeting: you can quickly move from “where is pressure” to “what exactly is driving it”.
+1. Open the department detail page.
+2. Review the summary counts and related records.
+3. Open the relevant risk, control, KRI, vendor, or issue list with the same department context.
+4. Record the related record names or codes that support your review.
 
-### 2) Diagnose visibility problems (“Why can’t I see X?”)
+For evidence, note the department, date, related record names, and the view you used.
 
-Departments are the first diagnostic stop for most access questions.
+## Tips and Common Mistakes
 
-When a user can’t see a risk/control/vendor they expect:
+- Department is a reporting and responsibility lens; it does not replace a named owner.
+- If a record appears in a department you did not expect, open the detail and check owner and linked context.
+- Use Governance when ownership is missing.
 
-1. Check which department the entity belongs to.
-2. Check whether the user’s scope is global or department.
-3. Check whether ownership exceptions apply (is the user the owner?).
-4. If still unclear, open the Activity Log (if you have access) to see recent changes to ownership/department.
-
-### 3) Prepare a clean export for a department review
-
-Exports are done from entity list pages (Risks/Controls/KRIs/Issues/Vendors). Departments help you keep the export scoped.
-
-Recommended approach:
-
-1. Start in `/departments` and choose the department you’re reporting on.
-2. Jump to `/risks` and apply filters that match the department scope.
-3. Export with a clear as-of date.
-4. Repeat for `/controls`, `/kris`, and `/issues` if needed.
-
-When you move from the department detail KRI tab into `/kris`, keep the canonical monitoring filter terminology aligned so totals stay comparable.
-
-If your organization expects department-level packs, use a consistent filter set and naming convention for exported files.
-
-### 4) Align ownership and routing
-
-Departments are not ownership.
-
-Use department assignment for:
-
-- where the work should be routed
-- where exposure is reported
-
-Use ownership for:
-
-- who is accountable to act
-- who receives notifications and approvals (depending on policy)
-
-When these drift apart (department says “Team A” but owner is “Team B”), your workflows will produce noise. Fix drift early.
-
-## Approvals and Notifications Behavior
-
-Most users use departments as a read surface; structural edits are often restricted.
-
-What to expect:
-
-- If you *can* edit department structure (name/code/manager), those changes may be treated as governance-sensitive and can trigger workflow.
-- Even without editing departments, you will see downstream approvals and notifications when entities change department or ownership.
-
-Practical habit:
-
-- when you change an entity’s department, add a clear note explaining why (so reviewers and auditors can reconstruct routing decisions later)
-
-For queue mechanics, see: `./notifications.md`.
-
-## Filters, Views, and Exports
-
-Departments are intentionally lightweight:
-
-- the overview page is a set of cards with key metrics
-- the detail page is a drill-down hub
-
-For filtering and exports, you generally:
-
-- use the **Departments** page to decide *where* to look
-- use entity pages to filter/export:
-  - risks: `/risks`
-  - controls: `/controls`
-  - KRIs: `/kris`
-  - issues: `/issues`
-  - vendors: `/vendors` (if you have `vendors:read`)
-
-Department detail now applies server-side KRI filters using canonical monitoring status values:
-
-- `all`
-- `new`
-- `not_submitted`
-- `breach`
-- `warning`
-- `optimal`
-
-The KRI tab pagination uses the filtered server total, not the unfiltered department KRI count.
-
-## Common Mistakes
-
-- Treating department metrics as performance KPIs without context. They are exposure signals.
-- Mixing department and ownership (assigning a department change instead of assigning an owner).
-- Presenting “total net score” without listing top drivers.
-- Forgetting that archived items may be excluded from counts unless explicitly included.
+Common mistakes are usually caused by stale filters, unclear ownership, duplicate records, or trying to make a broad change when a focused change would be easier to review. If something looks wrong, first refresh the page and confirm the same result in the detail view.
 
 ## Troubleshooting
 
-### Department metrics look wrong
+If the page is empty, clear filters and search by a known record name. If the page is missing from the sidebar, your role may not include that work area. If a save fails, read the message, refresh the record, and check whether another user changed it first.
 
-- Refresh the page and re-open the department.
-- Check whether you are comparing against exports that include archived items.
-- Validate that the underlying risks/controls have correct department assignment.
+If a linked record is missing, you may not have access to that related item. Ask for the business name or code rather than a technical identifier. For support, include your role, the route you were using, the record name, the action you attempted, and the exact message shown on screen.
 
-### I can open `/departments` but can’t open a department detail
+## Related Manuals
 
-- Your permissions may allow list access but block detail reads.
-- Capture the department ID and the error message and escalate to your access owner.
-
-### Users are assigned to the “wrong” department
-
-- Department assignment is an access/governance concern.
-- Use the Users/Access page (`/users`) if you have access; otherwise ask a privileged user to validate.
-
-## Related Documentation
-
-- `./access-management.md`
-- `./risks.md`
-- `./controls.md`
-- `./kris.md`
-- `./issues.md`
-- `./governance.md`
-- `./activity-log.md`
+Start with [Governance](./governance.md), [Risks](./risks.md), [Controls](./controls.md), [Kris](./kris.md), [Vendors](./vendors.md). These manuals explain the connected workflows and help you follow the record from signal to action to evidence.

@@ -1,7 +1,7 @@
 ---
 title: User FAQ and Operational Support
-version: "2.0"
-last_updated: "2026-03-05"
+version: "2.4"
+last_updated: "2026-04-25"
 audience: user
 source_of_truth: "docs/BUSINESS_LOGIC.md + in-app workflow behavior"
 summary: "Fast answers for common user issues: visibility, approvals, edits, notifications, exports, and where to look before escalating."
@@ -13,269 +13,122 @@ tags:
   - notifications
   - exports
 ---
-
 # User FAQ and Operational Support
 
 **On this page**
-- [Overview](#overview)
+- [What This Page Helps You Do](#what-this-page-helps-you-do)
+- [Before You Start](#before-you-start)
 - [Where To Find It](#where-to-find-it)
-- [Roles, Scope, and Visibility](#roles-scope-and-visibility)
-- [Data Model and Key Fields](#data-model-and-key-fields)
-- [Core Workflows](#core-workflows)
-- [Approvals and Notifications Behavior](#approvals-and-notifications-behavior)
-- [Filters, Views, and Exports](#filters-views-and-exports)
-- [Common Mistakes](#common-mistakes)
+- [What You Can See and Change](#what-you-can-see-and-change)
+- [How To Complete Common Tasks](#how-to-complete-common-tasks)
+- [Approvals and Notifications](#approvals-and-notifications)
+- [Finding, Filtering, and Evidence](#finding-filtering-and-evidence)
+- [Tips and Common Mistakes](#tips-and-common-mistakes)
 - [Troubleshooting](#troubleshooting)
-- [Related Documentation](#related-documentation)
+- [Related Manuals](#related-manuals)
 
-## Overview
+## What This Page Helps You Do
 
-This FAQ is the “fast lane” for common day-to-day problems. It is written for operators, not for admins.
+Use this manual when you need to answer common questions about missing data, approvals, edits, exports, notifications, and where to get help. It is written for users troubleshooting common RiskHub questions, so it focuses on what to do in the app, what to check before you act, and what result to expect after the work is done.
 
-Before escalating, try to capture:
+The page is not a technical reference. It explains the everyday operating pattern: start from the page where the question happened, confirm the visible item or message, make only the supported action, and then verify the result in the same page, notifications, or activity history.
 
-- the route you were on (for example `/risks`)
-- the entity identifier (risk code, control name, vendor name)
-- what you expected vs what happened
-- the time window (timestamps matter for workflow)
+You will use this area most often for:
+
+- visibility checks
+- workflow status
+- exports
+- notifications
+- manual reader
+- support handoff
+
+## Before You Start
+
+Before working in this area, confirm three things. First, make sure you are signed in with the role you normally use for business work. Second, clear any old filters if the list looks incomplete. Third, check whether the record already has pending work in Approvals or Notifications.
+
+If a button or tab is missing, treat that as a normal access signal, not as an error. RiskHub only shows actions that fit your role, scope, record ownership, and the current record state. When an action is unavailable, ask the record owner or your access contact to review it instead of trying to work around the screen.
+
+Have the record name, code, owner, and department ready before asking for help. Those details make support and audit conversations much faster.
 
 ## Where To Find It
 
-- You can read this FAQ from the in-app documentation library (Settings → Help & Docs).
-- Many answers reference key routes:
-  - `/notifications`
-  - `/approvals`
-  - `/activity-log` (if enabled for your business role; not for platform admin)
+Primary route: `/settings`
 
-## Roles, Scope, and Visibility
+You can usually reach the relevant area from the left sidebar, notification, or related link. Different modules use different patterns: tables, tabs, quick views, modals, drilldowns, or separate pages. Follow the controls that are visible on the page where the question started.
 
-Most “the app is broken” reports are actually scope/visibility misunderstandings.
+Common navigation pattern:
 
-Checklist:
+1. Open the list page.
+2. Clear filters if you are not sure what should be visible.
+3. Search by name, owner, vendor, or department.
+4. Open the row, card, modal, drilldown, or separate page only when that page offers one.
+5. Review linked records and recent activity before changing anything.
 
-- Do you have the right role?
-- Is your scope global or department?
-- Is the entity owned by you (ownership exception)?
-- Was the entity archived?
-- Do you even have the permission for the feature? (for example `issues:read`, `vendors:read`, `controls:execute`, `activity_log:read`)
+## What You Can See and Change
 
-Practical signals:
+What you can see depends on your role, department scope, and record ownership. A user with broad review responsibility may see more records than a user responsible for one department. A record owner may be able to act on a record even when it is outside the owner’s usual department view.
 
-- If a sidebar item is missing (for example **Issues**), it is usually **permission** (`issues:read`), not filters.
-- If the sidebar item exists but lists look empty, it is usually **scope** + **filters**.
-- If you can open a detail page from a notification link but can’t find it via lists, it is often an **ownership exception** (you can act on a record you own even if it is outside your department scope).
-- If you are logged in as `admin`, missing business routes such as `/governance` and `/activity-log` is expected. Use `/admin` and the admin docs library instead.
+Typical information in this area includes:
 
-If you learn one thing from this FAQ, learn this:
+- Your role
+- Department scope
+- Filters used
+- Record name or code
+- Error text
+- Time of the action
 
-- backend enforcement is authoritative
-- UI visibility is a hint, not a guarantee
+Changes should be practical and easy to explain. If the change affects ownership, scoring, closure, archive state, or other governance-sensitive information, expect a review step in some environments. Read-only users can still use the page for investigation, filtering, and evidence gathering.
 
-## Data Model and Key Fields
+## How To Complete Common Tasks
 
-When troubleshooting, these fields are the highest leverage:
+Follow this basic workflow unless your team has a stricter local procedure:
 
-| Entity | Key fields to check | Why |
-|---|---|---|
-| Risk | status, department, owner, net score | Drives visibility, critical filters, workflow. |
-| Control | status, owner, department, frequency | Explains why it appears in reporting and execution views. |
-| KRI | breach status, last period end, reporting owner | Explains breach/overdue reminders. |
-| Issue | status, severity, owner, due date | Explains overdue and review workload. |
-| Vendor | outsourcing owner, status, vendor type | Explains edit rights and ownership context. |
+1. Diagnose a missing page.
+2. Diagnose a missing record.
+3. Understand why a change is waiting.
+4. Prepare a useful support request.
+5. Find the right manual.
 
-Status vocabulary to keep straight:
+After saving or submitting, verify the result in the page where the work happened and in any expected notification or approval item. If the page reports that the item changed while you were working, refresh and review the current state before trying again.
 
-| Status concept | What it usually means | Common “surprise” |
-|---|---|---|
-| `active` | should appear in day-to-day views | “I can’t find it” is usually filters/scope. |
-| `archived` | intentionally removed from active operations | People forget the archive filter defaults. |
-| `pending` (approval) | request exists and is waiting for a decision | People assume “save = applied”. |
-| `approved` / `rejected` | request resolved | People forget to read resolution notes. |
+When linking records, choose only relationships that are useful to another reviewer. A link should explain a real business relationship: a control reduces a risk, a KRI monitors a risk, a vendor contributes to an exposure, or an issue tracks remediation for a specific problem.
 
-## Core Workflows
+## Approvals and Notifications
 
-### “Where do I look first?” flow
+If a change is waiting, check Approvals and Notifications before trying again. Duplicate edits can make the review harder and may be rejected if the record changed meanwhile.
 
-1. If you expected a value to change but it didn’t: check `/approvals`.
-2. If you expected to be notified: check `/notifications`.
-3. If a number changed and you don’t know why: check `/activity-log` (if you have access).
-4. If you can’t see an entity: check department + owner + archived status.
+Use approval notes to explain the business reason, not just the button you clicked. A good note says what changed, why it is appropriate, and what evidence supports the decision. Notifications are reminders and pointers; the current page and Activity Log help reconstruct the context.
 
-### “Is this an access problem or a data problem?” flow
+If you receive a stale or rejected approval, do not immediately resubmit the same change. Return to the page where the work started, compare the current state with your intended update, and submit a new focused change only if it is still needed.
 
-Use this to avoid escalating the wrong thing:
+## Finding, Filtering, and Evidence
 
-1. **Is the sidebar item missing?**
-   - Yes: likely permission (for example `vendors:read`, `issues:read`).
-   - No: continue.
-2. **Can you open a detail page from any link/notification?**
-   - Yes: likely filters or scope.
-   - No: continue.
-3. **Do you get a permission/forbidden error?**
-   - Yes: likely permission mismatch or stale session.
-   - No: continue.
-4. **Is the record archived?**
-   - Yes: toggle archive filters and confirm restore rules.
-   - No: continue.
-5. **Does a colleague with broader scope see it?**
-   - Yes: scope/ownership boundary.
-   - No: data missing (record may not exist) or system issue.
+This FAQ helps you diagnose export questions, but it does not provide an export control itself. When a question is about exports, first open the page that owns the data and confirm that page actually shows an export button.
 
-### “How do I ask for help without wasting time?” flow
+For reliable results, filter in this order:
 
-When escalating, include:
+1. Start broad enough to confirm the record exists.
+2. Narrow by department, owner, status, vendor, or date.
+3. Open a sample row, card, modal, drilldown, or separate page only when that page offers one.
+4. If the page has an export button, retry with fewer filters and a shorter date range.
+5. If the page has no export button, capture the visible filters, record name, time, and a screenshot or note approved by your team.
 
-- route
-- entity ID/name
-- screenshots are optional; text is fine
-- timestamps
-- your role + scope
+For support, include the manual name, page, filter choices, time, and exact message. Do not promise an export from pages that only support search, refresh, pagination, or review.
 
-This turns a 30-minute back-and-forth into a 5-minute fix.
+## Tips and Common Mistakes
 
-## Approvals and Notifications Behavior
+- Refresh once before reporting a stale screen.
+- Clear filters before assuming data is gone.
+- Use screenshots carefully and avoid sharing more personal or sensitive information than needed.
 
-### Why did my edit not apply?
-
-Because the change was queued for approval.
-
-What to do:
-
-- open `/approvals`
-- find your request
-- read the pending changes
-- wait for resolution or follow up with an approver
-
-Notes that reduce confusion:
-
-- If you do not have `approvals:write`, the queue is still useful. You will typically see “my requests” and your own pending items.
-- Some environments use a “privileged” approval state (for example `pending_privileged`) when the change is more sensitive. The action is the same: it must be approved before it applies.
-- A good approval request is narrow. If you change five governance-sensitive fields at once, you usually create a slower, more contentious approval.
-
-### Can I cancel a request I started?
-
-If the request is still pending, the workflow UI may offer a cancel action. If not, ask the approver to reject with a clear note, then re-submit a cleaner, narrower request.
-
-### Why do I keep receiving reminders?
-
-Reminders are policy signals:
-
-- overdue KRI: monitoring is not being executed
-- overdue questionnaire: risk assessment process is blocked
-
-Don’t mute reminders as a first response. Fix the underlying workflow.
-
-## Filters, Views, and Exports
-
-### “My numbers don’t match my colleague’s”
-
-Most often caused by:
-
-- different filters
-- different scope
-- archived items included in one view but not the other
-
-Rule:
-
-- always state filters and as-of time when comparing numbers
-
-Practical debugging tip:
-
-- When comparing numbers, ask both people to temporarily reset filters to “All active” and then re-apply the same status/department filters in the same order.
-
-### “My export is missing items”
-
-Check:
-
-- active filters
-- status (archived excluded by default)
-- scope limitations
-
-If you need audit evidence:
-
-- export only what is needed
-- keep the raw export unchanged
-- include the “as of” timestamp and filters used in the cover note (even a one-liner is enough)
-
-## Common Mistakes
-
-- Editing sensitive fields without understanding approvals.
-- Editing many sensitive fields in one submission and creating a hard-to-approve request.
-- Leaving owners blank (“someone will pick it up”).
-- Using overly broad tags/categories that make search useless.
-- Treating department as ownership (department is routing/reporting; owner is accountability).
-- Sharing exports without context.
+Common mistakes are usually caused by stale filters, unclear ownership, duplicate-looking names, or trying to make a broad change when a focused change would be easier to review. If something looks wrong, first refresh the page and confirm the same result in the visible list, panel, modal, drilldown, or page.
 
 ## Troubleshooting
 
-### I can’t see a record I should see
+If the page is empty, clear filters and search by a known record name. If the page is missing from the sidebar, your role may not include that work area. If a save fails, read the message, refresh the record, and check whether another user changed it first.
 
-Checks:
+If a linked record is missing, you may not have access to that related item. Ask for the business name or code rather than a technical identifier. For support, include your role, the route you were using, the record name, the action you attempted, and the exact message shown on screen.
 
-1. Is it archived?
-2. Which department is it assigned to?
-3. Who is the owner?
-4. Does your scope allow visibility?
+## Related Manuals
 
-Next actions:
-
-- if scope mismatch: request access change
-- if owner mismatch: update owner through governance process
-
-### The sidebar item exists, but the list is empty
-
-Checks:
-
-1. Clear filters (status, department, owner, search).
-2. Confirm you are not looking at an archived-only view.
-3. Check whether the list view defaults to “mine” or “pending”.
-4. Try opening the record from a notification link (if you have one).
-
-Next actions:
-
-- If a colleague can see it but you can’t: scope boundary.
-- If nobody can see it: verify the record exists and is active.
-
-### I can’t create or edit
-
-Checks:
-
-- do you have `<resource>:write`? (for example `risks:write`)
-
-### I can’t resolve approvals
-
-Checks:
-
-- do you have `approvals:write`?
-
-### I get “Forbidden” or “Permission denied”
-
-Checks:
-
-- If you recently changed roles/scope, log out and log back in (stale sessions can mislead).
-- Verify the permission you expect (for example `vendors:write`) is actually granted.
-- If the permission is correct but still failing, capture:
-  - route
-  - approximate timestamp
-  - entity name/id
-  - the exact error text
-
-### KRI is always overdue
-
-Checks:
-
-- is the reporting owner set?
-- is the frequency realistic?
-- is the period end being updated?
-
-## Related Documentation
-
-- [Getting Started](./getting-started.md)
-- [Access Management](./access-management.md)
-- [Workflow, Approvals, Notifications](./notifications.md)
-- [Activity Log](./activity-log.md)
-- [Managing Risks](./risks.md)
-- [Managing Controls](./controls.md)
-- [Managing KRIs](./kris.md)
-- [Managing Issues](./issues.md)
-- [Managing Vendors](./vendors.md)
+Start with [Getting Started](./getting-started.md), [Access Management](./access-management.md), [Notifications](./notifications.md), [Activity Log](./activity-log.md), [Dashboard](./dashboard.md). These manuals explain the connected workflows and help you follow the record from signal to action to evidence.

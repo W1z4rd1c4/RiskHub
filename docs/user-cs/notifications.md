@@ -1,6 +1,6 @@
 ---
 title: Notifikace a schvalování
-version: "2.1"
+version: "2.4"
 last_updated: "2026-04-25"
 audience: user
 source_of_truth: "frontend/src/pages/ApprovalsPage.tsx + frontend/src/pages/NotificationsPage.tsx + docs/BUSINESS_LOGIC.md"
@@ -12,290 +12,120 @@ tags:
   - audit
   - troubleshooting
 ---
-
 # Notifikace a schvalování
 
 **Na této stránce**
-- [Přehled](#prehled)
+- [S čím vám tato stránka pomůže](#s-čím-vám-tato-stránka-pomůže)
+- [Než začnete](#než-začnete)
 - [Kde to najdete](#kde-to-najdete)
-- [Role, scope a viditelnost](#role-scope-a-viditelnost)
-- [Datový model a klíčová pole](#datovy-model-a-klicova-pole)
-- [Hlavní workflow](#hlavni-workflow)
-- [Schvalování a notifikace](#schvalovani-a-notifikace)
-- [Filtry, pohledy a exporty](#filtry-pohledy-a-exporty)
-- [Časté chyby](#caste-chyby)
+- [Co můžete vidět a měnit](#co-můžete-vidět-a-měnit)
+- [Jak dokončit běžné úkoly](#jak-dokončit-běžné-úkoly)
+- [Schvalování a notifikace](#schvalování-a-notifikace)
+- [Vyhledávání, filtrování a evidence](#vyhledávání-filtrování-a-evidence)
+- [Tipy a časté chyby](#tipy-a-časté-chyby)
 - [Troubleshooting](#troubleshooting)
-- [Související dokumentace](#souvisejici-dokumentace)
+- [Související manuály](#související-manuály)
 
-## Přehled
+## S čím vám tato stránka pomůže
 
-RiskHub používá workflow jako governance kontrolu. Workflow se projevuje ve dvou místech:
+Tento manuál použijte, když potřebujete pochopit co vyžaduje pozornost, rozhodovat žádosti konzistentně, reagovat na reminder a vědět kde hledat čekající změnu. Je určen pro uživatele přijímající úkoly, žádosti o schválení, reminder nebo workflow zprávy, proto popisuje praktický postup v aplikaci: kde začít, co ověřit před akcí a jak poznat, že je práce dokončená.
 
-- **Notifikace** (`/notifications`): provozní inbox
-- **Schvalování** (`/approvals`): fronta schvalovacích žádostí a risk assessment dotazníků
+Text není technická reference. Vysvětluje běžný provozní postup: začít v Notifikacích nebo Schváleních, zkontrolovat zprávu nebo žádost, jednat jen když je akce jasná a ověřit stav položky.
 
-Mentální model, který funguje v produkci:
+Tuto oblast budete používat hlavně pro:
 
-- Notifikace říkají *co potřebuje pozornost*.
-- Schvalování říká *co potřebuje rozhodnutí*.
-- Activity Log (pokud ho máte) říká *co se skutečně změnilo*.
+- notification bell
+- stránka notifikací
+- stránka schvalování
+- poznámky rozhodnutí
+- navázané záznamy
 
-Zdravá workflow kultura není „rychle všechno schválit“. Je to:
+## Než začnete
 
-- rozhodnutí s jasným odůvodněním
-- predikovatelné eskalace
-- minimální backlog
-- jasný owner další akce
+Před prací si ověřte tři věci. Zaprvé, že jste přihlášeni rolí, se kterou běžně pracujete. Zadruhé, že staré filtry neskrývají očekávaná data. Zatřetí, že na záznamu už nečeká práce ve Schvalování nebo Notifikacích.
 
-Hlavní routy:
+Pokud tlačítko nebo záložka chybí, berte to jako běžný signál přístupu, ne jako chybu. RiskHub zobrazuje akce podle vaší role, rozsahu, ownership a aktuálního stavu záznamu. Když akce není dostupná, požádejte vlastníka záznamu nebo správce přístupů o kontrolu.
 
-- `/notifications`
-- `/approvals`
+Pro podporu mějte připravený název záznamu, kód, vlastníka a oddělení. Tyto údaje výrazně zrychlují komunikaci.
 
 ## Kde to najdete
 
-- položka **Schvalování** → `/approvals`
-- položka **Notifikace** → `/notifications`
+Primární cesta: `/notifications`
 
-Pokud routy nevidíte:
+Většinou se sem dostanete z levého menu nebo z notifikační ikony. Notifikace a Schválení jsou inbox plochy se záložkami, seznamy, rozbalením řádků, rozhodovacími dialogy a stránkováním. Notifikace vás může přesměrovat na podporovanou související stránku; jinak práce zůstává v inboxu.
 
-- schvalování bývá viditelné pro většinu business uživatelů, ale možnost rozhodovat je permission-gated
-- notifikace jsou viditelné, pokud účet dostává workflow eventy
+Běžný postup navigace:
 
-Pokud přístup nesedí, postupujte podle `./access-management.md`.
+1. Otevřete Notifikace nebo Schválení.
+2. Vyberte All, Unread, Pending nebo relevantní schvalovací záložku.
+3. Přečtěte zprávu, žadatele, termín a aktuální stav.
+4. Rozbalte řádek nebo otevřete rozhodovací dialog, pokud je dostupný.
+5. Na související stránku přejděte jen tehdy, když ji notifikace nabízí.
 
-## Role, scope a viditelnost
+## Co můžete vidět a měnit
 
-### Kdo může schvalovat?
+Viditelnost závisí na roli, rozsahu oddělení a ownership. Uživatel se širší review odpovědností může vidět více záznamů než uživatel jednoho oddělení. Vlastník záznamu může mít možnost jednat i mimo svůj běžný pohled.
 
-Schvalování má dvě publika:
+Typické informace v této oblasti:
 
-- **žadatelé**: navrhují změnu a sledují status
-- **schvalovatelé**: mohou approve/reject (policy-driven)
+- Název notifikace
+- Související záznam
+- Termín
+- Žadatel
+- Poznámka rozhodnutí
+- Aktuální stav
 
-V UI je možnost schvalovat permission-gated. Typicky:
+Změny mají být praktické a snadno vysvětlitelné. Pokud změna ovlivňuje ownership, scoring, uzavření, archivaci nebo jiné citlivé údaje, počítejte v některých prostředích s review krokem. Uživatelé jen pro čtení mohou stránku používat pro kontrolu, filtrování a evidenci.
 
-- `approvals:write` je potřeba pro approve/reject
-- uživatel bez schvalovacích práv stále vidí „My requests“ a může své žádosti cancelovat
+## Jak dokončit běžné úkoly
 
-### Scope je stále relevantní
+Pokud váš tým nemá přísnější postup, použijte tento základní workflow:
 
-Schvalování je navázané na resource (risk/control/kri) a viditelnost řídí scope.
+1. Otevřít notifikaci.
+2. Přejít na související stránku jen pokud ji notifikace nabízí.
+3. Zkontrolovat žádost o schválení.
+4. Schválit nebo zamítnout s jasnou poznámkou.
+5. Vyřešit reminder dokončením práce.
 
-Pokud schvalování nemůžete najít:
+Po schválení, zamítnutí, zrušení nebo označení jako přečtené ověřte, že se řádek v inboxu aktualizoval a změnil se badge počet. Pokud stránka hlásí, že položku mezitím změnil někdo jiný, obnovte stránku a znovu posuďte aktuální řádek.
 
-- nemusíte vidět podkladový resource
-- nebo schvalování nepatří do vašeho scope/role skupiny
-
-### Platform admin vs business
-
-Platform admin je záměrně oddělený od business workflow. Admin má podporovat platformu, ne dělat business schvalovatele.
-
-## Datový model a klíčová pole
-
-### Schvalovací žádosti
-
-| Pole | Význam | Poznámky |
-|---|---|---|
-| Resource type | `risk`, `control`, `kri` | Které domény se žádost týká. |
-| Action type | `edit` nebo `delete` | `delete` může zahrnovat archive/restore-like akce dle policy. |
-| Pending changes | Deltá polí (old → new) | Procházejte po polích; neschvalujte „naslepo“. |
-| Reason | Odůvodnění žadatele | Má odpovědět „proč teď“ a „proč je to bezpečné“. |
-| Status | `pending`, `pending_privileged`, `approved`, `rejected`, `cancelled` | `pending_privileged` značí citlivější gating. |
-| Requested by | Kdo žádost založil | Vhodné pro doplňující dotazy. |
-| Resolved by / at | Kdo rozhodl a kdy | Audit-kritické. |
-| Resolution notes | Narativ rozhodnutí | V UI je obvykle vyžadované. |
-
-### Notifikace
-
-Notifikace jsou typované eventy. Hlavní kategorie:
-
-- approvals: `approval_pending`, `approval_resolved`, `approval_cancelled`
-- KRI: due/overdue a breach detekce
-- questionnaires: sent/due/overdue/submitted/clarification
-
-Každá notifikace obsahuje:
-
-- title/message pro rychlé skenování
-- resource pointer (type/id), pokud je navázaná na entitu
-- read/unread
-- timestampy
-
-## Hlavní workflow
-
-### 1) Denní triage (doporučený rytmus)
-
-Ve většině prostředí 2x denně (ráno + odpoledne):
-
-1. Otevřete `/notifications`.
-2. Přepněte na **Unread**.
-3. Zpracujte v prioritě:
-   - approval pending
-   - overdue KRI / questionnaire
-   - breach alerty
-4. Otevřete `/approvals` a vyčistěte pending rozhodnutí, za která odpovídáte.
-5. Znovu zkontrolujte `/notifications` pro outcome.
-
-### 2) Approve nebo reject žádosti
-
-Schvalování dělejte jako kontrolu:
-
-1. Otevřete žádost.
-2. Přečtěte **reason**.
-3. Projděte **pending changes** pole po poli.
-4. Zeptejte se: „Co by se rozbilo, kdyby to bylo špatně?“ (scope, reporting, routing ownership, thresholds).
-5. Rozhodněte approve/reject.
-6. Napište resolution notes tak, aby to šlo pochopit i za 6 měsíců.
-
-Kvalitní notes obsahují:
-
-- proč je to approve/reject
-- jaké evidence jste použili
-- podmínky nebo follow-up
-
-### 3) Cancel žádosti, které jste založili
-
-Když žádost už nedává smysl:
-
-- cancelujte ji místo toho, aby „hnila“ ve frontě
-- napište krátké vysvětlení do interního kanálu/ticketu
-
-Cancel je governance akce: snižuje šum a brání pozdějšímu schválení zastaralé změny.
-
-### 4) Risk assessment dotazníky (tab v Approvals)
-
-Approvals stránka může mít „risk assessment“ pohled založený na dotaznících.
-
-Použití:
-
-- přehled, kdo má otevřené dotazníky
-- follow-up na overdue
-- tracking clarifications
-
-Praktická disciplína:
-
-- berte dotazníky jako time-boxed request
-- follow-up dělejte dřív než je overdue, ať nevznikají low-quality odpovědi na poslední chvíli
-- KRI due/overdue reminders jsou period-aware; starší reminder pro minulou periodu nemá skrýt novou periodu, kterou je potřeba reportovat
-- KRI breach reminders jsou state-aware; změna směru breach nebo threshold kontextu může vytvořit novou notifikaci
-- due-soon/overdue reminders pro dotazníky se deduplikují podle instance dotazníku, ne jen podle rizika
-- notifikace stále navigují na parent riziko, aby uživatel skončil v provozním kontextu
-
-### 5) Uzavření smyčky po rozhodnutí
-
-Schvalování je užitečné jen když se svět po rozhodnutí skutečně změní.
-
-Po schválení citlivé změny:
-
-- ověřte, že entita má nový stav
-- ověřte, že šly notifikace (nebo že je změna viditelná tam, kde má být)
-- pokud to ovlivňuje reporting, poznamenejte datum „breakpointu“
+Při práci z notifikace rozhodujte podle aktuální zprávy a souvisejícího kontextu, ne podle staršího stavu v paměti.
 
 ## Schvalování a notifikace
 
-### Klíčové chování: 202 „queued changes"
+Schvalování je kontrolní bod pro citlivé změny. Zkontrolujte kontext záznamu, porovnejte žádost s aktuálním stavem a napište srozumitelnou poznámku.
 
-Některé editace se neaplikují okamžitě. Backend místo toho vytvoří schvalovací žádost (UI to často ukazuje jako pending changes).
+Poznámky ke schválení mají vysvětlit business důvod. Dobrá poznámka říká, co se změnilo, proč je to správně a jaký důkaz změnu podporuje. Notifikace jsou připomínky a navigace; inbox řádek a Activity Log pomáhají rekonstruovat workflow.
 
-Důsledky:
+Pokud je schválení stale nebo zamítnuté, neposílejte hned stejnou změnu znovu. Obnovte inbox, porovnejte aktuální řádek se záměrem a odešlete novou úzkou změnu jen tehdy, pokud je stále potřeba.
 
-- list může ukázat „pending“ indikátor
-- stará hodnota zůstává viditelná do schválení
-- musíte otevřít `/approvals`, abyste viděli žádost a schvalovatele
+## Vyhledávání, filtrování a evidence
 
-### Notifikace jsou signály, ne akce
+Používejte filtry a stavové signály pro triage notifikací a schválení. Stránky Notifikace a Schvalování nemají exportní tlačítko, proto slouží hlavně k rozhodnutí a rekonstrukci workflow kontextu.
 
-Notifikace mají snížit náklady na skenování. Vaše práce je převést je na akce:
+Pro spolehlivý výsledek postupujte takto:
 
-- vyřešit schvalování
-- upravit entitu
-- založit Issue
-- follow-up s ownerem
+1. Začněte nepřečtenými, pending nebo nejnovějšími položkami.
+2. Před schválením, zamítnutím nebo eskalací otevřete související stránku, pokud ji notifikace nabízí.
+3. Při rozhodnutí napište jasnou poznámku.
+4. Pro evidence trail použijte Activity Log a aktuální stav inboxu.
 
-Když se notifikace „vrací“, typicky říká, že se neprovádí podkladová policy akce (overdue KRI, opakovaný breach, stuck approval).
+Pro formální evidenci použijte Activity Log záznam a aktuální inbox nebo schvalovací řádek, který rozhodnutí zachycuje.
 
-Schvalování se při aplikaci znovu validuje. Queued změna může být odmítnuta, pokud se cílový záznam změnil během čekání; před opětovným odesláním čtěte resolution notes.
+## Tipy a časté chyby
 
-### Preference tuning
+- Neschvalujte změnu, kterou neumíte vysvětlit.
+- Pokud se záznam od vytvoření žádosti změnil, vyžádejte novou žádost.
+- Reminder je výzva k práci, ne důkaz sám o sobě.
 
-V některých prostředích lze notifikace ladit v Settings. Pokud je to příliš hlučné:
-
-- nemuteujte všechno
-- omezte high-volume kategorie, ale nechte governance kritické kategorie (approvals, breaches)
-
-## Filtry, pohledy a exporty
-
-### Filtry v Approvals
-
-Approvals stránka má typicky:
-
-- **Pending**: aktivní fronta
-- **My requests**: vaše žádosti
-- **All**: historie
-- **Risk assessment**: dotazníky
-
-„Pending“ je primární pohled pro provoz.
-
-### Filtry v Notifications
-
-Notifikace typicky podporují:
-
-- **All** vs **Unread**
-- stránkování
-- mark all as read
-
-„Mark all read“ berte jako rozhodnutí: dělejte to jen když jste konvertovali signály na akce nebo je vědomě odložili.
-
-### Exporty
-
-Schvalování a notifikace nejsou primární export povrchy.
-
-Pro evidence:
-
-- exportujte podkladové entity (rizika, kontroly, nálezy)
-- použijte Activity Log pro timestamp důkazy
-- do audit packu dejte approval ID a resolution notes
-
-## Časté chyby
-
-- Schválení bez čtení pending changes.
-- Jednověté notes („ok“) pro komplexní změny.
-- Nechat pending růst, protože nikdo nevlastní disciplínu fronty.
-- Brát notifikace jako „FYI“ a neudělat akci.
-- Vypnout notifikace pro approvals/breaches kvůli šumu (raději opravte příčinu).
+Časté chyby vznikají ze starých dat inboxu, unread filtrů, nejasného requester kontextu nebo práce ze staré notifikace. Pokud něco vypadá špatně, nejdřív stránku obnovte a ověřte stejný výsledek v inbox řádku.
 
 ## Troubleshooting
 
-### Nechodí mi notifikace, které čekám
+Pokud je stránka prázdná, vyčistěte filtry a hledejte známý název záznamu. Pokud stránka chybí v menu, vaše role pravděpodobně tuto oblast nezahrnuje. Pokud uložení selže, přečtěte zprávu, obnovte záznam a zkontrolujte, zda ho mezitím nezměnil někdo jiný.
 
-- Ověřte, zda jste owner/requester.
-- Ověřte preference (pokud jsou).
-- Ověřte, že akce skutečně proběhla (nejlépe přes Activity Log).
+Pokud chybí navázaný záznam, nemusíte k němu mít přístup. Ptejte se na business název nebo kód, ne na technický identifikátor. Pro podporu uveďte roli, cestu v aplikaci, název záznamu, akci a přesné znění zprávy na obrazovce.
 
-### Uložil(a) jsem editaci, ale hodnota se nezměnila
+## Související manuály
 
-- Pravděpodobně se změna zařadila do schvalování.
-- Zkontrolujte `/approvals`.
-- Výsledek sledujte v `/notifications`.
-
-### Schvalování vidím, ale nejde rozhodovat
-
-- Pravděpodobně máte `approvals:read`, ale ne `approvals:write`.
-- Eskalujte na vlastníka workflow a ověřte přiřazení schvalovací role.
-
-### Žádosti jsou „zaseknuté"
-
-- Ověřte, že existuje schvalovatel.
-- Ověřte, že schvalovatelé jsou aktivní.
-- Pokud je žádost nevalidní, cancelujte ji a založte znovu s jasným odůvodněním.
-
-## Související dokumentace
-
-- `./getting-started.md`
-- `./access-management.md`
-- `./activity-log.md`
-- `./risks.md`
-- `./controls.md`
-- `./kris.md`
-- `./issues.md`
-- `./vendors.md`
+Začněte s [Activity Log](./activity-log.md), [Risks](./risks.md), [Controls](./controls.md), [Kris](./kris.md), [Issues](./issues.md). Tyto manuály vysvětlují navázaná workflow a pomohou sledovat záznam od signálu přes akci až po evidenci.

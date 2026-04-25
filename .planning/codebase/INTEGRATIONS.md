@@ -1,6 +1,6 @@
 # External Integrations
 
-**Analysis Date:** 2026-04-24
+**Analysis Date:** 2026-04-25
 
 ## Core External Services
 
@@ -19,6 +19,7 @@
 - Outbound client: `ADEmulatorClient` (`backend/app/integrations/ad_emulator_client.py`)
 - Inbound webhooks: `/api/v1/directory/webhook` (`backend/app/api/v1/endpoints/directory.py`)
 - Webhook signature verification via `WEBHOOK_SECRET` (required in production mode) (`backend/app/core/config.py`)
+- Directory search/import/deprovision flows now preserve RiskHub-local access fields after initial import; break-glass enablement remains an admin-only recovery path for eligible auto-deprovisioned external users (`backend/app/services/directory_identity_service.py`, `backend/app/services/ad_deprovision_service.py`, `frontend/src/pages/users/BreakGlassEnableDialog.tsx`)
 
 ### Microsoft Entra ID (SSO)
 - Backend auth modes include Entra SSO-only production mode (`backend/app/core/config.py`, `backend/app/main.py`)
@@ -38,7 +39,7 @@
 ### Public registry connector (optional)
 - Connector implementation: `PublicRegistryConnector` (`backend/app/integrations/vendor_signals/public_registry.py`)
 - Activated when `vendor_signals_public_registry_base_url` is configured (`backend/app/core/config.py`)
-- Scheduled refresh path exists in scheduler (`backend/app/core/scheduler.py`)
+- Scheduled refresh path exists in the scheduler facade and runtime helpers (`backend/app/core/scheduler.py`, `backend/app/core/scheduler_runtime.py`)
 
 ## Deployment/Runtime Integration Points
 
@@ -63,6 +64,7 @@
 - Structured app and audit logs via custom logging setup (`backend/app/core/logging.py`)
 - Log files written under `backend/logs/`
 - Admin log/health endpoints exist under admin API (`backend/app/api/v1/endpoints/admin/`)
+- In-app documentation is served from `docs/admin*` and `docs/user*` through `/api/v1/admin/docs`; frontend readers intentionally hide maintainer metadata for user manuals while preserving admin runbook references (`backend/app/api/v1/endpoints/admin/docs.py`, `frontend/src/components/documentation/documentationPresentation.ts`)
 
 ## Not Present in Repository
 
@@ -78,4 +80,4 @@
 
 ---
 
-*Integration audit refreshed on 2026-04-24*
+*Integration audit refreshed on 2026-04-25*

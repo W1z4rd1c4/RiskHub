@@ -1,6 +1,6 @@
 # Architecture
 
-**Analysis Date:** 2026-04-24
+**Analysis Date:** 2026-04-25
 
 ## System Shape
 
@@ -32,8 +32,10 @@ RiskHub is a containerized full-stack application:
   - approval execution locking/staleness (`backend/app/services/_approval_execution/`)
   - issue remediation transitions (`backend/app/services/_issue_workflow/`)
   - KRI history/value/correction policy (`backend/app/services/_kri_history/`)
-  - risk questionnaire lifecycle/capabilities (`backend/app/services/risk_questionnaire_service.py`)
-- Unified report exports run through a shared fetch/replay/filter/render pipeline (`backend/app/api/v1/endpoints/reports/unified_exports/`)
+  - risk questionnaire lifecycle/capabilities (`backend/app/services/risk_questionnaire_service.py`, `backend/app/services/_risk_questionnaires/`)
+  - access workflow policy/capabilities (`backend/app/services/_access_workflow/`)
+  - quarterly comparison period/snapshot/change helpers (`backend/app/services/_quarterly_comparison/`)
+- Unified report exports run through a shared fetch/replay/filter/render facade with split issue/risk/control/KRI builders (`backend/app/api/v1/endpoints/reports/unified_exports/`)
 - Transactional outbox responsibilities are split across store/dispatcher/registry/domain-handler modules (`backend/app/services/outbox/`)
 - Async DB session boundary in `backend/app/db/session.py` (`get_db(request)` yields `AsyncSession`; no implicit commit)
 
@@ -41,7 +43,7 @@ RiskHub is a containerized full-stack application:
 - Middleware chain: CORS, trusted hosts, logging context, security headers, rate limiting, language (`backend/app/main.py`, `backend/app/middleware/`)
 - Header, protocol-guard, and rate-limit middleware now import directly from their focused modules/packages (`backend/app/middleware/security_headers.py`, `backend/app/middleware/security_protocol.py`, `backend/app/middleware/rate_limit/`)
 - Structured logging + audit logging (`backend/app/core/logging.py`, `backend/app/core/activity_logger.py`)
-- Background jobs via APScheduler (`backend/app/core/scheduler.py`) with DB access via a configured `sessionmaker` (`backend/app/main.py`, `backend/app/core/scheduler.py`)
+- Background jobs via APScheduler facade plus split lock/runtime/tracking helpers, with DB access via a configured `sessionmaker` (`backend/app/main.py`, `backend/app/core/scheduler.py`, `backend/app/core/scheduler_locks.py`, `backend/app/core/scheduler_runtime.py`, `backend/app/core/scheduler_tracking.py`)
 
 ## Frontend Layering
 
@@ -52,11 +54,13 @@ RiskHub is a containerized full-stack application:
 - API access: central `apiClient` + domain service wrappers (`frontend/src/services/`)
 - Runtime API validation schemas are split by entity/domain under `frontend/src/services/api/schemas/entities/`; aggregate exports remain stable through the public schema index
 - Detail-page primitives and shared form lookup hooks reduce duplicated route-page logic (`frontend/src/pages/detail/`, `frontend/src/components/risk-form/useRiskLookups.ts`)
+- Large route components have been decomposed into workflow hooks plus focused sections for users, remediation plans, admin console ops/audit panels, risk questionnaires, KRI modal, roles, orphan resolution, and link management (`frontend/src/pages/users/`, `frontend/src/components/issues/remediation/`, `frontend/src/pages/admin-console/sections/{ops,audit}/`, `frontend/src/components/risks/risk-questionnaire-detail/`, `frontend/src/components/linking/`)
 - Auth/session coordination: `AuthProvider` now projects a canonical in-memory session snapshot from `sessionStore`, while `useAuthBootstrap`, `useAuthActions`, and `sessionManager` perform the allowed state transitions (`frontend/src/contexts/AuthContext.tsx`, `frontend/src/contexts/auth/`, `frontend/src/services/sessionStore.ts`, `frontend/src/services/sessionManager.ts`)
 - Authorization UX: `PermissionGate`, `usePermissions`, `useAuthz` (`frontend/src/components/PermissionGate.tsx`, `frontend/src/hooks/usePermissions.ts`, `frontend/src/authz/useAuthz.ts`)
 - Workflow UIs prefer backend-provided capability metadata when available, then fall back to local permission hints for compatibility
 - Entra SSO support via MSAL (`frontend/src/services/entraAuth.ts`, `frontend/src/pages/SsoCallbackPage.tsx`)
 - Preference hydration readiness now stays inside the auth provider/hook graph; the earlier module-level readiness singleton is gone (`frontend/src/contexts/auth/usePreferenceHydration.ts`, `frontend/src/contexts/AuthContext.tsx`)
+- In-app user documentation is a manual-style product surface; admin runbooks retain operator metadata, while user manuals hide maintainer references in the reader (`docs/user/`, `docs/user-cs/`, `frontend/src/components/documentation/documentationPresentation.ts`)
 
 ## Core Data Flows
 
@@ -99,4 +103,4 @@ RiskHub is a containerized full-stack application:
 
 ---
 
-*Architecture analysis refreshed on 2026-04-24*
+*Architecture analysis refreshed on 2026-04-25*

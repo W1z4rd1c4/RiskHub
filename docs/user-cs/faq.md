@@ -1,7 +1,7 @@
 ---
 title: FAQ a provozní podpora
-version: "2.0"
-last_updated: "2026-03-05"
+version: "2.4"
+last_updated: "2026-04-25"
 audience: user
 source_of_truth: "docs/BUSINESS_LOGIC.md + chování workflow v aplikaci"
 summary: "Rychlé odpovědi na časté problémy: viditelnost, schvalování, editace, notifikace, exporty a co zkontrolovat před eskalací."
@@ -13,257 +13,122 @@ tags:
   - notifications
   - exports
 ---
-
 # FAQ a provozní podpora
 
 **Na této stránce**
-- [Přehled](#prehled)
+- [S čím vám tato stránka pomůže](#s-čím-vám-tato-stránka-pomůže)
+- [Než začnete](#než-začnete)
 - [Kde to najdete](#kde-to-najdete)
-- [Role, scope a viditelnost](#role-scope-a-viditelnost)
-- [Datový model a klíčová pole](#datovy-model-a-klicova-pole)
-- [Hlavní workflow](#hlavni-workflow)
-- [Schvalování a notifikace](#schvalovani-a-notifikace)
-- [Filtry, pohledy a exporty](#filtry-pohledy-a-exporty)
-- [Časté chyby](#caste-chyby)
+- [Co můžete vidět a měnit](#co-můžete-vidět-a-měnit)
+- [Jak dokončit běžné úkoly](#jak-dokončit-běžné-úkoly)
+- [Schvalování a notifikace](#schvalování-a-notifikace)
+- [Vyhledávání, filtrování a evidence](#vyhledávání-filtrování-a-evidence)
+- [Tipy a časté chyby](#tipy-a-časté-chyby)
 - [Troubleshooting](#troubleshooting)
-- [Související dokumentace](#souvisejici-dokumentace)
+- [Související manuály](#související-manuály)
 
-## Přehled
+## S čím vám tato stránka pomůže
 
-Toto FAQ je „rychlá linka“ pro běžné denní problémy. Je psané pro operátory, ne pro adminy.
+Tento manuál použijte, když potřebujete rychle odpovědět na otázky o chybějících datech, schvalování, úpravách, exportech, notifikacích a podpoře. Je určen pro uživatele řešící běžné otázky v RiskHubu, proto popisuje praktický postup v aplikaci: kde začít, co ověřit před akcí a jak poznat, že je práce dokončená.
 
-Před eskalací si uložte:
+Text není technická reference. Vysvětluje běžný provozní postup: začít na stránce, kde otázka vznikla, ověřit viditelnou položku nebo zprávu, použít jen podporovanou akci a zkontrolovat výsledek na stejné stránce, v notifikacích nebo aktivitě.
 
-- route (např. `/risks`)
-- identifikátor entity (risk code, název kontroly, dodavatel)
-- co jste čekali vs co se stalo
-- časové okno (timestampy jsou u workflow klíčové)
+Tuto oblast budete používat hlavně pro:
+
+- kontrola viditelnosti
+- stav workflow
+- exporty
+- notifikace
+- čtečka manuálů
+- předání podpory
+
+## Než začnete
+
+Před prací si ověřte tři věci. Zaprvé, že jste přihlášeni rolí, se kterou běžně pracujete. Zadruhé, že staré filtry neskrývají očekávaná data. Zatřetí, že na záznamu už nečeká práce ve Schvalování nebo Notifikacích.
+
+Pokud tlačítko nebo záložka chybí, berte to jako běžný signál přístupu, ne jako chybu. RiskHub zobrazuje akce podle vaší role, rozsahu, ownership a aktuálního stavu záznamu. Když akce není dostupná, požádejte vlastníka záznamu nebo správce přístupů o kontrolu.
+
+Pro podporu mějte připravený název záznamu, kód, vlastníka a oddělení. Tyto údaje výrazně zrychlují komunikaci.
 
 ## Kde to najdete
 
-- FAQ je dostupné v in‑app dokumentaci (Settings → Help & Docs).
-- Mnoho odpovědí odkazuje na routy:
-  - `/notifications`
-  - `/approvals`
-  - `/activity-log` (pokud je povoleno pro business roli; ne pro platform admina)
+Primární cesta: `/settings`
 
-## Role, scope a viditelnost
+Většinou se sem dostanete z levého menu. Různé moduly používají různé vzory: tabulky, záložky, karty, quick view, modály, drilldowny nebo samostatné stránky. Řiďte se ovládacími prvky, které na dané stránce skutečně vidíte.
 
-Většina hlášení „aplikace je rozbitá“ je ve skutečnosti nedorozumění ve scope/viditelnosti.
+Běžný postup navigace:
 
-Checklist:
+1. Otevřete seznam.
+2. Vyčistěte filtry, pokud si nejste jistí viditelností.
+3. Hledejte podle názvu, vlastníka, dodavatele nebo oddělení.
+4. Otevřete řádek, kartu, modál, drilldown nebo samostatnou stránku jen tehdy, když to daná stránka nabízí.
+5. Před úpravou zkontrolujte vazby a poslední aktivitu.
 
-- máte správnou roli?
-- scope je global nebo oddělení?
-- jste owner (ownership výjimka)?
-- není entita archivovaná?
-- máte vůbec oprávnění na danou funkcionalitu? (např. `issues:read`, `vendors:read`, `controls:execute`, `activity_log:read`)
+## Co můžete vidět a měnit
 
-Praktické signály:
+Viditelnost závisí na roli, rozsahu oddělení a ownership. Uživatel se širší review odpovědností může vidět více záznamů než uživatel jednoho oddělení. Vlastník záznamu může mít možnost jednat i mimo svůj běžný pohled.
 
-- Pokud položka v menu úplně chybí (např. **Nálezy**), bývá to obvykle **oprávnění** (`issues:read`), ne filtry.
-- Pokud položka existuje, ale seznamy jsou prázdné, bývá to **scope** + **filtry**.
-- Pokud detail otevřete přes odkaz z notifikace, ale v seznamu ho nenajdete, často jde o **ownership výjimku** (owner může vidět/řešit záznam i mimo department scope).
-- Pokud jste přihlášeni jako `admin`, je očekávané, že business routy jako `/governance` a `/activity-log` neuvidíte. Používejte `/admin` a admin dokumentaci.
+Typické informace v této oblasti:
 
-Jedna klíčová věta:
+- Vaše role
+- Rozsah oddělení
+- Použité filtry
+- Název nebo kód záznamu
+- Text chyby
+- Čas akce
 
-- backend enforcement je autorita
-- UI viditelnost je nápověda, ne garance
+Změny mají být praktické a snadno vysvětlitelné. Pokud změna ovlivňuje ownership, scoring, uzavření, archivaci nebo jiné citlivé údaje, počítejte v některých prostředích s review krokem. Uživatelé jen pro čtení mohou stránku používat pro kontrolu, filtrování a evidenci.
 
-## Datový model a klíčová pole
+## Jak dokončit běžné úkoly
 
-Při troubleshootingu mají největší hodnotu tyto fieldy:
+Pokud váš tým nemá přísnější postup, použijte tento základní workflow:
 
-| Entita | Klíčová pole | Proč |
-|---|---|---|
-| Riziko | status, oddělení, owner, net score | Viditelnost, critical filtry, workflow. |
-| Kontrola | status, owner, oddělení, frekvence | Proč se objevuje v reportingu a exekuci. |
-| KRI | breach status, last period end, reporting owner | Proč chodí breach/overdue remindery. |
-| Issue | status, severity, owner, due date | Overdue tlak a review workload. |
-| Dodavatel | outsourcing owner, status, vendor type | Edit práva a ownership kontext. |
+1. Diagnostikovat chybějící stránku.
+2. Diagnostikovat chybějící záznam.
+3. Pochopit čekající změnu.
+4. Připravit užitečný support request.
+5. Najít správný manuál.
 
-Slovník statusů, který se vyplatí znát:
+Po uložení nebo odeslání ověřte výsledek na stránce, kde práce proběhla, a v případné očekávané notifikaci nebo schválení. Pokud stránka hlásí, že položku mezitím změnil někdo jiný, obnovte data a znovu posuďte aktuální stav.
 
-| Status / koncept | Co to typicky znamená | Časté překvapení |
-|---|---|---|
-| `active` | má být v běžných pohledech | „nevidím to“ bývá filtr/scope. |
-| `archived` | záměrně mimo aktivní provoz | lidé zapomenou zapnout archiv filtr. |
-| `pending` (schvalování) | žádost čeká na rozhodnutí | „uložil jsem = je to aplikované“. |
-| `approved` / `rejected` | žádost je vyřízená | lidé ignorují resolution notes. |
-
-## Hlavní workflow
-
-### „Kam se podívat jako první?“
-
-1. Čekali jste změnu, ale neprojevila se: `/approvals`.
-2. Čekali jste notifikaci: `/notifications`.
-3. Změnilo se číslo a nevíte proč: `/activity-log` (pokud máte).
-4. Nevidíte entitu: oddělení + owner + archivace.
-
-### „Je to problém přístupu nebo dat?“
-
-Tento postup šetří čas a eliminuje špatné eskalace:
-
-1. **Chybí položka v menu?**
-   - Ano: typicky oprávnění (např. `vendors:read`, `issues:read`).
-   - Ne: pokračujte.
-2. **Jde otevřít detail přes odkaz/notifikaci?**
-   - Ano: typicky filtry nebo scope.
-   - Ne: pokračujte.
-3. **Padá to na forbidden / permission denied?**
-   - Ano: mismatch oprávnění nebo stale session.
-   - Ne: pokračujte.
-4. **Není záznam archivovaný?**
-   - Ano: zapněte archiv filtr a ověřte pravidla obnovy.
-   - Ne: pokračujte.
-5. **Vidí to kolega s širším scope?**
-   - Ano: scope hranice / ownership.
-   - Ne: záznam možná neexistuje nebo jde o systémový problém.
-
-### „Jak požádat o pomoc bez ztráty času?“
-
-Při eskalaci pošlete:
-
-- route
-- entity ID/název
-- screenshot je volitelný; text stačí
-- timestamp
-- vaše role + scope
+Při propojování záznamů vybírejte jen vazby, které dávají smysl dalšímu reviewerovi. Vazba má popsat skutečný business vztah: kontrola snižuje riziko, KRI riziko monitoruje, dodavatel vytváří expozici nebo nález řeší konkrétní problém.
 
 ## Schvalování a notifikace
 
-### Proč se editace neaplikovala?
+Pokud změna čeká, zkontrolujte Schvalování a Notifikace před dalším pokusem. Duplicitní úpravy ztěžují review.
 
-Protože změna čeká ve schvalování.
+Poznámky ke schválení mají vysvětlit business důvod. Dobrá poznámka říká, co se změnilo, proč je to správně a jaký důkaz změnu podporuje. Notifikace jsou připomínky a navigace; aktuální stránka a Activity Log pomáhají rekonstruovat kontext.
 
-Postup:
+Pokud je schválení stale nebo zamítnuté, neposílejte hned stejnou změnu znovu. Vraťte se na stránku, kde práce začala, porovnejte aktuální stav se záměrem a odešlete novou úzkou změnu jen tehdy, pokud je stále potřeba.
 
-- otevřete `/approvals`
-- najděte žádost
-- přečtěte pending changes
-- počkejte na rozhodnutí nebo follow‑up se schvalovatelem
+## Vyhledávání, filtrování a evidence
 
-Poznámky, které snižují frustraci:
+Tento FAQ pomáhá řešit otázky okolo exportů, ale sám exportní ovládací prvek nemá. Pokud se otázka týká exportu, nejdřív otevřete stránku, které data patří, a ověřte, že stránka skutečně zobrazuje exportní tlačítko.
 
-- I bez `approvals:write` je queue užitečná: typicky uvidíte „my requests“ a vlastní pending položky.
-- Některé změny mohou spadnout do citlivějšího stavu (např. `pending_privileged`). Princip je stejný: změna se neaplikuje, dokud není schválená.
-- Kvalitní žádost je úzká. Pokud v jednom submitu měníte mnoho citlivých polí, vzniká pomalejší a hůře schvalovatelný request.
+Pro spolehlivý výsledek filtrujte v tomto pořadí:
 
-### Jde zrušit žádost, kterou jsem založil(a)?
+1. Začněte dost široce, abyste ověřili existenci záznamu.
+2. Zužte pohled podle oddělení, vlastníka, stavu, dodavatele nebo data.
+3. Otevřete vzorek řádku, karty, modálu, drilldownu nebo samostatné stránky jen tehdy, když to daná stránka nabízí.
+4. Pokud stránka má exportní tlačítko, zkuste kratší období a méně filtrů.
+5. Pokud stránka exportní tlačítko nemá, zaznamenejte viditelné filtry, název záznamu, čas a schválený screenshot nebo poznámku.
 
-Pokud je žádost stále pending, UI může nabízet cancel. Pokud ne, domluvte se se schvalovatelem na reject s jasnou poznámkou a následně pošlete čistší, užší žádost.
+Pro podporu uveďte název manuálu, stránku, filtry, čas a přesnou zprávu. Neslibujte export ze stránek, které podporují jen hledání, refresh, stránkování nebo review.
 
-### Proč mi chodí remindery pořád dokola?
+## Tipy a časté chyby
 
-Remindery jsou policy signály:
+- Před hlášením stale obrazovky jednou obnovte stránku.
+- Před závěrem, že data zmizela, vyčistěte filtry.
+- Snímky sdílejte opatrně a jen s potřebnými informacemi.
 
-- overdue KRI: monitoring se nevykonává
-- overdue dotazník: risk assessment je zablokovaný
-
-Nemuteujte remindery jako první krok. Opravte podkladový proces.
-
-## Filtry, pohledy a exporty
-
-### „Metriky mi nesedí s kolegou“
-
-Nejčastější důvody:
-
-- jiné filtry
-- jiný scope
-- archivované položky v jednom pohledu zahrnuté a ve druhém ne
-
-Pravidlo:
-
-- při porovnávání vždy říkejte filtry a as‑of čas
-
-### „Exportu chybí položky“
-
-Zkontrolujte:
-
-- aktivní filtry
-- status (archiv je často defaultně venku)
-- scope limity
-
-Pro audit evidence:
-
-- exportujte jen co je potřeba
-- raw export neměňte
-- do poznámky přidejte „as of“ timestamp a filtry (stačí jedna věta)
-
-## Časté chyby
-
-- Editace citlivých polí bez pochopení schvalování.
-- Příliš mnoho citlivých změn v jedné žádosti (vznikne složitý request).
-- Nechat ownera prázdného („někdo to vezme“).
-- Příliš široké tagy/category, které rozbijí vyhledávání.
-- Zaměnit oddělení za ownership (oddělení je routing/reporting; owner je accountability).
-- Sdílet exporty bez kontextu.
+Časté chyby vznikají ze starých filtrů, nejasného ownership, podobných názvů nebo příliš široké změny. Pokud něco vypadá špatně, nejdřív stránku obnovte a ověřte stejný výsledek ve viditelném seznamu, panelu, modálu, drilldownu nebo stránce.
 
 ## Troubleshooting
 
-### Nevidím záznam, který bych měl(a) vidět
+Pokud je stránka prázdná, vyčistěte filtry a hledejte známý název záznamu. Pokud stránka chybí v menu, vaše role pravděpodobně tuto oblast nezahrnuje. Pokud uložení selže, přečtěte zprávu, obnovte záznam a zkontrolujte, zda ho mezitím nezměnil někdo jiný.
 
-Checks:
+Pokud chybí navázaný záznam, nemusíte k němu mít přístup. Ptejte se na business název nebo kód, ne na technický identifikátor. Pro podporu uveďte roli, cestu v aplikaci, název záznamu, akci a přesné znění zprávy na obrazovce.
 
-1. Je archivovaný?
-2. Jaké má oddělení?
-3. Kdo je owner?
-4. Dovoluje scope viditelnost?
+## Související manuály
 
-Next actions:
-
-- scope mismatch: požádejte o změnu přístupu
-- owner mismatch: upravte ownership přes governance proces
-
-### Položka v menu existuje, ale seznam je prázdný
-
-Checks:
-
-1. Resetujte filtry (status, oddělení, owner, search).
-2. Ověřte, že nejste v archived-only pohledu.
-3. Zkontrolujte, zda pohled nefiltruje „mine“ / „pending“.
-4. Zkuste otevřít záznam z notifikace (pokud ji máte).
-
-Next actions:
-
-- Pokud kolega vidí, vy ne: scope hranice.
-- Pokud nikdo nevidí: ověřte, že záznam existuje a je aktivní.
-
-### Nejde create/edit
-
-- ověřte `<resource>:write` (např. `risks:write`)
-
-### Nejde rozhodovat schvalování
-
-- ověřte `approvals:write`
-
-### Dostávám „Forbidden“ / „Permission denied“
-
-Checks:
-
-- Pokud se vám nedávno změnila role/scope, odhlaste se a znovu přihlaste (stale session).
-- Ověřte, že máte očekávané oprávnění (např. `vendors:write`).
-- Pokud oprávnění sedí, ale stále to padá, pošlete:
-  - route
-  - přibližný timestamp
-  - entity id/název
-  - přesný text chyby
-
-### KRI je stále overdue
-
-- je nastavený reporting owner?
-- je frekvence realistická?
-- aktualizuje se period end?
-
-## Související dokumentace
-
-- [Začínáme](./getting-started.md)
-- [Správa přístupů](./access-management.md)
-- [Workflow, schvalování, notifikace](./notifications.md)
-- [Activity Log](./activity-log.md)
-- [Správa rizik](./risks.md)
-- [Správa kontrol](./controls.md)
-- [Správa KRI](./kris.md)
-- [Správa nálezů](./issues.md)
-- [Správa dodavatelů](./vendors.md)
+Začněte s [Getting Started](./getting-started.md), [Access Management](./access-management.md), [Notifications](./notifications.md), [Activity Log](./activity-log.md), [Dashboard](./dashboard.md). Tyto manuály vysvětlují navázaná workflow a pomohou sledovat záznam od signálu přes akci až po evidenci.

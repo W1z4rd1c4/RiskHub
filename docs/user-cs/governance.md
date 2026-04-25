@@ -1,7 +1,7 @@
 ---
 title: Governance: orphaned položky a hygiena ownership
-version: "2.1"
-last_updated: "2026-03-07"
+version: "2.4"
+last_updated: "2026-04-25"
 audience: user
 source_of_truth: "frontend/src/pages/GovernancePage.tsx + frontend/src/components/governance/*"
 summary: "Jak používat Governance pro detekci a řešení orphaned Rizik/Kontrol/KRI tak, aby byl správný ownership, scope a reporting."
@@ -12,230 +12,121 @@ tags:
   - troubleshooting
   - access
 ---
-
 # Governance: orphaned položky a hygiena ownership
 
 **Na této stránce**
-- [Přehled](#prehled)
+- [S čím vám tato stránka pomůže](#s-čím-vám-tato-stránka-pomůže)
+- [Než začnete](#než-začnete)
 - [Kde to najdete](#kde-to-najdete)
-- [Role, scope a viditelnost](#role-scope-a-viditelnost)
-- [Datový model a klíčová pole](#datovy-model-a-klicova-pole)
-- [Hlavní workflow](#hlavni-workflow)
-- [Schvalování a notifikace](#schvalovani-a-notifikace)
-- [Filtry, pohledy a exporty](#filtry-pohledy-a-exporty)
-- [Časté chyby](#caste-chyby)
+- [Co můžete vidět a měnit](#co-můžete-vidět-a-měnit)
+- [Jak dokončit běžné úkoly](#jak-dokončit-běžné-úkoly)
+- [Schvalování a notifikace](#schvalování-a-notifikace)
+- [Vyhledávání, filtrování a evidence](#vyhledávání-filtrování-a-evidence)
+- [Tipy a časté chyby](#tipy-a-časté-chyby)
 - [Troubleshooting](#troubleshooting)
-- [Související dokumentace](#souvisejici-dokumentace)
+- [Související manuály](#související-manuály)
 
-## Přehled
+## S čím vám tato stránka pomůže
 
-Governance je „hygienický“ modul. Pomáhá najít a opravit orphaned položky: rizika, kontroly nebo KRI, které ztratily správný ownership nebo vazby.
+Tento manuál použijte, když potřebujete najít záznamy bez vlastníka, oddělení nebo vazby na riziko, bezpečně je vyřešit a nepřepsat novější práci jiného uživatele. Je určen pro CRO a governance uživatele řešící chybějící ownership nebo kontext, proto popisuje praktický postup v aplikaci: kde začít, co ověřit před akcí a jak poznat, že je práce dokončená.
 
-Orphaned položky typicky vznikají, když:
+Text není technická reference. Vysvětluje běžný provozní postup: začít v governance frontě, ověřit orphaned položku v quick view, provést nejmenší bezpečné řešení a zkontrolovat, že položka z fronty zmizela.
 
-- odchází uživatel a jeho entity se nepřevezmou
-- proběhne reorganizace oddělení
-- kontrola nebo KRI se založí bez správného propojení
-- proběhne import/migrace a některé reference chybí
+Tuto oblast budete používat hlavně pro:
 
-Proč je to důležité:
+- governance overview
+- pending orphaned items
+- quick view
+- resolution modal
+- výběr vlastníka a oddělení
 
-- ownership řídí odpovědnost a routing workflow
-- oddělení řídí scope a reporting
-- orphaned položky vytváří falešný pocit „máme to“, ale reálně to nikdo nevlastní
+## Než začnete
 
-Hlavní route: `/governance`
+Před prací si ověřte tři věci. Zaprvé, že jste přihlášeni rolí, se kterou běžně pracujete. Zadruhé, že staré filtry neskrývají očekávaná data. Zatřetí, že na záznamu už nečeká práce ve Schvalování nebo Notifikacích.
+
+Pokud tlačítko nebo záložka chybí, berte to jako běžný signál přístupu, ne jako chybu. RiskHub zobrazuje akce podle vaší role, rozsahu, ownership a aktuálního stavu záznamu. Když akce není dostupná, požádejte vlastníka záznamu nebo správce přístupů o kontrolu.
+
+Pro podporu mějte připravený název záznamu, kód, vlastníka a oddělení. Tyto údaje výrazně zrychlují komunikaci.
 
 ## Kde to najdete
 
-- položka **Governance** v menu → `/governance`
+Primární cesta: `/governance`
 
-Pokud Governance nevidíte:
+Většinou se sem dostanete z levého menu. Governance je fronta se souhrnnými kartami, záložkami, quick view modálem, refreshem a resolution dialogem. Práce zůstává ve frontě, quick view a resolveru.
 
-- váš účet pravděpodobně nemá přístup (`canViewGovernance` je ve výchozím kontraktu CRO-only)
-- platform admin nepoužívá business Governance; přímý route/API přístup je blokovaný a používá admin tooling
+Běžný postup navigace:
 
-Governance berte jako pravidelnou kontrolu:
+1. Otevřete Governance.
+2. Vyberte frontu rizik, kontrol nebo KRI.
+3. Zkontrolujte souhrnné počty a pending řádky.
+4. Otevřete quick view, pokud potřebujete více kontextu.
+5. Resolve použijte až po ověření chybějícího vlastníka, oddělení nebo vazby na riziko.
 
-- denně v prostředí s častými změnami
-- minimálně týdně ve stabilním prostředí
-- vždy před finalizací komise/board packu
+## Co můžete vidět a měnit
 
-Otevření `/governance` už nespouští maintenance scan. Stránka čte poslední dostupný overview snapshot a aktuální pending položky a tento read model jen průběžně obnovuje.
+Viditelnost závisí na roli, rozsahu oddělení a ownership. Uživatel se širší review odpovědností může vidět více záznamů než uživatel jednoho oddělení. Vlastník záznamu může mít možnost jednat i mimo svůj běžný pohled.
 
-## Role, scope a viditelnost
+Typické informace v této oblasti:
 
-Governance je záměrně omezené, protože může odhalovat cross-department ownership data.
+- Typ položky
+- Aktuální vlastník
+- Aktuální oddělení
+- Chybějící údaj
+- Kandidátní rizika
+- Kandidátní vlastníci
+- Poznámka řešení
 
-Typický access pattern:
+Změny mají být praktické a snadno vysvětlitelné. Pokud změna ovlivňuje ownership, scoring, uzavření, archivaci nebo jiné citlivé údaje, počítejte v některých prostředích s review krokem. Uživatelé jen pro čtení mohou stránku používat pro kontrolu, filtrování a evidenci.
 
-- CRO (nebo delegovaný globální vlastník) provádí sweep a řeší orphaned položky
-- oddělení dodávají kontext, ale samotná rezoluce se dělá centrálně
+## Jak dokončit běžné úkoly
 
-Rezoluce má reálný dopad na viditelnost:
+Pokud váš tým nemá přísnější postup, použijte tento základní workflow:
 
-- změna ownera může otevřít viditelnost přes ownership výjimku
-- změna oddělení může posunout položku do/ze scope
-- backend před aplikací rezoluce znovu ověřuje aktuální cílovou entitu; pokud ji už někdo přeřadil, request se odmítne místo přepsání novějšího stavu
+1. Zkontrolovat governance frontu.
+2. Otevřít quick view nebo Resolve pro orphaned položku.
+3. Vybrat správného vlastníka nebo oddělení.
+4. Navázat KRI nebo kontrolu na riziko.
+5. Odeslat řešení a ověřit zmizení z fronty.
 
-Pracujte podle principu „least surprise“: vyberte ownera a oddělení tak, aby to odpovídalo reálné odpovědnosti.
+Po odeslání ověřte, že položka zmizela z aktuální fronty a souhrnné počty se aktualizovaly. Pokud stránka hlásí, že položku mezitím změnil někdo jiný, obnovte frontu a znovu posuďte aktuální řádek.
 
-## Datový model a klíčová pole
-
-Governance pracuje s orphaned položkami, které mají společný tvar.
-
-| Pole | Význam | Poznámky |
-|---|---|---|
-| Item type | `risk`, `control`, `kri` | Použijte taby pro fokus na jeden typ. |
-| Item identifier | Lidsky čitelný kód/identifikátor | Preferujte v komunikaci místo interních ID. |
-| Item name | Název položky | Pokud je název nejasný, opravte i pojmenování. |
-| Department | Aktuální oddělení (může být prázdné) | Prázdné oddělení je častý zdroj scope zmatku. |
-| Previous owner | Poslední známý owner (jméno/email) | Diagnostický kontext, ne nutně cíl přiřazení. |
-| Orphaned at | Čas, kdy se položka stala orphaned | Pomáhá rozhodnout urgentnost a možnost „stale“ dat. |
-| Status | `pending` nebo `resolved` | `resolved` dávejte až po reálném opravení. |
-| Capabilities | Backend action flags | UI je používá pro rozhodnutí, zda je dostupná rezoluce/detail a která pole jsou povinná. |
-
-Rezoluce může požadovat:
-
-- `new_owner_id` (pro rizika/kontroly)
-- `department_id` (pro všechny typy)
-- `target_risk_id` (pro KRI a pro kontroly bez navázaného rizika)
-
-## Hlavní workflow
-
-### 1) Denní/týdenní sweep
-
-1. Otevřete `/governance`.
-2. Zkontrolujte headline counts.
-3. Začněte u **rizik** (jsou kořenová entita) a řešte nejdřív vysoký dopad.
-4. Přesuňte se na **kontroly** a ověřte, že každá kontrola má smysluplné vazby na rizika.
-5. Přesuňte se na **KRI** a ověřte správné linknutí na riziko.
-6. Na konci znovu zkontrolujte total a potvrďte, že nic nezůstalo omylem `pending`.
-
-### 2) Rezoluce orphaned rizika
-
-Když je riziko orphaned, obvykle chybí/nesedí owner nebo oddělení.
-
-Postup:
-
-1. Otevřete řádek orphan.
-2. Vyberte ownera, který bude dlouhodobě accountable za lifecycle rizika.
-3. Nastavte/ověřte oddělení.
-4. Odešlete rezoluci.
-5. Ověřte, že riziko se správně zobrazuje v `/risks` a v pohledech oddělení.
-
-Pokud není jasný owner, nehádejte. Přiřaďte dočasného ownera (např. koordinátora) a založte Issue pro dokončení převodu.
-
-### 3) Rezoluce orphaned kontroly
-
-Kontrola je provozně smysluplná, pokud má:
-
-- ownership + oddělení
-- vazbu na rizika, která mitigují
-
-Postup:
-
-1. Otevřete orphan kontrolu.
-2. Nastavte ownera a oddělení.
-3. Zkontrolujte, zda má kontrola navázaná rizika.
-4. Pokud nemá žádná navázaná rizika, vyberte **target risk**.
-5. Odešlete rezoluci.
-6. Ověřte, že kontrola se zobrazuje v `/controls` a je vidět na detailu rizika.
-
-### 4) Rezoluce orphaned KRI
-
-KRI jsou sub-entity rizik. Prakticky:
-
-- KRI bez vazby na riziko není akční
-
-Postup:
-
-1. Otevřete orphan KRI.
-2. Vyberte správné **target risk**.
-3. Ověřte kontext oddělení.
-4. Odešlete rezoluci.
-5. Ověřte, že KRI se zobrazuje u rizika a v `/kris`.
-
-### 5) Zapište „proč“ (audit hygiena)
-
-Governance opravy jsou governance rozhodnutí.
-
-Po rezoluci významné položky (kritické riziko, široce používaná kontrola, klíčové KRI) si uložte kontext:
-
-- proč je zvolený owner správný
-- proč je oddělení správné
-- jaký follow-up je potřeba (popis, kontroly, úprava KRI, apod.)
-
-Pokud používáte Issue pro follow-up, založte ho a odkažte na rezoluci.
+Při propojování KRI nebo kontroly k riziku vybírejte jen vazby, které dávají smysl dalšímu reviewerovi a odpovídají skutečnému business vztahu.
 
 ## Schvalování a notifikace
 
-Rezoluce v Governance je strukturální změna. Dle prostředí může:
+Řešení se použije jen tehdy, pokud je záznam stále ve stavu, který jste kontrolovali. Pokud ho někdo mezitím změnil, obnovte data a posuďte aktuální stav.
 
-- spustit schvalování (pokud jsou změny ownera/oddělení policy-driven)
-- poslat notifikace novému ownerovi nebo stakeholderům
-- vytvořit záznam v Activity Logu
+Poznámky k řešení mají vysvětlit business důvod, ne jen tlačítko, které jste použili. Dobrá poznámka říká, co se změnilo, proč je to správně a jaký důkaz změnu podporuje. Quick view a Activity Log pomáhají vysvětlit aktuální kontext.
 
-Praktické kontroly:
+Pokud je řešení stale nebo zamítnuté, neposílejte hned stejnou změnu znovu. Obnovte frontu, porovnejte aktuální řádek se záměrem a odešlete nové úzké řešení jen tehdy, pokud je stále potřeba.
 
-- pokud se změna po odeslání neprojeví, zkontrolujte `/approvals`
-- sledujte `/notifications` pro routing eventy
-- použijte `/activity-log` (pokud máte přístup) pro potvrzení záznamu
+## Vyhledávání, filtrování a evidence
 
-## Filtry, pohledy a exporty
+Používejte governance seznam, quick view a resolution dialog pro cleanup práci. Governance stránka nemá exportní tlačítko; pomáhá bezpečně řešit mezery v ownership a vazbách.
 
-Governance je optimalizované pro akci, ne pro reporting.
+Pro spolehlivý výsledek postupujte takto:
 
-Co umí dobře:
+1. Zkontrolujte typ položky a chybějící údaj.
+2. Zužte frontu podle viditelné kategorie nebo ownership kontextu.
+3. Otevřete quick view a ověřte, že cílový záznam stále potřebuje zásah.
+4. Položku vyřešte, obnovte frontu a ověřte, že zmizela.
 
-- přepnout tab podle typu (risk/control/kri)
-- fokus na `pending`
-- rychlý náhled kontextu před rezolucí
+Pro formální evidenci použijte záznam v Activity Logu, který změnu zachycuje, nebo stav governance fronty po obnovení.
 
-Co typicky nedělat:
+## Tipy a časté chyby
 
-- používat counts jako „performance“ metriku
-- exportovat orphan list bez následné rezoluce
+- Nepřiřazujte ownership placeholder osobě.
+- U vazby KRI nebo kontroly vyberte riziko, které opravdu monitoruje nebo snižuje.
+- Starší položky před řešením obnovte.
 
-Pokud potřebujete audit evidence, čistý postup je:
-
-1. Rezolovat orphaned položky.
-2. Použít Activity Log nebo standardní exporty z `/risks` a `/controls` pro prokázání opraveného stavu.
-
-## Časté chyby
-
-- Přiřadit „nejbližšího“ ownera místo *accountable* ownera.
-- Nastavit oddělení podle toho, kde se problém našel, ne kde práce patří.
-- Linknout kontrolu na riziko jen kvůli „vyčištění seznamu“ (zkreslí reporting).
-- Ignorovat orphaned položky jako „data quality“, i když jde o „control quality“.
+Časté chyby vznikají ze starých dat fronty, nejasného ownership, podobných názvů nebo příliš široké změny. Pokud něco vypadá špatně, nejdřív frontu obnovte a ověřte stejný výsledek v quick view.
 
 ## Troubleshooting
 
-### Governance ukazuje counts, ale seznam je prázdný
+Pokud je stránka prázdná, vyčistěte filtry a hledejte známý název záznamu. Pokud stránka chybí v menu, vaše role pravděpodobně tuto oblast nezahrnuje. Pokud uložení selže, přečtěte zprávu, obnovte záznam a zkontrolujte, zda ho mezitím nezměnil někdo jiný.
 
-- Proveďte refresh.
-- Stránka zobrazuje poslední dokončený scan snapshot; samotné otevření novou kontrolu nespouští.
-- Orphan scan je best-effort; pokud je scan blokovaný, existující položky by měly být stále čitelné.
-- Pokud to trvá, pošlete timestamp a požádejte podporu o kontrolu stats vs list.
+Pokud chybí navázaný záznam, nemusíte k němu mít přístup. Ptejte se na business název nebo kód, ne na technický identifikátor. Pro podporu uveďte roli, cestu v aplikaci, název záznamu, akci a přesné znění zprávy na obrazovce.
 
-### Governance vidím, ale nejde rezolovat
+## Související manuály
 
-- Můžete mít read přístup, ale ne oprávnění na rezoluci.
-- Pošlete item identifier a eskalujte správci přístupů.
-
-### Rezoloval(a) jsem orphan, ale stále je `pending`
-
-- Refresh a znovu otevřete položku.
-- Pokud je zapnuté schvalování, může rezoluce čekat v `/approvals`.
-- Pokud jiný workflow mezitím změnil ownera, oddělení nebo vazbu, backend stale rezoluci odmítne, aby zachoval novější stav.
-- Zkontrolujte `/activity-log` pro důkaz změny.
-
-## Související dokumentace
-
-- `./risks.md`
-- `./controls.md`
-- `./kris.md`
-- `./departments.md`
-- `./issues.md`
-- `./access-management.md`
-- `./activity-log.md`
+Začněte s [Departments](./departments.md), [Risks](./risks.md), [Controls](./controls.md), [Kris](./kris.md), [Activity Log](./activity-log.md). Tyto manuály vysvětlují navázaná workflow a pomohou sledovat záznam od signálu přes akci až po evidenci.

@@ -1,6 +1,6 @@
 ---
 title: Managing Issues and Findings
-version: "2.3"
+version: "2.4"
 last_updated: "2026-04-25"
 audience: user
 source_of_truth: "frontend/src/pages/IssuesPage.tsx + frontend/src/pages/issues/* + issue workflows in backend"
@@ -13,265 +13,125 @@ tags:
   - exports
   - troubleshooting
 ---
-
 # Managing Issues and Findings
 
 **On this page**
-- [Overview](#overview)
+- [What This Page Helps You Do](#what-this-page-helps-you-do)
+- [Before You Start](#before-you-start)
 - [Where To Find It](#where-to-find-it)
-- [Roles, Scope, and Visibility](#roles-scope-and-visibility)
-- [Data Model and Key Fields](#data-model-and-key-fields)
-- [Core Workflows](#core-workflows)
-- [Approvals and Notifications Behavior](#approvals-and-notifications-behavior)
-- [Filters, Views, and Exports](#filters-views-and-exports)
-- [Common Mistakes](#common-mistakes)
+- [What You Can See and Change](#what-you-can-see-and-change)
+- [How To Complete Common Tasks](#how-to-complete-common-tasks)
+- [Approvals and Notifications](#approvals-and-notifications)
+- [Finding, Filtering, and Evidence](#finding-filtering-and-evidence)
+- [Tips and Common Mistakes](#tips-and-common-mistakes)
 - [Troubleshooting](#troubleshooting)
-- [Related Documentation](#related-documentation)
+- [Related Manuals](#related-manuals)
 
-## Overview
+## What This Page Helps You Do
 
-Issues (also called findings) are the operational way to record a problem that needs remediation, tracking, and evidence. In RiskHub, Issues are intentionally simple: they capture the "what", "so what", and "by when". The goal is not perfect prose. The goal is an unambiguous remediation loop.
+Use this manual when you need to record findings, assign remediation, track progress, manage exceptions, and close issues with evidence that stands up to review. It is written for users responsible for remediation work and finding closure, so it focuses on what to do in the app, what to check before you act, and what result to expect after the work is done.
 
-Use Issues when:
+The page is not a technical reference. It explains the everyday operating pattern: start from the right screen, confirm the record is the one you intend to update, make the smallest useful change, and then verify the result in the list, detail page, notifications, or activity history.
 
-- a control execution failed or was incomplete
-- a KRI breached its limits and needs a corrective action
-- an audit review identified a gap
-- a user reports a recurring operational risk that needs a tracked fix
+You will use this area most often for:
 
-An Issue is successful when someone can answer all of these without asking you:
+- issue list
+- issue detail
+- remediation plan
+- assignment
+- progress
+- exceptions
+- closure checks
 
-- What exactly is wrong?
-- Who owns the next action?
-- What is the due date and what is the risk of delay?
-- What evidence will prove the fix?
+## Before You Start
 
-Primary app route: `/issues`
+Before working in this area, confirm three things. First, make sure you are signed in with the role you normally use for business work. Second, clear any old filters if the list looks incomplete. Third, check whether the record already has pending work in Approvals or Notifications.
+
+If a button or tab is missing, treat that as a normal access signal, not as an error. RiskHub only shows actions that fit your role, scope, record ownership, and the current record state. When an action is unavailable, ask the record owner or your access contact to review it instead of trying to work around the screen.
+
+Have the record name, code, owner, and department ready before asking for help. Those details make support and audit conversations much faster.
 
 ## Where To Find It
 
-- Issue register (list): `/issues`
-- Issue detail: open any row from the list
-- Quick links from other modules: you may see Issues created or referenced from Risks, Controls, KRIs, or Vendors (depending on your permissions)
+Primary route: `/issues`
 
-If you do not see **Issues** in the sidebar:
+You can usually reach this area from the left sidebar. Detail pages open by selecting a row or a linked card. If you arrive from another record, use the back button or the related-record links to return to the broader context.
 
-- you likely do not have the permission `issues:read` (resource `issues`, action `read`)
-- your role may be scoped to a department that does not grant Issues visibility
+Common navigation pattern:
 
-Start by validating your access in `/settings` and then ask your access owner to confirm your effective permissions.
+1. Open the list page.
+2. Clear filters if you are not sure what should be visible.
+3. Search by name, owner, vendor, or department.
+4. Open the record.
+5. Review linked records and recent activity before changing anything.
 
-## Roles, Scope, and Visibility
+## What You Can See and Change
 
-Issues follow the same core visibility model as other business entities:
+What you can see depends on your role, department scope, and record ownership. A user with broad review responsibility may see more records than a user responsible for one department. A record owner may be able to act on a record even when it is outside the owner’s usual department view.
 
-- **Scope first**: global roles can typically see cross-department Issues; department-scoped users usually see their department
-- **Ownership exceptions**: ownership can grant visibility even when the department differs
-- **Backend is authoritative**: the UI can hide buttons, but the API is the real enforcement
+Typical information in this area includes:
 
-Typical responsibilities (this is descriptive, not a rule):
+- Finding title
+- Severity
+- Owner
+- Due date
+- Linked risk/control/vendor
+- Plan text
+- Progress
+- Closure evidence
 
-- **Issue creator**: records the initial finding with enough context to act
-- **Issue owner**: is responsible for keeping status and due dates current and coordinating remediation
-- **Second line / reviewers**: validate closure quality and raise exception/override decisions when needed
+Changes should be practical and easy to explain. If the change affects ownership, scoring, closure, archive state, or other governance-sensitive information, expect a review step in some environments. Read-only users can still use the page for investigation, filtering, and evidence gathering.
 
-Write access is permission-gated:
+## How To Complete Common Tasks
 
-- `issues:write` controls whether you can create and update issues
-- some status transitions can be gated by workflow policy (for example, closure validation)
+Follow this basic workflow unless your team has a stricter local procedure:
 
-## Data Model and Key Fields
+1. Create an issue from a risk, control, vendor, or standalone finding.
+2. Assign an owner and due date.
+3. Write a remediation plan.
+4. Update progress.
+5. Request an exception when justified.
+6. Close with evidence.
 
-The table below lists the fields that matter most in practice.
+After saving or submitting, verify the result. The list should show the new state, the detail page should match your intent, and any expected notification or approval item should be visible. If the page reports that the record changed while you were working, refresh and review the current record before trying again.
 
-| Field | Meaning | Pitfalls / notes |
-|---|---|---|
-| Title | Short, searchable statement of the finding | Avoid titles like "Issue" or "Problem". Include the object and failure mode. |
-| Description | What happened, what should have happened, and impact | Include the smallest reproducible context. Avoid blame language. |
-| Severity | Prioritization signal (low → critical) | Severity should reflect impact + urgency, not who is asking. |
-| Status | Lifecycle state (`open`, `triaged`, `in_progress`, `ready_for_validation`, `closed`) | Status is a promise to stakeholders. Don’t mark `closed` without evidence. |
-| Department | Organizational context for routing and reporting | Choose the department that owns the remediation, not the department that noticed the issue. |
-| Owner | Person accountable for next action | If owner is missing, the system may block some flows (and questionnaires may skip). |
-| Due date | Commitment date for remediation | Too-aggressive due dates create churn; too-late dates hide risk. |
-| Source | Where it came from (manual, audit, KRI breach, control execution) | Source helps reviewers interpret urgency and expected evidence. |
-| Remediation plan | Optional structured plan/status for larger fixes | Keep plan status consistent with issue status. |
-| Exceptions | Time-bound approval to deviate from standard policy | Exceptions are not closures. They must be explicit and revisited. |
+When linking records, choose only relationships that are useful to another reviewer. A link should explain a real business relationship: a control reduces a risk, a KRI monitors a risk, a vendor contributes to an exposure, or an issue tracks remediation for a specific problem.
 
-When in doubt, optimize for *auditability*: a reviewer should be able to read the record months later and understand why decisions were made.
+## Approvals and Notifications
 
-## Core Workflows
+Some updates may require review, especially closure, exception, or ownership-sensitive changes. If closure is blocked, read the validation message and fill the missing evidence rather than bypassing the workflow.
 
-### 1) Create a new Issue
+Use approval notes to explain the business reason, not just the button you clicked. A good note says what changed, why it is appropriate, and what evidence supports the decision. Notifications are reminders and pointers; the record detail remains the best place to understand the full context.
 
-1. Go to `/issues`.
-2. Click **New**.
-3. Fill `Title` and `Description` with operational clarity.
-4. Set `Severity` and `Due date`.
-5. Assign `Department` and `Owner`.
-6. Save.
-7. Confirm the Issue appears in the list and is visible to the right stakeholders.
+If you receive a stale or rejected approval, do not immediately resubmit the same change. Open the record, compare the current state with your intended update, and submit a new focused change only if it is still needed.
 
-A good first version is better than a perfect late version. If the owner is not known yet, set the department and write the next action explicitly ("Identify owner for remediation within 2 days").
+## Finding, Filtering, and Evidence
 
-### 2) Triage an Issue
+Use grouped views for owner, severity, status, due date, or vendor. Export a filtered list for status meetings and the detail history for audit evidence.
 
-Triage is the act of making the issue actionable:
+For reliable results, filter in this order:
 
-- confirm severity is appropriate
-- ensure owner and due date are set
-- decide whether it is a quick fix or needs a remediation plan
-- link it to the relevant entity context (risk/control/kri/vendor) where your workflow supports it
+1. Start broad enough to confirm the record exists.
+2. Narrow by department, owner, status, vendor, or date.
+3. Open a sample record to confirm the filter matches your intent.
+4. Export only the filtered view needed for the review.
 
-Use `triaged` when the issue is understood and assigned.
+Exports are evidence. Keep them small, label the time period, and avoid sharing unrelated personal or sensitive information.
 
-### 3) Remediate and update status
+## Tips and Common Mistakes
 
-Use status consistently:
+- Keep the plan specific enough that another person can verify completion.
+- Use exceptions sparingly and always include the business reason.
+- Do not close an issue just because the due date passed.
 
-- `open`: newly created, not yet routed
-- `triaged`: owner + due date are set, work is planned
-- `in_progress`: remediation started
-- `ready_for_validation`: fix is implemented and awaiting review
-- `closed`: validated and archived as evidence
-
-If your organization uses a remediation plan card, keep it aligned:
-
-- plan `draft/active/blocked/completed` should not contradict the issue status
-- remediation is complete only when plan status is `completed`, progress is `100%`, and a completion timestamp exists
-- setting status to completed or progress to 100% normalizes the other completion fields
-- lowering progress below 100% moves a `ready_for_validation` issue back to `in_progress`
-- contradictory updates, such as `blocked` with 100% progress, are rejected
-
-### 4) Close with evidence
-
-Closure is an evidence event, not a UI event.
-
-Before moving to `closed`, record:
-
-- what changed
-- how you verified it
-- where the supporting evidence lives (link, ticket, reference ID)
-- what monitoring will detect regression (if applicable)
-
-If validation fails, move back to `in_progress` and state the specific gap ("Evidence missing for period X", "Control execution still failing", etc.).
-
-Closure requires completed remediation. A `ready_for_validation` issue whose progress was lowered below complete cannot be closed until remediation is complete again.
-
-### 5) Handle exceptions (when remediation cannot be completed)
-
-Exceptions should be treated as time-bound risk acceptance.
-
-Use an exception when:
-
-- remediation is blocked by dependencies outside your team
-- remediation is disproportionate and an alternate control is acceptable
-- remediation is planned but cannot meet deadlines for valid reasons
-
-In the Issue, be explicit:
-
-- what requirement is being waived
-- what compensating controls exist
-- the expiration date and the owner of renewal/review
-
-When an approved exception expires or is revoked, closed issues reopen only if remediation is not complete. Completed remediation stays closed.
-
-## Approvals and Notifications Behavior
-
-Issues commonly interact with workflow in two ways:
-
-1. **Status and exception decisions** can trigger approvals (policy dependent).
-2. **Downstream entities** (risks/controls/kris) may trigger workflow, and the Issue becomes the narrative context for that request.
-
-Practical rules:
-
-- Expect notifications when an Issue changes status, is assigned to you, or an exception is requested/approved.
-- If you save an update and it does not appear immediately, check `/approvals` and `/notifications` for a pending request.
-- Always add resolution notes for approvals. Notes are part of the audit trail.
-- If a workflow action returns a conflict, refresh the issue before retrying; the backend may have normalized or downgraded remediation state.
-
-For the complete workflow mechanics and queue triage, use: `./notifications.md`.
-
-## Filters, Views, and Exports
-
-The Issue list supports operational filtering so you can run it like an inbox.
-
-Common filters and what they are for:
-
-- **Status**: focus on `open`/`triaged` for routing, `in_progress` for execution pressure, `ready_for_validation` for review workload
-- **Severity**: isolate `high` and `critical`
-- **Overdue**: find broken commitments quickly
-- **Exclude active exceptions**: focus on issues that still require action (not temporarily waived)
-- **Search**: use stable keywords (system name, process name, vendor name)
-
-Grouped views now also include **By Vendor**.
-
-`By Vendor` is multi-membership:
-
-- an issue appears under every readable linked vendor context
-- vendor-linked contextual issues are grouped directly under that vendor
-- issues with no readable vendor context fall into the unlinked fallback bucket
-
-Links from dashboards and other modules can open `/issues` with filters already applied. Treat those URL parameters as the starting view for triage, not as a live saved view that rewrites itself while you work.
-
-Sorting is useful when you are preparing for a review:
-
-- sort by `due_at` to see time pressure
-- sort by `updated_at` to find stale issues
-
-### Exports
-
-Use **Export** for review packs and audit evidence.
-
-Export discipline:
-
-- export with a clear “as of” date
-- prefer exports filtered to the smallest needed scope
-- include severity/status filters so the reader understands what’s in the file
-- never edit exports in a way that removes traceability (if you must transform, keep the original export)
-
-## Common Mistakes
-
-- **No owner**: an issue without an owner becomes a mailbox.
-- **Due date without capacity**: unrealistic due dates train the organization to ignore dates.
-- **Status inflation**: moving to `ready_for_validation` without evidence, or closing without verification.
-- **Severity misuse**: setting everything to `high` makes the filter meaningless.
-- **Narrative drift**: changing the problem statement mid-remediation without documenting why.
+Common mistakes are usually caused by stale filters, unclear ownership, duplicate records, or trying to make a broad change when a focused change would be easier to review. If something looks wrong, first refresh the page and confirm the same result in the detail view.
 
 ## Troubleshooting
 
-### I can’t see `/issues` in the sidebar
+If the page is empty, clear filters and search by a known record name. If the page is missing from the sidebar, your role may not include that work area. If a save fails, read the message, refresh the record, and check whether another user changed it first.
 
-- Confirm you have `issues:read`.
-- Confirm you are not logged in as platform admin (admins do not use business modules).
-- If you recently got access, log out and back in to refresh effective permissions.
+If a linked record is missing, you may not have access to that related item. Ask for the business name or code rather than a technical identifier. For support, include your role, the route you were using, the record name, the action you attempted, and the exact message shown on screen.
 
-### I can see Issues but can’t create or edit
+## Related Manuals
 
-- You likely have `issues:read` but not `issues:write`.
-- Some status transitions may be policy-gated; check `/approvals` for pending workflow.
-
-### My update saved but didn’t apply
-
-- You likely triggered a workflow request. Open `/approvals` and search for the entity.
-- Check `/notifications` for the request outcome.
-
-### Exports fail or are incomplete
-
-- Check active filters (status/severity/overdue) before exporting.
-- Retry after a refresh. If the problem persists, capture the error message and share it with support.
-
-### Close action is blocked
-
-- Confirm the issue is `ready_for_validation`.
-- Confirm remediation status is `completed`, progress is `100%`, and completion details are present.
-- If progress was reduced below 100%, update remediation back to complete before closing.
-
-## Related Documentation
-
-- `./notifications.md`
-- `./risks.md`
-- `./controls.md`
-- `./kris.md`
-- `./vendors.md`
-- `./departments.md`
-- `./activity-log.md`
+Start with [Risks](./risks.md), [Controls](./controls.md), [Vendors](./vendors.md), [Notifications](./notifications.md), [Activity Log](./activity-log.md). These manuals explain the connected workflows and help you follow the record from signal to action to evidence.

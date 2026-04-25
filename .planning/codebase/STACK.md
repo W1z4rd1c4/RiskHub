@@ -1,6 +1,6 @@
 # Technology Stack
 
-**Analysis Date:** 2026-04-24
+**Analysis Date:** 2026-04-25
 
 ## Languages
 
@@ -29,7 +29,7 @@
 - SQLAlchemy async + `asyncpg` (`backend/app/db/session.py`, `backend/requirements.txt`)
 - Alembic migrations (`backend/alembic/`)
 - Pydantic v2 + pydantic-settings (`backend/app/core/config.py`)
-- APScheduler for background jobs (`backend/app/core/scheduler.py`)
+- APScheduler for background jobs with split lock/runtime/tracking helpers (`backend/app/core/scheduler.py`, `backend/app/core/scheduler_locks.py`, `backend/app/core/scheduler_runtime.py`, `backend/app/core/scheduler_tracking.py`)
 
 **Frontend:**
 - React 19 + React Router 7 (`frontend/src/main.tsx`, `frontend/src/App.tsx`, `frontend/package.json`)
@@ -69,15 +69,17 @@
 
 ## Current Scale Snapshot
 
-- Backend endpoints: 162 Python modules/packages (`backend/app/api/v1/endpoints/`)
+- Backend app Python: 405 files (`backend/app/`)
+- Backend endpoints: 168 Python modules/packages (`backend/app/api/v1/endpoints/`)
 - Backend models: 26 Python modules (`backend/app/models/`)
 - Backend schemas: 24 Python modules (`backend/app/schemas/`)
-- Backend services: 85 Python files (includes internal workflow packages) (`backend/app/services/`)
-- Backend test tree: 159 Python files (162 total tracked files) (`tests/backend/pytest/`)
-- Frontend pages: 118 tracked files (`frontend/src/pages/`)
-- Frontend components: 193 tracked files (`frontend/src/components/`)
-- Frontend E2E specs: 42 (`tests/frontend/e2e/**/*.spec.ts`)
+- Backend services: 107 Python files (includes internal workflow packages) (`backend/app/services/`)
+- Backend test tree: 166 files (`tests/backend/pytest/`)
+- Frontend source: 490 TypeScript/TSX files (`frontend/src/`)
+- Frontend pages: 147 tracked files (`frontend/src/pages/`)
+- Frontend components: 270 tracked files (`frontend/src/components/`)
+- Frontend E2E tree: 74 files (`tests/frontend/e2e/`)
 
 ---
 
-*Stack analysis refreshed on 2026-04-24*
+*Stack analysis refreshed on 2026-04-25*

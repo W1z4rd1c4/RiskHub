@@ -1,7 +1,7 @@
 ---
 title: Getting Started with RiskHub
-version: "2.0"
-last_updated: "2026-03-07"
+version: "2.4"
+last_updated: "2026-04-25"
 audience: user
 source_of_truth: "docs/BUSINESS_LOGIC.md + frontend onboarding routes"
 summary: "First-day onboarding manual for non-admin users: scope validation, navigation, workflow readiness, and how to avoid the most common early mistakes."
@@ -12,204 +12,119 @@ tags:
   - notifications
   - troubleshooting
 ---
-
 # Getting Started with RiskHub
 
 **On this page**
-- [Overview](#overview)
+- [What This Page Helps You Do](#what-this-page-helps-you-do)
+- [Before You Start](#before-you-start)
 - [Where To Find It](#where-to-find-it)
-- [Roles, Scope, and Visibility](#roles-scope-and-visibility)
-- [Data Model and Key Fields](#data-model-and-key-fields)
-- [Core Workflows](#core-workflows)
-- [Approvals and Notifications Behavior](#approvals-and-notifications-behavior)
-- [Filters, Views, and Exports](#filters-views-and-exports)
-- [Common Mistakes](#common-mistakes)
+- [What You Can See and Change](#what-you-can-see-and-change)
+- [How To Complete Common Tasks](#how-to-complete-common-tasks)
+- [Approvals and Notifications](#approvals-and-notifications)
+- [Finding, Filtering, and Evidence](#finding-filtering-and-evidence)
+- [Tips and Common Mistakes](#tips-and-common-mistakes)
 - [Troubleshooting](#troubleshooting)
-- [Related Documentation](#related-documentation)
+- [Related Manuals](#related-manuals)
 
-## Overview
+## What This Page Helps You Do
 
-This guide gets you from first login to productive daily use. It focuses on operational readiness:
+Use this manual when you need to get comfortable with the workspace, confirm what you can see, and learn the safest first steps before changing business records. It is written for new RiskHub users, so it focuses on what to do in the app, what to check before you act, and what result to expect after the work is done.
 
-- confirming your access is correct
-- understanding how scope affects what you see
-- learning the “workflow mindset” (approvals and notifications)
-- building good habits for filters and exports
+The page is not a technical reference. It explains the everyday operating pattern: start from the right screen, confirm the item you intend to review or update, make the smallest useful change, and then verify the result in the visible list, panel, modal, notification, or activity history.
 
-The fastest way to get value from RiskHub is:
+You will use this area most often for:
 
-- use the dashboard to detect pressure
-- use the queues to manage workflow
-- keep risks and controls actionable (ownership + evidence)
+- Dashboard
+- Risks
+- Controls
+- KRIs
+- Vendors
+- Approvals
+- Settings
+
+## Before You Start
+
+Before working in this area, confirm three things. First, make sure you are signed in with the role you normally use for business work. Second, clear any old filters if the list looks incomplete. Third, check whether the record already has pending work in Approvals or Notifications.
+
+If a button or tab is missing, treat that as a normal access signal, not as an error. RiskHub only shows actions that fit your role, scope, record ownership, and the current record state. When an action is unavailable, ask the record owner or your access contact to review it instead of trying to work around the screen.
+
+Have the record name, code, owner, and department ready before asking for help. Those details make support and audit conversations much faster.
 
 ## Where To Find It
 
-You will use these routes frequently:
+Primary route: `/settings`
 
-- dashboard: `/`
-- approvals queue: `/approvals`
-- notifications: `/notifications`
-- risks: `/risks`
-- controls: `/controls`
-- KRIs: `/kris`
-- issues: `/issues` (if enabled)
-- vendors: `/vendors` (if enabled)
-- departments: `/departments`
-- governance: `/governance` (CRO only)
-- settings (including docs): `/settings`
+You can usually reach core areas from the left sidebar. Different modules use different patterns: tables, tabs, cards, modals, drilldowns, or separate pages. Use the controls that are visible on the page you are actually viewing.
 
-If you can’t open a route you expect, treat it as an access/scope problem first, not a “bug”.
+Common navigation pattern:
 
-## Roles, Scope, and Visibility
+1. Open the list page.
+2. Clear filters if you are not sure what should be visible.
+3. Search by name, owner, vendor, or department.
+4. Open a row, card, modal, drilldown, or separate page only when the module offers one.
+5. Review linked records and recent activity before changing anything.
 
-RiskHub behavior depends on:
+## What You Can See and Change
 
-- role (what you are responsible for)
-- scope (global vs department vs manager)
-- permissions (resource + action)
+What you can see depends on your role, department scope, and record ownership. A user with broad review responsibility may see more records than a user responsible for one department. A record owner may be able to act on a record even when it is outside the owner’s usual department view.
 
-Practical examples:
+Typical information in this area includes:
 
-- you might see `/vendors` only if you have `vendors:read`
-- you might see `/issues` only if you have `issues:read`
-- you might see `/governance` only if you are CRO in the default contract
-- you might see `/activity-log` only if you have `activity_log:read` (and you are not a platform admin)
+- Your profile details
+- Language and theme preferences
+- The modules visible in the sidebar
+- Documentation manuals for your role
 
-Your scope determines *how wide* your default visibility is. Ownership can create exceptions.
+Changes should be practical and easy to explain. If the change affects ownership, scoring, closure, archive state, or other governance-sensitive information, expect a review step in some environments. Read-only users can still use the page for investigation, filtering, and evidence gathering.
 
-If your first-day view looks wrong (missing your team’s risks, or showing unrelated departments), fix scope early. Scope bugs waste the most time.
+## How To Complete Common Tasks
 
-## Data Model and Key Fields
+Follow this basic workflow unless your team has a stricter local procedure:
 
-For day-one success, you don’t need every field. You need the “control points” that drive daily operations.
+1. Sign in and confirm your profile.
+2. Open the main work areas.
+3. Check whether a missing page is caused by your role or by filters.
+4. Learn where approvals and notifications appear.
 
-| Concept | What to watch | Why it matters |
-|---|---|---|
-| Ownership | owner on risks/controls, reporting owner on KRIs | Ownership drives accountability and routing. |
-| Department | department on key entities | Department drives reporting and baseline scope. |
-| Status | active/emerging/archived, open/closed | Status influences visibility and priorities. |
-| Scoring | net vs gross risk scores | This is how you quantify posture and trend. |
-| Due/overdue | KRI due dates, issue due dates | Overdue is a governance signal. |
-| Workflow notes | approval reasons and resolution notes | Notes are part of audit trail. |
+After saving or submitting, verify the result on the page you used: the list, table, panel, modal, notification, or activity history should show the expected state. If the page reports that the item changed while you were working, refresh and review the current state before trying again.
 
-## Core Workflows
+When linking records, choose only relationships that are useful to another reviewer. A link should explain a real business relationship: a control reduces a risk, a KRI monitors a risk, a vendor contributes to an exposure, or an issue tracks remediation for a specific problem.
 
-### 1) First login checklist (15 minutes)
+## Approvals and Notifications
 
-1. Sign in and confirm your display name and role label.
-   - In production, the sign-in page has a temporary `CZ / EN` switch before authentication.
-   - That switch changes only the login-page copy and does not save your long-term preference.
-2. Open `/settings`:
-   - set your persistent language preference
-   - confirm you can access the documentation library
-3. Open `/` and scan whether data looks plausible for your scope.
-4. Open `/notifications` and check unread items.
-5. Open `/approvals` and check whether you have pending requests.
-6. Open `/departments` and confirm your department context is present.
+Most first-day actions are read-only. When you later edit risks, controls, KRIs, issues, or vendor records, some sensitive changes may wait for approval before they appear as final changes.
 
-### 2) Your daily operating routine
+Use approval notes to explain the business reason, not just the button you clicked. A good note says what changed, why it is appropriate, and what evidence supports the decision. Notifications are reminders and pointers; the current page and Activity Log help reconstruct the context.
 
-A simple routine that scales:
+If you receive a stale or rejected approval, do not immediately resubmit the same change. Return to the page where the work started, compare the current state with your intended update, and submit a new focused change only if it is still needed.
 
-1. Dashboard: scan critical and breach signals.
-2. Workflow: clear approvals and notifications you own.
-3. Execute:
-   - update risks that are drifting
-   - log control executions
-   - record KRIs (or follow up with reporting owners)
-4. Document:
-   - keep change notes clear
-   - create Issues for remediation
-5. Export only when you need to share evidence.
+## Finding, Filtering, and Evidence
 
-### 3) Your weekly hygiene routine
+Use this page to learn how to find information, clear filters, and confirm whether your role gives you the expected view. The onboarding and Settings surfaces do not provide export controls.
 
-1. Review overdue KRIs.
-2. Review open issues by severity.
-3. Review top net risks per department.
-4. Confirm controls with high risk level have recent executions.
+For reliable results, work in this order:
 
-## Approvals and Notifications Behavior
+1. Open the module you need from the sidebar.
+2. Clear filters before deciding that data is missing.
+3. Narrow the view by owner, department, status, vendor, or date where those filters exist.
+4. Confirm names, codes, owners, and status on the list, panel, modal, drilldown, or separate page that the module provides before you act.
 
-The single most important behavior to understand:
+For evidence during onboarding, record the route, visible role, filters used, and the record name or code you checked.
 
-- some edits are not applied immediately; they are queued for approval
+## Tips and Common Mistakes
 
-How it looks in practice:
+- Use names, codes, and owners when asking for help.
+- If a module is missing, check your role before changing filters.
+- Keep the manuals open while learning a new workflow.
 
-- you save and the UI says success
-- but the value stays unchanged
-- the item shows “pending changes”
-
-When you see this:
-
-1. Open `/approvals` and find the request.
-2. Track status.
-3. Watch `/notifications` for the outcome.
-
-Write good approval reasons. Bad reasons create rejection and rework.
-
-## Filters, Views, and Exports
-
-### Filters
-
-Most list pages support filters. Two rules prevent 80% of confusion:
-
-1. Always check filters before interpreting a number.
-2. Clear filters when switching between different tasks (especially before exporting).
-
-### Views
-
-Some pages support grouped views. Use them for review packs, not for quick day-to-day edits.
-
-### Exports
-
-Exports are evidence.
-
-Export discipline:
-
-- export with an explicit as-of date
-- keep the raw export unchanged
-- if you create a derived spreadsheet, keep the original export attached
-
-## Common Mistakes
-
-- Treating access problems as bugs without validating role/scope first.
-- Editing many governance-sensitive fields at once (creates approval noise).
-- Ignoring workflow queues until they become urgent.
-- Sharing exports without stating filters and as-of date.
+Common mistakes are usually caused by stale filters, unclear ownership, duplicate-looking names, or trying to make a broad change when a focused change would be easier to review. If something looks wrong, first refresh the page and confirm the same result in the visible list, panel, or modal.
 
 ## Troubleshooting
 
-### I can’t see a module my colleague sees
+If the page is empty, clear filters and search by a known record name. If the page is missing from the sidebar, your role may not include that work area. If a save fails, read the message, refresh the record, and check whether another user changed it first.
 
-- Compare permissions (`resource:read`).
-- Compare scope (global vs department).
-- Check ownership assignments.
+If a linked record is missing, you may not have access to that related item. Ask for the business name or code rather than a technical identifier. For support, include your role, the route you were using, the record name, the action you attempted, and the exact message shown on screen.
 
-### My changes didn’t apply
+## Related Manuals
 
-- Check `/approvals` for queued requests.
-- Check `/notifications` for outcomes.
-
-### The in-app documentation looks wrong
-
-- If you are non-admin, you should see user documentation.
-- If admin documentation appears, your role assignment may be incorrect.
-
-### Language looks inconsistent
-
-- Set your language in `/settings`.
-- Refresh and re-open docs.
-
-## Related Documentation
-
-- `./README.md`
-- `./notifications.md`
-- `./risks.md`
-- `./controls.md`
-- `./kris.md`
-- `./issues.md`
-- `./vendors.md`
-- `./departments.md`
-- `./access-management.md`
+Start with [Dashboard](./dashboard.md), [Risks](./risks.md), [Controls](./controls.md), [Notifications](./notifications.md), [Access Management](./access-management.md). These manuals explain the connected workflows and help you follow the record from signal to action to evidence.

@@ -1,6 +1,6 @@
 ---
 title: Dashboard a reporting přehled
-version: "2.1"
+version: "2.4"
 last_updated: "2026-04-25"
 audience: user
 source_of_truth: "frontend/src/pages/DashboardPage.tsx + dashboard widgety a report exporty"
@@ -12,245 +12,119 @@ tags:
   - audit
   - troubleshooting
 ---
-
 # Dashboard a reporting přehled
 
 **Na této stránce**
-- [Přehled](#prehled)
+- [S čím vám tato stránka pomůže](#s-čím-vám-tato-stránka-pomůže)
+- [Než začnete](#než-začnete)
 - [Kde to najdete](#kde-to-najdete)
-- [Role, scope a viditelnost](#role-scope-a-viditelnost)
-- [Datový model a klíčová pole](#datovy-model-a-klicova-pole)
-- [Hlavní workflow](#hlavni-workflow)
-- [Schvalování a notifikace](#schvalovani-a-notifikace)
-- [Filtry, pohledy a exporty](#filtry-pohledy-a-exporty)
-- [Časté chyby](#caste-chyby)
+- [Co můžete vidět a měnit](#co-můžete-vidět-a-měnit)
+- [Jak dokončit běžné úkoly](#jak-dokončit-běžné-úkoly)
+- [Schvalování a notifikace](#schvalování-a-notifikace)
+- [Vyhledávání, filtrování a evidence](#vyhledávání-filtrování-a-evidence)
+- [Tipy a časté chyby](#tipy-a-časté-chyby)
 - [Troubleshooting](#troubleshooting)
-- [Související dokumentace](#souvisejici-dokumentace)
+- [Související manuály](#související-manuály)
 
-## Přehled
+## S čím vám tato stránka pomůže
 
-Dashboard je provozní cockpit. Shrnuje posture a zvýrazňuje, co je potřeba řešit *dnes*.
+Tento manuál použijte, když potřebujete číst hlavní signály, porovnávat období, otevírat podpůrné záznamy a exportovat podklady bez změny dat. Je určen pro uživatele sledující aktuální stav rizik, proto popisuje praktický postup v aplikaci: kde začít, co ověřit před akcí a jak poznat, že je práce dokončená.
 
-Dashboard je užitečný jen když:
+Text není technická reference. Vysvětluje běžný provozní postup: začít v dashboard pohledu, ověřit metriku nebo widget, použít podpůrné seznamy, pokud jsou dostupné, a exportovat souhrn, když potřebujete evidenci.
 
-- rozumíte filtrům a máte je pod kontrolou
-- interpretujete metriky v kontextu scope
-- používáte drill-down pro nalezení skutečných driverů
+Tuto oblast budete používat hlavně pro:
 
-Hlavní route: `/`
+- souhrnné karty
+- risk heat map
+- KRI widgety
+- quarterly comparison
+- committee view
+- exporty
 
-Dashboard se průběžně aktualizuje (polling). Berte ho jako „aktuální posture“, ne jako statický report.
+## Než začnete
+
+Před prací si ověřte tři věci. Zaprvé, že jste přihlášeni rolí, se kterou běžně pracujete. Zadruhé, že staré filtry neskrývají očekávaná data. Zatřetí, že na záznamu už nečeká práce ve Schvalování nebo Notifikacích.
+
+Pokud tlačítko nebo záložka chybí, berte to jako běžný signál přístupu, ne jako chybu. RiskHub zobrazuje akce podle vaší role, rozsahu, ownership a aktuálního stavu záznamu. Když akce není dostupná, požádejte vlastníka záznamu nebo správce přístupů o kontrolu.
+
+Pro podporu mějte připravený název záznamu, kód, vlastníka a oddělení. Tyto údaje výrazně zrychlují komunikaci.
 
 ## Kde to najdete
 
-- položka **Přehled/Dashboard** → `/`
+Primární cesta: `/`
 
-Drill-down odkazy typicky vedou do:
+Většinou se sem dostanete z levého menu nebo z domovské trasy. Dashboard je souhrnná plocha s filtry, widgety, drilldowny matice, committee pohledem a exportem. Práce zůstává ve widgetech, pohledech, drilldownech a podpůrných seznamech.
 
-- `/risks` (včetně critical filtrů)
-- `/controls`
-- `/kris`
-- `/departments`
-- `/vendors` (pokud máte `vendors:read`)
-- `/issues` (pokud máte `issues:read`)
+Běžný postup navigace:
 
-Widget stavů KRI používá kanonické drill-down routy:
+1. Otevřete Dashboard.
+2. Vyčistěte nebo nastavte filtr oddělení.
+3. Zkontrolujte widget, graf nebo matici, která vyvolala otázku.
+4. Použijte dostupný drilldown k otevření podpůrného seznamu.
+5. Dashboard souhrn exportujte až po ověření filtrů.
 
-- overdue -> `/kris?monitoring_status=not_submitted`
-- upcoming -> `/kris?timeliness_status=due_soon`
+## Co můžete vidět a měnit
 
-## Role, scope a viditelnost
+Viditelnost závisí na roli, rozsahu oddělení a ownership. Uživatel se širší review odpovědností může vidět více záznamů než uživatel jednoho oddělení. Vlastník záznamu může mít možnost jednat i mimo svůj běžný pohled.
 
-Dashboard respektuje váš scope.
+Typické informace v této oblasti:
 
-Důsledky:
+- Počty a skóre rizik
+- Stav kontrol
+- Stav KRI
+- Signály dodavatelů
+- Poznámky k porovnání období
 
-- uživatel s oddělovým scope uvidí jinou posture než globální reviewer
-- některé widgety jsou permission-gated (např. Issues widgety jen pokud máte čtení Issues)
+Změny mají být praktické a snadno vysvětlitelné. Pokud změna ovlivňuje ownership, scoring, uzavření, archivaci nebo jiné citlivé údaje, počítejte v některých prostředích s review krokem. Uživatelé jen pro čtení mohou stránku používat pro kontrolu, filtrování a evidenci.
 
-Některé organizace mají i „committee“ view pro určité role/scope, které je více review‑ready.
+## Jak dokončit běžné úkoly
 
-Praktický příklad:
+Pokud váš tým nemá přísnější postup, použijte tento základní workflow:
 
-- Pokud jste Department Head se scope `manager`, dashboard může výrazně záviset na tom, kdo je nastavený jako váš manager chain. Pokud řada není správně, “mizí” lidé i jejich rizika/kontroly.
-- Pokud jste globální reviewer, uvidíte širší posture, ale zároveň musíte být opatrní při sdílení čísel: pro týmy se scope `department` mohou být “jiná a přesto správná”.
+1. Zkontrolovat dnešní stav.
+2. Filtrovat podle oddělení nebo období.
+3. Otevřít podpůrné seznamy nebo drilldowny, pokud jsou dostupné.
+4. Připravit krátký export.
 
-## Datový model a klíčová pole
+Po změně filtrů nebo přepnutí pohledu ověřte, že dashboard widgety, grafy a souhrnné počty odpovídají záměru. Pokud se stránka během práce znovu načte, obnovte pohled a před použitím čísel zkontrolujte aktuální filtry.
 
-Dashboard widgety jsou agregace napříč entitami.
-
-| Widget / metrika | Co reprezentuje | Jak interpretovat |
-|---|---|---|
-| Total controls | Počet kontrol ve scope | Vysoké číslo není automaticky „dobře“; důležitá je kvalita exekuce. |
-| Active departments | Oddělení s reálnou expozicí | Použijte jako navigaci, ne KPI. |
-| Critical risks | Net score nad threshold | Thresholdy jsou klíč; ověřte definici „critical“. |
-| Average net risk score | Průměr reziduální expozice | Má smysl jen s distribucí (koncentrace high/critical). |
-| Vendors | Počet dodavatelů ve scope | Viditelné jen s `vendors:read`. |
-| Open issues | Počet nálezů | Viditelné jen s `issues:read`. |
-| Risk distribution (gross/net) | Heatmap scoringu | Drill-down použijte pro top drivery. |
-| KRI breach widgety | breach/due/overdue signály | Je to monitoring disciplína + tlak na riziko. |
-| Trendy | časové řady pro rizika/kontroly/breaches | Hledejte change pointy a ověřujte evidence. |
-
-Poznámka k thresholdům:
-
-- “critical” nebo “breach” není pocit. Je to definice z konfigurace (Risk Hub). Pokud se organizace ptá “proč to je critical”, odpověď je: jak je nastavena taxonomie a limity, ne kdo se hlasitěji ozve.
-
-## Hlavní workflow
-
-### 1) Ranní rutina (5–10 minut)
-
-1. Otevřete `/`.
-2. Zkontrolujte, že filtry sedí.
-3. Projděte urgentní signály:
-   - critical risks
-   - KRI breaches a overdue
-   - open issues (pokud vidíte)
-4. Proklikněte do list stránek a udělejte akci.
-5. Před editací zkontrolujte workflow fronty (`/notifications`, `/approvals`).
-
-### 2) Příprava review/committee packu
-
-Dashboard je start, ne finální artefakt.
-
-Doporučený postup:
-
-1. Použijte metriky oddělení pro identifikaci koncentrace.
-2. Použijte risk heatmap pro high/critical clustery.
-3. Exportujte entity listy s explicitními filtry:
-   - `/risks` (critical, priority, breached)
-   - `/controls` (status, risk level)
-   - `/kris` (breach, overdue)
-   - `/issues` (overdue, high/critical)
-4. Pište narativ přes „drivery“, ne jen počty.
-
-### 3) Diagnostika skokové změny metriky
-
-Když číslo skokově změní hodnotu:
-
-- ověřte filtry
-- ověřte změny statusů (active ↔ archived)
-- ověřte změny ownership/oddělení (položky se mohly posunout do/ze scope)
-
-Použijte `/activity-log` (pokud máte) pro potvrzení co, kdy a kdo změnil.
-
-### 4) Drill-down s disciplínou
-
-Widgety často podporují drill-down:
-
-- heatmap cell → filtrovaný seznam rizik
-- „critical risks“ → `/risks?critical=true`
-- KRI overdue → `/kris?monitoring_status=not_submitted`
-- KRI upcoming → `/kris?timeliness_status=due_soon`
-
-Při sdílení vždy uveďte:
-
-- aktivní filtry
-- as-of čas
-- scope (global vs oddělení)
+Při eskalaci dashboard čísla držte pohromadě filtr, čas, metriku a podpůrný seznam, aby jiný reviewer mohl ověřit stejný výsledek.
 
 ## Schvalování a notifikace
 
-Dashboard je převážně read‑only a sám nevytváří schvalování.
+Dashboard neschvaluje změny. Ukazuje aktuální stav po běžných pravidlech workflow. Čekající schválení může vysvětlit, proč se číslo ještě nezměnilo.
 
-Ale často je důvodem:
+Poznámky ke schválení mají vysvětlit business důvod. Dobrá poznámka říká, co se změnilo, proč je to správně a jaký důkaz změnu podporuje. Notifikace jsou připomínky a navigace; dashboard widgety a podpůrné seznamy pomáhají vysvětlit aktuální kontext.
 
-- dashboard ukáže tlak → někdo změní scoring/ownership → vznikne schvalovací žádost
+Pokud je schválení stale nebo zamítnuté, neposílejte hned stejnou změnu znovu. Vraťte se na stránku, kde práce začala, porovnejte aktuální stav se záměrem a odešlete novou úzkou změnu jen tehdy, pokud je stále potřeba.
 
-Disciplína:
+## Vyhledávání, filtrování a evidence
 
-- při změně citlivých polí používejte `/approvals` a pište jasné odůvodnění
-- breach/overdue widgety používejte jako trigger pro Issue a remediaci
+Nejdřív nastavte filtry, potom exportujte. U porovnání období si všimněte, zda má vybrané období úplné historické podklady.
 
-## Filtry, pohledy a exporty
+Pro spolehlivý výsledek filtrujte v tomto pořadí:
 
-### Filtry
+1. Začněte dost široce, abyste ověřili existenci záznamu.
+2. Zužte pohled podle oddělení, vlastníka, stavu, dodavatele nebo data.
+3. Otevřete podpůrný seznam nebo drilldown, pokud je dostupný, a ověřte, že filtr odpovídá záměru.
+4. Exportujte jen filtrovaný pohled potřebný pro review.
 
-Dashboard filtry (např. oddělení) mění celý pohled.
+Exporty jsou evidence. Udržujte je malé, popište časové období a nesdílejte zbytečné osobní nebo citlivé informace.
 
-Pravidla:
+## Tipy a časté chyby
 
-- před interpretací čísla vždy zkontrolujte filter bar
-- při přechodu mezi „moje práce“ a „prezentace“ filtry resetujte
+- Chybějící porovnání není nulová hodnota.
+- Před eskalací otevřete navázaný záznam.
+- Exportujte se stejnými filtry, jaké jste použili při kontrole.
 
-### Pohledy
-
-Některé deploymenty mají committee/overview toggle.
-
-- committee view: stabilní, narativní, review‑ready
-- overview view: denní routing
-
-Pravidla quarterly comparison v committee view:
-
-- current quarter nesmí být pozdější než skutečný aktuální kvartál
-- compare quarter musí být dříve než vybraný current quarter
-- live snapshot metriky se používají jen pro skutečný aktuálně probíhající kvartál
-- dokončené kvartály používají uložené snapshoty; historická volba nedostane živé dnešní hodnoty pod starým labelem
-- uživatelé se scope na oddělení vidí scoped period choices a scoped snapshoty
-- pokud chybí vybraný snapshot nebo konkrétní snapshot metrika, widget zobrazí varování, pomlčky pro nedostupné strany a `N/A` pro delta místo toho, aby chybějící hodnoty bral jako nulu
-
-### Exporty
-
-Dashboard podporuje summary export (CSV).
-
-Disciplína exportu:
-
-- exportujte jen pro konkrétní rozhodnutí/audit
-- přiložte kontext (filtry + timestamp)
-- raw export neměňte
-
-Recept: *audit-ready export v 60 sekundách*
-
-1. Ujistěte se, že filtry odpovídají otázce (oddělení, statusy).
-2. Poznamenejte si “as-of” čas (kdy jste export spustil/a).
-3. Export stáhněte a uložte originál beze změn.
-4. K exportu připojte jednu větu: “Export z `/` (Dashboard), filtry: X, čas: Y”.
-5. Pokud posíláte dál, přidejte i scope (“department” vs “global”), aby příjemce neinterpretoval čísla mimo kontext.
-
-## Časté chyby
-
-- Čtení metrik bez kontroly filtrů.
-- Brát počty jako KPI (víc kontrol ≠ lepší kontrolní prostředí).
-- Sdílet export bez scope/as-of.
-- Reagovat na jeden breach bez kontextu trendu.
+Časté chyby vznikají ze starých filtrů, nejasného department scope nebo čtení souhrnu bez kontroly podpůrného seznamu. Pokud něco vypadá špatně, nejdřív stránku obnovte a ověřte stejný výsledek v dashboard widgetech.
 
 ## Troubleshooting
 
-### Dashboard je prázdný nebo neúplný
+Pokud je stránka prázdná, vyčistěte filtry a hledejte známý název záznamu. Pokud stránka chybí v menu, vaše role pravděpodobně tuto oblast nezahrnuje. Pokud uložení selže, přečtěte zprávu, obnovte záznam a zkontrolujte, zda ho mezitím nezměnil někdo jiný.
 
-- Ověřte, že jste přihlášeni.
-- Ověřte permissions (issues/vendors widgety mohou být skryté).
-- Zkuste refresh.
+Pokud chybí navázaný záznam, nemusíte k němu mít přístup. Ptejte se na business název nebo kód, ne na technický identifikátor. Pro podporu uveďte roli, cestu v aplikaci, název záznamu, akci a přesné znění zprávy na obrazovce.
 
-Pokud dashboard vypadá “vynulovaný” po restrukturalizaci:
+## Související manuály
 
-- ověřte, zda se neměnil váš scope nebo manager chain
-- ověřte, zda se neměnila oddělení u ownerů (záznamy se přesunuly mimo váš scope)
-
-### Export nefunguje
-
-- Zkuste znovu.
-- Ověřte konektivitu.
-- Pokud trvá, uložte chybu a eskalujte.
-
-Pokud export selže opakovaně:
-
-- zkuste menší dataset (přejděte na konkrétní seznam `/risks` a exportujte odtud)
-- zachyťte přesný text chyby a čas, aby šlo korelovat s logy
-
-### Čísla se liší od kolegy
-
-- Porovnejte filtry.
-- Porovnejte scope.
-- Ověřte archivované položky (mohou být v jednom pohledu zahrnuté a v druhém ne).
-
-## Související dokumentace
-
-- [Začínáme](./getting-started.md)
-- [Správa rizik](./risks.md)
-- [Správa kontrol](./controls.md)
-- [Správa KRI](./kris.md)
-- [Správa nálezů](./issues.md)
-- [Správa dodavatelů](./vendors.md)
-- [Oddělení](./departments.md)
-- [Schvalování a notifikace](./notifications.md)
-- [Activity Log](./activity-log.md)
+Začněte s [Risks](./risks.md), [Controls](./controls.md), [Kris](./kris.md), [Vendors](./vendors.md), [Notifications](./notifications.md). Tyto manuály vysvětlují navázaná workflow a pomohou sledovat záznam od signálu přes akci až po evidenci.

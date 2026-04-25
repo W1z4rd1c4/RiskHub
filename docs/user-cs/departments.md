@@ -1,237 +1,131 @@
 ---
 title: Oddělení a organizační scope
-version: "2.0"
-last_updated: "2026-03-07"
+version: "2.4"
+last_updated: "2026-04-25"
 audience: user
 source_of_truth: "frontend/src/pages/DepartmentsPage.tsx + frontend/src/services/departmentApi.ts"
 summary: "Jak používat Oddělení pro pochopení scope, expozice a routování ownership napříč riziky, kontrolami, KRI, uživateli a aktivitami."
 tags:
   - departments
   - access
+  - overview
   - workflow
-  - exports
   - troubleshooting
 ---
-
 # Oddělení a organizační scope
 
 **Na této stránce**
-- [Přehled](#prehled)
+- [S čím vám tato stránka pomůže](#s-čím-vám-tato-stránka-pomůže)
+- [Než začnete](#než-začnete)
 - [Kde to najdete](#kde-to-najdete)
-- [Role, scope a viditelnost](#role-scope-a-viditelnost)
-- [Datový model a klíčová pole](#datovy-model-a-klicova-pole)
-- [Hlavní workflow](#hlavni-workflow)
-- [Schvalování a notifikace](#schvalovani-a-notifikace)
-- [Filtry, pohledy a exporty](#filtry-pohledy-a-exporty)
-- [Časté chyby](#caste-chyby)
+- [Co můžete vidět a měnit](#co-můžete-vidět-a-měnit)
+- [Jak dokončit běžné úkoly](#jak-dokončit-běžné-úkoly)
+- [Schvalování a notifikace](#schvalování-a-notifikace)
+- [Vyhledávání, filtrování a evidence](#vyhledávání-filtrování-a-evidence)
+- [Tipy a časté chyby](#tipy-a-časté-chyby)
 - [Troubleshooting](#troubleshooting)
-- [Související dokumentace](#souvisejici-dokumentace)
+- [Související manuály](#související-manuály)
 
-## Přehled
+## S čím vám tato stránka pomůže
 
-Oddělení v RiskHubu nejsou jen adresář. Jsou hlavní způsob, jak platforma vyjadřuje organizační scope:
+Tento manuál použijte, když potřebujete pochopit seskupení podle oddělení, kontrolovat mezery v ownership a otevírat související rizika, kontroly, KRI, dodavatele nebo nálezy. Je určen pro uživatele kontrolující ownership a expozici podle organizační oblasti, proto popisuje praktický postup v aplikaci: kde začít, co ověřit před akcí a jak poznat, že je práce dokončená.
 
-- jaká data můžete vidět
-- kam se má routovat práce (remediace, triage)
-- jak se skupinuje reporting
-- co je „lokální“ vs „cross-funkční“ expozice
+Text není technická reference. Vysvětluje běžný provozní postup: otevřít správnou stránku, ověřit správný záznam, provést nejmenší užitečnou změnu a zkontrolovat výsledek v seznamu, detailu, notifikacích nebo aktivitě.
 
-Záznam oddělení je také landing page pro metriky expozice. Z jednoho místa rychle zjistíte:
+Tuto oblast budete používat hlavně pro:
 
-- Kolik rizik a kontrol je v této oblasti?
-- Jsou zde KRI v breach stavu?
-- Je agregovaná expozice (net score) vysoká a kde jsou hlavní drivery?
+- seznam oddělení
+- detail oddělení
+- vlastníci
+- souhrny rizik/kontrol/KRI
+- navázané záznamy
 
-Hlavní routy:
+## Než začnete
 
-- přehled oddělení: `/departments`
-- detail oddělení: `/departments/<id>` (otevřete kliknutím na kartu)
+Před prací si ověřte tři věci. Zaprvé, že jste přihlášeni rolí, se kterou běžně pracujete. Zadruhé, že staré filtry neskrývají očekávaná data. Zatřetí, že na záznamu už nečeká práce ve Schvalování nebo Notifikacích.
+
+Pokud tlačítko nebo záložka chybí, berte to jako běžný signál přístupu, ne jako chybu. RiskHub zobrazuje akce podle vaší role, rozsahu, ownership a aktuálního stavu záznamu. Když akce není dostupná, požádejte vlastníka záznamu nebo správce přístupů o kontrolu.
+
+Pro podporu mějte připravený název záznamu, kód, vlastníka a oddělení. Tyto údaje výrazně zrychlují komunikaci.
 
 ## Kde to najdete
 
-- položka **Oddělení** v levém menu → `/departments`
-- klik na kartu oddělení otevře detail
+Primární cesta: `/departments`
 
-Pokud **Oddělení** nevidíte:
+Většinou se sem dostanete z levého menu. Detail otevřete výběrem řádku nebo karty s vazbou. Pokud jste přišli z jiného záznamu, použijte návrat nebo odkazy na související záznamy.
 
-- můžete mít nestandardní permission set
-- požádejte správce přístupů o ověření role + „effective permissions“
+Běžný postup navigace:
 
-Většinou jsou oddělení čitelná pro většinu rolí, protože na nich stojí scope rozhodnutí.
+1. Otevřete seznam.
+2. Vyčistěte filtry, pokud si nejste jistí viditelností.
+3. Hledejte podle názvu, vlastníka, dodavatele nebo oddělení.
+4. Otevřete záznam.
+5. Před úpravou zkontrolujte vazby a poslední aktivitu.
 
-## Role, scope a viditelnost
+## Co můžete vidět a měnit
 
-Viditelnost oddělení a význam přiřazení závisí na roli a scope.
+Viditelnost závisí na roli, rozsahu oddělení a ownership. Uživatel se širší review odpovědností může vidět více záznamů než uživatel jednoho oddělení. Vlastník záznamu může mít možnost jednat i mimo svůj běžný pohled.
 
-### Typický model
+Typické informace v této oblasti:
 
-- **globální scope**: obvykle vidí všechna oddělení a jejich metriky
-- **oddělový scope**: typicky vidí kontext svého oddělení a entity k němu přiřazené
-- **ownership výjimky**: ownership může zpřístupnit entity i mimo oddělení
+- Název oddělení
+- Manažer
+- Počet rizik
+- Počet kontrol
+- Počet KRI
+- Kontext dodavatelů a nálezů
 
-### Proč je to důležité
+Změny mají být praktické a snadno vysvětlitelné. Pokud změna ovlivňuje ownership, scoring, uzavření, archivaci nebo jiné citlivé údaje, počítejte v některých prostředích s review krokem. Uživatelé jen pro čtení mohou stránku používat pro kontrolu, filtrování a evidenci.
 
-Oddělení se používá v mnoha workflow:
+## Jak dokončit běžné úkoly
 
-- **routing**: kdo má triage a remedovat nález
-- **reporting**: jak se groupuje export a dashboard
-- **schvalování**: kdo je přirozený reviewer (i když workflow může být role-based)
+Pokud váš tým nemá přísnější postup, použijte tento základní workflow:
 
-Pokud máte špatně nastavené oddělení, mnoho věcí bude vypadat „rozbité“ (chybějící rizika, prázdné dashboardy, schvalování bez oprávnění).
+1. Otevřít oddělení.
+2. Zkontrolovat expozici.
+3. Zkontrolovat vlastníky a manažery.
+4. Otevřít související záznamy.
+5. Připravit evidence set pro oddělení.
 
-## Datový model a klíčová pole
+Po uložení nebo odeslání ověřte výsledek. Seznam má ukázat nový stav, detail má odpovídat záměru a očekávaná notifikace nebo schválení má být dohledatelné. Pokud stránka hlásí, že záznam mezitím změnil někdo jiný, obnovte data a znovu posuďte aktuální stav.
 
-Detail oddělení agreguje data napříč moduly.
-
-| Pole / metrika | Význam | Poznámky |
-|---|---|---|
-| Name | Název oddělení | Nezahlcujte zkratkami; na to je `Code`. |
-| Code | Krátký identifikátor pro reporting | Kód má být stabilní; změny způsobují chaos v exportech. |
-| Description | Volitelný popis scope | Držte se hranic a praktických informací, ne org-historie. |
-| User count | Kolik uživatelů je přiřazeno | Neznamená to nutně „kdo všechno vidí“ (ownership může být výjimka). |
-| Risk count | Počet rizik v oddělení | Počty mohou záviset na tom, zda jsou zahrnuté archivované položky. |
-| Control count | Počet kontrol v oddělení | Kontroly mohou být cross-department, i když jsou linknuté na rizika. |
-| KRI count | Počet KRI v této oblasti | KRI jsou sub-entity rizik; kontext dědí z rizika. |
-| High risk count | Počet kritických rizik | Signalizace priorit, ne KPI pro výkon. |
-| Breaching KRI count | Kolik KRI je mimo limity | Jeden breach může být důležitější než samotný počet. |
-| KRI monitoring counts | Rozpad KRI podle `new`, `not_submitted`, `breach`, `warning`, `optimal` | Jsou to kanonické monitoring-status počty použité v KRI tabu i summary kartách. |
-| Total net score | Agregovaná net expozice | Je to summary; před prezentací najděte top drivery. |
-
-Detail může obsahovat i:
-
-- distribuci rizik (low/medium/high/critical)
-- rizika podle statusu
-- statistiky kontrol (active/inactive, breakdown)
-- KRI monitoring counts (`new`, `not_submitted`, `breach`, `warning`, `optimal`)
-- poslední exekuce kontrol (operational pulse)
-
-## Hlavní workflow
-
-### 1) Rychlé pochopení „kde je tlak“
-
-Na začátku dne nebo před review cyklem:
-
-1. Otevřete `/departments`.
-2. Najděte oddělení s breaching KRI nebo vysokým počtem high rizik.
-3. Otevřete detail a projděte top rizika a aktivní kontroly.
-4. Rozhodněte, kde je potřeba akce: update rizik, follow-up exekucí kontrol, nebo nový Issue.
-
-Je to dobrá příprava na komisi: rychle přejdete z „kde je problém“ na „co ho způsobuje“.
-
-### 2) Diagnostika viditelnosti („Proč nevidím X?“)
-
-Oddělení je první zastávka pro většinu access otázek.
-
-Když uživatel nevidí entitu, kterou očekává:
-
-1. Zjistěte, do jakého oddělení entita patří.
-2. Ověřte, zda má uživatel global nebo department scope.
-3. Ověřte ownership výjimky (je owner?).
-4. Pokud máte přístup, otevřete Activity Log pro poslední změny ownership/oddělení.
-
-### 3) Příprava exportu pro oddělový review
-
-Exporty se dělají z list stránek (Rizika/Kontroly/KRI/Issues/Dodavatelé). Oddělení vám pomůže udržet scope čistý.
-
-Doporučený postup:
-
-1. V `/departments` vyberte oddělení, o kterém reportujete.
-2. Přejděte do `/risks` a nastavte filtry dle oddělení.
-3. Exportujte s jasným „as of“ datem.
-4. Opakujte pro `/controls`, `/kris` a `/issues` dle potřeby.
-
-Když porovnáváte oddělení detail s hlavní KRI stránkou, držte stejné kanonické názvy filtrů, jinak nebudou sedět totaly.
-
-### 4) Zarovnání ownership a routingu
-
-Oddělení není ownership.
-
-Oddělení používejte pro:
-
-- kam se má routovat práce
-- kde se reportuje expozice
-
-Ownership používejte pro:
-
-- kdo je accountable
-- kdo dostává notifikace/schvalování (dle policy)
-
-Když se to rozjede (oddělení říká „tým A“, owner je „tým B“), workflow začne vytvářet šum. Řešte drift co nejdřív.
+Při propojování záznamů vybírejte jen vazby, které dávají smysl dalšímu reviewerovi. Vazba má popsat skutečný business vztah: kontrola snižuje riziko, KRI riziko monitoruje, dodavatel vytváří expozici nebo nález řeší konkrétní problém.
 
 ## Schvalování a notifikace
 
-Většina uživatelů oddělení používá primárně jako read povrch; strukturální změny jsou obvykle omezené.
+Stránky oddělení jsou hlavně pro čtení. Změny ownership nebo přiřazení oddělení se dělají na konkrétním záznamu nebo v governance workflow a mohou čekat na review.
 
-Co očekávat:
+Poznámky ke schválení mají vysvětlit business důvod. Dobrá poznámka říká, co se změnilo, proč je to správně a jaký důkaz změnu podporuje. Notifikace jsou připomínky a navigace; detail záznamu zůstává nejlepším místem pro celý kontext.
 
-- pokud *můžete* měnit strukturu oddělení (name/code/manager), může to být governance-citlivé a může to spouštět schvalování
-- i bez editace oddělení budete vidět schvalování/notifikace, když se entity přesouvají mezi odděleními nebo mění ownership
+Pokud je schválení stale nebo zamítnuté, neposílejte hned stejnou změnu znovu. Otevřete záznam, porovnejte aktuální stav se záměrem a odešlete novou úzkou změnu jen tehdy, pokud je stále potřeba.
 
-Praktický návyk:
+## Vyhledávání, filtrování a evidence
 
-- při změně oddělení u entity přidejte jasnou poznámku „proč“ (pomáhá review a auditu)
+Stránky oddělení používejte pro ověření scope, ownership a kontextu souvisejících záznamů. Oddělení jsou review a navigační plocha; nemají vlastní exportní tlačítko.
 
-Mechaniku front najdete v: `./notifications.md`.
+Pro spolehlivý výsledek postupujte takto:
 
-## Filtry, pohledy a exporty
+1. Otevřete detail oddělení.
+2. Zkontrolujte souhrnné počty a související záznamy.
+3. Otevřete příslušný seznam rizik, kontrol, KRI, dodavatelů nebo nálezů se stejným kontextem oddělení.
+4. Zapište názvy nebo kódy souvisejících záznamů, které podporují vaše review.
 
-Oddělení jsou záměrně „lehká“:
+Pro evidenci zapište oddělení, datum, názvy souvisejících záznamů a pohled, který jste použili.
 
-- přehled je sada karet s metrikami
-- detail je drill-down hub
+## Tipy a časté chyby
 
-Pro filtry a exporty typicky:
+- Oddělení je pohled odpovědnosti, nenahrazuje jmenovaného vlastníka.
+- Když záznam vypadá v jiném oddělení, otevřete detail a zkontrolujte ownera.
+- Chybějící ownership řešte přes Governance.
 
-- použijete Oddělení pro rozhodnutí *kde* hledat
-- použijete entity stránky pro filtrování/export:
-  - rizika: `/risks`
-  - kontroly: `/controls`
-  - KRI: `/kris`
-  - nálezy: `/issues`
-  - dodavatelé: `/vendors` (pokud máte `vendors:read`)
-
-Detail oddělení nyní používá server-side KRI filtry podle kanonického monitoring statusu:
-
-- `all`
-- `new`
-- `not_submitted`
-- `breach`
-- `warning`
-- `optimal`
-
-Stránkování KRI tabu používá filtrovaný server total, ne nefiltrovaný počet KRI v oddělení.
-
-## Časté chyby
-
-- Brát metriky oddělení jako KPI bez kontextu. Jsou to signály expozice.
-- Míchat oddělení a ownership (měníte oddělení místo ownera).
-- Prezentovat „total net score“ bez seznamu top driverů.
-- Zapomenout, že archivované položky nemusí být v počtech bez explicitního zahrnutí.
+Časté chyby vznikají ze starých filtrů, nejasného ownership, duplicitních záznamů nebo příliš široké změny. Pokud něco vypadá špatně, nejdřív stránku obnovte a ověřte stejný výsledek v detailu.
 
 ## Troubleshooting
 
-### Metriky oddělení vypadají špatně
+Pokud je stránka prázdná, vyčistěte filtry a hledejte známý název záznamu. Pokud stránka chybí v menu, vaše role pravděpodobně tuto oblast nezahrnuje. Pokud uložení selže, přečtěte zprávu, obnovte záznam a zkontrolujte, zda ho mezitím nezměnil někdo jiný.
 
-- Udělejte refresh a otevřete detail znovu.
-- Ověřte, zda porovnáváte s exporty, které zahrnují/nezahrnují archiv.
-- Zkontrolujte, zda mají rizika/kontroly správně nastavené oddělení.
+Pokud chybí navázaný záznam, nemusíte k němu mít přístup. Ptejte se na business název nebo kód, ne na technický identifikátor. Pro podporu uveďte roli, cestu v aplikaci, název záznamu, akci a přesné znění zprávy na obrazovce.
 
-### Vidím `/departments`, ale nejde otevřít detail
+## Související manuály
 
-- Můžete mít právo na list, ale ne na detail.
-- Pošlete ID oddělení a chybovou hlášku správci přístupů.
-
-### Uživatelé jsou v „nesprávném“ oddělení
-
-- Je to access/governance téma.
-- Použijte stránku `/users`, pokud k ní máte přístup; jinak požádejte privilegovaného uživatele o validaci.
-
-## Související dokumentace
-
-- `./access-management.md`
-- `./risks.md`
-- `./controls.md`
-- `./kris.md`
-- `./issues.md`
-- `./governance.md`
-- `./activity-log.md`
+Začněte s [Governance](./governance.md), [Risks](./risks.md), [Controls](./controls.md), [Kris](./kris.md), [Vendors](./vendors.md). Tyto manuály vysvětlují navázaná workflow a pomohou sledovat záznam od signálu přes akci až po evidenci.

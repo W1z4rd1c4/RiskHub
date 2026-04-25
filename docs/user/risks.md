@@ -1,7 +1,7 @@
 ---
 title: Managing Risks
-version: "2.1"
-last_updated: "2026-03-09"
+version: "2.4"
+last_updated: "2026-04-25"
 audience: user
 source_of_truth: "docs/BUSINESS_LOGIC.md §2.1, §6, §7 + frontend/src/pages/RisksPage.tsx"
 summary: "Full manual for building and operating a high-quality risk register: scoring, ownership, scope rules, control linkage, exports, and approval-aware edits."
@@ -12,326 +12,124 @@ tags:
   - exports
   - troubleshooting
 ---
-
 # Managing Risks
 
 **On this page**
-- [Overview](#overview)
+- [What This Page Helps You Do](#what-this-page-helps-you-do)
+- [Before You Start](#before-you-start)
 - [Where To Find It](#where-to-find-it)
-- [Roles, Scope, and Visibility](#roles-scope-and-visibility)
-- [Data Model and Key Fields](#data-model-and-key-fields)
-- [Core Workflows](#core-workflows)
-- [Approvals and Notifications Behavior](#approvals-and-notifications-behavior)
-- [Filters, Views, and Exports](#filters-views-and-exports)
-- [Common Mistakes](#common-mistakes)
+- [What You Can See and Change](#what-you-can-see-and-change)
+- [How To Complete Common Tasks](#how-to-complete-common-tasks)
+- [Approvals and Notifications](#approvals-and-notifications)
+- [Finding, Filtering, and Evidence](#finding-filtering-and-evidence)
+- [Tips and Common Mistakes](#tips-and-common-mistakes)
 - [Troubleshooting](#troubleshooting)
-- [Related Documentation](#related-documentation)
+- [Related Manuals](#related-manuals)
 
-## Overview
+## What This Page Helps You Do
 
-The risk register is the central operating surface for identifying, scoring, and governing organizational exposure.
+Use this manual when you need to create useful risk records, keep ownership and scoring current, connect risks to controls, KRIs, and vendors, and prepare audit-ready evidence. It is written for risk owners, reviewers, and managers maintaining the risk register, so it focuses on what to do in the app, what to check before you act, and what result to expect after the work is done.
 
-A good risk register is not a list of scary statements. It is a set of *actionable* records that drive:
+The page is not a technical reference. It explains the everyday operating pattern: start from the right screen, confirm the record is the one you intend to update, make the smallest useful change, and then verify the result in the list, detail page, notifications, or activity history.
 
-- ownership accountability
-- control design and execution
-- KRI monitoring
-- workflow approvals for sensitive changes
-- audit-ready exports
+You will use this area most often for:
 
-Primary route: `/risks`
+- risk list
+- risk detail
+- risk scoring
+- linked controls
+- linked KRIs
+- linked vendors
+- questionnaires
 
-RiskHub supports a "gross" vs "net" model:
+## Before You Start
 
-- **gross**: inherent risk before controls
-- **net**: residual risk after controls
+Before working in this area, confirm three things. First, make sure you are signed in with the role you normally use for business work. Second, clear any old filters if the list looks incomplete. Third, check whether the record already has pending work in Approvals or Notifications.
 
-Scoring is expressed through probability and impact, which are then combined into scores.
+If a button or tab is missing, treat that as a normal access signal, not as an error. RiskHub only shows actions that fit your role, scope, record ownership, and the current record state. When an action is unavailable, ask the record owner or your access contact to review it instead of trying to work around the screen.
+
+Have the record name, code, owner, and department ready before asking for help. Those details make support and audit conversations much faster.
 
 ## Where To Find It
 
-- Risk register: `/risks`
-- Risk detail: click any row
-- Create risk: from `/risks` (requires `risks:write`)
+Primary route: `/risks`
 
-On the Risk detail page, the top overview row summarizes the record through:
+You can usually reach this area from the left sidebar. Detail pages open by selecting a row or a linked card. If you arrive from another record, use the back button or the related-record links to return to the broader context.
 
-- Classification
-- Ownership
-- Connections
+Common navigation pattern:
 
-The **Connections** card shows:
+1. Open the list page.
+2. Clear filters if you are not sure what should be visible.
+3. Search by name, owner, vendor, or department.
+4. Open the record.
+5. Review linked records and recent activity before changing anything.
 
-- active linked mitigating controls
-- total linked risk appetite indicators (KRIs)
-- total linked vendors
+## What You Can See and Change
 
-Linked KRI and control cards on the risk detail page now also show canonical monitoring status from backend-derived data:
+What you can see depends on your role, department scope, and record ownership. A user with broad review responsibility may see more records than a user responsible for one department. A record owner may be able to act on a record even when it is outside the owner’s usual department view.
 
-- controls: `new`, `needs review`, `failed`, `passed`
-- KRIs: `new`, `not submitted`, `breach`, `warning`, `optimal`
+Typical information in this area includes:
 
-If you do not see **Risks** in the sidebar:
+- Risk name and description
+- Owner and department
+- Gross and net scoring
+- Linked controls
+- Linked kris
+- Linked vendors
+- Questionnaire history
 
-- you likely lack `risks:read`
-- or your scope is misconfigured
+Changes should be practical and easy to explain. If the change affects ownership, scoring, closure, archive state, or other governance-sensitive information, expect a review step in some environments. Read-only users can still use the page for investigation, filtering, and evidence gathering.
 
-Start with `./getting-started.md` and `./access-management.md` to validate access.
+## How To Complete Common Tasks
 
-## Roles, Scope, and Visibility
+Follow this basic workflow unless your team has a stricter local procedure:
 
-Risk visibility is driven by three ideas:
+1. Create a clear risk statement.
+2. Set owner, department, likelihood, and impact.
+3. Link controls that reduce the risk.
+4. Link kris that monitor the risk.
+5. Connect vendors when third parties are part of the exposure.
+6. Answer or review questionnaires and clarifications.
 
-1. **Scope** (global vs department vs manager)
-2. **Department assignment** (routing + reporting context)
-3. **Ownership exceptions** (owner may see and act outside department scope)
+After saving or submitting, verify the result. The list should show the new state, the detail page should match your intent, and any expected notification or approval item should be visible. If the page reports that the record changed while you were working, refresh and review the current record before trying again.
 
-Practical consequences:
+When linking records, choose only relationships that are useful to another reviewer. A link should explain a real business relationship: a control reduces a risk, a KRI monitors a risk, a vendor contributes to an exposure, or an issue tracks remediation for a specific problem.
 
-- Don’t assume that “department = can see”. Ownership can change visibility.
-- If a risk moves departments or changes owner, it can appear/disappear for different users.
-- Backend enforcement is authoritative; the UI is guidance.
+## Approvals and Notifications
 
-Write and delete/archive actions are permission-gated:
+Edits that affect governance, ownership, scoring, or archive state may be sent for review. If a change is waiting, use Approvals or Notifications to follow it instead of creating a second competing edit.
 
-- `risks:write` for create/edit
-- `risks:delete` for archive/restore actions (depending on your policy)
-- ownership exceptions can keep linked-control workflows available outside your department
-- linking or unlinking a control from a risk still requires `risks:write` and access to the target control; ownership-based access on the risk side alone is not enough
+Use approval notes to explain the business reason, not just the button you clicked. A good note says what changed, why it is appropriate, and what evidence supports the decision. Notifications are reminders and pointers; the record detail remains the best place to understand the full context.
 
-## Data Model and Key Fields
+If you receive a stale or rejected approval, do not immediately resubmit the same change. Open the record, compare the current state with your intended update, and submit a new focused change only if it is still needed.
 
-RiskHub uses a structured risk record. These fields are the ones that drive operations.
+## Finding, Filtering, and Evidence
 
-| Field | Meaning | Pitfalls / notes |
-|---|---|---|
-| Risk ID code | Stable identifier (generated) | Use this in communication and audit packs. |
-| Name | Short statement of the risk | Avoid generic names. Include the “failure mode”. |
-| Process / Subprocess | Business area classification | Be consistent; this is used in grouping and reporting. |
-| Risk type | Taxonomy label (configured in Risk Hub) | Don’t invent new types casually; taxonomy should be stable. |
-| Category | Secondary grouping | Keep category vocabulary controlled to avoid fragmentation. |
-| Description | What can happen + impact + context | If it can’t be understood in 60 seconds, it’s too vague. |
-| Status | `active`, `emerging`, `archived` | Status influences visibility and reporting. |
-| Priority flag | Operational “must watch” marker | Use sparingly; otherwise it loses meaning. |
-| Owner | Accountable person | Without a clear owner, nothing else scales. |
-| Department | Routing/reporting context | Do not use department as a substitute for owner. |
-| Gross probability/impact | Inherent scoring inputs | Choose values consistently; use descriptions, not vibes. |
-| Net probability/impact | Residual scoring inputs | Should reflect control effectiveness, not optimism. |
-| Linked controls | Controls that mitigate this risk | Links should be meaningful and maintained. |
-| KRIs | Indicators that monitor this risk | KRIs are how you detect drift early. |
-| Linked vendors | Vendors connected to this risk | Used for concentration review and grouped `By Vendor` browsing. |
+Use list filters, grouped views, and the detail page to confirm the exact risks you need before exporting. Include links to controls, KRIs, and vendors when the evidence needs context.
 
-Detail view note:
+For reliable results, filter in this order:
 
-- The **Connections** card uses the active linked controls count, not draft or archived controls.
-- KRI and vendor counts reflect all currently linked records visible on the detail page.
+1. Start broad enough to confirm the record exists.
+2. Narrow by department, owner, status, vendor, or date.
+3. Open a sample record to confirm the filter matches your intent.
+4. Export only the filtered view needed for the review.
 
-Notes on scoring quality:
+Exports are evidence. Keep them small, label the time period, and avoid sharing unrelated personal or sensitive information.
 
-- Scoring is only useful if changes are explainable.
-- If net score improves, you should be able to point to controls and evidence.
+## Tips and Common Mistakes
 
-## Core Workflows
+- Write the risk as a business failure mode, not a vague concern.
+- Do not lower net score unless controls and evidence justify it.
+- Use clarification threads on questionnaires instead of guessing missing answers.
 
-### 1) Create a new risk (high signal, low noise)
-
-1. Go to `/risks` and click **New risk**.
-2. Fill identity fields first:
-   - name
-   - process/subprocess
-   - risk type
-   - category
-   - description
-3. Set ownership:
-   - choose owner
-   - confirm department (often auto-filled from owner, but verify)
-4. Set scoring:
-   - gross probability/impact
-   - net probability/impact
-5. Save.
-
-Recipe: *create with minimal approval friction*
-
-- avoid changing many governance-sensitive fields in one go
-- write a clear description and choose a realistic owner
-- if your environment approval-gates some fields, you’ll get a cleaner request when your change is focused
-
-### 2) Keep risks actionable (maintenance discipline)
-
-A risk record should be maintained when:
-
-- scoring changes (gross or net)
-- ownership changes
-- control set changes materially
-- a KRI breaches or goes overdue
-- a risk assessment questionnaire requires clarification
-
-Good maintenance update:
-
-- states what changed
-- states why it changed
-- references evidence (if applicable)
-
-### 3) Link controls to risks (mitigation integrity)
-
-Control linkage is where the register becomes operational.
-
-In a risk detail view you can typically:
-
-- link existing controls with an effectiveness rating (high/medium/low)
-- add notes explaining the mitigation mechanism
-- unlink controls when they no longer mitigate
-
-Link quality rules:
-
-- do not link controls that only “feel related”
-- do not leave high-risk items without linked controls unless explicitly accepted
-- when you unlink, document why (control retired, scope changed, replaced)
-
-### 4) Use KRIs to monitor risk drift
-
-KRIs are the monitoring layer.
-
-Operational pattern:
-
-- define KRIs for the risks you care about most
-- set thresholds so “breach” is meaningful
-- treat overdue KRIs as a governance failure (you lost your early warning)
-
-### 5) Archive and restore
-
-Archiving is a governance action. Do it when the risk is no longer relevant (process retired, risk eliminated, merged).
-
-Safe archive procedure:
-
-1. Confirm there are no active remediation actions depending on the risk.
-2. Ensure linked controls and KRIs are handled appropriately.
-3. Archive.
-4. Verify the risk moves out of active reporting.
-
-If the backend requires approval for archiving, the action will be queued and appear in `/approvals`.
-
-Restoring is appropriate when:
-
-- the risk becomes relevant again
-- the risk was archived incorrectly
-
-## Approvals and Notifications Behavior
-
-RiskHub often treats certain edits as governance-sensitive.
-
-Common approval-triggering patterns:
-
-- ownership changes
-- department changes
-- category/type changes
-- archiving actions
-
-You can detect queued changes in the UI:
-
-- the save succeeds but the value remains unchanged
-- the list row shows a “pending changes” indicator
-
-When this happens:
-
-1. Open `/approvals` and find the request.
-2. Track status and resolution notes.
-3. Watch `/notifications` for outcomes.
-
-Use `./notifications.md` as the canonical workflow manual.
-
-## Filters, Views, and Exports
-
-The risks list is designed to support operational views.
-
-### Filters
-
-Common filters include:
-
-- status (`active`, `emerging`, `archived`)
-- risk type
-- priority
-- breached (has KRI breach)
-- critical (net score above a threshold)
-
-### Views
-
-RiskHub supports view modes that change how you interpret the list:
-
-- all risks (paged)
-- grouped views (server-calculated summaries with paged drilldown)
-
-Grouped modes now include **By Vendor**.
-
-`By Vendor` is multi-membership:
-
-- a risk appears in every readable linked vendor bucket
-- unreadable vendors are omitted
-- risks with no readable linked vendors fall into the unlinked fallback bucket
-
-Use `By Vendor` to review third-party concentration and open risks around a single vendor relationship.
-
-Use grouped views for:
-
-- committee prep
-- “where is exposure concentrated?” analysis
-
-### Sorting
-
-Sorting is useful when you are preparing a pack:
-
-- sort by score to isolate top drivers
-- sort by process/category to align to organizational reporting
-
-### Exports
-
-Exports should be treated like evidence.
-
-Export discipline:
-
-- export with an explicit as-of date
-- keep filters consistent with the narrative (department, status)
-- keep the raw export file unchanged and attach derived analysis separately
-
-## Common Mistakes
-
-- Writing risks as generic statements without impact context.
-- Treating scoring as a “heatmap decoration” rather than a governance control.
-- Changing multiple sensitive fields without documenting rationale.
-- Linking controls without verifying they actually mitigate the described failure mode.
-- Ignoring overdue KRIs (losing monitoring discipline).
+Common mistakes are usually caused by stale filters, unclear ownership, duplicate records, or trying to make a broad change when a focused change would be easier to review. If something looks wrong, first refresh the page and confirm the same result in the detail view.
 
 ## Troubleshooting
 
-### I can’t see a risk I expect
+If the page is empty, clear filters and search by a known record name. If the page is missing from the sidebar, your role may not include that work area. If a save fails, read the message, refresh the record, and check whether another user changed it first.
 
-- Check the risk’s department and owner.
-- Confirm your scope.
-- If ownership changed recently, check `/activity-log` if you have access.
+If a linked record is missing, you may not have access to that related item. Ask for the business name or code rather than a technical identifier. For support, include your role, the route you were using, the record name, the action you attempted, and the exact message shown on screen.
 
-### My edit didn’t apply
+## Related Manuals
 
-- Check `/approvals` for a queued request.
-- Check `/notifications` for the outcome.
-
-### “Critical” filter doesn’t match my expectations
-
-- Critical is threshold-based (net score).
-- If thresholds were changed in Risk Hub, your view may shift.
-
-### Export failed
-
-- Retry with fewer filters.
-- Confirm you have stable connectivity.
-- If it persists, capture the error and escalate.
-
-## Related Documentation
-
-- `./getting-started.md`
-- `./notifications.md`
-- `./controls.md`
-- `./kris.md`
-- `./issues.md`
-- `./vendors.md`
-- `./departments.md`
-- `./activity-log.md`
+Start with [Controls](./controls.md), [Kris](./kris.md), [Vendors](./vendors.md), [Risk Hub](./risk-hub.md), [Notifications](./notifications.md). These manuals explain the connected workflows and help you follow the record from signal to action to evidence.

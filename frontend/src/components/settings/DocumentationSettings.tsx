@@ -8,6 +8,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import { adminApi } from '@/services/adminApi';
 import { DocumentationMarkdown } from '@/components/documentation';
 import { stripDuplicateLeadingTitle } from '@/components/documentation/contentFormatting';
+import {
+    formatDocumentationTag,
+    getMaintainerReference,
+    shouldShowRawVersion,
+} from '@/components/documentation/documentationPresentation';
 
 export function DocumentationSettings() {
     const { t, i18n } = useTranslation('settings');
@@ -50,6 +55,7 @@ export function DocumentationSettings() {
             : ''),
         [activeDoc],
     );
+    const maintainerReference = getMaintainerReference(activeDoc);
 
     useEffect(() => {
         if (selectedTag !== 'all' && !availableTags.includes(selectedTag)) {
@@ -121,7 +127,7 @@ export function DocumentationSettings() {
                             >
                                 {audienceLabel}
                             </span>
-                            {activeDoc.version && (
+                            {shouldShowRawVersion(activeDoc) && (
                                 <span className="docs-reader-meta-chip">
                                     v{activeDoc.version}
                                 </span>
@@ -136,14 +142,14 @@ export function DocumentationSettings() {
                                     key={tag}
                                     className="docs-reader-meta-chip"
                                 >
-                                    {tag}
+                                    {formatDocumentationTag(tag)}
                                 </span>
                             ))}
                         </div>
 
-                        {activeDoc.source_of_truth && (
+                        {maintainerReference && (
                             <p className="docs-reader-meta-source">
-                                Source: {activeDoc.source_of_truth}
+                                Maintainer reference: {maintainerReference}
                             </p>
                         )}
                     </div>
@@ -258,7 +264,7 @@ export function DocumentationSettings() {
                                         data-testid={`settings-doc-tag-${doc.id}-${sanitizeTag(tag)}`}
                                         className="px-2 py-0.5 rounded text-[10px] uppercase tracking-wider font-semibold bg-white/5 text-slate-300"
                                     >
-                                        {tag}
+                                        {formatDocumentationTag(tag)}
                                     </span>
                                 ))}
                             </div>

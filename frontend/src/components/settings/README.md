@@ -3,6 +3,7 @@
 ## Purpose
 
 UI components for `settings` area.
+`DocumentationSettings.tsx` embeds the same manual/runbook reader behavior used by the dedicated documentation page.
 
 ## Contents
 
@@ -16,4 +17,4 @@ UI components for `settings` area.
 
 ## Notes
 
-Keep this README updated when responsibilities or structure in this folder change.
+Keep user manual display rules aligned with `frontend/src/components/documentation/documentationPresentation.ts`.

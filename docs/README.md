@@ -27,8 +27,8 @@ This file is the primary documentation index for `docs/`.
 | Assets | Static screenshots and support assets for canonical docs | [`docs/assets/README.md`](./assets/README.md) |
 | Admin (EN) | Platform administration runbooks | [`docs/admin/README.md`](./admin/README.md) |
 | Admin (CS) | České admin runbooky | [`docs/admin-cs/README.md`](./admin-cs/README.md) |
-| User (EN) | End-user/business operation manuals | [`docs/user/README.md`](./user/README.md) |
-| User (CS) | České uživatelské manuály | [`docs/user-cs/README.md`](./user-cs/README.md) |
+| User (EN) | Task-oriented in-app user manuals | [`docs/user/README.md`](./user/README.md) |
+| User (CS) | Uživatelské manuály ve stylu příručky | [`docs/user-cs/README.md`](./user-cs/README.md) |
 
 ## Core Root Docs
 
@@ -47,11 +47,13 @@ Current operational truth for Docker-backed live verification is intentionally c
 - [`docs/TESTING.md`](./TESTING.md)
 - [`docs/E2E_TESTING.md`](./E2E_TESTING.md)
 
-Current workflow truth for KRI history, risk questionnaires, issue remediation, report exports, committee snapshots, and approval execution is intentionally centralized in:
+Current workflow truth for directory lifecycle, break-glass enablement, cross-entity linking, KRI history, risk questionnaires, issue remediation, report exports, committee snapshots, and approval execution is intentionally centralized in:
 
 - [`docs/BUSINESS_LOGIC.md`](./BUSINESS_LOGIC.md)
 - [`docs/user/README.md`](./user/README.md) and [`docs/user-cs/README.md`](./user-cs/README.md)
 - [`docs/admin/README.md`](./admin/README.md) and [`docs/admin-cs/README.md`](./admin-cs/README.md)
+
+In-app user documentation is intentionally written as a user manual. Keep implementation details, source paths, and maintainer references in frontmatter, admin runbooks, or engineering docs rather than in user-facing manual body text.
 
 ## Validation Commands
 
@@ -59,7 +61,7 @@ Current workflow truth for KRI history, risk questionnaires, issue remediation, 
 python3 scripts/check_docs_contract.py
 make -f scripts/Makefile docs-topology-consistency
 cd backend && venv/bin/pytest ../tests/backend/pytest/test_admin_docs.py -q
-cd ../frontend && npm run test:run -- src/components/settings/__tests__/DocumentationSettings.test.tsx
+cd ../frontend && npm run test:run -- src/components/settings/__tests__/DocumentationSettings.test.tsx src/pages/__tests__/DocumentationPage.test.tsx src/components/documentation
 python3 scripts/tools/docs_tree_audit.py --scope canonical --max-root-hops 3 --fail-on-unreachable
 python3 scripts/tools/docs_tree_audit.py --scope full
 python3 scripts/tools/readme_coverage.py audit

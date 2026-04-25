@@ -1,6 +1,6 @@
 ---
 title: KRI (Key Risk Indicators)
-version: "2.2"
+version: "2.4"
 last_updated: "2026-04-25"
 audience: user
 source_of_truth: "frontend/src/pages/KRIsPage.tsx + frontend/src/pages/KRIDetailPage.tsx + docs/BUSINESS_LOGIC.md"
@@ -12,320 +12,125 @@ tags:
   - exports
   - troubleshooting
 ---
-
 # KRI (Key Risk Indicators)
 
 **Na této stránce**
-- [Přehled](#prehled)
+- [S čím vám tato stránka pomůže](#s-čím-vám-tato-stránka-pomůže)
+- [Než začnete](#než-začnete)
 - [Kde to najdete](#kde-to-najdete)
-- [Role, scope a viditelnost](#role-scope-a-viditelnost)
-- [Datový model a klíčová pole](#datovy-model-a-klicova-pole)
-- [Hlavní workflow](#hlavni-workflow)
-- [Schvalování a notifikace](#schvalovani-a-notifikace)
-- [Filtry, pohledy a exporty](#filtry-pohledy-a-exporty)
-- [Časté chyby](#caste-chyby)
+- [Co můžete vidět a měnit](#co-můžete-vidět-a-měnit)
+- [Jak dokončit běžné úkoly](#jak-dokončit-běžné-úkoly)
+- [Schvalování a notifikace](#schvalování-a-notifikace)
+- [Vyhledávání, filtrování a evidence](#vyhledávání-filtrování-a-evidence)
+- [Tipy a časté chyby](#tipy-a-časté-chyby)
 - [Troubleshooting](#troubleshooting)
-- [Související dokumentace](#souvisejici-dokumentace)
+- [Související manuály](#související-manuály)
 
-## Přehled
+## S čím vám tato stránka pomůže
 
-KRI (Key Risk Indicators) jsou monitoring vrstva pro rizika. Převádí „myslíme si, že tlak roste“ do měřitelných signálů.
+Tento manuál použijte, když potřebujete vytvářet smysluplná KRI, nastavovat hranice, zadávat hodnoty včas, rozumět breach a warning signálům a žádat opravy. Je určen pro uživatele, kteří definují, zadávají nebo kontrolují indikátory rizik, proto popisuje praktický postup v aplikaci: kde začít, co ověřit před akcí a jak poznat, že je práce dokončená.
 
-KRI je kvalitní, když má:
+Text není technická reference. Vysvětluje běžný provozní postup: otevřít správnou stránku, ověřit správný záznam, provést nejmenší užitečnou změnu a zkontrolovat výsledek v seznamu, detailu, notifikacích nebo aktivitě.
 
-- jasné jméno metriky a jednotku
-- definovaný normální rozsah (limity)
-- konzistentní cadence zapisování
-- monitoring stav, který spouští akci
+Tuto oblast budete používat hlavně pro:
 
-Hlavní route: `/kris`
+- seznam KRI
+- detail KRI
+- zadání hodnoty
+- historie
+- hranice
+- přiřazení dodavatele
+- kontext rizika
 
-V RiskHubu jsou KRI brány jako sub-entity rizik:
+## Než začnete
 
-- jsou linknuté na riziko
-- dědí kontext (oddělení, proces, category)
-- mohou být také navázané na dodavatele pro third-party monitoring kontext
-- napájí dashboard widgety a notifikace
+Před prací si ověřte tři věci. Zaprvé, že jste přihlášeni rolí, se kterou běžně pracujete. Zadruhé, že staré filtry neskrývají očekávaná data. Zatřetí, že na záznamu už nečeká práce ve Schvalování nebo Notifikacích.
+
+Pokud tlačítko nebo záložka chybí, berte to jako běžný signál přístupu, ne jako chybu. RiskHub zobrazuje akce podle vaší role, rozsahu, ownership a aktuálního stavu záznamu. Když akce není dostupná, požádejte vlastníka záznamu nebo správce přístupů o kontrolu.
+
+Pro podporu mějte připravený název záznamu, kód, vlastníka a oddělení. Tyto údaje výrazně zrychlují komunikaci.
 
 ## Kde to najdete
 
-- seznam KRI: `/kris`
-- detail KRI: klik na řádek
-- KRI u rizika: otevřete detail rizika (`/risks/<id>`) a projděte KRI sekce
-- KRI u dodavatele: otevřete detail dodavatele (`/vendors/<id>`) a projděte sekci navázaných KRI
+Primární cesta: `/kris`
 
-Pokud **KRI** nevidíte v menu:
+Většinou se sem dostanete z levého menu. Detail otevřete výběrem řádku nebo karty s vazbou. Pokud jste přišli z jiného záznamu, použijte návrat nebo odkazy na související záznamy.
 
-- pravděpodobně nemáte `risks:read` (KRI jsou sub-entity rizik)
+Běžný postup navigace:
 
-## Role, scope a viditelnost
+1. Otevřete seznam.
+2. Vyčistěte filtry, pokud si nejste jistí viditelností.
+3. Hledejte podle názvu, vlastníka, dodavatele nebo oddělení.
+4. Otevřete záznam.
+5. Před úpravou zkontrolujte vazby a poslední aktivitu.
 
-KRI přístup se často dělí na dvě schopnosti:
+## Co můžete vidět a měnit
 
-1. **design KRI** (create/edit): typicky `risks:write` (protože KRI je součást governance rizik)
-2. **zápis hodnot**: `kri:submit` a/nebo reporting owner
+Viditelnost závisí na roli, rozsahu oddělení a ownership. Uživatel se širší review odpovědností může vidět více záznamů než uživatel jednoho oddělení. Vlastník záznamu může mít možnost jednat i mimo svůj běžný pohled.
 
-Praktická pravidla:
+Typické informace v této oblasti:
 
-- pokud nemůžete vytvářet/upravovat KRI, můžete stále zapisovat hodnoty, pokud jste reporting owner a policy to dovolí
-- pokud KRI vidíte, ale nejde zapisovat, zkontrolujte `kri:submit`
+- Název metriky
+- Směr zhoršení
+- Vlastník
+- Cadence
+- Hranice
+- Poslední hodnota
+- Stav
+- Navázané riziko a dodavatel
 
-Scope pravidla platí dál:
+Změny mají být praktické a snadno vysvětlitelné. Pokud změna ovlivňuje ownership, scoring, uzavření, archivaci nebo jiné citlivé údaje, počítejte v některých prostředích s review krokem. Uživatelé jen pro čtení mohou stránku používat pro kontrolu, filtrování a evidenci.
 
-- oddělení a ownership ovlivňují viditelnost
-- backend enforcement je autorita
-- historie KRI používá stejná backend pravidla viditelnosti jako detail KRI
-- reporting owner může číst/odesílat hodnoty pro své KRI, ale žádost o korekci vyžaduje oprávnění pro korekci (`risks:write`) a viditelnost KRI
+## Jak dokončit běžné úkoly
 
-## Datový model a klíčová pole
+Pokud váš tým nemá přísnější postup, použijte tento základní workflow:
 
-| Pole | Význam | Poznámky |
-|---|---|---|
-| Metric name | Název KRI | Držte stabilní; změny kazí čitelnost trendu. |
-| Description | Co metrika znamená a proč je důležitá | Uveďte data source a interpretaci. |
-| Unit | %, počet, měna, … | Jednotka musí sedět na hodnotu. |
-| Lower/upper limits | Akceptovatelný rozsah | Limity mají být smysluplné (ne příliš široké/úzké). |
-| Current value | Poslední zapsaná hodnota | Má odpovídat definovanému period end. |
-| Monitoring status | `new`, `not_submitted`, `breach`, `warning`, `optimal` | Kanonický reporting health stav používaný v kartách, seznamech, filtrech i exportech. |
-| Frequency | daily/weekly/monthly/… | Musí odpovídat realitě reportingu. |
-| Reporting owner | Odpovědný za zápis hodnot | Může být jiný než risk owner. |
-| Last period end | Konec posledního období | Používá se pro required-period submission logiku. |
-| Required due date | Due date pro poslední uzavřené období | Používá se pro `not_submitted` a `days_overdue`. |
-| History entries | Historie hodnot | Evidence pro trend. |
+1. Vytvořit nebo upravit KRI.
+2. Navázat ho na riziko.
+3. Nastavit warning a breach hranice.
+4. Zadat hodnotu za období.
+5. Zkontrolovat historii.
+6. Požádat o opravu chybné hodnoty.
 
-Pravidla monitoring statusu:
+Po uložení nebo odeslání ověřte výsledek. Seznam má ukázat nový stav, detail má odpovídat záměru a očekávaná notifikace nebo schválení má být dohledatelné. Pokud stránka hlásí, že záznam mezitím změnil někdo jiný, obnovte data a znovu posuďte aktuální stav.
 
-- `new`: neexistuje submission history a required period ještě není po due date
-- `not_submitted`: chybí submission za required period po due date
-- `breach`: za required period je submission a hodnota je mimo limity
-- `warning`: za required period je submission, hodnota je v limitech, ale blízko horního limitu
-- `optimal`: za required period je submission, hodnota je v limitech a není v horním warning pásmu
-
-Samostatný timeliness filtr:
-
-- `due_soon`: reporting period se blíží due date, ale ještě nechybí submission
-
-Důležitá pravidla:
-
-- monitoring status KRI vychází z **posledního uzavřeného required reporting period**
-- warning pásmo je řízené konfigurací (`kri_warning_upper_margin_ratio`, default `0.10`)
-- warning pásmo sleduje jen blízkost **horního** limitu
-- `monitoring_status` a `timeliness_status` jsou v seznamech a exportech oddělené filtry; pro v1 se nekombinují
-
-Governance historie:
-
-- pro jedno KRI může existovat jen jedna hodnota pro konkrétní period end
-- pokud už hodnota pro období existuje, použijte korekci historie místo dalšího zápisu
-- duplicitní přímé zápisy se odmítnou; queued zápisy, které během čekání zastarají, se při schválení automaticky odmítnou
-- viditelnost akce korekce vychází z backend capabilities, takže tlačítko může být skryté i pro uživatele, který KRI vidí nebo zapisuje
-
-Poznámka k period end:
-
-- Period end je to, co z KRI dělá “měření v čase”. Pokud period end vyplňujete nekonzistentně, trend a overdue logika přestanou být důvěryhodné.
-- Pokud musíte hodnotu backfillovat, připojte krátkou poznámku (proč a za jaké období). Jinak příjemce trendu nebude umět interpretovat “skok”.
-
-## Hlavní workflow
-
-### 1) Vytvoření KRI pro riziko
-
-Kvalitní KRI vychází z failure módu rizika.
-
-1. Vyberte riziko, které chcete monitorovat.
-2. Definujte metriku, která se mění dřív, než se riziko materializuje.
-3. Vytvořte KRI:
-   - metric name
-   - unit
-   - limity (lower/upper)
-   - frequency
-   - reporting owner
-4. Uložte.
-5. Zapište první hodnotu jako baseline.
-
-Při create/edit nyní můžete rovnou přidat vendor kontext:
-
-- použijte ve formuláři KRI sekci **Navázaní dodavatelé** pro přiřazení jednoho nebo více dodavatelů
-- parent risk zůstává povinný
-- vendor linkage je sekundární monitoring kontext, ne náhrada parent rizika
-- přiřazení dodavatelů se ukládá atomicky spolu s KRI; pokud validace dodavatele selže, KRI se nevytvoří ani neupraví
-- hledání dodavatelů je server-backed, takže výběr není omezený jen na první stránku vendorů
-
-Když KRI zakládáte z detailu dodavatele:
-
-- použije se route `/kris/new?vendor_id=:id&return_to=/vendors/:id`
-- aktuální dodavatel je zobrazený jako aktivní kontext a je zahrnutý automaticky do stejného uložení
-- výběr rizika se ve výchozím stavu filtruje na rizika navázaná na daného dodavatele
-- podle potřeby lze přepnout i na všechna čitelná rizika
-- pokud zvolíte riziko, které na dodavatele navázané není, formulář nabídne navázání rizika nebo pokračování bez této vazby
-- volba **Navázat riziko a pokračovat** požádá backend o vytvoření chybějící vendor-risk vazby i KRI v jedné transakci
-- pokud přiřazení dodavatele nebo požadované navázání rizika selže, formulář zůstane otevřený a nic se částečně neuloží
-
-Recept: *KRI, které se nestanou šumem*
-
-- vybírejte metriky, které umíte získat včas
-- vyhněte se čistě subjektivním metrikám
-- nastavte limity tak, aby breach znamenal akci
-
-### 2) Zápis hodnoty
-
-Zápis je provozní heartbeat.
-
-1. Otevřete detail KRI.
-2. Klikněte **Record value**.
-3. Zadejte hodnotu a případně period end.
-4. Uložte.
-5. Ověřte breach/within status.
-
-Period end je rozhodující. Druhá hodnota pro stejné KRI a stejný period end se nepřijímá jako nový zápis; pro opravu použijte korekci historie.
-
-Pokud nejde zapisovat:
-
-- ověřte `kri:submit`
-- ověřte, zda jste reporting owner (některá prostředí dovolují reporting ownerům zapisovat)
-
-### 3) Použití historie pro vysvětlení trendu
-
-History tab je evidence povrch.
-
-Použijte pro:
-
-- kdy začala driftovat metrika
-- korelaci se selháním kontrol
-- podporu změny net scoringu
-
-Když měníte limity, napište „proč“, jinak bude interpretace trendu nejasná.
-
-Korekce historie:
-
-- používejte ji jen pro opravu existující zapsané hodnoty
-- podle role a policy se korekce může aplikovat rovnou nebo vytvořit schvalovací žádost
-- pokud někdo během čekání zapíše nebo opraví stejné období, stale žádost se může automaticky odmítnout
-- current value se určuje podle posledního řádku historie: period end, recorded timestamp a nakonec id jako tie-breaker
-
-### 4) Reakce na breach a overdue
-
-Monitoring stavy popisují různé typy problémů:
-
-- `breach`: metrika je mimo limity (tlak na riziko)
-- `warning`: metrika je stále v limitech, ale blíží se horní hranici
-- `not_submitted`: metrika nebyla včas odevzdaná za required period
-
-Doporučený pattern:
-
-- breach: založte Issue a routujte nápravu, poté prověřte rizika/kontroly
-- not submitted: opravte reporting proces (owner, cadence, data source)
-
-### 5) Archivace a obnovení
-
-Archivujte KRI, která už nedávají smysl (metrika nahrazena, riziko ukončeno).
-
-Před archivací:
-
-- ověřte dopad na dashboard
-- ověřte, zda audit období neočekává trend
-
-Obnovte, pokud bylo archivováno omylem.
+Při propojování záznamů vybírejte jen vazby, které dávají smysl dalšímu reviewerovi. Vazba má popsat skutečný business vztah: kontrola snižuje riziko, KRI riziko monitoruje, dodavatel vytváří expozici nebo nález řeší konkrétní problém.
 
 ## Schvalování a notifikace
 
-KRI interagují s workflow dvěma způsoby:
+Nové hodnoty, opravy a citlivé úpravy mohou čekat na review podle role a pravidel organizace. Pokud oprava čeká, počkejte na rozhodnutí.
 
-- **notifikace**: due soon, overdue, near breach, breach detected
-- **schvalování**: citlivé změny mohou být schvalované dle policy
+Poznámky ke schválení mají vysvětlit business důvod. Dobrá poznámka říká, co se změnilo, proč je to správně a jaký důkaz změnu podporuje. Notifikace jsou připomínky a navigace; detail záznamu zůstává nejlepším místem pro celý kontext.
 
-Změny vendor vazeb jsou součástí stejného KRI edit workflow:
+Pokud je schválení stale nebo zamítnuté, neposílejte hned stejnou změnu znovu. Otevřete záznam, porovnejte aktuální stav se záměrem a odešlete novou úzkou změnu jen tehdy, pokud je stále potřeba.
 
-- neprivilegované editace KRI, včetně změn sekce **Navázaní dodavatelé**, se odesílají ke schválení místo okamžité aplikace
-- detail KRI po takovém uložení zobrazí banner o schválení a ponechá aktuální KRI i vendor vazby beze změny, dokud se schválení nevyřeší
-- stale schválené změny KRI se při aplikaci odmítnou, pokud se podkladové KRI nebo historie období změnily během čekání
+## Vyhledávání, filtrování a evidence
 
-Praktické signály:
+Filtrujte podle vlastníka, stavu, včasnosti a monitoringu. Tlačítko exportu vytvoří filtrovaný seznam KRI s poli jako metrika, navázané riziko, aktuální hodnota, limity, breach stav, frekvence, stav, monitoring, termín, reporting owner a poslední report. Pro evidenci historie hodnot použijte history záložku v detailu KRI nebo Activity Log; samostatný export detailu nebo historie neexistuje.
 
-- breach typicky spustí notifikace
-- pokud se editace neaplikuje, zkontrolujte `/approvals`
+Pro spolehlivý výsledek filtrujte v tomto pořadí:
 
-Mechaniku front najdete v [Schvalování a notifikace](./notifications.md).
+1. Začněte dost široce, abyste ověřili existenci záznamu.
+2. Zužte pohled podle oddělení, vlastníka, stavu, dodavatele nebo data.
+3. Otevřete vzorek záznamu a ověřte, že filtr odpovídá záměru.
+4. Exportujte jen filtrovaný pohled potřebný pro review.
 
-## Filtry, pohledy a exporty
+Exporty jsou evidence. Udržujte je malé, popište časové období a nesdílejte zbytečné osobní nebo citlivé informace.
 
-### Filtry
+## Tipy a časté chyby
 
-Seznam KRI podporuje:
+- Nastavte hranice tak, aby varovaly dostatečně brzy.
+- Nezadávejte placeholder hodnoty jen kvůli splnění termínu.
+- U dodavatele ověřte také navázané riziko.
 
-- monitoring status (`new`, `not submitted`, `breach`, `warning`, `optimal`)
-- timeliness status (`due soon`)
-- archived
-- search
-
-`Not submitted` berte jako disciplínu, `breach` jako tlak na riziko.
-
-### Pohledy
-
-- paged list (all)
-- grouped views (review pack, koncentrace)
-
-Grouped pohledy nyní zahrnují i **By Vendor**.
-
-`By Vendor` je multi-membership:
-
-- jedno KRI se zobrazí ve všech čitelných bucketech navázaných dodavatelů
-- nečitelní dodavatelé jsou z grupování vynechaní
-- KRI bez čitelných navázaných dodavatelů spadnou do fallback bucketu pro nepropojené záznamy
-
-Použijte ho pro přehled, které vendor vztahy jsou monitorované přes KRI a kde se vendor-linked signály koncentrují.
-
-### Exporty
-
-KRI lze exportovat ze seznamu.
-
-Disciplína:
-
-- export s „as of“ datem
-- explicitní filtry (monitoring status vs archived)
-- raw export neměnit
-
-Exporty KRI nově obsahují monitoring sloupce:
-
-- monitoring status
-- required due date
-- days overdue
-
-Exporty „due soon“ používají query parametr `timeliness_status=due_soon`.
-
-## Časté chyby
-
-- KRI, která nejdou spolehlivě reportovat.
-- Limity, které jsou pořád breach nebo nikdy breach.
-- Overdue jako „data admin práce“ místo governance selhání.
-- Změna limitů bez odůvodnění.
-- Zápis hodnot bez jasného reporting období.
+Časté chyby vznikají ze starých filtrů, nejasného ownership, duplicitních záznamů nebo příliš široké změny. Pokud něco vypadá špatně, nejdřív stránku obnovte a ověřte stejný výsledek v detailu.
 
 ## Troubleshooting
 
-### Vidím KRI, ale nejdou zapisovat hodnoty
+Pokud je stránka prázdná, vyčistěte filtry a hledejte známý název záznamu. Pokud stránka chybí v menu, vaše role pravděpodobně tuto oblast nezahrnuje. Pokud uložení selže, přečtěte zprávu, obnovte záznam a zkontrolujte, zda ho mezitím nezměnil někdo jiný.
 
-- Ověřte `kri:submit`.
-- Ověřte, že jste reporting owner.
+Pokud chybí navázaný záznam, nemusíte k němu mít přístup. Ptejte se na business název nebo kód, ne na technický identifikátor. Pro podporu uveďte roli, cestu v aplikaci, název záznamu, akci a přesné znění zprávy na obrazovce.
 
-### Breach status vypadá špatně
+## Související manuály
 
-- Ověřte jednotku a limity.
-- Ověřte, že hodnota je pro správné období.
-
-### Overdue se spouští neočekávaně
-
-- Overdue závisí na `last_period_end`.
-- Pokud je period end špatně, upravte ho přes governance proces.
-
-### Export selhal
-
-- Zkuste s menším počtem filtrů.
-- Pokud to trvá, uložte chybu.
-
-## Související dokumentace
-
-- [Správa rizik](./risks.md)
-- [Správa nálezů](./issues.md)
-- [Správa kontrol](./controls.md)
-- [Schvalování a notifikace](./notifications.md)
-- [Dashboard](./dashboard.md)
-- [Activity Log](./activity-log.md)
+Začněte s [Risks](./risks.md), [Dashboard](./dashboard.md), [Vendors](./vendors.md), [Notifications](./notifications.md), [Activity Log](./activity-log.md). Tyto manuály vysvětlují navázaná workflow a pomohou sledovat záznam od signálu přes akci až po evidenci.

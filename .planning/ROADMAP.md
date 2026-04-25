@@ -37,7 +37,7 @@ Building an enterprise risk management platform for insurance companies, startin
 - [x] **Phase 12.1: Compliance Governance Review** — Phase 12 audit (10/10)
 - [x] **Phase 13: Issue & Remediation Management** — Findings and Action Plans (8/8)
 - [x] **Phase 14: Risk Assessments** — Campaigns and questionnaires (7/7)
-- [x] **Phase 15: Settings Page** — Read-only profile, appearance, localization (6/6)
+- [x] **Phase 15: Settings Page** — Read-only profile, appearance, localization, and in-app user manuals (6/6)
 - [x] **Phase 16: Risk Assessment Polish** — Review, reminders, reporting (3/3)
 - [x] **Phase 17: Production Deployment** — Docker, production infra, AD SSO, testing (14/14)
 - [x] **Phase 18: Vendor Risk Management** — Third-party risk assessments (12/12)

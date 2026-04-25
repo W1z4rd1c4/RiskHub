@@ -1,226 +1,130 @@
 ---
 title: Activity Log (audit trail pro business změny)
-version: "2.0"
-last_updated: "2026-03-05"
+version: "2.4"
+last_updated: "2026-04-25"
 audience: user
 source_of_truth: "frontend/src/pages/ActivityLogPage.tsx + backend activity log endpoints"
 summary: "Jak používat Activity Log pro vyšetřování změn, potvrzení schválení a vytvoření auditovatelné historie bez úniku citlivých dat."
 tags:
   - activity-log
   - audit
+  - overview
   - troubleshooting
   - workflow
-  - exports
 ---
-
 # Activity Log (audit trail pro business změny)
 
 **Na této stránce**
-- [Přehled](#prehled)
+- [S čím vám tato stránka pomůže](#s-čím-vám-tato-stránka-pomůže)
+- [Než začnete](#než-začnete)
 - [Kde to najdete](#kde-to-najdete)
-- [Role, scope a viditelnost](#role-scope-a-viditelnost)
-- [Datový model a klíčová pole](#datovy-model-a-klicova-pole)
-- [Hlavní workflow](#hlavni-workflow)
-- [Schvalování a notifikace](#schvalovani-a-notifikace)
-- [Filtry, pohledy a exporty](#filtry-pohledy-a-exporty)
-- [Časté chyby](#caste-chyby)
+- [Co můžete vidět a měnit](#co-můžete-vidět-a-měnit)
+- [Jak dokončit běžné úkoly](#jak-dokončit-běžné-úkoly)
+- [Schvalování a notifikace](#schvalování-a-notifikace)
+- [Vyhledávání, filtrování a evidence](#vyhledávání-filtrování-a-evidence)
+- [Tipy a časté chyby](#tipy-a-časté-chyby)
 - [Troubleshooting](#troubleshooting)
-- [Související dokumentace](#souvisejici-dokumentace)
+- [Související manuály](#související-manuály)
 
-## Přehled
+## S čím vám tato stránka pomůže
 
-Activity Log je business audit trail změn v RiskHubu. Odpovídá na otázky typu:
+Tento manuál použijte, když potřebujete zjistit kdo co změnil, kdy se to stalo, kterého záznamu se změna týkala a jak souvisí se schvalováním nebo follow-up prací. Je určen pro uživatele, kteří potřebují rekonstruovat změny, proto popisuje praktický postup v aplikaci: kde začít, co ověřit před akcí a jak poznat, že je práce dokončená.
 
-- Kdo změnil toto riziko a co přesně se změnilo?
-- Kdy byla kontrola archivována nebo obnovena?
-- Prošlo schválení, nebo je stále pending?
-- Proč se změnila viditelnost v oddělení?
+Text není technická reference. Vysvětluje běžný provozní postup: otevřít Activity Log, zúžit timeline, zkontrolovat kartu události a souhrn změny a zapsat potřebnou evidenci.
 
-Activity Log není „report“. Je to forenzní nástroj. Používejte ho pro potvrzení faktů, snížení ping-pongu a přípravu čistých důkazů pro review.
+Tuto oblast budete používat hlavně pro:
 
-Hlavní route: `/activity-log`
+- seznam aktivit
+- filtry
+- odkazy na záznamy
+- karty událostí
+
+## Než začnete
+
+Před prací si ověřte tři věci. Zaprvé, že jste přihlášeni rolí, se kterou běžně pracujete. Zadruhé, že staré filtry neskrývají očekávaná data. Zatřetí, že na záznamu už nečeká práce ve Schvalování nebo Notifikacích.
+
+Pokud tlačítko nebo záložka chybí, berte to jako běžný signál přístupu, ne jako chybu. RiskHub zobrazuje akce podle vaší role, rozsahu, ownership a aktuálního stavu záznamu. Když akce není dostupná, požádejte vlastníka záznamu nebo správce přístupů o kontrolu.
+
+Pro podporu mějte připravený název záznamu, kód, vlastníka a oddělení. Tyto údaje výrazně zrychlují komunikaci.
 
 ## Kde to najdete
 
-- položka **Activity Log** v menu → `/activity-log`
+Primární cesta: `/activity-log`
 
-Pokud Activity Log nevidíte:
+Většinou se sem dostanete z levého menu. Activity Log je timeline plocha se záložkami, filtry, kartami událostí, refreshem a stránkováním. Práce zůstává ve filtrované timeline.
 
-- pravděpodobně nemáte `activity_log:read` (resource `activity_log`, action `read`)
-- platform admin je záměrně blokovaný z business Activity Logu, včetně přímého route/API přístupu (admin má používat admin console logy)
+Běžný postup navigace:
 
-## Role, scope a viditelnost
+1. Otevřete Activity Log.
+2. Vyberte správnou záložku pro typ aktivity, který hledáte.
+3. Vyčistěte filtry, pokud si nejste jistí viditelností.
+4. Hledejte podle osoby, akce, typu záznamu, názvu záznamu, oddělení nebo data.
+5. Zkontrolujte odpovídající karty událostí a souhrny změn.
 
-Přístup do Activity Logu bývá omezený, protože může odhalovat:
+## Co můžete vidět a měnit
 
-- cross-department aktivitu
-- citlivá workflow rozhodnutí (approve/reject)
-- změny uživatelů a ownership
+Viditelnost závisí na roli, rozsahu oddělení a ownership. Uživatel se širší review odpovědností může vidět více záznamů než uživatel jednoho oddělení. Vlastník záznamu může mít možnost jednat i mimo svůj běžný pohled.
 
-Typické použití:
+Typické informace v této oblasti:
 
-- risk management / 2nd line: validace změn a konzistence policy
-- compliance/audit: spot-check evidence a kvalita change control
-- vedoucí oddělení (pokud je povoleno): vyšetření „proč se změnilo číslo“
+- Čas události
+- Osoba
+- Akce
+- Typ záznamu
+- Název nebo kód záznamu
+- Souhrn změny
+- Související schválení
 
-Log je důkaz, ne autorita. Pokud je změna špatně, musíte opravit podkladovou entitu.
+Změny mají být praktické a snadno vysvětlitelné. Pokud změna ovlivňuje ownership, scoring, uzavření, archivaci nebo jiné citlivé údaje, počítejte v některých prostředích s review krokem. Uživatelé jen pro čtení mohou stránku používat pro kontrolu, filtrování a evidenci.
 
-## Datový model a klíčová pole
+## Jak dokončit běžné úkoly
 
-Každý záznam Activity Logu reprezentuje jednu akci.
+Pokud váš tým nemá přísnější postup, použijte tento základní workflow:
 
-| Pole | Význam | Jak to používat |
-|---|---|---|
-| Entity type | Co se měnilo (risk/control/kri/user/…) | Přepněte taby, ať hledáte ve správné doméně. |
-| Entity name | Bezpečný identifikátor nebo obecný label entity | Preferujte stabilní kódy/labely, ne raw názvy. |
-| Action | `create`, `update`, `archive`, `approve`, `reject`, `link`, … | Říká, jaký typ události to je. |
-| Actor | Kdo akci provedl (může být null) | Null často znamená systémovou akci. |
-| Department | Kontext pro routing | Pomáhá vysvětlit, proč se něco objevilo/zmizelo ve scope. |
-| Changes | Deltá `old` → `new` | Důkaz konkrétní editace bez otevírání entity. |
-| Description | Sanitizovaný krátký popis | Vhodné pro rychlé skenování, u citlivých událostí je záměrně šablonový. |
-| Timestamp | Čas (`created_at`) | Používejte úzký date range při vyšetřování. |
+1. Hledat podle data, osoby, záznamu nebo akce.
+2. Zkontrolovat odpovídající karty událostí.
+3. Porovnat čas aktivity se schvalováním.
+4. Zaznamenat detaily cílené timeline pro auditní poznámky nebo podporu.
 
-Změny mohou obsahovat strukturované hodnoty. UI je formátované „defenzivně“:
+Po filtrování nebo obnovení ověřte, že timeline ukazuje očekávanou událost, osobu, akci a souhrn změny. Pokud se stránka během práce znovu načte, před zapsáním výsledku zkontrolujte aktuální filtry.
 
-- prázdno se ukazuje jako `(empty)`
-- objekty se zobrazují jako zkrácené JSON
-- dlouhé diffy jsou záměrně kondenzované
-
-## Hlavní workflow
-
-### 1) Potvrzení, zda se editace aplikovala
-
-Když jste něco změnili, ale vypadá to beze změny:
-
-1. Otevřete `/activity-log`.
-2. Přepněte na tab podle entity (Risk / Control / KRI / User).
-3. Vyhledejte podle stabilního identifikátoru, safe labelu nebo jména aktéra.
-4. Najděte `update` nebo `status_change`.
-5. Pokud nic nevidíte, zkontrolujte `/approvals` (může čekat workflow).
-
-### 2) Vysvětlení změny metrik při review
-
-Když dashboard metrika skokově změní hodnotu:
-
-1. Najděte relevantní změny v Activity Logu.
-2. Omezte date range na okno review.
-3. Hledejte editace, které posunuly položku do/ze scope:
-   - změna statusu (např. archivace)
-   - změna oddělení
-   - změna ownership
-   - změna thresholdů (u KRI)
-4. Sepište krátkou narativní osu s timestampy.
-
-### 3) Vyšetření „Proč to už nevidím?“
-
-Viditelnost se často mění kvůli oddělení nebo ownership.
-
-Použijte Activity Log pro:
-
-- nalezení záznamu, který změnil oddělení/ownera
-- potvrzení kdo a kdy to udělal
-- rozhodnutí, zda je to policy-correct nebo omyl
-
-Pak opravte root cause v entitě a zdokumentujte „proč“.
-
-### 4) Validace governance akcí
-
-Po rezoluci orphaned položky nebo po schválení citlivé změny:
-
-1. Najděte odpovídající záznam v Activity Logu.
-2. Ověřte, že existuje `approve` / `update` event.
-3. Uložte timestamp a delta jako evidence pro pack.
+Při použití Activity Logu jako evidence držte pohromadě časové okno, osobu, akci, typ záznamu a souhrn změny, aby jiný reviewer mohl rekonstruovat pořadí událostí.
 
 ## Schvalování a notifikace
 
-Activity Log je úzce spojený s workflow, ale není to workflow fronta.
+Schválené změny se mohou objevit jako žádost i jako aplikovaná změna. Čas a jména osob použijte pro vysvětlení pořadí.
 
-Pravidla:
+Poznámky ke schválení mají vysvětlit business důvod. Dobrá poznámka říká, co se změnilo, proč je to správně a jaký důkaz změnu podporuje. Notifikace jsou připomínky a navigace; Activity Log ukazuje časovou osu toho, co se stalo.
 
-- `approve`/`reject` typicky znamená workflow rozhodnutí.
-- Pokud je změna aplikovaná, ale stakeholder tvrdí, že nedostal notifikaci, zkontrolujte `/notifications`.
-- Pokud nevidíte očekávaný update, zkontrolujte `/approvals`.
+Pokud je schválení stale nebo zamítnuté, neposílejte hned stejnou změnu znovu. Porovnejte čas schválení s Activity Logem a odešlete novou úzkou změnu jen tehdy, pokud je stále potřeba.
 
-Dobrá praxe je korelovat:
+## Vyhledávání, filtrování a evidence
 
-- Activity Log (co se změnilo)
-- Approvals (proč a kdo rozhodl)
-- Notifications (koho to informovalo)
+Používejte časové okno, osobu, akci a typ záznamu pro zúžení timeline. Business Activity Log slouží k vyšetřování a review; nemá uživatelské exportní tlačítko.
 
-## Filtry, pohledy a exporty
+Pro spolehlivý výsledek postupujte takto:
 
-Activity Log podporuje dvě dimenze vyšetřování: *co* a *jak to chcete seskupit*.
+1. Začněte nejmenším časovým oknem, které může událost obsahovat.
+2. Zužte pohled podle osoby, akce, typu záznamu nebo názvu záznamu.
+3. Zkontrolujte popis události a souhrn změn, pokud potřebujete business kontext.
+4. Detaily filtrovaného pohledu zapište do auditních poznámek nebo support handoffu.
 
-### Taby (co)
+Pro formální evidenci zapište filtrované časové okno, osobu, akci a název souvisejícího záznamu do auditních poznámek nebo support handoffu.
 
-Horní taby vás přepnou podle entity:
+## Tipy a časté chyby
 
-- KRI
-- Risk
-- Control
-- User
+- Do poznámek používejte business názvy nebo kódy.
+- Pokud se název změnil, hledejte okolo času změny.
+- Chybějící přístup k navázanému záznamu neznamená, že aktivita je chybná.
 
-### View módy (jak)
-
-Můžete přepnout view mód:
-
-- **Chronological**: timeline
-- **By person**: jeden actor
-- **By department**: jedno oddělení
-- **By risk**: kontext jednoho rizika
-
-### Filtry
-
-Pro kontrolu šumu:
-
-- search (safe labely, jména aktérů, sanitizované popisy)
-- action (create/update/archive/link…)
-- date range (from/to)
-
-### Exporty
-
-Business Activity Log UI nemá nativní export tlačítko.
-
-Pokud potřebujete exportovatelnou evidenci:
-
-- exportujte podkladové entity (rizika/kontroly/nálezy) a odkažte na timestampy z Activity Logu
-- pro platform-level audit exporty použije platform admin admin console audit logy
-
-Nevkládejte celé diffy do neautorizovaných kanálů.
-
-## Časté chyby
-
-- Používat Activity Log místo opravy podkladové entity.
-- Hledat podle nestabilních termínů (přezdívky, neformální zkratky).
-- Nastavit příliš široký date range a „utopit se“ v šumu.
-- Sdílet log výřezy s citlivými daty mimo autorizovanou skupinu.
+Časté chyby vznikají ze starých filtrů, špatných záložek, nejasných jmen osob nebo příliš úzkého časového okna. Pokud něco vypadá špatně, nejdřív stránku obnovte a ověřte stejný výsledek ve filtrované timeline.
 
 ## Troubleshooting
 
-### Nemám přístup do `/activity-log`
+Pokud je stránka prázdná, vyčistěte filtry a hledejte známý název záznamu. Pokud stránka chybí v menu, vaše role pravděpodobně tuto oblast nezahrnuje. Pokud uložení selže, přečtěte zprávu, obnovte záznam a zkontrolujte, zda ho mezitím nezměnil někdo jiný.
 
-- Ověřte `activity_log:read`.
-- Ověřte, že nejste platform admin.
-- Pokud přístup mít máte, požádejte o revizi role a effective permissions.
+Pokud chybí navázaný záznam, nemusíte k němu mít přístup. Ptejte se na business název nebo kód, ne na technický identifikátor. Pro podporu uveďte roli, cestu v aplikaci, název záznamu, akci a přesné znění zprávy na obrazovce.
 
-### Log se načte, ale nevidím událost
+## Související manuály
 
-- Přepněte na správný tab.
-- Zkuste jiné search slovo (kód / safe label entity, jméno aktéra).
-- Rozšiřte date range o pár dní.
-- Pokud šlo o workflow, hledejte approval eventy místo entity update.
-
-### Vidím „network error“
-
-- Udělejte refresh.
-- Pokud problém trvá, uložte čas a chybovou hlášku a eskalujte na podporu.
-
-## Související dokumentace
-
-- `./notifications.md`
-- `./governance.md`
-- `./risks.md`
-- `./controls.md`
-- `./kris.md`
-- `./issues.md`
-- `./departments.md`
+Začněte s [Notifications](./notifications.md), [Risks](./risks.md), [Controls](./controls.md), [Issues](./issues.md), [Access Management](./access-management.md). Tyto manuály vysvětlují navázaná workflow a pomohou sledovat záznam od signálu přes akci až po evidenci.

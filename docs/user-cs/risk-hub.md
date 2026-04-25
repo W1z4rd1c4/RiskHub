@@ -1,6 +1,6 @@
 ---
 title: Risk Hub (konfigurační pracovní prostor pro CRO)
-version: "2.1"
+version: "2.4"
 last_updated: "2026-04-25"
 audience: user
 source_of_truth: "frontend/src/pages/RiskHubPage.tsx + frontend/src/components/riskhub/*"
@@ -13,283 +13,123 @@ tags:
   - notifications
   - troubleshooting
 ---
-
 # Risk Hub (konfigurační pracovní prostor pro CRO)
 
 **Na této stránce**
-- [Přehled](#prehled)
+- [S čím vám tato stránka pomůže](#s-čím-vám-tato-stránka-pomůže)
+- [Než začnete](#než-začnete)
 - [Kde to najdete](#kde-to-najdete)
-- [Role, scope a viditelnost](#role-scope-a-viditelnost)
-- [Datový model a klíčová pole](#datovy-model-a-klicova-pole)
-- [Hlavní workflow](#hlavni-workflow)
-- [Schvalování a notifikace](#schvalovani-a-notifikace)
-- [Filtry, pohledy a exporty](#filtry-pohledy-a-exporty)
-- [Časté chyby](#caste-chyby)
+- [Co můžete vidět a měnit](#co-můžete-vidět-a-měnit)
+- [Jak dokončit běžné úkoly](#jak-dokončit-běžné-úkoly)
+- [Schvalování a notifikace](#schvalování-a-notifikace)
+- [Vyhledávání, filtrování a evidence](#vyhledávání-filtrování-a-evidence)
+- [Tipy a časté chyby](#tipy-a-časté-chyby)
 - [Troubleshooting](#troubleshooting)
-- [Související dokumentace](#souvisejici-dokumentace)
+- [Související manuály](#související-manuály)
 
-## Přehled
+## S čím vám tato stránka pomůže
 
-Risk Hub je konfigurační pracovní prostor pro CRO. Existuje proto, že některé změny jsou *policy-level* rozhodnutí, ne běžné denní editace záznamů.
+Tento manuál použijte, když potřebujete spravovat business nastavení pro klasifikaci rizik, dotazníky, role, oddělení a provozní očekávání. Je určen pro CRO uživatele nastavující business pravidla risk managementu, proto popisuje praktický postup v aplikaci: kde začít, co ověřit před akcí a jak poznat, že je práce dokončená.
 
-V Risk Hubu můžete:
+Text není technická reference. Vysvětluje běžný provozní postup: začít ve správné Risk Hub záložce, ověřit konfiguraci nebo dotazníkovou položku, provést nejmenší užitečnou změnu a zkontrolovat uložený stav v panelu.
 
-- definovat taxonomii „risk types“, která se používá napříč UI
-- spravovat systémová nastavení (thresholdy, approvals, notifications)
-- konfigurovat schvalovací scénáře a role schvalovatelů
-- spravovat role a balíčky oprávnění
-- spravovat oddělení pro routing a reporting
-- odesílat risk dotazníky hromadně (risk assessment workflow)
+Tuto oblast budete používat hlavně pro:
 
-Hlavní route: `/risk-hub`
+- typy rizik
+- dotazníky
+- role
+- oddělení
+- konfigurační panely
+- odeslání dotazníku
 
-Berte Risk Hub jako „konfiguraci s blast radius“. I malá změna může ovlivnit dashboardy, scoring a objem workflow žádostí.
+## Než začnete
+
+Před prací si ověřte tři věci. Zaprvé, že jste přihlášeni rolí, se kterou běžně pracujete. Zadruhé, že staré filtry neskrývají očekávaná data. Zatřetí, že na záznamu už nečeká práce ve Schvalování nebo Notifikacích.
+
+Pokud tlačítko nebo záložka chybí, berte to jako běžný signál přístupu, ne jako chybu. RiskHub zobrazuje akce podle vaší role, rozsahu, ownership a aktuálního stavu záznamu. Když akce není dostupná, požádejte vlastníka záznamu nebo správce přístupů o kontrolu.
+
+Pro podporu mějte připravený název záznamu, kód, vlastníka a oddělení. Tyto údaje výrazně zrychlují komunikaci.
 
 ## Kde to najdete
 
-- položka **Risk Hub** → `/risk-hub`
+Primární cesta: `/risk-hub`
 
-Pokud Risk Hub nevidíte:
+Většinou se sem dostanete z levého menu. Risk Hub je workspace se záložkami pro konfigurační panely a dotazníková workflow. Práce zůstává v aktivní záložce, řádku, modálu nebo dotazníkové akci.
 
-- Risk Hub je viditelný pouze pro roli CRO
-- pokud se považujete za CRO a přístup nemáte, ověřte role assignment a re-authenticate
+Běžný postup navigace:
 
-## Role, scope a viditelnost
+1. Otevřete Risk Hub.
+2. Vyberte relevantní záložku: typy rizik, nastavení, schvalovací pravidla, role, oddělení nebo dotazníky.
+3. Vyčistěte filtry nebo vyhledávání tam, kde je panel nabízí.
+4. Otevřete řádek, modál nebo dotazníkovou akci, kterou panel nabízí.
+5. Před odchodem ze záložky ověřte uložený stav.
 
-Risk Hub je záměrně restriktivní:
+## Co můžete vidět a měnit
 
-- CRO role typicky pracuje cross-department governance
-- konfigurační změny mají dopad na mnoho uživatelů a mění chování approvals a notifications
+Viditelnost závisí na roli, rozsahu oddělení a ownership. Uživatel se širší review odpovědností může vidět více záznamů než uživatel jednoho oddělení. Vlastník záznamu může mít možnost jednat i mimo svůj běžný pohled.
 
-Před změnou si odpovězte:
+Typické informace v této oblasti:
 
-- Koho to ovlivní?
-- Co se změní v jejich workflow zítra ráno?
-- Jaké ověření prokáže, že změna udělala přesně to, co chceme?
+- Risk type labels
+- Šablony dotazníků
+- Assignee
+- Reviewer
+- Názvy rolí
+- Názvy oddělení
+- Stav a termíny
 
-Pokud konfiguraci delegujete, použijte jasné předání:
+Změny mají být praktické a snadno vysvětlitelné. Pokud změna ovlivňuje ownership, scoring, uzavření, archivaci nebo jiné citlivé údaje, počítejte v některých prostředích s review krokem. Uživatelé jen pro čtení mohou stránku používat pro kontrolu, filtrování a evidenci.
 
-- cílový výsledek
-- rollback plán
-- verification checklist (viz níže)
+## Jak dokončit běžné úkoly
 
-## Datový model a klíčová pole
+Pokud váš tým nemá přísnější postup, použijte tento základní workflow:
 
-Risk Hub je rozdělený do tabů. Následující tabulka je praktická pomůcka.
+1. Zkontrolovat taxonomii rizik.
+2. Odeslat dotazníky vlastníkům.
+3. Sledovat stav dotazníků.
+4. Řešit upřesnění.
+5. Udržovat smysl rolí.
+6. Čistit ownership oddělení.
 
-| Tab | Klíčová pole | Co ovlivňuje | Časté chyby |
-|---|---|---|---|
-| Risk types | `code`, `display_name`, `description`, `color`, `sort_order`, active/deleted | Taxonomie v registru rizik, groupování, badge | Rename bez komunikace; nekonzistentní code; příliš mnoho typů. |
-| System settings | config `key`, `value`, `value_type` (bool/int/string), min/max, editable | Threshold chování, tuning approvals/notifications | „Ladění pocitem“ bez baseline. |
-| Approval rules | scénář `key`, `requires_approval`, `approver_roles` (včetně speciální role `risk_owner`) | Objem workflow a kdo schvaluje | Zrušení approvals bez náhrady; špatně nastavené role schvalovatelů. |
-| Roles | role `name`, `display_name`, `description`, permissions (`resource:action`) | Enforcement přístupu napříč moduly | Příliš široká oprávnění; role proliferace; nejasný účel. |
-| Departments | `name`, `code`, `manager`, active/deleted | Routing, scope, reporting | Změna kódů rozbije kontinuitu; chybí manager. |
-| Questionnaires | filtry (department/process/category/status), jména ownerů, select all vs selected IDs, výsledky batch-send | Tlak na risk assessment a inbox | Odeslání bez ownerů; příliš široký scope; ignorování „skipped“ nebo existujících otevřených dotazníků. |
+Po uložení nebo odeslání ověřte výsledek ve stejném Risk Hub panelu a v očekávané notifikaci nebo stavu dotazníku. Pokud stránka hlásí, že položku mezitím změnil někdo jiný, obnovte panel a znovu posuďte aktuální řádek.
 
-## Hlavní workflow
-
-### 1) Údržba taxonomie risk typů (Risk Types)
-
-Dobrá taxonomie je stabilní a minimální.
-
-Doporučený proces:
-
-1. Projděte existující typy a ověřte, že každý má jasný význam.
-2. Nový typ přidejte jen při reálné reporting/governance potřebě.
-3. `code` berte jako stabilní identifikátor (lowercase + underscore).
-4. `display_name` je user-facing label.
-5. Barvy vybírejte tak, aby pomáhaly kategorii, ne aby simulovaly „severity“.
-6. `sort_order` drží UI stabilní.
-
-Při deprecaci typu:
-
-- preferujte delete/inactive místo „přejmenování na něco jiného“
-- komunikujte změnu a aktualizujte návody, které používají staré názvy
-
-### 2) Bezpečná změna systémových nastavení (System Settings)
-
-Nastavení jsou často seskupená (např. thresholds, approvals, notifications).
-
-Safe-change protokol:
-
-1. Identifikujte přesný `key`.
-2. Zapište si aktuální hodnotu.
-3. Definujte cílovou hodnotu a „proč“.
-4. Uložte co nejmenší změnu.
-5. Ověřte chování v impacted modulu.
-
-Příklady ověření:
-
-- thresholds: riziko/KRI překročí limit a UI to správně reflektuje
-- notifications: vznikne očekávaná notifikace (ne 10 navíc)
-- approvals: citlivá změna vytvoří žádost a objeví se v `/approvals`
-
-### 3) Konfigurace schvalovacích scénářů (Approval Rules)
-
-Schvalovací scénáře definují:
-
-- zda akce vyžaduje schválení
-- které role mohou schválit
-
-Dobrá governance není „schvalování všude“. Je to schvalování pro akce s reálným policy dopadem.
-
-Doporučení:
-
-1. Nechte approvals zapnuté pro změny ownership/oddělení/scoringu, pokud nemáte zdokumentovanou alternativní kontrolu.
-2. Používejte approver role, které odpovídají odpovědnosti.
-3. Speciální dynamickou roli `risk_owner` používejte, když má schvalovat owner rizika (a dovolují to pravidla konfliktu zájmů).
-4. Vyhněte se stavu „žádní schvalovatelé“: generuje zaseknuté žádosti.
-
-Po změně scénáře vždy otestujte end-to-end (vytvořte žádost a schvalte/odmítněte).
-
-### 4) Správa rolí a oprávnění (Roles)
-
-Role jsou balíčky oprávnění.
-
-Doporučený model:
-
-- držte počet rolí nízký
-- každá role musí mít jasný popis (k čemu je a k čemu není)
-- dávejte minimum oprávnění
-
-Permissions jsou ve tvaru `resource:action` (např. `vendors:read`, `issues:write`).
-
-Před uložením změny role:
-
-- sepište, které moduly budou nově viditelné
-- sepište, které write akce budou možné
-- ověřte, zda se tím mění governance povrchy (risk hub, governance, users access mód)
-
-Při odebrání oprávnění:
-
-- komunikujte to (uživatelé to vnímají jako „aplikace se rozbila“)
-- nabídněte alternativní workflow, pokud je potřeba
-
-### 5) Správa oddělení (Departments)
-
-Oddělení ovlivňují reporting a routing.
-
-Safe proces:
-
-1. Vytvořte oddělení se stabilním `code`.
-2. Nastavte managera, pokud to dává smysl.
-3. Neměňte kódy bez migračního plánu.
-4. Pokud oddělení deaktivujete, ověřte dopad na:
-   - rizika/kontroly přiřazené do oddělení
-   - uživatele přiřazené do oddělení
-   - groupování dashboardu
-
-### 6) Hromadné odesílání risk dotazníků (Questionnaires)
-
-Dotazníky jsou strukturovaný „risk assessment request“ workflow.
-
-Batch send má dva módy:
-
-- **Select all**: odešle všem rizikům odpovídajícím filtrům
-- **Selected IDs**: odešle jen vybraným rizikům
-
-Doporučený postup:
-
-1. Nastavte filtry (department/process/category/status).
-2. Ověřte, že rizika mají ownera (jinak uvidíte `skipped_no_owner`).
-3. Pro high-stakes cykly preferujte „Selected IDs“ (méně rizika spamu).
-4. Odešlete.
-5. Projděte výsledky:
-   - created count
-   - skipped (no owner)
-   - skipped (open exists)
-   - errors
-6. Udělejte follow-up na skipped položky (nastavte ownera nebo zavřete existující dotazník).
-
-Dotazníky se promítají do workflow badge a do `/approvals` (risk assessment tab).
-
-Důležité chování dotazníků:
-
-- jedno riziko může mít současně jen jeden otevřený dotazník (`sent` nebo `in_progress`)
-- single-send i batch-send používají stejná pravidla pro přeskočení chybějícího ownera a existujícího otevřeného dotazníku
-- tabulka zobrazuje jména ownerů; `Unknown user` znamená, že label ownera nejde rozpoznat a je vhodné ho před odesláním zkontrolovat
-- dostupné akce pro assignee a reviewery řídí backend capabilities, ne lokální domněnka podle role v prohlížeči
-- clarification request zadává reviewer a odpovědět může assignee dotazníku
-
-Role a oddělení:
-
-- změny permissions u role jsou atomické; pokud je některé vybrané permission neplatné, backend odmítne save a ponechá aktuální permission set
-- department manager musí být active user
-- smazání oddělení je blokované, dokud oddělení stále vlastní active users, risks, controls, KRIs, vendors nebo pending orphan records
-- tlačítka pro role a oddělení používají backend capability metadata, pokud jsou dostupná; dostupnost edit/delete/restore nemá rozhodovat stale stav v prohlížeči
+Při nastavování pravidel, rolí, oddělení nebo dotazníků vybírejte změny, které dávají smysl dalšímu reviewerovi a odpovídají skutečnému business vztahu.
 
 ## Schvalování a notifikace
 
-Změny v Risk Hubu jsou governance změny.
+Změny v Risk Hubu mohou ovlivnit mnoho lidí. Dělejte soustředěné úpravy, kontrolujte viditelný dopad a sledujte Schvalování nebo Notifikace u citlivých změn.
 
-Očekávejte:
+Poznámky ke schválení mají vysvětlit business důvod. Dobrá poznámka říká, co se změnilo, proč je to správně a jaký důkaz změnu podporuje. Notifikace jsou připomínky a navigace; Risk Hub panely a Activity Log ukazují aktuální kontext.
 
-- rychlý dopad na UI chování (taxonomie, thresholds)
-- dopad na workflow (více/méně schvalovacích žádostí)
-- notifikace a audit trail pro významné změny
+Pokud je schválení stale nebo zamítnuté, neposílejte hned stejnou změnu znovu. Otevřete relevantní Risk Hub panel, porovnejte aktuální stav se záměrem a odešlete novou úzkou změnu jen tehdy, pokud je stále potřeba.
 
-Když se změna nechová podle očekávání:
+## Vyhledávání, filtrování a evidence
 
-- zkontrolujte `/activity-log` pro záznam konfigurace
-- ověřte scénář reálnou uživatelskou akcí, která má spustit očekávané chování
-- pokud se approvals nevytváří, prověřte konfiguraci scénářů
-- pokud se zdá, že questionnaire reminder byl potlačen, ověřte, zda jde o stejnou instanci dotazníku; nové instance se deduplikují samostatně
+Používejte souhrny Risk Hubu, stavové tabulky a pohledy na dotazníky pro provozní review. Risk Hub je konfigurační workspace a nemá obecné exportní tlačítko.
 
-Fronty jsou detailně popsané v: `./notifications.md`.
+Pro spolehlivý výsledek postupujte takto:
 
-## Filtry, pohledy a exporty
+1. Otevřete relevantní konfigurační panel nebo pohled na dotazníky.
+2. Najděte roli, oddělení, typ rizika nebo batch dotazníků, který potřebujete.
+3. Před změnou otevřete relevantní řádek, modál nebo dotazníkovou akci.
+4. Ověřte uložený stav a případné notifikace vytvořené workflow.
 
-Risk Hub používá „show deleted/inactive“ přepínače v některých tabech.
+Pro formální evidenci použijte historii dotazníku, uložený stav panelu nebo Activity Log místo očekávání exportu přímo z Risk Hubu.
 
-Doporučení:
+## Tipy a časté chyby
 
-- běžně nechávejte deleted položky skryté (méně omylů)
-- zapínejte je jen při obnově nebo vyšetřování
+- Názvy rolí mají být srozumitelné business uživatelům.
+- Dotazníky neposílejte bez jasných vlastníků a termínů.
+- U neúplné odpovědi žádejte upřesnění místo příliš rychlého zamítnutí.
 
-Exporty nejsou primární povrch. Pro evidence:
-
-- použijte Activity Log pro důkaz změny konfigurace
-- exportujte dotčené entity z jejich modulů (rizika, kontroly, nálezy)
-
-## Časté chyby
-
-- Změna taxonomie (risk types) během aktivního reportovacího cyklu bez komunikace.
-- Vypnutí approvals pro „snížení frikce“ a ztráta klíčové kontroly.
-- Přidávání rolí pro jednorázové případy místo promyšlené změny permissions.
-- Hromadné odeslání dotazníků příliš široce (inbox spam a ztráta důvěry).
-- Nastavení jako „experiment playground“ bez baseline a rollback.
+Časté chyby vznikají ze starých dat panelu, nejasného ownership, podobných názvů nebo příliš široké změny. Pokud něco vypadá špatně, nejdřív stránku obnovte a ověřte stejný výsledek v aktivním panelu.
 
 ## Troubleshooting
 
-### Nemám přístup do `/risk-hub`
+Pokud je stránka prázdná, vyčistěte filtry a hledejte známý název záznamu. Pokud stránka chybí v menu, vaše role pravděpodobně tuto oblast nezahrnuje. Pokud uložení selže, přečtěte zprávu, obnovte záznam a zkontrolujte, zda ho mezitím nezměnil někdo jiný.
 
-- Risk Hub je CRO-only. Ověřte roli.
-- Odhlaste/přihlaste pro refresh role.
+Pokud chybí navázaný záznam, nemusíte k němu mít přístup. Ptejte se na business název nebo kód, ne na technický identifikátor. Pro podporu uveďte roli, cestu v aplikaci, název záznamu, akci a přesné znění zprávy na obrazovce.
 
-### Změna se neprojevuje
+## Související manuály
 
-- Udělejte refresh.
-- Ověřte, zda není síťová chyba.
-- Použijte `/activity-log` (pokud máte přístup) pro potvrzení záznamu.
-
-### Dotazníky se „skippují"
-
-- `skipped_no_owner`: přiřaďte ownera rizikům a odešlete znovu.
-- `skipped_open_exists`: uzavřete nebo vyřešte existující otevřené dotazníky.
-
-### Schvalování je po změně scénáře zaseknuté
-
-- Ověřte, že jsou nastavené approver role.
-- Ověřte, že existuje uživatel s touto rolí a potřebnými oprávněními.
-- Pokud je to zaseknuté, vraťte scénář zpět a znovu otestujte.
-
-## Související dokumentace
-
-- `./notifications.md`
-- `./risks.md`
-- `./kris.md`
-- `./controls.md`
-- `./issues.md`
-- `./departments.md`
-- `./access-management.md`
-- `./activity-log.md`
+Začněte s [Risks](./risks.md), [Notifications](./notifications.md), [Governance](./governance.md), [Access Management](./access-management.md), [Departments](./departments.md). Tyto manuály vysvětlují navázaná workflow a pomohou sledovat záznam od signálu přes akci až po evidenci.

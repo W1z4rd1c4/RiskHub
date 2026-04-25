@@ -3,14 +3,16 @@
 ## Purpose
 
 UI components for `documentation` area.
+This folder owns markdown rendering and reader presentation helpers for in-app manuals/runbooks.
 
 ## Contents
 
 - `__tests__/`
 - `contentFormatting.ts`
+- `documentationPresentation.ts`
 - `DocumentationMarkdown.tsx`
 - `index.ts`
 
 ## Notes
 
-Keep this README updated when responsibilities or structure in this folder change.
+User-audience documents should read like task manuals. Keep maintainer-only metadata display rules in `documentationPresentation.ts` so settings-embedded docs and the full documentation page stay consistent.

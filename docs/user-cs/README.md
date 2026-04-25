@@ -1,6 +1,6 @@
 ---
-title: Uživatelská dokumentace RiskHub
-version: "2.3"
+title: Uživatelský manuál RiskHub
+version: "2.4"
 last_updated: "2026-04-25"
 audience: user
 source_of_truth: "docs/BUSINESS_LOGIC.md"
@@ -14,188 +14,92 @@ tags:
   - troubleshooting
   - settings
 ---
-
-# Uživatelská dokumentace RiskHub
-
-Zpět na strom dokumentace: <a href="../DOCUMENTATION_TREE.md">docs/DOCUMENTATION_TREE.md</a>
-
-Tato knihovna je produkční manuál pro všechny ne-admin role. Je napsaná pro reálnou práci: co dělat, kde to dělat a jak rychle diagnostikovat situace typu „nic se nezměnilo“, „nevidím modul“ nebo „nevím, kdo to upravil“.
+# Uživatelský manuál RiskHub
 
 **Na této stránce**
-- [Kdo má tuto knihovnu používat](#kdo-ma-tuto-knihovnu-pouzivat)
-- [Co můžete od manuálů čekat](#co-muzete-od-manualu-cekat)
-- [Rychlý start (30 minut)](#rychly-start-30-minut)
-- [Mapa dokumentace (podle modulu v menu)](#mapa-dokumentace-podle-modulu-v-menu)
-- [Mapa dokumentace (podle workflow)](#mapa-dokumentace-podle-workflow)
-- [Jak fungují oprávnění a scope](#jak-funguji-opravneni-a-scope)
-- [Jak fungují odkazy v manuálech](#jak-funguji-odkazy-v-manualech)
-- [Tagy a rychlé filtrování v knihovně](#tagy-a-rychle-filtrovani-v-knihovne)
-- [Jak hlásit problém v dokumentaci](#jak-hlasit-problem-v-dokumentaci)
-- [Politika změn a zdroj pravdy](#politika-zmen-a-zdroj-pravdy)
-- [Související dokumentace](#souvisejici-dokumentace)
+- [Pro koho je tento manuál](#pro-koho-je-tento-manual)
+- [Začněte tady](#zacnete-tady)
+- [Manuály podle oblasti](#manualy-podle-oblasti)
+- [Manuály podle úkolu](#manualy-podle-ukolu)
+- [Jak vaše role ovlivňuje zobrazení](#jak-vase-role-ovlivnuje-zobrazeni)
+- [Jak používat čtečku manuálů](#jak-pouzivat-ctecku-manualu)
+- [Jak vyhledávat a filtrovat manuály](#jak-vyhledavat-a-filtrovat-manualy)
+- [Jak požádat o pomoc](#jak-pozadat-o-pomoc)
+- [Co se nedávno změnilo](#co-se-nedavno-zmenilo)
+- [Související manuály](#souvisejici-manualy)
 
-## Kdo má tuto knihovnu používat
+## Pro koho je tento manuál
 
-Použijte tuto knihovnu, pokud máte některou z těchto rolí:
+Tento manuál je pro běžné uživatele RiskHubu: vlastníky rizik, vlastníky kontrol, reportery KRI, vedoucí oddělení, CRO týmy, reviewery a uživatele jen pro čtení. Vysvětluje používání produktu, ne jeho technické provedení.
 
-- CRO
-- Risk Manager
-- Department Head
-- Employee
-- Compliance, Legal, Internal Audit, Actuarial
-- Viewer (pouze čtení)
+Použijte ho, když potřebujete vědět kam jít, co stisknout, co ověřit před akcí a jak výsledek vysvětlit další osobě. Platform administrátoři mají samostatné admin runbooky.
 
-Pokud jste platformní administrátor (role `admin`), v in-app čtečce uvidíte jinou knihovnu. Tato sada je záměrně zaměřená na business provoz, ne na správu platformy. U admina je očekávané, že business routy jako `/governance` a `/activity-log` zůstanou nedostupné.
+## Začněte tady
 
-## Co můžete od manuálů čekat
+Pokud jste noví, přečtěte [Začínáme](./getting-started.md), potom otevřete [Dashboard](./dashboard.md), [Správa rizik](./risks.md), [Správa kontrol](./controls.md) a [KRI](./kris.md). Potom si projděte [Notifikace a schvalování](./notifications.md), abyste věděli, proč některé změny čekají na review.
 
-Každý modulový manuál v `docs/user/*.md` je navržený tak, aby odpověděl na stejné provozní otázky:
+Dobrá první session je jednoduchá: ověřte profil, otevřete očekávané oblasti v menu, vyčistěte filtry, otevřete známý záznam a zkontrolujte vazby a aktivitu.
 
-- **K čemu to je?** (proč modul existuje)
-- **Kde to najdu?** (route a navigace)
-- **Proč to nevidím?** (oprávnění a scope)
-- **Která pole jsou klíčová?** (co je v praxi důležité)
-- **Jak udělám nejčastější úkoly end-to-end?** (postupy krok za krokem)
-- **Co se děje, když je potřeba schválení?** (a kde to sledovat)
-- **Jak exportovat důkazy bezpečně?**
-- **Jaké jsou typické chyby a rychlé opravy?**
+První týden používejte hlavně k vytvoření správných návyků. Při otevření záznamu si před změnou přečtěte vlastníka, oddělení, stav, navázané záznamy a poslední aktivitu. Po uložení zůstaňte na stránce dost dlouho na to, abyste viděli, zda se změna použila hned, nebo šla do review. Tím předejdete většině duplicitních úprav a zbytečných support požadavků.
 
-Manuály jsou **text-first** (bez screenshotů), aby byly udržitelné a přesné v čase i napříč jazyky.
+## Manuály podle oblasti
 
-## Rychlý start (30 minut)
+- [Dashboard](./dashboard.md): aktuální posture a reporting signály.
+- [Rizika](./risks.md): registr rizik a evidence.
+- [Kontroly](./controls.md): mitigation kontroly a provedení.
+- [KRI](./kris.md): indikátory, hodnoty a warning signály.
+- [Nálezy](./issues.md): remediation, výjimky a uzavření.
+- [Dodavatelé](./vendors.md): třetí strany a navázaná práce.
+- [Oddělení](./departments.md): expozice podle organizační oblasti.
+- [Governance](./governance.md): chybějící ownership nebo kontext.
+- [Správa přístupů](./access-management.md): uživatelé, adresář a lifecycle účtů.
+- [Activity Log](./activity-log.md): kdo co změnil a kdy.
+- [Risk Hub](./risk-hub.md): business nastavení risk managementu.
 
-Pokud jste v RiskHubu nový/á, toto pořadí vás rychle dostane do provozu:
+## Manuály podle úkolu
 
-1. Začněte [Začínáme](./getting-started.md) a projděte checklist prvního přihlášení.
-2. Otevřete tři hlavní provozní moduly:
-   - [Dashboard](./dashboard.md) (signály a souhrn)
-   - [Rizika](./risks.md) (registr)
-   - [Kontroly](./controls.md) (mitigace a evidence exekuce)
-3. Pochopte workflow:
-  - [Workflow, schvalování, notifikace](./notifications.md)
-  - risk dotazníky přes [Risk Hub](./risk-hub.md) a approvals inbox
-4. Pokud monitorujete metriky:
-   - [KRI](./kris.md)
-5. Pokud sledujete nálezy/remediace:
-   - [Nálezy (Issues)](./issues.md)
-6. Pokud řešíte third-party:
-   - [Dodavatelé](./vendors.md)
+Pokud nevidíte stránku, začněte [Začínáme](./getting-started.md) a [Správa přístupů](./access-management.md). Pokud se změna neprojevila, čtěte [Notifikace a schvalování](./notifications.md). Pokud potřebujete evidenci, použijte [Dashboard](./dashboard.md), [Activity Log](./activity-log.md) a manuál pro příslušný typ záznamu.
 
-[FAQ](./faq.md) držte otevřené jako rychlou referenci pro nejčastější blokery.
+U dodavatelské práce začněte [Dodavatelé](./vendors.md), potom pokračujte na rizika, kontroly, KRI nebo nálezy. U dotazníků začněte [Risk Hub](./risk-hub.md), pokud je posíláte nebo reviewujete, a [Správa rizik](./risks.md), pokud odpovídáte z detailu rizika.
 
-## Mapa dokumentace (podle modulu v menu)
+## Jak vaše role ovlivňuje zobrazení
 
-Tato tabulka mapuje položky v menu na kanonický manuál.
+RiskHub ukazuje stránky, záznamy, tlačítka a záložky podle role, rozsahu oddělení, ownership a aktuálního stavu záznamu. Chybějící tlačítko často znamená, že akce teď není dostupná. Chybějící záznam často znamená, že je potřeba zkontrolovat filtry nebo rozsah.
 
-| Modul / oblast | Route | Kanonický manuál | Co se naučíte | Tagy |
-|---|---:|---|---|---|
-| Dashboard | `/` | [Dashboard](./dashboard.md) | Trendy, signály tlaku a exportovatelné pohledy | `overview`, `exports`, `audit` |
-| Schvalování + Notifikace | `/approvals`, `/notifications` | [Workflow, schvalování, notifikace](./notifications.md) | Životní cyklus schválení, „pending change“ chování a jak se neblokovat | `workflow`, `approvals`, `notifications` |
-| Kontroly | `/controls` | [Správa kontrol](./controls.md) | Návrh kontroly, ownership, evidence exekuce, grouped `By Vendor` review a export | `controls`, `workflow`, `exports` |
-| Rizika | `/risks` | [Správa rizik](./risks.md) | Hygiena registru, scoring, ownership, vazby a grouped `By Vendor` review | `risks`, `workflow`, `approvals` |
-| Nálezy (pokud jsou zapnuté) | `/issues` | [Správa nálezů](./issues.md) | Remediace, validace dokončení, výjimky, vazby na rizika/kontroly/dodavatele, disciplína uzavírání a grouped `By Vendor` review | `issues`, `workflow`, `exports` |
-| KRI | `/kris` | [Správa KRI](./kris.md) | Limity, periodický zápis hodnot, korekce historie, přiřazení dodavatelů, breach signály, vendor linkage a grouped `By Vendor` review | `kri`, `notifications`, `exports` |
-| Dodavatelé (pokud jsou zapnutí) | `/vendors` | [Správa dodavatelů](./vendors.md) | Základní registr dodavatelů, grupování `By Flag`, navázaná rizika/kontroly/KRI, create-from-vendor workflow pro rizika, kontroly a KRI a exporty | `vendors`, `workflow`, `exports` |
-| Oddělení | `/departments` | [Oddělení](./departments.md) | Expozice podle org jednotek, drill-down a odpovědnosti | `departments`, `workflow`, `exports` |
-| Governance (jen CRO, ne-admin) | `/governance` | [Governance](./governance.md) | Orphans, ownership mezery a jejich řešení | `governance`, `audit`, `troubleshooting` |
-| Activity Log (permission-gated, ne-admin) | `/activity-log` | [Activity Log](./activity-log.md) | „Kdo změnil co“, časová osa, auditní evidence | `activity-log`, `audit`, `exports` |
-| Uživatelé / přístupy (role-gated) | `/users` | [Správa přístupů](./access-management.md) | Interpretace rolí/scope a kontrola přístupů | `access`, `audit`, `settings` |
-| Risk Hub (CRO only) | `/risk-hub` | [Risk Hub](./risk-hub.md) | Konfigurační koncepty, batch odesílání dotazníků a bezpečné provozní vzory | `riskhub`, `settings`, `approvals` |
-| Nastavení | `/settings` | [Začínáme](./getting-started.md) | Preference (jazyk/téma) a navigace v dokumentaci | `settings`, `onboarding`, `workflow` |
+Nepoužívejte screenshot jiného uživatele jako důkaz, že vaše obrazovka je chybná. Různí uživatelé mohou správně vidět různá data. Vždy porovnejte název záznamu, vlastníka, oddělení, stav a filtry.
 
-## Mapa dokumentace (podle workflow)
+Role neovlivňuje jen to, zda stránka existuje v menu. Může ovlivnit také zobrazené řádky, viditelnost navázaných záznamů, dostupnost archivace nebo obnovení a dostupnost workflow akce v daný okamžik. Záznam se také může objevit nebo zmizet, pokud se změní ownership, oddělení, stav nebo navázaný kontext.
 
-Pokud se chcete učit podle úkolů, použijte tento index:
+## Jak používat čtečku manuálů
 
-- „Nevidím modul / route, kterou mám mít“:
-  - začněte [Začínáme](./getting-started.md#role-scope-a-viditelnost)
-  - pak [Správa přístupů](./access-management.md#troubleshooting)
-- „Uložil/a jsem změnu, ale neprojevila se“:
-  - [Workflow, schvalování, notifikace](./notifications.md#schvalovani-a-notifikace)
-- „Založit kvalitní riziko rychle“:
-  - [Správa rizik](./risks.md#hlavni-workflow)
-- „Zapsat evidence exekuce kontroly“:
-  - [Správa kontrol](./controls.md#hlavni-workflow)
-- „Zapsat hodnotu KRI a pochopit schvalování“:
-  - [Správa KRI](./kris.md#hlavni-workflow)
-- „Založit nález provázaný s rizikem/kontrolou“:
-  - [Správa nálezů](./issues.md#hlavni-workflow)
-- „Vyexportovat auditní balíček“:
-  - [Dashboard](./dashboard.md#filtry-pohledy-a-exporty)
-  - [Správa dodavatelů](./vendors.md#filtry-pohledy-a-exporty)
-  - [Activity Log](./activity-log.md#filtry-pohledy-a-exporty)
-- „Zjistit, kdo a kdy něco změnil“:
-  - [Activity Log](./activity-log.md)
+Otevřete kartu manuálu, použijte seznam sekcí nahoře a pokračujte odkazy na související manuály. Cesty jako `/risks` jsou uvedené jen tehdy, když pomáhají s navigací. Čtečka je navržená pro pracovní postup: přečíst sekci, provést akci a vrátit se k souvisejícímu manuálu, pokud práce přechází mezi moduly.
 
-## Jak fungují oprávnění a scope
+Manuály se záměrně vyhýbají implementačním detailům. Pokud potřebujete provozní nebo platform podporu, použijte admin runbooky nebo kontaktujte platform administrátora.
 
-Většina problémů typu „chybí mi funkcionalita“ je způsobená jedním z těchto faktorů:
+Každý manuál má stejný tvar, abyste se v něm rychle orientovali: s čím stránka pomůže, co ověřit před začátkem, kde ji najít, co můžete vidět nebo měnit, běžné úkoly, schvalování, exporty, časté chyby, troubleshooting a související manuály. Jakmile se naučíte jednu stránku, ostatní budou působit podobně.
 
-1. **Oprávnění**: chybí `resource:action` (např. `vendors:read`).
-2. **Scope**: omezuje defaultní viditelnost (`global`, `department`, `manager`).
-3. **Ownership výjimka**: ownership může rozšířit viditelnost mimo department scope pro konkrétní záznam.
+## Jak vyhledávat a filtrovat manuály
 
-Praktická pravidla:
+Tagy používejte pro zúžení knihovny podle tématu. Začněte filtrem All, potom vyberte modul jako risks, controls, vendors nebo access. Pro auditní práci kombinujte modulové manuály s Activity Logem a Notifikacemi.
 
-- Pokud položka v menu úplně chybí (např. Nálezy), ověřte oprávnění.
-- Pokud položka existuje, ale seznam je prázdný, ověřte scope a filtry.
-- Pokud detail otevřete přes odkaz, ale záznam nemůžete najít v seznamu, je to často scope hranice + ownership výjimka.
-- Pokud jste přihlášení jako platform admin, chybějící business moduly jsou očekávané. Používejte admin knihovnu dokumentace a plochy pod `/admin`.
+Na stránce hledejte business slova: owner, approval, export, vendor, questionnaire, break-glass, closure nebo evidence. Technické identifikátory používejte jen tehdy, když si je výslovně vyžádá podpora.
 
-## Jak fungují odkazy v manuálech
+## Jak požádat o pomoc
 
-Manuály používají deterministická pravidla, aby se odkazy chovaly předvídatelně:
+Užitečný požadavek obsahuje vaši roli, cestu v aplikaci, název nebo kód záznamu, použité filtry, provedenou akci, přesnou zprávu na obrazovce a čas. Pokud se věc týká schvalování, uveďte, zda jste kontrolovali Schvalování a Notifikace.
 
-- [Začínáme](./getting-started.md) otevře jiný manuál v rámci čtečky.
-- Příklady aplikačních route zapisujte jako kód, například: `` `/approvals` ``.
-- `[#anchor](#heading-id)` posune v rámci aktuální stránky.
-- Externí odkazy jsou `https://...` a otevřou se v novém tabu.
+Sdílejte jen nezbytné důkazy. Pokud screenshot obsahuje osobní nebo citlivé business informace, ořízněte ho na relevantní část a použijte schválený kanál.
 
-Pokud odkaz vede jinam, než čekáte, berte to jako bug v dokumentaci a nahlaste jej (viz níže).
+U opakovaných problémů si zapište přesné kroky, které jste provedli. Uveďte, zda se chování opakuje po obnově stránky, zda ho vidí i jiný uživatel a zda má záznam čekající schválení nebo notifikace. Podpoře to pomůže rozlišit skutečný produktový problém od starého filtru, chybějícího přístupu nebo rozpracovaného workflow.
 
-## Tagy a rychlé filtrování v knihovně
+Když si nejste jistí, začněte vždy od business otázky: který záznam hledám, proč ho potřebuji změnit, kdo je vlastník a jaký důkaz má po změně zůstat. Tato jednoduchá kontrola funguje napříč riziky, kontrolami, KRI, dodavateli i nálezy.
 
-Knihovna dokumentace podporuje rychlé filtrování přes tagy.
+## Co se nedávno změnilo
 
-Doporučený postup:
+Manuály nyní popisují aktuální chování RiskHubu: adresářové lifecycle akce uživatelů, dočasný break-glass pro způsobilé externí účty, vazby mezi riziky/kontrolami/KRI/dodavateli, compare a upřesnění u dotazníků, bezpečné governance řešení, dostupnost snapshotů v quarterly comparison a srozumitelnější chování log settings v admin konzoli.
 
-1. začněte `All` a podívejte se, co existuje,
-2. filtrujte podle modulu (např. `risks`, `controls`, `vendors`),
-3. přidejte workflow tag (např. `approvals`, `exports`) pro zúžení na konkrétní typ úkolu.
+Změnil se také jazyk. Místo technické reference jde o uživatelský manuál, který pomáhá dokončit práci bez znalosti interní implementace.
 
-Pokud řešíte audit/evidence, často funguje nejlépe:
+## Související manuály
 
-- filtrovat `audit`
-- a pak přidat `exports` nebo konkrétní modul
-
-## Jak hlásit problém v dokumentaci
-
-Při hlášení problému přidejte kontext pro reprodukci:
-
-- název manuálu + sekce (nebo URL hash, pokud je vidět)
-- target odkazu, na který jste klikli
-- vaše role a scope (global/department/manager)
-- zda jste měli angličtinu nebo češtinu
-
-Pokud je problém „chování je špatně“, doplňte:
-
-- očekávané chování (1 věta)
-- pozorované chování
-- text chybové hlášky (pokud je)
-
-## Politika změn a zdroj pravdy
-
-Dokumentace je produktová plocha:
-
-- Manuály jsou verzované a mají timestamp (`version`, `last_updated`).
-- `source_of_truth` ukazuje na kanonický kód nebo kapitolu business logiky.
-- Čeština a angličtina se drží v parity (názvy souborů i intent).
-
-Pokud manuál neodpovídá reálnému chování, berte aplikaci jako pravdivou a manuál jako zastaralý, a nahlaste problém s kroky pro reprodukci.
-
-## Související dokumentace
-
-- První přihlášení a správné návyky: [Začínáme](./getting-started.md)
-- Hlavní provozní moduly: [Rizika](./risks.md), [Kontroly](./controls.md), [KRI](./kris.md)
-- Workflow: [Schvalování a notifikace](./notifications.md)
-- Admin-only dokumentace se sem záměrně nelinkuje (jiné publikum).
+Začněte [Začínáme](./getting-started.md), pokračujte na [Dashboard](./dashboard.md), [Rizika](./risks.md), [Kontroly](./controls.md), [KRI](./kris.md) a [Notifikace](./notifications.md). Při nečekaném chování použijte [FAQ](./faq.md).

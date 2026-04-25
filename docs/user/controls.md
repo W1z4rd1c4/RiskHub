@@ -1,7 +1,7 @@
 ---
 title: Managing Controls
-version: "2.1"
-last_updated: "2026-03-09"
+version: "2.4"
+last_updated: "2026-04-25"
 audience: user
 source_of_truth: "docs/BUSINESS_LOGIC.md §2.2, §4, §7 + frontend/src/pages/ControlsPage.tsx"
 summary: "Full manual for control lifecycle management: design, ownership, execution logging, linkage to risks, exports, and approval-aware governance."
@@ -12,294 +12,121 @@ tags:
   - exports
   - troubleshooting
 ---
-
 # Managing Controls
 
 **On this page**
-- [Overview](#overview)
+- [What This Page Helps You Do](#what-this-page-helps-you-do)
+- [Before You Start](#before-you-start)
 - [Where To Find It](#where-to-find-it)
-- [Roles, Scope, and Visibility](#roles-scope-and-visibility)
-- [Data Model and Key Fields](#data-model-and-key-fields)
-- [Core Workflows](#core-workflows)
-- [Approvals and Notifications Behavior](#approvals-and-notifications-behavior)
-- [Filters, Views, and Exports](#filters-views-and-exports)
-- [Common Mistakes](#common-mistakes)
+- [What You Can See and Change](#what-you-can-see-and-change)
+- [How To Complete Common Tasks](#how-to-complete-common-tasks)
+- [Approvals and Notifications](#approvals-and-notifications)
+- [Finding, Filtering, and Evidence](#finding-filtering-and-evidence)
+- [Tips and Common Mistakes](#tips-and-common-mistakes)
 - [Troubleshooting](#troubleshooting)
-- [Related Documentation](#related-documentation)
+- [Related Manuals](#related-manuals)
 
-## Overview
+## What This Page Helps You Do
 
-Controls convert policy into repeatable execution. In RiskHub, a control is only valuable when it can be:
+Use this manual when you need to design controls, assign owners, link controls to risks, record execution evidence, and understand when a control needs review. It is written for control owners and teams recording mitigation evidence, so it focuses on what to do in the app, what to check before you act, and what result to expect after the work is done.
 
-- owned by a specific person
-- executed at a defined frequency
-- logged with evidence
-- linked to the risks it mitigates
+The page is not a technical reference. It explains the everyday operating pattern: start from the right screen, confirm the record is the one you intend to update, make the smallest useful change, and then verify the result in the list, detail page, notifications, or activity history.
 
-Controls are also governance objects: sensitive edits and archiving can be approval-gated.
+You will use this area most often for:
 
-Primary route: `/controls`
+- control list
+- control detail
+- execution history
+- risk links
+- vendor context
+- status and review signals
+
+## Before You Start
+
+Before working in this area, confirm three things. First, make sure you are signed in with the role you normally use for business work. Second, clear any old filters if the list looks incomplete. Third, check whether the record already has pending work in Approvals or Notifications.
+
+If a button or tab is missing, treat that as a normal access signal, not as an error. RiskHub only shows actions that fit your role, scope, record ownership, and the current record state. When an action is unavailable, ask the record owner or your access contact to review it instead of trying to work around the screen.
+
+Have the record name, code, owner, and department ready before asking for help. Those details make support and audit conversations much faster.
 
 ## Where To Find It
 
-- Controls catalog: `/controls`
-- Control detail: click a row
-- Create control: from `/controls` (requires `controls:write`)
+Primary route: `/controls`
 
-If you don’t see **Controls** in the sidebar:
+You can usually reach this area from the left sidebar. Detail pages open by selecting a row or a linked card. If you arrive from another record, use the back button or the related-record links to return to the broader context.
 
-- you likely lack `controls:read`
+Common navigation pattern:
 
-## Roles, Scope, and Visibility
+1. Open the list page.
+2. Clear filters if you are not sure what should be visible.
+3. Search by name, owner, vendor, or department.
+4. Open the record.
+5. Review linked records and recent activity before changing anything.
 
-Controls follow the same visibility model as risks:
+## What You Can See and Change
 
-- scope and department define baseline visibility
-- ownership can grant exceptions
-- backend enforcement is authoritative
+What you can see depends on your role, department scope, and record ownership. A user with broad review responsibility may see more records than a user responsible for one department. A record owner may be able to act on a record even when it is outside the owner’s usual department view.
 
-Write access is permission-gated:
+Typical information in this area includes:
 
-- `controls:write` to create/edit
-- `controls:delete` for archive/restore actions (depending on policy)
-- `controls:execute` to log executions
+- Control name and description
+- Owner and department
+- Frequency
+- Design and operating status
+- Execution result
+- Linked risks and vendors
 
-Execution logging may also be permission-gated. In most environments:
+Changes should be practical and easy to explain. If the change affects ownership, scoring, closure, archive state, or other governance-sensitive information, expect a review step in some environments. Read-only users can still use the page for investigation, filtering, and evidence gathering.
 
-- control owners and delegated executors can log executions
-- reviewers can read execution history
-- control owners can also manage risk links for their controls across departments when they have `controls:write` and can access the target risk
+## How To Complete Common Tasks
 
-Default seeded roles with `controls:execute` are CRO, Risk Manager, Compliance, Internal Audit, Actuarial, Department Head, and Employee.
+Follow this basic workflow unless your team has a stricter local procedure:
 
-## Data Model and Key Fields
+1. Create or update a control.
+2. Connect it to the risks it mitigates.
+3. Record an execution result.
+4. Attach clear evidence notes.
+5. Review failed or overdue controls.
 
-Controls have a lifecycle, execution expectations, and evidence.
+After saving or submitting, verify the result. The list should show the new state, the detail page should match your intent, and any expected notification or approval item should be visible. If the page reports that the record changed while you were working, refresh and review the current record before trying again.
 
-| Field | Meaning | Pitfalls / notes |
-|---|---|---|
-| Name | What the control is | Names should be testable statements, not slogans. |
-| Description | What is done and why | Include scope boundaries and “what success looks like”. |
-| Control form | `manual` or `automatic` | Don’t mark “automatic” unless evidence exists. |
-| Frequency | daily/weekly/monthly/… | Frequency must match operational reality. |
-| Risk level | 1–5 criticality signal | Use as prioritization for execution discipline. |
-| Status | `draft`, `active`, `inactive`, `archived` | Use `draft` while designing; `archived` when retired. |
-| Owner | Accountable for control design and effectiveness | Owner is not always the executor. |
-| Owner position | Role/title context for owner | Helps routing when names change. |
-| Executor position | Who executes (if different) | Useful for operational handoffs. |
-| Department | Routing/reporting context | Align with where the control is operated. |
-| Data source | Where evidence/data comes from | Must be specific (system, report, log). |
-| Methodology reference | Policy/procedure reference | Link to internal procedure IDs if you have them. |
-| Output / reporting | What is produced and who receives it | Helps reviewers evaluate evidence quality. |
-| Documentation location | Where evidence lives | Keep it stable and access-controlled. |
-| Linked risks | Risks mitigated by the control | Link with effectiveness and notes. |
-| Execution logs | History of execution results + evidence references | This is the audit trail. |
+When linking records, choose only relationships that are useful to another reviewer. A link should explain a real business relationship: a control reduces a risk, a KRI monitors a risk, a vendor contributes to an exposure, or an issue tracks remediation for a specific problem.
 
-Execution log fields commonly include:
+## Approvals and Notifications
 
-- result: `passed`, `failed`, `warning`, `not_applicable`
-- findings: what was observed
-- evidence reference: where proof lives
-- notes: context and follow-up
+Sensitive edits and archive actions may wait for approval. Execution logs are usually recorded directly, but you should refresh the control before retrying if the page says the record changed.
 
-Monitoring status is derived from execution evidence and shown consistently in cards, tables, filters, and exports:
+Use approval notes to explain the business reason, not just the button you clicked. A good note says what changed, why it is appropriate, and what evidence supports the decision. Notifications are reminders and pointers; the record detail remains the best place to understand the full context.
 
-- `new`: no execution logs yet and the control is still within the stale window
-- `needs_review`: no execution for more than the configured stale threshold
-- `failed`: latest execution result is anything other than `passed`
-- `passed`: latest execution result is `passed`
+If you receive a stale or rejected approval, do not immediately resubmit the same change. Open the record, compare the current state with your intended update, and submit a new focused change only if it is still needed.
 
-Important rule:
+## Finding, Filtering, and Evidence
 
-- control monitoring status always uses the **latest execution log only**
-- the stale threshold is configuration-driven (`control_execution_stale_days`, default `365`)
+Filter by owner, department, status, vendor, or linked risk before export. For audits, include both the control definition and the most recent execution evidence.
 
-## Core Workflows
+For reliable results, filter in this order:
 
-### 1) Create a control (design for execution)
+1. Start broad enough to confirm the record exists.
+2. Narrow by department, owner, status, vendor, or date.
+3. Open a sample record to confirm the filter matches your intent.
+4. Export only the filtered view needed for the review.
 
-1. Go to `/controls` → **New control**.
-2. Write a name and description that can be tested.
-3. Set ownership and department.
-4. Define execution inputs:
-   - data source
-   - methodology reference
-   - frequency
-5. Set status:
-   - `draft` while iterating
-   - `active` when ready for execution
-6. Optionally link to the primary risk now (you can also link later).
-7. Save.
+Exports are evidence. Keep them small, label the time period, and avoid sharing unrelated personal or sensitive information.
 
-Recipe: *create controls that don’t generate audit pain*
+## Tips and Common Mistakes
 
-- be explicit about what evidence must exist after execution
-- avoid vague descriptions (“ensure compliance”)
-- define who reviews and where the output goes
+- Link only controls that genuinely reduce the risk.
+- Failed execution is useful evidence; do not hide it by rewriting the control.
+- Keep frequency and next review expectations realistic.
 
-### 2) Link a control to risks (mitigation mapping)
-
-A control without linked risks becomes reporting noise.
-
-Linking pattern:
-
-- link to each risk the control materially mitigates
-- choose effectiveness (high/medium/low) based on reality, not optimism
-- add notes explaining the mechanism (“prevents X”, “detects Y”, “limits Z”)
-- risk-link buttons follow backend capability metadata when available; if a link action disappears after refresh, the backend no longer considers the action valid for your current role, ownership, or scope
-
-If a control is linked to many risks, confirm it’s not actually a “program” or “process” that should be modeled differently.
-
-### 3) Log a control execution (the evidence loop)
-
-Execution logging is the difference between a control that exists and a control that works.
-
-Operational procedure:
-
-1. Open the control detail.
-2. Click **Log execution**.
-3. Set the result.
-4. Record findings:
-   - what was checked
-   - what exceptions were found
-5. Add an evidence reference.
-6. Save.
-
-Archived controls cannot receive new execution logs. If the backend detects an archived control during save, it returns a conflict and the page should be refreshed before retrying. Linked risk names in execution views are filtered by your risk visibility, so an execution can be visible while some linked risk context is intentionally omitted.
-
-Interpretation of results:
-
-- `passed`: executed as expected, evidence exists
-- `warning`: executed but with a minor concern
-- `failed`: executed and failed (this should usually drive an Issue)
-- `not_applicable`: expected execution was legitimately not required (document why)
-
-When a control fails:
-
-- create an Issue for remediation (`/issues`) and reference the execution
-- consider whether risk net scoring should change
-
-### 4) Update a control safely
-
-Control edits can have policy impact (ownership, department, frequency, status).
-
-Before editing:
-
-- check linked risks (blast radius)
-- check recent execution history (don’t invalidate evidence without documenting why)
-
-Make changes in the smallest possible units and document the rationale.
-
-### 5) Archive and restore
-
-Archive a control when it is retired or replaced.
-
-Safe archive procedure:
-
-1. Confirm replacement control exists (if applicable).
-2. Update linked risks if mitigation mapping changes.
-3. Archive.
-4. Verify it no longer appears in active reporting.
-
-If your environment approval-gates archiving, the action will be queued and visible in `/approvals`.
-
-## Approvals and Notifications Behavior
-
-Controls often trigger approvals for:
-
-- ownership changes
-- department changes
-- status changes with governance impact
-- archiving
-
-Practical signals:
-
-- the save succeeds but the field doesn’t change
-- the control shows as “pending changes” in list views
-
-When this happens:
-
-- check `/approvals` for the request
-- track outcomes via `/notifications`
-
-Use `./notifications.md` as the queue manual.
-
-## Filters, Views, and Exports
-
-### Filters
-
-Controls list supports:
-
-- search (name/description)
-- monitoring status filter (`new`, `needs review`, `failed`, `passed`)
-- archived lifecycle filter
-- view mode (all vs grouped)
-
-Use grouped views for review prep and concentration analysis.
-
-Grouped views now include **By Vendor**.
-
-`By Vendor` is multi-membership:
-
-- a control appears in every readable linked vendor bucket
-- unreadable vendors are omitted from grouping
-- controls with no readable linked vendors fall into the unlinked fallback bucket
-
-Use it to review which controls mitigate exposure for one vendor or one third-party cluster.
-
-### Exports
-
-Controls can be exported for audit packs and operational reviews.
-
-Export discipline:
-
-- export with clear filters (monitoring status, archived, search)
-- keep “as of” context
-- keep the raw export unchanged
-
-Control exports now include monitoring-specific columns:
-
-- monitoring status
-- latest execution result
-- latest executed at
-- days since last execution
-
-Audit-trail exports can include linked risk context, but those risk labels are filtered by your risk visibility. If a control execution is visible and a linked risk is not, the export omits that hidden risk rather than exposing its name or identifier.
-
-## Common Mistakes
-
-- Writing controls as aspirations instead of testable actions.
-- Logging executions with low-information notes (“done”).
-- Using `not_applicable` as a shortcut without explaining why.
-- Linking controls to risks broadly to “look covered”.
-- Changing frequency without assessing workload and evidence impact.
+Common mistakes are usually caused by stale filters, unclear ownership, duplicate records, or trying to make a broad change when a focused change would be easier to review. If something looks wrong, first refresh the page and confirm the same result in the detail view.
 
 ## Troubleshooting
 
-### I can view controls but can’t create/edit
+If the page is empty, clear filters and search by a known record name. If the page is missing from the sidebar, your role may not include that work area. If a save fails, read the message, refresh the record, and check whether another user changed it first.
 
-- You likely have `controls:read` but not `controls:write`.
+If a linked record is missing, you may not have access to that related item. Ask for the business name or code rather than a technical identifier. For support, include your role, the route you were using, the record name, the action you attempted, and the exact message shown on screen.
 
-### Execution history is missing
+## Related Manuals
 
-- Confirm the control has been executed (and that you have read access to executions).
-- If execution logging is new, establish the first baseline execution.
-
-### My update didn’t apply
-
-- Check `/approvals` for a queued request.
-- Check `/notifications` for resolution.
-
-### Export failed
-
-- Retry with fewer filters.
-- Capture the error if it persists.
-
-## Related Documentation
-
-- `./risks.md`
-- `./kris.md`
-- `./issues.md`
-- `./notifications.md`
-- `./dashboard.md`
-- `./activity-log.md`
+Start with [Risks](./risks.md), [Vendors](./vendors.md), [Issues](./issues.md), [Activity Log](./activity-log.md), [Notifications](./notifications.md). These manuals explain the connected workflows and help you follow the record from signal to action to evidence.
