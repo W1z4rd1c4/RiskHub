@@ -21,16 +21,14 @@ import type {
     IssueException,
     IssueLink,
     IssueLinkPayload,
-    IssueListFilters,
     IssueListResponse,
+    IssueListFilters,
     IssueOwnerLookup,
     IssueProgressPayload,
     IssueRequestExceptionPayload,
     IssueStartRemediationPayload,
     IssueUpdatePayload,
 } from '@/types/issue';
-
-type IssueQueryParams = Record<string, string | number | boolean | null | undefined>;
 
 export const issuesApi = {
     async listDepartments(): Promise<IssueDepartmentLookup[]> {

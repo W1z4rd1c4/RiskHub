@@ -61,7 +61,9 @@ describe('KRINewPage vendor context', () => {
         await waitFor(() => {
             expect(mockGetVendor).toHaveBeenCalledWith(12);
         });
-        expect(screen.getByTestId('kri-vendor-name')).toHaveTextContent('Vendor Twelve');
+        await waitFor(() => {
+            expect(screen.getByTestId('kri-vendor-name')).toHaveTextContent('Vendor Twelve');
+        });
     });
 
     it('returns to the vendor when the vendor-context cancel action is used', async () => {

@@ -2,6 +2,7 @@ import {
     approvalCreatedResponseSchema,
     approvalIdMessageSchema,
 } from '../common';
+import type { ZodType } from 'zod';
 
 import {
     controlSchema,
@@ -9,8 +10,22 @@ import {
     keyRiskIndicatorSchema,
     riskSchema,
 } from './governance';
+import type { ApprovalCreatedResponse } from '@/types/approval';
+import type { Control } from '@/types/control';
+import type { Issue } from '@/types/issue';
+import type { KeyRiskIndicator } from '@/types/kri';
+import type { Risk } from '@/types/risk';
 
-export const issueOrApprovalSchema = issueSchema.or(approvalIdMessageSchema);
-export const riskOrApprovalSchema = riskSchema.or(approvalCreatedResponseSchema);
-export const controlOrApprovalSchema = controlSchema.or(approvalCreatedResponseSchema);
-export const keyRiskIndicatorOrApprovalSchema = keyRiskIndicatorSchema.or(approvalCreatedResponseSchema);
+type ApprovalIdMessage = {
+    approval_id: number;
+    message: string;
+};
+
+export const issueOrApprovalSchema: ZodType<Issue | ApprovalIdMessage> =
+    issueSchema.or(approvalIdMessageSchema);
+export const riskOrApprovalSchema: ZodType<Risk | ApprovalCreatedResponse> =
+    riskSchema.or(approvalCreatedResponseSchema);
+export const controlOrApprovalSchema: ZodType<Control | ApprovalCreatedResponse> =
+    controlSchema.or(approvalCreatedResponseSchema);
+export const keyRiskIndicatorOrApprovalSchema: ZodType<KeyRiskIndicator | ApprovalCreatedResponse> =
+    keyRiskIndicatorSchema.or(approvalCreatedResponseSchema);

@@ -206,7 +206,7 @@ export function RemediationPlanCard({ issue, canWrite, canApprove }: Remediation
     const handleStartRemediation = async () => {
         await runMutation(async () => {
             const updated = await issuesApi.startRemediation(issue.id, {
-                target_date: toIsoOrUndefined(assignDueAt),
+                target_date: fromDateTimeLocalInputValue(assignDueAt),
             });
             await syncIssue(updated);
         });

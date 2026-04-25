@@ -2,7 +2,6 @@ import type { SortDirection, ViewMode } from '@/components/tables';
 import type { CollectionGroup } from '@/types/collection';
 import type {
     IssueListFilters,
-    IssueSummary,
     IssueSeverity,
     IssueSeverityFilter,
     IssueSeverityGroup,

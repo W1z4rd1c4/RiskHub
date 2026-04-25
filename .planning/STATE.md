@@ -19,7 +19,7 @@
 ## Current Position
 
 **Milestone:** v1.0 MVP
-**Active Phases:** 90 (AD Emulator) and 253 (Professionalization & AI-Signal Removal) remain active; 253.1 completed on 2026-04-20; 19 and 70 deferred
+**Active Phases:** 90 (AD Emulator) remains active; 253 and 253.1 completed; 19 and 70 deferred
 **Documentation Status:** Reconciled with post-hardening workflow and architecture docs (2026-04-25)
 
 ## Progress Summary
@@ -70,12 +70,27 @@
 | 250 Spaghetti Simplification | ✅ Complete (10/10) | 2026-01-10 |
 | 251 Spaghetti Simplification 2 | ✅ Complete (11/11) | 2026-01-10 |
 | 252 Quality Closure Loop | ✅ Complete (11/11) | 2026-04-07 |
-| 253 Professionalization & AI-Signal Removal | ⏳ In progress (0/8) | - |
+| 253 Professionalization & AI-Signal Removal | ✅ Complete (8/8) | 2026-04-25 |
 | 253.1 Backend Audit Remediation | ✅ Complete (4/4) | 2026-04-20 |
 | 500 Production Installation Scripts | ✅ Complete (8/8) | 2026-02-16 |
 | 501 Production Readiness Hardening | ✅ Complete (8/8) | 2026-02-16 |
 
 ## Session Context
+
+### Phase 253 Professionalization Closeout (2026-04-25)
+
+- Closed Phase 253 against the evolved implementation rather than restoring stale cleanup targets.
+- Kept central frontend routing under `frontend/src/routing/` as the route/export unification authority.
+- Kept DB-backed startup log rotation restoration so persisted admin log settings survive restart; the admin endpoint still applies changes immediately after persistence.
+- Kept backend suppression-budget enforcement in protected CI as a low-noise quality guard.
+- Corrected approval whitelist verification so mixed protected/safe edits use a non-stale safe old value, and added a separate stale allowed-field rejection regression.
+- Corrected KRI vendor-context verification to wait for the rendered vendor name after the mocked vendor fetch resolves.
+- Verification completed:
+  - `cd backend && ./venv/bin/pytest -q ../tests/backend/pytest/test_admin_logs.py ../tests/backend/pytest/test_approval_field_whitelist.py ../tests/backend/pytest/test_approval_edit_apply.py ../tests/backend/pytest/test_approvals.py ../tests/backend/pytest/test_approval_workflow.py` -> `87 passed, 1 skipped`
+  - `python3 scripts/security/validate_workflow_pins.py && python3 scripts/security/validate_repo_hardening.py && python3 scripts/security/validate_public_repo_hygiene.py && python3 scripts/check_docs_contract.py && make -f scripts/Makefile quality-repo-contracts` -> passed; repo hygiene contracts `19 passed`
+  - `cd frontend && npm run test:run -- src/pages src/services src/contexts` -> `68 passed`, `262 tests passed`
+  - `cd frontend && npx tsc --noEmit` -> passed
+  - `cd frontend && npm run lint` -> passed with 3 pre-existing hook dependency warnings
 
 ### Documentation Reconciliation (2026-04-25)
 
@@ -124,10 +139,11 @@
 
 - The public PR path has been reduced to frontend correctness plus repo/security contracts:
   - `.github/workflows/lint.yml` no longer depends on `docs-topology-consistency`
-  - changed-file ratchets, debt budgets, cleanup audits, suppression budgets, and lint-ratchet docs moved to `.github/workflows/maintenance-governance.yml`
+  - changed-file ratchets, debt budgets, cleanup audits, and lint-ratchet docs moved to `.github/workflows/maintenance-governance.yml`
+  - the backend suppression-budget gate intentionally remains protected
 - Backend bootstrap has been collapsed into `backend/app/main.py`; `bootstrap.py`, `bootstrap_app.py`, `bootstrap_runtime.py`, and `bootstrap_validation.py` were deleted.
 - Approval resolution now routes through one public orchestration entrypoint in `backend/app/services/approval_execution_service.py`.
-- Frontend route-entry pages are being standardized to default exports, and auth/session state now lives under `frontend/src/services/session/`.
+- Frontend route/export unification is anchored by the central typed route registry, and auth/session state now lives under `frontend/src/services/session/`.
 - Current discrepancy to keep visible:
   - `make -f scripts/Makefile docs-topology-consistency` is still red on structure metrics drift and is now maintainer-facing rather than part of the PR path.
 

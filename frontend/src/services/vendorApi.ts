@@ -3,8 +3,6 @@ import { buildCollectionParams, normalizeCollectionResponse } from './collection
 import { vendorListResponseSchema, vendorSchema, voidSchema } from '@/services/api/schemas';
 import type { Vendor, VendorCreate, VendorListParams, VendorListResponse, VendorUpdate } from '@/types/vendor';
 
-type VendorQueryParams = Record<string, string | number | boolean | null | undefined>;
-
 export const vendorApi = {
     async getVendors(params: VendorListParams): Promise<VendorListResponse> {
         const response = await apiClient.get('/vendors', {

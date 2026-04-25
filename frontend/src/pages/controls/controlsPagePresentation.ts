@@ -3,7 +3,6 @@ import { DEFAULT_LIST_PAGE_SIZE } from '@/constants/list';
 import {
     ControlStatus,
     type ControlMonitoringStatus,
-    type ControlSummary,
 } from '@/types/control';
 import type { CollectionGroup } from '@/types/collection';
 

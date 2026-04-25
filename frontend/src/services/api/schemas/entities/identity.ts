@@ -7,7 +7,6 @@ import type { DirectoryImportResponse, DirectoryUser } from '@/types/directory';
 import type { UserDirectoryEntry, UserDirectoryListResponse, UserDirectoryRoleFacet, UserLookup, UserRead, UserShellSummary, Role } from '@/types/user';
 
 import {
-    offsetPaginationSchema,
     passthroughObject,
     stringArraySchema,
     z,

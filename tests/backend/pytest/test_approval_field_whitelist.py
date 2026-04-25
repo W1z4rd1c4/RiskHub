@@ -100,7 +100,7 @@ class TestWhitelistEnforcement:
             status=ApprovalStatus.PENDING,
             pending_changes={
                 "id": {"old": 999, "new": 1},  # Injection attempt!
-                "name": {"old": "Old", "new": "New"},  # Legitimate edit
+                "name": {"old": "Original", "new": "New"},  # Legitimate edit
             },
         )
         db_session.add(approval)
@@ -112,3 +112,54 @@ class TestWhitelistEnforcement:
 
         assert risk.id == original_risk_id, "id should not have been modified"
         assert risk.name == "New", "name should have been modified"
+
+    @pytest.mark.asyncio
+    async def test_risk_edit_rejects_stale_allowed_field(
+        self,
+        db_session,
+        test_department,
+        test_user_cro,
+        test_user_employee,
+    ):
+        """Allowed fields with stale old values should reject without applying changes."""
+        risk = Risk(
+            name="Original",
+            risk_id_code="WHITELIST-STALE-001",
+            process="Whitelist Stale Test",
+            risk_type="operational",
+            description="Risk for stale whitelist enforcement",
+            department_id=test_department.id,
+            owner_id=test_user_employee.id,
+            gross_probability=2,
+            gross_impact=5,
+            gross_score=10,
+            net_probability=1,
+            net_impact=5,
+            net_score=5,
+            status="active",
+        )
+        db_session.add(risk)
+        await db_session.commit()
+        await db_session.refresh(risk)
+
+        approval = ApprovalRequest(
+            resource_type="risk",
+            resource_id=risk.id,
+            resource_name=risk.name,
+            action_type=ApprovalActionType.EDIT,
+            requested_by_id=test_user_employee.id,
+            reason="Whitelist stale enforcement",
+            status=ApprovalStatus.PENDING,
+            pending_changes={
+                "name": {"old": "Different", "new": "New"},
+            },
+        )
+        db_session.add(approval)
+        await db_session.commit()
+        await db_session.refresh(approval)
+
+        resolved = await approve_request_workflow(db_session, approval.id, test_user_cro, "Approved in test")
+        await db_session.refresh(risk)
+
+        assert resolved.status == ApprovalStatus.REJECTED
+        assert risk.name == "Original", "stale allowed field should not have been modified"

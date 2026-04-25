@@ -1,4 +1,4 @@
-import { ArrowLeft, Building2, ChevronRight, RefreshCw, Shield, User } from 'lucide-react';
+import { ArrowLeft, Building2, ChevronRight, Shield, User } from 'lucide-react';
 
 import { Pagination, SortableTable, type Column, type ViewMode } from '@/components/tables';
 import { getKriMonitoringMeta } from '@/lib/monitoringStatus';

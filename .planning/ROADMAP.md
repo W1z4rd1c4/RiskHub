@@ -72,7 +72,7 @@ Building an enterprise risk management platform for insurance companies, startin
 - [x] **Phase 250: Spaghetti Simplification** — Code simplification (10/10)
 - [x] **Phase 251: Spaghetti Simplification 2** — More code cleanup (11/11)
 - [x] **Phase 252: Quality Closure Loop** — Repo-wide professional quality closure across data safety, workflow decomposition, artifact hygiene, and systemic gates (11/11)
-- [ ] **Phase 253: Professionalization & AI-Signal Removal** — Simplify the public repo surface, collapse backend indirection, unify frontend conventions, and demote maintainer-only governance tooling out of the PR path (0/8)
+- [x] **Phase 253: Professionalization & AI-Signal Removal** — Simplify the public repo surface, collapse backend indirection, unify frontend conventions, and demote maintainer-only governance tooling out of the PR path (8/8)
 - [x] **Phase 253.1: Backend Audit Remediation** — Remediate verified runtime, authz, approval, and reporting defects from the deep backend audit review (4/4)
 - [x] **Phase 500: Production Installation Scripts** — Split backend/frontend Docker deployment with external PostgreSQL (8/8)
 
@@ -1033,6 +1033,32 @@ Plans:
 - [x] 201-03: Frontend include archived toggles in list/search surfaces
 - [x] 201-04: Unarchive actions + archived linked-item grouping/muted styling
 - [x] 201-05: Tests, E2E verification, and documentation reconciliation
+
+### Phase 253: Professionalization & AI-Signal Removal
+
+**Goal**: Simplify the public engineering surface without weakening RBAC, approval workflows, runtime configuration, timezone handling, or Postgres-sensitive verification.
+**Depends on**: Phase 252
+**Research**: Complete
+**Plans**: 8 plans
+**Completed**: 2026-04-25
+
+Plans:
+
+- [x] 253-01: Protected CI Simplification
+- [x] 253-02: Governance Demotion
+- [x] 253-03: Repo Surface Cleanup
+- [x] 253-04: Backend Bootstrap Collapse
+- [x] 253-05: Approval and Runtime Boundary Cleanup
+- [x] 253-06: Frontend Route Export Unification
+- [x] 253-07: Session and Transport Consolidation
+- [x] 253-08: Benchmark Isolation and Testing Docs
+
+Closeout notes:
+
+- Persisted admin log rotation is intentionally restored at startup and applied immediately after admin updates.
+- Frontend route/export cleanup closed around the central typed route registry.
+- Backend suppression-budget enforcement remains in protected CI.
+- Summary: `.planning/phases/253-professionalization-ai-signal-removal/253-SUMMARY.md`
 
 ### Phase 253.1: Backend Audit Remediation
 

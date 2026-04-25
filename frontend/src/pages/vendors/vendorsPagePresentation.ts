@@ -1,6 +1,6 @@
 import type { ViewMode } from '@/components/tables';
 import type { CollectionGroup } from '@/types/collection';
-import type { Vendor, VendorListParams, VendorStatus, VendorType } from '@/types/vendor';
+import type { VendorListParams, VendorStatus, VendorType } from '@/types/vendor';
 
 export const VENDOR_GROUP_UNASSIGNED = '__unassigned__';
 export const VENDOR_GROUP_NO_PROCESS = '__no_process__';
