@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { useDashboardFilters } from '@/contexts/DashboardFilterContext';
@@ -19,7 +19,7 @@ import { useDashboardOverviewState } from './dashboard/useDashboardOverviewState
 
 export function DashboardPage() {
     const navigate = useNavigate();
-    const { filters } = useDashboardFilters();
+    const { filters, setDepartmentId } = useDashboardFilters();
     const authz = useAuthz();
     const { hasPermission } = usePermissions();
     const { t } = useTranslation('dashboard');
@@ -61,6 +61,14 @@ export function DashboardPage() {
     const canViewIssueMetrics = resolveCapabilityFlag(capabilities, 'can_view_issue_metrics');
     const canViewCommittee = resolveCapabilityFlag(capabilities, 'can_view_committee');
     const canExport = resolveCapabilityFlag(capabilities, 'can_export_or_report');
+    const canUseDepartmentFilter = resolveCapabilityFlag(capabilities, 'can_use_department_filter');
+    const exportDepartmentId = canUseDepartmentFilter ? filters.departmentId : null;
+
+    useEffect(() => {
+        if (capabilities?.can_use_department_filter === false && filters.departmentId !== null) {
+            setDepartmentId(null);
+        }
+    }, [capabilities?.can_use_department_filter, filters.departmentId, setDepartmentId]);
 
     if (overviewQuery.isLoading && !summary) {
         return <DashboardLoadingState label={t('loading')} />;
@@ -81,9 +89,9 @@ export function DashboardPage() {
 
     return (
         <div className="space-y-10">
-            <DashboardHeader
-                canExport={canExport}
-                onExport={() => exportDashboardSummary(filters.departmentId)}
+                <DashboardHeader
+                    canExport={canExport}
+                    onExport={() => exportDashboardSummary(exportDepartmentId)}
                 subtitle={t('page_subtitle')}
                 title={t('title')}
                 exportLabel={t('actions.export_summary_excel')}
@@ -105,6 +113,7 @@ export function DashboardPage() {
                     breachHistoryTitle={t('sections.kri_breach_history')}
                     breachTrends={breachTrends}
                     canReadIssues={canViewIssueMetrics}
+                    canUseDepartmentFilter={canUseDepartmentFilter}
                     categoryAnalyticsTitle={t('sections.control_analytics')}
                     controlExecutionTitle={t('sections.control_execution_trends')}
                     departmentMetrics={departmentMetrics}

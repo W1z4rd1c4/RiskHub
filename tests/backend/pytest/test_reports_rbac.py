@@ -18,10 +18,12 @@ from app.models import (
     ControlExecution,
     Department,
     KeyRiskIndicator,
+    KRIValueHistory,
     Risk,
     User,
     Vendor,
 )
+from app.models.risk import ControlRiskLink
 from app.services._kri_history.periods import latest_closed_period_for_date
 from tests.backend.pytest.factories import create_test_control, create_test_risk
 
@@ -703,19 +705,213 @@ class TestUnifiedExportEndpoints:
             reporting_owner_id=test_user_employee.id,
             is_archived=False,
         )
-        db_session.add(kri)
+        parent_owner_risk = Risk(
+            risk_id_code="UNFILTERED-KRI-R-OWNER-001",
+            name="Unfiltered Cross Dept Parent Owner KRI Risk",
+            process="Finance",
+            description="Risk owner should see child KRI export row",
+            category="Operational",
+            department_id=second_department.id,
+            owner_id=test_user_employee.id,
+            risk_type="operational",
+            gross_probability=3,
+            gross_impact=3,
+            net_probability=2,
+            net_impact=2,
+            status="active",
+        )
+        linked_control_risk = Risk(
+            risk_id_code="UNFILTERED-KRI-R-CONTROL-001",
+            name="Unfiltered Cross Dept Linked Control KRI Risk",
+            process="Finance",
+            description="Linked control owner should see child KRI export row",
+            category="Operational",
+            department_id=second_department.id,
+            owner_id=None,
+            risk_type="operational",
+            gross_probability=3,
+            gross_impact=3,
+            net_probability=2,
+            net_impact=2,
+            status="active",
+        )
+        linked_control = Control(
+            name="Unfiltered Cross Dept Linked Control",
+            description="Control owner grants linked risk visibility",
+            department_id=second_department.id,
+            control_owner_id=test_user_employee.id,
+            status="active",
+        )
+        vendor = Vendor(
+            name="Unfiltered Cross Dept Owned Vendor",
+            process="IT",
+            department_id=second_department.id,
+            outsourcing_owner_user_id=test_user_employee.id,
+            vendor_type="ict",
+            status="active",
+        )
+        db_session.add_all([kri, parent_owner_risk, linked_control_risk, linked_control, vendor])
+        await db_session.flush()
+        db_session.add_all(
+            [
+                KeyRiskIndicator(
+                    risk_id=parent_owner_risk.id,
+                    metric_name="Unfiltered Cross Dept Parent Owner KRI",
+                    description="Visible through parent risk ownership",
+                    unit="%",
+                    current_value=12.0,
+                    lower_limit=1.0,
+                    upper_limit=20.0,
+                    reporting_owner_id=None,
+                    is_archived=False,
+                ),
+                ControlRiskLink(risk_id=linked_control_risk.id, control_id=linked_control.id),
+                KeyRiskIndicator(
+                    risk_id=linked_control_risk.id,
+                    metric_name="Unfiltered Cross Dept Linked Control KRI",
+                    description="Visible through linked control ownership",
+                    unit="%",
+                    current_value=12.0,
+                    lower_limit=1.0,
+                    upper_limit=20.0,
+                    reporting_owner_id=None,
+                    is_archived=False,
+                ),
+            ]
+        )
         await db_session.commit()
 
         risk_response = await client_employee.get("/api/v1/reports/risks/export?format=csv")
         control_response = await client_employee.get("/api/v1/reports/controls/export?format=csv")
         kri_response = await client_employee.get("/api/v1/reports/kris/export?format=csv")
+        vendor_response = await client_employee.get("/api/v1/reports/vendors/export?format=csv")
 
         assert risk_response.status_code == 200
         assert control_response.status_code == 200
         assert kri_response.status_code == 200
+        assert vendor_response.status_code == 200
         assert "Unfiltered Cross Dept Owned Risk" in risk_response.content.decode("utf-8")
         assert "Unfiltered Cross Dept Owned Control" in control_response.content.decode("utf-8")
-        assert "Unfiltered Cross Dept Reporting KRI" in kri_response.content.decode("utf-8")
+        kri_payload = kri_response.content.decode("utf-8")
+        assert "Unfiltered Cross Dept Reporting KRI" in kri_payload
+        assert "Unfiltered Cross Dept Parent Owner KRI" in kri_payload
+        assert "Unfiltered Cross Dept Linked Control KRI" in kri_payload
+        assert "Unfiltered Cross Dept Owned Vendor" in vendor_response.content.decode("utf-8")
+
+    @pytest.mark.asyncio
+    async def test_summary_and_audit_exports_include_visible_cross_dept_rows(
+        self,
+        client_employee: AsyncClient,
+        db_session: AsyncSession,
+        second_department: Department,
+        test_user_employee: User,
+    ):
+        before_response = await client_employee.get("/api/v1/reports/summary/export?format=csv")
+        assert before_response.status_code == 200
+        before_rows = list(csv.DictReader(StringIO(before_response.content.decode("utf-8"))))
+        before_summary = {row["Metric"]: row["Value"] for row in before_rows}
+
+        risk = Risk(
+            risk_id_code="SUMMARY-VISIBLE-R-001",
+            name="Summary Visible Cross Dept Risk",
+            process="Finance",
+            description="Visible through direct ownership",
+            category="Operational",
+            department_id=second_department.id,
+            owner_id=test_user_employee.id,
+            risk_type="operational",
+            gross_probability=4,
+            gross_impact=4,
+            net_probability=4,
+            net_impact=4,
+            status="active",
+        )
+        control = Control(
+            name="Summary Visible Cross Dept Control",
+            description="Visible through control ownership",
+            department_id=second_department.id,
+            control_owner_id=test_user_employee.id,
+            status="active",
+        )
+        db_session.add_all([risk, control])
+        await db_session.flush()
+        db_session.add(
+            ControlExecution(
+                control_id=control.id,
+                executed_by_id=test_user_employee.id,
+                result="passed",
+                executed_at=datetime.now(UTC),
+            )
+        )
+        await db_session.commit()
+
+        summary_response = await client_employee.get("/api/v1/reports/summary/export?format=csv")
+        audit_response = await client_employee.get("/api/v1/reports/audit-trail/export?format=csv")
+
+        assert summary_response.status_code == 200
+        summary_rows = list(csv.DictReader(StringIO(summary_response.content.decode("utf-8"))))
+        summary = {row["Metric"]: row["Value"] for row in summary_rows}
+        assert int(summary["Total Risks"]) == int(before_summary["Total Risks"]) + 1
+        assert int(summary["Total Controls"]) == int(before_summary["Total Controls"]) + 1
+        assert audit_response.status_code == 200
+        assert "Summary Visible Cross Dept Control" in audit_response.content.decode("utf-8")
+
+    @pytest.mark.asyncio
+    async def test_kri_as_of_export_uses_id_tiebreaker_for_latest_history(
+        self,
+        auth_client: AsyncClient,
+        db_session: AsyncSession,
+        test_risk: Risk,
+    ):
+        period_end = date(2026, 3, 31)
+        recorded_at = datetime(2026, 4, 2, 12, 0, tzinfo=UTC)
+        kri = KeyRiskIndicator(
+            risk_id=test_risk.id,
+            metric_name="Tie Breaker Export KRI",
+            description="Export should choose newest inserted same-timestamp history row",
+            unit="%",
+            current_value=10.0,
+            lower_limit=0.0,
+            upper_limit=100.0,
+            frequency="quarterly",
+            is_archived=False,
+        )
+        db_session.add(kri)
+        await db_session.flush()
+        db_session.add_all(
+            [
+                KRIValueHistory(
+                    kri_id=kri.id,
+                    value=11.0,
+                    lower_limit=0.0,
+                    upper_limit=100.0,
+                    unit="%",
+                    breach_status="within",
+                    period_start=date(2026, 1, 1),
+                    period_end=period_end,
+                    recorded_at=recorded_at,
+                ),
+                KRIValueHistory(
+                    kri_id=kri.id,
+                    value=22.0,
+                    lower_limit=0.0,
+                    upper_limit=100.0,
+                    unit="%",
+                    breach_status="within",
+                    period_start=date(2026, 1, 1),
+                    period_end=period_end,
+                    recorded_at=recorded_at,
+                ),
+            ]
+        )
+        await db_session.commit()
+
+        response = await auth_client.get("/api/v1/reports/kris/export?format=csv&as_of_date=2026-04-03")
+
+        assert response.status_code == 200
+        rows = list(csv.DictReader(StringIO(response.content.decode("utf-8"))))
+        row = next(item for item in rows if item["Metric"] == "Tie Breaker Export KRI")
+        assert row["Current Value"] == "22.0"
 
     @pytest.mark.asyncio
     async def test_global_as_of_risk_export_filters_on_replayed_department(

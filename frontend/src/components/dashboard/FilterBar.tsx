@@ -20,7 +20,11 @@ interface Department {
     name: string;
 }
 
-export function FilterBar() {
+interface FilterBarProps {
+    canUseDepartmentFilter: boolean;
+}
+
+export function FilterBar({ canUseDepartmentFilter }: FilterBarProps) {
     const {
         filters,
         setDepartmentId,
@@ -65,7 +69,7 @@ export function FilterBar() {
     }, []);
 
     const activeFilterChips = [
-        filters.departmentId && {
+        canUseDepartmentFilter && filters.departmentId && {
             key: 'dept',
             label: departments.find(d => d.id === filters.departmentId)?.name ?? t('dashboard:filters.department'),
             onRemove: () => setDepartmentId(null),
@@ -97,7 +101,7 @@ export function FilterBar() {
                 >
                     <Filter className="h-4 w-4" />
                     <span>{t('dashboard:filters.title')}</span>
-                    {hasActiveFilters && (
+                    {activeFilterChips.length > 0 && (
                         <span className="ml-1 w-5 h-5 rounded-full bg-accent text-white text-xs flex items-center justify-center">
                             {activeFilterChips.length}
                         </span>
@@ -127,7 +131,7 @@ export function FilterBar() {
                     </AnimatePresence>
                 </div>
 
-                {hasActiveFilters && (
+                {(hasActiveFilters || activeFilterChips.length > 0) && (
                     <button
                         onClick={resetFilters}
                         className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-all"
@@ -148,21 +152,22 @@ export function FilterBar() {
                         className="overflow-hidden"
                     >
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4 mt-4 border-t border-white/5">
-                            {/* Department Dropdown */}
-                            <div className="space-y-2">
-                                <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                                    <Building2 className="h-3 w-3" />
-                                    {t('dashboard:filters.department')}
-                                </label>
-                                <ThemedSelect
-                                    value={filters.departmentId?.toString() ?? ''}
-                                    onValueChange={(v) => setDepartmentId(v ? Number(v) : null)}
-                                    placeholder={t('common:filters.all_departments')}
-                                    allowEmpty
-                                    emptyLabel={t('common:filters.all_departments')}
-                                    options={departments.map(dept => ({ value: dept.id.toString(), label: dept.name }))}
-                                />
-                            </div>
+                            {canUseDepartmentFilter && (
+                                <div className="space-y-2">
+                                    <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                                        <Building2 className="h-3 w-3" />
+                                        {t('dashboard:filters.department')}
+                                    </label>
+                                    <ThemedSelect
+                                        value={filters.departmentId?.toString() ?? ''}
+                                        onValueChange={(v) => setDepartmentId(v ? Number(v) : null)}
+                                        placeholder={t('common:filters.all_departments')}
+                                        allowEmpty
+                                        emptyLabel={t('common:filters.all_departments')}
+                                        options={departments.map(dept => ({ value: dept.id.toString(), label: dept.name }))}
+                                    />
+                                </div>
+                            )}
 
                             {/* Risk Level Toggle */}
                             <div className="space-y-2">

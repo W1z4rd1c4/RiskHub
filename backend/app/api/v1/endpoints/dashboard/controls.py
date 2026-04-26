@@ -7,11 +7,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import ColumnElement
 
 from app.core.limits import DASHBOARD_CONTROL_TREND_WEEKS
-from app.core.permissions import get_user_department_ids
+from app.core.permissions import control_visibility_clause
 from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import Control, ControlExecution, User
 from app.schemas.dashboard import ControlFrequencyTrend
+
+from ._shared import week_period_expr
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -45,28 +47,26 @@ async def build_control_trends(
     """Get control execution trends by week (last 8 weeks) with optional filters."""
 
     try:
-        dept_ids = get_user_department_ids(current_user)
-
-        # Early return for users with no department access
-        if dept_ids is not None and len(dept_ids) == 0:
-            return []  # User has no department access - return empty results
-
         # Build base conditions
         conditions: list[ColumnElement[bool]] = [ControlExecution.executed_at.isnot(None)]
 
         # For department filtering, we need to join with Control
-        if dept_ids is not None or department_id or control_status:
+        if department_id is not None or control_status:
             # Build subquery for control IDs matching filters
             control_conditions: list[ColumnElement[bool]] = []
-            if dept_ids is not None:
-                control_conditions.append(Control.department_id.in_(dept_ids))
-            elif department_id:
-                control_conditions.append(Control.department_id == department_id)
+            visibility_clause = control_visibility_clause(current_user, department_id=department_id)
+            if visibility_clause is not None:
+                control_conditions.append(visibility_clause)
             if control_status:
                 control_conditions.append(Control.status == control_status)
 
             control_ids_query = select(Control.id).where(and_(*control_conditions))
             conditions.append(ControlExecution.control_id.in_(control_ids_query))
+        else:
+            visibility_clause = control_visibility_clause(current_user)
+            if visibility_clause is not None:
+                control_ids_query = select(Control.id).where(visibility_clause)
+                conditions.append(ControlExecution.control_id.in_(control_ids_query))
 
         # Check if there are any executions matching conditions
         count_query = select(func.count(ControlExecution.id))
@@ -81,7 +81,7 @@ async def build_control_trends(
             return []
 
         # Define period expression once to avoid GROUP BY mismatch
-        period_expr = func.to_char(ControlExecution.executed_at, 'IYYY-"W"IW')
+        period_expr = week_period_expr(db, ControlExecution.executed_at)
 
         # Query control executions grouped by ISO week
         trends_query = select(period_expr.label("period"), func.count(ControlExecution.id).label("execution_count"))

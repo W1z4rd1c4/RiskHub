@@ -1,11 +1,16 @@
 from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import ColumnElement
 
-from app.core.permissions import get_user_department_ids, has_permission
+from app.core.permissions import (
+    control_visibility_clause,
+    has_permission,
+    risk_visibility_clause,
+    vendor_visibility_clause,
+)
 from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import Control, Risk, User, Vendor
@@ -33,22 +38,13 @@ async def get_dashboard_summary(
 ):
     """Get overview statistics for executive dashboard with optional filters."""
 
-    # Apply department filtering
-    dept_ids = get_user_department_ids(current_user)
-    control_dept_filter: ColumnElement[bool] | None = None
-    risk_dept_filter: ColumnElement[bool] | None = None
-
-    if dept_ids is not None:
-        control_dept_filter = Control.department_id.in_(dept_ids)
-        risk_dept_filter = Risk.department_id.in_(dept_ids)
-    elif department_id:
-        control_dept_filter = Control.department_id == department_id
-        risk_dept_filter = Risk.department_id == department_id
+    control_visibility = control_visibility_clause(current_user, department_id=department_id)
+    risk_visibility = await risk_visibility_clause(db, current_user, department_id=department_id)
 
     # Build control filters
     control_conditions: list[ColumnElement[bool]] = []
-    if control_dept_filter is not None:
-        control_conditions.append(control_dept_filter)
+    if control_visibility is not None:
+        control_conditions.append(control_visibility)
     if control_status:
         control_conditions.append(Control.status == control_status)
     elif not include_archived:
@@ -59,8 +55,8 @@ async def get_dashboard_summary(
 
     # Build risk filters
     risk_conditions: list[ColumnElement[bool]] = []
-    if risk_dept_filter is not None:
-        risk_conditions.append(risk_dept_filter)
+    if risk_visibility is not None:
+        risk_conditions.append(risk_visibility)
     if not include_archived:
         risk_conditions.append(Risk.status != RiskStatus.archived.value)
     if risk_level:
@@ -138,22 +134,11 @@ async def get_dashboard_summary(
     total_vendors = 0
     high_risk_vendors_count = 0
     vendor_conditions = [Vendor.status == "active"]
-    vendor_scope_filter = None
-    if dept_ids is not None:
-        if dept_ids:
-            vendor_scope_filter = or_(
-                Vendor.department_id.in_(dept_ids),
-                Vendor.outsourcing_owner_user_id == current_user.id,
-            )
-        else:
-            vendor_scope_filter = None
-    elif department_id:
-        vendor_scope_filter = Vendor.department_id == department_id
-
+    vendor_scope_filter = vendor_visibility_clause(current_user, department_id=department_id)
     if vendor_scope_filter is not None:
         vendor_conditions.append(vendor_scope_filter)
 
-    if has_permission(current_user, "vendors", "read") and (dept_ids is None or (dept_ids is not None and dept_ids)):
+    if has_permission(current_user, "vendors", "read"):
         total_vendors = (await db.execute(select(func.count(Vendor.id)).where(and_(*vendor_conditions)))).scalar() or 0
         high_risk_vendors_count = (
             await db.execute(

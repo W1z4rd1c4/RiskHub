@@ -1,18 +1,17 @@
 from datetime import date
 from typing import Any, Literal
 
-from sqlalchemy import or_, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.datetime_utils import utc_now
 from app.core.permissions import (
-    get_control_ids_where_owner,
+    control_visibility_clause,
     get_issue_scope_clause,
-    get_kri_ids_where_reporting_owner,
-    get_risk_ids_where_control_owner,
-    get_risk_ids_where_kri_reporting_owner,
-    get_user_department_ids,
+    kri_visibility_clause,
+    risk_visibility_clause,
+    vendor_visibility_clause,
 )
 from app.models import (
     Control,
@@ -45,23 +44,9 @@ async def _fetch_risks_for_export(
         selectinload(Risk.control_links),
     )
 
-    dept_ids = get_user_department_ids(current_user)
-    if dept_ids is not None:
-        reporting_owner_risk_ids = await get_risk_ids_where_kri_reporting_owner(db, current_user.id)
-        control_owner_risk_ids = await get_risk_ids_where_control_owner(db, current_user.id)
-        cross_dept_risk_ids = set(reporting_owner_risk_ids) | set(control_owner_risk_ids)
-        if cross_dept_risk_ids:
-            query = query.where(
-                or_(
-                    Risk.department_id.in_(dept_ids),
-                    Risk.owner_id == current_user.id,
-                    Risk.id.in_(cross_dept_risk_ids),
-                )
-            )
-        else:
-            query = query.where(or_(Risk.department_id.in_(dept_ids), Risk.owner_id == current_user.id))
-    elif department_id:
-        query = query.where(Risk.department_id == department_id)
+    visibility_clause = await risk_visibility_clause(db, current_user, department_id=department_id)
+    if visibility_clause is not None:
+        query = query.where(visibility_clause)
 
     result = await db.execute(query)
     return list(result.scalars().all())
@@ -75,15 +60,9 @@ async def _fetch_controls_for_export(
 ) -> list[Control]:
     query = select(Control)
 
-    dept_ids = get_user_department_ids(current_user)
-    if dept_ids is not None:
-        owned_control_ids = await get_control_ids_where_owner(db, current_user.id)
-        if owned_control_ids:
-            query = query.where(or_(Control.department_id.in_(dept_ids), Control.id.in_(owned_control_ids)))
-        else:
-            query = query.where(Control.department_id.in_(dept_ids))
-    elif department_id:
-        query = query.where(Control.department_id == department_id)
+    visibility_clause = control_visibility_clause(current_user, department_id=department_id)
+    if visibility_clause is not None:
+        query = query.where(visibility_clause)
 
     query = query.options(
         selectinload(Control.department),
@@ -105,21 +84,9 @@ async def _fetch_kris_for_export(
 ) -> list[KeyRiskIndicator]:
     query = select(KeyRiskIndicator).join(Risk)
 
-    dept_ids = get_user_department_ids(current_user)
-    if dept_ids is not None:
-        reporting_owner_kri_ids = await get_kri_ids_where_reporting_owner(db, current_user.id)
-        if reporting_owner_kri_ids:
-            query = query.where(
-                or_(
-                    Risk.department_id.in_(dept_ids),
-                    KeyRiskIndicator.id.in_(reporting_owner_kri_ids),
-                )
-            )
-        else:
-            query = query.where(Risk.department_id.in_(dept_ids))
-
-    if department_id and dept_ids is None:
-        query = query.where(Risk.department_id == department_id)
+    visibility_clause = await kri_visibility_clause(db, current_user, department_id=department_id)
+    if visibility_clause is not None:
+        query = query.where(visibility_clause)
 
     query = query.options(
         selectinload(KeyRiskIndicator.reporting_owner),
@@ -139,20 +106,9 @@ async def _fetch_vendors_for_export(
 ) -> list[Vendor]:
     query = select(Vendor)
 
-    dept_ids = get_user_department_ids(current_user)
-    if dept_ids is not None:
-        if dept_ids:
-            query = query.where(
-                or_(
-                    Vendor.department_id.in_(dept_ids),
-                    Vendor.outsourcing_owner_user_id == current_user.id,
-                )
-            )
-        else:
-            query = query.where(Vendor.outsourcing_owner_user_id == current_user.id)
-        query = query.where(Vendor.department_id.is_not(None))
-    elif department_id is not None:
-        query = query.where(Vendor.department_id == department_id)
+    visibility_clause = vendor_visibility_clause(current_user, department_id=department_id)
+    if visibility_clause is not None:
+        query = query.where(visibility_clause)
 
     query = query.options(selectinload(Vendor.department), selectinload(Vendor.outsourcing_owner))
     result = await db.execute(query)
@@ -175,6 +131,7 @@ async def _apply_kri_history_as_of(
             KRIValueHistory.kri_id.asc(),
             KRIValueHistory.period_end.desc(),
             KRIValueHistory.recorded_at.desc(),
+            KRIValueHistory.id.desc(),
         )
     )
     history_rows = result.scalars().all()

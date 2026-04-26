@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.permissions import control_visibility_clause, risk_visibility_clause
 from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import Control, Risk, User
@@ -56,13 +57,12 @@ async def _build_summary_payload(
         controls_query = select(Control)
         risks_query = select(Risk)
 
-        if context.department_ids is not None:
-            controls_query = controls_query.where(Control.department_id.in_(context.department_ids))
-            risks_query = risks_query.where(Risk.department_id.in_(context.department_ids))
-
-        if context.department_id is not None:
-            controls_query = controls_query.where(Control.department_id == context.department_id)
-            risks_query = risks_query.where(Risk.department_id == context.department_id)
+        control_scope = control_visibility_clause(context.current_user, department_id=context.department_id)
+        risk_scope = await risk_visibility_clause(db, context.current_user, department_id=context.department_id)
+        if control_scope is not None:
+            controls_query = controls_query.where(control_scope)
+        if risk_scope is not None:
+            risks_query = risks_query.where(risk_scope)
 
         controls_result = await db.execute(controls_query)
         controls = controls_result.scalars().all()

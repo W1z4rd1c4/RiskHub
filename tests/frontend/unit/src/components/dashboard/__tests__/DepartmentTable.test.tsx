@@ -63,10 +63,10 @@ const metrics: DepartmentMetrics[] = [
     },
 ];
 
-function renderDepartmentTable(rows: DepartmentMetrics[] = metrics) {
+function renderDepartmentTable(rows: DepartmentMetrics[] = metrics, canUseDepartmentFilter = true) {
     return render(
         <DashboardFilterProvider>
-            <DepartmentTable metrics={rows} />
+            <DepartmentTable canUseDepartmentFilter={canUseDepartmentFilter} metrics={rows} />
         </DashboardFilterProvider>,
     );
 }
@@ -125,6 +125,27 @@ describe('DepartmentTable', () => {
 
         fireEvent.click(row.getByRole('button', { name: 'Go to department' }));
 
+        expect(mockNavigate).toHaveBeenNthCalledWith(3, '/risks?department=10');
+    });
+
+    it('disables dashboard focus affordances when department filtering is disallowed', () => {
+        renderDepartmentTable(metrics, false);
+
+        expect(screen.queryByRole('button', { name: 'Alpha' })).not.toBeInTheDocument();
+
+        const alphaRow = screen.getByText('Alpha').closest('tr');
+        expect(alphaRow).not.toBeNull();
+        const row = within(alphaRow as HTMLTableRowElement);
+
+        expect(row.queryByRole('button', { name: 'Set focus' })).not.toBeInTheDocument();
+        expect(row.queryByText('Focused')).not.toBeInTheDocument();
+
+        fireEvent.click(row.getByRole('button', { name: 'View controls' }));
+        fireEvent.click(row.getByRole('button', { name: 'View risks' }));
+        fireEvent.click(row.getByRole('button', { name: 'Go to department' }));
+
+        expect(mockNavigate).toHaveBeenNthCalledWith(1, '/controls?department=10');
+        expect(mockNavigate).toHaveBeenNthCalledWith(2, '/risks?department=10');
         expect(mockNavigate).toHaveBeenNthCalledWith(3, '/risks?department=10');
     });
 });

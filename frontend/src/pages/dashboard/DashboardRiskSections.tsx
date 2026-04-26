@@ -18,6 +18,7 @@ import type {
 interface DashboardRiskSectionsProps {
     breachHistoryTitle: string;
     breachTrends: DashboardOverview['kri_breach_trends'];
+    canUseDepartmentFilter: boolean;
     controlExecutionTitle: string;
     departmentMetrics: DepartmentMetrics[];
     departmentVisibilityTitle: string;
@@ -44,6 +45,7 @@ interface DashboardRiskSectionsProps {
 export function DashboardRiskSections({
     breachHistoryTitle,
     breachTrends,
+    canUseDepartmentFilter,
     controlExecutionTitle,
     departmentMetrics,
     departmentVisibilityTitle,
@@ -193,6 +195,7 @@ export function DashboardRiskSections({
                     </h3>
                 </div>
                 <DepartmentTable
+                    canUseDepartmentFilter={canUseDepartmentFilter}
                     metrics={departmentMetrics.filter(
                         (metric) => metric.risk_count > 0 || metric.control_count > 0,
                     )}

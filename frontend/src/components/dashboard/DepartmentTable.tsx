@@ -14,10 +14,11 @@ import {
 } from './departmentTableSorting';
 
 interface DepartmentTableProps {
+    canUseDepartmentFilter: boolean;
     metrics: DepartmentMetrics[];
 }
 
-export function DepartmentTable({ metrics }: DepartmentTableProps) {
+export function DepartmentTable({ canUseDepartmentFilter, metrics }: DepartmentTableProps) {
     const { t } = useTranslation('dashboard');
     const navigate = useNavigate();
     const { filters, setDepartmentId } = useDashboardFilters();
@@ -92,9 +93,10 @@ export function DepartmentTable({ metrics }: DepartmentTableProps) {
                 </thead>
                 <tbody className="divide-y divide-white/5">
                     {sortedMetrics.map((dept) => {
-                        const isSelected = filters.departmentId === dept.department_id;
+                        const isSelected = canUseDepartmentFilter && filters.departmentId === dept.department_id;
                         return (
                             <DepartmentMetricRow
+                                canUseDepartmentFilter={canUseDepartmentFilter}
                                 key={dept.department_id}
                                 dept={dept}
                                 isSelected={isSelected}

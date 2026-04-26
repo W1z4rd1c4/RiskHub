@@ -6,16 +6,20 @@ import { createTestQueryClient } from '@test/queryClient';
 
 const fetchOverviewMock = vi.fn();
 const fetchDashboardSummaryMock = vi.fn();
+const downloadSummaryCsvMock = vi.fn();
+const setDepartmentIdMock = vi.fn();
 let canViewCommitteeMock = false;
+let dashboardFiltersMock = {
+    departmentId: null as number | null,
+    riskLevel: 'all' as const,
+    controlStatus: null as string | null,
+    controlForm: null as string | null,
+};
 
 vi.mock('@/contexts/DashboardFilterContext', () => ({
     useDashboardFilters: () => ({
-        filters: {
-            departmentId: null,
-            riskLevel: 'all',
-            controlStatus: null,
-            controlForm: null,
-        },
+        filters: dashboardFiltersMock,
+        setDepartmentId: setDepartmentIdMock,
     }),
 }));
 
@@ -47,15 +51,23 @@ vi.mock('@/services/dashboardApi', () => ({
 
 vi.mock('@/services/reportApi', () => ({
     reportApi: {
-        downloadSummaryCsv: vi.fn(),
+        downloadSummaryCsv: (...args: unknown[]) => downloadSummaryCsvMock(...args),
     },
 }));
 
-vi.mock('@/components/dashboard/FilterBar', () => ({ FilterBar: () => <div>filter bar</div> }));
+vi.mock('@/components/dashboard/FilterBar', () => ({
+    FilterBar: ({ canUseDepartmentFilter }: { canUseDepartmentFilter: boolean }) => (
+        <div>{canUseDepartmentFilter ? 'department filter shown' : 'department filter hidden'}</div>
+    ),
+}));
 vi.mock('@/components/dashboard/RiskDistributionMatrix', () => ({ RiskDistributionMatrix: () => <div>risk matrix</div> }));
 vi.mock('@/components/dashboard/RiskDrilldownModal', () => ({ RiskDrilldownModal: () => null }));
 vi.mock('@/components/dashboard/ControlTrendChart', () => ({ ControlTrendChart: () => <div>control trends</div> }));
-vi.mock('@/components/dashboard/DepartmentTable', () => ({ DepartmentTable: () => <div>department table</div> }));
+vi.mock('@/components/dashboard/DepartmentTable', () => ({
+    DepartmentTable: ({ canUseDepartmentFilter }: { canUseDepartmentFilter: boolean }) => (
+        <div>{canUseDepartmentFilter ? 'department table focus enabled' : 'department table focus disabled'}</div>
+    ),
+}));
 vi.mock('@/components/dashboard/CategoryBreakdownCharts', () => ({ CategoryBreakdownCharts: () => <div>category charts</div> }));
 vi.mock('@/components/dashboard/KRIBreachWidget', () => ({ KRIBreachWidget: () => <div>kri widget</div> }));
 vi.mock('@/components/dashboard/KRIStatusWidget', () => ({ KRIStatusWidget: () => <div>kri status</div> }));
@@ -80,6 +92,12 @@ describe('DashboardPage overview aggregation', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         canViewCommitteeMock = false;
+        dashboardFiltersMock = {
+            departmentId: null,
+            riskLevel: 'all',
+            controlStatus: null,
+            controlForm: null,
+        };
         fetchOverviewMock.mockResolvedValue({
             summary: {
                 total_controls: 10,
@@ -130,6 +148,8 @@ describe('DashboardPage overview aggregation', () => {
         expect(fetchDashboardSummaryMock).not.toHaveBeenCalled();
         expect(screen.getByText('title')).toBeInTheDocument();
         expect(screen.getByText('issue summary')).toBeInTheDocument();
+        expect(screen.getByText('department filter shown')).toBeInTheDocument();
+        expect(screen.getByText('department table focus enabled')).toBeInTheDocument();
     });
 
     it('stops overview fetching when the committee view is active', async () => {
@@ -224,7 +244,157 @@ describe('DashboardPage overview aggregation', () => {
         );
 
         await waitFor(() => expect(fetchOverviewMock).toHaveBeenCalledTimes(1));
+        await waitFor(() => expect(screen.queryByText('loading')).not.toBeInTheDocument());
         expect(screen.queryByTitle('actions.export_summary_excel')).not.toBeInTheDocument();
         expect(screen.queryByText('issue summary')).not.toBeInTheDocument();
+        expect(screen.getByText('department filter hidden')).toBeInTheDocument();
+        expect(screen.getByText('department table focus disabled')).toBeInTheDocument();
+    });
+
+    it('hides the department filter when backend capability denies it', async () => {
+        fetchOverviewMock.mockResolvedValueOnce({
+            summary: {
+                total_controls: 10,
+                controls_by_status: {},
+                controls_by_form: {},
+                controls_by_frequency: {},
+                total_risks: 8,
+                risks_by_status: {},
+                critical_risks_count: 2,
+                average_net_risk_score: 4,
+            },
+            department_metrics: [],
+            gross_distribution: { distribution: [] },
+            net_distribution: { distribution: [] },
+            control_trends: [],
+            risk_trends: [],
+            kri_breach_trends: [],
+            issue_summary: null,
+            issue_aging: null,
+            issue_severity: null,
+            generated_at: '2026-03-07T10:00:00Z',
+            capabilities: {
+                can_read: true,
+                can_view_issue_metrics: false,
+                can_view_committee: false,
+                can_view_vendor_metrics: false,
+                can_use_department_filter: false,
+                can_export_or_report: false,
+            },
+        });
+
+        render(
+            <MemoryRouter>
+                <DashboardPage />
+            </MemoryRouter>,
+            { wrapper: createWrapper() },
+        );
+
+        await waitFor(() => expect(fetchOverviewMock).toHaveBeenCalledTimes(1));
+        await waitFor(() => expect(screen.queryByText('loading')).not.toBeInTheDocument());
+        expect(screen.getByText('department filter hidden')).toBeInTheDocument();
+        expect(screen.getByText('department table focus disabled')).toBeInTheDocument();
+    });
+
+    it('clears stale hidden department focus when backend capability denies filtering', async () => {
+        dashboardFiltersMock = {
+            departmentId: 10,
+            riskLevel: 'all',
+            controlStatus: null,
+            controlForm: null,
+        };
+        fetchOverviewMock.mockResolvedValueOnce({
+            summary: {
+                total_controls: 10,
+                controls_by_status: {},
+                controls_by_form: {},
+                controls_by_frequency: {},
+                total_risks: 8,
+                risks_by_status: {},
+                critical_risks_count: 2,
+                average_net_risk_score: 4,
+            },
+            department_metrics: [],
+            gross_distribution: { distribution: [] },
+            net_distribution: { distribution: [] },
+            control_trends: [],
+            risk_trends: [],
+            kri_breach_trends: [],
+            issue_summary: null,
+            issue_aging: null,
+            issue_severity: null,
+            generated_at: '2026-03-07T10:00:00Z',
+            capabilities: {
+                can_read: true,
+                can_view_issue_metrics: false,
+                can_view_committee: false,
+                can_view_vendor_metrics: false,
+                can_use_department_filter: false,
+                can_export_or_report: false,
+            },
+        });
+
+        render(
+            <MemoryRouter>
+                <DashboardPage />
+            </MemoryRouter>,
+            { wrapper: createWrapper() },
+        );
+
+        await waitFor(() => expect(fetchOverviewMock).toHaveBeenCalledTimes(1));
+        await waitFor(() => expect(setDepartmentIdMock).toHaveBeenCalledWith(null));
+    });
+
+    it('exports summary without hidden department focus when filtering is disallowed', async () => {
+        dashboardFiltersMock = {
+            departmentId: 10,
+            riskLevel: 'all',
+            controlStatus: null,
+            controlForm: null,
+        };
+        fetchOverviewMock.mockResolvedValueOnce({
+            summary: {
+                total_controls: 10,
+                controls_by_status: {},
+                controls_by_form: {},
+                controls_by_frequency: {},
+                total_risks: 8,
+                risks_by_status: {},
+                critical_risks_count: 2,
+                average_net_risk_score: 4,
+            },
+            department_metrics: [],
+            gross_distribution: { distribution: [] },
+            net_distribution: { distribution: [] },
+            control_trends: [],
+            risk_trends: [],
+            kri_breach_trends: [],
+            issue_summary: null,
+            issue_aging: null,
+            issue_severity: null,
+            generated_at: '2026-03-07T10:00:00Z',
+            capabilities: {
+                can_read: true,
+                can_view_issue_metrics: false,
+                can_view_committee: false,
+                can_view_vendor_metrics: false,
+                can_use_department_filter: false,
+                can_export_or_report: true,
+            },
+        });
+
+        render(
+            <MemoryRouter>
+                <DashboardPage />
+            </MemoryRouter>,
+            { wrapper: createWrapper() },
+        );
+
+        await waitFor(() => expect(fetchOverviewMock).toHaveBeenCalledTimes(1));
+        await waitFor(() => expect(screen.queryByText('loading')).not.toBeInTheDocument());
+
+        fireEvent.click(screen.getByTitle('actions.export_summary_excel'));
+
+        expect(downloadSummaryCsvMock).toHaveBeenCalledWith({ departmentId: null });
     });
 });

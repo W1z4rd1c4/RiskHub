@@ -6,13 +6,15 @@ from sqlalchemy import and_, case, desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.limits import DASHBOARD_TREND_MONTHS
-from app.core.permissions import get_user_department_ids
+from app.core.permissions import kri_visibility_clause
 from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import KeyRiskIndicator, Risk, User
 from app.models.kri_history import KRIValueHistory
 from app.models.risk import RiskStatus
 from app.schemas.dashboard import KRIBreachTrendPoint
+
+from ._shared import month_period_expr
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -26,25 +28,18 @@ async def get_kri_breach_trends(
 ):
     """Get KRI breach trends by month (last 12 months)."""
     try:
-        dept_ids = get_user_department_ids(current_user)
-
-        # Early return for users with no department access
-        if dept_ids is not None and len(dept_ids) == 0:
-            return []
-
         # Build conditions: join KRIValueHistory -> KRI -> Risk; filter active/non-archived
         conditions = [
             KRIValueHistory.period_end.isnot(None),
             Risk.status != RiskStatus.archived.value,
             KeyRiskIndicator.is_archived.is_(False),
         ]
-        if dept_ids is not None:
-            conditions.append(Risk.department_id.in_(dept_ids))
-        elif department_id:
-            conditions.append(Risk.department_id == department_id)
+        visibility_clause = await kri_visibility_clause(db, current_user, department_id=department_id)
+        if visibility_clause is not None:
+            conditions.append(visibility_clause)
 
         # Query breach counts grouped by month
-        period_expr = func.to_char(KRIValueHistory.period_end, "YYYY-MM")
+        period_expr = month_period_expr(db, KRIValueHistory.period_end)
         query = (
             select(
                 period_expr.label("period"),

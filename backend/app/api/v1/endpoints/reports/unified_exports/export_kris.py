@@ -3,6 +3,7 @@ from datetime import date
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.permissions import get_risk_ids_where_control_owner, get_risk_ids_where_kri_reporting_owner
 from app.models import User
 from app.models.activity_log import ActivityEntityType
 from app.services._monitoring_status import get_kri_monitoring_config
@@ -59,11 +60,17 @@ async def _export_kris(
     rows = await _apply_kri_history_as_of(db, rows, as_of_date)
     kri_monitoring_config = await get_kri_monitoring_config(db)
     rows = _apply_kri_monitoring_rows(rows, config=kri_monitoring_config, as_of_date=as_of_date)
+    extra_visible_risk_ids: set[int] = set()
+    if department_id is None:
+        extra_visible_risk_ids.update(await get_risk_ids_where_kri_reporting_owner(db, current_user.id))
+        extra_visible_risk_ids.update(await get_risk_ids_where_control_owner(db, current_user.id))
     rows = _filter_rows_by_final_scope(
         rows,
         current_user=current_user,
         department_id=department_id,
-        owner_field="reporting_owner_id",
+        owner_field="risk_owner_id",
+        extra_visible_ids=extra_visible_risk_ids,
+        extra_visible_id_field="risk_id",
     )
     rows = _filter_rows_by_kri_criteria(
         rows,

@@ -6,7 +6,7 @@ from sqlalchemy import and_, case, desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.limits import DASHBOARD_TREND_MONTHS
-from app.core.permissions import get_user_department_ids
+from app.core.permissions import risk_visibility_clause
 from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import Department, Risk, User
@@ -14,7 +14,7 @@ from app.models.global_config import ConfigDefaults
 from app.models.risk import RiskStatus
 from app.schemas.dashboard import RiskDistributionItem, RiskDistributionResponse, RiskTrendPoint
 
-from ._shared import build_risk_level_condition
+from ._shared import build_risk_level_condition, month_period_expr
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -36,16 +36,13 @@ async def get_risk_distribution(
     Args:
         risk_type: 'gross' uses gross_probability/gross_impact; 'net' uses net_probability/net_impact
     """
-    dept_ids = get_user_department_ids(current_user)
-
     # Build conditions
     conditions = []
     if not include_archived:
         conditions.append(Risk.status != RiskStatus.archived.value)
-    if dept_ids is not None:
-        conditions.append(Risk.department_id.in_(dept_ids))
-    elif department_id:
-        conditions.append(Risk.department_id == department_id)
+    visibility_clause = await risk_visibility_clause(db, current_user, department_id=department_id)
+    if visibility_clause is not None:
+        conditions.append(visibility_clause)
     if risk_level:
         risk_level_cond = build_risk_level_condition(risk_level)
         if risk_level_cond is not None:
@@ -97,8 +94,6 @@ async def get_risks_by_cell(
         risk_type: 'gross' uses gross_probability/gross_impact; 'net' uses net_probability/net_impact
     """
 
-    dept_ids = get_user_department_ids(current_user)
-
     # Select probability/impact columns based on risk_type
     if risk_type == "gross":
         prob_col = Risk.gross_probability
@@ -114,10 +109,9 @@ async def get_risks_by_cell(
     if not include_archived:
         conditions.append(Risk.status != RiskStatus.archived.value)
 
-    if dept_ids is not None:
-        conditions.append(Risk.department_id.in_(dept_ids))
-    elif department_id:
-        conditions.append(Risk.department_id == department_id)
+    visibility_clause = await risk_visibility_clause(db, current_user, department_id=department_id)
+    if visibility_clause is not None:
+        conditions.append(visibility_clause)
 
     query = (
         select(
@@ -163,23 +157,16 @@ async def get_risk_trends(
 ):
     """Get risk creation trends by month (last 12 months)."""
     try:
-        dept_ids = get_user_department_ids(current_user)
-
-        # Early return for users with no department access
-        if dept_ids is not None and len(dept_ids) == 0:
-            return []
-
         # Build conditions
         conditions = []
         if not include_archived:
             conditions.append(Risk.status != RiskStatus.archived.value)
-        if dept_ids is not None:
-            conditions.append(Risk.department_id.in_(dept_ids))
-        elif department_id:
-            conditions.append(Risk.department_id == department_id)
+        visibility_clause = await risk_visibility_clause(db, current_user, department_id=department_id)
+        if visibility_clause is not None:
+            conditions.append(visibility_clause)
 
         # Query risk counts grouped by month
-        period_expr = func.to_char(Risk.created_at, "YYYY-MM")
+        period_expr = month_period_expr(db, Risk.created_at)
         critical_threshold = ConfigDefaults.CRITICAL_RISK_MIN_NET_SCORE
         query = select(
             period_expr.label("period"),

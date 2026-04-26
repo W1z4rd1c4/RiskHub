@@ -6,7 +6,7 @@ from sqlalchemy import Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.permissions import can_read_risk_id
+from app.core.permissions import can_read_risk_id, control_visibility_clause
 from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import Control, ControlExecution, User
@@ -43,11 +43,9 @@ def _audit_trail_query(
         )
     )
 
-    if context.department_ids is not None:
-        query = query.where(Control.department_id.in_(context.department_ids))
-
-    if context.department_id is not None:
-        query = query.where(Control.department_id == context.department_id)
+    visibility_clause = control_visibility_clause(context.current_user, department_id=context.department_id)
+    if visibility_clause is not None:
+        query = query.where(visibility_clause)
     if result_filter:
         query = query.where(ControlExecution.result == result_filter)
     if control_id:

@@ -231,7 +231,7 @@ Rules:
 - The upper warning margin is configuration-backed in Risk Hub global config and defaults to 10% of the configured range.
 
 **History and Value Governance:**
-- KRI list, detail, history, and breach surfaces delegate read access to canonical KRI visibility (`can_read_kri_id`): department access, direct risk ownership, KRI reporting ownership, and linked-control ownership are evaluated by the backend policy layer.
+- KRI list, detail, history, breach, export, and dashboard breach-trend surfaces delegate read access to canonical KRI visibility (`can_read_kri_id`): department access, direct risk ownership, KRI reporting ownership, and linked-control ownership are evaluated by the backend policy layer.
 - Explicit KRI department filters remain strict. Ownership and reporting exceptions do not leak rows from a department the caller explicitly cannot access.
 - KRI value submission is period-based. Only one value may exist for a given `(kri_id, period_end)`.
 - Direct duplicate submissions for an already-recorded period return `409 Conflict`; corrections are the supported way to change an existing period value.
@@ -767,16 +767,22 @@ Exported data is always scoped to what the requesting user can access under RBAC
 - Ownership/reporting-owner exceptions follow the same logic as list/detail views
 - Unified exports apply scope after as-of replay and row rehydration. The final row state, not the row selected before replay, is authoritative.
 - When a caller supplies an explicit `department_id`, that filter is strict after replay for risks, controls, KRIs, and vendors. Ownership/reporting exceptions do not override an explicit department filter.
-- Without an explicit `department_id`, scoped exports preserve existing visibility exceptions such as direct risk/control/vendor ownership and KRI reporting ownership.
-- Legacy/peripheral report exports use the same department-validation context: summary exports return scoped counts, issue exports reject out-of-scope explicit departments, and audit-trail exports filter linked risk labels through canonical risk visibility.
+- Without an explicit `department_id`, scoped exports preserve actor-visible rows, including direct risk/control/vendor ownership, KRI reporting-owner risk visibility, and linked-control owner risk visibility.
+- Legacy/peripheral report exports use the same department-validation context: summary exports count actor-visible risks and controls, issue exports reject out-of-scope explicit departments, and audit-trail exports include visible control executions while filtering linked risk labels through canonical risk visibility.
 
-### 10.4 Archived/Inactive Semantics
+### 10.4 Dashboard Visibility
+
+- Unfiltered dashboard summaries, risk distributions, risk drilldowns, risk trends, KRI breach trends, control trends, and vendor metrics aggregate rows visible to the actor rather than department rows alone.
+- Dashboard explicit `department_id` filters remain strict. Ownership/reporting exceptions do not include rows outside the requested department.
+- Department filter UI is backend-capability driven through `DashboardOverviewCapabilities.can_use_department_filter`.
+
+### 10.5 Archived/Inactive Semantics
 
 - Risks/Controls: archived items included when status filter is `archived`
 - KRIs: archived items included when status filter is `archived`
 - Vendors: archived semantics use `status = inactive`
 
-### 10.5 Monitoring Status in Exports
+### 10.6 Monitoring Status in Exports
 
 - Controls export accepts `monitoring_status` and includes:
   - `Monitoring Status`
@@ -789,7 +795,7 @@ Exported data is always scoped to what the requesting user can access under RBAC
   - `Days Overdue`
 - Export filtering uses the same canonical backend-derived monitoring status model as list/detail views.
 
-### 10.6 Specialized CSV Exports
+### 10.7 Specialized CSV Exports
 
 Specialized report exports are CSV:
 - `/api/v1/reports/summary/export?format=csv`

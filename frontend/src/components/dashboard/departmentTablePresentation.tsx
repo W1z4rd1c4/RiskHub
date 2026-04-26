@@ -22,6 +22,7 @@ export function SortIcon({
 }
 
 interface DepartmentQuickActionsProps {
+    canUseDepartmentFilter: boolean;
     departmentId: number;
     isSelected: boolean;
     navigate: NavigateFunction;
@@ -30,6 +31,7 @@ interface DepartmentQuickActionsProps {
 }
 
 function DepartmentQuickActions({
+    canUseDepartmentFilter,
     departmentId,
     isSelected,
     navigate,
@@ -70,35 +72,37 @@ function DepartmentQuickActions({
                     {t('department_table.actions.view_risks')}
                 </span>
             </div>
-            <div className="relative group/tooltip">
-                <button
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        setDepartmentId(isSelected ? null : departmentId);
-                    }}
-                    aria-label={
-                        isSelected
+            {canUseDepartmentFilter && (
+                <div className="relative group/tooltip">
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setDepartmentId(isSelected ? null : departmentId);
+                        }}
+                        aria-label={
+                            isSelected
+                                ? t('department_table.actions.remove_focus')
+                                : t('department_table.actions.set_focus')
+                        }
+                        title={
+                            isSelected
+                                ? t('department_table.actions.remove_focus')
+                                : t('department_table.actions.set_focus')
+                        }
+                        className={`p-1.5 rounded-md transition-colors ${isSelected
+                            ? 'text-accent bg-accent/10'
+                            : 'text-slate-500 hover:text-purple-400 hover:bg-purple-400/10'
+                            }`}
+                    >
+                        <Target className="h-4 w-4" />
+                    </button>
+                    <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs font-bold text-white bg-slate-800 rounded shadow-lg opacity-0 group-hover/tooltip:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
+                        {isSelected
                             ? t('department_table.actions.remove_focus')
-                            : t('department_table.actions.set_focus')
-                    }
-                    title={
-                        isSelected
-                            ? t('department_table.actions.remove_focus')
-                            : t('department_table.actions.set_focus')
-                    }
-                    className={`p-1.5 rounded-md transition-colors ${isSelected
-                        ? 'text-accent bg-accent/10'
-                        : 'text-slate-500 hover:text-purple-400 hover:bg-purple-400/10'
-                        }`}
-                >
-                    <Target className="h-4 w-4" />
-                </button>
-                <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 text-xs font-bold text-white bg-slate-800 rounded shadow-lg opacity-0 group-hover/tooltip:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
-                    {isSelected
-                        ? t('department_table.actions.remove_focus')
-                        : t('department_table.actions.set_focus')}
-                </span>
-            </div>
+                            : t('department_table.actions.set_focus')}
+                    </span>
+                </div>
+            )}
             <div className="relative group/tooltip">
                 <button
                     onClick={() => navigate(`/risks?department=${departmentId}`)}
@@ -117,12 +121,14 @@ function DepartmentQuickActions({
 }
 
 export function DepartmentMetricRow({
+    canUseDepartmentFilter,
     dept,
     isSelected,
     navigate,
     setDepartmentId,
     t,
 }: {
+    canUseDepartmentFilter: boolean;
     dept: DepartmentMetrics;
     isSelected: boolean;
     navigate: NavigateFunction;
@@ -134,23 +140,30 @@ export function DepartmentMetricRow({
             className={`group transition-colors ${isSelected
                 ? 'bg-accent/10 border-l-2 border-l-accent'
                 : 'hover:bg-white/[0.02]'
-                } ${dept.breaching_kri_count > 0 ? 'border-l-2 border-l-rose-500/50' : ''}`}
+            } ${dept.breaching_kri_count > 0 ? 'border-l-2 border-l-rose-500/50' : ''}`}
         >
             <td className="px-6 py-4">
-                <button
-                    onClick={() => setDepartmentId(dept.department_id)}
-                    className="text-left"
-                >
+                {canUseDepartmentFilter ? (
+                    <button
+                        onClick={() => setDepartmentId(dept.department_id)}
+                        className="text-left"
+                    >
+                        <span className={`text-sm font-bold transition-colors ${isSelected ? 'text-accent' : 'text-white group-hover:text-accent'
+                            }`}>
+                            {dept.department_name}
+                        </span>
+                        {isSelected && (
+                            <span className="ml-2 text-[9px] font-bold text-accent uppercase tracking-wider">
+                                {t('department_table.focused')}
+                            </span>
+                        )}
+                    </button>
+                ) : (
                     <span className={`text-sm font-bold transition-colors ${isSelected ? 'text-accent' : 'text-white group-hover:text-accent'
                         }`}>
                         {dept.department_name}
                     </span>
-                    {isSelected && (
-                        <span className="ml-2 text-[9px] font-bold text-accent uppercase tracking-wider">
-                            {t('department_table.focused')}
-                        </span>
-                    )}
-                </button>
+                )}
             </td>
             <td className="px-6 py-4 text-center">
                 <span className="text-sm font-mono text-slate-300">{dept.control_count}</span>
@@ -187,6 +200,7 @@ export function DepartmentMetricRow({
             </td>
             <td className="px-6 py-4">
                 <DepartmentQuickActions
+                    canUseDepartmentFilter={canUseDepartmentFilter}
                     departmentId={dept.department_id}
                     isSelected={isSelected}
                     navigate={navigate}

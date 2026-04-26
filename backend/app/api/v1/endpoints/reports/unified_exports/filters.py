@@ -25,6 +25,7 @@ def _filter_rows_by_final_scope(
     department_id: int | None,
     owner_field: str | None,
     extra_visible_ids: set[int] | None = None,
+    extra_visible_id_field: str = "id",
     exclude_unassigned_for_scoped: bool = False,
 ) -> list[dict[str, Any]]:
     dept_ids = get_user_department_ids(current_user)
@@ -49,7 +50,7 @@ def _filter_rows_by_final_scope(
         if owner_field is not None and _safe_int(row.get(owner_field)) == current_user.id:
             filtered.append(row)
             continue
-        if _safe_int(row.get("id")) in visible_ids:
+        if _safe_int(row.get(extra_visible_id_field)) in visible_ids:
             filtered.append(row)
     return filtered
 

@@ -419,9 +419,9 @@
       "id": "AUTHZ-REPORTS-EXPORTS",
       "surface": "Reports and exports",
       "action": "Export risks, controls, KRIs, vendors, issues, audit trail, summary, and vendor reports",
-      "actor_scope": "Requires reports:read plus strict explicit department and as-of visibility filters",
+      "actor_scope": "Requires reports:read plus actor-visible unfiltered rows and strict explicit department and as-of visibility filters",
       "backend_authority": "backend/app/api/v1/endpoints/reports/ and backend/app/api/v1/endpoints/vendor_reports.py",
-      "service_policy": "backend/app/api/v1/endpoints/reports/unified_exports/ and report helpers",
+      "service_policy": "backend/app/core/_permissions/entity_scope_clauses.py, backend/app/api/v1/endpoints/reports/unified_exports/, and report helpers",
       "response_capability": "None; exported rows are filtered server-side",
       "frontend_gate": "frontend/src/services/reportApi.ts, frontend/src/services/vendorReportApi.ts, frontend/src/pages/AuditTrailPage.tsx, and export dialogs, frontend/src/pages/VendorReportsPage.tsx",
       "tests": [
@@ -438,9 +438,9 @@
       "id": "AUTHZ-DASHBOARDS",
       "surface": "Dashboards",
       "action": "Read overview, risk, control, KRI, issue, committee, and quarterly dashboard metrics",
-      "actor_scope": "Requires risks:read, issues:read, or committee access depending on endpoint; scope is applied in backend query helpers",
+      "actor_scope": "Requires risks:read, issues:read, or committee access depending on endpoint; unfiltered aggregates use actor-visible backend query helpers",
       "backend_authority": "backend/app/api/v1/endpoints/dashboard/",
-      "service_policy": "backend/app/api/v1/endpoints/dashboard/committee_helpers.py and dashboard modules",
+      "service_policy": "backend/app/core/_permissions/entity_scope_clauses.py, backend/app/api/v1/endpoints/dashboard/committee_helpers.py, and dashboard modules",
       "response_capability": "backend/app/schemas/dashboard.py DashboardOverviewCapabilities on DashboardOverviewResponse; payloads remain scoped server-side",
       "frontend_gate": "frontend/src/authz/policy.ts, frontend/src/components/PermissionGate.tsx, frontend/src/services/dashboardApi.ts, frontend/src/pages/DashboardPage.tsx, frontend/src/pages/dashboard/DashboardHeader.tsx, and frontend/src/pages/dashboard/useDashboardOverviewState.ts",
       "tests": [

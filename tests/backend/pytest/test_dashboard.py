@@ -2,12 +2,24 @@
 Tests for Dashboard API endpoints.
 """
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 from httpx import AsyncClient
 
-from app.models import Department, Permission, Role, RolePermission
+from app.models import (
+    Control,
+    ControlExecution,
+    Department,
+    KeyRiskIndicator,
+    KRIValueHistory,
+    Permission,
+    Risk,
+    Role,
+    RolePermission,
+    User,
+    Vendor,
+)
 from app.models.user import AccessScope
 
 
@@ -211,6 +223,188 @@ async def test_control_trends(auth_client: AsyncClient):
     for item in data:
         assert "period" in item
         assert "execution_count" in item
+
+
+@pytest.mark.asyncio
+async def test_control_trends_sqlite_week_label_has_unquoted_week_marker(
+    auth_client: AsyncClient,
+    db_session,
+    test_department: Department,
+    test_user: User,
+):
+    control = Control(
+        name="Week Label Control",
+        description="Control with deterministic execution week",
+        department_id=test_department.id,
+        control_owner_id=test_user.id,
+        status="active",
+    )
+    db_session.add(control)
+    await db_session.flush()
+    db_session.add(
+        ControlExecution(
+            control_id=control.id,
+            executed_by_id=test_user.id,
+            result="passed",
+            executed_at=datetime(2026, 4, 20, 12, 0, tzinfo=UTC),
+        )
+    )
+    await db_session.commit()
+
+    response = await auth_client.get("/api/v1/dashboard/control-trends")
+
+    assert response.status_code == 200
+    periods = {item["period"] for item in response.json()}
+    assert "2026-W16" in periods
+    assert all('"' not in period for period in periods)
+
+
+@pytest.mark.asyncio
+async def test_dashboard_actor_visible_metrics_include_cross_department_exceptions(
+    client_employee: AsyncClient,
+    db_session,
+    test_user_employee: User,
+):
+    second_department = Department(name="Dashboard Finance", code="DASH-FIN")
+    db_session.add(second_department)
+    await db_session.commit()
+    await db_session.refresh(second_department)
+
+    summary_before_response = await client_employee.get("/api/v1/dashboard/summary")
+
+    assert summary_before_response.status_code == 200
+    summary_before = summary_before_response.json()
+
+    risk = Risk(
+        risk_id_code="DASH-VISIBLE-R-001",
+        name="Dashboard Visible Cross Dept Risk",
+        process="Finance",
+        description="Visible through direct ownership",
+        category="Operational",
+        department_id=second_department.id,
+        owner_id=test_user_employee.id,
+        risk_type="operational",
+        gross_probability=5,
+        gross_impact=5,
+        net_probability=5,
+        net_impact=5,
+        status="active",
+    )
+    control = Control(
+        name="Dashboard Visible Cross Dept Control",
+        description="Visible through control ownership",
+        department_id=second_department.id,
+        control_owner_id=test_user_employee.id,
+        status="active",
+    )
+    vendor = Vendor(
+        name="Dashboard Visible Cross Dept Vendor",
+        process="IT",
+        department_id=second_department.id,
+        outsourcing_owner_user_id=test_user_employee.id,
+        vendor_type="ict",
+        risk_score_1_5=4,
+        status="active",
+    )
+    db_session.add_all([risk, control, vendor])
+    await db_session.flush()
+    kri = KeyRiskIndicator(
+        risk_id=risk.id,
+        metric_name="Dashboard Visible Cross Dept KRI",
+        description="Visible through parent risk ownership",
+        unit="%",
+        current_value=120.0,
+        lower_limit=0.0,
+        upper_limit=100.0,
+        frequency="quarterly",
+        is_archived=False,
+    )
+    db_session.add_all(
+        [
+            kri,
+            ControlExecution(
+                control_id=control.id,
+                executed_by_id=test_user_employee.id,
+                result="passed",
+                executed_at=datetime.now(UTC),
+            ),
+        ]
+    )
+    await db_session.flush()
+    db_session.add(
+        KRIValueHistory(
+            kri_id=kri.id,
+            value=120.0,
+            lower_limit=0.0,
+            upper_limit=100.0,
+            unit="%",
+            breach_status="above",
+            period_start=date(2026, 1, 1),
+            period_end=datetime.now(UTC).date(),
+            recorded_at=datetime.now(UTC),
+        )
+    )
+    await db_session.commit()
+
+    summary_response = await client_employee.get("/api/v1/dashboard/summary")
+    risk_distribution_response = await client_employee.get(
+        "/api/v1/dashboard/risk-distribution?probability=5&impact=5"
+    )
+    risk_drilldown_response = await client_employee.get("/api/v1/dashboard/risks-by-cell?probability=5&impact=5")
+    kri_trends_response = await client_employee.get("/api/v1/dashboard/kri-breach-trends")
+
+    assert summary_response.status_code == 200
+    summary = summary_response.json()
+    assert summary["total_risks"] == summary_before["total_risks"] + 1
+    assert summary["total_controls"] == summary_before["total_controls"] + 1
+    assert summary["total_vendors"] == summary_before["total_vendors"] + 1
+
+    assert risk_distribution_response.status_code == 200
+    assert any(item["count"] >= 1 for item in risk_distribution_response.json()["distribution"])
+
+    assert risk_drilldown_response.status_code == 200
+    assert "Dashboard Visible Cross Dept Risk" in {item["name"] for item in risk_drilldown_response.json()}
+
+    assert kri_trends_response.status_code == 200
+    assert any(item["breached_entries"] >= 1 for item in kri_trends_response.json())
+
+
+@pytest.mark.asyncio
+async def test_dashboard_explicit_department_filter_excludes_cross_department_owner_exception(
+    client_employee: AsyncClient,
+    db_session,
+    test_department: Department,
+    test_user_employee: User,
+):
+    second_department = Department(name="Dashboard Strict Finance", code="DASH-STRICT-FIN")
+    db_session.add(second_department)
+    await db_session.commit()
+    await db_session.refresh(second_department)
+
+    risk = Risk(
+        risk_id_code="DASH-STRICT-FILTER-R-001",
+        name="Dashboard Strict Filter Cross Dept Risk",
+        process="Finance",
+        description="Owned but outside requested department",
+        category="Operational",
+        department_id=second_department.id,
+        owner_id=test_user_employee.id,
+        risk_type="operational",
+        gross_probability=5,
+        gross_impact=5,
+        net_probability=5,
+        net_impact=5,
+        status="active",
+    )
+    db_session.add(risk)
+    await db_session.commit()
+
+    response = await client_employee.get(
+        f"/api/v1/dashboard/risks-by-cell?probability=5&impact=5&department_id={test_department.id}"
+    )
+
+    assert response.status_code == 200
+    assert "Dashboard Strict Filter Cross Dept Risk" not in {item["name"] for item in response.json()}
 
 
 @pytest.mark.asyncio

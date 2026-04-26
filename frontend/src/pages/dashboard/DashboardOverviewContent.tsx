@@ -9,6 +9,7 @@ interface DashboardOverviewContentProps {
     breachHistoryTitle: string;
     breachTrends: DashboardOverview['kri_breach_trends'];
     canReadIssues: boolean;
+    canUseDepartmentFilter: boolean;
     categoryAnalyticsTitle: string;
     controlExecutionTitle: string;
     departmentMetrics: DashboardOverview['department_metrics'];
@@ -44,7 +45,7 @@ interface DashboardOverviewContentProps {
 export function DashboardOverviewContent(props: DashboardOverviewContentProps) {
     return (
         <>
-            <FilterBar />
+            <FilterBar canUseDepartmentFilter={props.canUseDepartmentFilter} />
             <DashboardSummarySections
                 canReadIssues={props.canReadIssues}
                 categoryAnalyticsTitle={props.categoryAnalyticsTitle}
@@ -60,6 +61,7 @@ export function DashboardOverviewContent(props: DashboardOverviewContentProps) {
             <DashboardRiskSections
                 breachHistoryTitle={props.breachHistoryTitle}
                 breachTrends={props.breachTrends}
+                canUseDepartmentFilter={props.canUseDepartmentFilter}
                 controlExecutionTitle={props.controlExecutionTitle}
                 departmentMetrics={props.departmentMetrics}
                 departmentVisibilityTitle={props.departmentVisibilityTitle}

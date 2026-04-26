@@ -14,6 +14,12 @@ from ._permissions.entity_access import (
     can_read_risk_id,
     can_read_vendor_id,
 )
+from ._permissions.entity_scope_clauses import (
+    control_visibility_clause,
+    kri_visibility_clause,
+    risk_visibility_clause,
+    vendor_visibility_clause,
+)
 from ._permissions.evaluation import (
     can_manage_users,
     can_resolve_approvals,
@@ -73,6 +79,10 @@ __all__ = [
     "can_read_control_id",
     "can_read_vendor_id",
     "can_read_kri_id",
+    "risk_visibility_clause",
+    "control_visibility_clause",
+    "kri_visibility_clause",
+    "vendor_visibility_clause",
     "get_issue_scope_clause",
     "can_read_issue_id",
     "can_write_issue_id",
