@@ -1,6 +1,6 @@
 """Tests for KRI value submission API endpoints."""
 
-from datetime import date
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 from httpx import AsyncClient
@@ -73,6 +73,28 @@ async def test_record_value_creates_history_entry(
     result = await db_session.execute(select(KRIValueHistory).where(KRIValueHistory.kri_id == test_kri_for_api.id))
     entries = result.scalars().all()
     assert len(entries) >= 1
+
+
+@pytest.mark.asyncio
+async def test_privileged_record_value_rejects_future_recorded_at(
+    auth_client: AsyncClient,
+    test_kri_for_api,
+    db_session: AsyncSession,
+):
+    """Direct privileged submissions must not future-date recorded_at."""
+    future_recorded_at = datetime.now(UTC) + timedelta(days=1)
+
+    response = await auth_client.post(
+        f"/api/v1/kris/{test_kri_for_api.id}/values",
+        json={"value": 77.5, "recorded_at": future_recorded_at.isoformat()},
+    )
+
+    assert response.status_code == 400
+    assert "recorded_at cannot be in the future" in response.json()["detail"]
+    count = await db_session.scalar(
+        select(func.count()).select_from(KRIValueHistory).where(KRIValueHistory.kri_id == test_kri_for_api.id)
+    )
+    assert count == 0
 
 
 @pytest.mark.asyncio

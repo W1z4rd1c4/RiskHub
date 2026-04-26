@@ -111,6 +111,177 @@ async def test_get_history_offset_uses_exact_slice(
 
 
 @pytest.mark.asyncio
+async def test_get_history_default_orders_by_recorded_at_desc(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    test_kri_for_api,
+    test_user_cro,
+):
+    """Default API order stays activity-first for compatibility."""
+    db_session.add_all(
+        [
+            KRIValueHistory(
+                kri_id=test_kri_for_api.id,
+                period_start=date(2026, 1, 1),
+                period_end=date(2026, 1, 31),
+                recorded_at=datetime(2026, 4, 2, 12, 0, tzinfo=UTC),
+                recorded_by_id=test_user_cro.id,
+                value=10.0,
+                lower_limit=0.0,
+                upper_limit=100.0,
+                unit="%",
+                breach_status="within",
+            ),
+            KRIValueHistory(
+                kri_id=test_kri_for_api.id,
+                period_start=date(2026, 3, 1),
+                period_end=date(2026, 3, 31),
+                recorded_at=datetime(2026, 4, 1, 12, 0, tzinfo=UTC),
+                recorded_by_id=test_user_cro.id,
+                value=30.0,
+                lower_limit=0.0,
+                upper_limit=100.0,
+                unit="%",
+                breach_status="within",
+            ),
+        ]
+    )
+    await db_session.commit()
+
+    response = await auth_client.get(f"/api/v1/kris/{test_kri_for_api.id}/history")
+
+    assert response.status_code == 200
+    values = [item["value"] for item in response.json()["items"]]
+    assert values == [10.0, 30.0]
+
+
+@pytest.mark.asyncio
+async def test_get_history_period_sort_orders_by_business_period_desc(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    test_kri_for_api,
+    test_user_cro,
+):
+    """Period sort uses period_end, recorded_at, and id as deterministic tie breakers."""
+    same_recorded_at = datetime(2026, 4, 2, 12, 0, tzinfo=UTC)
+    db_session.add_all(
+        [
+            KRIValueHistory(
+                kri_id=test_kri_for_api.id,
+                period_start=date(2026, 1, 1),
+                period_end=date(2026, 1, 31),
+                recorded_at=same_recorded_at,
+                recorded_by_id=test_user_cro.id,
+                value=10.0,
+                lower_limit=0.0,
+                upper_limit=100.0,
+                unit="%",
+                breach_status="within",
+            ),
+            KRIValueHistory(
+                kri_id=test_kri_for_api.id,
+                period_start=date(2026, 3, 1),
+                period_end=date(2026, 3, 31),
+                recorded_at=datetime(2026, 4, 1, 12, 0, tzinfo=UTC),
+                recorded_by_id=test_user_cro.id,
+                value=30.0,
+                lower_limit=0.0,
+                upper_limit=100.0,
+                unit="%",
+                breach_status="within",
+            ),
+            KRIValueHistory(
+                kri_id=test_kri_for_api.id,
+                period_start=date(2026, 1, 1),
+                period_end=date(2026, 1, 31),
+                recorded_at=same_recorded_at,
+                recorded_by_id=test_user_cro.id,
+                value=11.0,
+                lower_limit=0.0,
+                upper_limit=100.0,
+                unit="%",
+                breach_status="within",
+            ),
+        ]
+    )
+    await db_session.commit()
+
+    response = await auth_client.get(
+        f"/api/v1/kris/{test_kri_for_api.id}/history",
+        params={"sort_by": "period", "sort_direction": "desc"},
+    )
+
+    assert response.status_code == 200
+    values = [item["value"] for item in response.json()["items"]]
+    assert values == [30.0, 11.0, 10.0]
+
+
+@pytest.mark.asyncio
+async def test_get_history_period_sort_supports_ascending_direction(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    test_kri_for_api,
+    test_user_cro,
+):
+    db_session.add_all(
+        [
+            KRIValueHistory(
+                kri_id=test_kri_for_api.id,
+                period_start=date(2026, 1, 1),
+                period_end=date(2026, 1, 31),
+                recorded_at=datetime(2026, 2, 1, 12, 0, tzinfo=UTC),
+                recorded_by_id=test_user_cro.id,
+                value=10.0,
+                lower_limit=0.0,
+                upper_limit=100.0,
+                unit="%",
+                breach_status="within",
+            ),
+            KRIValueHistory(
+                kri_id=test_kri_for_api.id,
+                period_start=date(2026, 3, 1),
+                period_end=date(2026, 3, 31),
+                recorded_at=datetime(2026, 4, 1, 12, 0, tzinfo=UTC),
+                recorded_by_id=test_user_cro.id,
+                value=30.0,
+                lower_limit=0.0,
+                upper_limit=100.0,
+                unit="%",
+                breach_status="within",
+            ),
+        ]
+    )
+    await db_session.commit()
+
+    response = await auth_client.get(
+        f"/api/v1/kris/{test_kri_for_api.id}/history",
+        params={"sort_by": "period", "sort_direction": "asc"},
+    )
+
+    assert response.status_code == 200
+    values = [item["value"] for item in response.json()["items"]]
+    assert values == [10.0, 30.0]
+
+
+@pytest.mark.asyncio
+async def test_get_history_rejects_invalid_sort_options(
+    auth_client: AsyncClient,
+    test_kri_for_api,
+):
+    invalid_sort = await auth_client.get(
+        f"/api/v1/kris/{test_kri_for_api.id}/history",
+        params={"sort_by": "name"},
+    )
+    assert invalid_sort.status_code == 422
+
+    invalid_direction = await auth_client.get(
+        f"/api/v1/kris/{test_kri_for_api.id}/history",
+        params={"sort_direction": "sideways"},
+    )
+    assert invalid_direction.status_code == 422
+
+
+@pytest.mark.asyncio
 async def test_get_history_requires_auth(
     client: AsyncClient,
     test_kri_for_api,

@@ -58,6 +58,7 @@ async def _apply_kri_value_submission(
             recorded_at=recorded_at,
             period_end=period_end,
             is_privileged=False,
+            validation_date=recorded_at.date() if recorded_at else None,
         )
 
         await activity_logger.log_activity(

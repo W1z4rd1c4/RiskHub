@@ -34,6 +34,7 @@ async def record_value(
     period_end: Optional[clock.date] = None,
     is_privileged: bool = False,
     allow_open_period: bool = False,
+    validation_date: Optional[clock.date] = None,
 ) -> KRIValueHistory:
     """
     Record a new KRI value and create a history entry.
@@ -48,6 +49,8 @@ async def record_value(
         is_privileged: Whether user can backdate outside current window
         allow_open_period: Whether to allow recording for current open period
                           (used when applying approved submissions)
+        validation_date: Date used for reporting-window validation. Approval
+                         execution passes the queued request date here.
 
     Returns:
         Created KRIValueHistory entry
@@ -56,7 +59,7 @@ async def record_value(
         ValueError: If non-privileged user tries to record outside window
     """
     now = utc_now()
-    today = clock.today()
+    today = validation_date or clock.today()
 
     # Determine period (default to latest closed period)
     latest_start, latest_end = latest_closed_period_for_date(today, kri.frequency)
@@ -94,7 +97,7 @@ async def record_value(
         raise ValueError("Non-privileged users cannot backdate to older periods")
 
     # Non-privileged users must be within window even for current period
-    if not is_privileged and not is_within_reporting_window(period_end):
+    if not is_privileged and not is_within_reporting_window(period_end, as_of=today):
         raise ValueError(f"Reporting window closed. Due date was {due_date(period_end)}")
 
     # Calculate breach status
@@ -106,6 +109,8 @@ async def record_value(
         breach_status = "within"
 
     history_recorded_at = coerce_utc(recorded_at) or now
+    if history_recorded_at > now:
+        raise ValueError("recorded_at cannot be in the future")
 
     # Create history entry
     history_entry = KRIValueHistory(

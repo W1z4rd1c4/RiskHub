@@ -115,7 +115,17 @@ export const kriApi = {
 
     async getHistory(
         kriId: number,
-        params?: { from_date?: string; to_date?: string; offset?: number; limit?: number; page?: number; size?: number; include_archived?: boolean }
+        params?: {
+            from_date?: string;
+            to_date?: string;
+            offset?: number;
+            limit?: number;
+            page?: number;
+            size?: number;
+            include_archived?: boolean;
+            sort_by?: 'recorded_at' | 'period';
+            sort_direction?: 'desc' | 'asc';
+        },
     ): Promise<KRIHistoryListResponse> {
         const offset = legacyPageToOffset(params, DEFAULT_KRI_LEGACY_PAGE_SIZE);
         return apiClient.get(`/kris/${kriId}/history`, {
@@ -125,6 +135,8 @@ export const kriApi = {
                 include_archived: params?.include_archived,
                 offset,
                 limit: params?.limit ?? params?.size,
+                sort_by: params?.sort_by,
+                sort_direction: params?.sort_direction,
             },
             schema: kriHistoryListResponseSchema,
         });

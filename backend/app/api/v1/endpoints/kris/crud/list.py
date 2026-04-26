@@ -25,7 +25,7 @@ from app.api.v1.endpoints._monitoring_response import (
 )
 from app.core.datetime_utils import utc_now
 from app.core.pagination import MAX_KRI_PAGE_SIZE
-from app.core.permissions import can_read_vendor, get_user_department_ids
+from app.core.permissions import can_read_vendor
 from app.core.security import check_permission, require_permission
 from app.db.session import get_db
 from app.models import KeyRiskIndicator, Risk, User, VendorKRILink
@@ -38,6 +38,8 @@ from app.services._monitoring_status import (
     apply_kri_timeliness_status_filter,
 )
 from app.services.authorization_capabilities import kri_capabilities
+
+from ..access import can_create_kri_for_any_parent_risk, kri_read_scope_clause
 
 router = APIRouter(prefix="/kris", tags=["Key Risk Indicators"])
 
@@ -109,8 +111,6 @@ async def list_kris(
     group_value: str | None = Query(None),
 ):
     """List all KRIs with optional filters."""
-    from app.core.permissions import get_kri_ids_where_reporting_owner
-
     effective_limit = size if size is not None else limit
     effective_offset = skip if skip is not None else offset
     if page is not None:
@@ -162,19 +162,9 @@ async def list_kris(
     elif not include_archived:
         query = query.where(KeyRiskIndicator.is_archived.is_(False))
 
-    dept_ids = get_user_department_ids(current_user)
-    if dept_ids is not None:
-        # Include KRIs from user's departments OR where user is reporting owner
-        reporting_owner_kri_ids = await get_kri_ids_where_reporting_owner(db, current_user.id)
-        if reporting_owner_kri_ids:
-            query = query.filter(
-                or_(
-                    Risk.department_id.in_(dept_ids),
-                    KeyRiskIndicator.id.in_(reporting_owner_kri_ids),
-                )
-            )
-        else:
-            query = query.filter(Risk.department_id.in_(dept_ids))
+    visibility_clause = await kri_read_scope_clause(db, current_user)
+    if visibility_clause is not None:
+        query = query.where(visibility_clause)
 
     if risk_id:
         query = query.where(KeyRiskIndicator.risk_id == risk_id)
@@ -217,7 +207,7 @@ async def list_kris(
 
     can_read_vendors = check_permission(current_user, "vendors", "read")
     collection_capabilities = {
-        "can_create": check_permission(current_user, "risks", "write"),
+        "can_create": await can_create_kri_for_any_parent_risk(db, current_user),
         "can_export": check_permission(current_user, "reports", "read"),
         "can_view_vendor_contexts": can_read_vendors,
     }

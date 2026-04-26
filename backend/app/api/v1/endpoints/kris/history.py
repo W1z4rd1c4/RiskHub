@@ -1,5 +1,5 @@
 from datetime import date
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
@@ -11,7 +11,6 @@ from app.db.session import get_db
 from app.models import User
 from app.schemas.approval_request import ApprovalQueuedResponse
 from app.schemas.kri import (
-    KRIHistoryCapabilitiesRead,
     KRIHistoryEdit,
     KRIHistoryEntry,
     KRIHistoryListResponse,
@@ -22,15 +21,16 @@ from app.services._kri_history.recording import DuplicateKRIPeriodError
 from app.services._kri_history.workflow import (
     ensure_can_read_history,
     ensure_can_request_history_correction,
-    history_capabilities,
 )
 
+from .history_corrections import create_kri_history_correction_approval
 from .history_helpers import (
     _apply_kri_value_directly,
     _assert_kri_submit_access,
     _create_kri_submission_approval,
     _load_kri_with_risk_or_404,
 )
+from .history_listing import build_kri_history_response
 
 router = APIRouter()
 APPROVAL_QUEUED_RESPONSE: dict[int | str, dict[str, Any]] = {202: {"model": ApprovalQueuedResponse}}
@@ -99,11 +99,10 @@ async def get_kri_history(
     limit: int = Query(20, ge=1, le=100),
     page: int | None = Query(None, ge=1),
     size: int | None = Query(None, ge=1, le=100),
+    sort_by: Literal["recorded_at", "period"] = Query("recorded_at"),
+    sort_direction: Literal["desc", "asc"] = Query("desc"),
 ):
     """Get paginated history for a KRI."""
-    from app.schemas.kri import KRIHistoryEntry
-    from app.services.kri_history_service import KRIHistoryService
-
     kri = await _load_kri_with_risk_or_404(db, kri_id)
 
     # Archived KRIs are hidden unless explicitly requested
@@ -117,29 +116,17 @@ async def get_kri_history(
     if page is not None:
         effective_offset = (page - 1) * effective_limit
 
-    entries, total = await KRIHistoryService.get_history(
+    return await build_kri_history_response(
         db=db,
+        kri=kri,
         kri_id=kri_id,
+        current_user=current_user,
         from_date=from_date,
         to_date=to_date,
         offset=effective_offset,
         limit=effective_limit,
-    )
-
-    # Map to response with user names
-    items = []
-    for entry in entries:
-        item = KRIHistoryEntry.model_validate(entry)
-        if entry.recorded_by:
-            item.recorded_by_name = entry.recorded_by.name
-        items.append(item)
-
-    return KRIHistoryListResponse(
-        items=items,
-        total=total,
-        offset=effective_offset,
-        limit=effective_limit,
-        capabilities=KRIHistoryCapabilitiesRead(**await history_capabilities(db, current_user, kri)),
+        sort_by=sort_by,
+        sort_direction=sort_direction,
     )
 
 
@@ -158,7 +145,6 @@ async def correct_history_entry(
     Privileged users apply the correction immediately.
     """
     from app.core.permissions import can_resolve_approvals
-    from app.models import ApprovalActionType, ApprovalRequest, ApprovalResourceType, ApprovalStatus
     from app.models.kri_history import KRIValueHistory
     from app.schemas.kri import KRIHistoryEntry
     from app.services.kri_history_service import KRIHistoryService
@@ -190,64 +176,12 @@ async def correct_history_entry(
             return KRIHistoryEntry.model_validate(updated_entry)
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e)) from e
-    else:
-        # Check for existing pending request (both statuses)
-        existing = await db.execute(
-            select(ApprovalRequest).where(
-                ApprovalRequest.resource_type == ApprovalResourceType.KRI,
-                ApprovalRequest.resource_id == kri.id,
-                ApprovalRequest.action_type == ApprovalActionType.EDIT,
-                ApprovalRequest.status.in_([ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED]),
-            )
-        )
-        if existing.scalar_one_or_none():
-            raise HTTPException(status_code=400, detail="Edit request already pending for this KRI")
 
-        # Create approval request with history entry info
-        # §5.3: KRI corrections ALWAYS require CRO approval (privileged)
-        # Tier 1: Risk Owner approves first
-        # Tier 2: CRO (privileged) approves second
-        primary_approver_id = kri.risk.owner_id if kri.risk else None
-
-        pending_changes = {
-            "history_entry_id": entry_id,
-            "old_value": entry.value,
-            "new_value": data.value,
-            "reason": data.reason,
-            "period_end": entry.period_end.isoformat(),
-        }
-
-        approval = ApprovalRequest(
-            resource_type=ApprovalResourceType.KRI,
-            resource_id=kri.id,
-            resource_name=f"{kri.metric_name[:30]} (history correction)",
-            requested_by_id=current_user.id,
-            reason=data.reason,
-            action_type=ApprovalActionType.EDIT,
-            pending_changes=pending_changes,
-            status=ApprovalStatus.PENDING,
-            primary_approver_id=primary_approver_id,
-            requires_privileged_approval=True,  # §5.3: Corrections ALWAYS require CRO
-        )
-
-        from app.core.approval_helpers import create_approval_request_with_audit
-
-        await create_approval_request_with_audit(
-            db,
-            approval=approval,
-            actor=current_user,
-            department_id=kri.risk.department_id,
-            on_duplicate_detail="A correction request is already pending for this KRI.",
-        )
-
-        from app.core.approval_helpers import build_approval_queued_response
-
-        return build_approval_queued_response(
-            message="History correction requires approval (CRO approval required per §5.3)",
-            approval_id=approval.id,
-            action_type="edit",
-            pending_fields=list(pending_changes.keys()),
-            pending_changes=pending_changes,
-            primary_approver_id=primary_approver_id,
-            requires_privileged_approval=True,
-        )
+    return await create_kri_history_correction_approval(
+        db,
+        kri=kri,
+        entry=entry,
+        entry_id=entry_id,
+        data=data,
+        current_user=current_user,
+    )

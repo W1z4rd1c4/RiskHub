@@ -1477,14 +1477,14 @@ async def test_approve_kri_value_submission_with_period_end(
         resource_name="Value Submission KRI (value submission)",
         requested_by_id=test_user_employee.id,
         reason="KRI value submission: 55.0",
-        action_type=ApprovalActionType.EDIT,
-        pending_changes={
-            "current_value": {"old": 30.0, "new": 55.0},
-            "period_end": closed_period_end.isoformat(),
-            "recorded_at": datetime.now(UTC).isoformat(),
-        },
-        status=ApprovalStatus.PENDING,
-    )
+            action_type=ApprovalActionType.EDIT,
+            pending_changes={
+                "current_value": {"old": 30.0, "new": 55.0},
+                "period_end": closed_period_end.isoformat(),
+                "recorded_at": datetime(2026, 4, 10, 12, 0, tzinfo=UTC).isoformat(),
+            },
+            status=ApprovalStatus.PENDING,
+        )
     db_session.add(approval)
     await db_session.commit()
     await db_session.refresh(approval)
@@ -1664,7 +1664,7 @@ async def test_approve_kri_value_submission_sanitizes_internal_500_detail(
 
 
 @pytest.mark.asyncio
-async def test_stale_kri_value_submission_auto_rejects_at_apply_time(
+async def test_timely_kri_value_submission_still_applies_after_reporting_window_closes(
     auth_client: AsyncClient,
     db_session: AsyncSession,
     test_risk,
@@ -1695,7 +1695,7 @@ async def test_stale_kri_value_submission_auto_rejects_at_apply_time(
         pending_changes={
             "current_value": {"old": 30.0, "new": 55.0},
             "period_end": date(2026, 2, 28).isoformat(),
-            "recorded_at": datetime.now(UTC).isoformat(),
+            "recorded_at": datetime(2026, 3, 10, 12, 0, tzinfo=UTC).isoformat(),
         },
         status=ApprovalStatus.PENDING,
     )
@@ -1710,13 +1710,13 @@ async def test_stale_kri_value_submission_auto_rejects_at_apply_time(
         json={"resolution_notes": "Approve stale value submission"},
     )
     assert response.status_code == 200
-    assert response.json()["status"] == "rejected"
+    assert response.json()["status"] == "approved"
 
     await db_session.refresh(approval)
     await db_session.refresh(kri)
-    assert approval.status == ApprovalStatus.REJECTED
-    assert "apply-time validation" in (approval.resolution_notes or "")
-    assert kri.current_value == 30.0
+    assert approval.status == ApprovalStatus.APPROVED
+    assert kri.current_value == 55.0
+    assert kri.last_period_end == date(2026, 2, 28)
 
     result = await db_session.execute(
         select(KRIValueHistory).where(
@@ -1724,7 +1724,9 @@ async def test_stale_kri_value_submission_auto_rejects_at_apply_time(
             KRIValueHistory.period_end == date(2026, 2, 28),
         )
     )
-    assert result.scalar_one_or_none() is None
+    entry = result.scalar_one_or_none()
+    assert entry is not None
+    assert entry.value == 55.0
 
 
 @pytest.mark.asyncio

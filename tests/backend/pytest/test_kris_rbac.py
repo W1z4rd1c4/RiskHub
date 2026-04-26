@@ -22,6 +22,7 @@ from app.models import (
     VendorKRILink,
     VendorRiskLink,
 )
+from app.models.key_risk_indicator import KRIFrequency
 from app.models.risk import RiskStatus
 from tests.backend.pytest.factories import create_test_kri, create_test_risk, create_test_vendor
 
@@ -1183,7 +1184,18 @@ async def test_reporting_owner_can_view_kri_history_cross_department(
         breach_status="within",
     )
     db_session.add(history)
+    sibling_kri = KeyRiskIndicator(
+        risk_id=kri.risk_id,
+        metric_name="Cross-Dept Reporting Owner Sibling KRI",
+        description="Sibling KRI should inherit parent-risk visibility",
+        unit="%",
+        current_value=65.0,
+        lower_limit=0.0,
+        upper_limit=100.0,
+    )
+    db_session.add(sibling_kri)
     await db_session.commit()
+    await db_session.refresh(sibling_kri)
 
     # Reporting owner (test_user via auth_client) can view history cross-department
     response = await auth_client.get(f"/api/v1/kris/{kri.id}/history")
@@ -1192,6 +1204,15 @@ async def test_reporting_owner_can_view_kri_history_cross_department(
     data = response.json()
     assert data["total"] >= 1
     assert len(data["items"]) >= 1
+
+    detail_response = await auth_client.get(f"/api/v1/kris/{sibling_kri.id}")
+    assert detail_response.status_code == 200
+
+    list_response = await auth_client.get("/api/v1/kris")
+    assert list_response.status_code == 200
+    kri_ids = {item["id"] for item in list_response.json()["items"]}
+    assert kri.id in kri_ids
+    assert sibling_kri.id in kri_ids
 
 
 @pytest.mark.asyncio
@@ -1265,6 +1286,326 @@ async def test_risk_owner_can_view_kri_history_cross_department(
     assert response.status_code == 200
     data = response.json()
     assert data["total"] >= 1
+
+
+@pytest.mark.asyncio
+async def test_cross_department_risk_owner_can_read_kri_surfaces(
+    client_approval_requester: AsyncClient,
+    db_session,
+    test_user_approval_requester,
+):
+    """KRI list/detail/history/breaches should share canonical risk-owner visibility."""
+    from datetime import UTC, date, datetime
+
+    from app.models.kri_history import KRIValueHistory
+
+    other_dept = Department(name="KRI Owner Other Dept", code="KRI-OWNER-X", is_active=True)
+    db_session.add(other_dept)
+    await db_session.commit()
+    await db_session.refresh(other_dept)
+
+    risk = Risk(
+        risk_id_code="RISK-KRI-OWNER-X",
+        name="Risk Owner KRI Visibility",
+        process="Visibility",
+        description="Cross-department risk owned by requester",
+        category="Test",
+        department_id=other_dept.id,
+        owner_id=test_user_approval_requester.id,
+        risk_type="operational",
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=2,
+        status=RiskStatus.active.value,
+    )
+    db_session.add(risk)
+    await db_session.commit()
+    await db_session.refresh(risk)
+
+    kri = KeyRiskIndicator(
+        risk_id=risk.id,
+        metric_name="Risk Owner Visible Breached KRI",
+        description="KRI should be visible through risk ownership",
+        current_value=150.0,
+        lower_limit=0.0,
+        upper_limit=100.0,
+        unit="%",
+        frequency=KRIFrequency.monthly.value,
+        last_period_end=date(2026, 3, 31),
+    )
+    db_session.add(kri)
+    await db_session.commit()
+    await db_session.refresh(kri)
+
+    db_session.add(
+        KRIValueHistory(
+            kri_id=kri.id,
+            period_start=date(2026, 3, 1),
+            period_end=date(2026, 3, 31),
+            recorded_at=datetime(2026, 4, 1, 12, 0, tzinfo=UTC),
+            recorded_by_id=test_user_approval_requester.id,
+            value=150.0,
+            lower_limit=0.0,
+            upper_limit=100.0,
+            unit="%",
+            breach_status="above",
+        )
+    )
+    await db_session.commit()
+
+    detail = await client_approval_requester.get(f"/api/v1/kris/{kri.id}")
+    assert detail.status_code == 200
+    assert detail.json()["id"] == kri.id
+
+    list_response = await client_approval_requester.get("/api/v1/kris")
+    assert list_response.status_code == 200
+    assert kri.id in {item["id"] for item in list_response.json()["items"]}
+
+    history = await client_approval_requester.get(f"/api/v1/kris/{kri.id}/history")
+    assert history.status_code == 200
+    assert history.json()["total"] == 1
+
+    breaches = await client_approval_requester.get("/api/v1/kris/breaches")
+    assert breaches.status_code == 200
+    assert kri.id in {item["id"] for item in breaches.json()}
+
+
+@pytest.mark.asyncio
+async def test_cross_department_control_owner_can_read_linked_risk_kri_surfaces(
+    client_employee: AsyncClient,
+    db_session,
+    test_user_employee,
+    test_user_cro,
+):
+    """Linked-control ownership should grant the same KRI read surfaces as can_read_kri_id."""
+    from datetime import date
+
+    from app.models import Control, ControlRiskLink
+    from app.models.control import ControlStatus
+
+    other_dept = Department(name="KRI Control Owner Other Dept", code="KRI-CTRL-X", is_active=True)
+    db_session.add(other_dept)
+    await db_session.commit()
+    await db_session.refresh(other_dept)
+
+    risk = Risk(
+        risk_id_code="RISK-KRI-CTRL-X",
+        name="Control Owner KRI Visibility",
+        process="Visibility",
+        description="Cross-department risk linked to an owned control",
+        category="Test",
+        department_id=other_dept.id,
+        owner_id=test_user_cro.id,
+        risk_type="operational",
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=2,
+        status=RiskStatus.active.value,
+    )
+    control = Control(
+        name="Owned Cross-Linked Control",
+        description="Control owned by employee and linked to cross-dept risk",
+        department_id=other_dept.id,
+        control_owner_id=test_user_employee.id,
+        control_form="manual",
+        frequency="monthly",
+        status=ControlStatus.active.value,
+    )
+    db_session.add_all([risk, control])
+    await db_session.commit()
+    await db_session.refresh(risk)
+    await db_session.refresh(control)
+
+    db_session.add(ControlRiskLink(control_id=control.id, risk_id=risk.id))
+    kri = KeyRiskIndicator(
+        risk_id=risk.id,
+        metric_name="Control Owner Visible KRI",
+        description="KRI should be visible through linked control ownership",
+        current_value=50.0,
+        lower_limit=0.0,
+        upper_limit=100.0,
+        unit="%",
+        frequency=KRIFrequency.monthly.value,
+        last_period_end=date(2026, 3, 31),
+    )
+    db_session.add(kri)
+    await db_session.commit()
+    await db_session.refresh(kri)
+
+    detail = await client_employee.get(f"/api/v1/kris/{kri.id}")
+    assert detail.status_code == 200
+    assert detail.json()["id"] == kri.id
+
+    list_response = await client_employee.get("/api/v1/kris")
+    assert list_response.status_code == 200
+    assert kri.id in {item["id"] for item in list_response.json()["items"]}
+
+    history = await client_employee.get(f"/api/v1/kris/{kri.id}/history")
+    assert history.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_unrelated_scoped_user_cannot_read_cross_department_kri_surfaces(
+    client_employee: AsyncClient,
+    db_session,
+    test_user_cro,
+):
+    """Canonical visibility should not leak cross-department KRIs to unrelated users."""
+    other_dept = Department(name="KRI Hidden Other Dept", code="KRI-HIDDEN-X", is_active=True)
+    db_session.add(other_dept)
+    await db_session.commit()
+    await db_session.refresh(other_dept)
+
+    risk = Risk(
+        risk_id_code="RISK-KRI-HIDDEN-X",
+        name="Hidden KRI Risk",
+        process="Visibility",
+        description="Cross-department risk unrelated to employee",
+        category="Test",
+        department_id=other_dept.id,
+        owner_id=test_user_cro.id,
+        risk_type="operational",
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=2,
+        status=RiskStatus.active.value,
+    )
+    db_session.add(risk)
+    await db_session.commit()
+    await db_session.refresh(risk)
+
+    kri = KeyRiskIndicator(
+        risk_id=risk.id,
+        metric_name="Hidden Cross Department KRI",
+        description="KRI should not be visible",
+        current_value=150.0,
+        lower_limit=0.0,
+        upper_limit=100.0,
+        unit="%",
+        frequency=KRIFrequency.monthly.value,
+    )
+    db_session.add(kri)
+    await db_session.commit()
+    await db_session.refresh(kri)
+
+    detail = await client_employee.get(f"/api/v1/kris/{kri.id}")
+    assert detail.status_code == 404
+
+    list_response = await client_employee.get("/api/v1/kris")
+    assert list_response.status_code == 200
+    assert kri.id not in {item["id"] for item in list_response.json()["items"]}
+
+    breaches = await client_employee.get("/api/v1/kris/breaches")
+    assert breaches.status_code == 200
+    assert kri.id not in {item["id"] for item in breaches.json()}
+
+
+@pytest.mark.asyncio
+async def test_kri_breaches_explicit_unauthorized_department_filter_is_strict(
+    client_approval_requester: AsyncClient,
+    db_session,
+    test_user_approval_requester,
+):
+    """Explicit department filters should not include ownership-exception rows from unauthorized departments."""
+    other_dept = Department(name="KRI Filter Other Dept", code="KRI-FILTER-X", is_active=True)
+    db_session.add(other_dept)
+    await db_session.commit()
+    await db_session.refresh(other_dept)
+
+    risk = Risk(
+        risk_id_code="RISK-KRI-FILTER-X",
+        name="Filtered KRI Risk",
+        process="Visibility",
+        description="Owned cross-department risk",
+        category="Test",
+        department_id=other_dept.id,
+        owner_id=test_user_approval_requester.id,
+        risk_type="operational",
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=2,
+        status=RiskStatus.active.value,
+    )
+    db_session.add(risk)
+    await db_session.commit()
+    await db_session.refresh(risk)
+
+    kri = KeyRiskIndicator(
+        risk_id=risk.id,
+        metric_name="Filtered Breached KRI",
+        description="Owned KRI should not leak through explicit unauthorized department filter",
+        current_value=150.0,
+        lower_limit=0.0,
+        upper_limit=100.0,
+        unit="%",
+        frequency=KRIFrequency.monthly.value,
+    )
+    db_session.add(kri)
+    await db_session.commit()
+    await db_session.refresh(kri)
+
+    breaches = await client_approval_requester.get(
+        "/api/v1/kris/breaches",
+        params={"department_id": other_dept.id},
+    )
+    assert breaches.status_code == 200
+    assert breaches.json() == []
+
+
+@pytest.mark.asyncio
+async def test_kri_list_create_capability_requires_writable_parent_risk(
+    client_approval_requester: AsyncClient,
+):
+    """risks:write alone should not advertise KRI creation when no writable parent risk exists."""
+    response = await client_approval_requester.get("/api/v1/kris")
+    assert response.status_code == 200
+    assert response.json()["capabilities"]["can_create"] is False
+
+
+@pytest.mark.asyncio
+async def test_kri_list_create_capability_true_with_writable_parent_risk(
+    client_approval_requester: AsyncClient,
+    db_session,
+    test_department,
+    test_user_approval_requester,
+):
+    """KRI creation is advertised only when the user has an accepted active parent risk."""
+    risk = Risk(
+        risk_id_code="RISK-KRI-CREATE-OK",
+        name="Writable Parent Risk",
+        process="Create",
+        description="In-scope active risk for KRI create capability",
+        category="Test",
+        department_id=test_department.id,
+        owner_id=test_user_approval_requester.id,
+        risk_type="operational",
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=2,
+        status=RiskStatus.active.value,
+    )
+    db_session.add(risk)
+    await db_session.commit()
+
+    response = await client_approval_requester.get("/api/v1/kris")
+    assert response.status_code == 200
+    assert response.json()["capabilities"]["can_create"] is True
+
+
+@pytest.mark.asyncio
+async def test_kri_list_create_capability_true_for_global_user_with_any_active_risk(
+    auth_client: AsyncClient,
+    test_risk,
+):
+    """Global write-capable users can create a KRI when any active parent risk exists."""
+    response = await auth_client.get("/api/v1/kris")
+    assert response.status_code == 200
+    assert response.json()["capabilities"]["can_create"] is True
 
 
 @pytest.mark.asyncio

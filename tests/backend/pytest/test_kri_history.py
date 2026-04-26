@@ -339,6 +339,37 @@ class TestRecordValue:
                 )
 
     @pytest.mark.asyncio
+    async def test_future_recorded_at_rejected(self, db_session: AsyncSession, test_kri_quarterly, test_user_cro):
+        """History recorded_at is factual and cannot be future-dated."""
+        future_recorded_at = datetime.now(UTC) + timedelta(days=1)
+
+        with pytest.raises(ValueError, match="recorded_at cannot be in the future"):
+            await KRIHistoryService.record_value(
+                db=db_session,
+                kri=test_kri_quarterly,
+                value=65.0,
+                recorded_by_id=test_user_cro.id,
+                recorded_at=future_recorded_at,
+                is_privileged=True,
+            )
+
+    @pytest.mark.asyncio
+    async def test_historical_recorded_at_allowed(self, db_session: AsyncSession, test_kri_quarterly, test_user_cro):
+        """Valid historical recorded_at values are preserved."""
+        historical_recorded_at = datetime.now(UTC) - timedelta(days=1)
+
+        entry = await KRIHistoryService.record_value(
+            db=db_session,
+            kri=test_kri_quarterly,
+            value=65.0,
+            recorded_by_id=test_user_cro.id,
+            recorded_at=historical_recorded_at,
+            is_privileged=True,
+        )
+
+        assert entry.recorded_at == historical_recorded_at
+
+    @pytest.mark.asyncio
     async def test_open_period_rejected_without_privilege(
         self, db_session: AsyncSession, test_kri_quarterly, test_user_cro
     ):

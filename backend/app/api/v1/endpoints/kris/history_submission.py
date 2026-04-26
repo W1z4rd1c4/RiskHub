@@ -1,0 +1,88 @@
+from fastapi import HTTPException
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.datetime_utils import utc_now
+from app.models import KeyRiskIndicator, User
+from app.models.kri_history import KRIValueHistory
+from app.schemas.kri import KRIRecordValue
+from app.services._kri_history.recording import DuplicateKRIPeriodError
+from app.services._kri_history.workflow import latest_closed_period_end
+
+
+async def _create_kri_submission_approval(
+    db: AsyncSession,
+    *,
+    kri: KeyRiskIndicator,
+    data: KRIRecordValue,
+    current_user: User,
+):
+    from app.core.approval_helpers import build_approval_queued_response, create_approval_request_with_audit
+    from app.models import ApprovalActionType, ApprovalRequest, ApprovalResourceType, ApprovalStatus
+
+    latest_closed_end = latest_closed_period_end(kri)
+
+    if data.period_end and data.period_end != latest_closed_end:
+        raise HTTPException(status_code=400, detail="Non-privileged users cannot specify custom period_end")
+
+    existing_history = await db.scalar(
+        select(KRIValueHistory.id)
+        .where(
+            KRIValueHistory.kri_id == kri.id,
+            KRIValueHistory.period_end == latest_closed_end,
+        )
+        .limit(1)
+    )
+    if existing_history is not None:
+        raise DuplicateKRIPeriodError(f"KRI value already recorded for period ending {latest_closed_end}")
+
+    existing = await db.execute(
+        select(ApprovalRequest).where(
+            ApprovalRequest.resource_type == ApprovalResourceType.KRI,
+            ApprovalRequest.resource_id == kri.id,
+            ApprovalRequest.action_type == ApprovalActionType.EDIT,
+            ApprovalRequest.status.in_([ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED]),
+        )
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="A value submission request is already pending for this KRI")
+
+    primary_approver_id = kri.risk.owner_id if kri.risk else None
+    requires_privileged = bool(kri.risk and kri.risk.is_priority)
+    recorded_at = utc_now().isoformat()
+    pending_changes = {
+        "current_value": {"old": kri.current_value, "new": data.value},
+        "period_end": latest_closed_end.isoformat(),
+        "recorded_at": recorded_at,
+    }
+
+    approval = ApprovalRequest(
+        resource_type=ApprovalResourceType.KRI,
+        resource_id=kri.id,
+        resource_name=f"{kri.metric_name[:30]} (value submission)",
+        requested_by_id=current_user.id,
+        reason=f"KRI value submission: {data.value}",
+        action_type=ApprovalActionType.EDIT,
+        pending_changes=pending_changes,
+        status=ApprovalStatus.PENDING,
+        primary_approver_id=primary_approver_id,
+        requires_privileged_approval=requires_privileged,
+    )
+    await create_approval_request_with_audit(
+        db,
+        approval=approval,
+        actor=current_user,
+        department_id=kri.risk.department_id,
+        on_duplicate_detail="A value submission request is already pending for this KRI.",
+    )
+
+    return build_approval_queued_response(
+        message="Value submission requires approval"
+        + (" (priority risk - privileged approval also required)" if requires_privileged else ""),
+        approval_id=approval.id,
+        action_type="edit",
+        pending_fields=list(pending_changes.keys()),
+        pending_changes=pending_changes,
+        primary_approver_id=primary_approver_id,
+        requires_privileged_approval=requires_privileged,
+    )

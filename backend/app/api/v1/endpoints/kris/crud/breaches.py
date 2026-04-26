@@ -15,6 +15,8 @@ from app.schemas.kri import KRIResponse
 from app.schemas.vendor_shared import LinkedVendorRead
 from app.services._monitoring_status import KRIMonitoringStatus
 
+from ..access import kri_read_scope_clause
+
 router = APIRouter()
 
 
@@ -39,16 +41,16 @@ async def list_breaches(
         )
 
     dept_ids = get_user_department_ids(current_user)
-    if dept_ids is not None:
-        query = query.filter(Risk.department_id.in_(dept_ids))
-
-    # Apply explicit department filter if provided (and allowed)
     if department_id:
         if dept_ids is not None and department_id not in dept_ids:
             # User trying to access unauthorized department
             # Just return empty, or could raise 403. Returning empty is safer for filters.
             return []
         query = query.filter(Risk.department_id == department_id)
+    else:
+        visibility_clause = await kri_read_scope_clause(db, current_user)
+        if visibility_clause is not None:
+            query = query.where(visibility_clause)
 
     query = query.options(
         selectinload(KeyRiskIndicator.reporting_owner),

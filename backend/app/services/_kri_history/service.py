@@ -53,6 +53,7 @@ class KRIHistoryService:
         period_end: Optional[clock.date] = None,
         is_privileged: bool = False,
         allow_open_period: bool = False,
+        validation_date: Optional[clock.date] = None,
     ) -> KRIValueHistory:
         return await _record_value(
             db=db,
@@ -63,6 +64,7 @@ class KRIHistoryService:
             period_end=period_end,
             is_privileged=is_privileged,
             allow_open_period=allow_open_period,
+            validation_date=validation_date,
         )
 
     @staticmethod
@@ -75,6 +77,8 @@ class KRIHistoryService:
         size: int = 20,
         offset: int | None = None,
         limit: int | None = None,
+        sort_by: str = "recorded_at",
+        sort_direction: str = "desc",
     ) -> Tuple[list[KRIValueHistory], int]:
         return await _get_history(
             db=db,
@@ -85,6 +89,8 @@ class KRIHistoryService:
             size=size,
             offset=offset,
             limit=limit,
+            sort_by=sort_by,
+            sort_direction=sort_direction,
         )
 
     @staticmethod

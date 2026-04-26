@@ -52,7 +52,12 @@ export function useKriDetailState({ rawId }: UseKriDetailStateArgs) {
     const fetchHistory = useCallback(async (id: number) => {
         setIsLoadingHistory(true);
         try {
-            const response = await kriApi.getHistory(id, { size: 50, include_archived: true });
+            const response = await kriApi.getHistory(id, {
+                size: 50,
+                include_archived: true,
+                sort_by: 'period',
+                sort_direction: 'desc',
+            });
             setHistory(response.items);
             setHistoryTotal(response.total);
             setHistoryCapabilities(response.capabilities ?? null);

@@ -231,10 +231,13 @@ Rules:
 - The upper warning margin is configuration-backed in Risk Hub global config and defaults to 10% of the configured range.
 
 **History and Value Governance:**
-- KRI history read access delegates to canonical KRI visibility (`can_read_kri_id`): department access, reporting-owner access, and linked-risk visibility are all evaluated by the backend policy layer.
+- KRI list, detail, history, and breach surfaces delegate read access to canonical KRI visibility (`can_read_kri_id`): department access, direct risk ownership, KRI reporting ownership, and linked-control ownership are evaluated by the backend policy layer.
+- Explicit KRI department filters remain strict. Ownership and reporting exceptions do not leak rows from a department the caller explicitly cannot access.
 - KRI value submission is period-based. Only one value may exist for a given `(kri_id, period_end)`.
 - Direct duplicate submissions for an already-recorded period return `409 Conflict`; corrections are the supported way to change an existing period value.
-- Non-privileged value submissions queue approval requests. If an approved queued value is stale because that period was recorded while the approval was pending, approval execution auto-rejects without creating a duplicate history row.
+- Non-privileged value submissions queue approval requests and preserve request-time period-window validity using the queued server `recorded_at`. If an approved queued value is stale because that period was recorded while the approval was pending, approval execution auto-rejects without creating a duplicate history row.
+- Future `recorded_at` timestamps are rejected for direct privileged value submissions.
+- KRI history defaults to recorded-at descending order for API compatibility and also supports period-first sorting; the KRI detail UI requests period-first descending order.
 - History correction requires `risks:write` plus canonical KRI read access. Reporting-owner status alone grants read/submit authority, not correction authority.
 - KRI history responses expose backend capability metadata such as `can_request_correction`; frontend action visibility should consume this metadata when present.
 - Current-value correction uses deterministic latest-row selection: `period_end DESC`, then `recorded_at DESC`, then `id DESC`.
@@ -656,6 +659,7 @@ User requests action (DELETE or EDIT sensitive field)
 Additional KRI value rules:
 - Reporting period selection uses the backend KRI history clock and the latest closed required period.
 - Direct privileged writes are locked on the parent KRI before creating history.
+- KRI collection `can_create` is true only when the caller has `risks:write` and at least one non-archived parent risk accepted by the KRI create endpoint.
 - Duplicate period writes return `409`; duplicate/stale approved submissions are auto-rejected during approval execution.
 
 ### 8.6 Control Execution Logging

@@ -106,7 +106,7 @@ def reporting_owner_id(kri: KeyRiskIndicator) -> Optional[int]:
     return None
 
 
-def is_within_reporting_window(period_end: clock.date) -> bool:
+def is_within_reporting_window(period_end: clock.date, as_of: clock.date | None = None) -> bool:
     """Check if we're currently within the reporting window for a period."""
     due = due_date(period_end)
-    return clock.today() <= due
+    return (as_of or clock.today()) <= due

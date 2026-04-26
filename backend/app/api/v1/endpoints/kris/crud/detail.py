@@ -5,7 +5,7 @@ from sqlalchemy.orm import joinedload, selectinload
 
 from app.api.v1.endpoints._monitoring_response import load_monitoring_response_context, serialize_kri_response
 from app.core.datetime_utils import utc_now
-from app.core.permissions import can_read_vendor, check_department_access
+from app.core.permissions import can_read_kri_id, can_read_vendor
 from app.core.security import check_permission, require_permission
 from app.db.session import get_db
 from app.models import KeyRiskIndicator, Risk, User, VendorKRILink
@@ -24,8 +24,6 @@ async def get_kri(
     include_archived: bool = Query(False, description="Include archived KRI"),
 ):
     """Get a single KRI by ID."""
-    from app.core.permissions import is_kri_reporting_owner
-
     result = await db.execute(
         select(KeyRiskIndicator)
         .join(Risk)
@@ -56,13 +54,8 @@ async def get_kri(
         and can_read_vendor(link.vendor, current_user)
     ]
 
-    # Allow access if user is reporting owner (cross-department)
-    if await is_kri_reporting_owner(db, current_user.id, kri_id):
-        capabilities = await kri_capabilities(db, current_user=current_user, kri=kri)
-        return serialize_kri_response(kri, monitoring_context, linked_vendors=linked_vendors, capabilities=capabilities)
-
-    # Otherwise verify department access
-    check_department_access(kri.risk.department_id, current_user)
+    if not await can_read_kri_id(db, current_user, kri_id):
+        raise HTTPException(status_code=404, detail="KRI not found")
 
     capabilities = await kri_capabilities(db, current_user=current_user, kri=kri)
     return serialize_kri_response(kri, monitoring_context, linked_vendors=linked_vendors, capabilities=capabilities)
