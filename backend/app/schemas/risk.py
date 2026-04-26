@@ -129,6 +129,29 @@ class DepartmentBriefForRisk(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class RiskCapabilities(BaseModel):
+    """Backend-authoritative risk detail/list action capabilities."""
+
+    can_read: bool
+    can_update: bool
+    can_update_sensitive_fields: bool
+    can_request_update_approval: bool
+    can_archive_immediately: bool
+    can_request_archive_approval: bool
+    can_restore: bool
+    can_create_kri: bool
+    can_create_linked_control: bool
+    can_link_controls: bool
+    can_unlink_controls: bool
+    can_view_linked_controls: bool
+    can_view_linked_vendors: bool
+    can_create_issue: bool
+    has_pending_delete_approval: bool
+    has_pending_update_approval: bool
+    requires_privileged_update_approval: bool
+    requires_privileged_delete_approval: bool
+
+
 class RiskRead(RiskBase):
     """Schema for reading a Risk with relationships and computed scores."""
 
@@ -138,6 +161,7 @@ class RiskRead(RiskBase):
     owner: Optional[UserBriefForRisk] = None
     department: Optional[DepartmentBriefForRisk] = None
     kris: list["KRIResponse"] = Field(default_factory=list)
+    capabilities: RiskCapabilities | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -169,6 +193,7 @@ class RiskSummary(BaseModel):
     control_count: int = 0
     has_breach: bool = False
     linked_vendors: list[LinkedVendorRead] = Field(default_factory=list)
+    capabilities: RiskCapabilities | None = None
 
     model_config = {"from_attributes": True}
 
@@ -181,6 +206,7 @@ class RiskListResponse(BaseModel):
     offset: int
     limit: int
     groups: list[CollectionGroupRead] | None = None
+    capabilities: dict[str, bool] | None = None
 
     @computed_field
     def skip(self) -> int:

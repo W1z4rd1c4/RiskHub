@@ -123,6 +123,15 @@ describe('KRIDetailPage approval-aware edit flow', () => {
             last_updated: '2026-03-01T00:00:00Z',
             linked_vendors: [{ id: 12, name: 'Vendor Twelve' }],
             frequency: 'quarterly',
+            capabilities: {
+                can_update: true,
+                can_archive_immediately: false,
+                can_request_archive_approval: true,
+                can_restore: false,
+                can_submit_value: true,
+                can_request_history_correction: true,
+                can_create_issue: false,
+            },
         });
         mockGetHistory.mockResolvedValue({ items: [], total: 0 });
         mockGetRisk.mockResolvedValue({ id: 8, name: 'Claims Ops Risk' });

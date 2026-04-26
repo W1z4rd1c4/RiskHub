@@ -12,9 +12,9 @@ import {
     XCircle,
     RotateCcw
 } from 'lucide-react';
-import { PermissionGate } from '@/components/PermissionGate';
 import { useRiskTypes } from '@/hooks/useRiskHubConfig';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { RiskDetailOverviewTab } from '@/components/risks/RiskDetailOverviewTab';
 import { RiskDetailKriHistoryTab } from '@/components/risks/RiskDetailKriHistoryTab';
 import { RiskDetailQuestionnairesTab } from '@/components/risks/RiskDetailQuestionnairesTab';
@@ -103,6 +103,13 @@ export function RiskDetailPage() {
         );
     }
 
+    const canUpdateRisk = resolveCapabilityFlag(risk.capabilities, 'can_update');
+    const canArchiveRisk =
+        resolveCapabilityFlag(risk.capabilities, 'can_archive_immediately') ||
+        resolveCapabilityFlag(risk.capabilities, 'can_request_archive_approval');
+    const canRestoreRisk = resolveCapabilityFlag(risk.capabilities, 'can_restore');
+    const canCreateIssue = resolveCapabilityFlag(risk.capabilities, 'can_create_issue');
+
     return (
         <div className="space-y-8">
             {/* Approval/Error Message Banner */}
@@ -156,6 +163,7 @@ export function RiskDetailPage() {
                 <div className="flex items-center gap-3">
                     <ContextualIssueAction
                         buttonLabel={tIssues('actions.new_issue')}
+                        canCreateIssue={canCreateIssue}
                         contextEntityId={risk.id}
                         contextEntityLabel={risk.name}
                         contextEntityType="risk"
@@ -164,16 +172,16 @@ export function RiskDetailPage() {
                         onCreated={(issue) => navigate(`/issues/${issue.id}`)}
                         onOpen={() => setIsIssueModalOpen(true)}
                     />
-                    <PermissionGate resource="risks" action="write">
+                    {canUpdateRisk && (
                         <button
                             onClick={() => navigate(`/risks/${risk.id}/edit`)}
                             className="p-3 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-white hover:border-accent/50 transition-all hover:shadow-lg hover:shadow-accent/20"
                         >
                             <Edit className="h-5 w-5" />
                         </button>
-                    </PermissionGate>
-                    <PermissionGate resource="risks" action="delete">
-                        {risk.status === 'archived' ? (
+                    )}
+                    {risk.status === 'archived' ? (
+                        canRestoreRisk && (
                             <button
                                 onClick={handleRestore}
                                 className="p-3 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-emerald-400 hover:border-emerald-400/50 transition-all"
@@ -181,15 +189,17 @@ export function RiskDetailPage() {
                             >
                                 <RotateCcw className="h-5 w-5" />
                             </button>
-                        ) : (
+                        )
+                    ) : (
+                        canArchiveRisk && (
                             <button
                                 onClick={() => setIsDeleteDialogOpen(true)}
                                 className="p-3 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-rose-400 hover:border-rose-400/50 transition-all"
                             >
                                 <Trash2 className="h-5 w-5" />
                             </button>
-                        )}
-                    </PermissionGate>
+                        )
+                    )}
                 </div>
             </div>
 

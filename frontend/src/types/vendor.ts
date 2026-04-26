@@ -16,12 +16,20 @@ export interface VendorLinkedRiskSummary {
 }
 
 export interface VendorCapabilities {
+    can_read: boolean;
     can_update: boolean;
     can_archive: boolean;
     can_restore: boolean;
+    can_create_linked_risk: boolean;
+    can_create_linked_control: boolean;
+    can_create_linked_kri: boolean;
     can_link_risk: boolean;
     can_link_control: boolean;
     can_link_kri: boolean;
+    can_view_linked_risks: boolean;
+    can_view_linked_controls: boolean;
+    can_view_linked_kris: boolean;
+    can_create_issue: boolean;
 }
 
 export interface Vendor {

@@ -1,4 +1,5 @@
 import type { Issue } from '@/types/issue';
+import { resolveCapabilityFlag } from '@/lib/capabilities';
 
 import { AssignmentSection } from './remediation/AssignmentSection';
 import { ClosedSection, ClosureSection } from './remediation/ClosureSection';
@@ -13,8 +14,15 @@ interface RemediationPlanCardProps {
     canApprove: boolean;
 }
 
-export function RemediationPlanCard({ issue, canWrite, canApprove }: RemediationPlanCardProps) {
-    const workflow = useRemediationPlanWorkflow({ canWrite, issue });
+export function RemediationPlanCard({ issue, canWrite: _canWrite, canApprove: _canApprove }: RemediationPlanCardProps) {
+    const canUseOwnerLookup = resolveCapabilityFlag(issue.capabilities, 'can_use_owner_lookup');
+    const workflow = useRemediationPlanWorkflow({ canWrite: canUseOwnerLookup, issue });
+    const canAssign = resolveCapabilityFlag(issue.capabilities, 'can_assign_owner');
+    const canStartRemediation = resolveCapabilityFlag(issue.capabilities, 'can_start_remediation');
+    const canUpdateProgress = resolveCapabilityFlag(issue.capabilities, 'can_update_remediation_progress');
+    const canRequestException = resolveCapabilityFlag(issue.capabilities, 'can_request_exception');
+    const canApproveException = resolveCapabilityFlag(issue.capabilities, 'can_approve_exception');
+    const canClose = resolveCapabilityFlag(issue.capabilities, 'can_close');
 
     return (
         <div className="space-y-5" data-testid="issue-workflow-sections">
@@ -26,8 +34,8 @@ export function RemediationPlanCard({ issue, canWrite, canApprove }: Remediation
                     <AssignmentSection
                         assignDueAt={workflow.assignDueAt}
                         assignOwnerId={workflow.assignOwnerId}
-                        canStartRemediation={workflow.canStartRemediation}
-                        canWrite={canWrite}
+                        canStartRemediation={workflow.canStartRemediation && canStartRemediation}
+                        canWrite={canAssign}
                         isOwnersLoading={workflow.isOwnersLoading}
                         isSubmitting={workflow.isSubmitting}
                         onAssign={workflow.handleAssign}
@@ -38,7 +46,7 @@ export function RemediationPlanCard({ issue, canWrite, canApprove }: Remediation
                     />
                     <ProgressSection
                         blockerReason={workflow.blockerReason}
-                        canWrite={canWrite}
+                        canWrite={canUpdateProgress}
                         completionNotes={workflow.completionNotes}
                         isInProgress={workflow.isInProgress}
                         isSubmitting={workflow.isSubmitting}
@@ -51,8 +59,8 @@ export function RemediationPlanCard({ issue, canWrite, canApprove }: Remediation
                         remediationStatus={workflow.remediationStatus}
                     />
                     <ExceptionSection
-                        canApprove={canApprove}
-                        canWrite={canWrite}
+                        canApprove={canApproveException}
+                        canWrite={canRequestException}
                         exceptionExpiresAt={workflow.exceptionExpiresAt}
                         exceptionReason={workflow.exceptionReason}
                         isInProgress={workflow.isInProgress}
@@ -64,7 +72,7 @@ export function RemediationPlanCard({ issue, canWrite, canApprove }: Remediation
                         requestedExceptionId={workflow.requestedExceptionId}
                     />
                     <ClosureSection
-                        canWrite={canWrite}
+                        canWrite={canClose}
                         isReadyForValidation={workflow.isReadyForValidation}
                         isSubmitting={workflow.isSubmitting}
                         onCloseIssue={workflow.handleClose}

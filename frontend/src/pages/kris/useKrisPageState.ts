@@ -33,6 +33,7 @@ interface UseKrisPageStateOptions {
 export function useKrisPageState({ searchParams, setSearchParams }: UseKrisPageStateOptions) {
     const [items, setItems] = useState<KeyRiskIndicator[]>([]);
     const [groups, setGroups] = useState<CollectionGroup[]>([]);
+    const [capabilities, setCapabilities] = useState<Record<string, boolean> | null>(null);
     const [selectedGroupValue, setSelectedGroupValue] = useState<string | null>(null);
     const [selectedGroupLabel, setSelectedGroupLabel] = useState<string | null>(null);
     const [totalCount, setTotalCount] = useState(0);
@@ -82,6 +83,7 @@ export function useKrisPageState({ searchParams, setSearchParams }: UseKrisPageS
             }
             setItems(response.items);
             setGroups(response.groups);
+            setCapabilities(response.capabilities);
             setTotalCount(response.total);
 
             setErrorKey(null);
@@ -93,6 +95,7 @@ export function useKrisPageState({ searchParams, setSearchParams }: UseKrisPageS
             setErrorKey(apiClient.toUiMessageKey(error));
             setItems([]);
             setGroups([]);
+            setCapabilities(null);
             setTotalCount(0);
         } finally {
             if (requestId === latestRequestIdRef.current) {
@@ -183,6 +186,7 @@ export function useKrisPageState({ searchParams, setSearchParams }: UseKrisPageS
 
     return {
         currentPage,
+        capabilities,
         errorKey,
         fetchKris,
         groups,

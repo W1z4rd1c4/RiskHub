@@ -8,7 +8,6 @@ import {
     type SortDirection,
     type ViewMode,
 } from '@/components/tables';
-import { useAuth } from '@/contexts/AuthContext';
 import { useTranslation } from '@/i18n/hooks';
 import { usePendingApprovalIds } from '@/hooks/usePendingApprovalIds';
 import { useRiskThresholds, useRiskTypes } from '@/hooks/useRiskHubConfig';
@@ -66,7 +65,6 @@ export function RisksTableSection({
     viewMode,
 }: RisksTableSectionProps) {
     const { t } = useTranslation('risks');
-    const { hasPermission } = useAuth();
     const pendingApprovalIds = usePendingApprovalIds('risk');
     const { getColor, getDisplayName, getInitials } = useRiskTypes();
     const { getScoreColor } = useRiskThresholds();
@@ -80,7 +78,6 @@ export function RisksTableSection({
                 getDisplayName,
                 getInitials,
                 getScoreColor,
-                hasPermission,
                 handleRestoreRisk: (riskId, event) => {
                     event.stopPropagation();
                     return onRestoreRisk(riskId);
@@ -91,7 +88,6 @@ export function RisksTableSection({
             getDisplayName,
             getInitials,
             getScoreColor,
-            hasPermission,
             onRestoreRisk,
             pendingApprovalIds,
             t,

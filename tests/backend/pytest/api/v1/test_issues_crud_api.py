@@ -101,6 +101,10 @@ async def test_issue_crud_list_link_and_source_metadata(
     assert created["created_by_name"] == test_user.name
     assert created["remediation_plan"]["status"] == "draft"
     assert created["remediation_plan"]["owner_user_name"] == assignable_owner.name
+    assert created["capabilities"]["can_read"] is True
+    assert created["capabilities"]["can_update"] is True
+    assert created["capabilities"]["can_assign_owner"] is True
+    assert created["capabilities"]["can_use_owner_lookup"] is True
 
     list_resp = await auth_client.get("/api/v1/issues")
     assert list_resp.status_code == 200
@@ -110,11 +114,17 @@ async def test_issue_crud_list_link_and_source_metadata(
     assert list_item["department_name"] == test_department.name
     assert list_item["owner_user_name"] == assignable_owner.name
     assert list_item["risk_contexts"] == []
+    assert list_item["capabilities"]["can_link_risk"] is True
+    assert list_item["capabilities"]["has_pending_exception_request"] is False
 
     read_resp = await auth_client.get(f"/api/v1/issues/{issue_id}")
     assert read_resp.status_code == 200
     assert read_resp.json()["title"] == "Execution finding"
     assert read_resp.json()["created_by_name"] == test_user.name
+    assert read_resp.json()["capabilities"]["can_start_remediation"] is True
+    assert read_resp.json()["capabilities"]["can_update_remediation_progress"] is False
+    assert read_resp.json()["capabilities"]["can_close"] is False
+    assert read_resp.json()["capabilities"]["can_request_exception"] is True
 
     patch_resp = await auth_client.patch(
         f"/api/v1/issues/{issue_id}",
@@ -124,6 +134,8 @@ async def test_issue_crud_list_link_and_source_metadata(
     assert patch_resp.json()["status"] == "open"
     assert patch_resp.json()["severity"] == "critical"
     assert patch_resp.json()["validation_note"] == "triage complete"
+    assert patch_resp.json()["capabilities"]["can_start_remediation"] is True
+    assert patch_resp.json()["capabilities"]["can_close"] is False
 
     link_resp = await auth_client.post(f"/api/v1/issues/{issue_id}/links", json={"risk_id": risk.id})
     assert link_resp.status_code == 201

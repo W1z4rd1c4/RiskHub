@@ -91,12 +91,20 @@ class VendorLinkedRiskSummary(BaseModel):
 
 
 class VendorCapabilities(BaseModel):
+    can_read: bool
     can_update: bool
     can_archive: bool
     can_restore: bool
+    can_create_linked_risk: bool
+    can_create_linked_control: bool
+    can_create_linked_kri: bool
     can_link_risk: bool
     can_link_control: bool
     can_link_kri: bool
+    can_view_linked_risks: bool
+    can_view_linked_controls: bool
+    can_view_linked_kris: bool
+    can_create_issue: bool
 
 
 class VendorRead(VendorBase):
@@ -117,6 +125,7 @@ class VendorListResponse(BaseModel):
     offset: int
     limit: int
     groups: list[CollectionGroupRead] | None = None
+    capabilities: dict[str, bool] | None = None
 
     @computed_field
     def skip(self) -> int:

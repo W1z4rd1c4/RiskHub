@@ -5,6 +5,7 @@ from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import User
 from app.schemas.issue import IssueRead
+from app.services.authorization_capabilities import issue_capabilities
 
 from .._shared import _get_readable_issue_or_404, _serialize_issue_read
 
@@ -18,4 +19,5 @@ async def get_issue(
     current_user: User = Depends(require_permission("issues", "read")),
 ) -> IssueRead:
     issue = await _get_readable_issue_or_404(db, issue_id, current_user)
-    return _serialize_issue_read(issue, current_user=current_user)
+    capabilities = await issue_capabilities(db, current_user=current_user, issue=issue)
+    return _serialize_issue_read(issue, current_user=current_user, capabilities=capabilities)

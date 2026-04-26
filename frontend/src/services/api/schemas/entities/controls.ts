@@ -31,9 +31,26 @@ export const controlMonitoringFieldsSchema = passthroughObject({
 }) satisfies z.ZodType<ControlMonitoringFields>;
 
 const controlCapabilitiesSchema = passthroughObject({
+    can_read: z.boolean(),
+    can_update: z.boolean(),
+    can_update_sensitive_fields: z.boolean(),
+    can_request_update_approval: z.boolean(),
+    can_archive_immediately: z.boolean(),
+    can_request_archive_approval: z.boolean(),
+    can_restore: z.boolean(),
     can_log_execution: z.boolean(),
+    can_view_executions: z.boolean(),
     can_link_risk: z.boolean(),
     can_unlink_risk: z.boolean(),
+    can_view_linked_risks: z.boolean(),
+    can_view_linked_vendors: z.boolean(),
+    can_create_issue: z.boolean(),
+    has_pending_delete_approval: z.boolean(),
+    has_pending_update_approval: z.boolean(),
+    requires_privileged_update_approval: z.boolean(),
+    requires_privileged_delete_approval: z.boolean(),
+    is_archived: z.boolean(),
+    is_executable: z.boolean(),
 });
 
 export const linkedRiskSchema: z.ZodType<LinkedRisk> = passthroughObject({

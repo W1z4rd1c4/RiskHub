@@ -24,6 +24,23 @@ function makeApproval(overrides: Partial<ApprovalRequest> = {}): ApprovalRequest
         created_at: '2026-03-01T00:00:00Z',
         can_approve: false,
         can_reject: false,
+        capabilities: {
+            can_read: true,
+            can_approve: false,
+            can_reject: false,
+            can_cancel: false,
+            can_cancel_as_requester: false,
+            can_cancel_as_resolver: false,
+            can_view_pending_changes: true,
+            can_view_resolution_notes: false,
+            can_inspect_side_effects: false,
+            is_requester: false,
+            is_primary_approver: false,
+            is_privileged_resolver: false,
+            is_pending: true,
+            requires_privileged_resolution: false,
+            would_apply_side_effects_on_approve: false,
+        },
         ...overrides,
     };
 }
@@ -38,7 +55,27 @@ describe('ApprovalList action gating', () => {
     it('shows approve but hides reject for primary-approver rows', () => {
         render(
             <ApprovalList
-                approvals={[makeApproval({ can_approve: true, can_reject: false })]}
+                approvals={[makeApproval({
+                    can_approve: true,
+                    can_reject: false,
+                    capabilities: {
+                        can_read: true,
+                        can_approve: true,
+                        can_reject: false,
+                        can_cancel: false,
+                        can_cancel_as_requester: false,
+                        can_cancel_as_resolver: false,
+                        can_view_pending_changes: true,
+                        can_view_resolution_notes: false,
+                        can_inspect_side_effects: false,
+                        is_requester: false,
+                        is_primary_approver: true,
+                        is_privileged_resolver: false,
+                        is_pending: true,
+                        requires_privileged_resolution: false,
+                        would_apply_side_effects_on_approve: true,
+                    },
+                })]}
                 loading={false}
                 expandedRows={new Set()}
                 currentUserId={5}
@@ -57,7 +94,27 @@ describe('ApprovalList action gating', () => {
     it('shows approve and reject for privileged-resolver rows', () => {
         render(
             <ApprovalList
-                approvals={[makeApproval({ can_approve: true, can_reject: true })]}
+                approvals={[makeApproval({
+                    can_approve: true,
+                    can_reject: true,
+                    capabilities: {
+                        can_read: true,
+                        can_approve: true,
+                        can_reject: true,
+                        can_cancel: false,
+                        can_cancel_as_requester: false,
+                        can_cancel_as_resolver: false,
+                        can_view_pending_changes: true,
+                        can_view_resolution_notes: false,
+                        can_inspect_side_effects: true,
+                        is_requester: false,
+                        is_primary_approver: false,
+                        is_privileged_resolver: true,
+                        is_pending: true,
+                        requires_privileged_resolution: false,
+                        would_apply_side_effects_on_approve: true,
+                    },
+                })]}
                 loading={false}
                 expandedRows={new Set()}
                 currentUserId={5}
@@ -76,7 +133,29 @@ describe('ApprovalList action gating', () => {
     it('hides approve/reject but keeps cancel for requester-owned pending rows', () => {
         render(
             <ApprovalList
-                approvals={[makeApproval({ requested_by_id: 5, can_approve: false, can_reject: false, status: 'pending' })]}
+                approvals={[makeApproval({
+                    requested_by_id: 5,
+                    can_approve: false,
+                    can_reject: false,
+                    status: 'pending',
+                    capabilities: {
+                        can_read: true,
+                        can_approve: false,
+                        can_reject: false,
+                        can_cancel: true,
+                        can_cancel_as_requester: true,
+                        can_cancel_as_resolver: false,
+                        can_view_pending_changes: true,
+                        can_view_resolution_notes: false,
+                        can_inspect_side_effects: false,
+                        is_requester: true,
+                        is_primary_approver: false,
+                        is_privileged_resolver: false,
+                        is_pending: true,
+                        requires_privileged_resolution: false,
+                        would_apply_side_effects_on_approve: false,
+                    },
+                })]}
                 loading={false}
                 expandedRows={new Set()}
                 currentUserId={5}

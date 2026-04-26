@@ -1,7 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { ExportDialog } from '@/components/reports/ExportDialog';
 import { ViewSwitcher } from '@/components/tables';
-import { useAuth } from '@/contexts/AuthContext';
 import { ControlsFilterBar } from './controls/ControlsFilterBar';
 import { ControlsPageHeader } from './controls/ControlsPageHeader';
 import { ControlsTableSection } from './controls/ControlsTableSection';
@@ -9,8 +8,8 @@ import { useControlsPageState } from './controls/useControlsPageState';
 
 export function ControlsPage() {
     const navigate = useNavigate();
-    const { hasPermission } = useAuth();
     const {
+        capabilities,
         currentPage,
         errorKey,
         fetchControls,
@@ -43,6 +42,7 @@ export function ControlsPage() {
     return (
         <div className="space-y-8">
             <ControlsPageHeader
+                canCreateControl={capabilities?.can_create === true}
                 isExporting={isExporting}
                 onCreateControl={() => navigate('/controls/new')}
                 onOpenExport={openExportDialog}
@@ -51,7 +51,7 @@ export function ControlsPage() {
             <ViewSwitcher
                 value={viewMode}
                 onChange={updateViewMode}
-                exclude={hasPermission('vendors', 'read') ? ['flag'] : ['flag', 'vendor']}
+                exclude={capabilities?.can_view_vendor_contexts === true ? ['flag'] : ['flag', 'vendor']}
             />
 
             <ControlsFilterBar

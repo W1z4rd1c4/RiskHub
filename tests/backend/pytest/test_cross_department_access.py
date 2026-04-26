@@ -12,7 +12,7 @@ import pytest_asyncio
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Control, Department, Risk, User
+from app.models import Control, Department, KeyRiskIndicator, Risk, User
 from app.models.control import ControlStatus
 from app.models.control_execution import ControlExecution
 from app.models.risk import ControlRiskLink, RiskStatus
@@ -416,3 +416,229 @@ async def test_risk_owner_can_restore_cross_department_archived_risk(
     response = await client_approval_requester.post(f"/api/v1/risks/{risk.id}/restore")
     assert response.status_code == 200
     assert response.json()["status"] == "active"
+
+
+@pytest.mark.asyncio
+async def test_cross_department_risk_owner_cannot_create_child_kri(
+    client_approval_requester: AsyncClient,
+    db_session: AsyncSession,
+    second_department: Department,
+    test_user_approval_requester: User,
+    seed_risk_types,
+):
+    risk = Risk(
+        risk_id_code="XDEPT-R-KRI",
+        name="Cross-Dept KRI Parent Risk",
+        process="Cross-Dept KRI",
+        description="Risk owned across department boundary",
+        department_id=second_department.id,
+        owner_id=test_user_approval_requester.id,
+        risk_type="operational",
+        category="Test",
+        gross_probability=3,
+        gross_impact=3,
+        gross_score=9,
+        net_probability=2,
+        net_impact=2,
+        net_score=4,
+        status=RiskStatus.active.value,
+    )
+    db_session.add(risk)
+    await db_session.commit()
+    await db_session.refresh(risk)
+
+    detail_response = await client_approval_requester.get(f"/api/v1/risks/{risk.id}")
+
+    assert detail_response.status_code == 200
+    capabilities = detail_response.json()["capabilities"]
+    assert capabilities["can_read"] is True
+    assert capabilities["can_update"] is True
+    assert capabilities["can_create_kri"] is False
+
+    create_response = await client_approval_requester.post(
+        "/api/v1/kris",
+        json={
+            "risk_id": risk.id,
+            "metric_name": "Cross-Dept Blocked KRI",
+            "description": "KRI creation should follow department access",
+            "current_value": 50.0,
+            "lower_limit": 20.0,
+            "upper_limit": 80.0,
+            "unit": "%",
+            "frequency": "monthly",
+        },
+    )
+    assert create_response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_cross_department_risk_owner_cannot_manage_risk_side_control_links(
+    client_approval_requester: AsyncClient,
+    db_session: AsyncSession,
+    second_department: Department,
+    test_department: Department,
+    test_user_approval_requester: User,
+    seed_risk_types,
+):
+    risk = Risk(
+        risk_id_code="XDEPT-R-LINK-DENY",
+        name="Cross-Dept Link Denied Risk",
+        process="Cross-Dept Link",
+        description="Risk owned across department boundary",
+        department_id=second_department.id,
+        owner_id=test_user_approval_requester.id,
+        risk_type="operational",
+        category="Test",
+        gross_probability=3,
+        gross_impact=3,
+        gross_score=9,
+        net_probability=2,
+        net_impact=2,
+        net_score=4,
+        status=RiskStatus.active.value,
+    )
+    control = Control(
+        name="Requester Same-Dept Control",
+        description="Accessible control for denied risk-side link attempt",
+        department_id=test_department.id,
+        control_owner_id=test_user_approval_requester.id,
+        control_form="manual",
+        frequency="monthly",
+        status=ControlStatus.active.value,
+    )
+    db_session.add_all([risk, control])
+    await db_session.commit()
+    await db_session.refresh(risk)
+    await db_session.refresh(control)
+
+    detail_response = await client_approval_requester.get(f"/api/v1/risks/{risk.id}")
+
+    assert detail_response.status_code == 200
+    capabilities = detail_response.json()["capabilities"]
+    assert capabilities["can_read"] is True
+    assert capabilities["can_update"] is True
+    assert capabilities["can_link_controls"] is False
+    assert capabilities["can_unlink_controls"] is False
+    assert capabilities["can_create_linked_control"] is False
+
+    link_response = await client_approval_requester.post(
+        f"/api/v1/risks/{risk.id}/controls",
+        json={
+            "control_id": control.id,
+            "effectiveness": "high",
+            "notes": "Direct risk owner should not pass risk-side link policy",
+        },
+    )
+    assert link_response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_cross_department_kri_reporting_owner_can_manage_risk_side_control_links(
+    client_approval_requester: AsyncClient,
+    db_session: AsyncSession,
+    second_department: Department,
+    test_department: Department,
+    test_user_approval_requester: User,
+    seed_risk_types,
+):
+    risk = Risk(
+        risk_id_code="XDEPT-R-LINK-KRI",
+        name="Cross-Dept KRI Link Allowed Risk",
+        process="Cross-Dept KRI Link",
+        description="Risk visible through KRI reporting ownership",
+        department_id=second_department.id,
+        owner_id=None,
+        risk_type="operational",
+        category="Test",
+        gross_probability=3,
+        gross_impact=3,
+        gross_score=9,
+        net_probability=2,
+        net_impact=2,
+        net_score=4,
+        status=RiskStatus.active.value,
+    )
+    control = Control(
+        name="Requester Linkable Control",
+        description="Accessible control for allowed risk-side link attempt",
+        department_id=test_department.id,
+        control_owner_id=test_user_approval_requester.id,
+        control_form="manual",
+        frequency="monthly",
+        status=ControlStatus.active.value,
+    )
+    db_session.add_all([risk, control])
+    await db_session.commit()
+    await db_session.refresh(risk)
+    await db_session.refresh(control)
+    kri = KeyRiskIndicator(
+        risk_id=risk.id,
+        metric_name="Cross-Dept Reporting Owner KRI",
+        description="KRI grants risk-side link access",
+        current_value=50.0,
+        lower_limit=20.0,
+        upper_limit=80.0,
+        unit="%",
+        frequency="monthly",
+        reporting_owner_id=test_user_approval_requester.id,
+    )
+    db_session.add(kri)
+    await db_session.commit()
+
+    detail_response = await client_approval_requester.get(f"/api/v1/risks/{risk.id}")
+
+    assert detail_response.status_code == 200
+    capabilities = detail_response.json()["capabilities"]
+    assert capabilities["can_read"] is True
+    assert capabilities["can_link_controls"] is True
+    assert capabilities["can_unlink_controls"] is True
+    assert capabilities["can_create_linked_control"] is True
+
+    link_response = await client_approval_requester.post(
+        f"/api/v1/risks/{risk.id}/controls",
+        json={
+            "control_id": control.id,
+            "effectiveness": "medium",
+            "notes": "KRI reporting owner should pass risk-side link policy",
+        },
+    )
+    assert link_response.status_code == 201
+
+
+@pytest.mark.asyncio
+async def test_archived_same_department_risk_cannot_manage_control_links(
+    client_approval_requester: AsyncClient,
+    db_session: AsyncSession,
+    test_department: Department,
+    test_user_approval_requester: User,
+    seed_risk_types,
+):
+    risk = Risk(
+        risk_id_code="XDEPT-R-LINK-ARCH",
+        name="Archived Link Capability Risk",
+        process="Archived Link",
+        description="Archived risk should not expose link actions",
+        department_id=test_department.id,
+        owner_id=test_user_approval_requester.id,
+        risk_type="operational",
+        category="Test",
+        gross_probability=3,
+        gross_impact=3,
+        gross_score=9,
+        net_probability=2,
+        net_impact=2,
+        net_score=4,
+        status=RiskStatus.archived.value,
+    )
+    db_session.add(risk)
+    await db_session.commit()
+    await db_session.refresh(risk)
+
+    detail_response = await client_approval_requester.get(f"/api/v1/risks/{risk.id}")
+
+    assert detail_response.status_code == 200
+    capabilities = detail_response.json()["capabilities"]
+    assert capabilities["can_read"] is True
+    assert capabilities["can_link_controls"] is False
+    assert capabilities["can_unlink_controls"] is False
+    assert capabilities["can_create_linked_control"] is False

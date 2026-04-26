@@ -77,6 +77,13 @@ function sentQuestionnaire(overrides: Partial<RiskQuestionnaireDetailType> = {})
         sent_at: '2025-01-01T00:00:00Z',
         due_at: '2025-01-10T00:00:00Z',
         answers: {},
+        capabilities: {
+            can_open: true,
+            can_save_draft: true,
+            can_submit: true,
+            can_request_clarification: false,
+            can_respond_to_clarifications: false,
+        },
         ...overrides,
     };
 }
@@ -116,8 +123,17 @@ describe('RiskQuestionnaireDetail open flow', () => {
         });
     });
 
-    it('does not call open() when user cannot submit', async () => {
+    it('does not call open() when backend capability denies submit', async () => {
         mockUseAuth.mockReturnValue({ user: { id: 999, department_id: 2 } });
+        (riskQuestionnairesApi.get as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(sentQuestionnaire({
+            capabilities: {
+                can_open: false,
+                can_save_draft: false,
+                can_submit: false,
+                can_request_clarification: false,
+                can_respond_to_clarifications: false,
+            },
+        }));
 
         render(
             <RiskQuestionnaireDetail

@@ -17,12 +17,13 @@ from app.api.v1.endpoints._collection import (
     merge_collection_filters,
     parse_collection_query,
 )
-from app.core.permissions import get_issue_scope_clause
+from app.core.permissions import get_issue_scope_clause, has_permission
 from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import Control, ControlExecution, ControlRiskLink, Issue, IssueLink, KeyRiskIndicator, User
 from app.models.issue import IssueSeverity, IssueStatus
 from app.schemas.issue import IssueListResponse
+from app.services.authorization_capabilities import issue_capabilities
 from app.services.issue_visibility_service import unsuppressed_issue_clause
 
 from .._shared import _serialize_issue_summary
@@ -155,6 +156,10 @@ async def list_issues(
     limit = collection_query.limit
     sort_by = collection_query.sort.field if collection_query.sort else sort_by
     sort_order = collection_query.sort.direction if collection_query.sort else sort_order
+    collection_capabilities = {
+        "can_create": has_permission(current_user, "issues", "write"),
+        "can_view_vendor_contexts": has_permission(current_user, "vendors", "read"),
+    }
 
     query = select(Issue)
     now = datetime.now(UTC)
@@ -242,7 +247,10 @@ async def list_issues(
 
     if collection_query.group_by:
         result = await db.execute(ordered_query)
-        all_items = [_serialize_issue_summary(issue, current_user=current_user) for issue in result.scalars().all()]
+        all_items = []
+        for issue in result.scalars().all():
+            capabilities = await issue_capabilities(db, current_user=current_user, issue=issue)
+            all_items.append(_serialize_issue_summary(issue, current_user=current_user, capabilities=capabilities))
         paginated_items, grouped_total, groups = build_grouped_collection_page(
             all_items,
             collection_query,
@@ -256,14 +264,20 @@ async def list_issues(
             offset=offset,
             limit=limit,
             groups=groups,
+            capabilities=collection_capabilities,
         )
 
     result = await db.execute(ordered_query.offset(offset).limit(limit))
     issues = result.scalars().all()
+    items = []
+    for issue in issues:
+        capabilities = await issue_capabilities(db, current_user=current_user, issue=issue)
+        items.append(_serialize_issue_summary(issue, current_user=current_user, capabilities=capabilities))
 
     return IssueListResponse(
-        items=[_serialize_issue_summary(issue, current_user=current_user) for issue in issues],
+        items=items,
         total=total,
         offset=offset,
         limit=limit,
+        capabilities=collection_capabilities,
     )

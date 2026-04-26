@@ -8,9 +8,9 @@ import {
     type Column,
     type ViewMode,
 } from '@/components/tables';
-import { useAuth } from '@/contexts/AuthContext';
 import { useTranslation } from '@/i18n/hooks';
 import { usePendingApprovalIds } from '@/hooks/usePendingApprovalIds';
+import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { getControlMonitoringMeta } from '@/lib/monitoringStatus';
 import type { CollectionGroup } from '@/types/collection';
 import { ControlStatus, type ControlSummary } from '@/types/control';
@@ -63,7 +63,6 @@ export function ControlsTableSection({
     viewMode,
 }: ControlsTableSectionProps) {
     const { t } = useTranslation('controls');
-    const { hasPermission } = useAuth();
     const pendingApprovalIds = usePendingApprovalIds('control');
 
     const columns = useMemo<Column<ControlSummary>[]>(
@@ -159,7 +158,7 @@ export function ControlsTableSection({
                 render: (control) => (
                     <div className="text-right flex items-center justify-end gap-2">
                         {control.status === ControlStatus.ARCHIVED &&
-                            hasPermission('controls', 'delete') && (
+                            resolveCapabilityFlag(control.capabilities, 'can_restore') && (
                                 <button
                                     type="button"
                                     onClick={(event) => {
@@ -177,7 +176,7 @@ export function ControlsTableSection({
                 ),
             },
         ],
-        [hasPermission, onRestoreControl, pendingApprovalIds, t]
+        [onRestoreControl, pendingApprovalIds, t]
     );
     if (errorKey) {
         return (

@@ -3,7 +3,6 @@ import { CheckCircle2, Link as LinkIcon, Plus } from 'lucide-react';
 
 import { ControlCreateDialog } from '@/components/ControlCreateDialog';
 import { LinkManagementDialog } from '@/components/LinkManagementDialog';
-import { PermissionGate } from '@/components/PermissionGate';
 import { ControlGaugeCard } from '@/components/controls/ControlGaugeCard';
 import { useTranslation } from '@/i18n/hooks';
 import type { ControlEffectiveness, RiskControlLink } from '@/types/risk';
@@ -26,6 +25,9 @@ interface RiskLinkedControlsSectionProps {
     onOpenCreateControl: () => void;
     onNavigateToControl: (controlId: number) => void;
     onRefreshData: () => void;
+    canCreateLinkedControl: boolean;
+    canLinkControls: boolean;
+    canUnlinkControls: boolean;
 }
 
 export function RiskLinkedControlsSection({
@@ -44,6 +46,9 @@ export function RiskLinkedControlsSection({
     onOpenCreateControl,
     onNavigateToControl,
     onRefreshData,
+    canCreateLinkedControl,
+    canLinkControls,
+    canUnlinkControls,
 }: RiskLinkedControlsSectionProps) {
     const { t } = useTranslation(['risks', 'common']);
     const hasControls = activeControls.length > 0 || draftControls.length > 0 || archivedControls.length > 0;
@@ -60,7 +65,7 @@ export function RiskLinkedControlsSection({
                     <CheckCircle2 className="h-5 w-5 text-emerald-400" />
                     <h3 className="font-bold text-white uppercase tracking-widest text-xs">{t('overview.mitigating_controls', { ns: 'risks' })}</h3>
                 </div>
-                <PermissionGate resource="risks" action="write">
+                {canLinkControls && (
                     <div className="flex items-stretch bg-accent/10 border border-accent/20 rounded-lg overflow-hidden">
                         <button
                             onClick={() => {
@@ -72,16 +77,18 @@ export function RiskLinkedControlsSection({
                             <LinkIcon className="h-3 w-3" />
                             {t('overview.link_existing', { ns: 'risks' })}
                         </button>
-                        <button
-                            onClick={onOpenCreateControl}
-                            className="flex items-center gap-2 px-3 py-1.5 text-accent text-[10px] font-black uppercase tracking-widest hover:bg-accent/10 transition-all"
-                            title={t('overview.create_new_control', { ns: 'risks' })}
-                        >
-                            <Plus className="h-3.5 w-3.5" />
-                            <span>{t('common:actions.add_control')}</span>
-                        </button>
+                        {canCreateLinkedControl && (
+                            <button
+                                onClick={onOpenCreateControl}
+                                className="flex items-center gap-2 px-3 py-1.5 text-accent text-[10px] font-black uppercase tracking-widest hover:bg-accent/10 transition-all"
+                                title={t('overview.create_new_control', { ns: 'risks' })}
+                            >
+                                <Plus className="h-3.5 w-3.5" />
+                                <span>{t('common:actions.add_control')}</span>
+                            </button>
+                        )}
                     </div>
-                </PermissionGate>
+                )}
             </div>
 
             {!hasControls ? (
@@ -123,7 +130,7 @@ export function RiskLinkedControlsSection({
                 </>
             )}
 
-            <PermissionGate resource="risks" action="write">
+            {canUnlinkControls && (
                 <button
                     onClick={() => {
                         setDialogMode('links-only');
@@ -133,7 +140,7 @@ export function RiskLinkedControlsSection({
                 >
                     {t('overview.manage_existing_links', { ns: 'risks' })}
                 </button>
-            </PermissionGate>
+            )}
 
             <LinkManagementDialog
                 isOpen={isLinkDialogOpen}
@@ -142,8 +149,8 @@ export function RiskLinkedControlsSection({
                 existingLinks={linkedControls}
                 onLink={onLinkControl}
                 onUnlink={onUnlinkControl}
-                showSearch={dialogMode !== 'links-only'}
-                showLinks={dialogMode !== 'search-only'}
+                showSearch={canLinkControls && dialogMode !== 'links-only'}
+                showLinks={canUnlinkControls && dialogMode !== 'search-only'}
             />
 
             <ControlCreateDialog

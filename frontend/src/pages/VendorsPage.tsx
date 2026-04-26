@@ -1,10 +1,8 @@
 import { useNavigate } from 'react-router-dom';
 import { Download, Plus, RefreshCw, Search } from 'lucide-react';
 
-import { PermissionGate } from '@/components/PermissionGate';
 import { ExportDialog } from '@/components/reports/ExportDialog';
 import { ViewSwitcher } from '@/components/tables';
-import { usePermissions } from '@/hooks/usePermissions';
 import { useTranslation } from '@/i18n/hooks';
 import type { VendorStatus, VendorType } from '@/types/vendor';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
@@ -15,9 +13,8 @@ import { useVendorsPageState } from './vendors/useVendorsPageState';
 export function VendorsPage() {
     const navigate = useNavigate();
     const { t } = useTranslation('vendors');
-    const { hasPermission } = usePermissions();
-    const canReadRisks = hasPermission('risks', 'read');
     const {
+        capabilities,
         currentPage,
         errorKey,
         fetchVendors,
@@ -50,7 +47,7 @@ export function VendorsPage() {
         viewMode,
         selectGroup,
         clearSelectedGroup,
-    } = useVendorsPageState({ canReadRisks });
+    } = useVendorsPageState();
 
     return (
         <div className="space-y-8">
@@ -70,7 +67,7 @@ export function VendorsPage() {
                         <Download className="h-4 w-4" />
                         {t('actions.export')}
                     </button>
-                    <PermissionGate resource="vendors" action="write">
+                    {capabilities?.can_create === true && (
                         <button
                             type="button"
                             onClick={() => navigate('/vendors/new')}
@@ -80,14 +77,14 @@ export function VendorsPage() {
                             <Plus className="h-5 w-5" />
                             {t('actions.new')}
                         </button>
-                    </PermissionGate>
+                    )}
                 </div>
             </div>
 
             <ViewSwitcher
                 value={viewMode}
                 onChange={updateViewMode}
-                exclude={canReadRisks ? ['category', 'risk_type', 'vendor'] : ['category', 'risk_type', 'risk', 'vendor']}
+                exclude={capabilities?.can_view_risk_contexts === true ? ['category', 'risk_type', 'vendor'] : ['category', 'risk_type', 'risk', 'vendor']}
             />
 
             <div className="glass-card flex flex-col md:flex-row gap-4">

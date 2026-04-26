@@ -2,14 +2,14 @@ import { Download, Plus } from 'lucide-react';
 import { useTranslation } from '@/i18n/hooks';
 
 interface IssuesPageHeaderProps {
-    canWrite: boolean;
+    canCreateIssue: boolean;
     isExporting: boolean;
     onCreateIssue: () => void;
     onOpenExport: () => void;
 }
 
 export function IssuesPageHeader({
-    canWrite,
+    canCreateIssue,
     isExporting,
     onCreateIssue,
     onOpenExport,
@@ -33,7 +33,7 @@ export function IssuesPageHeader({
                     <Download className="h-4 w-4" />
                     {t('common:actions.export')}
                 </button>
-                {canWrite && (
+                {canCreateIssue && (
                     <button
                         type="button"
                         onClick={onCreateIssue}

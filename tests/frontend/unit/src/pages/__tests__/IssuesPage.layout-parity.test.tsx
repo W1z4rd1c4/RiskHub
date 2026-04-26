@@ -39,6 +39,9 @@ describe('IssuesPage layout parity', () => {
             total: 0,
             offset: 0,
             limit: 20,
+            capabilities: {
+                can_create: true,
+            },
         });
     });
 

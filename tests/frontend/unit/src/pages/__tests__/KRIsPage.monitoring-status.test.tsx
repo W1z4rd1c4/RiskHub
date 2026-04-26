@@ -36,6 +36,35 @@ const makeUser = (overrides: Partial<Record<string, unknown>> = {}) => ({
     ...overrides,
 });
 
+function makeKriCapabilities(overrides: Partial<Record<string, boolean>> = {}) {
+    return {
+        can_read: true,
+        can_update: false,
+        can_update_sensitive_fields: false,
+        can_request_update_approval: false,
+        can_archive_immediately: false,
+        can_request_archive_approval: false,
+        can_restore: false,
+        can_submit_value: false,
+        can_submit_backdated_value: false,
+        can_request_value_submission_approval: false,
+        can_view_history: true,
+        can_request_history_correction: false,
+        can_apply_history_correction_immediately: false,
+        can_link_vendors: false,
+        can_unlink_vendors: false,
+        can_view_linked_vendors: true,
+        can_create_issue: false,
+        has_pending_delete_approval: false,
+        has_pending_update_approval: false,
+        has_pending_value_submission_approval: false,
+        has_pending_history_correction_approval: false,
+        requires_privileged_update_approval: false,
+        requires_privileged_delete_approval: false,
+        ...overrides,
+    };
+}
+
 const makeKri = (
     id: number,
     metricName: string,
@@ -63,6 +92,7 @@ const makeKri = (
     risk_department_name: 'Finance',
     department_name: 'Finance',
     linked_vendors: [{ id: 400, name: 'Primary Vendor' }],
+    capabilities: makeKriCapabilities(),
     ...overrides,
 });
 
@@ -88,6 +118,7 @@ const dueSoonKri = makeKri(24, 'Due Soon KRI', {
 const archivedKri = makeKri(25, 'Archived KRI', {
     is_archived: true,
     monitoring_status: 'warning',
+    capabilities: makeKriCapabilities({ can_restore: false }),
 });
 const archivedCompanionKri = makeKri(26, 'Active Companion KRI');
 
@@ -174,6 +205,7 @@ function installKriHandlers(
     userOverrides: Partial<Record<string, unknown>> = {},
 ) {
     const user = makeUser(userOverrides);
+    const canRestoreArchived = (user.effective_permissions as string[]).includes('risks:delete');
 
     server.use(
         http.get('*/api/v1/auth/me', () => HttpResponse.json(user)),
@@ -190,10 +222,16 @@ function installKriHandlers(
             let delayMs = 5;
 
             if (archivedOnly) {
-                items = [archivedKri];
+                items = [{
+                    ...archivedKri,
+                    capabilities: makeKriCapabilities({ can_restore: canRestoreArchived }),
+                }];
                 delayMs = 15;
             } else if (includeArchived) {
-                items = [archivedKri, archivedCompanionKri];
+                items = [{
+                    ...archivedKri,
+                    capabilities: makeKriCapabilities({ can_restore: canRestoreArchived }),
+                }, archivedCompanionKri];
                 delayMs = 15;
             } else if (timelinessStatus === 'due_soon') {
                 items = [dueSoonKri];
@@ -223,6 +261,7 @@ function installKriHandlers(
                         offset: requestInfo.offset,
                         limit: requestInfo.limit,
                         groups: buildVendorGroups(items),
+                        capabilities: { can_view_vendor_contexts: true },
                     });
                 }
 
@@ -232,6 +271,7 @@ function installKriHandlers(
                     offset: requestInfo.offset,
                     limit: requestInfo.limit,
                     groups: buildVendorGroups(items),
+                    capabilities: { can_view_vendor_contexts: true },
                 });
             }
 
@@ -276,6 +316,7 @@ function installKriHandlers(
                 offset: requestInfo.offset,
                 limit: requestInfo.limit,
                 groups: null,
+                capabilities: { can_view_vendor_contexts: true },
             });
         }),
     );

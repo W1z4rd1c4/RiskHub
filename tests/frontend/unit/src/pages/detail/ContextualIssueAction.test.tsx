@@ -27,6 +27,7 @@ describe('ContextualIssueAction', () => {
                 contextEntityId={13}
                 contextEntityLabel="Quarterly Access Review"
                 contextEntityType="control"
+                canCreateIssue
                 isOpen
                 onClose={vi.fn()}
                 onCreated={vi.fn()}

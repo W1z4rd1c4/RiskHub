@@ -13,6 +13,7 @@ import {
 
 import type { SafeTFunction } from '@/i18n/hooks';
 import { formatDateValue, formatTimeValue } from '@/i18n/formatters';
+import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { cn } from '@/lib/utils';
 import type { ApprovalRequest } from '@/types/approval';
 
@@ -35,7 +36,7 @@ export function ApprovalList({
     approvals,
     loading,
     expandedRows,
-    currentUserId,
+    currentUserId: _currentUserId,
     locale = 'en',
     onToggleRow,
     onApprove,
@@ -170,7 +171,7 @@ export function ApprovalList({
 
                                 {(approval.status === 'pending' || approval.status === 'pending_privileged') && (
                                     <>
-                                        {approval.can_approve && (
+                                        {resolveCapabilityFlag(approval.capabilities, 'can_approve') && (
                                             <button
                                                 onClick={() => onApprove(approval)}
                                                 className="p-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 rounded-lg transition-colors border border-emerald-500/20"
@@ -180,7 +181,7 @@ export function ApprovalList({
                                                 <Check className="h-4 w-4" aria-hidden="true" />
                                             </button>
                                         )}
-                                        {approval.can_reject && (
+                                        {resolveCapabilityFlag(approval.capabilities, 'can_reject') && (
                                             <button
                                                 onClick={() => onReject(approval)}
                                                 className="p-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded-lg transition-colors border border-rose-500/20"
@@ -193,8 +194,10 @@ export function ApprovalList({
                                     </>
                                 )}
 
-                                {currentUserId === approval.requested_by_id &&
-                                    (approval.status === 'pending' || approval.status === 'pending_privileged') && (
+                                {resolveCapabilityFlag(
+                                    approval.capabilities,
+                                    'can_cancel',
+                                ) && (
                                         <button
                                             onClick={() => onCancel(approval.id)}
                                             className="p-2 hover:bg-rose-500/10 hover:text-rose-400 text-slate-500 rounded-lg transition-colors"

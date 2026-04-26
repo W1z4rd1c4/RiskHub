@@ -1,7 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import { useAuthz } from '@/authz/useAuthz';
-import { useAuth } from '@/contexts/AuthContext';
 import { apiClient } from '@/services/apiClient';
 import { riskQuestionnairesApi } from '@/services/riskQuestionnairesApi';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
@@ -30,10 +28,7 @@ export function useRiskQuestionnaireDetailWorkflow({
     onChanged,
     onClose,
     questionnaireId,
-    risk,
 }: UseRiskQuestionnaireDetailWorkflowParams) {
-    const { user } = useAuth();
-    const authz = useAuthz();
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
     const [submitting, setSubmitting] = useState(false);
@@ -63,36 +58,23 @@ export function useRiskQuestionnaireDetailWorkflow({
         return new Date(questionnaire.due_at).getTime() < Date.now();
     }, [questionnaire]);
 
-    const localCanSubmit = useMemo(() => {
-        if (!user) return false;
-        if (!risk.owner_id || !risk.department_id) {
-            return user.id === risk.owner_id;
-        }
-        if (user.id === risk.owner_id) return true;
-        return authz.isDepartmentHead && user.department_id === risk.department_id;
-    }, [authz.isDepartmentHead, risk.department_id, risk.owner_id, user]);
-
     const capabilities = questionnaire?.capabilities ?? null;
     const canSaveDraft = resolveCapabilityFlag(
         capabilities,
         'can_save_draft',
-        localCanSubmit && questionnaire?.status !== 'submitted',
     );
     const canSubmitQuestionnaire = resolveCapabilityFlag(
         capabilities,
         'can_submit',
-        localCanSubmit && questionnaire?.status !== 'submitted',
     );
     const isEditable = canSaveDraft || canSubmitQuestionnaire;
     const canRequestClarification = resolveCapabilityFlag(
         capabilities,
         'can_request_clarification',
-        authz.canRequestRiskClarification,
     );
     const isRiskOwner = resolveCapabilityFlag(
         capabilities,
         'can_respond_to_clarifications',
-        !!user && questionnaire?.assigned_to_user_id === user.id,
     );
 
     useEffect(() => {
@@ -108,7 +90,6 @@ export function useRiskQuestionnaireDetailWorkflow({
                 const canOpen = resolveCapabilityFlag(
                     data.capabilities,
                     'can_open',
-                    localCanSubmit && data.status === 'sent',
                 );
                 if (canOpen && data.status === 'sent') {
                     try {
@@ -133,7 +114,7 @@ export function useRiskQuestionnaireDetailWorkflow({
         return () => {
             cancelled = true;
         };
-    }, [localCanSubmit, isOpen, questionnaireId]);
+    }, [isOpen, questionnaireId]);
 
     useEffect(() => {
         let cancelled = false;

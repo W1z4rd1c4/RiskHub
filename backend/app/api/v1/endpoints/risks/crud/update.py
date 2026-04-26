@@ -17,6 +17,7 @@ from app.models import KeyRiskIndicator, Risk, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas.approval_request import ApprovalQueuedResponse
 from app.schemas.risk import RiskRead, RiskStatusEnum, RiskUpdate
+from app.services.authorization_capabilities import risk_capabilities
 
 from ._shared import validate_risk_type
 
@@ -255,4 +256,5 @@ async def update_risk(
     reloaded_risk = await _reload_risk_with_relationships(db, risk.id)
     now = utc_now()
     monitoring_context = await load_monitoring_response_context(db, now=now, today=now.date())
-    return serialize_risk_read(reloaded_risk, monitoring_context)
+    capabilities = await risk_capabilities(db, current_user=current_user, risk=reloaded_risk)
+    return serialize_risk_read(reloaded_risk, monitoring_context, capabilities=capabilities)

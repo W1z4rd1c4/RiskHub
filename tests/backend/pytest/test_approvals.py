@@ -180,6 +180,12 @@ async def test_create_approval_with_reason(auth_client: AsyncClient, test_risk):
     assert data["reason"] == "No longer applicable to business"
     assert data["can_approve"] is False
     assert data["can_reject"] is True
+    assert data["capabilities"]["can_read"] is True
+    assert data["capabilities"]["can_approve"] is False
+    assert data["capabilities"]["can_reject"] is True
+    assert data["capabilities"]["can_cancel_as_requester"] is True
+    assert data["capabilities"]["is_requester"] is True
+    assert data["capabilities"]["is_pending"] is True
 
 
 @pytest.mark.asyncio
@@ -247,6 +253,14 @@ async def test_queue_created_high_threshold_risk_delete_requires_privileged_foll
     assert approval.requires_privileged_approval is True
     assert approval.status == ApprovalStatus.PENDING
 
+    primary_detail_response = await client_employee.get(f"/api/v1/approvals/{approval_id}")
+    assert primary_detail_response.status_code == 200
+    primary_capabilities = primary_detail_response.json()["capabilities"]
+    assert primary_capabilities["can_approve"] is True
+    assert primary_capabilities["is_primary_approver"] is True
+    assert primary_capabilities["requires_privileged_resolution"] is True
+    assert primary_capabilities["would_apply_side_effects_on_approve"] is False
+
     primary_response = await client_employee.post(
         f"/api/v1/approvals/{approval_id}/approve",
         json={"resolution_notes": "Primary owner approval"},
@@ -256,6 +270,13 @@ async def test_queue_created_high_threshold_risk_delete_requires_privileged_foll
 
     approval = await _load_approval(db_session, approval_id)
     assert approval.status == ApprovalStatus.PENDING_PRIVILEGED
+
+    privileged_detail_response = await client_risk_manager.get(f"/api/v1/approvals/{approval_id}")
+    assert privileged_detail_response.status_code == 200
+    privileged_capabilities = privileged_detail_response.json()["capabilities"]
+    assert privileged_capabilities["can_approve"] is True
+    assert privileged_capabilities["is_privileged_resolver"] is True
+    assert privileged_capabilities["would_apply_side_effects_on_approve"] is True
 
     risk = await _load_risk(db_session, risk.id)
     assert risk.status == "active"
@@ -299,6 +320,14 @@ async def test_queue_created_low_risk_delete_finalizes_after_primary_approval(
     assert approval.primary_approver_id == test_user_employee.id
     assert approval.requires_privileged_approval is False
     assert approval.status == ApprovalStatus.PENDING
+
+    primary_detail_response = await client_employee.get(f"/api/v1/approvals/{approval_id}")
+    assert primary_detail_response.status_code == 200
+    primary_capabilities = primary_detail_response.json()["capabilities"]
+    assert primary_capabilities["can_approve"] is True
+    assert primary_capabilities["is_primary_approver"] is True
+    assert primary_capabilities["requires_privileged_resolution"] is False
+    assert primary_capabilities["would_apply_side_effects_on_approve"] is True
 
     primary_response = await client_employee.post(
         f"/api/v1/approvals/{approval_id}/approve",

@@ -13,6 +13,7 @@ from app.models.kri_history import KRIValueHistory
 from app.schemas.kri import KRIRecordValue, KRIResponse
 from app.services._kri_history.recording import DuplicateKRIPeriodError
 from app.services._kri_history.workflow import ensure_can_submit_value, latest_closed_period_end
+from app.services.authorization_capabilities import kri_capabilities
 
 logger = logging.getLogger(__name__)
 
@@ -215,4 +216,5 @@ async def _apply_kri_value_directly(
 
     now = utc_now()
     monitoring_context = await load_monitoring_response_context(db, now=now, today=now.date())
-    return serialize_kri_response(kri, monitoring_context)
+    capabilities = await kri_capabilities(db, current_user=current_user, kri=kri)
+    return serialize_kri_response(kri, monitoring_context, capabilities=capabilities)

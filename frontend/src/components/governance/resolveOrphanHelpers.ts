@@ -106,8 +106,8 @@ export function getOrphanResolutionRequirements(
     isInitialized: boolean,
 ): OrphanResolutionRequirements {
     const isKri = orphan.item_type === 'kri';
-    const requiresOwner = resolveCapabilityFlag(orphan.capabilities, 'requires_owner', !isKri);
-    const requiresRisk = resolveCapabilityFlag(orphan.capabilities, 'requires_risk', isKri);
+    const requiresOwner = resolveCapabilityFlag(orphan.capabilities, 'requires_owner');
+    const requiresRisk = resolveCapabilityFlag(orphan.capabilities, 'requires_risk');
     const shouldShowRisk = requiresRisk || (
         orphan.item_type === 'control' && isInitialized && linkedRisks.length === 0
     );

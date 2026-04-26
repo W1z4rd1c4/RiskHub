@@ -37,6 +37,7 @@ interface UseIssuesPageStateOptions {
 export function useIssuesPageState({ canRead, initialState }: UseIssuesPageStateOptions) {
     const [items, setItems] = useState<IssueSummary[]>([]);
     const [groups, setGroups] = useState<CollectionGroup[]>([]);
+    const [capabilities, setCapabilities] = useState<Record<string, boolean> | null>(null);
     const [totalCount, setTotalCount] = useState(0);
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState<IssueStatus | ''>(initialState.statusFilter);
@@ -118,6 +119,7 @@ export function useIssuesPageState({ canRead, initialState }: UseIssuesPageState
             }
             setItems(response.items);
             setGroups(response.groups);
+            setCapabilities(response.capabilities);
             setTotalCount(response.total);
             setErrorKey(null);
             hasLoadedIssuesRef.current = true;
@@ -128,6 +130,7 @@ export function useIssuesPageState({ canRead, initialState }: UseIssuesPageState
             setErrorKey(apiClient.toUiMessageKey(loadError));
             setItems([]);
             setGroups([]);
+            setCapabilities(null);
             setTotalCount(0);
         } finally {
             if (isCurrentRequest(requestId)) {
@@ -245,6 +248,7 @@ export function useIssuesPageState({ canRead, initialState }: UseIssuesPageState
 
     return {
         currentPage,
+        capabilities,
         errorKey,
         excludeActiveExceptions,
         fetchIssues,

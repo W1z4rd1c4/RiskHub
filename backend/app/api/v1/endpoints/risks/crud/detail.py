@@ -10,6 +10,7 @@ from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import KeyRiskIndicator, Risk, User
 from app.schemas.risk import RiskRead
+from app.services.authorization_capabilities import risk_capabilities
 
 router = APIRouter()
 
@@ -42,15 +43,18 @@ async def get_risk(
 
     # Allow access if user is direct risk owner (cross-department ownership).
     if risk.owner_id == current_user.id:
-        return serialize_risk_read(risk, monitoring_context)
+        capabilities = await risk_capabilities(db, current_user=current_user, risk=risk)
+        return serialize_risk_read(risk, monitoring_context, capabilities=capabilities)
 
     # Allow access if user is reporting owner of any linked KRI (cross-department)
     if await is_risk_kri_reporting_owner(db, current_user.id, risk_id):
-        return serialize_risk_read(risk, monitoring_context)
+        capabilities = await risk_capabilities(db, current_user=current_user, risk=risk)
+        return serialize_risk_read(risk, monitoring_context, capabilities=capabilities)
 
     # Allow access if user is control owner of any linked control (cross-department)
     if await is_risk_control_owner(db, current_user.id, risk_id):
-        return serialize_risk_read(risk, monitoring_context)
+        capabilities = await risk_capabilities(db, current_user=current_user, risk=risk)
+        return serialize_risk_read(risk, monitoring_context, capabilities=capabilities)
 
     # Otherwise verify department access
     try:
@@ -58,4 +62,5 @@ async def get_risk(
     except HTTPException:
         raise HTTPException(status_code=404, detail="Risk not found")
 
-    return serialize_risk_read(risk, monitoring_context)
+    capabilities = await risk_capabilities(db, current_user=current_user, risk=risk)
+    return serialize_risk_read(risk, monitoring_context, capabilities=capabilities)

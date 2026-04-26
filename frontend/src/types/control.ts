@@ -47,9 +47,26 @@ export interface ControlMonitoringFields {
 }
 
 export interface ControlCapabilities {
+    can_read: boolean;
+    can_update: boolean;
+    can_update_sensitive_fields: boolean;
+    can_request_update_approval: boolean;
+    can_archive_immediately: boolean;
+    can_request_archive_approval: boolean;
+    can_restore: boolean;
     can_log_execution: boolean;
+    can_view_executions: boolean;
     can_link_risk: boolean;
     can_unlink_risk: boolean;
+    can_view_linked_risks: boolean;
+    can_view_linked_vendors: boolean;
+    can_create_issue: boolean;
+    has_pending_delete_approval: boolean;
+    has_pending_update_approval: boolean;
+    requires_privileged_update_approval: boolean;
+    requires_privileged_delete_approval: boolean;
+    is_archived: boolean;
+    is_executable: boolean;
 }
 
 export interface Control {

@@ -35,6 +35,11 @@ async def test_create_risk(auth_client: AsyncClient, test_user: User, test_depar
     assert data["process"] == "Test Process"
     assert data["gross_score"] == 12  # 3 * 4
     assert data["net_score"] == 6  # 2 * 3
+    assert data["capabilities"]["can_read"] is True
+    assert data["capabilities"]["can_update"] is True
+    assert data["capabilities"]["can_create_kri"] is True
+    assert data["capabilities"]["can_archive_immediately"] is True
+    assert data["capabilities"]["has_pending_delete_approval"] is False
 
 
 @pytest.mark.asyncio
@@ -90,6 +95,8 @@ async def test_list_risks(auth_client: AsyncClient, test_user: User, test_depart
     by_code = {item["risk_id_code"]: item for item in items}
     assert by_code["R-102"]["subprocess"] == "List Subprocess"
     assert by_code["R-102-NOSUB"]["subprocess"] is None
+    assert by_code["R-102"]["capabilities"]["can_read"] is True
+    assert by_code["R-102"]["capabilities"]["can_link_controls"] is True
 
 
 @pytest.mark.asyncio
@@ -123,6 +130,8 @@ async def test_get_risk(auth_client: AsyncClient, test_user: User, test_departme
     data = response.json()
     assert data["id"] == risk_id
     assert data["process"] == "Get Test Risk"
+    assert data["capabilities"]["can_view_linked_controls"] is True
+    assert data["capabilities"]["can_view_linked_vendors"] is True
 
 
 @pytest.mark.asyncio
@@ -220,6 +229,8 @@ async def test_update_risk(auth_client: AsyncClient, test_user: User, test_depar
     data = response.json()
     assert data["process"] == "Updated Risk Process"
     assert data["net_score"] == 1  # 1 * 1
+    assert data["capabilities"]["can_update_sensitive_fields"] is True
+    assert data["capabilities"]["requires_privileged_update_approval"] is False
 
 
 @pytest.mark.asyncio

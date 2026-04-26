@@ -97,6 +97,11 @@ async def test_issue_workflow_happy_path(
     assert created["owner_user_name"] == test_user_employee.name
     assert created["created_by_name"] == test_user.name
     assert created["remediation_plan"]["owner_user_name"] == test_user_employee.name
+    assert created["capabilities"]["can_start_remediation"] is True
+    assert created["capabilities"]["can_update_remediation_progress"] is False
+    assert created["capabilities"]["can_mark_remediation_blocked"] is False
+    assert created["capabilities"]["can_mark_remediation_completed"] is False
+    assert created["capabilities"]["can_close"] is False
 
     assign_resp = await auth_client.post(
         f"/api/v1/issues/{issue_id}/assign",
@@ -110,6 +115,9 @@ async def test_issue_workflow_happy_path(
     assert assign_resp.json()["status"] == "triaged"
     assert assign_resp.json()["owner_user_name"] == test_user_employee.name
     assert assign_resp.json()["department_name"] == test_department.name
+    assert assign_resp.json()["capabilities"]["can_start_remediation"] is True
+    assert assign_resp.json()["capabilities"]["can_update_remediation_progress"] is False
+    assert assign_resp.json()["capabilities"]["can_close"] is False
 
     start_resp = await auth_client.post(
         f"/api/v1/issues/{issue_id}/start-remediation",
@@ -119,6 +127,11 @@ async def test_issue_workflow_happy_path(
     assert start_resp.json()["status"] == "in_progress"
     assert start_resp.json()["remediation_plan"]["status"] == "active"
     assert start_resp.json()["department_name"] == test_department.name
+    assert start_resp.json()["capabilities"]["can_start_remediation"] is False
+    assert start_resp.json()["capabilities"]["can_update_remediation_progress"] is True
+    assert start_resp.json()["capabilities"]["can_mark_remediation_blocked"] is True
+    assert start_resp.json()["capabilities"]["can_mark_remediation_completed"] is True
+    assert start_resp.json()["capabilities"]["can_close"] is False
 
     progress_resp = await auth_client.post(
         f"/api/v1/issues/{issue_id}/update-progress",
@@ -128,6 +141,11 @@ async def test_issue_workflow_happy_path(
     assert progress_resp.json()["status"] == "ready_for_validation"
     assert progress_resp.json()["remediation_plan"]["status"] == "completed"
     assert progress_resp.json()["owner_user_name"] == test_user_employee.name
+    assert progress_resp.json()["capabilities"]["can_start_remediation"] is False
+    assert progress_resp.json()["capabilities"]["can_update_remediation_progress"] is True
+    assert progress_resp.json()["capabilities"]["can_mark_remediation_blocked"] is True
+    assert progress_resp.json()["capabilities"]["can_mark_remediation_completed"] is False
+    assert progress_resp.json()["capabilities"]["can_close"] is True
 
     exception_request_resp = await auth_client.post(
         f"/api/v1/issues/{issue_id}/request-exception",
@@ -158,6 +176,11 @@ async def test_issue_workflow_happy_path(
     assert close_resp.json()["validation_note"] == "Validated remediation"
     assert close_resp.json()["department_name"] == test_department.name
     assert close_resp.json()["owner_user_name"] == test_user_employee.name
+    assert close_resp.json()["capabilities"]["can_start_remediation"] is False
+    assert close_resp.json()["capabilities"]["can_update_remediation_progress"] is False
+    assert close_resp.json()["capabilities"]["can_mark_remediation_blocked"] is False
+    assert close_resp.json()["capabilities"]["can_mark_remediation_completed"] is False
+    assert close_resp.json()["capabilities"]["can_close"] is False
 
 
 @pytest.mark.asyncio

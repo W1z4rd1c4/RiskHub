@@ -1,11 +1,11 @@
 import { ArrowLeft, Edit, FileText, RotateCcw, Trash2 } from 'lucide-react';
 
-import { PermissionGate } from '@/components/PermissionGate';
 import { useTranslation } from '@/i18n/hooks';
 import type { Vendor } from '@/types/vendor';
 
 interface VendorDetailHeaderProps {
     canArchive: boolean;
+    canCreateIssue: boolean;
     canEdit: boolean;
     canRestore: boolean;
     onArchive: () => void;
@@ -40,6 +40,7 @@ function flagBadge(label: string, tone: 'info' | 'success' | 'warn') {
 
 export function VendorDetailHeader({
     canArchive,
+    canCreateIssue,
     canEdit,
     canRestore,
     onArchive,
@@ -96,7 +97,7 @@ export function VendorDetailHeader({
             </div>
 
             <div className="flex items-center gap-3">
-                <PermissionGate resource="issues" action="write">
+                {canCreateIssue ? (
                     <button
                         type="button"
                         onClick={onOpenIssueModal}
@@ -105,7 +106,7 @@ export function VendorDetailHeader({
                         <FileText className="h-4 w-4" />
                         {tIssues('actions.new_issue')}
                     </button>
-                </PermissionGate>
+                ) : null}
 
                 {canEdit ? (
                     <button

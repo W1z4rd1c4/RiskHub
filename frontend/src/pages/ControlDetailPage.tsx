@@ -15,13 +15,11 @@ import { controlApi } from '@/services/controlApi';
 import { riskApi } from '@/services/riskApi';
 import type { Control, ControlRiskLink } from '@/types/control';
 import { ControlStatus } from '@/types/control';
-import { PermissionGate } from '@/components/PermissionGate';
 import type { ControlEffectiveness } from '@/types/risk';
 import type { Risk } from '@/types/risk';
 import { ExecutionHistory } from '@/components/executions/ExecutionHistory';
 import { ExecutionLogModal } from '@/components/executions/ExecutionLogModal';
 import { ArchiveConfirmDialog } from '@/components/ArchiveConfirmDialog';
-import { useAuth } from '@/contexts/AuthContext';
 import { useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { getControlMonitoringMeta } from '@/lib/monitoringStatus';
@@ -41,7 +39,6 @@ export function ControlDetailPage() {
     const location = useLocation();
     const { t } = useTranslation(['common', 'controls', 'errorKeys']);
     const { t: tIssues } = useTranslation('issues');
-    const { user, hasPermission } = useAuth();
     const [linkedRisks, setLinkedRisks] = useState<ControlRiskLink[]>([]);
     const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
     const [isLogModalOpen, setIsLogModalOpen] = useState(false);
@@ -195,9 +192,15 @@ export function ControlDetailPage() {
     const archivedLinkedRisks = linkedRisks.filter((link) => link.risk?.status === 'archived');
     const monitoring = getControlMonitoringMeta(control.monitoring_status);
     const MonitoringIcon = monitoring.icon;
-    const canLogExecution = resolveCapabilityFlag(control.capabilities, 'can_log_execution', hasPermission('controls', 'execute'));
-    const canLinkRisk = resolveCapabilityFlag(control.capabilities, 'can_link_risk', hasPermission('controls', 'write'));
-    const canUnlinkRisk = resolveCapabilityFlag(control.capabilities, 'can_unlink_risk', hasPermission('controls', 'write'));
+    const canUpdateControl = resolveCapabilityFlag(control.capabilities, 'can_update');
+    const canArchiveControl =
+        resolveCapabilityFlag(control.capabilities, 'can_archive_immediately') ||
+        resolveCapabilityFlag(control.capabilities, 'can_request_archive_approval');
+    const canRestoreControl = resolveCapabilityFlag(control.capabilities, 'can_restore');
+    const canLogExecution = resolveCapabilityFlag(control.capabilities, 'can_log_execution');
+    const canLinkRisk = resolveCapabilityFlag(control.capabilities, 'can_link_risk');
+    const canUnlinkRisk = resolveCapabilityFlag(control.capabilities, 'can_unlink_risk');
+    const canCreateIssue = resolveCapabilityFlag(control.capabilities, 'can_create_issue');
     const actionMessageText = (key: string) => (
         key.startsWith('errorKeys.')
             ? t(key, { ns: 'errorKeys' })
@@ -247,6 +250,7 @@ export function ControlDetailPage() {
                 <div className="flex items-center gap-3">
                     <ContextualIssueAction
                         buttonLabel={tIssues('actions.new_issue')}
+                        canCreateIssue={canCreateIssue}
                         contextEntityId={control.id}
                         contextEntityLabel={control.name}
                         contextEntityType="control"
@@ -256,33 +260,31 @@ export function ControlDetailPage() {
                         onOpen={() => setIsIssueModalOpen(true)}
                     />
                     {/* Edit button: show for controls:write OR control owner */}
-                    {(hasPermission('controls', 'write') || control.control_owner_id === user?.id) && (
+                    {canUpdateControl && (
                         <button
                             onClick={() => navigate(`/controls/${control.id}/edit`)}
                             className="p-3 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-white hover:border-accent/50 transition-all hover:shadow-lg hover:shadow-accent/20"
-                            title={control.control_owner_id === user?.id && !hasPermission('controls', 'write') ? t('controls:detail.edit_requires_approval') : t('controls:edit_control')}
+                            title={t('controls:edit_control')}
                         >
                             <Edit className="h-5 w-5" />
                         </button>
                     )}
-                    <PermissionGate resource="controls" action="delete">
-                        {control.status === ControlStatus.ARCHIVED ? (
-                            <button
-                                onClick={handleRestore}
-                                className="p-3 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-emerald-400 hover:border-emerald-400/50 transition-all"
-                                title={t('controls:actions.unarchive')}
-                            >
-                                <RotateCcw className="h-5 w-5" />
-                            </button>
-                        ) : (
-                            <button
-                                onClick={() => setIsArchiveDialogOpen(true)}
-                                className="p-3 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-rose-400 hover:border-rose-400/50 transition-all"
-                            >
-                                <Trash2 className="h-5 w-5" />
-                            </button>
-                        )}
-                    </PermissionGate>
+                    {control.status === ControlStatus.ARCHIVED ? (
+                        canRestoreControl && <button
+                            onClick={handleRestore}
+                            className="p-3 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-emerald-400 hover:border-emerald-400/50 transition-all"
+                            title={t('controls:actions.unarchive')}
+                        >
+                            <RotateCcw className="h-5 w-5" />
+                        </button>
+                    ) : (
+                        canArchiveControl && <button
+                            onClick={() => setIsArchiveDialogOpen(true)}
+                            className="p-3 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-rose-400 hover:border-rose-400/50 transition-all"
+                        >
+                            <Trash2 className="h-5 w-5" />
+                        </button>
+                    )}
                 </div>
             </div>
 

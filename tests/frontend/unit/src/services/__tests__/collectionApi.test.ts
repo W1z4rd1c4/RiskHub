@@ -35,6 +35,7 @@ describe('loadCollectionPage', () => {
             items: [{ id: 1, name: 'one' }],
             groups: [],
             total: 1,
+            capabilities: null,
         });
     });
 
@@ -48,7 +49,7 @@ describe('loadCollectionPage', () => {
         });
 
         expect(loadPage).toHaveBeenCalledWith({ currentPage: 1, groupBy: 'department' });
-        expect(page).toEqual({ items: [], groups: [], total: 3 });
+        expect(page).toEqual({ items: [], groups: [], total: 3, capabilities: null });
     });
 
     it('loads grouped drilldowns with selected group value', async () => {
@@ -73,6 +74,7 @@ describe('loadCollectionPage', () => {
             items: [{ id: 2, name: 'two' }],
             groups,
             total: 2,
+            capabilities: null,
         });
     });
 
@@ -86,5 +88,16 @@ describe('loadCollectionPage', () => {
         });
 
         expect(page.items).toEqual([{ id: 1, name: 'ONE' }]);
+    });
+
+    it('preserves collection-level capabilities through normalization', async () => {
+        const loadPage = vi.fn().mockResolvedValue(response([], { capabilities: { can_create: true } }));
+
+        const page = await loadCollectionPage({
+            currentPage: 1,
+            loadPage,
+        });
+
+        expect(page.capabilities).toEqual({ can_create: true });
     });
 });

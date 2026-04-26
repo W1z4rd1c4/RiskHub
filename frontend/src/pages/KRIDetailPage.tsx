@@ -1,7 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Edit2, Trash2, Target, Plus, Clock, History, RotateCcw, FileText } from 'lucide-react';
-import { PermissionGate } from '@/components/PermissionGate';
 import { KRIModal } from '@/components/kri/KRIModal';
 import { KRIValueModal } from '@/components/kri/KRIValueModal';
 import { KRIHistoryEditModal } from '@/components/kri/KRIHistoryEditModal';
@@ -11,6 +10,7 @@ import { KRIDetailOverviewTab } from '@/components/kris/KRIDetailOverviewTab';
 import { KRIDetailHistoryTab } from '@/components/kris/KRIDetailHistoryTab';
 import { IssueQuickCreateModal } from '@/components/issues/IssueQuickCreateModal';
 import { getKriMonitoringMeta } from '@/lib/monitoringStatus';
+import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { useTranslation } from '@/i18n/hooks';
 import { formatMetricNumberValue } from '@/i18n/formatters';
 import { useKriDetailState } from '@/pages/detail/useKriDetailState';
@@ -83,6 +83,12 @@ export function KRIDetailPage() {
 
     const monitoring = getKriMonitoringMeta(kri.monitoring_status);
     const MonitoringIcon = monitoring.icon;
+    const canUpdateKri = resolveCapabilityFlag(kri.capabilities, 'can_update');
+    const canArchiveKri =
+        resolveCapabilityFlag(kri.capabilities, 'can_archive_immediately') ||
+        resolveCapabilityFlag(kri.capabilities, 'can_request_archive_approval');
+    const canRestoreKri = resolveCapabilityFlag(kri.capabilities, 'can_restore');
+    const canCreateIssue = resolveCapabilityFlag(kri.capabilities, 'can_create_issue');
 
     return (
         <div className="p-8">
@@ -131,35 +137,33 @@ export function KRIDetailPage() {
                 </div>
 
                 <div className="flex items-center gap-2">
-                    <PermissionGate resource="issues" action="write">
+                    {canCreateIssue && (
                         <Button
                             variant="outline"
                             onClick={() => setIsIssueModalOpen(true)}
                         >
                             <FileText className="h-4 w-4 mr-1" /> {tIssues('actions.new_issue')}
                         </Button>
-                    </PermissionGate>
+                    )}
                     {canRecordValue && (
                         <Button onClick={() => setIsValueModalOpen(true)} className="bg-emerald-600 hover:bg-emerald-500">
                             <Plus className="h-4 w-4 mr-1" /> {t('kris:value_modal.title')}
                         </Button>
                     )}
-                    <PermissionGate resource="risks" action="write">
+                    {canUpdateKri && (
                         <Button variant="outline" onClick={() => setIsEditModalOpen(true)}>
                             <Edit2 className="h-4 w-4 mr-1" /> {t('common:actions.edit')}
                         </Button>
-                    </PermissionGate>
-                    <PermissionGate resource="risks" action="delete">
-                        {kri.is_archived ? (
-                            <Button variant="outline" onClick={handleRestore}>
-                                <RotateCcw className="h-4 w-4 mr-1" /> {t('common:actions.unarchive')}
-                            </Button>
-                        ) : (
-                            <Button variant="destructive" onClick={() => setIsDeleteDialogOpen(true)} disabled={isDeleting}>
-                                <Trash2 className="h-4 w-4 mr-1" /> {isDeleting ? t('common:actions.deleting') : t('common:actions.delete')}
-                            </Button>
-                        )}
-                    </PermissionGate>
+                    )}
+                    {kri.is_archived ? (
+                        canRestoreKri && <Button variant="outline" onClick={handleRestore}>
+                            <RotateCcw className="h-4 w-4 mr-1" /> {t('common:actions.unarchive')}
+                        </Button>
+                    ) : (
+                        canArchiveKri && <Button variant="destructive" onClick={() => setIsDeleteDialogOpen(true)} disabled={isDeleting}>
+                            <Trash2 className="h-4 w-4 mr-1" /> {isDeleting ? t('common:actions.deleting') : t('common:actions.delete')}
+                        </Button>
+                    )}
                 </div>
             </motion.div>
 

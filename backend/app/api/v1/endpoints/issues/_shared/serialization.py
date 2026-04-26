@@ -11,6 +11,7 @@ from app.core.security import check_permission
 from app.models import ControlRiskLink, Issue, IssueException, IssueLink, IssueRemediationPlan, Risk, User
 from app.models.issue import IssueExceptionStatus
 from app.schemas.issue import (
+    IssueCapabilities,
     IssueExceptionRead,
     IssueLinkRead,
     IssueRead,
@@ -256,7 +257,12 @@ async def _serialize_exception_with_user_names(db: AsyncSession, exception: Issu
     )
 
 
-def _serialize_issue_summary(issue: Issue, current_user: User | None = None) -> IssueSummary:
+def _serialize_issue_summary(
+    issue: Issue,
+    current_user: User | None = None,
+    *,
+    capabilities: IssueCapabilities | None = None,
+) -> IssueSummary:
     owner_user_name: str | None = None
     if issue.owner_user_id is not None:
         owner_user_name = _label_or_fallback(getattr(issue.owner, "name", None), UNKNOWN_USER_LABEL)
@@ -281,12 +287,18 @@ def _serialize_issue_summary(issue: Issue, current_user: User | None = None) -> 
             "vendor_contexts": [
                 context.model_dump() for context in _serialize_issue_vendor_contexts(issue, current_user)
             ],
+            "capabilities": capabilities,
         }
     )
 
 
-def _serialize_issue_read(issue: Issue, current_user: User | None = None) -> IssueRead:
-    summary = _serialize_issue_summary(issue, current_user=current_user)
+def _serialize_issue_read(
+    issue: Issue,
+    current_user: User | None = None,
+    *,
+    capabilities: IssueCapabilities | None = None,
+) -> IssueRead:
+    summary = _serialize_issue_summary(issue, current_user=current_user, capabilities=capabilities)
     created_by_name: str | None = None
     if issue.created_by_id is not None:
         created_by_name = _label_or_fallback(getattr(issue.created_by, "name", None), UNKNOWN_USER_LABEL)

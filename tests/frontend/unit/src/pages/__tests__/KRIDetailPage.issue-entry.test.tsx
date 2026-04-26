@@ -81,7 +81,7 @@ describe('KRIDetailPage issue entry', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         canIssueWrite = true;
-        mockGetKRI.mockResolvedValue({
+        mockGetKRI.mockImplementation(async () => ({
             id: 21,
             risk_id: 8,
             metric_name: 'Claims Leakage Ratio',
@@ -94,7 +94,10 @@ describe('KRIDetailPage issue entry', () => {
             reporting_owner_id: 2,
             is_archived: false,
             last_period_end: '2026-02-01T00:00:00Z',
-        });
+            capabilities: {
+                can_create_issue: canIssueWrite,
+            },
+        }));
         mockGetHistory.mockResolvedValue({ items: [], total: 0 });
         mockGetRisk.mockResolvedValue({ id: 8, name: 'Claims Ops Risk' });
     });

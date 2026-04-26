@@ -13,6 +13,7 @@ export interface CollectionListResponse<TItem> {
     offset: number;
     limit: number;
     groups?: CollectionGroup[] | null;
+    capabilities?: Record<string, boolean> | null;
 }
 
 export interface CollectionSort {

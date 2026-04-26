@@ -1,15 +1,16 @@
 import { Download, Plus } from 'lucide-react';
 
-import { PermissionGate } from '@/components/PermissionGate';
 import { useTranslation } from '@/i18n/hooks';
 
 interface ControlsPageHeaderProps {
+    canCreateControl: boolean;
     isExporting: boolean;
     onCreateControl: () => void;
     onOpenExport: () => void;
 }
 
 export function ControlsPageHeader({
+    canCreateControl,
     isExporting,
     onCreateControl,
     onOpenExport,
@@ -33,7 +34,7 @@ export function ControlsPageHeader({
                     <Download className="h-4 w-4" />
                     {t('actions.export')}
                 </button>
-                <PermissionGate resource="controls" action="write">
+                {canCreateControl && (
                     <button
                         type="button"
                         onClick={onCreateControl}
@@ -43,7 +44,7 @@ export function ControlsPageHeader({
                         <Plus className="h-5 w-5" />
                         {t('new_control')}
                     </button>
-                </PermissionGate>
+                )}
             </div>
         </div>
     );

@@ -13,6 +13,36 @@ import type {
 
 import { collectionPaginationSchema, idNameCodeSchema, passthroughObject, z } from '../common';
 
+const issueCapabilitiesSchema = passthroughObject({
+    can_read: z.boolean(),
+    can_update: z.boolean(),
+    can_change_department: z.boolean(),
+    can_assign_owner: z.boolean(),
+    can_clear_owner: z.boolean(),
+    can_start_remediation: z.boolean(),
+    can_update_remediation_progress: z.boolean(),
+    can_mark_remediation_blocked: z.boolean(),
+    can_mark_remediation_completed: z.boolean(),
+    can_request_exception: z.boolean(),
+    can_approve_exception: z.boolean(),
+    can_revoke_exception: z.boolean(),
+    can_close: z.boolean(),
+    can_link_risk: z.boolean(),
+    can_link_control: z.boolean(),
+    can_link_execution: z.boolean(),
+    can_link_kri: z.boolean(),
+    can_link_vendor: z.boolean(),
+    can_unlink_entities: z.boolean(),
+    can_view_risk_contexts: z.boolean(),
+    can_view_vendor_contexts: z.boolean(),
+    can_use_department_lookup: z.boolean(),
+    can_use_owner_lookup: z.boolean(),
+    is_owner: z.boolean(),
+    is_closed: z.boolean(),
+    has_active_exception: z.boolean(),
+    has_pending_exception_request: z.boolean(),
+});
+
 export const issueLinkSchema: z.ZodType<IssueLink> = passthroughObject({
     id: z.number(),
     issue_id: z.number(),
@@ -54,6 +84,7 @@ export const issueSummarySchema = passthroughObject({
     updated_at: z.string(),
     risk_contexts: z.array(issueRiskContextSchema),
     vendor_contexts: z.array(issueVendorContextSchema),
+    capabilities: issueCapabilitiesSchema.nullable().optional(),
 }) satisfies z.ZodType<IssueSummary>;
 export const issueListResponseSchema: z.ZodType<IssueListResponse> =
     collectionPaginationSchema(issueSummarySchema);

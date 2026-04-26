@@ -30,6 +30,7 @@ interface LoadedCollectionPage<TItem> {
     items: TItem[];
     groups: CollectionGroup[];
     total: number;
+    capabilities: Record<string, boolean> | null;
 }
 
 export function buildCollectionParams({
@@ -95,6 +96,7 @@ export function normalizeCollectionResponse<TItem>(
         offset,
         limit,
         groups: response.groups ?? null,
+        capabilities: response.capabilities ?? null,
     };
 }
 
@@ -111,6 +113,7 @@ export async function loadCollectionPage<TItem>({
             items: normalizeItems(response.items),
             groups: [],
             total: response.total,
+            capabilities: response.capabilities ?? null,
         };
     }
 
@@ -124,6 +127,7 @@ export async function loadCollectionPage<TItem>({
             items: normalizeItems(response.items),
             groups: response.groups ?? [],
             total: response.total,
+            capabilities: response.capabilities ?? null,
         };
     }
 
@@ -132,5 +136,6 @@ export async function loadCollectionPage<TItem>({
         items: [],
         groups: response.groups ?? [],
         total: response.total,
+        capabilities: response.capabilities ?? null,
     };
 }

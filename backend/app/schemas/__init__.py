@@ -7,6 +7,7 @@ from app.schemas.access import (
 from app.schemas.approval_request import (
     ApprovalActionTypeEnum,
     ApprovalEditRequestCreate,
+    ApprovalRequestCapabilities,
     ApprovalRequestCreate,
     ApprovalRequestListResponse,
     ApprovalRequestRead,
@@ -16,6 +17,7 @@ from app.schemas.approval_request import (
 )
 from app.schemas.control import (
     ControlBase,
+    ControlCapabilities,
     ControlCreate,
     ControlFormEnum,
     ControlFrequencyEnum,
@@ -34,6 +36,7 @@ from app.schemas.execution import (
 )
 from app.schemas.issue import (
     IssueAssignRequest,
+    IssueCapabilities,
     IssueCloseRequest,
     IssueContextEntityTypeEnum,
     IssueContextualCreate,
@@ -75,6 +78,7 @@ from app.schemas.risk import (
     ControlRiskLinkFromRisk,
     ControlRiskLinkRead,
     RiskBase,
+    RiskCapabilities,
     RiskCreate,
     RiskRead,
     RiskStatusEnum,
@@ -135,6 +139,7 @@ __all__ = [
     "ControlStatusEnum",
     "ExecutionResultEnum",
     "ControlBase",
+    "ControlCapabilities",
     "ControlCreate",
     "ControlUpdate",
     "ControlRead",
@@ -149,6 +154,7 @@ __all__ = [
     "RiskStatusEnum",
     "ControlEffectivenessEnum",
     "RiskBase",
+    "RiskCapabilities",
     "RiskCreate",
     "RiskUpdate",
     "RiskRead",
@@ -161,6 +167,7 @@ __all__ = [
     "ApprovalResourceTypeEnum",
     "ApprovalActionTypeEnum",
     "ApprovalRequestCreate",
+    "ApprovalRequestCapabilities",
     "ApprovalEditRequestCreate",
     "ApprovalRequestResolve",
     "ApprovalRequestRead",
@@ -185,6 +192,7 @@ __all__ = [
     "IssueRemediationPlanRead",
     "IssueExceptionRead",
     "IssueRiskContext",
+    "IssueCapabilities",
     "IssueSummary",
     "IssueRead",
     "IssueCreate",

@@ -1,15 +1,15 @@
 import { Download, Plus } from 'lucide-react';
 
-import { PermissionGate } from '@/components/PermissionGate';
 import { useTranslation } from '@/i18n/hooks';
 
 interface RisksPageHeaderProps {
+    canCreateRisk: boolean;
     isExporting: boolean;
     onCreateRisk: () => void;
     onOpenExport: () => void;
 }
 
-export function RisksPageHeader({ isExporting, onCreateRisk, onOpenExport }: RisksPageHeaderProps) {
+export function RisksPageHeader({ canCreateRisk, isExporting, onCreateRisk, onOpenExport }: RisksPageHeaderProps) {
     const { t } = useTranslation('risks');
 
     return (
@@ -29,7 +29,7 @@ export function RisksPageHeader({ isExporting, onCreateRisk, onOpenExport }: Ris
                     <Download className="h-4 w-4" />
                     {t('actions.export')}
                 </button>
-                <PermissionGate resource="risks" action="write">
+                {canCreateRisk && (
                     <button
                         type="button"
                         onClick={onCreateRisk}
@@ -39,7 +39,7 @@ export function RisksPageHeader({ isExporting, onCreateRisk, onOpenExport }: Ris
                         <Plus className="h-5 w-5" />
                         {t('new_risk')}
                     </button>
-                </PermissionGate>
+                )}
             </div>
         </div>
     );

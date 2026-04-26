@@ -102,6 +102,11 @@ async def list_vendors(
     )
 
     can_read_risks = check_permission(current_user, "risks", "read")
+    collection_capabilities = {
+        "can_create": check_permission(current_user, "vendors", "write"),
+        "can_export": check_permission(current_user, "reports", "read"),
+        "can_view_risk_contexts": can_read_risks,
+    }
     base_query = apply_vendor_list_filters(select(Vendor), current_user, criteria)
 
     count_query = select(func.count()).select_from(base_query.subquery())
@@ -143,6 +148,7 @@ async def list_vendors(
             offset=criteria.offset,
             limit=criteria.limit,
             groups=groups,
+            capabilities=collection_capabilities,
         )
 
     result = await db.execute(ordered_query.offset(criteria.offset).limit(criteria.limit))
@@ -160,6 +166,7 @@ async def list_vendors(
         limit=criteria.limit,
         current_user=current_user,
         linked_risks_by_vendor_id=linked_risks_by_vendor_id,
+        capabilities=collection_capabilities,
     )
 
 

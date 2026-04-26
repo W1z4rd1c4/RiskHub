@@ -1,7 +1,6 @@
 import { motion } from 'framer-motion';
 import { FileText, Plus } from 'lucide-react';
 
-import { PermissionGate } from '@/components/PermissionGate';
 import { KRIGaugeCard } from '@/components/kri/KRIGaugeCard';
 import { useTranslation } from '@/i18n/hooks';
 import type { OverdueKRI } from '@/types/kri';
@@ -10,6 +9,7 @@ import type { Risk } from '@/types/risk';
 interface RiskKriSectionProps {
     risk: Risk;
     overdueKRIs: OverdueKRI[];
+    canCreateKri: boolean;
     onNavigateToNewKri: () => void;
     onNavigateToKri: (kriId: number) => void;
 }
@@ -17,6 +17,7 @@ interface RiskKriSectionProps {
 export function RiskKriSection({
     risk,
     overdueKRIs,
+    canCreateKri,
     onNavigateToNewKri,
     onNavigateToKri,
 }: RiskKriSectionProps) {
@@ -29,14 +30,14 @@ export function RiskKriSection({
                     <FileText className="h-5 w-5 text-amber-400" />
                     <h3 className="font-bold text-white uppercase tracking-widest text-xs">{t('overview.risk_appetite_indicators', { ns: 'risks' })}</h3>
                 </div>
-                <PermissionGate resource="risks" action="write">
+                {canCreateKri && (
                     <button
                         onClick={onNavigateToNewKri}
                         className="px-3 py-1 bg-accent/10 border border-accent/20 rounded-lg text-accent text-[10px] font-black uppercase tracking-widest hover:bg-accent/20 transition-all font-bold"
                     >
                         <Plus className="h-3 w-3 inline mr-1" /> {t('overview.add_kri', { ns: 'risks' })}
                     </button>
-                </PermissionGate>
+                )}
             </div>
 
             {risk.kris && risk.kris.length > 0 ? (

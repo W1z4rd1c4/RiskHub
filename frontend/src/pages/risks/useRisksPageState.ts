@@ -32,6 +32,7 @@ interface UseRisksPageStateOptions {
 export function useRisksPageState({ initialState }: UseRisksPageStateOptions) {
     const [items, setItems] = useState<RiskSummary[]>([]);
     const [groups, setGroups] = useState<CollectionGroup[]>([]);
+    const [capabilities, setCapabilities] = useState<Record<string, boolean> | null>(null);
     const [totalCount, setTotalCount] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
     const [errorKey, setErrorKey] = useState<string | null>(null);
@@ -105,6 +106,7 @@ export function useRisksPageState({ initialState }: UseRisksPageStateOptions) {
             }
             setItems(response.items);
             setGroups(response.groups);
+            setCapabilities(response.capabilities);
             setTotalCount(response.total);
 
             setErrorKey(null);
@@ -230,6 +232,7 @@ export function useRisksPageState({ initialState }: UseRisksPageStateOptions) {
 
     return {
         criticalFilter,
+        capabilities,
         currentPage,
         errorKey,
         fetchRisks,

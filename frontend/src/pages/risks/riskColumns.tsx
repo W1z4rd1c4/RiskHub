@@ -3,6 +3,7 @@ import { AlertCircle, ChevronRight, Lock, Star } from 'lucide-react';
 
 import { RiskTypeBadge } from '@/components/ui/RiskTypeBadge';
 import type { Column } from '@/components/tables/SortableTable';
+import { resolveCapabilityFlag } from '@/lib/capabilities';
 import type { RiskStatus, RiskSummary } from '@/types/risk';
 
 type TranslateFn = (key: string, options?: Record<string, unknown>) => string;
@@ -14,7 +15,6 @@ type BuildRiskColumnsParams = {
     getDisplayName: (riskType: string) => string;
     getInitials: (riskType: string) => string;
     getScoreColor: (score: number) => string;
-    hasPermission: (resource: string, action: string) => boolean;
     handleRestoreRisk: (riskId: number, event: MouseEvent) => void | Promise<void>;
 };
 
@@ -38,7 +38,6 @@ export function buildRiskColumns({
     getDisplayName,
     getInitials,
     getScoreColor,
-    hasPermission,
     handleRestoreRisk,
 }: BuildRiskColumnsParams): Column<RiskSummary>[] {
     return [
@@ -193,7 +192,8 @@ export function buildRiskColumns({
             label: '',
             render: (risk) => (
                 <div className="text-right flex items-center justify-end gap-2">
-                    {risk.status === 'archived' && hasPermission('risks', 'delete') && (
+                    {risk.status === 'archived' &&
+                        resolveCapabilityFlag(risk.capabilities, 'can_restore') && (
                         <button
                             onClick={(e) => handleRestoreRisk(risk.id, e)}
                             data-testid={`risk-unarchive-${risk.id}`}

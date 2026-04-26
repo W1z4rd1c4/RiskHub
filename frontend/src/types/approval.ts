@@ -7,6 +7,24 @@ export interface PendingChange {
     new: unknown;
 }
 
+export interface ApprovalRequestCapabilities {
+    can_read: boolean;
+    can_approve: boolean;
+    can_reject: boolean;
+    can_cancel: boolean;
+    can_cancel_as_requester: boolean;
+    can_cancel_as_resolver: boolean;
+    can_view_pending_changes: boolean;
+    can_view_resolution_notes: boolean;
+    can_inspect_side_effects: boolean;
+    is_requester: boolean;
+    is_primary_approver: boolean;
+    is_privileged_resolver: boolean;
+    is_pending: boolean;
+    requires_privileged_resolution: boolean;
+    would_apply_side_effects_on_approve: boolean;
+}
+
 export interface ApprovalRequest {
     id: number;
     resource_type: ApprovalResourceType;
@@ -26,6 +44,7 @@ export interface ApprovalRequest {
     created_at: string;
     can_approve: boolean;
     can_reject: boolean;
+    capabilities?: ApprovalRequestCapabilities | null;
 }
 
 export interface ApprovalListResponse {

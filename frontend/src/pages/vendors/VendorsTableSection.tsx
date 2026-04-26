@@ -9,7 +9,6 @@ import {
     type SortDirection,
     type ViewMode,
 } from '@/components/tables';
-import { usePermissions } from '@/hooks/usePermissions';
 import { useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import type { CollectionGroup } from '@/types/collection';
@@ -76,7 +75,6 @@ export function VendorsTableSection({
     viewMode,
 }: VendorsTableSectionProps) {
     const { t } = useTranslation('vendors');
-    const { hasPermission } = usePermissions();
 
     const columns = useMemo<Column<Vendor>[]>(
         () => [
@@ -158,7 +156,7 @@ export function VendorsTableSection({
                 sortable: false,
                 render: (vendor) => (
                     <div className="flex items-center justify-end gap-2">
-                        {resolveCapabilityFlag(vendor.capabilities, 'can_restore', vendor.status === 'inactive' && hasPermission('vendors', 'delete')) && (
+                        {resolveCapabilityFlag(vendor.capabilities, 'can_restore') && (
                             <button
                                 type="button"
                                 onClick={(event) => {
@@ -176,7 +174,7 @@ export function VendorsTableSection({
                 ),
             },
         ],
-        [hasPermission, onRestoreVendor, t]
+        [onRestoreVendor, t]
     );
 
     if (errorKey) {

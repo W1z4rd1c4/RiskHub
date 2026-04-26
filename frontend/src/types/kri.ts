@@ -24,6 +24,32 @@ export interface KRIMonitoringFields {
     warning_upper_margin_ratio?: number;
 }
 
+export interface KRICapabilities {
+    can_read: boolean;
+    can_update: boolean;
+    can_update_sensitive_fields: boolean;
+    can_request_update_approval: boolean;
+    can_archive_immediately: boolean;
+    can_request_archive_approval: boolean;
+    can_restore: boolean;
+    can_submit_value: boolean;
+    can_submit_backdated_value: boolean;
+    can_request_value_submission_approval: boolean;
+    can_view_history: boolean;
+    can_request_history_correction: boolean;
+    can_apply_history_correction_immediately: boolean;
+    can_link_vendors: boolean;
+    can_unlink_vendors: boolean;
+    can_view_linked_vendors: boolean;
+    can_create_issue: boolean;
+    has_pending_delete_approval: boolean;
+    has_pending_update_approval: boolean;
+    has_pending_value_submission_approval: boolean;
+    has_pending_history_correction_approval: boolean;
+    requires_privileged_update_approval: boolean;
+    requires_privileged_delete_approval: boolean;
+}
+
 export interface KeyRiskIndicator extends KRIMonitoringFields {
     id: number;
     risk_id: number;
@@ -56,6 +82,7 @@ export interface KeyRiskIndicator extends KRIMonitoringFields {
     risk_department_name?: string | null;
     department_name?: string | null;
     linked_vendors?: LinkedVendorSummary[];
+    capabilities?: KRICapabilities | null;
 }
 
 export interface KRICreate {

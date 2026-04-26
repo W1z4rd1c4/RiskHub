@@ -41,12 +41,17 @@ describe('OrphanedItemsTable capabilities', () => {
         expect(screen.queryByRole('button', { name: 'governance.resolve' })).not.toBeInTheDocument();
     });
 
-    it('falls back to pending status and calls resolve when capabilities are absent', () => {
+    it('calls resolve when backend capabilities allow it', () => {
         const onResolve = vi.fn();
-        render(<OrphanedItemsTable items={[baseItem]} onResolve={onResolve} />);
+        render(
+            <OrphanedItemsTable
+                items={[{ ...baseItem, capabilities: { can_resolve: true, can_view_detail: true, requires_owner: true, requires_risk: false, requires_department: true } }]}
+                onResolve={onResolve}
+            />
+        );
 
         fireEvent.click(screen.getByRole('button', { name: 'governance.resolve' }));
 
-        expect(onResolve).toHaveBeenCalledWith(baseItem);
+        expect(onResolve).toHaveBeenCalledWith(expect.objectContaining({ id: baseItem.id }));
     });
 });

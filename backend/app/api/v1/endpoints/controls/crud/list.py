@@ -32,6 +32,7 @@ from app.schemas.control import (
     normalize_control_frequency,
 )
 from app.schemas.vendor_shared import LinkedVendorRead
+from app.services._control_execution import control_capabilities
 from app.services._monitoring_status import ControlMonitoringStatus, apply_control_monitoring_status_filter
 
 from .._helpers import _apply_department_scoping, _apply_process_category_filters
@@ -232,6 +233,11 @@ async def list_controls(
         control_owner_risk_ids = await get_risk_ids_where_control_owner(db, current_user.id)
         cross_dept_risk_ids = set(reporting_owner_risk_ids) | set(control_owner_risk_ids)
     can_read_vendors = check_permission(current_user, "vendors", "read")
+    collection_capabilities = {
+        "can_create": check_permission(current_user, "controls", "write"),
+        "can_export": check_permission(current_user, "reports", "read"),
+        "can_view_vendor_contexts": can_read_vendors,
+    }
     process_group_entries_by_control_id: dict[int, list[CollectionGroupEntry]] = {}
     risk_group_entries_by_control_id: dict[int, list[CollectionGroupEntry]] = {}
 
@@ -252,10 +258,11 @@ async def list_controls(
             },
         )
 
-    def serialize_controls(controls: list[Control]) -> list[ControlSummary]:
+    async def serialize_controls(controls: list[Control]) -> list[ControlSummary]:
         items = []
         for c in controls:
             monitoring_fields = build_control_monitoring_fields(c, monitoring_context)
+            capabilities = await control_capabilities(db, current_user=current_user, control=c)
             visible_linked_risks = [
                 link.risk
                 for link in c.risk_links
@@ -306,6 +313,7 @@ async def list_controls(
                         and can_read_vendors
                         and can_read_vendor(link.vendor, current_user)
                     ],
+                    capabilities=capabilities,
                     **monitoring_fields,
                 )
             )
@@ -328,7 +336,7 @@ async def list_controls(
 
     if collection_query.group_by:
         result = await db.execute(ordered_query)
-        all_items = serialize_controls(list(result.scalars().all()))
+        all_items = await serialize_controls(list(result.scalars().all()))
         paginated_items, grouped_total, groups = build_grouped_collection_page(
             all_items,
             collection_query,
@@ -342,9 +350,16 @@ async def list_controls(
             offset=offset,
             limit=limit,
             groups=groups,
+            capabilities=collection_capabilities,
         )
 
     result = await db.execute(ordered_query.offset(offset).limit(limit))
-    items = serialize_controls(list(result.scalars().all()))
+    items = await serialize_controls(list(result.scalars().all()))
 
-    return ControlListResponse(items=items, total=total, offset=offset, limit=limit)
+    return ControlListResponse(
+        items=items,
+        total=total,
+        offset=offset,
+        limit=limit,
+        capabilities=collection_capabilities,
+    )

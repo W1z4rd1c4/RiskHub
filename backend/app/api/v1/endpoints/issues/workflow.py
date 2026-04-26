@@ -11,6 +11,7 @@ from app.schemas.issue import (
     IssueRead,
     IssueStartRemediationRequest,
 )
+from app.services.authorization_capabilities import issue_capabilities
 from app.services.issue_workflow_service import IssueWorkflowService
 from app.services.outbox import OutboxService
 
@@ -63,7 +64,8 @@ async def assign_issue(
     refreshed = await _get_issue_with_relations(db, issue.id)
     if refreshed is None:
         raise HTTPException(status_code=404, detail="Issue not found")
-    return _serialize_issue_read(refreshed, current_user=current_user)
+    capabilities = await issue_capabilities(db, current_user=current_user, issue=refreshed)
+    return _serialize_issue_read(refreshed, current_user=current_user, capabilities=capabilities)
 
 
 @router.post("/issues/{issue_id}/start-remediation", response_model=IssueRead)
@@ -84,7 +86,8 @@ async def start_remediation(
     refreshed = await _get_issue_with_relations(db, issue.id)
     if refreshed is None:
         raise HTTPException(status_code=404, detail="Issue not found")
-    return _serialize_issue_read(refreshed, current_user=current_user)
+    capabilities = await issue_capabilities(db, current_user=current_user, issue=refreshed)
+    return _serialize_issue_read(refreshed, current_user=current_user, capabilities=capabilities)
 
 
 @router.post("/issues/{issue_id}/update-progress", response_model=IssueRead)
@@ -109,7 +112,8 @@ async def update_remediation_progress(
     refreshed = await _get_issue_with_relations(db, issue.id)
     if refreshed is None:
         raise HTTPException(status_code=404, detail="Issue not found")
-    return _serialize_issue_read(refreshed, current_user=current_user)
+    capabilities = await issue_capabilities(db, current_user=current_user, issue=refreshed)
+    return _serialize_issue_read(refreshed, current_user=current_user, capabilities=capabilities)
 
 
 @router.post("/issues/{issue_id}/close", response_model=IssueRead)
@@ -131,4 +135,5 @@ async def close_issue(
     refreshed = await _get_issue_with_relations(db, issue.id)
     if refreshed is None:
         raise HTTPException(status_code=404, detail="Issue not found")
-    return _serialize_issue_read(refreshed, current_user=current_user)
+    capabilities = await issue_capabilities(db, current_user=current_user, issue=refreshed)
+    return _serialize_issue_read(refreshed, current_user=current_user, capabilities=capabilities)

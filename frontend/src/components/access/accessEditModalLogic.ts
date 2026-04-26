@@ -24,15 +24,15 @@ export const SCOPE_OPTIONS: { value: AccessScopeEnum; labelKey: string; descript
 
 export function resolveAccessEditCapabilities(
     user: AccessUserRead | null,
-    canEditAccessUsers: boolean,
-    canManageUsers: boolean,
+    _canEditAccessUsers: boolean,
+    _canManageUsers: boolean,
 ): AccessEditCapabilities {
-    const canEditPlatformFields = resolveCapabilityFlag(user?.capabilities, 'can_edit_identity', canManageUsers);
-    const canEditBusinessFields = resolveCapabilityFlag(user?.capabilities, 'can_edit_business_access', canEditAccessUsers && !canManageUsers);
+    const canEditPlatformFields = resolveCapabilityFlag(user?.capabilities, 'can_edit_identity');
+    const canEditBusinessFields = resolveCapabilityFlag(user?.capabilities, 'can_edit_business_access');
     return {
         canEditPlatformFields,
         canEditBusinessFields,
-        canEditRole: resolveCapabilityFlag(user?.capabilities, 'can_edit_role', canEditPlatformFields || canEditBusinessFields),
+        canEditRole: resolveCapabilityFlag(user?.capabilities, 'can_edit_role'),
     };
 }
 

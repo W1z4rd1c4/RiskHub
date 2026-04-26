@@ -10,8 +10,8 @@ from sqlalchemy.orm.attributes import NO_VALUE
 
 from app.api.mappers.risk import filter_active_kris
 from app.schemas.control import ControlCapabilities, ControlRead
-from app.schemas.kri import KRIResponse
-from app.schemas.risk import ControlBriefForLink, ControlRiskLinkRead, RiskBriefForLink, RiskRead
+from app.schemas.kri import KRICapabilities, KRIResponse
+from app.schemas.risk import ControlBriefForLink, ControlRiskLinkRead, RiskBriefForLink, RiskCapabilities, RiskRead
 from app.schemas.vendor_shared import LinkedVendorRead
 from app.services._monitoring_status import (
     build_control_monitoring_facts,
@@ -201,6 +201,7 @@ def serialize_kri_response(
     context: MonitoringResponseContext,
     *,
     linked_vendors: list[LinkedVendorRead] | None = None,
+    capabilities: KRICapabilities | None = None,
 ) -> KRIResponse:
     risk = _loaded_attr(kri, "risk")
     risk_owner = _loaded_attr(risk, "owner") if risk is not None else None
@@ -234,6 +235,7 @@ def serialize_kri_response(
             "department_name": getattr(risk_department, "name", None),
             "reporting_owner_name": getattr(reporting_owner, "name", None),
             "linked_vendors": resolved_linked_vendors,
+            "capabilities": capabilities,
             "last_period_end": kri.last_period_end,
             "last_reported_at": kri.last_reported_at,
             "last_updated": kri.last_updated,
@@ -243,7 +245,12 @@ def serialize_kri_response(
     )
 
 
-def serialize_risk_read(risk, context: MonitoringResponseContext) -> RiskRead:
+def serialize_risk_read(
+    risk,
+    context: MonitoringResponseContext,
+    *,
+    capabilities: RiskCapabilities | None = None,
+) -> RiskRead:
     active_kris = filter_active_kris(_loaded_attr(risk, "kris", []) or [])
     return RiskRead.model_validate(
         {
@@ -254,6 +261,7 @@ def serialize_risk_read(risk, context: MonitoringResponseContext) -> RiskRead:
             "owner": _loaded_attr(risk, "owner"),
             "department": _loaded_attr(risk, "department"),
             "kris": [serialize_kri_response(kri, context) for kri in active_kris],
+            "capabilities": capabilities,
             "created_at": risk.created_at,
             "updated_at": risk.updated_at,
         }

@@ -70,6 +70,34 @@ class KRIMonitoringBundle(BaseModel):
     warning_upper_margin_ratio: float
 
 
+class KRICapabilities(BaseModel):
+    """Backend-authoritative base KRI detail/list action capabilities."""
+
+    can_read: bool
+    can_update: bool
+    can_update_sensitive_fields: bool
+    can_request_update_approval: bool
+    can_archive_immediately: bool
+    can_request_archive_approval: bool
+    can_restore: bool
+    can_submit_value: bool
+    can_submit_backdated_value: bool
+    can_request_value_submission_approval: bool
+    can_view_history: bool
+    can_request_history_correction: bool
+    can_apply_history_correction_immediately: bool
+    can_link_vendors: bool
+    can_unlink_vendors: bool
+    can_view_linked_vendors: bool
+    can_create_issue: bool
+    has_pending_delete_approval: bool
+    has_pending_update_approval: bool
+    has_pending_value_submission_approval: bool
+    has_pending_history_correction_approval: bool
+    requires_privileged_update_approval: bool
+    requires_privileged_delete_approval: bool
+
+
 class KRIResponse(KRIBase, KRIMonitoringBundle):
     """Schema for KRI response with computed breach status."""
 
@@ -95,6 +123,7 @@ class KRIResponse(KRIBase, KRIMonitoringBundle):
     # Reporting ownership display
     reporting_owner_name: Optional[str] = None
     linked_vendors: list[LinkedVendorRead] = Field(default_factory=list)
+    capabilities: KRICapabilities | None = None
 
     # Period tracking
     last_period_end: Optional[date] = None
@@ -123,6 +152,7 @@ class KRIListResponse(BaseModel):
     offset: int
     limit: int
     groups: list[CollectionGroupRead] | None = None
+    capabilities: dict[str, bool] | None = None
 
     @computed_field
     def page(self) -> int:

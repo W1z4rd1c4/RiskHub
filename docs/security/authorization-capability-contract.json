@@ -9,8 +9,8 @@
   ],
   "principles": [
     "Backend authorization is authoritative for protected data and mutations.",
-    "Frontend gates mirror backend policy and must prefer backend capabilities when available.",
-    "Frontend-only permission checks are compatibility fallbacks, not policy authority.",
+    "Frontend gates mirror backend policy and must use backend capability metadata for migrated action affordances.",
+    "Frontend-only permission checks are route/session guards or documented gaps, not mutation authority.",
     "Policy-changing diffs must update this contract and the matching test guidance."
   ],
   "sensitive_change_paths": [
@@ -97,7 +97,12 @@
     "frontend/src/services/reportApi.ts",
     "frontend/src/services/session/",
     "frontend/src/services/vendorReportApi.ts",
-    "frontend/src/types/vendor.ts"
+    "frontend/src/types/vendor.ts",
+    "backend/app/services/authorization_capabilities.py",
+    "backend/app/schemas/__init__.py",
+    "backend/app/schemas/approval_request.py",
+    "backend/app/schemas/issue.py",
+    "backend/app/schemas/risk.py"
   ],
   "actions": [
     {
@@ -125,7 +130,7 @@
       "backend_authority": "backend/app/api/v1/endpoints/access.py PATCH /users/{user_id}",
       "service_policy": "backend/app/services/_access_workflow/policy.py",
       "response_capability": "backend/app/schemas/access.py AccessUserCapabilities",
-      "frontend_gate": "frontend/src/components/access/AccessEditModal.tsx resolves backend capabilities before local fallbacks",
+      "frontend_gate": "frontend/src/components/access/AccessEditModal.tsx resolves backend AccessUserCapabilities without permission fallback",
       "tests": [
         "tests/backend/pytest/test_access_management.py",
         "tests/frontend/unit/src/components/access/AccessEditModal.test.tsx"
@@ -177,18 +182,16 @@
       "action": "Read risk lists, detail, lookups, linked controls, and linked vendors",
       "actor_scope": "Requires risks:read plus department, owner, or linked-entity visibility helpers",
       "backend_authority": "backend/app/api/v1/endpoints/risks/ and backend/app/core/_permissions/entity_access.py, backend/app/api/v1/endpoints/lookups.py",
-      "service_policy": "backend/app/core/_permissions/scoping.py",
-      "response_capability": "None on risk rows",
-      "frontend_gate": "frontend/src/authz/policy.ts, frontend/src/components/PermissionGate.tsx, and risk detail components, frontend/src/pages/RisksPage.tsx, frontend/src/pages/risks/, frontend/src/components/risks/detail-overview/",
+      "service_policy": "backend/app/core/_permissions/scoping.py and backend/app/services/authorization_capabilities.py",
+      "response_capability": "backend/app/schemas/risk.py and backend/app/schemas/__init__.py RiskCapabilities on RiskRead, RiskSummary, and RiskListResponse collection capabilities",
+      "frontend_gate": "frontend/src/pages/RisksPage.tsx, frontend/src/pages/RiskDetailPage.tsx, frontend/src/pages/risks/, frontend/src/components/risks/RiskDetailOverviewTab.tsx, and frontend/src/components/risks/detail-overview/ use backend capabilities",
       "tests": [
         "tests/backend/pytest/test_risks.py",
         "tests/backend/pytest/test_cross_department_access.py",
         "tests/frontend/unit/src/pages/detail/ContextualIssueAction.test.tsx"
       ],
-      "status": "needs_review",
-      "findings": [
-        "P3: risk read/action rows do not expose per-row capability metadata comparable to vendors or controls"
-      ]
+      "status": "authoritative",
+      "findings": []
     },
     {
       "id": "AUTHZ-RISKS-WRITE",
@@ -196,18 +199,16 @@
       "action": "Create and update risks, including approval-required sensitive changes",
       "actor_scope": "Requires risks:write; sensitive/high-risk updates use can_resolve_approvals or queue approval",
       "backend_authority": "backend/app/api/v1/endpoints/risks/crud/create.py and backend/app/api/v1/endpoints/risks/crud/update.py",
-      "service_policy": "backend/app/core/_permissions/sensitive.py and backend/app/services/_approval_execution/",
-      "response_capability": "None on risk rows",
-      "frontend_gate": "frontend/src/authz/BusinessRouteGuards.tsx and frontend/src/components/PermissionGate.tsx, frontend/src/pages/RisksPage.tsx, frontend/src/pages/risks/, frontend/src/components/risks/detail-overview/",
+      "service_policy": "backend/app/core/_permissions/sensitive.py, backend/app/services/_approval_execution/, and backend/app/services/authorization_capabilities.py",
+      "response_capability": "backend/app/schemas/risk.py RiskCapabilities.can_update, can_update_sensitive_fields, can_request_update_approval, can_create_kri, can_create_linked_control, can_link_controls, can_unlink_controls, and can_create_issue",
+      "frontend_gate": "frontend/src/pages/RisksPage.tsx, frontend/src/pages/RiskDetailPage.tsx, frontend/src/pages/risks/, frontend/src/components/risks/RiskDetailOverviewTab.tsx, and frontend/src/components/risks/detail-overview/ use backend capabilities",
       "tests": [
         "tests/backend/pytest/test_approval_workflow.py",
         "tests/backend/pytest/test_risks.py",
         "tests/frontend/unit/src/pages/__tests__/rbac_gating.test.tsx"
       ],
-      "status": "needs_review",
-      "findings": [
-        "P3: frontend mutation affordances use local permission gates; backend remains authoritative"
-      ]
+      "status": "authoritative",
+      "findings": []
     },
     {
       "id": "AUTHZ-RISKS-LIFECYCLE",
@@ -215,17 +216,17 @@
       "action": "Archive, restore, and delete-approval request",
       "actor_scope": "Delete permission plus delete authorization helper; privileged approvers may execute immediately",
       "backend_authority": "backend/app/api/v1/endpoints/risks/crud/archive.py and backend/app/api/v1/endpoints/risks/crud/restore.py",
-      "service_policy": "backend/app/api/v1/endpoints/approvals/_delete_authorization.py",
-      "response_capability": "None on risk rows",
-      "frontend_gate": "frontend/src/pages/RiskDetailPage.tsx and risk table action gates",
+      "service_policy": "backend/app/api/v1/endpoints/approvals/_delete_authorization.py and backend/app/services/authorization_capabilities.py",
+      "response_capability": "backend/app/schemas/risk.py RiskCapabilities.can_archive_immediately, can_request_archive_approval, can_restore, has_pending_delete_approval, and requires_privileged_delete_approval",
+      "frontend_gate": "frontend/src/pages/RiskDetailPage.tsx, frontend/src/pages/risks/riskColumns.tsx, and frontend/src/pages/risks/RisksTableSection.tsx use backend capabilities",
       "tests": [
         "tests/backend/pytest/test_approval_workflow.py",
-        "tests/backend/pytest/test_approvals.py"
+        "tests/backend/pytest/test_approvals.py",
+        "tests/backend/pytest/test_risks.py",
+        "tests/frontend/unit/src/pages/__tests__/rbac_gating.test.tsx"
       ],
-      "status": "needs_review",
-      "findings": [
-        "P3: lifecycle actions are not represented as backend per-risk capability metadata"
-      ]
+      "status": "authoritative",
+      "findings": []
     },
     {
       "id": "AUTHZ-CONTROLS-READ",
@@ -233,8 +234,8 @@
       "action": "Read control lists, detail, linked risks, and monitoring context",
       "actor_scope": "Requires controls:read plus department/linked-risk visibility helpers",
       "backend_authority": "backend/app/api/v1/endpoints/controls/",
-      "service_policy": "backend/app/services/_control_execution/ and backend/app/core/_permissions/entity_access.py",
-      "response_capability": "backend/app/schemas/control.py ControlCapabilities on detail/list serialization where available",
+      "service_policy": "backend/app/services/_control_execution/, backend/app/core/_permissions/entity_access.py, and backend/app/services/authorization_capabilities.py",
+      "response_capability": "backend/app/schemas/control.py ControlCapabilities on detail/list serialization and ControlListResponse collection capabilities",
       "frontend_gate": "frontend/src/pages/ControlDetailPage.tsx and controls components, frontend/src/pages/ControlsPage.tsx, frontend/src/pages/controls/",
       "tests": [
         "tests/backend/pytest/test_controls.py",
@@ -250,18 +251,16 @@
       "action": "Create, update, link risks, unlink risks, archive, and restore controls",
       "actor_scope": "Requires controls:write or controls:delete depending on action; sensitive updates can queue approvals",
       "backend_authority": "backend/app/api/v1/endpoints/controls/crud/ and backend/app/api/v1/endpoints/controls/linking.py",
-      "service_policy": "backend/app/core/_permissions/sensitive.py and backend/app/api/v1/endpoints/approvals/_delete_authorization.py",
-      "response_capability": "backend/app/schemas/control.py ControlCapabilities currently focuses on execution logging",
-      "frontend_gate": "frontend/src/components/PermissionGate.tsx and control detail/list components, frontend/src/pages/ControlsPage.tsx, frontend/src/pages/controls/, frontend/src/components/LinkManagementDialog.tsx, frontend/src/components/linking/linkModes.ts",
+      "service_policy": "backend/app/core/_permissions/sensitive.py, backend/app/api/v1/endpoints/approvals/_delete_authorization.py, and backend/app/services/authorization_capabilities.py",
+      "response_capability": "backend/app/schemas/control.py ControlCapabilities.can_update, can_update_sensitive_fields, can_request_update_approval, can_link_risk, can_unlink_risk, can_archive_immediately, can_request_archive_approval, can_restore, and can_create_issue",
+      "frontend_gate": "frontend/src/pages/ControlDetailPage.tsx, frontend/src/pages/ControlsPage.tsx, frontend/src/pages/controls/, frontend/src/components/LinkManagementDialog.tsx, and frontend/src/components/linking/linkModes.ts use backend capabilities",
       "tests": [
         "tests/backend/pytest/test_controls.py",
         "tests/backend/pytest/test_approval_workflow.py",
         "tests/frontend/unit/src/pages/__tests__/ControlsPage.presentation.test.ts"
       ],
-      "status": "needs_review",
-      "findings": [
-        "P3: control capabilities do not yet cover all lifecycle and link actions"
-      ]
+      "status": "authoritative",
+      "findings": []
     },
     {
       "id": "AUTHZ-CONTROLS-EXECUTE",
@@ -269,8 +268,8 @@
       "action": "Log and read control executions",
       "actor_scope": "Requires controls:execute for writes and controls:read for reads; detail view exposes can_log_execution",
       "backend_authority": "backend/app/api/v1/endpoints/controls/executions.py and backend/app/api/v1/endpoints/executions.py",
-      "service_policy": "backend/app/services/_control_execution/",
-      "response_capability": "backend/app/schemas/control.py ControlCapabilities.can_log_execution",
+      "service_policy": "backend/app/services/_control_execution/ and backend/app/services/authorization_capabilities.py",
+      "response_capability": "backend/app/schemas/control.py ControlCapabilities.can_log_execution, can_view_executions, is_archived, and is_executable",
       "frontend_gate": "frontend/src/pages/ControlDetailPage.tsx and frontend/src/components/executions/",
       "tests": [
         "tests/backend/pytest/test_executions.py",
@@ -286,17 +285,15 @@
       "action": "Read KRI lists, detail, breaches, due-soon/overdue, and linked vendors",
       "actor_scope": "Requires risks:read plus KRI/risk department and reporting-owner visibility helpers",
       "backend_authority": "backend/app/api/v1/endpoints/kris/crud/",
-      "service_policy": "backend/app/core/_permissions/entity_access.py and backend/app/core/_permissions/ownership.py",
-      "response_capability": "backend/app/schemas/kri.py KRI history responses expose history capabilities; base KRI rows do not",
-      "frontend_gate": "frontend/src/pages/KRIsPage.tsx and frontend/src/pages/KRIDetailPage.tsx, frontend/src/pages/detail/useKriDetailState.ts",
+      "service_policy": "backend/app/core/_permissions/entity_access.py, backend/app/core/_permissions/ownership.py, and backend/app/services/authorization_capabilities.py",
+      "response_capability": "backend/app/schemas/kri.py KRICapabilities on KRIResponse and KRIListResponse collection capabilities",
+      "frontend_gate": "frontend/src/pages/KRIsPage.tsx, frontend/src/pages/KRIDetailPage.tsx, frontend/src/pages/kris/KRIsTableSection.tsx, and frontend/src/pages/detail/useKriDetailState.ts use backend capabilities",
       "tests": [
         "tests/backend/pytest/test_kris_rbac.py",
         "tests/frontend/unit/src/pages/__tests__/KRIsPage.monitoring-status.test.tsx"
       ],
-      "status": "needs_review",
-      "findings": [
-        "P3: base KRI rows do not expose per-row action capabilities"
-      ]
+      "status": "authoritative",
+      "findings": []
     },
     {
       "id": "AUTHZ-KRIS-WRITE",
@@ -304,17 +301,17 @@
       "action": "Create, update, archive, restore, and link vendor-backed KRIs",
       "actor_scope": "Requires risks:write or risks:delete depending on action; department/vendor visibility checked on linked entities",
       "backend_authority": "backend/app/api/v1/endpoints/kris/crud/",
-      "service_policy": "backend/app/core/_permissions/scoping.py and backend/app/api/v1/endpoints/approvals/_delete_authorization.py",
-      "response_capability": "None on base KRI rows",
-      "frontend_gate": "frontend/src/pages/KRIDetailPage.tsx and KRI form/list components",
+      "service_policy": "backend/app/core/_permissions/scoping.py, backend/app/api/v1/endpoints/approvals/_delete_authorization.py, and backend/app/services/authorization_capabilities.py",
+      "response_capability": "backend/app/schemas/kri.py KRICapabilities.can_update, can_update_sensitive_fields, can_request_update_approval, can_archive_immediately, can_request_archive_approval, can_restore, can_link_vendors, can_unlink_vendors, and can_create_issue",
+      "frontend_gate": "frontend/src/pages/KRIDetailPage.tsx, frontend/src/pages/KRIsPage.tsx, frontend/src/pages/kris/KRIsTableSection.tsx, and KRI form/list components use backend capabilities",
       "tests": [
         "tests/backend/pytest/test_kris_rbac.py",
-        "tests/backend/pytest/test_approval_workflow.py"
+        "tests/backend/pytest/test_approval_workflow.py",
+        "tests/frontend/unit/src/pages/__tests__/KRIDetailPage.edit-approval.test.tsx",
+        "tests/frontend/unit/src/pages/__tests__/KRIsPage.monitoring-status.test.tsx"
       ],
-      "status": "needs_review",
-      "findings": [
-        "P3: lifecycle gates are permission-derived in the UI"
-      ]
+      "status": "authoritative",
+      "findings": []
     },
     {
       "id": "AUTHZ-KRIS-HISTORY",
@@ -322,9 +319,9 @@
       "action": "Submit values, read history, and request corrections",
       "actor_scope": "Submit uses ensure_can_submit_value; correction requires risks:write and readable KRI unless privileged approver executes immediately",
       "backend_authority": "backend/app/api/v1/endpoints/kris/history.py, backend/app/api/v1/endpoints/kris/history_helpers.py",
-      "service_policy": "backend/app/services/_kri_history/workflow.py",
-      "response_capability": "backend/app/schemas/kri.py KRIHistoryCapabilities.can_request_correction",
-      "frontend_gate": "frontend/src/pages/KRIDetailPage.tsx and frontend/src/components/kris/, frontend/src/pages/detail/useKriDetailState.ts",
+      "service_policy": "backend/app/services/_kri_history/workflow.py and backend/app/services/authorization_capabilities.py",
+      "response_capability": "backend/app/schemas/kri.py KRICapabilities and KRIHistoryCapabilities.can_request_correction",
+      "frontend_gate": "frontend/src/pages/KRIDetailPage.tsx, frontend/src/components/kris/, and frontend/src/pages/detail/useKriDetailState.ts use backend capabilities",
       "tests": [
         "tests/backend/pytest/test_kris_history_listing_api.py",
         "tests/backend/pytest/test_kris_history_corrections_api.py",
@@ -341,19 +338,18 @@
       "action": "Request, list, read, approve, reject, cancel, and inspect approval side effects",
       "actor_scope": "Requesting uses resource-specific delete/update helpers; resolving uses can_resolve_approvals",
       "backend_authority": "backend/app/api/v1/endpoints/approvals/",
-      "service_policy": "backend/app/services/_approval_execution/",
-      "response_capability": "Approval responses expose effective visibility through queue/list filtering, not action capability objects",
-      "frontend_gate": "frontend/src/pages/approvals/",
+      "service_policy": "backend/app/services/_approval_execution/ and backend/app/services/authorization_capabilities.py",
+      "response_capability": "backend/app/schemas/approval_request.py and backend/app/schemas/__init__.py ApprovalRequestCapabilities plus preserved can_approve and can_reject booleans",
+      "frontend_gate": "frontend/src/pages/approvals/ uses ApprovalRequestCapabilities for approve, reject, and cancel actions",
       "tests": [
         "tests/backend/pytest/test_approvals.py",
         "tests/backend/pytest/test_approval_workflow.py",
         "tests/backend/pytest/test_outbox_approval_flow.py",
+        "tests/frontend/unit/src/pages/__tests__/ApprovalList.actions.test.tsx",
         "tests/frontend/e2e/approval-workflows/tiered-approval.spec.ts"
       ],
-      "status": "needs_review",
-      "findings": [
-        "P3: approval action availability is policy-derived rather than represented as response capability metadata"
-      ]
+      "status": "authoritative",
+      "findings": []
     },
     {
       "id": "AUTHZ-NOTIFICATIONS",
@@ -381,7 +377,7 @@
       "actor_scope": "Requires vendors:read and vendor ownership/department visibility; linked entities require their own read policy",
       "backend_authority": "backend/app/api/v1/endpoints/vendors/ and backend/app/api/v1/endpoints/vendor_links.py",
       "service_policy": "backend/app/services/_vendor_workflow/policy.py and backend/app/api/v1/endpoints/vendors/_listing.py, backend/app/api/v1/endpoints/vendor_link_helpers.py",
-      "response_capability": "backend/app/schemas/vendor.py VendorCapabilities on VendorRead",
+      "response_capability": "backend/app/schemas/vendor.py VendorCapabilities on VendorRead and VendorListResponse collection capabilities",
       "frontend_gate": "frontend/src/pages/vendors/ and frontend/src/types/vendor.ts, frontend/src/pages/VendorsPage.tsx and frontend/src/pages/VendorDetailPage.tsx",
       "tests": [
         "tests/backend/pytest/test_vendors.py",
@@ -399,8 +395,8 @@
       "actor_scope": "Requires vendors:write/delete or vendor-owner exception; link mutations require visible vendor and visible target entity",
       "backend_authority": "backend/app/api/v1/endpoints/vendors/ and backend/app/api/v1/endpoints/vendor_links.py",
       "service_policy": "backend/app/services/_vendor_workflow/policy.py, backend/app/api/v1/endpoints/vendor_link_helpers.py",
-      "response_capability": "backend/app/schemas/vendor.py VendorCapabilities.can_update, can_archive, can_restore",
-      "frontend_gate": "frontend/src/pages/vendors/ and vendor detail tabs, frontend/src/pages/VendorsPage.tsx and frontend/src/pages/VendorDetailPage.tsx",
+      "response_capability": "backend/app/schemas/vendor.py VendorCapabilities.can_update, can_archive, can_restore, can_link_risk, can_link_control, can_link_kri, can_create_linked_risk, can_create_linked_control, can_create_linked_kri, and can_create_issue",
+      "frontend_gate": "frontend/src/pages/vendors/, frontend/src/pages/VendorsPage.tsx, frontend/src/pages/VendorDetailPage.tsx, and vendor detail tabs use backend capabilities",
       "tests": [
         "tests/backend/pytest/test_vendors.py",
         "tests/backend/pytest/test_vendor_links.py",
@@ -436,7 +432,7 @@
       "backend_authority": "backend/app/api/v1/endpoints/dashboard/",
       "service_policy": "backend/app/api/v1/endpoints/dashboard/committee_helpers.py and dashboard modules",
       "response_capability": "None; payloads are scoped server-side",
-      "frontend_gate": "frontend/src/authz/policy.ts and frontend/src/services/dashboardApi.ts, frontend/src/pages/DashboardPage.tsx",
+      "frontend_gate": "frontend/src/authz/policy.ts, frontend/src/components/PermissionGate.tsx, frontend/src/services/dashboardApi.ts, and frontend/src/pages/DashboardPage.tsx",
       "tests": [
         "tests/backend/pytest/test_dashboard.py",
         "tests/backend/pytest/test_dashboard_committee_vendor_metrics.py",
@@ -510,19 +506,19 @@
       "action": "Create, read, update, link, assign, progress, close, and approve exceptions",
       "actor_scope": "Requires issues:read/write/approve plus issue scope, owner assignment, and linked-entity visibility helpers",
       "backend_authority": "backend/app/api/v1/endpoints/issues/",
-      "service_policy": "backend/app/core/_permissions/issues.py",
-      "response_capability": "None on issue rows",
-      "frontend_gate": "frontend/src/pages/issues/ and frontend/src/components/issues/, frontend/src/pages/IssuesPage.tsx, frontend/src/pages/IssueDetailPage.tsx, frontend/src/pages/IssueNewPage.tsx, frontend/src/pages/detail/ContextualIssueAction.tsx",
+      "service_policy": "backend/app/core/_permissions/issues.py and backend/app/services/authorization_capabilities.py",
+      "response_capability": "backend/app/schemas/issue.py IssueCapabilities on IssueSummary, IssueRead, and IssueListResponse collection capabilities",
+      "frontend_gate": "frontend/src/pages/issues/, frontend/src/components/issues/, frontend/src/pages/IssuesPage.tsx, frontend/src/pages/IssueDetailPage.tsx, frontend/src/pages/IssueNewPage.tsx, and frontend/src/pages/detail/ContextualIssueAction.tsx use backend capabilities",
       "tests": [
         "tests/backend/pytest/api/v1/test_issue_workflow.py",
         "tests/backend/pytest/api/v1/test_issues_crud_api.py",
         "tests/backend/pytest/api/v1/test_issues_rbac_api.py",
-        "tests/backend/pytest/api/v1/test_dashboard_issue_metrics.py"
+        "tests/backend/pytest/api/v1/test_dashboard_issue_metrics.py",
+        "tests/frontend/unit/src/components/issues/__tests__/RemediationPlanCard.workflow-visibility.test.tsx",
+        "tests/frontend/unit/src/pages/detail/ContextualIssueAction.test.tsx"
       ],
-      "status": "needs_review",
-      "findings": [
-        "P3: issue row action capabilities are not exposed; backend scope is still authoritative"
-      ]
+      "status": "authoritative",
+      "findings": []
     },
     {
       "id": "AUTHZ-ORPHANS",

@@ -10,7 +10,18 @@ import pytest_asyncio
 from httpx import AsyncClient
 from sqlalchemy import select
 
-from app.models import ApprovalRequest, Department, KeyRiskIndicator, Risk, Vendor, VendorKRILink, VendorRiskLink
+from app.models import (
+    ApprovalActionType,
+    ApprovalRequest,
+    ApprovalResourceType,
+    ApprovalStatus,
+    Department,
+    KeyRiskIndicator,
+    Risk,
+    Vendor,
+    VendorKRILink,
+    VendorRiskLink,
+)
 from app.models.risk import RiskStatus
 from tests.backend.pytest.factories import create_test_kri, create_test_risk, create_test_vendor
 
@@ -78,6 +89,11 @@ async def test_admin_can_create_kri(auth_client: AsyncClient, test_risk_for_kri:
         },
     )
     assert response.status_code == 201
+    data = response.json()
+    assert data["capabilities"]["can_read"] is True
+    assert data["capabilities"]["can_update"] is True
+    assert data["capabilities"]["can_submit_value"] is True
+    assert data["capabilities"]["has_pending_value_submission_approval"] is False
 
 
 @pytest.mark.asyncio
@@ -88,6 +104,9 @@ async def test_admin_can_update_kri(auth_client: AsyncClient, test_kri: KeyRiskI
         json={"metric_name": "Updated KRI"},
     )
     assert response.status_code == 200
+    data = response.json()
+    assert data["capabilities"]["can_request_history_correction"] is True
+    assert data["capabilities"]["can_apply_history_correction_immediately"] is True
 
 
 @pytest.mark.asyncio
@@ -727,6 +746,93 @@ async def test_non_privileged_edit_requires_approval(client_dept_head: AsyncClie
     assert "approval_id" in data
     assert data["action_type"] == "edit"
     assert "pending_changes" in data
+
+
+@pytest.mark.asyncio
+async def test_pending_kri_value_submission_locks_other_non_privileged_edit_capabilities(
+    client_dept_head: AsyncClient,
+    db_session,
+    test_kri: KeyRiskIndicator,
+    test_user,
+    test_user_dept_head,
+):
+    test_kri.reporting_owner_id = test_user_dept_head.id
+    db_session.add(
+        ApprovalRequest(
+            resource_type=ApprovalResourceType.KRI,
+            resource_id=test_kri.id,
+            resource_name=f"{test_kri.metric_name} value submission",
+            requested_by_id=test_user.id,
+            reason="Pending value submission",
+            action_type=ApprovalActionType.EDIT,
+            pending_changes={
+                "current_value": {"old": test_kri.current_value, "new": 72.5},
+                "period_end": "2026-03-31",
+                "recorded_at": "2026-04-01T00:00:00+00:00",
+            },
+            status=ApprovalStatus.PENDING,
+            primary_approver_id=test_user.id,
+        )
+    )
+    await db_session.commit()
+
+    response = await client_dept_head.get(f"/api/v1/kris/{test_kri.id}")
+
+    assert response.status_code == 200
+    capabilities = response.json()["capabilities"]
+    assert capabilities["has_pending_value_submission_approval"] is True
+    assert capabilities["has_pending_update_approval"] is False
+    assert capabilities["has_pending_history_correction_approval"] is False
+    assert capabilities["can_update"] is False
+    assert capabilities["can_request_update_approval"] is False
+    assert capabilities["can_submit_value"] is False
+    assert capabilities["can_request_value_submission_approval"] is False
+    assert capabilities["can_request_history_correction"] is False
+
+
+@pytest.mark.asyncio
+async def test_pending_kri_history_correction_locks_other_non_privileged_edit_capabilities(
+    client_dept_head: AsyncClient,
+    db_session,
+    test_kri: KeyRiskIndicator,
+    test_user,
+    test_user_dept_head,
+):
+    test_kri.reporting_owner_id = test_user_dept_head.id
+    db_session.add(
+        ApprovalRequest(
+            resource_type=ApprovalResourceType.KRI,
+            resource_id=test_kri.id,
+            resource_name=f"{test_kri.metric_name} history correction",
+            requested_by_id=test_user.id,
+            reason="Pending history correction",
+            action_type=ApprovalActionType.EDIT,
+            pending_changes={
+                "history_entry_id": 12345,
+                "old_value": 50.0,
+                "new_value": 42.0,
+                "reason": "Correction request",
+                "period_end": "2026-03-31",
+            },
+            status=ApprovalStatus.PENDING,
+            primary_approver_id=test_user.id,
+            requires_privileged_approval=True,
+        )
+    )
+    await db_session.commit()
+
+    response = await client_dept_head.get(f"/api/v1/kris/{test_kri.id}")
+
+    assert response.status_code == 200
+    capabilities = response.json()["capabilities"]
+    assert capabilities["has_pending_history_correction_approval"] is True
+    assert capabilities["has_pending_update_approval"] is False
+    assert capabilities["has_pending_value_submission_approval"] is False
+    assert capabilities["can_update"] is False
+    assert capabilities["can_request_update_approval"] is False
+    assert capabilities["can_submit_value"] is False
+    assert capabilities["can_request_value_submission_approval"] is False
+    assert capabilities["can_request_history_correction"] is False
 
 
 @pytest_asyncio.fixture

@@ -2,6 +2,8 @@ import type { OverdueKRI } from '@/types/kri';
 import type { ControlEffectiveness, Risk, RiskControlLink } from '@/types/risk';
 import type { Vendor } from '@/types/vendor';
 
+import { resolveCapabilityFlag } from '@/lib/capabilities';
+
 import { RiskAssessmentSection } from './detail-overview/RiskAssessmentSection';
 import { RiskKriSection } from './detail-overview/RiskKriSection';
 import { RiskLinkedControlsSection } from './detail-overview/RiskLinkedControlsSection';
@@ -58,6 +60,10 @@ export function RiskDetailOverviewTab({
     setIsCreateDialogOpen,
 }: RiskDetailOverviewTabProps) {
     const { activeControls, draftControls, archivedControls } = groupLinkedControls(linkedControls);
+    const canCreateKri = resolveCapabilityFlag(risk.capabilities, 'can_create_kri');
+    const canCreateLinkedControl = resolveCapabilityFlag(risk.capabilities, 'can_create_linked_control');
+    const canLinkControls = resolveCapabilityFlag(risk.capabilities, 'can_link_controls');
+    const canUnlinkControls = resolveCapabilityFlag(risk.capabilities, 'can_unlink_controls');
 
     return (
         <>
@@ -73,6 +79,7 @@ export function RiskDetailOverviewTab({
                 <RiskKriSection
                     risk={risk}
                     overdueKRIs={overdueKRIs}
+                    canCreateKri={canCreateKri}
                     onNavigateToNewKri={onNavigateToNewKri}
                     onNavigateToKri={onNavigateToKri}
                 />
@@ -93,6 +100,9 @@ export function RiskDetailOverviewTab({
                 onOpenCreateControl={onOpenCreateControl}
                 onNavigateToControl={onNavigateToControl}
                 onRefreshData={onRefreshData}
+                canCreateLinkedControl={canCreateLinkedControl}
+                canLinkControls={canLinkControls}
+                canUnlinkControls={canUnlinkControls}
             />
             <RiskLinkedVendorsSection
                 linkedVendors={linkedVendors}

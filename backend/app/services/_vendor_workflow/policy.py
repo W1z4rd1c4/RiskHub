@@ -106,10 +106,18 @@ def vendor_capabilities(current_user: User, vendor: Vendor) -> dict[str, bool]:
     can_restore = bool(is_visible and can_delete and vendor.status == "inactive")
     can_mutate_links = bool(is_visible and can_update)
     return {
+        "can_read": bool(is_visible),
         "can_update": bool(is_visible and can_update),
         "can_archive": can_archive,
         "can_restore": can_restore,
+        "can_create_linked_risk": bool(can_mutate_links and has_permission(current_user, "risks", "write")),
+        "can_create_linked_control": bool(can_mutate_links and has_permission(current_user, "controls", "write")),
+        "can_create_linked_kri": bool(can_mutate_links and has_permission(current_user, "risks", "write")),
         "can_link_risk": bool(can_mutate_links and has_permission(current_user, "risks", "read")),
         "can_link_control": bool(can_mutate_links and has_permission(current_user, "controls", "read")),
         "can_link_kri": bool(can_mutate_links and has_permission(current_user, "risks", "read")),
+        "can_view_linked_risks": bool(is_visible and has_permission(current_user, "risks", "read")),
+        "can_view_linked_controls": bool(is_visible and has_permission(current_user, "controls", "read")),
+        "can_view_linked_kris": bool(is_visible and has_permission(current_user, "risks", "read")),
+        "can_create_issue": bool(is_visible and has_permission(current_user, "issues", "write")),
     }

@@ -63,6 +63,36 @@ export interface IssueVendorContext {
     vendor_name: string;
 }
 
+export interface IssueCapabilities {
+    can_read: boolean;
+    can_update: boolean;
+    can_change_department: boolean;
+    can_assign_owner: boolean;
+    can_clear_owner: boolean;
+    can_start_remediation: boolean;
+    can_update_remediation_progress: boolean;
+    can_mark_remediation_blocked: boolean;
+    can_mark_remediation_completed: boolean;
+    can_request_exception: boolean;
+    can_approve_exception: boolean;
+    can_revoke_exception: boolean;
+    can_close: boolean;
+    can_link_risk: boolean;
+    can_link_control: boolean;
+    can_link_execution: boolean;
+    can_link_kri: boolean;
+    can_link_vendor: boolean;
+    can_unlink_entities: boolean;
+    can_view_risk_contexts: boolean;
+    can_view_vendor_contexts: boolean;
+    can_use_department_lookup: boolean;
+    can_use_owner_lookup: boolean;
+    is_owner: boolean;
+    is_closed: boolean;
+    has_active_exception: boolean;
+    has_pending_exception_request: boolean;
+}
+
 export interface IssueSummary {
     id: number;
     title: string;
@@ -81,6 +111,7 @@ export interface IssueSummary {
     updated_at: string;
     risk_contexts: IssueRiskContext[];
     vendor_contexts: IssueVendorContext[];
+    capabilities?: IssueCapabilities | null;
 }
 
 export interface Issue extends IssueSummary {

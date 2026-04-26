@@ -27,6 +27,7 @@ import {
 export function useControlsPageState() {
     const [items, setItems] = useState<ControlSummary[]>([]);
     const [groups, setGroups] = useState<CollectionGroup[]>([]);
+    const [capabilities, setCapabilities] = useState<Record<string, boolean> | null>(null);
     const [totalCount, setTotalCount] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
     const [errorKey, setErrorKey] = useState<string | null>(null);
@@ -84,6 +85,7 @@ export function useControlsPageState() {
             }
             setItems(response.items);
             setGroups(response.groups);
+            setCapabilities(response.capabilities);
             setTotalCount(response.total);
 
             setErrorKey(null);
@@ -166,6 +168,7 @@ export function useControlsPageState() {
 
     return {
         currentPage,
+        capabilities,
         errorKey,
         fetchControls,
         groups,

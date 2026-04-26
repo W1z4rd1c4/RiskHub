@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import type { KRIModalSaveResult } from '@/components/kri/KRIModal';
-import { usePermissions } from '@/hooks/usePermissions';
 import { useTranslation } from '@/i18n/hooks';
 import { parseUpdateResult } from '@/lib/approvalUi';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
@@ -24,7 +23,6 @@ interface UseKriDetailStateArgs {
 export function useKriDetailState({ rawId }: UseKriDetailStateArgs) {
     const navigate = useNavigate();
     const { t: tErrors } = useTranslation('errorKeys');
-    const { canRecordKRI, hasPermission, user } = usePermissions();
     const [activeTab, setActiveTab] = useState<KriDetailTabView>('overview');
     const [approvalBanner, setApprovalBanner] = useState<{ message: string } | null>(null);
     const [history, setHistory] = useState<KRIHistoryEntry[]>([]);
@@ -148,12 +146,13 @@ export function useKriDetailState({ rawId }: UseKriDetailStateArgs) {
 
     const dueDate = kri?.required_due_date ? new Date(kri.required_due_date) : null;
     const isOverdue = (kri?.days_overdue ?? 0) > 0;
-    const canRequestHistoryCorrection = resolveCapabilityFlag(
-        historyCapabilities,
-        'can_request_correction',
-        hasPermission('risks', 'write'),
+    const canRequestHistoryCorrection =
+        resolveCapabilityFlag(kri?.capabilities, 'can_request_history_correction') ||
+        resolveCapabilityFlag(historyCapabilities, 'can_request_correction');
+    const canRecordValue = resolveCapabilityFlag(
+        kri?.capabilities,
+        'can_submit_value',
     );
-    const canRecordValue = canRecordKRI || Boolean(kri && user?.id && kri.reporting_owner_id === user.id);
 
     return {
         activeTab,

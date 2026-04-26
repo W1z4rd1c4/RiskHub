@@ -5,6 +5,27 @@ import { controlMonitoringFieldsSchema } from './controls';
 import { keyRiskIndicatorArraySchema } from './kris';
 import { linkedVendorSummaryArraySchema } from './vendors';
 
+const riskCapabilitiesSchema = passthroughObject({
+    can_read: z.boolean(),
+    can_update: z.boolean(),
+    can_update_sensitive_fields: z.boolean(),
+    can_request_update_approval: z.boolean(),
+    can_archive_immediately: z.boolean(),
+    can_request_archive_approval: z.boolean(),
+    can_restore: z.boolean(),
+    can_create_kri: z.boolean(),
+    can_create_linked_control: z.boolean(),
+    can_link_controls: z.boolean(),
+    can_unlink_controls: z.boolean(),
+    can_view_linked_controls: z.boolean(),
+    can_view_linked_vendors: z.boolean(),
+    can_create_issue: z.boolean(),
+    has_pending_delete_approval: z.boolean(),
+    has_pending_update_approval: z.boolean(),
+    requires_privileged_update_approval: z.boolean(),
+    requires_privileged_delete_approval: z.boolean(),
+});
+
 export const riskSummarySchema: z.ZodType<RiskSummary> = passthroughObject({
     id: z.number(),
     risk_id_code: z.string(),
@@ -28,6 +49,7 @@ export const riskSummarySchema: z.ZodType<RiskSummary> = passthroughObject({
     has_breach: z.boolean().optional(),
     control_count: z.number().optional(),
     linked_vendors: linkedVendorSummaryArraySchema.optional(),
+    capabilities: riskCapabilitiesSchema.nullable().optional(),
 });
 export const riskListResponseSchema: z.ZodType<RiskListResponse> =
     collectionPaginationSchema(riskSummarySchema);
@@ -60,6 +82,7 @@ export const riskSchema: z.ZodType<Risk> = passthroughObject({
     kris: keyRiskIndicatorArraySchema.optional(),
     owner: idNameEmailSchema.nullable().optional(),
     department: idNameCodeSchema.nullable().optional(),
+    capabilities: riskCapabilitiesSchema.nullable().optional(),
 });
 
 export const riskControlLinkSchema: z.ZodType<RiskControlLink> = passthroughObject({

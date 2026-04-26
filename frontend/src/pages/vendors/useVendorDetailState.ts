@@ -6,27 +6,14 @@ import { vendorApi } from '@/services/vendorApi';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import type { Vendor } from '@/types/vendor';
 
-import {
-    canEditVendorByOwnership,
-    type VendorDetailMode,
-} from './vendorDetailPresentation';
+import type { VendorDetailMode } from './vendorDetailPresentation';
 
 interface UseVendorDetailStateOptions {
-    canDeleteVendor: boolean;
-    canReadControls: boolean;
-    canReadRisks: boolean;
-    canWriteVendor: boolean;
-    currentUserId: number | null | undefined;
     mode: VendorDetailMode;
     notFoundMessage: string;
 }
 
 export function useVendorDetailState({
-    canDeleteVendor,
-    canReadControls,
-    canReadRisks,
-    canWriteVendor,
-    currentUserId,
     mode,
     notFoundMessage,
 }: UseVendorDetailStateOptions) {
@@ -79,18 +66,24 @@ export function useVendorDetailState({
         }
     }, [fetchVendor, vendor]);
 
-    const canEditByOwnership = canEditVendorByOwnership(vendor, currentUserId);
-    const canEdit = resolveCapabilityFlag(vendor?.capabilities, 'can_update', canWriteVendor || canEditByOwnership);
-    const canArchive = resolveCapabilityFlag(vendor?.capabilities, 'can_archive', Boolean(vendor?.status === 'active' && canDeleteVendor));
-    const canRestore = resolveCapabilityFlag(vendor?.capabilities, 'can_restore', Boolean(vendor?.status === 'inactive' && canDeleteVendor));
-    const canLinkRisk = resolveCapabilityFlag(vendor?.capabilities, 'can_link_risk', Boolean(canEdit && canReadRisks));
-    const canLinkControl = resolveCapabilityFlag(vendor?.capabilities, 'can_link_control', Boolean(canEdit && canReadControls));
-    const canLinkKri = resolveCapabilityFlag(vendor?.capabilities, 'can_link_kri', Boolean(canEdit && canReadRisks));
+    const canEdit = resolveCapabilityFlag(vendor?.capabilities, 'can_update');
+    const canArchive = resolveCapabilityFlag(vendor?.capabilities, 'can_archive');
+    const canRestore = resolveCapabilityFlag(vendor?.capabilities, 'can_restore');
+    const canLinkRisk = resolveCapabilityFlag(vendor?.capabilities, 'can_link_risk');
+    const canLinkControl = resolveCapabilityFlag(vendor?.capabilities, 'can_link_control');
+    const canLinkKri = resolveCapabilityFlag(vendor?.capabilities, 'can_link_kri');
+    const canCreateLinkedRisk = resolveCapabilityFlag(vendor?.capabilities, 'can_create_linked_risk');
+    const canCreateLinkedControl = resolveCapabilityFlag(vendor?.capabilities, 'can_create_linked_control');
+    const canCreateLinkedKri = resolveCapabilityFlag(vendor?.capabilities, 'can_create_linked_kri');
+    const canCreateIssue = resolveCapabilityFlag(vendor?.capabilities, 'can_create_issue');
 
     return {
         canArchive,
         canEdit,
-        canEditByOwnership,
+        canCreateIssue,
+        canCreateLinkedControl,
+        canCreateLinkedKri,
+        canCreateLinkedRisk,
         canLinkControl,
         canLinkKri,
         canLinkRisk,

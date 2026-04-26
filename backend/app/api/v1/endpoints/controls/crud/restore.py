@@ -12,6 +12,7 @@ from app.db.session import get_db
 from app.models import Control, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas.control import ControlRead, ControlStatusEnum
+from app.services._control_execution import control_capabilities
 
 router = APIRouter()
 
@@ -78,4 +79,6 @@ async def restore_control(
     )
     now = utc_now()
     monitoring_context = await load_monitoring_response_context(db, now=now, today=now.date())
-    return serialize_control_read(result.scalar_one(), monitoring_context)
+    reloaded_control = result.scalar_one()
+    capabilities = await control_capabilities(db, current_user=current_user, control=reloaded_control)
+    return serialize_control_read(reloaded_control, monitoring_context, capabilities=capabilities)

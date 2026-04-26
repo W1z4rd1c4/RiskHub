@@ -83,7 +83,7 @@ describe('ControlDetailPage issue entry', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         canIssueWrite = true;
-        mockGetControl.mockResolvedValue({
+        mockGetControl.mockImplementation(async () => ({
             id: 13,
             name: 'Quarterly Access Review',
             description: 'Ensure privileged access is reviewed.',
@@ -97,7 +97,10 @@ describe('ControlDetailPage issue entry', () => {
             process_owner_position: 'Chief Risk Officer',
             methodology_reference: 'SOC2-AC-01',
             data_source: 'IAM export',
-        });
+            capabilities: {
+                can_create_issue: canIssueWrite,
+            },
+        }));
         mockGetLinkedRisks.mockResolvedValue([]);
     });
 

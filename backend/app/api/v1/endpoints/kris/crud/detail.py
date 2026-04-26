@@ -11,6 +11,7 @@ from app.db.session import get_db
 from app.models import KeyRiskIndicator, Risk, User, VendorKRILink
 from app.schemas.kri import KRIResponse
 from app.schemas.vendor_shared import LinkedVendorRead
+from app.services.authorization_capabilities import kri_capabilities
 
 router = APIRouter()
 
@@ -57,9 +58,11 @@ async def get_kri(
 
     # Allow access if user is reporting owner (cross-department)
     if await is_kri_reporting_owner(db, current_user.id, kri_id):
-        return serialize_kri_response(kri, monitoring_context, linked_vendors=linked_vendors)
+        capabilities = await kri_capabilities(db, current_user=current_user, kri=kri)
+        return serialize_kri_response(kri, monitoring_context, linked_vendors=linked_vendors, capabilities=capabilities)
 
     # Otherwise verify department access
     check_department_access(kri.risk.department_id, current_user)
 
-    return serialize_kri_response(kri, monitoring_context, linked_vendors=linked_vendors)
+    capabilities = await kri_capabilities(db, current_user=current_user, kri=kri)
+    return serialize_kri_response(kri, monitoring_context, linked_vendors=linked_vendors, capabilities=capabilities)

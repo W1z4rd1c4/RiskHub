@@ -128,6 +128,38 @@ class IssueVendorContext(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class IssueCapabilities(BaseModel):
+    """Backend-authoritative issue/remediation action capabilities."""
+
+    can_read: bool
+    can_update: bool
+    can_change_department: bool
+    can_assign_owner: bool
+    can_clear_owner: bool
+    can_start_remediation: bool
+    can_update_remediation_progress: bool
+    can_mark_remediation_blocked: bool
+    can_mark_remediation_completed: bool
+    can_request_exception: bool
+    can_approve_exception: bool
+    can_revoke_exception: bool
+    can_close: bool
+    can_link_risk: bool
+    can_link_control: bool
+    can_link_execution: bool
+    can_link_kri: bool
+    can_link_vendor: bool
+    can_unlink_entities: bool
+    can_view_risk_contexts: bool
+    can_view_vendor_contexts: bool
+    can_use_department_lookup: bool
+    can_use_owner_lookup: bool
+    is_owner: bool
+    is_closed: bool
+    has_active_exception: bool
+    has_pending_exception_request: bool
+
+
 class IssueSummary(BaseModel):
     id: int
     title: str
@@ -146,6 +178,7 @@ class IssueSummary(BaseModel):
     updated_at: datetime
     risk_contexts: list[IssueRiskContext] = Field(default_factory=list)
     vendor_contexts: list[IssueVendorContext] = Field(default_factory=list)
+    capabilities: IssueCapabilities | None = None
 
     model_config = {"from_attributes": True}
 
@@ -210,6 +243,7 @@ class IssueListResponse(BaseModel):
     offset: int
     limit: int
     groups: list[CollectionGroupRead] | None = None
+    capabilities: dict[str, bool] | None = None
 
     @computed_field
     def skip(self) -> int:

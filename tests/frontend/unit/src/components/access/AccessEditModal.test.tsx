@@ -106,6 +106,13 @@ function makeAccessUser(overrides: Partial<AccessUserRead> = {}): AccessUserRead
         access_scope: 'department',
         scope_label: 'Department',
         effective_permissions: ['risks:read'],
+        capabilities: {
+            can_edit_identity: true,
+            can_edit_business_access: true,
+            can_edit_role: true,
+            can_deactivate: true,
+            can_revoke_sessions: true,
+        },
         ...overrides,
     };
 }
@@ -139,14 +146,21 @@ describe('AccessEditModal', () => {
             <AccessEditModal
                 isOpen
                 onClose={onClose}
-                user={makeAccessUser()}
+                user={makeAccessUser({
+                    capabilities: {
+                        can_edit_identity: true,
+                        can_edit_business_access: false,
+                        can_edit_role: true,
+                        can_deactivate: true,
+                        can_revoke_sessions: true,
+                    },
+                })}
                 onSaved={onSaved}
             />
         );
 
         const user = userEvent.setup();
-        const nameInput = await screen.findByDisplayValue('Original User');
-        const emailInput = screen.getByDisplayValue('user@riskhub.test');
+        const [nameInput, emailInput] = await screen.findAllByRole('textbox');
 
         expect(accessApiMocks.listAccessRoles).toHaveBeenCalledTimes(1);
         expect(departmentApiMocks.getDepartments).not.toHaveBeenCalled();
@@ -199,8 +213,7 @@ describe('AccessEditModal', () => {
         );
 
         const user = userEvent.setup();
-        const nameInput = await screen.findByDisplayValue('Original User');
-        const emailInput = screen.getByDisplayValue('user@riskhub.test');
+        const [nameInput, emailInput] = await screen.findAllByRole('textbox');
 
         await user.clear(nameInput);
         await user.type(nameInput, 'Pending User');
@@ -243,7 +256,7 @@ describe('AccessEditModal', () => {
         );
 
         const user = userEvent.setup();
-        const emailInput = await screen.findByDisplayValue('user@riskhub.test');
+        const [, emailInput] = await screen.findAllByRole('textbox');
         await user.clear(emailInput);
         await user.type(emailInput, 'duplicate@riskhub.test');
         await user.click(screen.getByRole('button', { name: /administrator/i }));
@@ -292,7 +305,15 @@ describe('AccessEditModal', () => {
             <AccessEditModal
                 isOpen
                 onClose={onClose}
-                user={makeAccessUser()}
+                user={makeAccessUser({
+                    capabilities: {
+                        can_edit_identity: false,
+                        can_edit_business_access: true,
+                        can_edit_role: true,
+                        can_deactivate: false,
+                        can_revoke_sessions: false,
+                    },
+                })}
                 onSaved={onSaved}
             />
         );

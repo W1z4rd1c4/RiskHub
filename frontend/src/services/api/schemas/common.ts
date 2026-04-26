@@ -77,6 +77,7 @@ export function collectionPaginationSchema<T extends z.ZodTypeAny>(itemSchema: T
         offset: z.number(),
         limit: z.number(),
         groups: z.array(collectionGroupSchema).nullable().optional(),
+        capabilities: z.record(z.string(), z.boolean()).nullable().optional(),
     });
 }
 

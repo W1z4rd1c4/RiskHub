@@ -84,7 +84,7 @@ describe('RiskDetailPage issue entry', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         canIssueWrite = true;
-        mockGetRisk.mockResolvedValue({
+        mockGetRisk.mockImplementation(async () => ({
             id: 7,
             name: 'Liquidity Risk',
             status: 'active',
@@ -92,7 +92,10 @@ describe('RiskDetailPage issue entry', () => {
             process: 'Treasury',
             description: 'Liquidity mismatch between assets and liabilities.',
             kris: [],
-        });
+            capabilities: {
+                can_create_issue: canIssueWrite,
+            },
+        }));
         mockGetLinkedControls.mockResolvedValue([]);
         mockGetLinkedVendors.mockResolvedValue([]);
         mockGetOverdue.mockResolvedValue([]);
@@ -119,4 +122,3 @@ describe('RiskDetailPage issue entry', () => {
         expect(screen.queryByRole('button', { name: 'New Issue' })).not.toBeInTheDocument();
     });
 });
-

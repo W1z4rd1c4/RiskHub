@@ -76,7 +76,7 @@ describe('VendorDetailPage issue entry', () => {
         vi.clearAllMocks();
         canIssueWrite = true;
         mockLocation = { pathname: '/vendors/31', search: '', state: null };
-        mockGetVendor.mockResolvedValue({
+        mockGetVendor.mockImplementation(async () => ({
             id: 31,
             name: 'Atlas Cloud Services',
             vendor_type: 'ict',
@@ -95,7 +95,12 @@ describe('VendorDetailPage issue entry', () => {
             supports_important_core_insurance_function: true,
             dora_relevant: true,
             is_significant_vendor: false,
-        });
+            capabilities: {
+                can_archive: true,
+                can_restore: false,
+                can_create_issue: canIssueWrite,
+            },
+        }));
     });
 
     it('shows create-issue action and opens contextual modal with vendor name', async () => {
@@ -138,6 +143,11 @@ describe('VendorDetailPage issue entry', () => {
             supports_important_core_insurance_function: true,
             dora_relevant: true,
             is_significant_vendor: false,
+            capabilities: {
+                can_archive: false,
+                can_restore: true,
+                can_create_issue: true,
+            },
         });
 
         render(<VendorDetailPage />);

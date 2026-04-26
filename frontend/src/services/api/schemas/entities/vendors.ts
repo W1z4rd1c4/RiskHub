@@ -17,12 +17,20 @@ export const vendorLinkedRiskSummarySchema: z.ZodType<VendorLinkedRiskSummary> =
     });
 
 const vendorCapabilitiesSchema = passthroughObject({
+    can_read: z.boolean(),
     can_update: z.boolean(),
     can_archive: z.boolean(),
     can_restore: z.boolean(),
+    can_create_linked_risk: z.boolean(),
+    can_create_linked_control: z.boolean(),
+    can_create_linked_kri: z.boolean(),
     can_link_risk: z.boolean(),
     can_link_control: z.boolean(),
     can_link_kri: z.boolean(),
+    can_view_linked_risks: z.boolean(),
+    can_view_linked_controls: z.boolean(),
+    can_view_linked_kris: z.boolean(),
+    can_create_issue: z.boolean(),
 });
 
 export const vendorSchema: z.ZodType<Vendor> = passthroughObject({

@@ -92,6 +92,10 @@ describe('ControlDetailPage execution status refresh', () => {
                 control_form: 'manual',
                 control_owner_id: 2,
                 monitoring_status: 'failed',
+                capabilities: {
+                    can_log_execution: true,
+                    can_create_issue: false,
+                },
             })
             .mockResolvedValueOnce({
                 id: 13,
@@ -103,6 +107,10 @@ describe('ControlDetailPage execution status refresh', () => {
                 control_form: 'manual',
                 control_owner_id: 2,
                 monitoring_status: 'passed',
+                capabilities: {
+                    can_log_execution: true,
+                    can_create_issue: false,
+                },
             });
         mockGetLinkedRisks.mockResolvedValue([]);
     });

@@ -222,6 +222,10 @@ describe('VendorsPage grouped views', () => {
                     offset,
                     limit,
                     groups: buildVendorGroups(filtered, params.group_by),
+                    capabilities: {
+                        can_create: true,
+                        can_view_risk_contexts: hasRiskRead,
+                    },
                 });
             }
             return Promise.resolve({
@@ -229,6 +233,10 @@ describe('VendorsPage grouped views', () => {
                 total: filtered.length,
                 offset,
                 limit,
+                capabilities: {
+                    can_create: true,
+                    can_view_risk_contexts: hasRiskRead,
+                },
             });
         });
     });

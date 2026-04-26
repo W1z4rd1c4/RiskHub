@@ -2,6 +2,7 @@ import { ArrowLeft, Building2, ChevronRight, Shield, User } from 'lucide-react';
 
 import { Pagination, SortableTable, type Column, type ViewMode } from '@/components/tables';
 import { getKriMonitoringMeta } from '@/lib/monitoringStatus';
+import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { useTranslation } from '@/i18n/hooks';
 import { formatMetricNumberValue } from '@/i18n/formatters';
 import type { CollectionGroup } from '@/types/collection';
@@ -10,7 +11,6 @@ import type { KeyRiskIndicator } from '@/types/kri';
 import { formatKriGroupLabel } from './kriPagePresentation';
 
 interface KRIsTableSectionProps {
-    canRestoreKri: boolean;
     currentPage: number;
     errorKey: string | null;
     groups: CollectionGroup[];
@@ -32,7 +32,6 @@ interface KRIsTableSectionProps {
 }
 
 export function KRIsTableSection({
-    canRestoreKri,
     currentPage,
     errorKey,
     groups,
@@ -127,7 +126,7 @@ export function KRIsTableSection({
             sortable: false,
             render: (kri) => (
                 <div className="flex items-center justify-end gap-2">
-                    {kri.is_archived && canRestoreKri && (
+                    {kri.is_archived && resolveCapabilityFlag(kri.capabilities, 'can_restore') && (
                         <button
                             onClick={(event) => {
                                 event.stopPropagation();

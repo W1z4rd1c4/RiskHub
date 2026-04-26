@@ -17,12 +17,11 @@ export function IssuesPage() {
     const { hasPermission } = usePermissions();
     const { t } = useTranslation('issues');
     const canRead = hasPermission('issues', 'read');
-    const canWrite = hasPermission('issues', 'write');
-    const canReadVendors = hasPermission('vendors', 'read');
 
     const [initialState] = useState(() => parseIssuesPageQueryParams(searchParams));
     const {
         currentPage,
+        capabilities,
         errorKey,
         excludeActiveExceptions,
         fetchIssues,
@@ -76,7 +75,7 @@ export function IssuesPage() {
     return (
         <div className="space-y-8">
             <IssuesPageHeader
-                canWrite={canWrite}
+                canCreateIssue={capabilities?.can_create === true}
                 isExporting={isExporting}
                 onCreateIssue={() => navigate('/issues/new')}
                 onOpenExport={openExportDialog}
@@ -85,7 +84,7 @@ export function IssuesPage() {
             <ViewSwitcher
                 value={viewMode}
                 onChange={updateViewMode}
-                exclude={canReadVendors ? ['risk', 'flag'] : ['risk', 'flag', 'vendor']}
+                exclude={capabilities?.can_view_vendor_contexts === true ? ['risk', 'flag'] : ['risk', 'flag', 'vendor']}
             />
 
             <IssuesFilterBar

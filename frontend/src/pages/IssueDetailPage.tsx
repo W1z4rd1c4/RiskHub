@@ -5,6 +5,7 @@ import { AlertTriangle, ArrowLeft, History, RefreshCw, Target, Wrench } from 'lu
 import { issuePill, issueSeverityClass, issueStatusClass } from '@/components/issues/issueUi';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useTranslation } from '@/i18n/hooks';
+import { resolveCapabilityFlag } from '@/lib/capabilities';
 import type { IssueSeverity, IssueStatus } from '@/types/issue';
 
 import { IssueHistoryTab } from './issues/issue-detail/IssueHistoryTab';
@@ -22,8 +23,6 @@ export function IssueDetailPage() {
 
     const issueId = id ? Number(id) : Number.NaN;
     const canRead = hasPermission('issues', 'read');
-    const canWrite = hasPermission('issues', 'write');
-    const canApprove = hasPermission('issues', 'approve');
     const [activeTab, setActiveTab] = useState<IssueDetailTab>('overview');
 
     const { errorKey, refreshIssue, isLoading, issue } = useIssueDetail({
@@ -55,6 +54,8 @@ export function IssueDetailPage() {
         () => issue?.description || t('detail.messages.no_description'),
         [issue?.description, t],
     );
+    const canWriteIssue = resolveCapabilityFlag(issue?.capabilities, 'can_update');
+    const canApproveIssueException = resolveCapabilityFlag(issue?.capabilities, 'can_approve_exception');
 
     const tabs: Array<{ id: IssueDetailTab; label: string; icon: typeof Target }> = [
         { id: 'overview', label: t('detail.tabs.overview'), icon: Target },
@@ -188,8 +189,8 @@ export function IssueDetailPage() {
 
             {activeTab === 'workflow' ? (
                 <IssueWorkflowTab
-                    canApprove={canApprove}
-                    canWrite={canWrite}
+                    canApprove={canApproveIssueException}
+                    canWrite={canWriteIssue}
                     issue={issue}
                 />
             ) : null}

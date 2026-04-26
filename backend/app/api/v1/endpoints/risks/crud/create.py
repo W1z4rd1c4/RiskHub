@@ -14,6 +14,7 @@ from app.db.session import get_db
 from app.models import KeyRiskIndicator, Risk, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas.risk import RiskCreate, RiskRead
+from app.services.authorization_capabilities import risk_capabilities
 
 from ..id_generation import generate_risk_id_code
 from ._shared import validate_risk_type
@@ -101,7 +102,9 @@ async def create_risk(
             )
             now = utc_now()
             monitoring_context = await load_monitoring_response_context(db, now=now, today=now.date())
-            return serialize_risk_read(result.scalar_one(), monitoring_context)
+            reloaded_risk = result.scalar_one()
+            capabilities = await risk_capabilities(db, current_user=current_user, risk=reloaded_risk)
+            return serialize_risk_read(reloaded_risk, monitoring_context, capabilities=capabilities)
 
         except IntegrityError:
             await db.rollback()

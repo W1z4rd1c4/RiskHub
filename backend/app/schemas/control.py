@@ -77,9 +77,26 @@ class ControlMonitoringBundle(BaseModel):
 class ControlCapabilities(BaseModel):
     """Backend-authoritative control detail/list action capabilities."""
 
+    can_read: bool
+    can_update: bool
+    can_update_sensitive_fields: bool
+    can_request_update_approval: bool
+    can_archive_immediately: bool
+    can_request_archive_approval: bool
+    can_restore: bool
     can_log_execution: bool
+    can_view_executions: bool
     can_link_risk: bool
     can_unlink_risk: bool
+    can_view_linked_risks: bool
+    can_view_linked_vendors: bool
+    can_create_issue: bool
+    has_pending_delete_approval: bool
+    has_pending_update_approval: bool
+    requires_privileged_update_approval: bool
+    requires_privileged_delete_approval: bool
+    is_archived: bool
+    is_executable: bool
 
 
 # ============== Control Schemas ==============
@@ -223,6 +240,7 @@ class ControlListResponse(BaseModel):
     offset: int
     limit: int
     groups: list[CollectionGroupRead] | None = None
+    capabilities: dict[str, bool] | None = None
 
     @computed_field
     def skip(self) -> int:

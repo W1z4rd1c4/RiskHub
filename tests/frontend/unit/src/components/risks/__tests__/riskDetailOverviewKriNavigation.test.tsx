@@ -55,6 +55,12 @@ const riskWithKri: Risk = {
     is_priority: false,
     created_at: '2026-01-01T00:00:00Z',
     updated_at: '2026-01-02T00:00:00Z',
+    capabilities: {
+        can_create_kri: true,
+        can_create_linked_control: true,
+        can_link_controls: true,
+        can_unlink_controls: true,
+    },
     kris: [
         {
             id: 501,

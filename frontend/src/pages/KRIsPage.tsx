@@ -1,10 +1,8 @@
 import { Download, Plus, RefreshCw, Search } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
-import { PermissionGate } from '@/components/PermissionGate';
 import { ExportDialog } from '@/components/reports/ExportDialog';
 import { ViewSwitcher } from '@/components/tables';
-import { useAuth } from '@/contexts/AuthContext';
 import { useTranslation } from '@/i18n/hooks';
 import { KRI_MONITORING_FILTER_VALUES } from '@/lib/monitoringStatus';
 
@@ -15,9 +13,9 @@ export function KRIsPage() {
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const { t } = useTranslation('kris');
-    const { hasPermission } = useAuth();
 
     const {
+        capabilities,
         currentPage,
         errorKey,
         fetchKris,
@@ -77,18 +75,18 @@ export function KRIsPage() {
                     >
                         <RefreshCw className={`h-5 w-5 ${isLoading ? 'animate-spin text-accent' : ''}`} aria-hidden="true" />
                     </button>
-                    <PermissionGate resource="risks" action="write">
+                    {capabilities?.can_create === true && (
                         <button onClick={() => navigate('/kris/new')} data-testid="kris-create-button" className="btn-primary">
                             <Plus className="h-5 w-5" /> {t('new_kri')}
                         </button>
-                    </PermissionGate>
+                    )}
                 </div>
             </div>
 
             <ViewSwitcher
                 value={viewMode}
                 onChange={updateViewMode}
-                exclude={['flag', ...(hasPermission('vendors', 'read') ? [] : ['vendor' as const])]}
+                exclude={['flag', ...(capabilities?.can_view_vendor_contexts === true ? [] : ['vendor' as const])]}
             />
 
             <div className="glass-card flex flex-col md:flex-row gap-4">
@@ -142,7 +140,6 @@ export function KRIsPage() {
             </div>
 
             <KRIsTableSection
-                canRestoreKri={hasPermission('risks', 'delete')}
                 currentPage={currentPage}
                 errorKey={errorKey}
                 groups={groups}

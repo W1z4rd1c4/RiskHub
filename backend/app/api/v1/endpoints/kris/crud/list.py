@@ -37,6 +37,7 @@ from app.services._monitoring_status import (
     apply_kri_monitoring_status_filter,
     apply_kri_timeliness_status_filter,
 )
+from app.services.authorization_capabilities import kri_capabilities
 
 router = APIRouter(prefix="/kris", tags=["Key Risk Indicators"])
 
@@ -215,12 +216,57 @@ async def list_kris(
         )
 
     can_read_vendors = check_permission(current_user, "vendors", "read")
+    collection_capabilities = {
+        "can_create": check_permission(current_user, "risks", "write"),
+        "can_export": check_permission(current_user, "reports", "read"),
+        "can_view_vendor_contexts": can_read_vendors,
+    }
     ordered_query = filtered_query.order_by(KeyRiskIndicator.metric_name)
 
     if collection_query.group_by:
         result = await db.execute(ordered_query)
         kris = result.scalars().all()
-        all_items = [
+        all_items = []
+        for kri in kris:
+            capabilities = await kri_capabilities(db, current_user=current_user, kri=kri)
+            all_items.append(
+                serialize_kri_response(
+                    kri,
+                    monitoring_context,
+                    linked_vendors=[
+                        LinkedVendorRead(id=link.vendor.id, name=link.vendor.name)
+                        for link in getattr(kri, "vendor_links", []) or []
+                        if getattr(link, "vendor", None) is not None
+                        and can_read_vendors
+                        and can_read_vendor(link.vendor, current_user)
+                    ],
+                    capabilities=capabilities,
+                )
+            )
+        paginated_items, total, groups = build_grouped_collection_page(
+            all_items,
+            collection_query,
+            get_entries=_kri_group_entries,
+            is_highlighted=lambda item: getattr(item, "monitoring_status", None) == "breach",
+        )
+        return KRIListResponse(
+            items=paginated_items,
+            total=total,
+            offset=offset,
+            limit=limit,
+            groups=groups,
+            capabilities=collection_capabilities,
+        )
+
+    count_query = select(func.count()).select_from(filtered_query.subquery())
+    total_result = await db.execute(count_query)
+    total = total_result.scalar() or 0
+    result = await db.execute(ordered_query.offset(offset).limit(limit))
+    kris = result.scalars().all()
+    items = []
+    for kri in kris:
+        capabilities = await kri_capabilities(db, current_user=current_user, kri=kri)
+        items.append(
             serialize_kri_response(
                 kri,
                 monitoring_context,
@@ -231,35 +277,8 @@ async def list_kris(
                     and can_read_vendors
                     and can_read_vendor(link.vendor, current_user)
                 ],
+                capabilities=capabilities,
             )
-            for kri in kris
-        ]
-        paginated_items, total, groups = build_grouped_collection_page(
-            all_items,
-            collection_query,
-            get_entries=_kri_group_entries,
-            is_highlighted=lambda item: getattr(item, "monitoring_status", None) == "breach",
         )
-        return KRIListResponse(items=paginated_items, total=total, offset=offset, limit=limit, groups=groups)
 
-    count_query = select(func.count()).select_from(filtered_query.subquery())
-    total_result = await db.execute(count_query)
-    total = total_result.scalar() or 0
-    result = await db.execute(ordered_query.offset(offset).limit(limit))
-    kris = result.scalars().all()
-    items = [
-        serialize_kri_response(
-            kri,
-            monitoring_context,
-            linked_vendors=[
-                LinkedVendorRead(id=link.vendor.id, name=link.vendor.name)
-                for link in getattr(kri, "vendor_links", []) or []
-                if getattr(link, "vendor", None) is not None
-                and can_read_vendors
-                and can_read_vendor(link.vendor, current_user)
-            ],
-        )
-        for kri in kris
-    ]
-
-    return KRIListResponse(items=items, total=total, offset=offset, limit=limit)
+    return KRIListResponse(items=items, total=total, offset=offset, limit=limit, capabilities=collection_capabilities)

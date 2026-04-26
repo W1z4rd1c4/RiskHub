@@ -61,6 +61,13 @@ type AccessUserApi = {
     access_scope: 'global' | 'department' | 'manager';
     scope_label: string;
     effective_permissions: string[];
+    capabilities?: {
+        can_edit_identity: boolean;
+        can_edit_business_access: boolean;
+        can_edit_role: boolean;
+        can_deactivate: boolean;
+        can_revoke_sessions: boolean;
+    };
 };
 
 const makeUser = (overrides: Partial<AuthMeUser>): AuthMeUser => ({
@@ -106,6 +113,85 @@ const makeAccessUser = (overrides: Partial<AccessUserApi> = {}): AccessUserApi =
     effective_permissions: ['risks:read'],
     ...overrides,
 });
+
+function makeKriCapabilities(overrides: Partial<Record<string, boolean>> = {}) {
+    return {
+        can_read: true,
+        can_update: false,
+        can_update_sensitive_fields: false,
+        can_request_update_approval: false,
+        can_archive_immediately: false,
+        can_request_archive_approval: false,
+        can_restore: false,
+        can_submit_value: false,
+        can_submit_backdated_value: false,
+        can_request_value_submission_approval: false,
+        can_view_history: true,
+        can_request_history_correction: false,
+        can_apply_history_correction_immediately: false,
+        can_link_vendors: false,
+        can_unlink_vendors: false,
+        can_view_linked_vendors: true,
+        can_create_issue: false,
+        has_pending_delete_approval: false,
+        has_pending_update_approval: false,
+        has_pending_value_submission_approval: false,
+        has_pending_history_correction_approval: false,
+        requires_privileged_update_approval: false,
+        requires_privileged_delete_approval: false,
+        ...overrides,
+    };
+}
+
+function makeControlCapabilities(overrides: Partial<Record<string, boolean>> = {}) {
+    return {
+        can_read: true,
+        can_update: false,
+        can_update_sensitive_fields: false,
+        can_request_update_approval: false,
+        can_archive_immediately: false,
+        can_request_archive_approval: false,
+        can_restore: false,
+        can_log_execution: false,
+        can_view_executions: true,
+        can_link_risk: false,
+        can_unlink_risk: false,
+        can_view_linked_risks: true,
+        can_view_linked_vendors: true,
+        can_create_issue: false,
+        has_pending_delete_approval: false,
+        has_pending_update_approval: false,
+        requires_privileged_update_approval: false,
+        requires_privileged_delete_approval: false,
+        is_archived: false,
+        is_executable: true,
+        ...overrides,
+    };
+}
+
+function makeRiskCapabilities(overrides: Partial<Record<string, boolean>> = {}) {
+    return {
+        can_read: true,
+        can_update: false,
+        can_update_sensitive_fields: false,
+        can_request_update_approval: false,
+        can_archive_immediately: false,
+        can_request_archive_approval: false,
+        can_restore: false,
+        can_create_kri: false,
+        can_create_linked_control: false,
+        can_link_controls: false,
+        can_unlink_controls: false,
+        can_view_linked_controls: true,
+        can_view_linked_vendors: true,
+        can_create_issue: false,
+        has_pending_delete_approval: false,
+        has_pending_update_approval: false,
+        requires_privileged_update_approval: false,
+        requires_privileged_delete_approval: false,
+        ...overrides,
+    };
+}
 
 async function renderWithRoute(route: string) {
     const queryClient = createTestQueryClient();
@@ -215,7 +301,15 @@ describe('RBAC UI gating', () => {
 
         server.use(
             http.get('*/api/v1/auth/me', () => HttpResponse.json(user)),
-            http.get('*/api/v1/access/users', () => HttpResponse.json([makeAccessUser()])),
+            http.get('*/api/v1/access/users', () => HttpResponse.json([makeAccessUser({
+                capabilities: {
+                    can_edit_identity: false,
+                    can_edit_business_access: false,
+                    can_edit_role: false,
+                    can_deactivate: false,
+                    can_revoke_sessions: false,
+                },
+            })])),
         );
 
         await renderWithRoute('/users');
@@ -234,7 +328,15 @@ describe('RBAC UI gating', () => {
 
         server.use(
             http.get('*/api/v1/auth/me', () => HttpResponse.json(user)),
-            http.get('*/api/v1/access/users', () => HttpResponse.json([makeAccessUser()])),
+            http.get('*/api/v1/access/users', () => HttpResponse.json([makeAccessUser({
+                capabilities: {
+                    can_edit_identity: true,
+                    can_edit_business_access: true,
+                    can_edit_role: true,
+                    can_deactivate: true,
+                    can_revoke_sessions: true,
+                },
+            })])),
         );
 
         await renderWithRoute('/users');
@@ -266,6 +368,7 @@ describe('RBAC UI gating', () => {
                     created_at: new Date().toISOString(),
                     frequency: 'monthly',
                     reporting_owner_id: 999, // not the user
+                    capabilities: makeKriCapabilities(),
                 })
             ),
             http.get('*/api/v1/risks/:id', () =>
@@ -322,6 +425,7 @@ describe('RBAC UI gating', () => {
                     created_at: new Date().toISOString(),
                     frequency: 'monthly',
                     reporting_owner_id: 999,
+                    capabilities: makeKriCapabilities({ can_submit_value: true }),
                 })
             ),
             http.get('*/api/v1/risks/:id', () =>
@@ -378,6 +482,7 @@ describe('RBAC UI gating', () => {
                     created_at: new Date().toISOString(),
                     frequency: 'monthly',
                     reporting_owner_id: 55, // user is reporting owner
+                    capabilities: makeKriCapabilities({ can_submit_value: true }),
                 })
             ),
             http.get('*/api/v1/risks/:id', () =>
@@ -434,6 +539,7 @@ describe('RBAC UI gating', () => {
                     created_at: new Date().toISOString(),
                     frequency: 'monthly',
                     is_archived: true,
+                    capabilities: makeKriCapabilities({ can_restore: true }),
                 })
             ),
             http.get('*/api/v1/risks/:id', () =>
@@ -490,6 +596,7 @@ describe('RBAC UI gating', () => {
                     created_at: new Date().toISOString(),
                     frequency: 'monthly',
                     is_archived: true,
+                    capabilities: makeKriCapabilities({ can_restore: false }),
                 })
             ),
             http.get('*/api/v1/risks/:id', () =>
@@ -544,6 +651,7 @@ describe('RBAC UI gating', () => {
                     updated_at: new Date().toISOString(),
                     control_owner: { id: 20, name: 'Owner', email: 'owner@riskhub.test' },
                     department: { id: 1, name: 'Ops', code: 'OPS' },
+                    capabilities: makeControlCapabilities({ can_log_execution: false }),
                 })
             ),
             http.get('*/api/v1/controls/:id/risks', () => HttpResponse.json([])),
@@ -581,6 +689,7 @@ describe('RBAC UI gating', () => {
                     updated_at: new Date().toISOString(),
                     control_owner: { id: 21, name: 'Owner', email: 'owner@riskhub.test' },
                     department: { id: 1, name: 'Ops', code: 'OPS' },
+                    capabilities: makeControlCapabilities({ can_log_execution: true }),
                 })
             ),
             http.get('*/api/v1/controls/:id/risks', () => HttpResponse.json([])),
@@ -622,6 +731,7 @@ describe('RBAC UI gating', () => {
                             net_score: 4,
                             status: 'archived',
                             is_priority: false,
+                            capabilities: makeRiskCapabilities({ can_restore: true }),
                         },
                     ],
                     total: 1,
@@ -665,6 +775,7 @@ describe('RBAC UI gating', () => {
                             net_score: 4,
                             status: 'archived',
                             is_priority: false,
+                            capabilities: makeRiskCapabilities({ can_restore: false }),
                         },
                     ],
                     total: 1,
@@ -702,6 +813,7 @@ describe('RBAC UI gating', () => {
                             risk_level: 3,
                             status: 'archived',
                             control_form: 'manual',
+                            capabilities: makeControlCapabilities({ can_restore: true, is_archived: true }),
                         },
                     ],
                     total: 1,
@@ -739,6 +851,7 @@ describe('RBAC UI gating', () => {
                             risk_level: 3,
                             status: 'archived',
                             control_form: 'manual',
+                            capabilities: makeControlCapabilities({ can_restore: false, is_archived: true }),
                         },
                     ],
                     total: 1,

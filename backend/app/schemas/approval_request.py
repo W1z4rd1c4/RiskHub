@@ -68,6 +68,26 @@ class ApprovalRequestResolve(BaseModel):
     resolution_notes: str = Field(..., min_length=1, max_length=1000, description="Commentary (mandatory)")
 
 
+class ApprovalRequestCapabilities(BaseModel):
+    """Backend-authoritative approval row action capabilities."""
+
+    can_read: bool
+    can_approve: bool
+    can_reject: bool
+    can_cancel: bool
+    can_cancel_as_requester: bool
+    can_cancel_as_resolver: bool
+    can_view_pending_changes: bool
+    can_view_resolution_notes: bool
+    can_inspect_side_effects: bool
+    is_requester: bool
+    is_primary_approver: bool
+    is_privileged_resolver: bool
+    is_pending: bool
+    requires_privileged_resolution: bool
+    would_apply_side_effects_on_approve: bool
+
+
 class ApprovalRequestRead(BaseModel):
     """Schema for reading approval request details."""
 
@@ -92,6 +112,7 @@ class ApprovalRequestRead(BaseModel):
     created_at: datetime
     can_approve: bool
     can_reject: bool
+    capabilities: ApprovalRequestCapabilities | None = None
 
     model_config = {"from_attributes": True}
 

@@ -13,6 +13,7 @@ from app.models import KeyRiskIndicator, Risk, User, VendorKRILink
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas.kri import KRIResponse
 from app.schemas.vendor_shared import LinkedVendorRead
+from app.services.authorization_capabilities import kri_capabilities
 
 router = APIRouter()
 
@@ -85,6 +86,7 @@ async def restore_kri(
 
     now = utc_now()
     monitoring_context = await load_monitoring_response_context(db, now=now, today=now.date())
+    capabilities = await kri_capabilities(db, current_user=current_user, kri=reloaded_kri)
     return serialize_kri_response(
         reloaded_kri,
         monitoring_context,
@@ -95,4 +97,5 @@ async def restore_kri(
             and check_permission(current_user, "vendors", "read")
             and can_read_vendor(link.vendor, current_user)
         ],
+        capabilities=capabilities,
     )

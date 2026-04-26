@@ -17,6 +17,7 @@ from app.models import Control, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas.approval_request import ApprovalQueuedResponse
 from app.schemas.control import ControlRead, ControlUpdate
+from app.services._control_execution import control_capabilities
 
 from .._helpers import _build_pending_changes, _first_high_risk_linked_risk
 
@@ -244,4 +245,5 @@ async def update_control(
     reloaded_control = await _reload_control_with_relationships(db, control.id)
     now = utc_now()
     monitoring_context = await load_monitoring_response_context(db, now=now, today=now.date())
-    return serialize_control_read(reloaded_control, monitoring_context)
+    capabilities = await control_capabilities(db, current_user=current_user, control=reloaded_control)
+    return serialize_control_read(reloaded_control, monitoring_context, capabilities=capabilities)

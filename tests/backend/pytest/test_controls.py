@@ -4,8 +4,36 @@ Tests for Control API endpoints.
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import select
 
-from app.models import Control, Department, User
+from app.models import Control, Department, Permission, Role, RolePermission, User
+from app.models.user import AccessScope
+
+
+async def _grant_control_permissions(db_session, role: Role, actions: list[str]) -> None:
+    for action in actions:
+        permission = (
+            await db_session.execute(
+                select(Permission).where(Permission.resource == "controls", Permission.action == action)
+            )
+        ).scalar_one_or_none()
+        if permission is None:
+            permission = Permission(resource="controls", action=action, description=f"controls:{action}")
+            db_session.add(permission)
+            await db_session.flush()
+
+        existing = (
+            await db_session.execute(
+                select(RolePermission).where(
+                    RolePermission.role_id == role.id,
+                    RolePermission.permission_id == permission.id,
+                )
+            )
+        ).scalar_one_or_none()
+        if existing is None:
+            db_session.add(RolePermission(role_id=role.id, permission_id=permission.id))
+
+    await db_session.commit()
 
 
 @pytest.mark.asyncio
@@ -29,6 +57,10 @@ async def test_create_control(auth_client: AsyncClient, test_user: User, test_de
     data = response.json()
     assert data["name"] == "Test Control"
     assert data["status"] == "active"
+    assert data["capabilities"]["can_read"] is True
+    assert data["capabilities"]["can_update"] is True
+    assert data["capabilities"]["can_log_execution"] is True
+    assert data["capabilities"]["is_executable"] is True
 
 
 @pytest.mark.asyncio
@@ -55,6 +87,9 @@ async def test_list_controls(auth_client: AsyncClient, test_user: User, test_dep
     data = response.json().get("items", [])
     assert isinstance(data, list)
     assert len(data) >= 1
+    item = next(entry for entry in data if entry["name"] == "List Test Control")
+    assert item["capabilities"]["can_view_executions"] is True
+    assert item["capabilities"]["can_link_risk"] is True
 
 
 @pytest.mark.asyncio
@@ -116,6 +151,8 @@ async def test_get_control(auth_client: AsyncClient, test_user: User, test_depar
     data = response.json()
     assert data["id"] == control_id
     assert data["name"] == "Get Test Control"
+    assert data["capabilities"]["can_archive_immediately"] is True
+    assert data["capabilities"]["has_pending_update_approval"] is False
 
 
 @pytest.mark.asyncio
@@ -146,6 +183,82 @@ async def test_get_control_normalizes_legacy_semi_annual_frequency(
     data = response.json()
     assert data["id"] == legacy_control.id
     assert data["frequency"] == "semi-annually"
+
+
+@pytest.mark.asyncio
+async def test_cross_department_control_owner_delete_permission_does_not_expose_lifecycle_capabilities(
+    client: AsyncClient,
+    db_session,
+    test_department: Department,
+):
+    second_department = Department(
+        name="Control Lifecycle Finance",
+        description="Department for cross-department control lifecycle capability checks",
+        code="CLF",
+        is_active=True,
+    )
+    role = Role(
+        name="cross_dept_control_owner",
+        display_name="Cross Department Control Owner",
+        description="Control owner with read write delete permissions",
+    )
+    db_session.add_all([second_department, role])
+    await db_session.commit()
+    await db_session.refresh(second_department)
+    await db_session.refresh(role)
+    await _grant_control_permissions(db_session, role, ["read", "write", "delete"])
+
+    owner = User(
+        name="Cross Department Control Owner",
+        email="cross-dept-control-owner@test.com",
+        department_id=test_department.id,
+        role_id=role.id,
+        is_active=True,
+        access_scope=AccessScope.DEPARTMENT,
+    )
+    db_session.add(owner)
+    await db_session.commit()
+    await db_session.refresh(owner)
+
+    control = Control(
+        name="Cross Department Owned Control",
+        description="Owned across department boundary",
+        department_id=second_department.id,
+        control_owner_id=owner.id,
+        control_form="manual",
+        frequency="monthly",
+        risk_level=3,
+        status="active",
+    )
+    db_session.add(control)
+    await db_session.commit()
+    await db_session.refresh(control)
+
+    headers = {"X-Mock-User-Id": str(owner.id)}
+    response = await client.get(f"/api/v1/controls/{control.id}", headers=headers)
+
+    assert response.status_code == 200
+    capabilities = response.json()["capabilities"]
+    assert capabilities["can_read"] is True
+    assert capabilities["can_update"] is True
+    assert capabilities["can_archive_immediately"] is False
+    assert capabilities["can_request_archive_approval"] is False
+    assert capabilities["can_restore"] is False
+
+    update_response = await client.patch(
+        f"/api/v1/controls/{control.id}",
+        headers=headers,
+        json={"name": "Cross Department Owned Control Updated"},
+    )
+    assert update_response.status_code == 202
+
+    control.status = "archived"
+    db_session.add(control)
+    await db_session.commit()
+
+    archived_response = await client.get(f"/api/v1/controls/{control.id}", headers=headers)
+    assert archived_response.status_code == 200
+    assert archived_response.json()["capabilities"]["can_restore"] is False
 
 
 @pytest.mark.asyncio
@@ -276,9 +389,14 @@ async def test_control_restore_reactivates_archived_control(
     archive_response = await auth_client.delete(f"/api/v1/controls/{control_id}?reason=Archive+for+restore")
     assert archive_response.status_code == 204
 
+    archived_detail_response = await auth_client.get(f"/api/v1/controls/{control_id}")
+    assert archived_detail_response.status_code == 200
+    assert archived_detail_response.json()["capabilities"]["can_restore"] is True
+
     restore_response = await auth_client.post(f"/api/v1/controls/{control_id}/restore")
     assert restore_response.status_code == 200
     assert restore_response.json()["status"] == "active"
+    assert restore_response.json()["capabilities"]["can_archive_immediately"] is True
 
 
 @pytest.mark.asyncio

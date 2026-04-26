@@ -33,6 +33,7 @@ def vendor_list_response(
     limit: int,
     current_user: User | None = None,
     linked_risks_by_vendor_id: dict[int, list[VendorLinkedRiskSummary]] | None = None,
+    capabilities: dict[str, bool] | None = None,
 ) -> VendorListResponse:
     return VendorListResponse(
         items=[
@@ -46,4 +47,5 @@ def vendor_list_response(
         total=total,
         offset=offset,
         limit=limit,
+        capabilities=capabilities,
     )

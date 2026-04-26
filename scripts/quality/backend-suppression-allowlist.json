@@ -5,7 +5,7 @@
   "entries": [
     {
       "path": "backend/app/api/v1/endpoints/kris/history_helpers.py",
-      "line": 28,
+      "line": 29,
       "match": "noqa: BLE001",
       "owner": "RiskHub Maintainer",
       "expires_on": "2026-05-31",

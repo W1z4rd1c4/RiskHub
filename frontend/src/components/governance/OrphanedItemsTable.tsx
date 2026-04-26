@@ -95,7 +95,7 @@ export function OrphanedItemsTable({ items, onResolve, onView }: OrphanedItemsTa
                         {filteredItems.map((item) => {
                             const Icon = typeIcons[item.item_type] || AlertTriangle;
                             const old = isOld(item.orphaned_at);
-                            const canResolve = resolveCapabilityFlag(item.capabilities, 'can_resolve', item.status === 'pending');
+                            const canResolve = resolveCapabilityFlag(item.capabilities, 'can_resolve');
 
                             return (
                                 <tr

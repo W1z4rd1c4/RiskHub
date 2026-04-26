@@ -10,6 +10,7 @@ from app.core.permissions import can_resolve_approvals
 from app.models import ApprovalRequest, ApprovalResourceType, ApprovalStatus, Control, KeyRiskIndicator, Risk
 from app.models.user import User
 from app.schemas.approval_request import ApprovalRequestRead
+from app.services.authorization_capabilities import approval_capabilities
 
 logger = logging.getLogger("app.api.v1.endpoints.approvals")
 
@@ -70,5 +71,6 @@ def _build_approval_read(approval: ApprovalRequest, current_user: User) -> Appro
             "resource_name": approval_resource_label(approval),
             "can_approve": can_approve,
             "can_reject": can_reject,
+            "capabilities": approval_capabilities(approval=approval, current_user=current_user),
         }
     )

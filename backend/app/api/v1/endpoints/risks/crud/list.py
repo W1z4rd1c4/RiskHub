@@ -22,6 +22,7 @@ from app.db.session import get_db
 from app.models import ControlRiskLink, KeyRiskIndicator, Risk, User, VendorRiskLink
 from app.schemas.risk import RiskListResponse, RiskStatusEnum
 from app.schemas.vendor_shared import LinkedVendorRead
+from app.services.authorization_capabilities import risk_capabilities
 
 router = APIRouter()
 
@@ -274,8 +275,13 @@ async def list_risks(
     )
 
     can_read_vendors = check_permission(current_user, "vendors", "read")
+    collection_capabilities = {
+        "can_create": check_permission(current_user, "risks", "write"),
+        "can_export": check_permission(current_user, "reports", "read"),
+        "can_view_vendor_contexts": can_read_vendors,
+    }
 
-    def serialize_risks(risks: list[Risk]):
+    async def serialize_risks(risks: list[Risk]):
         items = []
         for risk in risks:
             linked_vendors: list[LinkedVendorRead] = []
@@ -285,14 +291,15 @@ async def list_risks(
                     if vendor is None or not can_read_vendor(vendor, current_user):
                         continue
                     linked_vendors.append(LinkedVendorRead(id=vendor.id, name=vendor.name))
-            items.append(risk_to_summary(risk, linked_vendors=linked_vendors))
+            capabilities = await risk_capabilities(db, current_user=current_user, risk=risk)
+            items.append(risk_to_summary(risk, linked_vendors=linked_vendors, capabilities=capabilities))
         return items
 
     ordered_query = base_query.options(*query_options)
 
     if collection_query.group_by:
         result = await db.execute(ordered_query)
-        all_items = serialize_risks(list(result.scalars().all()))
+        all_items = await serialize_risks(list(result.scalars().all()))
         paginated_items, grouped_total, groups = build_grouped_collection_page(
             all_items,
             collection_query,
@@ -306,6 +313,7 @@ async def list_risks(
             offset=offset,
             limit=limit,
             groups=groups,
+            capabilities=collection_capabilities,
         )
 
     # Apply pagination
@@ -314,6 +322,6 @@ async def list_risks(
     result = await db.execute(query)
     risks = result.scalars().all()
 
-    items = serialize_risks(list(risks))
+    items = await serialize_risks(list(risks))
 
-    return RiskListResponse(items=items, total=total, offset=offset, limit=limit)
+    return RiskListResponse(items=items, total=total, offset=offset, limit=limit, capabilities=collection_capabilities)

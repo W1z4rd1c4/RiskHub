@@ -23,13 +23,10 @@ import {
     useLatestRequestGuard,
 } from '../shared/collectionPageState';
 
-interface UseVendorsPageStateOptions {
-    canReadRisks: boolean;
-}
-
-export function useVendorsPageState({ canReadRisks }: UseVendorsPageStateOptions) {
+export function useVendorsPageState() {
     const [items, setItems] = useState<Vendor[]>([]);
     const [groups, setGroups] = useState<CollectionGroup[]>([]);
+    const [capabilities, setCapabilities] = useState<Record<string, boolean> | null>(null);
     const [totalCount, setTotalCount] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
     const [errorKey, setErrorKey] = useState<string | null>(null);
@@ -93,6 +90,7 @@ export function useVendorsPageState({ canReadRisks }: UseVendorsPageStateOptions
 
             setItems(response.items);
             setGroups(response.groups);
+            setCapabilities(response.capabilities);
             setTotalCount(response.total);
             setErrorKey(null);
             hasLoadedVendorsRef.current = true;
@@ -103,6 +101,7 @@ export function useVendorsPageState({ canReadRisks }: UseVendorsPageStateOptions
             setErrorKey(apiClient.toUiMessageKey(error));
             setItems([]);
             setGroups([]);
+            setCapabilities(null);
             setTotalCount(0);
         } finally {
             if (isCurrentRequest(requestId)) {
@@ -129,11 +128,11 @@ export function useVendorsPageState({ canReadRisks }: UseVendorsPageStateOptions
     }, [fetchVendors]);
 
     useEffect(() => {
-        if (!canReadRisks && viewMode === 'risk') {
+        if (capabilities?.can_view_risk_contexts !== true && viewMode === 'risk') {
             setViewMode('all');
             clearGroupSelection();
         }
-    }, [canReadRisks, clearGroupSelection, viewMode]);
+    }, [capabilities, clearGroupSelection, viewMode]);
 
     const resetGroupSelection = useCallback(() => {
         clearGroupSelection();
@@ -208,6 +207,7 @@ export function useVendorsPageState({ canReadRisks }: UseVendorsPageStateOptions
 
     return {
         currentPage,
+        capabilities,
         errorKey,
         fetchVendors,
         groups,

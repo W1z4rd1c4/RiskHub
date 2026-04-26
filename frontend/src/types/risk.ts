@@ -26,6 +26,27 @@ export const ControlEffectiveness = {
     LOW: 'low' as ControlEffectiveness,
 };
 
+export interface RiskCapabilities {
+    can_read: boolean;
+    can_update: boolean;
+    can_update_sensitive_fields: boolean;
+    can_request_update_approval: boolean;
+    can_archive_immediately: boolean;
+    can_request_archive_approval: boolean;
+    can_restore: boolean;
+    can_create_kri: boolean;
+    can_create_linked_control: boolean;
+    can_link_controls: boolean;
+    can_unlink_controls: boolean;
+    can_view_linked_controls: boolean;
+    can_view_linked_vendors: boolean;
+    can_create_issue: boolean;
+    has_pending_delete_approval: boolean;
+    has_pending_update_approval: boolean;
+    requires_privileged_update_approval: boolean;
+    requires_privileged_delete_approval: boolean;
+}
+
 export interface Risk {
     id: number;
     risk_id_code: string;
@@ -72,6 +93,7 @@ export interface Risk {
         name: string;
         code: string;
     } | null;
+    capabilities?: RiskCapabilities | null;
 }
 
 export interface RiskSummary {
@@ -97,6 +119,7 @@ export interface RiskSummary {
     has_breach?: boolean;
     control_count?: number;
     linked_vendors?: LinkedVendorSummary[];
+    capabilities?: RiskCapabilities | null;
 }
 
 export interface RiskCreate {

@@ -107,7 +107,7 @@ async def link_risk_to_control(
         .where(ControlRiskLink.risk_id == risk_id)
         .where(ControlRiskLink.control_id == link_data.control_id)
     )
-    if result.scalar_one_or_none():
+    if link_result.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Link already exists")
 
     link = ControlRiskLink(

@@ -1,9 +1,6 @@
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import type { PermissionRead, RoleHubRead } from '@/services/riskHubApi';
 
-const PROTECTED_ROLE_NAMES = new Set(['admin', 'cro', 'viewer']);
-const DELETE_PROTECTED_ROLE_NAMES = new Set(['admin', 'cro', 'viewer', 'internal_audit']);
-
 export interface RoleActionState {
     canDelete: boolean;
     canRestore: boolean;
@@ -39,16 +36,8 @@ export function normalizeRoleIdentifier(value: string): string {
 
 export function getRoleActionState(role: RoleHubRead): RoleActionState {
     return {
-        canUpdate: resolveCapabilityFlag(
-            role.capabilities,
-            'can_update',
-            !PROTECTED_ROLE_NAMES.has(role.name),
-        ),
-        canDelete: resolveCapabilityFlag(
-            role.capabilities,
-            'can_delete',
-            !role.is_system && role.is_active && !DELETE_PROTECTED_ROLE_NAMES.has(role.name),
-        ),
-        canRestore: resolveCapabilityFlag(role.capabilities, 'can_restore', !role.is_active),
+        canUpdate: resolveCapabilityFlag(role.capabilities, 'can_update'),
+        canDelete: resolveCapabilityFlag(role.capabilities, 'can_delete'),
+        canRestore: resolveCapabilityFlag(role.capabilities, 'can_restore'),
     };
 }

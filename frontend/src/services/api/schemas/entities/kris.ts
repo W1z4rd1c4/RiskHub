@@ -12,6 +12,32 @@ import type { LinkedKRI } from '@/types/vendorLink';
 import { collectionPaginationSchema, passthroughObject, z } from '../common';
 import { linkedVendorSummaryArraySchema } from './vendors';
 
+const kriCapabilitiesSchema = passthroughObject({
+    can_read: z.boolean(),
+    can_update: z.boolean(),
+    can_update_sensitive_fields: z.boolean(),
+    can_request_update_approval: z.boolean(),
+    can_archive_immediately: z.boolean(),
+    can_request_archive_approval: z.boolean(),
+    can_restore: z.boolean(),
+    can_submit_value: z.boolean(),
+    can_submit_backdated_value: z.boolean(),
+    can_request_value_submission_approval: z.boolean(),
+    can_view_history: z.boolean(),
+    can_request_history_correction: z.boolean(),
+    can_apply_history_correction_immediately: z.boolean(),
+    can_link_vendors: z.boolean(),
+    can_unlink_vendors: z.boolean(),
+    can_view_linked_vendors: z.boolean(),
+    can_create_issue: z.boolean(),
+    has_pending_delete_approval: z.boolean(),
+    has_pending_update_approval: z.boolean(),
+    has_pending_value_submission_approval: z.boolean(),
+    has_pending_history_correction_approval: z.boolean(),
+    requires_privileged_update_approval: z.boolean(),
+    requires_privileged_delete_approval: z.boolean(),
+});
+
 export const kriMonitoringFieldsSchema = passthroughObject({
     monitoring_status: z.enum(['new', 'not_submitted', 'breach', 'warning', 'optimal']).optional(),
     monitoring_status_reason: z
@@ -77,6 +103,7 @@ export const keyRiskIndicatorSchema: z.ZodType<KeyRiskIndicator> = kriMonitoring
     risk_department_name: z.string().nullable().optional(),
     department_name: z.string().nullable().optional(),
     linked_vendors: linkedVendorSummaryArraySchema.optional(),
+    capabilities: kriCapabilitiesSchema.nullable().optional(),
 });
 export const keyRiskIndicatorArraySchema = z.array(keyRiskIndicatorSchema);
 export const kriListResponseSchema: z.ZodType<KRIListResponse> =
