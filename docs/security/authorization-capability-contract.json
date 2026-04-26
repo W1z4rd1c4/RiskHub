@@ -328,6 +328,7 @@
       "response_capability": "backend/app/schemas/kri.py KRICapabilities and KRIHistoryCapabilities.can_request_correction",
       "frontend_gate": "frontend/src/pages/KRIDetailPage.tsx, frontend/src/components/kris/, and frontend/src/pages/detail/useKriDetailState.ts use backend capabilities",
       "tests": [
+        "tests/backend/pytest/test_approvals.py",
         "tests/backend/pytest/test_kris_history_listing_api.py",
         "tests/backend/pytest/test_kris_history_corrections_api.py",
         "tests/backend/pytest/test_kris_value_submission_api.py",

@@ -1,13 +1,28 @@
 from __future__ import annotations
 
+from datetime import UTC, date, datetime
+
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from app.core.datetime_utils import coerce_utc, utc_now
-from app.models import Notification, OutboxEvent, Risk, User
+from app.models import (
+    ApprovalActionType,
+    ApprovalRequest,
+    ApprovalResourceType,
+    ApprovalStatus,
+    KeyRiskIndicator,
+    Notification,
+    OutboxEvent,
+    Risk,
+    User,
+)
+from app.models.key_risk_indicator import KRIFrequency
+from app.models.kri_history import KRIValueHistory
 from app.models.notification import NotificationType
+from app.services.kri_history_service import KRIHistoryService
 from app.services.outbox import dispatch_pending_outbox_events
 from app.services.outbox.errors import FatalOutboxError, RetryableOutboxError
 from app.services.outbox.payloads import OUTBOX_PAYLOAD_MODELS
@@ -428,6 +443,120 @@ async def test_reject_approval_enqueues_resolution_outbox_and_dispatch_notifies_
                 Notification.user_id == test_user_approval_requester.id,
                 Notification.type == NotificationType.APPROVAL_RESOLVED,
                 Notification.resource_id == approval_id,
+            )
+        )
+    ).scalar_one_or_none()
+    assert requester_notification is not None
+
+
+@pytest.mark.asyncio
+async def test_auto_rejected_history_correction_enqueues_resolution_outbox_and_notifies_requester(
+    client_cro: AsyncClient,
+    db_session: AsyncSession,
+    async_engine: AsyncEngine,
+    test_risk,
+    test_user: User,
+    test_user_approval_requester: User,
+) -> None:
+    period_start, period_end = KRIHistoryService.latest_closed_period_for_date(date.today(), KRIFrequency.monthly.value)
+    kri = KeyRiskIndicator(
+        risk_id=test_risk.id,
+        metric_name="Outbox Auto Reject KRI",
+        description="KRI used for auto-rejected history correction outbox tests",
+        current_value=45.0,
+        lower_limit=0.0,
+        upper_limit=100.0,
+        unit="%",
+        frequency=KRIFrequency.monthly.value,
+        last_period_end=period_end,
+    )
+    db_session.add(kri)
+    await db_session.commit()
+    await db_session.refresh(kri)
+
+    history_entry = KRIValueHistory(
+        kri_id=kri.id,
+        period_start=period_start,
+        period_end=period_end,
+        recorded_at=datetime.now(UTC),
+        recorded_by_id=test_user.id,
+        value=45.0,
+        lower_limit=0.0,
+        upper_limit=100.0,
+        unit="%",
+        breach_status="within",
+    )
+    db_session.add(history_entry)
+    await db_session.commit()
+    await db_session.refresh(history_entry)
+
+    approval = ApprovalRequest(
+        resource_type=ApprovalResourceType.KRI,
+        resource_id=kri.id,
+        resource_name="Outbox Auto Reject KRI (history correction)",
+        requested_by_id=test_user_approval_requester.id,
+        reason="Correction became stale",
+        action_type=ApprovalActionType.EDIT,
+        pending_changes={
+            "history_entry_id": history_entry.id,
+            "old_value": 45.0,
+            "new_value": 60.0,
+            "reason": "Fix stale value",
+            "period_end": period_end.isoformat(),
+        },
+        status=ApprovalStatus.PENDING,
+    )
+    db_session.add(approval)
+    await db_session.commit()
+    await db_session.refresh(approval)
+
+    history_entry.value = 50.0
+    kri.current_value = 50.0
+    await db_session.commit()
+
+    response = await client_cro.post(
+        f"/api/v1/approvals/{approval.id}/approve",
+        json={"resolution_notes": "Approve stale correction"},
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["status"] == "rejected"
+
+    pending_resolution = (
+        (
+            await db_session.execute(
+                select(OutboxEvent).where(
+                    OutboxEvent.aggregate_id == approval.id,
+                    OutboxEvent.event_type == "approval.request_resolved",
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len(pending_resolution) == 1
+    assert pending_resolution[0].status == "pending"
+    assert pending_resolution[0].payload["approved"] is False
+
+    requester_notification = (
+        await db_session.execute(
+            select(Notification).where(
+                Notification.user_id == test_user_approval_requester.id,
+                Notification.type == NotificationType.APPROVAL_RESOLVED,
+                Notification.resource_id == approval.id,
+            )
+        )
+    ).scalar_one_or_none()
+    assert requester_notification is None
+
+    processed = await dispatch_pending_outbox_events(_sessionmaker(async_engine))
+    assert processed >= 1
+
+    requester_notification = (
+        await db_session.execute(
+            select(Notification).where(
+                Notification.user_id == test_user_approval_requester.id,
+                Notification.type == NotificationType.APPROVAL_RESOLVED,
+                Notification.resource_id == approval.id,
             )
         )
     ).scalar_one_or_none()

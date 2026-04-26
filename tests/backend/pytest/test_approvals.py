@@ -1284,6 +1284,164 @@ async def test_approve_kri_history_correction_applies_change(
 
 
 @pytest.mark.asyncio
+async def test_stale_kri_history_correction_auto_rejects_at_apply_time(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    test_risk,
+    test_user,
+    test_user_employee,
+):
+    """History correction approval rejects when the target value changed while pending."""
+    period_start, period_end = KRIHistoryService.latest_closed_period_for_date(date.today(), KRIFrequency.monthly.value)
+    kri = KeyRiskIndicator(
+        risk_id=test_risk.id,
+        metric_name="Stale History Correction KRI",
+        description="KRI used to test stale history correction approval",
+        current_value=45.0,
+        lower_limit=0.0,
+        upper_limit=100.0,
+        unit="%",
+        frequency=KRIFrequency.monthly.value,
+        last_period_end=period_end,
+    )
+    db_session.add(kri)
+    await db_session.commit()
+    await db_session.refresh(kri)
+
+    history_entry = KRIValueHistory(
+        kri_id=kri.id,
+        period_start=period_start,
+        period_end=period_end,
+        recorded_at=datetime.now(UTC),
+        recorded_by_id=test_user.id,
+        value=45.0,
+        lower_limit=0.0,
+        upper_limit=100.0,
+        unit="%",
+        breach_status="within",
+    )
+    db_session.add(history_entry)
+    await db_session.commit()
+    await db_session.refresh(history_entry)
+
+    approval = ApprovalRequest(
+        resource_type=ApprovalResourceType.KRI,
+        resource_id=kri.id,
+        resource_name="Stale History Correction KRI (history correction)",
+        requested_by_id=test_user_employee.id,
+        reason="Correction became stale",
+        action_type=ApprovalActionType.EDIT,
+        pending_changes={
+            "history_entry_id": history_entry.id,
+            "old_value": 45.0,
+            "new_value": 60.0,
+            "reason": "Fix stale value",
+            "period_end": period_end.isoformat(),
+        },
+        status=ApprovalStatus.PENDING,
+    )
+    db_session.add(approval)
+    await db_session.commit()
+    await db_session.refresh(approval)
+
+    history_entry.value = 50.0
+    kri.current_value = 50.0
+    await db_session.commit()
+
+    response = await auth_client.post(
+        f"/api/v1/approvals/{approval.id}/approve", json={"resolution_notes": "Approve stale correction"}
+    )
+    assert response.status_code == 200
+    assert response.json()["status"] == "rejected"
+
+    await db_session.refresh(approval)
+    await db_session.refresh(history_entry)
+    await db_session.refresh(kri)
+    assert approval.status == ApprovalStatus.REJECTED
+    assert "apply-time validation" in (approval.resolution_notes or "")
+    assert history_entry.value == 50.0
+    assert kri.current_value == 50.0
+
+
+@pytest.mark.asyncio
+async def test_missing_kri_history_correction_entry_auto_rejects_at_apply_time(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    test_risk,
+    test_user,
+    test_user_employee,
+):
+    """History correction approval rejects when the referenced entry was deleted while pending."""
+    period_start, period_end = KRIHistoryService.latest_closed_period_for_date(date.today(), KRIFrequency.monthly.value)
+    kri = KeyRiskIndicator(
+        risk_id=test_risk.id,
+        metric_name="Missing History Correction KRI",
+        description="KRI used to test missing history correction approval",
+        current_value=45.0,
+        lower_limit=0.0,
+        upper_limit=100.0,
+        unit="%",
+        frequency=KRIFrequency.monthly.value,
+        last_period_end=period_end,
+    )
+    db_session.add(kri)
+    await db_session.commit()
+    await db_session.refresh(kri)
+
+    history_entry = KRIValueHistory(
+        kri_id=kri.id,
+        period_start=period_start,
+        period_end=period_end,
+        recorded_at=datetime.now(UTC),
+        recorded_by_id=test_user.id,
+        value=45.0,
+        lower_limit=0.0,
+        upper_limit=100.0,
+        unit="%",
+        breach_status="within",
+    )
+    db_session.add(history_entry)
+    await db_session.commit()
+    await db_session.refresh(history_entry)
+    history_entry_id = history_entry.id
+
+    approval = ApprovalRequest(
+        resource_type=ApprovalResourceType.KRI,
+        resource_id=kri.id,
+        resource_name="Missing History Correction KRI (history correction)",
+        requested_by_id=test_user_employee.id,
+        reason="Correction target removed",
+        action_type=ApprovalActionType.EDIT,
+        pending_changes={
+            "history_entry_id": history_entry_id,
+            "old_value": 45.0,
+            "new_value": 60.0,
+            "reason": "Fix removed value",
+            "period_end": period_end.isoformat(),
+        },
+        status=ApprovalStatus.PENDING,
+    )
+    db_session.add(approval)
+    await db_session.commit()
+    await db_session.refresh(approval)
+
+    await db_session.delete(history_entry)
+    await db_session.commit()
+
+    response = await auth_client.post(
+        f"/api/v1/approvals/{approval.id}/approve", json={"resolution_notes": "Approve missing correction"}
+    )
+    assert response.status_code == 200
+    assert response.json()["status"] == "rejected"
+
+    await db_session.refresh(approval)
+    await db_session.refresh(kri)
+    assert approval.status == ApprovalStatus.REJECTED
+    assert "apply-time validation" in (approval.resolution_notes or "")
+    assert kri.current_value == 45.0
+
+
+@pytest.mark.asyncio
 async def test_approve_kri_value_submission_with_period_end(
     auth_client: AsyncClient,
     db_session: AsyncSession,

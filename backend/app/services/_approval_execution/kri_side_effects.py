@@ -10,6 +10,7 @@ from app.core import activity_logger
 from app.core.owner_reference_validation import validate_active_owner_reference
 from app.models import ApprovalRequest, ApprovalStatus, KeyRiskIndicator, User, VendorKRILink
 from app.models.activity_log import ActivityAction, ActivityEntityType
+from app.models.kri_history import KRIValueHistory
 from app.services.kri_vendor_assignment import assign_vendors_to_kri, ensure_vendors_exist, normalize_vendor_ids
 
 from .constants import EDITABLE_FIELDS
@@ -58,7 +59,7 @@ async def _apply_edit_kri(
 
     # Branch 1: History correction
     if "history_entry_id" in changes:
-        await _apply_kri_history_correction(db, kri, changes, current_user, approval.id, department_id)
+        await _apply_kri_history_correction(db, approval, kri, changes, current_user, department_id)
 
     # Branch 2: Value submission with period_end
     elif "period_end" in changes and "current_value" in changes:
@@ -71,10 +72,10 @@ async def _apply_edit_kri(
 
 async def _apply_kri_history_correction(
     db: AsyncSession,
+    approval: ApprovalRequest,
     kri: KeyRiskIndicator,
     changes: dict,
     current_user: User,
-    approval_id: int,
     department_id: int | None,
 ) -> None:
     """Apply history correction to a KRI history entry."""
@@ -83,9 +84,53 @@ async def _apply_kri_history_correction(
     entry_id = changes.get("history_entry_id")
     new_value = changes.get("new_value")
     old_value = changes.get("old_value")
+    period_end = changes.get("period_end")
 
-    if entry_id is None or new_value is None:
+    if entry_id is None or new_value is None or old_value is None or period_end is None:
         raise HTTPException(status_code=400, detail="Invalid KRI history correction payload")
+
+    entry_result = await db.execute(
+        select(KRIValueHistory).where(KRIValueHistory.id == entry_id).with_for_update()
+    )
+    entry = entry_result.scalar_one_or_none()
+    if entry is None:
+        logger.warning("Approval #%s: KRI history entry %s no longer exists", approval.id, entry_id)
+        _auto_reject_kri_approval(
+            approval,
+            "KRI history correction no longer passes apply-time validation (history entry no longer exists).",
+        )
+        return
+    if entry.kri_id != kri.id:
+        logger.warning("Approval #%s: KRI history entry %s no longer belongs to KRI %s", approval.id, entry_id, kri.id)
+        _auto_reject_kri_approval(
+            approval,
+            "KRI history correction no longer passes apply-time validation (history entry target changed).",
+        )
+        return
+    if entry.value != old_value:
+        logger.warning(
+            "Approval #%s: auto-rejecting stale KRI history correction; expected value %s, found %s",
+            approval.id,
+            old_value,
+            entry.value,
+        )
+        _auto_reject_kri_approval(
+            approval,
+            "KRI history correction no longer passes apply-time validation (history entry value changed).",
+        )
+        return
+    if entry.period_end.isoformat() != period_end:
+        logger.warning(
+            "Approval #%s: auto-rejecting stale KRI history correction; expected period %s, found %s",
+            approval.id,
+            period_end,
+            entry.period_end.isoformat(),
+        )
+        _auto_reject_kri_approval(
+            approval,
+            "KRI history correction no longer passes apply-time validation (history entry period changed).",
+        )
+        return
 
     # Capture current KRI state for change tracking
     old_kri_current_value = kri.current_value
@@ -113,7 +158,7 @@ async def _apply_kri_history_correction(
             actor=current_user,
             department_id=department_id,
             changes={"value": {"old": old_value, "new": new_value}},
-            description=f"Corrected via approval #{approval_id}",
+            description=f"Corrected via approval #{approval.id}",
         )
 
         # Log KRI changes if any
@@ -129,12 +174,16 @@ async def _apply_kri_history_correction(
                 actor=current_user,
                 department_id=department_id,
                 changes=kri_changes,
-                description=f"Updated via approval #{approval_id} (history correction)",
+                description=f"Updated via approval #{approval.id} (history correction)",
             )
 
     except ValueError as e:
-        logger.error(f"KRI history correction failed: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
+        logger.warning("Approval #%s: auto-rejecting stale KRI history correction: %s", approval.id, e)
+        _auto_reject_kri_approval(
+            approval,
+            f"KRI history correction no longer passes apply-time validation ({e}).",
+        )
+        return
     except Exception:
         logger.exception("Unexpected error in KRI history correction approval flow")
         raise HTTPException(status_code=500, detail="Internal server error during KRI approval execution")
