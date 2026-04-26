@@ -60,6 +60,47 @@ async def test_list_directory_users_for_global_directory_reader(
     assert payload["total"] >= 1
     assert any(role["name"] == "employee" for role in payload["available_roles"])
     assert any(item["email"] == test_user_employee.email for item in payload["items"])
+    assert payload["capabilities"] == {
+        "can_read_directory": True,
+        "can_view_access_details": True,
+        "can_use_role_facets": True,
+        "can_create_local_user": False,
+        "can_import_directory_user": False,
+    }
+
+
+@pytest.mark.asyncio
+async def test_directory_capabilities_match_user_lifecycle_authority_for_cro(
+    client_cro: AsyncClient,
+    test_user: User,
+):
+    directory_response = await client_cro.get("/api/v1/users/directory")
+    assert directory_response.status_code == 200
+    assert directory_response.json()["capabilities"]["can_create_local_user"] is False
+
+    create_response = await client_cro.post(
+        "/api/v1/users",
+        json={
+            "email": "cro.local.create@example.com",
+            "name": "CRO Local Create",
+            "password": "StrongPass123!",
+            "role_id": test_user.role_id,
+            "department_id": None,
+            "manager_id": None,
+            "is_active": True,
+        },
+    )
+    assert create_response.status_code == 403
+    assert create_response.json()["detail"] == "Only Admin can manage user lifecycle"
+
+
+@pytest.mark.asyncio
+async def test_directory_capabilities_allow_local_user_creation_for_platform_admin(
+    client_platform_admin: AsyncClient,
+):
+    response = await client_platform_admin.get("/api/v1/users/directory")
+    assert response.status_code == 200
+    assert response.json()["capabilities"]["can_create_local_user"] is True
 
 
 @pytest.mark.asyncio

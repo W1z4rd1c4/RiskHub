@@ -5,6 +5,7 @@ import { useDashboardFilters } from '@/contexts/DashboardFilterContext';
 import { useAuthz } from '@/authz/useAuthz';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useTranslation } from '@/i18n/hooks';
+import { resolveCapabilityFlag } from '@/lib/capabilities';
 
 import { RiskCommitteeSection } from '@/components/dashboard/RiskCommitteeSection';
 
@@ -36,7 +37,6 @@ export function DashboardPage() {
         }, path);
     };
 
-    const canViewCommittee = authz.canViewCommittee;
     const {
         breachTrends,
         departmentMetrics,
@@ -52,11 +52,15 @@ export function DashboardPage() {
         summary,
         trends,
     } = useDashboardOverviewState({
-        canReadIssues,
-        enabled: activeView === 'overview' || !canViewCommittee,
+        issuePermissionCacheKey: canReadIssues,
+        enabled: activeView === 'overview' || !authz.canViewCommittee,
         filters,
         t,
     });
+    const capabilities = overviewQuery.data?.capabilities;
+    const canViewIssueMetrics = resolveCapabilityFlag(capabilities, 'can_view_issue_metrics');
+    const canViewCommittee = resolveCapabilityFlag(capabilities, 'can_view_committee');
+    const canExport = resolveCapabilityFlag(capabilities, 'can_export_or_report');
 
     if (overviewQuery.isLoading && !summary) {
         return <DashboardLoadingState label={t('loading')} />;
@@ -78,6 +82,7 @@ export function DashboardPage() {
     return (
         <div className="space-y-10">
             <DashboardHeader
+                canExport={canExport}
                 onExport={() => exportDashboardSummary(filters.departmentId)}
                 subtitle={t('page_subtitle')}
                 title={t('title')}
@@ -99,7 +104,7 @@ export function DashboardPage() {
                 <DashboardOverviewContent
                     breachHistoryTitle={t('sections.kri_breach_history')}
                     breachTrends={breachTrends}
-                    canReadIssues={canReadIssues}
+                    canReadIssues={canViewIssueMetrics}
                     categoryAnalyticsTitle={t('sections.control_analytics')}
                     controlExecutionTitle={t('sections.control_execution_trends')}
                     departmentMetrics={departmentMetrics}

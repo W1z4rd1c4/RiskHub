@@ -6,7 +6,7 @@ import { apiClient } from '@/services/apiClient';
 import { logError } from '@/services/logger';
 import { userDirectoryApi } from '@/services/userDirectoryApi';
 import type { AccessUserRead } from '@/types/access';
-import type { UserDirectoryEntry, UserDirectoryRoleFacet } from '@/types/user';
+import type { UserDirectoryCapabilities, UserDirectoryEntry, UserDirectoryRoleFacet } from '@/types/user';
 
 import type { UsersPageMode } from './usersPageTypes';
 
@@ -14,13 +14,19 @@ export const DIRECTORY_PAGE_SIZE = 50;
 
 interface UseUsersPageDataOptions {
     currentUserLoaded: boolean;
+    loadDirectoryCapabilities: boolean;
     pageMode: UsersPageMode;
 }
 
-export function useUsersPageData({ currentUserLoaded, pageMode }: UseUsersPageDataOptions) {
+export function useUsersPageData({
+    currentUserLoaded,
+    loadDirectoryCapabilities,
+    pageMode,
+}: UseUsersPageDataOptions) {
     const [users, setUsers] = useState<AccessUserRead[]>([]);
     const [directoryUsers, setDirectoryUsers] = useState<UserDirectoryEntry[]>([]);
     const [directoryAvailableRoles, setDirectoryAvailableRoles] = useState<UserDirectoryRoleFacet[]>([]);
+    const [directoryCapabilities, setDirectoryCapabilities] = useState<UserDirectoryCapabilities | null>(null);
     const [directoryTotal, setDirectoryTotal] = useState(0);
     const [directoryPage, setDirectoryPage] = useState(1);
     const [isLoading, setIsLoading] = useState(true);
@@ -38,6 +44,15 @@ export function useUsersPageData({ currentUserLoaded, pageMode }: UseUsersPageDa
         setDirectoryTotal(0);
     }, []);
 
+    const fetchDirectoryCapabilities = useCallback(async () => {
+        try {
+            const data = await userDirectoryApi.listDirectoryUsers({ skip: 0, limit: 1 });
+            setDirectoryCapabilities(data.capabilities ?? null);
+        } catch {
+            setDirectoryCapabilities(null);
+        }
+    }, []);
+
     const fetchUsers = useCallback(async () => {
         try {
             setIsLoading(true);
@@ -46,12 +61,22 @@ export function useUsersPageData({ currentUserLoaded, pageMode }: UseUsersPageDa
                 const data = await accessApi.listAccessUsers();
                 setUsers(data);
                 resetDirectoryData();
+                if (loadDirectoryCapabilities) {
+                    await fetchDirectoryCapabilities();
+                } else {
+                    setDirectoryCapabilities(null);
+                }
                 return;
             }
             if (pageMode === 'department-access') {
                 const data = await accessApi.listDepartmentAccessUsers();
                 setUsers(data);
                 resetDirectoryData();
+                if (loadDirectoryCapabilities) {
+                    await fetchDirectoryCapabilities();
+                } else {
+                    setDirectoryCapabilities(null);
+                }
                 return;
             }
             if (pageMode === 'directory') {
@@ -64,21 +89,32 @@ export function useUsersPageData({ currentUserLoaded, pageMode }: UseUsersPageDa
                 setUsers([]);
                 setDirectoryUsers(data.items);
                 setDirectoryAvailableRoles(data.available_roles ?? []);
+                setDirectoryCapabilities(data.capabilities ?? null);
                 setDirectoryTotal(data.total);
                 return;
             }
 
             setUsers([]);
             resetDirectoryData();
+            setDirectoryCapabilities(null);
         } catch (error) {
             logError('Failed to fetch users.', error);
             setUsers([]);
             resetDirectoryData();
+            setDirectoryCapabilities(null);
             setLoadErrorKey(apiClient.toUiMessageKey(error));
         } finally {
             setIsLoading(false);
         }
-    }, [directoryPage, filters.roleFilter, filters.searchTerm, pageMode, resetDirectoryData]);
+    }, [
+        directoryPage,
+        fetchDirectoryCapabilities,
+        filters.roleFilter,
+        filters.searchTerm,
+        loadDirectoryCapabilities,
+        pageMode,
+        resetDirectoryData,
+    ]);
 
     useEffect(() => {
         if (currentUserLoaded && pageMode !== 'forbidden') {
@@ -94,6 +130,7 @@ export function useUsersPageData({ currentUserLoaded, pageMode }: UseUsersPageDa
 
     return {
         directoryAvailableRoles,
+        directoryCapabilities,
         directoryPage,
         directoryTotal,
         directoryUsers,

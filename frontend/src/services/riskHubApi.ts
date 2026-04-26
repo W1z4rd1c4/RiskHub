@@ -36,6 +36,14 @@ export interface RiskType {
     risk_count: number;
     created_at: string;
     updated_at: string;
+    capabilities?: RiskTypeCapabilities | null;
+}
+
+export interface RiskTypeCapabilities {
+    can_create: boolean;
+    can_update: boolean;
+    can_delete: boolean;
+    can_restore: boolean;
 }
 
 export interface RiskTypeCreate {
@@ -79,6 +87,11 @@ export interface ApprovalScenario {
     approver_roles: string[];
     updated_at: string;
     updated_by_name: string | null;
+    capabilities?: ApprovalScenarioCapabilities | null;
+}
+
+export interface ApprovalScenarioCapabilities {
+    can_update: boolean;
 }
 
 export interface ApprovalScenarioUpdate {

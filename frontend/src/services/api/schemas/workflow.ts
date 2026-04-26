@@ -54,7 +54,14 @@ export const activityLogEntrySchema: z.ZodType<ActivityLogEntry> = passthroughOb
     created_at: z.string(),
 });
 export const activityLogListResponseSchema: z.ZodType<ActivityLogListResponse> =
-    offsetPaginationSchema(activityLogEntrySchema);
+    offsetPaginationSchema(activityLogEntrySchema).extend({
+        capabilities: passthroughObject({
+            can_read: z.boolean(),
+            can_filter_by_department: z.boolean(),
+            can_view_entity_filters: z.boolean(),
+            can_export_csv: z.boolean(),
+        }).nullable().optional(),
+    });
 
 export const approvalRequestSchema: z.ZodType<ApprovalRequest> = passthroughObject({
     id: z.number(),

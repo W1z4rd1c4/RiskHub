@@ -343,6 +343,13 @@ async def test_riskhub_risk_type_list_shows_accurate_counts(
 
     assert counts["operational"] == 3
     assert counts["strategic"] == 2
+    operational_type = next(t for t in types_list if t["code"] == "operational")
+    assert operational_type["capabilities"] == {
+        "can_create": True,
+        "can_update": True,
+        "can_delete": False,
+        "can_restore": False,
+    }
 
 
 @pytest.mark.asyncio

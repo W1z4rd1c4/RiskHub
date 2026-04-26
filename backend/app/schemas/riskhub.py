@@ -26,8 +26,18 @@ class RiskTypeRead(BaseModel):
     risk_count: int
     created_at: str
     updated_at: str
+    capabilities: "RiskTypeCapabilities | None" = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class RiskTypeCapabilities(BaseModel):
+    """Backend-authoritative risk-type action capabilities."""
+
+    can_create: bool
+    can_update: bool
+    can_delete: bool
+    can_restore: bool
 
 
 class RiskTypeCreate(BaseModel):
@@ -107,8 +117,15 @@ class ApprovalScenarioRead(BaseModel):
     approver_roles: list[str]
     updated_at: str
     updated_by_name: str | None = None
+    capabilities: "ApprovalScenarioCapabilities | None" = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class ApprovalScenarioCapabilities(BaseModel):
+    """Backend-authoritative approval-scenario action capabilities."""
+
+    can_update: bool
 
 
 class ApprovalScenarioUpdate(BaseModel):

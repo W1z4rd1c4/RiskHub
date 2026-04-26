@@ -7,6 +7,7 @@ import adminEn from '@/i18n/locales/en/admin.json';
 
 const mockNavigate = vi.fn();
 const mockGetAuthConfig = vi.fn();
+const mockListDirectoryUsers = vi.fn();
 
 function resolveAdminTranslation(key: string): string | undefined {
     return key.split('.').reduce<unknown>((current, part) => {
@@ -39,6 +40,12 @@ vi.mock('@/services/authConfig', () => ({
 vi.mock('@/services/userApi', () => ({
     userApi: {
         createUser: vi.fn(),
+    },
+}));
+
+vi.mock('@/services/userDirectoryApi', () => ({
+    userDirectoryApi: {
+        listDirectoryUsers: (...args: unknown[]) => mockListDirectoryUsers(...args),
     },
 }));
 
@@ -112,6 +119,21 @@ describe('UserNewPage SSO mode', () => {
     beforeEach(() => {
         mockNavigate.mockReset();
         mockGetAuthConfig.mockReset();
+        mockListDirectoryUsers.mockReset();
+        mockListDirectoryUsers.mockResolvedValue({
+            items: [],
+            available_roles: [],
+            total: 0,
+            skip: 0,
+            limit: 1,
+            capabilities: {
+                can_read_directory: true,
+                can_view_access_details: true,
+                can_use_role_facets: true,
+                can_create_local_user: true,
+                can_import_directory_user: true,
+            },
+        });
     });
 
     it('renders directory import flow and no password field in microsoft_sso mode', async () => {
@@ -173,6 +195,38 @@ describe('UserNewPage SSO mode', () => {
         await waitFor(() => {
             expect(document.querySelector('input[type="password"]')).not.toBeNull();
         });
+    });
+
+    it('hides creation actions when directory capabilities are absent', async () => {
+        mockGetAuthConfig.mockResolvedValue(
+            makeAuthConfig({
+                auth_mode: 'password',
+                password_login_enabled: true,
+                sso: {
+                    enabled: false,
+                    provider: 'entra',
+                    tenant_id: null,
+                    client_id: null,
+                    authority: null,
+                    scopes: ['openid', 'profile', 'email'],
+                },
+            })
+        );
+        mockListDirectoryUsers.mockResolvedValueOnce({
+            items: [],
+            available_roles: [],
+            total: 0,
+            skip: 0,
+            limit: 1,
+            capabilities: null,
+        });
+
+        render(<UserNewPage />);
+
+        await waitFor(() => {
+            expect(document.querySelector('input[type="password"]')).toBeNull();
+        });
+        expect(screen.getByText('access.denied')).toBeInTheDocument();
     });
 
     it('returns to /users with import context after successful directory import', async () => {

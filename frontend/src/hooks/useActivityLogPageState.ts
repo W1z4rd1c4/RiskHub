@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useDebouncedValue } from './useDebouncedValue';
 import { activityLogApi, type ActivityLogFilters } from '@/services/activityLogApi';
-import type { ActivityLogEntry } from '@/types/activityLog';
+import type { ActivityLogCapabilities, ActivityLogEntry } from '@/types/activityLog';
 import { lookupApi, type UserLookupItem } from '@/services/lookupApi';
 import { riskApi } from '@/services/riskApi';
 import { logError } from '@/services/logger';
@@ -59,6 +59,7 @@ interface UseActivityLogPageStateReturn {
     isLoading: boolean;
     errorType: ErrorType;
     needsRiskSelection: boolean;
+    capabilities: ActivityLogCapabilities | null;
 
     // Pagination
     page: number;
@@ -107,6 +108,7 @@ export function useActivityLogPageState(
     const [total, setTotal] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
     const [errorType, setErrorType] = useState<ErrorType>(null);
+    const [capabilities, setCapabilities] = useState<ActivityLogCapabilities | null>(null);
 
     // View mode selectors
     const [selectedActorId, setSelectedActorId] = useState<number | null>(null);
@@ -137,6 +139,7 @@ export function useActivityLogPageState(
             setErrorType(null);
             setEntries([]);
             setTotal(0);
+            setCapabilities(null);
         }
     }, [enabled]);
 
@@ -239,6 +242,7 @@ export function useActivityLogPageState(
             if (requestId === latestEntriesRequestIdRef.current) {
                 setEntries(response.items);
                 setTotal(response.total);
+                setCapabilities(response.capabilities ?? null);
             }
         } catch (error) {
             logError('Failed to fetch activity logs:', error);
@@ -256,6 +260,7 @@ export function useActivityLogPageState(
             if (requestId === latestEntriesRequestIdRef.current) {
                 setEntries([]);
                 setTotal(0);
+                setCapabilities(null);
             }
         } finally {
             if (requestId === latestEntriesRequestIdRef.current) {
@@ -328,6 +333,7 @@ export function useActivityLogPageState(
         isLoading,
         errorType,
         needsRiskSelection,
+        capabilities,
 
         // Pagination
         page,

@@ -1,5 +1,4 @@
 import { Activity, RefreshCw, ShieldX } from 'lucide-react';
-import { usePermissions } from '@/hooks/usePermissions';
 import { useActivityLogPageState, type ActiveTab } from '@/hooks/useActivityLogPageState';
 import { ActivityLogFilterBar } from '@/components/activity-log/ActivityLogFilterBar';
 import { ActivityLogEntries } from '@/components/activity-log/ActivityLogEntries';
@@ -22,13 +21,11 @@ const TABS: { id: ActiveTab; labelKey: string }[] = [
 // ─────────────────────────────────────────────────────────────
 
 export function ActivityLogPage() {
-    const { canViewActivityLog } = usePermissions();
     const { t } = useTranslation('common');
-    const state = useActivityLogPageState({ enabled: canViewActivityLog });
+    const state = useActivityLogPageState();
+    const readDenied = state.capabilities?.can_read === false;
 
-    // Permission gate - early return if user lacks permission
-    // This prevents any API calls from being made
-    if (!canViewActivityLog) {
+    if (state.errorType === 'access_denied' || readDenied) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
                 <div className="p-4 bg-rose-500/10 rounded-2xl">
@@ -103,6 +100,8 @@ export function ActivityLogPage() {
                 users={state.users}
                 departments={state.departments}
                 risks={state.risks}
+                canFilterByDepartment={state.capabilities?.can_filter_by_department === true}
+                canViewEntityFilters={state.capabilities?.can_view_entity_filters === true}
             />
 
             {/* Entries List */}

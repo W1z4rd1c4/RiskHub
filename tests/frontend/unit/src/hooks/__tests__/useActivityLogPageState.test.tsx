@@ -80,7 +80,18 @@ describe('useActivityLogPageState', () => {
     it('ignores stale risk responses after clearing the selected risk', async () => {
         const deferred = createDeferred<ActivityLogListResponse>();
         mockList
-            .mockResolvedValueOnce({ items: [], total: 0, skip: 0, limit: 50 })
+            .mockResolvedValueOnce({
+                items: [],
+                total: 0,
+                skip: 0,
+                limit: 50,
+                capabilities: {
+                    can_read: true,
+                    can_filter_by_department: false,
+                    can_view_entity_filters: true,
+                    can_export_csv: false,
+                },
+            })
             .mockImplementationOnce(() => deferred.promise);
 
         render(<HookHarness />);
@@ -155,5 +166,33 @@ describe('useActivityLogPageState', () => {
                 date_to: '2026-04-20T23:59:59.999',
             })
         );
+    });
+
+    it('exposes backend activity-log capabilities from the list response', async () => {
+        mockList.mockResolvedValue({
+            items: [],
+            total: 0,
+            skip: 0,
+            limit: 50,
+            capabilities: {
+                can_read: true,
+                can_filter_by_department: true,
+                can_view_entity_filters: true,
+                can_export_csv: true,
+            },
+        });
+
+        function CapabilityHarness() {
+            const state = useActivityLogPageState();
+            return (
+                <span data-testid="department-filter">
+                    {String(state.capabilities?.can_filter_by_department === true)}
+                </span>
+            );
+        }
+
+        render(<CapabilityHarness />);
+
+        await waitFor(() => expect(screen.getByTestId('department-filter')).toHaveTextContent('true'));
     });
 });

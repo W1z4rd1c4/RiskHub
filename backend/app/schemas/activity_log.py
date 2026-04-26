@@ -24,6 +24,15 @@ class ActivityLogRead(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class ActivityLogCapabilities(BaseModel):
+    """Backend-authoritative activity-log action capabilities."""
+
+    can_read: bool = False
+    can_filter_by_department: bool = False
+    can_view_entity_filters: bool = False
+    can_export_csv: bool = False
+
+
 class ActivityLogListResponse(BaseModel):
     """Paginated activity log response."""
 
@@ -31,3 +40,4 @@ class ActivityLogListResponse(BaseModel):
     total: int
     skip: int
     limit: int
+    capabilities: ActivityLogCapabilities | None = None

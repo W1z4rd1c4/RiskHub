@@ -59,6 +59,13 @@ export const userDirectoryRoleFacetSchema: z.ZodType<UserDirectoryRoleFacet> = p
     display_name: z.string(),
     count: z.number(),
 });
+const userDirectoryCapabilitiesSchema = passthroughObject({
+    can_read_directory: z.boolean(),
+    can_view_access_details: z.boolean(),
+    can_use_role_facets: z.boolean(),
+    can_create_local_user: z.boolean(),
+    can_import_directory_user: z.boolean(),
+});
 export const userDirectoryListResponseSchema: z.ZodType<UserDirectoryListResponse> =
     passthroughObject({
         items: z.array(userDirectoryEntrySchema),
@@ -66,6 +73,7 @@ export const userDirectoryListResponseSchema: z.ZodType<UserDirectoryListRespons
         total: z.number(),
         skip: z.number(),
         limit: z.number(),
+        capabilities: userDirectoryCapabilitiesSchema.nullable().optional(),
     });
 
 export const userShellSummarySchema: z.ZodType<UserShellSummary> = passthroughObject({

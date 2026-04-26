@@ -37,6 +37,8 @@ export interface ActivityLogFilterBarProps {
     users: UserLookupItem[];
     departments: { id: number; name: string }[];
     risks: { id: number; name: string }[];
+    canFilterByDepartment: boolean;
+    canViewEntityFilters: boolean;
 }
 
 /**
@@ -64,12 +66,16 @@ export function ActivityLogFilterBar({
     users,
     departments,
     risks,
+    canFilterByDepartment,
+    canViewEntityFilters,
 }: ActivityLogFilterBarProps) {
     const { t } = useTranslation(['common', 'admin']);
     const viewModes: { id: ViewMode; label: string }[] = [
         { id: 'chronological', label: t('activity_log.view_modes.chronological', { ns: 'admin' }) },
         { id: 'by_person', label: t('activity_log.view_modes.by_person', { ns: 'admin' }) },
-        { id: 'by_department', label: t('activity_log.view_modes.by_department', { ns: 'admin' }) },
+        ...(canFilterByDepartment
+            ? [{ id: 'by_department' as const, label: t('activity_log.view_modes.by_department', { ns: 'admin' }) }]
+            : []),
         { id: 'by_risk', label: t('activity_log.view_modes.by_risk', { ns: 'admin' }) },
     ];
 
@@ -126,6 +132,7 @@ export function ActivityLogFilterBar({
             </div>
 
             {/* Filters Section */}
+            {canViewEntityFilters ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 p-6 glass-card rounded-3xl border border-white/5">
                 <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -170,6 +177,7 @@ export function ActivityLogFilterBar({
                     />
                 </div>
             </div>
+            ) : null}
         </>
     );
 }

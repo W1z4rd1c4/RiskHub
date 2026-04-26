@@ -6,11 +6,38 @@ from app.core.activity_logger import build_change_set, log_activity
 from app.db.session import get_db
 from app.models import Risk, RiskTypeConfig, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
-from app.schemas.riskhub import RiskTypeCreate, RiskTypeRead, RiskTypeUpdate
+from app.schemas.riskhub import RiskTypeCapabilities, RiskTypeCreate, RiskTypeRead, RiskTypeUpdate
 
 from ._shared import get_cro_user
 
 router = APIRouter()
+
+
+def _risk_type_capabilities(risk_type: RiskTypeConfig | None = None) -> RiskTypeCapabilities:
+    return RiskTypeCapabilities(
+        can_create=True,
+        can_update=bool(risk_type is None or risk_type.is_active),
+        can_delete=bool(risk_type is not None and risk_type.is_active and not risk_type.is_system),
+        can_restore=bool(risk_type is not None and not risk_type.is_active),
+    )
+
+
+def _risk_type_read(risk_type: RiskTypeConfig, risk_count: int | None = None) -> RiskTypeRead:
+    return RiskTypeRead(
+        id=risk_type.id,
+        code=risk_type.code,
+        display_name=risk_type.display_name,
+        description=risk_type.description,
+        color=risk_type.color,
+        icon=risk_type.icon,
+        sort_order=risk_type.sort_order,
+        is_active=risk_type.is_active,
+        is_system=risk_type.is_system,
+        risk_count=risk_count if risk_count is not None else risk_type.risk_count,
+        created_at=risk_type.created_at.isoformat(),
+        updated_at=risk_type.updated_at.isoformat(),
+        capabilities=_risk_type_capabilities(risk_type),
+    )
 
 
 @router.get("/risk-types", response_model=list[RiskTypeRead])
@@ -39,20 +66,7 @@ async def list_risk_types(
     risk_counts = {row[0]: row[1] for row in count_result.all()}
 
     return [
-        RiskTypeRead(
-            id=t.id,
-            code=t.code,
-            display_name=t.display_name,
-            description=t.description,
-            color=t.color,
-            icon=t.icon,
-            sort_order=t.sort_order,
-            is_active=t.is_active,
-            is_system=t.is_system,
-            risk_count=risk_counts.get(t.code, 0),
-            created_at=t.created_at.isoformat(),
-            updated_at=t.updated_at.isoformat(),
-        )
+        _risk_type_read(t, risk_counts.get(t.code, 0))
         for t in types
     ]
 
@@ -101,20 +115,7 @@ async def create_risk_type(
     )
     await db.commit()  # Persist activity log
 
-    return RiskTypeRead(
-        id=risk_type.id,
-        code=risk_type.code,
-        display_name=risk_type.display_name,
-        description=risk_type.description,
-        color=risk_type.color,
-        icon=risk_type.icon,
-        sort_order=risk_type.sort_order,
-        is_active=risk_type.is_active,
-        is_system=risk_type.is_system,
-        risk_count=risk_type.risk_count,
-        created_at=risk_type.created_at.isoformat(),
-        updated_at=risk_type.updated_at.isoformat(),
-    )
+    return _risk_type_read(risk_type)
 
 
 @router.patch("/risk-types/{id}", response_model=RiskTypeRead)
@@ -178,20 +179,7 @@ async def update_risk_type(
     )
     await db.commit()  # Persist activity log
 
-    return RiskTypeRead(
-        id=risk_type.id,
-        code=risk_type.code,
-        display_name=risk_type.display_name,
-        description=risk_type.description,
-        color=risk_type.color,
-        icon=risk_type.icon,
-        sort_order=risk_type.sort_order,
-        is_active=risk_type.is_active,
-        is_system=risk_type.is_system,
-        risk_count=risk_type.risk_count,
-        created_at=risk_type.created_at.isoformat(),
-        updated_at=risk_type.updated_at.isoformat(),
-    )
+    return _risk_type_read(risk_type)
 
 
 @router.delete("/risk-types/{id}")
@@ -281,17 +269,4 @@ async def restore_risk_type(
     )
     await db.commit()  # Persist activity log
 
-    return RiskTypeRead(
-        id=risk_type.id,
-        code=risk_type.code,
-        display_name=risk_type.display_name,
-        description=risk_type.description,
-        color=risk_type.color,
-        icon=risk_type.icon,
-        sort_order=risk_type.sort_order,
-        is_active=risk_type.is_active,
-        is_system=risk_type.is_system,
-        risk_count=risk_type.risk_count,
-        created_at=risk_type.created_at.isoformat(),
-        updated_at=risk_type.updated_at.isoformat(),
-    )
+    return _risk_type_read(risk_type)

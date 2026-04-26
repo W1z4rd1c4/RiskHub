@@ -7,14 +7,30 @@ from sqlalchemy.orm import selectinload
 
 from app.api import deps
 from app.core.pagination import MAX_LOOKUP_SIZE
-from app.core.permissions import has_permission
+from app.core.permissions import has_permission, is_platform_admin
 from app.db.session import get_db
 from app.models import Role, User
-from app.schemas.user import UserDirectoryEntry, UserDirectoryListResponse, UserDirectoryRoleFacet
+from app.schemas.user import (
+    UserDirectoryCapabilities,
+    UserDirectoryEntry,
+    UserDirectoryListResponse,
+    UserDirectoryRoleFacet,
+)
 
+from ._lifecycle import can_administer_user_lifecycle
 from ._visibility import build_visible_users_query
 
 router = APIRouter()
+
+
+def _directory_capabilities(current_user: User) -> UserDirectoryCapabilities:
+    return UserDirectoryCapabilities(
+        can_read_directory=True,
+        can_view_access_details=has_permission(current_user, "users", "read"),
+        can_use_role_facets=True,
+        can_create_local_user=can_administer_user_lifecycle(current_user),
+        can_import_directory_user=is_platform_admin(current_user),
+    )
 
 
 def _apply_directory_filters(
@@ -111,4 +127,5 @@ async def list_directory_users(
         total=total,
         skip=skip,
         limit=limit,
+        capabilities=_directory_capabilities(current_user),
     )

@@ -56,6 +56,31 @@ async def test_activity_log_allows_null_actor_id(client_cro: AsyncClient, db_ses
 
 
 @pytest.mark.asyncio
+async def test_activity_log_returns_backend_capabilities(client_cro: AsyncClient, db_session):
+    await log_activity(
+        db_session,
+        entity_type=ActivityEntityType.RISK,
+        entity_id=10,
+        entity_name="Capability Risk",
+        action=ActivityAction.CREATE,
+        actor=None,
+        department_id=None,
+        changes=None,
+        description="Capability entry",
+    )
+    await db_session.commit()
+
+    response = await client_cro.get("/api/v1/activity-log")
+
+    assert response.status_code == 200
+    capabilities = response.json()["capabilities"]
+    assert capabilities["can_read"] is True
+    assert capabilities["can_filter_by_department"] is True
+    assert capabilities["can_view_entity_filters"] is True
+    assert capabilities["can_export_csv"] is True
+
+
+@pytest.mark.asyncio
 async def test_risk_update_activity_log_changes(
     auth_client: AsyncClient,
     db_session,
@@ -839,6 +864,12 @@ async def test_risk_type_activity_log_uses_safe_label_structured_changes_and_res
         },
     )
     assert update_response.status_code == 200
+    assert update_response.json()["capabilities"] == {
+        "can_create": True,
+        "can_update": True,
+        "can_delete": True,
+        "can_restore": False,
+    }
 
     result = await db_session.execute(
         select(ActivityLog).where(
@@ -908,6 +939,7 @@ async def test_approval_scenario_activity_log_uses_safe_label_and_structured_cha
         },
     )
     assert update_response.status_code == 200
+    assert update_response.json()["capabilities"] == {"can_update": True}
 
     result = await db_session.execute(
         select(ActivityLog).where(

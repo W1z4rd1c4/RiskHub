@@ -38,6 +38,20 @@ async def test_dashboard_summary(auth_client: AsyncClient):
 
 
 @pytest.mark.asyncio
+async def test_dashboard_overview_returns_backend_capabilities(client_cro: AsyncClient):
+    """Overview capabilities mirror backend dashboard/report access decisions."""
+    response = await client_cro.get("/api/v1/dashboard/overview")
+
+    assert response.status_code == 200
+    capabilities = response.json()["capabilities"]
+    assert capabilities["can_read"] is True
+    assert capabilities["can_view_issue_metrics"] is True
+    assert capabilities["can_view_committee"] is True
+    assert capabilities["can_use_department_filter"] is True
+    assert capabilities["can_export_or_report"] is True
+
+
+@pytest.mark.asyncio
 async def test_risk_distribution(auth_client: AsyncClient):
     """Test the risk distribution endpoint."""
     response = await auth_client.get("/api/v1/dashboard/risk-distribution")

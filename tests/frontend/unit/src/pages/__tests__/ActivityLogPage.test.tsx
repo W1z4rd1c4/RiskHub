@@ -1,9 +1,50 @@
-import { describe, it, expect } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import {
     calculatePageWindow,
     formatDiffValue,
     getDiffPair,
 } from '@/components/activity-log/activityLogPresentation';
+
+const mockList = vi.fn();
+const mockGetActions = vi.fn();
+const mockGetUsers = vi.fn();
+const mockGetDepartments = vi.fn();
+const mockGetRisks = vi.fn();
+
+vi.mock('@/hooks/useDebouncedValue', () => ({
+    useDebouncedValue: <T,>(value: T) => value,
+}));
+
+vi.mock('@/i18n/hooks', () => ({
+    useTranslation: () => ({
+        t: (key: string) => key,
+        i18n: { language: 'en' },
+    }),
+}));
+
+vi.mock('@/services/activityLogApi', () => ({
+    activityLogApi: {
+        list: (...args: unknown[]) => mockList(...args),
+        getActions: () => mockGetActions(),
+    },
+}));
+
+vi.mock('@/services/lookupApi', () => ({
+    lookupApi: {
+        getUsers: () => mockGetUsers(),
+        getDepartments: () => mockGetDepartments(),
+    },
+}));
+
+vi.mock('@/services/riskApi', () => ({
+    riskApi: {
+        getRisks: (...args: unknown[]) => mockGetRisks(...args),
+    },
+}));
+
+import { ActivityLogPage } from '@/pages/ActivityLogPage';
 
 describe('Activity Log Helpers', () => {
     describe('formatDiffValue', () => {
@@ -92,31 +133,26 @@ describe('Activity Log Helpers', () => {
     describe('calculatePageWindow', () => {
         it('returns all pages for small total (5 pages)', () => {
             const result = calculatePageWindow(2, 5);
-            // Should show: 0, 1, 2, 3, 4
             expect(result).toEqual([0, 1, 2, 3, 4]);
         });
 
         it('returns bounded window for large total (200 pages) at start', () => {
             const result = calculatePageWindow(0, 200);
-            // Should show: 0, 1, ..., 199
             expect(result).toEqual([0, 1, 'ellipsis', 199]);
         });
 
         it('returns bounded window for large total (200 pages) at middle', () => {
             const result = calculatePageWindow(100, 200);
-            // Should show: 0, ..., 99, 100, 101, ..., 199
             expect(result).toEqual([0, 'ellipsis', 99, 100, 101, 'ellipsis', 199]);
         });
 
         it('returns bounded window for large total (200 pages) at end', () => {
             const result = calculatePageWindow(199, 200);
-            // Should show: 0, ..., 198, 199
             expect(result).toEqual([0, 'ellipsis', 198, 199]);
         });
 
         it('does not allocate more than needed for 10000 pages', () => {
             const result = calculatePageWindow(5000, 10000);
-            // Should be limited to ~7 items max
             expect(result.length).toBeLessThanOrEqual(10);
         });
 
@@ -153,5 +189,61 @@ describe('Activity Log Helpers', () => {
         it('returns raw value for unknown action', () => {
             expect(ACTION_LABELS['custom_action'] ?? 'custom_action').toBe('custom_action');
         });
+    });
+});
+
+describe('ActivityLogPage capability denial state', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockGetActions.mockResolvedValue([]);
+        mockGetUsers.mockResolvedValue([]);
+        mockGetDepartments.mockResolvedValue([]);
+        mockGetRisks.mockResolvedValue({ items: [], total: 0, offset: 0, limit: 100 });
+    });
+
+    it('shows retryable network state instead of access denied when list loading fails without 403', async () => {
+        mockList.mockRejectedValue(new Error('temporary outage'));
+
+        render(<ActivityLogPage />);
+
+        await screen.findByText('activity_log.failed_to_load');
+
+        expect(screen.getByText('activity_log.failed_to_load_help')).toBeInTheDocument();
+        expect(screen.queryByText('access.denied')).not.toBeInTheDocument();
+    });
+
+    it('shows access denied when the backend explicitly denies read capability', async () => {
+        mockList.mockResolvedValue({
+            items: [],
+            total: 0,
+            skip: 0,
+            limit: 50,
+            capabilities: {
+                can_read: false,
+                can_filter_by_department: false,
+                can_view_entity_filters: false,
+                can_export_csv: false,
+            },
+        });
+
+        render(<ActivityLogPage />);
+
+        await screen.findByText('access.denied');
+        expect(screen.queryByText('empty.no_activity_logs')).not.toBeInTheDocument();
+    });
+
+    it('keeps non-action states visible when backend capabilities are absent', async () => {
+        mockList.mockResolvedValue({
+            items: [],
+            total: 0,
+            skip: 0,
+            limit: 50,
+            capabilities: null,
+        });
+
+        render(<ActivityLogPage />);
+
+        await waitFor(() => expect(screen.queryByText('access.denied')).not.toBeInTheDocument());
+        expect(screen.getByText('empty.no_activity_logs')).toBeInTheDocument();
     });
 });

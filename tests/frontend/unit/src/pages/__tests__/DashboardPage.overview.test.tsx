@@ -106,6 +106,14 @@ describe('DashboardPage overview aggregation', () => {
             issue_aging: { buckets: [] },
             issue_severity: { items: [] },
             generated_at: '2026-03-07T10:00:00Z',
+            capabilities: {
+                can_read: true,
+                can_view_issue_metrics: true,
+                can_view_committee: canViewCommitteeMock,
+                can_view_vendor_metrics: true,
+                can_use_department_filter: true,
+                can_export_or_report: true,
+            },
         });
     });
 
@@ -126,6 +134,41 @@ describe('DashboardPage overview aggregation', () => {
 
     it('stops overview fetching when the committee view is active', async () => {
         canViewCommitteeMock = true;
+        fetchOverviewMock.mockResolvedValueOnce({
+            summary: {
+                total_controls: 10,
+                controls_by_status: {},
+                controls_by_form: {},
+                controls_by_frequency: {},
+                total_risks: 8,
+                risks_by_status: {},
+                critical_risks_count: 2,
+                average_net_risk_score: 4,
+            },
+            department_metrics: [],
+            gross_distribution: { distribution: [] },
+            net_distribution: { distribution: [] },
+            control_trends: [],
+            risk_trends: [],
+            kri_breach_trends: [],
+            issue_summary: {
+                open_issues: 1,
+                overdue_issues: 0,
+                high_severity_open: 0,
+                median_days_open: 2,
+            },
+            issue_aging: { buckets: [] },
+            issue_severity: { items: [] },
+            generated_at: '2026-03-07T10:00:00Z',
+            capabilities: {
+                can_read: true,
+                can_view_issue_metrics: true,
+                can_view_committee: true,
+                can_view_vendor_metrics: true,
+                can_use_department_filter: true,
+                can_export_or_report: true,
+            },
+        });
 
         render(
             <MemoryRouter>
@@ -142,5 +185,46 @@ describe('DashboardPage overview aggregation', () => {
 
         expect(await screen.findByText('committee')).toBeInTheDocument();
         expect(fetchOverviewMock).not.toHaveBeenCalled();
+    });
+
+    it('hides optional dashboard actions when backend capabilities are missing', async () => {
+        fetchOverviewMock.mockResolvedValueOnce({
+            summary: {
+                total_controls: 10,
+                controls_by_status: {},
+                controls_by_form: {},
+                controls_by_frequency: {},
+                total_risks: 8,
+                risks_by_status: {},
+                critical_risks_count: 2,
+                average_net_risk_score: 4,
+            },
+            department_metrics: [],
+            gross_distribution: { distribution: [] },
+            net_distribution: { distribution: [] },
+            control_trends: [],
+            risk_trends: [],
+            kri_breach_trends: [],
+            issue_summary: {
+                open_issues: 1,
+                overdue_issues: 0,
+                high_severity_open: 0,
+                median_days_open: 2,
+            },
+            issue_aging: { buckets: [] },
+            issue_severity: { items: [] },
+            generated_at: '2026-03-07T10:00:00Z',
+        });
+
+        render(
+            <MemoryRouter>
+                <DashboardPage />
+            </MemoryRouter>,
+            { wrapper: createWrapper() },
+        );
+
+        await waitFor(() => expect(fetchOverviewMock).toHaveBeenCalledTimes(1));
+        expect(screen.queryByTitle('actions.export_summary_excel')).not.toBeInTheDocument();
+        expect(screen.queryByText('issue summary')).not.toBeInTheDocument();
     });
 });

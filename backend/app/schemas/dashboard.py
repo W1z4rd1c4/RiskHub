@@ -119,6 +119,17 @@ class IssueSeverityBreakdownResponse(BaseModel):
     items: list[IssueSeverityBreakdownItem] = Field(default_factory=list)
 
 
+class DashboardOverviewCapabilities(BaseModel):
+    """Backend-authoritative dashboard overview action capabilities."""
+
+    can_read: bool = False
+    can_view_issue_metrics: bool = False
+    can_view_committee: bool = False
+    can_view_vendor_metrics: bool = False
+    can_use_department_filter: bool = False
+    can_export_or_report: bool = False
+
+
 class DashboardOverviewResponse(BaseModel):
     """Aggregate dashboard payload for the main overview screen."""
 
@@ -133,3 +144,4 @@ class DashboardOverviewResponse(BaseModel):
     issue_aging: IssueAgingResponse | None = None
     issue_severity: IssueSeverityBreakdownResponse | None = None
     generated_at: str
+    capabilities: DashboardOverviewCapabilities | None = None

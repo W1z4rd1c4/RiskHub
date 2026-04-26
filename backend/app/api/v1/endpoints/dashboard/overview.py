@@ -6,12 +6,12 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.datetime_utils import utc_now
-from app.core.permissions import has_permission
+from app.core.permissions import can_view_risk_committee, get_user_department_ids, has_permission
 from app.core.security import require_permission
 from app.core.ttl_cache import TTLCache
 from app.db.session import get_db
 from app.models import User
-from app.schemas.dashboard import DashboardOverviewResponse
+from app.schemas.dashboard import DashboardOverviewCapabilities, DashboardOverviewResponse
 
 from .controls import build_control_trends
 from .departments import get_department_metrics
@@ -121,5 +121,13 @@ async def get_dashboard_overview(
         "issue_aging": issue_aging.model_dump() if issue_aging is not None else None,
         "issue_severity": issue_severity.model_dump() if issue_severity is not None else None,
         "generated_at": utc_now().isoformat(),
+        "capabilities": DashboardOverviewCapabilities(
+            can_read=True,
+            can_view_issue_metrics=has_permission(current_user, "issues", "read"),
+            can_view_committee=can_view_risk_committee(current_user) and has_permission(current_user, "risks", "read"),
+            can_view_vendor_metrics=has_permission(current_user, "vendors", "read"),
+            can_use_department_filter=get_user_department_ids(current_user) is None,
+            can_export_or_report=has_permission(current_user, "reports", "read"),
+        ).model_dump(),
     }
     return DashboardOverviewResponse(**DASHBOARD_OVERVIEW_CACHE.set(cache_key, payload))

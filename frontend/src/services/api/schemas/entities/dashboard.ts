@@ -139,6 +139,14 @@ export const issueSeverityBreakdownResponseSchema: z.ZodType<IssueSeverityBreakd
             }),
         ),
     });
+const dashboardOverviewCapabilitiesSchema = passthroughObject({
+    can_read: z.boolean(),
+    can_view_issue_metrics: z.boolean(),
+    can_view_committee: z.boolean(),
+    can_view_vendor_metrics: z.boolean(),
+    can_use_department_filter: z.boolean(),
+    can_export_or_report: z.boolean(),
+});
 export const dashboardOverviewSchema: z.ZodType<DashboardOverview> = passthroughObject({
     summary: dashboardSummarySchema,
     department_metrics: z.array(departmentMetricsSchema),
@@ -151,6 +159,7 @@ export const dashboardOverviewSchema: z.ZodType<DashboardOverview> = passthrough
     issue_aging: issueAgingResponseSchema.nullable(),
     issue_severity: issueSeverityBreakdownResponseSchema.nullable(),
     generated_at: z.string(),
+    capabilities: dashboardOverviewCapabilitiesSchema.nullable().optional(),
 });
 
 export const dashboardRiskByCellItemSchema: z.ZodType<DashboardRiskByCellItem> = passthroughObject({

@@ -57,6 +57,7 @@ export function UsersPage() {
     } = useUsersAuthMode();
     const {
         directoryAvailableRoles,
+        directoryCapabilities,
         directoryPage,
         directoryTotal,
         fetchUsers,
@@ -67,6 +68,7 @@ export function UsersPage() {
         users,
     } = useUsersPageData({
         currentUserLoaded: Boolean(currentUser),
+        loadDirectoryCapabilities: authz.isPlatformAdmin,
         pageMode,
     });
 
@@ -185,7 +187,7 @@ export function UsersPage() {
     ];
     const roleOptions = isAccessMode
         ? accessRoleOptions
-        : (directoryAvailableRoles ?? []).map((role) => ({
+        : (directoryCapabilities?.can_use_role_facets === true ? directoryAvailableRoles : []).map((role) => ({
             value: role.name,
             label: role.display_name,
         }));
@@ -292,7 +294,7 @@ export function UsersPage() {
                         onEditAccess={handleEditAccess}
                         onToggleStatus={handleToggleClick}
                         onBreakGlassEnable={handleBreakGlassOpen}
-                        canRunDirectoryChecks={authz.isPlatformAdmin}
+                        canRunDirectoryChecks={directoryCapabilities?.can_import_directory_user === true}
                         checkingDirectoryUserId={checkingDirectoryUserId}
                         onCheckDirectory={handleCheckSingleDirectory}
                     />

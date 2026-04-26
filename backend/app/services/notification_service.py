@@ -3,15 +3,18 @@
 import logging
 from datetime import UTC, datetime
 
-from sqlalchemy import and_, or_, select
+from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
-from app.core.permissions import can_read_control_id, can_read_kri_id, can_read_risk_id, can_read_vendor_id
-from app.models.approval_request import ApprovalRequest, ApprovalResourceType
+from app.core.permissions import can_read_vendor_id
+from app.models.approval_request import ApprovalRequest
 from app.models.notification import Notification, NotificationType
-from app.models.role import Permission, Role, RolePermission
-from app.models.user import AccessScope, User
+from app.models.user import User
+from app.services._notification_approval_helpers import (
+    approval_action_label,
+    can_user_view_approval_resource,
+    load_approval_notification_candidates,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -165,26 +168,10 @@ class NotificationService:
         Returns:
             List of created Notification objects
         """
-        permission_load = selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
-        candidates_stmt = (
-            select(User)
-            .join(Role, User.role_id == Role.id)
-            .join(RolePermission, RolePermission.role_id == Role.id)
-            .join(Permission, RolePermission.permission_id == Permission.id)
-            .where(
-                User.is_active.is_(True),
-                User.access_scope == AccessScope.GLOBAL,  # only privileged approvers
-                or_(
-                    (Permission.resource.in_(("approvals", "*")) & Permission.action.in_(("write", "*"))),
-                ),
-            )
-            .options(permission_load)
-        )
-        candidates_result = await db.execute(candidates_stmt)
-        candidates = candidates_result.unique().scalars().all()
+        candidates = await load_approval_notification_candidates(db)
 
         notifications = []
-        action_label = "delete" if approval.action_type.value == "delete" else "edit"
+        action_label = approval_action_label(approval)
 
         for approver in candidates:
             # Don't notify the requester themselves if they're an approver
@@ -192,17 +179,7 @@ class NotificationService:
                 continue
 
             # Visibility filter: never notify users who can't see the referenced object (prevents cross-scope leaks).
-            visible = False
-            if approval.resource_type == ApprovalResourceType.RISK:
-                visible = await can_read_risk_id(db, approver, approval.resource_id)
-            elif approval.resource_type == ApprovalResourceType.CONTROL:
-                visible = await can_read_control_id(db, approver, approval.resource_id)
-            elif approval.resource_type == ApprovalResourceType.KRI:
-                visible = await can_read_kri_id(db, approver, approval.resource_id)
-            else:
-                visible = False
-
-            if not visible:
+            if not await can_user_view_approval_resource(db, approver, approval):
                 continue
 
             try:
@@ -244,7 +221,7 @@ class NotificationService:
         Returns:
             Created Notification object, or None if creation failed
         """
-        action_label = "delete" if approval.action_type.value == "delete" else "edit"
+        action_label = approval_action_label(approval)
         status_label = "approved" if approved else "rejected"
 
         try:
@@ -292,43 +269,17 @@ class NotificationService:
         Returns:
             List of created Notification objects
         """
-        permission_load = selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
-        candidates_stmt = (
-            select(User)
-            .join(Role, User.role_id == Role.id)
-            .join(RolePermission, RolePermission.role_id == Role.id)
-            .join(Permission, RolePermission.permission_id == Permission.id)
-            .where(
-                User.is_active.is_(True),
-                User.access_scope == AccessScope.GLOBAL,  # only privileged approvers
-                or_(
-                    (Permission.resource.in_(("approvals", "*")) & Permission.action.in_(("write", "*"))),
-                ),
-            )
-            .options(permission_load)
-        )
-        candidates_result = await db.execute(candidates_stmt)
-        candidates = candidates_result.unique().scalars().all()
+        candidates = await load_approval_notification_candidates(db)
 
         notifications = []
-        action_label = "delete" if approval.action_type.value == "delete" else "edit"
+        action_label = approval_action_label(approval)
 
         for approver in candidates:
             # Don't notify the user who cancelled
             if approver.id == cancelled_by_user.id:
                 continue
 
-            visible = False
-            if approval.resource_type == ApprovalResourceType.RISK:
-                visible = await can_read_risk_id(db, approver, approval.resource_id)
-            elif approval.resource_type == ApprovalResourceType.CONTROL:
-                visible = await can_read_control_id(db, approver, approval.resource_id)
-            elif approval.resource_type == ApprovalResourceType.KRI:
-                visible = await can_read_kri_id(db, approver, approval.resource_id)
-            else:
-                visible = False
-
-            if not visible:
+            if not await can_user_view_approval_resource(db, approver, approval):
                 continue
 
             try:

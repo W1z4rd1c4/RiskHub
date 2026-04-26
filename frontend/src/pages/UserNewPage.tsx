@@ -12,6 +12,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { accessApi } from '@/services/accessApi';
 import { userApi } from '@/services/userApi';
+import { userDirectoryApi } from '@/services/userDirectoryApi';
 import { apiClient } from '@/services/apiClient';
 import { departmentApi } from '@/services/departmentApi';
 import type { DepartmentSummary } from '@/services/departmentApi';
@@ -19,9 +20,8 @@ import type { AuthConfigResponse } from '@/services/authApi';
 import { getAuthConfig } from '@/services/authConfig';
 import { isAuthUnavailableError } from '@/services/authRequest';
 import type { RoleWithPermissions } from '@/types/access';
-import type { UserCreate } from '@/types/user';
+import type { UserCreate, UserDirectoryCapabilities } from '@/types/user';
 import type { DirectoryImportResponse } from '@/types/directory';
-import { usePermissions } from '@/hooks/usePermissions';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { DirectoryUserImportPanel } from '@/components/users/DirectoryUserImportPanel';
 import { useTranslation } from '@/i18n/hooks';
@@ -35,9 +35,9 @@ const PRIVILEGED_ROLE_NAMES = ['admin', 'cro', 'risk_manager'];
 export function UserNewPage() {
     const navigate = useNavigate();
     const { t } = useTranslation(['admin', 'common', 'errorKeys']);
-    const { canManageUsers } = usePermissions();
     const [authConfig, setAuthConfig] = useState<AuthConfigResponse | null>(null);
     const [isAuthConfigLoading, setIsAuthConfigLoading] = useState(true);
+    const [directoryCapabilities, setDirectoryCapabilities] = useState<UserDirectoryCapabilities | null>(null);
     const [authConfigError, setAuthConfigError] = useState<string | null>(null);
     const [isDirectoryProviderUnavailable, setIsDirectoryProviderUnavailable] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
@@ -61,6 +61,17 @@ export function UserNewPage() {
                 const config = await getAuthConfig();
                 if (cancelled) return;
                 setAuthConfig(config);
+                try {
+                    const directoryResponse = await userDirectoryApi.listDirectoryUsers({ skip: 0, limit: 1 });
+                    if (!cancelled) {
+                        setDirectoryCapabilities(directoryResponse.capabilities ?? null);
+                    }
+                } catch (directoryError) {
+                    logError('Failed to load user directory capabilities:', directoryError);
+                    if (!cancelled) {
+                        setDirectoryCapabilities(null);
+                    }
+                }
             } catch (err) {
                 if (cancelled) return;
                 logError('Failed to load auth mode:', err);
@@ -124,11 +135,11 @@ export function UserNewPage() {
     }, []);
 
     useEffect(() => {
-        if (canManageUsers && authConfig?.auth_mode === 'password') {
+        if (directoryCapabilities?.can_create_local_user === true && authConfig?.auth_mode === 'password') {
             void fetchDepartments();
             void fetchRoles();
         }
-    }, [authConfig, canManageUsers, fetchDepartments, fetchRoles]);
+    }, [authConfig, directoryCapabilities, fetchDepartments, fetchRoles]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -158,6 +169,8 @@ export function UserNewPage() {
         ? authConfig.auth_mode !== 'password'
         : false;
     const showDirectorySetupHint = Boolean(authConfig?.sso_error) || isDirectoryProviderUnavailable;
+    const canCreateLocalUser = directoryCapabilities?.can_create_local_user === true;
+    const canImportDirectoryUser = directoryCapabilities?.can_import_directory_user === true;
 
     return (
         <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -207,7 +220,7 @@ export function UserNewPage() {
                         })}
                     </p>
                 </div>
-            ) : isDirectoryFirstMode ? (
+            ) : isDirectoryFirstMode && canImportDirectoryUser ? (
                 <div className="glass-card p-6 space-y-4">
                     <h2 className="text-lg font-semibold text-white flex items-center gap-2">
                         <Building2 className="h-5 w-5 text-accent" />
@@ -245,7 +258,7 @@ export function UserNewPage() {
                         onProviderUnavailableChange={setIsDirectoryProviderUnavailable}
                     />
                 </div>
-            ) : (
+            ) : !isDirectoryFirstMode && canCreateLocalUser ? (
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="glass-card p-6 space-y-4">
@@ -369,6 +382,11 @@ export function UserNewPage() {
                         </button>
                     </div>
                 </form>
+            ) : (
+                <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 p-4 rounded-xl flex items-center gap-3">
+                    <Shield className="h-5 w-5 shrink-0" />
+                    <p>{t('access.denied', { ns: 'common' })}</p>
+                </div>
             )}
         </div>
     );

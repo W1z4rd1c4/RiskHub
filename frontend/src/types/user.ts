@@ -79,12 +79,21 @@ export interface UserDirectoryRoleFacet {
     count: number;
 }
 
+export interface UserDirectoryCapabilities {
+    can_read_directory: boolean;
+    can_view_access_details: boolean;
+    can_use_role_facets: boolean;
+    can_create_local_user: boolean;
+    can_import_directory_user: boolean;
+}
+
 export interface UserDirectoryListResponse {
     items: UserDirectoryEntry[];
     available_roles: UserDirectoryRoleFacet[];
     total: number;
     skip: number;
     limit: number;
+    capabilities?: UserDirectoryCapabilities | null;
 }
 
 export interface UserShellSummary {

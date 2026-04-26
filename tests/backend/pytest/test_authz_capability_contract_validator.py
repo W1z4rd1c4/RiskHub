@@ -104,8 +104,8 @@ def test_markdown_matrix_findings_drift_fails_validation() -> None:
     validator = _load_validator()
     manifest = json.loads(CONTRACT_JSON_PATH.read_text(encoding="utf-8"))
     markdown = CONTRACT_MD_PATH.read_text(encoding="utf-8").replace(
-        "P2: directory frontend route visibility is locally derived from authz rather than backend action capabilities",
-        "P2: stale finding",
+        "| authoritative | None |",
+        "| authoritative | P2: stale finding |",
         1,
     )
 

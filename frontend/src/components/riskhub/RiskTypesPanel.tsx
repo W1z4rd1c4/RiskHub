@@ -6,6 +6,7 @@ import { riskHubApi } from '@/services/riskHubApi';
 import { apiClient } from '@/services/apiClient';
 import type { RiskType, RiskTypeCreate, RiskTypeUpdate } from '@/services/riskHubApi';
 import { cn } from '@/lib/utils';
+import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { useTranslation } from '@/i18n/hooks';
 import { RiskHubFieldError, RiskHubModalActions, RiskHubModalFrame } from './panelPrimitives';
 
@@ -189,6 +190,7 @@ export function RiskTypesPanel() {
             setDeleteConfirm(null);
         }
     };
+    const canCreate = riskTypes?.some((type) => resolveCapabilityFlag(type.capabilities, 'can_create')) === true;
 
     if (isLoading) {
         return <div className="text-slate-400 text-center py-8">{t('common:loading.risk_types')}</div>;
@@ -217,13 +219,15 @@ export function RiskTypesPanel() {
                         {t('admin:risk_types_panel.show_deleted')}
                     </label>
 
-                    <button
-                        onClick={() => { setEditingType(null); setModalOpen(true); }}
-                        className="flex items-center gap-2 px-3 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors"
-                    >
-                        <Plus className="h-4 w-4" />
-                        {t('admin:risk_types_panel.add_type')}
-                    </button>
+                    {canCreate ? (
+                        <button
+                            onClick={() => { setEditingType(null); setModalOpen(true); }}
+                            className="flex items-center gap-2 px-3 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors"
+                        >
+                            <Plus className="h-4 w-4" />
+                            {t('admin:risk_types_panel.add_type')}
+                        </button>
+                    ) : null}
                 </div>
             </div>
 
@@ -241,7 +245,12 @@ export function RiskTypesPanel() {
                         </tr>
                     </thead>
                     <tbody>
-                        {riskTypes?.map((type) => (
+                        {riskTypes?.map((type) => {
+                            const canUpdate = resolveCapabilityFlag(type.capabilities, 'can_update');
+                            const canDelete = resolveCapabilityFlag(type.capabilities, 'can_delete');
+                            const canRestore = resolveCapabilityFlag(type.capabilities, 'can_restore');
+
+                            return (
                             <tr
                                 key={type.id}
                                 className={cn(
@@ -281,16 +290,18 @@ export function RiskTypesPanel() {
                                 </td>
                                 <td className="py-3 px-4 text-right">
                                     <div className="flex items-center justify-end gap-2">
-                                        <button
-                                            onClick={() => { setEditingType(type); setModalOpen(true); }}
-                                            className="p-1.5 text-slate-400 hover:text-white hover:bg-white/10 rounded transition-colors"
-                                            title={t('common:actions.edit')}
-                                            aria-label={t('common:actions.edit')}
-                                        >
-                                            <Edit className="h-4 w-4" aria-hidden="true" />
-                                        </button>
+                                        {canUpdate ? (
+                                            <button
+                                                onClick={() => { setEditingType(type); setModalOpen(true); }}
+                                                className="p-1.5 text-slate-400 hover:text-white hover:bg-white/10 rounded transition-colors"
+                                                title={t('common:actions.edit')}
+                                                aria-label={t('common:actions.edit')}
+                                            >
+                                                <Edit className="h-4 w-4" aria-hidden="true" />
+                                            </button>
+                                        ) : null}
 
-                                        {!type.is_system && type.is_active && (
+                                        {canDelete && (
                                             <button
                                                 onClick={() => setDeleteConfirm(type)}
                                                 className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"
@@ -301,7 +312,7 @@ export function RiskTypesPanel() {
                                             </button>
                                         )}
 
-                                        {!type.is_active && (
+                                        {canRestore && (
                                             <button
                                                 onClick={() => restoreMutation.mutate(type.id)}
                                                 className="p-1.5 text-slate-400 hover:text-green-400 hover:bg-green-500/10 rounded transition-colors"
@@ -314,7 +325,8 @@ export function RiskTypesPanel() {
                                     </div>
                                 </td>
                             </tr>
-                        ))}
+                            );
+                        })}
                     </tbody>
                 </table>
             </div>

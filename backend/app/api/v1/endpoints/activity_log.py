@@ -8,14 +8,23 @@ from sqlalchemy import String, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.datetime_utils import coerce_utc
-from app.core.permissions import get_user_department_ids
+from app.core.permissions import get_user_department_ids, has_permission
 from app.core.security import require_business_permission
 from app.db.session import get_db
 from app.models import ActivityLog, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
-from app.schemas.activity_log import ActivityLogListResponse, ActivityLogRead
+from app.schemas.activity_log import ActivityLogCapabilities, ActivityLogListResponse, ActivityLogRead
 
 router = APIRouter()
+
+
+def _activity_log_capabilities(current_user: User) -> ActivityLogCapabilities:
+    return ActivityLogCapabilities(
+        can_read=True,
+        can_filter_by_department=get_user_department_ids(current_user) is None,
+        can_view_entity_filters=True,
+        can_export_csv=has_permission(current_user, "reports", "read"),
+    )
 
 
 @router.get("", response_model=ActivityLogListResponse)
@@ -60,7 +69,13 @@ async def list_activity_logs(
     if dept_ids is not None:  # Non-privileged user
         if not dept_ids:
             # User has no department access
-            return ActivityLogListResponse(items=[], total=0, skip=skip, limit=limit)
+            return ActivityLogListResponse(
+                items=[],
+                total=0,
+                skip=skip,
+                limit=limit,
+                capabilities=_activity_log_capabilities(current_user),
+            )
         query = query.where(ActivityLog.department_id.in_(dept_ids))
 
     # Apply filters
@@ -107,6 +122,7 @@ async def list_activity_logs(
         total=total,
         skip=skip,
         limit=limit,
+        capabilities=_activity_log_capabilities(current_user),
     )
 
 

@@ -145,6 +145,16 @@ class UserDirectoryRoleFacet(BaseModel):
     count: int
 
 
+class UserDirectoryCapabilities(BaseModel):
+    """Backend-authoritative user-directory action capabilities."""
+
+    can_read_directory: bool = False
+    can_view_access_details: bool = False
+    can_use_role_facets: bool = False
+    can_create_local_user: bool = False
+    can_import_directory_user: bool = False
+
+
 class UserDirectoryListResponse(BaseModel):
     """Paginated response for user-directory collection reads."""
 
@@ -153,6 +163,7 @@ class UserDirectoryListResponse(BaseModel):
     total: int
     skip: int
     limit: int
+    capabilities: UserDirectoryCapabilities | None = None
 
 
 class UserShellSummary(BaseModel):

@@ -7,11 +7,28 @@ from app.core.activity_logger import log_activity
 from app.db.session import get_db
 from app.models import ApprovalScenario, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
-from app.schemas.riskhub import ApprovalScenarioRead, ApprovalScenarioUpdate
+from app.schemas.riskhub import ApprovalScenarioCapabilities, ApprovalScenarioRead, ApprovalScenarioUpdate
 
 from ._shared import get_cro_user
 
 router = APIRouter()
+
+
+def _approval_scenario_read(scenario: ApprovalScenario, *, updated_by_name: str | None = None) -> ApprovalScenarioRead:
+    resolved_updated_by_name = (
+        updated_by_name if updated_by_name is not None else (scenario.updated_by.name if scenario.updated_by else None)
+    )
+    return ApprovalScenarioRead(
+        id=scenario.id,
+        key=scenario.key,
+        display_name=scenario.display_name,
+        description=scenario.description,
+        requires_approval=scenario.requires_approval,
+        approver_roles=scenario.get_approver_roles(),
+        updated_at=scenario.updated_at.isoformat(),
+        updated_by_name=resolved_updated_by_name,
+        capabilities=ApprovalScenarioCapabilities(can_update=True),
+    )
 
 
 @router.get("/approval-scenarios", response_model=list[ApprovalScenarioRead])
@@ -31,19 +48,7 @@ async def list_approval_scenarios(
     )
     scenarios = result.scalars().all()
 
-    return [
-        ApprovalScenarioRead(
-            id=s.id,
-            key=s.key,
-            display_name=s.display_name,
-            description=s.description,
-            requires_approval=s.requires_approval,
-            approver_roles=s.get_approver_roles(),
-            updated_at=s.updated_at.isoformat(),
-            updated_by_name=s.updated_by.name if s.updated_by else None,
-        )
-        for s in scenarios
-    ]
+    return [_approval_scenario_read(s) for s in scenarios]
 
 
 @router.patch("/approval-scenarios/{key}", response_model=ApprovalScenarioRead)
@@ -102,13 +107,4 @@ async def update_approval_scenario(
         )
         await db.commit()
 
-    return ApprovalScenarioRead(
-        id=scenario.id,
-        key=scenario.key,
-        display_name=scenario.display_name,
-        description=scenario.description,
-        requires_approval=scenario.requires_approval,
-        approver_roles=scenario.get_approver_roles(),
-        updated_at=scenario.updated_at.isoformat(),
-        updated_by_name=cro_user.name,
-    )
+    return _approval_scenario_read(scenario, updated_by_name=cro_user.name)

@@ -98,6 +98,12 @@ describe('Risk Hub config panels', () => {
                 risk_count: 0,
                 created_at: '2026-04-01T00:00:00Z',
                 updated_at: '2026-04-01T00:00:00Z',
+                capabilities: {
+                    can_create: true,
+                    can_update: true,
+                    can_delete: true,
+                    can_restore: false,
+                },
             },
         ]);
         vi.mocked(riskHubApi.createRiskType).mockResolvedValue({} as never);
@@ -126,6 +132,7 @@ describe('Risk Hub config panels', () => {
                 approver_roles: ['risk_owner'],
                 updated_at: '2026-04-01T00:00:00Z',
                 updated_by_name: null,
+                capabilities: { can_update: true },
             },
         ]);
         vi.mocked(riskHubApi.getRoles).mockResolvedValue([

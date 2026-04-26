@@ -30,6 +30,12 @@ export const riskTypeSchema: z.ZodType<RiskType> = passthroughObject({
     risk_count: z.number(),
     created_at: z.string(),
     updated_at: z.string(),
+    capabilities: passthroughObject({
+        can_create: z.boolean(),
+        can_update: z.boolean(),
+        can_delete: z.boolean(),
+        can_restore: z.boolean(),
+    }).nullable().optional(),
 });
 export const riskTypeArraySchema = z.array(riskTypeSchema);
 export const publicRiskTypeSchema: z.ZodType<PublicRiskType> = passthroughObject({
@@ -72,6 +78,9 @@ export const approvalScenarioSchema: z.ZodType<ApprovalScenario> = passthroughOb
     approver_roles: stringArraySchema,
     updated_at: z.string(),
     updated_by_name: z.string().nullable(),
+    capabilities: passthroughObject({
+        can_update: z.boolean(),
+    }).nullable().optional(),
 });
 export const approvalScenarioArraySchema = z.array(approvalScenarioSchema);
 

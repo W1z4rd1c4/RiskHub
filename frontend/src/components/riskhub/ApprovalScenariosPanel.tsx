@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ShieldCheck, Check, X, ChevronDown } from 'lucide-react';
 import { riskHubApi } from '@/services/riskHubApi';
+import { resolveCapabilityFlag } from '@/lib/capabilities';
 import type { ApprovalScenario, ApprovalScenarioUpdate } from '@/services/riskHubApi';
 import { cn } from '@/lib/utils';
 import { useState, useMemo, useEffect } from 'react';
@@ -283,12 +284,14 @@ export function ApprovalScenariosPanel() {
                                     </div>
                                 </td>
                                 <td className="py-3 px-4 text-right">
-                                    <button
-                                        onClick={() => setEditingScenario(scenario)}
-                                        className="px-3 py-1.5 text-sm text-accent hover:text-white hover:bg-accent/20 rounded-lg transition-colors"
-                                    >
-                                        {t('admin:approval_scenarios.configure')}
-                                    </button>
+                                    {resolveCapabilityFlag(scenario.capabilities, 'can_update') ? (
+                                        <button
+                                            onClick={() => setEditingScenario(scenario)}
+                                            className="px-3 py-1.5 text-sm text-accent hover:text-white hover:bg-accent/20 rounded-lg transition-colors"
+                                        >
+                                            {t('admin:approval_scenarios.configure')}
+                                        </button>
+                                    ) : null}
                                 </td>
                             </tr>
                         ))}

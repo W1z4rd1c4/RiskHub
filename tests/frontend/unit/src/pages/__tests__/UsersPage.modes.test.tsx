@@ -170,6 +170,13 @@ function makeDirectoryResponse(overrides?: {
     total?: number;
     skip?: number;
     limit?: number;
+    capabilities?: {
+        can_read_directory: boolean;
+        can_view_access_details: boolean;
+        can_use_role_facets: boolean;
+        can_create_local_user: boolean;
+        can_import_directory_user: boolean;
+    } | null;
 }) {
     return {
         items: overrides?.items ?? [],
@@ -177,6 +184,13 @@ function makeDirectoryResponse(overrides?: {
         total: overrides?.total ?? 0,
         skip: overrides?.skip ?? 0,
         limit: overrides?.limit ?? 50,
+        capabilities: overrides?.capabilities ?? {
+            can_read_directory: true,
+            can_view_access_details: true,
+            can_use_role_facets: true,
+            can_create_local_user: false,
+            can_import_directory_user: false,
+        },
     };
 }
 

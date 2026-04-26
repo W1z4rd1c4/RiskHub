@@ -12,11 +12,19 @@ export interface ActivityLogEntry {
     created_at: string;
 }
 
+export interface ActivityLogCapabilities {
+    can_read: boolean;
+    can_filter_by_department: boolean;
+    can_view_entity_filters: boolean;
+    can_export_csv: boolean;
+}
+
 export interface ActivityLogListResponse {
     items: ActivityLogEntry[];
     total: number;
     skip: number;
     limit: number;
+    capabilities?: ActivityLogCapabilities | null;
 }
 
 export type ActivityViewMode = 'all' | 'by_person' | 'by_department' | 'by_entity_type';

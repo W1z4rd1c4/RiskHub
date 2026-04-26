@@ -76,6 +76,15 @@ export interface IssueSeverityBreakdownResponse {
     items: IssueSeverityBreakdownItem[];
 }
 
+export interface DashboardOverviewCapabilities {
+    can_read: boolean;
+    can_view_issue_metrics: boolean;
+    can_view_committee: boolean;
+    can_view_vendor_metrics: boolean;
+    can_use_department_filter: boolean;
+    can_export_or_report: boolean;
+}
+
 export interface DashboardOverview {
     summary: DashboardSummary;
     department_metrics: DepartmentMetrics[];
@@ -88,6 +97,7 @@ export interface DashboardOverview {
     issue_aging: IssueAgingResponse | null;
     issue_severity: IssueSeverityBreakdownResponse | null;
     generated_at: string;
+    capabilities?: DashboardOverviewCapabilities | null;
 }
 
 export type RiskLevel = 'all' | 'critical' | 'high' | 'medium' | 'low';
