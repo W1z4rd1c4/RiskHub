@@ -55,7 +55,7 @@ def _audit_trail_query(
     if to_date:
         query = query.where(ControlExecution.executed_at <= to_date)
 
-    return query.order_by(ControlExecution.executed_at.desc())
+    return query.order_by(ControlExecution.executed_at.desc(), ControlExecution.id.desc())
 
 
 async def _execution_linked_risks(db: AsyncSession, current_user: User, execution: ControlExecution) -> str:

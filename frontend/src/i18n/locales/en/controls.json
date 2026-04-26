@@ -89,6 +89,7 @@
     "no_linked_risks": "No linked risks"
   },
   "errors": {
+    "load_history_failed": "Failed to load execution history. Please try again.",
     "load_failed": "Failed to load controls. Please check your connection.",
     "title": "Error Loading Controls",
     "try_again": "Try Again"

@@ -360,7 +360,14 @@ export function ControlDetailPage() {
                         )}
                     </div>
 
-                    <ExecutionHistory key={historyKey} controlId={control.id} />
+                    <ExecutionHistory
+                        key={historyKey}
+                        controlId={control.id}
+                        controlName={control.name}
+                        canCreateIssue={canCreateIssue}
+                        createIssueLabel={tIssues('actions.new_issue')}
+                        onIssueCreated={(issue) => navigate(`/issues/${issue.id}`)}
+                    />
                 </motion.div>
             )}
 

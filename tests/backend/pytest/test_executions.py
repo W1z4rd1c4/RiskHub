@@ -2,6 +2,8 @@
 Tests for Execution API endpoints.
 """
 
+from datetime import UTC, datetime
+
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
@@ -106,6 +108,42 @@ async def test_control_execution_endpoint_rejects_archived_control(
 
     assert response.status_code == 409
     assert "archived control" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_execution_endpoints_reject_inactive_control(
+    auth_client: AsyncClient,
+    db_session,
+    test_user: User,
+    test_department: Department,
+):
+    control = Control(
+        name="Inactive Execution Control",
+        description="Inactive controls cannot be executed",
+        department_id=test_department.id,
+        control_owner_id=test_user.id,
+        control_form="manual",
+        frequency="monthly",
+        risk_level=3,
+        status="inactive",
+    )
+    db_session.add(control)
+    await db_session.commit()
+    await db_session.refresh(control)
+
+    generic_response = await auth_client.post(
+        "/api/v1/executions",
+        json={"control_id": control.id, "result": "passed", "findings": "Should be rejected"},
+    )
+    nested_response = await auth_client.post(
+        f"/api/v1/controls/{control.id}/executions",
+        json={"result": "passed", "findings": "Should be rejected"},
+    )
+
+    assert generic_response.status_code == 409
+    assert "inactive control" in generic_response.json()["detail"]
+    assert nested_response.status_code == 409
+    assert "inactive control" in nested_response.json()["detail"]
 
 
 @pytest.mark.asyncio
@@ -219,6 +257,56 @@ async def test_list_executions(client_cro: AsyncClient, test_user_cro: User, tes
     assert isinstance(data["items"], list)
     assert data["total"] >= 1
     assert data["limit"] == 100
+
+
+@pytest.mark.asyncio
+async def test_execution_lists_use_id_tie_breaker_for_equal_execution_times(
+    client_cro: AsyncClient,
+    db_session,
+    test_user_cro: User,
+    test_department: Department,
+):
+    control = Control(
+        name="Execution Ordering Control",
+        description="Control for deterministic execution ordering",
+        department_id=test_department.id,
+        control_owner_id=test_user_cro.id,
+        control_form="manual",
+        frequency="monthly",
+        risk_level=2,
+        status="active",
+    )
+    db_session.add(control)
+    await db_session.commit()
+    await db_session.refresh(control)
+
+    executed_at = datetime(2026, 4, 26, 12, 0, tzinfo=UTC)
+    first = ControlExecution(
+        control_id=control.id,
+        executed_by_id=test_user_cro.id,
+        result="warning",
+        findings="First execution",
+        executed_at=executed_at,
+    )
+    second = ControlExecution(
+        control_id=control.id,
+        executed_by_id=test_user_cro.id,
+        result="failed",
+        findings="Second execution",
+        executed_at=executed_at,
+    )
+    db_session.add_all([first, second])
+    await db_session.commit()
+    await db_session.refresh(first)
+    await db_session.refresh(second)
+
+    generic_response = await client_cro.get(f"/api/v1/executions?control_id={control.id}")
+    nested_response = await client_cro.get(f"/api/v1/controls/{control.id}/executions")
+
+    assert generic_response.status_code == 200
+    assert nested_response.status_code == 200
+    assert [item["id"] for item in generic_response.json()["items"][:2]] == [second.id, first.id]
+    assert [item["id"] for item in nested_response.json()[:2]] == [second.id, first.id]
 
 
 @pytest.mark.asyncio

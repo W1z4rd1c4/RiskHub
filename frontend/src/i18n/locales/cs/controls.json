@@ -89,6 +89,7 @@
     "no_linked_risks": "Žádné propojené rizika"
   },
   "errors": {
+    "load_history_failed": "Nepodařilo se načíst historii exekucí. Zkuste to prosím znovu.",
     "load_failed": "Nepodařilo se načíst kontroly. Zkontrolujte prosím připojení.",
     "title": "Chyba při načítání kontrol",
     "try_again": "Zkusit znovu"

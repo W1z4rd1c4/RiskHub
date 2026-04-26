@@ -35,6 +35,10 @@ def calculate_next_scheduled(frequency: str, executed_at: datetime) -> datetime:
     return executed_at + frequency_deltas.get(normalized_frequency, timedelta(days=30))
 
 
+def control_is_executable(control: Control) -> bool:
+    return control.status in {ControlStatus.active.value, ControlStatus.draft.value}
+
+
 async def load_control_for_execution(
     db: AsyncSession,
     *,
@@ -79,8 +83,13 @@ async def create_execution_record(
         current_user=current_user,
         for_update=True,
     )
-    if control.status == ControlStatus.archived.value:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Cannot execute an archived control")
+    if not control_is_executable(control):
+        detail = (
+            "Cannot execute an archived control"
+            if control.status == ControlStatus.archived.value
+            else "Cannot execute an inactive control"
+        )
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail)
 
     executed_at = utc_now()
     next_scheduled = payload.next_scheduled or calculate_next_scheduled(control.frequency, executed_at)

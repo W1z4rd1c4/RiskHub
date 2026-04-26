@@ -19,6 +19,8 @@ from .._shared import (
     _get_issue_with_relations,
     _serialize_issue_read,
     _validate_user_exists,
+    ensure_issue_source_link,
+    resolve_issue_source_metadata,
 )
 
 router = APIRouter()
@@ -34,6 +36,17 @@ async def create_issue(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="department_id is required")
     if not can_access_department_id(current_user, payload.department_id):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied to this department")
+    resolved_source = await resolve_issue_source_metadata(
+        db,
+        current_user,
+        source_type=payload.source_type,
+        source_id=payload.source_id,
+    )
+    if resolved_source is not None and resolved_source.department_id != payload.department_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Source entity department must match issue department",
+        )
 
     await _validate_user_exists(db, payload.owner_user_id)
     await _ensure_owner_assignable(
@@ -48,8 +61,8 @@ async def create_issue(
         description=payload.description,
         severity=payload.severity.value,
         status=IssueStatus.open.value,
-        source_type=payload.source_type.value,
-        source_id=payload.source_id,
+        source_type=(resolved_source.source_type.value if resolved_source is not None else payload.source_type.value),
+        source_id=(resolved_source.source_id if resolved_source is not None else None),
         department_id=payload.department_id,
         owner_user_id=payload.owner_user_id,
         created_by_id=current_user.id,
@@ -69,6 +82,17 @@ async def create_issue(
     db.add(remediation)
     await db.flush()
 
+    source_link = None
+    source_link_created = False
+    if resolved_source is not None:
+        source_link_result = await ensure_issue_source_link(
+            db,
+            issue_id=issue.id,
+            link_values=resolved_source.link_values,
+        )
+        if source_link_result is not None:
+            source_link, source_link_created = source_link_result
+
     await log_activity(
         db,
         entity_type=ActivityEntityType.ISSUE,
@@ -79,6 +103,18 @@ async def create_issue(
         department_id=issue.department_id,
         description=f"Created issue: {issue.title}",
     )
+    if source_link is not None and source_link_created:
+        await log_activity(
+            db,
+            entity_type=ActivityEntityType.ISSUE,
+            entity_id=issue.id,
+            entity_name=issue.title,
+            action=ActivityAction.LINK,
+            actor=current_user,
+            department_id=issue.department_id,
+            changes={"link_id": {"old": None, "new": source_link.id}},
+            description=f"Linked issue source to issue {issue.title}",
+        )
 
     await db.commit()
     reloaded_issue = await _get_issue_with_relations(db, issue.id)

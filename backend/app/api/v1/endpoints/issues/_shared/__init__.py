@@ -27,6 +27,12 @@ from .serialization import (
     _serialize_issue_summary,
     _serialize_remediation,
 )
+from .source import (
+    ResolvedIssueSource,
+    ensure_issue_source_link,
+    resolve_contextual_issue_source,
+    resolve_issue_source_metadata,
+)
 from .validation import _ensure_owner_assignable, _validate_user_exists
 
 __all__ = [
@@ -37,6 +43,7 @@ __all__ = [
     "UNKNOWN_RISK_LABEL",
     "UNKNOWN_USER_LABEL",
     "UNKNOWN_VENDOR_LABEL",
+    "ResolvedIssueSource",
     "_active_exception",
     "_ensure_owner_assignable",
     "_get_active_user_with_permissions",
@@ -58,4 +65,7 @@ __all__ = [
     "_serialize_issue_summary",
     "_serialize_remediation",
     "_validate_user_exists",
+    "ensure_issue_source_link",
+    "resolve_contextual_issue_source",
+    "resolve_issue_source_metadata",
 ]

@@ -186,6 +186,36 @@ async def test_get_control_normalizes_legacy_semi_annual_frequency(
 
 
 @pytest.mark.asyncio
+async def test_inactive_control_capabilities_do_not_expose_execution(
+    auth_client: AsyncClient,
+    db_session,
+    test_user: User,
+    test_department: Department,
+):
+    inactive_control = Control(
+        name="Inactive Capability Control",
+        description="Inactive controls should not expose execution logging",
+        department_id=test_department.id,
+        control_owner_id=test_user.id,
+        control_form="manual",
+        frequency="monthly",
+        risk_level=3,
+        status="inactive",
+    )
+    db_session.add(inactive_control)
+    await db_session.commit()
+    await db_session.refresh(inactive_control)
+
+    response = await auth_client.get(f"/api/v1/controls/{inactive_control.id}")
+
+    assert response.status_code == 200
+    capabilities = response.json()["capabilities"]
+    assert capabilities["can_read"] is True
+    assert capabilities["can_log_execution"] is False
+    assert capabilities["is_executable"] is False
+
+
+@pytest.mark.asyncio
 async def test_cross_department_control_owner_delete_permission_does_not_expose_lifecycle_capabilities(
     client: AsyncClient,
     db_session,

@@ -4,6 +4,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import (
@@ -95,6 +96,20 @@ async def test_issue_crud_list_link_and_source_metadata(
     issue_id = created["id"]
     assert created["source_type"] == "control_execution"
     assert created["source_id"] == execution.id
+    assert created["links"] == [
+        {
+            "id": created["links"][0]["id"],
+            "issue_id": issue_id,
+            "risk_id": None,
+            "control_id": None,
+            "execution_id": execution.id,
+            "kri_id": None,
+            "vendor_id": None,
+            "linked_entity_type": "execution",
+            "linked_entity_name": f"Execution for {control.name}",
+            "created_at": created["links"][0]["created_at"],
+        }
+    ]
     assert created["status"] == "open"
     assert created["department_name"] == test_department.name
     assert created["owner_user_name"] == assignable_owner.name
@@ -121,6 +136,7 @@ async def test_issue_crud_list_link_and_source_metadata(
     assert read_resp.status_code == 200
     assert read_resp.json()["title"] == "Execution finding"
     assert read_resp.json()["created_by_name"] == test_user.name
+    assert read_resp.json()["links"][0]["execution_id"] == execution.id
     assert read_resp.json()["capabilities"]["can_start_remediation"] is True
     assert read_resp.json()["capabilities"]["can_update_remediation_progress"] is False
     assert read_resp.json()["capabilities"]["can_close"] is False
@@ -143,8 +159,9 @@ async def test_issue_crud_list_link_and_source_metadata(
 
     read_with_link = await auth_client.get(f"/api/v1/issues/{issue_id}")
     assert read_with_link.status_code == 200
-    assert read_with_link.json()["links"][0]["linked_entity_type"] == "risk"
-    assert read_with_link.json()["links"][0]["linked_entity_name"] == risk.name
+    risk_link = next(link for link in read_with_link.json()["links"] if link["risk_id"] == risk.id)
+    assert risk_link["linked_entity_type"] == "risk"
+    assert risk_link["linked_entity_name"] == risk.name
     assert read_with_link.json()["risk_contexts"] == [
         {
             "risk_id": risk.id,
@@ -170,6 +187,321 @@ async def test_issue_crud_list_link_and_source_metadata(
 
     unlink_resp = await auth_client.delete(f"/api/v1/issues/{issue_id}/links/{link_id}")
     assert unlink_resp.status_code == 204
+
+
+@pytest.mark.asyncio
+async def test_issue_create_rejects_ambiguous_or_unlinked_source_metadata(
+    db_session: AsyncSession,
+    auth_client: AsyncClient,
+    test_department: Department,
+    test_user: User,
+):
+    control = Control(
+        name="Ambiguous Source Control",
+        description="Control ID must not be accepted as execution source",
+        department_id=test_department.id,
+        control_owner_id=test_user.id,
+        status="active",
+    )
+    db_session.add(control)
+    await db_session.commit()
+    await db_session.refresh(control)
+
+    manual_with_source = await auth_client.post(
+        "/api/v1/issues",
+        json={
+            "title": "Manual with source",
+            "severity": "medium",
+            "source_type": "manual",
+            "source_id": control.id,
+            "department_id": test_department.id,
+        },
+    )
+    assert manual_with_source.status_code == 400
+
+    control_id_as_execution = await auth_client.post(
+        "/api/v1/issues",
+        json={
+            "title": "Control ID as execution source",
+            "severity": "medium",
+            "source_type": "control_execution",
+            "source_id": control.id,
+            "department_id": test_department.id,
+        },
+    )
+    assert control_id_as_execution.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_issue_update_source_metadata_validates_and_creates_matching_link(
+    db_session: AsyncSession,
+    auth_client: AsyncClient,
+    test_department: Department,
+    test_user: User,
+):
+    risk = Risk(
+        risk_id_code="ISS-UPD-KRI",
+        name="Issue source update risk",
+        process="Finance",
+        description="Risk for KRI issue source update",
+        category="Operational",
+        department_id=test_department.id,
+        owner_id=test_user.id,
+        risk_type="operational",
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=2,
+        status="active",
+    )
+    db_session.add(risk)
+    await db_session.flush()
+    kri = KeyRiskIndicator(
+        risk_id=risk.id,
+        metric_name="Issue source update KRI",
+        description="KRI used as issue source",
+        current_value=15,
+        lower_limit=0,
+        upper_limit=10,
+        unit="%",
+    )
+    db_session.add(kri)
+    await db_session.commit()
+    await db_session.refresh(kri)
+
+    create_resp = await auth_client.post(
+        "/api/v1/issues",
+        json={
+            "title": "Manual issue to relink",
+            "severity": "medium",
+            "source_type": "manual",
+            "department_id": test_department.id,
+        },
+    )
+    assert create_resp.status_code == 201
+    issue_id = create_resp.json()["id"]
+
+    update_resp = await auth_client.patch(
+        f"/api/v1/issues/{issue_id}",
+        json={"source_type": "kri_breach", "source_id": kri.id},
+    )
+
+    assert update_resp.status_code == 200
+    payload = update_resp.json()
+    assert payload["source_type"] == "kri_breach"
+    assert payload["source_id"] == kri.id
+    assert payload["links"] == [
+        {
+            "id": payload["links"][0]["id"],
+            "issue_id": issue_id,
+            "risk_id": None,
+            "control_id": None,
+            "execution_id": None,
+            "kri_id": kri.id,
+            "vendor_id": None,
+            "linked_entity_type": "kri",
+            "linked_entity_name": kri.metric_name,
+            "created_at": payload["links"][0]["created_at"],
+        }
+    ]
+
+    rows = (
+        await db_session.execute(select(IssueLink).where(IssueLink.issue_id == issue_id, IssueLink.kri_id == kri.id))
+    ).scalars().all()
+    assert len(rows) == 1
+
+    invalid_manual = await auth_client.patch(
+        f"/api/v1/issues/{issue_id}",
+        json={"source_type": "manual", "source_id": kri.id},
+    )
+    assert invalid_manual.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_issue_update_requires_source_id_when_switching_concrete_source_types(
+    db_session: AsyncSession,
+    auth_client: AsyncClient,
+    test_department: Department,
+    test_user: User,
+):
+    risk = Risk(
+        risk_id_code="ISS-SRC-SWITCH",
+        name="Issue source switch risk",
+        process="Finance",
+        description="Risk for issue source switching",
+        category="Operational",
+        department_id=test_department.id,
+        owner_id=test_user.id,
+        risk_type="operational",
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=2,
+        status="active",
+    )
+    control = Control(
+        name="Issue source switch control",
+        description="Control for source switch issue",
+        department_id=test_department.id,
+        control_owner_id=test_user.id,
+        status="active",
+    )
+    db_session.add_all([risk, control])
+    await db_session.flush()
+
+    execution = ControlExecution(
+        control_id=control.id,
+        executed_by_id=test_user.id,
+        result="warning",
+        findings="Execution source",
+    )
+    db_session.add(execution)
+    await db_session.flush()
+
+    kri = KeyRiskIndicator(
+        id=execution.id,
+        risk_id=risk.id,
+        metric_name="Issue source switch KRI",
+        description="KRI shares numeric ID with execution",
+        current_value=15,
+        lower_limit=0,
+        upper_limit=10,
+        unit="%",
+    )
+    db_session.add(kri)
+    await db_session.commit()
+    await db_session.refresh(execution)
+    await db_session.refresh(kri)
+
+    execution_issue = await auth_client.post(
+        "/api/v1/issues",
+        json={
+            "title": "Execution sourced issue",
+            "severity": "medium",
+            "source_type": "control_execution",
+            "source_id": execution.id,
+            "department_id": test_department.id,
+        },
+    )
+    assert execution_issue.status_code == 201
+
+    missing_kri_source_id = await auth_client.patch(
+        f"/api/v1/issues/{execution_issue.json()['id']}",
+        json={"source_type": "kri_breach"},
+    )
+    assert missing_kri_source_id.status_code == 400
+
+    kri_issue = await auth_client.post(
+        "/api/v1/issues",
+        json={
+            "title": "KRI sourced issue",
+            "severity": "medium",
+            "source_type": "kri_breach",
+            "source_id": kri.id,
+            "department_id": test_department.id,
+        },
+    )
+    assert kri_issue.status_code == 201
+
+    missing_execution_source_id = await auth_client.patch(
+        f"/api/v1/issues/{kri_issue.json()['id']}",
+        json={"source_type": "control_execution"},
+    )
+    assert missing_execution_source_id.status_code == 400
+
+    legacy_manual_issue = Issue(
+        title="Legacy manual issue with stale source id",
+        description="Manual issue created before source validation",
+        severity="medium",
+        status="open",
+        source_type="manual",
+        source_id=execution.id,
+        department_id=test_department.id,
+        owner_user_id=None,
+        created_by_id=test_user.id,
+        opened_at=datetime.now(UTC),
+    )
+    db_session.add(legacy_manual_issue)
+    await db_session.commit()
+    await db_session.refresh(legacy_manual_issue)
+
+    stale_manual_source_id_reuse = await auth_client.patch(
+        f"/api/v1/issues/{legacy_manual_issue.id}",
+        json={"source_type": "kri_breach"},
+    )
+    assert stale_manual_source_id_reuse.status_code == 400
+
+    same_type_source_update = await auth_client.patch(
+        f"/api/v1/issues/{kri_issue.json()['id']}",
+        json={"source_id": kri.id},
+    )
+    assert same_type_source_update.status_code == 200
+
+    explicit_switch = await auth_client.patch(
+        f"/api/v1/issues/{execution_issue.json()['id']}",
+        json={"source_type": "kri_breach", "source_id": kri.id},
+    )
+    assert explicit_switch.status_code == 200
+    explicit_payload = explicit_switch.json()
+    assert explicit_payload["source_type"] == "kri_breach"
+    assert explicit_payload["source_id"] == kri.id
+    assert any(link["kri_id"] == kri.id for link in explicit_payload["links"])
+
+    manual_switch = await auth_client.patch(
+        f"/api/v1/issues/{explicit_payload['id']}",
+        json={"source_type": "manual"},
+    )
+    assert manual_switch.status_code == 200
+    assert manual_switch.json()["source_type"] == "manual"
+    assert manual_switch.json()["source_id"] is None
+
+
+@pytest.mark.asyncio
+async def test_contextual_control_issue_uses_link_without_execution_source_metadata(
+    db_session: AsyncSession,
+    auth_client: AsyncClient,
+    test_department: Department,
+    test_user: User,
+):
+    control = Control(
+        name="Contextual Control Issue",
+        description="Control issue should be link-backed",
+        department_id=test_department.id,
+        control_owner_id=test_user.id,
+        status="active",
+    )
+    db_session.add(control)
+    await db_session.commit()
+    await db_session.refresh(control)
+
+    response = await auth_client.post(
+        "/api/v1/issues/contextual",
+        json={
+            "entity_type": "control",
+            "entity_id": control.id,
+            "title": "Control contextual issue",
+            "severity": "high",
+        },
+    )
+
+    assert response.status_code == 201
+    payload = response.json()
+    assert payload["source_type"] == "manual"
+    assert payload["source_id"] is None
+    assert payload["links"] == [
+        {
+            "id": payload["links"][0]["id"],
+            "issue_id": payload["id"],
+            "risk_id": None,
+            "control_id": control.id,
+            "execution_id": None,
+            "kri_id": None,
+            "vendor_id": None,
+            "linked_entity_type": "control",
+            "linked_entity_name": control.name,
+            "created_at": payload["links"][0]["created_at"],
+        }
+    ]
 
 
 @pytest.mark.asyncio

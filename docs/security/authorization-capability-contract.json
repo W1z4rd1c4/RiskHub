@@ -274,7 +274,7 @@
       "id": "AUTHZ-CONTROLS-EXECUTE",
       "surface": "Controls",
       "action": "Log and read control executions",
-      "actor_scope": "Requires controls:execute for writes and controls:read for reads; detail view exposes can_log_execution",
+      "actor_scope": "Requires controls:execute for writes, controls:read for reads, and active or draft parent controls; detail view exposes can_log_execution",
       "backend_authority": "backend/app/api/v1/endpoints/controls/executions.py and backend/app/api/v1/endpoints/executions.py",
       "service_policy": "backend/app/services/_control_execution/ and backend/app/services/authorization_capabilities.py and backend/app/services/_authorization_capabilities_impl.py",
       "response_capability": "backend/app/schemas/control.py ControlCapabilities.can_log_execution, can_view_executions, is_archived, and is_executable",
@@ -282,7 +282,8 @@
       "tests": [
         "tests/backend/pytest/test_executions.py",
         "tests/frontend/unit/src/components/__tests__/ExecutionHistory.test.tsx",
-        "tests/frontend/unit/src/pages/__tests__/ControlDetailPage.execution-status.test.tsx"
+        "tests/frontend/unit/src/pages/__tests__/ControlDetailPage.execution-status.test.tsx",
+        "tests/frontend/unit/src/pages/__tests__/ControlDetailPage.issue-entry.test.tsx"
       ],
       "status": "authoritative",
       "findings": []
@@ -514,16 +515,17 @@
       "id": "AUTHZ-ISSUES-REMEDIATION",
       "surface": "Issues and remediation",
       "action": "Create, read, update, link, assign, progress, close, and approve exceptions",
-      "actor_scope": "Requires issues:read/write/approve plus issue scope, owner assignment, and linked-entity visibility helpers",
+      "actor_scope": "Requires issues:read/write/approve plus issue scope, owner assignment, linked-entity visibility helpers, and validated link-backed issue source provenance",
       "backend_authority": "backend/app/api/v1/endpoints/issues/",
-      "service_policy": "backend/app/core/_permissions/issues.py and backend/app/services/authorization_capabilities.py and backend/app/services/_authorization_capabilities_impl.py",
+      "service_policy": "backend/app/core/_permissions/issues.py, backend/app/api/v1/endpoints/issues/_shared/source.py, backend/app/services/authorization_capabilities.py, and backend/app/services/_authorization_capabilities_impl.py",
       "response_capability": "backend/app/schemas/issue.py IssueCapabilities on IssueSummary, IssueRead, and IssueListResponse collection capabilities",
-      "frontend_gate": "frontend/src/pages/issues/, frontend/src/components/issues/, frontend/src/pages/IssuesPage.tsx, frontend/src/pages/IssueDetailPage.tsx, frontend/src/pages/IssueNewPage.tsx, and frontend/src/pages/detail/ContextualIssueAction.tsx use backend capabilities",
+      "frontend_gate": "frontend/src/pages/issues/, frontend/src/components/issues/, frontend/src/pages/IssuesPage.tsx, frontend/src/pages/IssueDetailPage.tsx, frontend/src/pages/IssueNewPage.tsx, frontend/src/pages/detail/ContextualIssueAction.tsx, and frontend/src/components/executions/ use backend capabilities",
       "tests": [
         "tests/backend/pytest/api/v1/test_issue_workflow.py",
         "tests/backend/pytest/api/v1/test_issues_crud_api.py",
         "tests/backend/pytest/api/v1/test_issues_rbac_api.py",
         "tests/backend/pytest/api/v1/test_dashboard_issue_metrics.py",
+        "tests/frontend/unit/src/components/__tests__/ExecutionHistory.test.tsx",
         "tests/frontend/unit/src/components/issues/__tests__/RemediationPlanCard.workflow-visibility.test.tsx",
         "tests/frontend/unit/src/pages/detail/ContextualIssueAction.test.tsx"
       ],

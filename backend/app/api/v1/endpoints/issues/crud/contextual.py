@@ -1,88 +1,28 @@
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.activity_logger import log_activity
 from app.core.datetime_utils import coerce_utc
-from app.core.permissions import can_read_control_id, can_read_kri_id, can_read_risk_id
 from app.core.security import require_permission
 from app.db.session import get_db
-from app.models import (
-    Control,
-    ControlExecution,
-    Issue,
-    IssueLink,
-    IssueRemediationPlan,
-    KeyRiskIndicator,
-    Risk,
-    User,
-)
+from app.models import Issue, IssueRemediationPlan, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
-from app.models.issue import IssueRemediationStatus, IssueSourceType, IssueStatus
-from app.schemas.issue import IssueContextEntityTypeEnum, IssueContextualCreate, IssueRead
+from app.models.issue import IssueRemediationStatus, IssueStatus
+from app.schemas.issue import IssueContextualCreate, IssueRead
 from app.services.authorization_capabilities import issue_capabilities
 
 from .._shared import (
     _ensure_owner_assignable,
     _get_issue_with_relations,
-    _resolve_vendor_department_and_access,
     _serialize_issue_read,
     _validate_user_exists,
+    ensure_issue_source_link,
+    resolve_contextual_issue_source,
 )
 
 router = APIRouter()
-
-
-async def _resolve_contextual_entity(
-    db: AsyncSession,
-    current_user: User,
-    *,
-    entity_type: IssueContextEntityTypeEnum,
-    entity_id: int,
-) -> tuple[int, IssueSourceType, dict[str, int]]:
-    if entity_type == IssueContextEntityTypeEnum.risk:
-        row = (await db.execute(select(Risk.id, Risk.department_id).where(Risk.id == entity_id))).one_or_none()
-        if row is None or not await can_read_risk_id(db, current_user, entity_id):
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Source risk not found")
-        return row[1], IssueSourceType.manual, {"risk_id": entity_id}
-
-    if entity_type == IssueContextEntityTypeEnum.control:
-        row = (await db.execute(select(Control.id, Control.department_id).where(Control.id == entity_id))).one_or_none()
-        if row is None or not await can_read_control_id(db, current_user, entity_id):
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Source control not found")
-        return row[1], IssueSourceType.control_execution, {"control_id": entity_id}
-
-    if entity_type == IssueContextEntityTypeEnum.execution:
-        execution_row = (
-            await db.execute(
-                select(ControlExecution.id, ControlExecution.control_id, Control.department_id)
-                .join(Control, ControlExecution.control_id == Control.id)
-                .where(ControlExecution.id == entity_id)
-            )
-        ).one_or_none()
-        if execution_row is None or not await can_read_control_id(db, current_user, execution_row[1]):
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Source execution not found")
-        return execution_row[2], IssueSourceType.control_execution, {"execution_id": entity_id}
-
-    if entity_type == IssueContextEntityTypeEnum.kri:
-        row = (
-            await db.execute(
-                select(KeyRiskIndicator.id, Risk.department_id)
-                .join(Risk, KeyRiskIndicator.risk_id == Risk.id)
-                .where(KeyRiskIndicator.id == entity_id)
-            )
-        ).one_or_none()
-        if row is None or not await can_read_kri_id(db, current_user, entity_id):
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Source KRI not found")
-        return row[1], IssueSourceType.kri_breach, {"kri_id": entity_id}
-
-    if entity_type == IssueContextEntityTypeEnum.vendor:
-        department_id = await _resolve_vendor_department_and_access(db, current_user, entity_id)
-        return department_id, IssueSourceType.manual, {"vendor_id": entity_id}
-
-    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported contextual entity type")
 
 
 @router.post("/issues/contextual", response_model=IssueRead, status_code=status.HTTP_201_CREATED)
@@ -91,7 +31,7 @@ async def create_contextual_issue(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_permission("issues", "write")),
 ) -> IssueRead:
-    department_id, source_type, link_values = await _resolve_contextual_entity(
+    resolved_source = await resolve_contextual_issue_source(
         db,
         current_user,
         entity_type=payload.entity_type,
@@ -102,7 +42,7 @@ async def create_contextual_issue(
     await _ensure_owner_assignable(
         db,
         owner_user_id=payload.owner_user_id,
-        department_id=department_id,
+        department_id=resolved_source.department_id,
     )
 
     due_at = coerce_utc(payload.due_at)
@@ -112,9 +52,9 @@ async def create_contextual_issue(
         description=payload.description,
         severity=payload.severity.value,
         status=IssueStatus.open.value,
-        source_type=source_type.value,
-        source_id=payload.entity_id,
-        department_id=department_id,
+        source_type=resolved_source.source_type.value,
+        source_id=resolved_source.source_id,
+        department_id=resolved_source.department_id,
         owner_user_id=payload.owner_user_id,
         created_by_id=current_user.id,
         opened_at=now,
@@ -133,12 +73,14 @@ async def create_contextual_issue(
     db.add(remediation)
     await db.flush()
 
-    link = IssueLink(
+    link_result = await ensure_issue_source_link(
+        db,
         issue_id=issue.id,
-        **link_values,
+        link_values=resolved_source.link_values,
     )
-    db.add(link)
-    await db.flush()
+    if link_result is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Contextual source link is required")
+    link, _link_created = link_result
 
     await log_activity(
         db,

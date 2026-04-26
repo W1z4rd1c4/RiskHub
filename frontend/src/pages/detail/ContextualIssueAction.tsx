@@ -1,14 +1,14 @@
 import { FileText } from 'lucide-react';
 
 import { IssueQuickCreateModal } from '@/components/issues/IssueQuickCreateModal';
-import type { Issue } from '@/types/issue';
+import type { Issue, IssueContextEntityType } from '@/types/issue';
 
 interface ContextualIssueActionProps {
     buttonLabel: string;
     canCreateIssue: boolean;
     contextEntityId: number;
     contextEntityLabel: string;
-    contextEntityType: 'control' | 'risk' | 'kri' | 'vendor';
+    contextEntityType: IssueContextEntityType;
     isOpen: boolean;
     onClose: () => void;
     onCreated: (issue: Issue) => void;

@@ -673,7 +673,7 @@ Additional KRI value rules:
 Default seeded roles with `controls:execute`: `cro`, `risk_manager`, `compliance`, `internal_audit`, `actuarial`, `department_head`, `employee`.
 The canonical RBAC seed contract and the idempotent permission-convergence script must stay aligned on that same role set.
 
-Execution creation is locked on the parent control row. Archived controls reject new execution logs with `409 Conflict`. Both `/api/v1/executions` and `/api/v1/controls/{id}/executions` use the same next-scheduled calculation and the same department-or-control-owner access policy. Generic execution list/detail/create responses filter linked risk names through canonical risk visibility before serialization.
+Execution creation is locked on the parent control row. Only active and draft controls are executable; inactive and archived controls reject new execution logs with `409 Conflict`. Both `/api/v1/executions` and `/api/v1/controls/{id}/executions` use the same next-scheduled calculation and the same department-or-control-owner access policy. Generic and control-scoped execution history is ordered by `executed_at DESC, id DESC`, and generic execution list/detail/create responses filter linked risk names through canonical risk visibility before serialization.
 
 ### 8.7 Notification Types (Stable Keys)
 
@@ -888,6 +888,10 @@ Supported contextual source entities:
 
 Contextual behavior:
 - Backend resolves issue department from linked source entity.
+- `execution` creates `source_type=control_execution`, `source_id=<execution id>`, and an `IssueLink.execution_id`.
+- `kri` creates `source_type=kri_breach`, `source_id=<kri id>`, and an `IssueLink.kri_id`.
+- `risk`, `control`, and `vendor` contextual issues use `IssueLink` for the concrete entity and do not store misleading concrete source IDs.
+- Raw issue create/update accepts non-manual source metadata only when the source is visible and can be backed by the matching issue link. `manual` and `audit` issues cannot carry arbitrary `source_id` values.
 - Vendor links support direct `vendor_id` in `IssueLink`.
 - Vendor department fallback:
   - if `vendor.department_id` is null, fallback uses vendor owner department.

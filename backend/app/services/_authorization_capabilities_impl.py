@@ -181,6 +181,7 @@ async def control_capabilities(db: AsyncSession, *, current_user: User, control:
         and has_permission(current_user, "risks", "read")
     )
     can_execute = bool(has_permission(current_user, "controls", "execute") and can_read)
+    is_executable = control.status in {ControlStatus.active.value, ControlStatus.draft.value}
     return ControlCapabilities(
         can_read=can_read,
         can_update=bool(can_update and not is_archived),
@@ -191,7 +192,7 @@ async def control_capabilities(db: AsyncSession, *, current_user: User, control:
             can_delete and not is_resolver and not has_pending_delete and not is_archived
         ),
         can_restore=bool(can_delete and is_archived),
-        can_log_execution=bool(can_execute and not is_archived),
+        can_log_execution=bool(can_execute and is_executable),
         can_view_executions=can_read,
         can_link_risk=can_link_risk,
         can_unlink_risk=can_link_risk,
@@ -203,9 +204,7 @@ async def control_capabilities(db: AsyncSession, *, current_user: User, control:
         requires_privileged_update_approval=requires_privileged,
         requires_privileged_delete_approval=requires_privileged,
         is_archived=is_archived,
-        is_executable=bool(
-            not is_archived and control.status in {ControlStatus.active.value, ControlStatus.draft.value}
-        ),
+        is_executable=is_executable,
     )
 
 

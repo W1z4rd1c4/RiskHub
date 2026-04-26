@@ -18,9 +18,17 @@ from .._shared import (
     _issue_link_department_ids,
     _serialize_issue_read,
     _validate_user_exists,
+    ensure_issue_source_link,
+    resolve_issue_source_metadata,
 )
 
 router = APIRouter()
+
+CONCRETE_SOURCE_TYPES = {"control_execution", "kri_breach"}
+
+
+def _source_type_value(source_type) -> str:
+    return source_type.value if hasattr(source_type, "value") else str(source_type)
 
 
 @router.patch("/issues/{issue_id}", response_model=IssueRead)
@@ -75,6 +83,45 @@ async def update_issue(
             denied_status=status.HTTP_409_CONFLICT,
         )
 
+    source_link = None
+    source_link_created = False
+    if "source_type" in updates or "source_id" in updates:
+        if updates.get("source_type") is None and "source_type" in updates:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="source_type cannot be null")
+        new_source_type = updates.get("source_type", issue.source_type)
+        current_source_type_value = _source_type_value(issue.source_type)
+        new_source_type_value = _source_type_value(new_source_type)
+        is_missing_source_id_for_concrete_source_type_switch = (
+            "source_type" in updates
+            and "source_id" not in updates
+            and new_source_type_value in CONCRETE_SOURCE_TYPES
+            and current_source_type_value != new_source_type_value
+        )
+        if is_missing_source_id_for_concrete_source_type_switch:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="source_id is required")
+        if "source_id" in updates:
+            new_source_id = updates["source_id"]
+        elif "source_type" in updates and new_source_type_value in {"manual", "audit"}:
+            new_source_id = None
+        else:
+            new_source_id = issue.source_id
+        resolved_source = await resolve_issue_source_metadata(
+            db,
+            current_user,
+            source_type=new_source_type,
+            source_id=new_source_id,
+        )
+        if resolved_source is not None:
+            if resolved_source.department_id != target_department_id:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Source entity department must match issue department",
+                )
+            updates["source_type"] = resolved_source.source_type
+            updates["source_id"] = resolved_source.source_id
+        else:
+            updates["source_id"] = None
+
     if "due_at" in updates:
         updates["due_at"] = coerce_utc(updates["due_at"])
     if "severity" in updates and updates["severity"] is not None:
@@ -86,6 +133,24 @@ async def update_issue(
     for key, value in updates.items():
         setattr(issue, key, value)
     db.add(issue)
+    await db.flush()
+
+    if "source_type" in updates or "source_id" in updates:
+        resolved_source = await resolve_issue_source_metadata(
+            db,
+            current_user,
+            source_type=issue.source_type,
+            source_id=issue.source_id,
+        )
+        if resolved_source is not None:
+            source_link_result = await ensure_issue_source_link(
+                db,
+                issue_id=issue.id,
+                link_values=resolved_source.link_values,
+            )
+            if source_link_result is not None:
+                source_link, source_link_created = source_link_result
+            db.expire(issue, ["links"])
 
     await log_activity(
         db,
@@ -97,6 +162,18 @@ async def update_issue(
         department_id=issue.department_id,
         changes=changes,
     )
+    if source_link is not None and source_link_created:
+        await log_activity(
+            db,
+            entity_type=ActivityEntityType.ISSUE,
+            entity_id=issue.id,
+            entity_name=issue.title,
+            action=ActivityAction.LINK,
+            actor=current_user,
+            department_id=issue.department_id,
+            changes={"link_id": {"old": None, "new": source_link.id}},
+            description=f"Linked issue source to issue {issue.title}",
+        )
 
     await db.commit()
     reloaded_issue = await _get_issue_with_relations(db, issue.id)

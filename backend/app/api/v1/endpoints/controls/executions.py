@@ -51,7 +51,7 @@ async def list_executions(
         select(ControlExecution)
         .options(selectinload(ControlExecution.executed_by))
         .where(ControlExecution.control_id == control_id)
-        .order_by(ControlExecution.executed_at.desc())
+        .order_by(ControlExecution.executed_at.desc(), ControlExecution.id.desc())
         .offset(skip)
         .limit(limit)
     )
