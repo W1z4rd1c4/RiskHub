@@ -6,14 +6,24 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.datetime_utils import coerce_utc
 from app.models import (
     Issue,
     IssueException,
     IssueRemediationPlan,
+    IssueSeverity,
     Notification,
     NotificationType,
     Permission,
     RolePermission,
+)
+from app.services.issue_deadline_decisions import (
+    build_issue_due_soon_notification_plan,
+    build_issue_escalation_notification_plan,
+    build_issue_overdue_notification_plan,
+    should_escalate_issue_overdue,
+    should_send_issue_due_soon,
+    should_send_issue_overdue,
 )
 from app.services.issue_deadline_service import IssueDeadlineService
 
@@ -68,7 +78,7 @@ async def test_issue_deadline_service_due_soon_overdue_and_escalation(
     )
     overdue_issue = Issue(
         title="Overdue high issue",
-        severity="high",
+        severity=IssueSeverity.high,
         status="in_progress",
         source_type="manual",
         department_id=department_id,
@@ -97,6 +107,8 @@ async def test_issue_deadline_service_due_soon_overdue_and_escalation(
     assert result1["overdue"] == 1
     assert result1["escalated"] == 1
     assert result1["notifications_created"] >= 3
+    await db_session.refresh(overdue_issue)
+    assert coerce_utc(overdue_issue.last_escalated_at) == now
 
     notifications = (
         (
@@ -236,3 +248,86 @@ async def test_issue_deadline_service_expired_exception_keeps_completed_issue_cl
     assert refreshed_exception.status == "expired"
     assert refreshed_issue.status == "closed"
     assert refreshed_issue.closed_at is not None
+
+
+def test_issue_deadline_decisions_cover_due_soon_overdue_and_escalation() -> None:
+    now = datetime(2026, 4, 26, 9, 0, tzinfo=UTC)
+    due_soon_due_at = now + timedelta(days=2)
+    overdue_due_at = now - timedelta(days=2)
+
+    assert should_send_issue_due_soon(
+        now=now,
+        due_at=due_soon_due_at,
+        due_soon_cutoff=now + timedelta(days=7),
+        due_soon_backoff=now - timedelta(days=7),
+        last_due_soon_notified_at=None,
+    )
+    assert not should_send_issue_due_soon(
+        now=now,
+        due_at=due_soon_due_at,
+        due_soon_cutoff=now + timedelta(days=7),
+        due_soon_backoff=now - timedelta(days=7),
+        last_due_soon_notified_at=now - timedelta(days=1),
+    )
+
+    assert should_send_issue_overdue(
+        now=now,
+        due_at=overdue_due_at,
+        overdue_cutoff=now - timedelta(days=7),
+        last_overdue_notified_at=None,
+    )
+    assert should_escalate_issue_overdue(
+        now=now,
+        due_at=overdue_due_at,
+        escalation_cutoff=now - timedelta(days=7),
+        last_escalated_at=None,
+        issue_severity="high",
+    )
+    assert should_escalate_issue_overdue(
+        now=now,
+        due_at=overdue_due_at,
+        escalation_cutoff=now - timedelta(days=7),
+        last_escalated_at=None,
+        issue_severity=IssueSeverity.high,
+    )
+    assert should_escalate_issue_overdue(
+        now=now,
+        due_at=overdue_due_at,
+        escalation_cutoff=now - timedelta(days=7),
+        last_escalated_at=None,
+        issue_severity=IssueSeverity.critical,
+    )
+    assert not should_escalate_issue_overdue(
+        now=now,
+        due_at=overdue_due_at,
+        escalation_cutoff=now - timedelta(days=7),
+        last_escalated_at=None,
+        issue_severity="medium",
+    )
+    assert not should_escalate_issue_overdue(
+        now=now,
+        due_at=overdue_due_at,
+        escalation_cutoff=now - timedelta(days=7),
+        last_escalated_at=None,
+        issue_severity=IssueSeverity.medium,
+    )
+
+
+def test_issue_deadline_payload_builders_preserve_notification_copy() -> None:
+    due_at = datetime(2026, 4, 30, 12, 0, tzinfo=UTC)
+    issue = Issue(title="Decision Issue")
+
+    due_soon = build_issue_due_soon_notification_plan(issue=issue, due_at=due_at)
+    assert due_soon.notification_type == NotificationType.ISSUE_DUE_SOON
+    assert due_soon.title == "Issue due soon: Decision Issue"
+    assert due_soon.message == "Issue 'Decision Issue' is due on 2026-04-30."
+
+    overdue = build_issue_overdue_notification_plan(issue=issue, due_at=due_at)
+    assert overdue.notification_type == NotificationType.ISSUE_OVERDUE
+    assert overdue.title == "Issue overdue: Decision Issue"
+    assert overdue.message == "Issue 'Decision Issue' is overdue since 2026-04-30."
+
+    escalation = build_issue_escalation_notification_plan(issue=issue, due_at=due_at)
+    assert escalation.notification_type == NotificationType.ISSUE_OVERDUE
+    assert escalation.title == "Escalated overdue issue: Decision Issue"
+    assert escalation.message == "High-severity issue 'Decision Issue' remains overdue since 2026-04-30."

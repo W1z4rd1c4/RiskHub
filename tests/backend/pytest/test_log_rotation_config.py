@@ -42,6 +42,42 @@ class TestLogRotationConfig:
             expected_bytes = DEFAULT_LOG_ROTATION_SIZE_MB * 1024 * 1024
             assert handler.maxBytes == expected_bytes
 
+    def test_resolve_logging_config_applies_shared_and_per_handler_overrides(self):
+        from app.core.logging import _resolve_logging_config
+
+        resolved = _resolve_logging_config(
+            log_level="warning",
+            json_console=False,
+            rotation_size_mb=7,
+            retention_count=5,
+            audit_rotation_size_mb=9,
+        )
+
+        assert resolved.log_level == "WARNING"
+        assert resolved.json_console is False
+        assert resolved.app_rotation_size_mb == 7
+        assert resolved.app_retention_count == 5
+        assert resolved.audit_rotation_size_mb == 9
+        assert resolved.audit_retention_count == 5
+        assert resolved.app_size_bytes == 7 * 1024 * 1024
+        assert resolved.audit_size_bytes == 9 * 1024 * 1024
+
+    def test_configure_logging_assigns_app_and_audit_filters(self):
+        from app.core.logging import AuditFilter, NonAuditFilter, configure_logging
+
+        configure_logging(rotation_size_mb=7, retention_count=5)
+
+        root_logger = logging.getLogger()
+        rotating_handlers = [h for h in root_logger.handlers if isinstance(h, logging.handlers.RotatingFileHandler)]
+
+        app_handler = next((h for h in rotating_handlers if "app.json.log" in str(h.baseFilename)), None)
+        audit_handler = next((h for h in rotating_handlers if "audit.json.log" in str(h.baseFilename)), None)
+
+        assert app_handler is not None, "App log handler should exist"
+        assert audit_handler is not None, "Audit log handler should exist"
+        assert any(isinstance(filter_, NonAuditFilter) for filter_ in app_handler.filters)
+        assert any(isinstance(filter_, AuditFilter) for filter_ in audit_handler.filters)
+
     def test_get_log_directory_returns_correct_path(self):
         """Test that get_log_directory returns backend/logs."""
         from app.core.logging import get_log_directory

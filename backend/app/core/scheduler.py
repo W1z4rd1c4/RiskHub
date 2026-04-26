@@ -6,7 +6,6 @@ from contextlib import asynccontextmanager
 from uuid import uuid4
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from app.core.datetime_utils import utc_now
@@ -17,12 +16,16 @@ from app.core.scheduler_locks import (
     PostgresAdvisoryLockProvider,
     SchedulerLockProvider,
 )
+from app.core.scheduler_ownership import (
+    mark_scheduler_runtime_started,
+    mark_scheduler_runtime_stopped,
+    release_scheduler_lock,
+)
 from app.core.scheduler_runtime import (
     get_outbox_dispatch_runtime_state,
     get_scheduler_role_status,
     outbox_dispatch_state,
 )
-from app.core.scheduler_tracking import compute_duration_ms as _compute_duration_ms
 from app.core.scheduler_tracking import execute_tracked_job as _execute_tracked_job
 from app.core.scheduler_tracking import execute_tracked_job_with_session as _execute_tracked_job_with_session
 from app.core.scheduler_tracking import record_job_start as _record_job_start_impl
@@ -162,56 +165,32 @@ def _resolve_lock_provider() -> SchedulerLockProvider:
 
 async def _mark_runtime_started() -> None:
     global _runtime_run_id
-    _runtime_run_id = str(uuid4())
-    await _record_job_start(
-        job_name=SCHEDULER_RUNTIME_JOB_NAME,
-        run_id=_runtime_run_id,
-        trigger_type="startup",
+    _runtime_run_id = await mark_scheduler_runtime_started(
+        db_context=get_db_context,
+        instance_id=PROCESS_INSTANCE_ID,
+        runtime_job_name=SCHEDULER_RUNTIME_JOB_NAME,
     )
 
 
 async def _mark_runtime_stopped() -> None:
-    if _runtime_run_id is None:
-        return
-
-    async with get_db_context() as db:
-        result = await db.execute(
-            select(SchedulerJobRun)
-            .where(SchedulerJobRun.job_name == SCHEDULER_RUNTIME_JOB_NAME)
-            .where(SchedulerJobRun.run_id == _runtime_run_id)
-            .order_by(SchedulerJobRun.started_at.desc())
-            .limit(1)
-        )
-        runtime_run = result.scalar_one_or_none()
-        if runtime_run is None:
-            return
-
-        finished_at = utc_now()
-        runtime_run.status = "stopped"
-        runtime_run.finished_at = finished_at
-        runtime_run.duration_ms = _compute_duration_ms(runtime_run.started_at)
-        runtime_run.result_json = {"stopped_at": finished_at.isoformat()}
-        db.add(runtime_run)
-        await db.commit()
+    await mark_scheduler_runtime_stopped(
+        db_context=get_db_context,
+        runtime_job_name=SCHEDULER_RUNTIME_JOB_NAME,
+        runtime_run_id=_runtime_run_id,
+    )
 
 
 async def _release_lock_provider(*, suppress_exceptions: bool) -> None:
     global _lock_provider
 
-    if _lock_provider is None:
-        return
-
     provider = _lock_provider
     try:
-        await provider.release()
-    except Exception:
-        logger.exception(
-            "scheduler_lock_release_failed",
+        await release_scheduler_lock(
+            provider=provider,
+            logger=logger,
             instance_id=PROCESS_INSTANCE_ID,
-            lock_provider=provider.provider_name,
+            suppress_exceptions=suppress_exceptions,
         )
-        if not suppress_exceptions:
-            raise
     finally:
         _lock_provider = None
 

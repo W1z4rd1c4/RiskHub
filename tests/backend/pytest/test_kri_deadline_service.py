@@ -11,6 +11,10 @@ from app.models import Department, User
 from app.models.key_risk_indicator import KeyRiskIndicator
 from app.models.notification import Notification, NotificationType
 from app.models.user import AccessScope
+from app.services.kri_deadline_decisions import (
+    build_kri_limit_notification_plan,
+    build_kri_reporting_notification_plan,
+)
 from app.services.kri_deadline_service import KRIDeadlineService
 
 
@@ -366,3 +370,84 @@ async def test_deadline_service_constants():
     assert KRIDeadlineService.REPORTING_GRACE_DAYS == 15
     assert KRIDeadlineService.ADVANCE_REMINDER_DAYS == 7
     assert KRIDeadlineService.OVERDUE_REMINDER_WEEKS == 1  # Weekly reminders
+
+
+def test_reporting_notification_plan_covers_due_soon_deadline_and_overdue() -> None:
+    config = {
+        "advance_reminder_days": 7,
+        "reporting_grace_days": 15,
+        "overdue_reminder_weeks": 1,
+    }
+    kri = KeyRiskIndicator(metric_name="Decision KRI")
+    period_end = date(2025, 1, 31)
+    due = date(2025, 2, 15)
+
+    due_soon = build_kri_reporting_notification_plan(
+        kri=kri,
+        period_end=period_end,
+        due=due,
+        today=date(2025, 1, 24),
+        config=config,
+    )
+    assert due_soon is not None
+    assert due_soon.notification_type == NotificationType.KRI_DUE_SOON
+    assert due_soon.result_bucket == "due_soon"
+    assert "2025-01-31" in due_soon.message
+
+    deadline = build_kri_reporting_notification_plan(
+        kri=kri,
+        period_end=period_end,
+        due=due,
+        today=due,
+        config=config,
+    )
+    assert deadline is not None
+    assert deadline.notification_type == NotificationType.KRI_DUE_TOMORROW
+    assert deadline.result_bucket == "deadline"
+
+    overdue = build_kri_reporting_notification_plan(
+        kri=kri,
+        period_end=period_end,
+        due=due,
+        today=date(2025, 2, 22),
+        config=config,
+    )
+    assert overdue is not None
+    assert overdue.notification_type == NotificationType.KRI_OVERDUE
+    assert overdue.result_bucket == "overdue"
+    assert "7 days overdue" in overdue.message
+
+
+def test_limit_notification_plan_covers_breach_near_breach_and_healthy() -> None:
+    config = {"near_breach_threshold": 0.8}
+
+    breached = KeyRiskIndicator(
+        metric_name="Breached Decision KRI",
+        current_value=95,
+        lower_limit=0,
+        upper_limit=80,
+    )
+    breached_plan = build_kri_limit_notification_plan(kri=breached, config=config)
+    assert breached_plan is not None
+    assert breached_plan.notification_type == NotificationType.KRI_BREACH_DETECTED
+    assert breached_plan.result_bucket is None
+    assert "is above limit" in breached_plan.message
+
+    near_breach = KeyRiskIndicator(
+        metric_name="Near Decision KRI",
+        current_value=85,
+        lower_limit=0,
+        upper_limit=100,
+    )
+    near_breach_plan = build_kri_limit_notification_plan(kri=near_breach, config=config)
+    assert near_breach_plan is not None
+    assert near_breach_plan.notification_type == NotificationType.KRI_NEAR_BREACH
+    assert near_breach_plan.result_bucket == "near_breach"
+
+    healthy = KeyRiskIndicator(
+        metric_name="Healthy Decision KRI",
+        current_value=50,
+        lower_limit=0,
+        upper_limit=100,
+    )
+    assert build_kri_limit_notification_plan(kri=healthy, config=config) is None

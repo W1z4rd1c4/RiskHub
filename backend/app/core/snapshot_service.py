@@ -13,33 +13,43 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core._snapshot_metrics import capture_snapshot_metrics
+from app.core.snapshot_periods import (
+    build_current_quarter_snapshot_context,
+)
+from app.core.snapshot_periods import (
+    get_quarter_end as _get_quarter_end,
+)
+from app.core.snapshot_periods import (
+    get_quarter_label as _get_quarter_label,
+)
+from app.core.snapshot_periods import (
+    get_quarter_number as _get_quarter_number,
+)
+from app.core.snapshot_periods import (
+    get_quarter_start as _get_quarter_start,
+)
 from app.models.department import Department
 from app.models.quarterly_metric_snapshot import QuarterlyMetricSnapshot, SnapshotType
 
 
 def get_quarter_label(dt: datetime) -> str:
     """Get quarter label like '2026-Q1' from a datetime."""
-    quarter_num = (dt.month - 1) // 3 + 1
-    return f"{dt.year}-Q{quarter_num}"
+    return _get_quarter_label(dt)
 
 
 def get_quarter_number(dt: datetime) -> int:
     """Get quarter number (1-4) from a datetime."""
-    return (dt.month - 1) // 3 + 1
+    return _get_quarter_number(dt)
 
 
 def get_quarter_start(year: int, quarter_num: int) -> datetime:
     """Get the start datetime of a quarter."""
-    month = (quarter_num - 1) * 3 + 1
-    return datetime(year, month, 1, tzinfo=timezone.utc)
+    return _get_quarter_start(year, quarter_num)
 
 
 def get_quarter_end(year: int, quarter_num: int) -> datetime:
     """Get the end datetime of a quarter (exclusive - start of next quarter)."""
-    if quarter_num == 4:
-        return datetime(year + 1, 1, 1, tzinfo=timezone.utc)
-    else:
-        return datetime(year, quarter_num * 3 + 1, 1, tzinfo=timezone.utc)
+    return _get_quarter_end(year, quarter_num)
 
 
 async def save_quarter_snapshot(
@@ -162,25 +172,24 @@ async def capture_current_quarter_snapshot(
         Created snapshot
     """
     now = datetime.now(timezone.utc)
-    quarter_label = get_quarter_label(now)
-    year = now.year
-    quarter_number = get_quarter_number(now)
+    snapshot_context = build_current_quarter_snapshot_context(
+        now=now,
+        department_ids=department_ids,
+        notes=notes,
+    )
 
     # Capture metrics
     metrics = await capture_snapshot_metrics(db, department_ids)
 
-    # Determine department_id for storage (None for global)
-    dept_id = None if department_ids is None else (department_ids[0] if len(department_ids) == 1 else None)
-
     # Save snapshot
     return await save_quarter_snapshot(
         db=db,
-        quarter_label=quarter_label,
-        year=year,
-        quarter_number=quarter_number,
+        quarter_label=snapshot_context.quarter_label,
+        year=snapshot_context.year,
+        quarter_number=snapshot_context.quarter_number,
         metrics=metrics,
-        department_id=dept_id,
-        snapshot_type=SnapshotType.QUARTER_END if notes is None else SnapshotType.MANUAL,
+        department_id=snapshot_context.department_id,
+        snapshot_type=snapshot_context.snapshot_type,
         captured_by_user_id=captured_by_user_id,
         notes=notes,
     )

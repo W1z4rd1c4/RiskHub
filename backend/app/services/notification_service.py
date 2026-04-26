@@ -3,7 +3,6 @@
 import logging
 from datetime import UTC, datetime
 
-from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.permissions import can_read_vendor_id
@@ -14,6 +13,11 @@ from app.services._notification_approval_helpers import (
     approval_action_label,
     can_user_view_approval_resource,
     load_approval_notification_candidates,
+)
+from app.services.notification_creation_helpers import (
+    find_existing_notification,
+    load_notification_recipient,
+    notification_type_is_enabled,
 )
 
 logger = logging.getLogger(__name__)
@@ -52,13 +56,10 @@ class NotificationService:
         """
         # Check user preferences unless skipped
         if not skip_preference_check:
-            user_result = await db.execute(select(User).where(User.id == user_id))
-            user = user_result.scalar_one_or_none()
-            if user and user.notification_preferences:
-                type_key = notification_type.value  # e.g., "approval_pending"
-                if not user.notification_preferences.get(type_key, True):
-                    logger.debug(f"Skipping notification {notification_type.value} for user {user_id} - disabled")
-                    return None
+            user = await load_notification_recipient(db, user_id)
+            if not notification_type_is_enabled(user, notification_type):
+                logger.debug(f"Skipping notification {notification_type.value} for user {user_id} - disabled")
+                return None
 
         notification = Notification(
             user_id=user_id,
@@ -87,18 +88,13 @@ class NotificationService:
         created_at: datetime | None = None,
     ) -> Notification | None:
         """Create a notification only if an equivalent notification does not already exist."""
-        duplicate = (
-            await db.execute(
-                select(Notification).where(
-                    and_(
-                        Notification.user_id == user_id,
-                        Notification.type == notification_type,
-                        Notification.resource_type == resource_type,
-                        Notification.resource_id == resource_id,
-                    )
-                )
-            )
-        ).scalar_one_or_none()
+        duplicate = await find_existing_notification(
+            db,
+            user_id=user_id,
+            notification_type=notification_type,
+            resource_type=resource_type,
+            resource_id=resource_id,
+        )
         if duplicate is not None:
             return duplicate
 

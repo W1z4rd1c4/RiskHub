@@ -1,12 +1,78 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.snapshot_periods import (
+    build_current_quarter_snapshot_context,
+    get_quarter_end,
+    get_quarter_label,
+    get_quarter_number,
+    get_quarter_start,
+)
+from app.core.snapshot_service import save_quarter_snapshot
 from app.models import Department
 from app.models.quarterly_metric_snapshot import QuarterlyMetricSnapshot, SnapshotType
+
+
+def test_quarter_period_helpers_return_utc_boundaries_and_labels():
+    dt = datetime(2026, 4, 26, 12, 0, tzinfo=timezone.utc)
+
+    assert get_quarter_label(dt) == "2026-Q2"
+    assert get_quarter_number(dt) == 2
+    assert get_quarter_start(2026, 2) == datetime(2026, 4, 1, tzinfo=timezone.utc)
+    assert get_quarter_end(2026, 2) == datetime(2026, 7, 1, tzinfo=timezone.utc)
+    assert get_quarter_end(2026, 4) == datetime(2027, 1, 1, tzinfo=timezone.utc)
+
+
+def test_current_quarter_snapshot_context_preserves_storage_rules():
+    now = datetime(2026, 4, 26, 12, 0, tzinfo=timezone.utc)
+
+    global_context = build_current_quarter_snapshot_context(now=now, department_ids=None, notes=None)
+    scoped_context = build_current_quarter_snapshot_context(now=now, department_ids=[42], notes="manual")
+    multi_dept_context = build_current_quarter_snapshot_context(now=now, department_ids=[42, 43], notes=None)
+
+    assert global_context.quarter_label == "2026-Q2"
+    assert global_context.year == 2026
+    assert global_context.quarter_number == 2
+    assert global_context.department_id is None
+    assert global_context.snapshot_type == SnapshotType.QUARTER_END
+    assert scoped_context.department_id == 42
+    assert scoped_context.snapshot_type == SnapshotType.MANUAL
+    assert multi_dept_context.department_id is None
+
+
+@pytest.mark.asyncio
+async def test_save_quarter_snapshot_updates_existing_snapshot(db_session: AsyncSession):
+    original = await save_quarter_snapshot(
+        db=db_session,
+        quarter_label="2026-Q2",
+        year=2026,
+        quarter_number=2,
+        metrics={"priority_risks": 1},
+        snapshot_type=SnapshotType.QUARTER_END,
+    )
+    await db_session.commit()
+
+    updated = await save_quarter_snapshot(
+        db=db_session,
+        quarter_label="2026-Q2",
+        year=2026,
+        quarter_number=2,
+        metrics={"priority_risks": 7},
+        snapshot_type="manual",
+        notes="refresh",
+    )
+    await db_session.commit()
+
+    assert updated.id == original.id
+    assert updated.metrics == {"priority_risks": 7}
+    assert updated.snapshot_type == SnapshotType.MANUAL
+    assert updated.notes == "refresh"
 
 
 @pytest.mark.asyncio
