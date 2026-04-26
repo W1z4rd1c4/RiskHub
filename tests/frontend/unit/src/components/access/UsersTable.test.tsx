@@ -71,7 +71,6 @@ function renderUsersTable(overrides: Partial<Parameters<typeof UsersTable>[0]> =
         expandedUserId: null,
         onToggleExpand: vi.fn(),
         canEditAccess: false,
-        canManageUsers: true,
         onEditAccess: vi.fn(),
         onToggleStatus: vi.fn(),
         ...overrides,
@@ -88,24 +87,21 @@ describe('UsersTable', () => {
 
     it('prefers backend active-status capability over local manage-users fallback', () => {
         renderUsersTable({
-            canManageUsers: true,
             accessUsers: [makeAccessUser({ capabilities: { ...makeAccessUser().capabilities!, can_change_active_status: false } })],
         });
 
         expect(screen.queryByRole('button', { name: 'access.actions.deactivate' })).not.toBeInTheDocument();
     });
 
-    it('falls back to local manage-users permission when lifecycle capability metadata is absent', async () => {
+    it('hides active-status action when lifecycle capability metadata is absent', () => {
         const onToggleStatus = vi.fn();
         renderUsersTable({
             onToggleStatus,
-            canManageUsers: true,
             accessUsers: [makeAccessUser({ capabilities: null })],
         });
 
-        await userEvent.click(screen.getByRole('button', { name: 'access.actions.deactivate' }));
-
-        expect(onToggleStatus).toHaveBeenCalledWith(expect.objectContaining({ id: 7 }));
+        expect(screen.queryByRole('button', { name: 'access.actions.deactivate' })).not.toBeInTheDocument();
+        expect(onToggleStatus).not.toHaveBeenCalled();
     });
 
     it('shows break-glass action only when backend capability allows it', async () => {

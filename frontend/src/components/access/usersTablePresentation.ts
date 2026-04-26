@@ -7,10 +7,10 @@ export const userScopeBadgeColors: Record<string, string> = {
     manager: 'bg-slate-500/20 text-slate-400 border-slate-500/30',
 };
 
-export function canChangeUserActiveStatus(user: AccessUserRead, canManageUsers: boolean): boolean {
+export function canChangeUserActiveStatus(user: AccessUserRead): boolean {
     return user.capabilities?.can_change_active_status
         ?? user.capabilities?.can_deactivate
-        ?? canManageUsers;
+        ?? false;
 }
 
 export function canBreakGlassEnableUser(user: AccessUserRead): boolean {

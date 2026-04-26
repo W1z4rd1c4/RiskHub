@@ -119,10 +119,11 @@
       "backend_authority": "backend/app/api/v1/endpoints/access.py uses the access workflow policy and returns AccessUserRead with backend capabilities",
       "service_policy": "backend/app/services/_access_workflow/policy.py",
       "response_capability": "backend/app/schemas/access.py AccessUserCapabilities on each AccessUserRead",
-      "frontend_gate": "frontend/src/pages/UsersPage.tsx, frontend/src/components/access/UsersTable.tsx, frontend/src/components/access/usersTablePresentation.ts",
+      "frontend_gate": "frontend/src/pages/UsersPage.tsx, frontend/src/components/access/UsersTable.tsx, frontend/src/components/access/AccessUserRow.tsx, frontend/src/components/access/usersTablePresentation.ts",
       "tests": [
         "tests/backend/pytest/test_access_management.py",
         "tests/frontend/unit/src/components/access/UsersTable.test.tsx",
+        "tests/frontend/unit/src/pages/__tests__/UsersPage.modes.test.tsx",
         "tests/frontend/unit/src/pages/__tests__/UsersPage.sso-cta.test.tsx"
       ],
       "status": "authoritative",
@@ -152,11 +153,12 @@
       "backend_authority": "backend/app/api/v1/endpoints/users/ for /api/v1/users/directory",
       "service_policy": "backend/app/core/permissions.py, backend/app/api/v1/endpoints/users/_visibility.py, and backend/app/api/v1/endpoints/users/_lifecycle.py",
       "response_capability": "backend/app/schemas/user.py UserDirectoryCapabilities plus backend-provided available_roles facets",
-      "frontend_gate": "frontend/src/authz/BusinessRouteGuards.tsx, frontend/src/pages/UsersPage.tsx, frontend/src/pages/UserNewPage.tsx, and frontend/src/pages/users/useUsersPageData.ts",
+      "frontend_gate": "frontend/src/authz/BusinessRouteGuards.tsx, frontend/src/pages/UsersPage.tsx, frontend/src/pages/UserNewPage.tsx, frontend/src/pages/users/useUsersPageData.ts, and frontend/src/pages/users/useUserNewPageAccess.ts",
       "tests": [
         "tests/backend/pytest/test_users.py",
         "tests/frontend/unit/src/pages/__tests__/UserNewPage.sso.test.tsx",
-        "tests/frontend/unit/src/pages/__tests__/UsersPage.modes.test.tsx"
+        "tests/frontend/unit/src/pages/__tests__/UsersPage.modes.test.tsx",
+        "tests/frontend/unit/src/pages/__tests__/UsersPage.sso-cta.test.tsx"
       ],
       "status": "authoritative",
       "findings": []
@@ -169,14 +171,15 @@
       "backend_authority": "backend/app/api/v1/endpoints/directory.py with _require_directory_admin and backend/app/api/v1/endpoints/admin/",
       "service_policy": "backend/app/services/directory_identity_service.py, backend/app/services/ad_deprovision_service.py, backend/app/services/access_user_service.py, backend/app/services/directory_provider_service.py, and backend/app/services/graph_directory_service.py",
       "response_capability": "backend/app/schemas/access.py AccessUserCapabilities.can_break_glass_enable for access review surfaces; directory import responses expose lifecycle result fields, not action capability objects",
-      "frontend_gate": "frontend/src/pages/UserNewPage.tsx, frontend/src/components/access/AccessEditModal.tsx, and frontend/src/components/access/",
+      "frontend_gate": "frontend/src/pages/UserNewPage.tsx, frontend/src/pages/users/UserNewDirectoryImportSection.tsx, frontend/src/components/access/AccessEditModal.tsx, and frontend/src/components/access/",
       "tests": [
         "tests/backend/pytest/test_directory_lookup.py",
         "tests/backend/pytest/test_directory_import.py",
         "tests/backend/pytest/test_admin_directory_sync.py",
         "tests/backend/pytest/test_ad_deprovision_service.py",
         "tests/backend/pytest/test_access_management.py",
-        "tests/frontend/unit/src/pages/__tests__/UserNewPage.sso.test.tsx"
+        "tests/frontend/unit/src/pages/__tests__/UserNewPage.sso.test.tsx",
+        "tests/frontend/unit/src/pages/__tests__/UsersPage.sso-cta.test.tsx"
       ],
       "status": "authoritative",
       "findings": []

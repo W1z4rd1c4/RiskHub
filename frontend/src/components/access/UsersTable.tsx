@@ -13,7 +13,6 @@ interface UsersTableProps {
     expandedUserId: number | null;
     onToggleExpand: (userId: number) => void;
     canEditAccess: boolean;
-    canManageUsers: boolean;
     onEditAccess: (user: AccessUserRead) => void;
     onToggleStatus: (user: AccessUserRead) => void;
     onBreakGlassEnable?: (user: AccessUserRead) => void;
@@ -38,7 +37,6 @@ export function UsersTable({
     expandedUserId,
     onToggleExpand,
     canEditAccess,
-    canManageUsers,
     onEditAccess,
     onToggleStatus,
     onBreakGlassEnable,
@@ -74,7 +72,6 @@ export function UsersTable({
                             <AccessUserRow
                                 key={user.id}
                                 canEditAccess={canEditAccess}
-                                canManageUsers={canManageUsers}
                                 canRunDirectoryChecks={canRunDirectoryChecks}
                                 checkingDirectoryUserId={checkingDirectoryUserId}
                                 expandedUserId={expandedUserId}

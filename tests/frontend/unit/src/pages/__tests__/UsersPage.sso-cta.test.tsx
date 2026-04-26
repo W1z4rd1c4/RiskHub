@@ -8,6 +8,7 @@ import type { AuthConfigResponse } from '@/services/authApi';
 const mockNavigate = vi.fn();
 const mockGetAuthConfig = vi.fn();
 const mockListAccessUsers = vi.fn();
+const mockListDirectoryUsers = vi.fn();
 
 vi.mock('@/i18n/hooks', () => ({
     useTranslation: () => ({
@@ -31,7 +32,7 @@ vi.mock('@/authz/useAuthz', () => ({
         canManageAccess: true,
         canEditAccessUsers: true,
         isDepartmentHead: false,
-        isPlatformAdmin: false,
+        isPlatformAdmin: true,
     }),
 }));
 
@@ -58,6 +59,12 @@ vi.mock('@/services/userApi', () => ({
     userApi: {
         listVisibleUsers: vi.fn().mockResolvedValue([]),
         updateUser: vi.fn(),
+    },
+}));
+
+vi.mock('@/services/userDirectoryApi', () => ({
+    userDirectoryApi: {
+        listDirectoryUsers: (...args: unknown[]) => mockListDirectoryUsers(...args),
     },
 }));
 
@@ -110,7 +117,22 @@ describe('UsersPage SSO add CTA', () => {
         mockNavigate.mockReset();
         mockGetAuthConfig.mockReset();
         mockListAccessUsers.mockReset();
+        mockListDirectoryUsers.mockReset();
         mockListAccessUsers.mockResolvedValue([]);
+        mockListDirectoryUsers.mockResolvedValue({
+            items: [],
+            available_roles: [],
+            total: 0,
+            skip: 0,
+            limit: 1,
+            capabilities: {
+                can_read_directory: true,
+                can_view_access_details: true,
+                can_use_role_facets: true,
+                can_create_local_user: true,
+                can_import_directory_user: true,
+            },
+        });
     });
 
     function renderPage() {
@@ -207,6 +229,30 @@ describe('UsersPage SSO add CTA', () => {
         expect(screen.getByText(/create and directory actions are disabled/i)).toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Add from AD' })).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'access.add_user' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Check AD' })).not.toBeInTheDocument();
+    });
+
+    it('hides auth-mode actions when directory capabilities are unavailable', async () => {
+        mockGetAuthConfig.mockResolvedValue(makeAuthConfig({ auth_mode: 'microsoft_sso' }));
+        mockListDirectoryUsers.mockResolvedValue({
+            items: [],
+            available_roles: [],
+            total: 0,
+            skip: 0,
+            limit: 1,
+            capabilities: null,
+        });
+
+        renderPage();
+
+        await waitFor(() => {
+            expect(mockListAccessUsers).toHaveBeenCalled();
+        });
+        await waitFor(() => {
+            expect(mockListDirectoryUsers).toHaveBeenCalled();
+        });
+
+        expect(screen.queryByRole('button', { name: 'Add from AD' })).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'Check AD' })).not.toBeInTheDocument();
     });
 });

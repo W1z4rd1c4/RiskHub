@@ -317,7 +317,7 @@ describe('UsersPage mode selection', () => {
         expect(screen.queryByLabelText('Deactivate')).not.toBeInTheDocument();
     });
 
-    it('falls back to local user-management permission when capability metadata is absent', async () => {
+    it('hides active status changes when capability metadata is absent', async () => {
         server.use(
             http.get('*/api/v1/auth/me', () =>
                 HttpResponse.json(
@@ -343,7 +343,7 @@ describe('UsersPage mode selection', () => {
         await renderUsersRoute();
 
         expect(await screen.findByText('Employee One')).toBeInTheDocument();
-        expect(screen.getByLabelText('Deactivate')).toBeInTheDocument();
+        expect(screen.queryByLabelText('Deactivate')).not.toBeInTheDocument();
     });
 
     it('shows backend active status rejection messages', async () => {

@@ -33,7 +33,7 @@ function resolveUsersPageMode(authz: ReturnType<typeof useAuthz>): UsersPageMode
 
 export function UsersPage() {
     const { t } = useTranslation(['admin', 'common', 'errorKeys']);
-    const { canManageUsers, user: currentUser } = usePermissions();
+    const { user: currentUser } = usePermissions();
     const authz = useAuthz();
     const location = useLocation();
     const navigate = useNavigate();
@@ -199,14 +199,17 @@ export function UsersPage() {
         ? users.filter((user) => user.access_scope === 'global' && user.role.name !== 'admin').length
         : 0;
     const isDirectoryFirstMode = isAuthModeReady && authMode !== null && authMode !== 'password';
-    const allowAuthModeActions = canManageUsers && isAuthModeReady;
+    const canCreateLocalUser = directoryCapabilities?.can_create_local_user === true;
+    const canImportDirectoryUser = directoryCapabilities?.can_import_directory_user === true;
+    const allowAuthModeActions = isAuthModeReady
+        && (isDirectoryFirstMode ? canImportDirectoryUser : canCreateLocalUser);
     const directoryTotalPages = Math.max(1, Math.ceil(directoryTotal / DIRECTORY_PAGE_SIZE));
 
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
             <UsersPageHeader
                 allowAuthModeActions={allowAuthModeActions}
-                canRunDirectoryCheck={authz.isPlatformAdmin}
+                canRunDirectoryCheck={canImportDirectoryUser}
                 isAccessMode={isAccessMode}
                 isCheckingAllDirectory={isCheckingAllDirectory}
                 isDirectoryFirstMode={isDirectoryFirstMode}
@@ -290,7 +293,6 @@ export function UsersPage() {
                         expandedUserId={expandedUserId}
                         onToggleExpand={(userId) => setExpandedUserId(expandedUserId === userId ? null : userId)}
                         canEditAccess={authz.canEditAccessUsers}
-                        canManageUsers={canManageUsers}
                         onEditAccess={handleEditAccess}
                         onToggleStatus={handleToggleClick}
                         onBreakGlassEnable={handleBreakGlassOpen}

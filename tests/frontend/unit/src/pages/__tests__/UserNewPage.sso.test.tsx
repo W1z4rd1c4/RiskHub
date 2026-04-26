@@ -8,6 +8,9 @@ import adminEn from '@/i18n/locales/en/admin.json';
 const mockNavigate = vi.fn();
 const mockGetAuthConfig = vi.fn();
 const mockListDirectoryUsers = vi.fn();
+const mockCreateUser = vi.fn();
+const mockListAccessRoles = vi.fn();
+const mockGetDepartments = vi.fn();
 
 function resolveAdminTranslation(key: string): string | undefined {
     return key.split('.').reduce<unknown>((current, part) => {
@@ -39,7 +42,7 @@ vi.mock('@/services/authConfig', () => ({
 
 vi.mock('@/services/userApi', () => ({
     userApi: {
-        createUser: vi.fn(),
+        createUser: (...args: unknown[]) => mockCreateUser(...args),
     },
 }));
 
@@ -51,13 +54,13 @@ vi.mock('@/services/userDirectoryApi', () => ({
 
 vi.mock('@/services/accessApi', () => ({
     accessApi: {
-        listAccessRoles: vi.fn().mockResolvedValue([]),
+        listAccessRoles: (...args: unknown[]) => mockListAccessRoles(...args),
     },
 }));
 
 vi.mock('@/services/departmentApi', () => ({
     departmentApi: {
-        getDepartments: vi.fn().mockResolvedValue([]),
+        getDepartments: (...args: unknown[]) => mockGetDepartments(...args),
     },
 }));
 
@@ -120,6 +123,12 @@ describe('UserNewPage SSO mode', () => {
         mockNavigate.mockReset();
         mockGetAuthConfig.mockReset();
         mockListDirectoryUsers.mockReset();
+        mockCreateUser.mockReset();
+        mockListAccessRoles.mockReset();
+        mockGetDepartments.mockReset();
+        mockCreateUser.mockResolvedValue({});
+        mockListAccessRoles.mockResolvedValue([]);
+        mockGetDepartments.mockResolvedValue([]);
         mockListDirectoryUsers.mockResolvedValue({
             items: [],
             available_roles: [],
@@ -197,6 +206,62 @@ describe('UserNewPage SSO mode', () => {
         });
     });
 
+    it('uses a safe default role and submits local-user payload in password mode', async () => {
+        mockGetAuthConfig.mockResolvedValue(
+            makeAuthConfig({
+                auth_mode: 'password',
+                password_login_enabled: true,
+                sso: {
+                    enabled: false,
+                    provider: 'entra',
+                    tenant_id: null,
+                    client_id: null,
+                    authority: null,
+                    scopes: ['openid', 'profile', 'email'],
+                },
+            })
+        );
+        mockListAccessRoles.mockResolvedValue([
+            { id: 1, name: 'admin', display_name: 'Admin', description: null, permissions: [] },
+            { id: 2, name: 'control_owner', display_name: 'Control Owner', description: null, permissions: [] },
+        ]);
+        mockGetDepartments.mockResolvedValue([{ id: 9, name: 'Operations' }]);
+
+        render(<UserNewPage />);
+
+        await waitFor(() => {
+            expect(document.querySelector('input[type="password"]')).not.toBeNull();
+        });
+        await waitFor(() => {
+            expect(mockListAccessRoles).toHaveBeenCalledTimes(1);
+            expect(mockGetDepartments).toHaveBeenCalledTimes(1);
+        });
+        const inputs = document.querySelectorAll('input');
+        fireEvent.change(inputs[0], {
+            target: { value: 'New User' },
+        });
+        fireEvent.change(inputs[1], {
+            target: { value: 'new.user@riskhub.test' },
+        });
+        fireEvent.change(inputs[2], {
+            target: { value: 's3cret-value' },
+        });
+        fireEvent.click(screen.getByRole('button', { name: adminEn.users.create_user }));
+
+        await waitFor(() => {
+            expect(mockCreateUser).toHaveBeenCalledWith({
+                email: 'new.user@riskhub.test',
+                name: 'New User',
+                password: 's3cret-value',
+                role_id: 2,
+                department_id: null,
+                manager_id: null,
+                is_active: true,
+            });
+        });
+        expect(mockNavigate).toHaveBeenCalledWith('/users');
+    });
+
     it('hides creation actions when directory capabilities are absent', async () => {
         mockGetAuthConfig.mockResolvedValue(
             makeAuthConfig({
@@ -212,7 +277,7 @@ describe('UserNewPage SSO mode', () => {
                 },
             })
         );
-        mockListDirectoryUsers.mockResolvedValueOnce({
+        mockListDirectoryUsers.mockResolvedValue({
             items: [],
             available_roles: [],
             total: 0,

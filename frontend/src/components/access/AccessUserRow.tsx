@@ -28,7 +28,6 @@ import {
 
 interface AccessUserRowProps {
     canEditAccess: boolean;
-    canManageUsers: boolean;
     canRunDirectoryChecks: boolean;
     checkingDirectoryUserId: number | null;
     expandedUserId: number | null;
@@ -102,7 +101,6 @@ function UserCapabilitySummary({ expandedUserId, onToggleExpand, user }: Pick<Ac
 
 export function AccessUserRow({
     canEditAccess,
-    canManageUsers,
     canRunDirectoryChecks,
     checkingDirectoryUserId,
     expandedUserId,
@@ -114,7 +112,7 @@ export function AccessUserRow({
     user,
 }: AccessUserRowProps) {
     const { t, i18n } = useTranslation('admin');
-    const canChangeActiveStatus = canChangeUserActiveStatus(user, canManageUsers);
+    const canChangeActiveStatus = canChangeUserActiveStatus(user);
     const canBreakGlassEnable = canBreakGlassEnableUser(user);
 
     return (
