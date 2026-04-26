@@ -348,6 +348,7 @@
       "response_capability": "backend/app/schemas/approval_request.py and backend/app/schemas/__init__.py ApprovalRequestCapabilities plus preserved can_approve and can_reject booleans",
       "frontend_gate": "frontend/src/pages/approvals/ uses ApprovalRequestCapabilities for approve, reject, and cancel actions",
       "tests": [
+        "tests/backend/pytest/test_approval_edit_apply.py",
         "tests/backend/pytest/test_approvals.py",
         "tests/backend/pytest/test_approval_workflow.py",
         "tests/backend/pytest/test_outbox_approval_flow.py",

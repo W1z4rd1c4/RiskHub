@@ -8,7 +8,6 @@ from app.core.datetime_utils import utc_now
 from app.models import (
     ApprovalRequest,
     ApprovalResourceType,
-    ApprovalStatus,
     Control,
     KeyRiskIndicator,
     Risk,
@@ -19,6 +18,7 @@ from app.models.control import ControlStatus
 from app.models.risk import RiskStatus as RiskStatusEnum
 
 from .loading import get_approval_department_id
+from .results import SideEffectResult
 
 logger = logging.getLogger("app.services.approval_execution_service")
 
@@ -27,7 +27,7 @@ async def _apply_delete_side_effects(
     db: AsyncSession,
     approval: ApprovalRequest,
     current_user: User,
-) -> None:
+) -> SideEffectResult:
     """Archive the resource for a DELETE approval.
 
     If the resource no longer exists (orphaned approval), the approval is marked
@@ -39,11 +39,7 @@ async def _apply_delete_side_effects(
         if not risk:
             # Orphaned approval - resource was deleted externally
             logger.warning(f"Approval #{approval.id}: Risk {approval.resource_id} no longer exists")
-            approval.status = ApprovalStatus.REJECTED
-            approval.resolution_notes = (
-                approval.resolution_notes or ""
-            ) + "\nAuto-rejected: Resource was deleted before approval could be applied."
-            return
+            return SideEffectResult.auto_rejected("Resource was deleted before approval could be applied.")
 
         old_status = risk.status
         risk.status = RiskStatusEnum.archived.value
@@ -59,6 +55,7 @@ async def _apply_delete_side_effects(
             changes={"status": {"old": old_status, "new": risk.status}} if old_status != risk.status else None,
             description=f"Archived via approval #{approval.id}",
         )
+        return SideEffectResult.applied()
 
     elif approval.resource_type == ApprovalResourceType.CONTROL:
         control_result = await db.execute(select(Control).where(Control.id == approval.resource_id))
@@ -66,11 +63,7 @@ async def _apply_delete_side_effects(
         if not control:
             # Orphaned approval - resource was deleted externally
             logger.warning(f"Approval #{approval.id}: Control {approval.resource_id} no longer exists")
-            approval.status = ApprovalStatus.REJECTED
-            approval.resolution_notes = (
-                approval.resolution_notes or ""
-            ) + "\nAuto-rejected: Resource was deleted before approval could be applied."
-            return
+            return SideEffectResult.auto_rejected("Resource was deleted before approval could be applied.")
 
         old_status = control.status
         control.status = ControlStatus.archived.value
@@ -86,6 +79,7 @@ async def _apply_delete_side_effects(
             changes={"status": {"old": old_status, "new": control.status}} if old_status != control.status else None,
             description=f"Archived via approval #{approval.id}",
         )
+        return SideEffectResult.applied()
 
     elif approval.resource_type == ApprovalResourceType.KRI:
         kri_result = await db.execute(select(KeyRiskIndicator).where(KeyRiskIndicator.id == approval.resource_id))
@@ -93,11 +87,7 @@ async def _apply_delete_side_effects(
         if not kri:
             # Orphaned approval - resource was deleted externally
             logger.warning(f"Approval #{approval.id}: KRI {approval.resource_id} no longer exists")
-            approval.status = ApprovalStatus.REJECTED
-            approval.resolution_notes = (
-                approval.resolution_notes or ""
-            ) + "\nAuto-rejected: Resource was deleted before approval could be applied."
-            return
+            return SideEffectResult.auto_rejected("Resource was deleted before approval could be applied.")
 
         old_is_archived = kri.is_archived
         kri.is_archived = True
@@ -118,3 +108,5 @@ async def _apply_delete_side_effects(
             else None,
             description=f"Archived via approval #{approval.id}",
         )
+        return SideEffectResult.applied()
+    return SideEffectResult.applied()

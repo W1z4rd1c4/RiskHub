@@ -564,6 +564,58 @@ async def test_auto_rejected_history_correction_enqueues_resolution_outbox_and_n
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "resource_type",
+    [
+        ApprovalResourceType.RISK,
+        ApprovalResourceType.CONTROL,
+        ApprovalResourceType.KRI,
+    ],
+)
+async def test_missing_delete_target_enqueues_resolution_outbox_with_approved_false(
+    client_cro: AsyncClient,
+    db_session: AsyncSession,
+    resource_type: ApprovalResourceType,
+    test_user_approval_requester: User,
+) -> None:
+    approval = ApprovalRequest(
+        resource_type=resource_type,
+        resource_id=999999,
+        resource_name=f"Missing {resource_type.value}",
+        action_type=ApprovalActionType.DELETE,
+        requested_by_id=test_user_approval_requester.id,
+        reason="Missing target auto-reject outbox parity",
+        status=ApprovalStatus.PENDING,
+    )
+    db_session.add(approval)
+    await db_session.commit()
+    await db_session.refresh(approval)
+
+    response = await client_cro.post(
+        f"/api/v1/approvals/{approval.id}/approve",
+        json={"resolution_notes": "Approve missing target"},
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["status"] == "rejected"
+
+    pending_resolution = (
+        (
+            await db_session.execute(
+                select(OutboxEvent).where(
+                    OutboxEvent.aggregate_id == approval.id,
+                    OutboxEvent.event_type == "approval.request_resolved",
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len(pending_resolution) == 1
+    assert pending_resolution[0].status == "pending"
+    assert pending_resolution[0].payload["approved"] is False
+
+
+@pytest.mark.asyncio
 async def test_cancel_approval_enqueues_outbox_without_inline_cancellation_notifications(
     client_approval_requester: AsyncClient,
     db_session: AsyncSession,

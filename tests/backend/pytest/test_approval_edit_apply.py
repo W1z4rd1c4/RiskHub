@@ -668,3 +668,85 @@ async def test_approval_edit_kri_rejects_inactive_reporting_owner_target(
     assert exc_info.value.detail == "Reporting owner is inactive"
     await db_session.refresh(kri)
     assert kri.reporting_owner_id == expected_owner_id
+
+
+@pytest.mark.asyncio
+async def test_approval_delete_control_archives_and_sets_updated_by_id(
+    db_session,
+    test_department,
+    test_user_cro,
+    test_user_risk_manager,
+):
+    """Control delete approval archives the control and attributes the approving user."""
+    control = Control(
+        name="Control Delete Approval",
+        description="Control delete approval parity test",
+        department_id=test_department.id,
+        control_owner_id=test_user_risk_manager.id,
+        status="active",
+        control_form="manual",
+        frequency="monthly",
+        updated_by_id=None,
+    )
+    db_session.add(control)
+    await db_session.commit()
+    await db_session.refresh(control)
+
+    approval = ApprovalRequest(
+        resource_type=ApprovalResourceType.CONTROL,
+        resource_id=control.id,
+        resource_name=control.name,
+        action_type=ApprovalActionType.DELETE,
+        requested_by_id=test_user_risk_manager.id,
+        reason="Testing control archive side effect",
+        status=ApprovalStatus.PENDING,
+    )
+
+    resolved = await _approve_pending_edit(db_session, approval, test_user_cro)
+
+    await db_session.refresh(control)
+    assert resolved.status == ApprovalStatus.APPROVED
+    assert control.status == "archived"
+    assert control.updated_by_id == test_user_cro.id
+
+
+@pytest.mark.asyncio
+async def test_approval_delete_kri_archives_and_sets_archive_metadata(
+    db_session,
+    test_risk,
+    test_user_cro,
+    test_user_employee,
+):
+    """KRI delete approval archives the KRI and stores approving-user metadata."""
+    kri = KeyRiskIndicator(
+        risk_id=test_risk.id,
+        metric_name="KRI Delete Approval",
+        description="KRI delete approval parity test",
+        current_value=10.0,
+        lower_limit=0.0,
+        upper_limit=100.0,
+        unit="%",
+        frequency="monthly",
+        reporting_owner_id=test_user_cro.id,
+    )
+    db_session.add(kri)
+    await db_session.commit()
+    await db_session.refresh(kri)
+
+    approval = ApprovalRequest(
+        resource_type=ApprovalResourceType.KRI,
+        resource_id=kri.id,
+        resource_name=kri.metric_name,
+        action_type=ApprovalActionType.DELETE,
+        requested_by_id=test_user_employee.id,
+        reason="Testing KRI archive side effect",
+        status=ApprovalStatus.PENDING,
+    )
+
+    resolved = await _approve_pending_edit(db_session, approval, test_user_cro)
+
+    await db_session.refresh(kri)
+    assert resolved.status == ApprovalStatus.APPROVED
+    assert kri.is_archived is True
+    assert kri.archived_at is not None
+    assert kri.archived_by_id == test_user_cro.id

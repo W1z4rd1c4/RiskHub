@@ -5,10 +5,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import activity_logger
 from app.core.owner_reference_validation import validate_active_owner_reference
-from app.models import ApprovalRequest, ApprovalResourceType, ApprovalStatus, Control, Risk, User
+from app.models import ApprovalRequest, ApprovalResourceType, Control, Risk, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 
 from .constants import EDITABLE_FIELDS
+from .results import SideEffectResult
 from .staleness import reject_if_stale_pending_change
 
 logger = logging.getLogger("app.services.approval_execution_service")
@@ -18,7 +19,7 @@ async def _apply_edit_risk_control(
     db: AsyncSession,
     approval: ApprovalRequest,
     current_user: User,
-) -> None:
+) -> SideEffectResult:
     """Apply pending_changes to Risk or Control.
 
     For risks: also recomputes derived scores (gross_score, net_score) if probability/impact changed.
@@ -26,30 +27,27 @@ async def _apply_edit_risk_control(
     """
     changes = approval.pending_changes
     if not changes:
-        return
+        return SideEffectResult.applied()
 
     if approval.resource_type == ApprovalResourceType.RISK:
         risk_result = await db.execute(select(Risk).where(Risk.id == approval.resource_id))
         risk = risk_result.scalar_one_or_none()
         if not risk:
             logger.warning("Approval #%s: Risk %s no longer exists", approval.id, approval.resource_id)
-            approval.status = ApprovalStatus.REJECTED
-            approval.resolution_notes = (
-                approval.resolution_notes or ""
-            ) + "\nAuto-rejected: Resource was deleted before approval could be applied."
-            return
+            return SideEffectResult.auto_rejected("Resource was deleted before approval could be applied.")
         if risk:
             allowed_fields = EDITABLE_FIELDS.get("risk", set())
             risk_applied_changes: dict = {}
             risk_rejected_fields: list[str] = []
 
-            if reject_if_stale_pending_change(
+            stale_result = reject_if_stale_pending_change(
                 approval,
                 target=risk,
                 changes=changes,
                 allowed_fields=allowed_fields,
-            ):
-                return
+            )
+            if stale_result is not None:
+                return stale_result
 
             for field, vals in changes.items():
                 if field not in allowed_fields:
@@ -100,29 +98,27 @@ async def _apply_edit_risk_control(
                     changes=risk_applied_changes,
                     description=f"Updated via approval #{approval.id}",
                 )
+            return SideEffectResult.applied()
 
     elif approval.resource_type == ApprovalResourceType.CONTROL:
         control_result = await db.execute(select(Control).where(Control.id == approval.resource_id))
         control = control_result.scalar_one_or_none()
         if not control:
             logger.warning("Approval #%s: Control %s no longer exists", approval.id, approval.resource_id)
-            approval.status = ApprovalStatus.REJECTED
-            approval.resolution_notes = (
-                approval.resolution_notes or ""
-            ) + "\nAuto-rejected: Resource was deleted before approval could be applied."
-            return
+            return SideEffectResult.auto_rejected("Resource was deleted before approval could be applied.")
         if control:
             allowed_fields = EDITABLE_FIELDS.get("control", set())
             control_applied_changes: dict = {}
             control_rejected_fields: list[str] = []
 
-            if reject_if_stale_pending_change(
+            stale_result = reject_if_stale_pending_change(
                 approval,
                 target=control,
                 changes=changes,
                 allowed_fields=allowed_fields,
-            ):
-                return
+            )
+            if stale_result is not None:
+                return stale_result
 
             for field, vals in changes.items():
                 if field not in allowed_fields:
@@ -158,3 +154,5 @@ async def _apply_edit_risk_control(
                     changes=control_applied_changes,
                     description=f"Updated via approval #{approval.id}",
                 )
+            return SideEffectResult.applied()
+    return SideEffectResult.applied()

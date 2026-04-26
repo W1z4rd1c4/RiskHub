@@ -16,6 +16,7 @@ from ._approval_execution.authorization import apply_status_transition, assert_c
 from ._approval_execution.constants import EDITABLE_FIELDS
 from ._approval_execution.loading import get_approval_department_id, load_approval
 from ._approval_execution.logging import log_approval_approve
+from ._approval_execution.results import apply_auto_rejection
 from ._approval_execution.side_effects import apply_side_effects
 
 __all__ = ["EDITABLE_FIELDS", "approve_request_workflow"]
@@ -55,7 +56,8 @@ async def _apply_approved_resolution(
     previous_status: ApprovalStatus,
 ) -> None:
     try:
-        await apply_side_effects(db, approval, current_user)
+        side_effect_result = await apply_side_effects(db, approval, current_user)
+        apply_auto_rejection(approval, side_effect_result)
 
         if approval.status == ApprovalStatus.APPROVED:
             await log_approval_approve(db, approval, current_user, previous_status)
