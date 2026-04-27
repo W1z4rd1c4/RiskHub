@@ -12,6 +12,8 @@ from app.schemas.issue import IssueLinkCreate, IssueLinkRead
 
 from ._shared import (
     _get_writable_issue_or_404,
+    _issue_source_link,
+    _link_matches_issue_source,
     _resolve_vendor_department_and_access,
     _serialize_issue_link,
 )
@@ -138,6 +140,12 @@ async def delete_issue_link(
     ).scalar_one_or_none()
     if link is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Issue link not found")
+    source_link = _issue_source_link(issue)
+    if _link_matches_issue_source(issue, link) or (source_link is not None and source_link.id == link.id):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Cannot remove the current source link; change or clear issue source metadata first",
+        )
 
     await db.delete(link)
     await log_activity(

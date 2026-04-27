@@ -21,7 +21,10 @@ from app.models import (
     Risk,
     Role,
     RolePermission,
+    User,
+    Vendor,
 )
+from app.models.user import AccessScope
 
 
 async def _grant(db: AsyncSession, role_id: int, resource: str, action: str) -> None:
@@ -126,7 +129,7 @@ async def issue_export_data(
 
     db_session.add_all(
         [
-            IssueLink(issue_id=dept_issue_overdue.id, risk_id=risk.id),
+            IssueLink(issue_id=dept_issue_overdue.id, risk_id=risk.id, is_source_link=True),
             IssueLink(issue_id=dept_issue_overdue.id, control_id=control.id),
             IssueRemediationPlan(
                 issue_id=dept_issue_overdue.id,
@@ -157,6 +160,46 @@ def _parse_csv(response_text: str) -> list[dict[str, str]]:
     return list(csv.DictReader(StringIO(response_text)))
 
 
+async def _create_vendor_source_issue(
+    db_session: AsyncSession,
+    *,
+    department_id: int,
+    created_by_id: int | None,
+    title: str,
+) -> tuple[Issue, Vendor]:
+    vendor = Vendor(
+        name=f"{title} Vendor",
+        process="Operations",
+        subprocess=None,
+        department_id=department_id,
+        outsourcing_owner_user_id=created_by_id,
+        vendor_type="ict",
+        risk_score_1_5=3,
+        supports_important_core_insurance_function=False,
+        dora_relevant=False,
+        is_significant_vendor=False,
+        has_alternative_providers=False,
+        status="active",
+    )
+    db_session.add(vendor)
+    await db_session.flush()
+
+    issue = Issue(
+        title=title,
+        severity="medium",
+        status="open",
+        source_type="manual",
+        department_id=department_id,
+        created_by_id=created_by_id,
+        opened_at=datetime.now(UTC),
+    )
+    db_session.add(issue)
+    await db_session.flush()
+    db_session.add(IssueLink(issue_id=issue.id, vendor_id=vendor.id, is_source_link=True))
+    await db_session.commit()
+    return issue, vendor
+
+
 @pytest.mark.asyncio
 async def test_export_issues_csv_contains_context(
     auth_client: AsyncClient,
@@ -172,6 +215,9 @@ async def test_export_issues_csv_contains_context(
     assert len(rows) == 3
 
     overdue_row = next(row for row in rows if row["Title"] == "Dept issue overdue")
+    assert overdue_row["Source Display"] == "Risk Alpha"
+    assert overdue_row["Source Link Type"] == "risk"
+    assert overdue_row["Source Link Label"] == "Risk Alpha"
     assert overdue_row["Linked Risks"] == "Risk Alpha"
     assert overdue_row["Linked Controls"] == "Control Alpha"
     assert overdue_row["Remediation Status"] == "active"
@@ -179,6 +225,77 @@ async def test_export_issues_csv_contains_context(
 
     requested_exception_row = next(row for row in rows if row["Title"] == "Dept issue not overdue")
     assert requested_exception_row["Exception Status"] == "requested"
+
+
+@pytest.mark.asyncio
+async def test_export_issues_redacts_vendor_source_label_without_vendor_read(
+    db_session: AsyncSession,
+    client: AsyncClient,
+    test_department: Department,
+):
+    department_id = test_department.id
+    role = Role(name="issue_reporter_no_vendor", display_name="Issue Reporter", description="No vendor read")
+    db_session.add(role)
+    await db_session.flush()
+    role_id = role.id
+    await _grant(db_session, role_id, "issues", "read")
+    await _grant(db_session, role_id, "reports", "read")
+    user = User(
+        name="Issue Reporter",
+        email="issue.reporter.no.vendor@test.com",
+        department_id=department_id,
+        role_id=role_id,
+        access_scope=AccessScope.DEPARTMENT,
+        is_active=True,
+    )
+    db_session.add(user)
+    await db_session.flush()
+    issue, _vendor = await _create_vendor_source_issue(
+        db_session,
+        department_id=department_id,
+        created_by_id=user.id,
+        title="Vendor source redaction",
+    )
+
+    as_of = datetime.now(UTC).date().isoformat()
+    response = await client.get(
+        f"/api/v1/reports/issues/export?format=csv&as_of_date={as_of}",
+        headers={"X-Mock-User-Id": str(user.id)},
+    )
+
+    assert response.status_code == 200
+    row = next(row for row in _parse_csv(response.text) if row["Issue ID"] == str(issue.id))
+    assert row["Source Link Type"] == "vendor"
+    assert row["Source Display"] == ""
+    assert row["Source Link Label"] == ""
+
+
+@pytest.mark.asyncio
+async def test_export_issues_includes_vendor_source_label_with_vendor_read(
+    db_session: AsyncSession,
+    client_employee: AsyncClient,
+    test_department: Department,
+    test_role_employee: Role,
+    test_user_employee: User,
+):
+    department_id = test_department.id
+    user_id = test_user_employee.id
+    await _grant(db_session, test_role_employee.id, "issues", "read")
+    issue, vendor = await _create_vendor_source_issue(
+        db_session,
+        department_id=department_id,
+        created_by_id=user_id,
+        title="Vendor source visible",
+    )
+
+    as_of = datetime.now(UTC).date().isoformat()
+    response = await client_employee.get(f"/api/v1/reports/issues/export?format=csv&as_of_date={as_of}")
+
+    assert response.status_code == 200
+    row = next(row for row in _parse_csv(response.text) if row["Issue ID"] == str(issue.id))
+    assert row["Source Link Type"] == "vendor"
+    assert row["Source Display"] == vendor.name
+    assert row["Source Link Label"] == vendor.name
 
 
 @pytest.mark.asyncio

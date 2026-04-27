@@ -53,6 +53,7 @@ export const issueLinkSchema: z.ZodType<IssueLink> = passthroughObject({
     vendor_id: z.number().nullable().optional(),
     linked_entity_type: z.string().nullable(),
     linked_entity_name: z.string().nullable(),
+    is_source_link: z.boolean().default(false),
     created_at: z.string(),
 });
 export const issueRiskContextSchema: z.ZodType<IssueRiskContext> = passthroughObject({
@@ -73,6 +74,8 @@ export const issueSummarySchema = passthroughObject({
     status: z.enum(['open', 'triaged', 'in_progress', 'ready_for_validation', 'closed']),
     source_type: z.enum(['manual', 'control_execution', 'kri_breach', 'audit']),
     source_id: z.number().nullable(),
+    source_display: z.string().nullable().optional(),
+    source_link: issueLinkSchema.nullable().optional(),
     department_id: z.number(),
     department_name: z.string().nullable(),
     owner_user_id: z.number().nullable(),

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from enum import Enum
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.permissions import can_read_control_id, can_read_kri_id, can_read_risk_id
@@ -139,6 +139,7 @@ async def ensure_issue_source_link(
     *,
     issue_id: int,
     link_values: dict[str, int],
+    is_source_link: bool = False,
 ) -> tuple[IssueLink, bool] | None:
     if not link_values:
         return None
@@ -156,9 +157,22 @@ async def ensure_issue_source_link(
         )
     ).scalar_one_or_none()
     if existing is not None:
+        if is_source_link and not existing.is_source_link:
+            existing.is_source_link = True
+            db.add(existing)
+            await db.flush()
         return existing, False
 
-    link = IssueLink(issue_id=issue_id, **link_values)
+    link = IssueLink(issue_id=issue_id, is_source_link=is_source_link, **link_values)
     db.add(link)
     await db.flush()
     return link, True
+
+
+async def clear_issue_source_links(db: AsyncSession, *, issue_id: int) -> None:
+    await db.execute(
+        update(IssueLink).where(IssueLink.issue_id == issue_id, IssueLink.is_source_link.is_(True)).values(
+            is_source_link=False
+        )
+    )
+    await db.flush()

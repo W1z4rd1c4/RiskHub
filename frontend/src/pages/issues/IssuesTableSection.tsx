@@ -121,7 +121,9 @@ export function IssuesTableSection({
                 label: t('columns.source'),
                 sortable: true,
                 render: (issue) => (
-                    <span className="text-sm text-slate-300">{sourceLabel(issue.source_type)}</span>
+                    <span className="text-sm text-slate-300">
+                        {issue.source_display || sourceLabel(issue.source_type)}
+                    </span>
                 ),
             },
             {

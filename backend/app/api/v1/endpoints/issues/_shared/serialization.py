@@ -9,7 +9,7 @@ from app.core.datetime_utils import coerce_utc
 from app.core.permissions import can_read_vendor
 from app.core.security import check_permission
 from app.models import ControlRiskLink, Issue, IssueException, IssueLink, IssueRemediationPlan, Risk, User
-from app.models.issue import IssueExceptionStatus
+from app.models.issue import IssueExceptionStatus, IssueSourceType
 from app.schemas.issue import (
     IssueCapabilities,
     IssueExceptionRead,
@@ -77,8 +77,14 @@ def _link_display(link: IssueLink, current_user: User | None = None) -> tuple[st
     return None, None
 
 
-def _serialize_issue_link(link: IssueLink, current_user: User | None = None) -> IssueLinkRead:
+def _serialize_issue_link(
+    link: IssueLink,
+    current_user: User | None = None,
+    *,
+    is_source_link: bool | None = None,
+) -> IssueLinkRead:
     linked_entity_type, linked_entity_name = _link_display(link, current_user)
+    resolved_is_source_link = link.is_source_link if is_source_link is None else is_source_link
     return IssueLinkRead.model_validate(
         {
             "id": link.id,
@@ -90,9 +96,52 @@ def _serialize_issue_link(link: IssueLink, current_user: User | None = None) -> 
             "vendor_id": link.vendor_id,
             "linked_entity_type": linked_entity_type,
             "linked_entity_name": linked_entity_name,
+            "is_source_link": resolved_is_source_link,
             "created_at": link.created_at,
         }
     )
+
+
+def _source_type_value(source_type: IssueSourceType | str) -> str:
+    return source_type.value if isinstance(source_type, IssueSourceType) else str(source_type)
+
+
+def _link_matches_issue_source(issue: Issue, link: IssueLink) -> bool:
+    if issue.source_id is None:
+        return False
+    source_type = _source_type_value(issue.source_type)
+    if source_type == IssueSourceType.control_execution.value:
+        return link.execution_id == issue.source_id
+    if source_type == IssueSourceType.kri_breach.value:
+        return link.kri_id == issue.source_id
+    return False
+
+
+def _issue_source_link(issue: Issue) -> IssueLink | None:
+    links = sorted(issue.links or [], key=lambda item: item.id or 0)
+    for link in links:
+        if link.is_source_link:
+            return link
+
+    for link in links:
+        if _link_matches_issue_source(issue, link):
+            return link
+    return None
+
+
+def _serialize_issue_source_link(issue: Issue, current_user: User | None = None) -> IssueLinkRead | None:
+    source_link = _issue_source_link(issue)
+    if source_link is None:
+        return None
+    return _serialize_issue_link(source_link, current_user=current_user, is_source_link=True)
+
+
+def _issue_source_display(issue: Issue, current_user: User | None = None) -> str | None:
+    source_link = _issue_source_link(issue)
+    if source_link is None:
+        return None
+    _linked_entity_type, linked_entity_name = _link_display(source_link, current_user)
+    return linked_entity_name
 
 
 def _serialize_remediation(remediation: IssueRemediationPlan | None) -> IssueRemediationPlanRead | None:
@@ -266,6 +315,7 @@ def _serialize_issue_summary(
     owner_user_name: str | None = None
     if issue.owner_user_id is not None:
         owner_user_name = _label_or_fallback(getattr(issue.owner, "name", None), UNKNOWN_USER_LABEL)
+    source_link = _serialize_issue_source_link(issue, current_user=current_user)
     return IssueSummary.model_validate(
         {
             "id": issue.id,
@@ -274,6 +324,8 @@ def _serialize_issue_summary(
             "status": issue.status,
             "source_type": issue.source_type,
             "source_id": issue.source_id,
+            "source_display": _issue_source_display(issue, current_user=current_user),
+            "source_link": source_link.model_dump() if source_link is not None else None,
             "department_id": issue.department_id,
             "department_name": _label_or_fallback(getattr(issue.department, "name", None), UNKNOWN_DEPARTMENT_LABEL),
             "owner_user_id": issue.owner_user_id,
@@ -302,6 +354,7 @@ def _serialize_issue_read(
     created_by_name: str | None = None
     if issue.created_by_id is not None:
         created_by_name = _label_or_fallback(getattr(issue.created_by, "name", None), UNKNOWN_USER_LABEL)
+    source_link = _issue_source_link(issue)
     return IssueRead.model_validate(
         {
             **summary.model_dump(),
@@ -309,7 +362,14 @@ def _serialize_issue_read(
             "created_by_id": issue.created_by_id,
             "created_by_name": created_by_name,
             "validation_note": issue.validation_note,
-            "links": [_serialize_issue_link(link, current_user=current_user).model_dump() for link in issue.links],
+            "links": [
+                _serialize_issue_link(
+                    link,
+                    current_user=current_user,
+                    is_source_link=source_link is not None and link.id == source_link.id,
+                ).model_dump()
+                for link in issue.links
+            ],
             "remediation_plan": (
                 serialized_remediation.model_dump()
                 if (serialized_remediation := _serialize_remediation(issue.remediation_plan)) is not None

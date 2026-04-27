@@ -38,7 +38,7 @@ async def _export_issues(
         exclude_active_exceptions=exclude_active_exceptions,
     )
     as_of_dt = _as_of_datetime(as_of_date)
-    rows = [_issue_to_row(issue, as_of_dt=as_of_dt) for issue in models]
+    rows = [_issue_to_row(issue, as_of_dt=as_of_dt, current_user=current_user) for issue in models]
     if overdue_only:
         rows = [row for row in rows if bool(row.get("is_overdue"))]
 
@@ -49,6 +49,9 @@ async def _export_issues(
         "Severity",
         "Source Type",
         "Source ID",
+        "Source Display",
+        "Source Link Type",
+        "Source Link Label",
         "Department",
         "Owner",
         "Due At",
@@ -76,6 +79,9 @@ async def _export_issues(
             row.get("severity"),
             row.get("source_type"),
             row.get("source_id"),
+            row.get("source_display"),
+            row.get("source_link_type"),
+            row.get("source_link_label"),
             row.get("department_name"),
             row.get("owner_name"),
             row.get("due_at"),

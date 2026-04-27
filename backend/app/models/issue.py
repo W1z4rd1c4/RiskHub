@@ -7,6 +7,7 @@ from enum import Enum as PyEnum
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     DateTime,
     ForeignKey,
@@ -15,6 +16,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    false,
     func,
 )
 from sqlalchemy import (
@@ -154,6 +156,7 @@ class IssueLink(Base):
     execution_id: Mapped[int | None] = mapped_column(ForeignKey("control_executions.id"), nullable=True)
     kri_id: Mapped[int | None] = mapped_column(ForeignKey("key_risk_indicators.id"), nullable=True)
     vendor_id: Mapped[int | None] = mapped_column(ForeignKey("vendors.id"), nullable=True, index=True)
+    is_source_link: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=false())
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     issue: Mapped["Issue"] = relationship("Issue", back_populates="links", lazy="selectin")

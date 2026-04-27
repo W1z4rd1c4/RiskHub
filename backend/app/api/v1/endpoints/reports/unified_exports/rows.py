@@ -2,8 +2,9 @@ from datetime import datetime
 from typing import Any
 
 from app.api.mappers.risk import active_kris_for_risk
+from app.api.v1.endpoints.issues._shared.serialization import _issue_source_link, _link_display
 from app.core.datetime_utils import coerce_utc
-from app.models import Control, Issue, KeyRiskIndicator, Risk, Vendor
+from app.models import Control, Issue, KeyRiskIndicator, Risk, User, Vendor
 from app.models.issue import IssueStatus
 from app.services._monitoring_status import build_control_monitoring_facts
 from app.services.issue_visibility_service import issue_has_active_approved_exception
@@ -123,7 +124,7 @@ def _vendor_to_row(vendor: Vendor) -> dict[str, Any]:
     }
 
 
-def _issue_to_row(issue: Issue, *, as_of_dt: datetime) -> dict[str, Any]:
+def _issue_to_row(issue: Issue, *, as_of_dt: datetime, current_user: User) -> dict[str, Any]:
     links = issue.links or []
     risk_ids = [str(link.risk_id) for link in links if link.risk_id is not None]
     control_ids = [str(link.control_id) for link in links if link.control_id is not None]
@@ -143,6 +144,10 @@ def _issue_to_row(issue: Issue, *, as_of_dt: datetime) -> dict[str, Any]:
     is_overdue = (
         issue.status != IssueStatus.closed.value and not active_exception and due_at is not None and due_at < as_of_dt
     )
+    source_link = _issue_source_link(issue)
+    source_link_type, source_link_label = (
+        _link_display(source_link, current_user=current_user) if source_link is not None else (None, None)
+    )
 
     return {
         "id": issue.id,
@@ -151,6 +156,9 @@ def _issue_to_row(issue: Issue, *, as_of_dt: datetime) -> dict[str, Any]:
         "severity": _enum_value(issue.severity),
         "source_type": _enum_value(issue.source_type),
         "source_id": issue.source_id,
+        "source_display": source_link_label,
+        "source_link_type": source_link_type,
+        "source_link_label": source_link_label,
         "department_id": issue.department_id,
         "department_name": issue.department.name if issue.department else None,
         "owner_user_id": issue.owner_user_id,

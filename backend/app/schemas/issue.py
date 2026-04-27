@@ -71,6 +71,7 @@ class IssueLinkRead(IssueLinkBase):
     issue_id: int
     linked_entity_type: str | None = None
     linked_entity_name: str | None = None
+    is_source_link: bool = False
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -167,6 +168,8 @@ class IssueSummary(BaseModel):
     status: IssueStatusEnum
     source_type: IssueSourceTypeEnum
     source_id: int | None = None
+    source_display: str | None = None
+    source_link: IssueLinkRead | None = None
     department_id: int
     department_name: str | None = None
     owner_user_id: int | None = None

@@ -77,6 +77,7 @@ async def create_contextual_issue(
         db,
         issue_id=issue.id,
         link_values=resolved_source.link_values,
+        is_source_link=True,
     )
     if link_result is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Contextual source link is required")

@@ -16,7 +16,10 @@ export function IssueOverviewTab({ issue, locale, sourceLabel, t }: IssueOvervie
         <section className="space-y-5" data-testid="issue-overview-panel">
             <section className="glass-card p-6 space-y-4">
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                    <IssueMetaBlock label={t('detail.fields.source')} value={sourceLabel(issue.source_type)} />
+                    <IssueMetaBlock
+                        label={t('detail.fields.source')}
+                        value={issue.source_display || sourceLabel(issue.source_type)}
+                    />
                     <IssueMetaBlock
                         label={t('detail.fields.owner')}
                         value={issue.owner_user_name || t('fallbacks.unassigned')}
@@ -54,15 +57,22 @@ export function IssueOverviewTab({ issue, locale, sourceLabel, t }: IssueOvervie
                                     key={link.id}
                                     className="rounded-xl border border-white/10 bg-white/5 px-4 py-3"
                                 >
-                                    <p className="text-sm text-slate-300">
-                                        {link.linked_entity_name ||
-                                            (link.linked_entity_type
-                                                ? t(
-                                                      `fallbacks.unknown_${link.linked_entity_type}`,
-                                                      `Unknown ${link.linked_entity_type}`,
-                                                  )
-                                                : t('fallbacks.unknown_link'))}
-                                    </p>
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                        <p className="text-sm text-slate-300">
+                                            {link.linked_entity_name ||
+                                                (link.linked_entity_type
+                                                    ? t(
+                                                          `fallbacks.unknown_${link.linked_entity_type}`,
+                                                          `Unknown ${link.linked_entity_type}`,
+                                                      )
+                                                    : t('fallbacks.unknown_link'))}
+                                        </p>
+                                        {link.is_source_link ? (
+                                            <span className="rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-[11px] font-semibold text-accent">
+                                                {t('detail.fields.source')}
+                                            </span>
+                                        ) : null}
+                                    </div>
                                 </li>
                             ))}
                         </ul>

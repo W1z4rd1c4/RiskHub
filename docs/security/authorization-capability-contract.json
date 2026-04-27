@@ -425,13 +425,14 @@
       "action": "Export risks, controls, KRIs, vendors, issues, audit trail, summary, and vendor reports",
       "actor_scope": "Requires reports:read plus actor-visible unfiltered rows and strict explicit department and as-of visibility filters",
       "backend_authority": "backend/app/api/v1/endpoints/reports/ and backend/app/api/v1/endpoints/vendor_reports.py",
-      "service_policy": "backend/app/core/_permissions/entity_scope_clauses.py, backend/app/api/v1/endpoints/reports/unified_exports/, and report helpers",
+      "service_policy": "backend/app/core/_permissions/entity_scope_clauses.py, backend/app/api/v1/endpoints/reports/unified_exports/, and report helpers including issue provenance export fields",
       "response_capability": "None; exported rows are filtered server-side",
       "frontend_gate": "frontend/src/services/reportApi.ts, frontend/src/services/vendorReportApi.ts, frontend/src/pages/AuditTrailPage.tsx, and export dialogs, frontend/src/pages/VendorReportsPage.tsx",
       "tests": [
         "tests/backend/pytest/test_reports_rbac.py",
         "tests/backend/pytest/api/v1/test_reports_audit.py",
         "tests/backend/pytest/api/v1/test_reports_export_pipeline.py",
+        "tests/backend/pytest/api/v1/test_reports_issues.py",
         "tests/backend/pytest/test_vendor_reports.py",
         "tests/frontend/unit/src/services/__tests__/vendorReportApi.test.ts"
       ],
@@ -515,10 +516,10 @@
       "id": "AUTHZ-ISSUES-REMEDIATION",
       "surface": "Issues and remediation",
       "action": "Create, read, update, link, assign, progress, close, and approve exceptions",
-      "actor_scope": "Requires issues:read/write/approve plus issue scope, owner assignment, linked-entity visibility helpers, and validated link-backed issue source provenance",
+      "actor_scope": "Requires issues:read/write/approve plus issue scope, owner assignment, linked-entity visibility helpers, validated link-backed issue source provenance, protected current source links, and derived context filters",
       "backend_authority": "backend/app/api/v1/endpoints/issues/",
-      "service_policy": "backend/app/core/_permissions/issues.py, backend/app/api/v1/endpoints/issues/_shared/source.py, backend/app/services/authorization_capabilities.py, and backend/app/services/_authorization_capabilities_impl.py",
-      "response_capability": "backend/app/schemas/issue.py IssueCapabilities on IssueSummary, IssueRead, and IssueListResponse collection capabilities",
+      "service_policy": "backend/app/core/_permissions/issues.py, backend/app/api/v1/endpoints/issues/_shared/source.py, backend/app/api/v1/endpoints/issues/_shared/serialization.py, backend/app/services/authorization_capabilities.py, and backend/app/services/_authorization_capabilities_impl.py",
+      "response_capability": "backend/app/schemas/issue.py IssueCapabilities, source_display, source_link, and IssueLink.is_source_link metadata on IssueSummary, IssueRead, and IssueListResponse collection capabilities",
       "frontend_gate": "frontend/src/pages/issues/, frontend/src/components/issues/, frontend/src/pages/IssuesPage.tsx, frontend/src/pages/IssueDetailPage.tsx, frontend/src/pages/IssueNewPage.tsx, frontend/src/pages/detail/ContextualIssueAction.tsx, and frontend/src/components/executions/ use backend capabilities",
       "tests": [
         "tests/backend/pytest/api/v1/test_issue_workflow.py",
@@ -527,6 +528,8 @@
         "tests/backend/pytest/api/v1/test_dashboard_issue_metrics.py",
         "tests/frontend/unit/src/components/__tests__/ExecutionHistory.test.tsx",
         "tests/frontend/unit/src/components/issues/__tests__/RemediationPlanCard.workflow-visibility.test.tsx",
+        "tests/frontend/unit/src/pages/__tests__/IssueDetailPage.tabs.test.tsx",
+        "tests/frontend/unit/src/pages/__tests__/IssuesPage.table-navigation.test.tsx",
         "tests/frontend/unit/src/pages/detail/ContextualIssueAction.test.tsx"
       ],
       "status": "authoritative",

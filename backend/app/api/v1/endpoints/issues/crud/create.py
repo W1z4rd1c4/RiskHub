@@ -89,6 +89,7 @@ async def create_issue(
             db,
             issue_id=issue.id,
             link_values=resolved_source.link_values,
+            is_source_link=True,
         )
         if source_link_result is not None:
             source_link, source_link_created = source_link_result

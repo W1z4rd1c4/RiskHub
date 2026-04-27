@@ -105,6 +105,19 @@ describe('IssueDetailPage tabs', () => {
             status: 'open',
             source_type: 'manual',
             source_id: null,
+            source_display: 'Customer Churn Risk',
+            source_link: {
+                id: 55,
+                issue_id: 42,
+                risk_id: 90,
+                control_id: null,
+                execution_id: null,
+                kri_id: null,
+                linked_entity_type: 'risk',
+                linked_entity_name: 'Customer Churn Risk',
+                is_source_link: true,
+                created_at: '2026-02-01T10:00:00Z',
+            },
             department_id: 3,
             department_name: 'Finance',
             owner_user_id: 8,
@@ -137,6 +150,7 @@ describe('IssueDetailPage tabs', () => {
                     kri_id: null,
                     linked_entity_type: 'risk',
                     linked_entity_name: 'Customer Churn Risk',
+                    is_source_link: true,
                     created_at: '2026-02-01T10:00:00Z',
                 },
             ],
@@ -173,7 +187,8 @@ describe('IssueDetailPage tabs', () => {
         expect(screen.getByTestId('issue-overview-panel')).toBeInTheDocument();
         expect(screen.getByText('Finance')).toBeInTheDocument();
         expect(screen.getAllByText('Anna Kowalski').length).toBeGreaterThan(0);
-        expect(screen.getByText('Customer Churn Risk')).toBeInTheDocument();
+        expect(screen.getAllByText('Customer Churn Risk').length).toBeGreaterThan(1);
+        expect(screen.getAllByText('Source').length).toBeGreaterThan(1);
         expect(screen.queryByText(/Issue #/i)).not.toBeInTheDocument();
         expect(screen.queryByText(/Owner ID/i)).not.toBeInTheDocument();
         expect(screen.queryByText(/Department ID/i)).not.toBeInTheDocument();

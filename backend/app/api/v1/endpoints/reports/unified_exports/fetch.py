@@ -15,6 +15,7 @@ from app.core.permissions import (
 )
 from app.models import (
     Control,
+    ControlExecution,
     Issue,
     IssueLink,
     IssueRemediationPlan,
@@ -172,8 +173,9 @@ async def _fetch_issues_for_export(
         selectinload(Issue.owner),
         selectinload(Issue.links).selectinload(IssueLink.risk),
         selectinload(Issue.links).selectinload(IssueLink.control),
-        selectinload(Issue.links).selectinload(IssueLink.execution),
+        selectinload(Issue.links).selectinload(IssueLink.execution).selectinload(ControlExecution.control),
         selectinload(Issue.links).selectinload(IssueLink.kri),
+        selectinload(Issue.links).selectinload(IssueLink.vendor),
         selectinload(Issue.remediation_plan).selectinload(IssueRemediationPlan.owner),
         selectinload(Issue.exceptions),
     )

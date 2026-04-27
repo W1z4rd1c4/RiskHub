@@ -16,6 +16,7 @@ export interface IssueLink {
     vendor_id?: number | null;
     linked_entity_type: string | null;
     linked_entity_name: string | null;
+    is_source_link?: boolean;
     created_at: string;
 }
 
@@ -100,6 +101,8 @@ export interface IssueSummary {
     status: IssueStatus;
     source_type: IssueSourceType;
     source_id: number | null;
+    source_display?: string | null;
+    source_link?: IssueLink | null;
     department_id: number;
     department_name: string | null;
     owner_user_id: number | null;

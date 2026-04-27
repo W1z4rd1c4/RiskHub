@@ -17,8 +17,10 @@ from .notifications import (
 )
 from .serialization import (
     _active_exception,
+    _issue_source_link,
     _label_or_fallback,
     _link_display,
+    _link_matches_issue_source,
     _resolve_user_name,
     _serialize_exception,
     _serialize_exception_with_user_names,
@@ -29,6 +31,7 @@ from .serialization import (
 )
 from .source import (
     ResolvedIssueSource,
+    clear_issue_source_links,
     ensure_issue_source_link,
     resolve_contextual_issue_source,
     resolve_issue_source_metadata,
@@ -51,8 +54,10 @@ __all__ = [
     "_get_readable_issue_or_404",
     "_get_writable_issue_or_404",
     "_issue_link_department_ids",
+    "_issue_source_link",
     "_label_or_fallback",
     "_link_display",
+    "_link_matches_issue_source",
     "_notify_exception_approved",
     "_notify_exception_requested",
     "_notify_issue_assigned",
@@ -65,6 +70,7 @@ __all__ = [
     "_serialize_issue_summary",
     "_serialize_remediation",
     "_validate_user_exists",
+    "clear_issue_source_links",
     "ensure_issue_source_link",
     "resolve_contextual_issue_source",
     "resolve_issue_source_metadata",

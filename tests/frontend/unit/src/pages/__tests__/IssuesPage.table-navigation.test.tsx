@@ -44,6 +44,8 @@ describe('IssuesPage table navigation', () => {
                     status: 'open',
                     source_type: 'manual',
                     source_id: null,
+                    source_display: 'Control Evidence Review',
+                    source_link: null,
                     department_id: 7,
                     department_name: 'Operations',
                     owner_user_id: 9,
@@ -66,6 +68,7 @@ describe('IssuesPage table navigation', () => {
         render(<IssuesPage />);
 
         const rowTitle = await screen.findByText('Patch Vulnerability');
+        expect(await screen.findByText('Control Evidence Review')).toBeInTheDocument();
         fireEvent.click(rowTitle);
 
         expect(mockNavigate).toHaveBeenCalledWith('/issues/42');

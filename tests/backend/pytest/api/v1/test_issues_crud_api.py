@@ -96,6 +96,9 @@ async def test_issue_crud_list_link_and_source_metadata(
     issue_id = created["id"]
     assert created["source_type"] == "control_execution"
     assert created["source_id"] == execution.id
+    assert created["source_display"] == f"Execution for {control.name}"
+    assert created["source_link"]["execution_id"] == execution.id
+    assert created["source_link"]["is_source_link"] is True
     assert created["links"] == [
         {
             "id": created["links"][0]["id"],
@@ -107,6 +110,7 @@ async def test_issue_crud_list_link_and_source_metadata(
             "vendor_id": None,
             "linked_entity_type": "execution",
             "linked_entity_name": f"Execution for {control.name}",
+            "is_source_link": True,
             "created_at": created["links"][0]["created_at"],
         }
     ]
@@ -128,6 +132,8 @@ async def test_issue_crud_list_link_and_source_metadata(
     list_item = next(item for item in list_resp.json()["items"] if item["id"] == issue_id)
     assert list_item["department_name"] == test_department.name
     assert list_item["owner_user_name"] == assignable_owner.name
+    assert list_item["source_display"] == f"Execution for {control.name}"
+    assert list_item["source_link"]["execution_id"] == execution.id
     assert list_item["risk_contexts"] == []
     assert list_item["capabilities"]["can_link_risk"] is True
     assert list_item["capabilities"]["has_pending_exception_request"] is False
@@ -290,6 +296,9 @@ async def test_issue_update_source_metadata_validates_and_creates_matching_link(
     payload = update_resp.json()
     assert payload["source_type"] == "kri_breach"
     assert payload["source_id"] == kri.id
+    assert payload["source_display"] == kri.metric_name
+    assert payload["source_link"]["kri_id"] == kri.id
+    assert payload["source_link"]["is_source_link"] is True
     assert payload["links"] == [
         {
             "id": payload["links"][0]["id"],
@@ -301,6 +310,7 @@ async def test_issue_update_source_metadata_validates_and_creates_matching_link(
             "vendor_id": None,
             "linked_entity_type": "kri",
             "linked_entity_name": kri.metric_name,
+            "is_source_link": True,
             "created_at": payload["links"][0]["created_at"],
         }
     ]
@@ -445,7 +455,16 @@ async def test_issue_update_requires_source_id_when_switching_concrete_source_ty
     explicit_payload = explicit_switch.json()
     assert explicit_payload["source_type"] == "kri_breach"
     assert explicit_payload["source_id"] == kri.id
-    assert any(link["kri_id"] == kri.id for link in explicit_payload["links"])
+    execution_source_link = next(link for link in explicit_payload["links"] if link["execution_id"] == execution.id)
+    kri_source_link = next(link for link in explicit_payload["links"] if link["kri_id"] == kri.id)
+    assert execution_source_link["is_source_link"] is False
+    assert kri_source_link["is_source_link"] is True
+    assert explicit_payload["source_link"]["id"] == kri_source_link["id"]
+
+    delete_current_source_link = await auth_client.delete(
+        f"/api/v1/issues/{explicit_payload['id']}/links/{kri_source_link['id']}"
+    )
+    assert delete_current_source_link.status_code == 409
 
     manual_switch = await auth_client.patch(
         f"/api/v1/issues/{explicit_payload['id']}",
@@ -454,6 +473,11 @@ async def test_issue_update_requires_source_id_when_switching_concrete_source_ty
     assert manual_switch.status_code == 200
     assert manual_switch.json()["source_type"] == "manual"
     assert manual_switch.json()["source_id"] is None
+
+    delete_old_context_link = await auth_client.delete(
+        f"/api/v1/issues/{explicit_payload['id']}/links/{execution_source_link['id']}"
+    )
+    assert delete_old_context_link.status_code == 204
 
 
 @pytest.mark.asyncio
@@ -470,9 +494,25 @@ async def test_contextual_control_issue_uses_link_without_execution_source_metad
         control_owner_id=test_user.id,
         status="active",
     )
-    db_session.add(control)
+    secondary_risk = Risk(
+        risk_id_code="ISS-CTX-SECONDARY",
+        name="Secondary contextual risk",
+        process="Finance",
+        description="Secondary link should remain deletable",
+        category="Operational",
+        department_id=test_department.id,
+        owner_id=test_user.id,
+        risk_type="operational",
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=2,
+        status="active",
+    )
+    db_session.add_all([control, secondary_risk])
     await db_session.commit()
     await db_session.refresh(control)
+    await db_session.refresh(secondary_risk)
 
     response = await auth_client.post(
         "/api/v1/issues/contextual",
@@ -488,6 +528,9 @@ async def test_contextual_control_issue_uses_link_without_execution_source_metad
     payload = response.json()
     assert payload["source_type"] == "manual"
     assert payload["source_id"] is None
+    assert payload["source_display"] == control.name
+    assert payload["source_link"]["control_id"] == control.id
+    assert payload["source_link"]["is_source_link"] is True
     assert payload["links"] == [
         {
             "id": payload["links"][0]["id"],
@@ -499,9 +542,89 @@ async def test_contextual_control_issue_uses_link_without_execution_source_metad
             "vendor_id": None,
             "linked_entity_type": "control",
             "linked_entity_name": control.name,
+            "is_source_link": True,
             "created_at": payload["links"][0]["created_at"],
         }
     ]
+
+    secondary_link_resp = await auth_client.post(
+        f"/api/v1/issues/{payload['id']}/links",
+        json={"risk_id": secondary_risk.id},
+    )
+    assert secondary_link_resp.status_code == 201
+
+    delete_secondary_link_resp = await auth_client.delete(
+        f"/api/v1/issues/{payload['id']}/links/{secondary_link_resp.json()['id']}"
+    )
+    assert delete_secondary_link_resp.status_code == 204
+
+    delete_source_link_resp = await auth_client.delete(
+        f"/api/v1/issues/{payload['id']}/links/{payload['source_link']['id']}"
+    )
+    assert delete_source_link_resp.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_manual_issue_later_link_is_not_source_and_can_be_deleted(
+    db_session: AsyncSession,
+    auth_client: AsyncClient,
+    test_department: Department,
+    test_user: User,
+):
+    risk = Risk(
+        risk_id_code="ISS-MANUAL-LINK",
+        name="Manual issue linked risk",
+        process="Finance",
+        description="Ordinary manual issue link",
+        category="Operational",
+        department_id=test_department.id,
+        owner_id=test_user.id,
+        risk_type="operational",
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=2,
+        status="active",
+    )
+    db_session.add(risk)
+    await db_session.commit()
+    await db_session.refresh(risk)
+
+    issue_resp = await auth_client.post(
+        "/api/v1/issues",
+        json={
+            "title": "Manual issue with later risk link",
+            "severity": "medium",
+            "source_type": "manual",
+            "department_id": test_department.id,
+        },
+    )
+    assert issue_resp.status_code == 201
+    issue_payload = issue_resp.json()
+    assert issue_payload["source_type"] == "manual"
+    assert issue_payload["source_id"] is None
+    assert issue_payload["source_link"] is None
+    assert issue_payload["source_display"] is None
+
+    link_resp = await auth_client.post(
+        f"/api/v1/issues/{issue_payload['id']}/links",
+        json={"risk_id": risk.id},
+    )
+    assert link_resp.status_code == 201
+    assert link_resp.json()["is_source_link"] is False
+
+    read_resp = await auth_client.get(f"/api/v1/issues/{issue_payload['id']}")
+    assert read_resp.status_code == 200
+    read_payload = read_resp.json()
+    assert read_payload["source_link"] is None
+    assert read_payload["source_display"] is None
+    assert read_payload["links"][0]["risk_id"] == risk.id
+    assert read_payload["links"][0]["is_source_link"] is False
+
+    delete_resp = await auth_client.delete(
+        f"/api/v1/issues/{issue_payload['id']}/links/{link_resp.json()['id']}"
+    )
+    assert delete_resp.status_code == 204
 
 
 @pytest.mark.asyncio
@@ -773,6 +896,21 @@ async def test_issue_list_resolves_and_deduplicates_risk_contexts_across_links(
         }
     ]
     assert items_by_title["Manual unlinked issue"]["risk_contexts"] == []
+
+    primary_risk_filter = await auth_client.get("/api/v1/issues", params={"linked_risk_id": primary_risk.id})
+    assert primary_risk_filter.status_code == 200
+    assert {item["title"] for item in primary_risk_filter.json()["items"]} >= {
+        "Execution-linked issue",
+        "KRI-linked issue",
+    }
+
+    secondary_risk_filter = await auth_client.get("/api/v1/issues", params={"linked_risk_id": secondary_risk.id})
+    assert secondary_risk_filter.status_code == 200
+    assert "Execution-linked issue" in {item["title"] for item in secondary_risk_filter.json()["items"]}
+
+    control_filter = await auth_client.get("/api/v1/issues", params={"linked_control_id": control.id})
+    assert control_filter.status_code == 200
+    assert "Execution-linked issue" in {item["title"] for item in control_filter.json()["items"]}
 
 
 @pytest.mark.asyncio

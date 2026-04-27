@@ -751,6 +751,7 @@ Shared query contract:
   - `owner_user_id`
   - `department_id`
   - `overdue_only`
+- Issues export includes canonical source metadata (`source_type`, `source_id`) plus human-readable source display/source-link labels. Existing linked entity IDs and names remain present for traceability.
 
 ### 10.2 UI Export Contract
 
@@ -892,6 +893,9 @@ Contextual behavior:
 - `kri` creates `source_type=kri_breach`, `source_id=<kri id>`, and an `IssueLink.kri_id`.
 - `risk`, `control`, and `vendor` contextual issues use `IssueLink` for the concrete entity and do not store misleading concrete source IDs.
 - Raw issue create/update accepts non-manual source metadata only when the source is visible and can be backed by the matching issue link. `manual` and `audit` issues cannot carry arbitrary `source_id` values.
+- Issue list/detail responses expose `source_display` and `source_link` from the explicit `IssueLink.is_source_link` provenance marker. For manual contextual risk/control/vendor issues, the contextual link is marked as the source while `source_type` remains `manual`; ordinary links added later to manually created issues are not source links.
+- The current source link cannot be deleted until source metadata is changed or cleared; older source links and ordinary manual links remain contextual traceability and can be unlinked.
+- Linked risk/control filters include derived contexts. A risk filter matches direct risk links, KRI parent risks, control-linked risks, and execution parent control risks. A control filter matches direct control links and execution parent controls. Unreadable linked filter targets return an empty result set rather than leaking existence.
 - Vendor links support direct `vendor_id` in `IssueLink`.
 - Vendor department fallback:
   - if `vendor.department_id` is null, fallback uses vendor owner department.

@@ -18,6 +18,7 @@ from .._shared import (
     _issue_link_department_ids,
     _serialize_issue_read,
     _validate_user_exists,
+    clear_issue_source_links,
     ensure_issue_source_link,
     resolve_issue_source_metadata,
 )
@@ -136,6 +137,7 @@ async def update_issue(
     await db.flush()
 
     if "source_type" in updates or "source_id" in updates:
+        await clear_issue_source_links(db, issue_id=issue.id)
         resolved_source = await resolve_issue_source_metadata(
             db,
             current_user,
@@ -147,10 +149,11 @@ async def update_issue(
                 db,
                 issue_id=issue.id,
                 link_values=resolved_source.link_values,
+                is_source_link=True,
             )
             if source_link_result is not None:
                 source_link, source_link_created = source_link_result
-            db.expire(issue, ["links"])
+        db.expire(issue, ["links"])
 
     await log_activity(
         db,

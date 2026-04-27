@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, false, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -17,7 +17,13 @@ from app.api.v1.endpoints._collection import (
     merge_collection_filters,
     parse_collection_query,
 )
-from app.core.permissions import get_issue_scope_clause, has_permission
+from app.core.permissions import (
+    can_read_control_id,
+    can_read_risk_id,
+    can_read_vendor_id,
+    get_issue_scope_clause,
+    has_permission,
+)
 from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import Control, ControlExecution, ControlRiskLink, Issue, IssueLink, KeyRiskIndicator, User
@@ -196,11 +202,46 @@ async def list_issues(
     if overdue is False:
         query = query.where(or_(Issue.due_at.is_(None), Issue.due_at >= now, Issue.status == IssueStatus.closed.value))
     if linked_risk_id is not None:
-        query = query.where(Issue.id.in_(select(IssueLink.issue_id).where(IssueLink.risk_id == linked_risk_id)))
+        if not await can_read_risk_id(db, current_user, linked_risk_id):
+            query = query.where(false())
+        else:
+            linked_kri_ids = select(KeyRiskIndicator.id).where(KeyRiskIndicator.risk_id == linked_risk_id)
+            linked_control_ids = select(ControlRiskLink.control_id).where(ControlRiskLink.risk_id == linked_risk_id)
+            linked_execution_ids = select(ControlExecution.id).where(
+                ControlExecution.control_id.in_(linked_control_ids)
+            )
+            query = query.where(
+                Issue.id.in_(
+                    select(IssueLink.issue_id).where(
+                        or_(
+                            IssueLink.risk_id == linked_risk_id,
+                            IssueLink.kri_id.in_(linked_kri_ids),
+                            IssueLink.control_id.in_(linked_control_ids),
+                            IssueLink.execution_id.in_(linked_execution_ids),
+                        )
+                    )
+                )
+            )
     if linked_control_id is not None:
-        query = query.where(Issue.id.in_(select(IssueLink.issue_id).where(IssueLink.control_id == linked_control_id)))
+        if not await can_read_control_id(db, current_user, linked_control_id):
+            query = query.where(false())
+        else:
+            linked_execution_ids = select(ControlExecution.id).where(ControlExecution.control_id == linked_control_id)
+            query = query.where(
+                Issue.id.in_(
+                    select(IssueLink.issue_id).where(
+                        or_(
+                            IssueLink.control_id == linked_control_id,
+                            IssueLink.execution_id.in_(linked_execution_ids),
+                        )
+                    )
+                )
+            )
     if linked_vendor_id is not None:
-        query = query.where(Issue.id.in_(select(IssueLink.issue_id).where(IssueLink.vendor_id == linked_vendor_id)))
+        if not await can_read_vendor_id(db, current_user, linked_vendor_id):
+            query = query.where(false())
+        else:
+            query = query.where(Issue.id.in_(select(IssueLink.issue_id).where(IssueLink.vendor_id == linked_vendor_id)))
 
     sortable_fields = {
         "title": Issue.title,
