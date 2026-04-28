@@ -961,7 +961,9 @@ Risk questionnaires are risk-assessment workflows attached to a parent risk.
 - Users who can read a risk through ownership or linked-entity exceptions can read questionnaire history for that risk.
 - Acting on a questionnaire remains narrower than reading: the assigned risk owner or the department head for the risk department can open, save draft, submit, and respond to clarifications.
 - RM/CRO users with canonical risk read access can request clarifications for submitted questionnaires.
+- Questionnaire inbox rows and shell-summary questionnaire counts use the same open-questionnaire action policy as the inbox endpoint.
 - List/detail responses expose additive `capabilities` metadata (`can_open`, `can_save_draft`, `can_submit`, `can_request_clarification`, `can_respond_to_clarifications`) so UI action visibility mirrors backend authority.
+- Risk detail responses expose `RiskCapabilities.can_send_questionnaire` for single-risk questionnaire send affordances.
 
 ### 12.2 Lifecycle and Uniqueness
 

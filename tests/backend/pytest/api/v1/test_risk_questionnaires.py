@@ -10,9 +10,11 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Control, ControlRiskLink, Department, Risk, RiskQuestionnaire, User
+from app.core.datetime_utils import utc_now
+from app.models import Control, ControlRiskLink, Department, KeyRiskIndicator, Risk, RiskQuestionnaire, User
 from app.models.risk import RiskStatus
 from app.models.risk_questionnaire import RiskQuestionnaireStatus
+from app.services.risk_questionnaire_service import questionnaire_capabilities
 
 
 @pytest_asyncio.fixture
@@ -122,6 +124,14 @@ async def test_cross_department_assigned_owner_can_complete_questionnaire(
     assert list_resp.status_code == 200
     assert list_resp.json()[0]["capabilities"]["can_submit"] is True
 
+    inbox_resp = await client_employee.get("/api/v1/questionnaires/inbox")
+    assert inbox_resp.status_code == 200
+    assert q_id in {q["id"] for q in inbox_resp.json()}
+
+    shell_resp = await client_employee.get("/api/v1/users/me/shell-summary")
+    assert shell_resp.status_code == 200
+    assert shell_resp.json()["questionnaire_inbox_count"] == 1
+
     open_resp = await client_employee.post(f"/api/v1/questionnaires/{q_id}/open")
     assert open_resp.status_code == 200
     assert open_resp.json()["status"] == "in_progress"
@@ -185,9 +195,22 @@ async def test_cross_department_control_owner_can_read_but_not_submit_questionna
     assert send_resp.status_code == 201
     q_id = send_resp.json()["id"]
 
+    list_resp = await client_employee.get(f"/api/v1/risks/{risk.id}/questionnaires")
+    assert list_resp.status_code == 200
+    assert list_resp.json()[0]["id"] == q_id
+    assert list_resp.json()[0]["capabilities"]["can_submit"] is False
+
     read_resp = await client_employee.get(f"/api/v1/questionnaires/{q_id}")
     assert read_resp.status_code == 200
     assert read_resp.json()["capabilities"]["can_submit"] is False
+
+    clarifications_resp = await client_employee.get(f"/api/v1/questionnaires/{q_id}/clarifications")
+    assert clarifications_resp.status_code == 200
+    assert clarifications_resp.json() == []
+
+    inbox_resp = await client_employee.get("/api/v1/questionnaires/inbox")
+    assert inbox_resp.status_code == 200
+    assert q_id not in {q["id"] for q in inbox_resp.json()}
 
     submit_resp = await client_employee.post(
         f"/api/v1/questionnaires/{q_id}/submit",
@@ -203,6 +226,128 @@ async def test_cross_department_control_owner_can_read_but_not_submit_questionna
         },
     )
     assert submit_resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_cross_department_kri_reporting_owner_can_read_but_not_act_on_questionnaire(
+    client_cro: AsyncClient,
+    client_employee: AsyncClient,
+    db_session: AsyncSession,
+    other_department: Department,
+    test_user_employee: User,
+    test_user_cro: User,
+):
+    risk = Risk(
+        risk_id_code="R-Q-KRI-OWNER",
+        name="KRI Reporting Owner Read Risk",
+        process="Test Process",
+        description="desc",
+        category="Test Category",
+        department_id=other_department.id,
+        owner_id=test_user_cro.id,
+        risk_type="operational",
+        status=RiskStatus.active.value,
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=2,
+    )
+    db_session.add(risk)
+    await db_session.flush()
+    db_session.add(
+        KeyRiskIndicator(
+            risk_id=risk.id,
+            metric_name="Cross Department KRI",
+            description="desc",
+            current_value=5,
+            lower_limit=0,
+            upper_limit=10,
+            unit="count",
+            reporting_owner_id=test_user_employee.id,
+        )
+    )
+    await db_session.commit()
+
+    send_resp = await client_cro.post(f"/api/v1/risks/{risk.id}/questionnaires/send")
+    assert send_resp.status_code == 201
+    q_id = send_resp.json()["id"]
+
+    list_resp = await client_employee.get(f"/api/v1/risks/{risk.id}/questionnaires")
+    assert list_resp.status_code == 200
+    assert list_resp.json()[0]["id"] == q_id
+    assert list_resp.json()[0]["capabilities"]["can_submit"] is False
+
+    read_resp = await client_employee.get(f"/api/v1/questionnaires/{q_id}")
+    assert read_resp.status_code == 200
+    assert read_resp.json()["capabilities"]["can_save_draft"] is False
+    assert read_resp.json()["capabilities"]["can_respond_to_clarifications"] is False
+
+    inbox_resp = await client_employee.get("/api/v1/questionnaires/inbox")
+    assert inbox_resp.status_code == 200
+    assert q_id not in {q["id"] for q in inbox_resp.json()}
+
+
+@pytest.mark.asyncio
+async def test_questionnaire_capabilities_require_read_visibility(
+    db_session: AsyncSession,
+    other_department: Department,
+    test_user_employee: User,
+    test_user_cro: User,
+):
+    risk = Risk(
+        risk_id_code="R-Q-NO-READ-CAPS",
+        name="Unreadable Assigned Questionnaire Risk",
+        process="Test Process",
+        description="desc",
+        category="Test Category",
+        department_id=other_department.id,
+        owner_id=test_user_cro.id,
+        risk_type="operational",
+        status=RiskStatus.active.value,
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=2,
+    )
+    db_session.add(risk)
+    await db_session.flush()
+    questionnaire = RiskQuestionnaire(
+        risk_id=risk.id,
+        assigned_to_user_id=test_user_employee.id,
+        sent_by_user_id=test_user_cro.id,
+        status=RiskQuestionnaireStatus.sent,
+        template_key="risk_owner_reassessment",
+        template_version="v2",
+        sent_at=utc_now(),
+        due_at=utc_now(),
+    )
+    db_session.add(questionnaire)
+    await db_session.commit()
+    await db_session.refresh(questionnaire)
+
+    capabilities = await questionnaire_capabilities(db_session, test_user_employee, questionnaire)
+    assert capabilities == {
+        "can_open": False,
+        "can_save_draft": False,
+        "can_submit": False,
+        "can_request_clarification": False,
+        "can_respond_to_clarifications": False,
+    }
+
+
+@pytest.mark.asyncio
+async def test_risk_detail_send_questionnaire_capability_is_backend_authoritative(
+    client_cro: AsyncClient,
+    client_employee: AsyncClient,
+    risk_owned_by_employee: Risk,
+):
+    cro_resp = await client_cro.get(f"/api/v1/risks/{risk_owned_by_employee.id}")
+    assert cro_resp.status_code == 200
+    assert cro_resp.json()["capabilities"]["can_send_questionnaire"] is True
+
+    employee_resp = await client_employee.get(f"/api/v1/risks/{risk_owned_by_employee.id}")
+    assert employee_resp.status_code == 200
+    assert employee_resp.json()["capabilities"]["can_send_questionnaire"] is False
 
 
 @pytest.mark.asyncio

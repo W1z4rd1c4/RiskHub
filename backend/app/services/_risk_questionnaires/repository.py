@@ -1,9 +1,12 @@
-from sqlalchemy import select
+from sqlalchemy import Select, desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.permissions import risk_visibility_clause
 from app.models import Risk, RiskQuestionnaire
 from app.models.risk_questionnaire import RiskQuestionnaireStatus
+from app.models.role import RoleType
+from app.models.user import User
 
 from .validation import OPEN_QUESTIONNAIRE_STATUSES
 
@@ -54,6 +57,43 @@ async def find_open_questionnaire_for_risk(db: AsyncSession, risk_id: int) -> Ri
         .limit(1)
     )
     return result.scalar_one_or_none()
+
+
+async def questionnaire_inbox_query(db: AsyncSession, current_user: User) -> Select[tuple[RiskQuestionnaire]]:
+    owner_clause = RiskQuestionnaire.assigned_to_user_id == current_user.id
+    role_name = getattr(getattr(current_user, "role", None), "name", None)
+    action_clause = owner_clause
+    if role_name == RoleType.DEPARTMENT_HEAD and current_user.department_id is not None:
+        action_clause = or_(owner_clause, Risk.department_id == current_user.department_id)
+
+    query = (
+        select(RiskQuestionnaire)
+        .join(Risk, Risk.id == RiskQuestionnaire.risk_id)
+        .where(
+            RiskQuestionnaire.status.in_(OPEN_QUESTIONNAIRE_STATUSES),
+            action_clause,
+        )
+    )
+
+    visibility_clause = await risk_visibility_clause(db, current_user)
+    if visibility_clause is not None:
+        query = query.where(visibility_clause)
+
+    return query
+
+
+async def list_questionnaire_inbox(db: AsyncSession, current_user: User) -> list[RiskQuestionnaire]:
+    query = (await questionnaire_inbox_query(db, current_user)).options(*questionnaire_load_options())
+    result = await db.execute(query.order_by(desc(RiskQuestionnaire.due_at), desc(RiskQuestionnaire.id)))
+    return list(result.scalars().all())
+
+
+async def count_questionnaire_inbox(db: AsyncSession, current_user: User) -> int:
+    inbox_subquery = (
+        (await questionnaire_inbox_query(db, current_user)).with_only_columns(RiskQuestionnaire.id).subquery()
+    )
+    result = await db.execute(select(func.count()).select_from(inbox_subquery))
+    return result.scalar() or 0
 
 
 async def get_previous_submitted_questionnaire(

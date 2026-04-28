@@ -54,9 +54,10 @@ async def questionnaire_capabilities(
     current_user: User,
     questionnaire: RiskQuestionnaire,
 ) -> dict[str, bool]:
-    can_act = can_act_on_questionnaire(current_user, questionnaire)
+    can_read = await can_read_questionnaire(db, current_user, questionnaire)
+    can_act = can_read and can_act_on_questionnaire(current_user, questionnaire)
     is_open = questionnaire.status in OPEN_QUESTIONNAIRE_STATUSES
-    can_request_clarification = await can_request_questionnaire_clarification(db, current_user, questionnaire)
+    can_request_clarification = can_read and can_send_questionnaire(current_user)
     return {
         "can_open": can_act and questionnaire.status == RiskQuestionnaireStatus.sent,
         "can_save_draft": can_act and is_open,
@@ -64,5 +65,5 @@ async def questionnaire_capabilities(
         "can_request_clarification": (
             can_request_clarification and questionnaire.status == RiskQuestionnaireStatus.submitted
         ),
-        "can_respond_to_clarifications": questionnaire.assigned_to_user_id == current_user.id,
+        "can_respond_to_clarifications": can_read and questionnaire.assigned_to_user_id == current_user.id,
     }

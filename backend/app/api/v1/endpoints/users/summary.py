@@ -33,12 +33,11 @@ async def _count_pending_approvals(db: AsyncSession, current_user: User) -> int:
 
 
 async def _count_questionnaire_inbox(db: AsyncSession, current_user: User) -> int:
-    from app.api.v1.endpoints.risk_questionnaires.inbox import get_questionnaire_inbox
+    from app.services.risk_questionnaire_service import count_questionnaire_inbox
 
     if not has_permission(current_user, "risks", "read"):
         return 0
-    items = await get_questionnaire_inbox(db=db, current_user=current_user)
-    return len(items)
+    return await count_questionnaire_inbox(db, current_user)
 
 
 def _can_view_governance(current_user: User) -> bool:

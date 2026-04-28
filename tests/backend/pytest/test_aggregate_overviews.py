@@ -276,7 +276,7 @@ async def test_dashboard_overview_cache_returns_stale_data_until_expiry(
     monkeypatch.setattr(overview_module, "get_dashboard_summary", fake_summary)
     monkeypatch.setattr(overview_module, "get_department_metrics", fake_department_metrics)
     monkeypatch.setattr(overview_module, "get_risk_distribution", fake_distribution)
-    monkeypatch.setattr(overview_module, "get_control_trends", fake_control_trends)
+    monkeypatch.setattr(overview_module, "build_control_trends", fake_control_trends)
     monkeypatch.setattr(overview_module, "get_risk_trends", fake_risk_trends)
     monkeypatch.setattr(overview_module, "get_kri_breach_trends", fake_kri_trends)
     monkeypatch.setattr(overview_module, "get_issue_summary", fake_issue_summary)

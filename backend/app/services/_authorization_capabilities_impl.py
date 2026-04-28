@@ -45,6 +45,7 @@ from app.schemas.issue import IssueCapabilities
 from app.schemas.kri import KRICapabilities
 from app.schemas.risk import RiskCapabilities
 from app.services._kri_history.workflow import can_request_history_correction
+from app.services._risk_questionnaires.policy import can_send_questionnaire
 from app.services.approval_scenario_policy import (
     scenario_allows_privileged_resolution,
     user_matches_approval_scenario_role,
@@ -146,6 +147,7 @@ async def risk_capabilities(db: AsyncSession, *, current_user: User, risk: Risk)
             can_delete and not is_resolver and not has_pending_delete and not is_archived
         ),
         can_restore=bool(can_delete and is_archived),
+        can_send_questionnaire=bool(can_read and can_send_questionnaire(current_user) and risk.owner_id is not None),
         can_create_kri=can_create_kri,
         can_create_linked_control=bool(can_link_controls and has_permission(current_user, "controls", "write")),
         can_link_controls=can_link_controls,

@@ -7,8 +7,10 @@ from .policy import (
     questionnaire_capabilities,
 )
 from .repository import (
+    count_questionnaire_inbox,
     find_open_questionnaire_for_risk,
     get_previous_submitted_questionnaire,
+    list_questionnaire_inbox,
     load_questionnaire,
     load_risk,
     questionnaire_load_options,
@@ -47,9 +49,11 @@ __all__ = [
     "can_request_questionnaire_clarification",
     "can_send_questionnaire",
     "can_submit_questionnaire",
+    "count_questionnaire_inbox",
     "create_questionnaire_instance",
     "find_open_questionnaire_for_risk",
     "get_previous_submitted_questionnaire",
+    "list_questionnaire_inbox",
     "load_questionnaire",
     "load_risk",
     "open_questionnaire_for_user",

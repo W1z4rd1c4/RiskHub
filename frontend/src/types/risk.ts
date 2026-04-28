@@ -34,6 +34,7 @@ export interface RiskCapabilities {
     can_archive_immediately: boolean;
     can_request_archive_approval: boolean;
     can_restore: boolean;
+    can_send_questionnaire?: boolean;
     can_create_kri: boolean;
     can_create_linked_control: boolean;
     can_link_controls: boolean;

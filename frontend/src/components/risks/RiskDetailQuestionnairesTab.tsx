@@ -1,8 +1,8 @@
 import { AlertCircle, FileText, Send, UserX } from 'lucide-react';
 
-import { useAuthz } from '@/authz/useAuthz';
 import { useTotalAssetsValue } from '@/hooks/useRiskHubConfig';
 import { useTranslation } from '@/i18n/hooks';
+import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { cn } from '@/lib/utils';
 import type { Risk } from '@/types/risk';
 
@@ -22,9 +22,8 @@ interface RiskDetailQuestionnairesTabProps {
 
 export function RiskDetailQuestionnairesTab({ risk }: RiskDetailQuestionnairesTabProps) {
     const { t, i18n } = useTranslation(['common', 'risks']);
-    const authz = useAuthz();
     const { totalAssets } = useTotalAssetsValue();
-    const canSend = authz.canSendRiskQuestionnaires;
+    const canSend = resolveCapabilityFlag(risk.capabilities, 'can_send_questionnaire');
     const {
         errorKey,
         handleSend,

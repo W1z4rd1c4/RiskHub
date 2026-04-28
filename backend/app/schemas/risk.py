@@ -139,6 +139,7 @@ class RiskCapabilities(BaseModel):
     can_archive_immediately: bool
     can_request_archive_approval: bool
     can_restore: bool
+    can_send_questionnaire: bool
     can_create_kri: bool
     can_create_linked_control: bool
     can_link_controls: bool

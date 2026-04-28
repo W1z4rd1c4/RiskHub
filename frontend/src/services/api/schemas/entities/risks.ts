@@ -13,6 +13,7 @@ const riskCapabilitiesSchema = passthroughObject({
     can_archive_immediately: z.boolean(),
     can_request_archive_approval: z.boolean(),
     can_restore: z.boolean(),
+    can_send_questionnaire: z.boolean().optional(),
     can_create_kri: z.boolean(),
     can_create_linked_control: z.boolean(),
     can_link_controls: z.boolean(),
