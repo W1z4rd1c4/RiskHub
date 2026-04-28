@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
+from app.core.permission_cache import build_permission_sensitive_cache_key
 from app.core.permissions import can_manage_users, ensure_business_view_access
 from app.core.scheduler import execute_tracked_job_with_session
 from app.core.ttl_cache import TTLCache
@@ -106,11 +107,8 @@ async def get_orphaned_items_overview(
 ):
     """Get governance overview payload without triggering a scan."""
     _require_governance_operator(current_user)
-    cache_key = (
-        current_user.id,
-        getattr(current_user.access_scope, "value", str(current_user.access_scope)),
-        current_user.department_id,
-        getattr(getattr(current_user, "role", None), "name", None),
+    cache_key = build_permission_sensitive_cache_key(
+        current_user,
         item_type,
         status,
     )

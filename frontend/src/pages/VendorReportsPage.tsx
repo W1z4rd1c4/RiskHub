@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from '@/i18n/hooks';
 import { Download, FileSpreadsheet } from 'lucide-react';
 import { vendorReportApi } from '@/services/vendorReportApi';
-import { PermissionGate } from '@/components/PermissionGate';
 import { departmentApi, type DepartmentSummary } from '@/services/departmentApi';
 import type { VendorReportCapabilities } from '@/types/vendorReport';
 
@@ -107,82 +106,84 @@ export function VendorReportsPage() {
     ) : null;
 
     return (
-        <PermissionGate resource="reports" action="read">
-            <div className="space-y-8">
-                <div>
-                    <h1 className="text-2xl font-bold text-white">{t('reports.title')}</h1>
-                    <p className="text-slate-500 font-medium">{t('reports.subtitle')}</p>
+        <div className="space-y-8">
+            <div>
+                <h1 className="text-2xl font-bold text-white">{t('reports.title')}</h1>
+                <p className="text-slate-500 font-medium">{t('reports.subtitle')}</p>
+            </div>
+
+            {isCapabilitiesLoading ? (
+                <div className="glass-card p-6">
+                    <p className="text-slate-300 font-medium">{t('labels.loading')}</p>
                 </div>
+            ) : !canReadReports ? (
+                <div className="glass-card p-6">
+                    <p className="text-slate-300 font-medium">{t('reports.not_authorized')}</p>
+                </div>
+            ) : (
+                <div className="grid gap-6 lg:grid-cols-2">
+                    <section className="glass-card p-6 space-y-4">
+                        <h3 className="text-sm font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
+                            <Download className="h-4 w-4" />
+                            {t('reports.annual.title')}
+                        </h3>
 
-                {isCapabilitiesLoading ? (
-                    <div className="glass-card p-6">
-                        <p className="text-slate-300 font-medium">{t('labels.loading')}</p>
-                    </div>
-                ) : !canReadReports ? (
-                    <div className="glass-card p-6">
-                        <p className="text-slate-300 font-medium">{t('reports.not_authorized')}</p>
-                    </div>
-                ) : (
-                    <div className="grid gap-6 lg:grid-cols-2">
-                        <section className="glass-card p-6 space-y-4">
-                            <h3 className="text-sm font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
-                                <Download className="h-4 w-4" />
-                                {t('reports.annual.title')}
-                            </h3>
+                        <div className="flex items-center gap-3">
+                            <label className="text-xs font-bold uppercase tracking-widest text-slate-500">
+                                {t('reports.annual.year')}
+                            </label>
+                            <input
+                                type="number"
+                                value={year}
+                                onChange={(e) => setYear(Number(e.target.value))}
+                                className="w-28 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white font-mono"
+                                min={2000}
+                                max={2100}
+                            />
+                        </div>
+                        {renderDepartmentSelector('vendor-report-annual-department')}
 
-                            <div className="flex items-center gap-3">
-                                <label className="text-xs font-bold uppercase tracking-widest text-slate-500">
-                                    {t('reports.annual.year')}
-                                </label>
-                                <input
-                                    type="number"
-                                    value={year}
-                                    onChange={(e) => setYear(Number(e.target.value))}
-                                    className="w-28 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white font-mono"
-                                    min={2000}
-                                    max={2100}
-                                />
-                            </div>
-                            {renderDepartmentSelector('vendor-report-annual-department')}
-
-                            <div className="flex flex-wrap gap-2">
-                                {canDownloadAnnual ? (
-                                    <button
-                                        disabled={isDownloading}
-                                        onClick={() => download(() => vendorReportApi.downloadAnnual(year, 'csv', effectiveDepartmentId))}
-                                        className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-slate-200 font-bold hover:bg-white/10 transition-colors disabled:opacity-60 flex items-center gap-2"
-                                    >
-                                        <FileSpreadsheet className="h-4 w-4" />
-                                        {t('reports.annual.download_csv')}
-                                    </button>
-                                ) : null}
-                            </div>
-                        </section>
-
-                        <section className="glass-card p-6 space-y-4">
-                            <h3 className="text-sm font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
-                                <FileSpreadsheet className="h-4 w-4" />
-                                {t('reports.dora.title')}
-                            </h3>
-                            <p className="text-sm text-slate-300 font-medium">
-                                {t('reports.dora.subtitle')}
-                            </p>
-                            {renderDepartmentSelector('vendor-report-dora-department')}
-                            {canDownloadDora ? (
+                        <div className="flex flex-wrap gap-2">
+                            {canDownloadAnnual ? (
                                 <button
                                     disabled={isDownloading}
-                                    onClick={() => download(() => vendorReportApi.downloadDoraRegister(effectiveDepartmentId))}
-                                    className="px-4 py-2 rounded-xl bg-accent/20 border border-accent/30 text-accent font-bold hover:bg-accent/30 transition-colors disabled:opacity-60 flex items-center gap-2 w-fit"
+                                    onClick={() => download(
+                                        () => vendorReportApi.downloadAnnual(year, 'csv', effectiveDepartmentId),
+                                    )}
+                                    className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-slate-200 font-bold hover:bg-white/10 transition-colors disabled:opacity-60 flex items-center gap-2"
                                 >
-                                    <Download className="h-4 w-4" />
-                                    {t('reports.dora.download')}
+                                    <FileSpreadsheet className="h-4 w-4" />
+                                    {t('reports.annual.download_csv')}
                                 </button>
                             ) : null}
-                        </section>
-                    </div>
-                )}
-            </div>
-        </PermissionGate>
+                        </div>
+                    </section>
+
+                    <section className="glass-card p-6 space-y-4">
+                        <h3 className="text-sm font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
+                            <FileSpreadsheet className="h-4 w-4" />
+                            {t('reports.dora.title')}
+                        </h3>
+                        <p className="text-sm text-slate-300 font-medium">
+                            {t('reports.dora.subtitle')}
+                        </p>
+                        {renderDepartmentSelector('vendor-report-dora-department')}
+                        {canDownloadDora ? (
+                            <button
+                                disabled={isDownloading}
+                                onClick={() => download(
+                                    () => vendorReportApi.downloadDoraRegister(effectiveDepartmentId),
+                                )}
+                                className="px-4 py-2 rounded-xl bg-accent/20 border border-accent/30 text-accent font-bold hover:bg-accent/30 transition-colors disabled:opacity-60 flex items-center gap-2 w-fit"
+                            >
+                                <Download className="h-4 w-4" />
+                                {t('reports.dora.download')}
+                            </button>
+                        ) : null}
+                    </section>
+                </div>
+            )}
+        </div>
     );
 }
 

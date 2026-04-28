@@ -90,7 +90,10 @@ def test_markdown_matrix_service_policy_drift_fails_validation() -> None:
     validator = _load_validator()
     manifest = json.loads(CONTRACT_JSON_PATH.read_text(encoding="utf-8"))
     markdown = CONTRACT_MD_PATH.read_text(encoding="utf-8").replace(
-        "backend/app/core/permissions.py and backend/app/api/v1/endpoints/users/_visibility.py",
+        (
+            "backend/app/core/permissions.py, backend/app/core/permission_cache.py, "
+            "backend/app/api/v1/endpoints/users/_visibility.py"
+        ),
         "backend/app/core/permissions.py",
         1,
     )
@@ -324,6 +327,124 @@ def test_discovered_allowlisted_support_path_does_not_fail() -> None:
     )
 
     assert findings == []
+
+
+def test_changed_frontend_local_action_gate_must_be_classified() -> None:
+    validator = _load_validator()
+    path = Path("frontend/src/pages/ExampleActionPage.tsx")
+
+    findings = validator._validate_frontend_local_gate_classifications(
+        [path],
+        {
+            path: "\n".join(
+                [
+                    "diff --git a/frontend/src/pages/ExampleActionPage.tsx b/frontend/src/pages/ExampleActionPage.tsx",
+                    "@@ -0,0 +1 @@",
+                    "+const canArchive = hasPermission('risks', 'delete');",
+                ]
+            )
+        },
+    )
+
+    assert [finding.reason for finding in findings] == ["frontend_local_gate_not_classified"]
+    assert path.as_posix() in findings[0].detail
+
+
+def test_changed_frontend_route_gate_classification_passes() -> None:
+    validator = _load_validator()
+    path = Path("frontend/src/components/layout/Sidebar.tsx")
+
+    findings = validator._validate_frontend_local_gate_classifications(
+        [path],
+        {
+            path: "\n".join(
+                [
+                    (
+                        "diff --git a/frontend/src/components/layout/Sidebar.tsx "
+                        "b/frontend/src/components/layout/Sidebar.tsx"
+                    ),
+                    "@@ -0,0 +1 @@",
+                    "+const { hasPermission } = usePermissions();",
+                ]
+            )
+        },
+    )
+
+    assert findings == []
+
+
+def test_classified_frontend_action_gate_outside_allowed_patterns_fails() -> None:
+    validator = _load_validator()
+    path = Path("frontend/src/pages/DashboardPage.tsx")
+
+    findings = validator._validate_frontend_local_gate_classifications(
+        [path],
+        {
+            path: "\n".join(
+                [
+                    "diff --git a/frontend/src/pages/DashboardPage.tsx b/frontend/src/pages/DashboardPage.tsx",
+                    "@@ -0,0 +1 @@",
+                    "+const canDeleteRisk = hasPermission('risks', 'delete');",
+                ]
+            )
+        },
+    )
+
+    assert [finding.reason for finding in findings] == ["frontend_local_gate_not_allowed"]
+    assert "hasPermission('risks', 'delete')" in findings[0].detail
+
+
+def test_classified_frontend_allowed_local_gate_pattern_passes() -> None:
+    validator = _load_validator()
+    path = Path("frontend/src/pages/DashboardPage.tsx")
+
+    findings = validator._validate_frontend_local_gate_classifications(
+        [path],
+        {
+            path: "\n".join(
+                [
+                    "diff --git a/frontend/src/pages/DashboardPage.tsx b/frontend/src/pages/DashboardPage.tsx",
+                    "@@ -0,0 +1 @@",
+                    "+const canReadIssues = hasPermission('issues', 'read');",
+                ]
+            )
+        },
+    )
+
+    assert findings == []
+
+
+def test_frontend_local_gate_deletions_do_not_require_classification() -> None:
+    validator = _load_validator()
+    path = Path("frontend/src/pages/RemovedActionGate.tsx")
+
+    findings = validator._validate_frontend_local_gate_classifications(
+        [path],
+        {
+            path: "\n".join(
+                [
+                    "diff --git a/frontend/src/pages/RemovedActionGate.tsx b/frontend/src/pages/RemovedActionGate.tsx",
+                    "@@ -1,1 +0,0 @@",
+                    "-const canDeleteRisk = hasPermission('risks', 'delete');",
+                ]
+            )
+        },
+    )
+
+    assert findings == []
+
+
+def test_untracked_frontend_local_gate_source_must_be_classified(tmp_path, monkeypatch) -> None:
+    validator = _load_validator()
+    path = Path("frontend/src/pages/UntrackedActionPage.tsx")
+    source_path = tmp_path / path
+    source_path.parent.mkdir(parents=True)
+    source_path.write_text("const canDelete = hasPermission('risks', 'delete');\n", encoding="utf-8")
+    monkeypatch.setattr(validator, "REPO_ROOT", tmp_path)
+
+    findings = validator._validate_frontend_local_gate_classifications([path], {})
+
+    assert [finding.reason for finding in findings] == ["frontend_local_gate_not_classified"]
 
 
 def test_cli_accepts_ignored_positional_filenames(monkeypatch) -> None:

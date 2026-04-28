@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
 from app.core.datetime_utils import utc_now
+from app.core.permission_cache import build_permission_sensitive_cache_key
 from app.core.permissions import can_manage_users, ensure_business_view_access, has_permission
 from app.core.ttl_cache import TTLCache
 from app.db.session import get_db
@@ -88,12 +89,7 @@ async def get_shell_summary(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
 ) -> UserShellSummary:
-    cache_key = (
-        current_user.id,
-        getattr(current_user.access_scope, "value", str(current_user.access_scope)),
-        current_user.department_id,
-        getattr(getattr(current_user, "role", None), "name", None),
-    )
+    cache_key = build_permission_sensitive_cache_key(current_user)
     cached = SHELL_SUMMARY_CACHE.get(cache_key)
     if cached is not None:
         return UserShellSummary(**cached)

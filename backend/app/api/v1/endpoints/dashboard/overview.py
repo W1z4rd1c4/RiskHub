@@ -6,9 +6,9 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.datetime_utils import utc_now
+from app.core.permission_cache import build_permission_sensitive_cache_key
 from app.core.permissions import (
     can_view_risk_committee,
-    get_effective_permissions,
     get_user_department_ids,
     has_permission,
 )
@@ -42,13 +42,8 @@ async def get_dashboard_overview(
     ),
     include_archived: bool = Query(False, description="Include archived items"),
 ):
-    cache_key = (
-        current_user.id,
-        getattr(current_user.access_scope, "value", str(current_user.access_scope)),
-        current_user.department_id,
-        current_user.role_id,
-        getattr(getattr(current_user, "role", None), "name", None),
-        tuple(get_effective_permissions(current_user)),
+    cache_key = build_permission_sensitive_cache_key(
+        current_user,
         department_id,
         control_status,
         control_form,

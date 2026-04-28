@@ -10,7 +10,7 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Mapping, TypedDict
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CONTRACT_MD = Path("docs/security/authorization-capability-contract.md")
@@ -42,6 +42,12 @@ REQUIRED_ACTION_FIELDS = (
     "findings",
 )
 
+
+class FrontendLocalGateClassification(TypedDict):
+    reason: str
+    allowed_patterns: tuple[str, ...]
+
+
 VALID_STATUSES = {"authoritative", "local_fallback", "needs_review"}
 ID_PATTERN = re.compile(r"\bAUTHZ-[A-Z0-9-]+\b")
 DIFF_HEADER_RE = re.compile(r"^diff --git a/(.+) b/(.+)$")
@@ -61,12 +67,126 @@ BACKEND_CAPABILITY_PATTERN = re.compile(r"\b(capabilities|[A-Za-z0-9_]+Capabilit
 FRONTEND_GATE_DISCOVERY_PATTERN = re.compile(
     r"\b(PermissionGate|useAuthz|hasPermission|resolveCapabilityFlag|RouteGuard)\b"
 )
+FRONTEND_LOCAL_GATE_PATTERN = re.compile(r"\b(PermissionGate|usePermissions|hasPermission)\b")
 FRONTEND_SOURCE_SUFFIXES = {".ts", ".tsx"}
 DISCOVERY_ALLOWLIST: dict[str, str] = {
     "frontend/src/hooks/useUsersPageFilters.ts": (
         "Uses a same-named local helper to filter displayed permission strings; "
         "it is not an authorization decision point."
     ),
+}
+FRONTEND_LOCAL_GATE_CLASSIFICATIONS: dict[str, FrontendLocalGateClassification] = {
+    "frontend/src/authz/policy.ts": {
+        "reason": "Route and navigation policy projection from the session.",
+        "allowed_patterns": (
+            r"const canViewUserDirectory = hasPermission\('users', 'read'\);",
+            r"const canViewActivityLog = !isPlatformAdmin && hasPermission\('activity_log', 'read'\);",
+            r"const canReadRisks = hasPermission\('risks', 'read'\);",
+            r"const canReadControls = hasPermission\('controls', 'read'\);",
+            r"const canReadVendors = hasPermission\('vendors', 'read'\);",
+            r"const canWriteRisks = hasPermission\('risks', 'write'\);",
+            r"const canWriteControls = hasPermission\('controls', 'write'\);",
+            r"const canWriteVendors = hasPermission\('vendors', 'write'\);",
+            r"const canSubmitKri = hasPermission\('kri', 'submit'\);",
+        ),
+    },
+    "frontend/src/components/PermissionGate.tsx": {
+        "reason": "Legacy session/read gate primitive; protected actions use capabilities.",
+        "allowed_patterns": (
+            r"import \{ usePermissions \} from '@/hooks/usePermissions';",
+            r"interface PermissionGateProps \{",
+            r"export function PermissionGate\(\{",
+            r"const \{ hasPermission \} = usePermissions\(\);",
+            r"if \(hasPermission\(resource, action\)\) \{",
+            r".*<PermissionGate.*",
+            r".*</PermissionGate>.*",
+        ),
+    },
+    "frontend/src/components/access/AccessEditModal.tsx": {
+        "reason": "Access administration route/session eligibility gate.",
+        "allowed_patterns": (
+            r"import \{ usePermissions \} from '@/hooks/usePermissions';",
+            r"const \{ canEditAccessUsers, canManageUsers \} = usePermissions\(\);",
+        ),
+    },
+    "frontend/src/components/kri/KRIValueModal.tsx": {
+        "reason": "Submission modal precondition; KRI mutations are backend enforced.",
+        "allowed_patterns": (
+            r"import \{ usePermissions \} from '@/hooks/usePermissions';",
+            r"const \{ canResolveApprovals \} = usePermissions\(\);",
+        ),
+    },
+    "frontend/src/components/layout/Sidebar.tsx": {
+        "reason": "Navigation visibility only.",
+        "allowed_patterns": (
+            r"import \{ usePermissions \} from '@/hooks/usePermissions';",
+            r"const \{ hasPermission \} = usePermissions\(\);",
+            r"const navigation = getSidebarNavRoutes\(\{ authz, hasPermission \}\)\.map\(\(route\) => \{",
+        ),
+    },
+    "frontend/src/hooks/usePermissions.ts": {
+        "reason": "Session permission projection helper.",
+        "allowed_patterns": (
+            r"export function usePermissions\(\) \{",
+            r"canCreateRisks: hasPermission\('risks', 'write'\),",
+            r"canEditRisks: hasPermission\('risks', 'write'\),",
+            r"canDeleteRisks: hasPermission\('risks', 'delete'\),",
+            r"canCreateControls: hasPermission\('controls', 'write'\),",
+            r"canEditControls: hasPermission\('controls', 'write'\),",
+            r"canDeleteControls: hasPermission\('controls', 'delete'\),",
+            r"canCreateKRIs: hasPermission\('risks', 'write'\),",
+            r"canEditKRIs: hasPermission\('risks', 'write'\),",
+            r"canDeleteKRIs: hasPermission\('risks', 'delete'\),",
+            r"canRecordKRI: hasPermission\('kri', 'submit'\),",
+            r"canResolveApprovals: hasPermission\('approvals', 'write'\),",
+        ),
+    },
+    "frontend/src/pages/ApprovalsPage.tsx": {
+        "reason": "Approval queue read/session gate; row actions use backend capabilities.",
+        "allowed_patterns": (
+            r"import \{ usePermissions \} from '../hooks/usePermissions';",
+            r"const \{ canResolveApprovals: canResolve, user \} = usePermissions\(\);",
+        ),
+    },
+    "frontend/src/pages/AuditTrailPage.tsx": {
+        "reason": "Legacy report export gate without backend capability metadata.",
+        "allowed_patterns": (
+            r"import \{ usePermissions \} from '@/hooks/usePermissions';",
+            r"const \{ hasPermission \} = usePermissions\(\);",
+            r"\{hasPermission\('reports', 'read'\) \? \(",
+        ),
+    },
+    "frontend/src/pages/DashboardPage.tsx": {
+        "reason": "Dashboard read/cache discriminator; dashboard actions use backend capabilities.",
+        "allowed_patterns": (
+            r"import \{ usePermissions \} from '@/hooks/usePermissions';",
+            r"const \{ hasPermission \} = usePermissions\(\);",
+            r"const canReadIssues = hasPermission\('issues', 'read'\);",
+        ),
+    },
+    "frontend/src/pages/IssueDetailPage.tsx": {
+        "reason": "Issue read precondition; issue mutations use backend capabilities.",
+        "allowed_patterns": (
+            r"import \{ usePermissions \} from '@/hooks/usePermissions';",
+            r"const \{ hasPermission, canViewActivityLog \} = usePermissions\(\);",
+            r"const canRead = hasPermission\('issues', 'read'\);",
+        ),
+    },
+    "frontend/src/pages/IssuesPage.tsx": {
+        "reason": "Issue list read precondition; issue actions use backend capabilities.",
+        "allowed_patterns": (
+            r"import \{ usePermissions \} from '@/hooks/usePermissions';",
+            r"const \{ hasPermission \} = usePermissions\(\);",
+            r"const canRead = hasPermission\('issues', 'read'\);",
+        ),
+    },
+    "frontend/src/pages/UsersPage.tsx": {
+        "reason": "Current-user session projection, not a protected action gate.",
+        "allowed_patterns": (
+            r"import \{ usePermissions \} from '@/hooks/usePermissions';",
+            r"const \{ user: currentUser \} = usePermissions\(\);",
+        ),
+    },
 }
 MATRIX_FIELD_MAP = {
     "ID": "id",
@@ -222,6 +342,32 @@ def _diff_has_frontend_authz_tokens(diff_text: str) -> bool:
         if line.startswith(("+", "-")) and FRONTEND_AUTHZ_TOKEN_PATTERN.search(line[1:]):
             return True
     return False
+
+
+def _diff_has_frontend_local_gate_tokens(diff_text: str) -> bool:
+    return bool(_frontend_local_gate_lines_from_diff(diff_text))
+
+
+def _frontend_local_gate_lines_from_diff(diff_text: str) -> list[str]:
+    lines: list[str] = []
+    for line in diff_text.splitlines():
+        if line.startswith(("+++", "---")):
+            continue
+        if line.startswith("+") and FRONTEND_LOCAL_GATE_PATTERN.search(line[1:]):
+            lines.append(line[1:].strip())
+    return lines
+
+
+def _frontend_local_gate_lines_from_source(path: Path) -> list[str]:
+    return [
+        line.strip()
+        for line in _read_source(path).splitlines()
+        if FRONTEND_LOCAL_GATE_PATTERN.search(line)
+    ]
+
+
+def _line_matches_any_pattern(line: str, patterns: tuple[str, ...]) -> bool:
+    return any(re.fullmatch(pattern, line) for pattern in patterns)
 
 
 def _is_exact_manifest_path(path_posix: str, raw_prefix: str) -> bool:
@@ -555,6 +701,64 @@ def _validate_doc_touch(
     return []
 
 
+def _validate_frontend_local_gate_classifications(
+    changed_files: list[Path],
+    diff_by_path: Mapping[Path, str] | None = None,
+    classifications: Mapping[str, FrontendLocalGateClassification] | None = None,
+) -> list[Finding]:
+    findings: list[Finding] = []
+    classified = dict(FRONTEND_LOCAL_GATE_CLASSIFICATIONS if classifications is None else classifications)
+
+    for path in changed_files:
+        path_posix = path.as_posix()
+        if not path_posix.startswith("frontend/src/") or path.suffix not in FRONTEND_SOURCE_SUFFIXES:
+            continue
+
+        local_gate_lines: list[str] = []
+        if diff_by_path is not None:
+            diff_text = diff_by_path.get(path, "")
+            if diff_text:
+                local_gate_lines = _frontend_local_gate_lines_from_diff(diff_text)
+            elif _repo_path(path).exists():
+                local_gate_lines = _frontend_local_gate_lines_from_source(path)
+        elif _repo_path(path).exists():
+            local_gate_lines = _frontend_local_gate_lines_from_source(path)
+
+        if not local_gate_lines:
+            continue
+
+        classification = classified.get(path_posix)
+        if classification is None:
+            findings.append(
+                Finding(
+                    "frontend_local_gate_not_classified",
+                    f"{path_posix} changes local frontend authorization tokens "
+                    "(hasPermission/usePermissions/PermissionGate) but is not classified as a "
+                    "route, nav, read/session gate, or documented capability exception. Add a "
+                    "backend-capability contract reference or classify the local gate with a reason.",
+                )
+            )
+            continue
+
+        allowed_patterns = classification["allowed_patterns"]
+        disallowed_lines = [
+            line
+            for line in local_gate_lines
+            if not _line_matches_any_pattern(line, allowed_patterns)
+        ]
+        if disallowed_lines:
+            findings.append(
+                Finding(
+                    "frontend_local_gate_not_allowed",
+                    f"{path_posix} changes a local frontend authorization gate outside its "
+                    f"classified allowance ({classification['reason']}): {disallowed_lines[0]!r}. "
+                    "Use backend capability metadata for protected actions or add a narrower "
+                    "documented local-gate pattern.",
+                )
+            )
+    return findings
+
+
 def validate(base_ref: str, skip_doc_touch: bool) -> list[Finding]:
     findings: list[Finding] = []
     if not _repo_path(CONTRACT_MD).is_file():
@@ -573,13 +777,16 @@ def validate(base_ref: str, skip_doc_touch: bool) -> list[Finding]:
     findings.extend(_validate_markdown(md_text, actions if isinstance(actions, list) else []))
 
     if not skip_doc_touch:
+        changed_files = _changed_files(base_ref)
+        changed_diffs = _changed_file_diffs(base_ref)
         findings.extend(
             _validate_doc_touch(
-                _changed_files(base_ref),
+                changed_files,
                 sensitive_paths,
-                _changed_file_diffs(base_ref),
+                changed_diffs,
             )
         )
+        findings.extend(_validate_frontend_local_gate_classifications(changed_files, changed_diffs))
 
     return findings
 

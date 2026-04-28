@@ -4,6 +4,7 @@ from datetime import timedelta
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.endpoints.dashboard.overview import DASHBOARD_OVERVIEW_CACHE
@@ -17,8 +18,10 @@ from app.models import (
     Notification,
     NotificationType,
     OrphanedItem,
+    Permission,
     Risk,
     RiskQuestionnaire,
+    RolePermission,
     User,
 )
 from app.models.approval_request import ApprovalActionType
@@ -48,6 +51,54 @@ def clear_aggregate_caches() -> None:
 
 def _headers_for(user: User) -> dict[str, str]:
     return {"X-Mock-User-Id": str(user.id)}
+
+
+async def _remove_role_permission(
+    db_session: AsyncSession,
+    *,
+    role_id: int,
+    resource: str,
+    action: str,
+) -> None:
+    permission_ids = (
+        select(Permission.id)
+        .join(RolePermission, RolePermission.permission_id == Permission.id)
+        .where(
+            RolePermission.role_id == role_id,
+            Permission.resource == resource,
+            Permission.action == action,
+        )
+    )
+    await db_session.execute(
+        delete(RolePermission).where(
+            RolePermission.role_id == role_id,
+            RolePermission.permission_id.in_(permission_ids),
+        )
+    )
+    await db_session.commit()
+
+
+async def _add_role_permission(
+    db_session: AsyncSession,
+    *,
+    role_id: int,
+    resource: str,
+    action: str,
+) -> None:
+    permission = (
+        await db_session.execute(
+            select(Permission).where(
+                Permission.resource == resource,
+                Permission.action == action,
+            )
+        )
+    ).scalars().first()
+    if permission is None:
+        permission = Permission(resource=resource, action=action, description=f"{resource}:{action}")
+        db_session.add(permission)
+        await db_session.flush()
+    db_session.add(RolePermission(role_id=role_id, permission_id=permission.id))
+    await db_session.commit()
 
 
 @pytest.mark.asyncio
@@ -203,6 +254,62 @@ async def test_shell_summary_cache_is_scoped_per_user_and_expires(
     refreshed_resp = await client.get("/api/v1/users/me/shell-summary", headers=_headers_for(test_user))
     assert refreshed_resp.status_code == 200
     assert refreshed_resp.json()["unread_notifications_count"] == 2
+
+
+@pytest.mark.asyncio
+async def test_shell_summary_cache_key_includes_effective_permissions(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    test_department,
+    test_user_cro: User,
+    test_user_employee: User,
+):
+    risk = Risk(
+        risk_id_code="R-SHELL-PERM-001",
+        name="Shell Permission Risk",
+        process="Operations",
+        description="",
+        category="Operational",
+        department_id=test_department.id,
+        owner_id=test_user_employee.id,
+        risk_type="operational",
+        gross_probability=2,
+        gross_impact=2,
+        net_probability=2,
+        net_impact=2,
+        status=RiskStatus.active.value,
+    )
+    db_session.add(risk)
+    await db_session.flush()
+    db_session.add(
+        RiskQuestionnaire(
+            risk_id=risk.id,
+            assigned_to_user_id=test_user_employee.id,
+            sent_by_user_id=test_user_cro.id,
+            status=RiskQuestionnaireStatus.sent,
+            template_key="default",
+            template_version="1",
+            sent_at=utc_now(),
+            due_at=utc_now() + timedelta(days=7),
+        )
+    )
+    await db_session.commit()
+
+    first_resp = await client.get("/api/v1/users/me/shell-summary", headers=_headers_for(test_user_employee))
+    assert first_resp.status_code == 200
+    assert first_resp.json()["questionnaire_inbox_count"] == 1
+
+    await _remove_role_permission(
+        db_session,
+        role_id=test_user_employee.role_id,
+        resource="risks",
+        action="read",
+    )
+    db_session.expire(test_user_employee.role, ["permissions"])
+
+    refreshed_resp = await client.get("/api/v1/users/me/shell-summary", headers=_headers_for(test_user_employee))
+    assert refreshed_resp.status_code == 200
+    assert refreshed_resp.json()["questionnaire_inbox_count"] == 0
 
 
 @pytest.mark.asyncio
@@ -370,6 +477,48 @@ async def test_orphaned_items_overview_cache_returns_stale_data_until_expiry(
     assert cached_resp.json()["stats"]["total_count"] == 1
 
     ORPHAN_OVERVIEW_CACHE.expire_all()
+    refreshed_resp = await client.get("/api/v1/orphaned-items/overview", headers=_headers_for(test_user_cro))
+    assert refreshed_resp.status_code == 200
+    assert refreshed_resp.json()["stats"]["total_count"] == 2
+
+
+@pytest.mark.asyncio
+async def test_orphaned_items_overview_cache_key_includes_effective_permissions(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    test_user_cro: User,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    from app.api.v1.endpoints import orphaned_items as orphaned_items_module
+    from app.core.permissions import get_effective_permissions
+
+    async def fake_stats(db: AsyncSession, current_user: User) -> dict:
+        permission_count = len(get_effective_permissions(current_user))
+        return {
+            "risk_count": permission_count,
+            "control_count": 0,
+            "kri_count": 0,
+            "total_count": permission_count,
+        }
+
+    async def fake_items(**kwargs) -> list[dict]:
+        return []
+
+    monkeypatch.setattr(orphaned_items_module.OrphanedItemService, "get_orphan_stats", fake_stats)
+    monkeypatch.setattr(orphaned_items_module.OrphanedItemService, "get_pending_orphans_with_details", fake_items)
+
+    first_resp = await client.get("/api/v1/orphaned-items/overview", headers=_headers_for(test_user_cro))
+    assert first_resp.status_code == 200
+    assert first_resp.json()["stats"]["total_count"] == 1
+
+    await _add_role_permission(
+        db_session,
+        role_id=test_user_cro.role_id,
+        resource="reports",
+        action="read",
+    )
+    db_session.expire(test_user_cro.role, ["permissions"])
+
     refreshed_resp = await client.get("/api/v1/orphaned-items/overview", headers=_headers_for(test_user_cro))
     assert refreshed_resp.status_code == 200
     assert refreshed_resp.json()["stats"]["total_count"] == 2
