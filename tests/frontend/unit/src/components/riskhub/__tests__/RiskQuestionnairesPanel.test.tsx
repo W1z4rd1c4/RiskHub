@@ -1,7 +1,10 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import type { ReactElement } from 'react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 import { RiskQuestionnairesPanel } from '@/components/riskhub/RiskQuestionnairesPanel';
+import { riskHubApi } from '@/services/riskHubApi';
 
 vi.mock('@/i18n/hooks', () => ({
     useTranslation: () => ({
@@ -45,14 +48,44 @@ vi.mock('@/services/riskApi', () => ({
 
 vi.mock('@/services/apiClient', () => ({
     apiClient: {
-        post: vi.fn(),
         toUiMessageKey: () => 'errors.failed',
     },
 }));
 
+vi.mock('@/services/riskHubApi', () => ({
+    riskHubApi: {
+        batchSendQuestionnaires: vi.fn(),
+        getCapabilities: vi.fn(),
+    },
+}));
+
+function renderWithQueryClient(ui: ReactElement) {
+    const queryClient = new QueryClient({
+        defaultOptions: {
+            queries: { retry: false },
+            mutations: { retry: false },
+        },
+    });
+    return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+}
+
 describe('RiskQuestionnairesPanel', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        vi.mocked(riskHubApi.getCapabilities).mockResolvedValue({
+            risk_types: { can_create: true },
+            departments: { can_create: true },
+            roles: { can_create: true },
+            approval_scenarios: { can_update: true },
+            system_settings: { can_update: true },
+            questionnaires: { can_batch_send: true },
+        });
+        vi.mocked(riskHubApi.batchSendQuestionnaires).mockResolvedValue({
+            created_count: 1,
+            skipped_no_owner: [],
+            skipped_open_exists: [],
+            errors: [],
+        });
         mockGetRisks.mockResolvedValue({
             items: [
                 {
@@ -101,7 +134,7 @@ describe('RiskQuestionnairesPanel', () => {
     });
 
     it('renders owner names instead of raw owner ids', async () => {
-        render(<RiskQuestionnairesPanel />);
+        renderWithQueryClient(<RiskQuestionnairesPanel />);
 
         await waitFor(() => {
             expect(screen.getByText('Test Owner')).toBeInTheDocument();
@@ -109,5 +142,37 @@ describe('RiskQuestionnairesPanel', () => {
         expect(screen.getByText('common:fallbacks.unknown_user')).toBeInTheDocument();
         expect(screen.queryByText('42')).not.toBeInTheDocument();
         expect(screen.queryByText('77')).not.toBeInTheDocument();
+    });
+
+    it('sends selected risk ids through the Risk Hub API when allowed', async () => {
+        renderWithQueryClient(<RiskQuestionnairesPanel />);
+
+        await screen.findByText('Owner named risk');
+        const rowCheckboxes = screen.getAllByRole('checkbox');
+        fireEvent.click(rowCheckboxes[2]);
+        fireEvent.click(screen.getByRole('button', { name: 'riskhub.questionnaires.send' }));
+
+        await waitFor(() => {
+            expect(riskHubApi.batchSendQuestionnaires).toHaveBeenCalledWith({
+                select_all: false,
+                risk_ids: [1],
+            });
+        });
+    });
+
+    it('hides batch-send controls when backend capability is false', async () => {
+        vi.mocked(riskHubApi.getCapabilities).mockResolvedValue({
+            risk_types: { can_create: true },
+            departments: { can_create: true },
+            roles: { can_create: true },
+            approval_scenarios: { can_update: true },
+            system_settings: { can_update: true },
+            questionnaires: { can_batch_send: false },
+        });
+
+        renderWithQueryClient(<RiskQuestionnairesPanel />);
+
+        await screen.findByText('Owner named risk');
+        expect(screen.queryByRole('button', { name: 'riskhub.questionnaires.send' })).not.toBeInTheDocument();
     });
 });

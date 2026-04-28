@@ -12,7 +12,7 @@ from app.models.user import User
 from app.services._notification_approval_helpers import (
     approval_action_label,
     can_user_view_approval_resource,
-    load_approval_notification_candidates,
+    load_scenario_approval_notification_candidates,
 )
 from app.services.notification_creation_helpers import (
     find_existing_notification,
@@ -164,7 +164,7 @@ class NotificationService:
         Returns:
             List of created Notification objects
         """
-        candidates = await load_approval_notification_candidates(db)
+        candidates = await load_scenario_approval_notification_candidates(db, approval)
 
         notifications = []
         action_label = approval_action_label(approval)
@@ -265,7 +265,7 @@ class NotificationService:
         Returns:
             List of created Notification objects
         """
-        candidates = await load_approval_notification_candidates(db)
+        candidates = await load_scenario_approval_notification_candidates(db, approval)
 
         notifications = []
         action_label = approval_action_label(approval)

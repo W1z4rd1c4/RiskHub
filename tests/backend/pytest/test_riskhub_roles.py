@@ -22,6 +22,20 @@ async def test_list_roles_cro_only(
 
 
 @pytest.mark.asyncio
+async def test_riskhub_capabilities_are_cro_only(
+    client_cro: AsyncClient,
+    client_employee: AsyncClient,
+):
+    response = await client_cro.get("/api/v1/riskhub/capabilities")
+    assert response.status_code == 200
+    assert response.json()["risk_types"]["can_create"] is True
+    assert response.json()["questionnaires"]["can_batch_send"] is True
+
+    response = await client_employee.get("/api/v1/riskhub/capabilities")
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
 async def test_create_role(
     client_cro: AsyncClient,
     db_session: AsyncSession,
@@ -142,6 +156,36 @@ async def test_update_role_returns_reloaded_editable_role(
     data = response.json()
     assert data["display_name"] == "Editable Role Updated"
     assert data["description"] == "After update"
+
+
+@pytest.mark.asyncio
+async def test_update_inactive_role_rejected_and_capability_false(
+    client_cro: AsyncClient,
+    db_session: AsyncSession,
+):
+    role = Role(
+        name="inactive_editable",
+        display_name="Inactive Editable",
+        description="Before update",
+        is_system=False,
+        is_active=False,
+    )
+    db_session.add(role)
+    await db_session.commit()
+    await db_session.refresh(role)
+
+    response = await client_cro.patch(
+        f"/api/v1/riskhub/roles/{role.id}",
+        json={"display_name": "Should Not Update"},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Cannot update inactive role"
+
+    list_response = await client_cro.get("/api/v1/riskhub/roles?include_inactive=true")
+    assert list_response.status_code == 200
+    role_data = next(item for item in list_response.json() if item["id"] == role.id)
+    assert role_data["capabilities"]["can_update"] is False
 
 
 @pytest.mark.asyncio

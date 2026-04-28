@@ -112,6 +112,8 @@ async def update_role(
     from app.models.role import Role, RolePermission
 
     role = await load_role_for_update(db, id)
+    if not role.is_active:
+        raise HTTPException(status_code=400, detail="Cannot update inactive role")
 
     # Core system roles are immutable
     if role.name in {RoleType.CRO, RoleType.ADMIN, RoleType.VIEWER}:

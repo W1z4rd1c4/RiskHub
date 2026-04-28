@@ -10,6 +10,7 @@ from app.core.permissions import can_resolve_approvals
 from app.db.session import get_db
 from app.models import ApprovalRequest, User
 from app.schemas.approval_request import ApprovalRequestRead
+from app.services.approval_scenario_policy import can_view_approval_resource, user_matches_approval_scenario_role
 
 from ._shared import _build_approval_read
 
@@ -44,9 +45,12 @@ async def get_approval_request(
     is_requester = approval.requested_by_id == current_user.id
     is_primary_approver = approval.primary_approver_id == current_user.id
     is_privileged = can_resolve_approvals(current_user)
+    is_scenario_approver = user_matches_approval_scenario_role(
+        approval, current_user
+    ) is True and await can_view_approval_resource(db, current_user, approval)
 
     # Permission check: requester, primary approver, or approval resolver
-    if not is_requester and not is_primary_approver and not is_privileged:
+    if not is_requester and not is_primary_approver and not is_privileged and not is_scenario_approver:
         raise HTTPException(status_code=403, detail="Access denied")
 
     return _build_approval_read(approval, current_user)

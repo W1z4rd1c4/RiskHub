@@ -127,6 +127,8 @@ Podpora dotazníků:
 Podpora rolí a oddělení:
 
 - řádky rolí a oddělení v Risk Hubu poskytují backend capability metadata pro update/delete/restore; pokud akce po refreshi zmizí, backend je autorita
+- kolekční akce v Risk Hubu (vytvoření typu rizika, oddělení nebo role, konfigurace schvalování, systémová nastavení a batch send dotazníků) jsou řízené backend capability metadata
+- schvalovací scénáře jsou runtime politika: vypnutý scénář může nechat autorizovanou změnu proběhnout přímo a `approver_roles` omezuje, kdo smí nově vytvořený approval schválit nebo odmítnout
 - department manager musí být active user; bezpečnější je usera nahradit nebo řízeně reaktivovat než validaci obcházet
 - department delete je záměrně konzervativní, protože department scope ovlivňuje RBAC, reporty, vendory, KRIs a orphan governance
 

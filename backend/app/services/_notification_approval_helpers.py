@@ -6,6 +6,7 @@ from app.core.permissions import can_read_control_id, can_read_kri_id, can_read_
 from app.models.approval_request import ApprovalRequest, ApprovalResourceType
 from app.models.role import Permission, Role, RolePermission
 from app.models.user import AccessScope, User
+from app.services.approval_scenario_policy import RISK_OWNER_APPROVER_ROLE, scenario_roles_for_approval
 
 
 def approval_action_label(approval: ApprovalRequest) -> str:
@@ -30,6 +31,44 @@ async def load_approval_notification_candidates(db: AsyncSession) -> list[User]:
     )
     candidates_result = await db.execute(candidates_stmt)
     return list(candidates_result.unique().scalars().all())
+
+
+async def load_scenario_approval_notification_candidates(db: AsyncSession, approval: ApprovalRequest) -> list[User]:
+    roles = scenario_roles_for_approval(approval)
+    if roles is None:
+        return await load_approval_notification_candidates(db)
+
+    permission_load = selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
+    role_names = [role for role in roles if role != RISK_OWNER_APPROVER_ROLE]
+    candidates: list[User] = []
+
+    if role_names:
+        result = await db.execute(
+            select(User)
+            .join(Role, User.role_id == Role.id)
+            .where(User.is_active.is_(True), Role.name.in_(role_names))
+            .options(permission_load)
+        )
+        candidates.extend(result.unique().scalars().all())
+
+    if RISK_OWNER_APPROVER_ROLE in roles and approval.primary_approver_id is not None:
+        result = await db.execute(
+            select(User)
+            .where(User.id == approval.primary_approver_id, User.is_active.is_(True))
+            .options(permission_load)
+        )
+        primary = result.scalar_one_or_none()
+        if primary is not None:
+            candidates.append(primary)
+
+    seen: set[int] = set()
+    unique_candidates: list[User] = []
+    for candidate in candidates:
+        if candidate.id in seen:
+            continue
+        seen.add(candidate.id)
+        unique_candidates.append(candidate)
+    return unique_candidates
 
 
 async def can_user_view_approval_resource(db: AsyncSession, user: User, approval: ApprovalRequest) -> bool:

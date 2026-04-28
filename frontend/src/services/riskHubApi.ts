@@ -2,6 +2,7 @@ import { apiClient } from './apiClient';
 import {
     approvalScenarioArraySchema,
     approvalScenarioSchema,
+    batchSendQuestionnairesResponseSchema,
     departmentHubReadArraySchema,
     departmentHubReadSchema,
     departmentDeleteResponseSchema,
@@ -10,6 +11,7 @@ import {
     globalConfigSchema,
     publicConfigValueSchema,
     publicRiskTypeArraySchema,
+    riskHubCapabilitiesSchema,
     riskHubPermissionReadArraySchema,
     riskTypeArraySchema,
     riskTypeDeleteResponseSchema,
@@ -147,6 +149,9 @@ export interface DepartmentHubRead {
     user_count: number;
     risk_count: number;
     control_count: number;
+    kri_count: number;
+    vendor_count: number;
+    pending_orphan_count: number;
     capabilities?: DepartmentHubCapabilities | null;
 }
 
@@ -177,11 +182,40 @@ export interface PublicRiskType {
     sort_order: number;
 }
 
+export interface RiskHubPanelCapability {
+    can_create?: boolean | null;
+    can_update?: boolean | null;
+    can_batch_send?: boolean | null;
+}
+
+export interface RiskHubCapabilities {
+    risk_types: RiskHubPanelCapability;
+    departments: RiskHubPanelCapability;
+    roles: RiskHubPanelCapability;
+    approval_scenarios: RiskHubPanelCapability;
+    system_settings: RiskHubPanelCapability;
+    questionnaires: RiskHubPanelCapability;
+}
+
+export interface BatchSendQuestionnairesPayload {
+    select_all: boolean;
+    risk_ids?: number[];
+    filters?: {
+        department_id?: number;
+        process?: string;
+        category?: string;
+        status?: string;
+    };
+}
+
 // ============================================================================
 // API Client
 // ============================================================================
 
 export const riskHubApi = {
+    getCapabilities: () =>
+        apiClient.get('/riskhub/capabilities', { schema: riskHubCapabilitiesSchema }),
+
     // Risk Types (CRO-only)
     getRiskTypes: (includeInactive = false) =>
         apiClient.get('/riskhub/risk-types', {
@@ -269,5 +303,10 @@ export const riskHubApi = {
     restoreDepartment: (id: number) =>
         apiClient.post(`/riskhub/departments/${id}/restore`, {}, {
             schema: departmentHubReadSchema,
+        }),
+
+    batchSendQuestionnaires: (data: BatchSendQuestionnairesPayload) =>
+        apiClient.post('/riskhub/questionnaires/batch-send', data, {
+            schema: batchSendQuestionnairesResponseSchema,
         }),
 };

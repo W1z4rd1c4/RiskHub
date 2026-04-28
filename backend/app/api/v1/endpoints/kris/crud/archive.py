@@ -31,8 +31,10 @@ async def delete_kri(
     """
     from fastapi.responses import Response
 
+    from app.core.approval_helpers import get_primary_approver_for_risk
     from app.core.permissions import can_resolve_approvals
     from app.models import ApprovalActionType, ApprovalRequest, ApprovalResourceType, ApprovalStatus
+    from app.services.approval_scenario_policy import apply_approval_scenario_snapshot, load_approval_scenario_policy
 
     kri = await assert_can_request_delete_kri(
         db,
@@ -40,8 +42,15 @@ async def delete_kri(
         current_user=current_user,
     )
 
-    # Privileged users can archive immediately (no approval needed)
-    if can_resolve_approvals(current_user):
+    scenario_policy = await load_approval_scenario_policy(
+        db,
+        "kri_delete",
+        default_roles=["risk_owner", "risk_manager", "cro"],
+    )
+
+    # Privileged users can archive immediately. Scenario-disabled deletes also
+    # apply directly after the endpoint's normal delete authority has passed.
+    if can_resolve_approvals(current_user) or not scenario_policy.requires_approval:
         # Archive instead of hard delete (preserves audit trail + history)
         kri.is_archived = True
         kri.archived_at = utc_now()
@@ -75,6 +84,7 @@ async def delete_kri(
 
     # Create approval request - ITEM STAYS VISIBLE
     name_snippet = (kri.metric_name or "").strip()[:50]
+    primary_approver_id = await get_primary_approver_for_risk(db, kri.risk_id, requester_id=current_user.id)
     approval = ApprovalRequest(
         resource_type=ApprovalResourceType.KRI,
         resource_id=kri.id,
@@ -82,7 +92,9 @@ async def delete_kri(
         requested_by_id=current_user.id,
         reason=reason,
         status=ApprovalStatus.PENDING,
+        primary_approver_id=primary_approver_id,
     )
+    apply_approval_scenario_snapshot(approval, scenario_policy)
     from app.core.approval_helpers import create_approval_request_with_audit
 
     await create_approval_request_with_audit(
@@ -99,4 +111,5 @@ async def delete_kri(
         message="Deletion request submitted for approval",
         approval_id=approval.id,
         action_type="delete",
+        primary_approver_id=primary_approver_id,
     )

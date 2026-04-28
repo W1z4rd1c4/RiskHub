@@ -94,9 +94,14 @@ async def _create_risk_edit_approval_if_required(
     update_data: dict,
     current_user: User,
 ):
-    from app.core.approval_helpers import build_approval_queued_response, create_approval_request_with_audit
+    from app.core.approval_helpers import (
+        build_approval_queued_response,
+        create_approval_request_with_audit,
+        get_primary_approver_for_risk,
+    )
     from app.core.permissions import can_resolve_approvals, has_sensitive_field_changes
     from app.models import ApprovalActionType, ApprovalRequest, ApprovalResourceType, ApprovalStatus
+    from app.services.approval_scenario_policy import apply_approval_scenario_snapshot, load_approval_scenario_policy
 
     if can_resolve_approvals(current_user):
         return None
@@ -112,6 +117,16 @@ async def _create_risk_edit_approval_if_required(
 
     if not has_sensitive and not is_priority_risk_edit:
         return None
+
+    scenario_policy = None
+    if is_priority_risk_edit:
+        scenario_policy = await load_approval_scenario_policy(
+            db,
+            "risk_edit_priority",
+            default_roles=["risk_owner", "risk_manager", "cro"],
+        )
+        if not scenario_policy.requires_approval:
+            return None
 
     existing = await db.execute(
         select(ApprovalRequest).where(
@@ -133,6 +148,10 @@ async def _create_risk_edit_approval_if_required(
         if is_priority_risk_edit and not has_sensitive
         else f"Change to sensitive fields: {', '.join(changed.keys())}"
     )
+    primary_approver_id = None
+    if scenario_policy is not None:
+        primary_approver_id = await get_primary_approver_for_risk(db, risk.id, requester_id=current_user.id)
+
     approval = ApprovalRequest(
         resource_type=ApprovalResourceType.RISK,
         resource_id=risk.id,
@@ -142,7 +161,10 @@ async def _create_risk_edit_approval_if_required(
         action_type=ApprovalActionType.EDIT,
         pending_changes=changed,
         status=ApprovalStatus.PENDING,
+        primary_approver_id=primary_approver_id,
     )
+    if scenario_policy is not None:
+        apply_approval_scenario_snapshot(approval, scenario_policy)
 
     await create_approval_request_with_audit(
         db,

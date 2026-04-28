@@ -7,6 +7,8 @@ from app.models import (
     ApprovalActionType,
     ApprovalRequest,
     ApprovalResourceType,
+    ApprovalScenario,
+    Department,
     GlobalConfig,
     Risk,
     User,
@@ -15,8 +17,11 @@ from app.models.approval_request import ApprovalStatus
 from app.models.global_config import clear_config_cache
 from app.models.notification import Notification, NotificationType
 from app.models.risk import RiskStatus
+from app.models.user import AccessScope
 from app.services.approval_execution_service import approve_request_workflow
+from app.services.approval_scenario_policy import can_view_approval_resource
 from app.services.outbox import dispatch_pending_outbox_events
+from tests.backend.pytest.factories import create_test_control, create_test_kri
 
 
 def _sessionmaker(async_engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
@@ -69,6 +74,30 @@ async def _load_risk(db_session: AsyncSession, risk_id: int) -> Risk:
     risk = result.scalar_one_or_none()
     assert risk is not None
     return risk
+
+
+async def _upsert_approval_scenario(
+    db_session: AsyncSession,
+    *,
+    key: str,
+    requires_approval: bool,
+    approver_roles: list[str],
+) -> ApprovalScenario:
+    result = await db_session.execute(select(ApprovalScenario).where(ApprovalScenario.key == key))
+    scenario = result.scalar_one_or_none()
+    if scenario is None:
+        scenario = ApprovalScenario(
+            key=key,
+            display_name=key.replace("_", " ").title(),
+            description=f"Test scenario {key}",
+            requires_approval=requires_approval,
+        )
+        db_session.add(scenario)
+    scenario.requires_approval = requires_approval
+    scenario.set_approver_roles(approver_roles)
+    await db_session.commit()
+    await db_session.refresh(scenario)
+    return scenario
 
 
 @pytest.mark.asyncio
@@ -259,6 +288,437 @@ class TestApprovalWorkflow:
 
         persisted_risk = await _load_risk(db_session, risk.id)
         assert persisted_risk.status == RiskStatus.archived.value
+
+    async def test_disabled_risk_delete_scenario_applies_directly(
+        self,
+        client_approval_requester: AsyncClient,
+        db_session: AsyncSession,
+        test_department,
+        test_user_employee: User,
+    ):
+        """A disabled approval scenario makes the authorized delete mutation apply directly."""
+        await _upsert_approval_scenario(
+            db_session,
+            key="risk_delete",
+            requires_approval=False,
+            approver_roles=["risk_owner", "risk_manager", "cro"],
+        )
+        risk = await _create_risk_for_delete_workflow(
+            db_session,
+            risk_id_code="R-DEL-SCENARIO-OFF",
+            name="Scenario Disabled Delete",
+            department_id=test_department.id,
+            owner_id=test_user_employee.id,
+            net_score=3,
+        )
+
+        response = await client_approval_requester.delete(
+            f"/api/v1/risks/{risk.id}?reason=Scenario disabled delete"
+        )
+
+        assert response.status_code == 204
+        persisted_risk = await _load_risk(db_session, risk.id)
+        assert persisted_risk.status == RiskStatus.archived.value
+        approvals = (
+            await db_session.execute(
+                select(ApprovalRequest).where(
+                    ApprovalRequest.resource_type == ApprovalResourceType.RISK,
+                    ApprovalRequest.resource_id == risk.id,
+                )
+            )
+        ).scalars().all()
+        assert approvals == []
+
+    async def test_scenario_approver_roles_restrict_resolution(
+        self,
+        client_approval_requester: AsyncClient,
+        client_risk_manager: AsyncClient,
+        client_cro: AsyncClient,
+        db_session: AsyncSession,
+        test_department,
+        test_user_employee: User,
+    ):
+        """Scenario approver roles restrict who can approve a newly created request."""
+        await _upsert_approval_scenario(
+            db_session,
+            key="risk_delete",
+            requires_approval=True,
+            approver_roles=["cro"],
+        )
+        risk = await _create_risk_for_delete_workflow(
+            db_session,
+            risk_id_code="R-DEL-CRO-ONLY",
+            name="CRO Only Delete",
+            department_id=test_department.id,
+            owner_id=test_user_employee.id,
+            net_score=3,
+        )
+
+        delete_response = await client_approval_requester.delete(
+            f"/api/v1/risks/{risk.id}?reason=CRO only scenario"
+        )
+        assert delete_response.status_code == 202
+        approval_id = delete_response.json()["approval_id"]
+
+        approval = await _load_approval(db_session, approval_id)
+        assert approval.scenario_key == "risk_delete"
+        assert approval.scenario_approver_roles == ["cro"]
+
+        blocked_response = await client_risk_manager.post(
+            f"/api/v1/approvals/{approval_id}/approve",
+            json={"resolution_notes": "Risk manager should not approve"},
+        )
+        assert blocked_response.status_code == 403
+
+        approved_response = await client_cro.post(
+            f"/api/v1/approvals/{approval_id}/approve",
+            json={"resolution_notes": "CRO allowed"},
+        )
+        assert approved_response.status_code == 200
+        assert approved_response.json()["status"] == "approved"
+
+    async def test_scenario_requester_cannot_reject_own_request(
+        self,
+        client_approval_requester: AsyncClient,
+        db_session: AsyncSession,
+        test_department,
+        test_user_employee: User,
+    ):
+        """Scenario role matches must not let requesters reject their own approval requests."""
+        await _upsert_approval_scenario(
+            db_session,
+            key="risk_delete",
+            requires_approval=True,
+            approver_roles=["approval_requester"],
+        )
+        risk = await _create_risk_for_delete_workflow(
+            db_session,
+            risk_id_code="R-DEL-REQUESTER-REJECT",
+            name="Requester Reject Scenario",
+            department_id=test_department.id,
+            owner_id=test_user_employee.id,
+            net_score=3,
+        )
+
+        delete_response = await client_approval_requester.delete(
+            f"/api/v1/risks/{risk.id}?reason=Requester reject regression"
+        )
+        assert delete_response.status_code == 202
+        approval_id = delete_response.json()["approval_id"]
+
+        approval = await _load_approval(db_session, approval_id)
+        assert approval.scenario_key == "risk_delete"
+        assert approval.scenario_approver_roles == ["approval_requester", "risk_manager", "cro"]
+
+        detail_response = await client_approval_requester.get(f"/api/v1/approvals/{approval_id}")
+        assert detail_response.status_code == 200
+        detail = detail_response.json()
+        assert detail["can_approve"] is False
+        assert detail["can_reject"] is False
+        assert detail["capabilities"]["can_approve"] is False
+        assert detail["capabilities"]["can_reject"] is False
+        assert detail["capabilities"]["can_cancel_as_requester"] is True
+
+        reject_response = await client_approval_requester.post(
+            f"/api/v1/approvals/{approval_id}/reject",
+            json={"resolution_notes": "Requester should cancel instead"},
+        )
+        assert reject_response.status_code == 403
+
+        cancel_response = await client_approval_requester.post(f"/api/v1/approvals/{approval_id}/cancel")
+        assert cancel_response.status_code == 200
+        assert cancel_response.json()["status"] == "cancelled"
+
+    async def test_cross_department_scenario_approver_without_resource_visibility_is_denied(
+        self,
+        client_approval_requester: AsyncClient,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_department,
+        test_role_employee,
+        test_user_risk_manager: User,
+    ):
+        """Scenario role matches do not grant cross-department approval access by themselves."""
+        await _upsert_approval_scenario(
+            db_session,
+            key="risk_delete",
+            requires_approval=True,
+            approver_roles=["employee", "risk_manager", "cro"],
+        )
+        other_department = Department(
+            name="Scenario Other Department",
+            code="SCENARIO-OTHER",
+            is_active=True,
+        )
+        db_session.add(other_department)
+        await db_session.commit()
+        await db_session.refresh(other_department)
+
+        cross_department_employee = User(
+            name="Cross Department Scenario Employee",
+            email="cross.department.scenario.employee@test.com",
+            department_id=other_department.id,
+            role_id=test_role_employee.id,
+            is_active=True,
+            access_scope=AccessScope.DEPARTMENT,
+        )
+        db_session.add(cross_department_employee)
+        await db_session.commit()
+        await db_session.refresh(cross_department_employee)
+
+        risk = await _create_risk_for_delete_workflow(
+            db_session,
+            risk_id_code="R-DEL-SCENARIO-SCOPE",
+            name="Scenario Scope Risk",
+            department_id=test_department.id,
+            owner_id=test_user_risk_manager.id,
+            net_score=3,
+        )
+
+        delete_response = await client_approval_requester.delete(
+            f"/api/v1/risks/{risk.id}?reason=Scenario scope regression"
+        )
+        assert delete_response.status_code == 202
+        approval_id = delete_response.json()["approval_id"]
+        headers = {"X-Mock-User-Id": str(cross_department_employee.id)}
+
+        detail_response = await client.get(f"/api/v1/approvals/{approval_id}", headers=headers)
+        assert detail_response.status_code == 403
+
+        approve_response = await client.post(
+            f"/api/v1/approvals/{approval_id}/approve",
+            headers=headers,
+            json={"resolution_notes": "Should not approve invisible resource"},
+        )
+        assert approve_response.status_code == 403
+
+        reject_response = await client.post(
+            f"/api/v1/approvals/{approval_id}/reject",
+            headers=headers,
+            json={"resolution_notes": "Should not reject invisible resource"},
+        )
+        assert reject_response.status_code == 403
+
+        approval = await _load_approval(db_session, approval_id)
+        assert approval.status == ApprovalStatus.PENDING
+        persisted_risk = await _load_risk(db_session, risk.id)
+        assert persisted_risk.status == RiskStatus.active.value
+
+    async def test_approval_resource_visibility_helper_checks_risk_control_and_kri(
+        self,
+        db_session: AsyncSession,
+        test_department,
+        test_user_employee: User,
+    ):
+        """Scenario approval scoping uses canonical read checks for every approval resource type."""
+        risk = await _create_risk_for_delete_workflow(
+            db_session,
+            risk_id_code="R-APPROVAL-VISIBILITY",
+            name="Approval Visibility Risk",
+            department_id=test_department.id,
+            owner_id=test_user_employee.id,
+            net_score=3,
+        )
+        control = await create_test_control(
+            db_session,
+            department_id=test_department.id,
+            owner_id=test_user_employee.id,
+            name="Approval Visibility Control",
+        )
+        kri = await create_test_kri(
+            db_session,
+            risk_id=risk.id,
+            metric_name="Approval Visibility KRI",
+        )
+
+        for resource_type, resource_id in (
+            (ApprovalResourceType.RISK, risk.id),
+            (ApprovalResourceType.CONTROL, control.id),
+            (ApprovalResourceType.KRI, kri.id),
+        ):
+            approval = ApprovalRequest(
+                resource_type=resource_type,
+                resource_id=resource_id,
+                resource_name=f"{resource_type.value} visibility check",
+                action_type=ApprovalActionType.EDIT,
+                requested_by_id=test_user_employee.id,
+                primary_approver_id=test_user_employee.id,
+                status=ApprovalStatus.PENDING,
+            )
+
+            assert await can_view_approval_resource(db_session, test_user_employee, approval) is True
+
+    async def test_non_privileged_scenario_approver_finalizes_non_tiered_request(
+        self,
+        client_approval_requester: AsyncClient,
+        client_employee: AsyncClient,
+        db_session: AsyncSession,
+        test_department,
+        test_user_risk_manager: User,
+    ):
+        """A matched scenario approver can finalize a non-tiered approval without being primary approver."""
+        await _upsert_approval_scenario(
+            db_session,
+            key="risk_delete",
+            requires_approval=True,
+            approver_roles=["employee", "risk_manager", "cro"],
+        )
+        risk = await _create_risk_for_delete_workflow(
+            db_session,
+            risk_id_code="R-DEL-SCENARIO-EMPLOYEE",
+            name="Employee Scenario Approval",
+            department_id=test_department.id,
+            owner_id=test_user_risk_manager.id,
+            net_score=3,
+        )
+
+        delete_response = await client_approval_requester.delete(
+            f"/api/v1/risks/{risk.id}?reason=Employee scenario approver"
+        )
+        assert delete_response.status_code == 202
+        approval_id = delete_response.json()["approval_id"]
+
+        detail_response = await client_employee.get(f"/api/v1/approvals/{approval_id}")
+        assert detail_response.status_code == 200
+        capabilities = detail_response.json()["capabilities"]
+        assert capabilities["can_approve"] is True
+        assert capabilities["is_primary_approver"] is False
+        assert capabilities["would_apply_side_effects_on_approve"] is True
+
+        approve_response = await client_employee.post(
+            f"/api/v1/approvals/{approval_id}/approve",
+            json={"resolution_notes": "Employee scenario approval"},
+        )
+        assert approve_response.status_code == 200
+        assert approve_response.json()["status"] == "approved"
+
+        approval = await _load_approval(db_session, approval_id)
+        assert approval.status == ApprovalStatus.APPROVED
+        persisted_risk = await _load_risk(db_session, risk.id)
+        assert persisted_risk.status == RiskStatus.archived.value
+
+    async def test_non_privileged_scenario_approver_escalates_tiered_request(
+        self,
+        client_approval_requester: AsyncClient,
+        client_employee: AsyncClient,
+        client_risk_manager: AsyncClient,
+        db_session: AsyncSession,
+        test_department,
+        test_user_risk_manager: User,
+    ):
+        """A matched non-privileged scenario approver performs only first-stage approval on tiered requests."""
+        await _upsert_approval_scenario(
+            db_session,
+            key="risk_delete",
+            requires_approval=True,
+            approver_roles=["employee", "risk_manager", "cro"],
+        )
+        risk = await _create_risk_for_delete_workflow(
+            db_session,
+            risk_id_code="R-DEL-SCENARIO-TIER",
+            name="Employee Scenario Tiered Approval",
+            department_id=test_department.id,
+            owner_id=test_user_risk_manager.id,
+            net_score=10,
+        )
+
+        delete_response = await client_approval_requester.delete(
+            f"/api/v1/risks/{risk.id}?reason=Employee scenario tiered approver"
+        )
+        assert delete_response.status_code == 202
+        approval_id = delete_response.json()["approval_id"]
+
+        detail_response = await client_employee.get(f"/api/v1/approvals/{approval_id}")
+        assert detail_response.status_code == 200
+        capabilities = detail_response.json()["capabilities"]
+        assert capabilities["can_approve"] is True
+        assert capabilities["is_primary_approver"] is False
+        assert capabilities["requires_privileged_resolution"] is True
+        assert capabilities["would_apply_side_effects_on_approve"] is False
+
+        first_stage_response = await client_employee.post(
+            f"/api/v1/approvals/{approval_id}/approve",
+            json={"resolution_notes": "Employee scenario first-stage approval"},
+        )
+        assert first_stage_response.status_code == 200
+        assert first_stage_response.json()["status"] == "pending_privileged"
+
+        approval = await _load_approval(db_session, approval_id)
+        assert approval.status == ApprovalStatus.PENDING_PRIVILEGED
+        assert approval.primary_approved_at is not None
+        persisted_risk = await _load_risk(db_session, risk.id)
+        assert persisted_risk.status == RiskStatus.active.value
+
+        final_response = await client_risk_manager.post(
+            f"/api/v1/approvals/{approval_id}/approve",
+            json={"resolution_notes": "Risk manager final approval"},
+        )
+        assert final_response.status_code == 200
+        assert final_response.json()["status"] == "approved"
+
+        approval = await _load_approval(db_session, approval_id)
+        assert approval.status == ApprovalStatus.APPROVED
+        persisted_risk = await _load_risk(db_session, risk.id)
+        assert persisted_risk.status == RiskStatus.archived.value
+
+    async def test_live_scenario_save_prevents_tiered_request_deadlock(
+        self,
+        client_approval_requester: AsyncClient,
+        client_employee: AsyncClient,
+        client_risk_manager: AsyncClient,
+        client_cro: AsyncClient,
+        db_session: AsyncSession,
+        test_department,
+        test_user_risk_manager: User,
+    ):
+        """Saving only non-privileged roles still snapshots privileged finishers for tiered approvals."""
+        await _upsert_approval_scenario(
+            db_session,
+            key="risk_delete",
+            requires_approval=True,
+            approver_roles=["risk_manager", "cro"],
+        )
+        save_response = await client_cro.patch(
+            "/api/v1/riskhub/approval-scenarios/risk_delete",
+            json={"approver_roles": ["employee"], "requires_approval": True},
+        )
+        assert save_response.status_code == 200
+        assert save_response.json()["approver_roles"] == ["employee", "risk_manager", "cro"]
+
+        risk = await _create_risk_for_delete_workflow(
+            db_session,
+            risk_id_code="R-DEL-LIVE-SCENARIO-TIER",
+            name="Live Scenario Tiered Approval",
+            department_id=test_department.id,
+            owner_id=test_user_risk_manager.id,
+            net_score=10,
+        )
+
+        delete_response = await client_approval_requester.delete(
+            f"/api/v1/risks/{risk.id}?reason=Live scenario tiered approver"
+        )
+        assert delete_response.status_code == 202
+        approval_id = delete_response.json()["approval_id"]
+
+        approval = await _load_approval(db_session, approval_id)
+        assert approval.scenario_approver_roles == ["employee", "risk_manager", "cro"]
+
+        first_stage_response = await client_employee.post(
+            f"/api/v1/approvals/{approval_id}/approve",
+            json={"resolution_notes": "Employee scenario first-stage approval"},
+        )
+        assert first_stage_response.status_code == 200
+        assert first_stage_response.json()["status"] == "pending_privileged"
+
+        final_response = await client_risk_manager.post(
+            f"/api/v1/approvals/{approval_id}/approve",
+            json={"resolution_notes": "Risk manager final approval"},
+        )
+        assert final_response.status_code == 200
+        assert final_response.json()["status"] == "approved"
+
+        approval = await _load_approval(db_session, approval_id)
+        assert approval.status == ApprovalStatus.APPROVED
 
     async def test_delete_privileged_escalation_uses_configured_high_risk_threshold(
         self,
@@ -499,6 +959,70 @@ class TestApprovalWorkflow:
         assert "approval_id" in data
         assert data["action_type"] == "edit"
         assert "priority risk" in data.get("message", "").lower() or "approval" in data.get("message", "").lower()
+
+    async def test_priority_risk_edit_risk_owner_scenario_routes_to_owner_and_applies(
+        self,
+        client_approval_requester: AsyncClient,
+        client_employee: AsyncClient,
+        db_session: AsyncSession,
+        test_department,
+        test_user_employee: User,
+        seed_risk_types,
+    ):
+        """A risk_owner priority-edit scenario snapshots the non-requester owner before role matching."""
+        await _upsert_approval_scenario(
+            db_session,
+            key="risk_edit_priority",
+            requires_approval=True,
+            approver_roles=["risk_owner"],
+        )
+        priority_risk = Risk(
+            risk_id_code="PRIO-RISK-OWNER-EDIT",
+            name="Priority Risk Owner Edit",
+            process="Priority Process",
+            description="Original priority risk description",
+            department_id=test_department.id,
+            owner_id=test_user_employee.id,
+            risk_type="operational",
+            category="High Impact",
+            is_priority=True,
+            gross_probability=4,
+            gross_impact=5,
+            gross_score=20,
+            net_probability=3,
+            net_impact=4,
+            net_score=12,
+            status=RiskStatus.active.value,
+        )
+        db_session.add(priority_risk)
+        await db_session.commit()
+        await db_session.refresh(priority_risk)
+
+        response = await client_approval_requester.patch(
+            f"/api/v1/risks/{priority_risk.id}",
+            json={"description": "Risk owner scenario description"},
+        )
+
+        assert response.status_code == 202
+        approval_id = response.json()["approval_id"]
+        approval = await _load_approval(db_session, approval_id)
+        assert approval.primary_approver_id == test_user_employee.id
+        assert approval.scenario_approver_roles == ["risk_owner", "risk_manager", "cro"]
+
+        pending_response = await client_employee.get("/api/v1/approvals?status=pending")
+        assert pending_response.status_code == 200
+        pending_ids = {item["id"] for item in pending_response.json()["items"]}
+        assert approval_id in pending_ids
+
+        approve_response = await client_employee.post(
+            f"/api/v1/approvals/{approval_id}/approve",
+            json={"resolution_notes": "Owner approves priority edit"},
+        )
+        assert approve_response.status_code == 200
+        assert approve_response.json()["status"] == "approved"
+
+        persisted_risk = await _load_risk(db_session, priority_risk.id)
+        assert persisted_risk.description == "Risk owner scenario description"
 
     async def test_privileged_user_can_edit_priority_risk_immediately(
         self,

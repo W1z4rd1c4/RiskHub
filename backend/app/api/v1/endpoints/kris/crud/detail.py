@@ -5,13 +5,14 @@ from sqlalchemy.orm import joinedload, selectinload
 
 from app.api.v1.endpoints._monitoring_response import load_monitoring_response_context, serialize_kri_response
 from app.core.datetime_utils import utc_now
-from app.core.permissions import can_read_kri_id, can_read_vendor
-from app.core.security import check_permission, require_permission
+from app.core.permissions import can_read_kri_id
+from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import KeyRiskIndicator, Risk, User, VendorKRILink
 from app.schemas.kri import KRIResponse
-from app.schemas.vendor_shared import LinkedVendorRead
 from app.services.authorization_capabilities import kri_capabilities
+
+from ..linked_vendors import visible_linked_vendors
 
 router = APIRouter()
 
@@ -46,13 +47,7 @@ async def get_kri(
 
     now = utc_now()
     monitoring_context = await load_monitoring_response_context(db, now=now, today=now.date())
-    linked_vendors = [
-        LinkedVendorRead(id=link.vendor.id, name=link.vendor.name)
-        for link in getattr(kri, "vendor_links", []) or []
-        if getattr(link, "vendor", None) is not None
-        and check_permission(current_user, "vendors", "read")
-        and can_read_vendor(link.vendor, current_user)
-    ]
+    linked_vendors = visible_linked_vendors(current_user, getattr(kri, "vendor_links", []))
 
     if not await can_read_kri_id(db, current_user, kri_id):
         raise HTTPException(status_code=404, detail="KRI not found")

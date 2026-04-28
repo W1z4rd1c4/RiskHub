@@ -22,6 +22,21 @@ def _risk_type_capabilities(risk_type: RiskTypeConfig | None = None) -> RiskType
     )
 
 
+async def _active_risk_type_counts(db: AsyncSession) -> dict[str, int]:
+    result = await db.execute(
+        select(Risk.risk_type, func.count(Risk.id)).where(Risk.status != "archived").group_by(Risk.risk_type)
+    )
+    return {row[0]: row[1] for row in result.all()}
+
+
+async def _active_risk_count_for_type(db: AsyncSession, risk_type_code: str) -> int:
+    return (
+        await db.execute(
+            select(func.count(Risk.id)).where(Risk.risk_type == risk_type_code, Risk.status != "archived")
+        )
+    ).scalar() or 0
+
+
 def _risk_type_read(risk_type: RiskTypeConfig, risk_count: int | None = None) -> RiskTypeRead:
     return RiskTypeRead(
         id=risk_type.id,
@@ -59,11 +74,7 @@ async def list_risk_types(
     result = await db.execute(query)
     types = result.scalars().all()
 
-    # Compute risk counts dynamically from the risks table
-    count_result = await db.execute(
-        select(Risk.risk_type, func.count(Risk.id)).where(Risk.status != "archived").group_by(Risk.risk_type)
-    )
-    risk_counts = {row[0]: row[1] for row in count_result.all()}
+    risk_counts = await _active_risk_type_counts(db)
 
     return [
         _risk_type_read(t, risk_counts.get(t.code, 0))
@@ -136,6 +147,9 @@ async def update_risk_type(
     if not risk_type:
         raise HTTPException(status_code=404, detail="Risk type not found")
 
+    if not risk_type.is_active:
+        raise HTTPException(status_code=400, detail="Cannot update inactive risk type")
+
     updates: dict[str, object] = {}
 
     if data.display_name is not None:
@@ -206,6 +220,8 @@ async def delete_risk_type(
     if not risk_type.is_active:
         raise HTTPException(status_code=400, detail="Risk type is already deleted")
 
+    affected_risks = await _active_risk_count_for_type(db, risk_type.code)
+
     # Orphaned-item creation is intentionally deferred until Risk includes a
     # persisted risk_type FK; current behavior remains metadata-only soft delete.
 
@@ -222,11 +238,11 @@ async def delete_risk_type(
         entity_name=risk_type.display_name,
         safe_entity_label=risk_type.display_name,
         changes=changes,
-        description=f"Deleted risk type: {risk_type.display_name} (affecting {risk_type.risk_count} risks)",
+        description=f"Deleted risk type: {risk_type.display_name} (affecting {affected_risks} risks)",
     )
     await db.commit()  # Persist activity log
 
-    return {"status": "deleted", "id": id, "affected_risks": risk_type.risk_count}
+    return {"status": "deleted", "id": id, "affected_risks": affected_risks}
 
 
 @router.post("/risk-types/{id}/restore", response_model=RiskTypeRead)

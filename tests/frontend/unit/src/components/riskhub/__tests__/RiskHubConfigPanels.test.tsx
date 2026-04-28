@@ -54,6 +54,7 @@ vi.mock('@/services/riskHubApi', () => ({
         deleteDepartment: vi.fn(),
         deleteRiskType: vi.fn(),
         getApprovalScenarios: vi.fn(),
+        getCapabilities: vi.fn(),
         getDepartments: vi.fn(),
         getRiskTypes: vi.fn(),
         getRoles: vi.fn(),
@@ -118,6 +119,9 @@ describe('Risk Hub config panels', () => {
                 user_count: 0,
                 risk_count: 0,
                 control_count: 0,
+                kri_count: 0,
+                vendor_count: 0,
+                pending_orphan_count: 0,
                 capabilities: { can_update: true, can_delete: true, can_restore: false },
             },
         ]);
@@ -147,6 +151,14 @@ describe('Risk Hub config panels', () => {
                 permissions: [],
             },
         ]);
+        vi.mocked(riskHubApi.getCapabilities).mockResolvedValue({
+            risk_types: { can_create: true },
+            departments: { can_create: true },
+            roles: { can_create: true },
+            approval_scenarios: { can_update: true },
+            system_settings: { can_update: true },
+            questionnaires: { can_batch_send: true },
+        });
         vi.mocked(riskHubApi.updateApprovalScenario).mockResolvedValue({} as never);
     });
 
@@ -212,5 +224,20 @@ describe('Risk Hub config panels', () => {
                 requires_approval: true,
             });
         });
+    });
+
+    it('hides collection actions when backend capabilities are absent or false', async () => {
+        vi.mocked(riskHubApi.getCapabilities).mockResolvedValue({
+            risk_types: { can_create: false },
+            departments: { can_create: false },
+            roles: { can_create: false },
+            approval_scenarios: { can_update: false },
+            system_settings: { can_update: false },
+            questionnaires: { can_batch_send: false },
+        });
+
+        renderWithQueryClient(<RiskTypesPanel />);
+        await screen.findByText('Operational');
+        expect(screen.queryByRole('button', { name: 'admin:risk_types_panel.add_type' })).not.toBeInTheDocument();
     });
 });

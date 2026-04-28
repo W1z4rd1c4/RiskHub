@@ -10,6 +10,10 @@ from app.core.permissions import can_resolve_approvals
 from app.models import ApprovalRequest, ApprovalResourceType, ApprovalStatus, Control, KeyRiskIndicator, Risk
 from app.models.user import User
 from app.schemas.approval_request import ApprovalRequestRead
+from app.services.approval_scenario_policy import (
+    scenario_allows_privileged_resolution,
+    user_matches_approval_scenario_role,
+)
 from app.services.authorization_capabilities import approval_capabilities
 
 logger = logging.getLogger("app.api.v1.endpoints.approvals")
@@ -37,12 +41,33 @@ def _build_approval_permissions(approval: ApprovalRequest, current_user: User) -
     is_requester = approval.requested_by_id == current_user.id
     is_primary_approver = approval.primary_approver_id == current_user.id
     is_pending = approval.status in (ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED)
+    scenario_match = user_matches_approval_scenario_role(approval, current_user)
+    privileged_scenario_match = scenario_allows_privileged_resolution(approval, current_user)
+
+    if scenario_match is None:
+        can_approve = not is_requester and (
+            (approval.status == ApprovalStatus.PENDING and (is_primary_approver or is_privileged))
+            or (approval.status == ApprovalStatus.PENDING_PRIVILEGED and is_privileged)
+        )
+        can_reject = is_pending and is_privileged
+        return can_approve, can_reject
 
     can_approve = not is_requester and (
-        (approval.status == ApprovalStatus.PENDING and (is_primary_approver or is_privileged))
-        or (approval.status == ApprovalStatus.PENDING_PRIVILEGED and is_privileged)
+        (approval.status == ApprovalStatus.PENDING and scenario_match)
+        or (
+            approval.status == ApprovalStatus.PENDING_PRIVILEGED
+            and is_privileged
+            and privileged_scenario_match is True
+        )
     )
-    can_reject = is_pending and is_privileged
+    can_reject = not is_requester and bool(
+        (approval.status == ApprovalStatus.PENDING and scenario_match)
+        or (
+            approval.status == ApprovalStatus.PENDING_PRIVILEGED
+            and is_privileged
+            and privileged_scenario_match is True
+        )
+    )
     return can_approve, can_reject
 
 

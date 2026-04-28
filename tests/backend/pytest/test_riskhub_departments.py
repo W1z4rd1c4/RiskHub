@@ -127,6 +127,25 @@ async def test_update_department_same_code_allowed(
 
 
 @pytest.mark.asyncio
+async def test_update_inactive_department_rejected(
+    client_cro: AsyncClient,
+    db_session: AsyncSession,
+):
+    dept = Department(name="Inactive Department", code="INACTIVE_DEPT", is_active=False)
+    db_session.add(dept)
+    await db_session.commit()
+    await db_session.refresh(dept)
+
+    response = await client_cro.patch(
+        f"/api/v1/riskhub/departments/{dept.id}",
+        json={"name": "Should Not Update"},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Cannot update inactive department"
+
+
+@pytest.mark.asyncio
 async def test_create_department_rejects_inactive_manager(
     client_cro: AsyncClient,
     db_session: AsyncSession,
@@ -185,3 +204,41 @@ async def test_delete_department_blocked_by_vendor(
 
     assert response.status_code == 400
     assert response.json()["detail"] == "Cannot delete department with 1 vendors"
+
+
+@pytest.mark.asyncio
+async def test_department_response_includes_full_delete_blocker_counts(
+    client_cro: AsyncClient,
+    db_session: AsyncSession,
+    test_user_cro: User,
+):
+    dept = Department(name="Blocker Department", code="BLOCKER_DEPT", is_active=True)
+    db_session.add(dept)
+    await db_session.commit()
+    await db_session.refresh(dept)
+
+    vendor = Vendor(
+        name="Blocker Vendor",
+        process="IT",
+        subprocess=None,
+        department_id=dept.id,
+        outsourcing_owner_user_id=test_user_cro.id,
+        vendor_type="ict",
+        risk_score_1_5=3,
+        supports_important_core_insurance_function=False,
+        dora_relevant=True,
+        is_significant_vendor=False,
+        has_alternative_providers=False,
+        status="active",
+    )
+    db_session.add(vendor)
+    await db_session.commit()
+
+    response = await client_cro.get("/api/v1/riskhub/departments")
+
+    assert response.status_code == 200
+    department = next(item for item in response.json() if item["id"] == dept.id)
+    assert department["kri_count"] == 0
+    assert department["vendor_count"] == 1
+    assert department["pending_orphan_count"] == 0
+    assert department["capabilities"]["can_delete"] is False

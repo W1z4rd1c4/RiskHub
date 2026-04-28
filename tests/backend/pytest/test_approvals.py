@@ -23,6 +23,7 @@ from app.models import (
     ApprovalStatus,
     Control,
     ControlRiskLink,
+    Department,
     GlobalConfig,
     KeyRiskIndicator,
     OutboxEvent,
@@ -451,6 +452,28 @@ async def test_pending_queue_and_count_use_combined_non_privileged_predicate(
         reason="Primary pending",
         status=ApprovalStatus.PENDING,
     )
+    scenario_pending = ApprovalRequest(
+        resource_type=ApprovalResourceType.RISK,
+        resource_id=test_risk.id,
+        resource_name=test_risk.name,
+        requested_by_id=test_user.id,
+        primary_approver_id=test_user.id,
+        reason="Scenario pending",
+        status=ApprovalStatus.PENDING,
+        scenario_key="risk_delete",
+        scenario_approver_roles=["employee"],
+    )
+    scenario_pending_privileged = ApprovalRequest(
+        resource_type=ApprovalResourceType.RISK,
+        resource_id=test_risk.id,
+        resource_name=test_risk.name,
+        requested_by_id=test_user.id,
+        primary_approver_id=test_user.id,
+        reason="Scenario pending privileged",
+        status=ApprovalStatus.PENDING_PRIVILEGED,
+        scenario_key="risk_delete",
+        scenario_approver_roles=["employee"],
+    )
     unrelated_pending = ApprovalRequest(
         resource_type=ApprovalResourceType.RISK,
         resource_id=test_risk.id,
@@ -460,7 +483,15 @@ async def test_pending_queue_and_count_use_combined_non_privileged_predicate(
         reason="Unrelated pending",
         status=ApprovalStatus.PENDING,
     )
-    db_session.add_all([own_pending_privileged, primary_pending, unrelated_pending])
+    db_session.add_all(
+        [
+            own_pending_privileged,
+            primary_pending,
+            scenario_pending,
+            scenario_pending_privileged,
+            unrelated_pending,
+        ]
+    )
     await db_session.commit()
 
     headers = {"X-Mock-User-Id": str(test_user_employee.id)}
@@ -471,6 +502,8 @@ async def test_pending_queue_and_count_use_combined_non_privileged_predicate(
     item_ids = {item["id"] for item in items}
     assert own_pending_privileged.id in item_ids
     assert primary_pending.id in item_ids
+    assert scenario_pending.id in item_ids
+    assert scenario_pending_privileged.id not in item_ids
     assert unrelated_pending.id not in item_ids
 
     own_item = next(item for item in items if item["id"] == own_pending_privileged.id)
@@ -481,9 +514,88 @@ async def test_pending_queue_and_count_use_combined_non_privileged_predicate(
     assert primary_item["can_approve"] is True
     assert primary_item["can_reject"] is False
 
+    scenario_item = next(item for item in items if item["id"] == scenario_pending.id)
+    assert scenario_item["can_approve"] is True
+    assert scenario_item["can_reject"] is True
+
     count_response = await client.get("/api/v1/approvals/pending/count", headers=headers)
     assert count_response.status_code == 200
-    assert count_response.json()["count"] == 2
+    assert count_response.json()["count"] == 3
+
+    my_approvals_response = await client.get("/api/v1/approvals/my-approvals", headers=headers)
+    assert my_approvals_response.status_code == 200
+    my_approval_ids = {item["id"] for item in my_approvals_response.json()["items"]}
+    assert primary_pending.id in my_approval_ids
+    assert scenario_pending.id in my_approval_ids
+    assert own_pending_privileged.id not in my_approval_ids
+    assert scenario_pending_privileged.id not in my_approval_ids
+
+    my_requests_response = await client.get("/api/v1/approvals?status=pending&my_requests=true", headers=headers)
+    assert my_requests_response.status_code == 200
+    my_request_ids = {item["id"] for item in my_requests_response.json()["items"]}
+    assert own_pending_privileged.id in my_request_ids
+    assert scenario_pending.id not in my_request_ids
+
+    shell_response = await client.get("/api/v1/users/me/shell-summary", headers=headers)
+    assert shell_response.status_code == 200
+    assert shell_response.json()["pending_approvals_count"] == 3
+
+
+@pytest.mark.asyncio
+async def test_pending_queue_excludes_cross_department_scenario_role_without_resource_visibility(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    test_risk,
+    test_user: User,
+    test_role_employee: Role,
+):
+    other_department = Department(name="Approval Queue Other Department", code="APPROVAL-QUEUE-OTHER")
+    db_session.add(other_department)
+    await db_session.commit()
+    await db_session.refresh(other_department)
+
+    cross_department_employee = User(
+        name="Cross Department Queue Employee",
+        email="cross-department-queue-employee@test.com",
+        role_id=test_role_employee.id,
+        department_id=other_department.id,
+        is_active=True,
+        access_scope=AccessScope.DEPARTMENT,
+    )
+    scenario_pending = ApprovalRequest(
+        resource_type=ApprovalResourceType.RISK,
+        resource_id=test_risk.id,
+        resource_name=test_risk.name,
+        requested_by_id=test_user.id,
+        primary_approver_id=test_user.id,
+        reason="Scenario pending invisible resource",
+        status=ApprovalStatus.PENDING,
+        scenario_key="risk_delete",
+        scenario_approver_roles=["employee"],
+    )
+    db_session.add_all([cross_department_employee, scenario_pending])
+    await db_session.commit()
+    await db_session.refresh(cross_department_employee)
+
+    headers = {"X-Mock-User-Id": str(cross_department_employee.id)}
+
+    list_response = await client.get("/api/v1/approvals?status=pending", headers=headers)
+    assert list_response.status_code == 200
+    assert list_response.json()["items"] == []
+    assert list_response.json()["total"] == 0
+
+    count_response = await client.get("/api/v1/approvals/pending/count", headers=headers)
+    assert count_response.status_code == 200
+    assert count_response.json()["count"] == 0
+
+    my_approvals_response = await client.get("/api/v1/approvals/my-approvals", headers=headers)
+    assert my_approvals_response.status_code == 200
+    assert my_approvals_response.json()["items"] == []
+    assert my_approvals_response.json()["total"] == 0
+
+    shell_response = await client.get("/api/v1/users/me/shell-summary", headers=headers)
+    assert shell_response.status_code == 200
+    assert shell_response.json()["pending_approvals_count"] == 0
 
 
 @pytest.mark.asyncio

@@ -38,6 +38,7 @@ async def delete_risk(
     )
     from app.core.permissions import can_resolve_approvals
     from app.models import ApprovalActionType, ApprovalRequest, ApprovalResourceType, ApprovalStatus
+    from app.services.approval_scenario_policy import apply_approval_scenario_snapshot, load_approval_scenario_policy
 
     risk = await assert_can_request_delete_risk(
         db,
@@ -45,8 +46,15 @@ async def delete_risk(
         current_user=current_user,
     )
 
-    # Privileged users can delete immediately
-    if can_resolve_approvals(current_user):
+    scenario_policy = await load_approval_scenario_policy(
+        db,
+        "risk_delete",
+        default_roles=["risk_owner", "risk_manager", "cro"],
+    )
+
+    # Privileged users can delete immediately. Scenario-disabled deletes also
+    # apply directly after the endpoint's normal delete authority has passed.
+    if can_resolve_approvals(current_user) or not scenario_policy.requires_approval:
         risk.status = RiskStatusEnum.archived.value
 
         # Log activity within the same transaction
@@ -102,6 +110,7 @@ async def delete_risk(
         primary_approver_id=primary_approver_id,
         requires_privileged_approval=requires_privileged,
     )
+    apply_approval_scenario_snapshot(approval, scenario_policy)
 
     await create_approval_request_with_audit(
         db,

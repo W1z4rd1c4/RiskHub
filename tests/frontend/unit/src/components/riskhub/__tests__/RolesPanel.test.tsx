@@ -8,6 +8,7 @@ import { RolesPanel } from '@/components/riskhub/RolesPanel';
 const mockCreateRole = vi.fn();
 const mockDeleteRole = vi.fn();
 const mockGetPermissions = vi.fn();
+const mockGetCapabilities = vi.fn();
 const mockGetRoles = vi.fn();
 const mockRestoreRole = vi.fn();
 const mockUpdateRole = vi.fn();
@@ -19,6 +20,7 @@ vi.mock('@/services/riskHubApi', async () => {
         riskHubApi: {
             createRole: (...args: unknown[]) => mockCreateRole(...args),
             deleteRole: (...args: unknown[]) => mockDeleteRole(...args),
+            getCapabilities: (...args: unknown[]) => mockGetCapabilities(...args),
             getPermissions: (...args: unknown[]) => mockGetPermissions(...args),
             getRoles: (...args: unknown[]) => mockGetRoles(...args),
             restoreRole: (...args: unknown[]) => mockRestoreRole(...args),
@@ -101,6 +103,14 @@ describe('RolesPanel', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mockGetRoles.mockResolvedValue(roles);
+        mockGetCapabilities.mockResolvedValue({
+            risk_types: { can_create: true },
+            departments: { can_create: true },
+            roles: { can_create: true },
+            approval_scenarios: { can_update: true },
+            system_settings: { can_update: true },
+            questionnaires: { can_batch_send: true },
+        });
         mockGetPermissions.mockResolvedValue(permissions);
         mockCreateRole.mockResolvedValue(roles[1]);
         mockUpdateRole.mockResolvedValue({ ...roles[1], display_name: 'Risk Owner Updated' });

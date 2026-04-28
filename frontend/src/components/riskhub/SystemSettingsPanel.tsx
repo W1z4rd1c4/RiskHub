@@ -6,6 +6,7 @@ import { apiClient } from '@/services/apiClient';
 import type { GlobalConfig } from '@/services/riskHubApi';
 import { cn } from '@/lib/utils';
 import { useTranslation } from '@/i18n/hooks';
+import { riskHubCapabilityEnabled, useRiskHubCapabilities } from './useRiskHubCapabilities';
 
 const CATEGORY_LABELS: Record<string, { labelKey: string; descriptionKey: string }> = {
     risk_thresholds: {
@@ -24,10 +25,11 @@ const CATEGORY_LABELS: Record<string, { labelKey: string; descriptionKey: string
 
 interface ConfigInputProps {
     config: GlobalConfig;
+    canUpdate: boolean;
     onSave: (key: string, value: string) => Promise<void>;
 }
 
-function ConfigInput({ config, onSave }: ConfigInputProps) {
+function ConfigInput({ config, canUpdate, onSave }: ConfigInputProps) {
     const { t } = useTranslation(['admin', 'common']);
     const [value, setValue] = useState(config.value);
     const [saving, setSaving] = useState(false);
@@ -37,7 +39,7 @@ function ConfigInput({ config, onSave }: ConfigInputProps) {
     const hasChanged = value !== config.value;
 
     const handleSave = async () => {
-        if (!hasChanged) return;
+        if (!hasChanged || !canUpdate) return;
         setErrorKey(null);
         setSaving(true);
         try {
@@ -56,12 +58,15 @@ function ConfigInput({ config, onSave }: ConfigInputProps) {
             return (
                 <button
                     onClick={() => {
+                        if (!config.is_editable || !canUpdate) return;
                         const newVal = value.toLowerCase() === 'true' ? 'false' : 'true';
                         setValue(newVal);
                     }}
+                    disabled={!config.is_editable || !canUpdate}
                     className={cn(
                         "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
-                        value.toLowerCase() === 'true' ? "bg-accent" : "bg-white/20"
+                        value.toLowerCase() === 'true' ? "bg-accent" : "bg-white/20",
+                        (!config.is_editable || !canUpdate) && "opacity-50 cursor-not-allowed"
                     )}
                 >
                     <span
@@ -90,7 +95,7 @@ function ConfigInput({ config, onSave }: ConfigInputProps) {
                         setValue(cleaned);
                     }}
                     className="w-24 md:w-32 px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white text-right font-mono focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent"
-                    disabled={!config.is_editable}
+                    disabled={!config.is_editable || !canUpdate}
                 />
             );
         }
@@ -101,7 +106,7 @@ function ConfigInput({ config, onSave }: ConfigInputProps) {
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
                 className="flex-1 px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-accent"
-                disabled={!config.is_editable}
+                disabled={!config.is_editable || !canUpdate}
             />
         );
     };
@@ -125,7 +130,7 @@ function ConfigInput({ config, onSave }: ConfigInputProps) {
             <div className="flex items-center gap-3">
                 {renderInput()}
 
-                {hasChanged && (
+                {hasChanged && canUpdate && config.is_editable && (
                     <button
                         onClick={handleSave}
                         disabled={saving}
@@ -159,6 +164,8 @@ function ConfigInput({ config, onSave }: ConfigInputProps) {
 export function SystemSettingsPanel() {
     const { t } = useTranslation(['admin', 'common']);
     const queryClient = useQueryClient();
+    const { data: riskHubCapabilities } = useRiskHubCapabilities();
+    const canUpdateSettings = riskHubCapabilityEnabled(riskHubCapabilities?.system_settings, 'can_update');
 
     const { data: configs, isLoading, error } = useQuery({
         queryKey: ['globalConfig'],
@@ -210,6 +217,7 @@ export function SystemSettingsPanel() {
                             {categoryConfigs.map((config) => (
                                 <ConfigInput
                                     key={config.key}
+                                    canUpdate={canUpdateSettings}
                                     config={config}
                                     onSave={handleSave}
                                 />

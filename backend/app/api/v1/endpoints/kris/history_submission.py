@@ -17,8 +17,15 @@ async def _create_kri_submission_approval(
     data: KRIRecordValue,
     current_user: User,
 ):
-    from app.core.approval_helpers import build_approval_queued_response, create_approval_request_with_audit
+    from app.core.approval_helpers import (
+        build_approval_queued_response,
+        create_approval_request_with_audit,
+        get_primary_approver_for_risk,
+    )
     from app.models import ApprovalActionType, ApprovalRequest, ApprovalResourceType, ApprovalStatus
+    from app.services.approval_scenario_policy import apply_approval_scenario_snapshot, load_approval_scenario_policy
+
+    from .history_value_application import _apply_kri_value_directly
 
     latest_closed_end = latest_closed_period_end(kri)
 
@@ -47,7 +54,21 @@ async def _create_kri_submission_approval(
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="A value submission request is already pending for this KRI")
 
-    primary_approver_id = kri.risk.owner_id if kri.risk else None
+    scenario_policy = await load_approval_scenario_policy(
+        db,
+        "kri_value_submit",
+        default_roles=["risk_owner", "risk_manager", "cro"],
+    )
+    if not scenario_policy.requires_approval:
+        return await _apply_kri_value_directly(
+            db,
+            kri=kri,
+            data=data,
+            current_user=current_user,
+            is_privileged_submission=False,
+        )
+
+    primary_approver_id = await get_primary_approver_for_risk(db, kri.risk_id, requester_id=current_user.id)
     requires_privileged = bool(kri.risk and kri.risk.is_priority)
     recorded_at = utc_now().isoformat()
     pending_changes = {
@@ -68,6 +89,7 @@ async def _create_kri_submission_approval(
         primary_approver_id=primary_approver_id,
         requires_privileged_approval=requires_privileged,
     )
+    apply_approval_scenario_snapshot(approval, scenario_policy)
     await create_approval_request_with_audit(
         db,
         approval=approval,

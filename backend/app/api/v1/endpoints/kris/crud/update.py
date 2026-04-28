@@ -9,20 +9,21 @@ from app.api.v1.endpoints._monitoring_response import load_monitoring_response_c
 from app.core.activity_logger import build_change_set, log_activity
 from app.core.datetime_utils import utc_now
 from app.core.owner_reference_validation import validate_active_owner_reference
-from app.core.permissions import can_read_vendor, check_department_access
-from app.core.security import check_permission, require_permission
+from app.core.permissions import check_department_access
+from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import KeyRiskIndicator, Risk, User, VendorKRILink
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas.approval_request import ApprovalQueuedResponse
 from app.schemas.kri import KRIResponse, KRIUpdate
-from app.schemas.vendor_shared import LinkedVendorRead
 from app.services.authorization_capabilities import kri_capabilities
 from app.services.kri_vendor_assignment import (
     assign_vendors_to_kri,
     normalize_vendor_ids,
     validate_assignable_vendors,
 )
+
+from ..linked_vendors import visible_linked_vendors
 
 router = APIRouter()
 APPROVAL_QUEUED_RESPONSE: dict[int | str, dict[str, Any]] = {202: {"model": ApprovalQueuedResponse}}
@@ -41,6 +42,7 @@ async def update_kri(
     """
     from app.core.permissions import can_resolve_approvals
     from app.models import ApprovalActionType, ApprovalRequest, ApprovalResourceType, ApprovalStatus
+    from app.services.approval_scenario_policy import apply_approval_scenario_snapshot, load_approval_scenario_policy
 
     result = await db.execute(
         select(KeyRiskIndicator)
@@ -104,7 +106,12 @@ async def update_kri(
         )
 
     # ALL KRI edits by non-privileged users require approval
-    if not can_resolve_approvals(current_user):
+    scenario_policy = await load_approval_scenario_policy(
+        db,
+        "kri_edit",
+        default_roles=["risk_owner", "risk_manager", "cro"],
+    )
+    if not can_resolve_approvals(current_user) and scenario_policy.requires_approval:
         # Check for existing pending edit request
         existing = await db.execute(
             select(ApprovalRequest).where(
@@ -125,6 +132,9 @@ async def update_kri(
             }
         name_snippet = (kri.metric_name or "").strip()[:50]
 
+        from app.core.approval_helpers import get_primary_approver_for_risk
+
+        primary_approver_id = await get_primary_approver_for_risk(db, kri.risk_id, requester_id=current_user.id)
         approval = ApprovalRequest(
             resource_type=ApprovalResourceType.KRI,
             resource_id=kri.id,
@@ -134,7 +144,9 @@ async def update_kri(
             action_type=ApprovalActionType.EDIT,
             pending_changes=pending_changes,
             status=ApprovalStatus.PENDING,
+            primary_approver_id=primary_approver_id,
         )
+        apply_approval_scenario_snapshot(approval, scenario_policy)
         from app.core.approval_helpers import create_approval_request_with_audit
 
         await create_approval_request_with_audit(
@@ -152,6 +164,7 @@ async def update_kri(
             action_type="edit",
             pending_fields=list(pending_changes.keys()),
             pending_changes=pending_changes,
+            primary_approver_id=primary_approver_id,
         )
 
     extra_changes = {}
@@ -207,12 +220,6 @@ async def update_kri(
     return serialize_kri_response(
         reloaded_kri,
         monitoring_context,
-        linked_vendors=[
-            LinkedVendorRead(id=link.vendor.id, name=link.vendor.name)
-            for link in getattr(reloaded_kri, "vendor_links", []) or []
-            if getattr(link, "vendor", None) is not None
-            and check_permission(current_user, "vendors", "read")
-            and can_read_vendor(link.vendor, current_user)
-        ],
+        linked_vendors=visible_linked_vendors(current_user, getattr(reloaded_kri, "vendor_links", [])),
         capabilities=capabilities,
     )

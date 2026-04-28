@@ -33,6 +33,7 @@ async def delete_control(
 
     from app.core.permissions import can_resolve_approvals
     from app.models import ApprovalActionType, ApprovalRequest, ApprovalResourceType, ApprovalStatus
+    from app.services.approval_scenario_policy import apply_approval_scenario_snapshot, load_approval_scenario_policy
 
     control = await assert_can_request_delete_control(
         db,
@@ -40,8 +41,15 @@ async def delete_control(
         current_user=current_user,
     )
 
-    # Privileged users can delete immediately
-    if can_resolve_approvals(current_user):
+    scenario_policy = await load_approval_scenario_policy(
+        db,
+        "control_delete",
+        default_roles=["risk_owner", "risk_manager", "cro"],
+    )
+
+    # Privileged users can delete immediately. Scenario-disabled deletes also
+    # apply directly after the endpoint's normal delete authority has passed.
+    if can_resolve_approvals(current_user) or not scenario_policy.requires_approval:
         control.status = ControlStatusEnum.archived.value
         control.updated_by_id = current_user.id
 
@@ -95,6 +103,7 @@ async def delete_control(
         primary_approver_id=primary_approver_id,
         requires_privileged_approval=requires_privileged,
     )
+    apply_approval_scenario_snapshot(approval, scenario_policy)
 
     await create_approval_request_with_audit(
         db,

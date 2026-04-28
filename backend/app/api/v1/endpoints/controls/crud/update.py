@@ -86,6 +86,7 @@ async def _create_control_edit_approval_if_required(
     )
     from app.core.permissions import can_resolve_approvals, has_sensitive_field_changes
     from app.models import ApprovalActionType, ApprovalRequest, ApprovalResourceType, ApprovalStatus
+    from app.services.approval_scenario_policy import apply_approval_scenario_snapshot, load_approval_scenario_policy
 
     if can_resolve_approvals(current_user):
         return None
@@ -121,6 +122,14 @@ async def _create_control_edit_approval_if_required(
     if not requires_approval:
         return None
 
+    scenario_policy = await load_approval_scenario_policy(
+        db,
+        "control_edit",
+        default_roles=["risk_owner", "risk_manager", "cro"],
+    )
+    if not scenario_policy.requires_approval:
+        return None
+
     existing = await db.execute(
         select(ApprovalRequest).where(
             ApprovalRequest.resource_type == ApprovalResourceType.CONTROL,
@@ -149,6 +158,7 @@ async def _create_control_edit_approval_if_required(
         primary_approver_id=primary_approver_id,
         requires_privileged_approval=is_priority_linked,
     )
+    apply_approval_scenario_snapshot(approval, scenario_policy)
 
     await create_approval_request_with_audit(
         db,

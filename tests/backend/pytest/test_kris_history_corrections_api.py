@@ -232,6 +232,11 @@ async def test_cross_department_risk_owner_with_write_can_request_history_correc
 
     assert response.status_code == 202
     assert response.json()["requires_privileged_approval"] is True
+    from app.models import ApprovalRequest
+
+    approval = await db_session.get(ApprovalRequest, response.json()["approval_id"])
+    assert approval is not None
+    assert approval.primary_approver_id is None
 
 
 @pytest.mark.asyncio

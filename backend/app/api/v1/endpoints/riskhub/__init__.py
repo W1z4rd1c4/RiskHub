@@ -4,6 +4,7 @@ from fastapi import APIRouter
 
 from ._shared import _ensure_total_assets_value_config, get_cro_user, require_cro
 from .approval_scenarios import router as approval_scenarios_router
+from .capabilities import router as capabilities_router
 from .departments import router as departments_router
 from .global_config import router as global_config_router
 from .permissions import router as permissions_router
@@ -14,6 +15,7 @@ from .roles import router as roles_router
 router = APIRouter()
 
 router.include_router(risk_types_router)
+router.include_router(capabilities_router)
 router.include_router(global_config_router)
 router.include_router(approval_scenarios_router)
 router.include_router(public_config_router)

@@ -14,6 +14,7 @@ from app.models import (
     ApprovalActionType,
     ApprovalRequest,
     ApprovalResourceType,
+    ApprovalScenario,
     ApprovalStatus,
     Department,
     KeyRiskIndicator,
@@ -25,6 +26,30 @@ from app.models import (
 from app.models.key_risk_indicator import KRIFrequency
 from app.models.risk import RiskStatus
 from tests.backend.pytest.factories import create_test_kri, create_test_risk, create_test_vendor
+
+
+async def _upsert_approval_scenario(
+    db_session,
+    *,
+    key: str,
+    roles: list[str],
+    requires_approval: bool = True,
+) -> ApprovalScenario:
+    result = await db_session.execute(select(ApprovalScenario).where(ApprovalScenario.key == key))
+    scenario = result.scalar_one_or_none()
+    if scenario is None:
+        scenario = ApprovalScenario(
+            key=key,
+            display_name=key.replace("_", " ").title(),
+            description=f"Test scenario {key}",
+            requires_approval=requires_approval,
+        )
+        db_session.add(scenario)
+    scenario.requires_approval = requires_approval
+    scenario.set_approver_roles(roles)
+    await db_session.commit()
+    await db_session.refresh(scenario)
+    return scenario
 
 
 @pytest_asyncio.fixture
@@ -750,6 +775,28 @@ async def test_non_privileged_edit_requires_approval(client_dept_head: AsyncClie
 
 
 @pytest.mark.asyncio
+async def test_non_privileged_kri_edit_risk_owner_scenario_snapshots_parent_owner(
+    client_dept_head: AsyncClient,
+    db_session,
+    test_kri: KeyRiskIndicator,
+    test_user,
+):
+    await _upsert_approval_scenario(db_session, key="kri_edit", roles=["risk_owner"])
+
+    response = await client_dept_head.put(
+        f"/api/v1/kris/{test_kri.id}",
+        json={"metric_name": "Risk Owner Routed KRI Edit"},
+    )
+
+    assert response.status_code == 202
+    approval = await db_session.get(ApprovalRequest, response.json()["approval_id"])
+    assert approval is not None
+    assert approval.resource_id == test_kri.id
+    assert approval.primary_approver_id == test_user.id
+    assert approval.scenario_approver_roles == ["risk_owner", "risk_manager", "cro"]
+
+
+@pytest.mark.asyncio
 async def test_pending_kri_value_submission_locks_other_non_privileged_edit_capabilities(
     client_dept_head: AsyncClient,
     db_session,
@@ -925,7 +972,10 @@ async def test_non_privileged_delete_requires_approval_and_prevents_duplicates(
     client_dept_head_delete: AsyncClient,
     db_session,
     test_kri: KeyRiskIndicator,
+    test_user,
 ) -> None:
+    await _upsert_approval_scenario(db_session, key="kri_delete", roles=["risk_owner"])
+
     response = await client_dept_head_delete.delete(
         f"/api/v1/kris/{test_kri.id}?reason=Delete+request",
     )
@@ -938,6 +988,8 @@ async def test_non_privileged_delete_requires_approval_and_prevents_duplicates(
     approval = await db_session.get(ApprovalRequest, data["approval_id"])
     assert approval is not None
     assert approval.resource_id == test_kri.id
+    assert approval.primary_approver_id == test_user.id
+    assert approval.scenario_approver_roles == ["risk_owner", "risk_manager", "cro"]
 
     duplicate = await client_dept_head_delete.delete(
         f"/api/v1/kris/{test_kri.id}?reason=Delete+request",

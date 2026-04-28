@@ -7,10 +7,234 @@ from httpx import AsyncClient
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models import (
+    ApprovalRequest,
+    ApprovalResourceType,
+    ApprovalScenario,
+    Department,
+    Permission,
+    Risk,
+    Role,
+    RolePermission,
+    User,
+    Vendor,
+    VendorKRILink,
+)
 from app.models.key_risk_indicator import KeyRiskIndicator, KRIFrequency
 from app.models.kri_history import KRIValueHistory
+from app.models.risk import RiskStatus
+from app.models.user import AccessScope
 
 pytest_plugins = ("tests.backend.pytest.kri_history_api_support",)
+
+
+async def _upsert_kri_value_submit_scenario(
+    db_session: AsyncSession,
+    *,
+    requires_approval: bool,
+) -> ApprovalScenario:
+    scenario = await db_session.scalar(select(ApprovalScenario).where(ApprovalScenario.key == "kri_value_submit"))
+    if scenario is None:
+        scenario = ApprovalScenario(
+            key="kri_value_submit",
+            display_name="Submit KRI Value",
+            description="Approval required when submitting a new KRI measurement value",
+        )
+        db_session.add(scenario)
+    scenario.requires_approval = requires_approval
+    scenario.set_approver_roles(["risk_owner", "risk_manager", "cro"])
+    await db_session.commit()
+    await db_session.refresh(scenario)
+    return scenario
+
+
+async def _create_non_privileged_submitter_with_kri(
+    db_session: AsyncSession,
+    test_role_employee,
+    *,
+    suffix: str,
+) -> tuple[User, KeyRiskIndicator]:
+    kri_submit = await db_session.scalar(
+        select(Permission).where(Permission.resource == "kri", Permission.action == "submit")
+    )
+    if kri_submit is None:
+        kri_submit = Permission(resource="kri", action="submit", description="Submit KRI values")
+        db_session.add(kri_submit)
+        await db_session.flush()
+
+    role_permission = await db_session.scalar(
+        select(RolePermission).where(
+            RolePermission.role_id == test_role_employee.id,
+            RolePermission.permission_id == kri_submit.id,
+        )
+    )
+    if role_permission is None:
+        db_session.add(RolePermission(role_id=test_role_employee.id, permission_id=kri_submit.id))
+
+    dept = Department(name=f"Disabled Approval Dept {suffix}", code=f"DIS-KRI-{suffix}", is_active=True)
+    db_session.add(dept)
+    await db_session.flush()
+
+    employee = User(
+        name=f"Disabled Approval Employee {suffix}",
+        email=f"disabled-kri-{suffix.lower()}@example.com",
+        role_id=test_role_employee.id,
+        department_id=dept.id,
+        is_active=True,
+        access_scope=AccessScope.DEPARTMENT,
+    )
+    db_session.add(employee)
+    await db_session.flush()
+
+    risk = Risk(
+        risk_id_code=f"RISK-DIS-KRI-{suffix}",
+        name=f"Disabled Approval Risk {suffix}",
+        process="Test Process",
+        description="Risk for disabled KRI submission approval",
+        category="Test",
+        department_id=dept.id,
+        owner_id=employee.id,
+        risk_type="operational",
+        gross_probability=2,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=3,
+        status=RiskStatus.active.value,
+    )
+    db_session.add(risk)
+    await db_session.flush()
+
+    kri = KeyRiskIndicator(
+        risk_id=risk.id,
+        metric_name=f"Disabled Approval KRI {suffix}",
+        description="KRI for disabled approval submission tests",
+        current_value=50.0,
+        lower_limit=0.0,
+        upper_limit=100.0,
+        unit="%",
+        frequency=KRIFrequency.quarterly.value,
+    )
+    db_session.add(kri)
+    await db_session.commit()
+    await db_session.refresh(employee)
+    await db_session.refresh(kri)
+    return employee, kri
+
+
+async def _ensure_permission(db_session: AsyncSession, resource: str, action: str) -> Permission:
+    permission = await db_session.scalar(
+        select(Permission).where(Permission.resource == resource, Permission.action == action)
+    )
+    if permission is None:
+        permission = Permission(resource=resource, action=action, description=f"{resource}:{action}")
+        db_session.add(permission)
+        await db_session.flush()
+    return permission
+
+
+async def _create_submitter_with_linked_vendor(
+    db_session: AsyncSession,
+    *,
+    suffix: str,
+    can_read_vendors: bool,
+) -> tuple[User, KeyRiskIndicator, Vendor]:
+    permissions = [
+        await _ensure_permission(db_session, "risks", "read"),
+        await _ensure_permission(db_session, "kri", "submit"),
+    ]
+    if can_read_vendors:
+        permissions.append(await _ensure_permission(db_session, "vendors", "read"))
+
+    role = Role(
+        name=f"kri-submit-{suffix.lower()}",
+        display_name=f"KRI Submit {suffix}",
+        description="Test role for KRI submission vendor visibility",
+        is_system=False,
+        is_active=True,
+    )
+    db_session.add(role)
+    await db_session.flush()
+    db_session.add_all(RolePermission(role_id=role.id, permission_id=permission.id) for permission in permissions)
+
+    dept = Department(name=f"KRI Vendor Visibility Dept {suffix}", code=f"KRI-VEND-{suffix}", is_active=True)
+    db_session.add(dept)
+    await db_session.flush()
+
+    employee = User(
+        name=f"KRI Vendor Visibility User {suffix}",
+        email=f"kri-vendor-visibility-{suffix.lower()}@example.com",
+        role_id=role.id,
+        department_id=dept.id,
+        is_active=True,
+        access_scope=AccessScope.DEPARTMENT,
+    )
+    db_session.add(employee)
+    await db_session.flush()
+
+    risk = Risk(
+        risk_id_code=f"RISK-KRI-VEND-{suffix}",
+        name=f"KRI Vendor Visibility Risk {suffix}",
+        process="Test Process",
+        description="Risk for KRI vendor visibility tests",
+        category="Test",
+        department_id=dept.id,
+        owner_id=employee.id,
+        risk_type="operational",
+        gross_probability=2,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=3,
+        status=RiskStatus.active.value,
+    )
+    db_session.add(risk)
+    await db_session.flush()
+
+    kri = KeyRiskIndicator(
+        risk_id=risk.id,
+        metric_name=f"KRI Vendor Visibility {suffix}",
+        description="KRI for linked vendor response tests",
+        current_value=50.0,
+        lower_limit=0.0,
+        upper_limit=100.0,
+        unit="%",
+        frequency=KRIFrequency.quarterly.value,
+    )
+    db_session.add(kri)
+    await db_session.flush()
+
+    vendor = Vendor(
+        name=f"Linked Vendor {suffix}",
+        process="Vendor Process",
+        department_id=dept.id,
+        outsourcing_owner_user_id=employee.id,
+        vendor_type="ict",
+        risk_score_1_5=3,
+        supports_important_core_insurance_function=False,
+        dora_relevant=False,
+        is_significant_vendor=False,
+        has_alternative_providers=False,
+        status="active",
+    )
+    db_session.add(vendor)
+    await db_session.flush()
+    db_session.add(VendorKRILink(vendor_id=vendor.id, kri_id=kri.id))
+    await db_session.commit()
+    await db_session.refresh(employee)
+    await db_session.refresh(kri)
+    await db_session.refresh(vendor)
+    return employee, kri, vendor
+
+
+async def _count_kri_submission_approvals(db_session: AsyncSession, kri_id: int) -> int:
+    count = await db_session.scalar(
+        select(func.count())
+        .select_from(ApprovalRequest)
+        .where(
+            ApprovalRequest.resource_type == ApprovalResourceType.KRI,
+            ApprovalRequest.resource_id == kri_id,
+        )
+    )
+    return int(count or 0)
 
 
 @pytest.mark.asyncio
@@ -222,9 +446,201 @@ async def test_non_privileged_value_submission_returns_202(
     assert data["pending_changes"]["current_value"]["new"] == 75.0
     assert "period_end" in data["pending_changes"]
 
+    approval = await db_session.get(ApprovalRequest, data["approval_id"])
+    assert approval is not None
+    assert approval.primary_approver_id is None
+
     # Verify KRI was NOT updated
     await db_session.refresh(kri)
     assert kri.current_value == 50.0  # Still original value
+
+
+@pytest.mark.asyncio
+async def test_disabled_kri_value_submit_scenario_applies_with_non_privileged_window_rules(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    test_role_employee,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Disabling value-submit approval applies immediately without upgrading requester authority."""
+    import app.services._kri_history.clock as kri_clock
+
+    monkeypatch.setattr(kri_clock, "today", lambda: date(2026, 4, 10))
+    await _upsert_kri_value_submit_scenario(db_session, requires_approval=False)
+    employee, kri = await _create_non_privileged_submitter_with_kri(
+        db_session,
+        test_role_employee,
+        suffix="WINDOW",
+    )
+
+    response = await client.post(
+        f"/api/v1/kris/{kri.id}/values",
+        headers={"X-Mock-User-Id": str(employee.id)},
+        json={"value": 75.0},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["current_value"] == 75.0
+    await db_session.refresh(kri)
+    assert kri.current_value == 75.0
+    assert kri.last_period_end == date(2026, 3, 31)
+    assert await _count_kri_submission_approvals(db_session, kri.id) == 0
+
+    history_count = await db_session.scalar(
+        select(func.count()).select_from(KRIValueHistory).where(KRIValueHistory.kri_id == kri.id)
+    )
+    assert history_count == 1
+
+
+@pytest.mark.asyncio
+async def test_disabled_kri_value_submit_scenario_preserves_closed_window_rejection(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    test_role_employee,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    import app.services._kri_history.clock as kri_clock
+
+    monkeypatch.setattr(kri_clock, "today", lambda: date(2026, 4, 20))
+    await _upsert_kri_value_submit_scenario(db_session, requires_approval=False)
+    employee, kri = await _create_non_privileged_submitter_with_kri(
+        db_session,
+        test_role_employee,
+        suffix="CLOSED",
+    )
+
+    response = await client.post(
+        f"/api/v1/kris/{kri.id}/values",
+        headers={"X-Mock-User-Id": str(employee.id)},
+        json={"value": 75.0},
+    )
+
+    assert response.status_code == 400
+    assert "Reporting window closed" in response.json()["detail"]
+    await db_session.refresh(kri)
+    assert kri.current_value == 50.0
+    assert await _count_kri_submission_approvals(db_session, kri.id) == 0
+    history_count = await db_session.scalar(
+        select(func.count()).select_from(KRIValueHistory).where(KRIValueHistory.kri_id == kri.id)
+    )
+    assert history_count == 0
+
+
+@pytest.mark.asyncio
+async def test_disabled_kri_value_submit_scenario_still_rejects_custom_period_end(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    test_role_employee,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    import app.services._kri_history.clock as kri_clock
+
+    monkeypatch.setattr(kri_clock, "today", lambda: date(2026, 4, 10))
+    await _upsert_kri_value_submit_scenario(db_session, requires_approval=False)
+    employee, kri = await _create_non_privileged_submitter_with_kri(
+        db_session,
+        test_role_employee,
+        suffix="CUSTOM",
+    )
+
+    response = await client.post(
+        f"/api/v1/kris/{kri.id}/values",
+        headers={"X-Mock-User-Id": str(employee.id)},
+        json={"value": 75.0, "period_end": "2025-12-31"},
+    )
+
+    assert response.status_code == 400
+    assert "cannot specify custom period_end" in response.json()["detail"]
+    assert await _count_kri_submission_approvals(db_session, kri.id) == 0
+    history_count = await db_session.scalar(
+        select(func.count()).select_from(KRIValueHistory).where(KRIValueHistory.kri_id == kri.id)
+    )
+    assert history_count == 0
+
+
+@pytest.mark.asyncio
+async def test_disabled_kri_value_submit_scenario_redacts_unreadable_linked_vendors(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    import app.services._kri_history.clock as kri_clock
+
+    monkeypatch.setattr(kri_clock, "today", lambda: date(2026, 4, 10))
+    await _upsert_kri_value_submit_scenario(db_session, requires_approval=False)
+    employee, kri, _vendor = await _create_submitter_with_linked_vendor(
+        db_session,
+        suffix="REDACT",
+        can_read_vendors=False,
+    )
+
+    response = await client.post(
+        f"/api/v1/kris/{kri.id}/values",
+        headers={"X-Mock-User-Id": str(employee.id)},
+        json={"value": 75.0},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["linked_vendors"] == []
+    assert await _count_kri_submission_approvals(db_session, kri.id) == 0
+
+
+@pytest.mark.asyncio
+async def test_disabled_kri_value_submit_scenario_returns_readable_linked_vendors(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    import app.services._kri_history.clock as kri_clock
+
+    monkeypatch.setattr(kri_clock, "today", lambda: date(2026, 4, 10))
+    await _upsert_kri_value_submit_scenario(db_session, requires_approval=False)
+    employee, kri, vendor = await _create_submitter_with_linked_vendor(
+        db_session,
+        suffix="VISIBLE",
+        can_read_vendors=True,
+    )
+
+    response = await client.post(
+        f"/api/v1/kris/{kri.id}/values",
+        headers={"X-Mock-User-Id": str(employee.id)},
+        json={"value": 75.0},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["linked_vendors"] == [{"id": vendor.id, "name": vendor.name}]
+
+
+@pytest.mark.asyncio
+async def test_privileged_record_value_returns_readable_linked_vendors(
+    auth_client: AsyncClient,
+    test_kri_for_api: KeyRiskIndicator,
+    test_user: User,
+    db_session: AsyncSession,
+):
+    vendor = Vendor(
+        name="Privileged Visible KRI Vendor",
+        process="Vendor Process",
+        department_id=test_user.department_id,
+        outsourcing_owner_user_id=test_user.id,
+        vendor_type="ict",
+        risk_score_1_5=3,
+        supports_important_core_insurance_function=False,
+        dora_relevant=False,
+        is_significant_vendor=False,
+        has_alternative_providers=False,
+        status="active",
+    )
+    db_session.add(vendor)
+    await db_session.flush()
+    db_session.add(VendorKRILink(vendor_id=vendor.id, kri_id=test_kri_for_api.id))
+    await db_session.commit()
+    await db_session.refresh(vendor)
+
+    response = await auth_client.post(f"/api/v1/kris/{test_kri_for_api.id}/values", json={"value": 82.0})
+
+    assert response.status_code == 200
+    assert response.json()["linked_vendors"] == [{"id": vendor.id, "name": vendor.name}]
 
 
 @pytest.mark.asyncio

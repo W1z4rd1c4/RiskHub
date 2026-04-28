@@ -8,6 +8,7 @@ from app.db.session import get_db
 from app.models import ApprovalScenario, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas.riskhub import ApprovalScenarioCapabilities, ApprovalScenarioRead, ApprovalScenarioUpdate
+from app.services.approval_scenario_policy import normalize_approval_scenario_roles
 
 from ._shared import get_cro_user
 
@@ -81,12 +82,17 @@ async def update_approval_scenario(
             changes.append(f"requires_approval: {old_val} → {data.requires_approval}")
             activity_changes["requires_approval"] = {"old": old_val, "new": data.requires_approval}
 
-    if data.approver_roles is not None:
+    if data.approver_roles is not None or data.requires_approval is not None:
         old_roles = scenario.get_approver_roles()
-        scenario.set_approver_roles(data.approver_roles)
-        if old_roles != data.approver_roles:
-            changes.append(f"approver_roles: {old_roles} → {data.approver_roles}")
-            activity_changes["approver_roles"] = {"old": old_roles, "new": data.approver_roles}
+        normalized_roles = normalize_approval_scenario_roles(
+            key,
+            data.approver_roles if data.approver_roles is not None else old_roles,
+            requires_approval=scenario.requires_approval,
+        )
+        scenario.set_approver_roles(normalized_roles)
+        if old_roles != normalized_roles:
+            changes.append(f"approver_roles: {old_roles} → {normalized_roles}")
+            activity_changes["approver_roles"] = {"old": old_roles, "new": normalized_roles}
 
     scenario.updated_by_id = cro_user.id
 

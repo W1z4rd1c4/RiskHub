@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -16,6 +16,15 @@ from app.db.session import get_db
 from app.models import ApprovalRequest, ApprovalStatus, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas.approval_request import ApprovalRequestListResponse, ApprovalRequestRead, ApprovalRequestResolve
+from app.services.approval_queue_visibility import (
+    count_visible_pending_approvals_for_user,
+    visible_pending_approvals_for_user,
+)
+from app.services.approval_scenario_policy import (
+    can_view_approval_resource,
+    scenario_allows_privileged_resolution,
+    user_matches_approval_scenario_role,
+)
 from app.services.outbox import OutboxService
 
 from ._shared import _build_approval_read, _get_approval_department_id, logger
@@ -76,9 +85,6 @@ async def reject_request(
     Only users with approval-resolution authority can reject.
     Requires mandatory resolution_notes.
     """
-    if not can_resolve_approvals(current_user):
-        raise HTTPException(status_code=403, detail="Only authorized approval resolvers can reject requests")
-
     result = await db.execute(
         select(ApprovalRequest)
         .options(selectinload(ApprovalRequest.requested_by), selectinload(ApprovalRequest.resolved_by))
@@ -92,6 +98,27 @@ async def reject_request(
     # Allow rejecting any pending status (PENDING or PENDING_PRIVILEGED)
     if approval.status not in (ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED):
         raise HTTPException(status_code=400, detail=f"Cannot reject request with status: {approval.status.value}")
+
+    scenario_match = user_matches_approval_scenario_role(approval, current_user)
+    privileged_scenario_match = scenario_allows_privileged_resolution(approval, current_user)
+    if scenario_match is None:
+        if not can_resolve_approvals(current_user):
+            raise HTTPException(status_code=403, detail="Only authorized approval resolvers can reject requests")
+    elif approval.requested_by_id == current_user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="Requesters must cancel their own approval requests instead of rejecting them",
+        )
+    elif approval.status == ApprovalStatus.PENDING:
+        if not scenario_match:
+            raise HTTPException(
+                status_code=403,
+                detail="This approval scenario does not allow your role to reject this request",
+            )
+        if not can_resolve_approvals(current_user) and not await can_view_approval_resource(db, current_user, approval):
+            raise HTTPException(status_code=403, detail="Access denied")
+    elif not can_resolve_approvals(current_user) or privileged_scenario_match is not True:
+        raise HTTPException(status_code=403, detail="This request requires approval-resolution authority")
 
     previous_status = approval.status
 
@@ -226,8 +253,8 @@ async def get_pending_count(
     """
     Get count of pending approvals for badge display.
     - Approval resolvers: count of all pending requests (PENDING + PENDING_PRIVILEGED)
-    - Non-privileged users: own requests in PENDING/PENDING_PRIVILEGED plus
-      primary-approver requests in PENDING
+    - Non-privileged users: own requests, primary-approver requests, and visible
+      scenario-approver requests
     """
     if can_resolve_approvals(current_user):
         # Count all pending/pending_privileged for approvers
@@ -236,24 +263,9 @@ async def get_pending_count(
             .select_from(ApprovalRequest)
             .where(ApprovalRequest.status.in_([ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED]))
         )
-    else:
-        # Count own pending + requests where user is primary approver
-        result = await db.execute(
-            select(func.count())
-            .select_from(ApprovalRequest)
-            .where(
-                or_(
-                    # Own pending requests
-                    (ApprovalRequest.status.in_([ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED]))
-                    & (ApprovalRequest.requested_by_id == current_user.id),
-                    # Requests where user is primary approver
-                    (ApprovalRequest.status == ApprovalStatus.PENDING)
-                    & (ApprovalRequest.primary_approver_id == current_user.id),
-                )
-            )
-        )
+        return {"count": result.scalar() or 0}
 
-    count = result.scalar() or 0
+    count = await count_visible_pending_approvals_for_user(db, current_user=current_user)
     return {"count": count}
 
 
@@ -271,29 +283,16 @@ async def list_my_approval_requests(
     limit: int = Query(50, ge=1, le=100),
 ):
     """
-    List approval requests where current user is the primary approver (Risk Owner).
-    Returns all PENDING requests that need this user's approval.
+    List pending approval requests that need this user's approval.
     """
-    base_query = select(ApprovalRequest).where(
-        ApprovalRequest.primary_approver_id == current_user.id, ApprovalRequest.status == ApprovalStatus.PENDING
+    approvals = await visible_pending_approvals_for_user(
+        db,
+        current_user=current_user,
+        include_requester=False,
     )
-
-    # Count total
-    count_query = select(func.count()).select_from(base_query.subquery())
-    total_result = await db.execute(count_query)
-    total = total_result.scalar() or 0
-
-    # Fetch with pagination
-    query = (
-        base_query.options(selectinload(ApprovalRequest.requested_by), selectinload(ApprovalRequest.resolved_by))
-        .offset(skip)
-        .limit(limit)
-        .order_by(ApprovalRequest.created_at.desc())
-    )
-
-    result = await db.execute(query)
-    approvals = result.scalars().all()
+    total = len(approvals)
+    page = approvals[skip : skip + limit]
 
     return ApprovalRequestListResponse(
-        items=[_build_approval_read(a, current_user) for a in approvals], total=total, skip=skip, limit=limit
+        items=[_build_approval_read(a, current_user) for a in page], total=total, skip=skip, limit=limit
     )

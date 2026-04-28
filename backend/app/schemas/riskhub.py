@@ -209,6 +209,9 @@ class DepartmentHubRead(BaseModel):
     user_count: int
     risk_count: int
     control_count: int
+    kri_count: int = 0
+    vendor_count: int = 0
+    pending_orphan_count: int = 0
     capabilities: "DepartmentHubCapabilities | None" = None
 
     model_config = ConfigDict(from_attributes=True)
@@ -236,3 +239,27 @@ class DepartmentHubUpdate(BaseModel):
     name: str | None = None
     code: str | None = None
     manager_id: int | None = None
+
+
+# ============================================================================
+# Risk Hub Collection Capabilities
+# ============================================================================
+
+
+class RiskHubPanelCapability(BaseModel):
+    """Collection-level Risk Hub panel action capabilities."""
+
+    can_create: bool | None = None
+    can_update: bool | None = None
+    can_batch_send: bool | None = None
+
+
+class RiskHubCapabilitiesRead(BaseModel):
+    """Backend-authoritative collection capabilities for Risk Hub panels."""
+
+    risk_types: RiskHubPanelCapability
+    departments: RiskHubPanelCapability
+    roles: RiskHubPanelCapability
+    approval_scenarios: RiskHubPanelCapability
+    system_settings: RiskHubPanelCapability
+    questionnaires: RiskHubPanelCapability

@@ -74,6 +74,11 @@ class ApprovalRequest(Base):
     # For edits: JSON storing pending changes {"field": {"old": v1, "new": v2}}
     pending_changes: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
+    # Risk Hub approval scenario snapshot. Existing/legacy approvals may be null
+    # and keep the historical approval-resolution fallback.
+    scenario_key: Mapped[str | None] = mapped_column(String(50), nullable=True, index=True)
+    scenario_approver_roles: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
+
     # Request details
     requested_by_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False)
     reason: Mapped[str] = mapped_column(Text, nullable=False)  # Mandatory per user requirement

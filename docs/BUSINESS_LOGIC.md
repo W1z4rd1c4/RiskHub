@@ -256,7 +256,8 @@ Rules:
 - Manager assignment determines fallback approval authority
 - Department manager assignment is validated server-side: the manager must exist and be active.
 - Department deletion is blocked while the department has active users, risks, controls, KRIs through risks, vendors, or pending orphan records.
-- Risk Hub role and department responses may include additive `capabilities` metadata. Role permission replacement is all-or-nothing: unknown permission IDs reject the request before existing permissions are removed.
+- Inactive departments, roles, and risk types cannot be edited until restored.
+- Risk Hub role, department, risk type, approval scenario, settings, and questionnaire collection actions are driven by backend `capabilities` metadata. Role permission replacement is all-or-nothing: unknown permission IDs reject the request before existing permissions are removed.
 
 ---
 
@@ -496,7 +497,15 @@ This applies to **ALL fields**, not just sensitive ones:
 | Employee | Any field | ⏳ Creates approval request |
 | Risk Owner (non-privileged) | Any field | ⏳ Creates approval request |
 
-### 6.3 Special Cases
+### 6.3 Approval Scenario Policy
+
+Approval scenarios configured in Risk Hub are live runtime policy for newly created approval-backed mutations:
+
+- `requires_approval=false` lets the authorized original mutation apply directly when the endpoint can safely apply the change without an approval record.
+- `approver_roles` is snapshotted onto the approval request and controls who can approve or reject that request. Existing legacy approval requests without a scenario snapshot keep the historical approval-resolution fallback.
+- Seeded scenario keys cover risk/control/KRI deletes, priority risk edits, control edits, KRI value submissions, KRI edits, and KRI history corrections.
+
+### 6.4 Special Cases
 
 **is_priority Field (Risk):**
 - `true → false` (downgrade): **REQUIRES approval** (removing from priority watch)

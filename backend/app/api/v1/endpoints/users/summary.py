@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
@@ -11,6 +11,7 @@ from app.core.ttl_cache import TTLCache
 from app.db.session import get_db
 from app.models import ApprovalRequest, ApprovalStatus, Notification, OrphanedItem, User
 from app.schemas.user import UserShellSummary
+from app.services.approval_queue_visibility import count_visible_pending_approvals_for_user
 
 router = APIRouter()
 
@@ -28,21 +29,7 @@ async def _count_pending_approvals(db: AsyncSession, current_user: User) -> int:
         )
         return result.scalar() or 0
 
-    result = await db.execute(
-        select(func.count())
-        .select_from(ApprovalRequest)
-        .where(
-            or_(
-                (ApprovalRequest.status == ApprovalStatus.PENDING)
-                & (ApprovalRequest.requested_by_id == current_user.id),
-                (ApprovalRequest.status == ApprovalStatus.PENDING)
-                & (ApprovalRequest.primary_approver_id == current_user.id),
-                (ApprovalRequest.status == ApprovalStatus.PENDING_PRIVILEGED)
-                & (ApprovalRequest.requested_by_id == current_user.id),
-            )
-        )
-    )
-    return result.scalar() or 0
+    return await count_visible_pending_approvals_for_user(db, current_user=current_user)
 
 
 async def _count_questionnaire_inbox(db: AsyncSession, current_user: User) -> int:

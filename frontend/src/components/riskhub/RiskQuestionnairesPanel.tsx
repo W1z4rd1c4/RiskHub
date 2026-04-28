@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { AlertCircle, CheckCircle, FileText, RefreshCw, Send } from 'lucide-react';
 import { useTranslation } from '@/i18n/hooks';
-import { batchSendResponseSchema } from '@/services/api/schemas';
 import { departmentApi } from '@/services/departmentApi';
 import { riskApi } from '@/services/riskApi';
 import { apiClient } from '@/services/apiClient';
+import { riskHubApi } from '@/services/riskHubApi';
 import type { RiskSummary, RiskStatus } from '@/types/risk';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { cn } from '@/lib/utils';
 import { logError } from '@/services/logger';
+import { riskHubCapabilityEnabled, useRiskHubCapabilities } from './useRiskHubCapabilities';
 
 type BatchSendResponse = {
     created_count: number;
@@ -33,6 +34,8 @@ export function RiskQuestionnairesPanel() {
     const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
     const [risks, setRisks] = useState<RiskSummary[]>([]);
     const [result, setResult] = useState<BatchSendResponse | null>(null);
+    const { data: riskHubCapabilities } = useRiskHubCapabilities();
+    const canBatchSend = riskHubCapabilityEnabled(riskHubCapabilities?.questionnaires, 'can_batch_send');
 
     useEffect(() => {
         const loadDepartments = async () => {
@@ -132,9 +135,7 @@ export function RiskQuestionnairesPanel() {
                 return;
             }
 
-            const resp = await apiClient.post('/riskhub/questionnaires/batch-send', payload, {
-                schema: batchSendResponseSchema,
-            });
+            const resp = await riskHubApi.batchSendQuestionnaires(payload);
             setResult(resp);
             setSelectedIds(new Set());
             await fetchRisks();
@@ -233,15 +234,17 @@ export function RiskQuestionnairesPanel() {
                         ]}
                     />
                     <label className="flex items-center gap-2 text-xs text-slate-300 font-bold select-none">
-                        <input
-                            type="checkbox"
-                            checked={selectAll}
-                            onChange={(e) => {
-                                setSelectAll(e.target.checked);
-                                setSelectedIds(new Set());
-                            }}
-                            className="accent-accent"
-                        />
+                        {canBatchSend ? (
+                            <input
+                                type="checkbox"
+                                checked={selectAll}
+                                onChange={(e) => {
+                                    setSelectAll(e.target.checked);
+                                    setSelectedIds(new Set());
+                                }}
+                                className="accent-accent"
+                            />
+                        ) : null}
                         {t('riskhub.questionnaires.select_all')}
                     </label>
                 </div>
@@ -251,13 +254,15 @@ export function RiskQuestionnairesPanel() {
                         <thead>
                             <tr className="border-b border-white/5">
                                 <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
-                                    <input
-                                        type="checkbox"
-                                        checked={selectAll ? true : allVisibleSelected}
-                                        onChange={toggleAllVisible}
-                                        disabled={selectAll || risks.length === 0}
-                                        className="accent-accent"
-                                    />
+                                    {canBatchSend ? (
+                                        <input
+                                            type="checkbox"
+                                            checked={selectAll ? true : allVisibleSelected}
+                                            onChange={toggleAllVisible}
+                                            disabled={selectAll || risks.length === 0}
+                                            className="accent-accent"
+                                        />
+                                    ) : null}
                                 </th>
                                 <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
                                     {t('governance.col_name')}
@@ -290,13 +295,15 @@ export function RiskQuestionnairesPanel() {
                                 risks.map(risk => (
                                     <tr key={risk.id} className="hover:bg-white/5">
                                         <td className="px-4 py-3">
-                                            <input
-                                                type="checkbox"
-                                                checked={selectAll ? true : selectedIds.has(risk.id)}
-                                                onChange={() => toggleRisk(risk.id)}
-                                                disabled={selectAll}
-                                                className="accent-accent"
-                                            />
+                                            {canBatchSend ? (
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectAll ? true : selectedIds.has(risk.id)}
+                                                    onChange={() => toggleRisk(risk.id)}
+                                                    disabled={selectAll}
+                                                    className="accent-accent"
+                                                />
+                                            ) : null}
                                         </td>
                                         <td className="px-4 py-3 text-sm font-bold text-white">{risk.name}</td>
                                         <td className="px-4 py-3 text-sm text-slate-400">{risk.description}</td>
@@ -317,18 +324,20 @@ export function RiskQuestionnairesPanel() {
                             ? t('riskhub.questionnaires.select_all_hint')
                             : t('riskhub.questionnaires.selected_count', { count: selectedIds.size })}
                     </div>
-                    <button
-                        onClick={handleBatchSend}
-                        disabled={sending || (!selectAll && selectedIds.size === 0)}
-                        className={cn(
-                            "inline-flex items-center gap-2 px-4 py-2 rounded-xl border text-xs font-black uppercase tracking-widest transition-all",
-                            "bg-accent/20 border-accent/30 text-accent hover:bg-accent/30 hover:border-accent/50",
-                            (sending || (!selectAll && selectedIds.size === 0)) && "opacity-50 cursor-not-allowed"
-                        )}
-                    >
-                        <Send className={cn("h-4 w-4", sending && "animate-pulse")} />
-                        {t('riskhub.questionnaires.send')}
-                    </button>
+                    {canBatchSend ? (
+                        <button
+                            onClick={handleBatchSend}
+                            disabled={sending || (!selectAll && selectedIds.size === 0)}
+                            className={cn(
+                                "inline-flex items-center gap-2 px-4 py-2 rounded-xl border text-xs font-black uppercase tracking-widest transition-all",
+                                "bg-accent/20 border-accent/30 text-accent hover:bg-accent/30 hover:border-accent/50",
+                                (sending || (!selectAll && selectedIds.size === 0)) && "opacity-50 cursor-not-allowed"
+                            )}
+                        >
+                            <Send className={cn("h-4 w-4", sending && "animate-pulse")} />
+                            {t('riskhub.questionnaires.send')}
+                        </button>
+                    ) : null}
                 </div>
             </div>
         </div>

@@ -25,12 +25,10 @@ from app.api.v1.endpoints._monitoring_response import (
 )
 from app.core.datetime_utils import utc_now
 from app.core.pagination import MAX_KRI_PAGE_SIZE
-from app.core.permissions import can_read_vendor
 from app.core.security import check_permission, require_permission
 from app.db.session import get_db
 from app.models import KeyRiskIndicator, Risk, User, VendorKRILink
 from app.schemas.kri import KRIListResponse
-from app.schemas.vendor_shared import LinkedVendorRead
 from app.services._monitoring_status import (
     KRIMonitoringStatus,
     KRITimelinessStatus,
@@ -40,6 +38,7 @@ from app.services._monitoring_status import (
 from app.services.authorization_capabilities import kri_capabilities
 
 from ..access import can_create_kri_for_any_parent_risk, kri_read_scope_clause
+from ..linked_vendors import visible_linked_vendors
 
 router = APIRouter(prefix="/kris", tags=["Key Risk Indicators"])
 
@@ -223,13 +222,7 @@ async def list_kris(
                 serialize_kri_response(
                     kri,
                     monitoring_context,
-                    linked_vendors=[
-                        LinkedVendorRead(id=link.vendor.id, name=link.vendor.name)
-                        for link in getattr(kri, "vendor_links", []) or []
-                        if getattr(link, "vendor", None) is not None
-                        and can_read_vendors
-                        and can_read_vendor(link.vendor, current_user)
-                    ],
+                    linked_vendors=visible_linked_vendors(current_user, getattr(kri, "vendor_links", [])),
                     capabilities=capabilities,
                 )
             )
@@ -260,13 +253,7 @@ async def list_kris(
             serialize_kri_response(
                 kri,
                 monitoring_context,
-                linked_vendors=[
-                    LinkedVendorRead(id=link.vendor.id, name=link.vendor.name)
-                    for link in getattr(kri, "vendor_links", []) or []
-                    if getattr(link, "vendor", None) is not None
-                    and can_read_vendors
-                    and can_read_vendor(link.vendor, current_user)
-                ],
+                linked_vendors=visible_linked_vendors(current_user, getattr(kri, "vendor_links", [])),
                 capabilities=capabilities,
             )
         )

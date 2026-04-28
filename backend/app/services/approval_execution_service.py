@@ -30,7 +30,7 @@ async def approve_request_workflow(
 ) -> ApprovalRequest:
     """Approve a pending approval request and return the refreshed model."""
     approval = await load_approval(db, approval_id)
-    is_privileged, is_primary_approver = assert_can_approve(approval, current_user)
+    is_privileged, is_primary_approver, is_scenario_approver = await assert_can_approve(db, approval, current_user)
     previous_status = approval.status
 
     should_apply_changes = apply_status_transition(
@@ -39,6 +39,7 @@ async def approve_request_workflow(
         resolution_notes=resolution_notes,
         is_privileged=is_privileged,
         is_primary_approver=is_primary_approver,
+        is_scenario_approver=is_scenario_approver,
     )
 
     if should_apply_changes:

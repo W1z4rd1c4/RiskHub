@@ -592,7 +592,10 @@
     "linked_counts": {
       "users": "Users: {{count}}",
       "risks": "Risks: {{count}}",
-      "controls": "Controls: {{count}}"
+      "controls": "Controls: {{count}}",
+      "kris": "KRIs: {{count}}",
+      "vendors": "Vendors: {{count}}",
+      "pending_orphans": "Pending orphans: {{count}}"
     },
     "modal": {
       "edit_title": "Edit Department",

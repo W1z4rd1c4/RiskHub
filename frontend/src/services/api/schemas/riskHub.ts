@@ -4,6 +4,7 @@ import type {
     GlobalConfig,
     PermissionRead,
     PublicRiskType,
+    RiskHubCapabilities,
     RiskType,
     RoleHubRead,
 } from '@/services/riskHubApi';
@@ -121,9 +122,27 @@ export const departmentHubReadSchema: z.ZodType<DepartmentHubRead> = passthrough
     user_count: z.number(),
     risk_count: z.number(),
     control_count: z.number(),
+    kri_count: z.number().default(0),
+    vendor_count: z.number().default(0),
+    pending_orphan_count: z.number().default(0),
     capabilities: riskHubActionCapabilitiesSchema.nullable().optional(),
 });
 export const departmentHubReadArraySchema = z.array(departmentHubReadSchema);
+
+const riskHubPanelCapabilitySchema = passthroughObject({
+    can_create: z.boolean().nullable().optional(),
+    can_update: z.boolean().nullable().optional(),
+    can_batch_send: z.boolean().nullable().optional(),
+});
+
+export const riskHubCapabilitiesSchema: z.ZodType<RiskHubCapabilities> = passthroughObject({
+    risk_types: riskHubPanelCapabilitySchema,
+    departments: riskHubPanelCapabilitySchema,
+    roles: riskHubPanelCapabilitySchema,
+    approval_scenarios: riskHubPanelCapabilitySchema,
+    system_settings: riskHubPanelCapabilitySchema,
+    questionnaires: riskHubPanelCapabilitySchema,
+});
 
 export const batchSendQuestionnairesResponseSchema = batchSendResponseSchema;
 export const roleDeleteResponseSchema = statusIdSchema;

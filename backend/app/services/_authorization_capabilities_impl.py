@@ -45,6 +45,10 @@ from app.schemas.issue import IssueCapabilities
 from app.schemas.kri import KRICapabilities
 from app.schemas.risk import RiskCapabilities
 from app.services._kri_history.workflow import can_request_history_correction
+from app.services.approval_scenario_policy import (
+    scenario_allows_privileged_resolution,
+    user_matches_approval_scenario_role,
+)
 
 PENDING_APPROVAL_STATUSES = (ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED)
 
@@ -291,23 +295,44 @@ def approval_capabilities(*, approval: ApprovalRequest, current_user: User) -> A
     is_requester = approval.requested_by_id == current_user.id
     is_primary_approver = approval.primary_approver_id == current_user.id
     is_pending = approval.status in PENDING_APPROVAL_STATUSES
-    can_approve = not is_requester and (
-        (approval.status == ApprovalStatus.PENDING and (is_primary_approver or is_privileged))
-        or (approval.status == ApprovalStatus.PENDING_PRIVILEGED and is_privileged)
-    )
-    can_reject = bool(is_pending and is_privileged)
+    scenario_match = user_matches_approval_scenario_role(approval, current_user)
+    privileged_scenario_match = scenario_allows_privileged_resolution(approval, current_user)
+    if scenario_match is None:
+        can_approve = not is_requester and (
+            (approval.status == ApprovalStatus.PENDING and (is_primary_approver or is_privileged))
+            or (approval.status == ApprovalStatus.PENDING_PRIVILEGED and is_privileged)
+        )
+        can_reject = bool(is_pending and is_privileged)
+    else:
+        can_approve = not is_requester and (
+            (approval.status == ApprovalStatus.PENDING and scenario_match)
+            or (
+                approval.status == ApprovalStatus.PENDING_PRIVILEGED
+                and is_privileged
+                and privileged_scenario_match is True
+            )
+        )
+        can_reject = not is_requester and bool(
+            (approval.status == ApprovalStatus.PENDING and scenario_match)
+            or (
+                approval.status == ApprovalStatus.PENDING_PRIVILEGED
+                and is_privileged
+                and privileged_scenario_match is True
+            )
+        )
     can_cancel_as_requester = bool(is_pending and is_requester)
     can_cancel_as_resolver = bool(is_pending and is_privileged)
     requires_privileged_resolution = bool(
         approval.requires_privileged_approval or approval.status == ApprovalStatus.PENDING_PRIVILEGED
     )
+    is_first_stage_approver = is_primary_approver or scenario_match is True
     would_apply_side_effects_on_approve = bool(
         can_approve
         and (
             is_privileged
             or (
                 approval.status == ApprovalStatus.PENDING
-                and is_primary_approver
+                and is_first_stage_approver
                 and not approval.requires_privileged_approval
             )
         )

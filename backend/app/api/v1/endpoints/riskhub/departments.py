@@ -104,6 +104,8 @@ async def update_department(
     from app.models.department import Department
 
     dept = await load_department_for_update(db, id)
+    if not dept.is_active:
+        raise HTTPException(status_code=400, detail="Cannot update inactive department")
 
     if data.name is not None:
         # Check for duplicate name (excluding current)

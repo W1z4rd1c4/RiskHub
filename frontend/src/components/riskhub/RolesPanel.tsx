@@ -6,10 +6,13 @@ import { RoleDeleteDialog } from './roles/RoleDeleteDialog';
 import { RoleModal } from './roles/RoleModal';
 import { RolesTable } from './roles/RolesTable';
 import { useRolesPanelData } from './roles/useRolesPanelData';
+import { riskHubCapabilityEnabled, useRiskHubCapabilities } from './useRiskHubCapabilities';
 
 export function RolesPanel() {
     const { t } = useTranslation(['admin', 'common']);
     const rolesPanel = useRolesPanelData();
+    const { data: riskHubCapabilities } = useRiskHubCapabilities();
+    const canCreate = riskHubCapabilityEnabled(riskHubCapabilities?.roles, 'can_create');
 
     if (rolesPanel.rolesLoading) {
         return <div className="text-slate-400 text-center py-8">{t('common:loading.roles')}</div>;
@@ -41,13 +44,15 @@ export function RolesPanel() {
                         {t('admin:roles_panel.show_deleted')}
                     </label>
 
-                    <button
-                        onClick={rolesPanel.openCreateModal}
-                        className="flex items-center gap-2 px-3 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors"
-                    >
-                        <Plus className="h-4 w-4" />
-                        {t('admin:roles_panel.add_role')}
-                    </button>
+                    {canCreate ? (
+                        <button
+                            onClick={rolesPanel.openCreateModal}
+                            className="flex items-center gap-2 px-3 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors"
+                        >
+                            <Plus className="h-4 w-4" />
+                            {t('admin:roles_panel.add_role')}
+                        </button>
+                    ) : null}
                 </div>
             </div>
 

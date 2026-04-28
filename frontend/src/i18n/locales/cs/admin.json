@@ -592,7 +592,10 @@
     "linked_counts": {
       "users": "Uživatelé: {{count}}",
       "risks": "Rizika: {{count}}",
-      "controls": "Kontroly: {{count}}"
+      "controls": "Kontroly: {{count}}",
+      "kris": "KRI: {{count}}",
+      "vendors": "Dodavatelé: {{count}}",
+      "pending_orphans": "Nevyřešené osiřelé položky: {{count}}"
     },
     "modal": {
       "edit_title": "Upravit oddělení",

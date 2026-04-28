@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { useTranslation } from '@/i18n/hooks';
 import { RiskHubFieldError, RiskHubModalActions, RiskHubModalFrame } from './panelPrimitives';
+import { riskHubCapabilityEnabled, useRiskHubCapabilities } from './useRiskHubCapabilities';
 
 interface RiskTypeModalProps {
     isOpen: boolean;
@@ -155,6 +156,7 @@ export function RiskTypesPanel() {
         queryKey: ['riskTypes', showInactive],
         queryFn: () => riskHubApi.getRiskTypes(showInactive),
     });
+    const { data: riskHubCapabilities } = useRiskHubCapabilities();
 
     const createMutation = useMutation({
         mutationFn: (data: RiskTypeCreate) => riskHubApi.createRiskType(data),
@@ -190,7 +192,7 @@ export function RiskTypesPanel() {
             setDeleteConfirm(null);
         }
     };
-    const canCreate = riskTypes?.some((type) => resolveCapabilityFlag(type.capabilities, 'can_create')) === true;
+    const canCreate = riskHubCapabilityEnabled(riskHubCapabilities?.risk_types, 'can_create');
 
     if (isLoading) {
         return <div className="text-slate-400 text-center py-8">{t('common:loading.risk_types')}</div>;

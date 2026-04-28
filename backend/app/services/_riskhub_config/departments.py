@@ -55,6 +55,9 @@ def department_to_read(department: Department, counts: DepartmentDependencyCount
         user_count=counts.users,
         risk_count=counts.risks,
         control_count=counts.controls,
+        kri_count=counts.kris,
+        vendor_count=counts.vendors,
+        pending_orphan_count=counts.pending_orphans,
         capabilities=department_capabilities(department, counts),
     )
 

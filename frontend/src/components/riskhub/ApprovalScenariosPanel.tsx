@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { useState, useMemo, useEffect } from 'react';
 import { useTranslation } from '@/i18n/hooks';
 import { RiskHubModalActions, RiskHubModalFrame } from './panelPrimitives';
+import { riskHubCapabilityEnabled, useRiskHubCapabilities } from './useRiskHubCapabilities';
 
 // Special dynamic role entry for risk owner (not a system role in roles table)
 const SPECIAL_ROLE_VALUES = ['risk_owner'] as const;
@@ -165,6 +166,8 @@ export function ApprovalScenariosPanel() {
     const { t } = useTranslation(['admin', 'common']);
     const queryClient = useQueryClient();
     const [editingScenario, setEditingScenario] = useState<ApprovalScenario | null>(null);
+    const { data: riskHubCapabilities } = useRiskHubCapabilities();
+    const canUpdateScenarios = riskHubCapabilityEnabled(riskHubCapabilities?.approval_scenarios, 'can_update');
 
     // Fetch approval scenarios
     const { data: scenarios, isLoading, error } = useQuery({
@@ -284,7 +287,7 @@ export function ApprovalScenariosPanel() {
                                     </div>
                                 </td>
                                 <td className="py-3 px-4 text-right">
-                                    {resolveCapabilityFlag(scenario.capabilities, 'can_update') ? (
+                                    {canUpdateScenarios && resolveCapabilityFlag(scenario.capabilities, 'can_update') ? (
                                         <button
                                             onClick={() => setEditingScenario(scenario)}
                                             className="px-3 py-1.5 text-sm text-accent hover:text-white hover:bg-accent/20 rounded-lg transition-colors"

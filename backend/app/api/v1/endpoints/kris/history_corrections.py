@@ -16,8 +16,13 @@ async def create_kri_history_correction_approval(
     data: KRIHistoryEdit,
     current_user: User,
 ):
-    from app.core.approval_helpers import build_approval_queued_response, create_approval_request_with_audit
+    from app.core.approval_helpers import (
+        build_approval_queued_response,
+        create_approval_request_with_audit,
+        get_primary_approver_for_risk,
+    )
     from app.models import ApprovalActionType, ApprovalRequest, ApprovalResourceType, ApprovalStatus
+    from app.services.approval_scenario_policy import apply_approval_scenario_snapshot, load_approval_scenario_policy
 
     existing = await db.execute(
         select(ApprovalRequest).where(
@@ -30,7 +35,12 @@ async def create_kri_history_correction_approval(
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Edit request already pending for this KRI")
 
-    primary_approver_id = kri.risk.owner_id if kri.risk else None
+    primary_approver_id = await get_primary_approver_for_risk(db, kri.risk_id, requester_id=current_user.id)
+    scenario_policy = await load_approval_scenario_policy(
+        db,
+        "kri_history_correction",
+        default_roles=["cro"],
+    )
     pending_changes = {
         "history_entry_id": entry_id,
         "old_value": entry.value,
@@ -51,6 +61,7 @@ async def create_kri_history_correction_approval(
         primary_approver_id=primary_approver_id,
         requires_privileged_approval=True,
     )
+    apply_approval_scenario_snapshot(approval, scenario_policy)
 
     await create_approval_request_with_audit(
         db,

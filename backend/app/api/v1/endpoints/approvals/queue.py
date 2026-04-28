@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -29,6 +29,7 @@ from app.schemas.approval_request import (
     ApprovalResourceTypeEnum,
     ApprovalStatusEnum,
 )
+from app.services.approval_queue_visibility import visible_pending_approvals_for_user
 
 from ._delete_authorization import (
     assert_can_request_delete_control,
@@ -183,18 +184,22 @@ async def list_approval_requests(
                     ApprovalRequest.status.in_([ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED])
                 )
             else:
-                base_query = base_query.where(
-                    or_(
-                        and_(
-                            ApprovalRequest.requested_by_id == current_user.id,
-                            ApprovalRequest.status.in_([ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED]),
-                        ),
-                        and_(
-                            ApprovalRequest.primary_approver_id == current_user.id,
-                            ApprovalRequest.status == ApprovalStatus.PENDING,
-                        ),
-                    )
+                resource_type_filter = ApprovalResourceType(resource_type.value) if resource_type else None
+                pending_approvals = await visible_pending_approvals_for_user(
+                    db,
+                    current_user=current_user,
+                    resource_type=resource_type_filter,
                 )
+                total = len(pending_approvals)
+                page = pending_approvals[skip : skip + limit]
+                pending_items: list[ApprovalRequestRead] = []
+                for approval in page:
+                    try:
+                        pending_items.append(_build_approval_read(approval, current_user))
+                    except Exception as e:
+                        logger.error(f"Skipping corrupted approval request {approval.id}: {e}")
+                        continue
+                return ApprovalRequestListResponse(items=pending_items, total=total, skip=skip, limit=limit)
         else:
             base_query = base_query.where(ApprovalRequest.status == ApprovalStatus(status_filter.value.upper()))
     if resource_type:
@@ -214,14 +219,14 @@ async def list_approval_requests(
     )
 
     result = await db.execute(query)
-    approvals = result.scalars().all()
+    approval_rows = result.scalars().all()
 
     valid_items: list[ApprovalRequestRead] = []
-    for a in approvals:
+    for approval in approval_rows:
         try:
-            valid_items.append(_build_approval_read(a, current_user))
+            valid_items.append(_build_approval_read(approval, current_user))
         except Exception as e:
-            logger.error(f"Skipping corrupted approval request {a.id}: {e}")
+            logger.error(f"Skipping corrupted approval request {approval.id}: {e}")
             continue
 
     return ApprovalRequestListResponse(items=valid_items, total=total, skip=skip, limit=limit)

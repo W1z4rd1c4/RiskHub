@@ -21,7 +21,7 @@ def role_capabilities(role: Role, *, active_user_count: int | None = None) -> Ro
     protected = role.is_system or role.name in PROTECTED_SYSTEM_ROLES
     mutable = role.name not in IMMUTABLE_ROLE_NAMES
     return RoleHubCapabilities(
-        can_update=bool(mutable),
+        can_update=bool(role.is_active and mutable),
         can_delete=bool(role.is_active and not protected and active_users == 0),
         can_restore=bool(not role.is_active),
     )

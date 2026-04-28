@@ -67,6 +67,7 @@ async def record_kri_value(
                 kri=kri,
                 data=data,
                 current_user=current_user,
+                is_privileged_submission=True,
             )
         except DuplicateKRIPeriodError as e:
             raise HTTPException(status_code=409, detail=str(e)) from e
@@ -147,6 +148,7 @@ async def correct_history_entry(
     from app.core.permissions import can_resolve_approvals
     from app.models.kri_history import KRIValueHistory
     from app.schemas.kri import KRIHistoryEntry
+    from app.services.approval_scenario_policy import load_approval_scenario_policy
     from app.services.kri_history_service import KRIHistoryService
 
     # Verify KRI exists and access
@@ -162,7 +164,13 @@ async def correct_history_entry(
     if not entry:
         raise HTTPException(status_code=404, detail="History entry not found")
 
-    if can_resolve_approvals(current_user):
+    scenario_policy = await load_approval_scenario_policy(
+        db,
+        "kri_history_correction",
+        default_roles=["cro"],
+    )
+
+    if can_resolve_approvals(current_user) or not scenario_policy.requires_approval:
         # Apply correction immediately
         try:
             updated_entry = await KRIHistoryService.apply_history_correction(

@@ -99,6 +99,8 @@ When linking records, choose only relationships that are useful to another revie
 
 Risk Hub changes can affect many users. Use focused changes, review the visible impact, and check approval or notification queues when configuration changes are sensitive.
 
+Approval scenario settings are active policy. If a scenario is turned off, eligible changes that would normally queue an approval can apply immediately; if approver roles are narrowed, only those roles can approve or reject new requests created under that scenario. Existing in-flight approvals continue to follow the policy snapshot they were created with.
+
 Use approval notes to explain the business reason, not just the button you clicked. A good note says what changed, why it is appropriate, and what evidence supports the decision. Notifications are reminders and pointers; Risk Hub panels and Activity Log entries show the current context.
 
 If you receive a stale or rejected approval, do not immediately resubmit the same change. Reopen the relevant Risk Hub panel, compare the current state with your intended update, and submit a new focused change only if it is still needed.
