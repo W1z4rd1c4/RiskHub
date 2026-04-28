@@ -45,21 +45,8 @@ def apply_vendor_visibility_scope(query, current_user: User, *, department_id: i
 
 
 def apply_vendor_report_scope(query, current_user: User, *, department_id: int | None = None):
-    """Vendor reports use strict department scoping and do not include owner exceptions."""
-    dept_ids = get_user_department_ids(current_user)
-    if dept_ids is None:
-        if department_id is not None:
-            return query.where(Vendor.department_id == department_id)
-        return query
-
-    if department_id is not None:
-        if department_id not in dept_ids:
-            return query.where(false())
-        return query.where(Vendor.department_id == department_id)
-
-    if not dept_ids:
-        return query.where(false())
-    return query.where(Vendor.department_id.in_(dept_ids))
+    """Vendor reports include actor-visible vendors; explicit department filters stay strict."""
+    return apply_vendor_visibility_scope(query, current_user, department_id=department_id)
 
 
 async def load_vendor_for_update(db: AsyncSession, vendor_id: int) -> Vendor | None:
@@ -102,12 +89,13 @@ def vendor_capabilities(current_user: User, vendor: Vendor) -> dict[str, bool]:
     can_delete = has_permission(current_user, "vendors", "delete")
     can_update = can_write or is_vendor_owner(vendor, current_user)
     is_visible = can_read_vendor(vendor, current_user)
+    is_active = vendor.status == "active"
     can_archive = bool(is_visible and can_delete and vendor.status == "active")
     can_restore = bool(is_visible and can_delete and vendor.status == "inactive")
-    can_mutate_links = bool(is_visible and can_update)
+    can_mutate_links = bool(is_visible and is_active and can_update)
     return {
         "can_read": bool(is_visible),
-        "can_update": bool(is_visible and can_update),
+        "can_update": bool(is_visible and is_active and can_update),
         "can_archive": can_archive,
         "can_restore": can_restore,
         "can_create_linked_risk": bool(can_mutate_links and has_permission(current_user, "risks", "write")),
@@ -119,5 +107,5 @@ def vendor_capabilities(current_user: User, vendor: Vendor) -> dict[str, bool]:
         "can_view_linked_risks": bool(is_visible and has_permission(current_user, "risks", "read")),
         "can_view_linked_controls": bool(is_visible and has_permission(current_user, "controls", "read")),
         "can_view_linked_kris": bool(is_visible and has_permission(current_user, "risks", "read")),
-        "can_create_issue": bool(is_visible and has_permission(current_user, "issues", "write")),
+        "can_create_issue": bool(is_visible and is_active and has_permission(current_user, "issues", "write")),
     }

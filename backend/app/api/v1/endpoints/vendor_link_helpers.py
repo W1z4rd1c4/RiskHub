@@ -40,6 +40,9 @@ async def require_vendor_access(
     if not vendor or not can_read_vendor(vendor, current_user):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
 
+    if require_write and vendor.status != "active":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Cannot mutate links for inactive vendor")
+
     if require_write and not (
         check_permission(current_user, "vendors", "write") or is_vendor_owner(vendor, current_user)
     ):

@@ -238,6 +238,8 @@ async def update_vendor(
     vendor = await load_vendor_for_update(db, vendor_id)
     if not vendor or not can_read_vendor(vendor, current_user):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
+    if vendor.status == VendorStatusEnum.inactive.value:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Cannot update inactive vendor")
 
     is_owner = is_vendor_owner(vendor, current_user)
     can_write = check_permission(current_user, "vendors", "write")

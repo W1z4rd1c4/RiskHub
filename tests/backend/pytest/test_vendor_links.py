@@ -167,6 +167,78 @@ async def test_vendor_risk_link_blocks_cross_department_risk(
 
 
 @pytest.mark.asyncio
+async def test_vendor_link_mutations_reject_inactive_vendor(
+    db_session: AsyncSession,
+    client_employee: AsyncClient,
+    test_department: Department,
+    test_role_employee: Role,
+    test_user_employee: User,
+):
+    await _grant(db_session, test_role_employee, "vendors", "read")
+    await _grant(db_session, test_role_employee, "risks", "read")
+    await _grant(db_session, test_role_employee, "controls", "read")
+
+    vendor = Vendor(
+        name="Inactive Link Vendor",
+        process="IT",
+        subprocess=None,
+        department_id=test_department.id,
+        outsourcing_owner_user_id=test_user_employee.id,
+        vendor_type="ict",
+        risk_score_1_5=3,
+        supports_important_core_insurance_function=False,
+        dora_relevant=False,
+        is_significant_vendor=False,
+        has_alternative_providers=False,
+        status="inactive",
+    )
+    risk = _make_risk(risk_id_code="ILV-R001", department_id=test_department.id)
+    control = _make_control(name="Inactive Link Control", department_id=test_department.id)
+    db_session.add_all([vendor, risk, control])
+    await db_session.commit()
+    await db_session.refresh(vendor)
+    await db_session.refresh(risk)
+    await db_session.refresh(control)
+
+    kri = _make_kri(risk_id=risk.id, metric_name="Inactive Link KRI", reporting_owner_id=test_user_employee.id)
+    db_session.add(kri)
+    await db_session.commit()
+    await db_session.refresh(kri)
+
+    risk_link_resp = await client_employee.post(
+        f"/api/v1/vendors/{vendor.id}/linked-risks",
+        json={"risk_id": risk.id},
+    )
+    assert risk_link_resp.status_code == 409
+    control_link_resp = await client_employee.post(
+        f"/api/v1/vendors/{vendor.id}/linked-controls",
+        json={"control_id": control.id},
+    )
+    assert control_link_resp.status_code == 409
+    kri_link_resp = await client_employee.post(
+        f"/api/v1/vendors/{vendor.id}/linked-kris",
+        json={"kri_id": kri.id},
+    )
+    assert kri_link_resp.status_code == 409
+
+    db_session.add_all(
+        [
+            VendorRiskLink(vendor_id=vendor.id, risk_id=risk.id),
+            VendorControlLink(vendor_id=vendor.id, control_id=control.id),
+            VendorKRILink(vendor_id=vendor.id, kri_id=kri.id),
+        ]
+    )
+    await db_session.commit()
+
+    risk_unlink_resp = await client_employee.delete(f"/api/v1/vendors/{vendor.id}/linked-risks/{risk.id}")
+    assert risk_unlink_resp.status_code == 409
+    control_unlink_resp = await client_employee.delete(f"/api/v1/vendors/{vendor.id}/linked-controls/{control.id}")
+    assert control_unlink_resp.status_code == 409
+    kri_unlink_resp = await client_employee.delete(f"/api/v1/vendors/{vendor.id}/linked-kris/{kri.id}")
+    assert kri_unlink_resp.status_code == 409
+
+
+@pytest.mark.asyncio
 async def test_vendor_linked_entities_filter_invisible_and_prevent_unlink(
     db_session: AsyncSession,
     client_employee: AsyncClient,

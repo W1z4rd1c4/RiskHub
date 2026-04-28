@@ -39,8 +39,8 @@ async def get_committee_summary(
     critical_risks, recent_activity, dept_exposure = await _fetch_committee_core(db, dept_ids=dept_ids)
     vendor_sections = await _fetch_vendor_sections(
         db,
+        current_user=current_user,
         can_read_vendors=has_permission(current_user, "vendors", "read"),
-        dept_ids=dept_ids,
     )
 
     return {

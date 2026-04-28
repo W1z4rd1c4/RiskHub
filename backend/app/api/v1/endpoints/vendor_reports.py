@@ -11,6 +11,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api import deps
 from app.api.v1.endpoints.reports._export_context import build_report_export_context
 from app.api.v1.endpoints.reports._streaming import (
     ExportFormatQuery,
@@ -20,22 +21,15 @@ from app.api.v1.endpoints.reports._streaming import (
 from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import User
-from app.models.role import RoleType
 from app.services.report_service import generate_tabular_csv
+from app.services.vendor_report_policy import can_access_vendor_reports, vendor_report_capabilities
 from app.services.vendor_reporting_service import VendorReportingService
 
 router = APIRouter()
 
 
 def _require_vendor_report_role(current_user: User) -> None:
-    role_name = getattr(getattr(current_user, "role", None), "name", None)
-    allowed = {
-        RoleType.RISK_MANAGER.value,
-        RoleType.CRO.value,
-        RoleType.COMPLIANCE.value,
-        RoleType.INTERNAL_AUDIT.value,
-    }
-    if role_name not in allowed:
+    if not can_access_vendor_reports(current_user):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied to vendor reports")
 
 
@@ -123,6 +117,13 @@ def _dora_register_rows(rows) -> tuple[list[str], list[list[object]]]:
             ]
         )
     return headers, data_rows
+
+
+@router.get("/vendor-reports/capabilities")
+async def get_vendor_report_capabilities(
+    current_user: User = Depends(deps.get_current_user),
+):
+    return vendor_report_capabilities(current_user)
 
 
 @router.get("/vendor-reports/annual")

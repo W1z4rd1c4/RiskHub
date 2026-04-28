@@ -85,6 +85,66 @@ async def test_committee_summary_includes_critical_vendors_section(
 
 
 @pytest.mark.asyncio
+async def test_committee_summary_critical_vendors_uses_actor_visible_vendor_scope(
+    db_session: AsyncSession,
+    client_department_head: AsyncClient,
+    test_department: Department,
+    test_user_cro: User,
+    test_user_department_head: User,
+):
+    role = (await db_session.execute(select(Role).where(Role.id == test_user_department_head.role_id))).scalar_one()
+    perm = Permission(resource="vendors", action="read", description="Read vendors")
+    db_session.add(perm)
+    await db_session.commit()
+    await db_session.refresh(perm)
+    db_session.add(RolePermission(role_id=role.id, permission_id=perm.id))
+    await db_session.commit()
+    db_session.expire(role, ["permissions"])
+
+    other_dept = Department(name="Vendor Committee Other", code="VCOM", description="Other")
+    db_session.add(other_dept)
+    await db_session.commit()
+    await db_session.refresh(other_dept)
+
+    owned_other = Vendor(
+        name="Committee Owned Other Vendor",
+        process="IT",
+        subprocess=None,
+        department_id=other_dept.id,
+        outsourcing_owner_user_id=test_user_department_head.id,
+        vendor_type="ict",
+        risk_score_1_5=5,
+        supports_important_core_insurance_function=True,
+        dora_relevant=True,
+        is_significant_vendor=True,
+        has_alternative_providers=False,
+        status="active",
+    )
+    unrelated_other = Vendor(
+        name="Committee Hidden Other Vendor",
+        process="IT",
+        subprocess=None,
+        department_id=other_dept.id,
+        outsourcing_owner_user_id=test_user_cro.id,
+        vendor_type="ict",
+        risk_score_1_5=5,
+        supports_important_core_insurance_function=True,
+        dora_relevant=True,
+        is_significant_vendor=True,
+        has_alternative_providers=False,
+        status="active",
+    )
+    db_session.add_all([owned_other, unrelated_other])
+    await db_session.commit()
+
+    resp = await client_department_head.get("/api/v1/dashboard/committee-summary")
+    assert resp.status_code == 200
+    names = {item["name"] for item in resp.json()["critical_vendors"]}
+    assert "Committee Owned Other Vendor" in names
+    assert "Committee Hidden Other Vendor" not in names
+
+
+@pytest.mark.asyncio
 async def test_dashboard_summary_hides_vendor_metrics_without_vendors_read(
     db_session: AsyncSession,
     client_department_head: AsyncClient,

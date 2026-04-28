@@ -1,9 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const getBlobMock = vi.fn();
+const getMock = vi.fn();
 
 vi.mock('@/services/apiClient', () => ({
     apiClient: {
+        get: (...args: unknown[]) => getMock(...args),
         getBlob: (...args: unknown[]) => getBlobMock(...args),
     },
 }));
@@ -12,6 +14,7 @@ import { vendorReportApi } from '@/services/vendorReportApi';
 
 describe('vendorReportApi downloads', () => {
     beforeEach(() => {
+        getMock.mockReset();
         getBlobMock.mockReset();
         vi.spyOn(window.URL, 'createObjectURL').mockReturnValue('blob:mock-download');
         vi.spyOn(window.URL, 'revokeObjectURL').mockImplementation(() => undefined);
@@ -20,6 +23,23 @@ describe('vendorReportApi downloads', () => {
 
     afterEach(() => {
         vi.restoreAllMocks();
+    });
+
+    it('loads backend-authored vendor report capabilities', async () => {
+        const capabilities = {
+            can_read: true,
+            can_download_annual_report: true,
+            can_download_dora_register: false,
+            can_use_department_filter: true,
+        };
+        getMock.mockResolvedValue(capabilities);
+
+        await expect(vendorReportApi.getCapabilities()).resolves.toEqual(capabilities);
+
+        expect(getMock).toHaveBeenCalledWith(
+            '/vendor-reports/capabilities',
+            expect.objectContaining({ schema: expect.any(Object) }),
+        );
     });
 
     it('disables the request timeout for annual vendor exports', async () => {

@@ -1,24 +1,25 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from '@/i18n/hooks';
 import { Download, FileSpreadsheet } from 'lucide-react';
 import { vendorReportApi } from '@/services/vendorReportApi';
-import { useAuth } from '@/contexts/AuthContext';
 import { PermissionGate } from '@/components/PermissionGate';
 import { departmentApi, type DepartmentSummary } from '@/services/departmentApi';
+import type { VendorReportCapabilities } from '@/types/vendorReport';
 
 export function VendorReportsPage() {
     const { t } = useTranslation('vendors');
     const { t: tCommon } = useTranslation('common');
-    const { user } = useAuth();
     const [year, setYear] = useState<number>(new Date().getFullYear());
     const [departmentId, setDepartmentId] = useState<number | null>(null);
     const [departments, setDepartments] = useState<DepartmentSummary[]>([]);
+    const [capabilities, setCapabilities] = useState<VendorReportCapabilities | null>(null);
+    const [isCapabilitiesLoading, setIsCapabilitiesLoading] = useState(true);
     const [isDownloading, setIsDownloading] = useState(false);
 
-    const canAccessRole = useMemo(() => {
-        const role = user?.role;
-        return role === 'cro' || role === 'risk_manager' || role === 'compliance' || role === 'internal_audit';
-    }, [user?.role]);
+    const canReadReports = capabilities?.can_read === true;
+    const canDownloadAnnual = capabilities?.can_download_annual_report === true;
+    const canDownloadDora = capabilities?.can_download_dora_register === true;
+    const canUseDepartmentFilter = capabilities?.can_use_department_filter === true;
 
     const download = async (fn: () => Promise<void>) => {
         try {
@@ -30,7 +31,32 @@ export function VendorReportsPage() {
     };
 
     useEffect(() => {
-        if (!canAccessRole) {
+        let cancelled = false;
+        setIsCapabilitiesLoading(true);
+        vendorReportApi.getCapabilities()
+            .then((data) => {
+                if (!cancelled) {
+                    setCapabilities(data);
+                }
+            })
+            .catch(() => {
+                if (!cancelled) {
+                    setCapabilities(null);
+                }
+            })
+            .finally(() => {
+                if (!cancelled) {
+                    setIsCapabilitiesLoading(false);
+                }
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    useEffect(() => {
+        if (!canUseDepartmentFilter) {
             setDepartments([]);
             setDepartmentId(null);
             return;
@@ -55,14 +81,17 @@ export function VendorReportsPage() {
         return () => {
             cancelled = true;
         };
-    }, [canAccessRole]);
+    }, [canUseDepartmentFilter]);
 
-    const renderDepartmentSelector = () => departments.length > 0 ? (
+    const effectiveDepartmentId = canUseDepartmentFilter ? departmentId : null;
+
+    const renderDepartmentSelector = (selectId: string) => canUseDepartmentFilter && departments.length > 0 ? (
         <div className="flex items-center gap-3">
-            <label className="text-xs font-bold uppercase tracking-widest text-slate-500">
+            <label htmlFor={selectId} className="text-xs font-bold uppercase tracking-widest text-slate-500">
                 {tCommon('labels.department')}
             </label>
             <select
+                id={selectId}
                 value={departmentId ?? ''}
                 onChange={(event) => setDepartmentId(event.target.value ? Number(event.target.value) : null)}
                 className="min-w-48 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white font-medium"
@@ -85,7 +114,11 @@ export function VendorReportsPage() {
                     <p className="text-slate-500 font-medium">{t('reports.subtitle')}</p>
                 </div>
 
-                {!canAccessRole ? (
+                {isCapabilitiesLoading ? (
+                    <div className="glass-card p-6">
+                        <p className="text-slate-300 font-medium">{t('labels.loading')}</p>
+                    </div>
+                ) : !canReadReports ? (
                     <div className="glass-card p-6">
                         <p className="text-slate-300 font-medium">{t('reports.not_authorized')}</p>
                     </div>
@@ -110,17 +143,19 @@ export function VendorReportsPage() {
                                     max={2100}
                                 />
                             </div>
-                            {renderDepartmentSelector()}
+                            {renderDepartmentSelector('vendor-report-annual-department')}
 
                             <div className="flex flex-wrap gap-2">
-                                <button
-                                    disabled={isDownloading}
-                                    onClick={() => download(() => vendorReportApi.downloadAnnual(year, 'csv', departmentId))}
-                                    className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-slate-200 font-bold hover:bg-white/10 transition-colors disabled:opacity-60 flex items-center gap-2"
-                                >
-                                    <FileSpreadsheet className="h-4 w-4" />
-                                    {t('reports.annual.download_csv')}
-                                </button>
+                                {canDownloadAnnual ? (
+                                    <button
+                                        disabled={isDownloading}
+                                        onClick={() => download(() => vendorReportApi.downloadAnnual(year, 'csv', effectiveDepartmentId))}
+                                        className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-slate-200 font-bold hover:bg-white/10 transition-colors disabled:opacity-60 flex items-center gap-2"
+                                    >
+                                        <FileSpreadsheet className="h-4 w-4" />
+                                        {t('reports.annual.download_csv')}
+                                    </button>
+                                ) : null}
                             </div>
                         </section>
 
@@ -132,15 +167,17 @@ export function VendorReportsPage() {
                             <p className="text-sm text-slate-300 font-medium">
                                 {t('reports.dora.subtitle')}
                             </p>
-                            {renderDepartmentSelector()}
-                            <button
-                                disabled={isDownloading}
-                                onClick={() => download(() => vendorReportApi.downloadDoraRegister(departmentId))}
-                                className="px-4 py-2 rounded-xl bg-accent/20 border border-accent/30 text-accent font-bold hover:bg-accent/30 transition-colors disabled:opacity-60 flex items-center gap-2 w-fit"
-                            >
-                                <Download className="h-4 w-4" />
-                                {t('reports.dora.download')}
-                            </button>
+                            {renderDepartmentSelector('vendor-report-dora-department')}
+                            {canDownloadDora ? (
+                                <button
+                                    disabled={isDownloading}
+                                    onClick={() => download(() => vendorReportApi.downloadDoraRegister(effectiveDepartmentId))}
+                                    className="px-4 py-2 rounded-xl bg-accent/20 border border-accent/30 text-accent font-bold hover:bg-accent/30 transition-colors disabled:opacity-60 flex items-center gap-2 w-fit"
+                                >
+                                    <Download className="h-4 w-4" />
+                                    {t('reports.dora.download')}
+                                </button>
+                            ) : null}
                         </section>
                     </div>
                 )}

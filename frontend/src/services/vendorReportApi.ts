@@ -1,5 +1,6 @@
 import { apiClient } from './apiClient';
-import type { VendorReportFormat } from '@/types/vendorReport';
+import { vendorReportCapabilitiesSchema } from '@/services/api/schemas/entities/vendors';
+import type { VendorReportCapabilities, VendorReportFormat } from '@/types/vendorReport';
 
 async function downloadFile(url: string, defaultFilename: string): Promise<void> {
     const { blob, headers } = await apiClient.getBlob(url, { timeoutMs: null });
@@ -24,6 +25,10 @@ async function downloadFile(url: string, defaultFilename: string): Promise<void>
 }
 
 export const vendorReportApi = {
+    async getCapabilities(): Promise<VendorReportCapabilities> {
+        return apiClient.get('/vendor-reports/capabilities', { schema: vendorReportCapabilitiesSchema });
+    },
+
     async downloadAnnual(year: number, format: VendorReportFormat, departmentId?: number | null): Promise<void> {
         const params = new URLSearchParams({
             year: String(year),

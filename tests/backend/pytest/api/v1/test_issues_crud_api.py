@@ -18,6 +18,7 @@ from app.models import (
     Risk,
     Role,
     User,
+    Vendor,
 )
 
 from .issues_api_helpers import _create_department_scoped_user
@@ -562,6 +563,83 @@ async def test_contextual_control_issue_uses_link_without_execution_source_metad
         f"/api/v1/issues/{payload['id']}/links/{payload['source_link']['id']}"
     )
     assert delete_source_link_resp.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_issue_vendor_context_and_links_reject_inactive_vendor(
+    db_session: AsyncSession,
+    auth_client: AsyncClient,
+    test_department: Department,
+    test_user: User,
+):
+    inactive_vendor = Vendor(
+        name="Inactive Issue Vendor",
+        process="IT",
+        subprocess=None,
+        department_id=test_department.id,
+        outsourcing_owner_user_id=test_user.id,
+        vendor_type="ict",
+        risk_score_1_5=3,
+        supports_important_core_insurance_function=False,
+        dora_relevant=False,
+        is_significant_vendor=False,
+        has_alternative_providers=False,
+        status="inactive",
+    )
+    active_vendor = Vendor(
+        name="Active Issue Vendor",
+        process="IT",
+        subprocess=None,
+        department_id=test_department.id,
+        outsourcing_owner_user_id=test_user.id,
+        vendor_type="ict",
+        risk_score_1_5=3,
+        supports_important_core_insurance_function=False,
+        dora_relevant=False,
+        is_significant_vendor=False,
+        has_alternative_providers=False,
+        status="active",
+    )
+    db_session.add_all([inactive_vendor, active_vendor])
+    await db_session.commit()
+    await db_session.refresh(inactive_vendor)
+    await db_session.refresh(active_vendor)
+
+    inactive_context = await auth_client.post(
+        "/api/v1/issues/contextual",
+        json={
+            "entity_type": "vendor",
+            "entity_id": inactive_vendor.id,
+            "title": "Inactive vendor contextual issue",
+            "severity": "high",
+        },
+    )
+    assert inactive_context.status_code == 409
+
+    issue_resp = await auth_client.post(
+        "/api/v1/issues",
+        json={
+            "title": "Manual issue for vendor links",
+            "severity": "medium",
+            "source_type": "manual",
+            "department_id": test_department.id,
+        },
+    )
+    assert issue_resp.status_code == 201
+    issue_id = issue_resp.json()["id"]
+
+    inactive_link = await auth_client.post(
+        f"/api/v1/issues/{issue_id}/links",
+        json={"vendor_id": inactive_vendor.id},
+    )
+    assert inactive_link.status_code == 409
+
+    active_link = await auth_client.post(
+        f"/api/v1/issues/{issue_id}/links",
+        json={"vendor_id": active_vendor.id},
+    )
+    assert active_link.status_code == 201
+    assert active_link.json()["vendor_id"] == active_vendor.id
 
 
 @pytest.mark.asyncio

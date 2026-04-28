@@ -348,7 +348,7 @@ Orphaned item governance uses backend workflow helpers:
 > Vendor visibility and vendor-linked risk visibility are related but not identical. A user can have enough access to view a vendor while still lacking permission or scope to read linked risks. In that case the vendor remains visible, but risk-linked summaries and the frontend `By Risk` grouping must only expose readable risks; otherwise the UI must fall back to an unlinked/no-readable-risk bucket rather than leaking risk names.
 
 > [!NOTE]
-> Vendor governance uses a shared backend policy. Unfiltered scoped vendor lists include vendors in the user's department scope plus directly owned vendors, but unassigned vendors remain global-only. When a caller supplies an explicit `department_id`, the filter is strict: owner exceptions do not include vendors from another department. Vendor responses may include additive `capabilities` metadata for update, archive/restore, and link actions; the frontend should prefer those flags over local permission guesses.
+> Vendor governance uses a shared backend policy. Unfiltered scoped vendor lists, vendor reports, and dashboard vendor metrics include vendors in the user's department scope plus directly owned vendors, but unassigned vendors remain global-only. When a caller supplies an explicit `department_id`, the filter is strict: owner exceptions do not include vendors from another department. Vendor responses may include additive `capabilities` metadata for update, archive/restore, and link actions; the frontend should prefer those flags over local permission guesses.
 
 > [!NOTE]
 > Vendor detail now mirrors the individual risk page interaction model for linked entities. `Link Existing` remains governed by vendor edit access (`vendors:write` or vendor ownership rules), while `Add Risk` and `Add Control` require that same vendor edit access plus the corresponding domain write permission (`risks:write` or `controls:write`). Create-from-vendor uses routed forms and auto-links the new entity back to the originating vendor after save.
@@ -597,6 +597,7 @@ Non-privileged users can access resources **outside their department** if they a
 > - Vendors: `status = 'inactive'` (inactive is the archived state)
 > - Vendor SLAs: `is_archived = true`, `archived_at`, `archived_by_id`
 > - Non-privileged risk deletions use the shared **high-risk** escalation rule: `is_priority = true` or `net_score >= high_risk_min_net_score` requires privileged follow-up after primary approval.
+> - Inactive vendors are archived resources. Restore is the only lifecycle mutation allowed while inactive; edit, link/unlink, and issue vendor-context/link mutations reject with conflict semantics.
 
 ### 8.3 Archived Visibility Defaults and Restore
 
@@ -813,7 +814,7 @@ Specialized report exports are CSV:
 - `/api/v1/vendor-reports/annual?format=csv`
 - `/api/v1/vendor-reports/dora-register?format=csv`
 
-Vendor annual and DORA report endpoints also accept optional `department_id`. This is always a strict department filter. For scoped users, a department outside their scope is rejected and directly owned vendors in other departments are not included in a selected department's evidence export.
+Vendor annual and DORA report endpoints also accept optional `department_id`. Without an explicit department filter, reports include every active vendor visible to the actor, including direct cross-department outsourcing-owner exceptions. With an explicit `department_id`, the filter is strict: a department outside the caller's scope is rejected and directly owned vendors in other departments are not included in the selected department's evidence export. The Vendor Reports UI reads backend report capabilities before showing downloads or department filters.
 
 Legacy Excel endpoints return `410` with replacement metadata.
 
@@ -906,6 +907,7 @@ Contextual behavior:
 - The current source link cannot be deleted until source metadata is changed or cleared; older source links and ordinary manual links remain contextual traceability and can be unlinked.
 - Linked risk/control filters include derived contexts. A risk filter matches direct risk links, KRI parent risks, control-linked risks, and execution parent control risks. A control filter matches direct control links and execution parent controls. Unreadable linked filter targets return an empty result set rather than leaking existence.
 - Vendor links support direct `vendor_id` in `IssueLink`.
+- Inactive vendors cannot be used as contextual issue sources or added as issue vendor links; callers must restore the vendor first.
 - Vendor department fallback:
   - if `vendor.department_id` is null, fallback uses vendor owner department.
   - if both are unresolved, contextual create fails with `409` and explicit validation detail.

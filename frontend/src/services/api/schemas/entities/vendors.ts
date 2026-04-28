@@ -64,3 +64,9 @@ export const vendorSchema: z.ZodType<Vendor> = passthroughObject({
 export const vendorArraySchema = z.array(vendorSchema);
 export const vendorListResponseSchema: z.ZodType<VendorListResponse> =
     collectionPaginationSchema(vendorSchema);
+export const vendorReportCapabilitiesSchema = passthroughObject({
+    can_read: z.boolean(),
+    can_download_annual_report: z.boolean(),
+    can_download_dora_register: z.boolean(),
+    can_use_department_filter: z.boolean(),
+});

@@ -160,6 +160,64 @@ async def test_vendor_owner_can_update_without_vendors_write(
 
 
 @pytest.mark.asyncio
+async def test_inactive_vendor_rejects_patch_and_suppresses_mutation_capabilities(
+    db_session: AsyncSession,
+    client_employee: AsyncClient,
+    test_department: Department,
+    test_role_employee: Role,
+    test_user_employee: User,
+):
+    await _grant(db_session, test_role_employee, "vendors", "read")
+    await _grant(db_session, test_role_employee, "vendors", "write")
+    await _grant(db_session, test_role_employee, "vendors", "delete")
+    await _grant(db_session, test_role_employee, "risks", "read")
+    await _grant(db_session, test_role_employee, "risks", "write")
+    await _grant(db_session, test_role_employee, "controls", "read")
+    await _grant(db_session, test_role_employee, "controls", "write")
+    await _grant(db_session, test_role_employee, "issues", "write")
+
+    vendor = Vendor(
+        name="Inactive Mutation Vendor",
+        process="IT",
+        subprocess=None,
+        department_id=test_department.id,
+        outsourcing_owner_user_id=test_user_employee.id,
+        vendor_type="ict",
+        risk_score_1_5=3,
+        supports_important_core_insurance_function=False,
+        dora_relevant=False,
+        is_significant_vendor=False,
+        has_alternative_providers=False,
+        status="inactive",
+    )
+    db_session.add(vendor)
+    await db_session.commit()
+    await db_session.refresh(vendor)
+
+    patch_resp = await client_employee.patch(f"/api/v1/vendors/{vendor.id}", json={"name": "Should Not Update"})
+    assert patch_resp.status_code == 409
+
+    detail_resp = await client_employee.get(f"/api/v1/vendors/{vendor.id}")
+    assert detail_resp.status_code == 200
+    capabilities = detail_resp.json()["capabilities"]
+    assert capabilities["can_update"] is False
+    assert capabilities["can_create_linked_risk"] is False
+    assert capabilities["can_create_linked_control"] is False
+    assert capabilities["can_create_linked_kri"] is False
+    assert capabilities["can_link_risk"] is False
+    assert capabilities["can_link_control"] is False
+    assert capabilities["can_link_kri"] is False
+    assert capabilities["can_create_issue"] is False
+    assert capabilities["can_restore"] is True
+
+    restore_resp = await client_employee.post(f"/api/v1/vendors/{vendor.id}/restore")
+    assert restore_resp.status_code == 200
+    restored_capabilities = restore_resp.json()["capabilities"]
+    assert restored_capabilities["can_update"] is True
+    assert restored_capabilities["can_create_issue"] is True
+
+
+@pytest.mark.asyncio
 async def test_vendor_governance_owner_must_match_department_for_scoped_writer(
     db_session: AsyncSession,
     client_department_head: AsyncClient,

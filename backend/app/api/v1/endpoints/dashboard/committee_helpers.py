@@ -11,7 +11,8 @@ from app.core.limits import (
     DASHBOARD_TOP_CRITICAL_VENDORS,
     DASHBOARD_TOP_DEPARTMENT_EXPOSURE,
 )
-from app.models import Department, Risk
+from app.core.permissions import vendor_visibility_clause
+from app.models import Department, Risk, User
 from app.models.activity_log import ActivityLog
 from app.models.risk import RiskStatus
 from app.models.vendor import Vendor
@@ -169,10 +170,10 @@ async def _fetch_committee_core(
 async def _fetch_vendor_sections(
     db: AsyncSession,
     *,
+    current_user: User,
     can_read_vendors: bool,
-    dept_ids: list[int] | None,
 ):
-    vendor_scope_filter = Vendor.department_id.in_(dept_ids) if dept_ids is not None else None
+    vendor_scope_filter = vendor_visibility_clause(current_user)
 
     sections: dict[str, list[dict[str, object]]] = {
         "critical_vendors": [],
