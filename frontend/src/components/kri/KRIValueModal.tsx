@@ -6,7 +6,6 @@ import { kriApi } from '@/services/kriApi';
 import { apiClient } from '@/services/apiClient';
 import type { KeyRiskIndicator, KRIRecordValue } from '@/types/kri';
 import { isApprovalCreatedResponse } from '@/types/approval';
-import { usePermissions } from '@/hooks/usePermissions';
 import { useTranslation } from '@/i18n/hooks';
 import { formatDateValue } from '@/i18n/formatters';
 import { logError } from '@/services/logger';
@@ -19,7 +18,6 @@ interface KRIValueModalProps {
 }
 
 export function KRIValueModal({ kri, isOpen, onClose, onSuccess }: KRIValueModalProps) {
-    const { canResolveApprovals } = usePermissions();
     const { t, i18n } = useTranslation(['kris', 'common', 'errorKeys']);
     const [isSaving, setIsSaving] = useState(false);
     const [errorKey, setErrorKey] = useState<string | null>(null);
@@ -29,8 +27,8 @@ export function KRIValueModal({ kri, isOpen, onClose, onSuccess }: KRIValueModal
         value: kri.current_value,
     });
 
-    // Privileged users can backdate and their submissions are applied immediately
-    const isPrivileged = canResolveApprovals;
+    const canSubmitBackdatedValue = kri.capabilities?.can_submit_backdated_value === true;
+    const canRequestValueSubmissionApproval = kri.capabilities?.can_request_value_submission_approval === true;
 
     if (!isOpen) return null;
 
@@ -137,8 +135,7 @@ export function KRIValueModal({ kri, isOpen, onClose, onSuccess }: KRIValueModal
                             {/* Only show form if not submitted yet */}
                             {!submitResult && (
                                 <>
-                                    {/* Approval Notice for Non-Privileged Users */}
-                                    {!isPrivileged && (
+                                    {canRequestValueSubmissionApproval && (
                                         <div className="p-3 bg-amber-500/5 border border-amber-500/10 rounded-xl flex items-start gap-3">
                                             <Info className="h-4 w-4 text-amber-400 mt-0.5 flex-shrink-0" />
                                             <p className="text-xs text-amber-300/70">
@@ -180,8 +177,7 @@ export function KRIValueModal({ kri, isOpen, onClose, onSuccess }: KRIValueModal
                                         />
                                     </div>
 
-                                    {/* Backdating - Only for privileged users */}
-                                    {isPrivileged && (
+                                    {canSubmitBackdatedValue && (
                                         <div className="space-y-2 pt-4 border-t border-white/5">
                                             <label className="text-[10px] font-black uppercase tracking-widest text-amber-500/50 ml-1 flex items-center gap-1">
                                                 <Calendar className="h-3 w-3" />

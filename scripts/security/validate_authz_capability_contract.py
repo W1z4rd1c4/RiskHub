@@ -109,13 +109,6 @@ FRONTEND_LOCAL_GATE_CLASSIFICATIONS: dict[str, FrontendLocalGateClassification] 
             r"const \{ canEditAccessUsers, canManageUsers \} = usePermissions\(\);",
         ),
     },
-    "frontend/src/components/kri/KRIValueModal.tsx": {
-        "reason": "Submission modal precondition; KRI mutations are backend enforced.",
-        "allowed_patterns": (
-            r"import \{ usePermissions \} from '@/hooks/usePermissions';",
-            r"const \{ canResolveApprovals \} = usePermissions\(\);",
-        ),
-    },
     "frontend/src/components/layout/Sidebar.tsx": {
         "reason": "Navigation visibility only.",
         "allowed_patterns": (
