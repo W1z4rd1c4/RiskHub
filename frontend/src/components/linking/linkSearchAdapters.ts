@@ -38,6 +38,7 @@ function mapRiskResult(item: SearchResultItem): SearchResultItem {
         process: item.process,
         category: item.category,
         status: item.status,
+        capabilities: item.capabilities,
     };
 }
 
@@ -52,6 +53,7 @@ function mapControlResult(item: SearchResultItem): SearchResultItem {
         department: item.department,
         department_name: item.department_name ?? item.department?.name,
         control_owner_name: item.control_owner_name,
+        capabilities: item.capabilities,
     };
 }
 
@@ -64,6 +66,7 @@ function mapKriResult(item: {
     risk_department_name?: string | null;
     risk_process?: string | null;
     risk_category?: string | null;
+    capabilities?: SearchResultItem["capabilities"];
 }): SearchResultItem {
     return {
         id: item.id,
@@ -73,6 +76,7 @@ function mapKriResult(item: {
         department_name: item.risk_department_name,
         process: item.risk_process,
         category: item.risk_category,
+        capabilities: item.capabilities,
     };
 }
 

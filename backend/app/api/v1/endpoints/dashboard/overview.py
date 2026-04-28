@@ -6,7 +6,12 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.datetime_utils import utc_now
-from app.core.permissions import can_view_risk_committee, get_user_department_ids, has_permission
+from app.core.permissions import (
+    can_view_risk_committee,
+    get_effective_permissions,
+    get_user_department_ids,
+    has_permission,
+)
 from app.core.security import require_permission
 from app.core.ttl_cache import TTLCache
 from app.db.session import get_db
@@ -41,7 +46,9 @@ async def get_dashboard_overview(
         current_user.id,
         getattr(current_user.access_scope, "value", str(current_user.access_scope)),
         current_user.department_id,
+        current_user.role_id,
         getattr(getattr(current_user, "role", None), "name", None),
+        tuple(get_effective_permissions(current_user)),
         department_id,
         control_status,
         control_form,

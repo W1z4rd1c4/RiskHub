@@ -8,6 +8,8 @@ export interface DepartmentLookup {
     code?: string;
 }
 
+export type SearchResultCapabilities = Record<string, boolean | null | undefined>;
+
 export interface SearchResultItem {
     id: number;
     name?: string | null;
@@ -20,6 +22,7 @@ export interface SearchResultItem {
     department?: { name?: string | null };
     department_name?: string | null;
     control_owner_name?: string | null;
+    capabilities?: SearchResultCapabilities | null;
 }
 
 export interface ExistingLinkItem {

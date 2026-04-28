@@ -15,10 +15,9 @@ import { X, Link as LinkIcon } from 'lucide-react';
 import type { ControlEffectiveness } from '@/types/risk';
 import { LinkSearchPanel } from './linking/LinkSearchPanel';
 import { ExistingLinksPanel, type ExistingLinkItem } from './linking/ExistingLinksPanel';
-import { useAuth } from '@/contexts/AuthContext';
 import { useTranslation } from '@/i18n/hooks';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
-import { canUnarchiveLinkTarget, getLinkDialogTitle } from './linking/linkModes';
+import { getLinkDialogTitle } from './linking/linkModes';
 import type { LinkMode } from './linking/linkTypes';
 import { useLinkManagementWorkflow } from './linking/useLinkManagementWorkflow';
 
@@ -56,7 +55,6 @@ export function LinkManagementDialog({
     showLinkMetadataBadge = true,
 }: LinkManagementDialogProps) {
     const { t } = useTranslation(['common', 'controls', 'kris', 'risks']);
-    const { hasPermission } = useAuth();
     const workflow = useLinkManagementWorkflow({
         mode,
         existingLinks,
@@ -140,7 +138,6 @@ export function LinkManagementDialog({
                                     onSelectTarget={workflow.setSelectedTargetId}
                                     onLink={workflow.handleLink}
                                     isLinking={workflow.isLinking}
-                                    canUnarchive={canUnarchiveLinkTarget(mode, hasPermission)}
                                     onUnarchive={workflow.handleUnarchiveSearchResult}
                                 />
                             )}

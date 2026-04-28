@@ -108,7 +108,12 @@ function riskResult(id: number, description: string, status = 'active') {
     };
 }
 
-function controlResult(id: number, name: string, status = 'active') {
+function controlResult(
+    id: number,
+    name: string,
+    status = 'active',
+    capabilities: { can_restore?: boolean } = {},
+) {
     return {
         id,
         name,
@@ -119,6 +124,7 @@ function controlResult(id: number, name: string, status = 'active') {
         frequency: 'monthly',
         risk_level: 3,
         status,
+        capabilities,
     };
 }
 
@@ -329,7 +335,7 @@ describe('LinkManagementDialog', () => {
     });
 
     it('restores archived search results through the mode-specific API and refreshes search', async () => {
-        mockGetControls.mockResolvedValue(collection([controlResult(203, 'Archived control', 'archived')]));
+        mockGetControls.mockResolvedValue(collection([controlResult(203, 'Archived control', 'archived', { can_restore: true })]));
 
         render(<LinkManagementDialog {...defaultProps({ mode: 'risk-to-control' })} />);
         await advanceDebounce();
@@ -339,6 +345,16 @@ describe('LinkManagementDialog', () => {
 
         expect(mockRestoreControl).toHaveBeenCalledWith(203);
         expect(mockGetControls).toHaveBeenCalledTimes(2);
+    });
+
+    it('hides archived restore action when backend capability denies it', async () => {
+        mockGetControls.mockResolvedValue(collection([controlResult(204, 'Archived denied control', 'archived', { can_restore: false })]));
+
+        render(<LinkManagementDialog {...defaultProps({ mode: 'risk-to-control' })} />);
+        await advanceDebounce();
+
+        expect(screen.getByText('Archived denied control')).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /unarchive/i })).not.toBeInTheDocument();
     });
 
     it('resets local search, filters, and selection after close and reopen', async () => {

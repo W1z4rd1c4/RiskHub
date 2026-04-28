@@ -1,6 +1,7 @@
 import { Plus } from 'lucide-react';
 
 import { useTranslation } from '@/i18n/hooks';
+import { resolveCapabilityFlag } from '@/lib/capabilities';
 
 import { getResultMeta, getResultTitle } from './linkSearchPresentation';
 import type { LinkMode, SearchResultItem } from './linkTypes';
@@ -8,7 +9,6 @@ import type { LinkMode, SearchResultItem } from './linkTypes';
 interface LinkSearchResultItemProps {
     mode: LinkMode;
     result: SearchResultItem;
-    canUnarchive: boolean;
     onSelect: (id: number) => void;
     onUnarchive: (id: number) => Promise<void>;
 }
@@ -16,12 +16,13 @@ interface LinkSearchResultItemProps {
 export function LinkSearchResultItem({
     mode,
     result,
-    canUnarchive,
     onSelect,
     onUnarchive,
 }: LinkSearchResultItemProps) {
     const { t } = useTranslation(['common', 'controls', 'kris', 'risks']);
     const meta = getResultMeta(mode, result, t);
+    const canRestore = result.status === 'archived'
+        && resolveCapabilityFlag(result.capabilities, 'can_restore');
 
     return (
         <button
@@ -51,7 +52,7 @@ export function LinkSearchResultItem({
                 </span>
             </div>
             <div className="flex items-center gap-3 shrink-0">
-                {result.status === 'archived' && canUnarchive && (
+                {canRestore && (
                     <span
                         role="button"
                         tabIndex={0}

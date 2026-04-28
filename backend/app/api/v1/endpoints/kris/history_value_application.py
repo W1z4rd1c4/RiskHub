@@ -24,7 +24,7 @@ async def _run_best_effort_notification(
 ) -> None:
     try:
         await operation()
-    except Exception as exc:  # noqa: BLE001 - notification side-effects are intentionally best-effort
+    except Exception as exc:
         if on_error is not None:
             await on_error()
         logger.warning("%s: %s", warning_message, exc)

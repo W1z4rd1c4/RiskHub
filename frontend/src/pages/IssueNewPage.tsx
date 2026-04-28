@@ -1,21 +1,57 @@
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, Plus } from 'lucide-react';
 import { useTranslation } from '@/i18n/hooks';
 import { IssueCreateForm } from '@/components/issues/IssueCreateForm';
-import { usePermissions } from '@/hooks/usePermissions';
+import { issuesApi } from '@/services/issuesApi';
 import type { Issue } from '@/types/issue';
 
 export function IssueNewPage() {
     const navigate = useNavigate();
-    const { hasPermission } = usePermissions();
     const { t } = useTranslation('issues');
-    const canWrite = hasPermission('issues', 'write');
+    const [canCreate, setCanCreate] = useState(false);
+    const [isLoadingCapability, setIsLoadingCapability] = useState(true);
+
+    useEffect(() => {
+        let isCurrent = true;
+
+        async function loadCreateCapability() {
+            try {
+                const response = await issuesApi.list({ offset: 0, limit: 1 });
+                if (isCurrent) {
+                    setCanCreate(response.capabilities?.can_create === true);
+                }
+            } catch {
+                if (isCurrent) {
+                    setCanCreate(false);
+                }
+            } finally {
+                if (isCurrent) {
+                    setIsLoadingCapability(false);
+                }
+            }
+        }
+
+        void loadCreateCapability();
+
+        return () => {
+            isCurrent = false;
+        };
+    }, []);
 
     const handleCreated = (issue: Issue) => {
         void navigate(`/issues/${issue.id}`);
     };
 
-    if (!canWrite) {
+    if (isLoadingCapability) {
+        return (
+            <div className="glass-card p-8" aria-busy="true">
+                <div className="h-5 w-40 rounded bg-white/10 animate-pulse" />
+            </div>
+        );
+    }
+
+    if (!canCreate) {
         return (
             <div className="glass-card p-8 flex items-center gap-3 text-amber-200">
                 <AlertTriangle className="h-5 w-5" />

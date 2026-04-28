@@ -14,7 +14,6 @@ interface LinkSearchResultsProps {
     isLoadingLookups: boolean;
     selectedTargetId: number | null;
     onSelectTarget: (id: number) => void;
-    canUnarchive: boolean;
     onUnarchive: (id: number) => Promise<void>;
 }
 
@@ -26,7 +25,6 @@ export function LinkSearchResults({
     isLoadingLookups,
     selectedTargetId,
     onSelectTarget,
-    canUnarchive,
     onUnarchive,
 }: LinkSearchResultsProps) {
     const { t } = useTranslation(['common', 'controls', 'kris', 'risks']);
@@ -53,7 +51,6 @@ export function LinkSearchResults({
                             key={result.id}
                             mode={mode}
                             result={result}
-                            canUnarchive={canUnarchive}
                             onSelect={onSelectTarget}
                             onUnarchive={onUnarchive}
                         />

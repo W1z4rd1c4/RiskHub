@@ -32,7 +32,6 @@ export interface LinkSearchPanelProps {
     onSelectTarget: (id: number | null) => void;
     onLink: () => void;
     isLinking: boolean;
-    canUnarchive: boolean;
     onUnarchive: (id: number) => Promise<void>;
 }
 
@@ -58,7 +57,6 @@ export function LinkSearchPanel({
     onSelectTarget,
     onLink,
     isLinking,
-    canUnarchive,
     onUnarchive,
 }: LinkSearchPanelProps) {
     const { t } = useTranslation(['common', 'controls', 'kris', 'risks']);
@@ -98,7 +96,6 @@ export function LinkSearchPanel({
                     isLoadingLookups={isLoadingLookups}
                     selectedTargetId={selectedTargetId}
                     onSelectTarget={onSelectTarget}
-                    canUnarchive={canUnarchive}
                     onUnarchive={onUnarchive}
                 />
                 <LinkConfirmationPanel

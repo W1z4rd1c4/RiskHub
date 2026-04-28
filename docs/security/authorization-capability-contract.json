@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "last_reviewed": "2026-04-26",
+  "last_reviewed": "2026-04-28",
   "owner": "RiskHub Maintainer",
   "status_values": [
     "authoritative",
@@ -84,6 +84,7 @@
     "frontend/src/routing/",
     "frontend/src/components/access/",
     "frontend/src/components/LinkManagementDialog.tsx",
+    "frontend/src/components/linking/LinkSearchResultItem.tsx",
     "frontend/src/components/executions/",
     "frontend/src/components/governance/",
     "frontend/src/components/issues/",
@@ -228,7 +229,7 @@
       "backend_authority": "backend/app/api/v1/endpoints/risks/crud/archive.py and backend/app/api/v1/endpoints/risks/crud/restore.py",
       "service_policy": "backend/app/api/v1/endpoints/approvals/_delete_authorization.py and backend/app/services/authorization_capabilities.py and backend/app/services/_authorization_capabilities_impl.py",
       "response_capability": "backend/app/schemas/risk.py RiskCapabilities.can_archive_immediately, can_request_archive_approval, can_restore, has_pending_delete_approval, and requires_privileged_delete_approval",
-      "frontend_gate": "frontend/src/pages/RiskDetailPage.tsx, frontend/src/pages/risks/riskColumns.tsx, and frontend/src/pages/risks/RisksTableSection.tsx use backend capabilities",
+      "frontend_gate": "frontend/src/pages/RiskDetailPage.tsx, frontend/src/pages/risks/riskColumns.tsx, frontend/src/pages/risks/RisksTableSection.tsx, frontend/src/components/LinkManagementDialog.tsx, and frontend/src/components/linking/LinkSearchResultItem.tsx use backend capabilities",
       "tests": [
         "tests/backend/pytest/test_approval_workflow.py",
         "tests/backend/pytest/test_approvals.py",
@@ -263,7 +264,7 @@
       "backend_authority": "backend/app/api/v1/endpoints/controls/crud/ and backend/app/api/v1/endpoints/controls/linking.py",
       "service_policy": "backend/app/core/_permissions/sensitive.py, backend/app/api/v1/endpoints/approvals/_delete_authorization.py, and backend/app/services/authorization_capabilities.py and backend/app/services/_authorization_capabilities_impl.py",
       "response_capability": "backend/app/schemas/control.py ControlCapabilities.can_update, can_update_sensitive_fields, can_request_update_approval, can_link_risk, can_unlink_risk, can_archive_immediately, can_request_archive_approval, can_restore, and can_create_issue",
-      "frontend_gate": "frontend/src/pages/ControlDetailPage.tsx, frontend/src/pages/ControlsPage.tsx, frontend/src/pages/controls/, frontend/src/components/LinkManagementDialog.tsx, and frontend/src/components/linking/linkModes.ts use backend capabilities",
+      "frontend_gate": "frontend/src/pages/ControlDetailPage.tsx, frontend/src/pages/ControlsPage.tsx, frontend/src/pages/controls/, frontend/src/components/LinkManagementDialog.tsx, and frontend/src/components/linking/LinkSearchResultItem.tsx use backend capabilities",
       "tests": [
         "tests/backend/pytest/test_controls.py",
         "tests/backend/pytest/test_approval_workflow.py",
@@ -315,7 +316,7 @@
       "backend_authority": "backend/app/api/v1/endpoints/kris/crud/, backend/app/api/v1/endpoints/kris/linked_vendors.py, and backend/app/api/v1/endpoints/kris/access.py",
       "service_policy": "backend/app/core/_permissions/scoping.py, backend/app/api/v1/endpoints/kris/access.py, backend/app/api/v1/endpoints/approvals/_delete_authorization.py, and backend/app/services/authorization_capabilities.py and backend/app/services/_authorization_capabilities_impl.py",
       "response_capability": "backend/app/schemas/kri.py KRICapabilities.can_update, can_update_sensitive_fields, can_request_update_approval, can_archive_immediately, can_request_archive_approval, can_restore, can_link_vendors, can_unlink_vendors, can_create_issue, and KRIListResponse collection can_create",
-      "frontend_gate": "frontend/src/pages/KRIDetailPage.tsx, frontend/src/pages/KRIsPage.tsx, frontend/src/pages/kris/KRIsTableSection.tsx, and KRI form/list components use backend capabilities",
+      "frontend_gate": "frontend/src/pages/KRIDetailPage.tsx, frontend/src/pages/KRIsPage.tsx, frontend/src/pages/kris/KRIsTableSection.tsx, frontend/src/components/linking/LinkSearchResultItem.tsx, and KRI form/list components use backend capabilities",
       "tests": [
         "tests/backend/pytest/test_kris_rbac.py",
         "tests/backend/pytest/test_approval_workflow.py",

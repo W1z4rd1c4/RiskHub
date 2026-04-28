@@ -1,8 +1,10 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { IssueNewPage } from '@/pages/IssueNewPage';
+import { issuesApi } from '@/services/issuesApi';
 
 const mockNavigate = vi.fn();
+const mockListIssues = vi.mocked(issuesApi.list);
 
 vi.mock('@/hooks/usePermissions', () => ({
     usePermissions: () => ({
@@ -26,11 +28,29 @@ vi.mock('react-router-dom', async () => {
     };
 });
 
+vi.mock('@/services/issuesApi', () => ({
+    issuesApi: {
+        list: vi.fn(),
+    },
+}));
+
 describe('IssueNewPage cancel', () => {
-    it('navigates back to issues when cancel is clicked', () => {
+    beforeEach(() => {
+        mockNavigate.mockReset();
+        mockListIssues.mockReset();
+        mockListIssues.mockResolvedValue({
+            items: [],
+            total: 0,
+            offset: 0,
+            limit: 1,
+            capabilities: { can_create: true },
+        });
+    });
+
+    it('navigates back to issues when cancel is clicked', async () => {
         render(<IssueNewPage />);
 
-        fireEvent.click(screen.getByRole('button', { name: 'Cancel create' }));
+        fireEvent.click(await screen.findByRole('button', { name: 'Cancel create' }));
         expect(mockNavigate).toHaveBeenCalledWith('/issues');
     });
 });

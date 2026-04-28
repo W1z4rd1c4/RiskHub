@@ -6,6 +6,7 @@ from datetime import UTC, date, datetime, timedelta
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import delete, select
 
 from app.models import (
     Control,
@@ -61,6 +62,54 @@ async def test_dashboard_overview_returns_backend_capabilities(client_cro: Async
     assert capabilities["can_view_committee"] is True
     assert capabilities["can_use_department_filter"] is True
     assert capabilities["can_export_or_report"] is True
+
+
+@pytest.mark.asyncio
+async def test_dashboard_overview_cache_key_tracks_permission_changes(
+    client: AsyncClient,
+    db_session,
+    test_user_employee: User,
+    test_role_employee: Role,
+):
+    issues_read = Permission(resource="issues", action="read", description="Read issues")
+    db_session.add(issues_read)
+    await db_session.commit()
+    await db_session.refresh(issues_read)
+    db_session.add(RolePermission(role_id=test_role_employee.id, permission_id=issues_read.id))
+    await db_session.commit()
+    db_session.expire(test_role_employee, ["permissions"])
+
+    headers = {"X-Mock-User-Id": str(test_user_employee.id)}
+    first_response = await client.get("/api/v1/dashboard/overview", headers=headers)
+
+    assert first_response.status_code == 200
+    first_payload = first_response.json()
+    assert first_payload["capabilities"]["can_view_issue_metrics"] is True
+    assert first_payload["capabilities"]["can_export_or_report"] is True
+
+    report_permission_id = (
+        await db_session.execute(
+            select(Permission.id).where(Permission.resource == "reports", Permission.action == "read")
+        )
+    ).scalar_one()
+    await db_session.execute(
+        delete(RolePermission).where(
+            RolePermission.role_id == test_role_employee.id,
+            RolePermission.permission_id.in_([issues_read.id, report_permission_id]),
+        )
+    )
+    await db_session.commit()
+    db_session.expire(test_role_employee, ["permissions"])
+
+    second_response = await client.get("/api/v1/dashboard/overview", headers=headers)
+
+    assert second_response.status_code == 200
+    second_payload = second_response.json()
+    assert second_payload["capabilities"]["can_view_issue_metrics"] is False
+    assert second_payload["capabilities"]["can_export_or_report"] is False
+    assert second_payload["issue_summary"] is None
+    assert second_payload["issue_aging"] is None
+    assert second_payload["issue_severity"] is None
 
 
 @pytest.mark.asyncio

@@ -1,15 +1,6 @@
 {
   "scope": "backend/app",
-  "max_total": 2,
+  "max_total": 0,
   "owner": "RiskHub Maintainer",
-  "entries": [
-    {
-      "path": "backend/app/api/v1/endpoints/kris/history_value_application.py",
-      "line": 23,
-      "match": "noqa: BLE001",
-      "owner": "RiskHub Maintainer",
-      "expires_on": "2026-05-31",
-      "reason": "KRI notification side effects are intentionally best-effort and must not block request success."
-    }
-  ]
+  "entries": []
 }

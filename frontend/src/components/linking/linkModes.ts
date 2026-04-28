@@ -1,7 +1,6 @@
 import type { ExistingLinkItem, LinkMode } from './linkTypes';
 
 type TranslateFn = (key: string, options?: Record<string, unknown>) => string;
-type HasPermissionFn = (resource: string, action: string) => boolean;
 
 export function getLinkedTargetId(link: ExistingLinkItem, mode: LinkMode): number | undefined {
     switch (mode) {
@@ -33,16 +32,5 @@ export function getLinkDialogTitle(
             return t('risks:actions.link_control');
         case 'vendor-to-kri':
             return t('vendors:links.actions.link_existing');
-    }
-}
-
-export function canUnarchiveLinkTarget(mode: LinkMode, hasPermission: HasPermissionFn): boolean {
-    switch (mode) {
-        case 'control-to-risk':
-            return hasPermission('risks', 'delete');
-        case 'risk-to-control':
-            return hasPermission('controls', 'delete');
-        case 'vendor-to-kri':
-            return hasPermission('risks', 'delete');
     }
 }
