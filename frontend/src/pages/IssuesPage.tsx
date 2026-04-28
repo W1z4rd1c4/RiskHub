@@ -76,6 +76,7 @@ export function IssuesPage() {
         <div className="space-y-8">
             <IssuesPageHeader
                 canCreateIssue={capabilities?.can_create === true}
+                canExport={capabilities?.can_export === true}
                 isExporting={isExporting}
                 onCreateIssue={() => navigate('/issues/new')}
                 onOpenExport={openExportDialog}

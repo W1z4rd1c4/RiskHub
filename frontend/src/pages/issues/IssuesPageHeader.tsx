@@ -3,6 +3,7 @@ import { useTranslation } from '@/i18n/hooks';
 
 interface IssuesPageHeaderProps {
     canCreateIssue: boolean;
+    canExport: boolean;
     isExporting: boolean;
     onCreateIssue: () => void;
     onOpenExport: () => void;
@@ -10,6 +11,7 @@ interface IssuesPageHeaderProps {
 
 export function IssuesPageHeader({
     canCreateIssue,
+    canExport,
     isExporting,
     onCreateIssue,
     onOpenExport,
@@ -24,15 +26,17 @@ export function IssuesPageHeader({
             </div>
 
             <div className="flex items-center gap-2">
-                <button
-                    type="button"
-                    onClick={onOpenExport}
-                    disabled={isExporting}
-                    className="px-4 py-2.5 glass rounded-xl text-slate-300 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-50 flex items-center gap-2 text-sm font-semibold"
-                >
-                    <Download className="h-4 w-4" />
-                    {t('common:actions.export')}
-                </button>
+                {canExport && (
+                    <button
+                        type="button"
+                        onClick={onOpenExport}
+                        disabled={isExporting}
+                        className="px-4 py-2.5 glass rounded-xl text-slate-300 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-50 flex items-center gap-2 text-sm font-semibold"
+                    >
+                        <Download className="h-4 w-4" />
+                        {t('common:actions.export')}
+                    </button>
+                )}
                 {canCreateIssue && (
                     <button
                         type="button"

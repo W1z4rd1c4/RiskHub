@@ -52,9 +52,14 @@ export interface ExecutionAuditItem extends ControlExecution {
     linked_risks?: string[];
 }
 
+export interface ExecutionListCapabilities {
+    can_export_csv: boolean;
+}
+
 export interface ExecutionListResponse {
     items: ExecutionAuditItem[];
     total: number;
     skip: number;
     limit: number;
+    capabilities?: ExecutionListCapabilities | null;
 }

@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
+from sqlalchemy import delete, select
 
 from app.models import Control, ControlRiskLink, Department, Permission, Risk, Role, RolePermission, User
 from app.models.control_execution import ControlExecution
@@ -257,6 +258,39 @@ async def test_list_executions(client_cro: AsyncClient, test_user_cro: User, tes
     assert isinstance(data["items"], list)
     assert data["total"] >= 1
     assert data["limit"] == 100
+
+
+@pytest.mark.asyncio
+async def test_execution_list_export_csv_capability_tracks_reports_read(
+    client: AsyncClient,
+    db_session,
+    test_user_employee: User,
+    test_role_employee: Role,
+):
+    headers = {"X-Mock-User-Id": str(test_user_employee.id)}
+    allowed_response = await client.get("/api/v1/executions", headers=headers)
+
+    assert allowed_response.status_code == 200
+    assert allowed_response.json()["capabilities"]["can_export_csv"] is True
+
+    reports_read_id = (
+        await db_session.execute(
+            select(Permission.id).where(Permission.resource == "reports", Permission.action == "read")
+        )
+    ).scalar_one()
+    await db_session.execute(
+        delete(RolePermission).where(
+            RolePermission.role_id == test_role_employee.id,
+            RolePermission.permission_id == reports_read_id,
+        )
+    )
+    await db_session.commit()
+    db_session.expire(test_role_employee, ["permissions"])
+
+    denied_response = await client.get("/api/v1/executions", headers=headers)
+
+    assert denied_response.status_code == 200
+    assert denied_response.json()["capabilities"]["can_export_csv"] is False
 
 
 @pytest.mark.asyncio

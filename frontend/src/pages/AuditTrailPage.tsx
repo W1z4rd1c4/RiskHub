@@ -13,8 +13,7 @@ import {
 } from 'lucide-react';
 import { executionApi } from '@/services/executionApi';
 import { reportApi } from '@/services/reportApi';
-import { usePermissions } from '@/hooks/usePermissions';
-import type { ExecutionAuditItem, ExecutionResult } from '@/types/execution';
+import type { ExecutionAuditItem, ExecutionListCapabilities, ExecutionResult } from '@/types/execution';
 import { Pagination } from '@/components/tables';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { formatDateValue, formatTimeValue } from '@/i18n/formatters';
@@ -26,9 +25,9 @@ const AUDIT_TRAIL_SKELETON_ROWS = 5;
 export function AuditTrailPage() {
     const { t, i18n } = useTranslation(['controls', 'common']);
     const navigate = useNavigate();
-    const { hasPermission } = usePermissions();
 
     const [executions, setExecutions] = useState<ExecutionAuditItem[]>([]);
+    const [capabilities, setCapabilities] = useState<ExecutionListCapabilities | null>(null);
     const [totalCount, setTotalCount] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
     const [resultFilter, setResultFilter] = useState<ExecutionResult | ''>('');
@@ -46,7 +45,9 @@ export function AuditTrailPage() {
             });
             setExecutions(data.items);
             setTotalCount(data.total);
+            setCapabilities(data.capabilities ?? null);
         } catch (err) {
+            setCapabilities(null);
             logError('Failed to fetch audit trail:', err);
         } finally {
             setIsLoading(false);
@@ -71,7 +72,7 @@ export function AuditTrailPage() {
                 </div>
 
                 <div className="flex items-center gap-3">
-                    {hasPermission('reports', 'read') ? (
+                    {capabilities?.can_export_csv === true ? (
                         <button
                             onClick={() => reportApi.downloadAuditTrailCsv({ result: resultFilter || undefined }).catch((error: unknown) => {
                                 logError('Failed to download audit trail CSV.', error);

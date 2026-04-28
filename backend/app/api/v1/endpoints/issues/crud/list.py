@@ -164,6 +164,7 @@ async def list_issues(
     sort_order = collection_query.sort.direction if collection_query.sort else sort_order
     collection_capabilities = {
         "can_create": has_permission(current_user, "issues", "write"),
+        "can_export": has_permission(current_user, "reports", "read"),
         "can_view_vendor_contexts": has_permission(current_user, "vendors", "read"),
     }
 

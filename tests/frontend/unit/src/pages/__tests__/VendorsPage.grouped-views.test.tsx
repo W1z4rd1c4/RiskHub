@@ -8,6 +8,7 @@ import type { Vendor, VendorListParams } from '@/types/vendor';
 const mockGetVendors = vi.fn();
 const mockNavigate = vi.fn();
 let hasRiskRead = true;
+let vendorCollectionCapabilities: Record<string, boolean> | undefined;
 
 const vendors: Vendor[] = [
     {
@@ -207,6 +208,11 @@ vi.mock('react-router-dom', async () => {
 describe('VendorsPage grouped views', () => {
     beforeEach(() => {
         hasRiskRead = true;
+        vendorCollectionCapabilities = {
+            can_create: true,
+            can_view_risk_contexts: true,
+            can_export: true,
+        };
         vi.clearAllMocks();
         mockGetVendors.mockImplementation((params: VendorListParams = {}) => {
             const filtered = filterVendors(params);
@@ -222,10 +228,9 @@ describe('VendorsPage grouped views', () => {
                     offset,
                     limit,
                     groups: buildVendorGroups(filtered, params.group_by),
-                    capabilities: {
-                        can_create: true,
-                        can_view_risk_contexts: hasRiskRead,
-                    },
+                    capabilities: vendorCollectionCapabilities
+                        ? { ...vendorCollectionCapabilities, can_view_risk_contexts: hasRiskRead }
+                        : undefined,
                 });
             }
             return Promise.resolve({
@@ -233,12 +238,31 @@ describe('VendorsPage grouped views', () => {
                 total: filtered.length,
                 offset,
                 limit,
-                capabilities: {
-                    can_create: true,
-                    can_view_risk_contexts: hasRiskRead,
-                },
+                capabilities: vendorCollectionCapabilities
+                    ? { ...vendorCollectionCapabilities, can_view_risk_contexts: hasRiskRead }
+                    : undefined,
             });
         });
+    });
+
+    it.each([
+        ['false capability', { can_create: true, can_view_risk_contexts: true, can_export: false }],
+        ['missing capability', { can_create: true, can_view_risk_contexts: true }],
+        ['missing capabilities', undefined],
+    ])('hides export when vendor list returns %s', async (_caseName, capabilities) => {
+        vendorCollectionCapabilities = capabilities;
+
+        render(<VendorsPage />);
+
+        await screen.findByText('Claims Cloud Platform');
+        expect(screen.queryByTestId('vendors-export-button')).not.toBeInTheDocument();
+    });
+
+    it('shows export when vendor list can_export is true', async () => {
+        render(<VendorsPage />);
+
+        await screen.findByText('Claims Cloud Platform');
+        expect(screen.getByTestId('vendors-export-button')).toBeInTheDocument();
     });
 
     it('shows vendor drill-down tabs and keeps the all view paginated', async () => {

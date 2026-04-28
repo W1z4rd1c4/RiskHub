@@ -4,7 +4,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 from httpx import AsyncClient
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import (
@@ -15,8 +15,10 @@ from app.models import (
     Issue,
     IssueLink,
     KeyRiskIndicator,
+    Permission,
     Risk,
     Role,
+    RolePermission,
     User,
     Vendor,
 )
@@ -24,6 +26,47 @@ from app.models import (
 from .issues_api_helpers import _create_department_scoped_user
 
 pytest_plugins = ("tests.backend.pytest.api.v1.issues_api_support",)
+
+
+@pytest.mark.asyncio
+async def test_issue_list_collection_export_capability_tracks_reports_read(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    test_user_employee: User,
+    test_role_employee: Role,
+):
+    issues_read = Permission(resource="issues", action="read", description="Read issues")
+    db_session.add(issues_read)
+    await db_session.commit()
+    await db_session.refresh(issues_read)
+    db_session.add(RolePermission(role_id=test_role_employee.id, permission_id=issues_read.id))
+    await db_session.commit()
+    db_session.expire(test_role_employee, ["permissions"])
+
+    headers = {"X-Mock-User-Id": str(test_user_employee.id)}
+    allowed_response = await client.get("/api/v1/issues", headers=headers)
+
+    assert allowed_response.status_code == 200
+    assert allowed_response.json()["capabilities"]["can_export"] is True
+
+    reports_read_id = (
+        await db_session.execute(
+            select(Permission.id).where(Permission.resource == "reports", Permission.action == "read")
+        )
+    ).scalar_one()
+    await db_session.execute(
+        delete(RolePermission).where(
+            RolePermission.role_id == test_role_employee.id,
+            RolePermission.permission_id == reports_read_id,
+        )
+    )
+    await db_session.commit()
+    db_session.expire(test_role_employee, ["permissions"])
+
+    denied_response = await client.get("/api/v1/issues", headers=headers)
+
+    assert denied_response.status_code == 200
+    assert denied_response.json()["capabilities"]["can_export"] is False
 
 
 @pytest.mark.asyncio

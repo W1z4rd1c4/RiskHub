@@ -203,6 +203,7 @@ function buildVendorGroups(items: Array<ReturnType<typeof makeKri>>) {
 function installKriHandlers(
     requestQueries: Array<ReturnType<typeof parseKriRequest>>,
     userOverrides: Partial<Record<string, unknown>> = {},
+    collectionCapabilities: Record<string, boolean> | undefined = { can_view_vendor_contexts: true },
 ) {
     const user = makeUser(userOverrides);
     const canRestoreArchived = (user.effective_permissions as string[]).includes('risks:delete');
@@ -261,7 +262,7 @@ function installKriHandlers(
                         offset: requestInfo.offset,
                         limit: requestInfo.limit,
                         groups: buildVendorGroups(items),
-                        capabilities: { can_view_vendor_contexts: true },
+                        capabilities: collectionCapabilities,
                     });
                 }
 
@@ -271,7 +272,7 @@ function installKriHandlers(
                     offset: requestInfo.offset,
                     limit: requestInfo.limit,
                     groups: buildVendorGroups(items),
-                    capabilities: { can_view_vendor_contexts: true },
+                    capabilities: collectionCapabilities,
                 });
             }
 
@@ -316,7 +317,7 @@ function installKriHandlers(
                 offset: requestInfo.offset,
                 limit: requestInfo.limit,
                 groups: null,
-                capabilities: { can_view_vendor_contexts: true },
+                capabilities: collectionCapabilities,
             });
         }),
     );
@@ -345,6 +346,30 @@ describe('KRIsPage monitoring status filters', () => {
         expect(screen.getByTestId('kris-status-filter-not_submitted')).toHaveClass('bg-accent');
         expect(screen.getByTestId('kri-route-search')).toHaveTextContent('?monitoring_status=not_submitted');
         expect(requestQueries.some((query) => query.filters.monitoring_status === 'not_submitted')).toBe(true);
+    });
+
+    it.each([
+        ['false capability', { can_view_vendor_contexts: true, can_export: false }],
+        ['missing capability', { can_view_vendor_contexts: true }],
+        ['missing capabilities', undefined],
+    ])('hides export when KRI list returns %s', async (_caseName, capabilities) => {
+        const requestQueries: Array<ReturnType<typeof parseKriRequest>> = [];
+        installKriHandlers(requestQueries, {}, capabilities);
+
+        await renderKriPage('/kris');
+
+        await screen.findByText('All KRI');
+        expect(screen.queryByTestId('kris-export-button')).not.toBeInTheDocument();
+    });
+
+    it('shows export when KRI list can_export is true', async () => {
+        const requestQueries: Array<ReturnType<typeof parseKriRequest>> = [];
+        installKriHandlers(requestQueries, {}, { can_view_vendor_contexts: true, can_export: true });
+
+        await renderKriPage('/kris');
+
+        await screen.findByText('All KRI');
+        expect(screen.getByTestId('kris-export-button')).toBeInTheDocument();
     });
 
     it('initializes due-soon mode from the route and requests timeliness_status', async () => {

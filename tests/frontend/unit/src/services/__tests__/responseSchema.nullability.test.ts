@@ -389,10 +389,16 @@ describe('response schema nullability alignment', () => {
                 total: 1,
                 skip: 0,
                 limit: 50,
+                capabilities: {
+                    can_export_csv: true,
+                },
             }));
         });
 
         await expect(executionApi.getExecutions()).resolves.toMatchObject({
+            capabilities: {
+                can_export_csv: true,
+            },
             items: [
                 {
                     findings: null,

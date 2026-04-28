@@ -794,6 +794,94 @@ describe('RBAC UI gating', () => {
         expect(screen.queryByTestId('risk-unarchive-1')).not.toBeInTheDocument();
     });
 
+    it.each([
+        ['false capability', { can_create: true, can_export: false }],
+        ['missing capability', { can_create: true }],
+        ['missing capabilities', undefined],
+    ])('RisksPage: hides export when list returns %s', async (_caseName, capabilities) => {
+        const user = makeUser({
+            id: 94,
+            effective_permissions: ['risks:read', 'reports:read'],
+        });
+
+        server.use(
+            http.get('*/api/v1/auth/me', () => HttpResponse.json(user)),
+            http.get('*/api/v1/risks', () =>
+                HttpResponse.json({
+                    items: [
+                        {
+                            id: 2,
+                            risk_id_code: 'R-EXPORT-001',
+                            name: 'Export Visibility Risk',
+                            process: 'Mock Process',
+                            risk_type: 'operational',
+                            category: 'Mock',
+                            description: 'Mock Desc',
+                            gross_score: 9,
+                            gross_probability: 3,
+                            gross_impact: 3,
+                            net_score: 4,
+                            status: 'active',
+                            is_priority: false,
+                            capabilities: makeRiskCapabilities(),
+                        },
+                    ],
+                    total: 1,
+                    offset: 0,
+                    limit: 20,
+                    capabilities,
+                })
+            )
+        );
+
+        await renderWithRoute('/risks');
+
+        await screen.findByText('Export Visibility Risk');
+        expect(screen.queryByTestId('risks-export-button')).not.toBeInTheDocument();
+    });
+
+    it('RisksPage: shows export when list can_export is true', async () => {
+        const user = makeUser({
+            id: 95,
+            effective_permissions: ['risks:read'],
+        });
+
+        server.use(
+            http.get('*/api/v1/auth/me', () => HttpResponse.json(user)),
+            http.get('*/api/v1/risks', () =>
+                HttpResponse.json({
+                    items: [
+                        {
+                            id: 3,
+                            risk_id_code: 'R-EXPORT-002',
+                            name: 'Allowed Export Risk',
+                            process: 'Mock Process',
+                            risk_type: 'operational',
+                            category: 'Mock',
+                            description: 'Mock Desc',
+                            gross_score: 9,
+                            gross_probability: 3,
+                            gross_impact: 3,
+                            net_score: 4,
+                            status: 'active',
+                            is_priority: false,
+                            capabilities: makeRiskCapabilities(),
+                        },
+                    ],
+                    total: 1,
+                    offset: 0,
+                    limit: 20,
+                    capabilities: { can_export: true },
+                })
+            )
+        );
+
+        await renderWithRoute('/risks');
+
+        await screen.findByText('Allowed Export Risk');
+        expect(screen.getByTestId('risks-export-button')).toBeInTheDocument();
+    });
+
     it('ControlsPage: controls:delete shows "Unarchive" action for archived control row', async () => {
         const user = makeUser({
             id: 92,
@@ -868,5 +956,81 @@ describe('RBAC UI gating', () => {
         await uiUser.click(screen.getByTestId('controls-status-filter-trigger'));
         await uiUser.click(screen.getByTestId('controls-status-filter-option-archived'));
         expect(screen.queryByTestId('control-unarchive-1')).not.toBeInTheDocument();
+    });
+
+    it.each([
+        ['false capability', { can_create: true, can_export: false }],
+        ['missing capability', { can_create: true }],
+        ['missing capabilities', undefined],
+    ])('ControlsPage: hides export when list returns %s', async (_caseName, capabilities) => {
+        const user = makeUser({
+            id: 96,
+            effective_permissions: ['controls:read', 'reports:read'],
+        });
+
+        server.use(
+            http.get('*/api/v1/auth/me', () => HttpResponse.json(user)),
+            http.get('*/api/v1/controls', () =>
+                HttpResponse.json({
+                    items: [
+                        {
+                            id: 2,
+                            name: 'Export Visibility Control',
+                            department_name: 'Operations',
+                            frequency: 'monthly',
+                            risk_level: 3,
+                            status: 'active',
+                            control_form: 'manual',
+                            capabilities: makeControlCapabilities(),
+                        },
+                    ],
+                    total: 1,
+                    offset: 0,
+                    limit: 20,
+                    capabilities,
+                })
+            )
+        );
+
+        await renderWithRoute('/controls');
+
+        await screen.findByText('Export Visibility Control');
+        expect(screen.queryByTestId('controls-export-button')).not.toBeInTheDocument();
+    });
+
+    it('ControlsPage: shows export when list can_export is true', async () => {
+        const user = makeUser({
+            id: 97,
+            effective_permissions: ['controls:read'],
+        });
+
+        server.use(
+            http.get('*/api/v1/auth/me', () => HttpResponse.json(user)),
+            http.get('*/api/v1/controls', () =>
+                HttpResponse.json({
+                    items: [
+                        {
+                            id: 3,
+                            name: 'Allowed Export Control',
+                            department_name: 'Operations',
+                            frequency: 'monthly',
+                            risk_level: 3,
+                            status: 'active',
+                            control_form: 'manual',
+                            capabilities: makeControlCapabilities(),
+                        },
+                    ],
+                    total: 1,
+                    offset: 0,
+                    limit: 20,
+                    capabilities: { can_export: true },
+                })
+            )
+        );
+
+        await renderWithRoute('/controls');
+
+        await screen.findByText('Allowed Export Control');
+        expect(screen.getByTestId('controls-export-button')).toBeInTheDocument();
     });
 });

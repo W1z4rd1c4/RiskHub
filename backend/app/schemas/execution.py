@@ -83,6 +83,12 @@ class ControlExecution(ControlExecutionRead):
     model_config = {"from_attributes": True}
 
 
+class ControlExecutionListCapabilities(BaseModel):
+    """Collection-level capabilities for the generic execution list."""
+
+    can_export_csv: bool = False
+
+
 class ControlExecutionListResponse(BaseModel):
     """Paginated generic execution list response."""
 
@@ -90,3 +96,4 @@ class ControlExecutionListResponse(BaseModel):
     total: int
     skip: int
     limit: int
+    capabilities: Optional[ControlExecutionListCapabilities] = None

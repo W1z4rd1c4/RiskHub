@@ -3,6 +3,7 @@ import type {
     ExecutionActor,
     ExecutionAuditItem,
     ExecutionControlRef,
+    ExecutionListCapabilities,
     ExecutionListResponse,
 } from '@/types/execution';
 
@@ -42,5 +43,10 @@ export const executionAuditItemSchema: z.ZodType<ExecutionAuditItem> = controlEx
     control_owner_name: z.string().optional(),
     linked_risks: z.array(z.string()).optional(),
 });
+export const executionListCapabilitiesSchema: z.ZodType<ExecutionListCapabilities> = passthroughObject({
+    can_export_csv: z.boolean(),
+});
 export const executionListResponseSchema: z.ZodType<ExecutionListResponse> =
-    offsetPaginationSchema(executionAuditItemSchema);
+    offsetPaginationSchema(executionAuditItemSchema).extend({
+        capabilities: executionListCapabilitiesSchema.nullable().optional(),
+    });

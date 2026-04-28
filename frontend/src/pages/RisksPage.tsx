@@ -73,6 +73,7 @@ export function RisksPage() {
         <div className="space-y-8">
             <RisksPageHeader
                 canCreateRisk={capabilities?.can_create === true}
+                canExport={capabilities?.can_export === true}
                 isExporting={isExporting}
                 onCreateRisk={() => navigate('/risks/new')}
                 onOpenExport={openExportDialog}

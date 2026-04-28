@@ -1,4 +1,5 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 
@@ -28,15 +29,10 @@ vi.mock('@/services/reportApi', () => ({
     },
 }));
 
-vi.mock('@/hooks/usePermissions', () => ({
-    usePermissions: () => ({
-        hasPermission: () => true,
-    }),
-}));
-
 describe('AuditTrailPage execution status rendering', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        downloadAuditTrailCsvMock.mockResolvedValue(undefined);
     });
 
     it('renders audit results from the paginated execution response and uses canonical result labels', async () => {
@@ -59,6 +55,9 @@ describe('AuditTrailPage execution status rendering', () => {
             total: 75,
             skip: 0,
             limit: 50,
+            capabilities: {
+                can_export_csv: true,
+            },
         });
 
         render(
@@ -76,5 +75,52 @@ describe('AuditTrailPage execution status rendering', () => {
         expect(screen.getByText('audit_trail.total_records:75')).toBeInTheDocument();
         expect(screen.getByText('controls:executions.issues_found')).toBeInTheDocument();
         expect(screen.getByText('Access Governance')).toBeInTheDocument();
+    });
+
+    it('shows the CSV action only when execution list capabilities allow export', async () => {
+        getExecutionsMock.mockResolvedValue({
+            items: [],
+            total: 0,
+            skip: 0,
+            limit: 50,
+            capabilities: {
+                can_export_csv: true,
+            },
+        });
+
+        render(
+            <MemoryRouter>
+                <AuditTrailPage />
+            </MemoryRouter>
+        );
+
+        await screen.findByText('audit_trail.total_records:0');
+        await userEvent.click(screen.getByRole('button', { name: 'CSV' }));
+
+        await waitFor(() => {
+            expect(downloadAuditTrailCsvMock).toHaveBeenCalledWith({ result: undefined });
+        });
+    });
+
+    it.each([
+        ['false capability', { can_export_csv: false }],
+        ['missing capabilities', undefined],
+    ])('hides the CSV action when %s is returned', async (_caseName, capabilities) => {
+        getExecutionsMock.mockResolvedValue({
+            items: [],
+            total: 0,
+            skip: 0,
+            limit: 50,
+            capabilities,
+        });
+
+        render(
+            <MemoryRouter>
+                <AuditTrailPage />
+            </MemoryRouter>
+        );
+
+        await screen.findByText('audit_trail.total_records:0');
+        expect(screen.queryByRole('button', { name: 'CSV' })).not.toBeInTheDocument();
     });
 });

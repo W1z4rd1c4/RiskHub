@@ -43,6 +43,7 @@ export function ControlsPage() {
         <div className="space-y-8">
             <ControlsPageHeader
                 canCreateControl={capabilities?.can_create === true}
+                canExport={capabilities?.can_export === true}
                 isExporting={isExporting}
                 onCreateControl={() => navigate('/controls/new')}
                 onOpenExport={openExportDialog}

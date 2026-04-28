@@ -148,14 +148,6 @@ FRONTEND_LOCAL_GATE_CLASSIFICATIONS: dict[str, FrontendLocalGateClassification] 
             r"const \{ canResolveApprovals: canResolve, user \} = usePermissions\(\);",
         ),
     },
-    "frontend/src/pages/AuditTrailPage.tsx": {
-        "reason": "Legacy report export gate without backend capability metadata.",
-        "allowed_patterns": (
-            r"import \{ usePermissions \} from '@/hooks/usePermissions';",
-            r"const \{ hasPermission \} = usePermissions\(\);",
-            r"\{hasPermission\('reports', 'read'\) \? \(",
-        ),
-    },
     "frontend/src/pages/DashboardPage.tsx": {
         "reason": "Dashboard read/cache discriminator; dashboard actions use backend capabilities.",
         "allowed_patterns": (

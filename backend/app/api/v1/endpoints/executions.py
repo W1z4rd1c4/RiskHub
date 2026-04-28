@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.datetime_utils import coerce_utc
-from app.core.permissions import can_read_control_id, control_visibility_clause
+from app.core.permissions import can_read_control_id, control_visibility_clause, has_permission
 from app.core.security import require_business_permission, require_permission
 from app.db.session import get_db
 from app.models import User
@@ -145,7 +145,15 @@ async def read_executions(
             )
         )
 
-    return schemas.ControlExecutionListResponse(items=items, total=total, skip=skip, limit=limit)
+    return schemas.ControlExecutionListResponse(
+        items=items,
+        total=total,
+        skip=skip,
+        limit=limit,
+        capabilities=schemas.ControlExecutionListCapabilities(
+            can_export_csv=has_permission(current_user, "reports", "read")
+        ),
+    )
 
 
 @router.post("", response_model=schemas.ControlExecution, status_code=status.HTTP_201_CREATED)

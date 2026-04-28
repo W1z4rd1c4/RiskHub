@@ -41,6 +41,7 @@ describe('IssuesPage layout parity', () => {
             limit: 20,
             capabilities: {
                 can_create: true,
+                can_export: true,
             },
         });
     });
@@ -73,5 +74,24 @@ describe('IssuesPage layout parity', () => {
 
         expect(container.textContent).not.toContain('Department ID');
         expect(container.textContent).not.toContain('Owner user ID');
+    });
+
+    it.each([
+        ['false capability', { can_create: true, can_export: false }],
+        ['missing capability', { can_create: true }],
+        ['missing capabilities', undefined],
+    ])('hides export when issue list returns %s', async (_caseName, capabilities) => {
+        mockList.mockResolvedValueOnce({
+            items: [],
+            total: 0,
+            offset: 0,
+            limit: 20,
+            capabilities,
+        });
+
+        render(<IssuesPage />);
+
+        await screen.findByText('Issues');
+        expect(screen.queryByRole('button', { name: 'Export' })).not.toBeInTheDocument();
     });
 });
