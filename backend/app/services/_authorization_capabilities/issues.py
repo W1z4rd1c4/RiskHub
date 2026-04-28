@@ -11,6 +11,7 @@ from app.core.permissions import (
     can_write_issue_id,
     has_permission,
     is_issue_owner_assignable_to_department,
+    is_platform_admin,
 )
 from app.models import Issue, IssueExceptionStatus, IssueRemediationStatus, IssueStatus, User
 from app.schemas.issue import IssueCapabilities
@@ -102,6 +103,11 @@ async def issue_capabilities(db: AsyncSession, *, current_user: User, issue: Iss
         can_link_kri=bool(can_link and has_permission(current_user, "risks", "read")),
         can_link_vendor=bool(can_link and has_permission(current_user, "vendors", "read")),
         can_unlink_entities=can_link,
+        can_view_activity_history=bool(
+            can_read
+            and has_permission(current_user, "activity_log", "read")
+            and not is_platform_admin(current_user)
+        ),
         can_view_risk_contexts=bool(can_read and has_permission(current_user, "risks", "read")),
         can_view_vendor_contexts=bool(can_read and has_permission(current_user, "vendors", "read")),
         can_use_department_lookup=bool(can_write),

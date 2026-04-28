@@ -84,6 +84,7 @@ export interface IssueCapabilities {
     can_link_kri: boolean;
     can_link_vendor: boolean;
     can_unlink_entities: boolean;
+    can_view_activity_history?: boolean;
     can_view_risk_contexts: boolean;
     can_view_vendor_contexts: boolean;
     can_use_department_lookup: boolean;

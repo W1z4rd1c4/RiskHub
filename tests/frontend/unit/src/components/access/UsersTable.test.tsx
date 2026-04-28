@@ -70,7 +70,6 @@ function renderUsersTable(overrides: Partial<Parameters<typeof UsersTable>[0]> =
         directoryUsers: [],
         expandedUserId: null,
         onToggleExpand: vi.fn(),
-        canEditAccess: false,
         onEditAccess: vi.fn(),
         onToggleStatus: vi.fn(),
         ...overrides,
@@ -91,6 +90,45 @@ describe('UsersTable', () => {
         });
 
         expect(screen.queryByRole('button', { name: 'access.actions.deactivate' })).not.toBeInTheDocument();
+    });
+
+    it('shows edit access action only when target-row capabilities allow editable fields', async () => {
+        const onEditAccess = vi.fn();
+        renderUsersTable({
+            onEditAccess,
+            accessUsers: [
+                makeAccessUser({
+                    capabilities: {
+                        ...makeAccessUser().capabilities!,
+                        can_edit_identity: false,
+                        can_edit_business_access: false,
+                        can_edit_role: true,
+                    },
+                }),
+            ],
+        });
+
+        await userEvent.click(screen.getByRole('button', { name: 'access.actions.edit_access' }));
+
+        expect(onEditAccess).toHaveBeenCalledWith(expect.objectContaining({ id: 7 }));
+    });
+
+    it('hides edit access action when target-row edit capabilities are false or missing', () => {
+        renderUsersTable({
+            accessUsers: [
+                makeAccessUser({
+                    capabilities: {
+                        ...makeAccessUser().capabilities!,
+                        can_edit_identity: false,
+                        can_edit_business_access: false,
+                        can_edit_role: false,
+                    },
+                }),
+                makeAccessUser({ id: 8, email: 'missing@riskhub.test', capabilities: null }),
+            ],
+        });
+
+        expect(screen.queryByRole('button', { name: 'access.actions.edit_access' })).not.toBeInTheDocument();
     });
 
     it('hides active-status action when lifecycle capability metadata is absent', () => {

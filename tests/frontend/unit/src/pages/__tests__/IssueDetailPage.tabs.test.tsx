@@ -90,6 +90,10 @@ function setAuthenticatedSession(userId: number, name: string) {
     });
 }
 
+const issueHistoryCapabilities = {
+    can_view_activity_history: true,
+};
+
 describe('IssueDetailPage tabs', () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -155,6 +159,7 @@ describe('IssueDetailPage tabs', () => {
                 },
             ],
             remediation_plan: null,
+            capabilities: issueHistoryCapabilities,
             exceptions: [],
         });
         mockListActivity.mockResolvedValue({
@@ -210,6 +215,79 @@ describe('IssueDetailPage tabs', () => {
             )
         );
         expect(await screen.findByText('Issue updated')).toBeInTheDocument();
+    });
+
+    it('does not fetch history when backend capability denies activity history', async () => {
+        mockGetIssue.mockResolvedValueOnce({
+            id: 42,
+            title: 'Access Review Gap',
+            severity: 'medium',
+            status: 'open',
+            source_type: 'manual',
+            source_id: null,
+            department_id: 3,
+            department_name: 'Finance',
+            owner_user_id: 8,
+            owner_user_name: 'Anna Kowalski',
+            opened_at: '2026-02-01T10:00:00Z',
+            due_at: null,
+            closed_at: null,
+            created_at: '2026-02-01T10:00:00Z',
+            updated_at: '2026-02-01T10:00:00Z',
+            risk_contexts: [],
+            description: 'Quarterly evidence was not attached.',
+            created_by_id: 8,
+            created_by_name: 'Anna Kowalski',
+            validation_note: null,
+            links: [],
+            remediation_plan: null,
+            capabilities: { can_view_activity_history: false },
+            exceptions: [],
+        });
+
+        renderIssueDetailPage();
+
+        await screen.findByText('Access Review Gap');
+        fireEvent.click(screen.getByRole('tab', { name: /History/i }));
+
+        expect(screen.getByText('You do not have permission to view activity history for this issue.')).toBeInTheDocument();
+        expect(mockListActivity).not.toHaveBeenCalled();
+    });
+
+    it('does not fetch history when backend capability metadata is missing', async () => {
+        mockGetIssue.mockResolvedValueOnce({
+            id: 42,
+            title: 'Access Review Gap',
+            severity: 'medium',
+            status: 'open',
+            source_type: 'manual',
+            source_id: null,
+            department_id: 3,
+            department_name: 'Finance',
+            owner_user_id: 8,
+            owner_user_name: 'Anna Kowalski',
+            opened_at: '2026-02-01T10:00:00Z',
+            due_at: null,
+            closed_at: null,
+            created_at: '2026-02-01T10:00:00Z',
+            updated_at: '2026-02-01T10:00:00Z',
+            risk_contexts: [],
+            description: 'Quarterly evidence was not attached.',
+            created_by_id: 8,
+            created_by_name: 'Anna Kowalski',
+            validation_note: null,
+            links: [],
+            remediation_plan: null,
+            exceptions: [],
+        });
+
+        renderIssueDetailPage();
+
+        await screen.findByText('Access Review Gap');
+        fireEvent.click(screen.getByRole('tab', { name: /History/i }));
+
+        expect(screen.getByText('You do not have permission to view activity history for this issue.')).toBeInTheDocument();
+        expect(mockListActivity).not.toHaveBeenCalled();
     });
 
     it('shows unknown linked entity label without exposing numeric IDs', async () => {
@@ -283,6 +361,7 @@ describe('IssueDetailPage tabs', () => {
                 validation_note: null,
                 links: [],
                 remediation_plan: null,
+                capabilities: issueHistoryCapabilities,
                 exceptions: [],
             })
             .mockResolvedValueOnce({
@@ -308,6 +387,7 @@ describe('IssueDetailPage tabs', () => {
                 validation_note: null,
                 links: [],
                 remediation_plan: null,
+                capabilities: issueHistoryCapabilities,
                 exceptions: [],
             });
         mockListActivity.mockReset();
@@ -548,6 +628,7 @@ describe('IssueDetailPage tabs', () => {
             validation_note: null,
             links: [],
             remediation_plan: null,
+            capabilities: issueHistoryCapabilities,
             exceptions: [],
         });
         mockListActivity.mockReset();

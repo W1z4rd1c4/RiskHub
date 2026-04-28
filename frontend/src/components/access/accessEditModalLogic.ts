@@ -24,8 +24,6 @@ export const SCOPE_OPTIONS: { value: AccessScopeEnum; labelKey: string; descript
 
 export function resolveAccessEditCapabilities(
     user: AccessUserRead | null,
-    _canEditAccessUsers: boolean,
-    _canManageUsers: boolean,
 ): AccessEditCapabilities {
     const canEditPlatformFields = resolveCapabilityFlag(user?.capabilities, 'can_edit_identity');
     const canEditBusinessFields = resolveCapabilityFlag(user?.capabilities, 'can_edit_business_access');

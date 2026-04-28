@@ -151,6 +151,7 @@ class IssueCapabilities(BaseModel):
     can_link_kri: bool
     can_link_vendor: bool
     can_unlink_entities: bool
+    can_view_activity_history: bool
     can_view_risk_contexts: bool
     can_view_vendor_contexts: bool
     can_use_department_lookup: bool

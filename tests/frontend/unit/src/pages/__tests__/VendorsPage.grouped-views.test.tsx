@@ -180,10 +180,6 @@ vi.mock('@/hooks/usePermissions', () => ({
     }),
 }));
 
-vi.mock('@/components/PermissionGate', () => ({
-    PermissionGate: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-}));
-
 vi.mock('@/services/vendorApi', () => ({
     vendorApi: {
         getVendors: (...args: unknown[]) => mockGetVendors(...args),

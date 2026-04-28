@@ -11,11 +11,7 @@ import { buildApprovalListParams, type ApprovalsFilter } from './approvalsPresen
 
 type ApprovalDialogMode = 'approve' | 'reject' | null;
 
-interface UseApprovalsPageStateOptions {
-    canResolve: boolean;
-}
-
-export function useApprovalsPageState({ canResolve }: UseApprovalsPageStateOptions) {
+export function useApprovalsPageState() {
     const [approvals, setApprovals] = useState<ApprovalRequest[]>([]);
     const [questionnaires, setQuestionnaires] = useState<RiskQuestionnaireListItem[]>([]);
     const [loading, setLoading] = useState(true);
@@ -32,7 +28,7 @@ export function useApprovalsPageState({ canResolve }: UseApprovalsPageStateOptio
     const fetchApprovals = useCallback(async () => {
         try {
             setLoading(true);
-            const response = await approvalsApi.list(buildApprovalListParams(filter, canResolve));
+            const response = await approvalsApi.list(buildApprovalListParams(filter));
             setApprovals(response.items);
             setErrorKey(null);
         } catch (error) {
@@ -41,7 +37,7 @@ export function useApprovalsPageState({ canResolve }: UseApprovalsPageStateOptio
         } finally {
             setLoading(false);
         }
-    }, [canResolve, filter]);
+    }, [filter]);
 
     const fetchQuestionnaires = useCallback(async () => {
         try {

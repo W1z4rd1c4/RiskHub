@@ -103,6 +103,46 @@ async def test_control_owner_cross_department_issue_access(
 
 
 @pytest.mark.asyncio
+async def test_issue_detail_activity_history_capability_tracks_activity_log_read(
+    db_session: AsyncSession,
+    client_employee: AsyncClient,
+    test_user_employee: User,
+    test_role_employee: Role,
+):
+    department_id = test_user_employee.department_id
+    await _grant(db_session, test_role_employee, "issues", "read")
+
+    issue = Issue(
+        title="Activity history capability issue",
+        description="Issue visible to employee",
+        severity="medium",
+        status="open",
+        source_type="manual",
+        department_id=department_id,
+        owner_user_id=None,
+        created_by_id=None,
+        opened_at=datetime.now(UTC),
+    )
+    db_session.add(issue)
+    await db_session.flush()
+    issue_id = issue.id
+    db_session.add(IssueRemediationPlan(issue_id=issue.id, status="draft", progress_percent=0))
+    await db_session.commit()
+
+    denied_resp = await client_employee.get(f"/api/v1/issues/{issue_id}")
+
+    assert denied_resp.status_code == 200
+    assert denied_resp.json()["capabilities"]["can_view_activity_history"] is False
+
+    await _grant(db_session, test_role_employee, "activity_log", "read")
+
+    allowed_resp = await client_employee.get(f"/api/v1/issues/{issue_id}")
+
+    assert allowed_resp.status_code == 200
+    assert allowed_resp.json()["capabilities"]["can_view_activity_history"] is True
+
+
+@pytest.mark.asyncio
 async def test_issue_lookup_endpoints_enforce_department_scope(
     db_session: AsyncSession,
     client_employee: AsyncClient,

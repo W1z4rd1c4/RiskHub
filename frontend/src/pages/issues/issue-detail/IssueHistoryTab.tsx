@@ -4,7 +4,7 @@ import type { ActivityLogEntry } from '@/types/activityLog';
 import { formatDateTime } from './issueDetail.formatters';
 
 interface IssueHistoryTabProps {
-    canViewActivityLog: boolean;
+    canViewActivityHistory: boolean;
     historyItems: ActivityLogEntry[];
     isHistoryLoading: boolean;
     locale: string;
@@ -12,7 +12,7 @@ interface IssueHistoryTabProps {
 }
 
 export function IssueHistoryTab({
-    canViewActivityLog,
+    canViewActivityHistory,
     historyItems,
     isHistoryLoading,
     locale,
@@ -20,7 +20,7 @@ export function IssueHistoryTab({
 }: IssueHistoryTabProps) {
     return (
         <section className="glass-card p-6 space-y-4" data-testid="issue-history-panel">
-            {!canViewActivityLog ? (
+            {!canViewActivityHistory ? (
                 <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
                     {t('permissions.history_denied')}
                 </div>

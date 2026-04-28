@@ -17,6 +17,14 @@ export function canBreakGlassEnableUser(user: AccessUserRead): boolean {
     return user.capabilities?.can_break_glass_enable ?? false;
 }
 
+export function canEditAccessUser(user: AccessUserRead): boolean {
+    return (
+        user.capabilities?.can_edit_identity === true
+        || user.capabilities?.can_edit_business_access === true
+        || user.capabilities?.can_edit_role === true
+    );
+}
+
 export function userScopeBadgeClassName(user: AccessUserRead): string {
     if (user.role.name === 'admin') {
         return userScopeBadgeColors.platform;

@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from '@/i18n/hooks';
 import { X } from 'lucide-react';
-import { usePermissions } from '../hooks/usePermissions';
+import { useSessionSnapshot } from '@/services/session';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { ApprovalList } from './approvals/ApprovalList';
 import { ApprovalResolutionDialog } from './approvals/ApprovalResolutionDialog';
@@ -10,7 +10,7 @@ import { QuestionnaireInboxList } from './approvals/QuestionnaireInboxList';
 import { useApprovalsPageState } from './approvals/useApprovalsPageState';
 
 export default function ApprovalsPage() {
-    const { canResolveApprovals: canResolve, user } = usePermissions();
+    const { user } = useSessionSnapshot();
     const { t, i18n } = useTranslation('approvals');
     const navigate = useNavigate();
     const {
@@ -37,7 +37,7 @@ export default function ApprovalsPage() {
         dismissCancel,
         confirmCancel,
         refreshActiveView,
-    } = useApprovalsPageState({ canResolve });
+    } = useApprovalsPageState();
 
     return (
         <div className="space-y-8 p-8">

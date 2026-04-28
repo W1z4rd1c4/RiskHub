@@ -90,25 +90,6 @@ FRONTEND_LOCAL_GATE_CLASSIFICATIONS: dict[str, FrontendLocalGateClassification] 
             r"const canSubmitKri = hasPermission\('kri', 'submit'\);",
         ),
     },
-    "frontend/src/components/PermissionGate.tsx": {
-        "reason": "Legacy session/read gate primitive; protected actions use capabilities.",
-        "allowed_patterns": (
-            r"import \{ usePermissions \} from '@/hooks/usePermissions';",
-            r"interface PermissionGateProps \{",
-            r"export function PermissionGate\(\{",
-            r"const \{ hasPermission \} = usePermissions\(\);",
-            r"if \(hasPermission\(resource, action\)\) \{",
-            r".*<PermissionGate.*",
-            r".*</PermissionGate>.*",
-        ),
-    },
-    "frontend/src/components/access/AccessEditModal.tsx": {
-        "reason": "Access administration route/session eligibility gate.",
-        "allowed_patterns": (
-            r"import \{ usePermissions \} from '@/hooks/usePermissions';",
-            r"const \{ canEditAccessUsers, canManageUsers \} = usePermissions\(\);",
-        ),
-    },
     "frontend/src/components/layout/Sidebar.tsx": {
         "reason": "Navigation visibility only.",
         "allowed_patterns": (
@@ -134,13 +115,6 @@ FRONTEND_LOCAL_GATE_CLASSIFICATIONS: dict[str, FrontendLocalGateClassification] 
             r"canResolveApprovals: hasPermission\('approvals', 'write'\),",
         ),
     },
-    "frontend/src/pages/ApprovalsPage.tsx": {
-        "reason": "Approval queue read/session gate; row actions use backend capabilities.",
-        "allowed_patterns": (
-            r"import \{ usePermissions \} from '../hooks/usePermissions';",
-            r"const \{ canResolveApprovals: canResolve, user \} = usePermissions\(\);",
-        ),
-    },
     "frontend/src/pages/DashboardPage.tsx": {
         "reason": "Dashboard read/cache discriminator; dashboard actions use backend capabilities.",
         "allowed_patterns": (
@@ -153,7 +127,7 @@ FRONTEND_LOCAL_GATE_CLASSIFICATIONS: dict[str, FrontendLocalGateClassification] 
         "reason": "Issue read precondition; issue mutations use backend capabilities.",
         "allowed_patterns": (
             r"import \{ usePermissions \} from '@/hooks/usePermissions';",
-            r"const \{ hasPermission, canViewActivityLog \} = usePermissions\(\);",
+            r"const \{ hasPermission \} = usePermissions\(\);",
             r"const canRead = hasPermission\('issues', 'read'\);",
         ),
     },

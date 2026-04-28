@@ -23,11 +23,11 @@ import { ExpandedAccessDetailsRow } from './ExpandedAccessDetailsRow';
 import {
     canBreakGlassEnableUser,
     canChangeUserActiveStatus,
+    canEditAccessUser,
     userScopeBadgeClassName,
 } from './usersTablePresentation';
 
 interface AccessUserRowProps {
-    canEditAccess: boolean;
     canRunDirectoryChecks: boolean;
     checkingDirectoryUserId: number | null;
     expandedUserId: number | null;
@@ -100,7 +100,6 @@ function UserCapabilitySummary({ expandedUserId, onToggleExpand, user }: Pick<Ac
 }
 
 export function AccessUserRow({
-    canEditAccess,
     canRunDirectoryChecks,
     checkingDirectoryUserId,
     expandedUserId,
@@ -112,6 +111,7 @@ export function AccessUserRow({
     user,
 }: AccessUserRowProps) {
     const { t, i18n } = useTranslation('admin');
+    const canEditAccess = canEditAccessUser(user);
     const canChangeActiveStatus = canChangeUserActiveStatus(user);
     const canBreakGlassEnable = canBreakGlassEnableUser(user);
 

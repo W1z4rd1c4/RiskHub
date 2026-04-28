@@ -7,7 +7,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 
-import { usePermissions } from '@/hooks/usePermissions';
 import { useTranslation } from '@/i18n/hooks';
 import { apiClient } from '@/services/apiClient';
 import { accessApi } from '@/services/accessApi';
@@ -35,11 +34,10 @@ interface AccessEditModalProps {
 }
 
 export function AccessEditModal({ isOpen, onClose, user, onSaved }: AccessEditModalProps) {
-    const { canEditAccessUsers, canManageUsers } = usePermissions();
     const { t } = useTranslation(['common', 'admin', 'errorKeys']);
     const capabilities = useMemo(
-        () => resolveAccessEditCapabilities(user, canEditAccessUsers, canManageUsers),
-        [canEditAccessUsers, canManageUsers, user],
+        () => resolveAccessEditCapabilities(user),
+        [user],
     );
 
     const {
@@ -68,11 +66,6 @@ export function AccessEditModal({ isOpen, onClose, user, onSaved }: AccessEditMo
 
     const handleSubmit = async () => {
         if (!user || !selection) return;
-        if (!canEditAccessUsers) {
-            setErrorKey('errorKeys.forbidden');
-            setErrorMessage(null);
-            return;
-        }
 
         if (!hasChanges) {
             onClose();

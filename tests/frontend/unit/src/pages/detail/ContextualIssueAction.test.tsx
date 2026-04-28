@@ -3,10 +3,6 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { ContextualIssueAction } from '@/pages/detail/ContextualIssueAction';
 
-vi.mock('@/components/PermissionGate', () => ({
-    PermissionGate: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-}));
-
 vi.mock('@/components/issues/IssueQuickCreateModal', () => ({
     IssueQuickCreateModal: ({
         contextEntityLabel,

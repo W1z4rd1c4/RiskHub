@@ -9,20 +9,20 @@ import type { IssueDetailTab } from './issueDetail.types';
 
 interface UseIssueHistoryOptions {
     activeTab: IssueDetailTab;
-    canViewActivityLog: boolean;
+    canViewActivityHistory: boolean;
     issue: Issue | null;
 }
 
 export function useIssueHistory({
     activeTab,
-    canViewActivityLog,
+    canViewActivityHistory,
     issue,
 }: UseIssueHistoryOptions) {
     const session = useSessionSnapshot();
     const issueId = issue?.id;
     const historyQuery = useQuery({
         queryKey: issueHistoryQueryKey(session.user?.id, issueId),
-        enabled: activeTab === 'history' && !!issueId && canViewActivityLog,
+        enabled: activeTab === 'history' && !!issueId && canViewActivityHistory,
         queryFn: ({ signal }) =>
             activityLogApi.list(
                 {

@@ -33,6 +33,7 @@ const issueCapabilitiesSchema = passthroughObject({
     can_link_kri: z.boolean(),
     can_link_vendor: z.boolean(),
     can_unlink_entities: z.boolean(),
+    can_view_activity_history: z.boolean().optional(),
     can_view_risk_contexts: z.boolean(),
     can_view_vendor_contexts: z.boolean(),
     can_use_department_lookup: z.boolean(),

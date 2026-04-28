@@ -27,29 +27,22 @@ function createQuestionnaire(overrides: Partial<RiskQuestionnaireListItem> = {})
 
 describe('Approvals page presentation helpers', () => {
     describe('buildApprovalListParams', () => {
-        it('adds pending status for non-resolvers', () => {
-            expect(buildApprovalListParams('pending', false)).toEqual({
-                limit: 100,
-                status: 'pending',
-            });
-        });
-
-        it('keeps pending queue global for resolvers', () => {
-            expect(buildApprovalListParams('pending', true)).toEqual({
+        it('adds pending status for the pending queue', () => {
+            expect(buildApprovalListParams('pending')).toEqual({
                 limit: 100,
                 status: 'pending',
             });
         });
 
         it('maps mine to my_requests only', () => {
-            expect(buildApprovalListParams('mine', true)).toEqual({
+            expect(buildApprovalListParams('mine')).toEqual({
                 limit: 100,
                 my_requests: true,
             });
         });
 
         it('keeps all/history unfiltered', () => {
-            expect(buildApprovalListParams('all', true)).toEqual({ limit: 100 });
+            expect(buildApprovalListParams('all')).toEqual({ limit: 100 });
         });
     });
 

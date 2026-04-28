@@ -239,7 +239,7 @@ describe('AuditLogsPanel', () => {
         expect(await screen.findByRole('button', { name: 'audit.details_modal.copied' })).toBeInTheDocument();
     });
 
-    it('exports CSV and JSON without changing fetched data', async () => {
+    it('exports CSV and JSON from the loaded audit log entries without refetching', async () => {
         const clickMock = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
 
         render(<AuditLogsPanel />, { wrapper: createWrapper() });
@@ -249,7 +249,29 @@ describe('AuditLogsPanel', () => {
         fireEvent.click(screen.getByRole('button', { name: 'JSON' }));
 
         expect(URL.createObjectURL).toHaveBeenCalledTimes(2);
+        expect(URL.createObjectURL).toHaveBeenNthCalledWith(1, expect.any(Blob));
+        expect(URL.createObjectURL).toHaveBeenNthCalledWith(2, expect.any(Blob));
         expect(clickMock).toHaveBeenCalledTimes(2);
+        expect(getAuditLogsMock).toHaveBeenCalledTimes(1);
+        clickMock.mockRestore();
+    });
+
+    it('does not export empty loaded audit log payloads', async () => {
+        getAuditLogsMock.mockResolvedValueOnce({
+            entries: [],
+            total_lines: 0,
+            file_path: '/tmp/audit.log',
+        });
+        const clickMock = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+
+        render(<AuditLogsPanel />, { wrapper: createWrapper() });
+
+        await screen.findByText('audit.event_feed');
+        fireEvent.click(screen.getByRole('button', { name: 'CSV' }));
+        fireEvent.click(screen.getByRole('button', { name: 'JSON' }));
+
+        expect(URL.createObjectURL).not.toHaveBeenCalled();
+        expect(clickMock).not.toHaveBeenCalled();
         clickMock.mockRestore();
     });
 

@@ -58,22 +58,12 @@ const departmentApiMocks = vi.hoisted(() => ({
     getDepartments: vi.fn(),
 }));
 
-let currentPermissions = {
-    canManagePrivileged: true,
-    canEditAccessUsers: true,
-    canManageUsers: true,
-};
-
 vi.mock('@/services/accessApi', () => ({
     accessApi: accessApiMocks,
 }));
 
 vi.mock('@/services/departmentApi', () => ({
     departmentApi: departmentApiMocks,
-}));
-
-vi.mock('@/hooks/usePermissions', () => ({
-    usePermissions: () => currentPermissions,
 }));
 
 function makeRole(id: number, name: string, displayName: string): RoleWithPermissions {
@@ -123,11 +113,6 @@ describe('AccessEditModal', () => {
         accessApiMocks.listAccessUsers.mockReset();
         accessApiMocks.updateAccessUser.mockReset();
         departmentApiMocks.getDepartments.mockReset();
-        currentPermissions = {
-            canManagePrivileged: true,
-            canEditAccessUsers: true,
-            canManageUsers: true,
-        };
         accessApiMocks.listAccessRoles.mockResolvedValue([
             makeRole(1, 'admin', 'Administrator'),
             makeRole(2, 'employee', 'Employee'),
@@ -286,11 +271,6 @@ describe('AccessEditModal', () => {
     });
 
     it('submits business access edits for CRO without platform fields or Admin role', async () => {
-        currentPermissions = {
-            canManagePrivileged: true,
-            canEditAccessUsers: true,
-            canManageUsers: false,
-        };
         departmentApiMocks.getDepartments.mockResolvedValue([
             { id: 20, name: 'Finance' },
         ]);
@@ -372,5 +352,27 @@ describe('AccessEditModal', () => {
         expect(screen.queryByRole('button', { name: /administrator/i })).not.toBeInTheDocument();
         expect(screen.queryByLabelText(/department/i)).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: /save/i })).toBeDisabled();
+    });
+
+    it('hides editable fields and prevents payload fields when capabilities are missing', async () => {
+        const onClose = vi.fn();
+        const onSaved = vi.fn();
+
+        render(
+            <AccessEditModal
+                isOpen
+                onClose={onClose}
+                user={makeAccessUser({ capabilities: null })}
+                onSaved={onSaved}
+            />
+        );
+
+        await screen.findByText('Original User');
+
+        expect(screen.queryByDisplayValue('Original User')).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /administrator/i })).not.toBeInTheDocument();
+        expect(screen.queryByLabelText(/department/i)).not.toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /save/i })).toBeDisabled();
+        expect(accessApiMocks.updateAccessUser).not.toHaveBeenCalled();
     });
 });

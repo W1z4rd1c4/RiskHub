@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
-import type { ComponentProps, HTMLAttributes, ReactNode } from 'react';
+import type { ComponentProps, HTMLAttributes } from 'react';
 import { RiskDetailOverviewTab } from '@/components/risks/RiskDetailOverviewTab';
 import type { Risk, RiskControlLink } from '@/types/risk';
 import type { Vendor } from '@/types/vendor';
@@ -9,10 +9,6 @@ vi.mock('framer-motion', () => ({
     motion: {
         div: ({ children, ...props }: HTMLAttributes<HTMLDivElement>) => <div {...props}>{children}</div>,
     },
-}));
-
-vi.mock('@/components/PermissionGate', () => ({
-    PermissionGate: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
 
 vi.mock('@/components/RiskScoreMatrix', () => ({

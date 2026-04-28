@@ -18,7 +18,7 @@ import { useIssueHistory } from './issues/issue-detail/useIssueHistory';
 export function IssueDetailPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
-    const { hasPermission, canViewActivityLog } = usePermissions();
+    const { hasPermission } = usePermissions();
     const { t, i18n } = useTranslation('issues');
 
     const issueId = id ? Number(id) : Number.NaN;
@@ -29,9 +29,10 @@ export function IssueDetailPage() {
         canRead,
         issueId,
     });
+    const canViewActivityHistory = resolveCapabilityFlag(issue?.capabilities, 'can_view_activity_history');
     const { historyItems, isHistoryLoading, refreshHistory } = useIssueHistory({
         activeTab,
-        canViewActivityLog,
+        canViewActivityHistory,
         issue,
     });
 
@@ -197,7 +198,7 @@ export function IssueDetailPage() {
 
             {activeTab === 'history' ? (
                 <IssueHistoryTab
-                    canViewActivityLog={canViewActivityLog}
+                    canViewActivityHistory={canViewActivityHistory}
                     historyItems={historyItems}
                     isHistoryLoading={isHistoryLoading}
                     locale={i18n.language}
