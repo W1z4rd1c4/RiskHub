@@ -420,6 +420,89 @@ def test_classified_frontend_allowed_local_gate_pattern_passes() -> None:
     assert findings == []
 
 
+def test_business_nav_validator_passes_current_route_context() -> None:
+    validator = _load_validator()
+    source = (REPO_ROOT / "frontend/src/routing/business.tsx").read_text(encoding="utf-8")
+
+    findings = validator._validate_business_route_nav_context(source)
+
+    assert findings == []
+
+
+def test_business_nav_validator_rejects_controls_risk_read_gate() -> None:
+    validator = _load_validator()
+    source = (REPO_ROOT / "frontend/src/routing/business.tsx").read_text(encoding="utf-8")
+    source = source.replace(
+        "hasPermission('controls', 'read')",
+        "hasPermission('risks', 'read')",
+        1,
+    )
+
+    findings = validator._validate_business_route_nav_context(source)
+
+    assert [finding.reason for finding in findings] == ["frontend_business_nav_gate_mismatch"]
+    assert "controls" in findings[0].detail
+    assert "controls:read" in findings[0].detail
+
+
+def test_business_nav_validator_rejects_kri_department_read_gate() -> None:
+    validator = _load_validator()
+    source = (REPO_ROOT / "frontend/src/routing/business.tsx").read_text(encoding="utf-8")
+    source = source.replace(
+        (
+            "isVisible: ({ authz, hasPermission }) => !authz.isPlatformAdmin "
+            "&& hasPermission('risks', 'read'),\n      order: 60,"
+        ),
+        (
+            "isVisible: ({ authz, hasPermission }) => !authz.isPlatformAdmin "
+            "&& hasPermission('departments', 'read'),\n      order: 60,"
+        ),
+        1,
+    )
+
+    findings = validator._validate_business_route_nav_context(source)
+
+    assert [finding.reason for finding in findings] == ["frontend_business_nav_gate_mismatch"]
+    assert "kris" in findings[0].detail
+    assert "risks:read" in findings[0].detail
+
+
+def test_business_nav_validator_rejects_approvals_permission_gate() -> None:
+    validator = _load_validator()
+    source = (REPO_ROOT / "frontend/src/routing/business.tsx").read_text(encoding="utf-8")
+    source = source.replace(
+        "isVisible: ({ authz }) => !authz.isPlatformAdmin,\n      order: 20,",
+        (
+            "isVisible: ({ authz, hasPermission }) => !authz.isPlatformAdmin "
+            "&& hasPermission('controls', 'read'),\n      order: 20,"
+        ),
+        1,
+    )
+
+    findings = validator._validate_business_route_nav_context(source)
+
+    assert [finding.reason for finding in findings] == ["frontend_business_nav_gate_mismatch"]
+    assert "approvals" in findings[0].detail
+    assert "!authz.isPlatformAdmin" in findings[0].detail
+
+
+def test_business_nav_validator_ignores_non_nav_route_objects() -> None:
+    validator = _load_validator()
+    source = """
+export const businessRoutes = [
+  {
+    key: 'notifications',
+    path: 'notifications',
+    element: <NotificationsPage />,
+  },
+];
+"""
+
+    findings = validator._validate_business_route_nav_context(source)
+
+    assert findings == []
+
+
 def test_frontend_local_gate_deletions_do_not_require_classification() -> None:
     validator = _load_validator()
     path = Path("frontend/src/pages/RemovedActionGate.tsx")
