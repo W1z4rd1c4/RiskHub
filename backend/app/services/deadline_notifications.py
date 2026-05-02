@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.datetime_utils import coerce_utc
 from app.models.notification import Notification, NotificationType
 from app.services.notification_service import NotificationService
 
@@ -26,9 +27,11 @@ async def has_recent_deadline_notification(
     message_contains: str | None = None,
 ) -> bool:
     """Return whether an equivalent deadline notification exists in the lookback window."""
-    cutoff_date = now - timedelta(days=lookback_days)
-    if not_before is not None and not_before > cutoff_date:
-        cutoff_date = not_before
+    cutoff_date = coerce_utc(now) - timedelta(days=lookback_days)
+    if not_before is not None:
+        not_before_utc = coerce_utc(not_before)
+        if not_before_utc > cutoff_date:
+            cutoff_date = not_before_utc
     stmt = (
         select(Notification)
         .where(

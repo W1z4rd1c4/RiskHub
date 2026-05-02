@@ -3,10 +3,12 @@
 import logging
 from datetime import date, datetime
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.datetime_utils import utc_now
 from app.core.permissions import can_read_kri_id
+from app.core.user_query_options import user_selectinload_options
 from app.models.global_config import ConfigDefaults
 from app.models.key_risk_indicator import KeyRiskIndicator
 from app.models.notification import NotificationType
@@ -70,6 +72,19 @@ class KRIDeadlineService:
         return latest_closed_end
 
     @staticmethod
+    async def _can_recipient_read_kri(db: AsyncSession, *, user_id: int, kri_id: int) -> bool:
+        user = (
+            await db.execute(
+                select(User)
+                .options(*user_selectinload_options(include_permissions=True))
+                .where(User.id == user_id, User.is_active.is_(True))
+            )
+        ).scalar_one_or_none()
+        if user is None:
+            return False
+        return await can_read_kri_id(db, user, kri_id)
+
+    @staticmethod
     async def _check_reporting_notifications(
         db: AsyncSession,
         *,
@@ -105,7 +120,7 @@ class KRIDeadlineService:
         ):
             return
 
-        await create_deadline_notification(
+        created = await create_deadline_notification(
             db=db,
             user_id=reporting_owner,
             notification_type=plan.notification_type,
@@ -114,9 +129,15 @@ class KRIDeadlineService:
             resource_type="kri",
             resource_id=kri.id,
             created_at=now,
+            visibility_check=lambda: KRIDeadlineService._can_recipient_read_kri(
+                db,
+                user_id=reporting_owner,
+                kri_id=kri.id,
+            ),
         )
-        assert plan.result_bucket is not None
-        increment_deadline_results(results, "notifications_created", plan.result_bucket)
+        if created:
+            assert plan.result_bucket is not None
+            increment_deadline_results(results, "notifications_created", plan.result_bucket)
 
     @staticmethod
     async def _check_breach_notifications(
@@ -145,7 +166,7 @@ class KRIDeadlineService:
 
             owner_id = kri.risk.owner_id if kri.risk else None
             if owner_id:
-                await create_deadline_notification(
+                created = await create_deadline_notification(
                     db=db,
                     user_id=owner_id,
                     notification_type=plan.notification_type,
@@ -154,15 +175,21 @@ class KRIDeadlineService:
                     resource_type="kri",
                     resource_id=kri.id,
                     created_at=now,
+                    visibility_check=lambda owner_id=owner_id: KRIDeadlineService._can_recipient_read_kri(
+                        db,
+                        user_id=owner_id,
+                        kri_id=kri.id,
+                    ),
                 )
-                increment_deadline_results(results, "notifications_created")
+                if created:
+                    increment_deadline_results(results, "notifications_created")
 
             for rm in risk_managers:
                 if rm.id == owner_id:
                     continue
                 if not await can_read_kri_id(db, rm, kri.id):
                     continue
-                await create_deadline_notification(
+                created = await create_deadline_notification(
                     db=db,
                     user_id=rm.id,
                     notification_type=plan.notification_type,
@@ -171,8 +198,10 @@ class KRIDeadlineService:
                     resource_type="kri",
                     resource_id=kri.id,
                     created_at=now,
+                    visibility_check=lambda rm=rm: can_read_kri_id(db, rm, kri.id),
                 )
-                increment_deadline_results(results, "notifications_created")
+                if created:
+                    increment_deadline_results(results, "notifications_created")
 
             increment_deadline_results(results, "breached")
             return
@@ -189,7 +218,7 @@ class KRIDeadlineService:
 
         owner_id = kri.risk.owner_id if kri.risk else None
         if owner_id:
-            await create_deadline_notification(
+            created = await create_deadline_notification(
                 db=db,
                 user_id=owner_id,
                 notification_type=plan.notification_type,
@@ -198,9 +227,15 @@ class KRIDeadlineService:
                 resource_type="kri",
                 resource_id=kri.id,
                 created_at=now,
+                visibility_check=lambda owner_id=owner_id: KRIDeadlineService._can_recipient_read_kri(
+                    db,
+                    user_id=owner_id,
+                    kri_id=kri.id,
+                ),
             )
-            assert plan.result_bucket is not None
-            increment_deadline_results(results, "notifications_created", plan.result_bucket)
+            if created:
+                assert plan.result_bucket is not None
+                increment_deadline_results(results, "notifications_created", plan.result_bucket)
 
     @staticmethod
     async def _process_single_kri(

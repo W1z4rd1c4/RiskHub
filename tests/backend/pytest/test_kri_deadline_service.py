@@ -7,7 +7,7 @@ import pytest_asyncio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Department, User
+from app.models import Department, Risk, User
 from app.models.key_risk_indicator import KeyRiskIndicator
 from app.models.notification import Notification, NotificationType
 from app.models.user import AccessScope
@@ -298,6 +298,152 @@ async def test_due_soon_notification_type(
     )
     notifications = (await db_session.execute(stmt)).scalars().all()
     assert len(notifications) >= 1
+
+
+@pytest.mark.asyncio
+async def test_due_soon_notification_created_for_manager_scoped_reporting_owner(
+    db_session: AsyncSession,
+    test_department,
+    test_role_employee,
+    test_user_cro,
+):
+    fixed_today = date(2025, 1, 24)
+    fixed_now = datetime(2025, 1, 24, 9, 0, tzinfo=UTC)
+    reporting_owner = User(
+        name="Manager Scoped KRI Reporting Owner",
+        email="manager.scoped.kri@test.com",
+        department_id=None,
+        manager_id=test_user_cro.id,
+        role_id=test_role_employee.id,
+        is_active=True,
+        access_scope=AccessScope.MANAGER,
+    )
+    db_session.add(reporting_owner)
+    await db_session.flush()
+
+    risk = Risk(
+        risk_id_code="R-KRI-MANAGER-SCOPE-001",
+        name="Manager Scoped KRI Risk",
+        process="Operations",
+        description="Visible through manager-derived department scope",
+        category="Operational",
+        department_id=test_department.id,
+        owner_id=test_user_cro.id,
+        risk_type="operational",
+        gross_probability=2,
+        gross_impact=2,
+        net_probability=2,
+        net_impact=2,
+        status="active",
+    )
+    db_session.add(risk)
+    await db_session.flush()
+
+    kri = KeyRiskIndicator(
+        risk_id=risk.id,
+        metric_name="Manager Scoped Due Soon",
+        description="Test KRI for manager-scoped reporting owner",
+        current_value=50.0,
+        lower_limit=0.0,
+        upper_limit=100.0,
+        unit="%",
+        frequency="monthly",
+        reporting_owner_id=reporting_owner.id,
+        last_period_end=date(2024, 12, 31),
+    )
+    db_session.add(kri)
+    await db_session.commit()
+    reporting_owner_id = reporting_owner.id
+    kri_id = kri.id
+    db_session.expunge_all()
+
+    result = await KRIDeadlineService.check_kri_deadlines(db_session, today=fixed_today, now=fixed_now)
+
+    assert result["due_soon"] >= 1
+    notification = (
+        await db_session.execute(
+            select(Notification).where(
+                Notification.user_id == reporting_owner_id,
+                Notification.resource_type == "kri",
+                Notification.resource_id == kri_id,
+                Notification.type == NotificationType.KRI_DUE_SOON,
+            )
+        )
+    ).scalar_one_or_none()
+    assert notification is not None
+
+
+@pytest.mark.asyncio
+async def test_breach_notification_created_for_manager_scoped_risk_manager(
+    db_session: AsyncSession,
+    test_department,
+    test_role_risk_manager,
+    test_user_cro,
+):
+    fixed_today = date(2025, 1, 24)
+    fixed_now = datetime(2025, 1, 24, 9, 0, tzinfo=UTC)
+    risk_manager = User(
+        name="Manager Scoped KRI Risk Manager",
+        email="manager.scoped.kri.rm@test.com",
+        department_id=None,
+        manager_id=test_user_cro.id,
+        role_id=test_role_risk_manager.id,
+        is_active=True,
+        access_scope=AccessScope.MANAGER,
+    )
+    db_session.add(risk_manager)
+    await db_session.flush()
+
+    risk = Risk(
+        risk_id_code="R-KRI-MANAGER-SCOPE-BREACH-001",
+        name="Manager Scoped Breached KRI Risk",
+        process="Operations",
+        description="Visible through manager-derived department scope",
+        category="Operational",
+        department_id=test_department.id,
+        owner_id=test_user_cro.id,
+        risk_type="operational",
+        gross_probability=2,
+        gross_impact=2,
+        net_probability=2,
+        net_impact=2,
+        status="active",
+    )
+    db_session.add(risk)
+    await db_session.flush()
+
+    kri = KeyRiskIndicator(
+        risk_id=risk.id,
+        metric_name="Manager Scoped Breached KRI",
+        description="Test breached KRI for manager-scoped risk manager",
+        current_value=120.0,
+        lower_limit=0.0,
+        upper_limit=100.0,
+        unit="%",
+        frequency="monthly",
+        reporting_owner_id=test_user_cro.id,
+        last_period_end=date(2025, 1, 31),
+    )
+    db_session.add(kri)
+    await db_session.commit()
+    risk_manager_id = risk_manager.id
+    kri_id = kri.id
+    db_session.expunge_all()
+
+    result = await KRIDeadlineService.check_kri_deadlines(db_session, today=fixed_today, now=fixed_now)
+
+    assert result["breached"] >= 1
+    notification = (
+        await db_session.execute(
+            select(Notification).where(
+                Notification.user_id == risk_manager_id,
+                Notification.resource_type == "kri",
+                Notification.resource_id == kri_id,
+                Notification.type == NotificationType.KRI_BREACH_DETECTED,
+            )
+        )
+    ).scalar_one_or_none()
+    assert notification is not None
 
 
 @pytest.mark.asyncio

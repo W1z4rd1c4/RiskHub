@@ -15,6 +15,7 @@ from app.models import (
     ApprovalRequest,
     ApprovalResourceType,
     ApprovalStatus,
+    Department,
     Notification,
     NotificationType,
     OrphanedItem,
@@ -136,8 +137,6 @@ async def test_shell_summary_returns_expected_counts_and_governance_visibility(
                 type=NotificationType.QUESTIONNAIRE_SENT,
                 title="Questionnaire sent",
                 message="Please review your questionnaire",
-                resource_type="questionnaire",
-                resource_id=1,
             ),
             ApprovalRequest(
                 resource_type=ApprovalResourceType.RISK,
@@ -220,8 +219,6 @@ async def test_shell_summary_cache_is_scoped_per_user_and_expires(
             type=NotificationType.APPROVAL_PENDING,
             title="Approval pending",
             message="Review approval",
-            resource_type="approval",
-            resource_id=1,
         )
     )
     await db_session.commit()
@@ -240,8 +237,6 @@ async def test_shell_summary_cache_is_scoped_per_user_and_expires(
             type=NotificationType.APPROVAL_RESOLVED,
             title="Approval resolved",
             message="Resolved",
-            resource_type="approval",
-            resource_id=2,
         )
     )
     await db_session.commit()
@@ -254,6 +249,65 @@ async def test_shell_summary_cache_is_scoped_per_user_and_expires(
     refreshed_resp = await client.get("/api/v1/users/me/shell-summary", headers=_headers_for(test_user))
     assert refreshed_resp.status_code == 200
     assert refreshed_resp.json()["unread_notifications_count"] == 2
+
+
+@pytest.mark.asyncio
+async def test_shell_summary_unread_notifications_count_excludes_inaccessible_linked_resources(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    test_user_cro: User,
+    test_user_employee: User,
+):
+    hidden_department = Department(
+        name="Shell Hidden Department",
+        code="SHELL-HIDDEN",
+        description="Out-of-scope shell notification test department",
+    )
+    db_session.add(hidden_department)
+    await db_session.flush()
+
+    hidden_risk = Risk(
+        risk_id_code="R-SHELL-HIDDEN-001",
+        name="Shell Hidden Risk",
+        process="Operations",
+        description="Hidden linked risk",
+        category="Operational",
+        department_id=hidden_department.id,
+        owner_id=test_user_cro.id,
+        risk_type="operational",
+        gross_probability=2,
+        gross_impact=2,
+        net_probability=2,
+        net_impact=2,
+        status=RiskStatus.active.value,
+    )
+    db_session.add(hidden_risk)
+    await db_session.flush()
+
+    db_session.add_all(
+        [
+            Notification(
+                user_id=test_user_employee.id,
+                type=NotificationType.KRI_DUE_SOON,
+                title="Visible generic reminder",
+                message="Visible reminder",
+            ),
+            Notification(
+                user_id=test_user_employee.id,
+                type=NotificationType.APPROVAL_PENDING,
+                title="Hidden linked risk",
+                message="Hidden linked resource",
+                resource_type="risk",
+                resource_id=hidden_risk.id,
+            ),
+        ]
+    )
+    await db_session.commit()
+
+    response = await client.get("/api/v1/users/me/shell-summary", headers=_headers_for(test_user_employee))
+
+    assert response.status_code == 200
+    assert response.json()["unread_notifications_count"] == 1
 
 
 @pytest.mark.asyncio

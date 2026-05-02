@@ -6,22 +6,22 @@ from fastapi import Depends, Header, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.core.config import Settings, get_settings
 from app.core.datetime_utils import coerce_utc, utc_now
 from app.core.logging import get_logger
 from app.core.permissions import can_view_risk_committee
 from app.core.security import TokenDecodeError, decode_access_token
+from app.core.user_query_options import user_selectinload_options
 from app.db.session import get_db
-from app.models import Role, RolePermission, User
+from app.models import User
 
 logger = get_logger("api.deps")
 security = HTTPBearer(auto_error=False)
 
 
 def _user_permission_load():
-    return selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
+    return user_selectinload_options(include_permissions=True)
 
 
 async def _resolve_bearer_user(
@@ -47,9 +47,7 @@ async def _resolve_bearer_user(
             raise exc
         raise HTTPException(status_code=401, detail="Invalid token") from exc
 
-    result = await db.execute(
-        select(User).options(_user_permission_load(), selectinload(User.department)).where(User.id == user_id)
-    )
+    result = await db.execute(select(User).options(*_user_permission_load()).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if not user or not user.is_active:
         if optional:
@@ -87,9 +85,7 @@ async def get_current_user(
     if x_mock_user_id and settings.mock_auth_enabled and settings.debug:
         logger.warning("mock_auth_used", user_id=x_mock_user_id)
         result = await db.execute(
-            select(User)
-            .options(_user_permission_load(), selectinload(User.department))
-            .where(User.id == x_mock_user_id)
+            select(User).options(*_user_permission_load()).where(User.id == x_mock_user_id)
         )
         user = result.scalar_one_or_none()
         if not user or not user.is_active:

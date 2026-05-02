@@ -1,7 +1,7 @@
 """Notification API endpoints for listing and managing user notifications."""
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func, select, update
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
@@ -17,6 +17,7 @@ from app.schemas.notification import (
     NotificationTypeEnum,
 )
 from app.services.kri_deadline_service import KRIDeadlineService
+from app.services.notification_visibility import count_visible_unread_notifications, paginate_visible_notifications
 
 router = APIRouter()
 
@@ -48,29 +49,13 @@ async def list_notifications(
     List notifications for the current user.
     Ordered by created_at DESC (newest first).
     """
-    # Base query for user's notifications
-    base_query = select(Notification).where(Notification.user_id == current_user.id)
-
-    # Filter unread only if requested
-    if unread_only:
-        base_query = base_query.where(Notification.is_read.is_(False))
-
-    # Count total
-    count_query = select(func.count()).select_from(base_query.subquery())
-    total_result = await db.execute(count_query)
-    total = total_result.scalar() or 0
-
-    # Count unread (always returned regardless of filter)
-    unread_count_query = select(func.count()).where(
-        Notification.user_id == current_user.id, Notification.is_read.is_(False)
+    notifications, total, unread_count = await paginate_visible_notifications(
+        db,
+        current_user,
+        skip=skip,
+        limit=limit,
+        unread_only=unread_only,
     )
-    unread_result = await db.execute(unread_count_query)
-    unread_count = unread_result.scalar() or 0
-
-    # Fetch with pagination
-    query = base_query.offset(skip).limit(limit).order_by(Notification.created_at.desc())
-    result = await db.execute(query)
-    notifications = result.scalars().all()
 
     return NotificationListResponse(
         items=[_build_notification_read(n) for n in notifications],
@@ -89,11 +74,7 @@ async def get_unread_count(
     """
     Get count of unread notifications for badge display.
     """
-    result = await db.execute(
-        select(func.count()).where(Notification.user_id == current_user.id, Notification.is_read.is_(False))
-    )
-    count = result.scalar() or 0
-    return {"count": count}
+    return {"count": await count_visible_unread_notifications(db, current_user)}
 
 
 @router.get("/preferences", response_model=NotificationPreferences)
@@ -151,12 +132,8 @@ async def mark_as_read(
     notification.is_read = True
     await db.commit()
 
-    # Return current unread count for UI sync
-    count_result = await db.execute(
-        select(func.count()).where(Notification.user_id == current_user.id, Notification.is_read.is_(False))
-    )
-    unread_count = count_result.scalar() or 0
-    return {"unread_count": unread_count}
+    # Return current visible unread count for UI sync.
+    return {"unread_count": await count_visible_unread_notifications(db, current_user)}
 
 
 @router.post("/read-all", status_code=status.HTTP_204_NO_CONTENT)

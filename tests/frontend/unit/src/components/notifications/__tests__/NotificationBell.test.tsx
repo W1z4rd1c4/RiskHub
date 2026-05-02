@@ -164,4 +164,96 @@ describe('NotificationBell', () => {
         await waitFor(() => expect(markAsReadMock).toHaveBeenCalledWith(303));
         await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/vendors/12'));
     });
+
+    it('marks generic notifications without navigating', async () => {
+        listMock.mockResolvedValue({
+            items: [
+                {
+                    id: 404,
+                    type: 'kri_due_soon',
+                    title: 'Generic reminder',
+                    message: 'A generic reminder has no linked resource.',
+                    resource_type: null,
+                    resource_id: null,
+                    is_read: false,
+                    created_at: '2026-04-07T10:00:00Z',
+                    expires_at: null,
+                },
+            ],
+            total: 1,
+            skip: 0,
+            limit: 10,
+            unread_count: 1,
+        });
+
+        render(
+            <MemoryRouter initialEntries={['/']}>
+                <Routes>
+                    <Route
+                        path="*"
+                        element={
+                            <>
+                                <NotificationBell unreadCount={1} />
+                                <LocationDisplay />
+                            </>
+                        }
+                    />
+                </Routes>
+            </MemoryRouter>
+        );
+
+        fireEvent.click(screen.getByTestId('notification-bell-button'));
+        expect(await screen.findByText('Generic reminder')).toBeInTheDocument();
+
+        fireEvent.click(screen.getByText('Generic reminder'));
+
+        await waitFor(() => expect(markAsReadMock).toHaveBeenCalledWith(404));
+        expect(screen.getByTestId('location')).toHaveTextContent('/');
+    });
+
+    it('marks unsupported linked notifications without navigating', async () => {
+        listMock.mockResolvedValue({
+            items: [
+                {
+                    id: 505,
+                    type: 'approval_pending',
+                    title: 'Unsupported resource',
+                    message: 'The backend returned a non-navigable resource type.',
+                    resource_type: 'external_case',
+                    resource_id: 42,
+                    is_read: false,
+                    created_at: '2026-04-07T10:00:00Z',
+                    expires_at: null,
+                },
+            ],
+            total: 1,
+            skip: 0,
+            limit: 10,
+            unread_count: 1,
+        });
+
+        render(
+            <MemoryRouter initialEntries={['/']}>
+                <Routes>
+                    <Route
+                        path="*"
+                        element={
+                            <>
+                                <NotificationBell unreadCount={1} />
+                                <LocationDisplay />
+                            </>
+                        }
+                    />
+                </Routes>
+            </MemoryRouter>
+        );
+
+        fireEvent.click(screen.getByTestId('notification-bell-button'));
+        expect(await screen.findByText('Unsupported resource')).toBeInTheDocument();
+
+        fireEvent.click(screen.getByText('Unsupported resource'));
+
+        await waitFor(() => expect(markAsReadMock).toHaveBeenCalledWith(505));
+        expect(screen.getByTestId('location')).toHaveTextContent('/');
+    });
 });

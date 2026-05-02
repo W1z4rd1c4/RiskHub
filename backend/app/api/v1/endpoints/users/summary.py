@@ -10,9 +10,10 @@ from app.core.permission_cache import build_permission_sensitive_cache_key
 from app.core.permissions import can_manage_users, ensure_business_view_access, has_permission
 from app.core.ttl_cache import TTLCache
 from app.db.session import get_db
-from app.models import ApprovalRequest, ApprovalStatus, Notification, OrphanedItem, User
+from app.models import ApprovalRequest, ApprovalStatus, OrphanedItem, User
 from app.schemas.user import UserShellSummary
 from app.services.approval_queue_visibility import count_visible_pending_approvals_for_user
+from app.services.notification_visibility import count_visible_unread_notifications
 
 router = APIRouter()
 
@@ -52,14 +53,7 @@ def _can_view_governance(current_user: User) -> bool:
 async def _build_shell_summary(db: AsyncSession, current_user: User) -> dict:
     can_view_governance = _can_view_governance(current_user)
 
-    unread_notifications_count = (
-        await db.execute(
-            select(func.count()).where(
-                Notification.user_id == current_user.id,
-                Notification.is_read.is_(False),
-            )
-        )
-    ).scalar() or 0
+    unread_notifications_count = await count_visible_unread_notifications(db, current_user)
 
     pending_approvals_count = await _count_pending_approvals(db, current_user)
     questionnaire_inbox_count = 0

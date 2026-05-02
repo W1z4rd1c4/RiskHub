@@ -6,9 +6,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.user_query_options import user_selectinload_options
 from app.models.global_config import ConfigDefaults, get_config_float, get_config_int
 from app.models.key_risk_indicator import KeyRiskIndicator
-from app.models.role import Role, RolePermission, RoleType
+from app.models.role import Role, RoleType
 from app.models.user import User
 
 
@@ -56,11 +57,10 @@ async def list_active_kris(db: AsyncSession) -> list[KeyRiskIndicator]:
 
 async def list_risk_managers(db: AsyncSession) -> list[User]:
     role_names = [role.value for role in {RoleType.RISK_MANAGER, RoleType.CRO, RoleType.ADMIN}]
-    permission_load = selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
     stmt = (
         select(User)
         .join(Role, User.role_id == Role.id)
-        .options(permission_load)
+        .options(*user_selectinload_options(include_permissions=True))
         .where(User.is_active.is_(True))
         .where(Role.name.in_(role_names))
     )

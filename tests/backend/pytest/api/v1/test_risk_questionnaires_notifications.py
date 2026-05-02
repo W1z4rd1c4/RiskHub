@@ -189,6 +189,82 @@ async def test_deadline_service_due_soon_and_duplicate_prevention(
 
 
 @pytest.mark.asyncio
+async def test_deadline_service_notifies_manager_scoped_assignee(
+    db_session: AsyncSession,
+    test_department,
+    test_role_employee,
+    test_user_cro: User,
+):
+    from app.models import RiskQuestionnaire
+
+    now = datetime(2026, 1, 19, 10, 0, 0, tzinfo=UTC)
+    due_at = datetime.combine(now.date() + timedelta(days=2), time(hour=12), tzinfo=UTC)
+    assignee = User(
+        name="Manager Scoped Questionnaire Assignee",
+        email="manager.scoped.questionnaire@test.com",
+        department_id=None,
+        manager_id=test_user_cro.id,
+        role_id=test_role_employee.id,
+        is_active=True,
+        access_scope=AccessScope.MANAGER,
+    )
+    db_session.add(assignee)
+    await db_session.flush()
+
+    risk = Risk(
+        risk_id_code="R-Q-MANAGER-SCOPE-001",
+        name="Manager Scoped Questionnaire Risk",
+        process="Operations",
+        description="Visible through manager-derived department scope",
+        category="Operational",
+        department_id=test_department.id,
+        owner_id=test_user_cro.id,
+        risk_type="operational",
+        status=RiskStatus.active.value,
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=2,
+    )
+    db_session.add(risk)
+    await db_session.flush()
+
+    q = RiskQuestionnaire(
+        risk_id=risk.id,
+        assigned_to_user_id=assignee.id,
+        sent_by_user_id=test_user_cro.id,
+        status=RiskQuestionnaireStatus.sent,
+        template_key="risk_owner_reassessment",
+        template_version="v1",
+        answers=None,
+        sent_at=now,
+        due_at=due_at,
+        submitted_at=None,
+        submitted_by_user_id=None,
+    )
+    db_session.add(q)
+    await db_session.commit()
+    assignee_id = assignee.id
+    risk_id = risk.id
+    db_session.expunge_all()
+
+    result = await QuestionnaireDeadlineService.check_questionnaire_deadlines(db_session, now=now)
+
+    assert result["due_soon"] == 1
+    notification = (
+        await db_session.execute(
+            select(Notification).where(
+                Notification.user_id == assignee_id,
+                Notification.resource_type == "risk",
+                Notification.resource_id == risk_id,
+                Notification.type == NotificationType.QUESTIONNAIRE_DUE_SOON,
+            )
+        )
+    ).scalar_one_or_none()
+    assert notification is not None
+
+
+@pytest.mark.asyncio
 async def test_deadline_service_dedupes_per_questionnaire_not_per_risk(
     db_session: AsyncSession,
     test_user_employee: User,

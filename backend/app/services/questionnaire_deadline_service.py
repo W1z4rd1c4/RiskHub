@@ -13,11 +13,14 @@ from app.models import RiskQuestionnaire
 from app.models.global_config import ConfigDefaults, get_config_int
 from app.models.notification import NotificationType
 from app.models.risk_questionnaire import RiskQuestionnaireStatus
+from app.models.role import Role, RolePermission
+from app.models.user import User
 from app.services.deadline_notifications import (
     create_deadline_notification,
     has_recent_deadline_notification,
     increment_deadline_results,
 )
+from app.services.risk_questionnaire_service import can_read_questionnaire
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +59,12 @@ class QuestionnaireDeadlineService:
             .where(RiskQuestionnaire.status.in_([RiskQuestionnaireStatus.sent, RiskQuestionnaireStatus.in_progress]))
             .options(
                 selectinload(RiskQuestionnaire.risk),
-                selectinload(RiskQuestionnaire.assigned_to_user),
+                selectinload(RiskQuestionnaire.assigned_to_user)
+                .selectinload(User.role)
+                .selectinload(Role.permissions)
+                .selectinload(RolePermission.permission),
+                selectinload(RiskQuestionnaire.assigned_to_user).selectinload(User.department),
+                selectinload(RiskQuestionnaire.assigned_to_user).selectinload(User.manager),
             )
         )
         result = await db.execute(stmt)
@@ -98,6 +106,11 @@ class QuestionnaireDeadlineService:
                             resource_type="risk",
                             resource_id=q.risk_id,
                             created_at=now,
+                            visibility_check=lambda assignee=assignee, q=q: can_read_questionnaire(
+                                db,
+                                assignee,
+                                q,
+                            ),
                         )
                         if created:
                             increment_deadline_results(results, "notifications_created", "due_soon")
@@ -127,6 +140,11 @@ class QuestionnaireDeadlineService:
                             resource_type="risk",
                             resource_id=q.risk_id,
                             created_at=now,
+                            visibility_check=lambda assignee=assignee, q=q: can_read_questionnaire(
+                                db,
+                                assignee,
+                                q,
+                            ),
                         )
                         if created:
                             increment_deadline_results(results, "notifications_created", "overdue")
