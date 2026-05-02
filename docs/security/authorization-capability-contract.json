@@ -407,7 +407,7 @@
       "action": "List, count, mark, and configure current-user notifications plus manual KRI deadline check trigger",
       "actor_scope": "Notification reads and counts are current-user scoped and linked-resource filtered; mark-read mutations are current-user ownership scoped; manual KRI deadline trigger requires approval-resolution authority",
       "backend_authority": "backend/app/api/v1/endpoints/notifications.py",
-      "service_policy": "backend/app/services/notification_visibility.py applies risk, control, KRI, vendor, approval, and questionnaire visibility helpers; issue-linked notifications require issues:read plus issue visibility scope; backend/app/services/kri_deadline_service.py and backend/app/services/questionnaire_deadline_service.py use creation-time visibility gates where available; can_resolve_approvals gates manual KRI deadline trigger",
+      "service_policy": "backend/app/services/notification_visibility.py applies risk, control, KRI, vendor, approval, and questionnaire visibility helpers; issue-linked notifications require issues:read plus issue visibility scope; creation-time notification recipient loaders use user_selectinload_options(include_permissions=True) before can_read_* checks so manager-derived department scope is available; backend/app/services/kri_deadline_service.py and backend/app/services/questionnaire_deadline_service.py use creation-time visibility gates where available; can_resolve_approvals gates manual KRI deadline trigger",
       "response_capability": "None; notification payloads are scoped server-side",
       "frontend_gate": "frontend/src/components/notifications/ and frontend/src/services/notificationsApi.ts",
       "tests": [

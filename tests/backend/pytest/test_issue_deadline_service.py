@@ -16,7 +16,9 @@ from app.models import (
     NotificationType,
     Permission,
     RolePermission,
+    User,
 )
+from app.models.user import AccessScope
 from app.services.issue_deadline_decisions import (
     build_issue_due_soon_notification_plan,
     build_issue_escalation_notification_plan,
@@ -48,6 +50,29 @@ async def _grant(db: AsyncSession, role_id: int, resource: str, action: str) -> 
 
     await db.commit()
     db.expire_all()
+
+
+async def _create_manager_scoped_user(
+    db: AsyncSession,
+    *,
+    email: str,
+    name: str,
+    role_id: int,
+    manager_id: int,
+) -> User:
+    user = User(
+        email=email,
+        name=name,
+        role_id=role_id,
+        department_id=None,
+        manager_id=manager_id,
+        access_scope=AccessScope.MANAGER,
+        is_active=True,
+    )
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+    return user
 
 
 @pytest.mark.asyncio
@@ -131,6 +156,90 @@ async def test_issue_deadline_service_due_soon_overdue_and_escalation(
     assert result2["due_soon"] == 0
     assert result2["overdue"] == 0
     assert result2["escalated"] == 0
+
+
+@pytest.mark.asyncio
+async def test_issue_deadline_notifications_support_manager_scoped_recipients(
+    db_session: AsyncSession,
+    test_department,
+    test_role_risk_manager,
+    test_user_cro,
+):
+    role_id = test_role_risk_manager.id
+    manager_id = test_user_cro.id
+    department_id = test_department.id
+    await _grant(db_session, role_id, "issues", "read")
+    manager_scoped_owner = await _create_manager_scoped_user(
+        db_session,
+        email="issue.deadline.owner.manager.scope@test.com",
+        name="Manager Scoped Issue Deadline Owner",
+        role_id=role_id,
+        manager_id=manager_id,
+    )
+    manager_scoped_escalation = await _create_manager_scoped_user(
+        db_session,
+        email="issue.deadline.escalation.manager.scope@test.com",
+        name="Manager Scoped Issue Escalation Recipient",
+        role_id=role_id,
+        manager_id=manager_id,
+    )
+    now = datetime.now(UTC).replace(microsecond=0)
+    due_soon_issue = Issue(
+        title="Manager scoped due soon issue",
+        severity="medium",
+        status="open",
+        source_type="manual",
+        department_id=department_id,
+        owner_user_id=manager_scoped_owner.id,
+        created_by_id=manager_id,
+        opened_at=now - timedelta(days=1),
+        due_at=now + timedelta(days=2),
+    )
+    overdue_issue = Issue(
+        title="Manager scoped escalated issue",
+        severity=IssueSeverity.high,
+        status="in_progress",
+        source_type="manual",
+        department_id=department_id,
+        owner_user_id=manager_id,
+        created_by_id=manager_id,
+        opened_at=now - timedelta(days=8),
+        due_at=now - timedelta(days=3),
+    )
+    db_session.add_all([due_soon_issue, overdue_issue])
+    await db_session.commit()
+    owner_id = manager_scoped_owner.id
+    escalation_id = manager_scoped_escalation.id
+    due_soon_issue_id = due_soon_issue.id
+    overdue_issue_id = overdue_issue.id
+    db_session.expunge_all()
+
+    result = await IssueDeadlineService.check_issue_deadlines(db_session, now=now)
+
+    assert result["due_soon"] >= 1
+    assert result["escalated"] >= 1
+    owner_notification = (
+        await db_session.execute(
+            select(Notification).where(
+                Notification.user_id == owner_id,
+                Notification.resource_type == "issue",
+                Notification.resource_id == due_soon_issue_id,
+                Notification.type == NotificationType.ISSUE_DUE_SOON,
+            )
+        )
+    ).scalar_one_or_none()
+    escalation_notification = (
+        await db_session.execute(
+            select(Notification).where(
+                Notification.user_id == escalation_id,
+                Notification.resource_type == "issue",
+                Notification.resource_id == overdue_issue_id,
+                Notification.type == NotificationType.ISSUE_OVERDUE,
+            )
+        )
+    ).scalar_one_or_none()
+    assert owner_notification is not None
+    assert escalation_notification is not None
 
 
 @pytest.mark.asyncio

@@ -7,6 +7,7 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
+from app.api.v1.endpoints.issues._shared.notifications import _notify_exception_approved, _notify_issue_assigned
 from app.models import (
     Issue,
     IssueRemediationPlan,
@@ -19,6 +20,8 @@ from app.models import (
 )
 from app.models.user import AccessScope
 from app.services.outbox import dispatch_pending_outbox_events
+from app.services.outbox.handlers.issues import handle_issue_assigned, handle_issue_exception_approved
+from app.services.outbox.payloads import IssueAssignedPayload, IssueExceptionApprovedPayload
 
 
 async def _dispatch_outbox(async_engine: AsyncEngine) -> int:
@@ -62,6 +65,29 @@ async def _create_global_user_without_issue_access(
         role_id=role_id,
         department_id=department_id,
         access_scope=AccessScope.GLOBAL,
+        is_active=True,
+    )
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+    return user
+
+
+async def _create_manager_scoped_user(
+    db: AsyncSession,
+    *,
+    email: str,
+    name: str,
+    role_id: int,
+    manager_id: int,
+) -> User:
+    user = User(
+        email=email,
+        name=name,
+        role_id=role_id,
+        department_id=None,
+        manager_id=manager_id,
+        access_scope=AccessScope.MANAGER,
         is_active=True,
     )
     db.add(user)
@@ -534,6 +560,196 @@ async def test_issue_workflow_notifications(
     types = {n.type for n in notifications}
     assert NotificationType.ISSUE_ASSIGNED in types
     assert NotificationType.ISSUE_EXCEPTION_REQUESTED in types
+
+
+@pytest.mark.asyncio
+async def test_direct_issue_notifications_support_manager_scoped_recipients(
+    db_session: AsyncSession,
+    test_department,
+    test_role_employee: Role,
+    test_user_cro: User,
+) -> None:
+    role_id = test_role_employee.id
+    manager_id = test_user_cro.id
+    department_id = test_department.id
+    await _grant(db_session, role_id, "issues", "read")
+    recipient = await _create_manager_scoped_user(
+        db_session,
+        email="issue.direct.manager.scope@test.com",
+        name="Manager Scoped Direct Issue Recipient",
+        role_id=role_id,
+        manager_id=manager_id,
+    )
+    assigned_issue = Issue(
+        title="Direct manager scoped assignment",
+        severity="medium",
+        status="open",
+        source_type="manual",
+        department_id=department_id,
+        owner_user_id=recipient.id,
+        created_by_id=manager_id,
+    )
+    exception_issue = Issue(
+        title="Direct manager scoped exception",
+        severity="high",
+        status="open",
+        source_type="manual",
+        department_id=department_id,
+        owner_user_id=manager_id,
+        created_by_id=manager_id,
+    )
+    db_session.add_all([assigned_issue, exception_issue])
+    await db_session.commit()
+    recipient_id = recipient.id
+    assigned_issue_id = assigned_issue.id
+    exception_issue_id = exception_issue.id
+    db_session.expunge_all()
+    reloaded_assigned_issue = await db_session.get(Issue, assigned_issue_id)
+    reloaded_exception_issue = await db_session.get(Issue, exception_issue_id)
+    actor = User(id=manager_id, name="Detached Actor")
+    assert reloaded_assigned_issue is not None
+    assert reloaded_exception_issue is not None
+
+    await _notify_issue_assigned(
+        db_session,
+        issue=reloaded_assigned_issue,
+        owner_user_id=recipient_id,
+        actor=actor,
+    )
+    await _notify_exception_approved(
+        db_session,
+        issue=reloaded_exception_issue,
+        requested_by_id=recipient_id,
+        owner_user_id=None,
+        actor=actor,
+    )
+
+    notifications = (
+        (
+            await db_session.execute(
+                select(Notification).where(
+                    Notification.user_id == recipient_id,
+                    Notification.resource_type == "issue",
+                    Notification.resource_id.in_([assigned_issue_id, exception_issue_id]),
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    types = {notification.type for notification in notifications}
+    assert NotificationType.ISSUE_ASSIGNED in types
+    assert NotificationType.ISSUE_EXCEPTION_APPROVED in types
+
+
+@pytest.mark.asyncio
+async def test_issue_outbox_handler_supports_manager_scoped_recipient(
+    db_session: AsyncSession,
+    test_department,
+    test_role_employee: Role,
+    test_user_cro: User,
+) -> None:
+    role_id = test_role_employee.id
+    manager_id = test_user_cro.id
+    department_id = test_department.id
+    await _grant(db_session, role_id, "issues", "read")
+    recipient = await _create_manager_scoped_user(
+        db_session,
+        email="issue.outbox.manager.scope@test.com",
+        name="Manager Scoped Outbox Issue Recipient",
+        role_id=role_id,
+        manager_id=manager_id,
+    )
+    issue = Issue(
+        title="Outbox manager scoped assignment",
+        severity="medium",
+        status="open",
+        source_type="manual",
+        department_id=department_id,
+        owner_user_id=recipient.id,
+        created_by_id=manager_id,
+    )
+    db_session.add(issue)
+    await db_session.commit()
+    recipient_id = recipient.id
+    issue_id = issue.id
+    actor_id = manager_id
+    db_session.expunge_all()
+
+    await handle_issue_assigned(
+        db_session,
+        IssueAssignedPayload(issue_id=issue_id, owner_user_id=recipient_id, actor_user_id=actor_id),
+    )
+
+    notification = (
+        await db_session.execute(
+            select(Notification).where(
+                Notification.user_id == recipient_id,
+                Notification.resource_type == "issue",
+                Notification.resource_id == issue_id,
+                Notification.type == NotificationType.ISSUE_ASSIGNED,
+            )
+        )
+    ).scalar_one_or_none()
+    assert notification is not None
+
+
+@pytest.mark.asyncio
+async def test_issue_outbox_exception_handler_supports_manager_scoped_recipient(
+    db_session: AsyncSession,
+    test_department,
+    test_role_employee: Role,
+    test_user_employee: User,
+    test_user_cro: User,
+) -> None:
+    role_id = test_role_employee.id
+    manager_id = test_user_cro.id
+    department_id = test_department.id
+    actor_id = test_user_employee.id
+    await _grant(db_session, role_id, "issues", "read")
+    recipient = await _create_manager_scoped_user(
+        db_session,
+        email="issue.outbox.exception.manager.scope@test.com",
+        name="Manager Scoped Outbox Exception Recipient",
+        role_id=role_id,
+        manager_id=manager_id,
+    )
+    issue = Issue(
+        title="Outbox manager scoped exception approval",
+        severity="high",
+        status="open",
+        source_type="manual",
+        department_id=department_id,
+        owner_user_id=manager_id,
+        created_by_id=actor_id,
+    )
+    db_session.add(issue)
+    await db_session.commit()
+    recipient_id = recipient.id
+    issue_id = issue.id
+    db_session.expunge_all()
+
+    await handle_issue_exception_approved(
+        db_session,
+        IssueExceptionApprovedPayload(
+            issue_id=issue_id,
+            requested_by_id=recipient_id,
+            owner_user_id=None,
+            actor_user_id=actor_id,
+        ),
+    )
+
+    notification = (
+        await db_session.execute(
+            select(Notification).where(
+                Notification.user_id == recipient_id,
+                Notification.resource_type == "issue",
+                Notification.resource_id == issue_id,
+                Notification.type == NotificationType.ISSUE_EXCEPTION_APPROVED,
+            )
+        )
+    ).scalar_one_or_none()
+    assert notification is not None
 
 
 @pytest.mark.asyncio

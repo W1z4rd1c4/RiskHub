@@ -114,6 +114,18 @@ async def test_submit_creates_questionnaire_submitted_notification_for_rm_cro(
     db_session.add(rm_other_dept)
     await db_session.commit()
     await db_session.refresh(rm_other_dept)
+    rm_manager_scoped = User(
+        name="RM Manager Scoped",
+        email="rm_manager_scoped@test.com",
+        department_id=None,
+        manager_id=test_user_cro.id,
+        role_id=test_role_risk_manager.id,
+        is_active=True,
+        access_scope=AccessScope.MANAGER,
+    )
+    db_session.add(rm_manager_scoped)
+    await db_session.commit()
+    await db_session.refresh(rm_manager_scoped)
 
     send_resp = await client_cro.post(f"/api/v1/risks/{risk_owned_by_employee.id}/questionnaires/send")
     assert send_resp.status_code == 201
@@ -135,7 +147,7 @@ async def test_submit_creates_questionnaire_submitted_notification_for_rm_cro(
     assert submit_resp.status_code == 200
     await _dispatch_outbox(async_engine)
 
-    for recipient_id in (test_user_cro.id, test_user_risk_manager.id):
+    for recipient_id in (test_user_cro.id, test_user_risk_manager.id, rm_manager_scoped.id):
         res = await db_session.execute(
             select(Notification).where(
                 Notification.user_id == recipient_id,

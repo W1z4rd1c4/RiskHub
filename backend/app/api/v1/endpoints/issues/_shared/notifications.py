@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.core.permissions import can_read_issue_id
+from app.core.user_query_options import user_selectinload_options
 from app.models import Issue, Permission, Role, RolePermission, User
 from app.models.notification import NotificationType
 from app.models.user import AccessScope
@@ -15,9 +15,7 @@ async def _get_active_user_with_permissions(db: AsyncSession, user_id: int) -> U
     return (
         await db.execute(
             select(User)
-            .options(
-                selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission),
-            )
+            .options(*user_selectinload_options(include_permissions=True))
             .where(User.id == user_id, User.is_active.is_(True))
         )
     ).scalar_one_or_none()

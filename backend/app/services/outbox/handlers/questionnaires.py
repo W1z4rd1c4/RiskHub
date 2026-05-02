@@ -7,13 +7,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.permissions import can_read_risk_id
+from app.core.user_query_options import user_selectinload_options
 from app.i18n import t
 from app.models import (
     NotificationType,
     RiskQuestionnaire,
     RiskQuestionnaireClarification,
     Role,
-    RolePermission,
     User,
 )
 from app.models.role import RoleType
@@ -52,7 +52,6 @@ async def _load_clarification(db: AsyncSession, clarification_id: int) -> RiskQu
 
 
 async def _questionnaire_rm_cro_recipients(db: AsyncSession, *, actor_user_id: int) -> list[User]:
-    permission_load = selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
     recipients_stmt = (
         select(User)
         .join(Role, User.role_id == Role.id)
@@ -61,7 +60,7 @@ async def _questionnaire_rm_cro_recipients(db: AsyncSession, *, actor_user_id: i
             User.id != actor_user_id,
             Role.name.in_([RoleType.RISK_MANAGER, RoleType.CRO]),
         )
-        .options(permission_load)
+        .options(*user_selectinload_options(include_permissions=True))
     )
     return list((await db.execute(recipients_stmt)).scalars().all())
 

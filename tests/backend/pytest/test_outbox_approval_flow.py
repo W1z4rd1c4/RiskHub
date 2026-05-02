@@ -22,7 +22,9 @@ from app.models import (
 from app.models.key_risk_indicator import KRIFrequency
 from app.models.kri_history import KRIValueHistory
 from app.models.notification import NotificationType
+from app.models.user import AccessScope
 from app.services.kri_history_service import KRIHistoryService
+from app.services.notification_service import NotificationService
 from app.services.outbox import dispatch_pending_outbox_events
 from app.services.outbox.errors import FatalOutboxError, RetryableOutboxError
 from app.services.outbox.payloads import OUTBOX_PAYLOAD_MODELS
@@ -175,6 +177,69 @@ async def test_queue_created_approval_notifies_primary_approver_after_dispatch(
         )
     ).scalar_one_or_none()
     assert primary_notification is not None
+
+
+@pytest.mark.asyncio
+async def test_scenario_approval_notification_supports_manager_scoped_approver(
+    db_session: AsyncSession,
+    test_department,
+    test_role_risk_manager,
+    test_user_cro: User,
+) -> None:
+    role_id = test_role_risk_manager.id
+    manager_id = test_user_cro.id
+    department_id = test_department.id
+    approver = User(
+        name="Manager Scoped Scenario Approver",
+        email="manager.scoped.scenario.approver@test.com",
+        department_id=None,
+        manager_id=manager_id,
+        role_id=role_id,
+        is_active=True,
+        access_scope=AccessScope.MANAGER,
+    )
+    db_session.add(approver)
+    await db_session.flush()
+
+    risk = await _create_outbox_risk(
+        db_session,
+        risk_id_code="OUTBOX-SCENARIO-MANAGER-001",
+        department_id=department_id,
+        owner_id=manager_id,
+    )
+    approval = ApprovalRequest(
+        resource_type=ApprovalResourceType.RISK,
+        resource_id=risk.id,
+        resource_name=risk.name,
+        requested_by_id=manager_id,
+        reason="Manager-scoped scenario approval notification",
+        action_type=ApprovalActionType.EDIT,
+        pending_changes={"name": {"old": risk.name, "new": "Updated"}},
+        status=ApprovalStatus.PENDING,
+        scenario_approver_roles=["risk_manager"],
+    )
+    db_session.add(approval)
+    await db_session.commit()
+    approver_id = approver.id
+    approval_id = approval.id
+    db_session.expunge_all()
+    approval = await db_session.get(ApprovalRequest, approval_id)
+    assert approval is not None
+
+    created = await NotificationService.notify_approvers(db_session, approval)
+
+    assert any(notification.user_id == approver_id for notification in created)
+    notification = (
+        await db_session.execute(
+            select(Notification).where(
+                Notification.user_id == approver_id,
+                Notification.resource_type == "approval",
+                Notification.resource_id == approval_id,
+                Notification.type == NotificationType.APPROVAL_PENDING,
+            )
+        )
+    ).scalar_one_or_none()
+    assert notification is not None
 
 
 @pytest.mark.asyncio

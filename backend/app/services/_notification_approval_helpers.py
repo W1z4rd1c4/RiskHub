@@ -1,8 +1,8 @@
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.core.permissions import can_read_control_id, can_read_kri_id, can_read_risk_id
+from app.core.user_query_options import user_selectinload_options
 from app.models.approval_request import ApprovalRequest, ApprovalResourceType
 from app.models.role import Permission, Role, RolePermission
 from app.models.user import AccessScope, User
@@ -14,7 +14,6 @@ def approval_action_label(approval: ApprovalRequest) -> str:
 
 
 async def load_approval_notification_candidates(db: AsyncSession) -> list[User]:
-    permission_load = selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
     candidates_stmt = (
         select(User)
         .join(Role, User.role_id == Role.id)
@@ -27,7 +26,7 @@ async def load_approval_notification_candidates(db: AsyncSession) -> list[User]:
                 (Permission.resource.in_(("approvals", "*")) & Permission.action.in_(("write", "*"))),
             ),
         )
-        .options(permission_load)
+        .options(*user_selectinload_options(include_permissions=True))
     )
     candidates_result = await db.execute(candidates_stmt)
     return list(candidates_result.unique().scalars().all())
@@ -38,7 +37,6 @@ async def load_scenario_approval_notification_candidates(db: AsyncSession, appro
     if roles is None:
         return await load_approval_notification_candidates(db)
 
-    permission_load = selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
     role_names = [role for role in roles if role != RISK_OWNER_APPROVER_ROLE]
     candidates: list[User] = []
 
@@ -47,7 +45,7 @@ async def load_scenario_approval_notification_candidates(db: AsyncSession, appro
             select(User)
             .join(Role, User.role_id == Role.id)
             .where(User.is_active.is_(True), Role.name.in_(role_names))
-            .options(permission_load)
+            .options(*user_selectinload_options(include_permissions=True))
         )
         candidates.extend(result.unique().scalars().all())
 
@@ -55,7 +53,7 @@ async def load_scenario_approval_notification_candidates(db: AsyncSession, appro
         result = await db.execute(
             select(User)
             .where(User.id == approval.primary_approver_id, User.is_active.is_(True))
-            .options(permission_load)
+            .options(*user_selectinload_options(include_permissions=True))
         )
         primary = result.scalar_one_or_none()
         if primary is not None:

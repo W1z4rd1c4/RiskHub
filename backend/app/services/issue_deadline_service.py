@@ -12,6 +12,7 @@ from sqlalchemy.orm import selectinload
 from app.core.activity_logger import log_activity
 from app.core.datetime_utils import coerce_utc, utc_now
 from app.core.permissions import can_read_issue_id
+from app.core.user_query_options import user_selectinload_options
 from app.models import Issue, Role, RolePermission, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.models.global_config import ConfigDefaults, get_config_int
@@ -76,16 +77,16 @@ class IssueDeadlineService:
     async def _users_by_ids(db: AsyncSession, user_ids: set[int]) -> dict[int, User]:
         if not user_ids:
             return {}
-        permission_load = selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
         result = await db.execute(
-            select(User).options(permission_load).where(User.id.in_(user_ids), User.is_active.is_(True))
+            select(User)
+            .options(*user_selectinload_options(include_permissions=True))
+            .where(User.id.in_(user_ids), User.is_active.is_(True))
         )
         return {user.id: user for user in result.scalars().all()}
 
     @staticmethod
     async def _escalation_recipients(db: AsyncSession) -> list[User]:
         role_names = [RoleType.RISK_MANAGER.value, RoleType.CRO.value]
-        permission_load = selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
         stmt = (
             select(User)
             .join(Role, User.role_id == Role.id)
@@ -95,7 +96,7 @@ class IssueDeadlineService:
             .where(Role.name.in_(role_names))
             .where(Permission.resource.in_(("issues", "*")))
             .where(Permission.action.in_(("read", "*")))
-            .options(permission_load)
+            .options(*user_selectinload_options(include_permissions=True))
             .distinct()
         )
         return list((await db.execute(stmt)).scalars().all())
