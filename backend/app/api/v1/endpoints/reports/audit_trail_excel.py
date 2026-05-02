@@ -6,7 +6,7 @@ from sqlalchemy import Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.permissions import can_read_risk_id, control_visibility_clause
+from app.core.permissions import control_visibility_clause, visible_risk_ids
 from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import Control, ControlExecution, User
@@ -58,7 +58,17 @@ def _audit_trail_query(
     return query.order_by(ControlExecution.executed_at.desc(), ControlExecution.id.desc())
 
 
-async def _execution_linked_risks(db: AsyncSession, current_user: User, execution: ControlExecution) -> str:
+def _execution_candidate_risk_ids(executions: list[ControlExecution]) -> set[int]:
+    return {
+        risk.id
+        for execution in executions
+        if execution.control and hasattr(execution.control, "risk_links")
+        for link in execution.control.risk_links
+        if (risk := getattr(link, "risk", None)) is not None
+    }
+
+
+def _execution_linked_risks(execution: ControlExecution, visible_linked_risk_ids: set[int]) -> str:
     if not execution.control or not hasattr(execution.control, "risk_links"):
         return ""
 
@@ -67,7 +77,7 @@ async def _execution_linked_risks(db: AsyncSession, current_user: User, executio
         risk = getattr(link, "risk", None)
         if not risk:
             continue
-        if not await can_read_risk_id(db, current_user, risk.id):
+        if risk.id not in visible_linked_risk_ids:
             continue
         display_name = (risk.name or risk.process or "").strip()
         values.append(f"R-{risk.id}: {display_name[:30]}" if display_name else f"R-{risk.id}")
@@ -93,6 +103,7 @@ async def _to_csv_rows(
         "Next Scheduled",
         "Linked Risks",
     ]
+    visible_linked_risk_ids = await visible_risk_ids(db, current_user, _execution_candidate_risk_ids(executions))
 
     rows = []
     for execution in executions:
@@ -109,7 +120,7 @@ async def _to_csv_rows(
                 execution.evidence_reference or "",
                 execution.notes or "",
                 execution.next_scheduled.strftime("%Y-%m-%d") if execution.next_scheduled else "",
-                await _execution_linked_risks(db, current_user, execution),
+                _execution_linked_risks(execution, visible_linked_risk_ids),
             ]
         )
     return headers, rows

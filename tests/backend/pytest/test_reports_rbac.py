@@ -12,6 +12,7 @@ import pytest_asyncio
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.v1.endpoints.reports import audit_trail_excel as audit_trail_export_module
 from app.models import (
     ActivityLog,
     Control,
@@ -855,6 +856,86 @@ class TestUnifiedExportEndpoints:
         assert int(summary["Total Controls"]) == int(before_summary["Total Controls"]) + 1
         assert audit_response.status_code == 200
         assert "Summary Visible Cross Dept Control" in audit_response.content.decode("utf-8")
+
+    @pytest.mark.asyncio
+    async def test_audit_export_linked_risks_use_set_based_visibility(
+        self,
+        client_employee: AsyncClient,
+        db_session: AsyncSession,
+        test_department: Department,
+        second_department: Department,
+        test_user_employee: User,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        async def fail_scalar_risk_visibility(*args, **kwargs) -> bool:
+            raise AssertionError("audit export linked-risk serialization must use set-based visibility")
+
+        monkeypatch.setattr(
+            audit_trail_export_module,
+            "can_read_risk_id",
+            fail_scalar_risk_visibility,
+            raising=False,
+        )
+
+        visible_risk = Risk(
+            risk_id_code="AUDIT-VISIBLE-RISK-001",
+            name="Audit Visible Risk",
+            process="Operations",
+            description="Visible linked audit risk",
+            category="Operational",
+            department_id=test_department.id,
+            owner_id=None,
+            risk_type="operational",
+            gross_probability=3,
+            gross_impact=3,
+            net_probability=2,
+            net_impact=2,
+            status="active",
+        )
+        hidden_risk = Risk(
+            risk_id_code="AUDIT-HIDDEN-RISK-001",
+            name="Audit Hidden Risk",
+            process="Finance",
+            description="Hidden linked audit risk",
+            category="Operational",
+            department_id=second_department.id,
+            owner_id=None,
+            risk_type="operational",
+            gross_probability=3,
+            gross_impact=3,
+            net_probability=2,
+            net_impact=2,
+            status="active",
+        )
+        control = Control(
+            name="Audit Linked Risk Control",
+            description="Visible control with mixed linked risks",
+            department_id=test_department.id,
+            control_owner_id=None,
+            status="active",
+        )
+        db_session.add_all([visible_risk, hidden_risk, control])
+        await db_session.flush()
+        db_session.add_all(
+            [
+                ControlRiskLink(risk_id=visible_risk.id, control_id=control.id),
+                ControlRiskLink(risk_id=hidden_risk.id, control_id=control.id),
+                ControlExecution(
+                    control_id=control.id,
+                    executed_by_id=test_user_employee.id,
+                    result="passed",
+                    executed_at=datetime.now(UTC),
+                ),
+            ]
+        )
+        await db_session.commit()
+
+        response = await client_employee.get("/api/v1/reports/audit-trail/export?format=csv")
+
+        assert response.status_code == 200
+        payload = response.content.decode("utf-8")
+        assert "Audit Visible Risk" in payload
+        assert "Audit Hidden Risk" not in payload
 
     @pytest.mark.asyncio
     async def test_kri_as_of_export_uses_id_tiebreaker_for_latest_history(

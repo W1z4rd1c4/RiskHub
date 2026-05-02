@@ -1,5 +1,35 @@
 import { useCallback, useRef, useState } from 'react';
 
+import { isForbiddenApiError } from '@/services/apiClient';
+
+interface CollectionLoadFailureOptions {
+    clearOnNonForbidden?: boolean;
+    fallbackErrorKey?: string;
+    toErrorKey?: (error: unknown) => string | null;
+}
+
+interface CollectionLoadFailureResolution {
+    errorKey: string | null;
+    isAccessDenied: boolean;
+    shouldClearCollection: boolean;
+    shouldMarkUnloaded: boolean;
+}
+
+export function resolveCollectionLoadFailure(
+    error: unknown,
+    options: CollectionLoadFailureOptions = {}
+): CollectionLoadFailureResolution {
+    const isAccessDenied = isForbiddenApiError(error);
+    return {
+        errorKey: isAccessDenied
+            ? null
+            : options.toErrorKey?.(error) ?? options.fallbackErrorKey ?? null,
+        isAccessDenied,
+        shouldClearCollection: isAccessDenied || options.clearOnNonForbidden === true,
+        shouldMarkUnloaded: isAccessDenied,
+    };
+}
+
 export function useLatestRequestGuard() {
     const latestRequestIdRef = useRef(0);
 

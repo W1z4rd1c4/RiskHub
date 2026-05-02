@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-import asyncio
 from dataclasses import dataclass
 from typing import Any
 
-from sqlalchemy import or_
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.mappers.vendor import vendor_to_read
@@ -16,8 +15,8 @@ from app.api.v1.endpoints._collection import (
     coerce_optional_string,
     merge_collection_filters,
 )
-from app.core.permissions import can_read_risk_id
-from app.models import User, Vendor
+from app.core.permissions import visible_risk_ids
+from app.models import User, Vendor, VendorRiskLink
 from app.schemas.vendor import VendorLinkedRiskSummary, VendorRead, VendorStatusEnum, VendorTypeEnum
 from app.services._vendor_workflow import apply_vendor_visibility_scope
 
@@ -94,20 +93,23 @@ async def get_visible_risk_ids(
     current_user: User,
     vendors: list[Vendor],
 ) -> set[int]:
-    unique_risk_ids = {
-        link.risk_id
-        for vendor in vendors
-        for link in getattr(vendor, "risk_links", []) or []
-        if getattr(link, "risk", None) is not None
-    }
+    vendor_ids = {vendor.id for vendor in vendors}
+    if not vendor_ids:
+        return set()
+
+    unique_risk_ids = set(
+        (
+            await db.execute(
+                select(VendorRiskLink.risk_id).where(VendorRiskLink.vendor_id.in_(vendor_ids))
+            )
+        )
+        .scalars()
+        .all()
+    )
     if not unique_risk_ids:
         return set()
 
-    ordered_risk_ids = sorted(unique_risk_ids)
-    visibility_results = await asyncio.gather(
-        *(can_read_risk_id(db, current_user, risk_id) for risk_id in ordered_risk_ids)
-    )
-    return {risk_id for risk_id, can_read in zip(ordered_risk_ids, visibility_results, strict=False) if can_read}
+    return await visible_risk_ids(db, current_user, unique_risk_ids)
 
 
 def serialize_vendor_linked_risks(

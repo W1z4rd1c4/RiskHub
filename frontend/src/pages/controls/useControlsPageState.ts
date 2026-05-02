@@ -4,7 +4,6 @@ import type { ExportDialogSubmitPayload } from '@/components/reports/ExportDialo
 import type { ViewMode } from '@/components/tables';
 import { DEFAULT_LIST_PAGE_SIZE } from '@/constants/list';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
-import { isForbiddenApiError } from '@/services/apiClient';
 import { controlApi } from '@/services/controlApi';
 import { loadCollectionPage } from '@/services/collectionApi';
 import { logError } from '@/services/logger';
@@ -20,6 +19,7 @@ import {
 } from './controlsPagePresentation';
 import {
     getTotalPages,
+    resolveCollectionLoadFailure,
     useCollectionGroupSelection,
     useExportDialogState,
     useLatestRequestGuard,
@@ -96,18 +96,20 @@ export function useControlsPageState() {
         } catch (error) {
             logError('Error fetching controls:', error);
             if (isCurrentRequest(requestId)) {
-                const accessDenied = isForbiddenApiError(error);
-                setIsAccessDenied(accessDenied);
-                if (accessDenied) {
+                const failure = resolveCollectionLoadFailure(error, {
+                    fallbackErrorKey: 'errors.load_failed',
+                });
+                setIsAccessDenied(failure.isAccessDenied);
+                if (failure.shouldClearCollection) {
                     setItems([]);
                     setGroups([]);
                     setCapabilities(null);
                     setTotalCount(0);
-                    hasLoadedControlsRef.current = false;
-                    setErrorKey(null);
-                } else {
-                    setErrorKey('errors.load_failed');
                 }
+                if (failure.shouldMarkUnloaded) {
+                    hasLoadedControlsRef.current = false;
+                }
+                setErrorKey(failure.errorKey);
             }
         } finally {
             if (isCurrentRequest(requestId)) {

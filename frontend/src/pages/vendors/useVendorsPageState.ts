@@ -4,7 +4,7 @@ import type { ExportDialogSubmitPayload } from '@/components/reports/ExportDialo
 import type { SortDirection, ViewMode } from '@/components/tables';
 import { DEFAULT_LIST_PAGE_SIZE } from '@/constants/list';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
-import { apiClient, isForbiddenApiError } from '@/services/apiClient';
+import { apiClient } from '@/services/apiClient';
 import { loadCollectionPage } from '@/services/collectionApi';
 import { reportApi } from '@/services/reportApi';
 import { vendorApi } from '@/services/vendorApi';
@@ -18,6 +18,7 @@ import {
 } from './vendorsPagePresentation';
 import {
     getTotalPages,
+    resolveCollectionLoadFailure,
     useCollectionGroupSelection,
     useExportDialogState,
     useLatestRequestGuard,
@@ -100,14 +101,19 @@ export function useVendorsPageState() {
             if (!isCurrentRequest(requestId)) {
                 return;
             }
-            const accessDenied = isForbiddenApiError(error);
-            setIsAccessDenied(accessDenied);
-            setErrorKey(accessDenied ? null : apiClient.toUiMessageKey(error));
-            setItems([]);
-            setGroups([]);
-            setCapabilities(null);
-            setTotalCount(0);
-            if (accessDenied) {
+            const failure = resolveCollectionLoadFailure(error, {
+                clearOnNonForbidden: true,
+                toErrorKey: apiClient.toUiMessageKey,
+            });
+            setIsAccessDenied(failure.isAccessDenied);
+            setErrorKey(failure.errorKey);
+            if (failure.shouldClearCollection) {
+                setItems([]);
+                setGroups([]);
+                setCapabilities(null);
+                setTotalCount(0);
+            }
+            if (failure.shouldMarkUnloaded) {
                 hasLoadedVendorsRef.current = false;
             }
         } finally {

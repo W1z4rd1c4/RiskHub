@@ -63,6 +63,12 @@ from ._permissions.sensitive import (
     is_high_risk_for_approval,
     is_high_risk_for_approval_async,
 )
+from ._permissions.visible_ids import (
+    visible_control_ids,
+    visible_kri_ids,
+    visible_risk_ids,
+    visible_vendor_ids,
+)
 
 __all__ = [
     "is_privileged_user",
@@ -106,4 +112,8 @@ __all__ = [
     "is_risk_control_owner",
     "get_control_ids_where_owner",
     "get_risk_ids_where_control_owner",
+    "visible_risk_ids",
+    "visible_control_ids",
+    "visible_kri_ids",
+    "visible_vendor_ids",
 ]

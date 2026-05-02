@@ -1,8 +1,11 @@
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.v1.endpoints.vendors import _listing as vendor_listing
 from app.api.v1.endpoints.vendors import crud as vendor_crud
+from app.core.user_query_options import user_selectinload_options
 from app.models import Department, Permission, Risk, Role, RolePermission, User, Vendor, VendorRiskLink
 from app.models.user import AccessScope
 
@@ -405,9 +408,15 @@ async def test_vendors_list_includes_visible_linked_risks_and_empty_arrays(
     test_department: Department,
     test_role_employee: Role,
     test_user_employee: User,
+    monkeypatch: pytest.MonkeyPatch,
 ):
     await _grant(db_session, test_role_employee, "vendors", "read")
     await _grant(db_session, test_role_employee, "risks", "read")
+
+    async def fail_scalar_risk_visibility(*args, **kwargs) -> bool:
+        raise AssertionError("vendor list linked-risk serialization must use set-based visibility")
+
+    monkeypatch.setattr(vendor_listing, "can_read_risk_id", fail_scalar_risk_visibility, raising=False)
 
     vendor_with_links = Vendor(
         name="Linked Vendor",
@@ -470,6 +479,65 @@ async def test_vendors_list_includes_visible_linked_risks_and_empty_arrays(
         },
     ]
     assert items["Unlinked Vendor"]["linked_risks"] == []
+
+
+@pytest.mark.asyncio
+async def test_vendors_list_linked_risks_supports_manager_derived_scope(
+    db_session: AsyncSession,
+    test_department: Department,
+    test_role_employee: Role,
+    test_user_cro: User,
+) -> None:
+    await _grant(db_session, test_role_employee, "vendors", "read")
+    await _grant(db_session, test_role_employee, "risks", "read")
+    manager_scoped_user = User(
+        name="Manager Scoped Vendor Reader",
+        email="manager.scoped.vendor.reader@test.com",
+        department_id=None,
+        manager_id=test_user_cro.id,
+        role_id=test_role_employee.id,
+        is_active=True,
+        access_scope=AccessScope.MANAGER,
+    )
+    vendor = Vendor(
+        name="Manager Scope Linked Vendor",
+        process="Claims",
+        subprocess=None,
+        department_id=test_department.id,
+        outsourcing_owner_user_id=test_user_cro.id,
+        vendor_type="ict",
+        risk_score_1_5=4,
+        supports_important_core_insurance_function=False,
+        dora_relevant=False,
+        is_significant_vendor=False,
+        has_alternative_providers=False,
+        status="active",
+    )
+    risk = _make_risk(name="Manager Visible Risk", risk_id_code="R-MGR-001", department_id=test_department.id)
+    db_session.add_all([manager_scoped_user, vendor, risk])
+    await db_session.commit()
+    await db_session.refresh(manager_scoped_user)
+    await db_session.refresh(vendor)
+    await db_session.refresh(risk)
+
+    db_session.add(VendorRiskLink(vendor_id=vendor.id, risk_id=risk.id))
+    await db_session.commit()
+
+    loaded_user = (
+        await db_session.execute(
+            select(User)
+            .options(*user_selectinload_options(include_permissions=True))
+            .where(User.id == manager_scoped_user.id)
+        )
+    ).scalar_one()
+
+    visible_risk_ids = await vendor_listing.get_visible_risk_ids(
+        db_session,
+        current_user=loaded_user,
+        vendors=[vendor],
+    )
+
+    assert visible_risk_ids == {risk.id}
 
 
 @pytest.mark.asyncio

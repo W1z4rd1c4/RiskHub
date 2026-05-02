@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { DEFAULT_LIST_PAGE_SIZE } from '@/constants/list';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
-import { apiClient, isForbiddenApiError } from '@/services/apiClient';
+import { apiClient } from '@/services/apiClient';
 import { loadCollectionPage } from '@/services/collectionApi';
 import { issuesApi } from '@/services/issuesApi';
 import { reportApi } from '@/services/reportApi';
@@ -24,6 +24,7 @@ import {
 } from './issuesPagePresentation';
 import {
     getTotalPages,
+    resolveCollectionLoadFailure,
     useCollectionGroupSelection,
     useExportDialogState,
     useLatestRequestGuard,
@@ -123,13 +124,21 @@ export function useIssuesPageState({ initialState }: UseIssuesPageStateOptions) 
             if (!isCurrentRequest(requestId)) {
                 return;
             }
-            const accessDenied = isForbiddenApiError(loadError);
-            setIsAccessDenied(accessDenied);
-            setErrorKey(accessDenied ? null : apiClient.toUiMessageKey(loadError));
-            setItems([]);
-            setGroups([]);
-            setCapabilities(null);
-            setTotalCount(0);
+            const failure = resolveCollectionLoadFailure(loadError, {
+                clearOnNonForbidden: true,
+                toErrorKey: apiClient.toUiMessageKey,
+            });
+            setIsAccessDenied(failure.isAccessDenied);
+            setErrorKey(failure.errorKey);
+            if (failure.shouldClearCollection) {
+                setItems([]);
+                setGroups([]);
+                setCapabilities(null);
+                setTotalCount(0);
+            }
+            if (failure.shouldMarkUnloaded) {
+                hasLoadedIssuesRef.current = false;
+            }
         } finally {
             if (isCurrentRequest(requestId)) {
                 setIsLoading(false);

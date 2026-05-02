@@ -5,7 +5,7 @@ import type { ViewMode } from '@/components/tables';
 import { DEFAULT_LIST_PAGE_SIZE, LIST_SEARCH_DEBOUNCE_MS } from '@/constants/list';
 import { KRI_MONITORING_FILTER_VALUES } from '@/lib/monitoringStatus';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
-import { apiClient, isForbiddenApiError } from '@/services/apiClient';
+import { apiClient } from '@/services/apiClient';
 import { loadCollectionPage } from '@/services/collectionApi';
 import { kriApi } from '@/services/kriApi';
 import { reportApi } from '@/services/reportApi';
@@ -22,6 +22,7 @@ import {
     type KriStatusFilter,
     type KriTimelinessFilter,
 } from './kriPagePresentation';
+import { resolveCollectionLoadFailure } from '../shared/collectionPageState';
 
 const TIMELINESS_FILTER_VALUES = ['due_soon'] as const;
 
@@ -94,14 +95,19 @@ export function useKrisPageState({ searchParams, setSearchParams }: UseKrisPageS
             if (requestId !== latestRequestIdRef.current) {
                 return;
             }
-            const accessDenied = isForbiddenApiError(error);
-            setIsAccessDenied(accessDenied);
-            setErrorKey(accessDenied ? null : apiClient.toUiMessageKey(error));
-            setItems([]);
-            setGroups([]);
-            setCapabilities(null);
-            setTotalCount(0);
-            if (accessDenied) {
+            const failure = resolveCollectionLoadFailure(error, {
+                clearOnNonForbidden: true,
+                toErrorKey: apiClient.toUiMessageKey,
+            });
+            setIsAccessDenied(failure.isAccessDenied);
+            setErrorKey(failure.errorKey);
+            if (failure.shouldClearCollection) {
+                setItems([]);
+                setGroups([]);
+                setCapabilities(null);
+                setTotalCount(0);
+            }
+            if (failure.shouldMarkUnloaded) {
                 hasLoadedKrisRef.current = false;
             }
         } finally {

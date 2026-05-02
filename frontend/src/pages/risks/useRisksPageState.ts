@@ -5,7 +5,6 @@ import type { SortDirection, ViewMode } from '@/components/tables';
 import { DEFAULT_LIST_PAGE_SIZE } from '@/constants/list';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { loadCollectionPage } from '@/services/collectionApi';
-import { isForbiddenApiError } from '@/services/apiClient';
 import { logError } from '@/services/logger';
 import { reportApi } from '@/services/reportApi';
 import { riskApi } from '@/services/riskApi';
@@ -21,6 +20,7 @@ import {
 } from './risksPagePresentation';
 import {
     getTotalPages,
+    resolveCollectionLoadFailure,
     useCollectionGroupSelection,
     useExportDialogState,
     useLatestRequestGuard,
@@ -117,18 +117,20 @@ export function useRisksPageState({ initialState }: UseRisksPageStateOptions) {
         } catch (error) {
             logError('[RisksPage] Error fetching risks:', error);
             if (isCurrentRequest(requestId)) {
-                const accessDenied = isForbiddenApiError(error);
-                setIsAccessDenied(accessDenied);
-                if (accessDenied) {
+                const failure = resolveCollectionLoadFailure(error, {
+                    fallbackErrorKey: 'errors.load_failed',
+                });
+                setIsAccessDenied(failure.isAccessDenied);
+                if (failure.shouldClearCollection) {
                     setItems([]);
                     setGroups([]);
                     setCapabilities(null);
                     setTotalCount(0);
-                    hasLoadedRisksRef.current = false;
-                    setErrorKey(null);
-                } else {
-                    setErrorKey('errors.load_failed');
                 }
+                if (failure.shouldMarkUnloaded) {
+                    hasLoadedRisksRef.current = false;
+                }
+                setErrorKey(failure.errorKey);
             }
         } finally {
             if (isCurrentRequest(requestId)) {
