@@ -9,7 +9,7 @@ import { UsersTable } from '@/components/access/UsersTable';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Pagination } from '@/components/tables/Pagination';
 import { ADUserPicker } from '@/components/users/ADUserPicker';
-import { usePermissions } from '@/hooks/usePermissions';
+import { useAuth } from '@/contexts/AuthContext';
 import { useTranslation } from '@/i18n/hooks';
 import { adminApi } from '@/services/adminApi';
 import { logError } from '@/services/logger';
@@ -33,7 +33,7 @@ function resolveUsersPageMode(authz: ReturnType<typeof useAuthz>): UsersPageMode
 
 export function UsersPage() {
     const { t } = useTranslation(['admin', 'common', 'errorKeys']);
-    const { user: currentUser } = usePermissions();
+    const { user: currentUser } = useAuth();
     const authz = useAuthz();
     const location = useLocation();
     const navigate = useNavigate();
@@ -68,7 +68,7 @@ export function UsersPage() {
         users,
     } = useUsersPageData({
         currentUserLoaded: Boolean(currentUser),
-        loadDirectoryCapabilities: authz.isPlatformAdmin,
+        loadDirectoryCapabilities: authz.canViewUserDirectory,
         pageMode,
     });
 
@@ -178,8 +178,9 @@ export function UsersPage() {
     const displayUsers = isAccessMode ? filters.filteredAccessUsers : [];
     const displayDirectoryUsers = !isAccessMode ? filters.filteredDirectoryUsers : [];
     const showAccessStats = isAccessMode && !loadErrorKey;
+    const adminRoleFacet = directoryAvailableRoles.find((role) => role.name === 'admin');
     const accessRoleOptions = [
-        ...(authz.isPlatformAdmin ? [{ value: 'admin', label: t('access.roles.admins') }] : []),
+        ...(adminRoleFacet ? [{ value: adminRoleFacet.name, label: adminRoleFacet.display_name }] : []),
         { value: 'cro', label: t('access.roles.cros') },
         { value: 'risk_manager', label: t('access.roles.risk_managers') },
         { value: 'department_head', label: t('access.roles.dept_heads') },

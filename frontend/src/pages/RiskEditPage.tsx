@@ -7,6 +7,7 @@ import { useTranslation } from '@/i18n/hooks';
 import { logError } from '@/services/logger';
 import { riskApi } from '@/services/riskApi';
 import type { Risk } from '@/types/risk';
+import { FormCapabilityGateState } from './shared/FormCapabilityGateState';
 
 export function RiskEditPage() {
     const { id } = useParams<{ id: string }>();
@@ -34,11 +35,7 @@ export function RiskEditPage() {
     }, [id, navigate]);
 
     if (isLoading) {
-        return (
-            <div className="flex items-center justify-center h-[40vh]">
-                <div className="w-8 h-8 border-4 border-accent border-t-transparent rounded-full animate-spin" />
-            </div>
-        );
+        return <FormCapabilityGateState state="loading" />;
     }
 
     return (
@@ -55,7 +52,11 @@ export function RiskEditPage() {
                 </div>
             </div>
 
-            {risk && <RiskForm initialData={risk} isEdit={true} />}
+            {risk?.capabilities?.can_update === true ? (
+                <RiskForm initialData={risk} isEdit={true} />
+            ) : (
+                <FormCapabilityGateState state="denied" />
+            )}
         </div>
     );
 }

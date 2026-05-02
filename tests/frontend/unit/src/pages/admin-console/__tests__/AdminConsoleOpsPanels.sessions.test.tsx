@@ -6,6 +6,7 @@ import { createTestQueryClient } from '@test/queryClient';
 import { ApiClientError } from '@/services/apiClient';
 
 const getActiveSessionsMock = vi.fn();
+const getCapabilitiesMock = vi.fn();
 const revokeSessionMock = vi.fn();
 const checkAllDirectoryUsersMock = vi.fn();
 const invalidateQueriesMock = vi.fn();
@@ -20,6 +21,7 @@ vi.mock('@/i18n/hooks', () => ({
 vi.mock('@/services/adminApi', () => ({
     adminApi: {
         getActiveSessions: (...args: unknown[]) => getActiveSessionsMock(...args),
+        getCapabilities: (...args: unknown[]) => getCapabilitiesMock(...args),
         revokeSession: (...args: unknown[]) => revokeSessionMock(...args),
         checkAllDirectoryUsers: (...args: unknown[]) => checkAllDirectoryUsersMock(...args),
     },
@@ -56,6 +58,12 @@ describe('SessionsPanel', () => {
                 is_active: true,
             },
         ]);
+        getCapabilitiesMock.mockResolvedValue({
+            can_revoke_sessions: true,
+            can_run_directory_check_all: true,
+            can_update_log_config: true,
+            can_export_loaded_audit_logs: true,
+        });
         checkAllDirectoryUsersMock.mockResolvedValue({
             checked: 3,
             deprovisioned: 1,
@@ -119,5 +127,17 @@ describe('SessionsPanel', () => {
         fireEvent.click(screen.getByRole('button', { name: 'users.check_directory' }));
 
         expect(await screen.findByText('users.directory_check_failed')).toBeInTheDocument();
+    });
+
+    it('hides session and directory actions when admin capabilities are missing', async () => {
+        getCapabilitiesMock.mockResolvedValueOnce({});
+
+        render(<SessionsPanel />, { wrapper: createWrapper() });
+
+        await screen.findByText('Session User');
+        await waitFor(() => {
+            expect(screen.queryByRole('button', { name: 'sessions.revoke' })).not.toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: 'users.check_directory' })).not.toBeInTheDocument();
+        });
     });
 });

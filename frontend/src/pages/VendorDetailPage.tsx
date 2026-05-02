@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from '@/i18n/hooks';
 import { AlertCircle, ArrowUpRight, TriangleAlert, XCircle } from 'lucide-react';
@@ -6,6 +6,8 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { IssueQuickCreateModal } from '@/components/issues/IssueQuickCreateModal';
 import { VendorInlineMessage } from '@/components/vendors/vendorRouteUi';
 import { vendorApi } from '@/services/vendorApi';
+import { FormCapabilityGateState } from './shared/FormCapabilityGateState';
+import { useCreateCapabilityGate } from './shared/useCreateCapabilityGate';
 import { VendorOverviewTab } from './vendors/VendorOverviewTab';
 import { VendorDetailHeader } from './vendors/VendorDetailHeader';
 import { VendorFormView } from './vendors/VendorFormView';
@@ -54,6 +56,11 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
     const [isDeleting, setIsDeleting] = useState(false);
     const { actionMessage, dismissActionMessage, setActionMessage } = useVendorFlashMessage(location, navigate);
     useVendorDeepLinkScroll(location);
+    const createGateState = useCreateCapabilityGate({
+        enabled: mode === 'new',
+        load: useCallback(() => vendorApi.getVendors({ offset: 0, limit: 1 }), []),
+        logMessage: 'Failed to load vendor create capabilities.',
+    });
 
     const archiveVendor = async () => {
         if (!vendor) {
@@ -76,6 +83,10 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
     };
 
     if (mode === 'new') {
+        if (createGateState !== 'allowed') {
+            return <FormCapabilityGateState state={createGateState} />;
+        }
+
         return (
             <VendorFormView
                 mode="new"
@@ -95,6 +106,10 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
     }
 
     if (mode === 'edit') {
+        if (canEdit !== true) {
+            return <FormCapabilityGateState state="denied" />;
+        }
+
         return (
             <VendorFormView
                 mode="edit"

@@ -375,16 +375,19 @@ def test_changed_frontend_route_gate_classification_passes() -> None:
 
 def test_classified_frontend_action_gate_outside_allowed_patterns_fails() -> None:
     validator = _load_validator()
-    path = Path("frontend/src/pages/DashboardPage.tsx")
+    path = Path("frontend/src/components/layout/Sidebar.tsx")
 
     findings = validator._validate_frontend_local_gate_classifications(
         [path],
         {
             path: "\n".join(
-                [
-                    "diff --git a/frontend/src/pages/DashboardPage.tsx b/frontend/src/pages/DashboardPage.tsx",
-                    "@@ -0,0 +1 @@",
-                    "+const canDeleteRisk = hasPermission('risks', 'delete');",
+                    [
+                        (
+                            "diff --git a/frontend/src/components/layout/Sidebar.tsx "
+                            "b/frontend/src/components/layout/Sidebar.tsx"
+                        ),
+                        "@@ -0,0 +1 @@",
+                        "+const canDeleteRisk = hasPermission('risks', 'delete');",
                 ]
             )
         },
@@ -396,17 +399,20 @@ def test_classified_frontend_action_gate_outside_allowed_patterns_fails() -> Non
 
 def test_classified_frontend_allowed_local_gate_pattern_passes() -> None:
     validator = _load_validator()
-    path = Path("frontend/src/pages/DashboardPage.tsx")
+    path = Path("frontend/src/components/layout/Sidebar.tsx")
 
     findings = validator._validate_frontend_local_gate_classifications(
         [path],
         {
             path: "\n".join(
-                [
-                    "diff --git a/frontend/src/pages/DashboardPage.tsx b/frontend/src/pages/DashboardPage.tsx",
-                    "@@ -0,0 +1 @@",
-                    "+const canReadIssues = hasPermission('issues', 'read');",
-                ]
+                    [
+                        (
+                            "diff --git a/frontend/src/components/layout/Sidebar.tsx "
+                            "b/frontend/src/components/layout/Sidebar.tsx"
+                        ),
+                        "@@ -0,0 +1 @@",
+                        "+const { hasPermission } = usePermissions();",
+                    ]
             )
         },
     )

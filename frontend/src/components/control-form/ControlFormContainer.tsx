@@ -32,6 +32,7 @@ interface ControlFormProps {
     onSuccess?: (controlId: number) => void | Promise<void>;
     onCancel?: () => void;
     firstStepBackLabel?: string;
+    allowRiskLinking?: boolean;
 }
 
 export function ControlForm({
@@ -40,6 +41,7 @@ export function ControlForm({
     onSuccess,
     onCancel,
     firstStepBackLabel,
+    allowRiskLinking = true,
 }: ControlFormProps) {
     const navigate = useNavigate();
     const { t } = useTranslation(['controls', 'common', 'errorKeys']);
@@ -48,7 +50,9 @@ export function ControlForm({
         { id: 'ownership', title: t('controls:form.steps.ownership'), icon: User },
         { id: 'execution', title: t('controls:form.steps.execution'), icon: Settings },
         { id: 'risk', title: t('controls:form.steps.risk_status'), icon: ShieldCheck },
-        { id: 'link_risk', title: t('controls:form.steps.link_risk'), icon: LinkIcon }
+        ...(allowRiskLinking
+            ? [{ id: 'link_risk', title: t('controls:form.steps.link_risk'), icon: LinkIcon }]
+            : []),
     ];
     const {
         users,
@@ -113,7 +117,11 @@ export function ControlForm({
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        await submit({ selectedRiskId, riskEffectiveness, linkNotes });
+        await submit({
+            selectedRiskId: allowRiskLinking ? selectedRiskId : undefined,
+            riskEffectiveness,
+            linkNotes,
+        });
     };
 
     const nextStep = () => {

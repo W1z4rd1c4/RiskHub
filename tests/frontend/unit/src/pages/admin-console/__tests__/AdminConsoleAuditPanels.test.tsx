@@ -7,6 +7,7 @@ import { createTestQueryClient } from '@test/queryClient';
 import { ApiClientError } from '@/services/apiClient';
 
 const getAuditLogsMock = vi.fn();
+const getCapabilitiesMock = vi.fn();
 const getLogConfigMock = vi.fn();
 const updateLogConfigMock = vi.fn();
 const invalidateQueriesMock = vi.fn();
@@ -60,6 +61,7 @@ vi.mock('@/components/ui/ThemedSelect', () => ({
 vi.mock('@/services/adminApi', () => ({
     adminApi: {
         getAuditLogs: (...args: unknown[]) => getAuditLogsMock(...args),
+        getCapabilities: (...args: unknown[]) => getCapabilitiesMock(...args),
         getLogConfig: (...args: unknown[]) => getLogConfigMock(...args),
         updateLogConfig: (...args: unknown[]) => updateLogConfigMock(...args),
     },
@@ -127,6 +129,12 @@ describe('AuditLogsPanel', () => {
             audit_log_rotation_size_mb: 50,
             audit_log_retention_count: 10,
         });
+        getCapabilitiesMock.mockResolvedValue({
+            can_revoke_sessions: true,
+            can_run_directory_check_all: true,
+            can_update_log_config: true,
+            can_export_loaded_audit_logs: true,
+        });
         getAuditLogsMock.mockResolvedValue(auditLogsPayload());
         Object.defineProperty(URL, 'createObjectURL', {
             configurable: true,
@@ -143,6 +151,9 @@ describe('AuditLogsPanel', () => {
 
         const sizeInput = await screen.findByDisplayValue('25');
         fireEvent.change(sizeInput, { target: { value: '30' } });
+        await waitFor(() => {
+            expect(sizeInput).toHaveValue(30);
+        });
         fireEvent.click(screen.getByRole('button', { name: 'audit.save_settings' }));
 
         await waitFor(() => {
@@ -208,6 +219,9 @@ describe('AuditLogsPanel', () => {
 
         const sizeInput = await screen.findByDisplayValue('25');
         fireEvent.change(sizeInput, { target: { value: '30' } });
+        await waitFor(() => {
+            expect(sizeInput).toHaveValue(30);
+        });
 
         await latestQueryClient?.refetchQueries({ queryKey: ['logConfig'] });
 
@@ -273,6 +287,19 @@ describe('AuditLogsPanel', () => {
         expect(URL.createObjectURL).not.toHaveBeenCalled();
         expect(clickMock).not.toHaveBeenCalled();
         clickMock.mockRestore();
+    });
+
+    it('hides audit export and log config save actions when admin capabilities are missing', async () => {
+        getCapabilitiesMock.mockResolvedValueOnce({});
+
+        render(<AuditLogsPanel />, { wrapper: createWrapper() });
+
+        await screen.findAllByText('user update');
+        await waitFor(() => {
+            expect(screen.queryByRole('button', { name: 'CSV' })).not.toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: 'JSON' })).not.toBeInTheDocument();
+            expect(screen.queryByRole('button', { name: 'audit.save_settings' })).not.toBeInTheDocument();
+        });
     });
 
     it('shows a user-facing log config save error', async () => {

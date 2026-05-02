@@ -4,6 +4,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RiskNewPage } from '@/pages/RiskNewPage';
 
 const mockNavigate = vi.fn();
+const mockGetRisks = vi.fn();
+const mockGetVendor = vi.fn();
 const mockLinkRisk = vi.fn();
 let mockSearchParams = new URLSearchParams();
 
@@ -19,6 +21,18 @@ vi.mock('react-router-dom', async () => {
 vi.mock('@/services/vendorLinkApi', () => ({
     vendorLinkApi: {
         linkRisk: (...args: unknown[]) => mockLinkRisk(...args),
+    },
+}));
+
+vi.mock('@/services/riskApi', () => ({
+    riskApi: {
+        getRisks: (...args: unknown[]) => mockGetRisks(...args),
+    },
+}));
+
+vi.mock('@/services/vendorApi', () => ({
+    vendorApi: {
+        getVendor: (...args: unknown[]) => mockGetVendor(...args),
     },
 }));
 
@@ -44,13 +58,25 @@ describe('RiskNewPage vendor context', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mockSearchParams = new URLSearchParams('vendor_id=12&return_to=%2Fvendors%2F12');
+        mockGetRisks.mockResolvedValue({
+            items: [],
+            total: 0,
+            offset: 0,
+            limit: 1,
+            capabilities: { can_create: true },
+        });
+        mockGetVendor.mockResolvedValue({
+            id: 12,
+            name: 'Vendor Twelve',
+            capabilities: { can_create_linked_risk: true },
+        });
         mockLinkRisk.mockResolvedValue(undefined);
     });
 
     it('auto-links a new risk to the vendor and returns to vendor detail', async () => {
         render(<RiskNewPage />);
 
-        expect(screen.getByTestId('risk-back-label')).toHaveTextContent(/Back to vendor|Zpět na dodavatele/i);
+        expect(await screen.findByTestId('risk-back-label')).toHaveTextContent(/Back to vendor|Zpět na dodavatele/i);
 
         fireEvent.click(screen.getByRole('button', { name: 'submit' }));
 
@@ -71,7 +97,7 @@ describe('RiskNewPage vendor context', () => {
         mockLinkRisk.mockRejectedValueOnce(new Error('link failed'));
 
         render(<RiskNewPage />);
-        fireEvent.click(screen.getByRole('button', { name: 'submit' }));
+        fireEvent.click(await screen.findByRole('button', { name: 'submit' }));
 
         await waitFor(() => {
             expect(mockNavigate).toHaveBeenCalledWith('/vendors/12', {
@@ -83,5 +109,18 @@ describe('RiskNewPage vendor context', () => {
                 },
             });
         });
+    });
+
+    it('hides vendor-context creation when the vendor link capability is false', async () => {
+        mockGetVendor.mockResolvedValueOnce({
+            id: 12,
+            name: 'Vendor Twelve',
+            capabilities: { can_create_linked_risk: false },
+        });
+
+        render(<RiskNewPage />);
+
+        await waitFor(() => expect(mockGetVendor).toHaveBeenCalledWith(12));
+        expect(screen.queryByTestId('risk-back-label')).not.toBeInTheDocument();
     });
 });

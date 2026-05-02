@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 
 import { useDashboardFilters } from '@/contexts/DashboardFilterContext';
 import { useAuthz } from '@/authz/useAuthz';
-import { usePermissions } from '@/hooks/usePermissions';
 import { useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 
@@ -21,9 +20,7 @@ export function DashboardPage() {
     const navigate = useNavigate();
     const { filters, setDepartmentId } = useDashboardFilters();
     const authz = useAuthz();
-    const { hasPermission } = usePermissions();
     const { t } = useTranslation('dashboard');
-    const canReadIssues = hasPermission('issues', 'read');
 
     const [selectedCell, setSelectedCell] = useState<{
         probability: number;
@@ -52,7 +49,6 @@ export function DashboardPage() {
         summary,
         trends,
     } = useDashboardOverviewState({
-        issuePermissionCacheKey: canReadIssues,
         enabled: activeView === 'overview' || !authz.canViewCommittee,
         filters,
         t,

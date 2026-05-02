@@ -243,7 +243,6 @@ describe('RBAC UI gating', () => {
         expect(adminAuthz.canViewUserDirectory).toBe(true);
         expect(adminAuthz.canViewUsersRoute).toBe(true);
         expect(adminAuthz.canManageAccess).toBe(true);
-        expect(adminAuthz.canEditAccessUsers).toBe(true);
         expect(adminAuthz.canReadRisks).toBe(true);
 
         const cro = makeUser({
@@ -256,7 +255,6 @@ describe('RBAC UI gating', () => {
         expect(croAuthz.canViewAdminConsole).toBe(false);
         expect(croAuthz.canViewAccessUsers).toBe(true);
         expect(croAuthz.canViewUsersRoute).toBe(true);
-        expect(croAuthz.canEditAccessUsers).toBe(true);
         expect(croAuthz.canReadRisks).toBe(true);
 
         const deptHead = makeUser({
@@ -272,7 +270,6 @@ describe('RBAC UI gating', () => {
         expect(deptHeadAuthz.canViewUserDirectory).toBe(false);
         expect(deptHeadAuthz.canViewUsersRoute).toBe(true);
         expect(deptHeadAuthz.canManageAccess).toBe(false);
-        expect(deptHeadAuthz.canEditAccessUsers).toBe(false);
         expect(deptHeadAuthz.canViewUsersPage).toBe(true);
         expect(deptHeadAuthz.canReadRisks).toBe(false);
 
@@ -288,7 +285,6 @@ describe('RBAC UI gating', () => {
         expect(employeeAuthz.canViewUsersPage).toBe(true);
         expect(employeeAuthz.canViewDepartmentAccess).toBe(false);
         expect(employeeAuthz.canViewRiskHub).toBe(false);
-        expect(employeeAuthz.canEditAccessUsers).toBe(false);
     });
 
     it('UsersPage: global non-admin user can view access data but cannot see edit action', async () => {

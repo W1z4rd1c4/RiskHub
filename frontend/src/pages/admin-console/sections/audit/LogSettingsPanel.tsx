@@ -39,7 +39,11 @@ function isSameLogConfig(left: LogConfig, right: LogConfig): boolean {
     );
 }
 
-export function LogSettingsPanel() {
+interface LogSettingsPanelProps {
+    canUpdateLogConfig: boolean;
+}
+
+export function LogSettingsPanel({ canUpdateLogConfig }: LogSettingsPanelProps) {
     const { t } = useTranslation('admin');
     const queryClient = useQueryClient();
     const lastSavedConfigRef = useRef<LogConfig | null>(null);
@@ -160,13 +164,15 @@ export function LogSettingsPanel() {
                         </p>
                     )}
                 </div>
-                <button
-                    onClick={() => mutation.mutate(form)}
-                    disabled={mutation.isPending}
-                    className="px-4 py-2 bg-accent hover:bg-accent/80 text-white rounded-lg transition-colors font-medium disabled:opacity-50"
-                >
-                    {mutation.isPending ? t('audit.saving') : t('audit.save_settings')}
-                </button>
+                {canUpdateLogConfig && (
+                    <button
+                        onClick={() => mutation.mutate(form)}
+                        disabled={mutation.isPending}
+                        className="px-4 py-2 bg-accent hover:bg-accent/80 text-white rounded-lg transition-colors font-medium disabled:opacity-50"
+                    >
+                        {mutation.isPending ? t('audit.saving') : t('audit.save_settings')}
+                    </button>
+                )}
             </div>
         </div>
     );

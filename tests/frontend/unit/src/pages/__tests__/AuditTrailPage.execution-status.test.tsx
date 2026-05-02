@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 
 import { AuditTrailPage } from '@/pages/AuditTrailPage';
+import { ApiClientError } from '@/services/apiClient';
 
 const getExecutionsMock = vi.fn();
 const downloadAuditTrailCsvMock = vi.fn();
@@ -121,6 +122,89 @@ describe('AuditTrailPage execution status rendering', () => {
         );
 
         await screen.findByText('audit_trail.total_records:0');
+        expect(screen.queryByRole('button', { name: 'CSV' })).not.toBeInTheDocument();
+    });
+
+    it('renders a denied state when execution list access is forbidden', async () => {
+        getExecutionsMock.mockRejectedValue(
+            new ApiClientError({
+                status: 403,
+                messageKey: 'errorKeys.forbidden',
+            })
+        );
+
+        render(
+            <MemoryRouter>
+                <AuditTrailPage />
+            </MemoryRouter>
+        );
+
+        await screen.findByText('access.denied');
+        expect(screen.queryByRole('button', { name: 'CSV' })).not.toBeInTheDocument();
+        expect(screen.queryByText('audit_trail.total_records:0')).not.toBeInTheDocument();
+        expect(screen.queryByText('common:empty.no_executions')).not.toBeInTheDocument();
+        expect(screen.queryByText('audit_trail.all_results')).not.toBeInTheDocument();
+    });
+
+    it('clears previously loaded audit data when a refetch is forbidden', async () => {
+        getExecutionsMock
+            .mockResolvedValueOnce({
+                items: [
+                    {
+                        id: 41,
+                        control_id: 9,
+                        executed_by_id: 2,
+                        executed_at: '2026-03-07T10:00:00Z',
+                        result: 'warning',
+                        findings: 'Follow-up required',
+                        created_at: '2026-03-07T10:00:00Z',
+                        control_name: 'Quarterly Review Control',
+                        executed_by_name: 'Anna Kowalski',
+                        control_owner_name: 'Martin Prochazka',
+                        linked_risks: ['Access Governance'],
+                    },
+                ],
+                total: 1,
+                skip: 0,
+                limit: 50,
+                capabilities: {
+                    can_export_csv: true,
+                },
+            })
+            .mockRejectedValueOnce(
+                new ApiClientError({
+                    status: 403,
+                    messageKey: 'errorKeys.forbidden',
+                })
+            );
+
+        render(
+            <MemoryRouter>
+                <AuditTrailPage />
+            </MemoryRouter>
+        );
+
+        await screen.findByText('Quarterly Review Control');
+        await userEvent.click(screen.getByRole('combobox', { name: 'audit_trail.all_results' }));
+        await userEvent.click(screen.getByText('results.failed'));
+
+        await screen.findByText('access.denied');
+        expect(screen.queryByText('Quarterly Review Control')).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'CSV' })).not.toBeInTheDocument();
+    });
+
+    it('keeps the existing empty audit shell for non-forbidden load failures', async () => {
+        getExecutionsMock.mockRejectedValue(new Error('network'));
+
+        render(
+            <MemoryRouter>
+                <AuditTrailPage />
+            </MemoryRouter>
+        );
+
+        await screen.findByText('common:empty.no_executions');
+        expect(screen.getByText('audit_trail.total_records:0')).toBeInTheDocument();
+        expect(screen.queryByText('access.denied')).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'CSV' })).not.toBeInTheDocument();
     });
 });

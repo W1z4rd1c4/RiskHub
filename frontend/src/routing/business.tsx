@@ -14,9 +14,7 @@ import {
 
 import {
   ActivityLogRouteGuard,
-  AuditTrailRouteGuard,
   GovernanceRouteGuard,
-  RiskWriteRouteGuard,
 } from '@/authz/BusinessRouteGuards';
 import type { AppRouteDef } from './types';
 
@@ -95,21 +93,13 @@ export const businessRoutes: AppRouteDef[] = [
   {
     key: 'risks-new',
     path: 'risks/new',
-    element: (
-      <RiskWriteRouteGuard>
-        <RiskNewPage />
-      </RiskWriteRouteGuard>
-    ),
+    element: <RiskNewPage />,
   },
   { key: 'risks-detail', path: 'risks/:id', element: <RiskDetailPage /> },
   {
     key: 'risks-edit',
     path: 'risks/:id/edit',
-    element: (
-      <RiskWriteRouteGuard>
-        <RiskEditPage />
-      </RiskWriteRouteGuard>
-    ),
+    element: <RiskEditPage />,
   },
   {
     key: 'issues',
@@ -208,11 +198,7 @@ export const businessRoutes: AppRouteDef[] = [
   {
     key: 'audit-trail',
     path: 'audit-trail',
-    element: (
-      <AuditTrailRouteGuard>
-        <AuditTrailPage />
-      </AuditTrailRouteGuard>
-    ),
+    element: <AuditTrailPage />,
   },
   {
     key: 'risk-hub',

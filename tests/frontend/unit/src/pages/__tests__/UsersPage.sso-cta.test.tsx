@@ -17,10 +17,19 @@ vi.mock('@/i18n/hooks', () => ({
     }),
 }));
 
-vi.mock('@/hooks/usePermissions', () => ({
-    usePermissions: () => ({
-        canManageUsers: true,
-        user: { id: 1, name: 'Admin' },
+vi.mock('@/contexts/AuthContext', () => ({
+    useAuth: () => ({
+        user: {
+            id: 1,
+            name: 'Admin',
+            email: 'admin@example.test',
+            role: 'admin',
+            access_scope: 'global',
+            effective_permissions: ['users:read', 'users:write'],
+        },
+        hasPermission: () => true,
+        isLoading: false,
+        isPreferencesHydrated: true,
     }),
 }));
 

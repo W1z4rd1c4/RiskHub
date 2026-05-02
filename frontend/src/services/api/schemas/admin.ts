@@ -1,5 +1,6 @@
 import type {
     ActiveSession,
+    AdminConsoleCapabilities,
     DirectoryCheckAllResponse,
     DirectoryBreakGlassResponse,
     DirectoryCheckResult,
@@ -33,6 +34,12 @@ export const systemStatsSchema: z.ZodType<SystemStats> = passthroughObject({
     total_controls: z.number(),
     total_kris: z.number(),
     pending_approvals: z.number(),
+});
+export const adminConsoleCapabilitiesSchema: z.ZodType<AdminConsoleCapabilities> = passthroughObject({
+    can_revoke_sessions: z.boolean(),
+    can_run_directory_check_all: z.boolean(),
+    can_update_log_config: z.boolean(),
+    can_export_loaded_audit_logs: z.boolean(),
 });
 export const schedulerJobRunSummarySchema: z.ZodType<SchedulerJobRunSummary> =
     passthroughObject({

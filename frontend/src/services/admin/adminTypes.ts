@@ -15,6 +15,13 @@ export interface SystemStats {
     pending_approvals: number;
 }
 
+export interface AdminConsoleCapabilities {
+    can_revoke_sessions: boolean;
+    can_run_directory_check_all: boolean;
+    can_update_log_config: boolean;
+    can_export_loaded_audit_logs: boolean;
+}
+
 export interface SchedulerJobRunSummary {
     job_name: string;
     run_id: string;

@@ -10,7 +10,7 @@ from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import Control, User
 from app.schemas.control import ControlRead
-from app.services._control_execution import control_capabilities
+from app.services.authorization_capabilities import control_capabilities
 
 router = APIRouter()
 

@@ -8,6 +8,7 @@ import { useTranslation } from '@/i18n/hooks';
 import { controlApi } from '@/services/controlApi';
 import { logError } from '@/services/logger';
 import type { Control } from '@/types/control';
+import { FormCapabilityGateState } from './shared/FormCapabilityGateState';
 
 export function ControlEditPage() {
     const { id } = useParams<{ id: string }>();
@@ -33,11 +34,7 @@ export function ControlEditPage() {
     }, [id]);
 
     if (isLoading) {
-        return (
-            <div className="flex items-center justify-center h-[400px]">
-                <div className="w-8 h-8 border-4 border-accent border-t-transparent rounded-full animate-spin" />
-            </div>
-        );
+        return <FormCapabilityGateState state="loading" />;
     }
 
     if (!control) return null;
@@ -60,7 +57,15 @@ export function ControlEditPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
             >
-                <ControlForm initialData={control} isEdit={true} />
+                {control.capabilities?.can_update === true ? (
+                    <ControlForm
+                        initialData={control}
+                        isEdit={true}
+                        allowRiskLinking={control.capabilities.can_link_risk === true}
+                    />
+                ) : (
+                    <FormCapabilityGateState state="denied" />
+                )}
             </motion.div>
         </div>
     );

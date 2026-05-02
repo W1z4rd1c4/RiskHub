@@ -4,6 +4,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ControlNewPage } from '@/pages/ControlNewPage';
 
 const mockNavigate = vi.fn();
+const mockGetControls = vi.fn();
+const mockGetVendor = vi.fn();
 const mockLinkControl = vi.fn();
 let mockSearchParams = new URLSearchParams();
 
@@ -22,17 +24,31 @@ vi.mock('@/services/vendorLinkApi', () => ({
     },
 }));
 
+vi.mock('@/services/controlApi', () => ({
+    controlApi: {
+        getControls: (...args: unknown[]) => mockGetControls(...args),
+    },
+}));
+
+vi.mock('@/services/vendorApi', () => ({
+    vendorApi: {
+        getVendor: (...args: unknown[]) => mockGetVendor(...args),
+    },
+}));
+
 vi.mock('@/components/ControlForm', () => ({
     ControlForm: ({
+        allowRiskLinking,
         firstStepBackLabel,
         onCancel,
         onSuccess,
     }: {
+        allowRiskLinking?: boolean;
         firstStepBackLabel?: string;
         onCancel?: () => void;
         onSuccess?: (controlId: number) => void | Promise<void>;
     }) => (
-        <div>
+        <div data-allow-risk-linking={String(allowRiskLinking)}>
             <div data-testid="control-back-label">{firstStepBackLabel}</div>
             <button type="button" onClick={() => void onSuccess?.(88)}>submit</button>
             <button type="button" onClick={() => onCancel?.()}>cancel</button>
@@ -44,13 +60,29 @@ describe('ControlNewPage vendor context', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mockSearchParams = new URLSearchParams('vendor_id=12&return_to=%2Fvendors%2F12');
+        mockGetControls.mockResolvedValue({
+            items: [],
+            total: 0,
+            offset: 0,
+            limit: 1,
+            capabilities: { can_create: true },
+        });
+        mockGetVendor.mockResolvedValue({
+            id: 12,
+            name: 'Vendor Twelve',
+            capabilities: { can_create_linked_control: true },
+        });
         mockLinkControl.mockResolvedValue(undefined);
     });
 
     it('auto-links a new control to the vendor and returns to vendor detail', async () => {
         render(<ControlNewPage />);
 
-        expect(screen.getByTestId('control-back-label')).toHaveTextContent(/Back to vendor|Zpět na dodavatele/i);
+        expect(await screen.findByTestId('control-back-label')).toHaveTextContent(/Back to vendor|Zpět na dodavatele/i);
+        expect(screen.getByTestId('control-back-label').parentElement).toHaveAttribute(
+            'data-allow-risk-linking',
+            'false',
+        );
 
         fireEvent.click(screen.getByRole('button', { name: 'submit' }));
 
@@ -65,5 +97,18 @@ describe('ControlNewPage vendor context', () => {
                 }),
             },
         });
+    });
+
+    it('hides vendor-context creation when the vendor link capability is false', async () => {
+        mockGetVendor.mockResolvedValueOnce({
+            id: 12,
+            name: 'Vendor Twelve',
+            capabilities: { can_create_linked_control: false },
+        });
+
+        render(<ControlNewPage />);
+
+        await waitFor(() => expect(mockGetVendor).toHaveBeenCalledWith(12));
+        expect(screen.queryByTestId('control-back-label')).not.toBeInTheDocument();
     });
 });

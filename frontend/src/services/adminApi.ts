@@ -1,6 +1,7 @@
 export { adminRequests as adminApi } from '@/services/admin/adminRequests';
 export type {
     ActiveSession,
+    AdminConsoleCapabilities,
     DirectoryCheckAllResponse,
     DirectoryCheckResult,
     DocumentationEntry,

@@ -96,6 +96,15 @@ class SystemStatsResponse(BaseModel):
     pending_approvals: int
 
 
+class AdminConsoleCapabilities(BaseModel):
+    """Admin console action visibility metadata for the current admin."""
+
+    can_revoke_sessions: bool
+    can_run_directory_check_all: bool
+    can_update_log_config: bool
+    can_export_loaded_audit_logs: bool
+
+
 class SchedulerJobRunSummary(BaseModel):
     """Condensed scheduler job execution entry."""
 

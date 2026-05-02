@@ -18,7 +18,6 @@ export type Authz = {
     canViewDepartmentAccessUsers: boolean;
     canViewUsersRoute: boolean;
     canManageAccess: boolean;
-    canEditAccessUsers: boolean;
     canViewDepartmentAccess: boolean;
     canViewAdminConsole: boolean;
     canViewRiskHub: boolean;
@@ -26,16 +25,10 @@ export type Authz = {
     canViewActivityLog: boolean;
     canViewCommittee: boolean;
     canViewUsersPage: boolean;
-    canSendRiskQuestionnaires: boolean;
-    canRequestRiskClarification: boolean;
     isSecondLine: boolean;
     canReadRisks: boolean;
     canReadControls: boolean;
     canReadVendors: boolean;
-    canWriteRisks: boolean;
-    canWriteControls: boolean;
-    canWriteVendors: boolean;
-    canSubmitKri: boolean;
 };
 
 export function buildAuthz(user: AuthUser, hasPermission: PermissionChecker): Authz {
@@ -52,7 +45,6 @@ export function buildAuthz(user: AuthUser, hasPermission: PermissionChecker): Au
     const canViewDepartmentAccessUsers = isDepartmentHead;
     const canViewUsersRoute = canViewAccessUsers || canViewDepartmentAccessUsers || canViewUserDirectory;
     const canManageAccess = canViewAccessUsers;
-    const canEditAccessUsers = isPlatformAdmin || isCRO;
     const canViewDepartmentAccess = canViewDepartmentAccessUsers || canViewAccessUsers;
     const canViewAdminConsole = isPlatformAdmin;
     const canViewRiskHub = isCRO;
@@ -60,17 +52,11 @@ export function buildAuthz(user: AuthUser, hasPermission: PermissionChecker): Au
     const canViewActivityLog = !isPlatformAdmin && hasPermission('activity_log', 'read');
     const canViewCommittee = (hasGlobalScope && !isPlatformAdmin) || isDepartmentHead;
     const canViewUsersPage = canViewUsersRoute;
-    const canSendRiskQuestionnaires = isRiskManager || isCRO;
-    const canRequestRiskClarification = isCRO || isRiskManager;
     const isSecondLine = isRiskManager || isCompliance;
 
     const canReadRisks = hasPermission('risks', 'read');
     const canReadControls = hasPermission('controls', 'read');
     const canReadVendors = hasPermission('vendors', 'read');
-    const canWriteRisks = hasPermission('risks', 'write');
-    const canWriteControls = hasPermission('controls', 'write');
-    const canWriteVendors = hasPermission('vendors', 'write');
-    const canSubmitKri = hasPermission('kri', 'submit');
 
     return {
         isAuthenticated,
@@ -85,7 +71,6 @@ export function buildAuthz(user: AuthUser, hasPermission: PermissionChecker): Au
         canViewDepartmentAccessUsers,
         canViewUsersRoute,
         canManageAccess,
-        canEditAccessUsers,
         canViewDepartmentAccess,
         canViewAdminConsole,
         canViewRiskHub,
@@ -93,15 +78,9 @@ export function buildAuthz(user: AuthUser, hasPermission: PermissionChecker): Au
         canViewActivityLog,
         canViewCommittee,
         canViewUsersPage,
-        canSendRiskQuestionnaires,
-        canRequestRiskClarification,
         isSecondLine,
         canReadRisks,
         canReadControls,
         canReadVendors,
-        canWriteRisks,
-        canWriteControls,
-        canWriteVendors,
-        canSubmitKri,
     };
 }

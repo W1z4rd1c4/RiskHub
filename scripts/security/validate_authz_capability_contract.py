@@ -84,10 +84,6 @@ FRONTEND_LOCAL_GATE_CLASSIFICATIONS: dict[str, FrontendLocalGateClassification] 
             r"const canReadRisks = hasPermission\('risks', 'read'\);",
             r"const canReadControls = hasPermission\('controls', 'read'\);",
             r"const canReadVendors = hasPermission\('vendors', 'read'\);",
-            r"const canWriteRisks = hasPermission\('risks', 'write'\);",
-            r"const canWriteControls = hasPermission\('controls', 'write'\);",
-            r"const canWriteVendors = hasPermission\('vendors', 'write'\);",
-            r"const canSubmitKri = hasPermission\('kri', 'submit'\);",
         ),
     },
     "frontend/src/components/layout/Sidebar.tsx": {
@@ -102,25 +98,6 @@ FRONTEND_LOCAL_GATE_CLASSIFICATIONS: dict[str, FrontendLocalGateClassification] 
         "reason": "Session permission projection helper.",
         "allowed_patterns": (
             r"export function usePermissions\(\) \{",
-            r"canCreateRisks: hasPermission\('risks', 'write'\),",
-            r"canEditRisks: hasPermission\('risks', 'write'\),",
-            r"canDeleteRisks: hasPermission\('risks', 'delete'\),",
-            r"canCreateControls: hasPermission\('controls', 'write'\),",
-            r"canEditControls: hasPermission\('controls', 'write'\),",
-            r"canDeleteControls: hasPermission\('controls', 'delete'\),",
-            r"canCreateKRIs: hasPermission\('risks', 'write'\),",
-            r"canEditKRIs: hasPermission\('risks', 'write'\),",
-            r"canDeleteKRIs: hasPermission\('risks', 'delete'\),",
-            r"canRecordKRI: hasPermission\('kri', 'submit'\),",
-            r"canResolveApprovals: hasPermission\('approvals', 'write'\),",
-        ),
-    },
-    "frontend/src/pages/DashboardPage.tsx": {
-        "reason": "Dashboard read/cache discriminator; dashboard actions use backend capabilities.",
-        "allowed_patterns": (
-            r"import \{ usePermissions \} from '@/hooks/usePermissions';",
-            r"const \{ hasPermission \} = usePermissions\(\);",
-            r"const canReadIssues = hasPermission\('issues', 'read'\);",
         ),
     },
     "frontend/src/pages/IssueDetailPage.tsx": {
@@ -137,13 +114,6 @@ FRONTEND_LOCAL_GATE_CLASSIFICATIONS: dict[str, FrontendLocalGateClassification] 
             r"import \{ usePermissions \} from '@/hooks/usePermissions';",
             r"const \{ hasPermission \} = usePermissions\(\);",
             r"const canRead = hasPermission\('issues', 'read'\);",
-        ),
-    },
-    "frontend/src/pages/UsersPage.tsx": {
-        "reason": "Current-user session projection, not a protected action gate.",
-        "allowed_patterns": (
-            r"import \{ usePermissions \} from '@/hooks/usePermissions';",
-            r"const \{ user: currentUser \} = usePermissions\(\);",
         ),
     },
 }

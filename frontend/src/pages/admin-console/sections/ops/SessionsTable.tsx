@@ -8,11 +8,12 @@ import type { ActiveSession } from '@/services/adminApi';
 import { getSessionPresentation } from './sessionPresentation';
 
 interface SessionsTableProps {
+    canRevokeSessions: boolean;
     onRevoke: (session: ActiveSession) => void;
     sessions: ActiveSession[] | undefined;
 }
 
-export function SessionsTable({ onRevoke, sessions }: SessionsTableProps) {
+export function SessionsTable({ canRevokeSessions, onRevoke, sessions }: SessionsTableProps) {
     const { t, i18n } = useTranslation('admin');
     const now = new Date();
 
@@ -62,7 +63,7 @@ export function SessionsTable({ onRevoke, sessions }: SessionsTableProps) {
                                     </div>
                                 </td>
                                 <td className="py-3 px-4 text-right">
-                                    {!presentation.isRevoked && (
+                                    {canRevokeSessions && !presentation.isRevoked && (
                                         <button
                                             onClick={() => onRevoke(session)}
                                             className="flex items-center gap-1 px-3 py-1.5 text-sm text-red-400 hover:text-white hover:bg-red-500/20 rounded-lg transition-colors ml-auto"

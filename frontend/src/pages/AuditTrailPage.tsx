@@ -9,8 +9,10 @@ import {
     History,
     Sheet,
     Shield,
+    ShieldX,
     Target
 } from 'lucide-react';
+import { ApiClientError } from '@/services/apiClient';
 import { executionApi } from '@/services/executionApi';
 import { reportApi } from '@/services/reportApi';
 import type { ExecutionAuditItem, ExecutionListCapabilities, ExecutionResult } from '@/types/execution';
@@ -30,6 +32,7 @@ export function AuditTrailPage() {
     const [capabilities, setCapabilities] = useState<ExecutionListCapabilities | null>(null);
     const [totalCount, setTotalCount] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
+    const [accessDenied, setAccessDenied] = useState(false);
     const [resultFilter, setResultFilter] = useState<ExecutionResult | ''>('');
     const [currentPage, setCurrentPage] = useState(1);
     const limit = 50;
@@ -46,8 +49,12 @@ export function AuditTrailPage() {
             setExecutions(data.items);
             setTotalCount(data.total);
             setCapabilities(data.capabilities ?? null);
+            setAccessDenied(false);
         } catch (err) {
+            setExecutions([]);
+            setTotalCount(0);
             setCapabilities(null);
+            setAccessDenied(err instanceof ApiClientError && err.status === 403);
             logError('Failed to fetch audit trail:', err);
         } finally {
             setIsLoading(false);
@@ -62,6 +69,20 @@ export function AuditTrailPage() {
     useEffect(() => {
         void fetchExecutions();
     }, [fetchExecutions]);
+
+    if (accessDenied) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+                <div className="p-4 bg-rose-500/10 rounded-2xl">
+                    <ShieldX className="h-12 w-12 text-rose-400" />
+                </div>
+                <h2 className="text-2xl font-bold text-white">{t('access.denied')}</h2>
+                <p className="text-slate-400 text-center max-w-md">
+                    {t('access.denied_activity_log')}
+                </p>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-8">

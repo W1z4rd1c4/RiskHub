@@ -10,9 +10,7 @@ vi.mock('@/authz/useAuthz', () => ({
 
 import {
     ActivityLogRouteGuard,
-    AuditTrailRouteGuard,
     GovernanceRouteGuard,
-    RiskWriteRouteGuard,
 } from '@/authz/BusinessRouteGuards';
 
 function renderGovernanceRoute() {
@@ -51,42 +49,6 @@ function renderActivityLogRoute() {
     );
 }
 
-function renderRiskWriteRoute() {
-    return render(
-        <MemoryRouter initialEntries={['/risks/new']}>
-            <Routes>
-                <Route path="/" element={<div>Home</div>} />
-                <Route
-                    path="/risks/new"
-                    element={
-                        <RiskWriteRouteGuard>
-                            <div>Risk Write</div>
-                        </RiskWriteRouteGuard>
-                    }
-                />
-            </Routes>
-        </MemoryRouter>
-    );
-}
-
-function renderAuditTrailRoute() {
-    return render(
-        <MemoryRouter initialEntries={['/audit-trail']}>
-            <Routes>
-                <Route path="/" element={<div>Home</div>} />
-                <Route
-                    path="/audit-trail"
-                    element={
-                        <AuditTrailRouteGuard>
-                            <div>Audit Trail</div>
-                        </AuditTrailRouteGuard>
-                    }
-                />
-            </Routes>
-        </MemoryRouter>
-    );
-}
-
 describe('Business route guards', () => {
     beforeEach(() => {
         vi.resetAllMocks();
@@ -97,8 +59,6 @@ describe('Business route guards', () => {
             isPlatformAdmin: true,
             canViewGovernance: false,
             canViewActivityLog: false,
-            canWriteRisks: false,
-            canReadControls: false,
         });
 
         renderGovernanceRoute();
@@ -112,8 +72,6 @@ describe('Business route guards', () => {
             isPlatformAdmin: true,
             canViewGovernance: false,
             canViewActivityLog: false,
-            canWriteRisks: false,
-            canReadControls: false,
         });
 
         renderActivityLogRoute();
@@ -122,61 +80,4 @@ describe('Business route guards', () => {
         expect(screen.queryByText('Activity Log')).not.toBeInTheDocument();
     });
 
-    it('redirects users without risk write away from risk write routes', async () => {
-        mockUseAuthz.mockReturnValue({
-            isPlatformAdmin: false,
-            canViewGovernance: false,
-            canViewActivityLog: false,
-            canWriteRisks: false,
-            canReadControls: true,
-        });
-
-        renderRiskWriteRoute();
-
-        expect(await screen.findByText('Home')).toBeInTheDocument();
-        expect(screen.queryByText('Risk Write')).not.toBeInTheDocument();
-    });
-
-    it('allows risk write routes when risk write access is present', async () => {
-        mockUseAuthz.mockReturnValue({
-            isPlatformAdmin: false,
-            canViewGovernance: false,
-            canViewActivityLog: false,
-            canWriteRisks: true,
-            canReadControls: true,
-        });
-
-        renderRiskWriteRoute();
-
-        expect(await screen.findByText('Risk Write')).toBeInTheDocument();
-    });
-
-    it('redirects users without controls read away from audit trail', async () => {
-        mockUseAuthz.mockReturnValue({
-            isPlatformAdmin: false,
-            canViewGovernance: false,
-            canViewActivityLog: false,
-            canWriteRisks: true,
-            canReadControls: false,
-        });
-
-        renderAuditTrailRoute();
-
-        expect(await screen.findByText('Home')).toBeInTheDocument();
-        expect(screen.queryByText('Audit Trail')).not.toBeInTheDocument();
-    });
-
-    it('allows audit trail when controls read access is present', async () => {
-        mockUseAuthz.mockReturnValue({
-            isPlatformAdmin: false,
-            canViewGovernance: false,
-            canViewActivityLog: false,
-            canWriteRisks: false,
-            canReadControls: true,
-        });
-
-        renderAuditTrailRoute();
-
-        expect(await screen.findByText('Audit Trail')).toBeInTheDocument();
-    });
 });

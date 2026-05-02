@@ -1,12 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ArrowLeft, Plus } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { KRIForm } from '@/components/KRIForm';
 import { useTranslation } from '@/i18n/hooks';
+import { kriApi } from '@/services/kriApi';
 import { logError } from '@/services/logger';
 import { vendorApi } from '@/services/vendorApi';
 
+import { FormCapabilityGateState } from './shared/FormCapabilityGateState';
+import { combineCapabilityGateStates, useCreateCapabilityGate } from './shared/useCreateCapabilityGate';
 import { coerceVendorContext } from './vendors/vendorDetailPresentation';
 
 export function KRINewPage() {
@@ -24,24 +27,45 @@ export function KRINewPage() {
     );
     const isVendorContext = vendorId !== null && returnTo !== null;
     const [vendorName, setVendorName] = useState<string | undefined>(undefined);
+    const [vendorContextState, setVendorContextState] = useState<'loading' | 'allowed' | 'denied'>(
+        isVendorContext ? 'loading' : 'allowed',
+    );
+    const createGateState = useCreateCapabilityGate({
+        load: useCallback(() => kriApi.getKRIs({ offset: 0, limit: 1 }), []),
+        logMessage: 'Failed to load KRI create capabilities.',
+    });
 
     useEffect(() => {
         if (!vendorId) {
             setVendorName(undefined);
+            setVendorContextState('allowed');
             return;
         }
 
-        const loadVendorName = async () => {
+        let isMounted = true;
+        const loadVendorContext = async () => {
+            setVendorContextState('loading');
             try {
                 const vendor = await vendorApi.getVendor(vendorId);
+                if (!isMounted) return;
                 setVendorName(vendor.name);
+                setVendorContextState(
+                    vendor.capabilities?.can_create_linked_kri === true ? 'allowed' : 'denied',
+                );
             } catch (error) {
                 logError('Failed to load vendor context for KRI create.', error);
-                setVendorName(undefined);
+                if (isMounted) {
+                    setVendorName(undefined);
+                    setVendorContextState('denied');
+                }
             }
         };
 
-        void loadVendorName();
+        void loadVendorContext();
+
+        return () => {
+            isMounted = false;
+        };
     }, [vendorId]);
 
     const handleVendorContextCancel = () => {
@@ -51,6 +75,8 @@ export function KRINewPage() {
         }
         void navigate('/kris');
     };
+
+    const gateState = combineCapabilityGateStates([createGateState, vendorContextState]);
 
     return (
         <div className="space-y-8">
@@ -77,16 +103,20 @@ export function KRINewPage() {
                 </div>
             </div>
 
-            <KRIForm
-                initialData={preselectedRiskId ? { risk_id: preselectedRiskId } : undefined}
-                onCancel={isVendorContext ? handleVendorContextCancel : undefined}
-                firstStepBackLabel={isVendorContext ? t('vendors:links.actions.back_to_vendor') : undefined}
-                vendorContext={isVendorContext ? {
-                    vendorId,
-                    vendorName,
-                    returnTo,
-                } : null}
-            />
+            {gateState !== 'allowed' ? (
+                <FormCapabilityGateState state={gateState} />
+            ) : (
+                <KRIForm
+                    initialData={preselectedRiskId ? { risk_id: preselectedRiskId } : undefined}
+                    onCancel={isVendorContext ? handleVendorContextCancel : undefined}
+                    firstStepBackLabel={isVendorContext ? t('vendors:links.actions.back_to_vendor') : undefined}
+                    vendorContext={isVendorContext ? {
+                        vendorId,
+                        vendorName,
+                        returnTo,
+                    } : null}
+                />
+            )}
         </div>
     );
 }

@@ -13,7 +13,7 @@ from app.db.session import get_db
 from app.models import Control, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas.control import ControlCreate, ControlRead
-from app.services._control_execution import control_capabilities
+from app.services.authorization_capabilities import control_capabilities
 
 from .list import router
 

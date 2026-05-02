@@ -1,6 +1,7 @@
 import { apiClient } from '@/services/apiClient';
 import {
     activeSessionArraySchema,
+    adminConsoleCapabilitiesSchema,
     directoryBreakGlassResponseSchema,
     directoryCheckAllResponseSchema,
     directoryCheckResultSchema,
@@ -25,6 +26,9 @@ export const adminRequests = {
 
     getSystemStats: () =>
         apiClient.get('/admin/stats', { schema: systemStatsSchema }),
+
+    getCapabilities: () =>
+        apiClient.get('/admin/capabilities', { schema: adminConsoleCapabilitiesSchema }),
 
     getSchedulerStatus: (options?: { signal?: AbortSignal }) =>
         apiClient.get('/admin/jobs/status', { ...options, schema: schedulerStatusSchema }),

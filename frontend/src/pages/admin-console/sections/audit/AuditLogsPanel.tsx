@@ -25,6 +25,10 @@ export function AuditLogsPanel() {
         queryFn: () => adminApi.getAuditLogs({ lines, event_type: eventFilter || undefined }),
         refetchInterval: autoRefresh ? 5000 : false,
     });
+    const { data: capabilities } = useQuery({
+        queryKey: ['adminCapabilities'],
+        queryFn: () => adminApi.getCapabilities(),
+    });
 
     if (isLoading && !data) {
         return <div className="admin-muted text-center py-8">{t('application_logs.loading')}</div>;
@@ -32,10 +36,12 @@ export function AuditLogsPanel() {
 
     const logs = data?.entries || [];
     const eventTypes = getAuditEventTypes(logs);
+    const canExportLoadedAuditLogs = capabilities?.can_export_loaded_audit_logs === true;
+    const canUpdateLogConfig = capabilities?.can_update_log_config === true;
 
     return (
         <div className="space-y-4">
-            <LogSettingsPanel />
+            <LogSettingsPanel canUpdateLogConfig={canUpdateLogConfig} />
 
             <div className="flex flex-wrap items-center justify-between gap-4 py-2">
                 <div className="flex items-center gap-4">
@@ -73,24 +79,26 @@ export function AuditLogsPanel() {
                         ]}
                     />
 
-                    <div className="flex gap-2">
-                        <button
-                            onClick={() => exportAuditLogsToCsv(logs)}
-                            className="admin-surface-muted admin-text flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm transition-colors hover:bg-white/10"
-                            title={t('console.export_csv')}
-                        >
-                            <FileDown className="h-4 w-4" />
-                            CSV
-                        </button>
-                        <button
-                            onClick={() => exportAuditLogsToJson(logs)}
-                            className="admin-surface-muted admin-text flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm transition-colors hover:bg-white/10"
-                            title={t('console.export_json')}
-                        >
-                            <FileDown className="h-4 w-4" />
-                            JSON
-                        </button>
-                    </div>
+                    {canExportLoadedAuditLogs && (
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => exportAuditLogsToCsv(logs)}
+                                className="admin-surface-muted admin-text flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm transition-colors hover:bg-white/10"
+                                title={t('console.export_csv')}
+                            >
+                                <FileDown className="h-4 w-4" />
+                                CSV
+                            </button>
+                            <button
+                                onClick={() => exportAuditLogsToJson(logs)}
+                                className="admin-surface-muted admin-text flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm transition-colors hover:bg-white/10"
+                                title={t('console.export_json')}
+                            >
+                                <FileDown className="h-4 w-4" />
+                                JSON
+                            </button>
+                        </div>
+                    )}
 
                     <button
                         onClick={() => refetch()}

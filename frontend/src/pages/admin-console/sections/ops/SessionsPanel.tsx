@@ -23,6 +23,12 @@ export function SessionsPanel() {
         queryKey: ['adminSessions'],
         queryFn: () => adminApi.getActiveSessions(),
     });
+    const { data: capabilities } = useQuery({
+        queryKey: ['adminCapabilities'],
+        queryFn: () => adminApi.getCapabilities(),
+    });
+    const canRevokeSessions = capabilities?.can_revoke_sessions === true;
+    const canRunDirectoryCheckAll = capabilities?.can_run_directory_check_all === true;
 
     const revokeMutation = useMutation({
         mutationFn: (userId: number) => adminApi.revokeSession(userId),
@@ -76,16 +82,18 @@ export function SessionsPanel() {
                     <p className="admin-subtle text-sm">
                         {t('sessions.description')}
                     </p>
-                    <button
-                        onClick={handleCheckAllDirectory}
-                        disabled={directorySyncing}
-                        className="inline-flex items-center gap-2 rounded-lg border border-sky-500/30 bg-sky-500/10 px-3 py-1.5 text-xs text-sky-200 transition hover:bg-sky-500/20 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                        <RefreshCw className={cn('h-3.5 w-3.5', directorySyncing && 'animate-spin')} />
-                        {directorySyncing
-                            ? t('users.checking_directory', { defaultValue: 'Checking...' })
-                            : t('users.check_directory', { defaultValue: 'Check AD' })}
-                    </button>
+                    {canRunDirectoryCheckAll && (
+                        <button
+                            onClick={handleCheckAllDirectory}
+                            disabled={directorySyncing}
+                            className="inline-flex items-center gap-2 rounded-lg border border-sky-500/30 bg-sky-500/10 px-3 py-1.5 text-xs text-sky-200 transition hover:bg-sky-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            <RefreshCw className={cn('h-3.5 w-3.5', directorySyncing && 'animate-spin')} />
+                            {directorySyncing
+                                ? t('users.checking_directory', { defaultValue: 'Checking...' })
+                                : t('users.check_directory', { defaultValue: 'Check AD' })}
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -100,7 +108,11 @@ export function SessionsPanel() {
                 </div>
             )}
 
-            <SessionsTable sessions={sessions} onRevoke={setPendingRevokeSession} />
+            <SessionsTable
+                canRevokeSessions={canRevokeSessions}
+                sessions={sessions}
+                onRevoke={setPendingRevokeSession}
+            />
             <ConfirmDialog
                 isOpen={pendingRevokeSession !== null}
                 onClose={() => setPendingRevokeSession(null)}

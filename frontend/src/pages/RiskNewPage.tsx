@@ -1,11 +1,16 @@
 import { ArrowLeft, Plus } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { RiskForm } from '@/components/RiskForm';
 import { useTranslation } from '@/i18n/hooks';
 import { logError } from '@/services/logger';
+import { riskApi } from '@/services/riskApi';
+import { vendorApi } from '@/services/vendorApi';
 import { vendorLinkApi } from '@/services/vendorLinkApi';
 
+import { FormCapabilityGateState } from './shared/FormCapabilityGateState';
+import { combineCapabilityGateStates, useCreateCapabilityGate } from './shared/useCreateCapabilityGate';
 import {
     coerceVendorContext,
     type VendorDetailFlash,
@@ -20,6 +25,43 @@ export function RiskNewPage() {
         searchParams.get('return_to'),
     );
     const isVendorContext = vendorId !== null && returnTo !== null;
+    const [vendorContextState, setVendorContextState] = useState<'loading' | 'allowed' | 'denied'>(
+        isVendorContext ? 'loading' : 'allowed',
+    );
+    const createGateState = useCreateCapabilityGate({
+        load: useCallback(() => riskApi.getRisks({ offset: 0, limit: 1 }), []),
+        logMessage: 'Failed to load risk create capabilities.',
+    });
+
+    useEffect(() => {
+        if (!isVendorContext || vendorId === null) {
+            setVendorContextState('allowed');
+            return;
+        }
+
+        let isMounted = true;
+        const loadVendorContext = async () => {
+            setVendorContextState('loading');
+            try {
+                const vendor = await vendorApi.getVendor(vendorId);
+                if (!isMounted) return;
+                setVendorContextState(
+                    vendor.capabilities?.can_create_linked_risk === true ? 'allowed' : 'denied',
+                );
+            } catch (error) {
+                logError('Failed to load vendor risk-create capabilities.', error);
+                if (isMounted) {
+                    setVendorContextState('denied');
+                }
+            }
+        };
+
+        void loadVendorContext();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [isVendorContext, vendorId]);
 
     const navigateToVendor = (flash: VendorDetailFlash) => {
         if (!returnTo) {
@@ -58,6 +100,8 @@ export function RiskNewPage() {
         }
     };
 
+    const gateState = combineCapabilityGateStates([createGateState, vendorContextState]);
+
     return (
         <div className="space-y-8">
             <div className="space-y-3">
@@ -83,13 +127,17 @@ export function RiskNewPage() {
                 </div>
             </div>
 
-            <RiskForm
-                onSuccess={isVendorContext ? handleVendorContextSuccess : undefined}
-                onCancel={isVendorContext ? () => {
-                    void navigate(returnTo!);
-                } : undefined}
-                firstStepBackLabel={isVendorContext ? t('vendors:links.actions.back_to_vendor') : undefined}
-            />
+            {gateState !== 'allowed' ? (
+                <FormCapabilityGateState state={gateState} />
+            ) : (
+                <RiskForm
+                    onSuccess={isVendorContext ? handleVendorContextSuccess : undefined}
+                    onCancel={isVendorContext ? () => {
+                        void navigate(returnTo!);
+                    } : undefined}
+                    firstStepBackLabel={isVendorContext ? t('vendors:links.actions.back_to_vendor') : undefined}
+                />
+            )}
         </div>
     );
 }

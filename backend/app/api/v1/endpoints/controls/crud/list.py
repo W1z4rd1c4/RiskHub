@@ -32,8 +32,8 @@ from app.schemas.control import (
     normalize_control_frequency,
 )
 from app.schemas.vendor_shared import LinkedVendorRead
-from app.services._control_execution import control_capabilities
 from app.services._monitoring_status import ControlMonitoringStatus, apply_control_monitoring_status_filter
+from app.services.authorization_capabilities import control_capabilities
 
 from .._helpers import _apply_department_scoping, _apply_process_category_filters
 

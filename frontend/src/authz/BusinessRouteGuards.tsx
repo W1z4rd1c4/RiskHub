@@ -25,16 +25,6 @@ export function ActivityLogRouteGuard({ children }: GuardProps) {
     return <RedirectIfDenied allowed={authz.canViewActivityLog}>{children}</RedirectIfDenied>;
 }
 
-export function RiskWriteRouteGuard({ children }: GuardProps) {
-    const authz = useAuthz();
-    return <RedirectIfDenied allowed={authz.canWriteRisks}>{children}</RedirectIfDenied>;
-}
-
-export function AuditTrailRouteGuard({ children }: GuardProps) {
-    const authz = useAuthz();
-    return <RedirectIfDenied allowed={authz.canReadControls}>{children}</RedirectIfDenied>;
-}
-
 export function UsersRouteGuard({ children }: GuardProps) {
     const authz = useAuthz();
     return <RedirectIfDenied allowed={authz.canViewUsersRoute}>{children}</RedirectIfDenied>;

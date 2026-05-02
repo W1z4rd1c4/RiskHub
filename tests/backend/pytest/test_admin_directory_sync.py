@@ -81,6 +81,28 @@ async def test_admin_directory_endpoints_require_admin_role(
 
 
 @pytest.mark.asyncio
+async def test_admin_capabilities_endpoint_requires_admin_role(
+    client_employee: AsyncClient,
+):
+    response = await client_employee.get("/api/v1/admin/capabilities")
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_admin_capabilities_endpoint_returns_current_action_flags(
+    client_platform_admin: AsyncClient,
+):
+    response = await client_platform_admin.get("/api/v1/admin/capabilities")
+    assert response.status_code == 200, response.text
+    assert response.json() == {
+        "can_revoke_sessions": True,
+        "can_run_directory_check_all": True,
+        "can_update_log_config": True,
+        "can_export_loaded_audit_logs": True,
+    }
+
+
+@pytest.mark.asyncio
 async def test_admin_break_glass_enable_reactivates_directory_deprovisioned_user(
     client_platform_admin: AsyncClient,
     db_session: AsyncSession,

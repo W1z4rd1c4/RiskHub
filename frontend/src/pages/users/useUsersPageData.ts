@@ -48,8 +48,10 @@ export function useUsersPageData({
         try {
             const data = await userDirectoryApi.listDirectoryUsers({ skip: 0, limit: 1 });
             setDirectoryCapabilities(data.capabilities ?? null);
+            setDirectoryAvailableRoles(data.available_roles ?? []);
         } catch {
             setDirectoryCapabilities(null);
+            setDirectoryAvailableRoles([]);
         }
     }, []);
 

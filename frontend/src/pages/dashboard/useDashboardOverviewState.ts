@@ -7,14 +7,12 @@ import { buildDashboardStats } from './dashboardStats';
 import { extractDashboardOverviewData } from './dashboardOverviewData';
 
 interface UseDashboardOverviewStateOptions {
-    issuePermissionCacheKey: boolean;
     enabled?: boolean;
     filters: DashboardFilters;
     t: (key: string) => string;
 }
 
 export function useDashboardOverviewState({
-    issuePermissionCacheKey,
     enabled = true,
     filters,
     t,
@@ -26,7 +24,6 @@ export function useDashboardOverviewState({
             filters.riskLevel,
             filters.controlStatus,
             filters.controlForm,
-            issuePermissionCacheKey,
         ],
         queryFn: ({ signal }) => dashboardApi.fetchOverview(filters, { signal }),
         pollMs: DASHBOARD_POLL_MS,

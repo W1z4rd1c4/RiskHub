@@ -1,12 +1,17 @@
 import { motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { ControlForm } from '@/components/ControlForm';
 import { useTranslation } from '@/i18n/hooks';
+import { controlApi } from '@/services/controlApi';
 import { logError } from '@/services/logger';
+import { vendorApi } from '@/services/vendorApi';
 import { vendorLinkApi } from '@/services/vendorLinkApi';
 
+import { FormCapabilityGateState } from './shared/FormCapabilityGateState';
+import { combineCapabilityGateStates, useCreateCapabilityGate } from './shared/useCreateCapabilityGate';
 import {
     coerceVendorContext,
     type VendorDetailFlash,
@@ -21,6 +26,43 @@ export function ControlNewPage() {
         searchParams.get('return_to'),
     );
     const isVendorContext = vendorId !== null && returnTo !== null;
+    const [vendorContextState, setVendorContextState] = useState<'loading' | 'allowed' | 'denied'>(
+        isVendorContext ? 'loading' : 'allowed',
+    );
+    const createGateState = useCreateCapabilityGate({
+        load: useCallback(() => controlApi.getControls({ offset: 0, limit: 1 }), []),
+        logMessage: 'Failed to load control create capabilities.',
+    });
+
+    useEffect(() => {
+        if (!isVendorContext || vendorId === null) {
+            setVendorContextState('allowed');
+            return;
+        }
+
+        let isMounted = true;
+        const loadVendorContext = async () => {
+            setVendorContextState('loading');
+            try {
+                const vendor = await vendorApi.getVendor(vendorId);
+                if (!isMounted) return;
+                setVendorContextState(
+                    vendor.capabilities?.can_create_linked_control === true ? 'allowed' : 'denied',
+                );
+            } catch (error) {
+                logError('Failed to load vendor control-create capabilities.', error);
+                if (isMounted) {
+                    setVendorContextState('denied');
+                }
+            }
+        };
+
+        void loadVendorContext();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [isVendorContext, vendorId]);
 
     const navigateToVendor = (flash: VendorDetailFlash) => {
         if (!returnTo) {
@@ -59,6 +101,8 @@ export function ControlNewPage() {
         }
     };
 
+    const gateState = combineCapabilityGateStates([createGateState, vendorContextState]);
+
     return (
         <div className="space-y-8">
             <div className="flex flex-col gap-2">
@@ -73,17 +117,22 @@ export function ControlNewPage() {
                 <p className="text-slate-500 font-medium tracking-tight">{t('controls:page_subtitle')}</p>
             </div>
 
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
-            >
-                <ControlForm
-                    onSuccess={isVendorContext ? handleVendorContextSuccess : undefined}
-                    onCancel={isVendorContext ? () => navigate(returnTo!) : undefined}
-                    firstStepBackLabel={isVendorContext ? t('vendors:links.actions.back_to_vendor') : undefined}
-                />
-            </motion.div>
+            {gateState !== 'allowed' ? (
+                <FormCapabilityGateState state={gateState} />
+            ) : (
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5 }}
+                >
+                    <ControlForm
+                        allowRiskLinking={!isVendorContext}
+                        onSuccess={isVendorContext ? handleVendorContextSuccess : undefined}
+                        onCancel={isVendorContext ? () => navigate(returnTo!) : undefined}
+                        firstStepBackLabel={isVendorContext ? t('vendors:links.actions.back_to_vendor') : undefined}
+                    />
+                </motion.div>
+            )}
         </div>
     );
 }

@@ -277,7 +277,7 @@ describe('UsersPage mode selection', () => {
         await screen.findByText('Employee One');
         expect(accessHandler).toHaveBeenCalledTimes(1);
         expect(deptAccessHandler).not.toHaveBeenCalled();
-        expect(directoryHandler).not.toHaveBeenCalled();
+        expect(directoryHandler).toHaveBeenCalledTimes(1);
     });
 
     it('uses backend capabilities to hide active status changes', async () => {

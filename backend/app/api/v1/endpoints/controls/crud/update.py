@@ -17,7 +17,7 @@ from app.models import Control, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas.approval_request import ApprovalQueuedResponse
 from app.schemas.control import ControlRead, ControlUpdate
-from app.services._control_execution import control_capabilities
+from app.services.authorization_capabilities import control_capabilities
 
 from .._helpers import _build_pending_changes, _first_high_risk_linked_risk
 
