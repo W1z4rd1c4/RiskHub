@@ -39,6 +39,7 @@ export function useKriDetailState({ rawId }: UseKriDetailStateArgs) {
     const loadKRI = useCallback((id: number) => kriApi.getKRI(id, { include_archived: true }), []);
 
     const {
+        isAccessDenied,
         isLoading,
         refetch: fetchKRI,
         resource: kri,
@@ -171,6 +172,7 @@ export function useKriDetailState({ rawId }: UseKriDetailStateArgs) {
         handleSave,
         history,
         historyTotal,
+        isAccessDenied,
         isDeleteDialogOpen,
         isDeleting,
         isEditModalOpen,

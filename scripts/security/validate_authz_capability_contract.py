@@ -80,10 +80,27 @@ FRONTEND_LOCAL_GATE_CLASSIFICATIONS: dict[str, FrontendLocalGateClassification] 
         "reason": "Route and navigation policy projection from the session.",
         "allowed_patterns": (
             r"const canViewUserDirectory = hasPermission\('users', 'read'\);",
+            r"const canViewGovernance = !isPlatformAdmin && hasGlobalScope && hasPermission\('users', 'write'\);",
             r"const canViewActivityLog = !isPlatformAdmin && hasPermission\('activity_log', 'read'\);",
             r"const canReadRisks = hasPermission\('risks', 'read'\);",
             r"const canReadControls = hasPermission\('controls', 'read'\);",
             r"const canReadVendors = hasPermission\('vendors', 'read'\);",
+            r"const canReadDepartments = hasPermission\('departments', 'read'\);",
+        ),
+    },
+    "frontend/src/routing/business.tsx": {
+        "reason": "Business route navigation visibility only.",
+        "allowed_patterns": (
+            r"isVisible: \(\{ authz, hasPermission \}\) => !authz\.isPlatformAdmin && "
+            r"hasPermission\('controls', 'read'\),",
+            r"isVisible: \(\{ authz, hasPermission \}\) => !authz\.isPlatformAdmin && "
+            r"hasPermission\('risks', 'read'\),",
+            r"isVisible: \(\{ authz, hasPermission \}\) => !authz\.isPlatformAdmin && "
+            r"hasPermission\('issues', 'read'\),",
+            r"isVisible: \(\{ authz, hasPermission \}\) => !authz\.isPlatformAdmin && "
+            r"hasPermission\('vendors', 'read'\),",
+            r"isVisible: \(\{ authz, hasPermission \}\) => !authz\.isPlatformAdmin && "
+            r"hasPermission\('departments', 'read'\),",
         ),
     },
     "frontend/src/components/layout/Sidebar.tsx": {
@@ -98,22 +115,6 @@ FRONTEND_LOCAL_GATE_CLASSIFICATIONS: dict[str, FrontendLocalGateClassification] 
         "reason": "Session permission projection helper.",
         "allowed_patterns": (
             r"export function usePermissions\(\) \{",
-        ),
-    },
-    "frontend/src/pages/IssueDetailPage.tsx": {
-        "reason": "Issue read precondition; issue mutations use backend capabilities.",
-        "allowed_patterns": (
-            r"import \{ usePermissions \} from '@/hooks/usePermissions';",
-            r"const \{ hasPermission \} = usePermissions\(\);",
-            r"const canRead = hasPermission\('issues', 'read'\);",
-        ),
-    },
-    "frontend/src/pages/IssuesPage.tsx": {
-        "reason": "Issue list read precondition; issue actions use backend capabilities.",
-        "allowed_patterns": (
-            r"import \{ usePermissions \} from '@/hooks/usePermissions';",
-            r"const \{ hasPermission \} = usePermissions\(\);",
-            r"const canRead = hasPermission\('issues', 'read'\);",
         ),
     },
 }

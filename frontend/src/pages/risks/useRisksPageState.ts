@@ -5,6 +5,7 @@ import type { SortDirection, ViewMode } from '@/components/tables';
 import { DEFAULT_LIST_PAGE_SIZE } from '@/constants/list';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { loadCollectionPage } from '@/services/collectionApi';
+import { isForbiddenApiError } from '@/services/apiClient';
 import { logError } from '@/services/logger';
 import { reportApi } from '@/services/reportApi';
 import { riskApi } from '@/services/riskApi';
@@ -36,6 +37,7 @@ export function useRisksPageState({ initialState }: UseRisksPageStateOptions) {
     const [totalCount, setTotalCount] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
     const [errorKey, setErrorKey] = useState<string | null>(null);
+    const [isAccessDenied, setIsAccessDenied] = useState(false);
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState<RiskStatus | ''>('active');
     const [typeFilter, setTypeFilter] = useState('');
@@ -110,11 +112,23 @@ export function useRisksPageState({ initialState }: UseRisksPageStateOptions) {
             setTotalCount(response.total);
 
             setErrorKey(null);
+            setIsAccessDenied(false);
             hasLoadedRisksRef.current = true;
         } catch (error) {
             logError('[RisksPage] Error fetching risks:', error);
             if (isCurrentRequest(requestId)) {
-                setErrorKey('errors.load_failed');
+                const accessDenied = isForbiddenApiError(error);
+                setIsAccessDenied(accessDenied);
+                if (accessDenied) {
+                    setItems([]);
+                    setGroups([]);
+                    setCapabilities(null);
+                    setTotalCount(0);
+                    hasLoadedRisksRef.current = false;
+                    setErrorKey(null);
+                } else {
+                    setErrorKey('errors.load_failed');
+                }
             }
         } finally {
             if (isCurrentRequest(requestId)) {
@@ -242,6 +256,7 @@ export function useRisksPageState({ initialState }: UseRisksPageStateOptions) {
         hasLoadedOnce: hasLoadedRisksRef.current,
         isExportDialogOpen,
         isExporting,
+        isAccessDenied,
         isLoading,
         items,
         limit,

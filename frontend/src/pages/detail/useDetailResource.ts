@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { isForbiddenApiError } from '@/services/apiClient';
 import { logError } from '@/services/logger';
 
 interface UseDetailResourceOptions<T> {
@@ -20,6 +21,7 @@ export function useDetailResource<T>({
     const [resource, setResource] = useState<T | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [errorKey, setErrorKey] = useState<string | null>(null);
+    const [isAccessDenied, setIsAccessDenied] = useState(false);
     const toErrorKeyRef = useRef(toErrorKey);
 
     useEffect(() => {
@@ -30,6 +32,7 @@ export function useDetailResource<T>({
         if (resourceId === null) {
             setResource(null);
             setErrorKey('errorKeys.not_found');
+            setIsAccessDenied(false);
             setIsLoading(false);
             return;
         }
@@ -39,10 +42,13 @@ export function useDetailResource<T>({
             const data = await load(resourceId);
             setResource(data);
             setErrorKey(null);
+            setIsAccessDenied(false);
         } catch (error) {
             logError('Error fetching detail resource:', error);
             setResource(null);
-            setErrorKey(toErrorKeyRef.current(error));
+            const accessDenied = isForbiddenApiError(error);
+            setIsAccessDenied(accessDenied);
+            setErrorKey(accessDenied ? null : toErrorKeyRef.current(error));
         } finally {
             setIsLoading(false);
         }
@@ -54,6 +60,7 @@ export function useDetailResource<T>({
 
     return {
         errorKey,
+        isAccessDenied,
         isLoading,
         refetch,
         resource,

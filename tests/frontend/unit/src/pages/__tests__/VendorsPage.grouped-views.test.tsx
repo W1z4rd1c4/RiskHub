@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { VendorsPage } from '@/pages/VendorsPage';
+import { ApiClientError } from '@/services/apiClient';
 import type { Vendor, VendorListParams } from '@/types/vendor';
 
 const mockGetVendors = vi.fn();
@@ -259,6 +260,36 @@ describe('VendorsPage grouped views', () => {
 
         await screen.findByText('Claims Cloud Platform');
         expect(screen.getByTestId('vendors-export-button')).toBeInTheDocument();
+    });
+
+    it('renders denied and clears collection actions when vendor reads are forbidden', async () => {
+        mockGetVendors
+            .mockResolvedValueOnce({
+                items: vendors.slice(0, 1),
+                total: 1,
+                offset: 0,
+                limit: 10,
+                capabilities: { can_create: true, can_export: true, can_view_risk_contexts: true },
+            })
+            .mockRejectedValueOnce(
+                new ApiClientError({
+                    status: 403,
+                    messageKey: 'errorKeys.forbidden',
+                })
+            );
+
+        render(<VendorsPage />);
+
+        await screen.findByText('Claims Cloud Platform');
+        expect(screen.getByTestId('vendors-export-button')).toBeInTheDocument();
+        expect(screen.getByTestId('vendors-create-button')).toBeInTheDocument();
+
+        await userEvent.click(screen.getByTestId('vendors-refresh-button'));
+
+        await screen.findByRole('heading', { name: /access denied/i });
+        expect(screen.queryByText('Claims Cloud Platform')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('vendors-export-button')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('vendors-create-button')).not.toBeInTheDocument();
     });
 
     it('shows vendor drill-down tabs and keeps the all view paginated', async () => {

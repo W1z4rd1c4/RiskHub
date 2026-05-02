@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { ControlDetailPage } from '@/pages/ControlDetailPage';
+import { ApiClientError } from '@/services/apiClient';
 
 const mockNavigate = vi.fn();
 const mockGetControl = vi.fn();
@@ -127,6 +128,25 @@ describe('ControlDetailPage issue entry', () => {
         );
 
         await screen.findByText('Quarterly Access Review');
+        expect(screen.queryByRole('button', { name: 'New Issue' })).not.toBeInTheDocument();
+    });
+
+    it('renders denied instead of not found when control detail is forbidden', async () => {
+        mockGetControl.mockRejectedValueOnce(
+            new ApiClientError({
+                status: 403,
+                messageKey: 'errorKeys.forbidden',
+            })
+        );
+
+        render(
+            <MemoryRouter initialEntries={['/controls/13']}>
+                <ControlDetailPage />
+            </MemoryRouter>
+        );
+
+        await screen.findByRole('heading', { name: /access denied/i });
+        expect(screen.queryByText('Control Not Found')).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'New Issue' })).not.toBeInTheDocument();
     });
 });

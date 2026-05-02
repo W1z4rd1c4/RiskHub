@@ -372,6 +372,40 @@ describe('KRIsPage monitoring status filters', () => {
         expect(screen.getByTestId('kris-export-button')).toBeInTheDocument();
     });
 
+    it('renders denied and clears collection actions when KRI reads are forbidden', async () => {
+        const requestQueries: Array<ReturnType<typeof parseKriRequest>> = [];
+        installKriHandlers(requestQueries, {}, { can_view_vendor_contexts: true, can_create: true, can_export: true });
+        let requestCount = 0;
+        server.use(
+            http.get('*/api/v1/kris', () => {
+                requestCount += 1;
+                if (requestCount > 1) {
+                    return HttpResponse.json({ detail: 'Forbidden' }, { status: 403 });
+                }
+                return HttpResponse.json({
+                    items: [allKri],
+                    total: 1,
+                    offset: 0,
+                    limit: 20,
+                    capabilities: { can_create: true, can_export: true },
+                });
+            })
+        );
+
+        await renderKriPage('/kris');
+
+        await screen.findByText('All KRI');
+        expect(screen.getByTestId('kris-export-button')).toBeInTheDocument();
+        expect(screen.getByTestId('kris-create-button')).toBeInTheDocument();
+
+        await userEvent.click(screen.getByTestId('kris-refresh-button'));
+
+        await screen.findByRole('heading', { name: /access denied/i });
+        expect(screen.queryByText('All KRI')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('kris-export-button')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('kris-create-button')).not.toBeInTheDocument();
+    });
+
     it('initializes due-soon mode from the route and requests timeliness_status', async () => {
         const requestQueries: Array<ReturnType<typeof parseKriRequest>> = [];
         installKriHandlers(requestQueries);

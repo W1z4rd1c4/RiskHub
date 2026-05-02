@@ -8,6 +8,7 @@ import { KRI_MONITORING_FILTER_VALUES } from '@/lib/monitoringStatus';
 
 import { KRIsTableSection } from '@/pages/kris/KRIsTableSection';
 import { useKrisPageState } from '@/pages/kris/useKrisPageState';
+import { ReadAccessDeniedState } from '@/pages/shared/ReadAccessDeniedState';
 
 export function KRIsPage() {
     const navigate = useNavigate();
@@ -24,6 +25,7 @@ export function KRIsPage() {
         hasLoadedOnce,
         isExportDialogOpen,
         isExporting,
+        isAccessDenied,
         isLoading,
         items,
         limit,
@@ -48,6 +50,10 @@ export function KRIsPage() {
         searchParams,
         setSearchParams,
     });
+
+    if (isAccessDenied) {
+        return <ReadAccessDeniedState />;
+    }
 
     return (
         <div className="space-y-8">

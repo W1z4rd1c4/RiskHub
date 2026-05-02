@@ -13,6 +13,7 @@ import { DepartmentDetailHeader } from './departments/DepartmentDetailHeader';
 import { DepartmentDetailTabs } from './departments/DepartmentDetailTabs';
 import { DepartmentStatsGrid } from './departments/DepartmentStatsGrid';
 import { DepartmentTabContent } from './departments/DepartmentTabContent';
+import { ReadAccessDeniedState } from './shared/ReadAccessDeniedState';
 
 export function DepartmentDetailPage() {
     const { id } = useParams<{ id: string }>();
@@ -46,6 +47,7 @@ export function DepartmentDetailPage() {
     const {
         department,
         isLoading,
+        isAccessDenied,
         error,
         risks,
         controls,
@@ -98,6 +100,10 @@ export function DepartmentDetailPage() {
                 </div>
             </div>
         );
+    }
+
+    if (isAccessDenied) {
+        return <ReadAccessDeniedState />;
     }
 
     if (error || !department) {

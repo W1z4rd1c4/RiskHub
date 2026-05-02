@@ -3,7 +3,6 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { AlertTriangle, ArrowLeft, History, RefreshCw, Target, Wrench } from 'lucide-react';
 
 import { issuePill, issueSeverityClass, issueStatusClass } from '@/components/issues/issueUi';
-import { usePermissions } from '@/hooks/usePermissions';
 import { useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import type { IssueSeverity, IssueStatus } from '@/types/issue';
@@ -18,15 +17,12 @@ import { useIssueHistory } from './issues/issue-detail/useIssueHistory';
 export function IssueDetailPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
-    const { hasPermission } = usePermissions();
     const { t, i18n } = useTranslation('issues');
 
     const issueId = id ? Number(id) : Number.NaN;
-    const canRead = hasPermission('issues', 'read');
     const [activeTab, setActiveTab] = useState<IssueDetailTab>('overview');
 
-    const { errorKey, refreshIssue, isLoading, issue } = useIssueDetail({
-        canRead,
+    const { errorKey, refreshIssue, isAccessDenied, isLoading, issue } = useIssueDetail({
         issueId,
     });
     const canViewActivityHistory = resolveCapabilityFlag(issue?.capabilities, 'can_view_activity_history');
@@ -64,7 +60,7 @@ export function IssueDetailPage() {
         { id: 'history', label: t('detail.tabs.history'), icon: History },
     ];
 
-    if (!canRead) {
+    if (isAccessDenied) {
         return (
             <div className="glass-card p-8 flex items-center gap-3 text-amber-200">
                 <AlertTriangle className="h-5 w-5" />

@@ -5,7 +5,7 @@ import type { ViewMode } from '@/components/tables';
 import { DEFAULT_LIST_PAGE_SIZE, LIST_SEARCH_DEBOUNCE_MS } from '@/constants/list';
 import { KRI_MONITORING_FILTER_VALUES } from '@/lib/monitoringStatus';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
-import { apiClient } from '@/services/apiClient';
+import { apiClient, isForbiddenApiError } from '@/services/apiClient';
 import { loadCollectionPage } from '@/services/collectionApi';
 import { kriApi } from '@/services/kriApi';
 import { reportApi } from '@/services/reportApi';
@@ -39,6 +39,7 @@ export function useKrisPageState({ searchParams, setSearchParams }: UseKrisPageS
     const [totalCount, setTotalCount] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
     const [errorKey, setErrorKey] = useState<string | null>(null);
+    const [isAccessDenied, setIsAccessDenied] = useState(false);
     const [search, setSearch] = useState('');
     const [viewMode, setViewMode] = useState<ViewMode>('all');
     const [currentPage, setCurrentPage] = useState(1);
@@ -87,16 +88,22 @@ export function useKrisPageState({ searchParams, setSearchParams }: UseKrisPageS
             setTotalCount(response.total);
 
             setErrorKey(null);
+            setIsAccessDenied(false);
             hasLoadedKrisRef.current = true;
         } catch (error) {
             if (requestId !== latestRequestIdRef.current) {
                 return;
             }
-            setErrorKey(apiClient.toUiMessageKey(error));
+            const accessDenied = isForbiddenApiError(error);
+            setIsAccessDenied(accessDenied);
+            setErrorKey(accessDenied ? null : apiClient.toUiMessageKey(error));
             setItems([]);
             setGroups([]);
             setCapabilities(null);
             setTotalCount(0);
+            if (accessDenied) {
+                hasLoadedKrisRef.current = false;
+            }
         } finally {
             if (requestId === latestRequestIdRef.current) {
                 setIsLoading(false);
@@ -194,6 +201,7 @@ export function useKrisPageState({ searchParams, setSearchParams }: UseKrisPageS
         hasLoadedOnce: hasLoadedKrisRef.current,
         isExportDialogOpen,
         isExporting,
+        isAccessDenied,
         isLoading,
         items,
         limit,

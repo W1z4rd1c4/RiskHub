@@ -1,13 +1,14 @@
 import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { IssuesPage } from '@/pages/IssuesPage';
+import { ApiClientError } from '@/services/apiClient';
 
 const mockList = vi.fn();
 
 vi.mock('@/hooks/usePermissions', () => ({
-    usePermissions: () => ({
-        hasPermission: (resource: string, action: string) => resource === 'issues' && (action === 'read' || action === 'write'),
-    }),
+    usePermissions: () => {
+        throw new Error('IssuesPage should not use local permission gates');
+    },
 }));
 
 vi.mock('@/services/issuesApi', () => ({
@@ -93,5 +94,29 @@ describe('IssuesPage layout parity', () => {
 
         await screen.findByText('Issues');
         expect(screen.queryByRole('button', { name: 'Export' })).not.toBeInTheDocument();
+    });
+
+    it('loads issues from backend without local session permission gates', async () => {
+        render(<IssuesPage />);
+
+        await screen.findByText('Issues');
+        expect(mockList).toHaveBeenCalled();
+        expect(screen.queryByText('You do not have permission to view issues.')).not.toBeInTheDocument();
+    });
+
+    it('renders view denied when backend issue list returns forbidden', async () => {
+        mockList.mockRejectedValueOnce(
+            new ApiClientError({
+                status: 403,
+                messageKey: 'errorKeys.forbidden',
+            })
+        );
+
+        render(<IssuesPage />);
+
+        await screen.findByText('You do not have permission to view issues.');
+        expect(screen.queryByText('Issues')).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Export' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'New Issue' })).not.toBeInTheDocument();
     });
 });

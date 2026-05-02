@@ -4,28 +4,16 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestQueryClient } from '@test/queryClient';
 import { IssueDetailPage } from '@/pages/IssueDetailPage';
+import { ApiClientError } from '@/services/apiClient';
 import { __resetSessionStoreForTests, setSessionSnapshot } from '@/services/session/store';
 
 const mockGetIssue = vi.fn();
 const mockListActivity = vi.fn();
-const permissionState = {
-    canRead: true,
-    canWrite: true,
-    canApprove: true,
-    canViewActivityLog: true,
-};
 
 vi.mock('@/hooks/usePermissions', () => ({
-    usePermissions: () => ({
-        hasPermission: (resource: string, action: string) =>
-            resource === 'issues'
-                && (
-                    (action === 'read' && permissionState.canRead)
-                    || (action === 'write' && permissionState.canWrite)
-                    || (action === 'approve' && permissionState.canApprove)
-                ),
-        canViewActivityLog: permissionState.canViewActivityLog,
-    }),
+    usePermissions: () => {
+        throw new Error('IssueDetailPage should not use local permission gates');
+    },
 }));
 
 vi.mock('@/services/issuesApi', () => ({
@@ -98,10 +86,6 @@ describe('IssueDetailPage tabs', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         __resetSessionStoreForTests();
-        permissionState.canRead = true;
-        permissionState.canWrite = true;
-        permissionState.canApprove = true;
-        permissionState.canViewActivityLog = true;
         mockGetIssue.mockResolvedValue({
             id: 42,
             title: 'Access Review Gap',
@@ -182,6 +166,29 @@ describe('IssueDetailPage tabs', () => {
             skip: 0,
             limit: 100,
         });
+    });
+
+    it('loads issue detail from backend without local session permission gates', async () => {
+        renderIssueDetailPage();
+
+        await screen.findByText('Access Review Gap');
+        expect(mockGetIssue).toHaveBeenCalledWith(42, expect.objectContaining({ signal: expect.any(AbortSignal) }));
+        expect(screen.queryByText('You do not have permission to view issues.')).not.toBeInTheDocument();
+    });
+
+    it('renders view denied when backend issue detail returns forbidden', async () => {
+        mockGetIssue.mockRejectedValueOnce(
+            new ApiClientError({
+                status: 403,
+                messageKey: 'errorKeys.forbidden',
+            })
+        );
+
+        renderIssueDetailPage();
+
+        await screen.findByText('You do not have permission to view issues.');
+        expect(screen.queryByText('Issue Not Found')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('issue-overview-panel')).not.toBeInTheDocument();
     });
 
     it('renders tabs and keeps business naming without raw IDs', async () => {
@@ -450,13 +457,11 @@ describe('IssueDetailPage tabs', () => {
         expect(screen.queryByText('Issue updated')).not.toBeInTheDocument();
     });
 
-    it('does not request issue detail when issues:read is denied', async () => {
-        permissionState.canRead = false;
-
+    it('requests issue detail without local issues:read gating', async () => {
         renderIssueDetailPage();
 
-        expect(screen.getByText(/permission to view issues/i)).toBeInTheDocument();
-        expect(mockGetIssue).not.toHaveBeenCalled();
+        await screen.findByText('Access Review Gap');
+        expect(mockGetIssue).toHaveBeenCalledWith(42, expect.objectContaining({ signal: expect.any(AbortSignal) }));
         expect(mockListActivity).not.toHaveBeenCalled();
     });
 

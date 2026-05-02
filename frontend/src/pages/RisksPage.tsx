@@ -7,6 +7,7 @@ import { RisksPageHeader } from './risks/RisksPageHeader';
 import { RisksTableSection } from './risks/RisksTableSection';
 import { parseRisksPageQueryParams } from './risks/risksPagePresentation';
 import { useRisksPageState } from './risks/useRisksPageState';
+import { ReadAccessDeniedState } from './shared/ReadAccessDeniedState';
 
 export function RisksPage() {
     const navigate = useNavigate();
@@ -24,6 +25,7 @@ export function RisksPage() {
         hasLoadedOnce,
         isExportDialogOpen,
         isExporting,
+        isAccessDenied,
         isLoading,
         items,
         limit,
@@ -68,6 +70,10 @@ export function RisksPage() {
         updateCriticalFilter(false);
         setSearchParams({});
     };
+
+    if (isAccessDenied) {
+        return <ReadAccessDeniedState />;
+    }
 
     return (
         <div className="space-y-8">

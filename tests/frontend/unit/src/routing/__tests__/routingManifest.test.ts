@@ -47,7 +47,16 @@ describe('routing manifest parity', () => {
   it('matches CRO sidebar visibility contract', () => {
     const hrefs = visibleSidebarHrefs(
       { role: 'cro', access_scope: 'global' },
-      ['users:read', 'activity_log:read', 'issues:read', 'vendors:read'],
+      [
+        'users:read',
+        'activity_log:read',
+        'controls:read',
+        'risks:read',
+        'issues:read',
+        'users:write',
+        'vendors:read',
+        'departments:read',
+      ],
     );
 
     expect(hrefs).toEqual([
@@ -70,7 +79,7 @@ describe('routing manifest parity', () => {
   it('matches risk-manager sidebar visibility contract', () => {
     const hrefs = visibleSidebarHrefs(
       { role: 'risk_manager', access_scope: 'global' },
-      ['activity_log:read', 'issues:read', 'vendors:read'],
+      ['activity_log:read', 'controls:read', 'risks:read', 'issues:read', 'vendors:read', 'departments:read'],
     );
 
     expect(hrefs).toEqual([
@@ -86,5 +95,44 @@ describe('routing manifest parity', () => {
       '/settings',
       '/users',
     ]);
+  });
+
+  it('hides core entity navigation without matching read permissions', () => {
+    const hrefs = visibleSidebarHrefs(
+      { role: 'risk_manager', access_scope: 'global' },
+      ['activity_log:read', 'issues:read', 'vendors:read'],
+    );
+
+    expect(hrefs).toContain('/approvals');
+    expect(hrefs).not.toContain('/controls');
+    expect(hrefs).not.toContain('/risks');
+    expect(hrefs).not.toContain('/kris');
+    expect(hrefs).toContain('/vendors');
+    expect(hrefs).not.toContain('/departments');
+  });
+
+  it('shows Controls navigation for controls:read without risk read access', () => {
+    const hrefs = visibleSidebarHrefs(
+      { role: 'risk_manager', access_scope: 'global' },
+      ['controls:read'],
+    );
+
+    expect(hrefs).toContain('/approvals');
+    expect(hrefs).toContain('/controls');
+    expect(hrefs).not.toContain('/risks');
+    expect(hrefs).not.toContain('/kris');
+  });
+
+  it('shows KRI navigation for risks:read without department read access', () => {
+    const hrefs = visibleSidebarHrefs(
+      { role: 'risk_manager', access_scope: 'global' },
+      ['risks:read'],
+    );
+
+    expect(hrefs).toContain('/approvals');
+    expect(hrefs).toContain('/risks');
+    expect(hrefs).toContain('/kris');
+    expect(hrefs).not.toContain('/controls');
+    expect(hrefs).not.toContain('/departments');
   });
 });

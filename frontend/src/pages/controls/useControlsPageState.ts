@@ -4,6 +4,7 @@ import type { ExportDialogSubmitPayload } from '@/components/reports/ExportDialo
 import type { ViewMode } from '@/components/tables';
 import { DEFAULT_LIST_PAGE_SIZE } from '@/constants/list';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { isForbiddenApiError } from '@/services/apiClient';
 import { controlApi } from '@/services/controlApi';
 import { loadCollectionPage } from '@/services/collectionApi';
 import { logError } from '@/services/logger';
@@ -31,6 +32,7 @@ export function useControlsPageState() {
     const [totalCount, setTotalCount] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
     const [errorKey, setErrorKey] = useState<string | null>(null);
+    const [isAccessDenied, setIsAccessDenied] = useState(false);
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState<ControlListStatusFilter>('');
     const [currentPage, setCurrentPage] = useState(1);
@@ -89,11 +91,23 @@ export function useControlsPageState() {
             setTotalCount(response.total);
 
             setErrorKey(null);
+            setIsAccessDenied(false);
             hasLoadedControlsRef.current = true;
         } catch (error) {
             logError('Error fetching controls:', error);
             if (isCurrentRequest(requestId)) {
-                setErrorKey('errors.load_failed');
+                const accessDenied = isForbiddenApiError(error);
+                setIsAccessDenied(accessDenied);
+                if (accessDenied) {
+                    setItems([]);
+                    setGroups([]);
+                    setCapabilities(null);
+                    setTotalCount(0);
+                    hasLoadedControlsRef.current = false;
+                    setErrorKey(null);
+                } else {
+                    setErrorKey('errors.load_failed');
+                }
             }
         } finally {
             if (isCurrentRequest(requestId)) {
@@ -176,6 +190,7 @@ export function useControlsPageState() {
         hasLoadedOnce: hasLoadedControlsRef.current,
         isExportDialogOpen,
         isExporting,
+        isAccessDenied,
         isLoading,
         items,
         limit,

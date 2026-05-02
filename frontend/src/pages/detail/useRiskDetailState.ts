@@ -56,6 +56,7 @@ export function useRiskDetailState({ rawId }: UseRiskDetailStateArgs) {
 
     const {
         errorKey,
+        isAccessDenied,
         isLoading,
         refetch,
         resource,
@@ -167,6 +168,7 @@ export function useRiskDetailState({ rawId }: UseRiskDetailStateArgs) {
         approvalMessage,
         dialogMode,
         errorKey,
+        isAccessDenied,
         isCreateDialogOpen,
         isDeleteDialogOpen,
         isDeleting,

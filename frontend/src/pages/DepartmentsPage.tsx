@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { Building2, Users, ShieldAlert, AlertCircle, RefreshCw, ClipboardList, Activity, TrendingUp } from 'lucide-react';
 import { useTranslation } from '@/i18n/hooks';
 import { departmentApi, type DepartmentSummary } from '@/services/departmentApi';
+import { isForbiddenApiError } from '@/services/apiClient';
 import { logError } from '@/services/logger';
+import { ReadAccessDeniedState } from './shared/ReadAccessDeniedState';
 
 export function DepartmentsPage() {
     const navigate = useNavigate();
@@ -11,6 +13,7 @@ export function DepartmentsPage() {
     const [departments, setDepartments] = useState<DepartmentSummary[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [errorKey, setErrorKey] = useState<string | null>(null);
+    const [isAccessDenied, setIsAccessDenied] = useState(false);
 
     const fetchDepartments = async () => {
         try {
@@ -18,8 +21,12 @@ export function DepartmentsPage() {
             setErrorKey(null);
             const data = await departmentApi.getDepartments();
             setDepartments(data);
+            setIsAccessDenied(false);
         } catch (err) {
-            setErrorKey('errorKeys.load_departments_failed');
+            const accessDenied = isForbiddenApiError(err);
+            setIsAccessDenied(accessDenied);
+            setDepartments([]);
+            setErrorKey(accessDenied ? null : 'errorKeys.load_departments_failed');
             logError('Error fetching departments:', err);
         } finally {
             setIsLoading(false);
@@ -29,6 +36,10 @@ export function DepartmentsPage() {
     useEffect(() => {
         void fetchDepartments();
     }, []);
+
+    if (isAccessDenied) {
+        return <ReadAccessDeniedState />;
+    }
 
     return (
         <div className="space-y-8">

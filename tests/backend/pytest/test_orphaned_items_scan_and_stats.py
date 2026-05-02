@@ -134,17 +134,15 @@ async def test_orphaned_items_overview_returns_stats_items_and_scan_status(
 
 
 @pytest.mark.asyncio
-async def test_orphan_stats_are_scoped_by_department(
+async def test_orphan_stats_denies_non_operator_business_users(
     client: AsyncClient,
     db_session: AsyncSession,
     test_department: Department,
     test_user: User,
 ):
-    dept2 = Department(name="Second Department", code="D2", description="Second")
     role = Role(name="basic", display_name="Basic", description="No perms needed for stats")
-    db_session.add_all([dept2, role])
+    db_session.add(role)
     await db_session.commit()
-    await db_session.refresh(dept2)
     await db_session.refresh(role)
 
     user = User(
@@ -158,6 +156,24 @@ async def test_orphan_stats_are_scoped_by_department(
     db_session.add(user)
     await db_session.commit()
     await db_session.refresh(user)
+
+    resp = await client.get("/api/v1/orphaned-items/stats", headers={"X-Mock-User-Id": str(user.id)})
+    assert resp.status_code == 403
+    assert resp.json()["detail"] == "Insufficient permissions"
+
+
+@pytest.mark.asyncio
+async def test_orphan_stats_returns_counts_for_governance_operator(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    test_department: Department,
+    test_user: User,
+    test_user_cro: User,
+):
+    dept2 = Department(name="Second Department", code="D2", description="Second")
+    db_session.add(dept2)
+    await db_session.commit()
+    await db_session.refresh(dept2)
 
     risk_in = Risk(
         risk_id_code="R-IN-001",
@@ -202,12 +218,12 @@ async def test_orphan_stats_are_scoped_by_department(
     )
     await db_session.commit()
 
-    resp = await client.get("/api/v1/orphaned-items/stats", headers={"X-Mock-User-Id": str(user.id)})
+    resp = await client.get("/api/v1/orphaned-items/stats", headers={"X-Mock-User-Id": str(test_user_cro.id)})
     assert resp.status_code == 200
     data = resp.json()
-    assert data["risk_count"] == 1
+    assert data["risk_count"] == 2
     assert data["control_count"] == 0
-    assert data["total_count"] == 1
+    assert data["total_count"] == 2
 
 
 @pytest.mark.asyncio

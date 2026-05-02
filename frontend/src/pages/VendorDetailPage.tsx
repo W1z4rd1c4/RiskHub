@@ -7,6 +7,7 @@ import { IssueQuickCreateModal } from '@/components/issues/IssueQuickCreateModal
 import { VendorInlineMessage } from '@/components/vendors/vendorRouteUi';
 import { vendorApi } from '@/services/vendorApi';
 import { FormCapabilityGateState } from './shared/FormCapabilityGateState';
+import { ReadAccessDeniedState } from './shared/ReadAccessDeniedState';
 import { useCreateCapabilityGate } from './shared/useCreateCapabilityGate';
 import { VendorOverviewTab } from './vendors/VendorOverviewTab';
 import { VendorDetailHeader } from './vendors/VendorDetailHeader';
@@ -42,6 +43,7 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
         canRestore,
         closeIssueModal,
         error,
+        isAccessDenied,
         isIssueModalOpen,
         isLoading,
         openIssueModal,
@@ -99,6 +101,10 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
 
     if (isLoading) {
         return <VendorDetailLoadingState />;
+    }
+
+    if (isAccessDenied) {
+        return <ReadAccessDeniedState />;
     }
 
     if (error || !vendor) {

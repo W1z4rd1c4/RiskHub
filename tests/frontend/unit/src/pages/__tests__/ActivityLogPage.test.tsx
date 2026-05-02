@@ -6,6 +6,7 @@ import {
     formatDiffValue,
     getDiffPair,
 } from '@/components/activity-log/activityLogPresentation';
+import { ApiClientError } from '@/services/apiClient';
 
 const mockList = vi.fn();
 const mockGetActions = vi.fn();
@@ -229,6 +230,21 @@ describe('ActivityLogPage capability denial state', () => {
         render(<ActivityLogPage />);
 
         await screen.findByText('access.denied');
+        expect(screen.queryByText('empty.no_activity_logs')).not.toBeInTheDocument();
+    });
+
+    it('shows access denied when the backend returns forbidden', async () => {
+        mockList.mockRejectedValue(
+            new ApiClientError({
+                status: 403,
+                messageKey: 'errorKeys.forbidden',
+            })
+        );
+
+        render(<ActivityLogPage />);
+
+        await screen.findByText('access.denied');
+        expect(screen.queryByText('activity_log.failed_to_load')).not.toBeInTheDocument();
         expect(screen.queryByText('empty.no_activity_logs')).not.toBeInTheDocument();
     });
 

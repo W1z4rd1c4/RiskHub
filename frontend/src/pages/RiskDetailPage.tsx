@@ -22,6 +22,7 @@ import { useTranslation } from '@/i18n/hooks';
 import { DetailActionBanner } from '@/pages/detail/DetailActionBanner';
 import { ContextualIssueAction } from '@/pages/detail/ContextualIssueAction';
 import { useRiskDetailState } from '@/pages/detail/useRiskDetailState';
+import { ReadAccessDeniedState } from '@/pages/shared/ReadAccessDeniedState';
 
 export function RiskDetailPage() {
     const { id } = useParams<{ id: string }>();
@@ -41,6 +42,7 @@ export function RiskDetailPage() {
         isCreateDialogOpen,
         isDeleteDialogOpen,
         isDeleting,
+        isAccessDenied,
         isHistoryLoading,
         isIssueModalOpen,
         isLinkDialogOpen,
@@ -79,6 +81,10 @@ export function RiskDetailPage() {
                 <p className="text-slate-500 font-bold animate-pulse uppercase tracking-widest text-xs">{t('loading.risk_data')}</p>
             </div>
         );
+    }
+
+    if (isAccessDenied) {
+        return <ReadAccessDeniedState />;
     }
 
     if (errorKey || !risk) {

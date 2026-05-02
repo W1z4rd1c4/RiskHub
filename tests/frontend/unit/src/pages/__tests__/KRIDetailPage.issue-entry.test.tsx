@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { KRIDetailPage } from '@/pages/KRIDetailPage';
+import { ApiClientError } from '@/services/apiClient';
 
 const mockNavigate = vi.fn();
 const mockGetKRI = vi.fn();
@@ -119,6 +120,21 @@ describe('KRIDetailPage issue entry', () => {
 
         const metricHeadings = await screen.findAllByText('Claims Leakage Ratio');
         expect(metricHeadings.length).toBeGreaterThan(0);
+        expect(screen.queryByRole('button', { name: 'New Issue' })).not.toBeInTheDocument();
+    });
+
+    it('renders denied instead of not found when KRI detail is forbidden', async () => {
+        mockGetKRI.mockRejectedValueOnce(
+            new ApiClientError({
+                status: 403,
+                messageKey: 'errorKeys.forbidden',
+            })
+        );
+
+        render(<KRIDetailPage />);
+
+        await screen.findByRole('heading', { name: /access denied/i });
+        expect(screen.queryByText('KRI Not Found')).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'New Issue' })).not.toBeInTheDocument();
     });
 });

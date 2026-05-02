@@ -58,6 +58,7 @@ describe('DepartmentDetailPage KRI monitoring integration', () => {
                 recent_executions: [],
             },
             isLoading: false,
+            isAccessDenied: false,
             error: null,
             risks: [],
             controls: [],
@@ -167,6 +168,7 @@ describe('DepartmentDetailPage KRI monitoring integration', () => {
                 recent_executions: [],
             },
             isLoading: false,
+            isAccessDenied: false,
             error: null,
             risks: [],
             controls: [],
@@ -202,5 +204,35 @@ describe('DepartmentDetailPage KRI monitoring integration', () => {
         await ui.click(screen.getByText('Ops Analyst'));
 
         expect(screen.getByTestId('location')).toHaveTextContent('/departments/7');
+    });
+
+    it('renders denied instead of the department shell when detail access is forbidden', async () => {
+        useDepartmentDetailMock.mockImplementation(() => ({
+            department: null,
+            isLoading: false,
+            isAccessDenied: true,
+            error: null,
+            risks: [],
+            controls: [],
+            kris: [],
+            users: [],
+            riskTotalPages: 1,
+            controlTotalPages: 1,
+            kriTotalPages: 1,
+            userTotalPages: 1,
+            getRiskCount: () => 0,
+            refresh: vi.fn(),
+        }));
+
+        render(
+            <MemoryRouter initialEntries={['/departments/7']}>
+                <Routes>
+                    <Route path="/departments/:id" element={<DepartmentDetailPage />} />
+                </Routes>
+            </MemoryRouter>
+        );
+
+        await screen.findByRole('heading', { name: /access denied|access.denied/i });
+        expect(screen.queryByText('Compliance')).not.toBeInTheDocument();
     });
 });

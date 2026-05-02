@@ -4,7 +4,6 @@ import { AlertTriangle } from 'lucide-react';
 import { useTranslation } from '@/i18n/hooks';
 import { ExportDialog } from '@/components/reports/ExportDialog';
 import { ViewSwitcher } from '@/components/tables';
-import { usePermissions } from '@/hooks/usePermissions';
 import { IssuesFilterBar } from './issues/IssuesFilterBar';
 import { IssuesPageHeader } from './issues/IssuesPageHeader';
 import { IssuesTableSection } from './issues/IssuesTableSection';
@@ -14,9 +13,7 @@ import { useIssuesPageState } from './issues/useIssuesPageState';
 export function IssuesPage() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
-    const { hasPermission } = usePermissions();
     const { t } = useTranslation('issues');
-    const canRead = hasPermission('issues', 'read');
 
     const [initialState] = useState(() => parseIssuesPageQueryParams(searchParams));
     const {
@@ -31,6 +28,7 @@ export function IssuesPage() {
         includeClosed,
         isExportDialogOpen,
         isExporting,
+        isAccessDenied,
         isLoading,
         items,
         limit,
@@ -59,11 +57,10 @@ export function IssuesPage() {
         selectGroup,
         clearSelectedGroup,
     } = useIssuesPageState({
-        canRead,
         initialState,
     });
 
-    if (!canRead) {
+    if (isAccessDenied) {
         return (
             <div className="glass-card p-8 flex items-center gap-3 text-amber-200">
                 <AlertTriangle className="h-5 w-5" />

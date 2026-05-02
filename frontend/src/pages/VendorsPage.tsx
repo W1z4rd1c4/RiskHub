@@ -9,6 +9,7 @@ import { ThemedSelect } from '@/components/ui/ThemedSelect';
 
 import { VendorsTableSection } from './vendors/VendorsTableSection';
 import { useVendorsPageState } from './vendors/useVendorsPageState';
+import { ReadAccessDeniedState } from './shared/ReadAccessDeniedState';
 
 export function VendorsPage() {
     const navigate = useNavigate();
@@ -23,6 +24,7 @@ export function VendorsPage() {
         hasLoadedOnce,
         isExportDialogOpen,
         isExporting,
+        isAccessDenied,
         isLoading,
         items,
         limit,
@@ -48,6 +50,10 @@ export function VendorsPage() {
         selectGroup,
         clearSelectedGroup,
     } = useVendorsPageState();
+
+    if (isAccessDenied) {
+        return <ReadAccessDeniedState />;
+    }
 
     return (
         <div className="space-y-8">

@@ -1,37 +1,37 @@
 import { useQuery } from '@tanstack/react-query';
 
 import { issueDetailQueryKey } from '@/lib/issueQueryKeys';
-import { apiClient } from '@/services/apiClient';
+import { apiClient, isForbiddenApiError } from '@/services/apiClient';
 import { issuesApi } from '@/services/issuesApi';
 import { useSessionSnapshot } from '@/services/session';
 
 interface UseIssueDetailOptions {
-    canRead: boolean;
     issueId: number;
 }
 
-export function useIssueDetail({ canRead, issueId }: UseIssueDetailOptions) {
+export function useIssueDetail({ issueId }: UseIssueDetailOptions) {
     const session = useSessionSnapshot();
     const hasValidIssueId = Number.isFinite(issueId) && issueId > 0;
     const issueQuery = useQuery({
         queryKey: issueDetailQueryKey(session.user?.id, issueId),
-        enabled: canRead && hasValidIssueId,
+        enabled: hasValidIssueId,
         queryFn: ({ signal }) => issuesApi.get(issueId, { signal }),
         staleTime: 30_000,
     });
 
     const issue = issueQuery.data ?? null;
-    const isLoading = canRead ? issueQuery.isLoading : false;
+    const isAccessDenied = isForbiddenApiError(issueQuery.error);
     const errorKey = !hasValidIssueId
         ? 'errors.not_found'
-        : issueQuery.error && !issue
+        : issueQuery.error && !issue && !isAccessDenied
             ? apiClient.toUiMessageKey(issueQuery.error)
             : null;
 
     return {
         errorKey,
         refreshIssue: issueQuery.refetch,
-        isLoading,
+        isAccessDenied,
+        isLoading: issueQuery.isLoading,
         issue,
     };
 }

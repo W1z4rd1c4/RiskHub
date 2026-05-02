@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { DEFAULT_LIST_PAGE_SIZE } from '@/constants/list';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
-import { apiClient } from '@/services/apiClient';
+import { apiClient, isForbiddenApiError } from '@/services/apiClient';
 import { loadCollectionPage } from '@/services/collectionApi';
 import { issuesApi } from '@/services/issuesApi';
 import { reportApi } from '@/services/reportApi';
@@ -30,11 +30,10 @@ import {
 } from '../shared/collectionPageState';
 
 interface UseIssuesPageStateOptions {
-    canRead: boolean;
     initialState: IssuesPageInitialState;
 }
 
-export function useIssuesPageState({ canRead, initialState }: UseIssuesPageStateOptions) {
+export function useIssuesPageState({ initialState }: UseIssuesPageStateOptions) {
     const [items, setItems] = useState<IssueSummary[]>([]);
     const [groups, setGroups] = useState<CollectionGroup[]>([]);
     const [capabilities, setCapabilities] = useState<Record<string, boolean> | null>(null);
@@ -55,8 +54,9 @@ export function useIssuesPageState({ canRead, initialState }: UseIssuesPageState
         initialState.sortField
     );
     const [sortDirection, setSortDirection] = useState<SortDirection>(initialState.sortDirection);
-    const [isLoading, setIsLoading] = useState(canRead);
+    const [isLoading, setIsLoading] = useState(true);
     const [errorKey, setErrorKey] = useState<string | null>(null);
+    const [isAccessDenied, setIsAccessDenied] = useState(false);
 
     const { beginRequest, isCurrentRequest } = useLatestRequestGuard();
     const {
@@ -84,11 +84,6 @@ export function useIssuesPageState({ canRead, initialState }: UseIssuesPageState
     }, [resetGroupSelection]);
 
     const fetchIssues = useCallback(async () => {
-        if (!canRead) {
-            setIsLoading(false);
-            return;
-        }
-
         const requestId = beginRequest();
         try {
             setIsLoading(true);
@@ -122,12 +117,15 @@ export function useIssuesPageState({ canRead, initialState }: UseIssuesPageState
             setCapabilities(response.capabilities);
             setTotalCount(response.total);
             setErrorKey(null);
+            setIsAccessDenied(false);
             hasLoadedIssuesRef.current = true;
         } catch (loadError) {
             if (!isCurrentRequest(requestId)) {
                 return;
             }
-            setErrorKey(apiClient.toUiMessageKey(loadError));
+            const accessDenied = isForbiddenApiError(loadError);
+            setIsAccessDenied(accessDenied);
+            setErrorKey(accessDenied ? null : apiClient.toUiMessageKey(loadError));
             setItems([]);
             setGroups([]);
             setCapabilities(null);
@@ -139,7 +137,6 @@ export function useIssuesPageState({ canRead, initialState }: UseIssuesPageState
         }
     }, [
         beginRequest,
-        canRead,
         currentPage,
         debouncedSearch,
         excludeActiveExceptions,
@@ -258,6 +255,7 @@ export function useIssuesPageState({ canRead, initialState }: UseIssuesPageState
         includeClosed,
         isExportDialogOpen,
         isExporting,
+        isAccessDenied,
         isLoading,
         items,
         limit,

@@ -4,7 +4,7 @@ import type { ExportDialogSubmitPayload } from '@/components/reports/ExportDialo
 import type { SortDirection, ViewMode } from '@/components/tables';
 import { DEFAULT_LIST_PAGE_SIZE } from '@/constants/list';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
-import { apiClient } from '@/services/apiClient';
+import { apiClient, isForbiddenApiError } from '@/services/apiClient';
 import { loadCollectionPage } from '@/services/collectionApi';
 import { reportApi } from '@/services/reportApi';
 import { vendorApi } from '@/services/vendorApi';
@@ -30,6 +30,7 @@ export function useVendorsPageState() {
     const [totalCount, setTotalCount] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
     const [errorKey, setErrorKey] = useState<string | null>(null);
+    const [isAccessDenied, setIsAccessDenied] = useState(false);
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState<VendorStatus | ''>('active');
     const [typeFilter, setTypeFilter] = useState<VendorType | ''>('');
@@ -93,16 +94,22 @@ export function useVendorsPageState() {
             setCapabilities(response.capabilities);
             setTotalCount(response.total);
             setErrorKey(null);
+            setIsAccessDenied(false);
             hasLoadedVendorsRef.current = true;
         } catch (error) {
             if (!isCurrentRequest(requestId)) {
                 return;
             }
-            setErrorKey(apiClient.toUiMessageKey(error));
+            const accessDenied = isForbiddenApiError(error);
+            setIsAccessDenied(accessDenied);
+            setErrorKey(accessDenied ? null : apiClient.toUiMessageKey(error));
             setItems([]);
             setGroups([]);
             setCapabilities(null);
             setTotalCount(0);
+            if (accessDenied) {
+                hasLoadedVendorsRef.current = false;
+            }
         } finally {
             if (isCurrentRequest(requestId)) {
                 setIsLoading(false);
@@ -215,6 +222,7 @@ export function useVendorsPageState() {
         hasLoadedOnce: hasLoadedVendorsRef.current,
         isExportDialogOpen,
         isExporting,
+        isAccessDenied,
         isLoading,
         items,
         limit,

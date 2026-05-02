@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { VendorDetailPage } from '@/pages/VendorDetailPage';
+import { ApiClientError } from '@/services/apiClient';
 
 const mockNavigate = vi.fn();
 const mockGetVendor = vi.fn();
@@ -120,6 +121,21 @@ describe('VendorDetailPage issue entry', () => {
         render(<VendorDetailPage />);
 
         await screen.findByText('Atlas Cloud Services');
+        expect(screen.queryByRole('button', { name: 'New Issue' })).not.toBeInTheDocument();
+    });
+
+    it('renders denied instead of not found when vendor detail is forbidden', async () => {
+        mockGetVendor.mockRejectedValueOnce(
+            new ApiClientError({
+                status: 403,
+                messageKey: 'errorKeys.forbidden',
+            })
+        );
+
+        render(<VendorDetailPage />);
+
+        await screen.findByRole('heading', { name: /access denied/i });
+        expect(screen.queryByText('Atlas Cloud Services')).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'New Issue' })).not.toBeInTheDocument();
     });
 

@@ -29,6 +29,7 @@ export type Authz = {
     canReadRisks: boolean;
     canReadControls: boolean;
     canReadVendors: boolean;
+    canReadDepartments: boolean;
 };
 
 export function buildAuthz(user: AuthUser, hasPermission: PermissionChecker): Authz {
@@ -48,7 +49,7 @@ export function buildAuthz(user: AuthUser, hasPermission: PermissionChecker): Au
     const canViewDepartmentAccess = canViewDepartmentAccessUsers || canViewAccessUsers;
     const canViewAdminConsole = isPlatformAdmin;
     const canViewRiskHub = isCRO;
-    const canViewGovernance = isCRO;
+    const canViewGovernance = !isPlatformAdmin && hasGlobalScope && hasPermission('users', 'write');
     const canViewActivityLog = !isPlatformAdmin && hasPermission('activity_log', 'read');
     const canViewCommittee = (hasGlobalScope && !isPlatformAdmin) || isDepartmentHead;
     const canViewUsersPage = canViewUsersRoute;
@@ -57,6 +58,7 @@ export function buildAuthz(user: AuthUser, hasPermission: PermissionChecker): Au
     const canReadRisks = hasPermission('risks', 'read');
     const canReadControls = hasPermission('controls', 'read');
     const canReadVendors = hasPermission('vendors', 'read');
+    const canReadDepartments = hasPermission('departments', 'read');
 
     return {
         isAuthenticated,
@@ -82,5 +84,6 @@ export function buildAuthz(user: AuthUser, hasPermission: PermissionChecker): Au
         canReadRisks,
         canReadControls,
         canReadVendors,
+        canReadDepartments,
     };
 }

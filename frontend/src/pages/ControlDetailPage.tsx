@@ -29,6 +29,7 @@ import { ContextualIssueAction } from '@/pages/detail/ContextualIssueAction';
 import { DetailActionBanner, type DetailActionMessage } from '@/pages/detail/DetailActionBanner';
 import { useArchiveRestoreAction } from '@/pages/detail/useArchiveRestoreAction';
 import { useDetailResource } from '@/pages/detail/useDetailResource';
+import { ReadAccessDeniedState } from '@/pages/shared/ReadAccessDeniedState';
 import { logError } from '@/services/logger';
 
 type TabView = 'overview' | 'history';
@@ -56,6 +57,7 @@ export function ControlDetailPage() {
     const loadControl = useCallback((controlId: number) => controlApi.getControl(controlId), []);
     const {
         errorKey,
+        isAccessDenied,
         isLoading,
         refetch: fetchControl,
         resource: control,
@@ -166,6 +168,10 @@ export function ControlDetailPage() {
                 <p className="text-slate-500 font-bold animate-pulse uppercase tracking-widest text-xs">{t('loading.control_data')}</p>
             </div>
         );
+    }
+
+    if (isAccessDenied) {
+        return <ReadAccessDeniedState />;
     }
 
     if (errorKey || !control) {

@@ -1,6 +1,6 @@
 """Stable facade for backend-authoritative action capability builders."""
 
-from app.services._authorization_capabilities_impl import (
+from app.services._authorization_capabilities import (
     approval_capabilities,
     can_view_loaded_vendor,
     can_view_vendor_link,

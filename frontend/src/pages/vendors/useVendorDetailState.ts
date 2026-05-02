@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 
 import { logError } from '@/services/logger';
+import { isForbiddenApiError } from '@/services/apiClient';
 import { vendorApi } from '@/services/vendorApi';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import type { Vendor } from '@/types/vendor';
@@ -21,6 +22,7 @@ export function useVendorDetailState({
     const [vendor, setVendor] = useState<Vendor | null>(null);
     const [isLoading, setIsLoading] = useState(mode !== 'new');
     const [error, setError] = useState<string | null>(null);
+    const [isAccessDenied, setIsAccessDenied] = useState(false);
     const [isIssueModalOpen, setIsIssueModalOpen] = useState(false);
 
     const vendorId = Number(id);
@@ -29,6 +31,7 @@ export function useVendorDetailState({
         if (!vendorId) {
             setVendor(null);
             setError(notFoundMessage);
+            setIsAccessDenied(false);
             setIsLoading(false);
             return;
         }
@@ -38,9 +41,13 @@ export function useVendorDetailState({
             const data = await vendorApi.getVendor(vendorId);
             setVendor(data);
             setError(null);
+            setIsAccessDenied(false);
         } catch (loadError) {
             logError('Error fetching vendor:', loadError);
-            setError(notFoundMessage);
+            const accessDenied = isForbiddenApiError(loadError);
+            setIsAccessDenied(accessDenied);
+            setVendor(null);
+            setError(accessDenied ? null : notFoundMessage);
         } finally {
             setIsLoading(false);
         }
@@ -90,6 +97,7 @@ export function useVendorDetailState({
         canRestore,
         error,
         fetchVendor,
+        isAccessDenied,
         isIssueModalOpen,
         isLoading,
         openIssueModal: () => setIsIssueModalOpen(true),

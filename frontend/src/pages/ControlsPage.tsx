@@ -5,6 +5,7 @@ import { ControlsFilterBar } from './controls/ControlsFilterBar';
 import { ControlsPageHeader } from './controls/ControlsPageHeader';
 import { ControlsTableSection } from './controls/ControlsTableSection';
 import { useControlsPageState } from './controls/useControlsPageState';
+import { ReadAccessDeniedState } from './shared/ReadAccessDeniedState';
 
 export function ControlsPage() {
     const navigate = useNavigate();
@@ -18,6 +19,7 @@ export function ControlsPage() {
         hasLoadedOnce,
         isExportDialogOpen,
         isExporting,
+        isAccessDenied,
         isLoading,
         items,
         limit,
@@ -38,6 +40,10 @@ export function ControlsPage() {
         selectGroup,
         clearSelectedGroup,
     } = useControlsPageState();
+
+    if (isAccessDenied) {
+        return <ReadAccessDeniedState />;
+    }
 
     return (
         <div className="space-y-8">

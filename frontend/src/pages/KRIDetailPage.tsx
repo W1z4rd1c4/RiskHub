@@ -14,6 +14,7 @@ import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { useTranslation } from '@/i18n/hooks';
 import { formatMetricNumberValue } from '@/i18n/formatters';
 import { useKriDetailState } from '@/pages/detail/useKriDetailState';
+import { ReadAccessDeniedState } from '@/pages/shared/ReadAccessDeniedState';
 
 export function KRIDetailPage() {
     const { id } = useParams<{ id: string }>();
@@ -33,6 +34,7 @@ export function KRIDetailPage() {
         handleSave,
         history,
         historyTotal,
+        isAccessDenied,
         isDeleteDialogOpen,
         isDeleting,
         isEditModalOpen,
@@ -66,6 +68,10 @@ export function KRIDetailPage() {
                 <div className="h-64 bg-white/5 rounded-2xl" />
             </div>
         );
+    }
+
+    if (isAccessDenied) {
+        return <ReadAccessDeniedState />;
     }
 
     if (!kri) {

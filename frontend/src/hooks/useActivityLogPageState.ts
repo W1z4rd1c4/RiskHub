@@ -5,6 +5,7 @@ import type { ActivityLogCapabilities, ActivityLogEntry } from '@/types/activity
 import { lookupApi, type UserLookupItem } from '@/services/lookupApi';
 import { riskApi } from '@/services/riskApi';
 import { logError } from '@/services/logger';
+import { isForbiddenApiError } from '@/services/apiClient';
 
 /** View modes for the activity log */
 export type ViewMode = 'chronological' | 'by_person' | 'by_department' | 'by_risk';
@@ -246,18 +247,9 @@ export function useActivityLogPageState(
             }
         } catch (error) {
             logError('Failed to fetch activity logs:', error);
-            // Distinguish 403 from other errors
-            if (requestId === latestEntriesRequestIdRef.current && error instanceof Error && 'response' in error) {
-                const resp = (error as { response?: { status?: number } }).response;
-                if (resp?.status === 403) {
-                    setErrorType('access_denied');
-                } else {
-                    setErrorType('network_error');
-                }
-            } else if (requestId === latestEntriesRequestIdRef.current) {
-                setErrorType('network_error');
-            }
             if (requestId === latestEntriesRequestIdRef.current) {
+                const accessDenied = isForbiddenApiError(error);
+                setErrorType(accessDenied ? 'access_denied' : 'network_error');
                 setEntries([]);
                 setTotal(0);
                 setCapabilities(null);

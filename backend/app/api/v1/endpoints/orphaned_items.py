@@ -143,7 +143,7 @@ async def get_orphan_stats(
 
     Returns counts by type and status for dashboard widgets.
     """
-    ensure_business_view_access(current_user, detail="Platform admins cannot access Governance business data")
+    _require_governance_operator(current_user)
     stats = await OrphanedItemService.get_orphan_stats(db, current_user=current_user)
     return OrphanedItemStats(**stats)
 

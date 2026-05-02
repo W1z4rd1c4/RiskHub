@@ -5,6 +5,7 @@ import type { RiskSummary } from '@/types/risk';
 import type { ControlSummary } from '@/types/control';
 import type { KeyRiskIndicator, KRIMonitoringStatus } from '@/types/kri';
 import { logError } from '@/services/logger';
+import { isForbiddenApiError } from '@/services/apiClient';
 
 // Pagination constants - must match backend MAX_PAGE_SIZE
 export const DEPARTMENT_PAGE_SIZE = 100;
@@ -37,6 +38,7 @@ interface UseDepartmentDetailResult {
     // Department metadata
     department: DepartmentDetail | null;
     isLoading: boolean;
+    isAccessDenied: boolean;
     error: string | null;
 
     // Tab data
@@ -77,6 +79,7 @@ export function useDepartmentDetail({
     // Department metadata
     const [department, setDepartment] = useState<DepartmentDetail | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [isAccessDenied, setIsAccessDenied] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     // Tab data
@@ -96,11 +99,15 @@ export function useDepartmentDetail({
             .then((data) => {
                 if (!cancelled) {
                     setDepartment(data);
+                    setIsAccessDenied(false);
                 }
             })
-            .catch(() => {
+            .catch((error: unknown) => {
                 if (!cancelled) {
-                    setError('errors.load_department_detail_failed');
+                    const accessDenied = isForbiddenApiError(error);
+                    setIsAccessDenied(accessDenied);
+                    setDepartment(null);
+                    setError(accessDenied ? null : 'errors.load_department_detail_failed');
                 }
             })
             .finally(() => {
@@ -225,6 +232,7 @@ export function useDepartmentDetail({
     return {
         department,
         isLoading,
+        isAccessDenied,
         error,
         risks,
         controls,

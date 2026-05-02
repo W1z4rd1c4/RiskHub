@@ -18,6 +18,7 @@ import { ControlDetailPage } from '@/pages/ControlDetailPage';
 import { ControlsPage } from '@/pages/ControlsPage';
 import { RisksPage } from '@/pages/RisksPage';
 import { UsersPage } from '@/pages/UsersPage';
+import { DepartmentsPage } from '@/pages/DepartmentsPage';
 
 vi.mock('@/utils/userSettingsStorage', async () => {
     const actual = await vi.importActual<typeof import('@/utils/userSettingsStorage')>('@/utils/userSettingsStorage');
@@ -205,6 +206,7 @@ async function renderWithRoute(route: string) {
                             <Route path="/kris/:id" element={<KRIDetailPage />} />
                             <Route path="/controls" element={<ControlsPage />} />
                             <Route path="/controls/:id" element={<ControlDetailPage />} />
+                            <Route path="/departments" element={<DepartmentsPage />} />
                             <Route path="/risks" element={<RisksPage />} />
                             <Route path="/users" element={<UsersPage />} />
                         </Routes>
@@ -244,6 +246,8 @@ describe('RBAC UI gating', () => {
         expect(adminAuthz.canViewUsersRoute).toBe(true);
         expect(adminAuthz.canManageAccess).toBe(true);
         expect(adminAuthz.canReadRisks).toBe(true);
+        expect(adminAuthz.canReadControls).toBe(true);
+        expect(adminAuthz.canReadDepartments).toBe(true);
 
         const cro = makeUser({
             role: 'cro',
@@ -252,10 +256,24 @@ describe('RBAC UI gating', () => {
         });
         const croAuthz = buildAuthz(cro, makeHasPermission(cro.effective_permissions));
         expect(croAuthz.canViewRiskHub).toBe(true);
+        expect(croAuthz.canViewGovernance).toBe(false);
         expect(croAuthz.canViewAdminConsole).toBe(false);
         expect(croAuthz.canViewAccessUsers).toBe(true);
         expect(croAuthz.canViewUsersRoute).toBe(true);
         expect(croAuthz.canReadRisks).toBe(true);
+        expect(croAuthz.canReadControls).toBe(false);
+        expect(croAuthz.canReadDepartments).toBe(false);
+
+        const delegatedGovernanceOperator = makeUser({
+            role: 'risk_manager',
+            access_scope: 'global',
+            effective_permissions: ['users:write'],
+        });
+        const delegatedGovernanceAuthz = buildAuthz(
+            delegatedGovernanceOperator,
+            makeHasPermission(delegatedGovernanceOperator.effective_permissions),
+        );
+        expect(delegatedGovernanceAuthz.canViewGovernance).toBe(true);
 
         const deptHead = makeUser({
             role: 'department_head',
@@ -878,6 +896,61 @@ describe('RBAC UI gating', () => {
         expect(screen.getByTestId('risks-export-button')).toBeInTheDocument();
     });
 
+    it('RisksPage: forbidden refetch clears stale rows and collection actions', async () => {
+        const user = makeUser({
+            id: 198,
+            effective_permissions: ['risks:read', 'reports:read'],
+        });
+        let requestCount = 0;
+
+        server.use(
+            http.get('*/api/v1/auth/me', () => HttpResponse.json(user)),
+            http.get('*/api/v1/risks', () => {
+                requestCount += 1;
+                if (requestCount > 1) {
+                    return HttpResponse.json({ detail: 'Forbidden' }, { status: 403 });
+                }
+                return HttpResponse.json({
+                    items: [
+                        {
+                            id: 4,
+                            risk_id_code: 'R-STALE-001',
+                            name: 'Stale Risk Row',
+                            process: 'Mock Process',
+                            risk_type: 'operational',
+                            category: 'Mock',
+                            description: 'Mock Desc',
+                            gross_score: 9,
+                            gross_probability: 3,
+                            gross_impact: 3,
+                            net_score: 4,
+                            status: 'active',
+                            is_priority: false,
+                            capabilities: makeRiskCapabilities({ can_restore: true }),
+                        },
+                    ],
+                    total: 1,
+                    offset: 0,
+                    limit: 20,
+                    capabilities: { can_create: true, can_export: true },
+                });
+            })
+        );
+
+        await renderWithRoute('/risks');
+
+        await screen.findByText('Stale Risk Row');
+        expect(screen.getByTestId('risks-export-button')).toBeInTheDocument();
+        expect(screen.getByTestId('risks-create-button')).toBeInTheDocument();
+
+        await userEvent.click(screen.getByTestId('risks-refresh-button'));
+
+        await screen.findByRole('heading', { name: /access denied/i });
+        expect(screen.queryByText('Stale Risk Row')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('risks-export-button')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('risks-create-button')).not.toBeInTheDocument();
+    });
+
     it('ControlsPage: controls:delete shows "Unarchive" action for archived control row', async () => {
         const user = makeUser({
             id: 92,
@@ -1028,5 +1101,71 @@ describe('RBAC UI gating', () => {
 
         await screen.findByText('Allowed Export Control');
         expect(screen.getByTestId('controls-export-button')).toBeInTheDocument();
+    });
+
+    it('ControlsPage: forbidden refetch clears stale rows and collection actions', async () => {
+        const user = makeUser({
+            id: 199,
+            effective_permissions: ['controls:read', 'reports:read'],
+        });
+        let requestCount = 0;
+
+        server.use(
+            http.get('*/api/v1/auth/me', () => HttpResponse.json(user)),
+            http.get('*/api/v1/controls', () => {
+                requestCount += 1;
+                if (requestCount > 1) {
+                    return HttpResponse.json({ detail: 'Forbidden' }, { status: 403 });
+                }
+                return HttpResponse.json({
+                    items: [
+                        {
+                            id: 4,
+                            name: 'Stale Control Row',
+                            department_name: 'Operations',
+                            frequency: 'monthly',
+                            risk_level: 3,
+                            status: 'active',
+                            control_form: 'manual',
+                            capabilities: makeControlCapabilities(),
+                        },
+                    ],
+                    total: 1,
+                    offset: 0,
+                    limit: 20,
+                    capabilities: { can_create: true, can_export: true },
+                });
+            })
+        );
+
+        await renderWithRoute('/controls');
+
+        await screen.findByText('Stale Control Row');
+        expect(screen.getByTestId('controls-export-button')).toBeInTheDocument();
+        expect(screen.getByTestId('controls-create-button')).toBeInTheDocument();
+
+        await userEvent.click(screen.getByTestId('controls-refresh-button'));
+
+        await screen.findByRole('heading', { name: /access denied/i });
+        expect(screen.queryByText('Stale Control Row')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('controls-export-button')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('controls-create-button')).not.toBeInTheDocument();
+    });
+
+    it('DepartmentsPage: renders denied when the backend refuses department reads', async () => {
+        const user = makeUser({
+            id: 200,
+            effective_permissions: [],
+        });
+
+        server.use(
+            http.get('*/api/v1/auth/me', () => HttpResponse.json(user)),
+            http.get('*/api/v1/departments', () => HttpResponse.json({ detail: 'Forbidden' }, { status: 403 }))
+        );
+
+        await renderWithRoute('/departments');
+
+        await screen.findByRole('heading', { name: /access denied/i });
+        expect(screen.queryByText('Department Exposure')).not.toBeInTheDocument();
     });
 });

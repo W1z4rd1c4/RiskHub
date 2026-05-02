@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RiskDetailPage } from '@/pages/RiskDetailPage';
+import { ApiClientError } from '@/services/apiClient';
 
 const mockNavigate = vi.fn();
 const mockGetRisk = vi.fn();
@@ -119,6 +120,21 @@ describe('RiskDetailPage issue entry', () => {
         render(<RiskDetailPage />);
 
         await screen.findByText('Liquidity Risk');
+        expect(screen.queryByRole('button', { name: 'New Issue' })).not.toBeInTheDocument();
+    });
+
+    it('renders denied instead of not found when risk detail is forbidden', async () => {
+        mockGetRisk.mockRejectedValueOnce(
+            new ApiClientError({
+                status: 403,
+                messageKey: 'errorKeys.forbidden',
+            })
+        );
+
+        render(<RiskDetailPage />);
+
+        await screen.findByRole('heading', { name: /access denied/i });
+        expect(screen.queryByText('Risk Not Found')).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: 'New Issue' })).not.toBeInTheDocument();
     });
 });

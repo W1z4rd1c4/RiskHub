@@ -12,7 +12,7 @@ import {
     ShieldX,
     Target
 } from 'lucide-react';
-import { ApiClientError } from '@/services/apiClient';
+import { isForbiddenApiError } from '@/services/apiClient';
 import { executionApi } from '@/services/executionApi';
 import { reportApi } from '@/services/reportApi';
 import type { ExecutionAuditItem, ExecutionListCapabilities, ExecutionResult } from '@/types/execution';
@@ -54,7 +54,7 @@ export function AuditTrailPage() {
             setExecutions([]);
             setTotalCount(0);
             setCapabilities(null);
-            setAccessDenied(err instanceof ApiClientError && err.status === 403);
+            setAccessDenied(isForbiddenApiError(err));
             logError('Failed to fetch audit trail:', err);
         } finally {
             setIsLoading(false);
