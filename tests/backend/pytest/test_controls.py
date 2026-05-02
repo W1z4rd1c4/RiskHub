@@ -6,7 +6,7 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
 
-from app.models import Control, Department, Permission, Role, RolePermission, User
+from app.models import Control, ControlRiskLink, Department, Permission, Risk, Role, RolePermission, User
 from app.models.user import AccessScope
 
 
@@ -90,6 +90,175 @@ async def test_list_controls(auth_client: AsyncClient, test_user: User, test_dep
     item = next(entry for entry in data if entry["name"] == "List Test Control")
     assert item["capabilities"]["can_view_executions"] is True
     assert item["capabilities"]["can_link_risk"] is True
+
+
+@pytest.mark.asyncio
+async def test_list_controls_shows_linked_risk_visible_by_direct_ownership(
+    client_employee: AsyncClient,
+    db_session,
+    test_department: Department,
+    test_user_employee: User,
+):
+    other_department = Department(name="Control Risk Owner Other", code="CROO", is_active=True)
+    db_session.add(other_department)
+    await db_session.flush()
+
+    owned_cross_department_risk = Risk(
+        risk_id_code="RISK-CTRL-OWNER",
+        name="Directly Owned Cross Department Risk",
+        process="Owner Visible Process",
+        description="Direct ownership should make this linked risk visible",
+        category="Operational",
+        department_id=other_department.id,
+        owner_id=test_user_employee.id,
+        risk_type="operational",
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=2,
+        status="active",
+    )
+    hidden_cross_department_risk = Risk(
+        risk_id_code="RISK-CTRL-HIDDEN",
+        name="Hidden Cross Department Risk",
+        process="Hidden Process",
+        description="Unowned cross-department risk should remain hidden",
+        category="Operational",
+        department_id=other_department.id,
+        owner_id=None,
+        risk_type="operational",
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=2,
+        status="active",
+    )
+    owned_risk_control = Control(
+        name="Control Linked To Direct Owner Risk",
+        description="Control visible in the user's department",
+        department_id=test_department.id,
+        control_owner_id=test_user_employee.id,
+        control_form="manual",
+        frequency="monthly",
+        risk_level=3,
+        status="active",
+    )
+    hidden_risk_control = Control(
+        name="Control Linked To Hidden Risk",
+        description="Control visible in the user's department",
+        department_id=test_department.id,
+        control_owner_id=None,
+        control_form="manual",
+        frequency="monthly",
+        risk_level=3,
+        status="active",
+    )
+    db_session.add_all(
+        [
+            owned_cross_department_risk,
+            hidden_cross_department_risk,
+            owned_risk_control,
+            hidden_risk_control,
+        ]
+    )
+    await db_session.flush()
+    db_session.add_all(
+        [
+            ControlRiskLink(
+                control_id=owned_risk_control.id,
+                risk_id=owned_cross_department_risk.id,
+                effectiveness="medium",
+            ),
+            ControlRiskLink(
+                control_id=hidden_risk_control.id,
+                risk_id=hidden_cross_department_risk.id,
+                effectiveness="medium",
+            ),
+        ]
+    )
+    await db_session.commit()
+
+    response = await client_employee.get("/api/v1/controls")
+
+    assert response.status_code == 200
+    items = response.json()["items"]
+    owned_item = next(item for item in items if item["id"] == owned_risk_control.id)
+    hidden_item = next(item for item in items if item["id"] == hidden_risk_control.id)
+    assert owned_item["risk_name"] == owned_cross_department_risk.name
+    assert owned_item["risk_id_code"] == owned_cross_department_risk.risk_id_code
+    assert hidden_item["risk_name"] is None
+    assert hidden_item["risk_id_code"] is None
+
+
+@pytest.mark.asyncio
+async def test_control_linked_risks_show_direct_owner_risk_and_redact_hidden_risk(
+    client_employee: AsyncClient,
+    db_session,
+    test_department: Department,
+    test_user_employee: User,
+):
+    other_department = Department(name="Control Link Risk Other", code="CLRO", is_active=True)
+    db_session.add(other_department)
+    await db_session.flush()
+
+    visible_risk = Risk(
+        risk_id_code="RISK-LINK-OWNER",
+        name="Linked Direct Owner Risk",
+        process="Visible Process",
+        description="Directly owned linked risk",
+        category="Operational",
+        department_id=other_department.id,
+        owner_id=test_user_employee.id,
+        risk_type="operational",
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=2,
+        status="active",
+    )
+    hidden_risk = Risk(
+        risk_id_code="RISK-LINK-HIDDEN",
+        name="Linked Hidden Risk",
+        process="Hidden Process",
+        description="Cross-department hidden linked risk",
+        category="Operational",
+        department_id=other_department.id,
+        owner_id=None,
+        risk_type="operational",
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=2,
+        status="active",
+    )
+    control = Control(
+        name="Control Linked Risk Redaction",
+        description="Control visible in user's department",
+        department_id=test_department.id,
+        control_owner_id=None,
+        control_form="manual",
+        frequency="monthly",
+        risk_level=3,
+        status="active",
+    )
+    db_session.add_all([visible_risk, hidden_risk, control])
+    await db_session.flush()
+    db_session.add_all(
+        [
+            ControlRiskLink(control_id=control.id, risk_id=visible_risk.id, effectiveness="medium"),
+            ControlRiskLink(control_id=control.id, risk_id=hidden_risk.id, effectiveness="medium"),
+        ]
+    )
+    await db_session.commit()
+
+    response = await client_employee.get(f"/api/v1/controls/{control.id}/risks")
+
+    assert response.status_code == 200
+    links = sorted(response.json(), key=lambda link: link["risk_id"])
+    visible_link = next(link for link in links if link["risk_id"] == visible_risk.id)
+    hidden_link = next(link for link in links if link["risk_id"] == hidden_risk.id)
+    assert visible_link["risk"]["name"] == visible_risk.name
+    assert hidden_link["risk"] is None
 
 
 @pytest.mark.asyncio

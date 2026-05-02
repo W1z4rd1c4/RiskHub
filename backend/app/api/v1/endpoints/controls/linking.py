@@ -10,8 +10,8 @@ from app.api.v1.endpoints._monitoring_response import (
     serialize_control_risk_link,
 )
 from app.core.datetime_utils import utc_now
-from app.core.permissions import check_department_access
-from app.core.security import check_permission, require_permission
+from app.core.permissions import check_department_access, visible_risk_ids
+from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import Control, ControlRiskLink, Risk, User
 from app.schemas.risk import ControlRiskLinkCreate, ControlRiskLinkRead
@@ -29,12 +29,7 @@ async def list_control_risks(
     current_user: User = Depends(require_permission("controls", "read")),
 ):
     """List risks that this control mitigates."""
-    from app.core.permissions import (
-        can_access_department_id,
-        get_risk_ids_where_control_owner,
-        get_risk_ids_where_kri_reporting_owner,
-        is_control_owner,
-    )
+    from app.core.permissions import is_control_owner
 
     # Verify control exists
     control_result = await db.execute(select(Control).where(Control.id == control_id))
@@ -61,24 +56,16 @@ async def list_control_risks(
     )
     links = links_result.scalars().all()
 
-    can_read_risks = check_permission(current_user, "risks", "read")
-    if not can_read_risks:
-        for link in links:
-            cast(Any, link).risk = None
-        return links
-
-    reporting_owner_risk_ids = await get_risk_ids_where_kri_reporting_owner(db, current_user.id)
-    control_owner_risk_ids = await get_risk_ids_where_control_owner(db, current_user.id)
-    cross_dept_risk_ids = set(reporting_owner_risk_ids) | set(control_owner_risk_ids)
-
+    readable_risk_ids = await visible_risk_ids(
+        db,
+        current_user,
+        [link.risk_id for link in links if link.risk_id is not None],
+    )
     for link in links:
         if not link.risk:
             continue
-        if can_access_department_id(current_user, link.risk.department_id):
-            continue
-        if link.risk.id in cross_dept_risk_ids:
-            continue
-        cast(Any, link).risk = None
+        if link.risk.id not in readable_risk_ids:
+            cast(Any, link).risk = None
 
     now = utc_now()
     monitoring_context = await load_monitoring_response_context(db, now=now, today=now.date())

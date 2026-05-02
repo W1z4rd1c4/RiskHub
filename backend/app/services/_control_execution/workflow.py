@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.datetime_utils import utc_now
-from app.core.permissions import can_read_risk_id, check_department_access, is_control_owner
+from app.core.permissions import check_department_access, is_control_owner, visible_risk_ids
 from app.models import Control, ControlExecution, User
 from app.models.control import ControlStatus
 from app.models.risk import ControlRiskLink
@@ -137,11 +137,24 @@ async def visible_linked_risk_names(
     if control is None:
         return []
 
+    candidate_risk_ids = [
+        link.risk.id
+        for link in control.risk_links or []
+        if getattr(link, "risk", None) is not None
+    ]
+    readable_risk_ids = await visible_risk_ids(db, current_user, candidate_risk_ids)
+    return linked_risk_names_for_visible_ids(control, readable_risk_ids)
+
+
+def linked_risk_names_for_visible_ids(control: Control | None, readable_risk_ids: set[int]) -> list[str]:
+    if control is None:
+        return []
+
     names: list[str] = []
     for link in control.risk_links or []:
         risk = link.risk
         if risk is None:
             continue
-        if await can_read_risk_id(db, current_user, risk.id):
+        if risk.id in readable_risk_ids:
             names.append(risk.process)
     return names

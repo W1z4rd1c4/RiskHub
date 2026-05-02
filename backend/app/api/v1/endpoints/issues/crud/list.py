@@ -32,7 +32,7 @@ from app.schemas.issue import IssueListResponse
 from app.services.authorization_capabilities import issue_capabilities
 from app.services.issue_visibility_service import unsuppressed_issue_clause
 
-from .._shared import _serialize_issue_summary
+from .._shared import _serialize_issue_summary, build_issue_linked_visibility
 
 router = APIRouter()
 
@@ -289,10 +289,19 @@ async def list_issues(
 
     if collection_query.group_by:
         result = await db.execute(ordered_query)
+        issues = list(result.scalars().all())
+        linked_visibility = await build_issue_linked_visibility(db, current_user, issues)
         all_items = []
-        for issue in result.scalars().all():
+        for issue in issues:
             capabilities = await issue_capabilities(db, current_user=current_user, issue=issue)
-            all_items.append(_serialize_issue_summary(issue, current_user=current_user, capabilities=capabilities))
+            all_items.append(
+                _serialize_issue_summary(
+                    issue,
+                    current_user=current_user,
+                    capabilities=capabilities,
+                    linked_visibility=linked_visibility,
+                )
+            )
         paginated_items, grouped_total, groups = build_grouped_collection_page(
             all_items,
             collection_query,
@@ -311,10 +320,18 @@ async def list_issues(
 
     result = await db.execute(ordered_query.offset(offset).limit(limit))
     issues = result.scalars().all()
+    linked_visibility = await build_issue_linked_visibility(db, current_user, issues)
     items = []
     for issue in issues:
         capabilities = await issue_capabilities(db, current_user=current_user, issue=issue)
-        items.append(_serialize_issue_summary(issue, current_user=current_user, capabilities=capabilities))
+        items.append(
+            _serialize_issue_summary(
+                issue,
+                current_user=current_user,
+                capabilities=capabilities,
+                linked_visibility=linked_visibility,
+            )
+        )
 
     return IssueListResponse(
         items=items,

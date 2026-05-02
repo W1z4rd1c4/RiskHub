@@ -28,6 +28,7 @@ from .serialization import (
     _serialize_issue_read,
     _serialize_issue_summary,
     _serialize_remediation,
+    build_issue_linked_visibility,
 )
 from .source import (
     ResolvedIssueSource,
@@ -70,6 +71,7 @@ __all__ = [
     "_serialize_issue_summary",
     "_serialize_remediation",
     "_validate_user_exists",
+    "build_issue_linked_visibility",
     "clear_issue_source_links",
     "ensure_issue_source_link",
     "resolve_contextual_issue_source",

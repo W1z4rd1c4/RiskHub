@@ -20,7 +20,7 @@ from app.api.v1.endpoints._monitoring_response import (
     load_monitoring_response_context,
 )
 from app.core.datetime_utils import utc_now
-from app.core.permissions import can_read_vendor
+from app.core.permissions import can_read_vendor, visible_risk_ids
 from app.core.security import check_permission, require_permission
 from app.db.session import get_db
 from app.models import Control, ControlRiskLink, Risk, User, VendorControlLink
@@ -220,18 +220,6 @@ async def list_controls(
     total = total_result.scalar() or 0
 
     # Map to summary with department_name and risk info
-    from app.core.permissions import (
-        can_access_department_id,
-        get_risk_ids_where_control_owner,
-        get_risk_ids_where_kri_reporting_owner,
-    )
-
-    can_read_risks = check_permission(current_user, "risks", "read")
-    cross_dept_risk_ids: set[int] = set()
-    if can_read_risks:
-        reporting_owner_risk_ids = await get_risk_ids_where_kri_reporting_owner(db, current_user.id)
-        control_owner_risk_ids = await get_risk_ids_where_control_owner(db, current_user.id)
-        cross_dept_risk_ids = set(reporting_owner_risk_ids) | set(control_owner_risk_ids)
     can_read_vendors = check_permission(current_user, "vendors", "read")
     collection_capabilities = {
         "can_create": check_permission(current_user, "controls", "write"),
@@ -240,11 +228,6 @@ async def list_controls(
     }
     process_group_entries_by_control_id: dict[int, list[CollectionGroupEntry]] = {}
     risk_group_entries_by_control_id: dict[int, list[CollectionGroupEntry]] = {}
-
-    def risk_is_visible(risk: Risk) -> bool:
-        if not can_read_risks:
-            return False
-        return can_access_department_id(current_user, risk.department_id) or risk.id in cross_dept_risk_ids
 
     def risk_group_entry(risk: Risk) -> CollectionGroupEntry:
         value = risk.name or CONTROL_GROUP_UNKNOWN_RISK
@@ -259,6 +242,13 @@ async def list_controls(
         )
 
     async def serialize_controls(controls: list[Control]) -> list[ControlSummary]:
+        candidate_risk_ids = {
+            link.risk_id
+            for control in controls
+            for link in control.risk_links
+            if getattr(link, "risk_id", None) is not None
+        }
+        readable_risk_ids = await visible_risk_ids(db, current_user, candidate_risk_ids)
         items = []
         for c in controls:
             monitoring_fields = build_control_monitoring_fields(c, monitoring_context)
@@ -266,7 +256,7 @@ async def list_controls(
             visible_linked_risks = [
                 link.risk
                 for link in c.risk_links
-                if getattr(link, "risk", None) is not None and risk_is_visible(link.risk)
+                if getattr(link, "risk", None) is not None and link.risk.id in readable_risk_ids
             ]
             first_risk = visible_linked_risks[0] if visible_linked_risks else None
             process_entries: list[CollectionGroupEntry] = []

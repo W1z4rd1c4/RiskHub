@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.datetime_utils import coerce_utc
-from app.core.permissions import can_read_control_id, control_visibility_clause, has_permission
+from app.core.permissions import can_read_control_id, control_visibility_clause, has_permission, visible_risk_ids
 from app.core.security import require_business_permission, require_permission
 from app.db.session import get_db
 from app.models import User
@@ -22,6 +22,7 @@ from app.schemas import execution as schemas
 from app.schemas.execution import ExecutionResultEnum
 from app.services._control_execution import (
     create_execution_record,
+    linked_risk_names_for_visible_ids,
     load_execution_with_context,
     visible_linked_risk_names,
 )
@@ -75,6 +76,16 @@ def _apply_execution_scope_and_filters(
     return query
 
 
+def _linked_risk_candidate_ids(executions: list[ControlExecutionModel]) -> set[int]:
+    return {
+        link.risk_id
+        for exe in executions
+        if exe.control is not None
+        for link in exe.control.risk_links or []
+        if link.risk_id is not None
+    }
+
+
 @router.get("", response_model=schemas.ControlExecutionListResponse)
 async def read_executions(
     db: AsyncSession = Depends(get_db),
@@ -124,6 +135,7 @@ async def read_executions(
 
     result_set = await db.execute(list_query)
     executions = result_set.scalars().all()
+    readable_linked_risk_ids = await visible_risk_ids(db, current_user, _linked_risk_candidate_ids(executions))
 
     items: list[schemas.ControlExecution] = []
     for exe in executions:
@@ -141,7 +153,7 @@ async def read_executions(
                 executed_by_name=executed_by_name,
                 control_name=control_name,
                 control_owner_name=control_owner_name,
-                linked_risks=await visible_linked_risk_names(db, current_user=current_user, control=exe.control),
+                linked_risks=linked_risk_names_for_visible_ids(exe.control, readable_linked_risk_ids),
             )
         )
 

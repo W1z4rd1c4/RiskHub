@@ -261,6 +261,67 @@ async def test_list_executions(client_cro: AsyncClient, test_user_cro: User, tes
 
 
 @pytest.mark.asyncio
+async def test_list_executions_filters_linked_risks_without_scalar_per_row_checks(
+    client_employee: AsyncClient,
+    db_session,
+    monkeypatch: pytest.MonkeyPatch,
+    test_department: Department,
+    test_user_employee: User,
+):
+    control = Control(
+        name="Execution List Linked Risk Control",
+        description="Control with linked risk for execution list serialization",
+        department_id=test_department.id,
+        control_owner_id=test_user_employee.id,
+        control_form="manual",
+        frequency="monthly",
+        risk_level=3,
+        status="active",
+    )
+    risk = Risk(
+        risk_id_code="EXEC-LIST-RISK",
+        name="Execution List Linked Risk",
+        process="Visible Execution Process",
+        description="Risk visible to the execution lister",
+        category="Operational",
+        department_id=test_department.id,
+        owner_id=test_user_employee.id,
+        risk_type="operational",
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=2,
+        status="active",
+    )
+    db_session.add_all([control, risk])
+    await db_session.flush()
+    db_session.add(ControlRiskLink(control_id=control.id, risk_id=risk.id, effectiveness="medium"))
+    execution = ControlExecution(
+        control_id=control.id,
+        executed_by_id=test_user_employee.id,
+        result="passed",
+        findings="No findings",
+    )
+    db_session.add(execution)
+    await db_session.commit()
+
+    async def fail_scalar_risk_check(*args, **kwargs):
+        raise AssertionError("execution list must not call scalar can_read_risk_id per row")
+
+    monkeypatch.setattr(
+        "app.services._control_execution.workflow.can_read_risk_id",
+        fail_scalar_risk_check,
+        raising=False,
+    )
+
+    response = await client_employee.get("/api/v1/executions")
+
+    assert response.status_code == 200
+    item = next(item for item in response.json()["items"] if item["id"] == execution.id)
+    assert item["linked_risks"] == [risk.process]
+
+
+@pytest.mark.asyncio
 async def test_execution_list_export_csv_capability_tracks_reports_read(
     client: AsyncClient,
     db_session,

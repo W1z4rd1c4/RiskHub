@@ -23,7 +23,7 @@ from app.models import (
     Vendor,
 )
 
-from .issues_api_helpers import _create_department_scoped_user
+from .issues_api_helpers import _create_department_scoped_user, _grant
 
 pytest_plugins = ("tests.backend.pytest.api.v1.issues_api_support",)
 
@@ -237,6 +237,133 @@ async def test_issue_crud_list_link_and_source_metadata(
 
     unlink_resp = await auth_client.delete(f"/api/v1/issues/{issue_id}/links/{link_id}")
     assert unlink_resp.status_code == 204
+
+
+@pytest.mark.asyncio
+async def test_issue_list_and_detail_redact_hidden_linked_resources(
+    db_session: AsyncSession,
+    client_employee: AsyncClient,
+    test_department: Department,
+    test_role_employee: Role,
+    test_user_employee: User,
+):
+    department_id = test_department.id
+    user_id = test_user_employee.id
+    await _grant(db_session, test_role_employee, "issues", "read")
+    other_department = Department(name="Issue Hidden Linked Other", code="IHLO", description="Other department")
+    db_session.add(other_department)
+    await db_session.flush()
+    other_department_id = other_department.id
+
+    visible_risk = Risk(
+        risk_id_code="ISS-VISIBLE-RISK",
+        name="Visible Issue Risk",
+        process="Visible Issue Process",
+        description="Visible risk context",
+        category="Operational",
+        department_id=department_id,
+        owner_id=user_id,
+        risk_type="operational",
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=2,
+        status="active",
+    )
+    hidden_risk = Risk(
+        risk_id_code="ISS-HIDDEN-RISK",
+        name="Hidden Issue Risk",
+        process="Hidden Issue Process",
+        description="Hidden risk context",
+        category="Operational",
+        department_id=other_department_id,
+        owner_id=None,
+        risk_type="operational",
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=2,
+        status="active",
+    )
+    hidden_control = Control(
+        name="Hidden Issue Control",
+        description="Hidden linked control",
+        department_id=other_department_id,
+        control_owner_id=None,
+        control_form="manual",
+        frequency="monthly",
+        risk_level=3,
+        status="active",
+    )
+    db_session.add_all([visible_risk, hidden_risk, hidden_control])
+    await db_session.flush()
+
+    hidden_kri = KeyRiskIndicator(
+        risk_id=hidden_risk.id,
+        metric_name="Hidden Issue KRI",
+        description="Hidden linked KRI",
+        current_value=5,
+        lower_limit=0,
+        upper_limit=10,
+        unit="%",
+    )
+    issue = Issue(
+        title="Visible issue with hidden linked resources",
+        description="Issue remains visible while linked resource names are redacted",
+        severity="high",
+        status="open",
+        source_type="manual",
+        department_id=department_id,
+        owner_user_id=None,
+        created_by_id=user_id,
+        opened_at=datetime.now(UTC),
+    )
+    db_session.add_all([hidden_kri, issue])
+    await db_session.flush()
+    db_session.add_all(
+        [
+            IssueLink(issue_id=issue.id, risk_id=visible_risk.id),
+            IssueLink(issue_id=issue.id, risk_id=hidden_risk.id),
+            IssueLink(issue_id=issue.id, control_id=hidden_control.id),
+            IssueLink(issue_id=issue.id, kri_id=hidden_kri.id),
+        ]
+    )
+    expected_visible_context = {
+        "risk_id": visible_risk.id,
+        "risk_name": visible_risk.name,
+        "risk_category": visible_risk.category,
+        "risk_process": visible_risk.process,
+        "risk_type": visible_risk.risk_type,
+    }
+    visible_risk_id = visible_risk.id
+    visible_risk_name = visible_risk.name
+    hidden_risk_id = hidden_risk.id
+    hidden_control_id = hidden_control.id
+    hidden_kri_id = hidden_kri.id
+    issue_id = issue.id
+    await db_session.commit()
+
+    list_response = await client_employee.get("/api/v1/issues")
+    detail_response = await client_employee.get(f"/api/v1/issues/{issue_id}")
+
+    assert list_response.status_code == 200
+    assert detail_response.status_code == 200
+    list_item = next(item for item in list_response.json()["items"] if item["id"] == issue_id)
+    assert list_item["risk_contexts"] == [expected_visible_context]
+
+    detail_payload = detail_response.json()
+    links_by_target = {
+        ("risk", link["risk_id"]): link
+        for link in detail_payload["links"]
+        if link["linked_entity_type"] == "risk"
+    }
+    hidden_control_link = next(link for link in detail_payload["links"] if link["control_id"] == hidden_control_id)
+    hidden_kri_link = next(link for link in detail_payload["links"] if link["kri_id"] == hidden_kri_id)
+    assert links_by_target[("risk", visible_risk_id)]["linked_entity_name"] == visible_risk_name
+    assert links_by_target[("risk", hidden_risk_id)]["linked_entity_name"] is None
+    assert hidden_control_link["linked_entity_name"] is None
+    assert hidden_kri_link["linked_entity_name"] is None
+    assert detail_payload["risk_contexts"] == list_item["risk_contexts"]
 
 
 @pytest.mark.asyncio

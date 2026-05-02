@@ -7,7 +7,7 @@ from app.models import User
 from app.schemas.issue import IssueRead
 from app.services.authorization_capabilities import issue_capabilities
 
-from .._shared import _get_readable_issue_or_404, _serialize_issue_read
+from .._shared import _get_readable_issue_or_404, _serialize_issue_read, build_issue_linked_visibility
 
 router = APIRouter()
 
@@ -20,4 +20,10 @@ async def get_issue(
 ) -> IssueRead:
     issue = await _get_readable_issue_or_404(db, issue_id, current_user)
     capabilities = await issue_capabilities(db, current_user=current_user, issue=issue)
-    return _serialize_issue_read(issue, current_user=current_user, capabilities=capabilities)
+    linked_visibility = await build_issue_linked_visibility(db, current_user, [issue])
+    return _serialize_issue_read(
+        issue,
+        current_user=current_user,
+        capabilities=capabilities,
+        linked_visibility=linked_visibility,
+    )

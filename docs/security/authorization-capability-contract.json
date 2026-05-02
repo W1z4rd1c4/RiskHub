@@ -271,7 +271,7 @@
       "action": "Read control lists, detail, linked risks, and monitoring context",
       "actor_scope": "Requires controls:read plus department/linked-risk visibility helpers",
       "backend_authority": "backend/app/api/v1/endpoints/controls/",
-      "service_policy": "backend/app/services/_control_execution/, backend/app/core/_permissions/entity_access.py, backend/app/core/_permissions/visible_ids.py, and backend/app/services/authorization_capabilities.py, backend/app/services/_authorization_capabilities/",
+      "service_policy": "backend/app/services/_control_execution/, backend/app/core/_permissions/entity_access.py, backend/app/core/_permissions/visible_ids.py, and backend/app/services/authorization_capabilities.py, backend/app/services/_authorization_capabilities/; control list and linked-risk responses use set-based visible_risk_ids for linked-risk redaction",
       "response_capability": "backend/app/schemas/control.py ControlCapabilities on detail/list serialization and ControlListResponse collection capabilities",
       "frontend_gate": "frontend/src/routing/business.tsx uses a controls:read navigation projection; frontend/src/pages/ControlDetailPage.tsx and controls components, frontend/src/pages/ControlsPage.tsx, frontend/src/pages/controls/, and frontend/src/pages/shared/collectionPageState.ts use backend read authority and render denied/clear stale rows and capabilities on backend 403",
       "tests": [
@@ -312,7 +312,7 @@
       "action": "Log and read control executions",
       "actor_scope": "Requires controls:execute for writes, controls:read for reads, and active or draft parent controls; detail view exposes can_log_execution",
       "backend_authority": "backend/app/api/v1/endpoints/controls/executions.py and backend/app/api/v1/endpoints/executions.py",
-      "service_policy": "backend/app/services/_control_execution/ and backend/app/services/authorization_capabilities.py, backend/app/services/_authorization_capabilities/",
+      "service_policy": "backend/app/services/_control_execution/ and backend/app/services/authorization_capabilities.py, backend/app/services/_authorization_capabilities/; execution list linked-risk labels use set-based visible_risk_ids redaction",
       "response_capability": "backend/app/schemas/control.py ControlCapabilities.can_log_execution, can_view_executions, is_archived, and is_executable",
       "frontend_gate": "frontend/src/pages/ControlDetailPage.tsx and frontend/src/components/executions/",
       "tests": [
@@ -580,9 +580,9 @@
       "id": "AUTHZ-ISSUES-REMEDIATION",
       "surface": "Issues and remediation",
       "action": "Create, read, update, link, assign, progress, close, approve exceptions, and view issue activity history",
-      "actor_scope": "Requires issues:read/write/approve plus issue scope, owner assignment, linked-entity visibility helpers, activity history requires activity_log:read and business-view eligibility, active vendor checks for vendor context/link mutations, validated link-backed issue source provenance, protected current source links, and derived context filters",
+      "actor_scope": "Requires issues:read/write/approve plus issue scope, owner assignment, linked-entity visibility helpers, activity history requires activity_log:read and business-view eligibility, active vendor checks for vendor context/link mutations, validated link-backed issue source provenance, protected current source links, set-based linked-resource redaction, and derived context filters",
       "backend_authority": "backend/app/api/v1/endpoints/issues/",
-      "service_policy": "backend/app/core/_permissions/issues.py, backend/app/api/v1/endpoints/issues/_shared/source.py, backend/app/api/v1/endpoints/issues/_shared/links.py, backend/app/api/v1/endpoints/issues/_shared/serialization.py, backend/app/services/authorization_capabilities.py, backend/app/services/_authorization_capabilities/",
+      "service_policy": "backend/app/core/_permissions/issues.py, backend/app/api/v1/endpoints/issues/_shared/source.py, backend/app/api/v1/endpoints/issues/_shared/links.py, backend/app/api/v1/endpoints/issues/_shared/serialization.py, backend/app/core/_permissions/visible_ids.py, backend/app/services/authorization_capabilities.py, backend/app/services/_authorization_capabilities/; issue list/detail linked risk/control/KRI/vendor labels and risk/vendor contexts are redacted through precomputed visible ID sets",
       "response_capability": "backend/app/schemas/issue.py IssueCapabilities including can_view_activity_history, source_display, source_link, and IssueLink.is_source_link metadata on IssueSummary, IssueRead, and IssueListResponse collection capabilities",
       "frontend_gate": "frontend/src/pages/issues/, frontend/src/components/issues/, frontend/src/pages/IssuesPage.tsx, frontend/src/pages/IssueDetailPage.tsx, frontend/src/pages/IssueNewPage.tsx, frontend/src/pages/shared/collectionPageState.ts, frontend/src/pages/detail/ContextualIssueAction.tsx, and frontend/src/components/executions/ use backend capabilities and render denied/clear stale rows and capabilities on backend 403",
       "tests": [
