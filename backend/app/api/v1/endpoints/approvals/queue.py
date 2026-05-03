@@ -11,6 +11,7 @@ from app.api import deps
 from app.core.approval_helpers import (
     create_approval_request_with_audit,
     get_control_delete_approval_metadata,
+    get_primary_approver_for_risk,
     get_risk_delete_approval_metadata,
 )
 from app.core.permissions import can_resolve_approvals
@@ -30,6 +31,7 @@ from app.schemas.approval_request import (
     ApprovalStatusEnum,
 )
 from app.services.approval_queue_visibility import visible_pending_approvals_for_user
+from app.services.approval_scenario_policy import apply_approval_scenario_snapshot, load_approval_scenario_policy
 
 from ._delete_authorization import (
     assert_can_request_delete_control,
@@ -39,6 +41,8 @@ from ._delete_authorization import (
 from ._shared import _build_approval_read, logger
 
 router = APIRouter()
+
+DELETE_SCENARIO_DEFAULT_ROLES = ["risk_owner", "risk_manager", "cro"]
 
 
 @router.post("", response_model=ApprovalRequestRead, status_code=status.HTTP_201_CREATED)
@@ -56,6 +60,7 @@ async def create_approval_request(
     department_id: int | None = None
     primary_approver_id: int | None = None
     requires_privileged_approval = False
+    scenario_key: str
     if request_data.resource_type == ApprovalResourceTypeEnum.risk:
         risk = await assert_can_request_delete_risk(
             db,
@@ -69,6 +74,7 @@ async def create_approval_request(
             risk=risk,
             requester_id=current_user.id,
         )
+        scenario_key = "risk_delete"
     elif request_data.resource_type == ApprovalResourceTypeEnum.control:
         control = await assert_can_request_delete_control(
             db,
@@ -83,6 +89,7 @@ async def create_approval_request(
             control=control,
             requester_id=current_user.id,
         )
+        scenario_key = "control_delete"
     elif request_data.resource_type == ApprovalResourceTypeEnum.kri:
         kri = await assert_can_request_delete_kri(
             db,
@@ -92,12 +99,23 @@ async def create_approval_request(
         kri_label = (kri.metric_name or "").strip()[:50]
         resource_name = kri_label or "Unknown KRI"
         department_id = kri.risk.department_id
+        primary_approver_id = await get_primary_approver_for_risk(db, kri.risk_id, requester_id=current_user.id)
+        scenario_key = "kri_delete"
+
+    scenario_policy = await load_approval_scenario_policy(
+        db,
+        scenario_key,
+        default_roles=DELETE_SCENARIO_DEFAULT_ROLES,
+    )
+    if not scenario_policy.requires_approval:
+        raise HTTPException(status_code=400, detail="This delete scenario does not require approval")
 
     # Check for existing pending request (both PENDING and PENDING_PRIVILEGED)
     existing = await db.execute(
         select(ApprovalRequest).where(
             ApprovalRequest.resource_type == ApprovalResourceType(request_data.resource_type.value),
             ApprovalRequest.resource_id == request_data.resource_id,
+            ApprovalRequest.action_type == ApprovalActionType.DELETE,
             ApprovalRequest.status.in_([ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED]),
         )
     )
@@ -116,6 +134,7 @@ async def create_approval_request(
         primary_approver_id=primary_approver_id,
         requires_privileged_approval=requires_privileged_approval,
     )
+    apply_approval_scenario_snapshot(approval, scenario_policy)
 
     await create_approval_request_with_audit(
         db,

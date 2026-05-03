@@ -20,6 +20,7 @@ from app.models import (
     ApprovalActionType,
     ApprovalRequest,
     ApprovalResourceType,
+    ApprovalScenario,
     ApprovalStatus,
     Control,
     ControlRiskLink,
@@ -61,6 +62,30 @@ async def _load_risk(db_session: AsyncSession, risk_id: int) -> Risk:
     risk = result.scalar_one_or_none()
     assert risk is not None
     return risk
+
+
+async def _upsert_approval_scenario(
+    db_session: AsyncSession,
+    *,
+    key: str,
+    requires_approval: bool,
+    approver_roles: list[str],
+) -> ApprovalScenario:
+    result = await db_session.execute(select(ApprovalScenario).where(ApprovalScenario.key == key))
+    scenario = result.scalar_one_or_none()
+    if scenario is None:
+        scenario = ApprovalScenario(
+            key=key,
+            display_name=key.replace("_", " ").title(),
+            description=f"Test scenario {key}",
+            requires_approval=requires_approval,
+        )
+        db_session.add(scenario)
+    scenario.requires_approval = requires_approval
+    scenario.set_approver_roles(approver_roles)
+    await db_session.commit()
+    await db_session.refresh(scenario)
+    return scenario
 
 
 async def _create_queue_delete_risk(
@@ -184,10 +209,10 @@ async def test_create_approval_with_reason(auth_client: AsyncClient, test_risk):
     assert data["action_type"] == "delete"
     assert data["reason"] == "No longer applicable to business"
     assert data["can_approve"] is False
-    assert data["can_reject"] is True
+    assert data["can_reject"] is False
     assert data["capabilities"]["can_read"] is True
     assert data["capabilities"]["can_approve"] is False
-    assert data["capabilities"]["can_reject"] is True
+    assert data["capabilities"]["can_reject"] is False
     assert data["capabilities"]["can_cancel_as_requester"] is True
     assert data["capabilities"]["is_requester"] is True
     assert data["capabilities"]["is_pending"] is True
@@ -257,6 +282,8 @@ async def test_queue_created_high_threshold_risk_delete_requires_privileged_foll
     assert approval.primary_approver_id == test_user_employee.id
     assert approval.requires_privileged_approval is True
     assert approval.status == ApprovalStatus.PENDING
+    assert approval.scenario_key == "risk_delete"
+    assert approval.scenario_approver_roles == ["risk_owner", "risk_manager", "cro"]
 
     primary_detail_response = await client_employee.get(f"/api/v1/approvals/{approval_id}")
     assert primary_detail_response.status_code == 200
@@ -372,6 +399,8 @@ async def test_queue_created_control_delete_mirrors_direct_tiering_metadata(
     assert approval.primary_approver_id == test_user_employee.id
     assert approval.requires_privileged_approval is True
     assert approval.status == ApprovalStatus.PENDING
+    assert approval.scenario_key == "control_delete"
+    assert approval.scenario_approver_roles == ["risk_owner", "risk_manager", "cro"]
 
 
 @pytest.mark.asyncio
@@ -419,6 +448,8 @@ async def test_queue_created_risk_delete_respects_configured_high_risk_threshold
         assert below_response.status_code == 201
         below_approval = await _load_approval(db_session, below_response.json()["id"])
         assert below_approval.requires_privileged_approval is False
+        assert below_approval.scenario_key == "risk_delete"
+        assert below_approval.scenario_approver_roles == ["risk_owner", "risk_manager", "cro"]
 
         at_response = await client_approval_requester.post(
             "/api/v1/approvals",
@@ -427,8 +458,160 @@ async def test_queue_created_risk_delete_respects_configured_high_risk_threshold
         assert at_response.status_code == 201
         at_approval = await _load_approval(db_session, at_response.json()["id"])
         assert at_approval.requires_privileged_approval is True
+        assert at_approval.scenario_key == "risk_delete"
+        assert at_approval.scenario_approver_roles == ["risk_owner", "risk_manager", "cro"]
     finally:
         clear_config_cache()
+
+
+@pytest.mark.asyncio
+async def test_queue_created_risk_delete_uses_configured_scenario_roles(
+    client_approval_requester: AsyncClient,
+    client_risk_manager: AsyncClient,
+    client_cro: AsyncClient,
+    db_session: AsyncSession,
+    test_department,
+    test_user_employee: User,
+):
+    await _upsert_approval_scenario(
+        db_session,
+        key="risk_delete",
+        requires_approval=True,
+        approver_roles=["cro"],
+    )
+    risk = await _create_queue_delete_risk(
+        db_session,
+        risk_id_code="APP-RISK-GENERIC-CRO-ONLY",
+        name="Generic CRO Only Risk",
+        department_id=test_department.id,
+        owner_id=test_user_employee.id,
+        net_score=9,
+    )
+
+    create_response = await client_approval_requester.post(
+        "/api/v1/approvals",
+        json={"resource_type": "risk", "resource_id": risk.id, "reason": "Queue CRO-only delete"},
+    )
+
+    assert create_response.status_code == 201
+    approval_id = create_response.json()["id"]
+    approval = await _load_approval(db_session, approval_id)
+    assert approval.scenario_key == "risk_delete"
+    assert approval.scenario_approver_roles == ["cro"]
+
+    blocked_response = await client_risk_manager.post(
+        f"/api/v1/approvals/{approval_id}/approve",
+        json={"resolution_notes": "Risk manager should not approve CRO-only scenario"},
+    )
+    assert blocked_response.status_code == 403
+
+    approved_response = await client_cro.post(
+        f"/api/v1/approvals/{approval_id}/approve",
+        json={"resolution_notes": "CRO approves generic queued delete"},
+    )
+    assert approved_response.status_code == 200
+    assert approved_response.json()["status"] == "approved"
+
+
+@pytest.mark.asyncio
+async def test_queue_created_kri_delete_routes_risk_owner_scenario_to_primary_approver(
+    client_approval_requester: AsyncClient,
+    client_employee: AsyncClient,
+    db_session: AsyncSession,
+    test_department,
+    test_user_employee: User,
+):
+    await _upsert_approval_scenario(
+        db_session,
+        key="kri_delete",
+        requires_approval=True,
+        approver_roles=["risk_owner"],
+    )
+    risk = await _create_queue_delete_risk(
+        db_session,
+        risk_id_code="APP-KRI-GENERIC-RISK-OWNER",
+        name="Generic KRI Risk Owner Routing",
+        department_id=test_department.id,
+        owner_id=test_user_employee.id,
+        net_score=9,
+    )
+    kri = KeyRiskIndicator(
+        risk_id=risk.id,
+        metric_name="Generic KRI Delete Metric",
+        description="KRI metric for generic approval risk owner routing",
+        current_value=50.0,
+        lower_limit=0.0,
+        upper_limit=100.0,
+        unit="%",
+    )
+    db_session.add(kri)
+    await db_session.commit()
+    await db_session.refresh(kri)
+
+    create_response = await client_approval_requester.post(
+        "/api/v1/approvals",
+        json={"resource_type": "kri", "resource_id": kri.id, "reason": "Queue KRI delete"},
+    )
+
+    assert create_response.status_code == 201
+    approval_id = create_response.json()["id"]
+    approval = await _load_approval(db_session, approval_id)
+    assert approval.scenario_key == "kri_delete"
+    assert approval.primary_approver_id == test_user_employee.id
+    assert approval.scenario_approver_roles == ["risk_owner", "risk_manager", "cro"]
+
+    approve_response = await client_employee.post(
+        f"/api/v1/approvals/{approval_id}/approve",
+        json={"resolution_notes": "Risk owner approves KRI delete"},
+    )
+    assert approve_response.status_code == 200
+    assert approve_response.json()["status"] == "approved"
+
+    await db_session.refresh(kri)
+    assert kri.is_archived is True
+
+
+@pytest.mark.asyncio
+async def test_queue_create_rejects_disabled_delete_scenario_without_legacy_approval(
+    client_approval_requester: AsyncClient,
+    db_session: AsyncSession,
+    test_department,
+    test_user_employee: User,
+):
+    await _upsert_approval_scenario(
+        db_session,
+        key="risk_delete",
+        requires_approval=False,
+        approver_roles=[],
+    )
+    risk = await _create_queue_delete_risk(
+        db_session,
+        risk_id_code="APP-RISK-GENERIC-SCENARIO-OFF",
+        name="Generic Scenario Disabled Risk",
+        department_id=test_department.id,
+        owner_id=test_user_employee.id,
+        net_score=9,
+    )
+
+    create_response = await client_approval_requester.post(
+        "/api/v1/approvals",
+        json={"resource_type": "risk", "resource_id": risk.id, "reason": "Scenario disabled"},
+    )
+
+    assert create_response.status_code == 400
+    assert create_response.json()["detail"] == "This delete scenario does not require approval"
+
+    approvals = (
+        await db_session.execute(
+            select(ApprovalRequest).where(
+                ApprovalRequest.resource_type == ApprovalResourceType.RISK,
+                ApprovalRequest.resource_id == risk.id,
+            )
+        )
+    ).scalars().all()
+    assert approvals == []
+    await db_session.refresh(risk)
+    assert risk.status == "active"
 
 
 @pytest.mark.asyncio

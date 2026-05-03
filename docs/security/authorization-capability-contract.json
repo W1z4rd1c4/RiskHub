@@ -392,7 +392,7 @@
       "id": "AUTHZ-APPROVALS",
       "surface": "Approvals",
       "action": "Request, list, read, approve, reject, cancel, and inspect approval side effects",
-      "actor_scope": "Requesting uses resource-specific delete/update helpers; scenario-backed approvals use approval scenario snapshots for requires-approval and approver-role policy; legacy approvals without snapshots preserve can_resolve_approvals fallback",
+      "actor_scope": "Requesting uses resource-specific delete/update helpers; generic POST /approvals delete requests also load the matching delete scenario snapshot, KRI primary approver routing, and reject disabled scenarios instead of creating legacy approvals; scenario-backed approvals use approval scenario snapshots for requires-approval and approver-role policy; legacy approvals without snapshots preserve can_resolve_approvals fallback",
       "backend_authority": "backend/app/api/v1/endpoints/approvals/",
       "service_policy": "backend/app/services/approval_execution_service.py owns approve, reject, and cancel workflow boundaries, with backend/app/services/approval_scenario_policy.py, backend/app/services/_approval_execution/ and backend/app/services/authorization_capabilities.py, backend/app/services/_authorization_capabilities/",
       "response_capability": "backend/app/schemas/approval_request.py and backend/app/schemas/__init__.py ApprovalRequestCapabilities plus preserved can_approve and can_reject booleans; approval scenario snapshot fields remain internal",
