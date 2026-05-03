@@ -43,6 +43,7 @@ from app.schemas.control import (
 from app.schemas.vendor_shared import LinkedVendorRead
 from app.services._authorization_capabilities.common import pending_approvals_for_resources
 from app.services._monitoring_status import ControlMonitoringStatus, apply_control_monitoring_status_filter
+from app.services._register_listings.lifecycle import plan_control_listing
 from app.services.authorization_capabilities import control_capabilities
 
 from .._helpers import _apply_department_scoping, _apply_process_category_filters
@@ -580,7 +581,8 @@ async def list_controls(
             is_highlighted=lambda control: control.risk_level >= 4,
         )
 
-    listing_definition = collection_exec.CollectionListingDefinition(
+    listing_plan = plan_control_listing(
+        ordered_query=ordered_query,
         capabilities=collection_capabilities,
         serialize_items=serialize_controls,
         total=total,
@@ -594,6 +596,6 @@ async def list_controls(
         db=db,
         response_model=ControlListResponse,
         query=collection_query,
-        ordered_query=ordered_query,
-        definition=listing_definition,
+        ordered_query=listing_plan.ordered_query,
+        definition=listing_plan.listing_definition,
     )

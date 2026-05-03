@@ -1,17 +1,13 @@
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
-from app.api.v1.endpoints.approvals._delete_authorization import assert_can_request_delete_risk
-from app.core.activity_logger import log_activity
 from app.db.session import get_db
 from app.models import User
-from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas.approval_request import ApprovalQueuedResponse
-from app.schemas.risk import RiskStatusEnum
+from app.services._entity_mutation_lifecycle.lifecycle import archive_risk_detail
 
 router = APIRouter()
 APPROVAL_QUEUED_RESPONSE: dict[int | str, dict[str, Any]] = {202: {"model": ApprovalQueuedResponse}}
@@ -29,100 +25,10 @@ async def delete_risk(
     - Users with approval-resolution authority: deletes immediately (204)
     - Others: creates approval request (202), item stays visible
     """
-    from fastapi.responses import Response
-
-    from app.core.approval_helpers import (
-        build_approval_queued_response,
-        create_approval_request_with_audit,
-        get_risk_delete_approval_metadata,
-    )
-    from app.core.permissions import can_resolve_approvals
-    from app.models import ApprovalActionType, ApprovalRequest, ApprovalResourceType, ApprovalStatus
-    from app.services.approval_scenario_policy import apply_approval_scenario_snapshot, load_approval_scenario_policy
-
-    risk = await assert_can_request_delete_risk(
-        db,
+    outcome = await archive_risk_detail(
+        db=db,
         risk_id=risk_id,
+        reason=reason,
         current_user=current_user,
     )
-
-    scenario_policy = await load_approval_scenario_policy(
-        db,
-        "risk_delete",
-        default_roles=["risk_owner", "risk_manager", "cro"],
-    )
-
-    # Privileged users can delete immediately. Scenario-disabled deletes also
-    # apply directly after the endpoint's normal delete authority has passed.
-    if can_resolve_approvals(current_user) or not scenario_policy.requires_approval:
-        risk.status = RiskStatusEnum.archived.value
-
-        # Log activity within the same transaction
-        await log_activity(
-            db,
-            entity_type=ActivityEntityType.RISK,
-            entity_id=risk.id,
-            entity_name=f"{risk.risk_id_code}",
-            safe_entity_label=risk.risk_id_code,
-            action=ActivityAction.ARCHIVE,
-            actor=current_user,
-            department_id=risk.department_id,
-        )
-        await db.commit()
-
-        return Response(status_code=status.HTTP_204_NO_CONTENT)
-
-    # Check for existing pending request (both PENDING and PENDING_PRIVILEGED)
-    existing = await db.execute(
-        select(ApprovalRequest).where(
-            ApprovalRequest.resource_type == ApprovalResourceType.RISK,
-            ApprovalRequest.resource_id == risk.id,
-            ApprovalRequest.action_type == ApprovalActionType.DELETE,
-            ApprovalRequest.status.in_([ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED]),
-        )
-    )
-    if existing.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="Deletion request already pending")
-
-    # Create approval request - ITEM STAYS VISIBLE
-    # Store risk name and description for better workflow display
-    desc_snippet = (
-        (risk.description[:100] + "...")
-        if risk.description and len(risk.description) > 100
-        else (risk.description or "")
-    )
-
-    primary_approver_id, requires_privileged = await get_risk_delete_approval_metadata(
-        db,
-        risk=risk,
-        requester_id=current_user.id,
-    )
-    # Delete escalation must stay aligned with the shared high-risk rule and config threshold.
-
-    approval = ApprovalRequest(
-        resource_type=ApprovalResourceType.RISK,
-        resource_id=risk.id,
-        resource_name=risk.name,  # Use risk name for display
-        requested_by_id=current_user.id,
-        reason=f"{reason}\n\nDescription: {desc_snippet}" if desc_snippet else reason,
-        status=ApprovalStatus.PENDING,
-        action_type=ApprovalActionType.DELETE,
-        primary_approver_id=primary_approver_id,
-        requires_privileged_approval=requires_privileged,
-    )
-    apply_approval_scenario_snapshot(approval, scenario_policy)
-
-    await create_approval_request_with_audit(
-        db,
-        approval=approval,
-        actor=current_user,
-        department_id=risk.department_id,
-    )
-
-    return build_approval_queued_response(
-        message="Deletion request submitted for approval",
-        approval_id=approval.id,
-        action_type="delete",
-        primary_approver_id=primary_approver_id,
-        requires_privileged_approval=requires_privileged,
-    )
+    return outcome.response

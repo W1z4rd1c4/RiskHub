@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { Building, Plus, Edit, Trash2, RotateCcw, AlertCircle, Users, Activity, Shield } from 'lucide-react';
 import { riskHubApi } from '@/services/riskHubApi';
 import { accessApi } from '@/services/accessApi';
@@ -11,7 +11,7 @@ import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { useTranslation } from '@/i18n/hooks';
 import { RiskHubFieldError, RiskHubModalActions, RiskHubModalFrame } from './panelPrimitives';
 import { riskHubCapabilityEnabled, useRiskHubCapabilities } from './useRiskHubCapabilities';
-import { useRiskHubConfigPanelState } from './useRiskHubConfigPanelState';
+import { useRiskHubConfigResource } from './useRiskHubConfigResource';
 
 interface DepartmentModalProps {
     isOpen: boolean;
@@ -127,57 +127,21 @@ function DepartmentModal({ isOpen, onClose, department, onSave }: DepartmentModa
 }
 
 export function DepartmentsPanel() {
-    const queryClient = useQueryClient();
     const { t } = useTranslation(['admin', 'common']);
-    const panel = useRiskHubConfigPanelState<DepartmentHubRead>();
-
-    const { data: departments, isLoading } = useQuery({
-        queryKey: ['departments', panel.showInactive],
-        queryFn: () => riskHubApi.getDepartments(panel.showInactive),
+    const panel = useRiskHubConfigResource<DepartmentHubRead, DepartmentHubCreate, DepartmentHubUpdate>({
+        queryKey: ['departments'],
+        load: (showInactive) => riskHubApi.getDepartments(showInactive),
+        create: (data) => riskHubApi.createDepartment(data),
+        update: (id, data) => riskHubApi.updateDepartment(Number(id), data),
+        delete: (id) => riskHubApi.deleteDepartment(Number(id)),
+        restore: (id) => riskHubApi.restoreDepartment(Number(id)),
+        itemId: (item) => item.id,
+        panelCapabilityKey: 'departments',
     });
     const { data: riskHubCapabilities } = useRiskHubCapabilities();
     const canCreate = riskHubCapabilityEnabled(riskHubCapabilities?.departments, 'can_create');
 
-    const createMutation = useMutation({
-        mutationFn: (data: DepartmentHubCreate) => riskHubApi.createDepartment(data),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['departments'] }),
-    });
-
-    const updateMutation = useMutation({
-        mutationFn: ({ id, data }: { id: number; data: DepartmentHubUpdate }) => riskHubApi.updateDepartment(id, data),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['departments'] }),
-    });
-
-    const deleteMutation = useMutation({
-        mutationFn: (id: number) => riskHubApi.deleteDepartment(id),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['departments'] }),
-    });
-
-    const restoreMutation = useMutation({
-        mutationFn: (id: number) => riskHubApi.restoreDepartment(id),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['departments'] }),
-    });
-
-    const handleSave = async (data: DepartmentHubCreate | DepartmentHubUpdate) => {
-        if (panel.editingItem) {
-            await updateMutation.mutateAsync({ id: panel.editingItem.id, data: data as DepartmentHubUpdate });
-        } else {
-            await createMutation.mutateAsync(data as DepartmentHubCreate);
-        }
-    };
-
-    const handleDelete = async () => {
-        if (panel.deleteConfirm) {
-            try {
-                await deleteMutation.mutateAsync(panel.deleteConfirm.id);
-                panel.closeDelete();
-            } catch (error: unknown) {
-                panel.setActionErrorKey(apiClient.toUiMessageKey(error));
-            }
-        }
-    };
-
-    if (isLoading) {
+    if (panel.isLoading) {
         return <div className="text-slate-400 text-center py-8">{t('common:loading.departments')}</div>;
     }
 
@@ -232,7 +196,7 @@ export function DepartmentsPanel() {
                         </tr>
                     </thead>
                     <tbody>
-                        {departments?.map((dept) => {
+                        {panel.items.map((dept) => {
                             const canUpdate = resolveCapabilityFlag(dept.capabilities, 'can_update');
                             const canDelete = resolveCapabilityFlag(dept.capabilities, 'can_delete');
                             const canRestore = resolveCapabilityFlag(dept.capabilities, 'can_restore');
@@ -316,7 +280,7 @@ export function DepartmentsPanel() {
 
                                         {canRestore && (
                                             <button
-                                                onClick={() => restoreMutation.mutate(dept.id)}
+                                                onClick={() => panel.handleRestore(dept)}
                                                 className="p-1.5 text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10 rounded transition-colors"
                                                 title={t('admin:departments_panel.actions.restore')}
                                                 aria-label={t('admin:departments_panel.actions.restore')}
@@ -338,7 +302,7 @@ export function DepartmentsPanel() {
                 isOpen={panel.modalOpen}
                 onClose={panel.closeModal}
                 department={panel.editingItem}
-                onSave={handleSave}
+                onSave={panel.handleSave}
             />
 
             {/* Delete Confirmation */}
@@ -384,7 +348,7 @@ export function DepartmentsPanel() {
                                 && panel.deleteConfirm.vendor_count === 0
                                 && panel.deleteConfirm.pending_orphan_count === 0 && (
                                 <button
-                                    onClick={handleDelete}
+                                    onClick={() => void panel.handleDelete()}
                                     className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
                                 >
                                     {t('common:actions.delete')}

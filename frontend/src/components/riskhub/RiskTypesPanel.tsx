@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Palette, Plus, Edit, Trash2, RotateCcw } from 'lucide-react';
 import { ColorSwatch } from '@/components/ui/ColorSwatch';
 import { riskHubApi } from '@/services/riskHubApi';
@@ -10,7 +9,7 @@ import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { useTranslation } from '@/i18n/hooks';
 import { RiskHubFieldError, RiskHubModalActions, RiskHubModalFrame } from './panelPrimitives';
 import { riskHubCapabilityEnabled, useRiskHubCapabilities } from './useRiskHubCapabilities';
-import { useRiskHubConfigPanelState } from './useRiskHubConfigPanelState';
+import { useRiskHubConfigResource } from './useRiskHubConfigResource';
 
 interface RiskTypeModalProps {
     isOpen: boolean;
@@ -146,61 +145,25 @@ function RiskTypeModal({ isOpen, onClose, riskType, onSave }: RiskTypeModalProps
 }
 
 export function RiskTypesPanel() {
-    const queryClient = useQueryClient();
     const { t } = useTranslation(['admin', 'common']);
-    const panel = useRiskHubConfigPanelState<RiskType>();
-
-    const { data: riskTypes, isLoading, error } = useQuery({
-        queryKey: ['riskTypes', panel.showInactive],
-        queryFn: () => riskHubApi.getRiskTypes(panel.showInactive),
+    const panel = useRiskHubConfigResource<RiskType, RiskTypeCreate, RiskTypeUpdate>({
+        queryKey: ['riskTypes'],
+        load: (showInactive) => riskHubApi.getRiskTypes(showInactive),
+        create: (data) => riskHubApi.createRiskType(data),
+        update: (id, data) => riskHubApi.updateRiskType(Number(id), data),
+        delete: (id) => riskHubApi.deleteRiskType(Number(id)),
+        restore: (id) => riskHubApi.restoreRiskType(Number(id)),
+        itemId: (item) => item.id,
+        panelCapabilityKey: 'risk_types',
     });
     const { data: riskHubCapabilities } = useRiskHubCapabilities();
-
-    const createMutation = useMutation({
-        mutationFn: (data: RiskTypeCreate) => riskHubApi.createRiskType(data),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['riskTypes'] }),
-    });
-
-    const updateMutation = useMutation({
-        mutationFn: ({ id, data }: { id: number; data: RiskTypeUpdate }) => riskHubApi.updateRiskType(id, data),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['riskTypes'] }),
-    });
-
-    const deleteMutation = useMutation({
-        mutationFn: (id: number) => riskHubApi.deleteRiskType(id),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['riskTypes'] }),
-    });
-
-    const restoreMutation = useMutation({
-        mutationFn: (id: number) => riskHubApi.restoreRiskType(id),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['riskTypes'] }),
-    });
-
-    const handleSave = async (data: RiskTypeCreate | RiskTypeUpdate) => {
-        if (panel.editingItem) {
-            await updateMutation.mutateAsync({ id: panel.editingItem.id, data: data as RiskTypeUpdate });
-        } else {
-            await createMutation.mutateAsync(data as RiskTypeCreate);
-        }
-    };
-
-    const handleDelete = async () => {
-        if (panel.deleteConfirm) {
-            try {
-                await deleteMutation.mutateAsync(panel.deleteConfirm.id);
-                panel.closeDelete();
-            } catch (error: unknown) {
-                panel.setActionErrorKey(apiClient.toUiMessageKey(error));
-            }
-        }
-    };
     const canCreate = riskHubCapabilityEnabled(riskHubCapabilities?.risk_types, 'can_create');
 
-    if (isLoading) {
+    if (panel.isLoading) {
         return <div className="text-slate-400 text-center py-8">{t('common:loading.risk_types')}</div>;
     }
 
-    if (error) {
+    if (panel.error) {
         return <div className="text-red-400 text-center py-8">{t('errors.failed_to_load_risk_types')}</div>;
     }
 
@@ -249,7 +212,7 @@ export function RiskTypesPanel() {
                         </tr>
                     </thead>
                     <tbody>
-                        {riskTypes?.map((type) => {
+                        {panel.items.map((type) => {
                             const canUpdate = resolveCapabilityFlag(type.capabilities, 'can_update');
                             const canDelete = resolveCapabilityFlag(type.capabilities, 'can_delete');
                             const canRestore = resolveCapabilityFlag(type.capabilities, 'can_restore');
@@ -318,7 +281,7 @@ export function RiskTypesPanel() {
 
                                         {canRestore && (
                                             <button
-                                                onClick={() => restoreMutation.mutate(type.id)}
+                                                onClick={() => panel.handleRestore(type)}
                                                 className="p-1.5 text-slate-400 hover:text-green-400 hover:bg-green-500/10 rounded transition-colors"
                                                 title={t('admin:risk_types_panel.actions.restore')}
                                                 aria-label={t('admin:risk_types_panel.actions.restore')}
@@ -340,7 +303,7 @@ export function RiskTypesPanel() {
                 isOpen={panel.modalOpen}
                 onClose={panel.closeModal}
                 riskType={panel.editingItem}
-                onSave={handleSave}
+                onSave={panel.handleSave}
             />
 
             {/* Delete Confirmation */}
@@ -365,7 +328,7 @@ export function RiskTypesPanel() {
                                 {t('common:actions.cancel')}
                             </button>
                             <button
-                                onClick={handleDelete}
+                                onClick={() => void panel.handleDelete()}
                                 className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
                             >
                                 {t('common:actions.delete')}

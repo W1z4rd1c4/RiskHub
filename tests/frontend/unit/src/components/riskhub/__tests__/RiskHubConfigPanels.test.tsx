@@ -1,5 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import type { ReactElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -273,5 +275,19 @@ describe('Risk Hub config panels', () => {
         renderWithQueryClient(<RiskTypesPanel />);
         await screen.findByText('Operational');
         expect(screen.queryByRole('button', { name: 'admin:risk_types_panel.add_type' })).not.toBeInTheDocument();
+    });
+
+    it('routes config panel mutation workflow through the shared resource hook', () => {
+        const files = [
+            'src/components/riskhub/RiskTypesPanel.tsx',
+            'src/components/riskhub/DepartmentsPanel.tsx',
+            'src/components/riskhub/ApprovalScenariosPanel.tsx',
+            'src/components/riskhub/roles/useRolesPanelData.ts',
+        ];
+
+        for (const file of files) {
+            const source = readFileSync(resolve(process.cwd(), file), 'utf8');
+            expect(source).toContain('useRiskHubConfigResource');
+        }
     });
 });

@@ -152,3 +152,159 @@ def test_quarterly_comparison_service_is_composition_facade() -> None:
 
     facade_source = inspect.getsource(quarterly_comparison_service)
     assert "async def build_quarterly_comparison" not in facade_source
+
+
+def test_entity_mutation_routes_use_lifecycle_interface() -> None:
+    from app.api.v1.endpoints.controls.crud import archive as control_archive
+    from app.api.v1.endpoints.controls.crud import update as control_update
+    from app.api.v1.endpoints.kris.crud import archive as kri_archive
+    from app.api.v1.endpoints.kris.crud import update as kri_update
+    from app.api.v1.endpoints.risks.crud import archive as risk_archive
+    from app.api.v1.endpoints.risks.crud import update as risk_update
+    from app.services._entity_mutation_lifecycle import lifecycle
+
+    assert hasattr(lifecycle, "EntityMutationOutcome")
+    assert hasattr(lifecycle, "EntityMutationOptions")
+    assert hasattr(lifecycle, "EntityApprovalPlan")
+    assert hasattr(lifecycle, "EntityDirectApplyPlan")
+
+    route_source = (
+        inspect.getsource(risk_update)
+        + inspect.getsource(risk_archive)
+        + inspect.getsource(control_update)
+        + inspect.getsource(control_archive)
+        + inspect.getsource(kri_update)
+        + inspect.getsource(kri_archive)
+    )
+
+    for lifecycle_function in (
+        "update_risk_detail",
+        "archive_risk_detail",
+        "update_control_detail",
+        "archive_control_detail",
+        "update_kri_detail",
+        "archive_kri_detail",
+    ):
+        assert lifecycle_function in route_source
+
+    for approval_choreography in (
+        "create_approval_request_with_audit",
+        "build_approval_queued_response",
+        "load_approval_scenario_policy",
+    ):
+        assert approval_choreography not in route_source
+
+
+def test_register_list_routes_use_listing_planners() -> None:
+    from app.api.v1.endpoints.controls.crud import list as control_list
+    from app.api.v1.endpoints.issues.crud import list as issue_list
+    from app.api.v1.endpoints.kris.crud import list as kri_list
+    from app.api.v1.endpoints.risks.crud import list as risk_list
+    from app.api.v1.endpoints.vendors import crud as vendor_list
+    from app.services._register_listings import lifecycle
+
+    assert hasattr(lifecycle, "RegisterListingCriteria")
+    assert hasattr(lifecycle, "RegisterListingPlan")
+    assert hasattr(lifecycle, "RegisterListingDefinition")
+    assert hasattr(lifecycle, "RegisterSerializerContext")
+
+    route_source = (
+        inspect.getsource(risk_list)
+        + inspect.getsource(control_list)
+        + inspect.getsource(kri_list)
+        + inspect.getsource(issue_list)
+        + inspect.getsource(vendor_list)
+    )
+
+    for planner in (
+        "plan_risk_listing",
+        "plan_control_listing",
+        "plan_kri_listing",
+        "plan_issue_listing",
+        "plan_vendor_listing",
+    ):
+        assert planner in route_source
+
+    assert "execute_collection_listing_with_definition" in route_source
+    assert "CollectionListingDefinition(" not in route_source
+
+
+def test_issue_workflow_routes_use_lifecycle_module() -> None:
+    from app.api.v1.endpoints.issues import exceptions, workflow
+    from app.api.v1.endpoints.issues.crud import update
+    from app.services._issue_workflow import lifecycle
+
+    assert hasattr(lifecycle, "IssueWorkflowOutcome")
+    assert hasattr(lifecycle, "IssueUpdatePlan")
+    assert hasattr(lifecycle, "IssueExceptionSelection")
+    assert hasattr(lifecycle, "IssueOutboxPlan")
+
+    route_source = inspect.getsource(update) + inspect.getsource(workflow) + inspect.getsource(exceptions)
+
+    for lifecycle_function in (
+        "update_issue_detail",
+        "assign_issue_detail",
+        "start_remediation_detail",
+        "update_remediation_progress_detail",
+        "close_issue_detail",
+        "request_exception_detail",
+        "approve_exception_detail",
+        "revoke_exception_detail",
+    ):
+        assert lifecycle_function in route_source
+
+    assert "OutboxService.enqueue" not in route_source
+
+
+def test_notification_routes_use_inbox_module() -> None:
+    from app.api.v1.endpoints import notifications
+    from app.services._notification_inbox import lifecycle
+
+    assert hasattr(lifecycle, "NotificationInboxPage")
+    assert hasattr(lifecycle, "NotificationReadOutcome")
+    assert hasattr(lifecycle, "NotificationPreferenceOutcome")
+    assert hasattr(lifecycle, "NotificationInboxOptions")
+
+    route_source = inspect.getsource(notifications)
+
+    for inbox_function in (
+        "list_notification_inbox",
+        "count_notification_inbox_unread",
+        "mark_notification_read",
+        "mark_all_notifications_read",
+        "read_notification_preferences",
+        "update_notification_preferences",
+    ):
+        assert inbox_function in route_source
+
+    assert "paginate_visible_notifications" not in route_source
+    assert "count_visible_unread_notifications" not in route_source
+
+
+def test_admin_console_routes_use_telemetry_composition_module() -> None:
+    from app.api.v1.endpoints.admin import console
+    from app.services._admin_telemetry import lifecycle
+
+    assert hasattr(lifecycle, "SystemHealthSnapshot")
+    assert hasattr(lifecycle, "SchedulerStatusSnapshot")
+    assert hasattr(lifecycle, "OutboxStatusSnapshot")
+    assert hasattr(lifecycle, "SystemStatsSnapshot")
+    assert hasattr(lifecycle, "AdminOperationOutcome")
+
+    route_source = inspect.getsource(console)
+
+    for telemetry_function in (
+        "build_system_health_snapshot",
+        "build_scheduler_status_snapshot",
+        "build_outbox_status_snapshot",
+        "build_system_stats_snapshot",
+        "revoke_admin_user_sessions",
+    ):
+        assert telemetry_function in route_source
+
+    for route_owned_query in (
+        "select(SchedulerJobRun)",
+        "select(func.count()).select_from(OutboxEvent)",
+        "revoke_user_sessions(",
+    ):
+        assert route_owned_query not in route_source

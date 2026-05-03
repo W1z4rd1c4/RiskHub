@@ -1,25 +1,23 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 
-import { apiClient } from '@/services/apiClient';
 import {
     riskHubApi,
     type RoleHubCreate,
     type RoleHubRead,
     type RoleHubUpdate,
 } from '@/services/riskHubApi';
+import { useRiskHubConfigResource } from '../useRiskHubConfigResource';
 
 export function useRolesPanelData() {
-    const queryClient = useQueryClient();
-    const [actionErrorKey, setActionErrorKey] = useState<string | null>(null);
-    const [deleteConfirm, setDeleteConfirm] = useState<RoleHubRead | null>(null);
-    const [editingRole, setEditingRole] = useState<RoleHubRead | null>(null);
-    const [modalOpen, setModalOpen] = useState(false);
-    const [showInactive, setShowInactive] = useState(false);
-
-    const rolesQuery = useQuery({
-        queryKey: ['roles', showInactive],
-        queryFn: () => riskHubApi.getRoles(showInactive),
+    const rolesResource = useRiskHubConfigResource<RoleHubRead, RoleHubCreate, RoleHubUpdate>({
+        queryKey: ['roles'],
+        load: (showInactive) => riskHubApi.getRoles(showInactive),
+        create: (data) => riskHubApi.createRole(data),
+        update: (id, data) => riskHubApi.updateRole(Number(id), data),
+        delete: (id) => riskHubApi.deleteRole(Number(id)),
+        restore: (id) => riskHubApi.restoreRole(Number(id)),
+        itemId: (role) => role.id,
+        panelCapabilityKey: 'roles',
     });
 
     const permissionsQuery = useQuery({
@@ -27,83 +25,39 @@ export function useRolesPanelData() {
         queryFn: () => riskHubApi.getPermissions(),
     });
 
-    const createMutation = useMutation({
-        mutationFn: (data: RoleHubCreate) => riskHubApi.createRole(data),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['roles'] }),
-    });
-
-    const updateMutation = useMutation({
-        mutationFn: ({ id, data }: { id: number; data: RoleHubUpdate }) => riskHubApi.updateRole(id, data),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['roles'] }),
-    });
-
-    const deleteMutation = useMutation({
-        mutationFn: (id: number) => riskHubApi.deleteRole(id),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['roles'] }),
-    });
-
-    const restoreMutation = useMutation({
-        mutationFn: (id: number) => riskHubApi.restoreRole(id),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['roles'] }),
-    });
-
     function openCreateModal() {
-        setEditingRole(null);
-        setModalOpen(true);
+        rolesResource.openCreate();
     }
 
     function openEditModal(role: RoleHubRead) {
-        setEditingRole(role);
-        setModalOpen(true);
+        rolesResource.openEdit(role);
     }
 
     function closeRoleModal() {
-        setModalOpen(false);
-        setEditingRole(null);
-    }
-
-    async function handleSave(data: RoleHubCreate | RoleHubUpdate) {
-        if (editingRole) {
-            await updateMutation.mutateAsync({ id: editingRole.id, data: data as RoleHubUpdate });
-            return;
-        }
-        await createMutation.mutateAsync(data as RoleHubCreate);
-    }
-
-    async function handleDelete() {
-        if (!deleteConfirm) {
-            return;
-        }
-
-        try {
-            await deleteMutation.mutateAsync(deleteConfirm.id);
-            setDeleteConfirm(null);
-        } catch (error: unknown) {
-            setActionErrorKey(apiClient.toUiMessageKey(error));
-        }
+        rolesResource.closeModal();
     }
 
     function handleRestore(role: RoleHubRead) {
-        restoreMutation.mutate(role.id);
+        rolesResource.handleRestore(role);
     }
 
     return {
-        actionErrorKey,
+        actionErrorKey: rolesResource.actionErrorKey,
         closeRoleModal,
-        deleteConfirm,
-        editingRole,
-        handleDelete,
+        deleteConfirm: rolesResource.deleteConfirm,
+        editingRole: rolesResource.editingItem,
+        handleDelete: rolesResource.handleDelete,
         handleRestore,
-        handleSave,
-        modalOpen,
+        handleSave: rolesResource.handleSave,
+        modalOpen: rolesResource.modalOpen,
         openCreateModal,
         openEditModal,
         permissions: permissionsQuery.data ?? [],
         permissionsLoading: permissionsQuery.isLoading,
-        roles: rolesQuery.data ?? [],
-        rolesLoading: rolesQuery.isLoading,
-        setDeleteConfirm,
-        setShowInactive,
-        showInactive,
+        roles: rolesResource.items,
+        rolesLoading: rolesResource.isLoading,
+        setDeleteConfirm: rolesResource.setDeleteConfirm,
+        setShowInactive: rolesResource.setShowInactive,
+        showInactive: rolesResource.showInactive,
     };
 }

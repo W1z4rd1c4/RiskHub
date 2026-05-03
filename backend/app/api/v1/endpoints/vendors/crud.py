@@ -12,10 +12,7 @@ from app.api.mappers.vendor import vendor_list_response, vendor_to_read
 from app.api.v1.endpoints._collection import (
     parse_collection_query,
 )
-from app.api.v1.endpoints._collection_execution import (
-    CollectionListingDefinition,
-    execute_collection_listing_with_definition,
-)
+from app.api.v1.endpoints._collection_execution import execute_collection_listing_with_definition
 from app.core.activity_logger import build_change_set, log_activity
 from app.core.permissions import can_read_vendor, is_vendor_owner, risk_visibility_clause
 from app.core.security import check_permission, require_permission
@@ -35,6 +32,7 @@ from app.services._vendor_workflow import (
     load_vendor_for_update,
     validate_vendor_governance_assignment,
 )
+from app.services._register_listings.lifecycle import plan_vendor_listing
 
 from ._listing import (
     VENDOR_GROUP_DORA_RELEVANT,
@@ -398,7 +396,8 @@ async def list_vendors(
 
     sql_group_keys = {collection_query.group_by} if collection_query.group_by else frozenset()
 
-    listing_definition = CollectionListingDefinition(
+    listing_plan = plan_vendor_listing(
+        ordered_query=ordered_query,
         capabilities=collection_capabilities,
         serialize_items=serialize_vendors,
         serialize_sql_items=serialize_grouped_vendors,
@@ -412,8 +411,8 @@ async def list_vendors(
         db=db,
         response_model=VendorListResponse,
         query=collection_query,
-        ordered_query=ordered_query,
-        definition=listing_definition,
+        ordered_query=listing_plan.ordered_query,
+        definition=listing_plan.listing_definition,
     )
 
 

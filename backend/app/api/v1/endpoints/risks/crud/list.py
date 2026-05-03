@@ -33,6 +33,7 @@ from app.models.global_config import ConfigDefaults, get_config_int
 from app.schemas.risk import RiskListResponse, RiskStatusEnum
 from app.schemas.vendor_shared import LinkedVendorRead
 from app.services._authorization_capabilities.common import pending_approvals_for_resources
+from app.services._register_listings.lifecycle import plan_risk_listing
 from app.services.authorization_capabilities import risk_capabilities
 
 router = APIRouter()
@@ -477,7 +478,8 @@ async def list_risks(
             is_highlighted=lambda risk: risk.net_score >= 16,
         )
 
-    listing_definition = collection_exec.CollectionListingDefinition(
+    listing_plan = plan_risk_listing(
+        ordered_query=ordered_query,
         capabilities=collection_capabilities,
         serialize_items=serialize_risks,
         total=total,
@@ -491,6 +493,6 @@ async def list_risks(
         db=db,
         response_model=RiskListResponse,
         query=collection_query,
-        ordered_query=ordered_query,
-        definition=listing_definition,
+        ordered_query=listing_plan.ordered_query,
+        definition=listing_plan.listing_definition,
     )

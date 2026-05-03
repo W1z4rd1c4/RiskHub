@@ -1,55 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, CheckCircle, AlertCircle, Clock, AlertTriangle, X } from 'lucide-react';
+import { Bell, X } from 'lucide-react';
 import { useFormattedDate, useTranslation } from '@/i18n/hooks';
 import { notificationsApi } from '@/services/notificationsApi';
-import type { Notification, NotificationType } from '@/types/notification';
+import type { Notification } from '@/types/notification';
 import { NOTIFICATIONS_DROPDOWN_LIMIT } from '@/config/constants';
-import { getNotificationPath } from './resourcePath';
+import { buildNotificationPresentation, NotificationPresentationIcon } from './notificationPresentation';
 import { logError } from '@/services/logger';
-
-/**
- * Get icon for notification type.
- */
-function getNotificationIcon(type: NotificationType) {
-    switch (type) {
-        case 'approval_pending':
-            return <Clock className="h-4 w-4 text-amber-400" />;
-        case 'approval_resolved':
-            return <CheckCircle className="h-4 w-4 text-emerald-400" />;
-        case 'approval_cancelled':
-            return <AlertTriangle className="h-4 w-4 text-orange-400" />;
-        case 'kri_due_soon':
-        case 'kri_due_tomorrow':
-            return <Clock className="h-4 w-4 text-amber-400" />;
-        case 'kri_overdue':
-            return <AlertCircle className="h-4 w-4 text-rose-400" />;
-        case 'kri_near_breach':
-            return <AlertTriangle className="h-4 w-4 text-orange-400" />;
-        case 'kri_breach_detected':
-            return <AlertCircle className="h-4 w-4 text-rose-500" />;
-        case 'questionnaire_sent':
-        case 'questionnaire_due_soon':
-            return <Clock className="h-4 w-4 text-amber-400" />;
-        case 'questionnaire_overdue':
-            return <AlertCircle className="h-4 w-4 text-rose-400" />;
-        case 'questionnaire_submitted':
-            return <CheckCircle className="h-4 w-4 text-emerald-400" />;
-        case 'questionnaire_clarification_requested':
-        case 'issue_exception_requested':
-            return <AlertTriangle className="h-4 w-4 text-orange-400" />;
-        case 'issue_due_soon':
-            return <Clock className="h-4 w-4 text-amber-400" />;
-        case 'issue_overdue':
-            return <AlertCircle className="h-4 w-4 text-rose-400" />;
-        case 'issue_exception_approved':
-            return <CheckCircle className="h-4 w-4 text-emerald-400" />;
-        case 'issue_assigned':
-            return <Bell className="h-4 w-4 text-sky-400" />;
-        default:
-            return <Bell className="h-4 w-4 text-slate-400" />;
-    }
-}
 
 interface NotificationBellProps {
     unreadCount?: number;
@@ -117,7 +74,7 @@ export function NotificationBell({ unreadCount = 0, onUnreadCountChange }: Notif
         await markAsRead(notification);
 
         // Navigate to resource
-        const path = getNotificationPath(notification);
+        const path = buildNotificationPresentation(notification).path;
         if (path) {
             void navigate(path);
         }
@@ -185,7 +142,9 @@ export function NotificationBell({ unreadCount = 0, onUnreadCountChange }: Notif
                             </div>
                         ) : (
                             <div className="divide-y divide-white/5">
-                                {notifications.map(notification => (
+                                {notifications.map(notification => {
+                                    const presentation = buildNotificationPresentation(notification);
+                                    return (
                                     <button
                                         key={notification.id}
                                         onClick={() => handleNotificationClick(notification)}
@@ -195,28 +154,29 @@ export function NotificationBell({ unreadCount = 0, onUnreadCountChange }: Notif
                                     >
                                         <div className="flex gap-3">
                                             <div className="flex-shrink-0 mt-0.5">
-                                                {getNotificationIcon(notification.type)}
+                                                <NotificationPresentationIcon model={presentation} size="sm" />
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center gap-2">
                                                     <p className={`text-sm font-medium truncate ${notification.is_read ? 'text-slate-300' : 'text-white'
                                                         }`}>
-                                                        {notification.title}
+                                                        {presentation.title}
                                                     </p>
                                                     {!notification.is_read && (
                                                         <span className="w-2 h-2 bg-accent rounded-full flex-shrink-0" />
                                                     )}
                                                 </div>
                                                 <p className="text-xs text-slate-400 truncate mt-0.5">
-                                                    {notification.message}
+                                                    {presentation.message}
                                                 </p>
                                                 <p className="text-[10px] text-slate-500 mt-1">
-                                                    {formatRelativeDate(notification.created_at)}
+                                                    {formatRelativeDate(presentation.date)}
                                                 </p>
                                             </div>
                                         </div>
                                     </button>
-                                ))}
+                                    );
+                                })}
                             </div>
                         )}
                     </div>

@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { ShieldCheck, Check, X, ChevronDown } from 'lucide-react';
 import { riskHubApi } from '@/services/riskHubApi';
 import { apiClient } from '@/services/apiClient';
@@ -9,6 +9,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useTranslation } from '@/i18n/hooks';
 import { RiskHubFieldError, RiskHubModalActions, RiskHubModalFrame } from './panelPrimitives';
 import { riskHubCapabilityEnabled, useRiskHubCapabilities } from './useRiskHubCapabilities';
+import { useRiskHubConfigResource } from './useRiskHubConfigResource';
 
 // Special dynamic role entry for risk owner (not a system role in roles table)
 const SPECIAL_ROLE_VALUES = ['risk_owner'] as const;
@@ -171,15 +172,16 @@ function EditScenarioModal({ isOpen, onClose, scenario, availableRoles, rolesLoa
 
 export function ApprovalScenariosPanel() {
     const { t } = useTranslation(['admin', 'common']);
-    const queryClient = useQueryClient();
-    const [editingScenario, setEditingScenario] = useState<ApprovalScenario | null>(null);
     const { data: riskHubCapabilities } = useRiskHubCapabilities();
     const canUpdateScenarios = riskHubCapabilityEnabled(riskHubCapabilities?.approval_scenarios, 'can_update');
 
-    // Fetch approval scenarios
-    const { data: scenarios, isLoading, error } = useQuery({
+    const scenariosResource = useRiskHubConfigResource<ApprovalScenario, ApprovalScenarioUpdate, ApprovalScenarioUpdate>({
         queryKey: ['approvalScenarios'],
-        queryFn: () => riskHubApi.getApprovalScenarios(),
+        load: () => riskHubApi.getApprovalScenarios(),
+        update: (key, data) => riskHubApi.updateApprovalScenario(String(key), data),
+        itemId: (scenario) => scenario.key,
+        panelCapabilityKey: 'approval_scenarios',
+        includeShowInactive: false,
     });
 
     // Fetch roles from Risk Hub to populate role options dynamically
@@ -214,23 +216,11 @@ export function ApprovalScenariosPanel() {
         return found?.label.split('(')[0].trim() || roleValue;
     };
 
-    const updateMutation = useMutation({
-        mutationFn: ({ key, data }: { key: string; data: ApprovalScenarioUpdate }) =>
-            riskHubApi.updateApprovalScenario(key, data),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['approvalScenarios'] }),
-    });
-
-    const handleSave = async (data: ApprovalScenarioUpdate) => {
-        if (editingScenario) {
-            await updateMutation.mutateAsync({ key: editingScenario.key, data });
-        }
-    };
-
-    if (isLoading) {
+    if (scenariosResource.isLoading) {
         return <div className="text-slate-400 text-center py-8">{t('common:loading.scenarios')}</div>;
     }
 
-    if (error) {
+    if (scenariosResource.error) {
         return <div className="text-red-400 text-center py-8">{t('admin:errors.failed_to_load_approval_scenarios')}</div>;
     }
 
@@ -257,7 +247,7 @@ export function ApprovalScenariosPanel() {
                         </tr>
                     </thead>
                     <tbody>
-                        {scenarios?.map((scenario) => (
+                        {scenariosResource.items.map((scenario) => (
                             <tr
                                 key={scenario.key}
                                 className="border-b border-white/5 hover:bg-white/5 transition-colors"
@@ -296,7 +286,7 @@ export function ApprovalScenariosPanel() {
                                 <td className="py-3 px-4 text-right">
                                     {canUpdateScenarios && resolveCapabilityFlag(scenario.capabilities, 'can_update') ? (
                                         <button
-                                            onClick={() => setEditingScenario(scenario)}
+                                            onClick={() => scenariosResource.openEdit(scenario)}
                                             className="px-3 py-1.5 text-sm text-accent hover:text-white hover:bg-accent/20 rounded-lg transition-colors"
                                         >
                                             {t('admin:approval_scenarios.configure')}
@@ -310,12 +300,12 @@ export function ApprovalScenariosPanel() {
             </div>
 
             <EditScenarioModal
-                isOpen={!!editingScenario}
-                onClose={() => setEditingScenario(null)}
-                scenario={editingScenario}
+                isOpen={!!scenariosResource.editingItem}
+                onClose={scenariosResource.closeModal}
+                scenario={scenariosResource.editingItem}
                 availableRoles={roleOptions}
                 rolesLoading={rolesLoading}
-                onSave={handleSave}
+                onSave={scenariosResource.handleSave}
             />
         </div>
     );

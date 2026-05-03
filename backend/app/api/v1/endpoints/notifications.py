@@ -1,40 +1,29 @@
 """Notification API endpoints for listing and managing user notifications."""
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select, update
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
 from app.core.permissions import can_resolve_approvals
 from app.db.session import get_db
 from app.models import User
-from app.models.notification import Notification
 from app.schemas.notification import (
     NotificationListResponse,
     NotificationPreferences,
     NotificationPreferencesUpdate,
-    NotificationRead,
-    NotificationTypeEnum,
+)
+from app.services._notification_inbox.lifecycle import (
+    NotificationInboxOptions,
+    count_notification_inbox_unread,
+    list_notification_inbox,
+    mark_all_notifications_read,
+    mark_notification_read,
+    read_notification_preferences,
+    update_notification_preferences,
 )
 from app.services.kri_deadline_service import KRIDeadlineService
-from app.services.notification_visibility import count_visible_unread_notifications, paginate_visible_notifications
 
 router = APIRouter()
-
-
-def _build_notification_read(notification: Notification) -> NotificationRead:
-    """Build NotificationRead dict from model."""
-    return NotificationRead(
-        id=notification.id,
-        type=NotificationTypeEnum(notification.type.value),
-        title=notification.title,
-        message=notification.message,
-        resource_type=notification.resource_type,
-        resource_id=notification.resource_id,
-        is_read=notification.is_read,
-        created_at=notification.created_at,
-        expires_at=notification.expires_at,
-    )
 
 
 @router.get("", response_model=NotificationListResponse)
@@ -49,20 +38,21 @@ async def list_notifications(
     List notifications for the current user.
     Ordered by created_at DESC (newest first).
     """
-    notifications, total, unread_count = await paginate_visible_notifications(
+    page = await list_notification_inbox(
         db,
-        current_user,
-        skip=skip,
-        limit=limit,
-        unread_only=unread_only,
+        NotificationInboxOptions(
+            actor=current_user,
+            unread_only=unread_only,
+            offset=skip,
+            limit=limit,
+        ),
     )
-
     return NotificationListResponse(
-        items=[_build_notification_read(n) for n in notifications],
-        total=total,
-        skip=skip,
-        limit=limit,
-        unread_count=unread_count,
+        items=page.items,
+        total=page.total,
+        skip=page.offset,
+        limit=page.limit,
+        unread_count=page.unread_count,
     )
 
 
@@ -74,7 +64,7 @@ async def get_unread_count(
     """
     Get count of unread notifications for badge display.
     """
-    return {"count": await count_visible_unread_notifications(db, current_user)}
+    return {"count": await count_notification_inbox_unread(db, current_user)}
 
 
 @router.get("/preferences", response_model=NotificationPreferences)
@@ -82,30 +72,18 @@ async def get_notification_preferences(
     current_user: User = Depends(deps.get_current_user),
 ):
     """Get current user's notification preferences."""
-    prefs = current_user.notification_preferences or {}
-    # Merge with defaults (all True if not set)
-    defaults = NotificationPreferences()
-    return NotificationPreferences(**{**defaults.model_dump(), **prefs})
+    return read_notification_preferences(current_user).preferences
 
 
 @router.put("/preferences", response_model=NotificationPreferences)
-async def update_notification_preferences(
+async def put_notification_preferences(
     preferences: NotificationPreferencesUpdate,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(deps.get_current_user),
 ):
     """Update current user's notification preferences."""
-    # Get existing or empty
-    existing = current_user.notification_preferences or {}
-    # Merge with update (only non-None fields)
-    updates = {k: v for k, v in preferences.model_dump().items() if v is not None}
-    new_prefs = {**existing, **updates}
-
-    current_user.notification_preferences = new_prefs
-    await db.commit()
-
-    defaults = NotificationPreferences()
-    return NotificationPreferences(**{**defaults.model_dump(), **new_prefs})
+    outcome = await update_notification_preferences(db, actor=current_user, preferences=preferences)
+    return outcome.preferences
 
 
 @router.post("/{notification_id}/read")
@@ -119,21 +97,8 @@ async def mark_as_read(
     Only the notification owner can mark it as read.
     Returns the updated unread count for immediate UI sync.
     """
-    result = await db.execute(select(Notification).where(Notification.id == notification_id))
-    notification = result.scalar_one_or_none()
-
-    if not notification:
-        raise HTTPException(status_code=404, detail="Notification not found")
-
-    # Security: only owner can mark as read
-    if notification.user_id != current_user.id:
-        raise HTTPException(status_code=404, detail="Notification not found")
-
-    notification.is_read = True
-    await db.commit()
-
-    # Return current visible unread count for UI sync.
-    return {"unread_count": await count_visible_unread_notifications(db, current_user)}
+    outcome = await mark_notification_read(db, notification_id=notification_id, actor=current_user)
+    return {"unread_count": outcome.unread_count or 0}
 
 
 @router.post("/read-all", status_code=status.HTTP_204_NO_CONTENT)
@@ -144,12 +109,7 @@ async def mark_all_as_read(
     """
     Mark all unread notifications as read for the current user.
     """
-    await db.execute(
-        update(Notification)
-        .where(Notification.user_id == current_user.id, Notification.is_read.is_(False))
-        .values(is_read=True)
-    )
-    await db.commit()
+    await mark_all_notifications_read(db, current_user)
 
 
 @router.post("/trigger-kri-check", status_code=status.HTTP_200_OK)
@@ -162,6 +122,8 @@ async def trigger_kri_deadline_check(
     Admin, CRO, and Risk Manager only.
     Useful for testing without waiting for scheduled job.
     """
+    from fastapi import HTTPException
+
     if not can_resolve_approvals(current_user):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

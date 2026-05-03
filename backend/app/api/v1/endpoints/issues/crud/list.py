@@ -46,6 +46,7 @@ from app.services._issue_register import (
     load_issue_sql_groups,
     serialize_issue_summaries_for_actor,
 )
+from app.services._register_listings.lifecycle import plan_issue_listing
 from app.services.authorization_capabilities import issue_capabilities
 from app.services.issue_visibility_service import unsuppressed_issue_clause
 
@@ -283,7 +284,8 @@ async def list_issues(
             is_highlighted=lambda issue: issue.severity in {IssueSeverity.high.value, IssueSeverity.critical.value},
         )
 
-    listing_definition = collection_exec.CollectionListingDefinition(
+    listing_plan = plan_issue_listing(
+        ordered_query=ordered_query,
         capabilities=collection_capabilities,
         serialize_items=serialize_issues,
         total=total,
@@ -298,6 +300,6 @@ async def list_issues(
         db=db,
         response_model=IssueListResponse,
         query=collection_query,
-        ordered_query=ordered_query,
-        definition=listing_definition,
+        ordered_query=listing_plan.ordered_query,
+        definition=listing_plan.listing_definition,
     )

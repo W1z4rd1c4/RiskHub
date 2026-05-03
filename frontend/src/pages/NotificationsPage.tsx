@@ -1,55 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, CheckCircle, AlertCircle, Clock, AlertTriangle, Check, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Bell, Check, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useFormattedDate, useTranslation } from '@/i18n/hooks';
 import { notificationsApi } from '@/services/notificationsApi';
-import type { Notification, NotificationType } from '@/types/notification';
-import { getNotificationResourcePath } from '@/components/notifications/resourcePath';
+import type { Notification } from '@/types/notification';
+import {
+    buildNotificationPresentation,
+    NotificationPresentationIcon,
+} from '@/components/notifications/notificationPresentation';
 import { logError } from '@/services/logger';
-
-/**
- * Get icon for notification type.
- */
-function getNotificationIcon(type: NotificationType, size: 'sm' | 'md' = 'md') {
-    const sizeClass = size === 'sm' ? 'h-4 w-4' : 'h-5 w-5';
-    switch (type) {
-        case 'approval_pending':
-            return <Clock className={`${sizeClass} text-amber-400`} />;
-        case 'approval_resolved':
-            return <CheckCircle className={`${sizeClass} text-emerald-400`} />;
-        case 'approval_cancelled':
-            return <AlertTriangle className={`${sizeClass} text-orange-400`} />;
-        case 'kri_due_soon':
-        case 'kri_due_tomorrow':
-            return <Clock className={`${sizeClass} text-amber-400`} />;
-        case 'kri_overdue':
-            return <AlertCircle className={`${sizeClass} text-rose-400`} />;
-        case 'kri_near_breach':
-            return <AlertTriangle className={`${sizeClass} text-orange-400`} />;
-        case 'kri_breach_detected':
-            return <AlertCircle className={`${sizeClass} text-rose-500`} />;
-        case 'questionnaire_sent':
-        case 'questionnaire_due_soon':
-            return <Clock className={`${sizeClass} text-amber-400`} />;
-        case 'questionnaire_overdue':
-            return <AlertCircle className={`${sizeClass} text-rose-400`} />;
-        case 'questionnaire_submitted':
-            return <CheckCircle className={`${sizeClass} text-emerald-400`} />;
-        case 'questionnaire_clarification_requested':
-        case 'issue_exception_requested':
-            return <AlertTriangle className={`${sizeClass} text-orange-400`} />;
-        case 'issue_due_soon':
-            return <Clock className={`${sizeClass} text-amber-400`} />;
-        case 'issue_overdue':
-            return <AlertCircle className={`${sizeClass} text-rose-400`} />;
-        case 'issue_exception_approved':
-            return <CheckCircle className={`${sizeClass} text-emerald-400`} />;
-        case 'issue_assigned':
-            return <Bell className={`${sizeClass} text-sky-400`} />;
-        default:
-            return <Bell className={`${sizeClass} text-slate-400`} />;
-    }
-}
 
 export function NotificationsPage() {
     const navigate = useNavigate();
@@ -101,7 +60,7 @@ export function NotificationsPage() {
         }
 
         // Navigate to resource
-        const path = getNotificationResourcePath(notification.resource_type, notification.resource_id);
+        const path = buildNotificationPresentation(notification).path;
         if (path) {
             void navigate(path);
         }
@@ -181,7 +140,9 @@ export function NotificationsPage() {
                     </div>
                 ) : (
                     <div className="divide-y divide-white/10">
-                        {notifications.map(notification => (
+                        {notifications.map(notification => {
+                            const presentation = buildNotificationPresentation(notification);
+                            return (
                             <button
                                 key={notification.id}
                                 onClick={() => handleNotificationClick(notification)}
@@ -190,28 +151,29 @@ export function NotificationsPage() {
                             >
                                 <div className="flex gap-4">
                                     <div className="flex-shrink-0 mt-1">
-                                        {getNotificationIcon(notification.type)}
+                                        <NotificationPresentationIcon model={presentation} />
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-2 mb-1">
                                             <p className={`text-sm font-semibold ${notification.is_read ? 'text-slate-300' : 'text-white'
                                                 }`}>
-                                                {notification.title}
+                                                {presentation.title}
                                             </p>
                                             {!notification.is_read && (
                                                 <span className="w-2 h-2 bg-accent rounded-full flex-shrink-0" />
                                             )}
                                             <span className="text-xs text-slate-500 ml-auto">
-                                                {formatRelativeDate(notification.created_at)}
+                                                {formatRelativeDate(presentation.date)}
                                             </span>
                                         </div>
                                         <p className="text-sm text-slate-400">
-                                            {notification.message}
+                                            {presentation.message}
                                         </p>
                                     </div>
                                 </div>
                             </button>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
             </div>

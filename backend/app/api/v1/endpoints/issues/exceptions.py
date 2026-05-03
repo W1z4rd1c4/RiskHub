@@ -1,26 +1,19 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.datetime_utils import utc_now
 from app.core.security import require_permission
 from app.db.session import get_db
-from app.models import IssueException, User
-from app.models.issue import IssueExceptionStatus
+from app.models import User
 from app.schemas.issue import (
     IssueExceptionApproveRequest,
     IssueExceptionRead,
     IssueExceptionRequestCreate,
     IssueExceptionRevokeRequest,
 )
-from app.services.issue_workflow_service import IssueWorkflowService
-from app.services.outbox import OutboxService
-
-from ._shared import (
-    _active_exception,
-    _get_readable_issue_or_404,
-    _get_writable_issue_or_404,
-    _serialize_exception_with_user_names,
+from app.services._issue_workflow.lifecycle import (
+    approve_exception_detail,
+    request_exception_detail,
+    revoke_exception_detail,
 )
 
 router = APIRouter()
@@ -35,27 +28,13 @@ async def request_exception(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_permission("issues", "write")),
 ) -> IssueExceptionRead:
-    issue = await _get_writable_issue_or_404(db, issue_id, current_user)
-    exception = await IssueWorkflowService.request_exception(
-        db,
-        issue=issue,
-        reason=payload.reason,
-        actor=current_user,
+    outcome = await request_exception_detail(
+        db=db,
+        issue_id=issue_id,
+        payload=payload,
+        current_user=current_user,
     )
-    await OutboxService.enqueue(
-        db,
-        event_type="issue.exception_requested",
-        aggregate_type="issue_exception",
-        aggregate_id=exception.id,
-        idempotency_key=f"issue:{issue.id}:exception-requested:{exception.id}",
-        payload={
-            "issue_id": issue.id,
-            "actor_user_id": current_user.id,
-        },
-    )
-    await db.commit()
-    await db.refresh(exception)
-    return await _serialize_exception_with_user_names(db, exception)
+    return outcome.response
 
 
 @router.post("/issues/{issue_id}/approve-exception", response_model=IssueExceptionRead)
@@ -65,64 +44,13 @@ async def approve_exception(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_permission("issues", "approve")),
 ) -> IssueExceptionRead:
-    issue = await _get_readable_issue_or_404(db, issue_id, current_user)
-    active = _active_exception(issue)
-    if active is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="Issue already has an active approved exception"
-        )
-
-    target_exception: IssueException | None = None
-    if payload.exception_id is not None:
-        target_exception = (
-            await db.execute(
-                select(IssueException).where(
-                    IssueException.id == payload.exception_id, IssueException.issue_id == issue.id
-                )
-            )
-        ).scalar_one_or_none()
-    else:
-        target_exception = (
-            (
-                await db.execute(
-                    select(IssueException)
-                    .where(
-                        IssueException.issue_id == issue.id,
-                        IssueException.status == IssueExceptionStatus.requested.value,
-                    )
-                    .order_by(IssueException.created_at.desc())
-                )
-            )
-            .scalars()
-            .first()
-        )
-
-    if target_exception is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Requested exception not found")
-
-    approved = await IssueWorkflowService.approve_exception(
-        db,
-        issue=issue,
-        exception=target_exception,
-        expires_at=payload.expires_at,
-        actor=current_user,
+    outcome = await approve_exception_detail(
+        db=db,
+        issue_id=issue_id,
+        payload=payload,
+        current_user=current_user,
     )
-    await OutboxService.enqueue(
-        db,
-        event_type="issue.exception_approved",
-        aggregate_type="issue_exception",
-        aggregate_id=approved.id,
-        idempotency_key=f"issue:{issue.id}:exception-approved:{approved.id}",
-        payload={
-            "issue_id": issue.id,
-            "requested_by_id": approved.requested_by_id,
-            "owner_user_id": issue.owner_user_id,
-            "actor_user_id": current_user.id,
-        },
-    )
-    await db.commit()
-    await db.refresh(approved)
-    return await _serialize_exception_with_user_names(db, approved)
+    return outcome.response
 
 
 @router.post("/issues/{issue_id}/revoke-exception", response_model=IssueExceptionRead)
@@ -132,45 +60,10 @@ async def revoke_exception(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_permission("issues", "approve")),
 ) -> IssueExceptionRead:
-    issue = await _get_readable_issue_or_404(db, issue_id, current_user)
-
-    target_exception: IssueException | None = None
-    if payload.exception_id is not None:
-        target_exception = (
-            await db.execute(
-                select(IssueException).where(
-                    IssueException.id == payload.exception_id, IssueException.issue_id == issue.id
-                )
-            )
-        ).scalar_one_or_none()
-    else:
-        now = utc_now()
-        target_exception = (
-            (
-                await db.execute(
-                    select(IssueException)
-                    .where(
-                        IssueException.issue_id == issue.id,
-                        IssueException.status == IssueExceptionStatus.approved.value,
-                        IssueException.expires_at.is_not(None),
-                        IssueException.expires_at > now,
-                    )
-                    .order_by(IssueException.approved_at.desc(), IssueException.created_at.desc())
-                )
-            )
-            .scalars()
-            .first()
-        )
-
-    if target_exception is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Approved exception not found")
-
-    revoked = await IssueWorkflowService.revoke_exception(
-        db,
-        issue=issue,
-        exception=target_exception,
-        actor=current_user,
+    outcome = await revoke_exception_detail(
+        db=db,
+        issue_id=issue_id,
+        payload=payload,
+        current_user=current_user,
     )
-    await db.commit()
-    await db.refresh(revoked)
-    return await _serialize_exception_with_user_names(db, revoked)
+    return outcome.response

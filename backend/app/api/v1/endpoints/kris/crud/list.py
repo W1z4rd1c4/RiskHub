@@ -39,6 +39,7 @@ from app.services._monitoring_status import (
     apply_kri_monitoring_status_filter,
     apply_kri_timeliness_status_filter,
 )
+from app.services._register_listings.lifecycle import plan_kri_listing
 from app.services.authorization_capabilities import kri_capabilities
 
 from ..access import can_create_kri_for_any_parent_risk, kri_read_scope_clause
@@ -420,7 +421,8 @@ async def list_kris(
             is_highlighted=lambda item: getattr(item, "monitoring_status", None) == "breach",
         )
 
-    listing_definition = collection_exec.CollectionListingDefinition(
+    listing_plan = plan_kri_listing(
+        ordered_query=ordered_query,
         capabilities=collection_capabilities,
         serialize_items=serialize_kris,
         load_total=load_total,
@@ -435,6 +437,6 @@ async def list_kris(
         db=db,
         response_model=KRIListResponse,
         query=collection_query,
-        ordered_query=ordered_query,
-        definition=listing_definition,
+        ordered_query=listing_plan.ordered_query,
+        definition=listing_plan.listing_definition,
     )
