@@ -1,0 +1,177 @@
+{
+  "version": "1.0",
+  "last_reviewed": "2026-05-03",
+  "owner": "RiskHub Maintainer",
+  "description": "Validator catalog for backend Pydantic capability models and frontend Zod capability schemas. The authorization capability contract remains the source of protected action semantics; this catalog checks field-shape drift only.",
+  "surfaces": [
+    {
+      "id": "risk",
+      "backend": {
+        "path": "backend/app/schemas/risk.py",
+        "class": "RiskCapabilities"
+      },
+      "frontend": {
+        "path": "frontend/src/services/api/schemas/entities/risks.ts",
+        "schema": "riskCapabilitiesSchema"
+      },
+      "fields": [
+        "can_read",
+        "can_update",
+        "can_update_sensitive_fields",
+        "can_request_update_approval",
+        "can_archive_immediately",
+        "can_request_archive_approval",
+        "can_restore",
+        "can_send_questionnaire",
+        "can_create_kri",
+        "can_create_linked_control",
+        "can_link_controls",
+        "can_unlink_controls",
+        "can_view_linked_controls",
+        "can_view_linked_vendors",
+        "can_create_issue",
+        "has_pending_delete_approval",
+        "has_pending_update_approval",
+        "requires_privileged_update_approval",
+        "requires_privileged_delete_approval"
+      ]
+    },
+    {
+      "id": "control",
+      "backend": {
+        "path": "backend/app/schemas/control.py",
+        "class": "ControlCapabilities"
+      },
+      "frontend": {
+        "path": "frontend/src/services/api/schemas/entities/controls.ts",
+        "schema": "controlCapabilitiesSchema"
+      },
+      "fields": [
+        "can_read",
+        "can_update",
+        "can_update_sensitive_fields",
+        "can_request_update_approval",
+        "can_archive_immediately",
+        "can_request_archive_approval",
+        "can_restore",
+        "can_log_execution",
+        "can_view_executions",
+        "can_link_risk",
+        "can_unlink_risk",
+        "can_view_linked_risks",
+        "can_view_linked_vendors",
+        "can_create_issue",
+        "has_pending_delete_approval",
+        "has_pending_update_approval",
+        "requires_privileged_update_approval",
+        "requires_privileged_delete_approval",
+        "is_archived",
+        "is_executable"
+      ]
+    },
+    {
+      "id": "kri",
+      "backend": {
+        "path": "backend/app/schemas/kri.py",
+        "class": "KRICapabilities"
+      },
+      "frontend": {
+        "path": "frontend/src/services/api/schemas/entities/kris.ts",
+        "schema": "kriCapabilitiesSchema"
+      },
+      "fields": [
+        "can_read",
+        "can_update",
+        "can_update_sensitive_fields",
+        "can_request_update_approval",
+        "can_archive_immediately",
+        "can_request_archive_approval",
+        "can_restore",
+        "can_submit_value",
+        "can_submit_backdated_value",
+        "can_request_value_submission_approval",
+        "can_view_history",
+        "can_request_history_correction",
+        "can_apply_history_correction_immediately",
+        "can_link_vendors",
+        "can_unlink_vendors",
+        "can_view_linked_vendors",
+        "can_create_issue",
+        "has_pending_delete_approval",
+        "has_pending_update_approval",
+        "has_pending_value_submission_approval",
+        "has_pending_history_correction_approval",
+        "requires_privileged_update_approval",
+        "requires_privileged_delete_approval"
+      ]
+    },
+    {
+      "id": "issue",
+      "backend": {
+        "path": "backend/app/schemas/issue.py",
+        "class": "IssueCapabilities"
+      },
+      "frontend": {
+        "path": "frontend/src/services/api/schemas/entities/issues.ts",
+        "schema": "issueCapabilitiesSchema"
+      },
+      "fields": [
+        "can_read",
+        "can_update",
+        "can_change_department",
+        "can_assign_owner",
+        "can_clear_owner",
+        "can_start_remediation",
+        "can_update_remediation_progress",
+        "can_mark_remediation_blocked",
+        "can_mark_remediation_completed",
+        "can_request_exception",
+        "can_approve_exception",
+        "can_revoke_exception",
+        "can_close",
+        "can_link_risk",
+        "can_link_control",
+        "can_link_execution",
+        "can_link_kri",
+        "can_link_vendor",
+        "can_unlink_entities",
+        "can_view_activity_history",
+        "can_view_risk_contexts",
+        "can_view_vendor_contexts",
+        "can_use_department_lookup",
+        "can_use_owner_lookup",
+        "is_owner",
+        "is_closed",
+        "has_active_exception",
+        "has_pending_exception_request"
+      ]
+    },
+    {
+      "id": "vendor",
+      "backend": {
+        "path": "backend/app/schemas/vendor.py",
+        "class": "VendorCapabilities"
+      },
+      "frontend": {
+        "path": "frontend/src/services/api/schemas/entities/vendors.ts",
+        "schema": "vendorCapabilitiesSchema"
+      },
+      "fields": [
+        "can_read",
+        "can_update",
+        "can_archive",
+        "can_restore",
+        "can_create_linked_risk",
+        "can_create_linked_control",
+        "can_create_linked_kri",
+        "can_link_risk",
+        "can_link_control",
+        "can_link_kri",
+        "can_view_linked_risks",
+        "can_view_linked_controls",
+        "can_view_linked_kris",
+        "can_create_issue"
+      ]
+    }
+  ]
+}

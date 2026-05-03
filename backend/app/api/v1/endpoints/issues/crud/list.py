@@ -15,6 +15,12 @@ from app.api.v1.endpoints._collection import (
     coerce_optional_string,
     is_group_summary_request,
 )
+from app.api.v1.endpoints._collection_execution import (
+    apply_collection_group_filter,
+    build_collection_response,
+    count_collection_rows,
+    load_collection_scalars_page,
+)
 from app.core.datetime_utils import utc_now
 from app.core.permissions import (
     can_read_control_id,
@@ -45,10 +51,9 @@ from app.services._issue_register import (
     issue_risk_context_subquery,
     issue_vendor_context_subquery,
     load_issue_sql_groups,
+    serialize_issue_summaries_for_actor,
 )
 from app.services.issue_visibility_service import unsuppressed_issue_clause
-
-from .._shared import _serialize_issue_summary, build_issue_linked_visibility
 
 router = APIRouter()
 
@@ -265,11 +270,11 @@ async def list_issues(
         )
         groups = await load_issue_sql_groups(db, filtered_ids, collection_query.group_by, current_user)
         if is_group_summary_request(collection_query):
-            return IssueListResponse(
+            return build_collection_response(
+                IssueListResponse,
+                query=collection_query,
                 items=[],
                 total=total,
-                offset=offset,
-                limit=limit,
                 groups=groups,
                 capabilities=collection_capabilities,
             )
@@ -281,32 +286,20 @@ async def list_issues(
             vendor_context=vendor_context,
         )
         grouped_query = ordered_query.outerjoin(Department, Department.id == Issue.department_id)
-        if group_filter is not None:
-            grouped_query = grouped_query.where(group_filter)
-        else:
-            grouped_query = grouped_query.where(false())
-        grouped_total = (
-            await db.execute(select(func.count()).select_from(grouped_query.order_by(None).subquery()))
-        ).scalar() or 0
-        result = await db.execute(grouped_query.offset(offset).limit(limit))
-        issues = list(result.scalars().all())
-        linked_visibility = await build_issue_linked_visibility(db, current_user, issues)
-        items = []
-        for issue in issues:
-            capabilities = await issue_capabilities(db, current_user=current_user, issue=issue)
-            items.append(
-                _serialize_issue_summary(
-                    issue,
-                    current_user=current_user,
-                    capabilities=capabilities,
-                    linked_visibility=linked_visibility,
-                )
-            )
-        return IssueListResponse(
+        grouped_query = apply_collection_group_filter(grouped_query, group_filter)
+        grouped_total = await count_collection_rows(db, grouped_query)
+        issues = await load_collection_scalars_page(db, grouped_query, offset=offset, limit=limit)
+        items = await serialize_issue_summaries_for_actor(
+            db,
+            current_user=current_user,
+            issues=issues,
+            capability_loader=issue_capabilities,
+        )
+        return build_collection_response(
+            IssueListResponse,
+            query=collection_query,
             items=items,
             total=grouped_total,
-            offset=offset,
-            limit=limit,
             groups=groups,
             capabilities=collection_capabilities,
         )
@@ -314,18 +307,12 @@ async def list_issues(
     if collection_query.group_by:
         result = await db.execute(ordered_query)
         issues = list(result.scalars().all())
-        linked_visibility = await build_issue_linked_visibility(db, current_user, issues)
-        all_items = []
-        for issue in issues:
-            capabilities = await issue_capabilities(db, current_user=current_user, issue=issue)
-            all_items.append(
-                _serialize_issue_summary(
-                    issue,
-                    current_user=current_user,
-                    capabilities=capabilities,
-                    linked_visibility=linked_visibility,
-                )
-            )
+        all_items = await serialize_issue_summaries_for_actor(
+            db,
+            current_user=current_user,
+            issues=issues,
+            capability_loader=issue_capabilities,
+        )
         paginated_items, grouped_total, groups = build_grouped_collection_page(
             all_items,
             collection_query,
@@ -333,34 +320,27 @@ async def list_issues(
             is_active=lambda issue: issue.status != IssueStatus.closed.value,
             is_highlighted=lambda issue: issue.severity in {IssueSeverity.high.value, IssueSeverity.critical.value},
         )
-        return IssueListResponse(
+        return build_collection_response(
+            IssueListResponse,
+            query=collection_query,
             items=paginated_items,
             total=grouped_total,
-            offset=offset,
-            limit=limit,
             groups=groups,
             capabilities=collection_capabilities,
         )
 
-    result = await db.execute(ordered_query.offset(offset).limit(limit))
-    issues = result.scalars().all()
-    linked_visibility = await build_issue_linked_visibility(db, current_user, issues)
-    items = []
-    for issue in issues:
-        capabilities = await issue_capabilities(db, current_user=current_user, issue=issue)
-        items.append(
-            _serialize_issue_summary(
-                issue,
-                current_user=current_user,
-                capabilities=capabilities,
-                linked_visibility=linked_visibility,
-            )
-        )
+    issues = await load_collection_scalars_page(db, ordered_query, offset=offset, limit=limit)
+    items = await serialize_issue_summaries_for_actor(
+        db,
+        current_user=current_user,
+        issues=issues,
+        capability_loader=issue_capabilities,
+    )
 
-    return IssueListResponse(
+    return build_collection_response(
+        IssueListResponse,
+        query=collection_query,
         items=items,
         total=total,
-        offset=offset,
-        limit=limit,
         capabilities=collection_capabilities,
     )

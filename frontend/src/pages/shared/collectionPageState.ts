@@ -3,7 +3,7 @@ import { useCallback, useRef, useState } from 'react';
 import { isForbiddenApiError } from '@/services/apiClient';
 import type { CollectionGroup } from '@/types/collection';
 
-interface CollectionLoadFailureOptions {
+export interface CollectionLoadFailureOptions {
     clearOnNonForbidden?: boolean;
     fallbackErrorKey?: string;
     toErrorKey?: (error: unknown) => string | null;

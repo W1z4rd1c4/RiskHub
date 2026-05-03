@@ -6,7 +6,6 @@ import { DEFAULT_LIST_PAGE_SIZE, LIST_SEARCH_DEBOUNCE_MS } from '@/constants/lis
 import { KRI_MONITORING_FILTER_VALUES } from '@/lib/monitoringStatus';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { apiClient } from '@/services/apiClient';
-import { loadCollectionPage } from '@/services/collectionApi';
 import { kriApi } from '@/services/kriApi';
 import { reportApi } from '@/services/reportApi';
 import type { KeyRiskIndicator } from '@/types/kri';
@@ -23,9 +22,11 @@ import {
 } from './kriPagePresentation';
 import {
     getTotalPages,
-    useCollectionDataState,
-    useCollectionPageController,
 } from '../shared/collectionPageState';
+import {
+    type CollectionWorkflowLoadRequest,
+    useCollectionPageWorkflow,
+} from '../shared/collectionPageWorkflow';
 
 const TIMELINESS_FILTER_VALUES = ['due_soon'] as const;
 
@@ -35,29 +36,9 @@ interface UseKrisPageStateOptions {
 }
 
 export function useKrisPageState({ searchParams, setSearchParams }: UseKrisPageStateOptions) {
-    const collectionData = useCollectionDataState<KeyRiskIndicator>();
-    const {
-        applyFailure,
-        applySuccess,
-        setErrorKey,
-        setIsLoading,
-    } = collectionData;
     const [search, setSearch] = useState('');
     const [viewMode, setViewMode] = useState<ViewMode>('all');
     const [currentPage, setCurrentPage] = useState(1);
-    const {
-        beginRequest,
-        closeExportDialog,
-        isCurrentRequest,
-        isExportDialogOpen,
-        isExporting,
-        openExportDialog,
-        resetGroupSelection,
-        selectGroup: selectCollectionGroup,
-        selectedGroupLabel,
-        selectedGroupValue,
-        setIsExporting,
-    } = useCollectionPageController();
 
     const { statusFilter, timelinessFilter } = readKriRouteFilters(
         searchParams,
@@ -68,58 +49,43 @@ export function useKrisPageState({ searchParams, setSearchParams }: UseKrisPageS
     const limit = DEFAULT_LIST_PAGE_SIZE;
     const groupBy = getKriGroupBy(viewMode);
 
-    const fetchKris = useCallback(async () => {
-        const requestId = beginRequest();
-        try {
-            setIsLoading(true);
-
-            const response = await loadCollectionPage({
+    const loadKriPage = useCallback(
+        ({ currentPage, groupBy, groupValue }: CollectionWorkflowLoadRequest) => kriApi.getKRIs(
+            buildKriListParams({
                 currentPage,
+                limit,
+                search: debouncedSearch,
+                statusFilter,
+                timelinessFilter,
                 groupBy,
-                selectedGroupValue,
-                loadPage: ({ currentPage, groupBy, groupValue }) => kriApi.getKRIs(
-                    buildKriListParams({
-                        currentPage,
-                        limit,
-                        search: debouncedSearch,
-                        statusFilter,
-                        timelinessFilter,
-                        groupBy,
-                        groupValue,
-                    })
-                ),
-            });
-            if (!isCurrentRequest(requestId)) {
-                return;
-            }
-            applySuccess(response);
-        } catch (error) {
-            if (!isCurrentRequest(requestId)) {
-                return;
-            }
-            applyFailure(error, {
-                clearOnNonForbidden: true,
-                toErrorKey: (loadError) => apiClient.toUiMessageKey(loadError),
-            });
-        } finally {
-            if (isCurrentRequest(requestId)) {
-                setIsLoading(false);
-            }
-        }
-    }, [
-        applyFailure,
-        applySuccess,
-        beginRequest,
+                groupValue,
+            })
+        ),
+        [debouncedSearch, limit, statusFilter, timelinessFilter]
+    );
+
+    const toUiErrorKey = useCallback((error: unknown) => apiClient.toUiMessageKey(error), []);
+
+    const collectionWorkflow = useCollectionPageWorkflow<KeyRiskIndicator>({
+        clearOnNonForbidden: true,
         currentPage,
-        debouncedSearch,
         groupBy,
-        isCurrentRequest,
-        limit,
+        loadPage: loadKriPage,
+        toErrorKey: toUiErrorKey,
+    });
+    const {
+        closeExportDialog,
+        fetchCollection: fetchKris,
+        isExportDialogOpen,
+        isExporting,
+        openExportDialog,
+        resetGroupSelection,
+        selectGroup: selectCollectionGroup,
+        selectedGroupLabel,
         selectedGroupValue,
-        setIsLoading,
-        statusFilter,
-        timelinessFilter,
-    ]);
+        setErrorKey,
+        setIsExporting,
+    } = collectionWorkflow;
 
     useEffect(() => {
         void fetchKris();
@@ -198,17 +164,17 @@ export function useKrisPageState({ searchParams, setSearchParams }: UseKrisPageS
 
     return {
         currentPage,
-        capabilities: collectionData.capabilities,
-        errorKey: collectionData.errorKey,
+        capabilities: collectionWorkflow.capabilities,
+        errorKey: collectionWorkflow.errorKey,
         fetchKris,
-        groups: collectionData.groups,
+        groups: collectionWorkflow.groups,
         handleExport,
-        hasLoadedOnce: collectionData.hasLoadedOnce,
+        hasLoadedOnce: collectionWorkflow.hasLoadedOnce,
         isExportDialogOpen,
         isExporting,
-        isAccessDenied: collectionData.isAccessDenied,
-        isLoading: collectionData.isLoading,
-        items: collectionData.items,
+        isAccessDenied: collectionWorkflow.isAccessDenied,
+        isLoading: collectionWorkflow.isLoading,
+        items: collectionWorkflow.items,
         limit,
         openExportDialog,
         closeExportDialog,
@@ -219,8 +185,8 @@ export function useKrisPageState({ searchParams, setSearchParams }: UseKrisPageS
         setCurrentPage,
         statusFilter,
         timelinessFilter,
-        totalCount: collectionData.totalCount,
-        totalPages: getTotalPages(collectionData.totalCount, limit),
+        totalCount: collectionWorkflow.totalCount,
+        totalPages: getTotalPages(collectionWorkflow.totalCount, limit),
         updateRouteFilters,
         updateSearch,
         updateViewMode,

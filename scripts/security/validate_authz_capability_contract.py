@@ -15,6 +15,7 @@ from typing import Any, Mapping, TypedDict
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CONTRACT_MD = Path("docs/security/authorization-capability-contract.md")
 CONTRACT_JSON = Path("docs/security/authorization-capability-contract.json")
+CAPABILITY_CATALOG_JSON = Path("docs/security/capability-catalog.json")
 
 REQUIRED_MD_SECTIONS = (
     "## Purpose",
@@ -68,6 +69,12 @@ FRONTEND_GATE_DISCOVERY_PATTERN = re.compile(
     r"\b(PermissionGate|useAuthz|hasPermission|resolveCapabilityFlag|RouteGuard)\b"
 )
 FRONTEND_LOCAL_GATE_PATTERN = re.compile(r"\b(PermissionGate|usePermissions|hasPermission)\b")
+BACKEND_BOOL_FIELD_PATTERN = re.compile(
+    r"^\s+([A-Za-z_][A-Za-z0-9_]*):\s*bool(?:\s*=.*)?(?:\s*#.*)?$"
+)
+FRONTEND_BOOL_FIELD_PATTERN = re.compile(
+    r"^\s*([A-Za-z_][A-Za-z0-9_]*):\s*z\.boolean\(\)"
+)
 FRONTEND_SOURCE_SUFFIXES = {".ts", ".tsx"}
 DISCOVERY_ALLOWLIST: dict[str, str] = {
     "frontend/src/hooks/useUsersPageFilters.ts": (
@@ -470,6 +477,223 @@ def _validate_business_route_nav_context(source: str | None = None) -> list[Find
     return findings
 
 
+def _read_catalog_source(
+    path: Path,
+    source_by_path: Mapping[Path | str, str] | None = None,
+) -> str:
+    if source_by_path is not None:
+        if path in source_by_path:
+            return source_by_path[path]
+        path_posix = path.as_posix()
+        if path_posix in source_by_path:
+            return source_by_path[path_posix]
+    return _read_source(path)
+
+
+def _extract_python_class_body(source: str, class_name: str) -> str | None:
+    lines = source.splitlines()
+    class_pattern = re.compile(rf"^\s*class\s+{re.escape(class_name)}\b")
+    for index, line in enumerate(lines):
+        if not class_pattern.search(line):
+            continue
+        class_indent = len(line) - len(line.lstrip())
+        body_lines: list[str] = []
+        for body_line in lines[index + 1:]:
+            if not body_line.strip():
+                body_lines.append(body_line)
+                continue
+            body_indent = len(body_line) - len(body_line.lstrip())
+            if body_indent <= class_indent:
+                break
+            body_lines.append(body_line)
+        return "\n".join(body_lines)
+    return None
+
+
+def _extract_backend_capability_fields(source: str, class_name: str) -> set[str] | None:
+    body = _extract_python_class_body(source, class_name)
+    if body is None:
+        return None
+    return {
+        match.group(1)
+        for line in body.splitlines()
+        if (match := BACKEND_BOOL_FIELD_PATTERN.match(line))
+    }
+
+
+def _find_matching_closing_brace(source: str, open_brace_index: int) -> int | None:
+    depth = 0
+    in_string: str | None = None
+    escaped = False
+    for index in range(open_brace_index, len(source)):
+        char = source[index]
+        if in_string is not None:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == in_string:
+                in_string = None
+            continue
+
+        if char in {"'", '"', "`"}:
+            in_string = char
+            continue
+        if char == "{":
+            depth += 1
+            continue
+        if char == "}":
+            depth -= 1
+            if depth == 0:
+                return index
+    return None
+
+
+def _extract_typescript_schema_body(source: str, schema_name: str) -> str | None:
+    schema_pattern = re.compile(
+        rf"\b(?:export\s+)?const\s+{re.escape(schema_name)}\s*=\s*passthroughObject\s*\("
+    )
+    match = schema_pattern.search(source)
+    if match is None:
+        return None
+
+    open_brace_index = source.find("{", match.end())
+    if open_brace_index == -1:
+        return None
+    closing_brace_index = _find_matching_closing_brace(source, open_brace_index)
+    if closing_brace_index is None:
+        return None
+    return source[open_brace_index + 1: closing_brace_index]
+
+
+def _extract_frontend_capability_fields(source: str, schema_name: str) -> set[str] | None:
+    body = _extract_typescript_schema_body(source, schema_name)
+    if body is None:
+        return None
+    return {
+        match.group(1)
+        for line in body.splitlines()
+        if (match := FRONTEND_BOOL_FIELD_PATTERN.match(line))
+    }
+
+
+def _validate_capability_catalog(
+    catalog: Any,
+    *,
+    source_by_path: Mapping[Path | str, str] | None = None,
+) -> list[Finding]:
+    findings: list[Finding] = []
+    if not isinstance(catalog, dict):
+        return [Finding("capability_catalog_shape", "root must be a JSON object")]
+
+    surfaces = catalog.get("surfaces")
+    if not isinstance(surfaces, list) or not surfaces:
+        return [Finding("capability_catalog_surfaces", "surfaces must be a non-empty list")]
+
+    seen_ids: set[str] = set()
+    for index, surface in enumerate(surfaces, start=1):
+        if not isinstance(surface, dict):
+            findings.append(Finding("capability_catalog_surface_shape", f"surface #{index} must be an object"))
+            continue
+
+        surface_id = surface.get("id")
+        if not isinstance(surface_id, str) or not surface_id:
+            surface_id = f"#{index}"
+            findings.append(Finding("capability_catalog_surface_id", f"surface #{index} needs an id"))
+        elif surface_id in seen_ids:
+            findings.append(Finding("capability_catalog_duplicate_surface", surface_id))
+        else:
+            seen_ids.add(surface_id)
+
+        fields = surface.get("fields")
+        if (
+            not isinstance(fields, list)
+            or not fields
+            or not all(isinstance(field, str) and field for field in fields)
+        ):
+            findings.append(
+                Finding("capability_catalog_fields", f"{surface_id}: fields must be non-empty strings")
+            )
+            continue
+        expected_fields = set(fields)
+        if len(expected_fields) != len(fields):
+            findings.append(Finding("capability_catalog_duplicate_field", str(surface_id)))
+
+        backend = surface.get("backend")
+        frontend = surface.get("frontend")
+        if not isinstance(backend, dict):
+            findings.append(Finding("capability_catalog_backend_shape", str(surface_id)))
+            continue
+        if not isinstance(frontend, dict):
+            findings.append(Finding("capability_catalog_frontend_shape", str(surface_id)))
+            continue
+
+        backend_path_raw = backend.get("path")
+        backend_class = backend.get("class")
+        frontend_path_raw = frontend.get("path")
+        frontend_schema = frontend.get("schema")
+        if not isinstance(backend_path_raw, str) or not isinstance(backend_class, str):
+            findings.append(Finding("capability_catalog_backend_reference", str(surface_id)))
+            continue
+        if not isinstance(frontend_path_raw, str) or not isinstance(frontend_schema, str):
+            findings.append(Finding("capability_catalog_frontend_reference", str(surface_id)))
+            continue
+
+        backend_path = Path(backend_path_raw)
+        backend_source = _read_catalog_source(backend_path, source_by_path)
+        backend_fields = _extract_backend_capability_fields(backend_source, backend_class)
+        if backend_fields is None:
+            findings.append(
+                Finding(
+                    "capability_catalog_backend_class_missing",
+                    f"{surface_id}: {backend_path.as_posix()} {backend_class}",
+                )
+            )
+        else:
+            for field in sorted(expected_fields - backend_fields):
+                findings.append(
+                    Finding(
+                        "capability_catalog_backend_field_missing",
+                        f"{surface_id}: {backend_class}.{field}",
+                    )
+                )
+            for field in sorted(backend_fields - expected_fields):
+                findings.append(
+                    Finding(
+                        "capability_catalog_backend_field_extra",
+                        f"{surface_id}: {backend_class}.{field}",
+                    )
+                )
+
+        frontend_path = Path(frontend_path_raw)
+        frontend_source = _read_catalog_source(frontend_path, source_by_path)
+        frontend_fields = _extract_frontend_capability_fields(frontend_source, frontend_schema)
+        if frontend_fields is None:
+            findings.append(
+                Finding(
+                    "capability_catalog_frontend_schema_missing",
+                    f"{surface_id}: {frontend_path.as_posix()} {frontend_schema}",
+                )
+            )
+        else:
+            for field in sorted(expected_fields - frontend_fields):
+                findings.append(
+                    Finding(
+                        "capability_catalog_frontend_field_missing",
+                        f"{surface_id}: {frontend_schema}.{field}",
+                    )
+                )
+            for field in sorted(frontend_fields - expected_fields):
+                findings.append(
+                    Finding(
+                        "capability_catalog_frontend_field_extra",
+                        f"{surface_id}: {frontend_schema}.{field}",
+                    )
+                )
+
+    return findings
+
+
 def _is_exact_manifest_path(path_posix: str, raw_prefix: str) -> bool:
     return not raw_prefix.endswith("/") and path_posix == raw_prefix
 
@@ -867,10 +1091,16 @@ def validate(base_ref: str, skip_doc_touch: bool) -> list[Finding]:
     if not _repo_path(CONTRACT_JSON).is_file():
         findings.append(Finding("missing_contract_manifest", CONTRACT_JSON.as_posix()))
         return findings
+    if not _repo_path(CAPABILITY_CATALOG_JSON).is_file():
+        findings.append(Finding("missing_capability_catalog", CAPABILITY_CATALOG_JSON.as_posix()))
+        return findings
 
     manifest = _load_json(CONTRACT_JSON)
     manifest_ids, sensitive_paths, manifest_findings = _validate_manifest(manifest)
     findings.extend(manifest_findings)
+
+    capability_catalog = _load_json(CAPABILITY_CATALOG_JSON)
+    findings.extend(_validate_capability_catalog(capability_catalog))
 
     md_text = _repo_path(CONTRACT_MD).read_text(encoding="utf-8")
     actions = manifest.get("actions") if isinstance(manifest, dict) else []

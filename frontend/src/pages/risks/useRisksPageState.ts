@@ -4,7 +4,6 @@ import type { ExportDialogSubmitPayload } from '@/components/reports/ExportDialo
 import type { SortDirection, ViewMode } from '@/components/tables';
 import { DEFAULT_LIST_PAGE_SIZE } from '@/constants/list';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
-import { loadCollectionPage } from '@/services/collectionApi';
 import { logError } from '@/services/logger';
 import { reportApi } from '@/services/reportApi';
 import { riskApi } from '@/services/riskApi';
@@ -19,22 +18,17 @@ import {
 } from './risksPagePresentation';
 import {
     getTotalPages,
-    useCollectionDataState,
-    useCollectionPageController,
 } from '../shared/collectionPageState';
+import {
+    type CollectionWorkflowLoadRequest,
+    useCollectionPageWorkflow,
+} from '../shared/collectionPageWorkflow';
 
 interface UseRisksPageStateOptions {
     initialState: RisksPageInitialState;
 }
 
 export function useRisksPageState({ initialState }: UseRisksPageStateOptions) {
-    const collectionData = useCollectionDataState<RiskSummary>();
-    const {
-        applyFailure,
-        applySuccess,
-        setErrorKey,
-        setIsLoading,
-    } = collectionData;
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState<RiskStatus | ''>('active');
     const [typeFilter, setTypeFilter] = useState('');
@@ -48,10 +42,56 @@ export function useRisksPageState({ initialState }: UseRisksPageStateOptions) {
     const [sortField, setSortField] = useState<string | null>(null);
     const [sortDirection, setSortDirection] = useState<SortDirection>(null);
 
+    const limit = DEFAULT_LIST_PAGE_SIZE;
+    const debouncedSearch = useDebouncedValue(search, 300);
+    const groupBy = getRiskGroupBy(viewMode);
+
+    const loadRiskPage = useCallback(
+        ({ currentPage, groupBy, groupValue }: CollectionWorkflowLoadRequest) => riskApi.getRisks(
+            buildRiskListParams({
+                currentPage,
+                criticalFilter,
+                hasBreachFilter,
+                limit,
+                priorityFilter,
+                search: debouncedSearch,
+                sortDirection,
+                sortField,
+                statusFilter,
+                typeFilter,
+                groupBy,
+                groupValue,
+            })
+        ),
+        [
+            criticalFilter,
+            debouncedSearch,
+            hasBreachFilter,
+            limit,
+            priorityFilter,
+            sortDirection,
+            sortField,
+            statusFilter,
+            typeFilter,
+        ]
+    );
+
+    const logLoadError = useCallback((error: unknown) => {
+        logError('[RisksPage] Error fetching risks:', error);
+    }, []);
+
+    const collectionWorkflow = useCollectionPageWorkflow<RiskSummary>({
+        currentPage,
+        fallbackErrorKey: 'errors.load_failed',
+        groupBy,
+        loadPage: loadRiskPage,
+        normalizeItems: normalizeRiskSummaries,
+        onLoadError: logLoadError,
+    });
+
     const {
-        beginRequest,
         closeExportDialog,
-        isCurrentRequest,
+        fetchCollection: fetchRisks,
         isExportDialogOpen,
         isExporting,
         openExportDialog,
@@ -59,79 +99,14 @@ export function useRisksPageState({ initialState }: UseRisksPageStateOptions) {
         selectGroup: setSelectedGroup,
         selectedGroupLabel,
         selectedGroupValue,
+        setErrorKey,
         setIsExporting,
-    } = useCollectionPageController();
-    const limit = DEFAULT_LIST_PAGE_SIZE;
-    const debouncedSearch = useDebouncedValue(search, 300);
-    const groupBy = getRiskGroupBy(viewMode);
+    } = collectionWorkflow;
 
     const resetGroupAndPage = useCallback(() => {
         resetGroupSelection();
         setCurrentPage(1);
     }, [resetGroupSelection]);
-
-    const fetchRisks = useCallback(async () => {
-        const requestId = beginRequest();
-        try {
-            setIsLoading(true);
-
-            const response = await loadCollectionPage({
-                currentPage,
-                groupBy,
-                selectedGroupValue,
-                normalizeItems: normalizeRiskSummaries,
-                loadPage: ({ currentPage, groupBy, groupValue }) => riskApi.getRisks(
-                    buildRiskListParams({
-                        currentPage,
-                        criticalFilter,
-                        hasBreachFilter,
-                        limit,
-                        priorityFilter,
-                        search: debouncedSearch,
-                        sortDirection,
-                        sortField,
-                        statusFilter,
-                        typeFilter,
-                        groupBy,
-                        groupValue,
-                    })
-                ),
-            });
-            if (!isCurrentRequest(requestId)) {
-                return;
-            }
-            applySuccess(response);
-        } catch (error) {
-            logError('[RisksPage] Error fetching risks:', error);
-            if (isCurrentRequest(requestId)) {
-                applyFailure(error, {
-                    fallbackErrorKey: 'errors.load_failed',
-                });
-            }
-        } finally {
-            if (isCurrentRequest(requestId)) {
-                setIsLoading(false);
-            }
-        }
-    }, [
-        applyFailure,
-        applySuccess,
-        beginRequest,
-        currentPage,
-        criticalFilter,
-        debouncedSearch,
-        groupBy,
-        hasBreachFilter,
-        isCurrentRequest,
-        limit,
-        priorityFilter,
-        selectedGroupValue,
-        setIsLoading,
-        sortDirection,
-        sortField,
-        statusFilter,
-        typeFilter,
-    ]);
 
     useEffect(() => {
         void fetchRisks();
@@ -227,19 +202,19 @@ export function useRisksPageState({ initialState }: UseRisksPageStateOptions) {
 
     return {
         criticalFilter,
-        capabilities: collectionData.capabilities,
+        capabilities: collectionWorkflow.capabilities,
         currentPage,
-        errorKey: collectionData.errorKey,
+        errorKey: collectionWorkflow.errorKey,
         fetchRisks,
-        groups: collectionData.groups,
+        groups: collectionWorkflow.groups,
         handleExport,
         hasBreachFilter,
-        hasLoadedOnce: collectionData.hasLoadedOnce,
+        hasLoadedOnce: collectionWorkflow.hasLoadedOnce,
         isExportDialogOpen,
         isExporting,
-        isAccessDenied: collectionData.isAccessDenied,
-        isLoading: collectionData.isLoading,
-        items: collectionData.items,
+        isAccessDenied: collectionWorkflow.isAccessDenied,
+        isLoading: collectionWorkflow.isLoading,
+        items: collectionWorkflow.items,
         limit,
         openExportDialog,
         closeExportDialog,
@@ -252,8 +227,8 @@ export function useRisksPageState({ initialState }: UseRisksPageStateOptions) {
         sortDirection,
         sortField,
         statusFilter,
-        totalCount: collectionData.totalCount,
-        totalPages: getTotalPages(collectionData.totalCount, limit),
+        totalCount: collectionWorkflow.totalCount,
+        totalPages: getTotalPages(collectionWorkflow.totalCount, limit),
         typeFilter,
         updateCriticalFilter,
         updateHasBreachFilter,

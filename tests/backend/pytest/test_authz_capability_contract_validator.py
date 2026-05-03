@@ -30,6 +30,80 @@ def test_authorization_capability_contract_is_valid() -> None:
     assert validator.validate("HEAD", skip_doc_touch=True) == []
 
 
+def test_capability_catalog_detects_missing_backend_field() -> None:
+    validator = _load_validator()
+    catalog = {
+        "version": "test",
+        "surfaces": [
+            {
+                "id": "example",
+                "backend": {
+                    "path": "backend/app/schemas/example.py",
+                    "class": "ExampleCapabilities",
+                },
+                "frontend": {
+                    "path": "frontend/src/services/api/schemas/entities/example.ts",
+                    "schema": "exampleCapabilitiesSchema",
+                },
+                "fields": ["can_read", "can_update"],
+            }
+        ],
+    }
+    source_by_path = {
+        Path("backend/app/schemas/example.py"): """
+class ExampleCapabilities(BaseModel):
+    can_read: bool
+""",
+        Path("frontend/src/services/api/schemas/entities/example.ts"): """
+const exampleCapabilitiesSchema = passthroughObject({
+    can_read: z.boolean(),
+    can_update: z.boolean(),
+});
+""",
+    }
+
+    findings = validator._validate_capability_catalog(catalog, source_by_path=source_by_path)
+
+    assert "capability_catalog_backend_field_missing" in {finding.reason for finding in findings}
+
+
+def test_capability_catalog_detects_missing_frontend_field() -> None:
+    validator = _load_validator()
+    catalog = {
+        "version": "test",
+        "surfaces": [
+            {
+                "id": "example",
+                "backend": {
+                    "path": "backend/app/schemas/example.py",
+                    "class": "ExampleCapabilities",
+                },
+                "frontend": {
+                    "path": "frontend/src/services/api/schemas/entities/example.ts",
+                    "schema": "exampleCapabilitiesSchema",
+                },
+                "fields": ["can_read", "can_update"],
+            }
+        ],
+    }
+    source_by_path = {
+        Path("backend/app/schemas/example.py"): """
+class ExampleCapabilities(BaseModel):
+    can_read: bool
+    can_update: bool
+""",
+        Path("frontend/src/services/api/schemas/entities/example.ts"): """
+const exampleCapabilitiesSchema = passthroughObject({
+    can_read: z.boolean(),
+});
+""",
+    }
+
+    findings = validator._validate_capability_catalog(catalog, source_by_path=source_by_path)
+
+    assert "capability_catalog_frontend_field_missing" in {finding.reason for finding in findings}
+
+
 def test_markdown_matrix_field_drift_fails_validation() -> None:
     validator = _load_validator()
     manifest = json.loads(CONTRACT_JSON_PATH.read_text(encoding="utf-8"))

@@ -9,12 +9,11 @@ from app.models import Issue, IssueRemediationPlan, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.models.issue import IssueRemediationStatus, IssueStatus
 from app.schemas.issue import IssueContextualCreate, IssueRead
-from app.services.authorization_capabilities import issue_capabilities
+from app.services._issue_register import serialize_issue_read_for_actor
 
 from .._shared import (
     _ensure_owner_assignable,
     _get_issue_with_relations,
-    _serialize_issue_read,
     _validate_user_exists,
     ensure_issue_source_link,
     resolve_contextual_issue_source,
@@ -107,5 +106,4 @@ async def create_contextual_issue(
     reloaded_issue = await _get_issue_with_relations(db, issue.id)
     if reloaded_issue is None:
         raise HTTPException(status_code=404, detail="Issue not found")
-    capabilities = await issue_capabilities(db, current_user=current_user, issue=reloaded_issue)
-    return _serialize_issue_read(reloaded_issue, current_user=current_user, capabilities=capabilities)
+    return await serialize_issue_read_for_actor(db, current_user=current_user, issue=reloaded_issue)

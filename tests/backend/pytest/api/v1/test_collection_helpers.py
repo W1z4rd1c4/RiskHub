@@ -8,6 +8,8 @@ from app.api.v1.endpoints._collection import (
     build_grouped_collection_page,
     merge_collection_filters,
 )
+from app.api.v1.endpoints._collection_execution import build_collection_page_kwargs
+from app.schemas.collection import CollectionGroupRead
 
 
 @dataclass(frozen=True)
@@ -94,3 +96,33 @@ def test_build_grouped_collection_page_paginates_drilldown_items():
     assert page_items == [items[1]]
     assert total == 2
     assert [group.value for group in groups] == ["closed", "open"]
+
+
+def test_build_collection_page_kwargs_uses_query_pagination_and_optional_metadata():
+    query = CollectionQuery(offset=25, limit=10, group_by="status", group_value="open")
+    groups = [
+        CollectionGroupRead(
+            value="open",
+            label="Open",
+            count=3,
+            active_count=2,
+            highlighted_count=1,
+        )
+    ]
+
+    payload = build_collection_page_kwargs(
+        query=query,
+        items=[{"id": 1}],
+        total=3,
+        groups=groups,
+        capabilities={"can_create": True},
+    )
+
+    assert payload == {
+        "items": [{"id": 1}],
+        "total": 3,
+        "offset": 25,
+        "limit": 10,
+        "groups": groups,
+        "capabilities": {"can_create": True},
+    }

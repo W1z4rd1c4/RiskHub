@@ -5,7 +5,6 @@ import type { SortDirection, ViewMode } from '@/components/tables';
 import { DEFAULT_LIST_PAGE_SIZE } from '@/constants/list';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { apiClient } from '@/services/apiClient';
-import { loadCollectionPage } from '@/services/collectionApi';
 import { reportApi } from '@/services/reportApi';
 import { vendorApi } from '@/services/vendorApi';
 import type { Vendor, VendorListParams, VendorStatus, VendorType } from '@/types/vendor';
@@ -17,18 +16,13 @@ import {
 } from './vendorsPagePresentation';
 import {
     getTotalPages,
-    useCollectionDataState,
-    useCollectionPageController,
 } from '../shared/collectionPageState';
+import {
+    type CollectionWorkflowLoadRequest,
+    useCollectionPageWorkflow,
+} from '../shared/collectionPageWorkflow';
 
 export function useVendorsPageState() {
-    const collectionData = useCollectionDataState<Vendor>();
-    const {
-        applyFailure,
-        applySuccess,
-        setErrorKey,
-        setIsLoading,
-    } = collectionData;
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState<VendorStatus | ''>('active');
     const [typeFilter, setTypeFilter] = useState<VendorType | ''>('');
@@ -36,10 +30,49 @@ export function useVendorsPageState() {
     const [sortField, setSortField] = useState<VendorListParams['sort_by'] | null>(null);
     const [sortDirection, setSortDirection] = useState<SortDirection>(null);
     const [viewMode, setViewMode] = useState<ViewMode>('all');
+    const limit = DEFAULT_LIST_PAGE_SIZE;
+    const debouncedSearch = useDebouncedValue(search, 300);
+    const includeArchived = statusFilter === 'inactive';
+    const groupBy = getVendorGroupBy(viewMode);
+
+    const loadVendorPage = useCallback(
+        ({ currentPage, groupBy, groupValue }: CollectionWorkflowLoadRequest) => vendorApi.getVendors(
+            buildVendorListParams({
+                currentPage,
+                debouncedSearch,
+                includeArchived,
+                limit,
+                sortDirection,
+                sortField,
+                statusFilter,
+                typeFilter,
+                groupBy,
+                groupValue,
+            })
+        ),
+        [
+            debouncedSearch,
+            includeArchived,
+            limit,
+            sortDirection,
+            sortField,
+            statusFilter,
+            typeFilter,
+        ]
+    );
+
+    const toUiErrorKey = useCallback((error: unknown) => apiClient.toUiMessageKey(error), []);
+
+    const collectionWorkflow = useCollectionPageWorkflow<Vendor>({
+        clearOnNonForbidden: true,
+        currentPage,
+        groupBy,
+        loadPage: loadVendorPage,
+        toErrorKey: toUiErrorKey,
+    });
     const {
-        beginRequest,
         closeExportDialog,
-        isCurrentRequest,
+        fetchCollection: fetchVendors,
         isExportDialogOpen,
         isExporting,
         openExportDialog,
@@ -47,85 +80,20 @@ export function useVendorsPageState() {
         selectGroup: setSelectedGroup,
         selectedGroupLabel,
         selectedGroupValue,
+        setErrorKey,
         setIsExporting,
-    } = useCollectionPageController();
-    const limit = DEFAULT_LIST_PAGE_SIZE;
-    const debouncedSearch = useDebouncedValue(search, 300);
-    const includeArchived = statusFilter === 'inactive';
-    const groupBy = getVendorGroupBy(viewMode);
-
-    const fetchVendors = useCallback(async () => {
-        const requestId = beginRequest();
-
-        try {
-            setIsLoading(true);
-
-            const response = await loadCollectionPage({
-                currentPage,
-                groupBy,
-                selectedGroupValue,
-                loadPage: ({ currentPage, groupBy, groupValue }) => vendorApi.getVendors(
-                    buildVendorListParams({
-                        currentPage,
-                        debouncedSearch,
-                        includeArchived,
-                        limit,
-                        sortDirection,
-                        sortField,
-                        statusFilter,
-                        typeFilter,
-                        groupBy,
-                        groupValue,
-                    })
-                ),
-            });
-
-            if (!isCurrentRequest(requestId)) {
-                return;
-            }
-
-            applySuccess(response);
-        } catch (error) {
-            if (!isCurrentRequest(requestId)) {
-                return;
-            }
-            applyFailure(error, {
-                clearOnNonForbidden: true,
-                toErrorKey: (loadError) => apiClient.toUiMessageKey(loadError),
-            });
-        } finally {
-            if (isCurrentRequest(requestId)) {
-                setIsLoading(false);
-            }
-        }
-    }, [
-        applyFailure,
-        applySuccess,
-        beginRequest,
-        currentPage,
-        debouncedSearch,
-        groupBy,
-        includeArchived,
-        isCurrentRequest,
-        limit,
-        selectedGroupValue,
-        setIsLoading,
-        sortDirection,
-        sortField,
-        statusFilter,
-        typeFilter,
-    ]);
+    } = collectionWorkflow;
 
     useEffect(() => {
         void fetchVendors();
     }, [fetchVendors]);
 
     useEffect(() => {
-        if (collectionData.capabilities?.can_view_risk_contexts !== true && viewMode === 'risk') {
+        if (collectionWorkflow.capabilities?.can_view_risk_contexts !== true && viewMode === 'risk') {
             setViewMode('all');
             clearGroupSelection();
         }
-    }, [collectionData.capabilities, clearGroupSelection, viewMode]);
+    }, [collectionWorkflow.capabilities, clearGroupSelection, viewMode]);
 
     const resetGroupSelection = useCallback(() => {
         clearGroupSelection();
@@ -200,17 +168,17 @@ export function useVendorsPageState() {
 
     return {
         currentPage,
-        capabilities: collectionData.capabilities,
-        errorKey: collectionData.errorKey,
+        capabilities: collectionWorkflow.capabilities,
+        errorKey: collectionWorkflow.errorKey,
         fetchVendors,
-        groups: collectionData.groups,
+        groups: collectionWorkflow.groups,
         handleExport,
-        hasLoadedOnce: collectionData.hasLoadedOnce,
+        hasLoadedOnce: collectionWorkflow.hasLoadedOnce,
         isExportDialogOpen,
         isExporting,
-        isAccessDenied: collectionData.isAccessDenied,
-        isLoading: collectionData.isLoading,
-        items: collectionData.items,
+        isAccessDenied: collectionWorkflow.isAccessDenied,
+        isLoading: collectionWorkflow.isLoading,
+        items: collectionWorkflow.items,
         limit,
         openExportDialog,
         closeExportDialog,
@@ -222,8 +190,8 @@ export function useVendorsPageState() {
         sortDirection,
         sortField,
         statusFilter,
-        totalCount: collectionData.totalCount,
-        totalPages: getTotalPages(collectionData.totalCount, limit),
+        totalCount: collectionWorkflow.totalCount,
+        totalPages: getTotalPages(collectionWorkflow.totalCount, limit),
         typeFilter,
         updateSearch,
         updateSort,

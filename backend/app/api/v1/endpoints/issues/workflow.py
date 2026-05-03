@@ -11,7 +11,7 @@ from app.schemas.issue import (
     IssueRead,
     IssueStartRemediationRequest,
 )
-from app.services.authorization_capabilities import issue_capabilities
+from app.services._issue_register import serialize_issue_read_for_actor
 from app.services.issue_workflow_service import IssueWorkflowService
 from app.services.outbox import OutboxService
 
@@ -19,7 +19,6 @@ from ._shared import (
     _ensure_owner_assignable,
     _get_issue_with_relations,
     _get_writable_issue_or_404,
-    _serialize_issue_read,
     _validate_user_exists,
 )
 
@@ -64,8 +63,7 @@ async def assign_issue(
     refreshed = await _get_issue_with_relations(db, issue.id)
     if refreshed is None:
         raise HTTPException(status_code=404, detail="Issue not found")
-    capabilities = await issue_capabilities(db, current_user=current_user, issue=refreshed)
-    return _serialize_issue_read(refreshed, current_user=current_user, capabilities=capabilities)
+    return await serialize_issue_read_for_actor(db, current_user=current_user, issue=refreshed)
 
 
 @router.post("/issues/{issue_id}/start-remediation", response_model=IssueRead)
@@ -86,8 +84,7 @@ async def start_remediation(
     refreshed = await _get_issue_with_relations(db, issue.id)
     if refreshed is None:
         raise HTTPException(status_code=404, detail="Issue not found")
-    capabilities = await issue_capabilities(db, current_user=current_user, issue=refreshed)
-    return _serialize_issue_read(refreshed, current_user=current_user, capabilities=capabilities)
+    return await serialize_issue_read_for_actor(db, current_user=current_user, issue=refreshed)
 
 
 @router.post("/issues/{issue_id}/update-progress", response_model=IssueRead)
@@ -112,8 +109,7 @@ async def update_remediation_progress(
     refreshed = await _get_issue_with_relations(db, issue.id)
     if refreshed is None:
         raise HTTPException(status_code=404, detail="Issue not found")
-    capabilities = await issue_capabilities(db, current_user=current_user, issue=refreshed)
-    return _serialize_issue_read(refreshed, current_user=current_user, capabilities=capabilities)
+    return await serialize_issue_read_for_actor(db, current_user=current_user, issue=refreshed)
 
 
 @router.post("/issues/{issue_id}/close", response_model=IssueRead)
@@ -135,5 +131,4 @@ async def close_issue(
     refreshed = await _get_issue_with_relations(db, issue.id)
     if refreshed is None:
         raise HTTPException(status_code=404, detail="Issue not found")
-    capabilities = await issue_capabilities(db, current_user=current_user, issue=refreshed)
-    return _serialize_issue_read(refreshed, current_user=current_user, capabilities=capabilities)
+    return await serialize_issue_read_for_actor(db, current_user=current_user, issue=refreshed)

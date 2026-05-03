@@ -12,6 +12,8 @@ from .grouping import (
     issue_vendor_context_subquery,
     load_issue_sql_groups,
 )
+from . import projection as projection
+from .projection import serialize_issue_read_for_actor, serialize_issue_summaries_for_actor
 
 __all__ = [
     "ISSUE_GROUP_NO_PROCESS",
@@ -26,4 +28,7 @@ __all__ = [
     "issue_risk_context_subquery",
     "issue_vendor_context_subquery",
     "load_issue_sql_groups",
+    "projection",
+    "serialize_issue_read_for_actor",
+    "serialize_issue_summaries_for_actor",
 ]

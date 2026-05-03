@@ -24,6 +24,7 @@ from ._approval_execution.authorization import apply_status_transition, assert_c
 from ._approval_execution.constants import EDITABLE_FIELDS
 from ._approval_execution.loading import get_approval_department_id, load_approval
 from ._approval_execution.logging import log_approval_approve
+from ._approval_execution.resolution import finalize_approval_resolution
 from ._approval_execution.results import apply_auto_rejection
 from ._approval_execution.side_effects import apply_side_effects
 
@@ -69,7 +70,7 @@ async def reject_request_workflow(
     await _assert_can_reject(db, approval, current_user)
     previous_status = approval.status
 
-    try:
+    async def apply_rejection() -> None:
         approval.status = ApprovalStatus.REJECTED
         approval.resolved_by_id = current_user.id
         approval.resolved_at = utc_now()
@@ -86,18 +87,16 @@ async def reject_request_workflow(
             department_id=department_id,
             changes={"status": {"old": previous_status.value, "new": approval.status.value}},
         )
-        await OutboxService.enqueue(
-            db,
-            event_type="approval.request_resolved",
-            aggregate_type="approval_request",
-            aggregate_id=approval.id,
-            idempotency_key=f"approval.request_resolved:{approval.id}:{approval.status.value.lower()}",
-            payload={"approval_id": approval.id, "approved": False},
-        )
-        await db.commit()
-    except Exception:
-        await db.rollback()
-        raise
+
+    await finalize_approval_resolution(
+        db,
+        approval=approval,
+        event_type="approval.request_resolved",
+        idempotency_key=lambda: f"approval.request_resolved:{approval.id}:{approval.status.value.lower()}",
+        payload=lambda: {"approval_id": approval.id, "approved": False},
+        before_commit=apply_rejection,
+        outbox_service=OutboxService,
+    )
 
     return await _reload_approval(db, approval.id)
 
@@ -118,7 +117,7 @@ async def cancel_request_workflow(
     if approval.status not in (ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED):
         raise HTTPException(status_code=400, detail=f"Cannot cancel request with status: {approval.status.value}")
 
-    try:
+    async def apply_cancellation() -> None:
         approval.status = ApprovalStatus.CANCELLED
         approval.resolved_by_id = current_user.id
         approval.resolved_at = utc_now()
@@ -146,18 +145,15 @@ async def cancel_request_workflow(
             description=cancel_description,
         )
 
-        await OutboxService.enqueue(
-            db,
-            event_type="approval.request_cancelled",
-            aggregate_type="approval_request",
-            aggregate_id=approval.id,
-            idempotency_key=f"approval.request_cancelled:{approval.id}",
-            payload={"approval_id": approval.id, "cancelled_by_user_id": current_user.id},
-        )
-        await db.commit()
-    except Exception:
-        await db.rollback()
-        raise
+    await finalize_approval_resolution(
+        db,
+        approval=approval,
+        event_type="approval.request_cancelled",
+        idempotency_key=lambda: f"approval.request_cancelled:{approval.id}",
+        payload=lambda: {"approval_id": approval.id, "cancelled_by_user_id": current_user.id},
+        before_commit=apply_cancellation,
+        outbox_service=OutboxService,
+    )
 
     return await _reload_approval(db, approval.id)
 
@@ -168,7 +164,7 @@ async def _apply_approved_resolution(
     current_user: User,
     previous_status: ApprovalStatus,
 ) -> None:
-    try:
+    async def apply_approval() -> None:
         side_effect_result = await apply_side_effects(db, approval, current_user)
         apply_auto_rejection(approval, side_effect_result)
 
@@ -176,18 +172,16 @@ async def _apply_approved_resolution(
             await log_approval_approve(db, approval, current_user, previous_status)
 
         await db.flush()
-        await OutboxService.enqueue(
-            db,
-            event_type="approval.request_resolved",
-            aggregate_type="approval_request",
-            aggregate_id=approval.id,
-            idempotency_key=f"approval.request_resolved:{approval.id}:{approval.status.value.lower()}",
-            payload={"approval_id": approval.id, "approved": approval.status == ApprovalStatus.APPROVED},
-        )
-        await db.commit()
-    except Exception:
-        await db.rollback()
-        raise
+
+    await finalize_approval_resolution(
+        db,
+        approval=approval,
+        event_type="approval.request_resolved",
+        idempotency_key=lambda: f"approval.request_resolved:{approval.id}:{approval.status.value.lower()}",
+        payload=lambda: {"approval_id": approval.id, "approved": approval.status == ApprovalStatus.APPROVED},
+        before_commit=apply_approval,
+        outbox_service=OutboxService,
+    )
 
 
 async def _apply_escalation_resolution(
@@ -196,7 +190,7 @@ async def _apply_escalation_resolution(
     current_user: User,
     previous_status: ApprovalStatus,
 ) -> None:
-    try:
+    async def apply_escalation() -> None:
         department_id = await get_approval_department_id(db, approval)
         await log_activity(
             db,
@@ -210,18 +204,15 @@ async def _apply_escalation_resolution(
             description=f"Escalated to privileged approval by {current_user.name}",
         )
 
-        await OutboxService.enqueue(
-            db,
-            event_type="approval.request_created",
-            aggregate_type="approval_request",
-            aggregate_id=approval.id,
-            idempotency_key=f"approval.request_created:{approval.id}:{approval.status.value.lower()}",
-            payload={"approval_id": approval.id},
-        )
-        await db.commit()
-    except Exception:
-        await db.rollback()
-        raise
+    await finalize_approval_resolution(
+        db,
+        approval=approval,
+        event_type="approval.request_created",
+        idempotency_key=lambda: f"approval.request_created:{approval.id}:{approval.status.value.lower()}",
+        payload=lambda: {"approval_id": approval.id},
+        before_commit=apply_escalation,
+        outbox_service=OutboxService,
+    )
 
 
 async def _assert_can_reject(db: AsyncSession, approval: ApprovalRequest, current_user: User) -> None:

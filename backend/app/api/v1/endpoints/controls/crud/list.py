@@ -15,6 +15,7 @@ from app.api.v1.endpoints._collection import (
     coerce_optional_string,
     is_group_summary_request,
 )
+from app.api.v1.endpoints import _collection_execution as collection_exec
 from app.api.v1.endpoints._monitoring_response import (
     build_control_monitoring_fields,
     load_monitoring_response_context,
@@ -565,11 +566,11 @@ async def list_controls(
             can_read_vendors=can_read_vendors,
         )
         if is_group_summary_request(collection_query):
-            return ControlListResponse(
+            return collection_exec.build_collection_response(
+                ControlListResponse,
+                query=collection_query,
                 items=[],
                 total=total,
-                offset=offset,
-                limit=limit,
                 groups=groups,
                 capabilities=collection_capabilities,
             )
@@ -580,17 +581,15 @@ async def list_controls(
             risk_context=risk_context,
             vendor_context=vendor_context,
         )
-        grouped_query = ordered_query.where(group_filter) if group_filter is not None else ordered_query.where(false())
-        grouped_total = (
-            await db.execute(select(func.count()).select_from(grouped_query.order_by(None).subquery()))
-        ).scalar() or 0
-        result = await db.execute(grouped_query.offset(offset).limit(limit))
-        paginated_items = await serialize_controls(list(result.scalars().all()))
-        return ControlListResponse(
+        grouped_query = collection_exec.apply_collection_group_filter(ordered_query, group_filter)
+        grouped_total = await collection_exec.count_collection_rows(db, grouped_query)
+        controls = await collection_exec.load_collection_scalars_page(db, grouped_query, offset=offset, limit=limit)
+        paginated_items = await serialize_controls(controls)
+        return collection_exec.build_collection_response(
+            ControlListResponse,
+            query=collection_query,
             items=paginated_items,
             total=grouped_total,
-            offset=offset,
-            limit=limit,
             groups=groups,
             capabilities=collection_capabilities,
         )
@@ -605,22 +604,22 @@ async def list_controls(
             is_active=lambda control: control.status == ControlStatusEnum.active,
             is_highlighted=lambda control: control.risk_level >= 4,
         )
-        return ControlListResponse(
+        return collection_exec.build_collection_response(
+            ControlListResponse,
+            query=collection_query,
             items=paginated_items,
             total=grouped_total,
-            offset=offset,
-            limit=limit,
             groups=groups,
             capabilities=collection_capabilities,
         )
 
-    result = await db.execute(ordered_query.offset(offset).limit(limit))
-    items = await serialize_controls(list(result.scalars().all()))
+    controls = await collection_exec.load_collection_scalars_page(db, ordered_query, offset=offset, limit=limit)
+    items = await serialize_controls(controls)
 
-    return ControlListResponse(
+    return collection_exec.build_collection_response(
+        ControlListResponse,
+        query=collection_query,
         items=items,
         total=total,
-        offset=offset,
-        limit=limit,
         capabilities=collection_capabilities,
     )

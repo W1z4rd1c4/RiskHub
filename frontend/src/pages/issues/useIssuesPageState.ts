@@ -3,7 +3,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { DEFAULT_LIST_PAGE_SIZE } from '@/constants/list';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { apiClient } from '@/services/apiClient';
-import { loadCollectionPage } from '@/services/collectionApi';
 import { issuesApi } from '@/services/issuesApi';
 import { reportApi } from '@/services/reportApi';
 import type { ExportDialogSubmitPayload } from '@/components/reports/ExportDialog';
@@ -23,22 +22,17 @@ import {
 } from './issuesPagePresentation';
 import {
     getTotalPages,
-    useCollectionDataState,
-    useCollectionPageController,
 } from '../shared/collectionPageState';
+import {
+    type CollectionWorkflowLoadRequest,
+    useCollectionPageWorkflow,
+} from '../shared/collectionPageWorkflow';
 
 interface UseIssuesPageStateOptions {
     initialState: IssuesPageInitialState;
 }
 
 export function useIssuesPageState({ initialState }: UseIssuesPageStateOptions) {
-    const collectionData = useCollectionDataState<IssueSummary>();
-    const {
-        applyFailure,
-        applySuccess,
-        setErrorKey,
-        setIsLoading,
-    } = collectionData;
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState<IssueStatus | ''>(initialState.statusFilter);
     const [severityFilter, setSeverityFilter] = useState<IssueSeverityFilter | ''>(
@@ -55,10 +49,51 @@ export function useIssuesPageState({ initialState }: UseIssuesPageStateOptions) 
         initialState.sortField
     );
     const [sortDirection, setSortDirection] = useState<SortDirection>(initialState.sortDirection);
+    const limit = DEFAULT_LIST_PAGE_SIZE;
+    const debouncedSearch = useDebouncedValue(search, 300);
+    const groupBy = getIssueGroupBy(viewMode);
+
+    const loadIssuePage = useCallback(
+        ({ currentPage, groupBy, groupValue }: CollectionWorkflowLoadRequest) => issuesApi.list(
+            buildIssueListFilters({
+                currentPage,
+                debouncedSearch,
+                excludeActiveExceptions,
+                includeClosed,
+                limit,
+                overdueOnly,
+                severityFilter,
+                sortDirection,
+                sortField,
+                statusFilter,
+                groupBy,
+                groupValue,
+            })
+        ),
+        [
+            debouncedSearch,
+            excludeActiveExceptions,
+            includeClosed,
+            limit,
+            overdueOnly,
+            severityFilter,
+            sortDirection,
+            sortField,
+            statusFilter,
+        ]
+    );
+    const toUiErrorKey = useCallback((error: unknown) => apiClient.toUiMessageKey(error), []);
+
+    const collectionWorkflow = useCollectionPageWorkflow<IssueSummary>({
+        clearOnNonForbidden: true,
+        currentPage,
+        groupBy,
+        loadPage: loadIssuePage,
+        toErrorKey: toUiErrorKey,
+    });
     const {
-        beginRequest,
         closeExportDialog,
-        isCurrentRequest,
+        fetchCollection: fetchIssues,
         isExportDialogOpen,
         isExporting,
         openExportDialog,
@@ -66,80 +101,14 @@ export function useIssuesPageState({ initialState }: UseIssuesPageStateOptions) 
         selectGroup: setSelectedGroup,
         selectedGroupLabel,
         selectedGroupValue,
+        setErrorKey,
         setIsExporting,
-    } = useCollectionPageController();
-
-    const limit = DEFAULT_LIST_PAGE_SIZE;
-    const debouncedSearch = useDebouncedValue(search, 300);
-    const groupBy = getIssueGroupBy(viewMode);
+    } = collectionWorkflow;
 
     const resetGroupAndPage = useCallback(() => {
         resetGroupSelection();
         setCurrentPage(1);
     }, [resetGroupSelection]);
-
-    const fetchIssues = useCallback(async () => {
-        const requestId = beginRequest();
-        try {
-            setIsLoading(true);
-
-            const response = await loadCollectionPage({
-                currentPage,
-                groupBy,
-                selectedGroupValue,
-                loadPage: ({ currentPage, groupBy, groupValue }) => issuesApi.list(
-                    buildIssueListFilters({
-                        currentPage,
-                        debouncedSearch,
-                        excludeActiveExceptions,
-                        includeClosed,
-                        limit,
-                        overdueOnly,
-                        severityFilter,
-                        sortDirection,
-                        sortField,
-                        statusFilter,
-                        groupBy,
-                        groupValue,
-                    })
-                ),
-            });
-            if (!isCurrentRequest(requestId)) {
-                return;
-            }
-            applySuccess(response);
-        } catch (loadError) {
-            if (!isCurrentRequest(requestId)) {
-                return;
-            }
-            applyFailure(loadError, {
-                clearOnNonForbidden: true,
-                toErrorKey: (error) => apiClient.toUiMessageKey(error),
-            });
-        } finally {
-            if (isCurrentRequest(requestId)) {
-                setIsLoading(false);
-            }
-        }
-    }, [
-        applyFailure,
-        applySuccess,
-        beginRequest,
-        currentPage,
-        debouncedSearch,
-        excludeActiveExceptions,
-        groupBy,
-        includeClosed,
-        isCurrentRequest,
-        limit,
-        overdueOnly,
-        severityFilter,
-        selectedGroupValue,
-        setIsLoading,
-        sortDirection,
-        sortField,
-        statusFilter,
-    ]);
 
     useEffect(() => {
         void fetchIssues();
@@ -242,19 +211,19 @@ export function useIssuesPageState({ initialState }: UseIssuesPageStateOptions) 
 
     return {
         currentPage,
-        capabilities: collectionData.capabilities,
-        errorKey: collectionData.errorKey,
+        capabilities: collectionWorkflow.capabilities,
+        errorKey: collectionWorkflow.errorKey,
         excludeActiveExceptions,
         fetchIssues,
-        groups: collectionData.groups,
+        groups: collectionWorkflow.groups,
         handleExport,
-        hasLoadedOnce: collectionData.hasLoadedOnce,
+        hasLoadedOnce: collectionWorkflow.hasLoadedOnce,
         includeClosed,
         isExportDialogOpen,
         isExporting,
-        isAccessDenied: collectionData.isAccessDenied,
-        isLoading: collectionData.isLoading,
-        items: collectionData.items,
+        isAccessDenied: collectionWorkflow.isAccessDenied,
+        isLoading: collectionWorkflow.isLoading,
+        items: collectionWorkflow.items,
         limit,
         openExportDialog,
         closeExportDialog,
@@ -267,8 +236,8 @@ export function useIssuesPageState({ initialState }: UseIssuesPageStateOptions) 
         sortDirection,
         sortField,
         statusFilter,
-        totalCount: collectionData.totalCount,
-        totalPages: getTotalPages(collectionData.totalCount, limit),
+        totalCount: collectionWorkflow.totalCount,
+        totalPages: getTotalPages(collectionWorkflow.totalCount, limit),
         updateExcludeActiveExceptions,
         updateIncludeClosed,
         updateOverdueOnly,

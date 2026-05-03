@@ -13,6 +13,7 @@ from app.services.deadline_notifications import (
     has_recent_deadline_notification,
     increment_deadline_results,
 )
+from app.services.deadline_runner import run_deadline_items
 
 
 @pytest.mark.asyncio
@@ -187,5 +188,60 @@ def test_increment_deadline_results_updates_present_and_new_keys():
     assert results == {"notifications_created": 3, "due_soon": 2}
 
 
+@pytest.mark.asyncio
+async def test_run_deadline_items_isolates_item_failures_and_aggregates_counts():
+    db = _FakeDeadlineSession()
+    results = {"total_checked": 0, "due_soon": 0, "overdue": 0, "notifications_created": 0}
+
+    async def process_item(item_id: int) -> dict[str, int]:
+        if item_id == 2:
+            raise RuntimeError("boom")
+        if item_id == 1:
+            return {"due_soon": 1, "notifications_created": 2}
+        return {"overdue": 1, "notifications_created": 1}
+
+    final_results = await run_deadline_items(
+        db,
+        items=[1, 2, 3],
+        results=results,
+        total_key="total_checked",
+        item_label="test item",
+        item_id=lambda item: item,
+        process_item=process_item,
+    )
+
+    assert final_results == {
+        "total_checked": 3,
+        "due_soon": 1,
+        "overdue": 1,
+        "notifications_created": 3,
+    }
+    assert db.nested_entries == 3
+    assert db.commits == 1
+
+
 async def _async_bool(value: bool) -> bool:
     return value
+
+
+class _FakeNestedTransaction:
+    def __init__(self, db: "_FakeDeadlineSession") -> None:
+        self._db = db
+
+    async def __aenter__(self) -> None:
+        self._db.nested_entries += 1
+
+    async def __aexit__(self, exc_type, exc, traceback) -> bool:
+        return False
+
+
+class _FakeDeadlineSession:
+    def __init__(self) -> None:
+        self.nested_entries = 0
+        self.commits = 0
+
+    def begin_nested(self) -> _FakeNestedTransaction:
+        return _FakeNestedTransaction(self)
+
+    async def commit(self) -> None:
+        self.commits += 1

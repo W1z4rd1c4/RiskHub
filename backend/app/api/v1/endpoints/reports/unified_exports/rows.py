@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Any
 
 from app.api.mappers.risk import active_kris_for_risk
-from app.api.v1.endpoints.issues._shared.serialization import _issue_source_link, _link_display
+from app.services._issue_register.serialization import _issue_source_link, _link_display
 from app.core.datetime_utils import coerce_utc
 from app.models import Control, Issue, KeyRiskIndicator, Risk, User, Vendor
 from app.models.issue import IssueStatus

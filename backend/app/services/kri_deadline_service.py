@@ -18,6 +18,7 @@ from app.services.deadline_notifications import (
     has_recent_deadline_notification,
     increment_deadline_results,
 )
+from app.services.deadline_runner import run_deadline_items
 from app.services.kri_deadline_decisions import (
     build_kri_limit_notification_plan,
     build_kri_reporting_notification_plan,
@@ -304,33 +305,32 @@ class KRIDeadlineService:
 
         # Fetch all ACTIVE (non-archived) KRIs with their relationships
         kris = await list_active_kris(db)
-        results["total_kris_checked"] = len(kris)
 
         # Get all Risk Managers/CROs for escalation
         risk_managers = await KRIDeadlineService._get_risk_managers(db)
 
-        for kri in kris:
-            kri_id = kri.id
+        async def process_kri(kri: KeyRiskIndicator) -> dict[str, int]:
             kri_results = initialize_results()
-            try:
-                async with db.begin_nested():
-                    await KRIDeadlineService._process_single_kri(
-                        db,
-                        kri=kri,
-                        today=today,
-                        now=now,
-                        config=config,
-                        risk_managers=risk_managers,
-                        results=kri_results,
-                    )
-                for key, value in kri_results.items():
-                    if key != "total_kris_checked":
-                        results[key] = results.get(key, 0) + value
-            except Exception as e:
-                logger.error(f"Error checking KRI {kri_id}: {e}")
-                continue
+            await KRIDeadlineService._process_single_kri(
+                db,
+                kri=kri,
+                today=today,
+                now=now,
+                config=config,
+                risk_managers=risk_managers,
+                results=kri_results,
+            )
+            return kri_results
 
-        await db.commit()
+        await run_deadline_items(
+            db,
+            items=kris,
+            results=results,
+            total_key="total_kris_checked",
+            item_label="KRI", item_id=lambda kri: kri.id,
+            process_item=process_kri,
+            skip_result_keys={"total_kris_checked"}, logger=logger,
+        )
         logger.info(f"KRI deadline check complete: {results}")
         return results
 

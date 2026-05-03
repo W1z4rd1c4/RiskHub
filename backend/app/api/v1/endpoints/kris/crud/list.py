@@ -19,6 +19,7 @@ from app.api.v1.endpoints._collection import (
     coerce_optional_string,
     is_group_summary_request,
 )
+from app.api.v1.endpoints import _collection_execution as collection_exec
 from app.api.v1.endpoints._monitoring_response import (
     load_monitoring_response_context,
     serialize_kri_response,
@@ -402,16 +403,14 @@ async def list_kris(
             current_user=current_user,
             can_read_vendors=can_read_vendors,
         )
-        count_query = select(func.count()).select_from(filtered_query.subquery())
-        total_result = await db.execute(count_query)
-        total = total_result.scalar() or 0
+        total = await collection_exec.count_collection_rows(db, filtered_query)
 
         if is_group_summary_request(collection_query):
-            return KRIListResponse(
+            return collection_exec.build_collection_response(
+                KRIListResponse,
+                query=collection_query,
                 items=[],
                 total=total,
-                offset=offset,
-                limit=limit,
                 groups=groups,
                 capabilities=collection_capabilities,
             )
@@ -422,21 +421,15 @@ async def list_kris(
             vendor_context=vendor_context,
         )
         grouped_query = ordered_query.outerjoin(Department, Department.id == Risk.department_id)
-        if group_filter is not None:
-            grouped_query = grouped_query.where(group_filter)
-        else:
-            grouped_query = grouped_query.where(false())
-        grouped_total = (
-            await db.execute(select(func.count()).select_from(grouped_query.order_by(None).subquery()))
-        ).scalar() or 0
-        result = await db.execute(grouped_query.offset(offset).limit(limit))
-        kris = result.scalars().all()
-        items = await serialize_kris(list(kris))
-        return KRIListResponse(
+        grouped_query = collection_exec.apply_collection_group_filter(grouped_query, group_filter)
+        grouped_total = await collection_exec.count_collection_rows(db, grouped_query)
+        kris = await collection_exec.load_collection_scalars_page(db, grouped_query, offset=offset, limit=limit)
+        items = await serialize_kris(kris)
+        return collection_exec.build_collection_response(
+            KRIListResponse,
+            query=collection_query,
             items=items,
             total=grouped_total,
-            offset=offset,
-            limit=limit,
             groups=groups,
             capabilities=collection_capabilities,
         )
@@ -451,20 +444,23 @@ async def list_kris(
             get_entries=_kri_group_entries,
             is_highlighted=lambda item: getattr(item, "monitoring_status", None) == "breach",
         )
-        return KRIListResponse(
+        return collection_exec.build_collection_response(
+            KRIListResponse,
+            query=collection_query,
             items=paginated_items,
             total=total,
-            offset=offset,
-            limit=limit,
             groups=groups,
             capabilities=collection_capabilities,
         )
 
-    count_query = select(func.count()).select_from(filtered_query.subquery())
-    total_result = await db.execute(count_query)
-    total = total_result.scalar() or 0
-    result = await db.execute(ordered_query.offset(offset).limit(limit))
-    kris = result.scalars().all()
-    items = await serialize_kris(list(kris))
+    total = await collection_exec.count_collection_rows(db, filtered_query)
+    kris = await collection_exec.load_collection_scalars_page(db, ordered_query, offset=offset, limit=limit)
+    items = await serialize_kris(kris)
 
-    return KRIListResponse(items=items, total=total, offset=offset, limit=limit, capabilities=collection_capabilities)
+    return collection_exec.build_collection_response(
+        KRIListResponse,
+        query=collection_query,
+        items=items,
+        total=total,
+        capabilities=collection_capabilities,
+    )

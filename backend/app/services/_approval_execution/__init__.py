@@ -3,3 +3,7 @@
 `app.services.approval_execution_service` is the public facade that re-exports
 stable symbols for endpoints and tests.
 """
+
+from . import resolution as resolution
+
+__all__ = ["resolution"]

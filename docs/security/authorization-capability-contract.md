@@ -6,6 +6,7 @@ Back to tree: [`docs/DOCUMENTATION_TREE.md`](../DOCUMENTATION_TREE.md)
 > Last reviewed: 2026-05-03
 > Owner: RiskHub Maintainer
 > Machine-readable mirror: [`authorization-capability-contract.json`](./authorization-capability-contract.json)
+> Capability field catalog: [`capability-catalog.json`](./capability-catalog.json)
 
 ## Purpose
 
@@ -28,6 +29,9 @@ changes, schema changes, or auth/session wire changes.
 - Policy changes must update this file, the JSON mirror, business logic docs
   when user policy changes, and the testing guide when verification changes.
 - Architecture-only refactors of authz-sensitive files must update this file and the JSON mirror, even when public policy is intentionally unchanged.
+- Backend/frontend capability field-shape drift is validated by the compact
+  [`capability-catalog.json`](./capability-catalog.json); it does not replace
+  this contract matrix as the source of action semantics.
 
 External references used for this contract:
 
@@ -123,6 +127,7 @@ If the verification path changes, update [`../TESTING.md`](../TESTING.md).
 | `backend/app/services/_riskhub_config/` | Role and department configuration capability metadata. |
 | `backend/app/services/_orphaned_items/workflow.py` | Orphan resolution capabilities and requirements. |
 | `backend/app/services/_issue_register/` | Issue register grouping, linked-context redaction, and grouped count helpers used by issue list HTTP adapters. |
+| `docs/security/capability-catalog.json` | Backend Pydantic and frontend Zod capability field-shape validation for risk, control, KRI, issue, and vendor entities. |
 | `backend/app/services/_vendor_links/` | Shared vendor link list/create/delete workflow across risk, control, and KRI target types. |
 | `backend/app/services/_kri_history/intake.py` | KRI value intake routing between direct recording and approval-gated submission. |
 | `backend/app/services/_kri_history/loading.py`, `submission.py`, and `value_application.py` | KRI value intake loading, approval submission, direct recording, linked-vendor visibility, and response capability projection. |

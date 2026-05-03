@@ -21,6 +21,7 @@ from app.models.notification import NotificationType
 from app.models.role import Permission, RoleType
 from app.services._issue_workflow.transitions import _is_remediation_complete, _status_value
 from app.services.deadline_notifications import create_deadline_notification, increment_deadline_results
+from app.services.deadline_runner import run_deadline_items
 from app.services.issue_deadline_decisions import (
     build_issue_due_soon_notification_plan,
     build_issue_escalation_notification_plan,
@@ -335,7 +336,6 @@ class IssueDeadlineService:
             selectinload(Issue.exceptions),
         )
         issues = list((await db.execute(stmt)).scalars().all())
-        results["total_checked"] = len(issues)
 
         user_ids: set[int] = set()
         for issue in issues:
@@ -346,27 +346,26 @@ class IssueDeadlineService:
         users_by_id = await IssueDeadlineService._users_by_ids(db, user_ids)
         escalation_users = await IssueDeadlineService._escalation_recipients(db)
 
-        for issue in issues:
-            issue_id = issue.id
-            try:
-                async with db.begin_nested():
-                    issue_results = await IssueDeadlineService._process_issue_deadline(
-                        db,
-                        issue=issue,
-                        now=now,
-                        due_soon_cutoff=due_soon_cutoff,
-                        due_soon_backoff=due_soon_backoff,
-                        overdue_cutoff=overdue_cutoff,
-                        escalation_cutoff=escalation_cutoff,
-                        users_by_id=users_by_id,
-                        escalation_users=escalation_users,
-                    )
-            except Exception as exc:
-                logger.error("Issue deadline check failed for issue_id=%s: %s", issue_id, exc)
-                continue
-            for key, value in issue_results.items():
-                if value:
-                    increment_deadline_results(results, key, count=value)
+        async def process_issue(issue: Issue) -> dict[str, int]:
+            return await IssueDeadlineService._process_issue_deadline(
+                db,
+                issue=issue,
+                now=now,
+                due_soon_cutoff=due_soon_cutoff,
+                due_soon_backoff=due_soon_backoff,
+                overdue_cutoff=overdue_cutoff,
+                escalation_cutoff=escalation_cutoff,
+                users_by_id=users_by_id,
+                escalation_users=escalation_users,
+            )
 
-        await db.commit()
-        return results
+        return await run_deadline_items(
+            db,
+            items=issues,
+            results=results,
+            total_key="total_checked",
+            item_label="Issue",
+            item_id=lambda issue: issue.id,
+            process_item=process_issue,
+            logger=logger,
+        )
