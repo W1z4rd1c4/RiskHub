@@ -57,7 +57,7 @@ def test_build_grouped_collection_page_returns_summary_without_items():
 
     assert page_items == []
     assert total == 3
-    assert groups == [
+    assert [group.model_dump() for group in groups] == [
         {
             "value": "closed",
             "label": "CLOSED",
@@ -93,4 +93,4 @@ def test_build_grouped_collection_page_paginates_drilldown_items():
 
     assert page_items == [items[1]]
     assert total == 2
-    assert [group["value"] for group in groups] == ["closed", "open"]
+    assert [group.value for group in groups] == ["closed", "open"]

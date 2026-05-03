@@ -1085,17 +1085,18 @@ async def test_vendors_grouped_contract_supports_flag_multi_membership(
 
     summary_response = await auth_client.get(
         "/api/v1/vendors",
-        params={"offset": 0, "limit": 10, "group_by": "flag"},
+        params={"offset": 0, "limit": 10, "group_by": "flag", "search": "Grouped Vendor Contract"},
     )
     assert summary_response.status_code == 200
     summary = summary_response.json()
     assert summary["items"] == []
+    assert summary["total"] == 1
     dora_group = _group_by_value(summary["groups"], "__dora_relevant__")
     core_group = _group_by_value(summary["groups"], "__supports_core_function__")
     assert dora_group is not None
     assert core_group is not None
-    assert dora_group["count"] >= 1
-    assert core_group["count"] >= 1
+    assert dora_group["count"] == 1
+    assert core_group["count"] == 1
 
     drilldown_response = await auth_client.get(
         "/api/v1/vendors",
@@ -1104,9 +1105,183 @@ async def test_vendors_grouped_contract_supports_flag_multi_membership(
             "limit": 10,
             "group_by": "flag",
             "group_value": "__dora_relevant__",
+            "search": "Grouped Vendor Contract",
         },
     )
     assert drilldown_response.status_code == 200
     drilldown = drilldown_response.json()
     assert any(item["id"] == vendor_id for item in drilldown["items"])
     assert _group_by_value(drilldown["groups"], "__supports_core_function__") is not None
+
+
+@pytest.mark.asyncio
+async def test_vendors_risk_grouped_summary_total_counts_distinct_vendors(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    test_department: Department,
+    test_user: User,
+):
+    vendor = _vendor(
+        name="Grouped Vendor Multi Risk Contract",
+        department_id=test_department.id,
+        owner_user_id=test_user.id,
+    )
+    first_risk = Risk(
+        risk_id_code="VENDOR-MULTI-RISK-001",
+        name="Vendor Multi Risk One",
+        process="Vendor Multi Risk Process",
+        description="First visible risk linked to the same grouped vendor",
+        category="Vendor Multi Risk Category",
+        department_id=test_department.id,
+        owner_id=test_user.id,
+        risk_type="operational",
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=2,
+        status="active",
+    )
+    second_risk = Risk(
+        risk_id_code="VENDOR-MULTI-RISK-002",
+        name="Vendor Multi Risk Two",
+        process="Vendor Multi Risk Process",
+        description="Second visible risk linked to the same grouped vendor",
+        category="Vendor Multi Risk Category",
+        department_id=test_department.id,
+        owner_id=test_user.id,
+        risk_type="operational",
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=2,
+        status="active",
+    )
+    db_session.add_all([vendor, first_risk, second_risk])
+    await db_session.flush()
+    db_session.add_all(
+        [
+            VendorRiskLink(vendor_id=vendor.id, risk_id=first_risk.id),
+            VendorRiskLink(vendor_id=vendor.id, risk_id=second_risk.id),
+        ]
+    )
+    await db_session.commit()
+
+    summary_response = await auth_client.get(
+        "/api/v1/vendors",
+        params={"offset": 0, "limit": 10, "group_by": "risk", "search": "Grouped Vendor Multi Risk Contract"},
+    )
+    assert summary_response.status_code == 200, summary_response.text
+    summary = summary_response.json()
+    assert summary["items"] == []
+    assert summary["total"] == 1
+    first_group = _group_by_value(summary["groups"], f"risk:{first_risk.id}")
+    second_group = _group_by_value(summary["groups"], f"risk:{second_risk.id}")
+    assert first_group is not None
+    assert second_group is not None
+    assert first_group["count"] == 1
+    assert second_group["count"] == 1
+
+
+@pytest.mark.asyncio
+async def test_vendors_grouped_requests_use_bounded_sql_path(
+    auth_client: AsyncClient,
+    test_department: Department,
+    test_user: User,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    create_response = await auth_client.post(
+        "/api/v1/vendors",
+        json={
+            "name": "Bounded Grouped Vendor",
+            "process": "Bounded Vendor Process",
+            "department_id": test_department.id,
+            "outsourcing_owner_user_id": test_user.id,
+            "vendor_type": "ict",
+            "risk_score_1_5": 5,
+            "supports_important_core_insurance_function": False,
+            "dora_relevant": False,
+            "is_significant_vendor": False,
+            "has_alternative_providers": False,
+            "status": "active",
+        },
+    )
+    assert create_response.status_code == 201
+    vendor_id = create_response.json()["id"]
+
+    import app.api.v1.endpoints.vendors.crud as vendor_crud
+
+    async def fail_full_group_serialization(*args, **kwargs):
+        raise AssertionError("grouped vendor requests must not serialize all matched vendors")
+
+    monkeypatch.setattr(vendor_crud, "serialize_vendor_reads", fail_full_group_serialization, raising=False)
+
+    summary_response = await auth_client.get(
+        "/api/v1/vendors",
+        params={"offset": 0, "limit": 10, "group_by": "process"},
+    )
+    assert summary_response.status_code == 200, summary_response.text
+    summary = summary_response.json()
+    assert summary["items"] == []
+    assert _group_by_value(summary["groups"], "Bounded Vendor Process") is not None
+
+    drilldown_response = await auth_client.get(
+        "/api/v1/vendors",
+        params={"offset": 0, "limit": 10, "group_by": "process", "group_value": "Bounded Vendor Process"},
+    )
+    assert drilldown_response.status_code == 200, drilldown_response.text
+    drilldown = drilldown_response.json()
+    assert any(item["id"] == vendor_id for item in drilldown["items"])
+
+
+@pytest.mark.asyncio
+async def test_vendors_risk_grouping_treats_hidden_only_links_as_unlinked(
+    client_employee: AsyncClient,
+    db_session: AsyncSession,
+    test_department: Department,
+    test_user: User,
+    test_user_employee: User,
+):
+    vendor = _vendor(
+        name="Vendor With Hidden Risk Only",
+        department_id=test_department.id,
+        owner_user_id=test_user_employee.id,
+    )
+    hidden_department = await _hidden_department(db_session, code="VHRO")
+    hidden_risk = Risk(
+        risk_id_code="VENDOR-HIDDEN-RISK-001",
+        name="Hidden Vendor Group Risk",
+        process="Hidden Vendor Risk Process",
+        description="Hidden risk linked to a visible vendor",
+        category="Vendor Hidden Risk Category",
+        department_id=hidden_department.id,
+        owner_id=test_user.id,
+        risk_type="operational",
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=2,
+        status="active",
+    )
+    db_session.add_all([vendor, hidden_risk])
+    await db_session.flush()
+    db_session.add(VendorRiskLink(vendor_id=vendor.id, risk_id=hidden_risk.id))
+    await db_session.commit()
+
+    summary_response = await client_employee.get(
+        "/api/v1/vendors",
+        params={"offset": 0, "limit": 10, "group_by": "risk"},
+    )
+    assert summary_response.status_code == 200, summary_response.text
+    summary = summary_response.json()
+    assert _group_by_value(summary["groups"], f"risk:{hidden_risk.id}") is None
+    unlinked_group = _group_by_value(summary["groups"], "__unlinked_risk__")
+    assert unlinked_group is not None
+    assert unlinked_group["count"] >= 1
+
+    drilldown_response = await client_employee.get(
+        "/api/v1/vendors",
+        params={"offset": 0, "limit": 10, "group_by": "risk", "group_value": "__unlinked_risk__"},
+    )
+    assert drilldown_response.status_code == 200, drilldown_response.text
+    drilldown = drilldown_response.json()
+    assert any(item["id"] == vendor.id for item in drilldown["items"])

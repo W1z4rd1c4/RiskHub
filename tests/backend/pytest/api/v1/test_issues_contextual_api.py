@@ -176,14 +176,14 @@ async def test_contextual_issue_create_supports_all_entity_types(
     await db_session.commit()
 
     cases = [
-        ("risk", risk.id, "manual", "risk"),
-        ("control", control.id, "control_execution", "control"),
-        ("execution", execution.id, "control_execution", "execution"),
-        ("kri", kri.id, "kri_breach", "kri"),
-        ("vendor", vendor.id, "manual", "vendor"),
+        ("risk", risk.id, "manual", None, "risk"),
+        ("control", control.id, "manual", None, "control"),
+        ("execution", execution.id, "control_execution", execution.id, "execution"),
+        ("kri", kri.id, "kri_breach", kri.id, "kri"),
+        ("vendor", vendor.id, "manual", None, "vendor"),
     ]
 
-    for entity_type, entity_id, expected_source, expected_link_type in cases:
+    for entity_type, entity_id, expected_source, expected_source_id, expected_link_type in cases:
         response = await auth_client.post(
             "/api/v1/issues/contextual",
             json={
@@ -198,10 +198,14 @@ async def test_contextual_issue_create_supports_all_entity_types(
         assert response.status_code == 201
         payload = response.json()
         assert payload["source_type"] == expected_source
-        assert payload["source_id"] == entity_id
+        assert payload["source_id"] == expected_source_id
+        assert payload["source_link"] is not None
         assert payload["department_id"] == test_department.id
         assert payload["links"]
         assert payload["links"][0]["linked_entity_type"] == expected_link_type
+        assert payload["source_link"]["linked_entity_type"] == expected_link_type
+        link_id_field = f"{expected_link_type}_id"
+        assert payload["source_link"][link_id_field] == entity_id
 
 
 @pytest.mark.asyncio

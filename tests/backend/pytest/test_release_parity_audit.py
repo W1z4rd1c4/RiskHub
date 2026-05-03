@@ -16,6 +16,10 @@ CommandResult = MODULE.CommandResult
 ReleaseParityAudit = MODULE.ReleaseParityAudit
 DECISION_MODULE = importlib.import_module("release_parity_audit.decision")
 REPORTING_MODULE = importlib.import_module("release_parity_audit.reporting")
+DEPENDENCIES_MODULE = importlib.import_module("release_parity_audit.dependencies")
+RUNTIME_MODULE = importlib.import_module("release_parity_audit.runtime")
+STARTUP_MODULE = importlib.import_module("release_parity_audit.startup")
+UI_PARITY_MODULE = importlib.import_module("release_parity_audit.ui_parity")
 evaluate_findings_and_decision = DECISION_MODULE.evaluate_findings_and_decision
 build_report = REPORTING_MODULE.build_report
 build_run_status = REPORTING_MODULE.build_run_status
@@ -44,6 +48,25 @@ def test_release_parity_run_records_public_command_result_type(tmp_path: Path) -
 
     assert len(audit.command_results) == 1
     assert isinstance(audit.command_results[0], CommandResult)
+
+
+def test_release_parity_audit_exposes_modular_helper_boundaries() -> None:
+    assert callable(DEPENDENCIES_MODULE.capture_dependencies)
+    assert callable(RUNTIME_MODULE.run_dynamic_paths)
+    assert callable(STARTUP_MODULE.build_startup_inventory)
+    assert callable(UI_PARITY_MODULE.evaluate_ui_parity)
+
+
+def test_release_parity_runtime_orchestration_is_not_pass_through() -> None:
+    audit_source = (REPO_ROOT / "scripts" / "security" / "release_parity_audit" / "audit.py").read_text(
+        encoding="utf-8"
+    )
+    runtime_source = (REPO_ROOT / "scripts" / "security" / "release_parity_audit" / "runtime.py").read_text(
+        encoding="utf-8"
+    )
+
+    assert "def _run_dynamic_paths_impl" not in audit_source
+    assert "_run_dynamic_paths_impl" not in runtime_source
 
 
 def test_release_parity_reporting_module_preserves_report_sections(tmp_path: Path) -> None:

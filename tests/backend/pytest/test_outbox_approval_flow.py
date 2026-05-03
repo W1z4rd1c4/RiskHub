@@ -5,6 +5,7 @@ from datetime import UTC, date, datetime
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from app.core.datetime_utils import coerce_utc, utc_now
@@ -386,6 +387,99 @@ async def test_issue_notification_transport_failure_is_retryable(
         assert refreshed is not None
         assert refreshed.status == "pending"
         assert refreshed.last_error == "notification store unavailable"
+
+
+@pytest.mark.asyncio
+async def test_notification_operational_error_is_retryable(
+    db_session: AsyncSession,
+    async_engine: AsyncEngine,
+    test_department,
+    test_user: User,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    issue = Issue(
+        title="Outbox DB retry issue",
+        description="Issue used for notification DB retry classification",
+        severity="high",
+        status="open",
+        source_type="manual",
+        department_id=test_department.id,
+        owner_user_id=test_user.id,
+        created_by_id=test_user.id,
+    )
+    db_session.add(issue)
+    await db_session.flush()
+    event = OutboxEvent(
+        event_type="issue.assigned",
+        aggregate_type="issue",
+        aggregate_id=issue.id,
+        idempotency_key="issue.assigned:db-retry",
+        payload={"issue_id": issue.id, "owner_user_id": test_user.id, "actor_user_id": 99999},
+        status="pending",
+        available_at=utc_now(),
+    )
+    db_session.add(event)
+    await db_session.commit()
+
+    async def fail_store(*args, **kwargs):
+        raise OperationalError("insert notification", {}, ConnectionError("connection lost"))
+
+    monkeypatch.setattr(NotificationService, "create_notification", fail_store)
+
+    processed = await dispatch_pending_outbox_events(_sessionmaker(async_engine))
+    assert processed == 0
+
+    async with _sessionmaker(async_engine)() as read_session:
+        refreshed = await read_session.get(OutboxEvent, event.id)
+        assert refreshed is not None
+        assert refreshed.status == "pending"
+        assert "connection lost" in str(refreshed.last_error)
+
+
+@pytest.mark.asyncio
+async def test_notification_integrity_error_is_not_retryable(
+    db_session: AsyncSession,
+    async_engine: AsyncEngine,
+    test_department,
+    test_user: User,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    issue = Issue(
+        title="Outbox integrity failure issue",
+        description="Issue used for notification DB fatal classification",
+        severity="high",
+        status="open",
+        source_type="manual",
+        department_id=test_department.id,
+        owner_user_id=test_user.id,
+        created_by_id=test_user.id,
+    )
+    db_session.add(issue)
+    await db_session.flush()
+    event = OutboxEvent(
+        event_type="issue.assigned",
+        aggregate_type="issue",
+        aggregate_id=issue.id,
+        idempotency_key="issue.assigned:db-integrity",
+        payload={"issue_id": issue.id, "owner_user_id": test_user.id, "actor_user_id": 99999},
+        status="pending",
+        available_at=utc_now(),
+    )
+    db_session.add(event)
+    await db_session.commit()
+
+    async def fail_store(*args, **kwargs):
+        raise IntegrityError("insert notification", {}, Exception("unique violation"))
+
+    monkeypatch.setattr(NotificationService, "create_notification", fail_store)
+
+    processed = await dispatch_pending_outbox_events(_sessionmaker(async_engine))
+    assert processed == 0
+
+    async with _sessionmaker(async_engine)() as read_session:
+        refreshed = await read_session.get(OutboxEvent, event.id)
+        assert refreshed is not None
+        assert refreshed.status == "dead_letter"
 
 
 @pytest.mark.asyncio
