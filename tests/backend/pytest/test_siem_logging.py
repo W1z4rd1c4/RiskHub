@@ -4,6 +4,19 @@ from pathlib import Path
 import pytest
 from httpx import AsyncClient
 
+from app.core.config import Settings, get_settings
+from app.main import app
+
+TEST_ORIGIN = "http://test"
+ALLOWED_ORIGIN_HEADERS = {"Origin": TEST_ORIGIN}
+
+
+def _set_login_allowed_origin() -> None:
+    def override_settings():
+        return Settings(mock_auth_enabled=True, debug=True, cors_origins=[TEST_ORIGIN])
+
+    app.dependency_overrides[get_settings] = override_settings
+
 
 @pytest.mark.asyncio
 async def test_audit_log_on_failed_login(client: AsyncClient):
@@ -25,8 +38,9 @@ async def test_audit_log_on_failed_login(client: AsyncClient):
             initial_log_lines = f.readlines()
 
     # 1. Trigger the event: Failed login
+    _set_login_allowed_origin()
     payload = {"email": "nonexistent@test.com", "password": "wrongpassword"}
-    response = await client.post("/api/v1/auth/login", json=payload)
+    response = await client.post("/api/v1/auth/login", json=payload, headers=ALLOWED_ORIGIN_HEADERS)
 
     # Assert API responded with failure
     assert response.status_code == 401
@@ -84,9 +98,11 @@ async def test_audit_log_on_demo_login_uses_safe_description(
     db_session.add(test_user)
     await db_session.commit()
 
+    _set_login_allowed_origin()
     response = await client.post(
         "/api/v1/auth/login",
         json={"email": test_user.email, "password": "StrongPass123!"},
+        headers=ALLOWED_ORIGIN_HEADERS,
     )
     assert response.status_code == 200
 

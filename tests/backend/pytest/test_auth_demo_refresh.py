@@ -10,11 +10,17 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings, get_settings
+from app.core.tokens import decode_refresh_token
 from app.db.session import get_db
 from app.main import app
 from app.models import RefreshToken, User
 
 TEST_ORIGIN = "http://test"
+TEST_SECRET_KEY = "test-secret-key-32-chars-minimum-value"
+
+
+def _refresh_test_settings() -> Settings:
+    return Settings(secret_key=TEST_SECRET_KEY)
 
 
 def _refresh_cookie_headers(token: str, csrf_token: str) -> dict[str, str]:
@@ -63,7 +69,7 @@ async def demo_auth_client(db_session: AsyncSession) -> AsyncClient:
     def override_settings():
         return Settings(
             debug=True,
-            secret_key="test-secret-key-32-chars-minimum-value",
+            secret_key=TEST_SECRET_KEY,
             mock_auth_enabled=True,
             auth_mode="hybrid_dev",
             cors_origins=[TEST_ORIGIN],
@@ -99,8 +105,9 @@ async def test_demo_login_issues_refresh_cookie_and_refreshes_session(
 
 
 @pytest.mark.asyncio
-async def test_demo_refresh_replay_allows_single_parallel_winner(
+async def test_demo_refresh_replay_revokes_rotated_child(
     demo_auth_client: AsyncClient,
+    db_session: AsyncSession,
     test_user: User,
 ):
     login = await demo_auth_client.post("/api/v1/auth/demo-login", json={"email": test_user.email})
@@ -128,6 +135,7 @@ async def test_demo_refresh_replay_allows_single_parallel_winner(
     winner_csrf_cookie = _extract_csrf_cookie(winner)
     assert winner_cookie and winner_cookie != initial_cookie
     assert winner_csrf_cookie
+    winner_jti = decode_refresh_token(winner_cookie, _refresh_test_settings())["jti"]
 
     async with AsyncClient(transport=transport, base_url="http://test") as verifier:
         stale_replay = await verifier.post(
@@ -140,7 +148,15 @@ async def test_demo_refresh_replay_allows_single_parallel_winner(
             "/api/v1/auth/refresh",
             headers=_refresh_cookie_headers(winner_cookie, winner_csrf_cookie),
         )
-        assert winner_replay.status_code == 200
+        assert winner_replay.status_code == 401
+
+    child_row = (
+        await db_session.execute(
+            select(RefreshToken).where(RefreshToken.user_id == test_user.id).where(RefreshToken.jti == winner_jti)
+        )
+    ).scalar_one()
+    assert child_row.revoked_at is not None
+    assert child_row.revoked_reason == "replay_detected"
 
 
 @pytest.mark.asyncio

@@ -2,7 +2,6 @@
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
@@ -11,7 +10,8 @@ from app.core.datetime_utils import utc_now
 from app.core.email import email_equals, normalize_email
 from app.core.logging import get_logger
 from app.core.tokens import clear_sso_challenge_cookie, get_sso_challenge_cookie
-from app.models import Role, RolePermission, User
+from app.core.user_query_options import user_selectinload_options
+from app.models import User
 from app.schemas.auth import SsoExchangeRequest
 from app.services.directory_identity_service import normalize_business_role
 from app.services.sso_token_service import SsoProviderUnavailableError, SsoTokenVerificationError
@@ -22,7 +22,7 @@ logger = get_logger("auth.sso")
 
 
 def _user_permission_load():
-    return selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
+    return user_selectinload_options(include_permissions=True)
 
 
 async def _log_failed_sso(
@@ -119,17 +119,15 @@ def _challenge_response(
 
 
 async def _find_user_by_external_id(db: AsyncSession, external_id: str):
-    permission_load = _user_permission_load()
     result = await db.execute(
-        select(User).options(permission_load, selectinload(User.department)).where(User.external_id == external_id)
+        select(User).options(*_user_permission_load()).where(User.external_id == external_id)
     )
     return result.scalar_one_or_none()
 
 
 async def _find_user_by_email(db: AsyncSession, email: str):
-    permission_load = _user_permission_load()
     result = await db.execute(
-        select(User).options(permission_load, selectinload(User.department)).where(email_equals(User.email, email))
+        select(User).options(*_user_permission_load()).where(email_equals(User.email, email))
     )
     return result.scalar_one_or_none()
 
@@ -217,7 +215,6 @@ async def _resolve_sso_user(
 
 
 async def _jit_provision_user(db: AsyncSession, *, identity):
-    permission_load = _user_permission_load()
     default_role = await _resolve_safe_default_role(db)
     normalized_email = normalize_email(identity.email)
     if normalized_email is None:
@@ -234,7 +231,7 @@ async def _jit_provision_user(db: AsyncSession, *, identity):
     await db.flush()
 
     result = await db.execute(
-        select(User).options(permission_load, selectinload(User.department)).where(User.id == new_user.id)
+        select(User).options(*_user_permission_load()).where(User.id == new_user.id)
     )
     return result.scalar_one()
 

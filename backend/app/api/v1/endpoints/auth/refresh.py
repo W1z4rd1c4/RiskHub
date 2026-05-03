@@ -6,7 +6,6 @@ from fastapi import APIRouter, Depends, status
 from fastapi.responses import JSONResponse
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 from starlette.requests import Request
 from starlette.responses import Response
 
@@ -23,8 +22,9 @@ from app.core.tokens import (
     new_token_jti,
     token_decode_or_none,
 )
+from app.core.user_query_options import user_selectinload_options
 from app.db.session import get_db
-from app.models import RefreshToken, Role, RolePermission, User
+from app.models import RefreshToken, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas.auth import TokenResponse
 
@@ -94,6 +94,46 @@ def _emit_failed_refresh_audit(
     )
 
 
+async def _load_refresh_user(db: AsyncSession, user_id: int) -> User | None:
+    return (
+        await db.execute(
+            select(User)
+            .options(*user_selectinload_options(include_permissions=True))
+            .where(User.id == user_id)
+        )
+    ).scalar_one_or_none()
+
+
+async def _revoke_rotated_refresh_descendants(
+    *,
+    db: AsyncSession,
+    user_id: int,
+    replaced_by_jti: str | None,
+    now,
+) -> int:
+    revoke_count = 0
+    next_jti = replaced_by_jti
+    visited: set[str] = set()
+    while next_jti and next_jti not in visited:
+        visited.add(next_jti)
+        child = (
+            await db.execute(
+                select(RefreshToken)
+                .where(RefreshToken.user_id == user_id)
+                .where(RefreshToken.jti == next_jti)
+            )
+        ).scalar_one_or_none()
+        if child is None:
+            break
+        next_jti = child.replaced_by_jti
+        if child.revoked_at is None:
+            child.revoked_at = now
+            child.revoked_reason = "replay_detected"
+            db.add(child)
+            revoke_count += 1
+    return revoke_count
+
+
 @router.post("/refresh", response_model=TokenResponse)
 async def refresh_session(
     request: Request,
@@ -123,8 +163,27 @@ async def refresh_session(
         await db.execute(select(RefreshToken).where(RefreshToken.user_id == user_id).where(RefreshToken.jti == jti))
     ).scalar_one_or_none()
     if refresh_row is None or refresh_row.revoked_at is not None:
+        failure_code = "session_not_found"
+        if refresh_row is not None and refresh_row.revoked_reason == "rotated":
+            now = utc_now()
+            revoke_count = await _revoke_rotated_refresh_descendants(
+                db=db,
+                user_id=user_id,
+                replaced_by_jti=refresh_row.replaced_by_jti,
+                now=now,
+            )
+            if revoke_count > 0:
+                user = await _load_refresh_user(db, user_id)
+                await _emit_failed_refresh_activity(
+                    db=db,
+                    user=user,
+                    failure_code="replay_detected",
+                    revoke_count=revoke_count,
+                )
+                await db.commit()
+                failure_code = "replay_detected"
         _emit_failed_refresh_audit(
-            failure_code="session_not_found",
+            failure_code=failure_code,
             detail="Refresh session not found",
             user_id=user_id,
         )
@@ -141,7 +200,7 @@ async def refresh_session(
         )
         revoke_count = int(getattr(revoke_result, "rowcount", 0) or 0)
         if revoke_count > 0:
-            user = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
+            user = await _load_refresh_user(db, user_id)
             await _emit_failed_refresh_activity(
                 db=db,
                 user=user,
@@ -159,7 +218,7 @@ async def refresh_session(
         )
         revoke_count = int(getattr(revoke_result, "rowcount", 0) or 0)
         if revoke_count > 0:
-            user = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
+            user = await _load_refresh_user(db, user_id)
             await _emit_failed_refresh_activity(
                 db=db,
                 user=user,
@@ -169,10 +228,7 @@ async def refresh_session(
             await db.commit()
         return _refresh_unauthorized_response("Refresh token expired", settings)
 
-    permission_load = selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission)
-    user = (
-        await db.execute(select(User).options(permission_load, selectinload(User.department)).where(User.id == user_id))
-    ).scalar_one_or_none()
+    user = await _load_refresh_user(db, user_id)
     if user is None:
         _emit_failed_refresh_audit(
             failure_code="unauthorized",

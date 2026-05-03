@@ -1,14 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 from starlette.requests import Request
 from starlette.responses import Response
 
 from app.core.config import Settings, get_settings
 from app.core.email import email_equals
+from app.core.user_query_options import user_selectinload_options
 from app.db.session import get_db
-from app.models import RolePermission, User
+from app.models import User
 from app.schemas.auth import DemoLoginRequest, TokenResponse
 
 from ._shared import _build_token_response, _issue_refresh_session
@@ -22,12 +22,7 @@ def _assert_demo_login_enabled(settings: Settings) -> None:
 
 
 def _user_with_demo_load():
-    return (
-        selectinload(User.role)
-        .selectinload(User.role.property.mapper.class_.permissions)
-        .selectinload(RolePermission.permission),
-        selectinload(User.department),
-    )
+    return user_selectinload_options(include_permissions=True)
 
 
 async def _resolve_demo_user_by_id(*, db: AsyncSession, user_id: int) -> User | None:

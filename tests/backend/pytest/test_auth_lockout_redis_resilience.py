@@ -2,8 +2,19 @@ from __future__ import annotations
 
 import pytest
 
+from app.core.config import Settings, get_settings
 from app.main import app
 from app.services.account_lockout_service import AccountLockoutBackendError, AccountLockoutService
+
+TEST_ORIGIN = "http://test"
+ALLOWED_ORIGIN_HEADERS = {"Origin": TEST_ORIGIN}
+
+
+def _set_login_allowed_origin() -> None:
+    def override_settings():
+        return Settings(mock_auth_enabled=True, debug=True, cors_origins=[TEST_ORIGIN])
+
+    app.dependency_overrides[get_settings] = override_settings
 
 
 class _FailingLockoutBackend:
@@ -30,6 +41,7 @@ class _UnexpectedFailingLockoutBackend:
 
 @pytest.mark.asyncio
 async def test_login_fails_closed_when_lockout_backend_unavailable(client):
+    _set_login_allowed_origin()
     original = app.state.account_lockout
     app.state.account_lockout = AccountLockoutService(_FailingLockoutBackend())
 
@@ -37,6 +49,7 @@ async def test_login_fails_closed_when_lockout_backend_unavailable(client):
         response = await client.post(
             "/api/v1/auth/login",
             json={"email": "nobody@example.com", "password": "invalid"},
+            headers=ALLOWED_ORIGIN_HEADERS,
         )
     finally:
         app.state.account_lockout = original
@@ -47,6 +60,7 @@ async def test_login_fails_closed_when_lockout_backend_unavailable(client):
 
 @pytest.mark.asyncio
 async def test_login_does_not_swallow_unexpected_lockout_backend_errors(client):
+    _set_login_allowed_origin()
     original = app.state.account_lockout
     app.state.account_lockout = AccountLockoutService(_UnexpectedFailingLockoutBackend())
 
@@ -55,6 +69,7 @@ async def test_login_does_not_swallow_unexpected_lockout_backend_errors(client):
             await client.post(
                 "/api/v1/auth/login",
                 json={"email": "nobody@example.com", "password": "invalid"},
+                headers=ALLOWED_ORIGIN_HEADERS,
             )
     finally:
         app.state.account_lockout = original

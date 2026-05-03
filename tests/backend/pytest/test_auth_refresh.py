@@ -33,6 +33,10 @@ TEST_SECRET_KEY = "test-secret-key-32-chars-minimum-value"
 TEST_ORIGIN = "http://test"
 
 
+def _refresh_test_settings() -> Settings:
+    return Settings(secret_key=TEST_SECRET_KEY)
+
+
 def _refresh_cookie_headers(token: str, csrf_token: str, *, include_csrf_header: bool = True) -> dict[str, str]:
     headers = {
         "Cookie": f"riskhub_refresh_token={token}; riskhub_csrf_token={csrf_token}; riskhub_refresh_hint=1",
@@ -303,7 +307,7 @@ async def test_refresh_rejects_sessions_with_less_than_minimum_remaining_lifetim
 
 
 @pytest.mark.asyncio
-async def test_refresh_endpoint_blocks_parallel_replay_to_single_winner(
+async def test_refresh_endpoint_revokes_rotated_child_on_stale_replay(
     refresh_client: AsyncClient,
     db_session: AsyncSession,
     test_user: User,
@@ -339,6 +343,7 @@ async def test_refresh_endpoint_blocks_parallel_replay_to_single_winner(
     winner_csrf_cookie = _extract_csrf_cookie(winner)
     assert winner_cookie and winner_cookie != initial_cookie
     assert winner_csrf_cookie
+    winner_jti = decode_refresh_token(winner_cookie, _refresh_test_settings())["jti"]
 
     async with AsyncClient(transport=transport, base_url="http://test") as verifier:
         stale_replay = await verifier.post(
@@ -350,7 +355,15 @@ async def test_refresh_endpoint_blocks_parallel_replay_to_single_winner(
             "/api/v1/auth/refresh",
             headers=_refresh_cookie_headers(winner_cookie, winner_csrf_cookie),
         )
-        assert winner_replay.status_code == 200
+        assert winner_replay.status_code == 401
+
+    child_row = (
+        await db_session.execute(
+            select(RefreshToken).where(RefreshToken.user_id == test_user.id).where(RefreshToken.jti == winner_jti)
+        )
+    ).scalar_one()
+    assert child_row.revoked_at is not None
+    assert child_row.revoked_reason == "replay_detected"
 
 
 @pytest.mark.asyncio

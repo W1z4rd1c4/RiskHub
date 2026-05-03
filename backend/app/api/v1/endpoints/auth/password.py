@@ -3,7 +3,6 @@ from typing import Awaitable, Callable, TypeVar
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 from starlette.requests import Request
 from starlette.responses import Response
 
@@ -11,11 +10,13 @@ from app.core.config import Settings, get_settings
 from app.core.email import email_equals
 from app.core.logging import get_logger
 from app.core.security import verify_password_or_dummy
+from app.core.user_query_options import user_selectinload_options
 from app.db.session import get_db
-from app.models import RolePermission, User
+from app.models import User
 from app.schemas.auth import LoginRequest, TokenResponse
 from app.services.account_lockout_service import AccountLockoutBackendError
 
+from ._request_protection import validate_request_origin
 from ._shared import _build_token_response, _issue_refresh_session
 
 router = APIRouter()
@@ -70,6 +71,8 @@ async def login(
     """
     if settings.auth_mode == "microsoft_sso":
         raise HTTPException(status_code=403, detail="Password login is disabled. Use single sign-on (SSO).")
+    if forbidden_response := validate_request_origin(request, settings):
+        return forbidden_response
 
     # Check if account is locked due to too many failed attempts
     account_lockout = request.app.state.account_lockout
@@ -89,16 +92,9 @@ async def login(
             headers={"Retry-After": str(lockout_remaining)},
         )
 
-    # Eager load role and permissions
-    permission_load = (
-        selectinload(User.role)
-        .selectinload(User.role.property.mapper.class_.permissions)
-        .selectinload(RolePermission.permission)
-    )
-
     result = await db.execute(
         select(User)
-        .options(permission_load, selectinload(User.department))
+        .options(*user_selectinload_options(include_permissions=True))
         .where(email_equals(User.email, credentials.email))
     )
     user = result.scalar_one_or_none()
