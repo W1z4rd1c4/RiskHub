@@ -3,10 +3,17 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
+SCRIPTS_DIR = REPO_ROOT / "scripts"
+if str(SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS_DIR))
+
+from install_lib.common import InstallPaths  # noqa: E402
+
 INSTALL_SCRIPT = REPO_ROOT / "scripts" / "install.sh"
 COMPOSE_SCRIPT = REPO_ROOT / "scripts" / "compose.sh"
 DEV_SCRIPT = REPO_ROOT / "scripts" / "dev.sh"
@@ -24,6 +31,57 @@ def _run_install(*args: str, env: dict[str, str] | None = None) -> subprocess.Co
         capture_output=True,
         text=True,
         env=effective_env,
+    )
+
+
+def _install_paths() -> InstallPaths:
+    return InstallPaths(
+        repo_root=REPO_ROOT,
+        config_path=Path("/tmp/riskhub.env"),
+        secret_dir=Path("/tmp/riskhub-secrets"),
+        runtime_dir=Path("/tmp/riskhub-runtime"),
+        linux_root=Path("/opt/riskhub"),
+        linux_current_link=Path("/opt/riskhub/current"),
+        compose_script=COMPOSE_SCRIPT,
+        dev_script=DEV_SCRIPT,
+        deploy_script=DEPLOY_SCRIPT,
+    )
+
+
+def test_install_lifecycle_builders_describe_reusable_command_plans() -> None:
+    from install_lib.lifecycle import (
+        build_doctor_repair_plan,
+        build_logs_command,
+        build_status_dry_run_commands,
+    )
+
+    paths = _install_paths()
+
+    assert build_logs_command(paths=paths, mode="dev", resolved_target=None, tail="25", follow=False) == [
+        "tail",
+        "-n",
+        "25",
+        str(REPO_ROOT / ".dev-backend.log"),
+        str(REPO_ROOT / ".dev-frontend.log"),
+    ]
+    assert build_status_dry_run_commands(paths=paths, mode="demo", resolved_target=None) == [
+        ["docker", "inspect", "riskhub-db"],
+        ["docker", "inspect", "riskhub-redis"],
+        ["docker", "inspect", "riskhub-backend"],
+        ["docker", "inspect", "riskhub-frontend"],
+        ["curl", "-fsS", "http://localhost/login"],
+        ["curl", "-fsS", "http://localhost/api/v1/auth/config"],
+    ]
+
+    repair_plan = build_doctor_repair_plan(paths=paths, mode="dev", resolved_target=None)
+
+    assert repair_plan.actions == (
+        f"{COMPOSE_SCRIPT} up --profile db-only",
+        f"{DEV_SCRIPT} --daemon",
+    )
+    assert repair_plan.commands == (
+        [COMPOSE_SCRIPT, "up", "--profile", "db-only"],
+        [DEV_SCRIPT, "--daemon"],
     )
 
 

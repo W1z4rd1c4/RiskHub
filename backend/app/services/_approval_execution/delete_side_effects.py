@@ -17,6 +17,7 @@ from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.models.control import ControlStatus
 from app.models.risk import RiskStatus as RiskStatusEnum
 
+from .helpers import missing_resource_auto_rejection
 from .loading import get_approval_department_id
 from .results import SideEffectResult
 
@@ -37,9 +38,7 @@ async def _apply_delete_side_effects(
         risk_result = await db.execute(select(Risk).where(Risk.id == approval.resource_id))
         risk = risk_result.scalar_one_or_none()
         if not risk:
-            # Orphaned approval - resource was deleted externally
-            logger.warning(f"Approval #{approval.id}: Risk {approval.resource_id} no longer exists")
-            return SideEffectResult.auto_rejected("Resource was deleted before approval could be applied.")
+            return missing_resource_auto_rejection(approval, resource_label="Risk", logger=logger)
 
         old_status = risk.status
         risk.status = RiskStatusEnum.archived.value
@@ -61,9 +60,7 @@ async def _apply_delete_side_effects(
         control_result = await db.execute(select(Control).where(Control.id == approval.resource_id))
         control = control_result.scalar_one_or_none()
         if not control:
-            # Orphaned approval - resource was deleted externally
-            logger.warning(f"Approval #{approval.id}: Control {approval.resource_id} no longer exists")
-            return SideEffectResult.auto_rejected("Resource was deleted before approval could be applied.")
+            return missing_resource_auto_rejection(approval, resource_label="Control", logger=logger)
 
         old_status = control.status
         control.status = ControlStatus.archived.value
@@ -85,9 +82,7 @@ async def _apply_delete_side_effects(
         kri_result = await db.execute(select(KeyRiskIndicator).where(KeyRiskIndicator.id == approval.resource_id))
         kri = kri_result.scalar_one_or_none()
         if not kri:
-            # Orphaned approval - resource was deleted externally
-            logger.warning(f"Approval #{approval.id}: KRI {approval.resource_id} no longer exists")
-            return SideEffectResult.auto_rejected("Resource was deleted before approval could be applied.")
+            return missing_resource_auto_rejection(approval, resource_label="KRI", logger=logger)
 
         old_is_archived = kri.is_archived
         kri.is_archived = True

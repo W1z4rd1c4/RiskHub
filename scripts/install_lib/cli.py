@@ -3,8 +3,9 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from install_lib.common import SharedOptions, get_paths, show_help, run_command
+from install_lib.common import SharedOptions, get_paths, run_command, show_help
 from install_lib.doctor import run_doctor
+from install_lib.lifecycle import build_logs_command
 from install_lib.production import run_demo, run_dev, run_production, run_upgrade, run_verify
 from install_lib.runtime_state import resolve_production_target
 from install_lib.status import run_status
@@ -87,7 +88,11 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def _shared_options(args: argparse.Namespace) -> SharedOptions:
-    return SharedOptions(dry_run=bool(getattr(args, "dry_run", False)), yes=bool(getattr(args, "yes", False)), verbose=bool(getattr(args, "verbose", False)))
+    return SharedOptions(
+        dry_run=bool(getattr(args, "dry_run", False)),
+        yes=bool(getattr(args, "yes", False)),
+        verbose=bool(getattr(args, "verbose", False)),
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -171,23 +176,16 @@ def main(argv: list[str] | None = None) -> int:
             )
             return 0
         if args.command == "logs":
-            if args.mode == "demo":
-                command = [paths.compose_script, "logs", "--tail", args.tail]
-                if args.follow:
-                    command.append("--follow")
-                run_command(command, options=options)
-                return 0
-            if args.mode == "dev":
-                command = ["tail", "-n", args.tail]
-                if args.follow:
-                    command.append("-f")
-                command.extend([str(paths.repo_root / ".dev-backend.log"), str(paths.repo_root / ".dev-frontend.log")])
-                run_command(command, options=options)
-                return 0
-            resolved_target = resolve_production_target(paths, args.target, runtime_dir)
-            command = [paths.deploy_script, "logs", "--target", resolved_target, "--service", "all", "--tail", args.tail]
-            if args.follow:
-                command.append("--follow")
+            resolved_target = None
+            if args.mode not in {"demo", "dev"}:
+                resolved_target = resolve_production_target(paths, args.target, runtime_dir)
+            command = build_logs_command(
+                paths=paths,
+                mode=args.mode or "",
+                resolved_target=resolved_target,
+                tail=args.tail,
+                follow=args.follow,
+            )
             run_command(command, options=options)
             return 0
         if args.command == "doctor":

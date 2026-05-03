@@ -15,8 +15,8 @@ from .filters import (
     _filter_rows_by_risk_criteria,
     _prefilter_department_id_for_as_of,
 )
+from .pipeline import ExportPipelineDefinition, ExportRow, render_export_pipeline
 from .rehydrate import _rehydrate_department_names, _rehydrate_user_names
-from .render import _render_export
 from .rows import _risk_to_row
 
 
@@ -35,56 +35,73 @@ async def _export_risks(
     fetch_department_id = _prefilter_department_id_for_as_of(as_of_date, department_id)
     models = await _fetch_risks_for_export(db, current_user=current_user, department_id=fetch_department_id)
     rows = [_risk_to_row(risk) for risk in models]
-    rows = await ExportSnapshotService.apply_as_of_snapshot(
-        db,
-        rows=rows,
-        entity_type=ActivityEntityType.RISK,
+
+    async def apply_final_scope(current_rows: list[ExportRow]) -> list[ExportRow]:
+        extra_visible_ids: set[int] = set()
+        if department_id is None:
+            extra_visible_ids.update(await get_risk_ids_where_kri_reporting_owner(db, current_user.id))
+            extra_visible_ids.update(await get_risk_ids_where_control_owner(db, current_user.id))
+        return _filter_rows_by_final_scope(
+            current_rows,
+            current_user=current_user,
+            department_id=department_id,
+            owner_field="owner_id",
+            extra_visible_ids=extra_visible_ids,
+        )
+
+    return await render_export_pipeline(
+        definition=ExportPipelineDefinition(
+            title=f"Risk Export (as of {as_of_date.isoformat()})",
+            sheet_name="Risks",
+            filename_base="risks",
+            headers=[
+                "Risk ID",
+                "Name",
+                "Process",
+                "Category",
+                "Type",
+                "Gross Score",
+                "Net Score",
+                "Status",
+                "Priority",
+                "Owner",
+                "Department",
+                "Controls",
+                "KRIs",
+            ],
+        ),
+        export_format=export_format,
         as_of_date=as_of_date,
-    )
-    rows = await _rehydrate_user_names(db, rows, user_id_field="owner_id", user_name_field="owner_name")
-    rows = await _rehydrate_department_names(
-        db,
-        rows,
-        department_id_field="department_id",
-        department_name_field="department_name",
-    )
-
-    extra_visible_ids: set[int] = set()
-    if department_id is None:
-        extra_visible_ids.update(await get_risk_ids_where_kri_reporting_owner(db, current_user.id))
-        extra_visible_ids.update(await get_risk_ids_where_control_owner(db, current_user.id))
-    rows = _filter_rows_by_final_scope(
-        rows,
-        current_user=current_user,
-        department_id=department_id,
-        owner_field="owner_id",
-        extra_visible_ids=extra_visible_ids,
-    )
-    rows = _filter_rows_by_risk_criteria(
-        rows,
-        status_filter=status_filter,
-        search=search,
-        risk_type=risk_type,
-        is_priority=is_priority,
-    )
-
-    headers = [
-        "Risk ID",
-        "Name",
-        "Process",
-        "Category",
-        "Type",
-        "Gross Score",
-        "Net Score",
-        "Status",
-        "Priority",
-        "Owner",
-        "Department",
-        "Controls",
-        "KRIs",
-    ]
-    data_rows = [
-        [
+        rows=rows,
+        stages=[
+            lambda current_rows: ExportSnapshotService.apply_as_of_snapshot(
+                db,
+                rows=current_rows,
+                entity_type=ActivityEntityType.RISK,
+                as_of_date=as_of_date,
+            ),
+            lambda current_rows: _rehydrate_user_names(
+                db,
+                current_rows,
+                user_id_field="owner_id",
+                user_name_field="owner_name",
+            ),
+            lambda current_rows: _rehydrate_department_names(
+                db,
+                current_rows,
+                department_id_field="department_id",
+                department_name_field="department_name",
+            ),
+            apply_final_scope,
+            lambda current_rows: _filter_rows_by_risk_criteria(
+                current_rows,
+                status_filter=status_filter,
+                search=search,
+                risk_type=risk_type,
+                is_priority=is_priority,
+            ),
+        ],
+        row_values=lambda row: [
             row.get("risk_id_code"),
             row.get("name"),
             row.get("process"),
@@ -98,16 +115,5 @@ async def _export_risks(
             row.get("department_name"),
             row.get("control_count"),
             row.get("kri_count"),
-        ]
-        for row in rows
-    ]
-
-    return _render_export(
-        title=f"Risk Export (as of {as_of_date.isoformat()})",
-        sheet_name="Risks",
-        filename_base="risks",
-        export_format=export_format,
-        headers=headers,
-        data_rows=data_rows,
-        as_of_date=as_of_date,
+        ],
     )

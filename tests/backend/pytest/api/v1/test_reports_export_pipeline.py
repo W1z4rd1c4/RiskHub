@@ -1,11 +1,18 @@
 """Tests for unified export pipeline orchestration helpers."""
 
 from datetime import date
+from inspect import getsource
 from typing import Any
 
 import pytest
 from fastapi.responses import StreamingResponse
 
+from app.api.v1.endpoints.reports.unified_exports import (
+    export_controls,
+    export_issues,
+    export_kris,
+    export_risks,
+)
 from app.api.v1.endpoints.reports.unified_exports.pipeline import (
     ExportPipelineDefinition,
     apply_export_stages,
@@ -67,3 +74,18 @@ async def test_render_export_pipeline_filters_rows_and_hands_off_render_payload(
     assert captured["headers"] == ["Name", "Status"]
     assert captured["data_rows"] == [["Keep", "active"]]
     assert captured["as_of_date"] == date(2026, 4, 24)
+
+
+def test_tabular_exporters_delegate_rendering_to_shared_pipeline():
+    exporter_functions = [
+        export_risks._export_risks,
+        export_controls._export_controls,
+        export_kris._export_kris,
+        export_issues._export_issues,
+    ]
+
+    for exporter in exporter_functions:
+        source = getsource(exporter)
+
+        assert "render_export_pipeline(" in source
+        assert "_render_export(" not in source

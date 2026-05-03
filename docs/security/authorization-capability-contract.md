@@ -133,6 +133,7 @@ If the verification path changes, update [`../TESTING.md`](../TESTING.md).
 | `backend/app/services/_kri_history/loading.py`, `submission.py`, and `value_application.py` | KRI value intake loading, approval submission, direct recording, linked-vendor visibility, and response capability projection. |
 | `backend/app/services/_orphaned_items/resolution_plan.py` | Shared orphan resolution requirements and dry-run/apply plan semantics. |
 | `backend/app/services/_admin_telemetry/` | Admin operations telemetry projection helpers for scheduler/outbox/session/log payloads. |
+| `backend/app/api/v1/endpoints/_collection_execution.py`, `backend/app/api/v1/endpoints/reports/unified_exports/pipeline.py`, `backend/app/services/_approval_execution/helpers.py`, and `scripts/security/authz_contract_manifest.py` | 2026-05-03 architecture-only refactor: collection listing execution, tabular report export rendering, approval side-effect helper reuse, and validator static data moved behind deeper Modules. User-visible authorization policy and capability semantics unchanged. |
 | `frontend/src/lib/capabilities.ts` | Backend-first capability fallback resolver. |
 | `frontend/src/authz/policy.ts` | Local route/navigation policy projection that mirrors backend policy. |
 | `docs/TESTING.md` | Existing RBAC, authz, capability, report, dashboard, vendor, KRI, questionnaire, and access verification lanes. |

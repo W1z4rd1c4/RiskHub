@@ -7,6 +7,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 VALIDATOR_PATH = REPO_ROOT / "scripts/security/validate_authz_capability_contract.py"
+AUTHZ_CONTRACT_MANIFEST_PATH = REPO_ROOT / "scripts/security/authz_contract_manifest.py"
 CONTRACT_MD_PATH = REPO_ROOT / "docs/security/authorization-capability-contract.md"
 CONTRACT_JSON_PATH = REPO_ROOT / "docs/security/authorization-capability-contract.json"
 
@@ -22,6 +23,29 @@ def _load_validator():
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     return module
+
+
+def _load_authz_contract_manifest():
+    spec = importlib.util.spec_from_file_location(
+        "authz_contract_manifest",
+        AUTHZ_CONTRACT_MANIFEST_PATH,
+    )
+    assert spec is not None
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_authz_contract_manifest_exports_local_gate_policy_data() -> None:
+    manifest = _load_authz_contract_manifest()
+
+    assert "frontend/src/authz/policy.ts" in manifest.FRONTEND_LOCAL_GATE_CLASSIFICATIONS
+    assert "risk-hub" in manifest.BUSINESS_ROUTE_NAV_EXPECTATIONS
+    for classification in manifest.FRONTEND_LOCAL_GATE_CLASSIFICATIONS.values():
+        assert classification["reason"]
+        assert classification["allowed_patterns"]
 
 
 def test_authorization_capability_contract_is_valid() -> None:

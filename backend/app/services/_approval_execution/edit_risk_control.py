@@ -4,13 +4,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import activity_logger
-from app.core.owner_reference_validation import validate_active_owner_reference
 from app.models import ApprovalRequest, ApprovalResourceType, Control, Risk, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 
 from .constants import EDITABLE_FIELDS
+from .helpers import apply_whitelisted_pending_changes, missing_resource_auto_rejection
 from .results import SideEffectResult
-from .staleness import reject_if_stale_pending_change
 
 logger = logging.getLogger("app.services.approval_execution_service")
 
@@ -33,35 +32,21 @@ async def _apply_edit_risk_control(
         risk_result = await db.execute(select(Risk).where(Risk.id == approval.resource_id))
         risk = risk_result.scalar_one_or_none()
         if not risk:
-            logger.warning("Approval #%s: Risk %s no longer exists", approval.id, approval.resource_id)
-            return SideEffectResult.auto_rejected("Resource was deleted before approval could be applied.")
+            return missing_resource_auto_rejection(approval, resource_label="Risk", logger=logger)
         if risk:
             allowed_fields = EDITABLE_FIELDS.get("risk", set())
-            risk_applied_changes: dict = {}
-            risk_rejected_fields: list[str] = []
-
-            stale_result = reject_if_stale_pending_change(
-                approval,
+            field_changes = await apply_whitelisted_pending_changes(
+                db,
+                approval=approval,
                 target=risk,
                 changes=changes,
                 allowed_fields=allowed_fields,
+                owner_field_labels={"owner_id": "Risk owner"},
             )
-            if stale_result is not None:
-                return stale_result
-
-            for field, vals in changes.items():
-                if field not in allowed_fields:
-                    risk_rejected_fields.append(field)
-                    continue
-                if field == "owner_id":
-                    await validate_active_owner_reference(
-                        db,
-                        user_id=vals.get("new"),
-                        label="Risk owner",
-                    )
-                if hasattr(risk, field):
-                    setattr(risk, field, vals.get("new"))
-                    risk_applied_changes[field] = vals
+            if field_changes.stale_result is not None:
+                return field_changes.stale_result
+            risk_applied_changes = field_changes.applied_changes
+            risk_rejected_fields = field_changes.rejected_fields
 
             # Log rejected fields (security audit, no values logged)
             if risk_rejected_fields:
@@ -104,35 +89,21 @@ async def _apply_edit_risk_control(
         control_result = await db.execute(select(Control).where(Control.id == approval.resource_id))
         control = control_result.scalar_one_or_none()
         if not control:
-            logger.warning("Approval #%s: Control %s no longer exists", approval.id, approval.resource_id)
-            return SideEffectResult.auto_rejected("Resource was deleted before approval could be applied.")
+            return missing_resource_auto_rejection(approval, resource_label="Control", logger=logger)
         if control:
             allowed_fields = EDITABLE_FIELDS.get("control", set())
-            control_applied_changes: dict = {}
-            control_rejected_fields: list[str] = []
-
-            stale_result = reject_if_stale_pending_change(
-                approval,
+            field_changes = await apply_whitelisted_pending_changes(
+                db,
+                approval=approval,
                 target=control,
                 changes=changes,
                 allowed_fields=allowed_fields,
+                owner_field_labels={"control_owner_id": "Control owner"},
             )
-            if stale_result is not None:
-                return stale_result
-
-            for field, vals in changes.items():
-                if field not in allowed_fields:
-                    control_rejected_fields.append(field)
-                    continue
-                if field == "control_owner_id":
-                    await validate_active_owner_reference(
-                        db,
-                        user_id=vals.get("new"),
-                        label="Control owner",
-                    )
-                if hasattr(control, field):
-                    setattr(control, field, vals.get("new"))
-                    control_applied_changes[field] = vals
+            if field_changes.stale_result is not None:
+                return field_changes.stale_result
+            control_applied_changes = field_changes.applied_changes
+            control_rejected_fields = field_changes.rejected_fields
 
             # Log rejected fields (security audit, no values logged)
             if control_rejected_fields:

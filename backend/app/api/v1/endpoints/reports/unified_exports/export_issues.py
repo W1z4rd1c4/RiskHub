@@ -9,7 +9,7 @@ from app.models.issue import IssueSeverity, IssueStatus
 
 from ._shared import ExportFormat, _as_of_datetime
 from .fetch import _fetch_issues_for_export
-from .render import _render_export
+from .pipeline import ExportPipelineDefinition, ExportRow, render_export_pipeline
 from .rows import _issue_to_row
 
 
@@ -39,40 +39,52 @@ async def _export_issues(
     )
     as_of_dt = _as_of_datetime(as_of_date)
     rows = [_issue_to_row(issue, as_of_dt=as_of_dt, current_user=current_user) for issue in models]
-    if overdue_only:
-        rows = [row for row in rows if bool(row.get("is_overdue"))]
 
-    headers = [
-        "Issue ID",
-        "Title",
-        "Status",
-        "Severity",
-        "Source Type",
-        "Source ID",
-        "Source Display",
-        "Source Link Type",
-        "Source Link Label",
-        "Department",
-        "Owner",
-        "Due At",
-        "Overdue",
-        "Age (days)",
-        "Linked Risk IDs",
-        "Linked Risks",
-        "Linked Control IDs",
-        "Linked Controls",
-        "Linked Execution IDs",
-        "Linked KRI IDs",
-        "Linked KRIs",
-        "Remediation Status",
-        "Remediation Progress",
-        "Remediation Owner",
-        "Remediation Target Date",
-        "Exception Status",
-        "Exception Expires At",
-    ]
-    data_rows = [
-        [
+    def apply_overdue_filter(current_rows: list[ExportRow]) -> list[ExportRow]:
+        if overdue_only:
+            return [row for row in current_rows if bool(row.get("is_overdue"))]
+        return current_rows
+
+    return await render_export_pipeline(
+        definition=ExportPipelineDefinition(
+            title=f"Issue Export (as of {as_of_date.isoformat()})",
+            sheet_name="Issues",
+            filename_base="issues",
+            headers=[
+                "Issue ID",
+                "Title",
+                "Status",
+                "Severity",
+                "Source Type",
+                "Source ID",
+                "Source Display",
+                "Source Link Type",
+                "Source Link Label",
+                "Department",
+                "Owner",
+                "Due At",
+                "Overdue",
+                "Age (days)",
+                "Linked Risk IDs",
+                "Linked Risks",
+                "Linked Control IDs",
+                "Linked Controls",
+                "Linked Execution IDs",
+                "Linked KRI IDs",
+                "Linked KRIs",
+                "Remediation Status",
+                "Remediation Progress",
+                "Remediation Owner",
+                "Remediation Target Date",
+                "Exception Status",
+                "Exception Expires At",
+            ],
+        ),
+        export_format=export_format,
+        as_of_date=as_of_date,
+        rows=rows,
+        stages=[apply_overdue_filter],
+        row_values=lambda row: [
             row.get("id"),
             row.get("title"),
             row.get("status"),
@@ -100,16 +112,5 @@ async def _export_issues(
             row.get("remediation_target_date"),
             row.get("exception_status"),
             row.get("exception_expires_at"),
-        ]
-        for row in rows
-    ]
-
-    return _render_export(
-        title=f"Issue Export (as of {as_of_date.isoformat()})",
-        sheet_name="Issues",
-        filename_base="issues",
-        export_format=export_format,
-        headers=headers,
-        data_rows=data_rows,
-        as_of_date=as_of_date,
+        ],
     )

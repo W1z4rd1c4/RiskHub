@@ -10,14 +10,10 @@ from sqlalchemy.orm import selectinload
 from app.api import deps
 from app.api.mappers.vendor import vendor_list_response, vendor_to_read
 from app.api.v1.endpoints._collection import (
-    is_group_summary_request,
     parse_collection_query,
 )
 from app.api.v1.endpoints._collection_execution import (
-    apply_collection_group_filter,
-    build_collection_response,
-    count_collection_rows,
-    load_collection_scalars_page,
+    execute_collection_listing,
 )
 from app.core.activity_logger import build_change_set, log_activity
 from app.core.permissions import can_read_vendor, is_vendor_owner, risk_visibility_clause
@@ -50,6 +46,7 @@ from ._listing import (
     apply_vendor_list_filters,
     coerce_vendor_list_criteria,
     serialize_vendor_linked_risks,
+    serialize_vendor_reads,
     vendor_order_column,
 )
 from ._listing import (
@@ -344,25 +341,18 @@ async def list_vendors(
     )
 
     filtered_vendor_ids = base_query.with_only_columns(Vendor.id).order_by(None).subquery()
+    ordered_query = base_query.options(*query_options)
 
-    if collection_query.group_by:
-        groups = await _load_vendor_sql_groups(
+    async def load_sql_groups(group_by: str):
+        return await _load_vendor_sql_groups(
             db,
             filtered_vendor_ids,
-            collection_query.group_by,
+            group_by,
             current_user=current_user,
             can_read_risks=can_read_risks,
         )
-        if is_group_summary_request(collection_query):
-            return build_collection_response(
-                VendorListResponse,
-                query=collection_query,
-                items=[],
-                total=total,
-                groups=groups,
-                capabilities=collection_capabilities,
-            )
 
+    async def build_sql_group_filter(group_by: str, group_value: str | None):
         risk_context = (
             await _visible_vendor_risk_context(
                 db,
@@ -370,66 +360,55 @@ async def list_vendors(
                 current_user,
                 can_read_risks=can_read_risks,
             )
-            if collection_query.group_by == "risk"
+            if group_by == "risk"
             else None
         )
-        group_filter = _vendor_group_value_filter(
-            collection_query.group_by,
-            collection_query.group_value or "",
+        return _vendor_group_value_filter(
+            group_by,
+            group_value or "",
             risk_context=risk_context,
         )
-        grouped_base_query = apply_collection_group_filter(base_query, group_filter)
-        grouped_count = await count_collection_rows(db, grouped_base_query)
-        grouped_order = desc(order_column) if criteria.sort_order == "desc" else asc(order_column)
-        grouped_query = grouped_base_query.order_by(grouped_order)
-        grouped_query = grouped_query.options(*query_options)
-        vendors = await load_collection_scalars_page(
+
+    async def serialize_vendors(vendors):
+        return await serialize_vendor_reads(
             db,
-            grouped_query,
-            offset=criteria.offset,
-            limit=criteria.limit,
+            list(vendors),
+            current_user=current_user,
+            can_read_risks=can_read_risks,
         )
+
+    async def serialize_grouped_vendors(vendors):
+        vendors = list(vendors)
         visible_risk_ids = (
             await _get_visible_risk_ids(db, current_user=current_user, vendors=vendors)
             if can_read_risks
             else set()
         )
         linked_risks_by_vendor_id = serialize_vendor_linked_risks(vendors, visible_risk_ids=visible_risk_ids)
-        items = vendor_list_response(
+        return vendor_list_response(
             vendors=vendors,
-            total=grouped_count,
+            total=0,
             offset=criteria.offset,
             limit=criteria.limit,
             current_user=current_user,
             linked_risks_by_vendor_id=linked_risks_by_vendor_id,
             capabilities=collection_capabilities,
         ).items
-        return build_collection_response(
-            VendorListResponse,
-            query=collection_query,
-            items=items,
-            total=grouped_count,
-            groups=groups,
-            capabilities=collection_capabilities,
-        )
 
-    ordered_query = base_query.options(*query_options)
-    result = await db.execute(ordered_query.offset(criteria.offset).limit(criteria.limit))
-    vendors = result.scalars().all()
+    sql_group_keys = {collection_query.group_by} if collection_query.group_by else frozenset()
 
-    visible_risk_ids = (
-        await _get_visible_risk_ids(db, current_user=current_user, vendors=list(vendors)) if can_read_risks else set()
-    )
-    linked_risks_by_vendor_id = serialize_vendor_linked_risks(list(vendors), visible_risk_ids=visible_risk_ids)
-
-    return vendor_list_response(
-        vendors=list(vendors),
-        total=total,
-        offset=criteria.offset,
-        limit=criteria.limit,
-        current_user=current_user,
-        linked_risks_by_vendor_id=linked_risks_by_vendor_id,
+    return await execute_collection_listing(
+        db=db,
+        response_model=VendorListResponse,
+        query=collection_query,
+        ordered_query=ordered_query,
         capabilities=collection_capabilities,
+        serialize_items=serialize_vendors,
+        serialize_sql_items=serialize_grouped_vendors,
+        total=total,
+        sql_group_keys=sql_group_keys,
+        load_sql_groups=load_sql_groups,
+        build_sql_group_filter=build_sql_group_filter,
     )
 
 

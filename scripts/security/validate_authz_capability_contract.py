@@ -10,9 +10,19 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Mapping, TypedDict
+from typing import Any, Mapping
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+from authz_contract_manifest import (  # noqa: E402
+    BUSINESS_ROUTE_NAV_EXPECTATIONS,
+    FRONTEND_LOCAL_GATE_CLASSIFICATIONS,
+    FrontendLocalGateClassification,
+)
+
 CONTRACT_MD = Path("docs/security/authorization-capability-contract.md")
 CONTRACT_JSON = Path("docs/security/authorization-capability-contract.json")
 CAPABILITY_CATALOG_JSON = Path("docs/security/capability-catalog.json")
@@ -42,11 +52,6 @@ REQUIRED_ACTION_FIELDS = (
     "status",
     "findings",
 )
-
-
-class FrontendLocalGateClassification(TypedDict):
-    reason: str
-    allowed_patterns: tuple[str, ...]
 
 
 VALID_STATUSES = {"authoritative", "local_fallback", "needs_review"}
@@ -81,61 +86,6 @@ DISCOVERY_ALLOWLIST: dict[str, str] = {
         "Uses a same-named local helper to filter displayed permission strings; "
         "it is not an authorization decision point."
     ),
-}
-FRONTEND_LOCAL_GATE_CLASSIFICATIONS: dict[str, FrontendLocalGateClassification] = {
-    "frontend/src/authz/policy.ts": {
-        "reason": "Route and navigation policy projection from the session.",
-        "allowed_patterns": (
-            r"const canViewUserDirectory = hasPermission\('users', 'read'\);",
-            r"const canViewGovernance = !isPlatformAdmin && hasGlobalScope && hasPermission\('users', 'write'\);",
-            r"const canViewActivityLog = !isPlatformAdmin && hasPermission\('activity_log', 'read'\);",
-            r"const canReadRisks = hasPermission\('risks', 'read'\);",
-            r"const canReadControls = hasPermission\('controls', 'read'\);",
-            r"const canReadVendors = hasPermission\('vendors', 'read'\);",
-            r"const canReadDepartments = hasPermission\('departments', 'read'\);",
-        ),
-    },
-    "frontend/src/routing/business.tsx": {
-        "reason": "Business route navigation visibility only.",
-        "allowed_patterns": (
-            r"isVisible: \(\{ authz, hasPermission \}\) => !authz\.isPlatformAdmin && "
-            r"hasPermission\('controls', 'read'\),",
-            r"isVisible: \(\{ authz, hasPermission \}\) => !authz\.isPlatformAdmin && "
-            r"hasPermission\('risks', 'read'\),",
-            r"isVisible: \(\{ authz, hasPermission \}\) => !authz\.isPlatformAdmin && "
-            r"hasPermission\('issues', 'read'\),",
-            r"isVisible: \(\{ authz, hasPermission \}\) => !authz\.isPlatformAdmin && "
-            r"hasPermission\('vendors', 'read'\),",
-            r"isVisible: \(\{ authz, hasPermission \}\) => !authz\.isPlatformAdmin && "
-            r"hasPermission\('departments', 'read'\),",
-        ),
-    },
-    "frontend/src/components/layout/Sidebar.tsx": {
-        "reason": "Navigation visibility only.",
-        "allowed_patterns": (
-            r"import \{ usePermissions \} from '@/hooks/usePermissions';",
-            r"const \{ hasPermission \} = usePermissions\(\);",
-            r"const navigation = getSidebarNavRoutes\(\{ authz, hasPermission \}\)\.map\(\(route\) => \{",
-        ),
-    },
-    "frontend/src/hooks/usePermissions.ts": {
-        "reason": "Session permission projection helper.",
-        "allowed_patterns": (
-            r"export function usePermissions\(\) \{",
-        ),
-    },
-}
-BUSINESS_ROUTE_NAV_EXPECTATIONS: dict[str, str] = {
-    "approvals": "({ authz }) => !authz.isPlatformAdmin",
-    "controls": "({ authz, hasPermission }) => !authz.isPlatformAdmin && hasPermission('controls', 'read')",
-    "risks": "({ authz, hasPermission }) => !authz.isPlatformAdmin && hasPermission('risks', 'read')",
-    "issues": "({ authz, hasPermission }) => !authz.isPlatformAdmin && hasPermission('issues', 'read')",
-    "kris": "({ authz, hasPermission }) => !authz.isPlatformAdmin && hasPermission('risks', 'read')",
-    "vendors": "({ authz, hasPermission }) => !authz.isPlatformAdmin && hasPermission('vendors', 'read')",
-    "departments": "({ authz, hasPermission }) => !authz.isPlatformAdmin && hasPermission('departments', 'read')",
-    "governance": "({ authz }) => authz.canViewGovernance",
-    "activity-log": "({ authz }) => authz.canViewActivityLog",
-    "risk-hub": "({ authz }) => authz.canViewRiskHub",
 }
 MATRIX_FIELD_MAP = {
     "ID": "id",

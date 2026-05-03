@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.mappers.risk import risk_to_summary
+from app.api.v1.endpoints import _collection_execution as collection_exec
 from app.api.v1.endpoints._collection import (
     CollectionGroupEntry,
     build_grouped_collection_page,
@@ -14,9 +15,7 @@ from app.api.v1.endpoints._collection import (
     coerce_optional_enum,
     coerce_optional_int,
     coerce_optional_string,
-    is_group_summary_request,
 )
-from app.api.v1.endpoints import _collection_execution as collection_exec
 from app.core.permissions import can_read_vendor, get_user_department_ids, vendor_visibility_clause
 from app.core.security import check_permission, require_permission
 from app.db.session import get_db
@@ -258,8 +257,6 @@ async def list_risks(
     min_net_score = coerce_optional_int("min_net_score", filter_values.get("min_net_score"), min_value=0, max_value=25)
     process = coerce_optional_string("process", filter_values.get("process"))
     category = coerce_optional_string("category", filter_values.get("category"))
-    offset = collection_query.offset
-    limit = collection_query.limit
     sort_by = collection_query.sort.field if collection_query.sort else sort_by
     sort_order = collection_query.sort.direction if collection_query.sort else sort_order
 
@@ -448,77 +445,48 @@ async def list_risks(
         return items
 
     ordered_query = base_query.options(*query_options)
+    filtered_ids = base_query.with_only_columns(Risk.id).order_by(None).subquery()
 
-    if collection_query.group_by and collection_query.group_by in RISK_SQL_GROUPS:
-        filtered_ids = base_query.with_only_columns(Risk.id).order_by(None).subquery()
-        vendor_context = (
-            _visible_risk_vendor_context(filtered_ids, current_user, can_read_vendors=can_read_vendors)
-            if collection_query.group_by == "vendor"
-            else None
-        )
-        groups = await _load_risk_sql_groups(
+    async def load_sql_groups(group_by: str):
+        return await _load_risk_sql_groups(
             db,
             filtered_ids,
-            collection_query.group_by,
+            group_by,
             current_user=current_user,
             can_read_vendors=can_read_vendors,
         )
-        grouped_total = total
 
-        if is_group_summary_request(collection_query):
-            return collection_exec.build_collection_response(
-                RiskListResponse,
-                query=collection_query,
-                items=[],
-                total=grouped_total,
-                groups=groups,
-                capabilities=collection_capabilities,
-            )
-
-        group_filter = _risk_group_value_filter(
-            collection_query.group_by,
-            collection_query.group_value,
+    def build_sql_group_filter(group_by: str, group_value: str | None):
+        vendor_context = (
+            _visible_risk_vendor_context(filtered_ids, current_user, can_read_vendors=can_read_vendors)
+            if group_by == "vendor"
+            else None
+        )
+        return _risk_group_value_filter(
+            group_by,
+            group_value or "",
             vendor_context=vendor_context,
         )
-        grouped_query = collection_exec.apply_collection_group_filter(ordered_query, group_filter)
-        grouped_total = await collection_exec.count_collection_rows(db, grouped_query)
-        risks = await collection_exec.load_collection_scalars_page(db, grouped_query, offset=offset, limit=limit)
-        paginated_items = await serialize_risks(risks)
-        return collection_exec.build_collection_response(
-            RiskListResponse,
-            query=collection_query,
-            items=paginated_items,
-            total=grouped_total,
-            groups=groups,
-            capabilities=collection_capabilities,
-        )
 
-    if collection_query.group_by:
-        result = await db.execute(ordered_query)
-        all_items = await serialize_risks(list(result.scalars().all()))
-        paginated_items, grouped_total, groups = build_grouped_collection_page(
+    def build_in_memory_grouped_page(all_items, query):
+        return build_grouped_collection_page(
             all_items,
-            collection_query,
+            query,
             get_entries=_risk_group_entries,
             is_active=lambda risk: risk.status == RiskStatusEnum.active.value,
             is_highlighted=lambda risk: risk.net_score >= 16,
         )
-        return collection_exec.build_collection_response(
-            RiskListResponse,
-            query=collection_query,
-            items=paginated_items,
-            total=grouped_total,
-            groups=groups,
-            capabilities=collection_capabilities,
-        )
 
-    risks = await collection_exec.load_collection_scalars_page(db, ordered_query, offset=offset, limit=limit)
-    items = await serialize_risks(risks)
-
-    return collection_exec.build_collection_response(
-        RiskListResponse,
+    return await collection_exec.execute_collection_listing(
+        db=db,
+        response_model=RiskListResponse,
         query=collection_query,
-        items=items,
-        total=total,
+        ordered_query=ordered_query,
         capabilities=collection_capabilities,
+        serialize_items=serialize_risks,
+        total=total,
+        sql_group_keys=RISK_SQL_GROUPS,
+        load_sql_groups=load_sql_groups,
+        build_sql_group_filter=build_sql_group_filter,
+        build_in_memory_grouped_page=build_in_memory_grouped_page,
     )

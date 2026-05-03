@@ -16,8 +16,8 @@ from .filters import (
     _filter_rows_by_final_scope,
     _prefilter_department_id_for_as_of,
 )
+from .pipeline import ExportPipelineDefinition, ExportRow, render_export_pipeline
 from .rehydrate import _rehydrate_department_names, _rehydrate_user_names
-from .render import _render_export
 from .rows import _control_to_row
 
 
@@ -35,58 +35,71 @@ async def _export_controls(
     fetch_department_id = _prefilter_department_id_for_as_of(as_of_date, department_id)
     models = await _fetch_controls_for_export(db, current_user=current_user, department_id=fetch_department_id)
     rows = [_control_to_row(control) for control in models]
-    rows = await ExportSnapshotService.apply_as_of_snapshot(
-        db,
-        rows=rows,
-        entity_type=ActivityEntityType.CONTROL,
-        as_of_date=as_of_date,
-    )
-    rows = await _rehydrate_user_names(
-        db,
-        rows,
-        user_id_field="control_owner_id",
-        user_name_field="control_owner_name",
-    )
-    control_monitoring_config = await get_control_monitoring_config(db)
-    rows = _apply_control_monitoring_rows(rows, config=control_monitoring_config, as_of_date=as_of_date)
-    rows = await _rehydrate_department_names(
-        db,
-        rows,
-        department_id_field="department_id",
-        department_name_field="department_name",
-    )
-    rows = _filter_rows_by_final_scope(
-        rows,
-        current_user=current_user,
-        department_id=department_id,
-        owner_field="control_owner_id",
-    )
-    rows = _filter_rows_by_control_criteria(
-        rows,
-        status_filter=status_filter,
-        monitoring_status_filter=monitoring_status_filter,
-        search=search,
-    )
 
-    headers = [
-        "Name",
-        "Description",
-        "Department",
-        "Owner",
-        "Frequency",
-        "Form",
-        "Risk Level",
-        "Status",
-        "Monitoring Status",
-        "Latest Execution Result",
-        "Latest Executed At",
-        "Days Since Last Execution",
-        "Linked Risk",
-        "Linked Risk ID",
-        "Linked Risks",
-    ]
-    data_rows = [
-        [
+    async def apply_monitoring(current_rows: list[ExportRow]) -> list[ExportRow]:
+        control_monitoring_config = await get_control_monitoring_config(db)
+        return _apply_control_monitoring_rows(current_rows, config=control_monitoring_config, as_of_date=as_of_date)
+
+    return await render_export_pipeline(
+        definition=ExportPipelineDefinition(
+            title=f"Control Export (as of {as_of_date.isoformat()})",
+            sheet_name="Controls",
+            filename_base="controls",
+            headers=[
+                "Name",
+                "Description",
+                "Department",
+                "Owner",
+                "Frequency",
+                "Form",
+                "Risk Level",
+                "Status",
+                "Monitoring Status",
+                "Latest Execution Result",
+                "Latest Executed At",
+                "Days Since Last Execution",
+                "Linked Risk",
+                "Linked Risk ID",
+                "Linked Risks",
+            ],
+        ),
+        export_format=export_format,
+        as_of_date=as_of_date,
+        rows=rows,
+        stages=[
+            lambda current_rows: ExportSnapshotService.apply_as_of_snapshot(
+                db,
+                rows=current_rows,
+                entity_type=ActivityEntityType.CONTROL,
+                as_of_date=as_of_date,
+            ),
+            lambda current_rows: _rehydrate_user_names(
+                db,
+                current_rows,
+                user_id_field="control_owner_id",
+                user_name_field="control_owner_name",
+            ),
+            apply_monitoring,
+            lambda current_rows: _rehydrate_department_names(
+                db,
+                current_rows,
+                department_id_field="department_id",
+                department_name_field="department_name",
+            ),
+            lambda current_rows: _filter_rows_by_final_scope(
+                current_rows,
+                current_user=current_user,
+                department_id=department_id,
+                owner_field="control_owner_id",
+            ),
+            lambda current_rows: _filter_rows_by_control_criteria(
+                current_rows,
+                status_filter=status_filter,
+                monitoring_status_filter=monitoring_status_filter,
+                search=search,
+            ),
+        ],
+        row_values=lambda row: [
             row.get("name"),
             row.get("description"),
             row.get("department_name"),
@@ -102,16 +115,5 @@ async def _export_controls(
             row.get("risk_name"),
             row.get("risk_id_code"),
             row.get("linked_risk_count"),
-        ]
-        for row in rows
-    ]
-
-    return _render_export(
-        title=f"Control Export (as of {as_of_date.isoformat()})",
-        sheet_name="Controls",
-        filename_base="controls",
-        export_format=export_format,
-        headers=headers,
-        data_rows=data_rows,
-        as_of_date=as_of_date,
+        ],
     )

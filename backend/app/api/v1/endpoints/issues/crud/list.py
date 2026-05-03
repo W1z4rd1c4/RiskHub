@@ -5,6 +5,7 @@ from sqlalchemy import and_, false, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.api.v1.endpoints import _collection_execution as collection_exec
 from app.api.v1.endpoints._collection import (
     build_grouped_collection_page,
     build_list_context,
@@ -13,13 +14,6 @@ from app.api.v1.endpoints._collection import (
     coerce_optional_int,
     coerce_optional_literal,
     coerce_optional_string,
-    is_group_summary_request,
-)
-from app.api.v1.endpoints._collection_execution import (
-    apply_collection_group_filter,
-    build_collection_response,
-    count_collection_rows,
-    load_collection_scalars_page,
 )
 from app.core.datetime_utils import utc_now
 from app.core.permissions import (
@@ -43,7 +37,6 @@ from app.models import (
 )
 from app.models.issue import IssueSeverity, IssueStatus
 from app.schemas.issue import IssueListResponse
-from app.services.authorization_capabilities import issue_capabilities
 from app.services._issue_register import (
     ISSUE_SQL_GROUPS,
     issue_group_entries,
@@ -53,6 +46,7 @@ from app.services._issue_register import (
     load_issue_sql_groups,
     serialize_issue_summaries_for_actor,
 )
+from app.services.authorization_capabilities import issue_capabilities
 from app.services.issue_visibility_service import unsuppressed_issue_clause
 
 router = APIRouter()
@@ -127,8 +121,6 @@ async def list_issues(
     search = coerce_optional_string("search", filter_values.get("search"))
     include_closed_filter = coerce_optional_bool("include_closed", filter_values.get("include_closed"))
     include_closed = True if include_closed_filter is None else include_closed_filter
-    offset = collection_query.offset
-    limit = collection_query.limit
     sort_by = collection_query.sort.field if collection_query.sort else sort_by
     sort_order = collection_query.sort.direction if collection_query.sort else sort_order
     collection_capabilities = {
@@ -255,92 +247,53 @@ async def list_issues(
     )
 
     ordered_query = query.options(*query_options)
+    filtered_ids = query.with_only_columns(Issue.id).order_by(None).subquery()
 
-    if collection_query.group_by and collection_query.group_by in ISSUE_SQL_GROUPS:
-        filtered_ids = query.with_only_columns(Issue.id).order_by(None).subquery()
+    async def load_sql_groups(group_by: str):
+        return await load_issue_sql_groups(db, filtered_ids, group_by, current_user)
+
+    async def build_sql_group_filter(group_by: str, group_value: str | None):
         risk_context = (
-            await issue_risk_context_subquery(db, current_user, filtered_ids, collection_query.group_by)
-            if collection_query.group_by in {"category", "process", "risk_type", "type"}
+            await issue_risk_context_subquery(db, current_user, filtered_ids, group_by)
+            if group_by in {"category", "process", "risk_type", "type"}
             else None
         )
-        vendor_context = (
-            issue_vendor_context_subquery(current_user, filtered_ids)
-            if collection_query.group_by == "vendor"
-            else None
-        )
-        groups = await load_issue_sql_groups(db, filtered_ids, collection_query.group_by, current_user)
-        if is_group_summary_request(collection_query):
-            return build_collection_response(
-                IssueListResponse,
-                query=collection_query,
-                items=[],
-                total=total,
-                groups=groups,
-                capabilities=collection_capabilities,
-            )
-
-        group_filter = issue_group_filter(
-            collection_query.group_by,
-            collection_query.group_value or "",
+        vendor_context = issue_vendor_context_subquery(current_user, filtered_ids) if group_by == "vendor" else None
+        return issue_group_filter(
+            group_by,
+            group_value or "",
             risk_context=risk_context,
             vendor_context=vendor_context,
         )
-        grouped_query = ordered_query.outerjoin(Department, Department.id == Issue.department_id)
-        grouped_query = apply_collection_group_filter(grouped_query, group_filter)
-        grouped_total = await count_collection_rows(db, grouped_query)
-        issues = await load_collection_scalars_page(db, grouped_query, offset=offset, limit=limit)
-        items = await serialize_issue_summaries_for_actor(
+
+    async def serialize_issues(issues):
+        return await serialize_issue_summaries_for_actor(
             db,
             current_user=current_user,
             issues=issues,
             capability_loader=issue_capabilities,
-        )
-        return build_collection_response(
-            IssueListResponse,
-            query=collection_query,
-            items=items,
-            total=grouped_total,
-            groups=groups,
-            capabilities=collection_capabilities,
         )
 
-    if collection_query.group_by:
-        result = await db.execute(ordered_query)
-        issues = list(result.scalars().all())
-        all_items = await serialize_issue_summaries_for_actor(
-            db,
-            current_user=current_user,
-            issues=issues,
-            capability_loader=issue_capabilities,
-        )
-        paginated_items, grouped_total, groups = build_grouped_collection_page(
+    def build_in_memory_grouped_page(all_items, query):
+        return build_grouped_collection_page(
             all_items,
-            collection_query,
+            query,
             get_entries=issue_group_entries,
             is_active=lambda issue: issue.status != IssueStatus.closed.value,
             is_highlighted=lambda issue: issue.severity in {IssueSeverity.high.value, IssueSeverity.critical.value},
         )
-        return build_collection_response(
-            IssueListResponse,
-            query=collection_query,
-            items=paginated_items,
-            total=grouped_total,
-            groups=groups,
-            capabilities=collection_capabilities,
-        )
 
-    issues = await load_collection_scalars_page(db, ordered_query, offset=offset, limit=limit)
-    items = await serialize_issue_summaries_for_actor(
-        db,
-        current_user=current_user,
-        issues=issues,
-        capability_loader=issue_capabilities,
-    )
-
-    return build_collection_response(
-        IssueListResponse,
+    return await collection_exec.execute_collection_listing(
+        db=db,
+        response_model=IssueListResponse,
         query=collection_query,
-        items=items,
-        total=total,
+        ordered_query=ordered_query,
         capabilities=collection_capabilities,
+        serialize_items=serialize_issues,
+        total=total,
+        sql_group_keys=ISSUE_SQL_GROUPS,
+        load_sql_groups=load_sql_groups,
+        build_sql_group_filter=build_sql_group_filter,
+        sql_group_query_transform=lambda query: query.outerjoin(Department, Department.id == Issue.department_id),
+        build_in_memory_grouped_page=build_in_memory_grouped_page,
     )

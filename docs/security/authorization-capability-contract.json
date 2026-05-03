@@ -1,6 +1,10 @@
 {
   "version": "1.0",
   "last_reviewed": "2026-05-03",
+  "last_architecture_refactor_reviewed": "2026-05-03",
+  "architecture_refactor_notes": [
+    "2026-05-03: Collection listing execution, tabular report export rendering, approval side-effect helper reuse, and validator static data were moved behind deeper Modules. User-visible authorization policy and capability semantics are unchanged."
+  ],
   "owner": "RiskHub Maintainer",
   "capability_catalog": "docs/security/capability-catalog.json",
   "status_values": [

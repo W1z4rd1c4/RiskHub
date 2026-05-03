@@ -3,7 +3,16 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from install_lib.common import InstallPaths, SharedOptions, command_exists, curl_ok, port_listening, production_public_url, run_command, run_capture
+from install_lib.common import (
+    InstallPaths,
+    SharedOptions,
+    command_exists,
+    curl_ok,
+    port_listening,
+    run_capture,
+    run_command,
+)
+from install_lib.lifecycle import build_status_dry_run_commands
 from install_lib.runtime_state import docker_container_state, production_status_payload, resolve_production_target
 
 
@@ -68,34 +77,23 @@ def print_status_human(payload: dict) -> None:
         print(f"Docker ready: {'yes' if payload['docker_ready'] else 'no'}")
 
 
-def run_status(mode: str, *, target: str | None, config_path: Path, secret_dir: Path, runtime_dir: Path, json_output: bool, options: SharedOptions, paths: InstallPaths) -> None:
+def run_status(
+    mode: str,
+    *,
+    target: str | None,
+    config_path: Path,
+    secret_dir: Path,
+    runtime_dir: Path,
+    json_output: bool,
+    options: SharedOptions,
+    paths: InstallPaths,
+) -> None:
     if options.dry_run:
-        if mode == "demo":
-            for command in (
-                ["docker", "inspect", "riskhub-db"],
-                ["docker", "inspect", "riskhub-redis"],
-                ["docker", "inspect", "riskhub-backend"],
-                ["docker", "inspect", "riskhub-frontend"],
-                ["curl", "-fsS", "http://localhost/login"],
-                ["curl", "-fsS", "http://localhost/api/v1/auth/config"],
-            ):
-                run_command(command, options=options)
-            return
-        if mode == "dev":
-            for command in (
-                ["docker", "inspect", "riskhub-db"],
-                ["docker", "inspect", "riskhub-redis"],
-                ["lsof", "-nP", "-iTCP:8000", "-sTCP:LISTEN"],
-                ["lsof", "-nP", "-iTCP:5173", "-sTCP:LISTEN"],
-                ["node", "-p", "process.versions.node.split('.')[0]"],
-                ["curl", "-fsS", "http://localhost:5173/login"],
-                ["curl", "-fsS", "http://localhost:8000/api/v1/readyz"],
-                ["curl", "-fsS", "http://localhost:8000/api/v1/auth/config"],
-            ):
-                run_command(command, options=options)
-            return
-        resolved_target = resolve_production_target(paths, target, runtime_dir)
-        run_command([paths.deploy_script, "status", "--target", resolved_target], options=options)
+        resolved_target = None
+        if mode not in {"demo", "dev"}:
+            resolved_target = resolve_production_target(paths, target, runtime_dir)
+        for command in build_status_dry_run_commands(paths=paths, mode=mode, resolved_target=resolved_target):
+            run_command(command, options=options)
         return
 
     if mode == "demo":

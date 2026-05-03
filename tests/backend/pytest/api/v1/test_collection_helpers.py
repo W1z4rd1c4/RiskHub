@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+import pytest
+
 from app.api.v1.endpoints._collection import (
     CollectionGroupEntry,
     CollectionQuery,
@@ -122,6 +124,58 @@ def test_build_collection_page_kwargs_uses_query_pagination_and_optional_metadat
         "items": [{"id": 1}],
         "total": 3,
         "offset": 25,
+        "limit": 10,
+        "groups": groups,
+        "capabilities": {"can_create": True},
+    }
+
+
+class ExampleCollectionResponse:
+    def __init__(self, **kwargs):
+        self.payload = kwargs
+
+
+@pytest.mark.asyncio
+async def test_execute_collection_listing_returns_sql_group_summary_without_serializing_items():
+    from app.api.v1.endpoints._collection_execution import execute_collection_listing
+
+    calls: list[str] = []
+    groups = [
+        CollectionGroupRead(
+            value="active",
+            label="Active",
+            count=5,
+            active_count=5,
+            highlighted_count=1,
+        )
+    ]
+
+    async def load_sql_groups(group_by: str) -> list[CollectionGroupRead]:
+        calls.append(f"groups:{group_by}")
+        return groups
+
+    async def serialize_items(items: list[ExampleItem]) -> list[ExampleItem]:
+        calls.append("serialize")
+        return items
+
+    response = await execute_collection_listing(
+        db=None,
+        response_model=ExampleCollectionResponse,
+        query=CollectionQuery(group_by="status", offset=0, limit=10),
+        ordered_query=object(),
+        total=5,
+        capabilities={"can_create": True},
+        serialize_items=serialize_items,
+        sql_group_keys={"status"},
+        load_sql_groups=load_sql_groups,
+        build_sql_group_filter=lambda group_by, group_value: object(),
+    )
+
+    assert calls == ["groups:status"]
+    assert response.payload == {
+        "items": [],
+        "total": 5,
+        "offset": 0,
         "limit": 10,
         "groups": groups,
         "capabilities": {"can_create": True},

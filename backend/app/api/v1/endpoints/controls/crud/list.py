@@ -5,6 +5,7 @@ from sqlalchemy import String, case, false, func, literal, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.api.v1.endpoints import _collection_execution as collection_exec
 from app.api.v1.endpoints._collection import (
     CollectionGroupEntry,
     build_grouped_collection_page,
@@ -13,9 +14,7 @@ from app.api.v1.endpoints._collection import (
     coerce_optional_enum,
     coerce_optional_int,
     coerce_optional_string,
-    is_group_summary_request,
 )
-from app.api.v1.endpoints import _collection_execution as collection_exec
 from app.api.v1.endpoints._monitoring_response import (
     build_control_monitoring_fields,
     load_monitoring_response_context,
@@ -355,8 +354,6 @@ async def list_controls(
     monitoring_status = coerce_optional_enum(
         ControlMonitoringStatus, monitoring_status_value, "monitoring_status"
     )
-    offset = collection_query.offset
-    limit = collection_query.limit
 
     base_query = select(Control)
 
@@ -545,81 +542,54 @@ async def list_controls(
         return _control_group_entries(control, group_by)
 
     ordered_query = filtered_query.options(*query_options).order_by(Control.name)
+    filtered_ids = filtered_query.with_only_columns(Control.id).order_by(None).subquery()
 
-    if collection_query.group_by and collection_query.group_by in CONTROL_SQL_GROUPS:
-        filtered_ids = filtered_query.with_only_columns(Control.id).order_by(None).subquery()
+    async def load_sql_groups(group_by: str):
+        return await _load_control_sql_groups(
+            db,
+            filtered_ids,
+            group_by,
+            current_user=current_user,
+            can_read_vendors=can_read_vendors,
+        )
+
+    async def build_sql_group_filter(group_by: str, group_value: str | None):
         risk_context = (
             await _visible_control_risk_context(db, filtered_ids, current_user)
-            if collection_query.group_by in {"process", "risk_type", "type", "risk"}
+            if group_by in {"process", "risk_type", "type", "risk"}
             else None
         )
         vendor_context = (
             _visible_control_vendor_context(filtered_ids, current_user, can_read_vendors=can_read_vendors)
-            if collection_query.group_by == "vendor"
+            if group_by == "vendor"
             else None
         )
-        groups = await _load_control_sql_groups(
-            db,
-            filtered_ids,
-            collection_query.group_by,
-            current_user=current_user,
-            can_read_vendors=can_read_vendors,
-        )
-        if is_group_summary_request(collection_query):
-            return collection_exec.build_collection_response(
-                ControlListResponse,
-                query=collection_query,
-                items=[],
-                total=total,
-                groups=groups,
-                capabilities=collection_capabilities,
-            )
-
-        group_filter = _control_group_filter(
-            collection_query.group_by,
-            collection_query.group_value or "",
+        return _control_group_filter(
+            group_by,
+            group_value or "",
             risk_context=risk_context,
             vendor_context=vendor_context,
         )
-        grouped_query = collection_exec.apply_collection_group_filter(ordered_query, group_filter)
-        grouped_total = await collection_exec.count_collection_rows(db, grouped_query)
-        controls = await collection_exec.load_collection_scalars_page(db, grouped_query, offset=offset, limit=limit)
-        paginated_items = await serialize_controls(controls)
-        return collection_exec.build_collection_response(
-            ControlListResponse,
-            query=collection_query,
-            items=paginated_items,
-            total=grouped_total,
-            groups=groups,
-            capabilities=collection_capabilities,
-        )
 
-    if collection_query.group_by:
-        result = await db.execute(ordered_query)
-        all_items = await serialize_controls(list(result.scalars().all()))
-        paginated_items, grouped_total, groups = build_grouped_collection_page(
+    def build_in_memory_grouped_page(all_items, query):
+        return build_grouped_collection_page(
             all_items,
-            collection_query,
+            query,
             get_entries=get_control_group_entries,
             is_active=lambda control: control.status == ControlStatusEnum.active,
             is_highlighted=lambda control: control.risk_level >= 4,
         )
-        return collection_exec.build_collection_response(
-            ControlListResponse,
-            query=collection_query,
-            items=paginated_items,
-            total=grouped_total,
-            groups=groups,
-            capabilities=collection_capabilities,
-        )
 
-    controls = await collection_exec.load_collection_scalars_page(db, ordered_query, offset=offset, limit=limit)
-    items = await serialize_controls(controls)
-
-    return collection_exec.build_collection_response(
-        ControlListResponse,
+    return await collection_exec.execute_collection_listing(
+        db=db,
+        response_model=ControlListResponse,
         query=collection_query,
-        items=items,
-        total=total,
+        ordered_query=ordered_query,
         capabilities=collection_capabilities,
+        serialize_items=serialize_controls,
+        total=total,
+        sql_group_keys=CONTROL_SQL_GROUPS,
+        load_sql_groups=load_sql_groups,
+        build_sql_group_filter=build_sql_group_filter,
+        build_in_memory_grouped_page=build_in_memory_grouped_page,
     )

@@ -9,6 +9,7 @@ from sqlalchemy import String, case, false, func, literal, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.api.v1.endpoints import _collection_execution as collection_exec
 from app.api.v1.endpoints._collection import (
     CollectionGroupEntry,
     build_grouped_collection_page,
@@ -17,9 +18,7 @@ from app.api.v1.endpoints._collection import (
     coerce_optional_enum,
     coerce_optional_int,
     coerce_optional_string,
-    is_group_summary_request,
 )
-from app.api.v1.endpoints import _collection_execution as collection_exec
 from app.api.v1.endpoints._monitoring_response import (
     load_monitoring_response_context,
     serialize_kri_response,
@@ -287,8 +286,6 @@ async def list_kris(
     monitoring_status = coerce_optional_enum(KRIMonitoringStatus, monitoring_status_value, "monitoring_status")
     timeliness_status_value = filter_values.get("timeliness_status")
     timeliness_status = coerce_optional_enum(KRITimelinessStatus, timeliness_status_value, "timeliness_status")
-    offset = collection_query.offset
-    limit = collection_query.limit
 
     if monitoring_status is not None and timeliness_status is not None:
         raise HTTPException(
@@ -389,78 +386,51 @@ async def list_kris(
             )
         return items
 
-    if collection_query.group_by and collection_query.group_by in KRI_SQL_GROUPS:
-        filtered_ids = filtered_query.with_only_columns(KeyRiskIndicator.id).order_by(None).subquery()
-        vendor_context = (
-            _visible_kri_vendor_context(filtered_ids, current_user, can_read_vendors=can_read_vendors)
-            if collection_query.group_by == "vendor"
-            else None
-        )
-        groups = await _load_kri_sql_groups(
+    filtered_ids = filtered_query.with_only_columns(KeyRiskIndicator.id).order_by(None).subquery()
+
+    async def load_total() -> int:
+        return await collection_exec.count_collection_rows(db, filtered_query)
+
+    async def load_sql_groups(group_by: str):
+        return await _load_kri_sql_groups(
             db,
             filtered_ids,
-            collection_query.group_by,
+            group_by,
             current_user=current_user,
             can_read_vendors=can_read_vendors,
         )
-        total = await collection_exec.count_collection_rows(db, filtered_query)
 
-        if is_group_summary_request(collection_query):
-            return collection_exec.build_collection_response(
-                KRIListResponse,
-                query=collection_query,
-                items=[],
-                total=total,
-                groups=groups,
-                capabilities=collection_capabilities,
-            )
-
-        group_filter = _kri_group_filter(
-            collection_query.group_by,
-            collection_query.group_value or "",
+    def build_sql_group_filter(group_by: str, group_value: str | None):
+        vendor_context = (
+            _visible_kri_vendor_context(filtered_ids, current_user, can_read_vendors=can_read_vendors)
+            if group_by == "vendor"
+            else None
+        )
+        return _kri_group_filter(
+            group_by,
+            group_value or "",
             vendor_context=vendor_context,
         )
-        grouped_query = ordered_query.outerjoin(Department, Department.id == Risk.department_id)
-        grouped_query = collection_exec.apply_collection_group_filter(grouped_query, group_filter)
-        grouped_total = await collection_exec.count_collection_rows(db, grouped_query)
-        kris = await collection_exec.load_collection_scalars_page(db, grouped_query, offset=offset, limit=limit)
-        items = await serialize_kris(kris)
-        return collection_exec.build_collection_response(
-            KRIListResponse,
-            query=collection_query,
-            items=items,
-            total=grouped_total,
-            groups=groups,
-            capabilities=collection_capabilities,
-        )
 
-    if collection_query.group_by:
-        result = await db.execute(ordered_query)
-        kris = result.scalars().all()
-        all_items = await serialize_kris(list(kris))
-        paginated_items, total, groups = build_grouped_collection_page(
+    def build_in_memory_grouped_page(all_items, query):
+        return build_grouped_collection_page(
             all_items,
-            collection_query,
+            query,
             get_entries=_kri_group_entries,
             is_highlighted=lambda item: getattr(item, "monitoring_status", None) == "breach",
         )
-        return collection_exec.build_collection_response(
-            KRIListResponse,
-            query=collection_query,
-            items=paginated_items,
-            total=total,
-            groups=groups,
-            capabilities=collection_capabilities,
-        )
 
-    total = await collection_exec.count_collection_rows(db, filtered_query)
-    kris = await collection_exec.load_collection_scalars_page(db, ordered_query, offset=offset, limit=limit)
-    items = await serialize_kris(kris)
-
-    return collection_exec.build_collection_response(
-        KRIListResponse,
+    return await collection_exec.execute_collection_listing(
+        db=db,
+        response_model=KRIListResponse,
         query=collection_query,
-        items=items,
-        total=total,
+        ordered_query=ordered_query,
         capabilities=collection_capabilities,
+        serialize_items=serialize_kris,
+        load_total=load_total,
+        sql_group_keys=KRI_SQL_GROUPS,
+        load_sql_groups=load_sql_groups,
+        build_sql_group_filter=build_sql_group_filter,
+        sql_group_query_transform=lambda query: query.outerjoin(Department, Department.id == Risk.department_id),
+        build_in_memory_grouped_page=build_in_memory_grouped_page,
     )

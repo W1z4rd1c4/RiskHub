@@ -11,6 +11,7 @@ from install_lib.common import (
     port_listening,
     run_command,
 )
+from install_lib.lifecycle import build_doctor_repair_plan
 from install_lib.production import summary_demo, summary_dev, summary_production_lifecycle, verify_demo, verify_dev
 from install_lib.runtime_state import (
     docker_container_state,
@@ -110,8 +111,10 @@ def run_doctor(
                     findings.append("deep_verify_failed")
 
         if repair:
-            actions.append(f"{paths.compose_script} up")
-            run_command([paths.compose_script, "up"], options=options)
+            repair_plan = build_doctor_repair_plan(paths=paths, mode=mode, resolved_target=None)
+            actions.extend(repair_plan.actions)
+            for command in repair_plan.commands:
+                run_command(command, options=options)
             if not options.dry_run:
                 repair_applied = True
                 verify_demo(options)
@@ -160,10 +163,10 @@ def run_doctor(
                     findings.append("deep_verify_failed")
 
         if repair:
-            actions.append(f"{paths.compose_script} up --profile db-only")
-            actions.append(f"{paths.dev_script} --daemon")
-            run_command([paths.compose_script, "up", "--profile", "db-only"], options=options)
-            run_command([paths.dev_script, "--daemon"], options=options)
+            repair_plan = build_doctor_repair_plan(paths=paths, mode=mode, resolved_target=None)
+            actions.extend(repair_plan.actions)
+            for command in repair_plan.commands:
+                run_command(command, options=options)
             if not options.dry_run:
                 repair_applied = True
                 verify_dev(options)
