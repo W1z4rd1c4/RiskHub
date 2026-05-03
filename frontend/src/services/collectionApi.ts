@@ -33,6 +33,12 @@ interface LoadedCollectionPage<TItem> {
     capabilities: Record<string, boolean> | null;
 }
 
+interface LegacyPaginationFields {
+    skip?: number;
+    page?: number;
+    size?: number;
+}
+
 export function buildCollectionParams({
     offset,
     limit,
@@ -71,33 +77,39 @@ export function buildCollectionParams({
 }
 
 export function normalizeCollectionResponse<TItem>(
-    response: CollectionListResponse<TItem> & {
-        skip?: number;
-        page?: number;
-        size?: number;
-    }
+    response: CollectionListResponse<TItem> & LegacyPaginationFields
 ): CollectionListResponse<TItem> {
-    const offset = typeof response.offset === 'number'
-        ? response.offset
-        : typeof response.skip === 'number'
-            ? response.skip
-            : typeof response.page === 'number' && typeof response.size === 'number'
-                ? (response.page - 1) * response.size
-                : 0;
-    const limit = typeof response.limit === 'number'
-        ? response.limit
-        : typeof response.size === 'number'
-            ? response.size
-            : 0;
-
     return {
         items: response.items,
         total: response.total,
-        offset,
-        limit,
+        offset: normalizeCollectionOffset(response),
+        limit: normalizeCollectionLimit(response),
         groups: response.groups ?? null,
         capabilities: response.capabilities ?? null,
     };
+}
+
+function normalizeCollectionOffset(response: CollectionListResponse<unknown> & LegacyPaginationFields): number {
+    if (typeof response.offset === 'number') {
+        return response.offset;
+    }
+    if (typeof response.skip === 'number') {
+        return response.skip;
+    }
+    if (typeof response.page === 'number' && typeof response.size === 'number') {
+        return (response.page - 1) * response.size;
+    }
+    return 0;
+}
+
+function normalizeCollectionLimit(response: CollectionListResponse<unknown> & LegacyPaginationFields): number {
+    if (typeof response.limit === 'number') {
+        return response.limit;
+    }
+    if (typeof response.size === 'number') {
+        return response.size;
+    }
+    return 0;
 }
 
 export async function loadCollectionPage<TItem>({

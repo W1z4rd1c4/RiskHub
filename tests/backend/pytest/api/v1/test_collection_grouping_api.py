@@ -155,6 +155,77 @@ async def test_collection_json_scalar_filters_accept_valid_values(
 
 
 @pytest.mark.asyncio
+async def test_invalid_grouped_drilldowns_fail_closed(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    test_department: Department,
+    test_user: User,
+    seed_risk_types,
+):
+    risk = Risk(
+        risk_id_code="GRP-INVALID-DRILLDOWN-RISK",
+        name="Invalid Drilldown Risk",
+        process="Invalid Drilldown Process",
+        description="Visible risk proving invalid grouped drilldowns do not fall back to all rows",
+        department_id=test_department.id,
+        owner_id=test_user.id,
+        risk_type="operational",
+        category="Invalid Drilldown Category",
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=2,
+        status="active",
+    )
+    control = Control(
+        name="Invalid Drilldown Control",
+        description="Visible control proving invalid grouped drilldowns do not fall back to all rows",
+        department_id=test_department.id,
+        control_owner_id=test_user.id,
+        control_form="manual",
+        frequency="daily",
+        risk_level=3,
+        status="active",
+    )
+    issue = Issue(
+        title="Invalid Drilldown Issue",
+        description="Visible issue proving invalid grouped drilldowns do not fall back to all rows",
+        severity="medium",
+        source_type="manual",
+        department_id=test_department.id,
+        owner_user_id=test_user.id,
+        created_by_id=test_user.id,
+    )
+    db_session.add_all([risk, control, issue])
+    await db_session.flush()
+    kri = KeyRiskIndicator(
+        risk_id=risk.id,
+        metric_name="Invalid Drilldown KRI",
+        description="Visible KRI proving invalid grouped drilldowns do not fall back to all rows",
+        current_value=50.0,
+        lower_limit=0.0,
+        upper_limit=100.0,
+        unit="%",
+        frequency="monthly",
+    )
+    db_session.add(kri)
+    await db_session.commit()
+
+    cases = [
+        ("/api/v1/risks", {"group_by": "vendor", "group_value": "not-a-vendor-group"}),
+        ("/api/v1/controls", {"group_by": "vendor", "group_value": "not-a-vendor-group"}),
+        ("/api/v1/kris", {"group_by": "vendor", "group_value": "not-a-vendor-group"}),
+        ("/api/v1/issues", {"group_by": "not_supported", "group_value": "not-a-real-group"}),
+    ]
+    for path, params in cases:
+        response = await auth_client.get(path, params={"offset": 0, "limit": 10, **params})
+        assert response.status_code == 200, response.text
+        payload = response.json()
+        assert payload["items"] == []
+        assert payload["total"] == 0
+
+
+@pytest.mark.asyncio
 async def test_risks_grouped_contract_returns_summary_and_drilldown(
     auth_client: AsyncClient,
     test_department: Department,

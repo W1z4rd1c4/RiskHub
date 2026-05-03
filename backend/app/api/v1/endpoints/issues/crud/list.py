@@ -512,6 +512,8 @@ async def list_issues(
         grouped_query = ordered_query.outerjoin(Department, Department.id == Issue.department_id)
         if group_filter is not None:
             grouped_query = grouped_query.where(group_filter)
+        else:
+            grouped_query = grouped_query.where(false())
         grouped_total = (
             await db.execute(select(func.count()).select_from(grouped_query.order_by(None).subquery()))
         ).scalar() or 0

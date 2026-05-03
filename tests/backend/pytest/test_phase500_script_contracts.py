@@ -19,7 +19,8 @@ LINUX_BUNDLE_BUILDER = REPO_ROOT / "scripts" / "release" / "build_linux_bundle.s
 RELEASE_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "release.yml"
 MAKEFILE = REPO_ROOT / "scripts" / "Makefile"
 DEV_COMPOSE = REPO_ROOT / "docker-compose.yml"
-RELEASE_PARITY_AUDIT_IMPL = REPO_ROOT / "scripts" / "security" / "release_parity_audit" / "audit.py"
+RELEASE_PARITY_AUDIT_DIR = REPO_ROOT / "scripts" / "security" / "release_parity_audit"
+RELEASE_PARITY_AUDIT_RUNTIME = RELEASE_PARITY_AUDIT_DIR / "runtime.py"
 FRONTEND_DOCKERFILE = REPO_ROOT / "frontend" / "Dockerfile"
 EXPECTED_PROD_BOOTSTRAP_SCRIPTS = (
     "__init__.py",
@@ -69,6 +70,10 @@ def _script_text(name: str) -> str:
 
 def _read(path: Path) -> str:
     return path.read_text(encoding="utf-8")
+
+
+def _read_release_parity_package() -> str:
+    return "\n".join(path.read_text(encoding="utf-8") for path in sorted(RELEASE_PARITY_AUDIT_DIR.glob("*.py")))
 
 
 def _run_runtime_help(path: Path, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
@@ -258,9 +263,10 @@ def test_component_prod_wrappers_help_honors_runtime_dir_override(path: Path, ex
 
 
 def test_release_parity_audit_uses_deploy_cli_for_prod_runtime_path() -> None:
-    text = _read(RELEASE_PARITY_AUDIT_IMPL)
-    assert "./scripts/deploy.sh deploy --target docker" in text
-    assert "deploy_cli_prod_docker" in text
+    runtime_text = _read(RELEASE_PARITY_AUDIT_RUNTIME)
+    assert "./scripts/deploy.sh deploy --target docker" in runtime_text
+    assert "deploy_cli_prod_docker" in runtime_text
+    text = _read_release_parity_package()
     legacy_setup_mode_prod = "./scripts/" + "setup.sh --mode prod"
     forbidden = (
         legacy_setup_mode_prod,

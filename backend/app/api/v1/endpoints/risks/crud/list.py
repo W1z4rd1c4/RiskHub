@@ -448,7 +448,7 @@ async def list_risks(
             collection_query.group_value,
             vendor_context=vendor_context,
         )
-        grouped_query = ordered_query.where(group_filter) if group_filter is not None else ordered_query
+        grouped_query = ordered_query.where(group_filter) if group_filter is not None else ordered_query.where(false())
         grouped_total = (
             await db.execute(select(func.count()).select_from(grouped_query.order_by(None).subquery()))
         ).scalar() or 0
