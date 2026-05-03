@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+    applyCollectionStatePatch,
     createCollectionFailurePatch,
+    createCollectionInitialState,
     createCollectionSuccessPatch,
     resolveCollectionLoadFailure,
 } from '@/pages/shared/collectionPageState';
@@ -97,6 +99,55 @@ describe('collection state patches', () => {
         expect(patch).toEqual({
             errorKey: 'errors.load_failed',
             isAccessDenied: false,
+        });
+    });
+});
+
+describe('collection state model', () => {
+    it('applies a success patch while preserving capabilities and loaded state in one place', () => {
+        const state = createCollectionInitialState<{ id: number }>();
+        const nextState = applyCollectionStatePatch(state, createCollectionSuccessPatch({
+            items: [{ id: 7 }],
+            groups: [{ value: 'open', label: 'Open', count: 1, active_count: 1, highlighted_count: 0 }],
+            capabilities: { can_export: true },
+            total: 1,
+        }));
+
+        expect(nextState).toEqual({
+            items: [{ id: 7 }],
+            groups: [{ value: 'open', label: 'Open', count: 1, active_count: 1, highlighted_count: 0 }],
+            capabilities: { can_export: true },
+            totalCount: 1,
+            errorKey: null,
+            isAccessDenied: false,
+            hasLoadedOnce: true,
+        });
+    });
+
+    it('clears stale rows on forbidden failures without scattering the rule across pages', () => {
+        const state = {
+            ...createCollectionInitialState<{ id: number }>(),
+            items: [{ id: 1 }],
+            groups: [{ value: 'old', label: 'Old', count: 1, active_count: 1, highlighted_count: 0 }],
+            capabilities: { can_export: true },
+            totalCount: 1,
+            hasLoadedOnce: true,
+        };
+        const nextState = applyCollectionStatePatch(
+            state,
+            createCollectionFailurePatch(
+                new ApiClientError({ status: 403, messageKey: 'errors.forbidden' })
+            )
+        );
+
+        expect(nextState).toEqual({
+            items: [],
+            groups: [],
+            capabilities: null,
+            totalCount: 0,
+            errorKey: null,
+            isAccessDenied: true,
+            hasLoadedOnce: false,
         });
     });
 });

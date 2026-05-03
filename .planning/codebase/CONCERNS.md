@@ -1,6 +1,6 @@
 # Codebase Concerns
 
-**Analysis Date:** 2026-04-25
+**Analysis Date:** 2026-05-03
 
 ## High-Risk Hotspots (Require Extra Care)
 
@@ -12,12 +12,12 @@
 - Report exports after as-of replay and legacy/peripheral export scoping: `backend/app/api/v1/endpoints/reports/`
 - Vendor governance and vendor report scoping: `backend/app/services/_vendor_workflow/`, `backend/app/api/v1/endpoints/vendors/`, `backend/app/services/vendor_reporting_service.py`
 - Committee quarterly snapshot semantics: `backend/app/services/quarterly_comparison_service.py`, `backend/app/services/_quarterly_comparison/`, `backend/app/api/v1/endpoints/dashboard/quarterly.py`
-- Cross-entity link management: shared frontend dialog/workflow helpers and backend vendor-link endpoints must preserve stale-response guards, restore behavior, and visibility filtering (`frontend/src/components/linking/`, `backend/app/api/v1/endpoints/vendor_links.py`)
+- Cross-entity link management: shared frontend dialog/workflow helpers and backend vendor-link workflow must preserve stale-response guards, restore behavior, active-vendor mutation checks, and visibility filtering (`frontend/src/components/linking/`, `backend/app/services/_vendor_links/`, `backend/app/api/v1/endpoints/vendor_links.py`)
 - Directory identity lifecycle: provider reconciliation must not overwrite RiskHub-local access fields after user creation; break-glass remains temporary and tightly capability-gated (`backend/app/services/directory_identity_service.py`, `backend/app/services/_access_workflow/`, `frontend/src/pages/users/BreakGlassEnableDialog.tsx`)
 - RBAC scope enforcement consistency between backend and frontend gating: `backend/app/core/permissions.py`, `backend/app/core/_permissions/`, `frontend/src/authz/useAuthz.ts`, and backend capability metadata consumed by frontend action surfaces
 - Time policy (UTC-aware timestamps) and coercion boundaries: `backend/app/core/datetime_utils.py`
 - SSO token verification + exchange flow: `backend/app/services/sso_token_service.py`, `backend/app/api/v1/endpoints/auth/sso.py`, `frontend/src/services/entraAuth.ts`
-- Admin auth/session workflow: `backend/app/services/_auth_session_workflow/`, `backend/app/api/v1/endpoints/admin/console.py`, `frontend/src/pages/admin-console/sections/AdminConsoleOpsPanels.tsx`
+- Admin auth/session workflow and telemetry: `backend/app/services/_auth_session_workflow/`, `backend/app/services/_admin_telemetry/`, `backend/app/api/v1/endpoints/admin/console.py`, `frontend/src/pages/admin-console/sections/AdminConsoleOpsPanels.tsx`
 - Role/permission seed consistency across seed scripts: `backend/app/db/seed.py`, `backend/scripts/seed_*.py`
 - Mock auth and demo-login boundaries: `backend/app/main.py`, `backend/app/api/v1/endpoints/auth/demo.py`
 
@@ -68,10 +68,11 @@
 - Validate RBAC/workflow changes with both API and UI-gating/capability tests
 - Access-management and Risk Hub config changes need extra care: access-user responses carry backend capability flags, role permission replacement must validate all new permission IDs before deleting existing mappings, and department delete checks must include users, risks, controls, KRIs, vendors, and pending orphans.
 - Orphan governance resolution is a structural mutation: stale target rows must reject before owner/department/link changes, list/detail scope must use the final target entity department, and admin batch fixes must call the same resolver as `/orphaned-items/{id}/resolve`.
+- Issue register and vendor-link refactors should keep route files as adapters over internal workflow Modules and verify source display, linked-context redaction, grouped counts, and visibility filters before changes ship.
 - Prefer incremental decomposition of oversized endpoint modules during feature work
 - Periodically reconcile seed scripts with `docs/BUSINESS_LOGIC.md`
 - Keep user manuals free of implementation language; maintainer metadata belongs in frontmatter and admin/operator surfaces, not the user reader body.
 
 ---
 
-*Concerns audit refreshed on 2026-04-25*
+*Concerns audit refreshed on 2026-05-03*

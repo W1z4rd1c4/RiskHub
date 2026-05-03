@@ -17,7 +17,7 @@ from app.schemas.kri import (
     KRIRecordValue,
     KRIResponse,
 )
-from app.services._kri_history.recording import DuplicateKRIPeriodError
+from app.services._kri_history.intake import record_kri_value_intake
 from app.services._kri_history.workflow import (
     ensure_can_read_history,
     ensure_can_request_history_correction,
@@ -25,9 +25,6 @@ from app.services._kri_history.workflow import (
 
 from .history_corrections import create_kri_history_correction_approval
 from .history_helpers import (
-    _apply_kri_value_directly,
-    _assert_kri_submit_access,
-    _create_kri_submission_approval,
     _load_kri_with_risk_or_404,
 )
 from .history_listing import build_kri_history_response
@@ -50,41 +47,12 @@ async def record_kri_value(
     - Privileged users (CRO/Risk Manager): apply immediately.
     - Non-privileged users: creates tiered approval (Risk Owner → Privileged if priority).
     """
-    from app.core.permissions import can_resolve_approvals
-
-    kri = await _load_kri_with_risk_or_404(db, kri_id, for_update=True)
-
-    # Block submissions on archived KRIs
-    if kri.is_archived:
-        raise HTTPException(status_code=409, detail="Cannot submit values for archived KRI")
-    await _assert_kri_submit_access(db, kri=kri, kri_id=kri_id, current_user=current_user)
-
-    # Privileged users can record directly
-    if can_resolve_approvals(current_user):
-        try:
-            return await _apply_kri_value_directly(
-                db,
-                kri=kri,
-                data=data,
-                current_user=current_user,
-                is_privileged_submission=True,
-            )
-        except DuplicateKRIPeriodError as e:
-            raise HTTPException(status_code=409, detail=str(e)) from e
-        except ValueError as e:
-            raise HTTPException(status_code=400, detail=str(e)) from e
-
-    try:
-        return await _create_kri_submission_approval(
-            db,
-            kri=kri,
-            data=data,
-            current_user=current_user,
-        )
-    except DuplicateKRIPeriodError as e:
-        raise HTTPException(status_code=409, detail=str(e)) from e
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
+    return await record_kri_value_intake(
+        db=db,
+        kri_id=kri_id,
+        data=data,
+        current_user=current_user,
+    )
 
 
 @router.get("/{kri_id}/history", response_model=KRIHistoryListResponse)

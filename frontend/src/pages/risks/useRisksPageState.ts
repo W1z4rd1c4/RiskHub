@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import type { ExportDialogSubmitPayload } from '@/components/reports/ExportDialog';
 import type { SortDirection, ViewMode } from '@/components/tables';
@@ -8,7 +8,6 @@ import { loadCollectionPage } from '@/services/collectionApi';
 import { logError } from '@/services/logger';
 import { reportApi } from '@/services/reportApi';
 import { riskApi } from '@/services/riskApi';
-import type { CollectionGroup } from '@/types/collection';
 import type { RiskStatus, RiskSummary } from '@/types/risk';
 
 import {
@@ -19,9 +18,8 @@ import {
     type RisksPageInitialState,
 } from './risksPagePresentation';
 import {
-    createCollectionFailurePatch,
-    createCollectionSuccessPatch,
     getTotalPages,
+    useCollectionDataState,
     useCollectionPageController,
 } from '../shared/collectionPageState';
 
@@ -30,13 +28,13 @@ interface UseRisksPageStateOptions {
 }
 
 export function useRisksPageState({ initialState }: UseRisksPageStateOptions) {
-    const [items, setItems] = useState<RiskSummary[]>([]);
-    const [groups, setGroups] = useState<CollectionGroup[]>([]);
-    const [capabilities, setCapabilities] = useState<Record<string, boolean> | null>(null);
-    const [totalCount, setTotalCount] = useState(0);
-    const [isLoading, setIsLoading] = useState(true);
-    const [errorKey, setErrorKey] = useState<string | null>(null);
-    const [isAccessDenied, setIsAccessDenied] = useState(false);
+    const collectionData = useCollectionDataState<RiskSummary>();
+    const {
+        applyFailure,
+        applySuccess,
+        setErrorKey,
+        setIsLoading,
+    } = collectionData;
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState<RiskStatus | ''>('active');
     const [typeFilter, setTypeFilter] = useState('');
@@ -63,8 +61,6 @@ export function useRisksPageState({ initialState }: UseRisksPageStateOptions) {
         selectedGroupValue,
         setIsExporting,
     } = useCollectionPageController();
-    const hasLoadedRisksRef = useRef(false);
-
     const limit = DEFAULT_LIST_PAGE_SIZE;
     const debouncedSearch = useDebouncedValue(search, 300);
     const groupBy = getRiskGroupBy(viewMode);
@@ -104,31 +100,13 @@ export function useRisksPageState({ initialState }: UseRisksPageStateOptions) {
             if (!isCurrentRequest(requestId)) {
                 return;
             }
-            const patch = createCollectionSuccessPatch(response);
-            setItems(patch.items ?? []);
-            setGroups(patch.groups ?? []);
-            setCapabilities(patch.capabilities ?? null);
-            setTotalCount(patch.totalCount ?? 0);
-            setErrorKey(patch.errorKey);
-            setIsAccessDenied(patch.isAccessDenied);
-            hasLoadedRisksRef.current = patch.hasLoadedOnce === true;
+            applySuccess(response);
         } catch (error) {
             logError('[RisksPage] Error fetching risks:', error);
             if (isCurrentRequest(requestId)) {
-                const patch = createCollectionFailurePatch<RiskSummary>(error, {
+                applyFailure(error, {
                     fallbackErrorKey: 'errors.load_failed',
                 });
-                setIsAccessDenied(patch.isAccessDenied);
-                if (patch.items) {
-                    setItems(patch.items);
-                    setGroups(patch.groups ?? []);
-                    setCapabilities(patch.capabilities ?? null);
-                    setTotalCount(patch.totalCount ?? 0);
-                }
-                if (patch.hasLoadedOnce === false) {
-                    hasLoadedRisksRef.current = patch.hasLoadedOnce;
-                }
-                setErrorKey(patch.errorKey);
             }
         } finally {
             if (isCurrentRequest(requestId)) {
@@ -136,6 +114,8 @@ export function useRisksPageState({ initialState }: UseRisksPageStateOptions) {
             }
         }
     }, [
+        applyFailure,
+        applySuccess,
         beginRequest,
         currentPage,
         criticalFilter,
@@ -146,6 +126,7 @@ export function useRisksPageState({ initialState }: UseRisksPageStateOptions) {
         limit,
         priorityFilter,
         selectedGroupValue,
+        setIsLoading,
         sortDirection,
         sortField,
         statusFilter,
@@ -166,7 +147,7 @@ export function useRisksPageState({ initialState }: UseRisksPageStateOptions) {
                 setErrorKey('errors.load_failed');
             }
         },
-        [fetchRisks]
+        [fetchRisks, setErrorKey]
     );
 
     const handleExport = useCallback(
@@ -246,19 +227,19 @@ export function useRisksPageState({ initialState }: UseRisksPageStateOptions) {
 
     return {
         criticalFilter,
-        capabilities,
+        capabilities: collectionData.capabilities,
         currentPage,
-        errorKey,
+        errorKey: collectionData.errorKey,
         fetchRisks,
-        groups,
+        groups: collectionData.groups,
         handleExport,
         hasBreachFilter,
-        hasLoadedOnce: hasLoadedRisksRef.current,
+        hasLoadedOnce: collectionData.hasLoadedOnce,
         isExportDialogOpen,
         isExporting,
-        isAccessDenied,
-        isLoading,
-        items,
+        isAccessDenied: collectionData.isAccessDenied,
+        isLoading: collectionData.isLoading,
+        items: collectionData.items,
         limit,
         openExportDialog,
         closeExportDialog,
@@ -271,8 +252,8 @@ export function useRisksPageState({ initialState }: UseRisksPageStateOptions) {
         sortDirection,
         sortField,
         statusFilter,
-        totalCount,
-        totalPages: getTotalPages(totalCount, limit),
+        totalCount: collectionData.totalCount,
+        totalPages: getTotalPages(collectionData.totalCount, limit),
         typeFilter,
         updateCriticalFilter,
         updateHasBreachFilter,

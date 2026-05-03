@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 from app.models import Control, ControlRiskLink, KeyRiskIndicator, Risk, User
 from app.schemas.admin import OrphanFixRequest, OrphanFixResponse, OrphanFixResult, OrphanStatsResponse
-from app.services._orphaned_items.resolution import validate_resolution_context
+from app.services._orphaned_items.resolution_plan import OrphanResolutionRequest, build_resolution_plan
 from app.services._orphaned_items.workflow import OrphanResolutionConflict
 from app.services.orphaned_item_service import OrphanedItemService
 
@@ -63,6 +63,7 @@ async def fix_orphan_mappings(
     """
     Fix orphaned items using explicit admin-supplied resolution targets.
     """
+    plans = []
     results = []
     risks_fixed = 0
     controls_fixed = 0
@@ -74,47 +75,51 @@ async def fix_orphan_mappings(
             raise HTTPException(status_code=400, detail=f"Duplicate orphan_id in request: {resolution.orphan_id}")
         seen_orphan_ids.add(resolution.orphan_id)
         try:
-            context = await validate_resolution_context(
+            plan = await build_resolution_plan(
                 db,
-                orphan_id=resolution.orphan_id,
-                new_owner_id=resolution.new_owner_id,
-                department_id=resolution.department_id,
-                target_risk_id=resolution.target_risk_id,
+                OrphanResolutionRequest(
+                    orphan_id=resolution.orphan_id,
+                    new_owner_id=resolution.new_owner_id,
+                    department_id=resolution.department_id,
+                    target_risk_id=resolution.target_risk_id,
+                ),
             )
         except OrphanResolutionConflict as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
+        plans.append(plan)
+
         results.append(
             OrphanFixResult(
-                orphan_id=context.orphan.id,
-                item_type=context.orphan.item_type,
-                item_id=context.orphan.item_id,
+                orphan_id=plan.orphan.id,
+                item_type=plan.item_type,
+                item_id=plan.item_id,
                 applied=not payload.dry_run,
-                new_owner_id=resolution.new_owner_id,
-                department_id=context.target_department_id,
-                target_risk_id=context.target_risk.id if context.target_risk else None,
+                new_owner_id=plan.new_owner_id,
+                department_id=plan.department_id,
+                target_risk_id=plan.target_risk_id,
             )
         )
 
-        if context.orphan.item_type == "risk":
+        if plan.item_type == "risk":
             risks_fixed += 1
-        elif context.orphan.item_type == "control":
+        elif plan.item_type == "control":
             controls_fixed += 1
-        elif context.orphan.item_type == "kri":
+        elif plan.item_type == "kri":
             kris_fixed += 1
 
     if not payload.dry_run:
-        for resolution in payload.resolutions:
+        for plan in plans:
             try:
                 await OrphanedItemService.resolve_orphan(
                     db=db,
-                    orphan_id=resolution.orphan_id,
-                    new_owner_id=resolution.new_owner_id,
+                    orphan_id=plan.request.orphan_id,
+                    new_owner_id=plan.request.new_owner_id,
                     resolved_by_id=admin_user.id,
-                    department_id=resolution.department_id,
-                    target_risk_id=resolution.target_risk_id,
+                    department_id=plan.request.department_id,
+                    target_risk_id=plan.request.target_risk_id,
                 )
             except OrphanResolutionConflict as exc:
                 raise HTTPException(status_code=409, detail=str(exc)) from exc

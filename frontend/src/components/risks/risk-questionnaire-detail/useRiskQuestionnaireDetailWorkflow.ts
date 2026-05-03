@@ -12,6 +12,7 @@ import {
     groupClarificationsBySection,
     isChangedAnswer,
 } from './questionnairePresentation';
+import { shouldAutoOpenQuestionnaire } from './questionnaireWorkflowState';
 
 const DEFAULT_COMPARE_MODE = false;
 
@@ -87,11 +88,7 @@ export function useRiskQuestionnaireDetailWorkflow({
             setLoading(true);
             try {
                 let data = await riskQuestionnairesApi.get(questionnaireId, { includePrevious: DEFAULT_COMPARE_MODE });
-                const canOpen = resolveCapabilityFlag(
-                    data.capabilities,
-                    'can_open',
-                );
-                if (canOpen && data.status === 'sent') {
+                if (shouldAutoOpenQuestionnaire(data)) {
                     try {
                         data = await riskQuestionnairesApi.open(questionnaireId, { includePrevious: DEFAULT_COMPARE_MODE });
                     } catch {

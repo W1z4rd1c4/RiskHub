@@ -11,11 +11,15 @@ Business/service-layer logic for `_kri_history`.
 - `clock.py`
 - `constants.py`
 - `corrections.py`
+- `intake.py`
+- `loading.py`
 - `logging.py`
 - `periods.py`
 - `queries.py`
 - `recording.py`
 - `service.py`
+- `submission.py`
+- `value_application.py`
 
 ## Notes
 

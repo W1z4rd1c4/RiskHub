@@ -1,6 +1,6 @@
 # External Integrations
 
-**Analysis Date:** 2026-04-25
+**Analysis Date:** 2026-05-03
 
 ## Core External Services
 
@@ -63,7 +63,7 @@
 
 - Structured app and audit logs via custom logging setup (`backend/app/core/logging.py`)
 - Log files written under `backend/logs/`
-- Admin log/health endpoints exist under admin API (`backend/app/api/v1/endpoints/admin/`)
+- Admin log/health endpoints exist under admin API (`backend/app/api/v1/endpoints/admin/`); reusable admin operations projections live under `backend/app/services/_admin_telemetry/`.
 - In-app documentation is served from `docs/admin*` and `docs/user*` through `/api/v1/admin/docs`; frontend readers intentionally hide maintainer metadata for user manuals while preserving admin runbook references (`backend/app/api/v1/endpoints/admin/docs.py`, `frontend/src/components/documentation/documentationPresentation.ts`)
 
 ## Not Present in Repository
@@ -80,4 +80,4 @@
 
 ---
 
-*Integration audit refreshed on 2026-04-25*
+*Integration audit refreshed on 2026-05-03*

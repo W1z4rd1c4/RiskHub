@@ -1,6 +1,6 @@
 # Technology Stack
 
-**Analysis Date:** 2026-04-25
+**Analysis Date:** 2026-05-03
 
 ## Languages
 
@@ -69,17 +69,17 @@
 
 ## Current Scale Snapshot
 
-- Backend app Python: 405 files (`backend/app/`)
-- Backend endpoints: 168 Python modules/packages (`backend/app/api/v1/endpoints/`)
+- Backend app Python: 459 files (`backend/app/`)
+- Backend endpoints: 180 Python modules/packages (`backend/app/api/v1/endpoints/`)
 - Backend models: 26 Python modules (`backend/app/models/`)
 - Backend schemas: 24 Python modules (`backend/app/schemas/`)
-- Backend services: 107 Python files (includes internal workflow packages) (`backend/app/services/`)
-- Backend test tree: 166 files (`tests/backend/pytest/`)
-- Frontend source: 490 TypeScript/TSX files (`frontend/src/`)
-- Frontend pages: 147 tracked files (`frontend/src/pages/`)
-- Frontend components: 270 tracked files (`frontend/src/components/`)
+- Backend services: 140 Python files (includes internal workflow packages) (`backend/app/services/`)
+- Backend test tree: 175 Python files (`tests/backend/pytest/`)
+- Frontend source: 518 TypeScript/TSX files (`frontend/src/`)
+- Frontend pages: 165 tracked files (`frontend/src/pages/`)
+- Frontend components: 281 tracked files (`frontend/src/components/`)
 - Frontend E2E tree: 74 files (`tests/frontend/e2e/`)
 
 ---
 
-*Stack analysis refreshed on 2026-04-25*
+*Stack analysis refreshed on 2026-05-03*

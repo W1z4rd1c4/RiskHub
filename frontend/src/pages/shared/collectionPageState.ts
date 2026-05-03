@@ -23,7 +23,7 @@ interface CollectionSuccessPayload<TItem> {
     total: number;
 }
 
-interface CollectionStatePatch<TItem> {
+export interface CollectionStatePatch<TItem> {
     items?: TItem[];
     groups?: CollectionGroup[];
     capabilities?: Record<string, boolean> | null;
@@ -31,6 +31,43 @@ interface CollectionStatePatch<TItem> {
     errorKey: string | null;
     isAccessDenied: boolean;
     hasLoadedOnce?: boolean;
+}
+
+export interface CollectionStateSnapshot<TItem> {
+    items: TItem[];
+    groups: CollectionGroup[];
+    capabilities: Record<string, boolean> | null;
+    totalCount: number;
+    errorKey: string | null;
+    isAccessDenied: boolean;
+    hasLoadedOnce: boolean;
+}
+
+export function createCollectionInitialState<TItem>(): CollectionStateSnapshot<TItem> {
+    return {
+        items: [],
+        groups: [],
+        capabilities: null,
+        totalCount: 0,
+        errorKey: null,
+        isAccessDenied: false,
+        hasLoadedOnce: false,
+    };
+}
+
+export function applyCollectionStatePatch<TItem>(
+    state: CollectionStateSnapshot<TItem>,
+    patch: CollectionStatePatch<TItem>
+): CollectionStateSnapshot<TItem> {
+    return {
+        items: patch.items ?? state.items,
+        groups: patch.groups ?? state.groups,
+        capabilities: patch.capabilities === undefined ? state.capabilities : patch.capabilities,
+        totalCount: patch.totalCount ?? state.totalCount,
+        errorKey: patch.errorKey,
+        isAccessDenied: patch.isAccessDenied,
+        hasLoadedOnce: patch.hasLoadedOnce ?? state.hasLoadedOnce,
+    };
 }
 
 export function resolveCollectionLoadFailure(
@@ -132,6 +169,47 @@ export function useExportDialogState() {
         isExporting,
         openExportDialog,
         setIsExporting,
+    };
+}
+
+export function useCollectionDataState<TItem>() {
+    const [state, setState] = useState<CollectionStateSnapshot<TItem>>(
+        createCollectionInitialState<TItem>
+    );
+    const [isLoading, setIsLoading] = useState(true);
+
+    const applyPatch = useCallback((patch: CollectionStatePatch<TItem>) => {
+        setState((currentState) => applyCollectionStatePatch(currentState, patch));
+    }, []);
+
+    const applySuccess = useCallback((payload: CollectionSuccessPayload<TItem>) => {
+        applyPatch(createCollectionSuccessPatch(payload));
+    }, [applyPatch]);
+
+    const applyFailure = useCallback((
+        error: unknown,
+        options: CollectionLoadFailureOptions = {}
+    ) => {
+        const patch = createCollectionFailurePatch<TItem>(error, options);
+        applyPatch(patch);
+        return patch;
+    }, [applyPatch]);
+
+    const setErrorKey = useCallback((errorKey: string | null) => {
+        setState((currentState) => ({
+            ...currentState,
+            errorKey,
+        }));
+    }, []);
+
+    return {
+        ...state,
+        applyFailure,
+        applyPatch,
+        applySuccess,
+        isLoading,
+        setErrorKey,
+        setIsLoading,
     };
 }
 

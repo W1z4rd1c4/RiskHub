@@ -1,6 +1,6 @@
 # Architecture
 
-**Analysis Date:** 2026-04-25
+**Analysis Date:** 2026-05-03
 
 ## System Shape
 
@@ -31,9 +31,14 @@ RiskHub is a containerized full-stack application:
 - Internal workflow packages hold shared invariants for high-risk domains:
   - approval execution locking/staleness (`backend/app/services/_approval_execution/`)
   - issue remediation transitions (`backend/app/services/_issue_workflow/`)
+  - issue register grouping/linked-context SQL helpers (`backend/app/services/_issue_register/`)
   - KRI history/value/correction policy (`backend/app/services/_kri_history/`)
+  - KRI value intake decision/orchestration (`backend/app/services/_kri_history/intake.py`)
   - risk questionnaire lifecycle/capabilities (`backend/app/services/risk_questionnaire_service.py`, `backend/app/services/_risk_questionnaires/`)
   - access workflow policy/capabilities (`backend/app/services/_access_workflow/`)
+  - vendor link list/create/delete workflow (`backend/app/services/_vendor_links/`)
+  - orphan resolution planning (`backend/app/services/_orphaned_items/resolution_plan.py`)
+  - admin operations telemetry projections (`backend/app/services/_admin_telemetry/`)
   - quarterly comparison period/snapshot/change helpers (`backend/app/services/_quarterly_comparison/`)
 - Unified report exports run through a shared fetch/replay/filter/render facade with split issue/risk/control/KRI builders (`backend/app/api/v1/endpoints/reports/unified_exports/`)
 - Transactional outbox responsibilities are split across store/dispatcher/registry/domain-handler modules (`backend/app/services/outbox/`)
@@ -55,6 +60,7 @@ RiskHub is a containerized full-stack application:
 - Runtime API validation schemas are split by entity/domain under `frontend/src/services/api/schemas/entities/`; aggregate exports remain stable through the public schema index
 - Detail-page primitives and shared form lookup hooks reduce duplicated route-page logic (`frontend/src/pages/detail/`, `frontend/src/components/risk-form/useRiskLookups.ts`)
 - Large route components have been decomposed into workflow hooks plus focused sections for users, remediation plans, admin console ops/audit panels, risk questionnaires, KRI modal, roles, orphan resolution, and link management (`frontend/src/pages/users/`, `frontend/src/components/issues/remediation/`, `frontend/src/pages/admin-console/sections/{ops,audit}/`, `frontend/src/components/risks/risk-questionnaire-detail/`, `frontend/src/components/linking/`)
+- Shared register pages use `frontend/src/pages/shared/collectionPageState.ts` for collection data state, stale-row clearing, request guards, group selection, and export dialog state.
 - Auth/session coordination: `AuthProvider` now projects a canonical in-memory session snapshot from `sessionStore`, while `useAuthBootstrap`, `useAuthActions`, and `sessionManager` perform the allowed state transitions (`frontend/src/contexts/AuthContext.tsx`, `frontend/src/contexts/auth/`, `frontend/src/services/sessionStore.ts`, `frontend/src/services/sessionManager.ts`)
 - Authorization UX: `useAuthz` route/read projections, `usePermissions` compatibility hooks, and backend-provided capability metadata (`frontend/src/authz/useAuthz.ts`, `frontend/src/hooks/usePermissions.ts`)
 - Workflow UIs prefer backend-provided capability metadata when available; protected actions hide when metadata is missing.
@@ -103,4 +109,4 @@ RiskHub is a containerized full-stack application:
 
 ---
 
-*Architecture analysis refreshed on 2026-04-25*
+*Architecture analysis refreshed on 2026-05-03*

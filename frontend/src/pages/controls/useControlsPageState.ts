@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import type { ExportDialogSubmitPayload } from '@/components/reports/ExportDialog';
 import type { ViewMode } from '@/components/tables';
@@ -8,7 +8,6 @@ import { controlApi } from '@/services/controlApi';
 import { loadCollectionPage } from '@/services/collectionApi';
 import { logError } from '@/services/logger';
 import { reportApi } from '@/services/reportApi';
-import type { CollectionGroup } from '@/types/collection';
 import type { ControlSummary } from '@/types/control';
 
 import {
@@ -18,20 +17,19 @@ import {
     getControlGroupBy,
 } from './controlsPagePresentation';
 import {
-    createCollectionFailurePatch,
-    createCollectionSuccessPatch,
     getTotalPages,
+    useCollectionDataState,
     useCollectionPageController,
 } from '../shared/collectionPageState';
 
 export function useControlsPageState() {
-    const [items, setItems] = useState<ControlSummary[]>([]);
-    const [groups, setGroups] = useState<CollectionGroup[]>([]);
-    const [capabilities, setCapabilities] = useState<Record<string, boolean> | null>(null);
-    const [totalCount, setTotalCount] = useState(0);
-    const [isLoading, setIsLoading] = useState(true);
-    const [errorKey, setErrorKey] = useState<string | null>(null);
-    const [isAccessDenied, setIsAccessDenied] = useState(false);
+    const collectionData = useCollectionDataState<ControlSummary>();
+    const {
+        applyFailure,
+        applySuccess,
+        setErrorKey,
+        setIsLoading,
+    } = collectionData;
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState<ControlListStatusFilter>('');
     const [currentPage, setCurrentPage] = useState(1);
@@ -49,8 +47,6 @@ export function useControlsPageState() {
         selectedGroupValue,
         setIsExporting,
     } = useCollectionPageController();
-    const hasLoadedControlsRef = useRef(false);
-
     const limit = DEFAULT_LIST_PAGE_SIZE;
     const debouncedSearch = useDebouncedValue(search, 300);
     const groupBy = getControlGroupBy(viewMode);
@@ -83,38 +79,32 @@ export function useControlsPageState() {
             if (!isCurrentRequest(requestId)) {
                 return;
             }
-            const patch = createCollectionSuccessPatch(response);
-            setItems(patch.items ?? []);
-            setGroups(patch.groups ?? []);
-            setCapabilities(patch.capabilities ?? null);
-            setTotalCount(patch.totalCount ?? 0);
-            setErrorKey(patch.errorKey);
-            setIsAccessDenied(patch.isAccessDenied);
-            hasLoadedControlsRef.current = patch.hasLoadedOnce === true;
+            applySuccess(response);
         } catch (error) {
             logError('Error fetching controls:', error);
             if (isCurrentRequest(requestId)) {
-                const patch = createCollectionFailurePatch<ControlSummary>(error, {
+                applyFailure(error, {
                     fallbackErrorKey: 'errors.load_failed',
                 });
-                setIsAccessDenied(patch.isAccessDenied);
-                if (patch.items) {
-                    setItems(patch.items);
-                    setGroups(patch.groups ?? []);
-                    setCapabilities(patch.capabilities ?? null);
-                    setTotalCount(patch.totalCount ?? 0);
-                }
-                if (patch.hasLoadedOnce === false) {
-                    hasLoadedControlsRef.current = patch.hasLoadedOnce;
-                }
-                setErrorKey(patch.errorKey);
             }
         } finally {
             if (isCurrentRequest(requestId)) {
                 setIsLoading(false);
             }
         }
-    }, [beginRequest, currentPage, debouncedSearch, groupBy, isCurrentRequest, limit, selectedGroupValue, statusFilter]);
+    }, [
+        applyFailure,
+        applySuccess,
+        beginRequest,
+        currentPage,
+        debouncedSearch,
+        groupBy,
+        isCurrentRequest,
+        limit,
+        selectedGroupValue,
+        setIsLoading,
+        statusFilter,
+    ]);
 
     useEffect(() => {
         void fetchControls();
@@ -130,7 +120,7 @@ export function useControlsPageState() {
                 setErrorKey('errors.load_failed');
             }
         },
-        [fetchControls]
+        [fetchControls, setErrorKey]
     );
 
     const handleExport = useCallback(
@@ -182,17 +172,17 @@ export function useControlsPageState() {
 
     return {
         currentPage,
-        capabilities,
-        errorKey,
+        capabilities: collectionData.capabilities,
+        errorKey: collectionData.errorKey,
         fetchControls,
-        groups,
+        groups: collectionData.groups,
         handleExport,
-        hasLoadedOnce: hasLoadedControlsRef.current,
+        hasLoadedOnce: collectionData.hasLoadedOnce,
         isExportDialogOpen,
         isExporting,
-        isAccessDenied,
-        isLoading,
-        items,
+        isAccessDenied: collectionData.isAccessDenied,
+        isLoading: collectionData.isLoading,
+        items: collectionData.items,
         limit,
         openExportDialog,
         closeExportDialog,
@@ -202,8 +192,8 @@ export function useControlsPageState() {
         selectedGroupValue,
         setCurrentPage,
         statusFilter,
-        totalCount,
-        totalPages: getTotalPages(totalCount, limit),
+        totalCount: collectionData.totalCount,
+        totalPages: getTotalPages(collectionData.totalCount, limit),
         updateSearch,
         updateStatusFilter,
         updateViewMode,

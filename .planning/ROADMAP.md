@@ -74,6 +74,7 @@ Building an enterprise risk management platform for insurance companies, startin
 - [x] **Phase 252: Quality Closure Loop** — Repo-wide professional quality closure across data safety, workflow decomposition, artifact hygiene, and systemic gates (11/11)
 - [x] **Phase 253: Professionalization & AI-Signal Removal** — Simplify the public repo surface, collapse backend indirection, unify frontend conventions, and demote maintainer-only governance tooling out of the PR path (8/8)
 - [x] **Phase 253.1: Backend Audit Remediation** — Remediate verified runtime, authz, approval, and reporting defects from the deep backend audit review (4/4)
+- [x] **Phase 254: Architecture Deepening** — Deepen issue register, collection state, vendor links, orphan plans, KRI intake, questionnaire state, exports, admin telemetry, and codebase-map docs (1/1)
 - [x] **Phase 500: Production Installation Scripts** — Split backend/frontend Docker deployment with external PostgreSQL (8/8)
 
 ## Phase Details

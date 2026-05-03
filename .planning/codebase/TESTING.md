@@ -1,6 +1,6 @@
 # Testing
 
-**Analysis Date:** 2026-04-25
+**Analysis Date:** 2026-05-03
 
 ## Test Stack Overview
 
@@ -26,7 +26,7 @@
 - Session-scoped engine disposal prevents pytest interpreter-exit hangs caused by leaked `aiosqlite` worker threads (`tests/backend/pytest/conftest.py`)
 
 ### Scale snapshot
-- Backend test tree: 166 files
+- Backend test tree: 175 Python files
 - API-focused backend tests live under `tests/backend/pytest/api/` and domain-specific root test modules under `tests/backend/pytest/`
 
 ## Frontend Unit/Integration Patterns
@@ -69,11 +69,14 @@
 - Backend KRI history/value workflow: `cd backend && ./venv/bin/pytest -q ../tests/backend/pytest/test_kris_history_listing_api.py ../tests/backend/pytest/test_kris_history_corrections_api.py ../tests/backend/pytest/test_kris_value_submission_api.py ../tests/backend/pytest/test_kris_submission_rbac_api.py ../tests/backend/pytest/test_kris_rbac.py ../tests/backend/pytest/test_approvals.py`
 - Backend questionnaire workflow: `cd backend && ./venv/bin/pytest -q ../tests/backend/pytest/api/v1/test_risk_questionnaires.py ../tests/backend/pytest/api/v1/test_risk_questionnaire_review_flow.py ../tests/backend/pytest/api/v1/test_risk_questionnaires_notifications.py ../tests/backend/pytest/api/v1/test_riskhub_questionnaires.py`
 - Backend issue workflow/deadline: `cd backend && ./venv/bin/pytest -q ../tests/backend/pytest/api/v1/test_issue_workflow.py ../tests/backend/pytest/api/v1/test_issues_crud_api.py ../tests/backend/pytest/api/v1/test_issues_rbac_api.py ../tests/backend/pytest/test_issue_deadline_service.py`
+- Backend issue register module: `cd backend && ./venv/bin/pytest -q ../tests/backend/pytest/api/v1/test_issue_register_module.py ../tests/backend/pytest/api/v1/test_issues_crud_api.py ../tests/backend/pytest/api/v1/test_issues_rbac_api.py`
 - Backend deadline/notification scheduler: `cd backend && ./venv/bin/pytest -q ../tests/backend/pytest/test_deadline_notifications.py ../tests/backend/pytest/test_kri_deadline_service.py ../tests/backend/pytest/test_issue_deadline_service.py ../tests/backend/pytest/api/v1/test_risk_questionnaires_notifications.py ../tests/backend/pytest/test_scheduler_runtime.py`
 - Backend report export scope/as-of: `cd backend && ./venv/bin/pytest -q ../tests/backend/pytest/test_reports_rbac.py ../tests/backend/pytest/api/v1/test_reports_audit.py ../tests/backend/pytest/api/v1/test_reports_export_pipeline.py ../tests/backend/pytest/api/v1/test_reports_issues.py ../tests/backend/pytest/test_vendor_reports.py`
 - Backend vendor governance/reports: `cd backend && ./venv/bin/pytest -q ../tests/backend/pytest/test_vendors.py ../tests/backend/pytest/test_vendor_reports.py ../tests/backend/pytest/test_vendor_links.py`
+- Backend vendor link module: `cd backend && ./venv/bin/pytest -q ../tests/backend/pytest/test_vendor_link_workflow_module.py ../tests/backend/pytest/test_vendor_links.py`
 - Backend control execution/linking: `cd backend && ./venv/bin/pytest -q ../tests/backend/pytest/test_executions.py ../tests/backend/pytest/test_controls.py ../tests/backend/pytest/test_cross_department_access.py`
 - Backend orphan governance: `cd backend && ./venv/bin/pytest -q ../tests/backend/pytest/test_admin_orphans.py ../tests/backend/pytest/test_orphaned_items_scan_and_stats.py ../tests/backend/pytest/test_user_deactivation_orphans.py`
+- Backend orphan resolution plan: `cd backend && ./venv/bin/pytest -q ../tests/backend/pytest/test_orphan_resolution_plan.py ../tests/backend/pytest/test_admin_orphans.py ../tests/backend/pytest/test_orphaned_items_scan_and_stats.py`
 - Backend dashboard committee/quarterly: `cd backend && ./venv/bin/pytest -q ../tests/backend/pytest/test_dashboard.py ../tests/backend/pytest/test_dashboard_committee_vendor_metrics.py ../tests/backend/pytest/test_admin_snapshots.py`
 - Backend Redis integration marker: `cd backend && pytest -m redis_integration -q`
 - Frontend unit tests: `cd frontend && npm run test:run` (blocking in PR CI)
@@ -81,9 +84,12 @@
 - Access/Risk Hub config regressions: `cd backend && ./venv/bin/pytest -q ../tests/backend/pytest/test_access_management.py ../tests/backend/pytest/test_users.py ../tests/backend/pytest/test_riskhub_roles.py ../tests/backend/pytest/test_riskhub_departments.py ../tests/backend/pytest/test_admin_sessions.py` and `cd frontend && npm run test:run -- ../tests/frontend/unit/src/components/access/AccessEditModal.test.tsx ../tests/frontend/unit/src/pages/__tests__/UsersPage.sso-cta.test.tsx`
 - Directory identity lifecycle regressions: `cd backend && ./venv/bin/pytest -q ../tests/backend/pytest/test_directory_import.py ../tests/backend/pytest/test_ad_deprovision_service.py ../tests/backend/pytest/test_admin_directory_sync.py ../tests/backend/pytest/test_access_management.py ../tests/backend/pytest/test_users.py` and `cd frontend && npm run test:run -- ../tests/frontend/unit/src/pages/__tests__/UsersPage.modes.test.tsx ../tests/frontend/unit/src/pages/__tests__/UsersPage.sso-cta.test.tsx`
 - Auth/SSO/session boundary regressions: `cd backend && ./venv/bin/pytest -q ../tests/backend/pytest/test_admin_sessions.py ../tests/backend/pytest/test_sso_token_service.py ../tests/backend/pytest/test_sso_exchange.py ../tests/backend/pytest/test_auth_refresh.py ../tests/backend/pytest/test_auth_config_endpoint.py` and `cd frontend && npm run test:run -- ../tests/frontend/unit/src/pages/__tests__/SsoCallbackPage.test.tsx ../tests/frontend/unit/src/pages/__tests__/UserNewPage.sso.test.tsx ../tests/frontend/unit/src/pages/__tests__/UsersPage.sso-cta.test.tsx ../tests/frontend/unit/src/pages/admin-console/__tests__/AdminConsoleOpsPanels.sessions.test.tsx`
+- Admin telemetry projection regression: `cd backend && ./venv/bin/pytest -q ../tests/backend/pytest/test_admin_telemetry.py ../tests/backend/pytest/test_admin_sessions.py`
 - Orphan governance regressions: `cd backend && ./venv/bin/pytest -q ../tests/backend/pytest/test_admin_orphans.py ../tests/backend/pytest/test_orphaned_items_scan_and_stats.py ../tests/backend/pytest/test_user_deactivation_orphans.py` and `cd frontend && npm run test:run -- ../tests/frontend/unit/src/components/governance/OrphanedItemsTable.test.tsx ../tests/frontend/unit/src/pages/__tests__/GovernancePage.overview.test.tsx`
 - Frontend targeted KRI routing regression: `cd frontend && npm run test:run -- src/pages/__tests__/KRIsPage.monitoring-status.test.tsx`
 - Frontend targeted vendor grouped-view regression: `cd frontend && npm run test:run -- src/pages/__tests__/VendorsPage.grouped-views.test.tsx`
+- Frontend collection state regression: `cd frontend && npm run test:run -- ../tests/frontend/unit/src/pages/shared/collectionPageState.test.ts ../tests/frontend/unit/src/services/__tests__/collectionApi.test.ts`
+- Frontend questionnaire workflow state regression: `cd frontend && npm run test:run -- ../tests/frontend/unit/src/components/risks/questionnaireWorkflowState.test.ts ../tests/frontend/unit/src/components/risks/__tests__/riskQuestionnaireOpenFlow.test.tsx`
 - Frontend vendor governance/report regressions: `cd frontend && npm run test:run -- ../tests/frontend/unit/src/components/__tests__/VendorForm.test.tsx ../tests/frontend/unit/src/components/__tests__/VendorForm.payloads.test.ts ../tests/frontend/unit/src/pages/__tests__/VendorsPage.grouped-views.test.tsx ../tests/frontend/unit/src/pages/__tests__/VendorDetailPage.presentation.test.ts ../tests/frontend/unit/src/services/__tests__/vendorReportApi.test.ts`
 - Frontend control execution/detail regressions: `cd frontend && npm run test:run -- ../tests/frontend/unit/src/components/__tests__/ExecutionHistory.test.tsx ../tests/frontend/unit/src/pages/__tests__/ControlDetailPage.execution-status.test.tsx ../tests/frontend/unit/src/pages/__tests__/ControlsPage.presentation.test.ts`
 - Frontend capability/display guardrails: `cd frontend && npm run test:run -- ../tests/frontend/unit/src/lib/capabilities.test.ts ../tests/frontend/unit/src/quality/noRawIdDisplay.test.ts`
@@ -131,4 +137,4 @@
 
 ---
 
-*Testing audit refreshed on 2026-04-25*
+*Testing audit refreshed on 2026-05-03*

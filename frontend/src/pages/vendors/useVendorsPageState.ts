@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import type { ExportDialogSubmitPayload } from '@/components/reports/ExportDialog';
 import type { SortDirection, ViewMode } from '@/components/tables';
@@ -8,7 +8,6 @@ import { apiClient } from '@/services/apiClient';
 import { loadCollectionPage } from '@/services/collectionApi';
 import { reportApi } from '@/services/reportApi';
 import { vendorApi } from '@/services/vendorApi';
-import type { CollectionGroup } from '@/types/collection';
 import type { Vendor, VendorListParams, VendorStatus, VendorType } from '@/types/vendor';
 
 import {
@@ -17,20 +16,19 @@ import {
     getVendorGroupBy,
 } from './vendorsPagePresentation';
 import {
-    createCollectionFailurePatch,
-    createCollectionSuccessPatch,
     getTotalPages,
+    useCollectionDataState,
     useCollectionPageController,
 } from '../shared/collectionPageState';
 
 export function useVendorsPageState() {
-    const [items, setItems] = useState<Vendor[]>([]);
-    const [groups, setGroups] = useState<CollectionGroup[]>([]);
-    const [capabilities, setCapabilities] = useState<Record<string, boolean> | null>(null);
-    const [totalCount, setTotalCount] = useState(0);
-    const [isLoading, setIsLoading] = useState(true);
-    const [errorKey, setErrorKey] = useState<string | null>(null);
-    const [isAccessDenied, setIsAccessDenied] = useState(false);
+    const collectionData = useCollectionDataState<Vendor>();
+    const {
+        applyFailure,
+        applySuccess,
+        setErrorKey,
+        setIsLoading,
+    } = collectionData;
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState<VendorStatus | ''>('active');
     const [typeFilter, setTypeFilter] = useState<VendorType | ''>('');
@@ -51,8 +49,6 @@ export function useVendorsPageState() {
         selectedGroupValue,
         setIsExporting,
     } = useCollectionPageController();
-    const hasLoadedVendorsRef = useRef(false);
-
     const limit = DEFAULT_LIST_PAGE_SIZE;
     const debouncedSearch = useDebouncedValue(search, 300);
     const includeArchived = statusFilter === 'inactive';
@@ -88,39 +84,23 @@ export function useVendorsPageState() {
                 return;
             }
 
-            const patch = createCollectionSuccessPatch(response);
-            setItems(patch.items ?? []);
-            setGroups(patch.groups ?? []);
-            setCapabilities(patch.capabilities ?? null);
-            setTotalCount(patch.totalCount ?? 0);
-            setErrorKey(patch.errorKey);
-            setIsAccessDenied(patch.isAccessDenied);
-            hasLoadedVendorsRef.current = patch.hasLoadedOnce === true;
+            applySuccess(response);
         } catch (error) {
             if (!isCurrentRequest(requestId)) {
                 return;
             }
-            const patch = createCollectionFailurePatch<Vendor>(error, {
+            applyFailure(error, {
                 clearOnNonForbidden: true,
                 toErrorKey: (loadError) => apiClient.toUiMessageKey(loadError),
             });
-            setIsAccessDenied(patch.isAccessDenied);
-            setErrorKey(patch.errorKey);
-            if (patch.items) {
-                setItems(patch.items);
-                setGroups(patch.groups ?? []);
-                setCapabilities(patch.capabilities ?? null);
-                setTotalCount(patch.totalCount ?? 0);
-            }
-            if (patch.hasLoadedOnce === false) {
-                hasLoadedVendorsRef.current = patch.hasLoadedOnce;
-            }
         } finally {
             if (isCurrentRequest(requestId)) {
                 setIsLoading(false);
             }
         }
     }, [
+        applyFailure,
+        applySuccess,
         beginRequest,
         currentPage,
         debouncedSearch,
@@ -129,6 +109,7 @@ export function useVendorsPageState() {
         isCurrentRequest,
         limit,
         selectedGroupValue,
+        setIsLoading,
         sortDirection,
         sortField,
         statusFilter,
@@ -140,11 +121,11 @@ export function useVendorsPageState() {
     }, [fetchVendors]);
 
     useEffect(() => {
-        if (capabilities?.can_view_risk_contexts !== true && viewMode === 'risk') {
+        if (collectionData.capabilities?.can_view_risk_contexts !== true && viewMode === 'risk') {
             setViewMode('all');
             clearGroupSelection();
         }
-    }, [capabilities, clearGroupSelection, viewMode]);
+    }, [collectionData.capabilities, clearGroupSelection, viewMode]);
 
     const resetGroupSelection = useCallback(() => {
         clearGroupSelection();
@@ -160,7 +141,7 @@ export function useVendorsPageState() {
                 setErrorKey(apiClient.toUiMessageKey(error));
             }
         },
-        [fetchVendors]
+        [fetchVendors, setErrorKey]
     );
 
     const handleExport = useCallback(
@@ -183,7 +164,7 @@ export function useVendorsPageState() {
                 setIsExporting(false);
             }
         },
-        [closeExportDialog, search, setIsExporting, statusFilter, typeFilter]
+        [closeExportDialog, search, setErrorKey, setIsExporting, statusFilter, typeFilter]
     );
 
     const updateSearch = useCallback((value: string) => {
@@ -219,17 +200,17 @@ export function useVendorsPageState() {
 
     return {
         currentPage,
-        capabilities,
-        errorKey,
+        capabilities: collectionData.capabilities,
+        errorKey: collectionData.errorKey,
         fetchVendors,
-        groups,
+        groups: collectionData.groups,
         handleExport,
-        hasLoadedOnce: hasLoadedVendorsRef.current,
+        hasLoadedOnce: collectionData.hasLoadedOnce,
         isExportDialogOpen,
         isExporting,
-        isAccessDenied,
-        isLoading,
-        items,
+        isAccessDenied: collectionData.isAccessDenied,
+        isLoading: collectionData.isLoading,
+        items: collectionData.items,
         limit,
         openExportDialog,
         closeExportDialog,
@@ -241,8 +222,8 @@ export function useVendorsPageState() {
         sortDirection,
         sortField,
         statusFilter,
-        totalCount,
-        totalPages: getTotalPages(totalCount, limit),
+        totalCount: collectionData.totalCount,
+        totalPages: getTotalPages(collectionData.totalCount, limit),
         typeFilter,
         updateSearch,
         updateSort,

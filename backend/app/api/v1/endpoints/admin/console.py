@@ -16,7 +16,6 @@ from app.schemas.admin import (
     ActiveSessionResponse,
     OutboxEventFailureSummary,
     OutboxStatusResponse,
-    SchedulerJobRunSummary,
     SchedulerStatusResponse,
     SystemHealthResponse,
     SystemStatsResponse,
@@ -27,6 +26,7 @@ from app.services._auth_session_workflow import (
     list_active_session_projections,
     revoke_user_sessions,
 )
+from app.services._admin_telemetry import serialize_scheduler_run
 
 from ._deps import require_platform_admin
 
@@ -73,22 +73,6 @@ async def get_system_health(
     )
 
 
-def _serialize_scheduler_run(job_run: SchedulerJobRun) -> SchedulerJobRunSummary:
-    return SchedulerJobRunSummary(
-        job_name=job_run.job_name,
-        run_id=job_run.run_id,
-        status=job_run.status,
-        trigger_type=job_run.trigger_type,
-        instance_id=job_run.instance_id,
-        scheduled_for=job_run.scheduled_for.isoformat() if job_run.scheduled_for else None,
-        started_at=job_run.started_at.isoformat(),
-        finished_at=job_run.finished_at.isoformat() if job_run.finished_at else None,
-        duration_ms=job_run.duration_ms,
-        result_json=job_run.result_json,
-        error_message=job_run.error_message,
-    )
-
-
 @router.get("/jobs/status", response_model=SchedulerStatusResponse)
 async def get_scheduler_status(
     db: AsyncSession = Depends(get_db),
@@ -109,7 +93,7 @@ async def get_scheduler_status(
     current_owner_instance_id: str | None = None
 
     for job_run in recent_runs:
-        serialized = _serialize_scheduler_run(job_run)
+        serialized = serialize_scheduler_run(job_run)
         if (
             job_run.job_name == SCHEDULER_RUNTIME_JOB_NAME
             and current_owner_instance_id is None

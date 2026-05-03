@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import type { ExportDialogSubmitPayload } from '@/components/reports/ExportDialog';
 import type { ViewMode } from '@/components/tables';
@@ -9,7 +9,6 @@ import { apiClient } from '@/services/apiClient';
 import { loadCollectionPage } from '@/services/collectionApi';
 import { kriApi } from '@/services/kriApi';
 import { reportApi } from '@/services/reportApi';
-import type { CollectionGroup } from '@/types/collection';
 import type { KeyRiskIndicator } from '@/types/kri';
 
 import {
@@ -23,8 +22,8 @@ import {
     type KriTimelinessFilter,
 } from './kriPagePresentation';
 import {
-    createCollectionFailurePatch,
-    createCollectionSuccessPatch,
+    getTotalPages,
+    useCollectionDataState,
     useCollectionPageController,
 } from '../shared/collectionPageState';
 
@@ -36,13 +35,13 @@ interface UseKrisPageStateOptions {
 }
 
 export function useKrisPageState({ searchParams, setSearchParams }: UseKrisPageStateOptions) {
-    const [items, setItems] = useState<KeyRiskIndicator[]>([]);
-    const [groups, setGroups] = useState<CollectionGroup[]>([]);
-    const [capabilities, setCapabilities] = useState<Record<string, boolean> | null>(null);
-    const [totalCount, setTotalCount] = useState(0);
-    const [isLoading, setIsLoading] = useState(true);
-    const [errorKey, setErrorKey] = useState<string | null>(null);
-    const [isAccessDenied, setIsAccessDenied] = useState(false);
+    const collectionData = useCollectionDataState<KeyRiskIndicator>();
+    const {
+        applyFailure,
+        applySuccess,
+        setErrorKey,
+        setIsLoading,
+    } = collectionData;
     const [search, setSearch] = useState('');
     const [viewMode, setViewMode] = useState<ViewMode>('all');
     const [currentPage, setCurrentPage] = useState(1);
@@ -59,8 +58,6 @@ export function useKrisPageState({ searchParams, setSearchParams }: UseKrisPageS
         selectedGroupValue,
         setIsExporting,
     } = useCollectionPageController();
-
-    const hasLoadedKrisRef = useRef(false);
 
     const { statusFilter, timelinessFilter } = readKriRouteFilters(
         searchParams,
@@ -95,39 +92,23 @@ export function useKrisPageState({ searchParams, setSearchParams }: UseKrisPageS
             if (!isCurrentRequest(requestId)) {
                 return;
             }
-            const patch = createCollectionSuccessPatch(response);
-            setItems(patch.items ?? []);
-            setGroups(patch.groups ?? []);
-            setCapabilities(patch.capabilities ?? null);
-            setTotalCount(patch.totalCount ?? 0);
-            setErrorKey(patch.errorKey);
-            setIsAccessDenied(patch.isAccessDenied);
-            hasLoadedKrisRef.current = patch.hasLoadedOnce === true;
+            applySuccess(response);
         } catch (error) {
             if (!isCurrentRequest(requestId)) {
                 return;
             }
-            const patch = createCollectionFailurePatch<KeyRiskIndicator>(error, {
+            applyFailure(error, {
                 clearOnNonForbidden: true,
                 toErrorKey: (loadError) => apiClient.toUiMessageKey(loadError),
             });
-            setIsAccessDenied(patch.isAccessDenied);
-            setErrorKey(patch.errorKey);
-            if (patch.items) {
-                setItems(patch.items);
-                setGroups(patch.groups ?? []);
-                setCapabilities(patch.capabilities ?? null);
-                setTotalCount(patch.totalCount ?? 0);
-            }
-            if (patch.hasLoadedOnce === false) {
-                hasLoadedKrisRef.current = patch.hasLoadedOnce;
-            }
         } finally {
             if (isCurrentRequest(requestId)) {
                 setIsLoading(false);
             }
         }
     }, [
+        applyFailure,
+        applySuccess,
         beginRequest,
         currentPage,
         debouncedSearch,
@@ -135,6 +116,7 @@ export function useKrisPageState({ searchParams, setSearchParams }: UseKrisPageS
         isCurrentRequest,
         limit,
         selectedGroupValue,
+        setIsLoading,
         statusFilter,
         timelinessFilter,
     ]);
@@ -192,7 +174,7 @@ export function useKrisPageState({ searchParams, setSearchParams }: UseKrisPageS
         } catch (error) {
             setErrorKey(apiClient.toUiMessageKey(error));
         }
-    }, [fetchKris]);
+    }, [fetchKris, setErrorKey]);
 
     const handleExport = useCallback(async ({ format, asOfDate }: ExportDialogSubmitPayload) => {
         setIsExporting(true);
@@ -212,21 +194,21 @@ export function useKrisPageState({ searchParams, setSearchParams }: UseKrisPageS
         } finally {
             setIsExporting(false);
         }
-    }, [closeExportDialog, search, setIsExporting, statusFilter, timelinessFilter]);
+    }, [closeExportDialog, search, setErrorKey, setIsExporting, statusFilter, timelinessFilter]);
 
     return {
         currentPage,
-        capabilities,
-        errorKey,
+        capabilities: collectionData.capabilities,
+        errorKey: collectionData.errorKey,
         fetchKris,
-        groups,
+        groups: collectionData.groups,
         handleExport,
-        hasLoadedOnce: hasLoadedKrisRef.current,
+        hasLoadedOnce: collectionData.hasLoadedOnce,
         isExportDialogOpen,
         isExporting,
-        isAccessDenied,
-        isLoading,
-        items,
+        isAccessDenied: collectionData.isAccessDenied,
+        isLoading: collectionData.isLoading,
+        items: collectionData.items,
         limit,
         openExportDialog,
         closeExportDialog,
@@ -237,8 +219,8 @@ export function useKrisPageState({ searchParams, setSearchParams }: UseKrisPageS
         setCurrentPage,
         statusFilter,
         timelinessFilter,
-        totalCount,
-        totalPages: Math.ceil(totalCount / limit) || 1,
+        totalCount: collectionData.totalCount,
+        totalPages: getTotalPages(collectionData.totalCount, limit),
         updateRouteFilters,
         updateSearch,
         updateViewMode,

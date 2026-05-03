@@ -19,8 +19,8 @@
 ## Current Position
 
 **Milestone:** v1.0 MVP
-**Active Phases:** 90 (AD Emulator) remains active; 253 and 253.1 completed; 19 and 70 deferred
-**Documentation Status:** User manuals, codebase map, docs contract, and in-app reader metadata reconciled after maintainability/refactor waves (2026-04-25)
+**Active Phases:** 90 (AD Emulator) remains active; 253, 253.1, and 254 completed; 19 and 70 deferred
+**Documentation Status:** Codebase map refreshed for architecture deepening Modules (2026-05-03); user manuals, docs contract, and in-app reader metadata reconciled after maintainability/refactor waves (2026-04-25)
 
 ## Progress Summary
 
@@ -72,10 +72,35 @@
 | 252 Quality Closure Loop | ✅ Complete (11/11) | 2026-04-07 |
 | 253 Professionalization & AI-Signal Removal | ✅ Complete (8/8) | 2026-04-25 |
 | 253.1 Backend Audit Remediation | ✅ Complete (4/4) | 2026-04-20 |
+| 254 Architecture Deepening | ✅ Complete (1/1) | 2026-05-03 |
 | 500 Production Installation Scripts | ✅ Complete (8/8) | 2026-02-16 |
 | 501 Production Readiness Hardening | ✅ Complete (8/8) | 2026-02-16 |
 
 ## Session Context
+
+### Phase 254 Architecture Deepening (2026-05-03)
+
+- Implemented TDD-backed architecture deepening across the review findings:
+  - shared frontend collection data state in `frontend/src/pages/shared/collectionPageState.ts`
+  - issue register grouping/linked-context helpers in `backend/app/services/_issue_register/`
+  - vendor link list/create/delete workflow in `backend/app/services/_vendor_links/`
+  - orphan resolution planning in `backend/app/services/_orphaned_items/resolution_plan.py`
+  - KRI value intake orchestration in `backend/app/services/_kri_history/intake.py`
+  - questionnaire automatic-open state helper in `frontend/src/components/risks/risk-questionnaire-detail/questionnaireWorkflowState.ts`
+  - admin telemetry scheduler-run projection in `backend/app/services/_admin_telemetry/`
+- Refreshed `.planning/codebase/` maps to document the new internal Modules, testing commands, and remaining risk notes.
+- Targeted verification completed before final gates:
+  - Backend architecture group: `52 passed`
+  - Backend KRI/questionnaire/report/admin group: `95 passed, 1 skipped`
+  - Frontend collection/linking/orphan/questionnaire/admin group: `43 passed`
+  - `cd frontend && npx tsc --noEmit` -> passed
+- Final verification completed:
+  - `make -f scripts/Makefile test` -> `1476 passed, 17 skipped, 6 deselected`
+  - `cd frontend && npm run test:run` -> `134 files passed`, `615 tests passed`
+  - `cd frontend && npx tsc --noEmit && npm run lint` -> passed
+  - `python3 scripts/security/validate_authz_capability_contract.py` -> passed
+  - `python3 scripts/check_docs_contract.py && make -f scripts/Makefile docs-topology-consistency` -> passed
+- Postgres gate was attempted with `TEST_DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_dev@localhost:5432/riskhub_test make -f scripts/Makefile test-postgres-ci`; local PostgreSQL rejected the configured role (`FATAL: role "riskhub" does not exist`), so no Postgres assertions executed.
 
 ### Documentation Reconciliation and Codebase Map Refresh (2026-04-25)
 

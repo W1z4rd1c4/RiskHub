@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { DEFAULT_LIST_PAGE_SIZE } from '@/constants/list';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
@@ -8,7 +8,6 @@ import { issuesApi } from '@/services/issuesApi';
 import { reportApi } from '@/services/reportApi';
 import type { ExportDialogSubmitPayload } from '@/components/reports/ExportDialog';
 import type { SortDirection, ViewMode } from '@/components/tables';
-import type { CollectionGroup } from '@/types/collection';
 import type {
     IssueListFilters,
     IssueSeverityFilter,
@@ -23,9 +22,8 @@ import {
     type IssuesPageInitialState,
 } from './issuesPagePresentation';
 import {
-    createCollectionFailurePatch,
-    createCollectionSuccessPatch,
     getTotalPages,
+    useCollectionDataState,
     useCollectionPageController,
 } from '../shared/collectionPageState';
 
@@ -34,10 +32,13 @@ interface UseIssuesPageStateOptions {
 }
 
 export function useIssuesPageState({ initialState }: UseIssuesPageStateOptions) {
-    const [items, setItems] = useState<IssueSummary[]>([]);
-    const [groups, setGroups] = useState<CollectionGroup[]>([]);
-    const [capabilities, setCapabilities] = useState<Record<string, boolean> | null>(null);
-    const [totalCount, setTotalCount] = useState(0);
+    const collectionData = useCollectionDataState<IssueSummary>();
+    const {
+        applyFailure,
+        applySuccess,
+        setErrorKey,
+        setIsLoading,
+    } = collectionData;
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState<IssueStatus | ''>(initialState.statusFilter);
     const [severityFilter, setSeverityFilter] = useState<IssueSeverityFilter | ''>(
@@ -54,10 +55,6 @@ export function useIssuesPageState({ initialState }: UseIssuesPageStateOptions) 
         initialState.sortField
     );
     const [sortDirection, setSortDirection] = useState<SortDirection>(initialState.sortDirection);
-    const [isLoading, setIsLoading] = useState(true);
-    const [errorKey, setErrorKey] = useState<string | null>(null);
-    const [isAccessDenied, setIsAccessDenied] = useState(false);
-
     const {
         beginRequest,
         closeExportDialog,
@@ -71,7 +68,6 @@ export function useIssuesPageState({ initialState }: UseIssuesPageStateOptions) 
         selectedGroupValue,
         setIsExporting,
     } = useCollectionPageController();
-    const hasLoadedIssuesRef = useRef(false);
 
     const limit = DEFAULT_LIST_PAGE_SIZE;
     const debouncedSearch = useDebouncedValue(search, 300);
@@ -111,39 +107,23 @@ export function useIssuesPageState({ initialState }: UseIssuesPageStateOptions) 
             if (!isCurrentRequest(requestId)) {
                 return;
             }
-            const patch = createCollectionSuccessPatch(response);
-            setItems(patch.items ?? []);
-            setGroups(patch.groups ?? []);
-            setCapabilities(patch.capabilities ?? null);
-            setTotalCount(patch.totalCount ?? 0);
-            setErrorKey(patch.errorKey);
-            setIsAccessDenied(patch.isAccessDenied);
-            hasLoadedIssuesRef.current = patch.hasLoadedOnce === true;
+            applySuccess(response);
         } catch (loadError) {
             if (!isCurrentRequest(requestId)) {
                 return;
             }
-            const patch = createCollectionFailurePatch<IssueSummary>(loadError, {
+            applyFailure(loadError, {
                 clearOnNonForbidden: true,
                 toErrorKey: (error) => apiClient.toUiMessageKey(error),
             });
-            setIsAccessDenied(patch.isAccessDenied);
-            setErrorKey(patch.errorKey);
-            if (patch.items) {
-                setItems(patch.items);
-                setGroups(patch.groups ?? []);
-                setCapabilities(patch.capabilities ?? null);
-                setTotalCount(patch.totalCount ?? 0);
-            }
-            if (patch.hasLoadedOnce === false) {
-                hasLoadedIssuesRef.current = patch.hasLoadedOnce;
-            }
         } finally {
             if (isCurrentRequest(requestId)) {
                 setIsLoading(false);
             }
         }
     }, [
+        applyFailure,
+        applySuccess,
         beginRequest,
         currentPage,
         debouncedSearch,
@@ -155,6 +135,7 @@ export function useIssuesPageState({ initialState }: UseIssuesPageStateOptions) 
         overdueOnly,
         severityFilter,
         selectedGroupValue,
+        setIsLoading,
         sortDirection,
         sortField,
         statusFilter,
@@ -185,7 +166,15 @@ export function useIssuesPageState({ initialState }: UseIssuesPageStateOptions) 
                 setIsExporting(false);
             }
         },
-        [closeExportDialog, excludeActiveExceptions, overdueOnly, setIsExporting, severityFilter, statusFilter]
+        [
+            closeExportDialog,
+            excludeActiveExceptions,
+            overdueOnly,
+            setErrorKey,
+            setIsExporting,
+            severityFilter,
+            statusFilter,
+        ]
     );
 
     const updateSearch = useCallback((value: string) => {
@@ -253,19 +242,19 @@ export function useIssuesPageState({ initialState }: UseIssuesPageStateOptions) 
 
     return {
         currentPage,
-        capabilities,
-        errorKey,
+        capabilities: collectionData.capabilities,
+        errorKey: collectionData.errorKey,
         excludeActiveExceptions,
         fetchIssues,
-        groups,
+        groups: collectionData.groups,
         handleExport,
-        hasLoadedOnce: hasLoadedIssuesRef.current,
+        hasLoadedOnce: collectionData.hasLoadedOnce,
         includeClosed,
         isExportDialogOpen,
         isExporting,
-        isAccessDenied,
-        isLoading,
-        items,
+        isAccessDenied: collectionData.isAccessDenied,
+        isLoading: collectionData.isLoading,
+        items: collectionData.items,
         limit,
         openExportDialog,
         closeExportDialog,
@@ -278,8 +267,8 @@ export function useIssuesPageState({ initialState }: UseIssuesPageStateOptions) 
         sortDirection,
         sortField,
         statusFilter,
-        totalCount,
-        totalPages: getTotalPages(totalCount, limit),
+        totalCount: collectionData.totalCount,
+        totalPages: getTotalPages(collectionData.totalCount, limit),
         updateExcludeActiveExceptions,
         updateIncludeClosed,
         updateOverdueOnly,
