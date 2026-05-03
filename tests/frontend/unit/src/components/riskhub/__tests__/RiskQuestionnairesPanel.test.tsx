@@ -174,5 +174,8 @@ describe('RiskQuestionnairesPanel', () => {
 
         await screen.findByText('Owner named risk');
         expect(screen.queryByRole('button', { name: 'riskhub.questionnaires.send' })).not.toBeInTheDocument();
+        expect(screen.queryByText('riskhub.questionnaires.select_all')).not.toBeInTheDocument();
+        expect(screen.queryByText('riskhub.questionnaires.selected_count')).not.toBeInTheDocument();
+        expect(screen.queryAllByRole('checkbox')).toHaveLength(0);
     });
 });

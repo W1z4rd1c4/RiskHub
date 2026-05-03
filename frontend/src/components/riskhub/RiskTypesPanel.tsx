@@ -186,8 +186,12 @@ export function RiskTypesPanel() {
 
     const handleDelete = async () => {
         if (panel.deleteConfirm) {
-            await deleteMutation.mutateAsync(panel.deleteConfirm.id);
-            panel.closeDelete();
+            try {
+                await deleteMutation.mutateAsync(panel.deleteConfirm.id);
+                panel.closeDelete();
+            } catch (error: unknown) {
+                panel.setActionErrorKey(apiClient.toUiMessageKey(error));
+            }
         }
     };
     const canCreate = riskHubCapabilityEnabled(riskHubCapabilities?.risk_types, 'can_create');
@@ -352,6 +356,7 @@ export function RiskTypesPanel() {
                                 </span>
                             )}
                         </p>
+                        <RiskHubFieldError errorKey={panel.actionErrorKey} />
                         <div className="flex justify-end gap-3">
                             <button
                                 onClick={panel.closeDelete}

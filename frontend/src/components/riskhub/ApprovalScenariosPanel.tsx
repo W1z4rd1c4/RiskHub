@@ -1,12 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ShieldCheck, Check, X, ChevronDown } from 'lucide-react';
 import { riskHubApi } from '@/services/riskHubApi';
+import { apiClient } from '@/services/apiClient';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import type { ApprovalScenario, ApprovalScenarioUpdate } from '@/services/riskHubApi';
 import { cn } from '@/lib/utils';
 import { useState, useMemo, useEffect } from 'react';
 import { useTranslation } from '@/i18n/hooks';
-import { RiskHubModalActions, RiskHubModalFrame } from './panelPrimitives';
+import { RiskHubFieldError, RiskHubModalActions, RiskHubModalFrame } from './panelPrimitives';
 import { riskHubCapabilityEnabled, useRiskHubCapabilities } from './useRiskHubCapabilities';
 
 // Special dynamic role entry for risk owner (not a system role in roles table)
@@ -32,12 +33,14 @@ function EditScenarioModal({ isOpen, onClose, scenario, availableRoles, rolesLoa
     const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
     const [saving, setSaving] = useState(false);
     const [showRoleDropdown, setShowRoleDropdown] = useState(false);
+    const [errorKey, setErrorKey] = useState<string | null>(null);
 
     useEffect(() => {
         if (isOpen && scenario) {
             setRequiresApproval(scenario.requires_approval);
             setSelectedRoles(scenario.approver_roles);
             setShowRoleDropdown(false);
+            setErrorKey(null);
         }
     }, [isOpen, scenario]);
 
@@ -51,10 +54,13 @@ function EditScenarioModal({ isOpen, onClose, scenario, availableRoles, rolesLoa
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setErrorKey(null);
         setSaving(true);
         try {
             await onSave({ requires_approval: requiresApproval, approver_roles: selectedRoles });
             onClose();
+        } catch (error: unknown) {
+            setErrorKey(apiClient.toUiMessageKey(error));
         } finally {
             setSaving(false);
         }
@@ -152,6 +158,7 @@ function EditScenarioModal({ isOpen, onClose, scenario, availableRoles, rolesLoa
                         </div>
                     )}
 
+                    <RiskHubFieldError errorKey={errorKey} />
                     <RiskHubModalActions
                         disableSave={rolesLoading}
                         onCancel={onClose}

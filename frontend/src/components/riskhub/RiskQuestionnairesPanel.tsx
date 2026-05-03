@@ -233,8 +233,8 @@ export function RiskQuestionnairesPanel() {
                             { value: 'emerging', label: t('riskhub.questionnaires.status_emerging') },
                         ]}
                     />
-                    <label className="flex items-center gap-2 text-xs text-slate-300 font-bold select-none">
-                        {canBatchSend ? (
+                    {canBatchSend ? (
+                        <label className="flex items-center gap-2 text-xs text-slate-300 font-bold select-none">
                             <input
                                 type="checkbox"
                                 checked={selectAll}
@@ -244,9 +244,9 @@ export function RiskQuestionnairesPanel() {
                                 }}
                                 className="accent-accent"
                             />
-                        ) : null}
-                        {t('riskhub.questionnaires.select_all')}
-                    </label>
+                            {t('riskhub.questionnaires.select_all')}
+                        </label>
+                    ) : null}
                 </div>
 
                 <div className="overflow-x-auto">
@@ -318,13 +318,13 @@ export function RiskQuestionnairesPanel() {
                     </table>
                 </div>
 
-                <div className="p-4 border-t border-white/5 flex items-center justify-between">
-                    <div className="text-xs text-slate-500">
-                        {selectAll
-                            ? t('riskhub.questionnaires.select_all_hint')
-                            : t('riskhub.questionnaires.selected_count', { count: selectedIds.size })}
-                    </div>
-                    {canBatchSend ? (
+                {canBatchSend ? (
+                    <div className="p-4 border-t border-white/5 flex items-center justify-between">
+                        <div className="text-xs text-slate-500">
+                            {selectAll
+                                ? t('riskhub.questionnaires.select_all_hint')
+                                : t('riskhub.questionnaires.selected_count', { count: selectedIds.size })}
+                        </div>
                         <button
                             onClick={handleBatchSend}
                             disabled={sending || (!selectAll && selectedIds.size === 0)}
@@ -337,8 +337,8 @@ export function RiskQuestionnairesPanel() {
                             <Send className={cn("h-4 w-4", sending && "animate-pulse")} />
                             {t('riskhub.questionnaires.send')}
                         </button>
-                    ) : null}
-                </div>
+                    </div>
+                ) : null}
             </div>
         </div>
     );
