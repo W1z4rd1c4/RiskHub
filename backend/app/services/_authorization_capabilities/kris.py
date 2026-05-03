@@ -35,12 +35,23 @@ def _is_kri_base_update(approval: ApprovalRequest) -> bool:
     )
 
 
-async def kri_capabilities(db: AsyncSession, *, current_user: User, kri: KeyRiskIndicator) -> KRICapabilities:
-    approvals = await pending_approvals(
-        db,
-        resource_type=ApprovalResourceType.KRI,
-        resource_id=kri.id,
-    )
+async def kri_capabilities(
+    db: AsyncSession,
+    *,
+    current_user: User,
+    kri: KeyRiskIndicator,
+    preloaded_approvals: list[ApprovalRequest] | None = None,
+    high_risk_min_net_score: int | None = None,
+    can_read_override: bool | None = None,
+    is_reporting_owner_override: bool | None = None,
+) -> KRICapabilities:
+    approvals = preloaded_approvals
+    if approvals is None:
+        approvals = await pending_approvals(
+            db,
+            resource_type=ApprovalResourceType.KRI,
+            resource_id=kri.id,
+        )
     edit_approvals = [approval for approval in approvals if approval.action_type == ApprovalActionType.EDIT]
     has_pending_edit = bool(edit_approvals)
     has_pending_delete = has_pending_action(approvals, ApprovalActionType.DELETE)
@@ -48,7 +59,7 @@ async def kri_capabilities(db: AsyncSession, *, current_user: User, kri: KeyRisk
     has_pending_value = any(_is_kri_value_submission(approval) for approval in edit_approvals)
     has_pending_history = any(_is_kri_history_correction(approval) for approval in edit_approvals)
     risk = kri.risk
-    can_read = await can_read_kri_id(db, current_user, kri.id)
+    can_read = can_read_override if can_read_override is not None else await can_read_kri_id(db, current_user, kri.id)
     can_write = bool(
         can_read
         and has_permission(current_user, "risks", "write")
@@ -61,8 +72,17 @@ async def kri_capabilities(db: AsyncSession, *, current_user: User, kri: KeyRisk
         and can_access_department_id(current_user, risk.department_id)
     )
     is_resolver = can_resolve_approvals(current_user)
-    is_reporting_owner = await is_kri_reporting_owner(db, current_user.id, kri.id)
-    can_correct_history = await can_request_history_correction(db, current_user, kri)
+    is_reporting_owner = (
+        is_reporting_owner_override
+        if is_reporting_owner_override is not None
+        else await is_kri_reporting_owner(db, current_user.id, kri.id)
+    )
+    can_correct_history = await can_request_history_correction(
+        db,
+        current_user,
+        kri,
+        can_read_override=can_read,
+    )
     can_submit_scope = bool(
         is_reporting_owner
         or (
@@ -71,7 +91,20 @@ async def kri_capabilities(db: AsyncSession, *, current_user: User, kri: KeyRisk
             and can_access_department_id(current_user, risk.department_id)
         )
     )
-    requires_privileged = bool(risk and await is_high_risk_for_approval_async(risk, db))
+    requires_privileged = bool(
+        risk
+        and (
+            risk.is_priority
+            or (
+                high_risk_min_net_score is not None
+                and risk.net_score >= high_risk_min_net_score
+            )
+            or (
+                high_risk_min_net_score is None
+                and await is_high_risk_for_approval_async(risk, db)
+            )
+        )
+    )
     pending_edit_blocks_user_actions = bool(has_pending_edit and not is_resolver)
     can_update = bool(
         can_write and not kri.is_archived and not has_pending_delete and not pending_edit_blocks_user_actions

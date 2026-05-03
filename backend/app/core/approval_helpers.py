@@ -128,6 +128,29 @@ async def check_control_requires_privileged_approval(db: AsyncSession, control_i
     return False
 
 
+async def control_privileged_approval_requirements(
+    db: AsyncSession,
+    control_ids: set[int],
+) -> dict[int, bool]:
+    """Return whether each control has any linked risk requiring privileged approval."""
+    from app.models.global_config import ConfigDefaults, get_config_int
+
+    if not control_ids:
+        return {}
+
+    threshold = await get_config_int(db, "high_risk_min_net_score", ConfigDefaults.HIGH_RISK_MIN_NET_SCORE)
+    result = await db.execute(
+        select(ControlRiskLink.control_id, Risk.is_priority, Risk.net_score)
+        .join(Risk, ControlRiskLink.risk_id == Risk.id)
+        .where(ControlRiskLink.control_id.in_(control_ids))
+    )
+    requirements = {control_id: False for control_id in control_ids}
+    for control_id, is_priority, net_score in result.all():
+        if bool(is_priority) or int(net_score or 0) >= threshold:
+            requirements[control_id] = True
+    return requirements
+
+
 async def get_primary_approver_for_risk(
     db: AsyncSession, risk_id: int, requester_id: Optional[int] = None
 ) -> Optional[int]:

@@ -22,7 +22,11 @@ import {
     type KriStatusFilter,
     type KriTimelinessFilter,
 } from './kriPagePresentation';
-import { resolveCollectionLoadFailure } from '../shared/collectionPageState';
+import {
+    createCollectionFailurePatch,
+    createCollectionSuccessPatch,
+    useCollectionPageController,
+} from '../shared/collectionPageState';
 
 const TIMELINESS_FILTER_VALUES = ['due_soon'] as const;
 
@@ -35,8 +39,6 @@ export function useKrisPageState({ searchParams, setSearchParams }: UseKrisPageS
     const [items, setItems] = useState<KeyRiskIndicator[]>([]);
     const [groups, setGroups] = useState<CollectionGroup[]>([]);
     const [capabilities, setCapabilities] = useState<Record<string, boolean> | null>(null);
-    const [selectedGroupValue, setSelectedGroupValue] = useState<string | null>(null);
-    const [selectedGroupLabel, setSelectedGroupLabel] = useState<string | null>(null);
     const [totalCount, setTotalCount] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
     const [errorKey, setErrorKey] = useState<string | null>(null);
@@ -44,10 +46,20 @@ export function useKrisPageState({ searchParams, setSearchParams }: UseKrisPageS
     const [search, setSearch] = useState('');
     const [viewMode, setViewMode] = useState<ViewMode>('all');
     const [currentPage, setCurrentPage] = useState(1);
-    const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
-    const [isExporting, setIsExporting] = useState(false);
+    const {
+        beginRequest,
+        closeExportDialog,
+        isCurrentRequest,
+        isExportDialogOpen,
+        isExporting,
+        openExportDialog,
+        resetGroupSelection,
+        selectGroup: selectCollectionGroup,
+        selectedGroupLabel,
+        selectedGroupValue,
+        setIsExporting,
+    } = useCollectionPageController();
 
-    const latestRequestIdRef = useRef(0);
     const hasLoadedKrisRef = useRef(false);
 
     const { statusFilter, timelinessFilter } = readKriRouteFilters(
@@ -60,7 +72,7 @@ export function useKrisPageState({ searchParams, setSearchParams }: UseKrisPageS
     const groupBy = getKriGroupBy(viewMode);
 
     const fetchKris = useCallback(async () => {
-        const requestId = ++latestRequestIdRef.current;
+        const requestId = beginRequest();
         try {
             setIsLoading(true);
 
@@ -80,42 +92,52 @@ export function useKrisPageState({ searchParams, setSearchParams }: UseKrisPageS
                     })
                 ),
             });
-            if (requestId !== latestRequestIdRef.current) {
+            if (!isCurrentRequest(requestId)) {
                 return;
             }
-            setItems(response.items);
-            setGroups(response.groups);
-            setCapabilities(response.capabilities);
-            setTotalCount(response.total);
-
-            setErrorKey(null);
-            setIsAccessDenied(false);
-            hasLoadedKrisRef.current = true;
+            const patch = createCollectionSuccessPatch(response);
+            setItems(patch.items ?? []);
+            setGroups(patch.groups ?? []);
+            setCapabilities(patch.capabilities ?? null);
+            setTotalCount(patch.totalCount ?? 0);
+            setErrorKey(patch.errorKey);
+            setIsAccessDenied(patch.isAccessDenied);
+            hasLoadedKrisRef.current = patch.hasLoadedOnce === true;
         } catch (error) {
-            if (requestId !== latestRequestIdRef.current) {
+            if (!isCurrentRequest(requestId)) {
                 return;
             }
-            const failure = resolveCollectionLoadFailure(error, {
+            const patch = createCollectionFailurePatch<KeyRiskIndicator>(error, {
                 clearOnNonForbidden: true,
-                toErrorKey: apiClient.toUiMessageKey,
+                toErrorKey: (loadError) => apiClient.toUiMessageKey(loadError),
             });
-            setIsAccessDenied(failure.isAccessDenied);
-            setErrorKey(failure.errorKey);
-            if (failure.shouldClearCollection) {
-                setItems([]);
-                setGroups([]);
-                setCapabilities(null);
-                setTotalCount(0);
+            setIsAccessDenied(patch.isAccessDenied);
+            setErrorKey(patch.errorKey);
+            if (patch.items) {
+                setItems(patch.items);
+                setGroups(patch.groups ?? []);
+                setCapabilities(patch.capabilities ?? null);
+                setTotalCount(patch.totalCount ?? 0);
             }
-            if (failure.shouldMarkUnloaded) {
-                hasLoadedKrisRef.current = false;
+            if (patch.hasLoadedOnce === false) {
+                hasLoadedKrisRef.current = patch.hasLoadedOnce;
             }
         } finally {
-            if (requestId === latestRequestIdRef.current) {
+            if (isCurrentRequest(requestId)) {
                 setIsLoading(false);
             }
         }
-    }, [currentPage, debouncedSearch, groupBy, limit, selectedGroupValue, statusFilter, timelinessFilter]);
+    }, [
+        beginRequest,
+        currentPage,
+        debouncedSearch,
+        groupBy,
+        isCurrentRequest,
+        limit,
+        selectedGroupValue,
+        statusFilter,
+        timelinessFilter,
+    ]);
 
     useEffect(() => {
         void fetchKris();
@@ -123,8 +145,7 @@ export function useKrisPageState({ searchParams, setSearchParams }: UseKrisPageS
 
     const updateRouteFilters = useCallback((nextStatusFilter: KriStatusFilter, nextTimelinessFilter: KriTimelinessFilter) => {
         setCurrentPage(1);
-        setSelectedGroupValue(null);
-        setSelectedGroupLabel(null);
+        resetGroupSelection();
 
         const nextParams = new URLSearchParams(searchParams);
         nextParams.delete('monitoring_status');
@@ -140,33 +161,29 @@ export function useKrisPageState({ searchParams, setSearchParams }: UseKrisPageS
         }
 
         setSearchParams(nextParams, { replace: true });
-    }, [searchParams, setSearchParams]);
+    }, [resetGroupSelection, searchParams, setSearchParams]);
 
     const updateViewMode = useCallback((nextViewMode: ViewMode) => {
         setViewMode(nextViewMode);
         setCurrentPage(1);
-        setSelectedGroupValue(null);
-        setSelectedGroupLabel(null);
-    }, []);
+        resetGroupSelection();
+    }, [resetGroupSelection]);
 
     const updateSearch = useCallback((value: string) => {
         setSearch(value);
         setCurrentPage(1);
-        setSelectedGroupValue(null);
-        setSelectedGroupLabel(null);
-    }, []);
+        resetGroupSelection();
+    }, [resetGroupSelection]);
 
     const selectGroup = useCallback((groupValue: string, groupLabel: string) => {
-        setSelectedGroupValue(groupValue);
-        setSelectedGroupLabel(groupLabel);
+        selectCollectionGroup(groupValue, groupLabel);
         setCurrentPage(1);
-    }, []);
+    }, [selectCollectionGroup]);
 
     const clearSelectedGroup = useCallback(() => {
-        setSelectedGroupValue(null);
-        setSelectedGroupLabel(null);
+        resetGroupSelection();
         setCurrentPage(1);
-    }, []);
+    }, [resetGroupSelection]);
 
     const restoreKri = useCallback(async (kriId: number) => {
         try {
@@ -189,13 +206,13 @@ export function useKrisPageState({ searchParams, setSearchParams }: UseKrisPageS
                     timelinessFilter,
                 }),
             });
-            setIsExportDialogOpen(false);
+            closeExportDialog();
         } catch (error) {
             setErrorKey(apiClient.toUiMessageKey(error));
         } finally {
             setIsExporting(false);
         }
-    }, [search, statusFilter, timelinessFilter]);
+    }, [closeExportDialog, search, setIsExporting, statusFilter, timelinessFilter]);
 
     return {
         currentPage,
@@ -211,8 +228,8 @@ export function useKrisPageState({ searchParams, setSearchParams }: UseKrisPageS
         isLoading,
         items,
         limit,
-        openExportDialog: () => setIsExportDialogOpen(true),
-        closeExportDialog: () => setIsExportDialogOpen(false),
+        openExportDialog,
+        closeExportDialog,
         restoreKri,
         search,
         selectedGroupLabel,

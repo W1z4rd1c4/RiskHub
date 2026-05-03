@@ -23,11 +23,10 @@ import {
     type IssuesPageInitialState,
 } from './issuesPagePresentation';
 import {
+    createCollectionFailurePatch,
+    createCollectionSuccessPatch,
     getTotalPages,
-    resolveCollectionLoadFailure,
-    useCollectionGroupSelection,
-    useExportDialogState,
-    useLatestRequestGuard,
+    useCollectionPageController,
 } from '../shared/collectionPageState';
 
 interface UseIssuesPageStateOptions {
@@ -59,20 +58,19 @@ export function useIssuesPageState({ initialState }: UseIssuesPageStateOptions) 
     const [errorKey, setErrorKey] = useState<string | null>(null);
     const [isAccessDenied, setIsAccessDenied] = useState(false);
 
-    const { beginRequest, isCurrentRequest } = useLatestRequestGuard();
     const {
+        beginRequest,
+        closeExportDialog,
+        isCurrentRequest,
+        isExportDialogOpen,
+        isExporting,
+        openExportDialog,
         resetGroupSelection,
         selectGroup: setSelectedGroup,
         selectedGroupLabel,
         selectedGroupValue,
-    } = useCollectionGroupSelection();
-    const {
-        closeExportDialog,
-        isExportDialogOpen,
-        isExporting,
-        openExportDialog,
         setIsExporting,
-    } = useExportDialogState();
+    } = useCollectionPageController();
     const hasLoadedIssuesRef = useRef(false);
 
     const limit = DEFAULT_LIST_PAGE_SIZE;
@@ -113,31 +111,32 @@ export function useIssuesPageState({ initialState }: UseIssuesPageStateOptions) 
             if (!isCurrentRequest(requestId)) {
                 return;
             }
-            setItems(response.items);
-            setGroups(response.groups);
-            setCapabilities(response.capabilities);
-            setTotalCount(response.total);
-            setErrorKey(null);
-            setIsAccessDenied(false);
-            hasLoadedIssuesRef.current = true;
+            const patch = createCollectionSuccessPatch(response);
+            setItems(patch.items ?? []);
+            setGroups(patch.groups ?? []);
+            setCapabilities(patch.capabilities ?? null);
+            setTotalCount(patch.totalCount ?? 0);
+            setErrorKey(patch.errorKey);
+            setIsAccessDenied(patch.isAccessDenied);
+            hasLoadedIssuesRef.current = patch.hasLoadedOnce === true;
         } catch (loadError) {
             if (!isCurrentRequest(requestId)) {
                 return;
             }
-            const failure = resolveCollectionLoadFailure(loadError, {
+            const patch = createCollectionFailurePatch<IssueSummary>(loadError, {
                 clearOnNonForbidden: true,
-                toErrorKey: apiClient.toUiMessageKey,
+                toErrorKey: (error) => apiClient.toUiMessageKey(error),
             });
-            setIsAccessDenied(failure.isAccessDenied);
-            setErrorKey(failure.errorKey);
-            if (failure.shouldClearCollection) {
-                setItems([]);
-                setGroups([]);
-                setCapabilities(null);
-                setTotalCount(0);
+            setIsAccessDenied(patch.isAccessDenied);
+            setErrorKey(patch.errorKey);
+            if (patch.items) {
+                setItems(patch.items);
+                setGroups(patch.groups ?? []);
+                setCapabilities(patch.capabilities ?? null);
+                setTotalCount(patch.totalCount ?? 0);
             }
-            if (failure.shouldMarkUnloaded) {
-                hasLoadedIssuesRef.current = false;
+            if (patch.hasLoadedOnce === false) {
+                hasLoadedIssuesRef.current = patch.hasLoadedOnce;
             }
         } finally {
             if (isCurrentRequest(requestId)) {

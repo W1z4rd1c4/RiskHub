@@ -24,5 +24,27 @@ async def pending_approvals(
     return list(result.scalars().all())
 
 
+async def pending_approvals_for_resources(
+    db: AsyncSession,
+    *,
+    resource_type: ApprovalResourceType,
+    resource_ids: set[int],
+) -> dict[int, list[ApprovalRequest]]:
+    if not resource_ids:
+        return {}
+    result = await db.execute(
+        select(ApprovalRequest).where(
+            ApprovalRequest.resource_type == resource_type,
+            ApprovalRequest.resource_id.in_(resource_ids),
+            ApprovalRequest.status.in_(PENDING_APPROVAL_STATUSES),
+        )
+    )
+    approvals_by_resource: dict[int, list[ApprovalRequest]] = {resource_id: [] for resource_id in resource_ids}
+    for approval in result.scalars().all():
+        if approval.resource_id is not None:
+            approvals_by_resource.setdefault(approval.resource_id, []).append(approval)
+    return approvals_by_resource
+
+
 def has_pending_action(approvals: list[ApprovalRequest], action: ApprovalActionType) -> bool:
     return any(approval.action_type == action for approval in approvals)

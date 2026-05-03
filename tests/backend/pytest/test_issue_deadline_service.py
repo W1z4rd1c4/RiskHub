@@ -359,6 +359,96 @@ async def test_issue_deadline_service_expired_exception_keeps_completed_issue_cl
     assert refreshed_issue.closed_at is not None
 
 
+@pytest.mark.asyncio
+async def test_issue_deadline_service_rolls_back_failed_issue_and_continues(
+    db_session: AsyncSession,
+    test_department,
+    test_user,
+    monkeypatch,
+):
+    now = datetime.now(UTC).replace(microsecond=0)
+    department_id = test_department.id
+    user_id = test_user.id
+
+    failed_issue = Issue(
+        title="Failed deadline issue",
+        severity="critical",
+        status="closed",
+        source_type="manual",
+        department_id=department_id,
+        owner_user_id=user_id,
+        created_by_id=user_id,
+        opened_at=now - timedelta(days=30),
+        closed_at=now - timedelta(days=5),
+        due_at=now - timedelta(days=10),
+    )
+    later_issue = Issue(
+        title="Later deadline issue",
+        severity="medium",
+        status="open",
+        source_type="manual",
+        department_id=department_id,
+        owner_user_id=user_id,
+        created_by_id=user_id,
+        opened_at=now - timedelta(days=2),
+        due_at=now + timedelta(days=2),
+    )
+    db_session.add_all([failed_issue, later_issue])
+    await db_session.flush()
+    db_session.add_all(
+        [
+            IssueRemediationPlan(
+                issue_id=failed_issue.id,
+                status="active",
+                progress_percent=25,
+                owner_user_id=user_id,
+            ),
+            IssueException(
+                issue_id=failed_issue.id,
+                status="approved",
+                reason="Temporary acceptance",
+                requested_by_id=user_id,
+                approved_by_id=user_id,
+                requested_at=now - timedelta(days=20),
+                approved_at=now - timedelta(days=15),
+                expires_at=now - timedelta(hours=1),
+            ),
+            IssueRemediationPlan(
+                issue_id=later_issue.id,
+                status="active",
+                progress_percent=50,
+                owner_user_id=user_id,
+            ),
+        ]
+    )
+    await db_session.commit()
+    failed_issue_id = failed_issue.id
+    later_issue_id = later_issue.id
+    original_expire = IssueDeadlineService._expire_exceptions
+
+    async def fail_after_dirtying_issue(db: AsyncSession, issue: Issue, current_now: datetime):
+        if issue.id == failed_issue_id:
+            issue.status = "in_progress"
+            db.add(issue)
+            raise RuntimeError("simulated per-issue failure")
+        return await original_expire(db, issue, current_now)
+
+    monkeypatch.setattr(IssueDeadlineService, "_expire_exceptions", staticmethod(fail_after_dirtying_issue))
+
+    result = await IssueDeadlineService.check_issue_deadlines(db_session, now=now)
+
+    assert result["due_soon"] == 1
+    assert result["notifications_created"] >= 1
+    refreshed_failed = (
+        await db_session.execute(select(Issue).where(Issue.id == failed_issue_id))
+    ).scalar_one()
+    refreshed_later = (
+        await db_session.execute(select(Issue).where(Issue.id == later_issue_id))
+    ).scalar_one()
+    assert refreshed_failed.status == "closed"
+    assert coerce_utc(refreshed_later.last_due_soon_notified_at) == now
+
+
 def test_issue_deadline_decisions_cover_due_soon_overdue_and_escalation() -> None:
     now = datetime(2026, 4, 26, 9, 0, tzinfo=UTC)
     due_soon_due_at = now + timedelta(days=2)

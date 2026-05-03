@@ -118,6 +118,13 @@ describe('IssuesPage URL filter initialization', () => {
 
     it('forwards severity_group and actionable filter to export API payload', async () => {
         mockQueryString = '?severity_group=high_critical&include_closed=false&exclude_active_exceptions=true';
+        mockList.mockResolvedValue({
+            items: [],
+            total: 0,
+            offset: 0,
+            limit: 20,
+            capabilities: { can_export: true },
+        });
 
         render(<IssuesPage />);
 

@@ -23,6 +23,30 @@ async def test_create_department(
 
 
 @pytest.mark.asyncio
+async def test_create_department_rolls_back_when_activity_log_fails(
+    client_cro: AsyncClient,
+    db_session: AsyncSession,
+    monkeypatch,
+):
+    async def fail_log_activity(*args, **kwargs):
+        raise RuntimeError("simulated activity log failure")
+
+    monkeypatch.setattr("app.api.v1.endpoints.riskhub.departments.log_activity", fail_log_activity)
+
+    with pytest.raises(RuntimeError, match="simulated activity log failure"):
+        await client_cro.post(
+            "/api/v1/riskhub/departments",
+            json={"name": "Rollback Department", "code": "ROLLBACK_DEPT"},
+        )
+
+    await db_session.rollback()
+    persisted = (
+        await db_session.execute(select(Department).where(Department.code == "ROLLBACK_DEPT"))
+    ).scalar_one_or_none()
+    assert persisted is None
+
+
+@pytest.mark.asyncio
 async def test_delete_department_soft(
     client_cro: AsyncClient,
     db_session: AsyncSession,

@@ -8,14 +8,13 @@ from sqlalchemy.orm import selectinload
 from app.api.v1.endpoints._collection import (
     CollectionGroupEntry,
     build_grouped_collection_page,
+    build_list_context,
     coerce_optional_bool,
     coerce_optional_enum,
     coerce_optional_int,
     coerce_optional_literal,
     coerce_optional_string,
     is_group_summary_request,
-    merge_collection_filters,
-    parse_collection_query,
 )
 from app.core.datetime_utils import utc_now
 from app.core.permissions import (
@@ -306,7 +305,7 @@ async def list_issues(
     group_by: str | None = Query(None),
     group_value: str | None = Query(None),
 ) -> IssueListResponse:
-    collection_query = parse_collection_query(
+    collection_context = build_list_context(
         offset=skip if skip is not None else offset,
         limit=limit,
         sort=sort,
@@ -314,10 +313,7 @@ async def list_issues(
         group_by=group_by,
         group_value=group_value,
         max_limit=100,
-    )
-    filter_values = merge_collection_filters(
-        collection_query,
-        {
+        legacy_filters={
             "status": status.value if status else None,
             "severity": severity.value if severity else None,
             "severity_group": severity_group,
@@ -332,6 +328,8 @@ async def list_issues(
             "include_closed": include_closed,
         },
     )
+    collection_query = collection_context.query
+    filter_values = collection_context.filters
     status_value = filter_values.get("status")
     status = coerce_optional_enum(IssueStatus, status_value, "status")
     severity_value = filter_values.get("severity")

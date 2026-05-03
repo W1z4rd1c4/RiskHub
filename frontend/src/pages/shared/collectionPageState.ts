@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 
 import { isForbiddenApiError } from '@/services/apiClient';
+import type { CollectionGroup } from '@/types/collection';
 
 interface CollectionLoadFailureOptions {
     clearOnNonForbidden?: boolean;
@@ -13,6 +14,23 @@ interface CollectionLoadFailureResolution {
     isAccessDenied: boolean;
     shouldClearCollection: boolean;
     shouldMarkUnloaded: boolean;
+}
+
+interface CollectionSuccessPayload<TItem> {
+    items: TItem[];
+    groups: CollectionGroup[];
+    capabilities: Record<string, boolean> | null;
+    total: number;
+}
+
+interface CollectionStatePatch<TItem> {
+    items?: TItem[];
+    groups?: CollectionGroup[];
+    capabilities?: Record<string, boolean> | null;
+    totalCount?: number;
+    errorKey: string | null;
+    isAccessDenied: boolean;
+    hasLoadedOnce?: boolean;
 }
 
 export function resolveCollectionLoadFailure(
@@ -28,6 +46,41 @@ export function resolveCollectionLoadFailure(
         shouldClearCollection: isAccessDenied || options.clearOnNonForbidden === true,
         shouldMarkUnloaded: isAccessDenied,
     };
+}
+
+export function createCollectionSuccessPatch<TItem>(
+    payload: CollectionSuccessPayload<TItem>
+): CollectionStatePatch<TItem> {
+    return {
+        items: payload.items,
+        groups: payload.groups,
+        capabilities: payload.capabilities,
+        totalCount: payload.total,
+        errorKey: null,
+        isAccessDenied: false,
+        hasLoadedOnce: true,
+    };
+}
+
+export function createCollectionFailurePatch<TItem = unknown>(
+    error: unknown,
+    options: CollectionLoadFailureOptions = {}
+): CollectionStatePatch<TItem> {
+    const failure = resolveCollectionLoadFailure(error, options);
+    const patch: CollectionStatePatch<TItem> = {
+        errorKey: failure.errorKey,
+        isAccessDenied: failure.isAccessDenied,
+    };
+    if (failure.shouldClearCollection) {
+        patch.items = [];
+        patch.groups = [];
+        patch.capabilities = null;
+        patch.totalCount = 0;
+    }
+    if (failure.shouldMarkUnloaded) {
+        patch.hasLoadedOnce = false;
+    }
+    return patch;
 }
 
 export function useLatestRequestGuard() {
@@ -79,6 +132,14 @@ export function useExportDialogState() {
         isExporting,
         openExportDialog,
         setIsExporting,
+    };
+}
+
+export function useCollectionPageController() {
+    return {
+        ...useLatestRequestGuard(),
+        ...useCollectionGroupSelection(),
+        ...useExportDialogState(),
     };
 }
 

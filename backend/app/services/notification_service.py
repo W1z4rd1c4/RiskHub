@@ -12,8 +12,7 @@ from app.models.notification import Notification, NotificationType
 from app.models.user import User
 from app.services._notification_approval_helpers import (
     approval_action_label,
-    can_user_view_approval_resource,
-    load_scenario_approval_notification_candidates,
+    eligible_approval_notification_recipients,
 )
 from app.services.notification_creation_helpers import (
     find_existing_notification,
@@ -167,20 +166,15 @@ class NotificationService:
         Returns:
             List of created Notification objects
         """
-        candidates = await load_scenario_approval_notification_candidates(db, approval)
-
         notifications = []
         action_label = approval_action_label(approval)
+        recipients, skipped = await eligible_approval_notification_recipients(
+            db,
+            approval,
+            exclude_user_id=approval.requested_by_id,
+        )
 
-        for approver in candidates:
-            # Don't notify the requester themselves if they're an approver
-            if approver.id == approval.requested_by_id:
-                continue
-
-            # Visibility filter: never notify users who can't see the referenced object (prevents cross-scope leaks).
-            if not await can_user_view_approval_resource(db, approver, approval):
-                continue
-
+        for approver in recipients:
             try:
                 notification = await NotificationService.create_notification_once(
                     db=db,
@@ -202,7 +196,12 @@ class NotificationService:
                 logger.error(f"Failed to create notification for approver {approver.id}: {e}")
                 # Continue creating notifications for other approvers
 
-        logger.info(f"Created {len(notifications)} approval pending notifications for approval {approval.id}")
+        logger.info(
+            "Created %s approval pending notifications for approval %s; skipped=%s",
+            len(notifications),
+            approval.id,
+            skipped,
+        )
         return notifications
 
     @staticmethod
@@ -276,19 +275,15 @@ class NotificationService:
         Returns:
             List of created Notification objects
         """
-        candidates = await load_scenario_approval_notification_candidates(db, approval)
-
         notifications = []
         action_label = approval_action_label(approval)
+        recipients, skipped = await eligible_approval_notification_recipients(
+            db,
+            approval,
+            exclude_user_id=cancelled_by_user.id,
+        )
 
-        for approver in candidates:
-            # Don't notify the user who cancelled
-            if approver.id == cancelled_by_user.id:
-                continue
-
-            if not await can_user_view_approval_resource(db, approver, approval):
-                continue
-
+        for approver in recipients:
             try:
                 notification = await NotificationService.create_notification_once(
                     db=db,
@@ -310,5 +305,10 @@ class NotificationService:
                 logger.error(f"Failed to create cancellation notification for approver {approver.id}: {e}")
                 # Continue creating notifications for other approvers
 
-        logger.info(f"Created {len(notifications)} cancellation notifications for approval {approval.id}")
+        logger.info(
+            "Created %s cancellation notifications for approval %s; skipped=%s",
+            len(notifications),
+            approval.id,
+            skipped,
+        )
         return notifications

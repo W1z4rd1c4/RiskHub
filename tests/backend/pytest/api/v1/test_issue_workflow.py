@@ -10,14 +10,17 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from app.api.v1.endpoints.issues._shared.notifications import _notify_exception_approved, _notify_issue_assigned
 from app.models import (
     Issue,
+    IssueException,
     IssueRemediationPlan,
     Notification,
     NotificationType,
+    OutboxEvent,
     Permission,
     Role,
     RolePermission,
     User,
 )
+from app.models.issue import IssueExceptionStatus
 from app.models.user import AccessScope
 from app.services.outbox import dispatch_pending_outbox_events
 from app.services.outbox.handlers.issues import handle_issue_assigned, handle_issue_exception_approved
@@ -207,6 +210,69 @@ async def test_issue_workflow_happy_path(
     assert close_resp.json()["capabilities"]["can_mark_remediation_blocked"] is False
     assert close_resp.json()["capabilities"]["can_mark_remediation_completed"] is False
     assert close_resp.json()["capabilities"]["can_close"] is False
+
+
+@pytest.mark.asyncio
+async def test_request_exception_rejects_when_active_exception_exists(
+    db_session: AsyncSession,
+    auth_client: AsyncClient,
+    test_department,
+    test_user: User,
+):
+    now = datetime.now(UTC).replace(microsecond=0)
+    issue = Issue(
+        title="Duplicate exception blocked",
+        description="Issue already has an active exception",
+        severity="high",
+        status="open",
+        source_type="manual",
+        department_id=test_department.id,
+        owner_user_id=test_user.id,
+        created_by_id=test_user.id,
+        opened_at=now - timedelta(days=3),
+        due_at=now + timedelta(days=7),
+    )
+    db_session.add(issue)
+    await db_session.flush()
+    db_session.add(IssueRemediationPlan(issue_id=issue.id, status="active", progress_percent=30))
+    active_exception = IssueException(
+        issue_id=issue.id,
+        status=IssueExceptionStatus.approved.value,
+        reason="Existing accepted exception",
+        requested_by_id=test_user.id,
+        approved_by_id=test_user.id,
+        requested_at=now - timedelta(days=2),
+        approved_at=now - timedelta(days=1),
+        expires_at=now + timedelta(days=20),
+    )
+    db_session.add(active_exception)
+    await db_session.commit()
+
+    response = await auth_client.post(
+        f"/api/v1/issues/{issue.id}/request-exception",
+        json={"reason": "Second exception should be rejected"},
+    )
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == "Issue already has an active approved exception"
+    requested_count = (
+        await db_session.execute(
+            select(IssueException).where(
+                IssueException.issue_id == issue.id,
+                IssueException.status == IssueExceptionStatus.requested.value,
+            )
+        )
+    ).scalars().all()
+    assert requested_count == []
+    outbox_event = (
+        await db_session.execute(
+            select(OutboxEvent).where(
+                OutboxEvent.event_type == "issue.exception_requested",
+                OutboxEvent.aggregate_type == "issue_exception",
+            )
+        )
+    ).scalar_one_or_none()
+    assert outbox_event is None
 
 
 @pytest.mark.asyncio

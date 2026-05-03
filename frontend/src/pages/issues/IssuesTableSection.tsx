@@ -99,7 +99,6 @@ export function IssuesTableSection({
             {
                 key: 'department_name',
                 label: t('columns.department'),
-                sortable: true,
                 render: (issue) => (
                     <span className="text-sm text-slate-300">
                         {issue.department_name || t('fallbacks.unknown_department')}
@@ -109,7 +108,6 @@ export function IssuesTableSection({
             {
                 key: 'owner_user_name',
                 label: t('columns.owner'),
-                sortable: true,
                 render: (issue) => (
                     <span className="text-sm text-slate-300">
                         {issue.owner_user_name || t('fallbacks.unassigned')}
@@ -119,7 +117,6 @@ export function IssuesTableSection({
             {
                 key: 'source_type',
                 label: t('columns.source'),
-                sortable: true,
                 render: (issue) => (
                     <span className="text-sm text-slate-300">
                         {issue.source_display || sourceLabel(issue.source_type)}

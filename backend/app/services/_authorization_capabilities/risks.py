@@ -11,24 +11,36 @@ from app.core.permissions import (
     is_risk_control_owner,
     is_risk_kri_reporting_owner,
 )
-from app.models import ApprovalActionType, ApprovalResourceType, Risk, RiskStatus, User
+from app.models import ApprovalActionType, ApprovalRequest, ApprovalResourceType, Risk, RiskStatus, User
 from app.schemas.risk import RiskCapabilities
 from app.services._risk_questionnaires.policy import can_send_questionnaire
 
 from .common import has_pending_action, pending_approvals
 
 
-async def risk_capabilities(db: AsyncSession, *, current_user: User, risk: Risk) -> RiskCapabilities:
-    approvals = await pending_approvals(
-        db,
-        resource_type=ApprovalResourceType.RISK,
-        resource_id=risk.id,
-    )
+async def risk_capabilities(
+    db: AsyncSession,
+    *,
+    current_user: User,
+    risk: Risk,
+    preloaded_approvals: list[ApprovalRequest] | None = None,
+    high_risk_min_net_score: int | None = None,
+    can_read_override: bool | None = None,
+    is_kri_reporting_owner_for_risk: bool | None = None,
+    is_control_owner_for_risk: bool | None = None,
+) -> RiskCapabilities:
+    approvals = preloaded_approvals
+    if approvals is None:
+        approvals = await pending_approvals(
+            db,
+            resource_type=ApprovalResourceType.RISK,
+            resource_id=risk.id,
+        )
     has_pending_delete = has_pending_action(approvals, ApprovalActionType.DELETE)
     has_pending_update = has_pending_action(approvals, ApprovalActionType.EDIT)
     is_archived = risk.status == RiskStatus.archived.value
     is_owner = risk.owner_id == current_user.id
-    can_read = await can_read_risk_id(db, current_user, risk.id)
+    can_read = can_read_override if can_read_override is not None else await can_read_risk_id(db, current_user, risk.id)
     has_update_authority = has_permission(current_user, "risks", "write") or is_owner
     can_update_scope = is_owner or can_access_department_id(current_user, risk.department_id)
     can_update = bool(can_read and has_update_authority and can_update_scope and not has_pending_delete)
@@ -40,13 +52,25 @@ async def risk_capabilities(db: AsyncSession, *, current_user: User, risk: Risk)
         and not is_archived
     )
     is_resolver = can_resolve_approvals(current_user)
-    requires_privileged_delete = await is_high_risk_for_approval_async(risk, db)
+    requires_privileged_delete = (
+        bool(risk.is_priority or risk.net_score >= high_risk_min_net_score)
+        if high_risk_min_net_score is not None
+        else await is_high_risk_for_approval_async(risk, db)
+    )
     requires_privileged_update = bool(risk.is_priority)
     can_manage_risk_control_links = can_access_department_id(current_user, risk.department_id)
     if not can_manage_risk_control_links:
-        can_manage_risk_control_links = await is_risk_kri_reporting_owner(db, current_user.id, risk.id)
+        can_manage_risk_control_links = (
+            is_kri_reporting_owner_for_risk
+            if is_kri_reporting_owner_for_risk is not None
+            else await is_risk_kri_reporting_owner(db, current_user.id, risk.id)
+        )
     if not can_manage_risk_control_links:
-        can_manage_risk_control_links = await is_risk_control_owner(db, current_user.id, risk.id)
+        can_manage_risk_control_links = (
+            is_control_owner_for_risk
+            if is_control_owner_for_risk is not None
+            else await is_risk_control_owner(db, current_user.id, risk.id)
+        )
     can_link_controls = bool(
         can_read
         and can_manage_risk_control_links

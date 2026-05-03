@@ -853,7 +853,7 @@ Workflow mutation contract:
 
 ### 11.2 Scope and Non-Leaky Access
 
-- Issue reads are backend-scoped by department visibility plus ownership exception paths.
+- Issue reads are backend-scoped by department visibility plus ownership exception paths, including issues linked directly to KRIs where the actor is the KRI reporting owner. The direct KRI reporting-owner issue path is read-only; issue mutations still require department, issue-owner, risk-owner, or control-owner scope in addition to `issues:write`.
 - Out-of-scope issue reads return `404` (not `403`) to prevent resource leakage.
 - Backend remains source of truth for authorization; frontend only mirrors gating.
 - Owner assignment (`create`, `patch owner_user_id`, `assign`) is allowed only when owner has global scope or belongs to the issue department.
@@ -866,6 +866,7 @@ Workflow mutation contract:
 - KRI breach reminders dedupe by the current breach direction/threshold message, so a materially different breach state can notify even when an older breach notification exists.
 - High-severity overdue issues generate escalation notifications.
 - Approved exceptions suppress issue overdue/open dashboard counting while active.
+- Requesting a new issue exception is rejected while an approved, unexpired exception is already active for the issue.
 - Expired exceptions are auto-marked `expired`; closed issues can be re-opened when remediation is incomplete.
 - Expired exceptions do not reopen closed issues whose remediation is complete under the shared completion invariant.
 - Explicit exception revocation is available via `POST /api/v1/issues/{id}/revoke-exception`.

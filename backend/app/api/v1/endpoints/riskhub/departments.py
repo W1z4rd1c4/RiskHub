@@ -69,14 +69,7 @@ async def create_department(
         is_active=True,
     )
     db.add(dept)
-    await db.commit()
-    await db.refresh(dept)
-
-    # Reload with manager
-    result = await db.execute(
-        select(Department).options(selectinload(Department.manager)).where(Department.id == dept.id)
-    )
-    dept = result.scalar_one()
+    await db.flush()
 
     await log_activity(
         db=db,
@@ -89,6 +82,11 @@ async def create_department(
         description=f"Created department: {dept.name}",
     )
     await db.commit()
+
+    result = await db.execute(
+        select(Department).options(selectinload(Department.manager)).where(Department.id == dept.id)
+    )
+    dept = result.scalar_one()
 
     return department_to_read(dept, await get_department_dependency_counts(db, dept.id))
 
@@ -125,15 +123,7 @@ async def update_department(
         await validate_department_manager(db, data.manager_id)
         dept.manager_id = data.manager_id
 
-    await db.commit()
-
-    # Reload
-    result = await db.execute(
-        select(Department)
-        .options(selectinload(Department.manager), selectinload(Department.users))
-        .where(Department.id == dept.id)
-    )
-    dept = result.scalar_one()
+    await db.flush()
 
     await log_activity(
         db=db,
@@ -146,6 +136,13 @@ async def update_department(
         description=f"Updated department: {dept.name}",
     )
     await db.commit()
+
+    result = await db.execute(
+        select(Department)
+        .options(selectinload(Department.manager), selectinload(Department.users))
+        .where(Department.id == dept.id)
+    )
+    dept = result.scalar_one()
 
     return department_to_read(dept, await get_department_dependency_counts(db, dept.id))
 
@@ -187,7 +184,7 @@ async def delete_department(
         )
 
     dept.is_active = False
-    await db.commit()
+    await db.flush()
 
     await log_activity(
         db=db,
@@ -217,8 +214,7 @@ async def restore_department(
         raise HTTPException(status_code=400, detail="Department is not deleted")
 
     dept.is_active = True
-    await db.commit()
-    await db.refresh(dept)
+    await db.flush()
 
     await log_activity(
         db=db,
@@ -233,5 +229,7 @@ async def restore_department(
         description=f"Restored department: {dept.name}",
     )
     await db.commit()
+
+    await db.refresh(dept)
 
     return department_to_read(dept, await get_department_dependency_counts(db, dept.id))

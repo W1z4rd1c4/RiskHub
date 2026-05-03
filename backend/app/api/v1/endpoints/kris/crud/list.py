@@ -12,13 +12,12 @@ from sqlalchemy.orm import selectinload
 from app.api.v1.endpoints._collection import (
     CollectionGroupEntry,
     build_grouped_collection_page,
+    build_list_context,
     coerce_optional_bool,
     coerce_optional_enum,
     coerce_optional_int,
     coerce_optional_string,
     is_group_summary_request,
-    merge_collection_filters,
-    parse_collection_query,
 )
 from app.api.v1.endpoints._monitoring_response import (
     load_monitoring_response_context,
@@ -26,12 +25,14 @@ from app.api.v1.endpoints._monitoring_response import (
 )
 from app.core.datetime_utils import utc_now
 from app.core.pagination import MAX_KRI_PAGE_SIZE
-from app.core.permissions import vendor_visibility_clause
+from app.core.permissions import get_kri_ids_where_reporting_owner, vendor_visibility_clause
 from app.core.security import check_permission, require_permission
 from app.db.session import get_db
-from app.models import Department, KeyRiskIndicator, Risk, User, Vendor, VendorKRILink
+from app.models import ApprovalResourceType, Department, KeyRiskIndicator, Risk, User, Vendor, VendorKRILink
+from app.models.global_config import ConfigDefaults, get_config_int
 from app.schemas.collection import CollectionGroupRead
 from app.schemas.kri import KRIListResponse
+from app.services._authorization_capabilities.common import pending_approvals_for_resources
 from app.services._monitoring_status import (
     KRIMonitoringStatus,
     KRITimelinessStatus,
@@ -257,17 +258,14 @@ async def list_kris(
     if page is not None:
         effective_offset = (page - 1) * effective_limit
 
-    collection_query = parse_collection_query(
+    collection_context = build_list_context(
         offset=effective_offset,
         limit=effective_limit,
         filters=filters,
         group_by=group_by,
         group_value=group_value,
         max_limit=MAX_KRI_PAGE_SIZE,
-    )
-    filter_values = merge_collection_filters(
-        collection_query,
-        {
+        legacy_filters={
             "risk_id": risk_id,
             "search": search,
             "breach_only": breach_only,
@@ -277,6 +275,8 @@ async def list_kris(
             "timeliness_status": timeliness_status,
         },
     )
+    collection_query = collection_context.query
+    filter_values = collection_context.filters
     risk_id = coerce_optional_int("risk_id", filter_values.get("risk_id"))
     search = coerce_optional_string("search", filter_values.get("search"))
     breach_only = coerce_optional_bool("breach_only", filter_values.get("breach_only")) or False
@@ -354,6 +354,40 @@ async def list_kris(
     }
     ordered_query = filtered_query.order_by(KeyRiskIndicator.metric_name)
 
+    async def serialize_kris(kris: list[KeyRiskIndicator]):
+        kri_ids = {kri.id for kri in kris}
+        approvals_by_kri = await pending_approvals_for_resources(
+            db,
+            resource_type=ApprovalResourceType.KRI,
+            resource_ids=kri_ids,
+        )
+        high_risk_min_net_score = await get_config_int(
+            db,
+            "high_risk_min_net_score",
+            ConfigDefaults.HIGH_RISK_MIN_NET_SCORE,
+        )
+        reporting_owner_kri_ids = set(await get_kri_ids_where_reporting_owner(db, current_user.id))
+        items = []
+        for kri in kris:
+            capabilities = await kri_capabilities(
+                db,
+                current_user=current_user,
+                kri=kri,
+                preloaded_approvals=approvals_by_kri.get(kri.id, []),
+                high_risk_min_net_score=high_risk_min_net_score,
+                can_read_override=True,
+                is_reporting_owner_override=kri.id in reporting_owner_kri_ids,
+            )
+            items.append(
+                serialize_kri_response(
+                    kri,
+                    monitoring_context,
+                    linked_vendors=visible_linked_vendors(current_user, getattr(kri, "vendor_links", [])),
+                    capabilities=capabilities,
+                )
+            )
+        return items
+
     if collection_query.group_by and collection_query.group_by in KRI_SQL_GROUPS:
         filtered_ids = filtered_query.with_only_columns(KeyRiskIndicator.id).order_by(None).subquery()
         vendor_context = (
@@ -397,17 +431,7 @@ async def list_kris(
         ).scalar() or 0
         result = await db.execute(grouped_query.offset(offset).limit(limit))
         kris = result.scalars().all()
-        items = []
-        for kri in kris:
-            capabilities = await kri_capabilities(db, current_user=current_user, kri=kri)
-            items.append(
-                serialize_kri_response(
-                    kri,
-                    monitoring_context,
-                    linked_vendors=visible_linked_vendors(current_user, getattr(kri, "vendor_links", [])),
-                    capabilities=capabilities,
-                )
-            )
+        items = await serialize_kris(list(kris))
         return KRIListResponse(
             items=items,
             total=grouped_total,
@@ -420,17 +444,7 @@ async def list_kris(
     if collection_query.group_by:
         result = await db.execute(ordered_query)
         kris = result.scalars().all()
-        all_items = []
-        for kri in kris:
-            capabilities = await kri_capabilities(db, current_user=current_user, kri=kri)
-            all_items.append(
-                serialize_kri_response(
-                    kri,
-                    monitoring_context,
-                    linked_vendors=visible_linked_vendors(current_user, getattr(kri, "vendor_links", [])),
-                    capabilities=capabilities,
-                )
-            )
+        all_items = await serialize_kris(list(kris))
         paginated_items, total, groups = build_grouped_collection_page(
             all_items,
             collection_query,
@@ -451,16 +465,6 @@ async def list_kris(
     total = total_result.scalar() or 0
     result = await db.execute(ordered_query.offset(offset).limit(limit))
     kris = result.scalars().all()
-    items = []
-    for kri in kris:
-        capabilities = await kri_capabilities(db, current_user=current_user, kri=kri)
-        items.append(
-            serialize_kri_response(
-                kri,
-                monitoring_context,
-                linked_vendors=visible_linked_vendors(current_user, getattr(kri, "vendor_links", [])),
-                capabilities=capabilities,
-            )
-        )
+    items = await serialize_kris(list(kris))
 
     return KRIListResponse(items=items, total=total, offset=offset, limit=limit, capabilities=collection_capabilities)

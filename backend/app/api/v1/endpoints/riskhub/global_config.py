@@ -139,8 +139,7 @@ async def update_config(
     config.value = data.value
     config.updated_by_id = cro_user.id
 
-    await db.commit()
-    await db.refresh(config)
+    await db.flush()
 
     await log_activity(
         db=db,
@@ -154,6 +153,7 @@ async def update_config(
         description=f"Config '{key}' changed from '{old_value}' to '{data.value}'",
     )
     await db.commit()
+    await db.refresh(config)
 
     return GlobalConfigRead(
         id=config.id,

@@ -9,20 +9,30 @@ from app.api.mappers.risk import risk_to_summary
 from app.api.v1.endpoints._collection import (
     CollectionGroupEntry,
     build_grouped_collection_page,
+    build_list_context,
     coerce_optional_bool,
     coerce_optional_enum,
     coerce_optional_int,
     coerce_optional_string,
     is_group_summary_request,
-    merge_collection_filters,
-    parse_collection_query,
 )
 from app.core.permissions import can_read_vendor, get_user_department_ids, vendor_visibility_clause
 from app.core.security import check_permission, require_permission
 from app.db.session import get_db
-from app.models import ControlRiskLink, Department, KeyRiskIndicator, Risk, User, Vendor, VendorRiskLink
+from app.models import (
+    ApprovalResourceType,
+    ControlRiskLink,
+    Department,
+    KeyRiskIndicator,
+    Risk,
+    User,
+    Vendor,
+    VendorRiskLink,
+)
+from app.models.global_config import ConfigDefaults, get_config_int
 from app.schemas.risk import RiskListResponse, RiskStatusEnum
 from app.schemas.vendor_shared import LinkedVendorRead
+from app.services._authorization_capabilities.common import pending_approvals_for_resources
 from app.services.authorization_capabilities import risk_capabilities
 
 router = APIRouter()
@@ -213,7 +223,7 @@ async def list_risks(
     """
     from app.core.permissions import get_risk_ids_where_control_owner, get_risk_ids_where_kri_reporting_owner
 
-    collection_query = parse_collection_query(
+    collection_context = build_list_context(
         offset=skip if skip is not None else offset,
         limit=limit,
         sort=sort,
@@ -221,10 +231,7 @@ async def list_risks(
         group_by=group_by,
         group_value=group_value,
         max_limit=100,
-    )
-    filter_values = merge_collection_filters(
-        collection_query,
-        {
+        legacy_filters={
             "department_id": department_id,
             "status": status.value if status else None,
             "risk_type": risk_type,
@@ -237,6 +244,8 @@ async def list_risks(
             "category": category,
         },
     )
+    collection_query = collection_context.query
+    filter_values = collection_context.filters
     department_id = coerce_optional_int("department_id", filter_values.get("department_id"))
     status_value = filter_values.get("status")
     status = coerce_optional_enum(RiskStatusEnum, status_value, "status")
@@ -402,6 +411,19 @@ async def list_risks(
     }
 
     async def serialize_risks(risks: list[Risk]):
+        risk_ids = {risk.id for risk in risks}
+        approvals_by_risk = await pending_approvals_for_resources(
+            db,
+            resource_type=ApprovalResourceType.RISK,
+            resource_ids=risk_ids,
+        )
+        high_risk_min_net_score = await get_config_int(
+            db,
+            "high_risk_min_net_score",
+            ConfigDefaults.HIGH_RISK_MIN_NET_SCORE,
+        )
+        kri_reporting_owner_risk_ids = set(await get_risk_ids_where_kri_reporting_owner(db, current_user.id))
+        control_owner_risk_ids = set(await get_risk_ids_where_control_owner(db, current_user.id))
         items = []
         for risk in risks:
             linked_vendors: list[LinkedVendorRead] = []
@@ -411,7 +433,16 @@ async def list_risks(
                     if vendor is None or not can_read_vendor(vendor, current_user):
                         continue
                     linked_vendors.append(LinkedVendorRead(id=vendor.id, name=vendor.name))
-            capabilities = await risk_capabilities(db, current_user=current_user, risk=risk)
+            capabilities = await risk_capabilities(
+                db,
+                current_user=current_user,
+                risk=risk,
+                preloaded_approvals=approvals_by_risk.get(risk.id, []),
+                high_risk_min_net_score=high_risk_min_net_score,
+                can_read_override=True,
+                is_kri_reporting_owner_for_risk=risk.id in kri_reporting_owner_risk_ids,
+                is_control_owner_for_risk=risk.id in control_owner_risk_ids,
+            )
             items.append(risk_to_summary(risk, linked_vendors=linked_vendors, capabilities=capabilities))
         return items
 

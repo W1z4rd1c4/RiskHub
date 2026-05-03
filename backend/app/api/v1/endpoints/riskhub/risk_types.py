@@ -111,8 +111,7 @@ async def create_risk_type(
     )
 
     db.add(risk_type)
-    await db.commit()
-    await db.refresh(risk_type)
+    await db.flush()
 
     await log_activity(
         db=db,
@@ -124,7 +123,8 @@ async def create_risk_type(
         safe_entity_label=risk_type.display_name,
         description=f"Created risk type: {risk_type.display_name}",
     )
-    await db.commit()  # Persist activity log
+    await db.commit()
+    await db.refresh(risk_type)
 
     return _risk_type_read(risk_type)
 
@@ -177,9 +177,6 @@ async def update_risk_type(
     if data.sort_order is not None:
         risk_type.sort_order = data.sort_order
 
-    await db.commit()
-    await db.refresh(risk_type)
-
     await log_activity(
         db=db,
         actor=cro_user,
@@ -191,7 +188,8 @@ async def update_risk_type(
         changes=changes,
         description=f"Updated risk type: {risk_type.display_name}",
     )
-    await db.commit()  # Persist activity log
+    await db.commit()
+    await db.refresh(risk_type)
 
     return _risk_type_read(risk_type)
 
@@ -227,7 +225,6 @@ async def delete_risk_type(
 
     changes = build_change_set(risk_type, {"is_active": False})
     risk_type.is_active = False
-    await db.commit()
 
     await log_activity(
         db=db,
@@ -240,7 +237,7 @@ async def delete_risk_type(
         changes=changes,
         description=f"Deleted risk type: {risk_type.display_name} (affecting {affected_risks} risks)",
     )
-    await db.commit()  # Persist activity log
+    await db.commit()
 
     return {"status": "deleted", "id": id, "affected_risks": affected_risks}
 
@@ -267,8 +264,6 @@ async def restore_risk_type(
 
     changes = build_change_set(risk_type, {"is_active": True})
     risk_type.is_active = True
-    await db.commit()
-    await db.refresh(risk_type)
 
     await log_activity(
         db=db,
@@ -283,6 +278,7 @@ async def restore_risk_type(
         changes=changes,
         description=f"Restored risk type: {risk_type.display_name}",
     )
-    await db.commit()  # Persist activity log
+    await db.commit()
+    await db.refresh(risk_type)
 
     return _risk_type_read(risk_type)

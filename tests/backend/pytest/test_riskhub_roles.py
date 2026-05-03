@@ -52,6 +52,33 @@ async def test_create_role(
 
 
 @pytest.mark.asyncio
+async def test_create_role_rolls_back_when_activity_log_fails(
+    client_cro: AsyncClient,
+    db_session: AsyncSession,
+    monkeypatch,
+):
+    async def fail_log_activity(*args, **kwargs):
+        raise RuntimeError("simulated activity log failure")
+
+    monkeypatch.setattr("app.api.v1.endpoints.riskhub.roles.log_activity", fail_log_activity)
+
+    with pytest.raises(RuntimeError, match="simulated activity log failure"):
+        await client_cro.post(
+            "/api/v1/riskhub/roles",
+            json={
+                "name": "rollback_role",
+                "display_name": "Rollback Role",
+                "description": "Should not persist without audit log",
+                "permission_ids": [],
+            },
+        )
+
+    await db_session.rollback()
+    persisted = (await db_session.execute(select(Role).where(Role.name == "rollback_role"))).scalar_one_or_none()
+    assert persisted is None
+
+
+@pytest.mark.asyncio
 async def test_delete_role_soft(
     client_cro: AsyncClient,
     db_session: AsyncSession,

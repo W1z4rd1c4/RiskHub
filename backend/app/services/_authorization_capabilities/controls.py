@@ -10,30 +10,53 @@ from app.core.permissions import (
     has_permission,
     is_control_owner,
 )
-from app.models import ApprovalActionType, ApprovalResourceType, Control, ControlStatus, User
+from app.models import ApprovalActionType, ApprovalRequest, ApprovalResourceType, Control, ControlStatus, User
 from app.schemas.control import ControlCapabilities
 
 from .common import has_pending_action, pending_approvals
 
 
-async def control_capabilities(db: AsyncSession, *, current_user: User, control: Control) -> ControlCapabilities:
-    approvals = await pending_approvals(
-        db,
-        resource_type=ApprovalResourceType.CONTROL,
-        resource_id=control.id,
-    )
+async def control_capabilities(
+    db: AsyncSession,
+    *,
+    current_user: User,
+    control: Control,
+    preloaded_approvals: list[ApprovalRequest] | None = None,
+    can_read_override: bool | None = None,
+    is_owner_override: bool | None = None,
+    requires_privileged_approval: bool | None = None,
+) -> ControlCapabilities:
+    approvals = preloaded_approvals
+    if approvals is None:
+        approvals = await pending_approvals(
+            db,
+            resource_type=ApprovalResourceType.CONTROL,
+            resource_id=control.id,
+        )
     has_pending_delete = has_pending_action(approvals, ApprovalActionType.DELETE)
     has_pending_update = has_pending_action(approvals, ApprovalActionType.EDIT)
     is_archived = control.status == ControlStatus.archived.value
-    is_owner = await is_control_owner(db, current_user.id, control.id)
-    can_read = await can_read_control_id(db, current_user, control.id)
+    is_owner = (
+        is_owner_override
+        if is_owner_override is not None
+        else await is_control_owner(db, current_user.id, control.id)
+    )
+    can_read = (
+        can_read_override
+        if can_read_override is not None
+        else await can_read_control_id(db, current_user, control.id)
+    )
     has_update_authority = has_permission(current_user, "controls", "write") or is_owner
     can_update_scope = is_owner or can_access_department_id(current_user, control.department_id)
     can_update = bool(can_read and has_update_authority and can_update_scope and not has_pending_delete)
     can_delete_scope = can_access_department_id(current_user, control.department_id)
     can_delete = bool(has_permission(current_user, "controls", "delete") and can_delete_scope)
     is_resolver = can_resolve_approvals(current_user)
-    requires_privileged = await check_control_requires_privileged_approval(db, control.id)
+    requires_privileged = (
+        requires_privileged_approval
+        if requires_privileged_approval is not None
+        else await check_control_requires_privileged_approval(db, control.id)
+    )
     can_link_risk = bool(
         can_update
         and not is_archived

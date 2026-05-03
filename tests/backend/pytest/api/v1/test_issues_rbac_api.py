@@ -1,12 +1,23 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Control, Department, Issue, IssueLink, IssueRemediationPlan, Role, User, Vendor
+from app.models import (
+    Control,
+    Department,
+    Issue,
+    IssueLink,
+    IssueRemediationPlan,
+    KeyRiskIndicator,
+    Risk,
+    Role,
+    User,
+    Vendor,
+)
 
 from .issues_api_helpers import _create_department_scoped_user, _grant
 
@@ -100,6 +111,166 @@ async def test_control_owner_cross_department_issue_access(
     read_resp = await client_employee.get(f"/api/v1/issues/{issue.id}")
     assert read_resp.status_code == 200
     assert read_resp.json()["id"] == issue.id
+
+
+@pytest.mark.asyncio
+async def test_kri_reporting_owner_cross_department_issue_access(
+    db_session: AsyncSession,
+    client_employee: AsyncClient,
+    test_user_employee: User,
+    test_role_employee: Role,
+    second_department: Department,
+):
+    second_department_id = second_department.id
+    employee_user_id = test_user_employee.id
+    await _grant(db_session, test_role_employee, "issues", "read")
+
+    risk = Risk(
+        risk_id_code="KRI-ISSUE-SCOPE-1",
+        name="Cross department KRI parent risk",
+        process="Operations",
+        risk_type="operational",
+        category="Operational",
+        description="Risk parent for KRI issue scope",
+        department_id=second_department_id,
+        owner_id=None,
+        status="active",
+    )
+    db_session.add(risk)
+    await db_session.flush()
+
+    kri = KeyRiskIndicator(
+        risk_id=risk.id,
+        metric_name="Cross department reporting-owner KRI",
+        description="KRI linked directly to issue",
+        current_value=50,
+        lower_limit=0,
+        upper_limit=100,
+        reporting_owner_id=employee_user_id,
+    )
+    db_session.add(kri)
+    await db_session.flush()
+
+    issue = Issue(
+        title="KRI linked cross department issue",
+        description="Issue linked only to a cross-department KRI",
+        severity="high",
+        status="open",
+        source_type="manual",
+        department_id=second_department_id,
+        owner_user_id=None,
+        created_by_id=None,
+        opened_at=datetime.now(UTC),
+    )
+    db_session.add(issue)
+    await db_session.flush()
+    db_session.add(IssueLink(issue_id=issue.id, kri_id=kri.id))
+    db_session.add(IssueRemediationPlan(issue_id=issue.id, status="draft", progress_percent=0))
+    await db_session.commit()
+
+    list_resp = await client_employee.get("/api/v1/issues")
+    assert list_resp.status_code == 200
+    ids = {item["id"] for item in list_resp.json()["items"]}
+    assert issue.id in ids
+
+    read_resp = await client_employee.get(f"/api/v1/issues/{issue.id}")
+    assert read_resp.status_code == 200
+    assert read_resp.json()["id"] == issue.id
+
+
+@pytest.mark.asyncio
+async def test_kri_reporting_owner_direct_issue_scope_is_read_only(
+    db_session: AsyncSession,
+    client_employee: AsyncClient,
+    test_user_employee: User,
+    test_role_employee: Role,
+    second_department: Department,
+):
+    second_department_id = second_department.id
+    employee_user_id = test_user_employee.id
+    role_id = test_role_employee.id
+    assignable_owner = await _create_department_scoped_user(
+        db_session,
+        email="direct-kri-issue-owner@test.com",
+        name="Direct KRI Issue Owner",
+        department_id=second_department_id,
+        role_id=role_id,
+    )
+    assignable_owner_id = assignable_owner.id
+    await _grant(db_session, test_role_employee, "issues", "read")
+    await db_session.refresh(test_role_employee)
+    await _grant(db_session, test_role_employee, "issues", "write")
+
+    risk = Risk(
+        risk_id_code="KRI-ISSUE-SCOPE-READONLY",
+        name="Read-only KRI issue parent risk",
+        process="Operations",
+        risk_type="operational",
+        category="Operational",
+        description="Risk parent for read-only KRI issue scope",
+        department_id=second_department_id,
+        owner_id=None,
+        status="active",
+    )
+    db_session.add(risk)
+    await db_session.flush()
+
+    kri = KeyRiskIndicator(
+        risk_id=risk.id,
+        metric_name="Read-only direct KRI issue scope",
+        description="KRI linked directly to issue",
+        current_value=50,
+        lower_limit=0,
+        upper_limit=100,
+        reporting_owner_id=employee_user_id,
+    )
+    db_session.add(kri)
+    await db_session.flush()
+
+    issue = Issue(
+        title="Read-only KRI linked issue",
+        description="Visible through direct KRI reporting-owner link only",
+        severity="high",
+        status="open",
+        source_type="manual",
+        department_id=second_department_id,
+        owner_user_id=None,
+        created_by_id=None,
+        opened_at=datetime.now(UTC),
+    )
+    db_session.add(issue)
+    await db_session.flush()
+    db_session.add(IssueLink(issue_id=issue.id, kri_id=kri.id))
+    db_session.add(IssueRemediationPlan(issue_id=issue.id, status="draft", progress_percent=0))
+    await db_session.commit()
+
+    list_resp = await client_employee.get("/api/v1/issues")
+    assert list_resp.status_code == 200
+    assert issue.id in {item["id"] for item in list_resp.json()["items"]}
+
+    read_resp = await client_employee.get(f"/api/v1/issues/{issue.id}")
+    assert read_resp.status_code == 200
+
+    assign_resp = await client_employee.post(
+        f"/api/v1/issues/{issue.id}/assign",
+        json={
+            "owner_user_id": assignable_owner_id,
+            "due_at": (datetime.now(UTC) + timedelta(days=7)).isoformat(),
+        },
+    )
+    assert assign_resp.status_code == 404
+
+    progress_resp = await client_employee.post(
+        f"/api/v1/issues/{issue.id}/update-progress",
+        json={"progress_percent": 25},
+    )
+    assert progress_resp.status_code == 404
+
+    exception_resp = await client_employee.post(
+        f"/api/v1/issues/{issue.id}/request-exception",
+        json={"reason": "Direct KRI reporting-owner scope is read-only"},
+    )
+    assert exception_resp.status_code == 404
 
 
 @pytest.mark.asyncio

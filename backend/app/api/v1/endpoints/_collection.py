@@ -33,6 +33,20 @@ class CollectionGroupEntry:
     meta: dict[str, Any] | None = None
 
 
+@dataclass(frozen=True)
+class CollectionListContext:
+    query: CollectionQuery
+    filters: dict[str, Any]
+
+    @property
+    def is_group_summary(self) -> bool:
+        return is_group_summary_request(self.query)
+
+    @property
+    def is_grouped_drilldown(self) -> bool:
+        return bool(self.query.group_by and self.query.group_value)
+
+
 def parse_collection_query(
     *,
     offset: int = 0,
@@ -49,7 +63,7 @@ def parse_collection_query(
             sort_payload = CollectionSort.model_validate(json.loads(sort))
         except (json.JSONDecodeError, ValidationError) as exc:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail="Invalid sort payload",
             ) from exc
 
@@ -59,12 +73,12 @@ def parse_collection_query(
             loaded_filters = json.loads(filters)
         except json.JSONDecodeError as exc:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail="Invalid filters payload",
             ) from exc
         if not isinstance(loaded_filters, dict):
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail="filters payload must be an object",
             )
         filters_payload = loaded_filters
@@ -82,11 +96,37 @@ def parse_collection_query(
         )
     except ValidationError as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Invalid collection query",
         ) from exc
 
     return query
+
+
+def build_list_context(
+    *,
+    offset: int = 0,
+    limit: int = 50,
+    sort: str | None = None,
+    filters: str | None = None,
+    group_by: str | None = None,
+    group_value: str | None = None,
+    legacy_filters: dict[str, Any] | None = None,
+    max_limit: int = 100,
+) -> CollectionListContext:
+    query = parse_collection_query(
+        offset=offset,
+        limit=limit,
+        sort=sort,
+        filters=filters,
+        group_by=group_by,
+        group_value=group_value,
+        max_limit=max_limit,
+    )
+    return CollectionListContext(
+        query=query,
+        filters=merge_collection_filters(query, legacy_filters or {}),
+    )
 
 
 def merge_collection_filters(
@@ -98,6 +138,21 @@ def merge_collection_filters(
 
 def is_group_summary_request(query: CollectionQuery) -> bool:
     return query.group_by is not None and not query.group_value
+
+
+def build_empty_collection_page(
+    context: CollectionListContext,
+    *,
+    capabilities: dict[str, bool] | None = None,
+) -> dict[str, Any]:
+    return {
+        "items": [],
+        "total": 0,
+        "offset": context.query.offset,
+        "limit": context.query.limit,
+        "groups": [],
+        "capabilities": capabilities,
+    }
 
 
 def coerce_optional_enum[E: Enum](enum_cls: type[E], value: Any, field_name: str) -> E | None:

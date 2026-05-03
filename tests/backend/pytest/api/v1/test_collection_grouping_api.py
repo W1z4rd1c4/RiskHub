@@ -626,9 +626,9 @@ async def test_controls_grouped_drilldown_serializes_only_requested_page(
     serialized_control_ids: list[int] = []
     from app.services.authorization_capabilities import control_capabilities as original_control_capabilities
 
-    async def spy_control_capabilities(_db, *, current_user, control):
+    async def spy_control_capabilities(_db, *, current_user, control, **kwargs):
         serialized_control_ids.append(control.id)
-        return await original_control_capabilities(_db, current_user=current_user, control=control)
+        return await original_control_capabilities(_db, current_user=current_user, control=control, **kwargs)
 
     monkeypatch.setattr("app.api.v1.endpoints.controls.crud.list.control_capabilities", spy_control_capabilities)
 
@@ -1046,9 +1046,9 @@ async def test_kris_grouped_drilldown_serializes_only_requested_page(
     serialized_kri_ids: list[int] = []
     from app.services.authorization_capabilities import kri_capabilities as original_kri_capabilities
 
-    async def spy_kri_capabilities(_db, *, current_user, kri):
+    async def spy_kri_capabilities(_db, *, current_user, kri, **kwargs):
         serialized_kri_ids.append(kri.id)
-        return await original_kri_capabilities(_db, current_user=current_user, kri=kri)
+        return await original_kri_capabilities(_db, current_user=current_user, kri=kri, **kwargs)
 
     monkeypatch.setattr("app.api.v1.endpoints.kris.crud.list.kri_capabilities", spy_kri_capabilities)
 

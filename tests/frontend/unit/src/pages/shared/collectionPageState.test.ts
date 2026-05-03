@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { resolveCollectionLoadFailure } from '@/pages/shared/collectionPageState';
+import {
+    createCollectionFailurePatch,
+    createCollectionSuccessPatch,
+    resolveCollectionLoadFailure,
+} from '@/pages/shared/collectionPageState';
 import { ApiClientError } from '@/services/apiClient';
 
 describe('resolveCollectionLoadFailure', () => {
@@ -43,6 +47,56 @@ describe('resolveCollectionLoadFailure', () => {
             isAccessDenied: false,
             shouldClearCollection: true,
             shouldMarkUnloaded: false,
+        });
+    });
+});
+
+describe('collection state patches', () => {
+    it('creates a success patch with rows, groups, capabilities, and loaded state', () => {
+        const patch = createCollectionSuccessPatch({
+            items: [{ id: 1 }],
+            groups: [{ value: 'group', label: 'Group', count: 1, active_count: 1, highlighted_count: 0 }],
+            capabilities: { can_export: true },
+            total: 7,
+        });
+
+        expect(patch).toEqual({
+            items: [{ id: 1 }],
+            groups: [{ value: 'group', label: 'Group', count: 1, active_count: 1, highlighted_count: 0 }],
+            capabilities: { can_export: true },
+            totalCount: 7,
+            errorKey: null,
+            isAccessDenied: false,
+            hasLoadedOnce: true,
+        });
+    });
+
+    it('creates a forbidden failure patch that clears stale collection data', () => {
+        const patch = createCollectionFailurePatch(
+            new ApiClientError({ status: 403, messageKey: 'errors.forbidden' }),
+            { fallbackErrorKey: 'errors.load_failed' }
+        );
+
+        expect(patch).toEqual({
+            items: [],
+            groups: [],
+            capabilities: null,
+            totalCount: 0,
+            errorKey: null,
+            isAccessDenied: true,
+            hasLoadedOnce: false,
+        });
+    });
+
+    it('creates a non-forbidden failure patch without clearing by default', () => {
+        const patch = createCollectionFailurePatch(
+            new ApiClientError({ status: 500, messageKey: 'errors.server' }),
+            { fallbackErrorKey: 'errors.load_failed' }
+        );
+
+        expect(patch).toEqual({
+            errorKey: 'errors.load_failed',
+            isAccessDenied: false,
         });
     });
 });

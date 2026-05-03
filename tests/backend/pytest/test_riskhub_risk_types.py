@@ -81,6 +81,36 @@ async def test_create_risk_with_valid_risk_type(
 
 
 @pytest.mark.asyncio
+async def test_create_risk_type_rolls_back_when_activity_log_fails(
+    client_cro: AsyncClient,
+    db_session: AsyncSession,
+    monkeypatch,
+):
+    async def fail_log_activity(*args, **kwargs):
+        raise RuntimeError("simulated activity log failure")
+
+    monkeypatch.setattr("app.api.v1.endpoints.riskhub.risk_types.log_activity", fail_log_activity)
+
+    with pytest.raises(RuntimeError, match="simulated activity log failure"):
+        await client_cro.post(
+            "/api/v1/riskhub/risk-types",
+            json={
+                "code": "rollback_type",
+                "display_name": "Rollback Type",
+                "description": "Should not persist without audit log",
+                "color": "#123456",
+                "sort_order": 100,
+            },
+        )
+
+    await db_session.rollback()
+    persisted = (
+        await db_session.execute(select(RiskTypeConfig).where(RiskTypeConfig.code == "rollback_type"))
+    ).scalar_one_or_none()
+    assert persisted is None
+
+
+@pytest.mark.asyncio
 async def test_create_risk_with_unknown_risk_type_returns_400(
     client_cro: AsyncClient,
     db_session: AsyncSession,

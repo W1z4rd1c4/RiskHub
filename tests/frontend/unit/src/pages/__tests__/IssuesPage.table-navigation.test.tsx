@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { IssuesPage } from '@/pages/IssuesPage';
 
@@ -72,5 +72,31 @@ describe('IssuesPage table navigation', () => {
         fireEvent.click(rowTitle);
 
         expect(mockNavigate).toHaveBeenCalledWith('/issues/42');
+    });
+
+    it('does not emit unsupported server sort keys for display-only columns', async () => {
+        render(<IssuesPage />);
+
+        await screen.findByText('Patch Vulnerability');
+        mockList.mockClear();
+
+        fireEvent.click(screen.getByText('Department'));
+        fireEvent.click(screen.getByText('Owner'));
+        fireEvent.click(screen.getByText('Source'));
+
+        expect(mockList).not.toHaveBeenCalled();
+    });
+
+    it('emits supported server sort keys for sortable columns', async () => {
+        render(<IssuesPage />);
+
+        await screen.findByText('Patch Vulnerability');
+        mockList.mockClear();
+
+        fireEvent.click(screen.getByText('Issue'));
+
+        await waitFor(() => {
+            expect(mockList).toHaveBeenCalledWith(expect.objectContaining({ sort_by: 'title', sort_order: 'asc' }));
+        });
     });
 });

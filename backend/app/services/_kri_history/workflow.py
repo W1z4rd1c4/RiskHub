@@ -26,8 +26,15 @@ async def ensure_can_submit_value(db: AsyncSession, user: User, kri: KeyRiskIndi
         check_department_access(kri.risk.department_id, user)
 
 
-async def can_request_history_correction(db: AsyncSession, user: User, kri: KeyRiskIndicator) -> bool:
-    return has_permission(user, "risks", "write") and await can_read_kri_id(db, user, kri.id)
+async def can_request_history_correction(
+    db: AsyncSession,
+    user: User,
+    kri: KeyRiskIndicator,
+    *,
+    can_read_override: bool | None = None,
+) -> bool:
+    can_read = can_read_override if can_read_override is not None else await can_read_kri_id(db, user, kri.id)
+    return has_permission(user, "risks", "write") and can_read
 
 
 async def ensure_can_request_history_correction(db: AsyncSession, user: User, kri: KeyRiskIndicator) -> None:

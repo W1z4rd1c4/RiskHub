@@ -310,18 +310,24 @@ class KRIDeadlineService:
         risk_managers = await KRIDeadlineService._get_risk_managers(db)
 
         for kri in kris:
+            kri_id = kri.id
+            kri_results = initialize_results()
             try:
-                await KRIDeadlineService._process_single_kri(
-                    db,
-                    kri=kri,
-                    today=today,
-                    now=now,
-                    config=config,
-                    risk_managers=risk_managers,
-                    results=results,
-                )
+                async with db.begin_nested():
+                    await KRIDeadlineService._process_single_kri(
+                        db,
+                        kri=kri,
+                        today=today,
+                        now=now,
+                        config=config,
+                        risk_managers=risk_managers,
+                        results=kri_results,
+                    )
+                for key, value in kri_results.items():
+                    if key != "total_kris_checked":
+                        results[key] = results.get(key, 0) + value
             except Exception as e:
-                logger.error(f"Error checking KRI {kri.id}: {e}")
+                logger.error(f"Error checking KRI {kri_id}: {e}")
                 continue
 
         await db.commit()

@@ -18,11 +18,10 @@ import {
     getControlGroupBy,
 } from './controlsPagePresentation';
 import {
+    createCollectionFailurePatch,
+    createCollectionSuccessPatch,
     getTotalPages,
-    resolveCollectionLoadFailure,
-    useCollectionGroupSelection,
-    useExportDialogState,
-    useLatestRequestGuard,
+    useCollectionPageController,
 } from '../shared/collectionPageState';
 
 export function useControlsPageState() {
@@ -37,20 +36,19 @@ export function useControlsPageState() {
     const [statusFilter, setStatusFilter] = useState<ControlListStatusFilter>('');
     const [currentPage, setCurrentPage] = useState(1);
     const [viewMode, setViewMode] = useState<ViewMode>('all');
-    const { beginRequest, isCurrentRequest } = useLatestRequestGuard();
     const {
+        beginRequest,
+        closeExportDialog,
+        isCurrentRequest,
+        isExportDialogOpen,
+        isExporting,
+        openExportDialog,
         resetGroupSelection,
         selectGroup: setSelectedGroup,
         selectedGroupLabel,
         selectedGroupValue,
-    } = useCollectionGroupSelection();
-    const {
-        closeExportDialog,
-        isExportDialogOpen,
-        isExporting,
-        openExportDialog,
         setIsExporting,
-    } = useExportDialogState();
+    } = useCollectionPageController();
     const hasLoadedControlsRef = useRef(false);
 
     const limit = DEFAULT_LIST_PAGE_SIZE;
@@ -85,31 +83,31 @@ export function useControlsPageState() {
             if (!isCurrentRequest(requestId)) {
                 return;
             }
-            setItems(response.items);
-            setGroups(response.groups);
-            setCapabilities(response.capabilities);
-            setTotalCount(response.total);
-
-            setErrorKey(null);
-            setIsAccessDenied(false);
-            hasLoadedControlsRef.current = true;
+            const patch = createCollectionSuccessPatch(response);
+            setItems(patch.items ?? []);
+            setGroups(patch.groups ?? []);
+            setCapabilities(patch.capabilities ?? null);
+            setTotalCount(patch.totalCount ?? 0);
+            setErrorKey(patch.errorKey);
+            setIsAccessDenied(patch.isAccessDenied);
+            hasLoadedControlsRef.current = patch.hasLoadedOnce === true;
         } catch (error) {
             logError('Error fetching controls:', error);
             if (isCurrentRequest(requestId)) {
-                const failure = resolveCollectionLoadFailure(error, {
+                const patch = createCollectionFailurePatch<ControlSummary>(error, {
                     fallbackErrorKey: 'errors.load_failed',
                 });
-                setIsAccessDenied(failure.isAccessDenied);
-                if (failure.shouldClearCollection) {
-                    setItems([]);
-                    setGroups([]);
-                    setCapabilities(null);
-                    setTotalCount(0);
+                setIsAccessDenied(patch.isAccessDenied);
+                if (patch.items) {
+                    setItems(patch.items);
+                    setGroups(patch.groups ?? []);
+                    setCapabilities(patch.capabilities ?? null);
+                    setTotalCount(patch.totalCount ?? 0);
                 }
-                if (failure.shouldMarkUnloaded) {
-                    hasLoadedControlsRef.current = false;
+                if (patch.hasLoadedOnce === false) {
+                    hasLoadedControlsRef.current = patch.hasLoadedOnce;
                 }
-                setErrorKey(failure.errorKey);
+                setErrorKey(patch.errorKey);
             }
         } finally {
             if (isCurrentRequest(requestId)) {

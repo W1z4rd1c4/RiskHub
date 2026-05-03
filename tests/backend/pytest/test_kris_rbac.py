@@ -1661,6 +1661,61 @@ async def test_kri_list_create_capability_true_for_global_user_with_any_active_r
 
 
 @pytest.mark.asyncio
+async def test_kri_list_capabilities_reuse_precomputed_read_scope(
+    client_approval_requester: AsyncClient,
+    db_session,
+    monkeypatch: pytest.MonkeyPatch,
+    test_department,
+    test_user_approval_requester,
+):
+    risk = Risk(
+        risk_id_code="RISK-KRI-LIST-CAP-READ",
+        name="KRI List Capability Read Scope Risk",
+        process="Capabilities",
+        description="In-scope parent risk for KRI list capability read override",
+        category="Test",
+        department_id=test_department.id,
+        owner_id=test_user_approval_requester.id,
+        risk_type="operational",
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=2,
+        status=RiskStatus.active.value,
+    )
+    db_session.add(risk)
+    await db_session.flush()
+    db_session.add(
+        KeyRiskIndicator(
+            risk_id=risk.id,
+            metric_name="KRI List Capability Read Override",
+            description="List capability serialization must not re-check read scope per row",
+            current_value=50.0,
+            lower_limit=0.0,
+            upper_limit=100.0,
+            reporting_owner_id=test_user_approval_requester.id,
+        )
+    )
+    await db_session.commit()
+
+    async def fail_scalar_kri_read(*_args, **_kwargs):
+        raise AssertionError("KRI list capability serialization should reuse precomputed read scope")
+
+    from app.services._kri_history import workflow as kri_history_workflow
+
+    monkeypatch.setattr(kri_history_workflow, "can_read_kri_id", fail_scalar_kri_read)
+
+    response = await client_approval_requester.get("/api/v1/kris")
+
+    assert response.status_code == 200
+    matching = [
+        item for item in response.json()["items"] if item["metric_name"] == "KRI List Capability Read Override"
+    ]
+    assert matching
+    assert matching[0]["capabilities"]["can_request_history_correction"] is True
+
+
+@pytest.mark.asyncio
 async def test_read_scoped_user_can_list_archived_kri_with_include_archived(
     client_readonly: AsyncClient,
     db_session,

@@ -3,13 +3,14 @@ from app.models import User
 from .evaluation import has_permission
 from .ownership import (
     get_control_ids_where_owner,
+    get_kri_ids_where_reporting_owner,
     get_risk_ids_where_control_owner,
     get_risk_ids_where_kri_reporting_owner,
 )
 from .scoping import get_user_department_ids
 
 
-async def get_issue_scope_clause(db, user: User):
+async def get_issue_scope_clause(db, user: User, *, include_direct_kri_reporting_owner_links: bool = True):
     """
     Build a SQLAlchemy visibility clause for issue queries.
 
@@ -32,6 +33,7 @@ async def get_issue_scope_clause(db, user: User):
     risk_owner_ids = set(await get_risk_ids_where_kri_reporting_owner(db, user.id))
     risk_owner_ids.update(await get_risk_ids_where_control_owner(db, user.id))
     control_owner_ids = set(await get_control_ids_where_owner(db, user.id))
+    kri_owner_ids = set(await get_kri_ids_where_reporting_owner(db, user.id))
 
     if risk_owner_ids:
         scope_conditions.append(Issue.id.in_(select(IssueLink.issue_id).where(IssueLink.risk_id.in_(risk_owner_ids))))
@@ -47,6 +49,8 @@ async def get_issue_scope_clause(db, user: User):
                 .where(Control.control_owner_id == user.id)
             )
         )
+    if include_direct_kri_reporting_owner_links and kri_owner_ids:
+        scope_conditions.append(Issue.id.in_(select(IssueLink.issue_id).where(IssueLink.kri_id.in_(kri_owner_ids))))
 
     return or_(*scope_conditions)
 
@@ -80,7 +84,18 @@ async def can_write_issue_id(db, user: User, issue_id: int) -> bool:
     """
     if not has_permission(user, "issues", "write"):
         return False
-    return await can_read_issue_id(db, user, issue_id)
+    if not has_permission(user, "issues", "read"):
+        return False
+
+    from sqlalchemy import select
+
+    from app.models import Issue
+
+    scope_clause = await get_issue_scope_clause(db, user, include_direct_kri_reporting_owner_links=False)
+    query = select(Issue.id).where(Issue.id == issue_id)
+    if scope_clause is not None:
+        query = query.where(scope_clause)
+    return (await db.execute(query)).scalar_one_or_none() is not None
 
 
 async def is_issue_owner_assignable_to_department(

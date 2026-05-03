@@ -17,11 +17,10 @@ import {
     getVendorGroupBy,
 } from './vendorsPagePresentation';
 import {
+    createCollectionFailurePatch,
+    createCollectionSuccessPatch,
     getTotalPages,
-    resolveCollectionLoadFailure,
-    useCollectionGroupSelection,
-    useExportDialogState,
-    useLatestRequestGuard,
+    useCollectionPageController,
 } from '../shared/collectionPageState';
 
 export function useVendorsPageState() {
@@ -39,20 +38,19 @@ export function useVendorsPageState() {
     const [sortField, setSortField] = useState<VendorListParams['sort_by'] | null>(null);
     const [sortDirection, setSortDirection] = useState<SortDirection>(null);
     const [viewMode, setViewMode] = useState<ViewMode>('all');
-    const { beginRequest, isCurrentRequest } = useLatestRequestGuard();
     const {
+        beginRequest,
+        closeExportDialog,
+        isCurrentRequest,
+        isExportDialogOpen,
+        isExporting,
+        openExportDialog,
         resetGroupSelection: clearGroupSelection,
         selectGroup: setSelectedGroup,
         selectedGroupLabel,
         selectedGroupValue,
-    } = useCollectionGroupSelection();
-    const {
-        closeExportDialog,
-        isExportDialogOpen,
-        isExporting,
-        openExportDialog,
         setIsExporting,
-    } = useExportDialogState();
+    } = useCollectionPageController();
     const hasLoadedVendorsRef = useRef(false);
 
     const limit = DEFAULT_LIST_PAGE_SIZE;
@@ -90,31 +88,32 @@ export function useVendorsPageState() {
                 return;
             }
 
-            setItems(response.items);
-            setGroups(response.groups);
-            setCapabilities(response.capabilities);
-            setTotalCount(response.total);
-            setErrorKey(null);
-            setIsAccessDenied(false);
-            hasLoadedVendorsRef.current = true;
+            const patch = createCollectionSuccessPatch(response);
+            setItems(patch.items ?? []);
+            setGroups(patch.groups ?? []);
+            setCapabilities(patch.capabilities ?? null);
+            setTotalCount(patch.totalCount ?? 0);
+            setErrorKey(patch.errorKey);
+            setIsAccessDenied(patch.isAccessDenied);
+            hasLoadedVendorsRef.current = patch.hasLoadedOnce === true;
         } catch (error) {
             if (!isCurrentRequest(requestId)) {
                 return;
             }
-            const failure = resolveCollectionLoadFailure(error, {
+            const patch = createCollectionFailurePatch<Vendor>(error, {
                 clearOnNonForbidden: true,
-                toErrorKey: apiClient.toUiMessageKey,
+                toErrorKey: (loadError) => apiClient.toUiMessageKey(loadError),
             });
-            setIsAccessDenied(failure.isAccessDenied);
-            setErrorKey(failure.errorKey);
-            if (failure.shouldClearCollection) {
-                setItems([]);
-                setGroups([]);
-                setCapabilities(null);
-                setTotalCount(0);
+            setIsAccessDenied(patch.isAccessDenied);
+            setErrorKey(patch.errorKey);
+            if (patch.items) {
+                setItems(patch.items);
+                setGroups(patch.groups ?? []);
+                setCapabilities(patch.capabilities ?? null);
+                setTotalCount(patch.totalCount ?? 0);
             }
-            if (failure.shouldMarkUnloaded) {
-                hasLoadedVendorsRef.current = false;
+            if (patch.hasLoadedOnce === false) {
+                hasLoadedVendorsRef.current = patch.hasLoadedOnce;
             }
         } finally {
             if (isCurrentRequest(requestId)) {

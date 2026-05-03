@@ -1,41 +1,60 @@
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { AlertCircle, CheckCircle, FileText, RefreshCw, Send } from 'lucide-react';
 import { useTranslation } from '@/i18n/hooks';
 import { departmentApi } from '@/services/departmentApi';
-import { riskApi } from '@/services/riskApi';
-import { apiClient } from '@/services/apiClient';
-import { riskHubApi } from '@/services/riskHubApi';
-import type { RiskSummary, RiskStatus } from '@/types/risk';
+import type { RiskStatus } from '@/types/risk';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { cn } from '@/lib/utils';
 import { logError } from '@/services/logger';
 import { riskHubCapabilityEnabled, useRiskHubCapabilities } from './useRiskHubCapabilities';
-
-type BatchSendResponse = {
-    created_count: number;
-    skipped_no_owner: number[];
-    skipped_open_exists: number[];
-    errors: string[];
-};
+import {
+    type BatchSendResponse,
+    useRiskQuestionnaireBatchSend,
+    useRiskQuestionnaireFilters,
+    useRiskQuestionnaireRisks,
+    useRiskQuestionnaireSelection,
+} from './riskQuestionnairePanelState';
 
 export function RiskQuestionnairesPanel() {
     const { t } = useTranslation('admin');
     const [departments, setDepartments] = useState<{ value: string; label: string }[]>([]);
-    const [loading, setLoading] = useState(false);
-    const [sending, setSending] = useState(false);
     const [errorKey, setErrorKey] = useState<string | null>(null);
-
-    const [departmentId, setDepartmentId] = useState<string>('');
-    const [process, setProcess] = useState('');
-    const [category, setCategory] = useState('');
-    const [status, setStatus] = useState<RiskStatus | ''>('active');
-
-    const [selectAll, setSelectAll] = useState(false);
-    const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
-    const [risks, setRisks] = useState<RiskSummary[]>([]);
     const [result, setResult] = useState<BatchSendResponse | null>(null);
     const { data: riskHubCapabilities } = useRiskHubCapabilities();
     const canBatchSend = riskHubCapabilityEnabled(riskHubCapabilities?.questionnaires, 'can_batch_send');
+    const {
+        category,
+        departmentId,
+        filters,
+        process,
+        setCategory,
+        setDepartmentId,
+        setProcess,
+        setStatus,
+        status,
+    } = useRiskQuestionnaireFilters();
+    const { fetchRisks, loading, risks } = useRiskQuestionnaireRisks(filters);
+    const {
+        allVisibleSelected,
+        selectedIds,
+        selectAll,
+        setSelectedIds,
+        toggleAllVisible,
+        toggleRisk,
+        updateSelectAll,
+    } = useRiskQuestionnaireSelection(risks);
+    const { handleBatchSend, sending } = useRiskQuestionnaireBatchSend({
+        fetchRisks: () => fetchRisks(() => {
+            setErrorKey(null);
+            setResult(null);
+        }, setErrorKey),
+        filters,
+        selectedIds,
+        selectAll,
+        setErrorKey,
+        setResult,
+        setSelectedIds,
+    });
 
     useEffect(() => {
         const loadDepartments = async () => {
@@ -50,103 +69,12 @@ export function RiskQuestionnairesPanel() {
         void loadDepartments();
     }, []);
 
-    const filters = useMemo(() => {
-        return {
-            department_id: departmentId ? Number(departmentId) : undefined,
-            process: process.trim() || undefined,
-            category: category.trim() || undefined,
-            status: status || undefined,
-        };
-    }, [category, departmentId, process, status]);
-
-    const fetchRisks = useCallback(async () => {
-        setLoading(true);
-        setErrorKey(null);
-        setResult(null);
-        try {
-            const resp = await riskApi.getRisks({
-                offset: 0,
-                limit: 50,
-                department_id: filters.department_id,
-                process: filters.process,
-                category: filters.category,
-                status: (filters.status as RiskStatus) || undefined,
-                include_archived: false,
-            });
-            setRisks(resp.items);
-        } catch (e) {
-            setErrorKey('errors.failed_to_load');
-            logError('Failed to load questionnaire risks.', e);
-        } finally {
-            setLoading(false);
-        }
-    }, [filters.category, filters.department_id, filters.process, filters.status]);
-
     useEffect(() => {
-        void fetchRisks();
+        void fetchRisks(() => {
+            setErrorKey(null);
+            setResult(null);
+        }, setErrorKey);
     }, [fetchRisks]);
-
-    const toggleRisk = (id: number) => {
-        setSelectedIds(prev => {
-            const next = new Set(prev);
-            if (next.has(id)) next.delete(id);
-            else next.add(id);
-            return next;
-        });
-    };
-
-    const toggleAllVisible = () => {
-        if (selectAll) return;
-        const allIds = risks.map(r => r.id);
-        const allSelected = allIds.every(id => selectedIds.has(id));
-        setSelectedIds(prev => {
-            const next = new Set(prev);
-            if (allSelected) {
-                allIds.forEach(id => next.delete(id));
-            } else {
-                allIds.forEach(id => next.add(id));
-            }
-            return next;
-        });
-    };
-
-    const handleBatchSend = async () => {
-        setSending(true);
-        setErrorKey(null);
-        setResult(null);
-        try {
-            const payload = selectAll
-                ? {
-                    select_all: true,
-                    filters: {
-                        department_id: filters.department_id,
-                        process: filters.process,
-                        category: filters.category,
-                        status: filters.status || undefined,
-                    },
-                }
-                : {
-                    select_all: false,
-                    risk_ids: Array.from(selectedIds),
-                };
-
-            if (!selectAll && selectedIds.size === 0) {
-                setErrorKey('riskhub.questionnaires.select_some');
-                return;
-            }
-
-            const resp = await riskHubApi.batchSendQuestionnaires(payload);
-            setResult(resp);
-            setSelectedIds(new Set());
-            await fetchRisks();
-        } catch (e) {
-            setErrorKey(apiClient.toUiMessageKey(e));
-        } finally {
-            setSending(false);
-        }
-    };
-
-    const allVisibleSelected = risks.length > 0 && risks.every(r => selectedIds.has(r.id));
 
     return (
         <div className="space-y-6">
@@ -161,7 +89,10 @@ export function RiskQuestionnairesPanel() {
                     </p>
                 </div>
                 <button
-                    onClick={fetchRisks}
+                    onClick={() => fetchRisks(() => {
+                        setErrorKey(null);
+                        setResult(null);
+                    }, setErrorKey)}
                     disabled={loading}
                     className={cn(
                         "inline-flex items-center gap-2 px-4 py-2 rounded-xl border text-xs font-black uppercase tracking-widest transition-all",
@@ -238,10 +169,7 @@ export function RiskQuestionnairesPanel() {
                             <input
                                 type="checkbox"
                                 checked={selectAll}
-                                onChange={(e) => {
-                                    setSelectAll(e.target.checked);
-                                    setSelectedIds(new Set());
-                                }}
+                                onChange={(e) => updateSelectAll(e.target.checked)}
                                 className="accent-accent"
                             />
                             {t('riskhub.questionnaires.select_all')}

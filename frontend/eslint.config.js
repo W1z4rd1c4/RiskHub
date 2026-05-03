@@ -10,6 +10,8 @@ const maintainedModulePaths = [
   "src/components/vendor-form/**/*.{ts,tsx}",
   "src/pages/issues/issue-detail/**/*.{ts,tsx}",
   "src/pages/dashboard/**/*.{ts,tsx}",
+  "src/pages/shared/collectionPageState.ts",
+  "src/components/riskhub/riskQuestionnairePanelState.ts",
   "src/services/api/**/*.{ts,tsx}",
   "src/services/admin/**/*.{ts,tsx}",
 ];

@@ -76,16 +76,6 @@ async def create_role(
         role_perm = RolePermission(role_id=role.id, permission_id=perm.id)
         db.add(role_perm)
 
-    await db.commit()
-
-    # Reload with relationships
-    result = await db.execute(
-        select(Role)
-        .options(selectinload(Role.permissions).selectinload(RolePermission.permission))
-        .where(Role.id == role.id)
-    )
-    role = result.scalar_one()
-
     await log_activity(
         db=db,
         actor=cro_user,
@@ -97,6 +87,14 @@ async def create_role(
         description=f"Created role: {role.display_name}",
     )
     await db.commit()
+
+    # Reload with relationships
+    result = await db.execute(
+        select(Role)
+        .options(selectinload(Role.permissions).selectinload(RolePermission.permission))
+        .where(Role.id == role.id)
+    )
+    role = result.scalar_one()
 
     return role_to_read(role, user_count=0)
 
@@ -138,6 +136,16 @@ async def update_role(
             role_perm = RolePermission(role_id=role.id, permission_id=perm.id)
             db.add(role_perm)
 
+    await log_activity(
+        db=db,
+        actor=cro_user,
+        action=ActivityAction.UPDATE,
+        entity_type=ActivityEntityType.ROLE,
+        entity_id=role.id,
+        entity_name=role.display_name,
+        safe_entity_label=role.display_name,
+        description=f"Updated role: {role.display_name}",
+    )
     await db.commit()
 
     # Reload with relationships
@@ -150,18 +158,6 @@ async def update_role(
         .where(Role.id == role.id)
     )
     role = result.scalar_one()
-
-    await log_activity(
-        db=db,
-        actor=cro_user,
-        action=ActivityAction.UPDATE,
-        entity_type=ActivityEntityType.ROLE,
-        entity_id=role.id,
-        entity_name=role.display_name,
-        safe_entity_label=role.display_name,
-        description=f"Updated role: {role.display_name}",
-    )
-    await db.commit()
 
     return role_to_read(role)
 
@@ -193,7 +189,6 @@ async def delete_role(
         )
 
     role.is_active = False
-    await db.commit()
 
     await log_activity(
         db=db,
@@ -223,8 +218,6 @@ async def restore_role(
         raise HTTPException(status_code=400, detail="Role is not deleted")
 
     role.is_active = True
-    await db.commit()
-    await db.refresh(role)
 
     await log_activity(
         db=db,
@@ -239,5 +232,6 @@ async def restore_role(
         description=f"Restored role: {role.display_name}",
     )
     await db.commit()
+    await db.refresh(role)
 
     return role_to_read(role, user_count=0)

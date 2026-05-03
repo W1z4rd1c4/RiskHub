@@ -8,23 +8,29 @@ from sqlalchemy.orm import selectinload
 from app.api.v1.endpoints._collection import (
     CollectionGroupEntry,
     build_grouped_collection_page,
+    build_list_context,
     coerce_optional_bool,
     coerce_optional_enum,
     coerce_optional_int,
     coerce_optional_string,
     is_group_summary_request,
-    merge_collection_filters,
-    parse_collection_query,
 )
 from app.api.v1.endpoints._monitoring_response import (
     build_control_monitoring_fields,
     load_monitoring_response_context,
 )
+from app.core.approval_helpers import control_privileged_approval_requirements
 from app.core.datetime_utils import utc_now
-from app.core.permissions import can_read_vendor, risk_visibility_clause, vendor_visibility_clause, visible_risk_ids
+from app.core.permissions import (
+    can_read_vendor,
+    get_control_ids_where_owner,
+    risk_visibility_clause,
+    vendor_visibility_clause,
+    visible_risk_ids,
+)
 from app.core.security import check_permission, require_permission
 from app.db.session import get_db
-from app.models import Control, ControlRiskLink, Risk, User, Vendor, VendorControlLink
+from app.models import ApprovalResourceType, Control, ControlRiskLink, Risk, User, Vendor, VendorControlLink
 from app.models.department import Department
 from app.schemas.collection import CollectionGroupRead
 from app.schemas.control import (
@@ -35,6 +41,7 @@ from app.schemas.control import (
     normalize_control_frequency,
 )
 from app.schemas.vendor_shared import LinkedVendorRead
+from app.services._authorization_capabilities.common import pending_approvals_for_resources
 from app.services._monitoring_status import ControlMonitoringStatus, apply_control_monitoring_status_filter
 from app.services.authorization_capabilities import control_capabilities
 
@@ -316,7 +323,7 @@ async def list_controls(
     Also includes controls where user is the control owner.
     Returns paginated response with total count.
     """
-    collection_query = parse_collection_query(
+    collection_context = build_list_context(
         offset=skip if skip is not None else offset,
         limit=limit,
         sort=sort,
@@ -324,10 +331,7 @@ async def list_controls(
         group_by=group_by,
         group_value=group_value,
         max_limit=100,
-    )
-    filter_values = merge_collection_filters(
-        collection_query,
-        {
+        legacy_filters={
             "department_id": department_id,
             "status": status.value if status else None,
             "include_archived": include_archived,
@@ -337,6 +341,8 @@ async def list_controls(
             "monitoring_status": monitoring_status,
         },
     )
+    collection_query = collection_context.query
+    filter_values = collection_context.filters
     department_id = coerce_optional_int("department_id", filter_values.get("department_id"))
     status_value = filter_values.get("status")
     status = coerce_optional_enum(ControlStatusEnum, status_value, "status")
@@ -441,6 +447,14 @@ async def list_controls(
         )
 
     async def serialize_controls(controls: list[Control]) -> list[ControlSummary]:
+        control_ids = {control.id for control in controls}
+        approvals_by_control = await pending_approvals_for_resources(
+            db,
+            resource_type=ApprovalResourceType.CONTROL,
+            resource_ids=control_ids,
+        )
+        owner_control_ids = set(await get_control_ids_where_owner(db, current_user.id))
+        privileged_requirements = await control_privileged_approval_requirements(db, control_ids)
         candidate_risk_ids = {
             link.risk_id
             for control in controls
@@ -451,7 +465,15 @@ async def list_controls(
         items = []
         for c in controls:
             monitoring_fields = build_control_monitoring_fields(c, monitoring_context)
-            capabilities = await control_capabilities(db, current_user=current_user, control=c)
+            capabilities = await control_capabilities(
+                db,
+                current_user=current_user,
+                control=c,
+                preloaded_approvals=approvals_by_control.get(c.id, []),
+                can_read_override=True,
+                is_owner_override=c.id in owner_control_ids,
+                requires_privileged_approval=privileged_requirements.get(c.id, False),
+            )
             visible_linked_risks = [
                 link.risk
                 for link in c.risk_links

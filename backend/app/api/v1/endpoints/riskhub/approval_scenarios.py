@@ -96,8 +96,7 @@ async def update_approval_scenario(
 
     scenario.updated_by_id = cro_user.id
 
-    await db.commit()
-    await db.refresh(scenario)
+    await db.flush()
 
     if changes:
         await log_activity(
@@ -111,6 +110,7 @@ async def update_approval_scenario(
             changes=activity_changes or None,
             description=f"Approval scenario '{key}' updated: {', '.join(changes)}",
         )
-        await db.commit()
+    await db.commit()
+    await db.refresh(scenario)
 
     return _approval_scenario_read(scenario, updated_by_name=cro_user.name)

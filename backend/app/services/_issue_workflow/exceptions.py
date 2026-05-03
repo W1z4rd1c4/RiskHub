@@ -22,6 +22,15 @@ async def request_exception(
     actor: User,
 ) -> IssueException:
     now = utc_now()
+    for existing_exception in issue.exceptions:
+        expires_at = coerce_utc(existing_exception.expires_at)
+        if (
+            existing_exception.status == IssueExceptionStatus.approved.value
+            and expires_at is not None
+            and expires_at > now
+        ):
+            _conflict("Issue already has an active approved exception")
+
     exception = IssueException(
         issue_id=issue.id,
         status=IssueExceptionStatus.requested.value,

@@ -174,6 +174,143 @@ class IssueDeadlineService:
         return expired_count, reopened
 
     @staticmethod
+    async def _process_issue_deadline(
+        db: AsyncSession,
+        *,
+        issue: Issue,
+        now: datetime,
+        due_soon_cutoff: datetime,
+        due_soon_backoff: datetime,
+        overdue_cutoff: datetime,
+        escalation_cutoff: datetime,
+        users_by_id: dict[int, User],
+        escalation_users: list[User],
+    ) -> dict[str, int]:
+        issue_results = {
+            "due_soon": 0,
+            "overdue": 0,
+            "escalated": 0,
+            "exceptions_expired": 0,
+            "reopened": 0,
+            "notifications_created": 0,
+        }
+
+        expired_count, reopened = await IssueDeadlineService._expire_exceptions(db, issue, now)
+        if expired_count:
+            increment_deadline_results(issue_results, "exceptions_expired", count=expired_count)
+        if reopened:
+            increment_deadline_results(issue_results, "reopened")
+
+        # Skip deadline notifications for issues suppressed by active approved exception.
+        if IssueDeadlineService._active_exception(issue, now) is not None:
+            return issue_results
+
+        if issue.status == IssueStatus.closed.value:
+            return issue_results
+
+        due_at = coerce_utc(issue.due_at)
+        if due_at is None:
+            return issue_results
+
+        owner_ids = {
+            uid
+            for uid in {
+                issue.owner_user_id,
+                issue.remediation_plan.owner_user_id if issue.remediation_plan else None,
+            }
+            if uid is not None
+        }
+        recipients = [users_by_id[uid] for uid in owner_ids if uid in users_by_id]
+
+        if should_send_issue_due_soon(
+            now=now,
+            due_at=due_at,
+            due_soon_cutoff=due_soon_cutoff,
+            due_soon_backoff=due_soon_backoff,
+            last_due_soon_notified_at=issue.last_due_soon_notified_at,
+        ):
+            plan = build_issue_due_soon_notification_plan(issue=issue, due_at=due_at)
+            created_for_issue = 0
+            for user in recipients:
+                created = await IssueDeadlineService._create_issue_notification(
+                    db,
+                    user=user,
+                    issue=issue,
+                    notification_type=plan.notification_type,
+                    title=plan.title,
+                    message=plan.message,
+                    now=now,
+                )
+                if created:
+                    created_for_issue += 1
+            if created_for_issue:
+                issue.last_due_soon_notified_at = now
+                db.add(issue)
+                increment_deadline_results(issue_results, "due_soon")
+                increment_deadline_results(issue_results, "notifications_created", count=created_for_issue)
+
+        if due_at >= now:
+            return issue_results
+
+        if should_send_issue_overdue(
+            now=now,
+            due_at=due_at,
+            overdue_cutoff=overdue_cutoff,
+            last_overdue_notified_at=issue.last_overdue_notified_at,
+        ):
+            plan = build_issue_overdue_notification_plan(issue=issue, due_at=due_at)
+            created_for_issue = 0
+            for user in recipients:
+                created = await IssueDeadlineService._create_issue_notification(
+                    db,
+                    user=user,
+                    issue=issue,
+                    notification_type=plan.notification_type,
+                    title=plan.title,
+                    message=plan.message,
+                    now=now,
+                )
+                if created:
+                    created_for_issue += 1
+            if created_for_issue:
+                issue.last_overdue_notified_at = now
+                db.add(issue)
+                increment_deadline_results(issue_results, "overdue")
+                increment_deadline_results(issue_results, "notifications_created", count=created_for_issue)
+
+        if should_escalate_issue_overdue(
+            now=now,
+            due_at=due_at,
+            escalation_cutoff=escalation_cutoff,
+            last_escalated_at=issue.last_escalated_at,
+            issue_severity=issue.severity,
+        ):
+            plan = build_issue_escalation_notification_plan(issue=issue, due_at=due_at)
+            created_escalations = 0
+            recipient_ids = {u.id for u in escalation_users} - {u.id for u in recipients}
+            for user in escalation_users:
+                if user.id not in recipient_ids:
+                    continue
+                created = await IssueDeadlineService._create_issue_notification(
+                    db,
+                    user=user,
+                    issue=issue,
+                    notification_type=plan.notification_type,
+                    title=plan.title,
+                    message=plan.message,
+                    now=now,
+                )
+                if created:
+                    created_escalations += 1
+            if created_escalations:
+                issue.last_escalated_at = now
+                db.add(issue)
+                increment_deadline_results(issue_results, "escalated")
+                increment_deadline_results(issue_results, "notifications_created", count=created_escalations)
+
+        return issue_results
+
+    @staticmethod
     async def check_issue_deadlines(db: AsyncSession, *, now: datetime | None = None) -> dict[str, int]:
         now = now or utc_now()
         config = await IssueDeadlineService._load_config(db)
@@ -210,121 +347,26 @@ class IssueDeadlineService:
         escalation_users = await IssueDeadlineService._escalation_recipients(db)
 
         for issue in issues:
+            issue_id = issue.id
             try:
-                expired_count, reopened = await IssueDeadlineService._expire_exceptions(db, issue, now)
-                if expired_count:
-                    increment_deadline_results(results, "exceptions_expired", count=expired_count)
-                if reopened:
-                    increment_deadline_results(results, "reopened")
-
-                # Skip deadline notifications for issues suppressed by active approved exception.
-                if IssueDeadlineService._active_exception(issue, now) is not None:
-                    continue
-
-                if issue.status == IssueStatus.closed.value:
-                    continue
-
-                due_at = coerce_utc(issue.due_at)
-                if due_at is None:
-                    continue
-
-                owner_ids = {
-                    uid
-                    for uid in {
-                        issue.owner_user_id,
-                        issue.remediation_plan.owner_user_id if issue.remediation_plan else None,
-                    }
-                    if uid is not None
-                }
-                recipients = [users_by_id[uid] for uid in owner_ids if uid in users_by_id]
-
-                if should_send_issue_due_soon(
-                    now=now,
-                    due_at=due_at,
-                    due_soon_cutoff=due_soon_cutoff,
-                    due_soon_backoff=due_soon_backoff,
-                    last_due_soon_notified_at=issue.last_due_soon_notified_at,
-                ):
-                    plan = build_issue_due_soon_notification_plan(issue=issue, due_at=due_at)
-                    created_for_issue = 0
-                    for user in recipients:
-                        created = await IssueDeadlineService._create_issue_notification(
-                            db,
-                            user=user,
-                            issue=issue,
-                            notification_type=plan.notification_type,
-                            title=plan.title,
-                            message=plan.message,
-                            now=now,
-                        )
-                        if created:
-                            created_for_issue += 1
-                    if created_for_issue:
-                        issue.last_due_soon_notified_at = now
-                        db.add(issue)
-                        increment_deadline_results(results, "due_soon")
-                        increment_deadline_results(results, "notifications_created", count=created_for_issue)
-
-                if due_at < now:
-                    if should_send_issue_overdue(
+                async with db.begin_nested():
+                    issue_results = await IssueDeadlineService._process_issue_deadline(
+                        db,
+                        issue=issue,
                         now=now,
-                        due_at=due_at,
+                        due_soon_cutoff=due_soon_cutoff,
+                        due_soon_backoff=due_soon_backoff,
                         overdue_cutoff=overdue_cutoff,
-                        last_overdue_notified_at=issue.last_overdue_notified_at,
-                    ):
-                        plan = build_issue_overdue_notification_plan(issue=issue, due_at=due_at)
-                        created_for_issue = 0
-                        for user in recipients:
-                            created = await IssueDeadlineService._create_issue_notification(
-                                db,
-                                user=user,
-                                issue=issue,
-                                notification_type=plan.notification_type,
-                                title=plan.title,
-                                message=plan.message,
-                                now=now,
-                            )
-                            if created:
-                                created_for_issue += 1
-                        if created_for_issue:
-                            issue.last_overdue_notified_at = now
-                            db.add(issue)
-                            increment_deadline_results(results, "overdue")
-                            increment_deadline_results(results, "notifications_created", count=created_for_issue)
-
-                    if should_escalate_issue_overdue(
-                        now=now,
-                        due_at=due_at,
                         escalation_cutoff=escalation_cutoff,
-                        last_escalated_at=issue.last_escalated_at,
-                        issue_severity=issue.severity,
-                    ):
-                        plan = build_issue_escalation_notification_plan(issue=issue, due_at=due_at)
-                        created_escalations = 0
-                        recipient_ids = {u.id for u in escalation_users} - {u.id for u in recipients}
-                        for user in escalation_users:
-                            if user.id not in recipient_ids:
-                                continue
-                            created = await IssueDeadlineService._create_issue_notification(
-                                db,
-                                user=user,
-                                issue=issue,
-                                notification_type=plan.notification_type,
-                                title=plan.title,
-                                message=plan.message,
-                                now=now,
-                            )
-                            if created:
-                                created_escalations += 1
-                        if created_escalations:
-                            issue.last_escalated_at = now
-                            db.add(issue)
-                            increment_deadline_results(results, "escalated")
-                            increment_deadline_results(results, "notifications_created", count=created_escalations)
-
+                        users_by_id=users_by_id,
+                        escalation_users=escalation_users,
+                    )
             except Exception as exc:
-                logger.error("Issue deadline check failed for issue_id=%s: %s", issue.id, exc)
+                logger.error("Issue deadline check failed for issue_id=%s: %s", issue_id, exc)
                 continue
+            for key, value in issue_results.items():
+                if value:
+                    increment_deadline_results(results, key, count=value)
 
         await db.commit()
         return results

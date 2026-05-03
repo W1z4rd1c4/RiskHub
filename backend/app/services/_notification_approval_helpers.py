@@ -77,3 +77,26 @@ async def can_user_view_approval_resource(db: AsyncSession, user: User, approval
     if approval.resource_type == ApprovalResourceType.KRI:
         return await can_read_kri_id(db, user, approval.resource_id)
     return False
+
+
+async def eligible_approval_notification_recipients(
+    db: AsyncSession,
+    approval: ApprovalRequest,
+    *,
+    exclude_user_id: int | None = None,
+) -> tuple[list[User], dict[str, int]]:
+    candidates = await load_scenario_approval_notification_candidates(db, approval)
+    recipients: list[User] = []
+    skipped = {
+        "excluded_actor": 0,
+        "hidden_resource": 0,
+    }
+    for candidate in candidates:
+        if exclude_user_id is not None and candidate.id == exclude_user_id:
+            skipped["excluded_actor"] += 1
+            continue
+        if not await can_user_view_approval_resource(db, candidate, approval):
+            skipped["hidden_resource"] += 1
+            continue
+        recipients.append(candidate)
+    return recipients, skipped
