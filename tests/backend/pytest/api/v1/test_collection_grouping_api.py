@@ -6,11 +6,66 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Control, ControlRiskLink, Department, Issue, IssueLink, KeyRiskIndicator, Risk, User
+from app.models import (
+    Control,
+    ControlRiskLink,
+    Department,
+    Issue,
+    IssueLink,
+    KeyRiskIndicator,
+    Permission,
+    Risk,
+    Role,
+    RolePermission,
+    User,
+    Vendor,
+    VendorControlLink,
+    VendorKRILink,
+    VendorRiskLink,
+)
 
 
 def _group_by_value(groups: list[dict], value: str) -> dict | None:
     return next((group for group in groups if group["value"] == value), None)
+
+
+async def _grant_permission(db_session: AsyncSession, role: Role, resource: str, action: str) -> None:
+    permission = Permission(resource=resource, action=action, description=f"{resource}:{action}")
+    db_session.add(permission)
+    await db_session.flush()
+    db_session.add(RolePermission(role_id=role.id, permission_id=permission.id))
+    await db_session.commit()
+    db_session.expire(role, ["permissions"])
+
+
+async def _hidden_department(db_session: AsyncSession, *, code: str = "HIDE") -> Department:
+    department = Department(name=f"Hidden Department {code}", code=code, description="Hidden linked-resource scope")
+    db_session.add(department)
+    await db_session.commit()
+    await db_session.refresh(department)
+    return department
+
+
+def _vendor(
+    *,
+    name: str,
+    department_id: int,
+    owner_user_id: int = 99999,
+) -> Vendor:
+    return Vendor(
+        name=name,
+        process="Vendor Process",
+        subprocess=None,
+        department_id=department_id,
+        outsourcing_owner_user_id=owner_user_id,
+        vendor_type="ict",
+        risk_score_1_5=3,
+        supports_important_core_insurance_function=False,
+        dora_relevant=False,
+        is_significant_vendor=False,
+        has_alternative_providers=False,
+        status="active",
+    )
 
 
 @pytest.mark.asyncio
@@ -263,6 +318,55 @@ async def test_risks_grouped_drilldown_serializes_only_requested_page(
 
 
 @pytest.mark.asyncio
+async def test_risks_vendor_grouping_treats_hidden_only_links_as_unlinked(
+    client_employee: AsyncClient,
+    db_session: AsyncSession,
+    test_department: Department,
+    test_user_employee: User,
+    seed_risk_types,
+):
+    hidden_department = await _hidden_department(db_session, code="RHV")
+    risk = Risk(
+        risk_id_code="GRP-RISK-HIDDEN-VENDOR-001",
+        name="Risk With Hidden Vendor Only",
+        process="Risk Hidden Vendor Process",
+        description="Visible risk with hidden-only vendor links",
+        department_id=test_department.id,
+        owner_id=test_user_employee.id,
+        risk_type="operational",
+        category="Risk Hidden Vendor Category",
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=2,
+        status="active",
+    )
+    hidden_vendor = _vendor(name="Hidden Risk Group Vendor", department_id=hidden_department.id)
+    db_session.add_all([risk, hidden_vendor])
+    await db_session.commit()
+    db_session.add(VendorRiskLink(vendor_id=hidden_vendor.id, risk_id=risk.id))
+    await db_session.commit()
+
+    summary_response = await client_employee.get(
+        "/api/v1/risks",
+        params={"offset": 0, "limit": 10, "group_by": "vendor"},
+    )
+    assert summary_response.status_code == 200
+    summary = summary_response.json()
+    assert _group_by_value(summary["groups"], "Hidden Risk Group Vendor") is None
+    unlinked_group = _group_by_value(summary["groups"], "__unlinked_vendor__")
+    assert unlinked_group is not None, summary["groups"]
+    assert unlinked_group["count"] >= 1
+
+    drilldown_response = await client_employee.get(
+        "/api/v1/risks",
+        params={"offset": 0, "limit": 10, "group_by": "vendor", "group_value": "__unlinked_vendor__"},
+    )
+    assert drilldown_response.status_code == 200
+    assert any(item["id"] == risk.id for item in drilldown_response.json()["items"])
+
+
+@pytest.mark.asyncio
 async def test_controls_grouped_contract_returns_summary_and_drilldown(
     auth_client: AsyncClient,
     db_session: AsyncSession,
@@ -471,6 +575,86 @@ async def test_controls_grouped_drilldown_serializes_only_requested_page(
 
 
 @pytest.mark.asyncio
+async def test_controls_grouping_redacts_hidden_linked_risk_and_vendor_contexts(
+    client_employee: AsyncClient,
+    db_session: AsyncSession,
+    test_department: Department,
+    test_user_employee: User,
+    seed_risk_types,
+):
+    hidden_department = await _hidden_department(db_session, code="CHV")
+    hidden_risk = Risk(
+        risk_id_code="GRP-CONTROL-HIDDEN-RISK-001",
+        name="Hidden Control Group Risk",
+        process="Hidden Control Process",
+        description="Hidden risk linked to visible control",
+        department_id=hidden_department.id,
+        owner_id=99999,
+        risk_type="operational",
+        category="Hidden Control Category",
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=2,
+        status="active",
+    )
+    control = Control(
+        name="Visible Control Hidden Links",
+        description="Visible control with hidden linked risk and vendor",
+        department_id=test_department.id,
+        control_owner_id=99999,
+        control_form="manual",
+        frequency="daily",
+        risk_level=5,
+        status="active",
+    )
+    hidden_vendor = _vendor(name="Hidden Control Group Vendor", department_id=hidden_department.id)
+    db_session.add_all([hidden_risk, control, hidden_vendor])
+    await db_session.commit()
+    db_session.add_all(
+        [
+            ControlRiskLink(control_id=control.id, risk_id=hidden_risk.id),
+            VendorControlLink(vendor_id=hidden_vendor.id, control_id=control.id),
+        ]
+    )
+    await db_session.commit()
+
+    process_summary = await client_employee.get(
+        "/api/v1/controls",
+        params={"offset": 0, "limit": 10, "group_by": "process"},
+    )
+    assert process_summary.status_code == 200
+    process_groups = process_summary.json()["groups"]
+    assert _group_by_value(process_groups, "Hidden Control Process") is None
+    assert _group_by_value(process_groups, "__no_process__") is not None
+
+    risk_summary = await client_employee.get(
+        "/api/v1/controls",
+        params={"offset": 0, "limit": 10, "group_by": "risk"},
+    )
+    assert risk_summary.status_code == 200
+    risk_groups = risk_summary.json()["groups"]
+    assert _group_by_value(risk_groups, "Hidden Control Group Risk") is None
+    assert _group_by_value(risk_groups, "__unknown_risk__") is not None
+
+    vendor_summary = await client_employee.get(
+        "/api/v1/controls",
+        params={"offset": 0, "limit": 10, "group_by": "vendor"},
+    )
+    assert vendor_summary.status_code == 200
+    vendor_groups = vendor_summary.json()["groups"]
+    assert _group_by_value(vendor_groups, "Hidden Control Group Vendor") is None
+    assert _group_by_value(vendor_groups, "__unlinked_vendor__") is not None
+
+    unlinked_drilldown = await client_employee.get(
+        "/api/v1/controls",
+        params={"offset": 0, "limit": 10, "group_by": "vendor", "group_value": "__unlinked_vendor__"},
+    )
+    assert unlinked_drilldown.status_code == 200
+    assert any(item["id"] == control.id for item in unlinked_drilldown.json()["items"])
+
+
+@pytest.mark.asyncio
 async def test_issues_grouped_contract_uses_risk_contexts_for_category_drilldown(
     auth_client: AsyncClient,
     db_session: AsyncSession,
@@ -618,6 +802,79 @@ async def test_issues_grouped_drilldown_serializes_only_requested_page(
 
 
 @pytest.mark.asyncio
+async def test_issues_grouping_redacts_hidden_linked_risk_and_vendor_contexts(
+    client_employee: AsyncClient,
+    db_session: AsyncSession,
+    test_department: Department,
+    test_role_employee: Role,
+    test_user_employee: User,
+    seed_risk_types,
+):
+    await _grant_permission(db_session, test_role_employee, "issues", "read")
+    hidden_department = await _hidden_department(db_session, code="IHV")
+    hidden_risk = Risk(
+        risk_id_code="GRP-ISSUE-HIDDEN-RISK-001",
+        name="Hidden Issue Group Risk",
+        process="Hidden Issue Process",
+        description="Hidden risk linked to visible issue",
+        department_id=hidden_department.id,
+        owner_id=99999,
+        risk_type="operational",
+        category="Hidden Issue Category",
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=2,
+        status="active",
+    )
+    issue = Issue(
+        title="Visible Issue Hidden Links",
+        description="Visible issue with hidden linked contexts",
+        severity="critical",
+        status="open",
+        department_id=test_department.id,
+        source_type="manual",
+        owner_user_id=test_user_employee.id,
+        created_by_id=test_user_employee.id,
+    )
+    hidden_vendor = _vendor(name="Hidden Issue Group Vendor", department_id=hidden_department.id)
+    db_session.add_all([hidden_risk, issue, hidden_vendor])
+    await db_session.commit()
+    db_session.add_all(
+        [
+            IssueLink(issue_id=issue.id, risk_id=hidden_risk.id),
+            IssueLink(issue_id=issue.id, vendor_id=hidden_vendor.id),
+        ]
+    )
+    await db_session.commit()
+
+    category_summary = await client_employee.get(
+        "/api/v1/issues",
+        params={"offset": 0, "limit": 10, "group_by": "category"},
+    )
+    assert category_summary.status_code == 200
+    category_groups = category_summary.json()["groups"]
+    assert _group_by_value(category_groups, "Hidden Issue Category") is None
+    assert _group_by_value(category_groups, "__uncategorized__") is not None
+
+    vendor_summary = await client_employee.get(
+        "/api/v1/issues",
+        params={"offset": 0, "limit": 10, "group_by": "vendor"},
+    )
+    assert vendor_summary.status_code == 200
+    vendor_groups = vendor_summary.json()["groups"]
+    assert _group_by_value(vendor_groups, "Hidden Issue Group Vendor") is None
+    assert _group_by_value(vendor_groups, "__unlinked_vendor__") is not None
+
+    uncategorized_drilldown = await client_employee.get(
+        "/api/v1/issues",
+        params={"offset": 0, "limit": 10, "group_by": "category", "group_value": "__uncategorized__"},
+    )
+    assert uncategorized_drilldown.status_code == 200
+    assert any(item["id"] == issue.id for item in uncategorized_drilldown.json()["items"])
+
+
+@pytest.mark.asyncio
 async def test_kris_grouped_summary_does_not_serialize_all_rows(
     auth_client: AsyncClient,
     db_session: AsyncSession,
@@ -740,6 +997,65 @@ async def test_kris_grouped_drilldown_serializes_only_requested_page(
     assert payload["total"] == 3
     assert len(serialized_kri_ids) == 1
     assert serialized_kri_ids == [payload["items"][0]["id"]]
+
+
+@pytest.mark.asyncio
+async def test_kris_vendor_grouping_treats_hidden_only_links_as_unlinked(
+    client_employee: AsyncClient,
+    db_session: AsyncSession,
+    test_department: Department,
+    test_user_employee: User,
+    seed_risk_types,
+):
+    hidden_department = await _hidden_department(db_session, code="KHV")
+    risk = Risk(
+        risk_id_code="GRP-KRI-HIDDEN-VENDOR-RISK-001",
+        name="KRI Hidden Vendor Risk",
+        process="KRI Hidden Vendor Process",
+        description="Visible risk for hidden vendor KRI grouping",
+        department_id=test_department.id,
+        owner_id=test_user_employee.id,
+        risk_type="operational",
+        category="KRI Hidden Vendor Category",
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=2,
+        status="active",
+    )
+    db_session.add(risk)
+    await db_session.flush()
+    kri = KeyRiskIndicator(
+        risk_id=risk.id,
+        metric_name="KRI With Hidden Vendor Only",
+        description="Visible KRI with hidden-only vendor links",
+        current_value=50.0,
+        lower_limit=0.0,
+        upper_limit=100.0,
+        unit="%",
+        frequency="monthly",
+    )
+    hidden_vendor = _vendor(name="Hidden KRI Group Vendor", department_id=hidden_department.id)
+    db_session.add_all([kri, hidden_vendor])
+    await db_session.commit()
+    db_session.add(VendorKRILink(vendor_id=hidden_vendor.id, kri_id=kri.id))
+    await db_session.commit()
+
+    summary_response = await client_employee.get(
+        "/api/v1/kris",
+        params={"offset": 0, "limit": 10, "group_by": "vendor"},
+    )
+    assert summary_response.status_code == 200
+    summary = summary_response.json()
+    assert _group_by_value(summary["groups"], "Hidden KRI Group Vendor") is None
+    assert _group_by_value(summary["groups"], "__unlinked_vendor__") is not None
+
+    drilldown_response = await client_employee.get(
+        "/api/v1/kris",
+        params={"offset": 0, "limit": 10, "group_by": "vendor", "group_value": "__unlinked_vendor__"},
+    )
+    assert drilldown_response.status_code == 200
+    assert any(item["id"] == kri.id for item in drilldown_response.json()["items"])
 
 
 @pytest.mark.asyncio

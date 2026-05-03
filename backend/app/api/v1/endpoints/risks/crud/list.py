@@ -1,7 +1,7 @@
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import String, asc, case, desc, func, literal, or_, select
+from sqlalchemy import String, asc, case, desc, false, func, literal, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -62,7 +62,7 @@ def _risk_group_entries(risk, group_by: str) -> list[CollectionGroupEntry]:
     return []
 
 
-def _risk_group_value_filter(group_by: str, group_value: str):
+def _risk_group_value_filter(group_by: str, group_value: str, *, vendor_context=None):
     if group_by == "category":
         if group_value == RISK_GROUP_UNCATEGORIZED:
             return or_(Risk.category.is_(None), Risk.category == "")
@@ -84,10 +84,29 @@ def _risk_group_value_filter(group_by: str, group_value: str):
             vendor_id = int(group_value.removeprefix("vendor:"))
         except ValueError:
             return Risk.id.is_(None)
-        return Risk.id.in_(select(VendorRiskLink.risk_id).where(VendorRiskLink.vendor_id == vendor_id))
-    if group_by == "vendor" and group_value == RISK_GROUP_UNLINKED_VENDOR:
-        return ~Risk.id.in_(select(VendorRiskLink.risk_id))
+        if vendor_context is None:
+            return Risk.id.is_(None)
+        return Risk.id.in_(select(vendor_context.c.risk_id).where(vendor_context.c.vendor_id == vendor_id))
+    if group_by == "vendor" and group_value == RISK_GROUP_UNLINKED_VENDOR and vendor_context is not None:
+        return ~Risk.id.in_(select(vendor_context.c.risk_id))
     return None
+
+
+def _visible_risk_vendor_context(filtered_ids, current_user: User, *, can_read_vendors: bool):
+    query = (
+        select(
+            VendorRiskLink.risk_id.label("risk_id"),
+            Vendor.id.label("vendor_id"),
+            Vendor.name.label("vendor_name"),
+        )
+        .select_from(VendorRiskLink)
+        .join(filtered_ids, filtered_ids.c.id == VendorRiskLink.risk_id)
+        .join(Vendor, Vendor.id == VendorRiskLink.vendor_id)
+    )
+    vendor_visibility = vendor_visibility_clause(current_user) if can_read_vendors else false()
+    if vendor_visibility is not None:
+        query = query.where(vendor_visibility)
+    return query.subquery()
 
 
 async def _load_risk_sql_groups(
@@ -115,8 +134,12 @@ async def _load_risk_sql_groups(
         label_expr = value_expr
         joins = ()
     elif group_by == "vendor" and can_read_vendors:
-        value_expr = func.coalesce(literal("vendor:") + func.cast(Vendor.id, String), RISK_GROUP_UNLINKED_VENDOR)
-        label_expr = func.coalesce(Vendor.name, RISK_GROUP_UNLINKED_VENDOR)
+        vendor_context = _visible_risk_vendor_context(filtered_ids, current_user, can_read_vendors=can_read_vendors)
+        value_expr = func.coalesce(
+            literal("vendor:") + func.cast(vendor_context.c.vendor_id, String),
+            RISK_GROUP_UNLINKED_VENDOR,
+        )
+        label_expr = func.coalesce(vendor_context.c.vendor_name, RISK_GROUP_UNLINKED_VENDOR)
         joins = ("vendor",)
     elif group_by == "vendor":
         value_expr = literal(RISK_GROUP_UNLINKED_VENDOR)
@@ -138,12 +161,7 @@ async def _load_risk_sql_groups(
     )
     for join_target in joins:
         if join_target == "vendor":
-            group_query = group_query.outerjoin(VendorRiskLink, VendorRiskLink.risk_id == Risk.id).outerjoin(
-                Vendor, Vendor.id == VendorRiskLink.vendor_id
-            )
-            vendor_clause = vendor_visibility_clause(current_user)
-            if vendor_clause is not None:
-                group_query = group_query.where(or_(Vendor.id.is_(None), vendor_clause))
+            group_query = group_query.outerjoin(vendor_context, vendor_context.c.risk_id == Risk.id)
         else:
             group_query = group_query.outerjoin(join_target)
     group_query = group_query.group_by(value_expr, label_expr).order_by(func.lower(label_expr))
@@ -401,6 +419,11 @@ async def list_risks(
 
     if collection_query.group_by and collection_query.group_by in RISK_SQL_GROUPS:
         filtered_ids = base_query.with_only_columns(Risk.id).order_by(None).subquery()
+        vendor_context = (
+            _visible_risk_vendor_context(filtered_ids, current_user, can_read_vendors=can_read_vendors)
+            if collection_query.group_by == "vendor"
+            else None
+        )
         groups = await _load_risk_sql_groups(
             db,
             filtered_ids,
@@ -420,7 +443,11 @@ async def list_risks(
                 capabilities=collection_capabilities,
             )
 
-        group_filter = _risk_group_value_filter(collection_query.group_by, collection_query.group_value)
+        group_filter = _risk_group_value_filter(
+            collection_query.group_by,
+            collection_query.group_value,
+            vendor_context=vendor_context,
+        )
         grouped_query = ordered_query.where(group_filter) if group_filter is not None else ordered_query
         grouped_total = (
             await db.execute(select(func.count()).select_from(grouped_query.order_by(None).subquery()))

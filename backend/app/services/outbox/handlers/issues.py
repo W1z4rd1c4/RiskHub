@@ -10,8 +10,7 @@ from app.core.permissions import can_read_issue_id
 from app.models import Issue, NotificationType, Permission, Role, RolePermission, User
 from app.models.user import AccessScope
 from app.services.notification_service import NotificationService
-from app.services.outbox.errors import OutboxDependencyError
-from app.services.outbox.handlers.common import get_active_user_with_permissions
+from app.services.outbox.handlers.common import get_active_user_with_permissions, run_notification_operation
 from app.services.outbox.payloads import (
     IssueAssignedPayload,
     IssueExceptionApprovedPayload,
@@ -20,10 +19,7 @@ from app.services.outbox.payloads import (
 
 
 async def _create_issue_notification(**kwargs) -> None:
-    try:
-        await NotificationService.create_notification(**kwargs)
-    except ConnectionError as exc:
-        raise OutboxDependencyError(str(exc)) from exc
+    await run_notification_operation(NotificationService.create_notification(**kwargs))
 
 
 async def _load_issue(db: AsyncSession, issue_id: int) -> Issue | None:

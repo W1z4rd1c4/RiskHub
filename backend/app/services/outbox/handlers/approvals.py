@@ -9,6 +9,7 @@ from sqlalchemy.orm import selectinload
 from app.core.approval_display import approval_resource_label
 from app.models import ApprovalRequest, NotificationType, User
 from app.services.notification_service import NotificationService
+from app.services.outbox.handlers.common import run_notification_operation
 from app.services.outbox.payloads import (
     ApprovalRequestCancelledPayload,
     ApprovalRequestCreatedPayload,
@@ -37,24 +38,28 @@ async def handle_approval_request_created(db: AsyncSession, payload: ApprovalReq
     action_label = "delete" if approval.action_type.value == "delete" else "edit"
     if approval.primary_approver_id and approval.primary_approver_id != approval.requested_by_id:
         resource_label = approval_resource_label(approval)
-        await NotificationService.create_notification_once(
-            db=db,
-            user_id=approval.primary_approver_id,
-            notification_type=NotificationType.APPROVAL_PENDING,
-            title=f"{approval.resource_type.value.upper()} {action_label.capitalize()} Request",
-            message=f"{resource_label} requires your approval.",
-            resource_type="approval",
-            resource_id=approval.id,
+        await run_notification_operation(
+            NotificationService.create_notification_once(
+                db=db,
+                user_id=approval.primary_approver_id,
+                notification_type=NotificationType.APPROVAL_PENDING,
+                title=f"{approval.resource_type.value.upper()} {action_label.capitalize()} Request",
+                message=f"{resource_label} requires your approval.",
+                resource_type="approval",
+                resource_id=approval.id,
+            )
         )
 
-    await NotificationService.notify_approvers(db, approval)
+    await run_notification_operation(NotificationService.notify_approvers(db, approval, strict_errors=True))
 
 
 async def handle_approval_request_resolved(db: AsyncSession, payload: ApprovalRequestResolvedPayload) -> None:
     approval = await _load_approval(db, payload.approval_id)
     if approval is None:
         return
-    await NotificationService.notify_requester_resolved(db, approval, approved=payload.approved)
+    await run_notification_operation(
+        NotificationService.notify_requester_resolved(db, approval, approved=payload.approved, strict_errors=True)
+    )
 
 
 async def handle_approval_request_cancelled(db: AsyncSession, payload: ApprovalRequestCancelledPayload) -> None:
@@ -64,8 +69,11 @@ async def handle_approval_request_cancelled(db: AsyncSession, payload: ApprovalR
     cancelled_by = await db.get(User, payload.cancelled_by_user_id)
     if cancelled_by is None:
         return
-    await NotificationService.notify_approvers_cancelled(
-        db=db,
-        approval=approval,
-        cancelled_by_user=cancelled_by,
+    await run_notification_operation(
+        NotificationService.notify_approvers_cancelled(
+            db=db,
+            approval=approval,
+            cancelled_by_user=cancelled_by,
+            strict_errors=True,
+        )
     )

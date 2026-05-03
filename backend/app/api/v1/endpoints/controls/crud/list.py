@@ -1,7 +1,7 @@
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import String, case, func, literal, or_, select
+from sqlalchemy import String, case, false, func, literal, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -21,7 +21,7 @@ from app.api.v1.endpoints._monitoring_response import (
     load_monitoring_response_context,
 )
 from app.core.datetime_utils import utc_now
-from app.core.permissions import can_read_vendor, visible_risk_ids
+from app.core.permissions import can_read_vendor, risk_visibility_clause, vendor_visibility_clause, visible_risk_ids
 from app.core.security import check_permission, require_permission
 from app.db.session import get_db
 from app.models import Control, ControlRiskLink, Risk, User, Vendor, VendorControlLink
@@ -98,16 +98,58 @@ def _count_distinct_control_if(condition):
     return func.count(func.distinct(case((condition, Control.id))))
 
 
+async def _visible_control_risk_context(db: AsyncSession, filtered_ids, current_user: User):
+    risk_visibility = await risk_visibility_clause(db, current_user)
+    query = (
+        select(
+            ControlRiskLink.control_id.label("control_id"),
+            Risk.id.label("risk_id"),
+            Risk.name.label("risk_name"),
+            Risk.process.label("risk_process"),
+            Risk.risk_type.label("risk_type"),
+            Department.name.label("risk_department_name"),
+            literal("").label("risk_owner_name"),
+        )
+        .select_from(ControlRiskLink)
+        .join(filtered_ids, filtered_ids.c.id == ControlRiskLink.control_id)
+        .join(Risk, Risk.id == ControlRiskLink.risk_id)
+        .outerjoin(Department, Department.id == Risk.department_id)
+    )
+    if risk_visibility is not None:
+        query = query.where(risk_visibility)
+    return query.subquery()
+
+
+def _visible_control_vendor_context(filtered_ids, current_user: User, *, can_read_vendors: bool):
+    query = (
+        select(
+            VendorControlLink.control_id.label("control_id"),
+            Vendor.id.label("vendor_id"),
+            Vendor.name.label("vendor_name"),
+        )
+        .select_from(VendorControlLink)
+        .join(filtered_ids, filtered_ids.c.id == VendorControlLink.control_id)
+        .join(Vendor, Vendor.id == VendorControlLink.vendor_id)
+    )
+    vendor_visibility = vendor_visibility_clause(current_user) if can_read_vendors else false()
+    if vendor_visibility is not None:
+        query = query.where(vendor_visibility)
+    return query.subquery()
+
+
 async def _load_control_sql_groups(
     db: AsyncSession,
     filtered_ids,
     group_by: str,
     *,
+    current_user: User,
     can_read_vendors: bool,
 ) -> list[CollectionGroupRead]:
     active_expr = Control.status == ControlStatusEnum.active.value
     highlighted_expr = Control.risk_level >= 4
     meta_expr = None
+    risk_context = None
+    vendor_context = None
 
     if group_by == "category":
         value_expr = func.coalesce(Control.control_form, CONTROL_GROUP_UNCATEGORIZED)
@@ -118,29 +160,36 @@ async def _load_control_sql_groups(
         label_expr = value_expr
         from_clause = Control
     elif group_by == "process":
-        value_expr = func.coalesce(Risk.process, CONTROL_GROUP_NO_PROCESS)
+        risk_context = await _visible_control_risk_context(db, filtered_ids, current_user)
+        value_expr = func.coalesce(func.nullif(risk_context.c.risk_process, ""), CONTROL_GROUP_NO_PROCESS)
         label_expr = value_expr
         from_clause = Control
     elif group_by in {"risk_type", "type"}:
-        value_expr = func.coalesce(Risk.risk_type, CONTROL_GROUP_UNKNOWN_RISK_TYPE)
+        risk_context = await _visible_control_risk_context(db, filtered_ids, current_user)
+        value_expr = func.coalesce(func.nullif(risk_context.c.risk_type, ""), CONTROL_GROUP_UNKNOWN_RISK_TYPE)
         label_expr = value_expr
         from_clause = Control
     elif group_by == "risk":
-        value_expr = func.coalesce(Risk.name, CONTROL_GROUP_UNKNOWN_RISK)
+        risk_context = await _visible_control_risk_context(db, filtered_ids, current_user)
+        value_expr = func.coalesce(func.nullif(risk_context.c.risk_name, ""), CONTROL_GROUP_UNKNOWN_RISK)
         label_expr = value_expr
         meta_expr = {
-            "risk_type": func.coalesce(Risk.risk_type, ""),
-            "risk_department_name": func.coalesce(Department.name, ""),
-            "risk_owner_name": literal(""),
+            "risk_type": func.coalesce(risk_context.c.risk_type, ""),
+            "risk_department_name": func.coalesce(risk_context.c.risk_department_name, ""),
+            "risk_owner_name": func.coalesce(risk_context.c.risk_owner_name, ""),
         }
         from_clause = Control
-    elif group_by == "vendor" and can_read_vendors:
-        value_expr = literal("vendor:") + func.cast(Vendor.id, String)
-        label_expr = Vendor.name
-        from_clause = Control
     elif group_by == "vendor":
-        value_expr = literal(CONTROL_GROUP_UNLINKED_VENDOR)
-        label_expr = value_expr
+        vendor_context = _visible_control_vendor_context(
+            filtered_ids,
+            current_user,
+            can_read_vendors=can_read_vendors,
+        )
+        value_expr = func.coalesce(
+            literal("vendor:") + func.cast(vendor_context.c.vendor_id, String),
+            CONTROL_GROUP_UNLINKED_VENDOR,
+        )
+        label_expr = func.coalesce(vendor_context.c.vendor_name, CONTROL_GROUP_UNLINKED_VENDOR)
         from_clause = Control
     else:
         return []
@@ -163,16 +212,10 @@ async def _load_control_sql_groups(
 
     if group_by == "department":
         query = query.outerjoin(Department, Department.id == Control.department_id)
-    elif group_by in {"process", "risk_type", "type", "risk"}:
-        query = query.join(ControlRiskLink, ControlRiskLink.control_id == Control.id).join(
-            Risk, Risk.id == ControlRiskLink.risk_id
-        )
-        if group_by == "risk":
-            query = query.outerjoin(Department, Department.id == Risk.department_id)
-    elif group_by == "vendor" and can_read_vendors:
-        query = query.join(VendorControlLink, VendorControlLink.control_id == Control.id).join(
-            Vendor, Vendor.id == VendorControlLink.vendor_id
-        )
+    elif risk_context is not None:
+        query = query.outerjoin(risk_context, risk_context.c.control_id == Control.id)
+    elif vendor_context is not None:
+        query = query.outerjoin(vendor_context, vendor_context.c.control_id == Control.id)
 
     group_columns = [value_expr, label_expr]
     if isinstance(meta_expr, dict):
@@ -197,37 +240,54 @@ async def _load_control_sql_groups(
     return groups
 
 
-def _control_group_filter(group_by: str, group_value: str):
+def _control_group_filter(group_by: str, group_value: str, *, risk_context=None, vendor_context=None):
     if group_by == "category":
         return func.coalesce(Control.control_form, CONTROL_GROUP_UNCATEGORIZED) == group_value
     if group_by == "department":
         return func.coalesce(Department.name, CONTROL_GROUP_UNKNOWN_DEPARTMENT) == group_value
-    if group_by == "process":
-        return Control.id.in_(
-            select(ControlRiskLink.control_id)
-            .join(Risk, Risk.id == ControlRiskLink.risk_id)
-            .where(func.coalesce(Risk.process, CONTROL_GROUP_NO_PROCESS) == group_value)
+    if group_by == "process" and risk_context is not None:
+        matching = select(risk_context.c.control_id).where(
+            func.coalesce(func.nullif(risk_context.c.risk_process, ""), CONTROL_GROUP_NO_PROCESS) == group_value
         )
-    if group_by in {"risk_type", "type"}:
-        return Control.id.in_(
-            select(ControlRiskLink.control_id)
-            .join(Risk, Risk.id == ControlRiskLink.risk_id)
-            .where(func.coalesce(Risk.risk_type, CONTROL_GROUP_UNKNOWN_RISK_TYPE) == group_value)
+        if group_value == CONTROL_GROUP_NO_PROCESS:
+            visible_values = select(risk_context.c.control_id).where(
+                risk_context.c.risk_process.is_not(None),
+                risk_context.c.risk_process != "",
+            )
+            return or_(Control.id.in_(matching), ~Control.id.in_(visible_values))
+        return Control.id.in_(matching)
+    if group_by in {"risk_type", "type"} and risk_context is not None:
+        matching = select(risk_context.c.control_id).where(
+            func.coalesce(func.nullif(risk_context.c.risk_type, ""), CONTROL_GROUP_UNKNOWN_RISK_TYPE) == group_value
         )
-    if group_by == "risk":
-        return Control.id.in_(
-            select(ControlRiskLink.control_id)
-            .join(Risk, Risk.id == ControlRiskLink.risk_id)
-            .where(func.coalesce(Risk.name, CONTROL_GROUP_UNKNOWN_RISK) == group_value)
+        if group_value == CONTROL_GROUP_UNKNOWN_RISK_TYPE:
+            visible_values = select(risk_context.c.control_id).where(
+                risk_context.c.risk_type.is_not(None),
+                risk_context.c.risk_type != "",
+            )
+            return or_(Control.id.in_(matching), ~Control.id.in_(visible_values))
+        return Control.id.in_(matching)
+    if group_by == "risk" and risk_context is not None:
+        matching = select(risk_context.c.control_id).where(
+            func.coalesce(func.nullif(risk_context.c.risk_name, ""), CONTROL_GROUP_UNKNOWN_RISK) == group_value
         )
+        if group_value == CONTROL_GROUP_UNKNOWN_RISK:
+            visible_values = select(risk_context.c.control_id).where(
+                risk_context.c.risk_name.is_not(None),
+                risk_context.c.risk_name != "",
+            )
+            return or_(Control.id.in_(matching), ~Control.id.in_(visible_values))
+        return Control.id.in_(matching)
     if group_by == "vendor" and group_value.startswith("vendor:"):
         try:
             vendor_id = int(group_value.removeprefix("vendor:"))
         except ValueError:
             return Control.id.is_(None)
-        return Control.id.in_(select(VendorControlLink.control_id).where(VendorControlLink.vendor_id == vendor_id))
-    if group_by == "vendor" and group_value == CONTROL_GROUP_UNLINKED_VENDOR:
-        return ~Control.id.in_(select(VendorControlLink.control_id))
+        if vendor_context is None:
+            return Control.id.is_(None)
+        return Control.id.in_(select(vendor_context.c.control_id).where(vendor_context.c.vendor_id == vendor_id))
+    if group_by == "vendor" and group_value == CONTROL_GROUP_UNLINKED_VENDOR and vendor_context is not None:
+        return ~Control.id.in_(select(vendor_context.c.control_id))
     return None
 
 
@@ -465,10 +525,21 @@ async def list_controls(
 
     if collection_query.group_by and collection_query.group_by in CONTROL_SQL_GROUPS:
         filtered_ids = filtered_query.with_only_columns(Control.id).order_by(None).subquery()
+        risk_context = (
+            await _visible_control_risk_context(db, filtered_ids, current_user)
+            if collection_query.group_by in {"process", "risk_type", "type", "risk"}
+            else None
+        )
+        vendor_context = (
+            _visible_control_vendor_context(filtered_ids, current_user, can_read_vendors=can_read_vendors)
+            if collection_query.group_by == "vendor"
+            else None
+        )
         groups = await _load_control_sql_groups(
             db,
             filtered_ids,
             collection_query.group_by,
+            current_user=current_user,
             can_read_vendors=can_read_vendors,
         )
         if is_group_summary_request(collection_query):
@@ -481,7 +552,12 @@ async def list_controls(
                 capabilities=collection_capabilities,
             )
 
-        group_filter = _control_group_filter(collection_query.group_by, collection_query.group_value or "")
+        group_filter = _control_group_filter(
+            collection_query.group_by,
+            collection_query.group_value or "",
+            risk_context=risk_context,
+            vendor_context=vendor_context,
+        )
         grouped_query = ordered_query.where(group_filter) if group_filter is not None else ordered_query
         grouped_total = (
             await db.execute(select(func.count()).select_from(grouped_query.order_by(None).subquery()))

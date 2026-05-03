@@ -5,7 +5,7 @@ API endpoints for Key Risk Indicators.
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import String, case, func, literal, or_, select
+from sqlalchemy import String, case, false, func, literal, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -26,6 +26,7 @@ from app.api.v1.endpoints._monitoring_response import (
 )
 from app.core.datetime_utils import utc_now
 from app.core.pagination import MAX_KRI_PAGE_SIZE
+from app.core.permissions import vendor_visibility_clause
 from app.core.security import check_permission, require_permission
 from app.db.session import get_db
 from app.models import Department, KeyRiskIndicator, Risk, User, Vendor, VendorKRILink
@@ -97,13 +98,30 @@ def _count_distinct_kri_if(condition):
     return func.count(func.distinct(case((condition, KeyRiskIndicator.id))))
 
 
+def _visible_kri_vendor_context(filtered_ids, current_user: User, *, can_read_vendors: bool):
+    query = (
+        select(
+            VendorKRILink.kri_id.label("kri_id"),
+            Vendor.id.label("vendor_id"),
+            Vendor.name.label("vendor_name"),
+        )
+        .select_from(VendorKRILink)
+        .join(filtered_ids, filtered_ids.c.id == VendorKRILink.kri_id)
+        .join(Vendor, Vendor.id == VendorKRILink.vendor_id)
+    )
+    vendor_visibility = vendor_visibility_clause(current_user) if can_read_vendors else false()
+    if vendor_visibility is not None:
+        query = query.where(vendor_visibility)
+    return query.subquery()
+
+
 async def _load_kri_sql_groups(
     db: AsyncSession,
     filtered_ids,
     group_by: str,
     *,
+    current_user: User,
     can_read_vendors: bool,
-    monitoring_context,
 ) -> list[CollectionGroupRead]:
     breach_expr = or_(
         KeyRiskIndicator.current_value < KeyRiskIndicator.lower_limit,
@@ -135,13 +153,13 @@ async def _load_kri_sql_groups(
             "risk_department_name": func.coalesce(Department.name, ""),
             "risk_owner_name": literal(""),
         }
-    elif group_by == "vendor" and can_read_vendors:
-        value_expr = literal("vendor:") + func.cast(Vendor.id, String)
-        label_expr = Vendor.name
-        meta_expr = None
     elif group_by == "vendor":
-        value_expr = literal(KRI_GROUP_UNLINKED_VENDOR)
-        label_expr = value_expr
+        vendor_context = _visible_kri_vendor_context(filtered_ids, current_user, can_read_vendors=can_read_vendors)
+        value_expr = func.coalesce(
+            literal("vendor:") + func.cast(vendor_context.c.vendor_id, String),
+            KRI_GROUP_UNLINKED_VENDOR,
+        )
+        label_expr = func.coalesce(vendor_context.c.vendor_name, KRI_GROUP_UNLINKED_VENDOR)
         meta_expr = None
     else:
         return []
@@ -164,10 +182,8 @@ async def _load_kri_sql_groups(
     )
     if group_by in {"department", "risk"}:
         query = query.outerjoin(Department, Department.id == Risk.department_id)
-    if group_by == "vendor" and can_read_vendors:
-        query = query.join(VendorKRILink, VendorKRILink.kri_id == KeyRiskIndicator.id).join(
-            Vendor, Vendor.id == VendorKRILink.vendor_id
-        )
+    if group_by == "vendor":
+        query = query.outerjoin(vendor_context, vendor_context.c.kri_id == KeyRiskIndicator.id)
 
     group_columns = [value_expr, label_expr]
     if isinstance(meta_expr, dict):
@@ -192,7 +208,7 @@ async def _load_kri_sql_groups(
     return groups
 
 
-def _kri_group_filter(group_by: str, group_value: str):
+def _kri_group_filter(group_by: str, group_value: str, *, vendor_context=None):
     if group_by == "category":
         return func.coalesce(Risk.category, KRI_GROUP_UNCATEGORIZED) == group_value
     if group_by == "department":
@@ -208,9 +224,11 @@ def _kri_group_filter(group_by: str, group_value: str):
             vendor_id = int(group_value.removeprefix("vendor:"))
         except ValueError:
             return KeyRiskIndicator.id.is_(None)
-        return KeyRiskIndicator.id.in_(select(VendorKRILink.kri_id).where(VendorKRILink.vendor_id == vendor_id))
-    if group_by == "vendor" and group_value == KRI_GROUP_UNLINKED_VENDOR:
-        return ~KeyRiskIndicator.id.in_(select(VendorKRILink.kri_id))
+        if vendor_context is None:
+            return KeyRiskIndicator.id.is_(None)
+        return KeyRiskIndicator.id.in_(select(vendor_context.c.kri_id).where(vendor_context.c.vendor_id == vendor_id))
+    if group_by == "vendor" and group_value == KRI_GROUP_UNLINKED_VENDOR and vendor_context is not None:
+        return ~KeyRiskIndicator.id.in_(select(vendor_context.c.kri_id))
     return None
 
 
@@ -338,12 +356,17 @@ async def list_kris(
 
     if collection_query.group_by and collection_query.group_by in KRI_SQL_GROUPS:
         filtered_ids = filtered_query.with_only_columns(KeyRiskIndicator.id).order_by(None).subquery()
+        vendor_context = (
+            _visible_kri_vendor_context(filtered_ids, current_user, can_read_vendors=can_read_vendors)
+            if collection_query.group_by == "vendor"
+            else None
+        )
         groups = await _load_kri_sql_groups(
             db,
             filtered_ids,
             collection_query.group_by,
+            current_user=current_user,
             can_read_vendors=can_read_vendors,
-            monitoring_context=monitoring_context,
         )
         count_query = select(func.count()).select_from(filtered_query.subquery())
         total_result = await db.execute(count_query)
@@ -359,7 +382,11 @@ async def list_kris(
                 capabilities=collection_capabilities,
             )
 
-        group_filter = _kri_group_filter(collection_query.group_by, collection_query.group_value or "")
+        group_filter = _kri_group_filter(
+            collection_query.group_by,
+            collection_query.group_value or "",
+            vendor_context=vendor_context,
+        )
         grouped_query = ordered_query.outerjoin(Department, Department.id == Risk.department_id)
         if group_filter is not None:
             grouped_query = grouped_query.where(group_filter)

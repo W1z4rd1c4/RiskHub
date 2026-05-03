@@ -18,6 +18,7 @@ from app.models import (
 )
 from app.models.role import RoleType
 from app.services.notification_service import NotificationService
+from app.services.outbox.handlers.common import run_notification_operation
 from app.services.outbox.payloads import (
     QuestionnaireClarificationRequestedPayload,
     QuestionnaireSentPayload,
@@ -72,19 +73,21 @@ async def handle_questionnaire_sent(db: AsyncSession, payload: QuestionnaireSent
 
     assignee = questionnaire.assigned_to_user
     locale = assignee.preferred_language or "en"
-    await NotificationService.create_notification(
-        db=db,
-        user_id=assignee.id,
-        notification_type=NotificationType.QUESTIONNAIRE_SENT,
-        title=t("notifications.questionnaire_sent_title", locale=locale),
-        message=t(
-            "notifications.questionnaire_sent_message",
-            locale=locale,
-            risk_name=questionnaire.risk.name if questionnaire.risk else "Risk",
-            due_date=questionnaire.due_at.date().isoformat(),
-        ),
-        resource_type="risk",
-        resource_id=questionnaire.risk_id,
+    await run_notification_operation(
+        NotificationService.create_notification(
+            db=db,
+            user_id=assignee.id,
+            notification_type=NotificationType.QUESTIONNAIRE_SENT,
+            title=t("notifications.questionnaire_sent_title", locale=locale),
+            message=t(
+                "notifications.questionnaire_sent_message",
+                locale=locale,
+                risk_name=questionnaire.risk.name if questionnaire.risk else "Risk",
+                due_date=questionnaire.due_at.date().isoformat(),
+            ),
+            resource_type="risk",
+            resource_id=questionnaire.risk_id,
+        )
     )
 
 
@@ -99,19 +102,21 @@ async def handle_questionnaire_submitted(db: AsyncSession, payload: Questionnair
         if not await can_read_risk_id(db, recipient, questionnaire.risk_id):
             continue
         locale = recipient.preferred_language or "en"
-        await NotificationService.create_notification(
-            db=db,
-            user_id=recipient.id,
-            notification_type=NotificationType.QUESTIONNAIRE_SUBMITTED,
-            title=t("notifications.questionnaire_submitted_title", locale=locale),
-            message=t(
-                "notifications.questionnaire_submitted_message",
-                locale=locale,
-                actor_name=actor.name,
-                risk_name=questionnaire.risk.name if questionnaire.risk else "Risk",
-            ),
-            resource_type="risk",
-            resource_id=questionnaire.risk_id,
+        await run_notification_operation(
+            NotificationService.create_notification(
+                db=db,
+                user_id=recipient.id,
+                notification_type=NotificationType.QUESTIONNAIRE_SUBMITTED,
+                title=t("notifications.questionnaire_submitted_title", locale=locale),
+                message=t(
+                    "notifications.questionnaire_submitted_message",
+                    locale=locale,
+                    actor_name=actor.name,
+                    risk_name=questionnaire.risk.name if questionnaire.risk else "Risk",
+                ),
+                resource_type="risk",
+                resource_id=questionnaire.risk_id,
+            )
         )
 
 
@@ -125,16 +130,18 @@ async def handle_questionnaire_clarification_requested(
 
     assignee = clarification.questionnaire.assigned_to_user
     locale = assignee.preferred_language or "en"
-    await NotificationService.create_notification(
-        db=db,
-        user_id=assignee.id,
-        notification_type=NotificationType.QUESTIONNAIRE_CLARIFICATION_REQUESTED,
-        title=t("notifications.questionnaire_clarification_requested_title", locale=locale),
-        message=t(
-            "notifications.questionnaire_clarification_requested_message",
-            locale=locale,
-            risk_name=clarification.questionnaire.risk.name if clarification.questionnaire.risk else "Risk",
-        ),
-        resource_type="risk",
-        resource_id=clarification.questionnaire.risk_id,
+    await run_notification_operation(
+        NotificationService.create_notification(
+            db=db,
+            user_id=assignee.id,
+            notification_type=NotificationType.QUESTIONNAIRE_CLARIFICATION_REQUESTED,
+            title=t("notifications.questionnaire_clarification_requested_title", locale=locale),
+            message=t(
+                "notifications.questionnaire_clarification_requested_message",
+                locale=locale,
+                risk_name=clarification.questionnaire.risk.name if clarification.questionnaire.risk else "Risk",
+            ),
+            resource_type="risk",
+            resource_id=clarification.questionnaire.risk_id,
+        )
     )

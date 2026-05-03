@@ -18,11 +18,13 @@ from app.models import (
     Notification,
     OutboxEvent,
     Risk,
+    RiskQuestionnaire,
     User,
 )
 from app.models.key_risk_indicator import KRIFrequency
 from app.models.kri_history import KRIValueHistory
 from app.models.notification import NotificationType
+from app.models.risk_questionnaire import RiskQuestionnaireStatus
 from app.models.user import AccessScope
 from app.services.kri_history_service import KRIHistoryService
 from app.services.notification_service import NotificationService
@@ -384,6 +386,259 @@ async def test_issue_notification_transport_failure_is_retryable(
         assert refreshed is not None
         assert refreshed.status == "pending"
         assert refreshed.last_error == "notification store unavailable"
+
+
+@pytest.mark.asyncio
+async def test_approval_notification_transport_failure_is_retryable(
+    db_session: AsyncSession,
+    async_engine: AsyncEngine,
+    test_risk,
+    test_user: User,
+    test_user_approval_requester: User,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    approval = ApprovalRequest(
+        resource_type=ApprovalResourceType.RISK,
+        resource_id=test_risk.id,
+        resource_name=test_risk.name,
+        requested_by_id=test_user_approval_requester.id,
+        primary_approver_id=test_user.id,
+        reason="Retry approval notification",
+        action_type=ApprovalActionType.EDIT,
+        pending_changes={"name": {"old": test_risk.name, "new": "Retry name"}},
+        status=ApprovalStatus.PENDING,
+    )
+    db_session.add(approval)
+    await db_session.flush()
+    event = OutboxEvent(
+        event_type="approval.request_created",
+        aggregate_type="approval_request",
+        aggregate_id=approval.id,
+        idempotency_key="approval.request_created:transport-retry",
+        payload={"approval_id": approval.id},
+        status="pending",
+        available_at=utc_now(),
+    )
+    db_session.add(event)
+    await db_session.commit()
+
+    async def fail_transport(*args, **kwargs):
+        raise ConnectionError("approval notification store unavailable")
+
+    monkeypatch.setattr(NotificationService, "create_notification_once", fail_transport)
+
+    processed = await dispatch_pending_outbox_events(_sessionmaker(async_engine))
+    assert processed == 0
+
+    async with _sessionmaker(async_engine)() as read_session:
+        refreshed = await read_session.get(OutboxEvent, event.id)
+        assert refreshed is not None
+        assert refreshed.status == "pending"
+        assert refreshed.last_error == "approval notification store unavailable"
+
+
+@pytest.mark.asyncio
+async def test_approval_scenario_notification_transport_failure_is_retryable(
+    db_session: AsyncSession,
+    async_engine: AsyncEngine,
+    test_risk,
+    test_user_risk_manager: User,
+    test_user_approval_requester: User,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    approval = ApprovalRequest(
+        resource_type=ApprovalResourceType.RISK,
+        resource_id=test_risk.id,
+        resource_name=test_risk.name,
+        requested_by_id=test_user_approval_requester.id,
+        reason="Retry scenario approval notification",
+        action_type=ApprovalActionType.EDIT,
+        pending_changes={"name": {"old": test_risk.name, "new": "Scenario retry name"}},
+        status=ApprovalStatus.PENDING,
+        scenario_approver_roles=["risk_manager"],
+    )
+    db_session.add(approval)
+    await db_session.flush()
+    event = OutboxEvent(
+        event_type="approval.request_created",
+        aggregate_type="approval_request",
+        aggregate_id=approval.id,
+        idempotency_key="approval.request_created:scenario-transport-retry",
+        payload={"approval_id": approval.id},
+        status="pending",
+        available_at=utc_now(),
+    )
+    db_session.add(event)
+    await db_session.commit()
+    assert test_user_risk_manager.id != test_user_approval_requester.id
+
+    async def fail_transport(*args, **kwargs):
+        raise ConnectionError("scenario approval notification store unavailable")
+
+    monkeypatch.setattr(NotificationService, "create_notification_once", fail_transport)
+
+    processed = await dispatch_pending_outbox_events(_sessionmaker(async_engine))
+    assert processed == 0
+
+    async with _sessionmaker(async_engine)() as read_session:
+        refreshed = await read_session.get(OutboxEvent, event.id)
+        assert refreshed is not None
+        assert refreshed.status == "pending"
+        assert refreshed.last_error == "scenario approval notification store unavailable"
+
+
+@pytest.mark.asyncio
+async def test_resolved_approval_notification_transport_failure_is_retryable(
+    db_session: AsyncSession,
+    async_engine: AsyncEngine,
+    test_risk,
+    test_user: User,
+    test_user_approval_requester: User,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    approval = ApprovalRequest(
+        resource_type=ApprovalResourceType.RISK,
+        resource_id=test_risk.id,
+        resource_name=test_risk.name,
+        requested_by_id=test_user_approval_requester.id,
+        resolved_by_id=test_user.id,
+        reason="Retry resolved approval notification",
+        action_type=ApprovalActionType.EDIT,
+        pending_changes={"name": {"old": test_risk.name, "new": "Resolved retry name"}},
+        status=ApprovalStatus.APPROVED,
+        resolved_at=utc_now(),
+    )
+    db_session.add(approval)
+    await db_session.flush()
+    event = OutboxEvent(
+        event_type="approval.request_resolved",
+        aggregate_type="approval_request",
+        aggregate_id=approval.id,
+        idempotency_key="approval.request_resolved:transport-retry",
+        payload={"approval_id": approval.id, "approved": True},
+        status="pending",
+        available_at=utc_now(),
+    )
+    db_session.add(event)
+    await db_session.commit()
+
+    async def fail_transport(*args, **kwargs):
+        raise ConnectionError("resolved approval notification store unavailable")
+
+    monkeypatch.setattr(NotificationService, "create_notification_once", fail_transport)
+
+    processed = await dispatch_pending_outbox_events(_sessionmaker(async_engine))
+    assert processed == 0
+
+    async with _sessionmaker(async_engine)() as read_session:
+        refreshed = await read_session.get(OutboxEvent, event.id)
+        assert refreshed is not None
+        assert refreshed.status == "pending"
+        assert refreshed.last_error == "resolved approval notification store unavailable"
+
+
+@pytest.mark.asyncio
+async def test_cancelled_approval_notification_transport_failure_is_retryable(
+    db_session: AsyncSession,
+    async_engine: AsyncEngine,
+    test_risk,
+    test_user_risk_manager: User,
+    test_user_approval_requester: User,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    approval = ApprovalRequest(
+        resource_type=ApprovalResourceType.RISK,
+        resource_id=test_risk.id,
+        resource_name=test_risk.name,
+        requested_by_id=test_user_approval_requester.id,
+        reason="Retry cancelled approval notification",
+        action_type=ApprovalActionType.EDIT,
+        pending_changes={"name": {"old": test_risk.name, "new": "Cancelled retry name"}},
+        status=ApprovalStatus.CANCELLED,
+        scenario_approver_roles=["risk_manager"],
+    )
+    db_session.add(approval)
+    await db_session.flush()
+    event = OutboxEvent(
+        event_type="approval.request_cancelled",
+        aggregate_type="approval_request",
+        aggregate_id=approval.id,
+        idempotency_key="approval.request_cancelled:transport-retry",
+        payload={"approval_id": approval.id, "cancelled_by_user_id": test_user_approval_requester.id},
+        status="pending",
+        available_at=utc_now(),
+    )
+    db_session.add(event)
+    await db_session.commit()
+    assert test_user_risk_manager.id != test_user_approval_requester.id
+
+    async def fail_transport(*args, **kwargs):
+        raise ConnectionError("cancelled approval notification store unavailable")
+
+    monkeypatch.setattr(NotificationService, "create_notification_once", fail_transport)
+
+    processed = await dispatch_pending_outbox_events(_sessionmaker(async_engine))
+    assert processed == 0
+
+    async with _sessionmaker(async_engine)() as read_session:
+        refreshed = await read_session.get(OutboxEvent, event.id)
+        assert refreshed is not None
+        assert refreshed.status == "pending"
+        assert refreshed.last_error == "cancelled approval notification store unavailable"
+
+
+@pytest.mark.asyncio
+async def test_questionnaire_notification_transport_failure_is_retryable(
+    db_session: AsyncSession,
+    async_engine: AsyncEngine,
+    test_department,
+    test_user: User,
+    test_user_employee: User,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    risk = await _create_outbox_risk(
+        db_session,
+        risk_id_code="OUTBOX-QUESTIONNAIRE-RETRY-001",
+        department_id=test_department.id,
+        owner_id=test_user_employee.id,
+    )
+    questionnaire = RiskQuestionnaire(
+        risk_id=risk.id,
+        assigned_to_user_id=test_user_employee.id,
+        sent_by_user_id=test_user.id,
+        status=RiskQuestionnaireStatus.sent,
+        template_key="operational_resilience_v1",
+        template_version="1",
+        sent_at=utc_now(),
+        due_at=utc_now(),
+    )
+    db_session.add(questionnaire)
+    await db_session.flush()
+    event = OutboxEvent(
+        event_type="questionnaire.sent",
+        aggregate_type="risk_questionnaire",
+        aggregate_id=questionnaire.id,
+        idempotency_key="questionnaire.sent:transport-retry",
+        payload={"questionnaire_id": questionnaire.id, "actor_user_id": test_user.id},
+        status="pending",
+        available_at=utc_now(),
+    )
+    db_session.add(event)
+    await db_session.commit()
+
+    async def fail_transport(*args, **kwargs):
+        raise ConnectionError("questionnaire notification store unavailable")
+
+    monkeypatch.setattr(NotificationService, "create_notification", fail_transport)
+
+    processed = await dispatch_pending_outbox_events(_sessionmaker(async_engine))
+    assert processed == 0
+
+    async with _sessionmaker(async_engine)() as read_session:
+        refreshed = await read_session.get(OutboxEvent, event.id)
+        assert refreshed is not None
+        assert refreshed.status == "pending"
+        assert refreshed.last_error == "questionnaire notification store unavailable"
 
 
 @pytest.mark.asyncio

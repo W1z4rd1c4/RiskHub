@@ -154,6 +154,8 @@ class NotificationService:
     async def notify_approvers(
         db: AsyncSession,
         approval: ApprovalRequest,
+        *,
+        strict_errors: bool = False,
     ) -> list[Notification]:
         """
         Notify all users who can approve requests about a new pending approval.
@@ -195,6 +197,8 @@ class NotificationService:
                 if notification:
                     notifications.append(notification)
             except Exception as e:
+                if strict_errors:
+                    raise
                 logger.error(f"Failed to create notification for approver {approver.id}: {e}")
                 # Continue creating notifications for other approvers
 
@@ -206,6 +210,8 @@ class NotificationService:
         db: AsyncSession,
         approval: ApprovalRequest,
         approved: bool,
+        *,
+        strict_errors: bool = False,
     ) -> Notification | None:
         """
         Notify the original requester that their approval was resolved.
@@ -246,6 +252,8 @@ class NotificationService:
             return notification
 
         except Exception as e:
+            if strict_errors:
+                raise
             logger.error(f"Failed to create resolution notification for requester {approval.requested_by_id}: {e}")
             return None
 
@@ -254,6 +262,8 @@ class NotificationService:
         db: AsyncSession,
         approval: ApprovalRequest,
         cancelled_by_user: User,
+        *,
+        strict_errors: bool = False,
     ) -> list[Notification]:
         """
         Notify approvers that a pending approval request was cancelled by the requester.
@@ -295,6 +305,8 @@ class NotificationService:
                 if notification:
                     notifications.append(notification)
             except Exception as e:
+                if strict_errors:
+                    raise
                 logger.error(f"Failed to create cancellation notification for approver {approver.id}: {e}")
                 # Continue creating notifications for other approvers
 

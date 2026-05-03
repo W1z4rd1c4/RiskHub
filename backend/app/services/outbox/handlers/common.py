@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.user_query_options import user_selectinload_options
 from app.models import User
+from app.services.outbox.errors import OutboxDependencyError
 
 OutboxHandler = Callable[[AsyncSession, Any], Awaitable[None]]
 
@@ -21,3 +22,12 @@ async def get_active_user_with_permissions(db: AsyncSession, user_id: int) -> Us
         .where(User.id == user_id, User.is_active.is_(True))
     )
     return result.scalar_one_or_none()
+
+
+async def run_notification_operation(awaitable: Awaitable[Any]) -> Any:
+    try:
+        return await awaitable
+    except OutboxDependencyError:
+        raise
+    except (ConnectionError, TimeoutError, OSError) as exc:
+        raise OutboxDependencyError(str(exc)) from exc
