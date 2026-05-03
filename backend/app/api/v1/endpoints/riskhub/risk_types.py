@@ -7,6 +7,7 @@ from app.db.session import get_db
 from app.models import Risk, RiskTypeConfig, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas.riskhub import RiskTypeCapabilities, RiskTypeCreate, RiskTypeRead, RiskTypeUpdate
+from app.services._riskhub_config import build_config_audit_plan
 
 from ._shared import get_cro_user
 
@@ -113,15 +114,18 @@ async def create_risk_type(
     db.add(risk_type)
     await db.flush()
 
-    await log_activity(
-        db=db,
-        actor=cro_user,
+    audit_plan = build_config_audit_plan(
         action=ActivityAction.CREATE,
         entity_type=ActivityEntityType.CONFIG,
         entity_id=risk_type.id,
         entity_name=risk_type.display_name,
         safe_entity_label=risk_type.display_name,
         description=f"Created risk type: {risk_type.display_name}",
+    )
+    await log_activity(
+        db=db,
+        actor=cro_user,
+        **audit_plan.as_log_kwargs(),
     )
     await db.commit()
     await db.refresh(risk_type)
@@ -177,9 +181,7 @@ async def update_risk_type(
     if data.sort_order is not None:
         risk_type.sort_order = data.sort_order
 
-    await log_activity(
-        db=db,
-        actor=cro_user,
+    audit_plan = build_config_audit_plan(
         action=ActivityAction.UPDATE,
         entity_type=ActivityEntityType.CONFIG,
         entity_id=risk_type.id,
@@ -187,6 +189,11 @@ async def update_risk_type(
         safe_entity_label=risk_type.display_name,
         changes=changes,
         description=f"Updated risk type: {risk_type.display_name}",
+    )
+    await log_activity(
+        db=db,
+        actor=cro_user,
+        **audit_plan.as_log_kwargs(),
     )
     await db.commit()
     await db.refresh(risk_type)
@@ -226,9 +233,7 @@ async def delete_risk_type(
     changes = build_change_set(risk_type, {"is_active": False})
     risk_type.is_active = False
 
-    await log_activity(
-        db=db,
-        actor=cro_user,
+    audit_plan = build_config_audit_plan(
         action=ActivityAction.DELETE,
         entity_type=ActivityEntityType.CONFIG,
         entity_id=risk_type.id,
@@ -236,6 +241,11 @@ async def delete_risk_type(
         safe_entity_label=risk_type.display_name,
         changes=changes,
         description=f"Deleted risk type: {risk_type.display_name} (affecting {affected_risks} risks)",
+    )
+    await log_activity(
+        db=db,
+        actor=cro_user,
+        **audit_plan.as_log_kwargs(),
     )
     await db.commit()
 
@@ -265,9 +275,7 @@ async def restore_risk_type(
     changes = build_change_set(risk_type, {"is_active": True})
     risk_type.is_active = True
 
-    await log_activity(
-        db=db,
-        actor=cro_user,
+    audit_plan = build_config_audit_plan(
         action=ActivityAction.UPDATE,
         entity_type=ActivityEntityType.CONFIG,
         entity_id=risk_type.id,
@@ -277,6 +285,11 @@ async def restore_risk_type(
         safe_description_siem="Restored risk type",
         changes=changes,
         description=f"Restored risk type: {risk_type.display_name}",
+    )
+    await log_activity(
+        db=db,
+        actor=cro_user,
+        **audit_plan.as_log_kwargs(),
     )
     await db.commit()
     await db.refresh(risk_type)

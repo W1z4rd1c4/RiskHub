@@ -1,6 +1,4 @@
-"""Compatibility exports for directory identity lifecycle decisions."""
-
-from app.services._directory_identity import (
+from .lifecycle import (
     DirectoryIdentityConflictError,
     DirectoryImportOutcome,
     DirectoryProfileUpdateOutcome,
@@ -13,10 +11,6 @@ from app.services._directory_identity import (
     resolve_directory_email,
     resolve_or_create_department,
 )
-from app.services._directory_identity.lifecycle import (
-    apply_directory_profile_outcome,
-    directory_reenable_outcome,
-)
 
 __all__ = [
     "DirectoryIdentityConflictError",
@@ -25,8 +19,6 @@ __all__ = [
     "DirectoryReenableOutcome",
     "DirectorySyncOutcome",
     "apply_directory_profile",
-    "apply_directory_profile_outcome",
-    "directory_reenable_outcome",
     "has_auto_deprovision_reason",
     "normalize_business_role",
     "requires_break_glass_for_reenable",

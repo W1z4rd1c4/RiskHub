@@ -10,6 +10,8 @@ from app.models.orphaned_item import OrphanedItem
 from app.models.risk import ControlRiskLink, Risk
 from app.models.user import User
 
+from .governance import orphan_capability_flags
+
 
 class OrphanResolutionConflict(ValueError):
     """Raised when an orphan resolution no longer matches current state."""
@@ -50,14 +52,7 @@ async def can_view_orphan(db: AsyncSession, current_user: User, orphan: Orphaned
 
 
 def orphan_capabilities(orphan: OrphanedItem) -> dict[str, bool]:
-    is_pending = orphan.status == "pending"
-    return {
-        "can_resolve": is_pending,
-        "can_view_detail": True,
-        "requires_owner": orphan.item_type in {"risk", "control"},
-        "requires_risk": orphan.item_type == "kri",
-        "requires_department": orphan.item_type in {"risk", "control"},
-    }
+    return orphan_capability_flags(orphan.item_type, is_pending=orphan.status == "pending")
 
 
 async def assert_orphan_still_matches_target_state(

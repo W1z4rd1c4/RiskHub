@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import type { CollectionGroup } from '@/types/collection';
 
 import { Pagination } from './Pagination';
+import { buildRegisterGroupCards } from './registerGroupPresentation';
 
 interface CollectionGroupDrillDownProps<T> {
     className?: string;
@@ -50,10 +51,16 @@ export function CollectionGroupDrillDown<T>({
     totalPages,
 }: CollectionGroupDrillDownProps<T>) {
     const { t } = useTranslation('common');
-    const selectedGroup = groups.find((group) => group.value === selectedGroupValue);
+    const groupCards = buildRegisterGroupCards(groups, {
+        fallbackLabel: t('empty.unknown_group', { defaultValue: 'Unknown group' }),
+        groupLabel,
+        hideActive,
+        hideHighlighted,
+    });
+    const selectedGroup = groupCards.find((group) => group.value === selectedGroupValue);
 
     if (selectedGroupValue) {
-        const label = selectedGroupLabel || selectedGroup?.label || selectedGroupValue;
+        const label = selectedGroupLabel || selectedGroup?.label || t('empty.unknown_group', { defaultValue: 'Unknown group' });
 
         return (
             <div className={cn('space-y-4', className)}>
@@ -103,49 +110,45 @@ export function CollectionGroupDrillDown<T>({
 
     return (
         <div className={cn('grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4', className)}>
-            {groups.map((group) => {
-                const label = groupLabel ? groupLabel(group) : group.label;
+            {groupCards.map((card) => {
                 return (
                     <button
-                        key={group.value}
+                        key={card.value}
                         type="button"
-                        onClick={() => onSelectGroup(group.value, label)}
+                        onClick={() => onSelectGroup(card.value, card.label)}
                         className="glass-card group text-left hover:border-accent/30 hover:shadow-lg hover:shadow-accent/5 transition-all duration-300"
                     >
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-lg font-bold text-white group-hover:text-accent transition-colors">
-                                {label}
+                                {card.label}
                             </h3>
                             <ChevronRight className="h-5 w-5 text-slate-500 group-hover:text-accent group-hover:translate-x-1 transition-all" />
                         </div>
 
-                        {renderGroupBody && <div className="mb-4">{renderGroupBody(group)}</div>}
+                        {renderGroupBody && <div className="mb-4">{renderGroupBody(card.group)}</div>}
 
                         <div className="flex items-center justify-between gap-4">
                             <div className="flex items-center gap-6">
                                 <div>
-                                    <p className="text-3xl font-black text-white">{group.count}</p>
+                                    <p className="text-3xl font-black text-white">{card.count}</p>
                                     <p className="text-xs text-slate-500 uppercase tracking-wider">Items</p>
                                 </div>
-                                {!hideActive && group.active_count !== undefined && group.active_count !== null && (
+                                {card.showActive && (
                                     <div>
-                                        <p className="text-xl font-bold text-emerald-400">{group.active_count}</p>
+                                        <p className="text-xl font-bold text-emerald-400">{card.activeCount}</p>
                                         <p className="text-xs text-slate-500 uppercase tracking-wider">Active</p>
                                     </div>
                                 )}
-                                {!hideHighlighted &&
-                                    group.highlighted_count !== undefined &&
-                                    group.highlighted_count !== null &&
-                                    group.highlighted_count > 0 && (
-                                        <div>
-                                            <p className="text-xl font-bold text-rose-400">{group.highlighted_count}</p>
-                                            <p className="text-xs text-slate-500 uppercase tracking-wider">
-                                                {t('tables.high_risk')}
-                                            </p>
-                                        </div>
-                                    )}
+                                {card.showHighlighted && (
+                                    <div>
+                                        <p className="text-xl font-bold text-rose-400">{card.highlightedCount}</p>
+                                        <p className="text-xs text-slate-500 uppercase tracking-wider">
+                                            {t('tables.high_risk')}
+                                        </p>
+                                    </div>
+                                )}
                             </div>
-                            {renderGroupExtra && <div className="flex-shrink-0">{renderGroupExtra(group)}</div>}
+                            {renderGroupExtra && <div className="flex-shrink-0">{renderGroupExtra(card.group)}</div>}
                         </div>
                     </button>
                 );

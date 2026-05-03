@@ -7,18 +7,18 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
 from app.core.config import Settings, get_settings
-from app.core.datetime_utils import coerce_utc, utc_now
+from app.core.datetime_utils import utc_now
 from app.core.logging import get_logger
 from app.core.tokens import (
     clear_sso_challenge_cookie,
     create_refresh_token,
     get_sso_challenge_cookie,
     new_token_jti,
-    refresh_token_lifetime,
     set_sso_challenge_cookie,
 )
 from app.db.session import get_db
 from app.schemas.auth import SsoExchangeRequest, SsoStartRequest, SsoStartResponse, TokenResponse
+from app.services._auth_session import sso_session_outcome
 from app.services.sso_challenge_store import SsoChallenge
 
 from ._request_protection import validate_request_origin
@@ -155,21 +155,29 @@ async def sso_exchange(
         return JSONResponse(status_code=403, content={"detail": "User account is inactive", "code": "USER_INACTIVE"})
 
     now = utc_now()
-    identity_expires_at = coerce_utc(identity.expires_at)
-    if identity_expires_at is None:
-        return JSONResponse(status_code=401, content={"detail": "SSO token expired", "code": "SSO_TOKEN_EXPIRED"})
-    session_expires_at = min(now + refresh_token_lifetime(settings), identity_expires_at)
-    remaining_lifetime = session_expires_at - now
-    if remaining_lifetime.total_seconds() <= SESSION_RENEWAL_MINIMUM_SECONDS:
+    session_outcome = sso_session_outcome(
+        now=now,
+        identity_expires_at=identity.expires_at,
+        settings=settings,
+        renewal_minimum_seconds=SESSION_RENEWAL_MINIMUM_SECONDS,
+    )
+    if session_outcome.status == "token_expired" and session_outcome.audit_plan is not None:
         await _log_failed_sso(
             db,
             entity_name=identity.email or "unknown",
             description="Failed SSO login: token lifetime too short for local session",
         )
         return JSONResponse(
-            status_code=401,
-            content={"detail": "SSO token expired or near expiry", "code": "SSO_TOKEN_EXPIRED"},
+            status_code=session_outcome.status_code or 401,
+            content={"detail": session_outcome.detail, "code": session_outcome.code},
         )
+    if session_outcome.status == "token_expired":
+        return JSONResponse(
+            status_code=session_outcome.status_code or 401,
+            content={"detail": session_outcome.detail, "code": session_outcome.code},
+        )
+    assert session_outcome.session_expires_at is not None
+    assert session_outcome.remaining_lifetime is not None
 
     refresh_jti = new_token_jti()
     refresh_token, refresh_expires_at = create_refresh_token(
@@ -177,12 +185,12 @@ async def sso_exchange(
         token_version=user.token_version,
         jti=refresh_jti,
         settings=settings,
-        expires_delta=remaining_lifetime,
+        expires_delta=session_outcome.remaining_lifetime,
     )
     token_response = _build_token_response(
         user,
         settings=settings,
-        session_expires_at=session_expires_at,
+        session_expires_at=session_outcome.session_expires_at,
         post_login_redirect_to=post_login_redirect_to,
     )
     await _issue_refresh_session(

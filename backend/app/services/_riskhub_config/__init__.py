@@ -8,6 +8,12 @@ from .departments import (
     load_department_for_update,
     validate_department_manager,
 )
+from .lifecycle import (
+    ConfigAuditPlan,
+    ConfigEntityDefinition,
+    ConfigLifecycleOutcome,
+    build_config_audit_plan,
+)
 from .roles import (
     load_role_for_update,
     role_capabilities,
@@ -17,6 +23,10 @@ from .roles import (
 
 __all__ = [
     "DepartmentDependencyCounts",
+    "ConfigAuditPlan",
+    "ConfigEntityDefinition",
+    "ConfigLifecycleOutcome",
+    "build_config_audit_plan",
     "department_capabilities",
     "department_to_read",
     "get_department_dependency_counts",

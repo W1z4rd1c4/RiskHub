@@ -27,6 +27,7 @@ from app.db.session import get_db
 from app.models import RefreshToken, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas.auth import TokenResponse
+from app.services._auth_session import refresh_session_context_outcome
 
 from ._request_protection import validate_csrf, validate_request_origin
 from ._shared import SESSION_RENEWAL_MINIMUM_SECONDS, _build_token_response, _issue_refresh_session
@@ -266,19 +267,21 @@ async def refresh_session(
 
     current_ip = get_request_client_ip(request, settings.trusted_proxies)
     current_user_agent = get_request_user_agent(request)
-    ip_changed = bool(refresh_row.created_ip and current_ip and refresh_row.created_ip != current_ip)
-    user_agent_changed = bool(
-        refresh_row.user_agent and current_user_agent and refresh_row.user_agent != current_user_agent
+    context_outcome = refresh_session_context_outcome(
+        stored_ip=refresh_row.created_ip,
+        current_ip=current_ip,
+        stored_user_agent=refresh_row.user_agent,
+        current_user_agent=current_user_agent,
     )
-    if ip_changed or user_agent_changed:
+    if context_outcome.audit_plan.context_changed:
         logger.warning(
             "refresh_session_context_changed",
             user_id=user.id,
             refresh_token_id=refresh_row.id,
-            ip_changed=ip_changed,
+            ip_changed=context_outcome.ip_changed,
             old_ip_sha256=_telemetry_fingerprint(refresh_row.created_ip),
             new_ip_sha256=_telemetry_fingerprint(current_ip),
-            user_agent_changed=user_agent_changed,
+            user_agent_changed=context_outcome.user_agent_changed,
             old_user_agent_sha256=_telemetry_fingerprint(refresh_row.user_agent),
             new_user_agent_sha256=_telemetry_fingerprint(current_user_agent),
         )
@@ -290,10 +293,10 @@ async def refresh_session(
             entity_id=user.id,
             actor_id=user.id,
             description="Refresh session context changed",
-            ip_changed=ip_changed,
+            ip_changed=context_outcome.ip_changed,
             old_ip_sha256=_telemetry_fingerprint(refresh_row.created_ip),
             new_ip_sha256=_telemetry_fingerprint(current_ip),
-            user_agent_changed=user_agent_changed,
+            user_agent_changed=context_outcome.user_agent_changed,
             old_user_agent_sha256=_telemetry_fingerprint(refresh_row.user_agent),
             new_user_agent_sha256=_telemetry_fingerprint(current_user_agent),
         )
@@ -348,7 +351,7 @@ async def refresh_session(
         changes={
             "result": "rotated",
             "revoke_count": 1,
-            "context_changed": ip_changed or user_agent_changed,
+            "context_changed": context_outcome.audit_plan.context_changed,
         },
     )
     token_response = _build_token_response(user, settings=settings, session_expires_at=expires_at)
