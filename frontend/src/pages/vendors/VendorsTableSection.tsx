@@ -11,6 +11,7 @@ import {
 } from '@/components/tables';
 import { useTranslation } from '@/i18n/hooks';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
+import { buildRegisterTableModel } from '@/pages/shared/registerTablePresentation';
 import type { CollectionGroup } from '@/types/collection';
 import type { Vendor, VendorListParams } from '@/types/vendor';
 
@@ -176,6 +177,27 @@ export function VendorsTableSection({
         ],
         [onRestoreVendor, t]
     );
+    const emptyText = t('empty_state.no_vendors');
+    const groupLabel = (group: CollectionGroup) =>
+        formatVendorGroupLabel(group, {
+            noProcess: t('grouping.no_process'),
+            typeLabel: (value) => t(`type.${value}`, value),
+            unassigned: t('labels.unassigned'),
+            unlinkedRisk: t('grouping.unlinked_risk'),
+            doraRelevant: t('flags.dora_relevant'),
+            supportsCoreFunction: t('flags.supports_core_function'),
+            significantVendor: t('flags.significant_vendor'),
+            insignificantVendor: t('grouping.insignificant_vendor'),
+        });
+    const tableModel = buildRegisterTableModel({
+        emptyText,
+        groupPresentation: { groupLabel, hideActive: true, hideHighlighted: true },
+        groups,
+        isLoading,
+        pagination: { currentPage, itemsPerPage, totalItems: totalCount, totalPages },
+        rows: items,
+        rowKey: (vendor) => vendor.id,
+    });
 
     if (errorKey) {
         return (
@@ -244,11 +266,11 @@ export function VendorsTableSection({
         return (
             <>
                 <SortableTable
-                    data={items}
+                    data={tableModel.rows}
                     columns={columns}
                     keyExtractor={(vendor) => vendor.id}
                     onRowClick={onRowClick}
-                    emptyMessage={t('empty_state.no_vendors')}
+                    emptyMessage={tableModel.emptyText}
                     onSort={(key, direction) =>
                         onSortChange((direction ? key : null) as VendorListParams['sort_by'] | null, direction)
                     }
@@ -281,26 +303,15 @@ export function VendorsTableSection({
             onSelectGroup={onSelectGroup}
             hideActive
             hideHighlighted
-            groupLabel={(group) =>
-                formatVendorGroupLabel(group, {
-                    noProcess: t('grouping.no_process'),
-                    typeLabel: (value) => t(`type.${value}`, value),
-                    unassigned: t('labels.unassigned'),
-                    unlinkedRisk: t('grouping.unlinked_risk'),
-                    doraRelevant: t('flags.dora_relevant'),
-                    supportsCoreFunction: t('flags.supports_core_function'),
-                    significantVendor: t('flags.significant_vendor'),
-                    insignificantVendor: t('grouping.insignificant_vendor'),
-                })
-            }
-            emptyMessage={t('empty_state.no_vendors')}
+            groupLabel={groupLabel}
+            emptyMessage={tableModel.emptyText}
             renderTable={(groupItems) => (
                 <SortableTable
                     data={groupItems}
                     columns={columns}
                     keyExtractor={(vendor) => vendor.id}
                     onRowClick={onRowClick}
-                    emptyMessage={t('empty_state.no_vendors')}
+                    emptyMessage={tableModel.emptyText}
                 />
             )}
         />

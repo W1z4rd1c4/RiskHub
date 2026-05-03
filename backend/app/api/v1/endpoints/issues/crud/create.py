@@ -10,14 +10,16 @@ from app.models import Issue, IssueRemediationPlan, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.models.issue import IssueStatus
 from app.schemas.issue import IssueCreate, IssueRead
-from app.services._issue_register import serialize_issue_read_for_actor
+from app.services._issue_register import (
+    ensure_issue_source_link,
+    resolve_issue_source_metadata,
+    serialize_issue_read_for_actor,
+)
 
 from .._shared import (
     _ensure_owner_assignable,
     _get_issue_with_relations,
     _validate_user_exists,
-    ensure_issue_source_link,
-    resolve_issue_source_metadata,
 )
 
 router = APIRouter()

@@ -22,9 +22,11 @@ export type RiskHubConfigResourceDefinition<TItem, TCreate, TUpdate> = {
 };
 
 export type RiskHubConfigActionModel = {
+    canCreate: boolean;
     canUpdate: boolean;
     canDelete: boolean;
     canRestore: boolean;
+    disabledReason: string | null;
 };
 
 export type RiskHubConfigResourceState<TItem, TCreate, TUpdate> = {
@@ -50,10 +52,17 @@ export type RiskHubConfigResourceState<TItem, TCreate, TUpdate> = {
 };
 
 export function buildRiskHubConfigActionModel(capabilities: CapabilityMap): RiskHubConfigActionModel {
+    const canCreate = resolveCapabilityFlag(capabilities, 'can_create');
+    const canUpdate = resolveCapabilityFlag(capabilities, 'can_update');
+    const canDelete = resolveCapabilityFlag(capabilities, 'can_delete');
+    const canRestore = resolveCapabilityFlag(capabilities, 'can_restore');
+
     return {
-        canDelete: resolveCapabilityFlag(capabilities, 'can_delete'),
-        canRestore: resolveCapabilityFlag(capabilities, 'can_restore'),
-        canUpdate: resolveCapabilityFlag(capabilities, 'can_update'),
+        canCreate,
+        canDelete,
+        canRestore,
+        canUpdate,
+        disabledReason: canCreate ? null : 'create_disabled',
     };
 }
 

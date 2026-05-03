@@ -8,8 +8,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased, selectinload
 
 from app.models import Control, KeyRiskIndicator, OrphanedItem, Risk, User, Vendor
+from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.models.department import Department
 from app.schemas.riskhub import DepartmentHubCapabilities, DepartmentHubRead
+
+from .lifecycle import ConfigAuditPlan, build_config_audit_plan
 
 
 @dataclass(frozen=True)
@@ -59,6 +62,46 @@ def department_to_read(department: Department, counts: DepartmentDependencyCount
         vendor_count=counts.vendors,
         pending_orphan_count=counts.pending_orphans,
         capabilities=department_capabilities(department, counts),
+    )
+
+
+def _department_audit_plan(
+    department: Department,
+    *,
+    action: ActivityAction,
+    verb: str,
+    safe_description: str | None = None,
+) -> ConfigAuditPlan:
+    return build_config_audit_plan(
+        action=action,
+        entity_type=ActivityEntityType.DEPARTMENT,
+        entity_id=department.id,
+        entity_name=department.name,
+        safe_entity_label=department.code or department.name,
+        safe_description=safe_description,
+        safe_description_siem=safe_description,
+        description=f"{verb} department: {department.name}",
+    )
+
+
+def department_create_audit_plan(department: Department) -> ConfigAuditPlan:
+    return _department_audit_plan(department, action=ActivityAction.CREATE, verb="Created")
+
+
+def department_update_audit_plan(department: Department) -> ConfigAuditPlan:
+    return _department_audit_plan(department, action=ActivityAction.UPDATE, verb="Updated")
+
+
+def department_delete_audit_plan(department: Department) -> ConfigAuditPlan:
+    return _department_audit_plan(department, action=ActivityAction.DELETE, verb="Deleted")
+
+
+def department_restore_audit_plan(department: Department) -> ConfigAuditPlan:
+    return _department_audit_plan(
+        department,
+        action=ActivityAction.UPDATE,
+        verb="Restored",
+        safe_description="Restored department",
     )
 
 

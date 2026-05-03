@@ -7,7 +7,13 @@ from app.db.session import get_db
 from app.models import Risk, RiskTypeConfig, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas.riskhub import RiskTypeCapabilities, RiskTypeCreate, RiskTypeRead, RiskTypeUpdate
-from app.services._riskhub_config import build_config_audit_plan
+from app.services._riskhub_config import (
+    build_config_audit_plan,
+    run_config_create,
+    run_config_delete,
+    run_config_restore,
+    run_config_update,
+)
 
 from ._shared import get_cro_user
 
@@ -122,13 +128,14 @@ async def create_risk_type(
         safe_entity_label=risk_type.display_name,
         description=f"Created risk type: {risk_type.display_name}",
     )
-    await log_activity(
+    await run_config_create(
         db=db,
         actor=cro_user,
-        **audit_plan.as_log_kwargs(),
+        audit_plan=audit_plan,
+        entity=risk_type,
+        refresh_entity=True,
+        log_activity_func=log_activity,
     )
-    await db.commit()
-    await db.refresh(risk_type)
 
     return _risk_type_read(risk_type)
 
@@ -190,13 +197,14 @@ async def update_risk_type(
         changes=changes,
         description=f"Updated risk type: {risk_type.display_name}",
     )
-    await log_activity(
+    await run_config_update(
         db=db,
         actor=cro_user,
-        **audit_plan.as_log_kwargs(),
+        audit_plan=audit_plan,
+        entity=risk_type,
+        refresh_entity=True,
+        log_activity_func=log_activity,
     )
-    await db.commit()
-    await db.refresh(risk_type)
 
     return _risk_type_read(risk_type)
 
@@ -242,14 +250,16 @@ async def delete_risk_type(
         changes=changes,
         description=f"Deleted risk type: {risk_type.display_name} (affecting {affected_risks} risks)",
     )
-    await log_activity(
+    outcome = await run_config_delete(
         db=db,
         actor=cro_user,
-        **audit_plan.as_log_kwargs(),
+        audit_plan=audit_plan,
+        entity=risk_type,
+        response_payload={"status": "deleted", "id": id, "affected_risks": affected_risks},
+        log_activity_func=log_activity,
     )
-    await db.commit()
 
-    return {"status": "deleted", "id": id, "affected_risks": affected_risks}
+    return outcome.response_payload or {"status": "deleted", "id": id, "affected_risks": affected_risks}
 
 
 @router.post("/risk-types/{id}/restore", response_model=RiskTypeRead)
@@ -286,12 +296,13 @@ async def restore_risk_type(
         changes=changes,
         description=f"Restored risk type: {risk_type.display_name}",
     )
-    await log_activity(
+    await run_config_restore(
         db=db,
         actor=cro_user,
-        **audit_plan.as_log_kwargs(),
+        audit_plan=audit_plan,
+        entity=risk_type,
+        refresh_entity=True,
+        log_activity_func=log_activity,
     )
-    await db.commit()
-    await db.refresh(risk_type)
 
     return _risk_type_read(risk_type)

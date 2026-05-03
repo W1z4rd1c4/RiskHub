@@ -9,11 +9,7 @@ from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.api.v1.endpoints._monitoring_response import (
-    MonitoringResponseContext,
-    load_monitoring_response_context,
-)
-from app.core.datetime_utils import coerce_utc, utc_now
+from app.core.datetime_utils import coerce_utc
 from app.core.permissions import (
     can_access_department_id,
     can_read_control_id,
@@ -30,6 +26,9 @@ from app.core.permissions import (
 from app.core.security import check_permission
 from app.models import Control, ControlExecution, ControlRiskLink, Risk, User
 from app.schemas.execution import ControlExecutionWriteBase, ExecutionResultEnum
+from app.services._control_execution.access import ControlRiskAccessDecision
+from app.services._control_execution.monitoring import load_control_execution_monitoring_context
+from app.services._control_execution.projection import ControlExecutionProjection, ControlRiskLinkOutcome
 from app.services._control_execution.workflow import (
     create_execution_record,
     linked_risk_names_for_visible_ids,
@@ -39,32 +38,10 @@ from app.services._control_execution.workflow import (
 
 
 @dataclass(frozen=True)
-class ControlExecutionProjection:
-    execution: ControlExecution
-    executed_by_name: str
-    control_name: str
-    control_owner_name: str
-    linked_risks: list[str]
-
-
-@dataclass(frozen=True)
 class ControlExecutionListOutcome:
     projections: list[ControlExecutionProjection]
     total: int
     can_export_csv: bool
-
-
-@dataclass(frozen=True)
-class ControlRiskLinkOutcome:
-    link: ControlRiskLink
-    monitoring_context: MonitoringResponseContext
-
-
-@dataclass(frozen=True)
-class ControlRiskAccessDecision:
-    allowed: bool
-    status_code: int | None = None
-    detail: str | None = None
 
 
 def _apply_execution_scope_and_filters(
@@ -208,11 +185,6 @@ async def create_control_execution_projection(
     )
 
 
-async def _monitoring_context(db: AsyncSession) -> MonitoringResponseContext:
-    now = utc_now()
-    return await load_monitoring_response_context(db, now=now, today=now.date())
-
-
 async def _load_control(control_id: int, db: AsyncSession) -> Control:
     result = await db.execute(select(Control).where(Control.id == control_id))
     control = result.scalar_one_or_none()
@@ -353,7 +325,7 @@ async def list_control_risk_links(
         if link.risk and link.risk.id not in readable_risk_ids:
             cast(Any, link).risk = None
 
-    context = await _monitoring_context(db)
+    context = await load_control_execution_monitoring_context(db)
     return [ControlRiskLinkOutcome(link=link, monitoring_context=context) for link in links]
 
 
@@ -385,7 +357,7 @@ async def create_control_risk_link(
 
     return ControlRiskLinkOutcome(
         link=await _reload_link_for_control_response(db, link.id),
-        monitoring_context=await _monitoring_context(db),
+        monitoring_context=await load_control_execution_monitoring_context(db),
     )
 
 
@@ -439,7 +411,7 @@ async def list_risk_control_links(
         if can_access_department_id(current_user, link.control.department_id) or link.control.id in owned_control_ids:
             visible_links.append(link)
 
-    context = await _monitoring_context(db)
+    context = await load_control_execution_monitoring_context(db)
     return [ControlRiskLinkOutcome(link=link, monitoring_context=context) for link in visible_links]
 
 
@@ -471,7 +443,7 @@ async def create_risk_control_link(
 
     return ControlRiskLinkOutcome(
         link=await _reload_link_for_risk_response(db, link.id),
-        monitoring_context=await _monitoring_context(db),
+        monitoring_context=await load_control_execution_monitoring_context(db),
     )
 
 

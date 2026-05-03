@@ -16,7 +16,7 @@ from .filters import (
     _filter_rows_by_final_scope,
     _prefilter_department_id_for_as_of,
 )
-from .pipeline import ExportPipelineDefinition, ExportRow, render_export_pipeline
+from app.services._reporting.exports import ExportRow, ReportExportDefinition, render_report_export_definition
 from .rehydrate import _rehydrate_department_names, _rehydrate_user_names
 from .rows import _control_to_row
 
@@ -40,7 +40,7 @@ async def _export_controls(
         control_monitoring_config = await get_control_monitoring_config(db)
         return _apply_control_monitoring_rows(current_rows, config=control_monitoring_config, as_of_date=as_of_date)
 
-    definition = ExportPipelineDefinition(
+    definition = ReportExportDefinition(
         title=f"Control Export (as of {as_of_date.isoformat()})",
         sheet_name="Controls",
         filename_base="controls",
@@ -113,7 +113,7 @@ async def _export_controls(
         ],
     )
 
-    return await render_export_pipeline(
+    return await render_report_export_definition(
         definition=definition,
         export_format=export_format,
         as_of_date=as_of_date,

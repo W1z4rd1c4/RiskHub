@@ -30,13 +30,13 @@ import time
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
-from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
 
-from release_parity_audit.artifacts import sha256_file, write_json, write_text
+from release_parity_audit.artifact_writer import sha256_audit_file, write_audit_json, write_audit_text
 from release_parity_audit.command_runner import run_command
 from release_parity_audit.decision import evaluate_findings_and_decision
 from release_parity_audit.dependencies import capture_dependencies
+from release_parity_audit.http_probe import http_json, wait_http
+from release_parity_audit.launch_classifier import classify_launch_failure
 from release_parity_audit.phase_runner import ReleaseParityPhase, ReleaseParityPhaseRunner
 from release_parity_audit.reporting import build_report, build_run_status, matrix_payload
 from release_parity_audit.run_state import ReleaseParityRunState
@@ -135,10 +135,10 @@ class ReleaseParityAudit:
         self.run_state.required_failures = value
 
     def _write_json(self, path: Path, payload: Any) -> None:
-        write_json(path, payload)
+        write_audit_json(path, payload)
 
     def _write_text(self, path: Path, text: str) -> None:
-        write_text(path, text)
+        write_audit_text(path, text)
 
     def _run(
         self,
@@ -165,30 +165,13 @@ class ReleaseParityAudit:
         return result
 
     def _http_json(self, url: str, timeout: float = 8.0) -> tuple[int, Any]:
-        req = Request(url, headers={"Accept": "application/json"})
-        with urlopen(req, timeout=timeout) as response:
-            status = response.getcode()
-            body = response.read().decode("utf-8", errors="replace")
-            try:
-                payload = json.loads(body)
-            except json.JSONDecodeError:
-                payload = {"_raw": body}
-            return status, payload
+        return http_json(url, timeout=timeout)
 
     def _wait_http(self, url: str, timeout_sec: int = 90, expect_status: int | None = None) -> bool:
-        deadline = time.time() + timeout_sec
-        while time.time() < deadline:
-            try:
-                status, _ = self._http_json(url, timeout=4.0)
-                if expect_status is None or status == expect_status:
-                    return True
-            except (URLError, HTTPError, TimeoutError, ConnectionError, OSError):
-                pass
-            time.sleep(1.0)
-        return False
+        return wait_http(url, timeout_sec, expect_status, http_json_func=self._http_json)
 
     def _sha256_file(self, path: Path) -> str:
-        return sha256_file(path)
+        return sha256_audit_file(path)
 
     @staticmethod
     def _canonical_package_name(name: str) -> str:
@@ -405,70 +388,7 @@ class ReleaseParityAudit:
 
     @staticmethod
     def _classify_launch_failure(startup_path_id: str, log_text: str, launch_rc: int) -> dict[str, Any]:
-        log_lower = log_text.lower()
-
-        def result(
-            classification: str,
-            code: str,
-            summary: str,
-        ) -> dict[str, Any]:
-            return {
-                "classification": classification,
-                "code": code,
-                "summary": summary,
-                "launch_rc": launch_rc,
-            }
-
-        if "dev_port_conflict_unexpected_process" in log_lower:
-            return result(
-                "environment_contamination",
-                "unexpected_port_owner",
-                "A required local port was owned by an unexpected process on the audit host.",
-            )
-        if "docker daemon is unavailable" in log_lower or "cannot connect to the docker daemon" in log_lower:
-            return result(
-                "environment_contamination",
-                "docker_daemon_unavailable",
-                "Docker was unavailable on the audit host for a Docker-backed startup path.",
-            )
-        if "docker is required" in log_lower or "docker daemon not reachable" in log_lower:
-            return result(
-                "environment_contamination",
-                "docker_tooling_missing",
-                "Docker tooling was unavailable for a Docker-backed startup path.",
-            )
-        if (
-            "unsupported node.js major" in log_lower
-            or "node.js is required but was not found" in log_lower
-            or "npm is required but was not found" in log_lower
-        ):
-            return result(
-                "environment_contamination",
-                "toolchain_mismatch",
-                "Node/npm on the audit host could not satisfy the startup script requirements.",
-            )
-        packaging_markers = (
-            "backend/venv/bin/python",
-            "./venv/bin/python",
-            "package-lock.json",
-            "requirements.txt",
-            "requirements-runtime.txt",
-            "requirements-db.txt",
-            "no such file or directory",
-            "missing required file",
-            "missing required directory",
-        )
-        if any(marker in log_lower for marker in packaging_markers):
-            return result(
-                "environment_contamination",
-                "parity_artifact_incomplete",
-                "The parity workspace or generated artifacts were incomplete for this startup path.",
-            )
-        return result(
-            "product_failure",
-            "startup_path_failed",
-            f"Startup path {startup_path_id} failed before parity fingerprints could be captured.",
-        )
+        return classify_launch_failure(startup_path_id, log_text, launch_rc)
 
     def _stop_local_dev_processes(self) -> None:
         self._run(

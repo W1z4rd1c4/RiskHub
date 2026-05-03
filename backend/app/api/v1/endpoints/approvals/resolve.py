@@ -3,17 +3,15 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
-from app.core.permissions import can_resolve_approvals
 from app.db.session import get_db
-from app.models import ApprovalRequest, ApprovalStatus, User
+from app.models import User
 from app.schemas.approval_request import ApprovalRequestListResponse, ApprovalRequestRead, ApprovalRequestResolve
-from app.services.approval_queue_visibility import (
-    count_visible_pending_approvals_for_user,
-    visible_pending_approvals_for_user,
+from app.services._approval_queue import (
+    count_pending_approval_queue,
+    list_my_approval_queue_page,
 )
 
 from ._shared import _build_approval_read, logger
@@ -119,17 +117,7 @@ async def get_pending_count(
     - Non-privileged users: own requests, primary-approver requests, and visible
       scenario-approver requests
     """
-    if can_resolve_approvals(current_user):
-        # Count all pending/pending_privileged for approvers
-        result = await db.execute(
-            select(func.count())
-            .select_from(ApprovalRequest)
-            .where(ApprovalRequest.status.in_([ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED]))
-        )
-        return {"count": result.scalar() or 0}
-
-    count = await count_visible_pending_approvals_for_user(db, current_user=current_user)
-    return {"count": count}
+    return await count_pending_approval_queue(db=db, current_user=current_user)
 
 
 @router.get(
@@ -148,14 +136,4 @@ async def list_my_approval_requests(
     """
     List pending approval requests that need this user's approval.
     """
-    approvals = await visible_pending_approvals_for_user(
-        db,
-        current_user=current_user,
-        include_requester=False,
-    )
-    total = len(approvals)
-    page = approvals[skip : skip + limit]
-
-    return ApprovalRequestListResponse(
-        items=[_build_approval_read(a, current_user) for a in page], total=total, skip=skip, limit=limit
-    )
+    return await list_my_approval_queue_page(db=db, current_user=current_user, skip=skip, limit=limit)

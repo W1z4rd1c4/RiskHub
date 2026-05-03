@@ -5,11 +5,7 @@
 
 import { Trash2, AlertCircle, Loader2 } from 'lucide-react';
 import { useTranslation } from '@/i18n/hooks';
-import {
-    getExistingLinkDisplayName,
-    getExistingLinkTargetId,
-    getMetadataBadgeClassName,
-} from './existingLinksPresentation';
+import { buildExistingLinkPresentation } from './linkManagementPresentation';
 import type { ExistingLinkItem, LinkMode } from './linkTypes';
 
 export type { ExistingLinkItem } from './linkTypes';
@@ -46,8 +42,8 @@ export function ExistingLinksPanel({
             ) : (
                 <div className="space-y-3">
                     {existingLinks.map((link) => {
-                        const targetId = getExistingLinkTargetId(link, mode);
-                        const isCurrentlyUnlinking = isUnlinking === targetId;
+                        const presentation = buildExistingLinkPresentation(link, mode, t);
+                        const isCurrentlyUnlinking = isUnlinking === presentation.targetId;
 
                         return (
                             <div
@@ -57,10 +53,10 @@ export function ExistingLinksPanel({
                                 <div className="flex-1 min-w-0 pr-4">
                                     <div className="flex items-center gap-3 mb-1">
                                         <span className="text-xs font-bold text-white truncate">
-                                            {getExistingLinkDisplayName(link, mode, t)}
+                                            {presentation.displayName}
                                         </span>
                                         {showMetadataBadge && (
-                                            <span className={getMetadataBadgeClassName(link.effectiveness)}>
+                                            <span className={presentation.metadataBadgeClassName}>
                                                 {link.effectiveness}
                                             </span>
                                         )}
@@ -70,7 +66,7 @@ export function ExistingLinksPanel({
                                     )}
                                 </div>
                                 <button
-                                    onClick={() => onUnlink(targetId)}
+                                    onClick={() => onUnlink(presentation.targetId)}
                                     disabled={isCurrentlyUnlinking}
                                     className="p-2 text-slate-600 hover:text-rose-500 transition-colors rounded-lg hover:bg-rose-500/10"
                                 >

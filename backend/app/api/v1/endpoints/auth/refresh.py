@@ -4,33 +4,33 @@ import hashlib
 
 from fastapi import APIRouter, Depends, status
 from fastapi.responses import JSONResponse
-from sqlalchemy import select, update
+from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
 from starlette.responses import Response
 
 from app.core.activity_logger import audit_logger, log_activity
 from app.core.config import Settings, get_settings
-from app.core.datetime_utils import coerce_utc, utc_now
 from app.core.logging import get_logger
 from app.core.tokens import (
-    clear_refresh_cookie,
     create_refresh_token,
     get_refresh_cookie,
     get_request_client_ip,
     get_request_user_agent,
     new_token_jti,
-    token_decode_or_none,
 )
-from app.core.user_query_options import user_selectinload_options
 from app.db.session import get_db
-from app.models import RefreshToken, User
+from app.models import RefreshToken
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas.auth import TokenResponse
-from app.services._auth_session import refresh_session_context_outcome
+from app.services._auth_session import (
+    SessionCookiePlan,
+    apply_session_cookie_plan,
+    resolve_refresh_session,
+)
 
 from ._request_protection import validate_csrf, validate_request_origin
-from ._shared import SESSION_RENEWAL_MINIMUM_SECONDS, _build_token_response, _issue_refresh_session
+from ._shared import _build_token_response, _issue_refresh_session
 
 router = APIRouter()
 logger = get_logger("auth.refresh")
@@ -47,92 +47,12 @@ def _refresh_unauthorized_response(detail: str, settings: Settings) -> JSONRespo
         status_code=status.HTTP_401_UNAUTHORIZED,
         content={"detail": detail},
     )
-    clear_refresh_cookie(response, settings)
+    apply_session_cookie_plan(
+        response=response,
+        settings=settings,
+        plan=SessionCookiePlan(action="clear_refresh"),
+    )
     return response
-
-
-async def _emit_failed_refresh_activity(
-    *,
-    db: AsyncSession,
-    user: User | None,
-    failure_code: str,
-    revoke_count: int,
-) -> None:
-    if user is None:
-        return
-    await log_activity(
-        db=db,
-        actor=user,
-        action=ActivityAction.FAILED_REFRESH,
-        entity_type=ActivityEntityType.USER,
-        entity_id=user.id,
-        entity_name=user.name,
-        safe_description="User refresh failed",
-        safe_description_siem="User refresh failed",
-        changes={
-            "failure_code": failure_code,
-            "revoke_count": revoke_count,
-        },
-    )
-
-
-def _emit_failed_refresh_audit(
-    *,
-    failure_code: str,
-    detail: str,
-    user_id: int | None = None,
-) -> None:
-    audit_logger.warning(
-        "failed_refresh",
-        feature="audit",
-        event_type=ActivityAction.FAILED_REFRESH.value,
-        entity_type=ActivityEntityType.USER.value,
-        entity_id=user_id,
-        actor_id=user_id,
-        description="User refresh failed",
-        changes={"failure_code": failure_code},
-        detail=detail,
-    )
-
-
-async def _load_refresh_user(db: AsyncSession, user_id: int) -> User | None:
-    return (
-        await db.execute(
-            select(User)
-            .options(*user_selectinload_options(include_permissions=True))
-            .where(User.id == user_id)
-        )
-    ).scalar_one_or_none()
-
-
-async def _revoke_rotated_refresh_descendants(
-    *,
-    db: AsyncSession,
-    user_id: int,
-    replaced_by_jti: str | None,
-    now,
-) -> int:
-    revoke_count = 0
-    next_jti = replaced_by_jti
-    visited: set[str] = set()
-    while next_jti and next_jti not in visited:
-        visited.add(next_jti)
-        child = (
-            await db.execute(
-                select(RefreshToken)
-                .where(RefreshToken.user_id == user_id)
-                .where(RefreshToken.jti == next_jti)
-            )
-        ).scalar_one_or_none()
-        if child is None:
-            break
-        next_jti = child.replaced_by_jti
-        if child.revoked_at is None:
-            child.revoked_at = now
-            child.revoked_reason = "replay_detected"
-            db.add(child)
-            revoke_count += 1
-    return revoke_count
 
 
 @router.post("/refresh", response_model=TokenResponse)
@@ -148,131 +68,30 @@ async def refresh_session(
         return forbidden_response
 
     raw_token = get_refresh_cookie(request, settings)
-    payload = token_decode_or_none(raw_token, settings)
-    if not payload:
-        _emit_failed_refresh_audit(failure_code="invalid_token", detail="Invalid refresh token")
-        return _refresh_unauthorized_response("Invalid refresh token", settings)
-
-    user_id = payload.get("user_id")
-    jti = payload.get("jti")
-    token_version = payload.get("token_version")
-    if not isinstance(user_id, int) or not isinstance(jti, str) or not isinstance(token_version, int):
-        _emit_failed_refresh_audit(failure_code="invalid_token", detail="Invalid refresh token")
-        return _refresh_unauthorized_response("Invalid refresh token", settings)
-
-    refresh_row = (
-        await db.execute(select(RefreshToken).where(RefreshToken.user_id == user_id).where(RefreshToken.jti == jti))
-    ).scalar_one_or_none()
-    if refresh_row is None or refresh_row.revoked_at is not None:
-        failure_code = "session_not_found"
-        if refresh_row is not None and refresh_row.revoked_reason == "rotated":
-            now = utc_now()
-            revoke_count = await _revoke_rotated_refresh_descendants(
-                db=db,
-                user_id=user_id,
-                replaced_by_jti=refresh_row.replaced_by_jti,
-                now=now,
-            )
-            if revoke_count > 0:
-                user = await _load_refresh_user(db, user_id)
-                await _emit_failed_refresh_activity(
-                    db=db,
-                    user=user,
-                    failure_code="replay_detected",
-                    revoke_count=revoke_count,
-                )
-                await db.commit()
-                failure_code = "replay_detected"
-        _emit_failed_refresh_audit(
-            failure_code=failure_code,
-            detail="Refresh session not found",
-            user_id=user_id,
-        )
-        return _refresh_unauthorized_response("Refresh session not found", settings)
-
-    now = utc_now()
-    expires_at = coerce_utc(refresh_row.expires_at)
-    if expires_at and expires_at <= now:
-        revoke_result = await db.execute(
-            update(RefreshToken)
-            .where(RefreshToken.id == refresh_row.id)
-            .where(RefreshToken.revoked_at.is_(None))
-            .values(revoked_at=now, revoked_reason="expired")
-        )
-        revoke_count = int(getattr(revoke_result, "rowcount", 0) or 0)
-        if revoke_count > 0:
-            user = await _load_refresh_user(db, user_id)
-            await _emit_failed_refresh_activity(
-                db=db,
-                user=user,
-                failure_code="expired",
-                revoke_count=revoke_count,
-            )
-            await db.commit()
-        return _refresh_unauthorized_response("Refresh token expired", settings)
-    if expires_at and (expires_at - now).total_seconds() <= SESSION_RENEWAL_MINIMUM_SECONDS:
-        revoke_result = await db.execute(
-            update(RefreshToken)
-            .where(RefreshToken.id == refresh_row.id)
-            .where(RefreshToken.revoked_at.is_(None))
-            .values(revoked_at=now, revoked_reason="expires_soon")
-        )
-        revoke_count = int(getattr(revoke_result, "rowcount", 0) or 0)
-        if revoke_count > 0:
-            user = await _load_refresh_user(db, user_id)
-            await _emit_failed_refresh_activity(
-                db=db,
-                user=user,
-                failure_code="expires_soon",
-                revoke_count=revoke_count,
-            )
-            await db.commit()
-        return _refresh_unauthorized_response("Refresh token expired", settings)
-
-    user = await _load_refresh_user(db, user_id)
-    if user is None:
-        _emit_failed_refresh_audit(
-            failure_code="unauthorized",
-            detail="Unauthorized",
-            user_id=user_id,
-        )
-        return _refresh_unauthorized_response("Unauthorized", settings)
-    if not user.is_active:
-        await _emit_failed_refresh_activity(
-            db=db,
-            user=user,
-            failure_code="inactive_user",
-            revoke_count=0,
-        )
-        await db.commit()
-        return _refresh_unauthorized_response("Unauthorized", settings)
-
-    if token_version != user.token_version or refresh_row.token_version != user.token_version:
-        revoke_result = await db.execute(
-            update(RefreshToken)
-            .where(RefreshToken.id == refresh_row.id)
-            .where(RefreshToken.revoked_at.is_(None))
-            .values(revoked_at=now, revoked_reason="token_version_mismatch")
-        )
-        revoke_count = int(getattr(revoke_result, "rowcount", 0) or 0)
-        if revoke_count > 0:
-            await _emit_failed_refresh_activity(
-                db=db,
-                user=user,
-                failure_code="token_version_mismatch",
-                revoke_count=revoke_count,
-            )
-            await db.commit()
-        return _refresh_unauthorized_response("Session revoked", settings)
-
     current_ip = get_request_client_ip(request, settings.trusted_proxies)
     current_user_agent = get_request_user_agent(request)
-    context_outcome = refresh_session_context_outcome(
-        stored_ip=refresh_row.created_ip,
+    resolution = await resolve_refresh_session(
+        db=db,
+        raw_token=raw_token,
+        settings=settings,
         current_ip=current_ip,
-        stored_user_agent=refresh_row.user_agent,
         current_user_agent=current_user_agent,
     )
+    if not resolution.is_authorized:
+        return _refresh_unauthorized_response(resolution.detail, settings)
+
+    user = resolution.user
+    refresh_row = resolution.refresh_row
+    now = resolution.now
+    expires_at = resolution.expires_at
+    jti = resolution.jti
+    user_id = resolution.user_id
+    context_outcome = resolution.context_outcome or resolution.outcome
+    assert user is not None
+    assert refresh_row is not None
+    assert now is not None
+    assert jti is not None
+    assert user_id is not None
     if context_outcome.audit_plan.context_changed:
         logger.warning(
             "refresh_session_context_changed",

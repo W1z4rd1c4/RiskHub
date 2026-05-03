@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.orphaned_item import OrphanedItem
 
+from .governance import orphan_resolution_requirements
 from .resolution import OrphanResolutionContext, validate_resolution_context
 
 
@@ -30,11 +31,7 @@ class OrphanResolutionPlan:
 
 
 def resolution_requirements_for_item_type(item_type: str) -> dict[str, bool]:
-    return {
-        "requires_owner": item_type in {"risk", "control"},
-        "requires_risk": item_type == "kri",
-        "requires_department": item_type in {"risk", "control"},
-    }
+    return orphan_resolution_requirements(item_type)
 
 
 async def build_resolution_plan(

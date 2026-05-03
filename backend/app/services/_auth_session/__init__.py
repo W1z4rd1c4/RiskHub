@@ -1,17 +1,31 @@
 from .outcomes import (
     RefreshSessionOutcome,
+    RefreshSessionResolution,
     SessionAuditPlan,
     SessionCookiePlan,
+    SsoExchangeResolution,
     SsoSessionOutcome,
+    apply_session_cookie_plan,
     refresh_session_context_outcome,
+    record_session_audit_plan,
+    resolve_refresh_session,
+    resolve_sso_exchange,
+    resolve_sso_start,
     sso_session_outcome,
 )
 
 __all__ = [
     "RefreshSessionOutcome",
+    "RefreshSessionResolution",
     "SessionAuditPlan",
     "SessionCookiePlan",
+    "SsoExchangeResolution",
     "SsoSessionOutcome",
+    "apply_session_cookie_plan",
     "refresh_session_context_outcome",
+    "record_session_audit_plan",
+    "resolve_refresh_session",
+    "resolve_sso_exchange",
+    "resolve_sso_start",
     "sso_session_outcome",
 ]

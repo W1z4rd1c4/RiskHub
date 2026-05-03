@@ -2,19 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
-from app.core.permissions import get_user_department_ids, has_permission
+from app.core.permissions import has_permission
 from app.db.session import get_db
 from app.models import User
-
-from .committee_helpers import (
-    _activity_payload,
-    _department_exposure_payload,
-    _empty_committee_core,
-    _fetch_committee_core,
-    _fetch_vendor_sections,
-    _risk_payload,
-    _vendor_payload,
-)
+from app.services._dashboard_metrics import build_committee_summary_metrics
 
 router = APIRouter()
 
@@ -32,20 +23,4 @@ async def get_committee_summary(
     if not has_permission(current_user, "risks", "read"):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: risks:read")
 
-    dept_ids = get_user_department_ids(current_user)
-    if dept_ids is not None and not dept_ids:
-        return _empty_committee_core()
-
-    critical_risks, recent_activity, dept_exposure = await _fetch_committee_core(db, dept_ids=dept_ids)
-    vendor_sections = await _fetch_vendor_sections(
-        db,
-        current_user=current_user,
-        can_read_vendors=has_permission(current_user, "vendors", "read"),
-    )
-
-    return {
-        "critical_risks": [_risk_payload(risk) for risk in critical_risks],
-        "recent_activity": [_activity_payload(item) for item in recent_activity],
-        "department_exposure": [_department_exposure_payload(row) for row in dept_exposure],
-        "critical_vendors": [_vendor_payload(vendor) for vendor in vendor_sections["critical_vendors"]],
-    }
+    return await build_committee_summary_metrics(db=db, current_user=current_user)

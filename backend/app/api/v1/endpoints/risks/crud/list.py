@@ -33,7 +33,7 @@ from app.models.global_config import ConfigDefaults, get_config_int
 from app.schemas.risk import RiskListResponse, RiskStatusEnum
 from app.schemas.vendor_shared import LinkedVendorRead
 from app.services._authorization_capabilities.common import pending_approvals_for_resources
-from app.services._register_listings.lifecycle import plan_risk_listing
+from app.services._register_listings.lifecycle import execute_register_listing_plan, plan_risk_listing
 from app.services.authorization_capabilities import risk_capabilities
 
 router = APIRouter()
@@ -489,10 +489,9 @@ async def list_risks(
         build_in_memory_grouped_page=build_in_memory_grouped_page,
     )
 
-    return await collection_exec.execute_collection_listing_with_definition(
+    return await execute_register_listing_plan(
         db=db,
         response_model=RiskListResponse,
         query=collection_query,
-        ordered_query=listing_plan.ordered_query,
-        definition=listing_plan.listing_definition,
+        plan=listing_plan,
     )

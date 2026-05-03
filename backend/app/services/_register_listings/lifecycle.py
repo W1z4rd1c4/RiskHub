@@ -12,6 +12,7 @@ from app.api.v1.endpoints._collection_execution import (
     LoadSqlGroups,
     LoadTotal,
     QueryTransform,
+    execute_collection_listing_with_definition,
 )
 
 SerializeItems = Callable[[Sequence[Any]], Awaitable[list[Any]]]
@@ -87,3 +88,19 @@ def plan_issue_listing(**kwargs: Any) -> RegisterListingPlan:
 
 def plan_vendor_listing(**kwargs: Any) -> RegisterListingPlan:
     return _plan_register_listing(**kwargs)
+
+
+async def execute_register_listing_plan(
+    *,
+    db: Any,
+    response_model: type[Any],
+    query: CollectionQuery,
+    plan: RegisterListingPlan,
+) -> Any:
+    return await execute_collection_listing_with_definition(
+        db=db,
+        response_model=response_model,
+        query=query,
+        ordered_query=plan.ordered_query,
+        definition=plan.listing_definition,
+    )

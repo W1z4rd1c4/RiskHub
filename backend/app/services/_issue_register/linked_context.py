@@ -33,6 +33,26 @@ class IssueLinkedVisibility:
     vendor_ids: set[int]
 
 
+@dataclass(frozen=True)
+class IssueLinkedContextDefinition:
+    source_type: str
+    fallback_label: str
+    redacts_when_hidden: bool = True
+
+
+@dataclass(frozen=True)
+class IssueRegisterPlan:
+    criteria: object
+    linked_visibility: IssueLinkedVisibility | None = None
+
+
+@dataclass(frozen=True)
+class IssueSourceMutationPlan:
+    source_type: IssueSourceType
+    source_id: int | None
+    link_values: dict[str, int]
+
+
 def label_or_fallback(value: str | None, fallback: str) -> str:
     if value and value.strip():
         return value.strip()
@@ -176,4 +196,3 @@ async def build_issue_linked_visibility(
         kri_ids=await visible_kri_ids(db, current_user, kri_ids),
         vendor_ids=await visible_vendor_ids(db, current_user, vendor_ids),
     )
-

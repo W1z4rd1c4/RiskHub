@@ -87,6 +87,15 @@ def orphan_resolution_plan(item_type: str) -> OrphanResolutionPlan:
     )
 
 
+def orphan_resolution_requirements(item_type: str) -> dict[str, bool]:
+    plan = orphan_resolution_plan(item_type)
+    return {
+        "requires_owner": plan.requires_owner,
+        "requires_risk": plan.requires_risk,
+        "requires_department": plan.requires_department,
+    }
+
+
 def orphan_capability_flags(item_type: str, *, is_pending: bool) -> dict[str, bool]:
     definition = orphan_item_definition(item_type)
     return {

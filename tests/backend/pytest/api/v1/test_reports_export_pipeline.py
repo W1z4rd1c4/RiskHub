@@ -115,7 +115,7 @@ def _render_pipeline_keyword_names(source: str) -> set[str]:
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call):
             continue
-        if getattr(node.func, "id", None) == "render_export_pipeline":
+        if getattr(node.func, "id", None) in {"render_export_pipeline", "render_report_export_definition"}:
             return {keyword.arg for keyword in node.keywords if keyword.arg is not None}
     raise AssertionError("render_export_pipeline call not found")
 
@@ -133,7 +133,7 @@ def test_tabular_exporters_delegate_rendering_to_shared_pipeline():
         source = getsource(exporter)
         render_keywords = _render_pipeline_keyword_names(source)
 
-        assert "render_export_pipeline(" in source
+        assert "render_report_export_definition(" in source
         assert "_render_export(" not in source
         assert "stages" not in render_keywords
         assert "row_values" not in render_keywords

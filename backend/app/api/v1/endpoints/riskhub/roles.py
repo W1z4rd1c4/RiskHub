@@ -10,7 +10,16 @@ from app.models import User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.models.role import RoleType
 from app.schemas.riskhub import RoleHubCreate, RoleHubRead, RoleHubUpdate
-from app.services._riskhub_config import load_role_for_update, role_to_read, validate_permission_ids
+from app.services._riskhub_config import (
+    build_config_audit_plan,
+    load_role_for_update,
+    role_to_read,
+    run_config_create,
+    run_config_delete,
+    run_config_restore,
+    run_config_update,
+    validate_permission_ids,
+)
 
 from ._shared import get_cro_user
 
@@ -76,17 +85,19 @@ async def create_role(
         role_perm = RolePermission(role_id=role.id, permission_id=perm.id)
         db.add(role_perm)
 
-    await log_activity(
+    await run_config_create(
         db=db,
         actor=cro_user,
-        action=ActivityAction.CREATE,
-        entity_type=ActivityEntityType.ROLE,
-        entity_id=role.id,
-        entity_name=role.display_name,
-        safe_entity_label=role.display_name,
-        description=f"Created role: {role.display_name}",
+        audit_plan=build_config_audit_plan(
+            action=ActivityAction.CREATE,
+            entity_type=ActivityEntityType.ROLE,
+            entity_id=role.id,
+            entity_name=role.display_name,
+            safe_entity_label=role.display_name,
+            description=f"Created role: {role.display_name}",
+        ),
+        log_activity_func=log_activity,
     )
-    await db.commit()
 
     # Reload with relationships
     result = await db.execute(
@@ -136,17 +147,19 @@ async def update_role(
             role_perm = RolePermission(role_id=role.id, permission_id=perm.id)
             db.add(role_perm)
 
-    await log_activity(
+    await run_config_update(
         db=db,
         actor=cro_user,
-        action=ActivityAction.UPDATE,
-        entity_type=ActivityEntityType.ROLE,
-        entity_id=role.id,
-        entity_name=role.display_name,
-        safe_entity_label=role.display_name,
-        description=f"Updated role: {role.display_name}",
+        audit_plan=build_config_audit_plan(
+            action=ActivityAction.UPDATE,
+            entity_type=ActivityEntityType.ROLE,
+            entity_id=role.id,
+            entity_name=role.display_name,
+            safe_entity_label=role.display_name,
+            description=f"Updated role: {role.display_name}",
+        ),
+        log_activity_func=log_activity,
     )
-    await db.commit()
 
     # Reload with relationships
     result = await db.execute(
@@ -190,19 +203,23 @@ async def delete_role(
 
     role.is_active = False
 
-    await log_activity(
+    outcome = await run_config_delete(
         db=db,
         actor=cro_user,
-        action=ActivityAction.DELETE,
-        entity_type=ActivityEntityType.ROLE,
-        entity_id=role.id,
-        entity_name=role.display_name,
-        safe_entity_label=role.display_name,
-        description=f"Deleted role: {role.display_name}",
+        audit_plan=build_config_audit_plan(
+            action=ActivityAction.DELETE,
+            entity_type=ActivityEntityType.ROLE,
+            entity_id=role.id,
+            entity_name=role.display_name,
+            safe_entity_label=role.display_name,
+            description=f"Deleted role: {role.display_name}",
+        ),
+        entity=role,
+        response_payload={"status": "deleted", "id": id},
+        log_activity_func=log_activity,
     )
-    await db.commit()
 
-    return {"status": "deleted", "id": id}
+    return outcome.response_payload or {"status": "deleted", "id": id}
 
 
 @router.post("/roles/{id}/restore", response_model=RoleHubRead)
@@ -219,19 +236,22 @@ async def restore_role(
 
     role.is_active = True
 
-    await log_activity(
+    await run_config_restore(
         db=db,
         actor=cro_user,
-        action=ActivityAction.UPDATE,
-        entity_type=ActivityEntityType.ROLE,
-        entity_id=role.id,
-        entity_name=role.display_name,
-        safe_entity_label=role.display_name,
-        safe_description="Restored role",
-        safe_description_siem="Restored role",
-        description=f"Restored role: {role.display_name}",
+        audit_plan=build_config_audit_plan(
+            action=ActivityAction.UPDATE,
+            entity_type=ActivityEntityType.ROLE,
+            entity_id=role.id,
+            entity_name=role.display_name,
+            safe_entity_label=role.display_name,
+            safe_description="Restored role",
+            safe_description_siem="Restored role",
+            description=f"Restored role: {role.display_name}",
+        ),
+        entity=role,
+        refresh_entity=True,
+        log_activity_func=log_activity,
     )
-    await db.commit()
-    await db.refresh(role)
 
     return role_to_read(role, user_count=0)

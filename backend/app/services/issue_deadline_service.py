@@ -19,11 +19,14 @@ from app.models.global_config import ConfigDefaults, get_config_int
 from app.models.issue import IssueExceptionStatus, IssueStatus
 from app.models.notification import NotificationType
 from app.models.role import Permission, RoleType
-from app.services._issue_workflow.transitions import _is_remediation_complete, _status_value
 from app.services import issue_deadline_decisions as deadline_decisions
-from app.services.deadline_notifications import DeadlineNotificationExecutionPlan, execute_deadline_notification_plan
-from app.services.deadline_notifications import increment_deadline_results
-from app.services.deadline_runner import run_deadline_items
+from app.services._deadline_execution import (
+    DeadlineNotificationExecutionPlan,
+    execute_deadline_notification_plan,
+    increment_deadline_results,
+    run_deadline_items,
+)
+from app.services._issue_workflow.transitions import _is_remediation_complete, _status_value
 
 logger = logging.getLogger(__name__)
 

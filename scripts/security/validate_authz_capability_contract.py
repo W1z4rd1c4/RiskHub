@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import argparse
 import json
 import re
 import subprocess
@@ -21,8 +20,11 @@ from authz_contract_manifest import (  # noqa: E402
     FRONTEND_LOCAL_GATE_CLASSIFICATIONS,
     FrontendLocalGateClassification,
 )
+from authz_contract_validator import cli as authz_cli  # noqa: E402
 from authz_contract_validator import capability_catalog as capability_catalog_validator  # noqa: E402
 from authz_contract_validator import frontend_routes as frontend_route_validator  # noqa: E402
+from authz_contract_validator import git_inputs as git_input_collector  # noqa: E402
+from authz_contract_validator import runner as authz_runner  # noqa: E402
 from authz_contract_validator.models import (  # noqa: E402
     ContractPathReference as AuthzContractPathReference,
     DiscoveredAuthzPath as AuthzDiscoveredAuthzPath,
@@ -118,15 +120,7 @@ def _repo_path(path: Path) -> Path:
 
 
 def _run_git(*args: str) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        ["git", *args],
-        cwd=REPO_ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-    )
+    return git_input_collector.run_git(REPO_ROOT, *args)
 
 
 def _load_json(path: Path) -> Any:
@@ -137,39 +131,11 @@ def _load_json(path: Path) -> Any:
 
 
 def _changed_files(base_ref: str) -> list[Path]:
-    result = _run_git("diff", "--name-only", base_ref, "--")
-    if result.returncode != 0:
-        raise RuntimeError(
-            f"git diff failed for base {base_ref!r}:\n{result.stderr.strip()}"
-        )
-    files = [Path(line.strip()) for line in result.stdout.splitlines() if line.strip()]
-
-    untracked = _run_git("ls-files", "--others", "--exclude-standard")
-    if untracked.returncode != 0:
-        raise RuntimeError(f"git ls-files failed:\n{untracked.stderr.strip()}")
-    files.extend(Path(line.strip()) for line in untracked.stdout.splitlines() if line.strip())
-    return sorted(set(files))
+    return git_input_collector.changed_files(REPO_ROOT, base_ref)
 
 
 def _changed_file_diffs(base_ref: str) -> dict[Path, str]:
-    result = _run_git("diff", "--unified=0", base_ref, "--")
-    if result.returncode != 0:
-        raise RuntimeError(
-            f"git diff failed for base {base_ref!r}:\n{result.stderr.strip()}"
-        )
-
-    diffs: dict[Path, list[str]] = {}
-    current_path: Path | None = None
-    for line in result.stdout.splitlines():
-        match = DIFF_HEADER_RE.match(line)
-        if match:
-            current_path = Path(match.group(2))
-            diffs[current_path] = [line]
-            continue
-        if current_path is not None:
-            diffs[current_path].append(line)
-
-    return {path: "\n".join(lines) for path, lines in diffs.items()}
+    return git_input_collector.changed_file_diffs(REPO_ROOT, base_ref)
 
 
 def _path_exists(rel_path: str) -> bool:
@@ -666,79 +632,28 @@ def _validate_frontend_local_gate_classifications(
 
 
 def validate(base_ref: str, skip_doc_touch: bool) -> list[Finding]:
-    findings: list[Finding] = []
-    if not _repo_path(CONTRACT_MD).is_file():
-        findings.append(Finding("missing_contract_markdown", CONTRACT_MD.as_posix()))
-        return findings
-    if not _repo_path(CONTRACT_JSON).is_file():
-        findings.append(Finding("missing_contract_manifest", CONTRACT_JSON.as_posix()))
-        return findings
-    if not _repo_path(CAPABILITY_CATALOG_JSON).is_file():
-        findings.append(Finding("missing_capability_catalog", CAPABILITY_CATALOG_JSON.as_posix()))
-        return findings
-
-    manifest = _load_json(CONTRACT_JSON)
-    manifest_ids, sensitive_paths, manifest_findings = _validate_manifest(manifest)
-    findings.extend(manifest_findings)
-
-    capability_catalog = _load_json(CAPABILITY_CATALOG_JSON)
-    findings.extend(_validate_capability_catalog(capability_catalog))
-
-    md_text = _repo_path(CONTRACT_MD).read_text(encoding="utf-8")
-    actions = manifest.get("actions") if isinstance(manifest, dict) else []
-    findings.extend(_validate_markdown(md_text, actions if isinstance(actions, list) else []))
-    findings.extend(_validate_business_route_nav_context())
-
-    if not skip_doc_touch:
-        changed_files = _changed_files(base_ref)
-        changed_diffs = _changed_file_diffs(base_ref)
-        findings.extend(
-            _validate_doc_touch(
-                changed_files,
-                sensitive_paths,
-                changed_diffs,
-            )
-        )
-        findings.extend(_validate_frontend_local_gate_classifications(changed_files, changed_diffs))
-
-    return findings
+    return authz_runner.run_validation(
+        base_ref=base_ref,
+        capability_catalog_path=CAPABILITY_CATALOG_JSON,
+        changed_file_diffs=_changed_file_diffs,
+        changed_files=_changed_files,
+        contract_json_path=CONTRACT_JSON,
+        contract_md_path=CONTRACT_MD,
+        load_json=_load_json,
+        path_exists=lambda path: _repo_path(path).is_file(),
+        read_text=lambda path: _repo_path(path).read_text(encoding="utf-8"),
+        skip_doc_touch=skip_doc_touch,
+        validate_business_route_nav_context=_validate_business_route_nav_context,
+        validate_capability_catalog=_validate_capability_catalog,
+        validate_doc_touch=_validate_doc_touch,
+        validate_frontend_local_gate_classifications=_validate_frontend_local_gate_classifications,
+        validate_manifest=_validate_manifest,
+        validate_markdown=_validate_markdown,
+    )
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Validate RiskHub authorization/capability contract docs."
-    )
-    parser.add_argument(
-        "--base-ref",
-        default="HEAD",
-        help="Git ref used for changed-file doc-touch enforcement. Defaults to HEAD.",
-    )
-    parser.add_argument(
-        "--skip-doc-touch",
-        action="store_true",
-        help="Validate contract structure only.",
-    )
-    parser.add_argument(
-        "paths",
-        nargs="*",
-        help=argparse.SUPPRESS,
-    )
-    args = parser.parse_args()
-
-    try:
-        findings = validate(args.base_ref, args.skip_doc_touch)
-    except (OSError, RuntimeError, ValueError) as exc:
-        print(f"authorization capability contract validation failed: {exc}", file=sys.stderr)
-        return 2
-
-    if findings:
-        print("Authorization capability contract validation failed:", file=sys.stderr)
-        for finding in findings:
-            print(f"- {finding.reason}: {finding.detail}", file=sys.stderr)
-        return 1
-
-    print("Authorization capability contract validation passed.")
-    return 0
+    return authz_cli.run_cli(validate)
 
 
 if __name__ == "__main__":

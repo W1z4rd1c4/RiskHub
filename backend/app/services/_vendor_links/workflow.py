@@ -9,17 +9,15 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.api.v1.endpoints._monitoring_response import (
-    load_monitoring_response_context,
-    serialize_control_brief_for_link,
-    serialize_kri_response,
-)
-from app.api.v1.endpoints.vendor_link_helpers import (
+from app.services._vendor_governance.links import (
     VendorLinkField,
     VendorLinkModel,
     create_vendor_link,
     delete_vendor_link,
+    load_monitoring_response_context,
     require_vendor_access,
+    serialize_control_brief_for_link,
+    serialize_kri_response,
 )
 from app.core.datetime_utils import utc_now
 from app.core.permissions import can_read_control_id, can_read_kri_id, can_read_risk_id

@@ -72,6 +72,19 @@ def test_control_execution_and_link_routes_use_governance_interface() -> None:
         assert leaked_helper not in route_source
 
 
+def test_control_execution_governance_uses_split_modules() -> None:
+    from app.services._control_execution import access, link_governance, link_policy, monitoring, projection
+
+    assert hasattr(access, "ControlRiskAccessDecision")
+    assert hasattr(projection, "ControlExecutionProjection")
+    assert hasattr(monitoring, "load_control_execution_monitoring_context")
+    assert hasattr(link_policy, "ControlRiskLinkPlan")
+
+    governance_source = inspect.getsource(link_governance)
+    assert "from app.services._control_execution.monitoring" in governance_source
+    assert "app.api.v1.endpoints" not in governance_source
+
+
 def test_directory_identity_facade_uses_lifecycle_module() -> None:
     from app.services import directory_identity_service
     from app.services._directory_identity import lifecycle
@@ -87,6 +100,38 @@ def test_directory_identity_facade_uses_lifecycle_module() -> None:
     facade_source = inspect.getsource(directory_identity_service)
     assert "async def apply_directory_profile" not in facade_source
     assert "async def resolve_or_create_department" not in facade_source
+
+
+def test_identity_access_routes_use_lifecycle_module() -> None:
+    from app.api.v1.endpoints import access, directory
+    from app.api.v1.endpoints.users import detail as users_detail
+    from app.services import access_user_service
+    from app.services._identity_access_lifecycle import lifecycle
+
+    assert hasattr(lifecycle, "IdentityImportOutcome")
+    assert hasattr(lifecycle, "AccessProfileUpdateOutcome")
+    assert hasattr(lifecycle, "AccessScopePlan")
+
+    route_source = (
+        inspect.getsource(users_detail)
+        + inspect.getsource(directory)
+        + inspect.getsource(access)
+        + inspect.getsource(access_user_service)
+    )
+
+    for lifecycle_function in (
+        "update_user_profile",
+        "import_directory_identity",
+        "update_access_profile",
+    ):
+        assert lifecycle_function in route_source
+
+    for leaked_rule in (
+        "requires_break_glass_for_reenable(",
+        "OrphanedItemService.flag_orphaned_items",
+        "_resolve_role_for_import(",
+    ):
+        assert leaked_rule not in route_source
 
 
 def test_orphan_services_use_governance_definitions() -> None:
@@ -107,6 +152,17 @@ def test_orphan_services_use_governance_definitions() -> None:
     assert "orphan_item_definition" in resolution_source
 
 
+def test_orphan_resolution_requirements_come_from_governance() -> None:
+    from app.services._orphaned_items import governance, resolution_plan
+
+    assert hasattr(governance, "orphan_resolution_requirements")
+
+    plan_source = inspect.getsource(resolution_plan)
+    assert "orphan_resolution_requirements" in plan_source
+    assert 'item_type in {"risk", "control"}' not in plan_source
+    assert 'item_type == "kri"' not in plan_source
+
+
 def test_auth_routes_use_session_outcome_module() -> None:
     from app.api.v1.endpoints.auth import refresh, sso
     from app.services._auth_session import outcomes
@@ -115,12 +171,20 @@ def test_auth_routes_use_session_outcome_module() -> None:
     assert hasattr(outcomes, "SsoSessionOutcome")
     assert hasattr(outcomes, "SessionCookiePlan")
     assert hasattr(outcomes, "SessionAuditPlan")
+    assert hasattr(outcomes, "resolve_refresh_session")
+    assert hasattr(outcomes, "resolve_sso_start")
+    assert hasattr(outcomes, "resolve_sso_exchange")
+    assert hasattr(outcomes, "apply_session_cookie_plan")
+    assert hasattr(outcomes, "record_session_audit_plan")
 
     refresh_source = inspect.getsource(refresh)
     sso_source = inspect.getsource(sso)
 
-    assert "refresh_session_context_outcome" in refresh_source
-    assert "sso_session_outcome" in sso_source
+    assert "resolve_refresh_session" in refresh_source
+    assert "resolve_sso_start" in sso_source
+    assert "resolve_sso_exchange" in sso_source
+    assert "_revoke_rotated_refresh_descendants" not in refresh_source
+    assert "_jit_provision_user" not in sso_source
 
 
 def test_riskhub_config_routes_use_lifecycle_contracts() -> None:
@@ -131,6 +195,10 @@ def test_riskhub_config_routes_use_lifecycle_contracts() -> None:
     assert hasattr(lifecycle, "ConfigLifecycleOutcome")
     assert hasattr(lifecycle, "ConfigAuditPlan")
     assert hasattr(lifecycle, "build_config_audit_plan")
+    assert hasattr(lifecycle, "run_config_create")
+    assert hasattr(lifecycle, "run_config_update")
+    assert hasattr(lifecycle, "run_config_delete")
+    assert hasattr(lifecycle, "run_config_restore")
 
     route_source = (
         inspect.getsource(roles)
@@ -138,7 +206,13 @@ def test_riskhub_config_routes_use_lifecycle_contracts() -> None:
         + inspect.getsource(risk_types)
         + inspect.getsource(approval_scenarios)
     )
-    assert "build_config_audit_plan" in route_source
+    for lifecycle_function in (
+        "run_config_create",
+        "run_config_update",
+        "run_config_delete",
+        "run_config_restore",
+    ):
+        assert lifecycle_function in route_source
 
 
 def test_quarterly_comparison_service_is_composition_facade() -> None:
@@ -225,8 +299,166 @@ def test_register_list_routes_use_listing_planners() -> None:
     ):
         assert planner in route_source
 
-    assert "execute_collection_listing_with_definition" in route_source
+    assert "execute_register_listing_plan" in route_source
     assert "CollectionListingDefinition(" not in route_source
+
+
+def test_register_list_routes_execute_listing_plans_through_module() -> None:
+    from app.api.v1.endpoints.controls.crud import list as control_list
+    from app.api.v1.endpoints.issues.crud import list as issue_list
+    from app.api.v1.endpoints.kris.crud import list as kri_list
+    from app.api.v1.endpoints.risks.crud import list as risk_list
+    from app.api.v1.endpoints.vendors import crud as vendor_list
+    from app.services._register_listings import lifecycle
+
+    assert hasattr(lifecycle, "execute_register_listing_plan")
+
+    route_source = (
+        inspect.getsource(risk_list)
+        + inspect.getsource(control_list)
+        + inspect.getsource(kri_list)
+        + inspect.getsource(issue_list)
+        + inspect.getsource(vendor_list)
+    )
+
+    assert "execute_register_listing_plan" in route_source
+    assert "execute_collection_listing_with_definition" not in route_source
+
+
+def test_report_exporters_use_reporting_export_definitions() -> None:
+    from app.api.v1.endpoints.reports.unified_exports import (
+        export_controls,
+        export_issues,
+        export_kris,
+        export_risks,
+        export_vendors,
+    )
+    from app.services._reporting.exports import lifecycle
+
+    assert hasattr(lifecycle, "ReportExportDefinition")
+    assert hasattr(lifecycle, "ReportExportExecutionPlan")
+    assert hasattr(lifecycle, "ReportExportOutcome")
+
+    exporter_source = (
+        inspect.getsource(export_risks)
+        + inspect.getsource(export_controls)
+        + inspect.getsource(export_kris)
+        + inspect.getsource(export_issues)
+        + inspect.getsource(export_vendors)
+    )
+
+    assert "ReportExportDefinition(" in exporter_source
+    assert "render_report_export_definition(" in exporter_source
+    assert "ExportPipelineDefinition(" not in exporter_source
+
+
+def test_dashboard_routes_use_metric_composition_module() -> None:
+    from app.api.v1.endpoints.dashboard import committee, quarterly, summary
+    from app.services._dashboard_metrics import lifecycle
+
+    assert hasattr(lifecycle, "DashboardMetricPlan")
+    assert hasattr(lifecycle, "DashboardMetricOutcome")
+    assert hasattr(lifecycle, "DashboardSnapshotDecision")
+
+    route_source = inspect.getsource(summary) + inspect.getsource(quarterly) + inspect.getsource(committee)
+    for metric_function in (
+        "build_dashboard_summary_metrics",
+        "build_available_periods",
+        "build_committee_summary_metrics",
+    ):
+        assert metric_function in route_source
+
+    assert "select(func.count(Control.id))" not in inspect.getsource(summary)
+    assert "QuarterlyMetricSnapshot" not in inspect.getsource(quarterly)
+
+
+def test_issue_routes_use_issue_register_linked_context_contracts() -> None:
+    from app.api.v1.endpoints.issues.crud import contextual, create
+    from app.services._issue_register import linked_context, source_mutation
+
+    assert hasattr(linked_context, "IssueLinkedContextDefinition")
+    assert hasattr(linked_context, "IssueRegisterPlan")
+    assert hasattr(linked_context, "IssueSourceMutationPlan")
+    assert hasattr(source_mutation, "resolve_issue_source_metadata")
+    assert hasattr(source_mutation, "resolve_contextual_issue_source")
+    assert hasattr(source_mutation, "ensure_issue_source_link")
+
+    route_source = inspect.getsource(create) + inspect.getsource(contextual)
+    assert "from app.services._issue_register import" in route_source
+    assert "resolve_issue_source_metadata" in route_source
+    assert "resolve_contextual_issue_source" in route_source
+
+
+def test_kri_history_routes_use_governance_interface() -> None:
+    from app.api.v1.endpoints.kris import history
+    from app.services._kri_history import governance
+
+    assert hasattr(governance, "KriValueGovernanceOutcome")
+    assert hasattr(governance, "KriCorrectionPlan")
+    assert hasattr(governance, "KriHistoryProjection")
+
+    route_source = inspect.getsource(history)
+    for governance_function in (
+        "record_kri_value_governance",
+        "list_kri_history_projection",
+        "correct_kri_history_governance",
+    ):
+        assert governance_function in route_source
+
+    for route_owned_choreography in (
+        "create_kri_history_correction_approval",
+        "load_approval_scenario_policy",
+        "build_kri_history_response",
+    ):
+        assert route_owned_choreography not in route_source
+
+
+def test_approval_queue_routes_use_queue_lifecycle_module() -> None:
+    from app.api.v1.endpoints.approvals import queue, resolve
+    from app.services._approval_queue import lifecycle
+
+    assert hasattr(lifecycle, "ApprovalRequestIntakePlan")
+    assert hasattr(lifecycle, "ApprovalQueuePage")
+    assert hasattr(lifecycle, "ApprovalQueueProjection")
+
+    route_source = inspect.getsource(queue) + inspect.getsource(resolve)
+    for lifecycle_function in (
+        "create_delete_approval_request",
+        "list_approval_queue_page",
+        "count_pending_approval_queue",
+        "list_my_approval_queue_page",
+    ):
+        assert lifecycle_function in route_source
+
+    assert "create_approval_request_with_audit" not in route_source
+
+
+def test_vendor_link_services_use_vendor_governance_modules() -> None:
+    from app.services._vendor_governance import links, listing, reports
+    from app.services._vendor_links import workflow
+
+    assert hasattr(links, "VendorLinkAccessPlan")
+    assert hasattr(links, "VendorLinkedResourceProjection")
+    assert hasattr(listing, "VendorListingGovernance")
+    assert hasattr(reports, "VendorReportDefinition")
+
+    service_source = inspect.getsource(workflow)
+    assert "app.api.v1.endpoints" not in service_source
+    assert "from app.services._vendor_governance.links" in service_source
+
+
+def test_deadline_services_use_deadline_execution_module() -> None:
+    from app.services import issue_deadline_service, kri_deadline_service
+    from app.services._deadline_execution import lifecycle
+
+    assert hasattr(lifecycle, "DeadlineRunPlan")
+    assert hasattr(lifecycle, "DeadlineNotificationPlan")
+    assert hasattr(lifecycle, "DeadlineRunOutcome")
+
+    service_source = inspect.getsource(issue_deadline_service) + inspect.getsource(kri_deadline_service)
+    assert "from app.services._deadline_execution" in service_source
+    assert "from app.services.deadline_notifications" not in service_source
+    assert "from app.services.deadline_runner" not in service_source
 
 
 def test_issue_workflow_routes_use_lifecycle_module() -> None:

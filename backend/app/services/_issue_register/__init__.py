@@ -13,7 +13,15 @@ from .grouping import (
     load_issue_sql_groups,
 )
 from . import projection as projection
+from . import source_mutation as source_mutation
 from .projection import serialize_issue_read_for_actor, serialize_issue_summaries_for_actor
+from .source_mutation import (
+    ResolvedIssueSource,
+    clear_issue_source_links,
+    ensure_issue_source_link,
+    resolve_contextual_issue_source,
+    resolve_issue_source_metadata,
+)
 
 __all__ = [
     "ISSUE_GROUP_NO_PROCESS",
@@ -29,6 +37,12 @@ __all__ = [
     "issue_vendor_context_subquery",
     "load_issue_sql_groups",
     "projection",
+    "source_mutation",
+    "ResolvedIssueSource",
+    "clear_issue_source_links",
+    "ensure_issue_source_link",
+    "resolve_contextual_issue_source",
+    "resolve_issue_source_metadata",
     "serialize_issue_read_for_actor",
     "serialize_issue_summaries_for_actor",
 ]

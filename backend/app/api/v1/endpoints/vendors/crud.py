@@ -12,7 +12,6 @@ from app.api.mappers.vendor import vendor_list_response, vendor_to_read
 from app.api.v1.endpoints._collection import (
     parse_collection_query,
 )
-from app.api.v1.endpoints._collection_execution import execute_collection_listing_with_definition
 from app.core.activity_logger import build_change_set, log_activity
 from app.core.permissions import can_read_vendor, is_vendor_owner, risk_visibility_clause
 from app.core.security import check_permission, require_permission
@@ -32,7 +31,7 @@ from app.services._vendor_workflow import (
     load_vendor_for_update,
     validate_vendor_governance_assignment,
 )
-from app.services._register_listings.lifecycle import plan_vendor_listing
+from app.services._register_listings.lifecycle import execute_register_listing_plan, plan_vendor_listing
 
 from ._listing import (
     VENDOR_GROUP_DORA_RELEVANT,
@@ -407,12 +406,11 @@ async def list_vendors(
         build_sql_group_filter=build_sql_group_filter,
     )
 
-    return await execute_collection_listing_with_definition(
+    return await execute_register_listing_plan(
         db=db,
         response_model=VendorListResponse,
         query=collection_query,
-        ordered_query=listing_plan.ordered_query,
-        definition=listing_plan.listing_definition,
+        plan=listing_plan,
     )
 
 

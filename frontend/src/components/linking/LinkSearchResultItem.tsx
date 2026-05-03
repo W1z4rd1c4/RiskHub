@@ -1,9 +1,8 @@
 import { Plus } from 'lucide-react';
 
 import { useTranslation } from '@/i18n/hooks';
-import { resolveCapabilityFlag } from '@/lib/capabilities';
 
-import { getResultMeta, getResultTitle } from './linkSearchPresentation';
+import { buildLinkSearchResultPresentation } from './linkManagementPresentation';
 import type { LinkMode, SearchResultItem } from './linkTypes';
 
 interface LinkSearchResultItemProps {
@@ -20,20 +19,18 @@ export function LinkSearchResultItem({
     onUnarchive,
 }: LinkSearchResultItemProps) {
     const { t } = useTranslation(['common', 'controls', 'kris', 'risks']);
-    const meta = getResultMeta(mode, result, t);
-    const canRestore = result.status === 'archived'
-        && resolveCapabilityFlag(result.capabilities, 'can_restore');
+    const presentation = buildLinkSearchResultPresentation(mode, result, t);
 
     return (
         <button
             key={result.id}
             onClick={() => onSelect(result.id)}
-            className={`w-full flex items-center justify-between px-4 py-3 hover:bg-accent/10 transition-colors text-left group ${result.status === 'archived' ? 'opacity-70' : ''}`}
+            className={`w-full flex items-center justify-between px-4 py-3 hover:bg-accent/10 transition-colors text-left group ${presentation.isArchived ? 'opacity-70' : ''}`}
         >
             <div className="flex flex-col flex-1 min-w-0 pr-4">
                 <span className="text-xs font-bold text-white truncate group-hover:text-accent transition-colors text-balance flex items-center gap-2">
-                    <span>{getResultTitle(mode, result)}</span>
-                    {result.status === 'archived' && (
+                    <span>{presentation.title}</span>
+                    {presentation.isArchived && (
                         <span className="px-1 py-0.5 rounded bg-white/10 border border-white/10 text-slate-300 text-[9px] uppercase tracking-widest">
                             {t('labels.archived')}
                         </span>
@@ -41,18 +38,18 @@ export function LinkSearchResultItem({
                 </span>
                 <span className="text-[10px] text-slate-500 mt-0.5">
                     <span className="flex items-center gap-1">
-                        {meta.primary}
-                        {meta.secondary && (
+                        {presentation.primaryMeta}
+                        {presentation.secondaryMeta && (
                             <>
                                 <span className="text-slate-700 mx-1">/</span>
-                                <span className="text-slate-400 font-medium italic">{meta.secondary}</span>
+                                <span className="text-slate-400 font-medium italic">{presentation.secondaryMeta}</span>
                             </>
                         )}
                     </span>
                 </span>
             </div>
             <div className="flex items-center gap-3 shrink-0">
-                {canRestore && (
+                {presentation.canUnarchive && (
                     <span
                         role="button"
                         tabIndex={0}
@@ -70,7 +67,7 @@ export function LinkSearchResultItem({
                         }}
                         className="px-2 py-1 rounded-md border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 text-[9px] font-black uppercase tracking-widest"
                     >
-                        {t('actions.unarchive')}
+                        {presentation.unarchiveLabel}
                     </span>
                 )}
                 {mode === 'risk-to-control' && (

@@ -6,6 +6,7 @@ import { useAuthz } from '@/authz/useAuthz';
 import { AccessEditModal } from '@/components/access/AccessEditModal';
 import { UsersFilterBar } from '@/components/access/UsersFilterBar';
 import { UsersTable } from '@/components/access/UsersTable';
+import { useAccessUsersWorkflow } from '@/components/access/useAccessUsersWorkflow';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Pagination } from '@/components/tables/Pagination';
 import { ADUserPicker } from '@/components/users/ADUserPicker';
@@ -70,6 +71,12 @@ export function UsersPage() {
         currentUserLoaded: Boolean(currentUser),
         loadDirectoryCapabilities: authz.canViewUserDirectory,
         pageMode,
+    });
+    const accessWorkflow = useAccessUsersWorkflow({
+        importedUserId: locationState?.importedUserId,
+        importedUserName: locationState?.importedUserName,
+        isAccessMode,
+        users,
     });
 
     const {
@@ -155,21 +162,19 @@ export function UsersPage() {
     };
 
     useEffect(() => {
-        if (!isAccessMode || !locationState?.importedUserId || users.length === 0) return;
+        const transition = accessWorkflow.importedUserTransition;
+        if (!transition) return;
 
-        const importedUser = users.find((candidate) => candidate.id === locationState.importedUserId);
-        if (!importedUser) return;
-
-        setSelectedUser(importedUser);
+        setSelectedUser(transition.user);
         setEditModalOpen(true);
         setDirectoryMessage(
             t('users.directory_import_success', {
-                defaultValue: `${locationState.importedUserName ?? importedUser.name} imported from directory`,
-                name: locationState.importedUserName ?? importedUser.name,
+                defaultValue: `${transition.messageName} imported from directory`,
+                name: transition.messageName,
             }),
         );
         void navigate('/users', { replace: true, state: null });
-    }, [isAccessMode, locationState, navigate, t, users]);
+    }, [accessWorkflow.importedUserTransition, navigate, t]);
 
     if (currentUser && pageMode === 'forbidden') {
         return <Navigate to="/" replace />;

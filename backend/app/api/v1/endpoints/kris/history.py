@@ -1,8 +1,7 @@
 from datetime import date
 from typing import Any, Literal, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
@@ -17,17 +16,11 @@ from app.schemas.kri import (
     KRIRecordValue,
     KRIResponse,
 )
-from app.services._kri_history.intake import record_kri_value_intake
-from app.services._kri_history.workflow import (
-    ensure_can_read_history,
-    ensure_can_request_history_correction,
+from app.services._kri_history.governance import (
+    correct_kri_history_governance,
+    list_kri_history_projection,
+    record_kri_value_governance,
 )
-
-from .history_corrections import create_kri_history_correction_approval
-from .history_helpers import (
-    _load_kri_with_risk_or_404,
-)
-from .history_listing import build_kri_history_response
 
 router = APIRouter()
 APPROVAL_QUEUED_RESPONSE: dict[int | str, dict[str, Any]] = {202: {"model": ApprovalQueuedResponse}}
@@ -47,7 +40,7 @@ async def record_kri_value(
     - Privileged users (CRO/Risk Manager): apply immediately.
     - Non-privileged users: creates tiered approval (Risk Owner → Privileged if priority).
     """
-    return await record_kri_value_intake(
+    return await record_kri_value_governance(
         db=db,
         kri_id=kri_id,
         data=data,
@@ -72,28 +65,18 @@ async def get_kri_history(
     sort_direction: Literal["desc", "asc"] = Query("desc"),
 ):
     """Get paginated history for a KRI."""
-    kri = await _load_kri_with_risk_or_404(db, kri_id)
-
-    # Archived KRIs are hidden unless explicitly requested
-    if kri.is_archived and not include_archived:
-        raise HTTPException(status_code=404, detail="KRI not found")
-
-    await ensure_can_read_history(db, current_user, kri)
-
-    effective_limit = size if size is not None else limit
-    effective_offset = skip if skip is not None else offset
-    if page is not None:
-        effective_offset = (page - 1) * effective_limit
-
-    return await build_kri_history_response(
+    return await list_kri_history_projection(
         db=db,
-        kri=kri,
         kri_id=kri_id,
         current_user=current_user,
+        include_archived=include_archived,
         from_date=from_date,
         to_date=to_date,
-        offset=effective_offset,
-        limit=effective_limit,
+        offset=offset,
+        skip=skip,
+        limit=limit,
+        page=page,
+        size=size,
         sort_by=sort_by,
         sort_direction=sort_direction,
     )
@@ -113,50 +96,9 @@ async def correct_history_entry(
     Non-privileged users submit an approval request.
     Privileged users apply the correction immediately.
     """
-    from app.core.permissions import can_resolve_approvals
-    from app.models.kri_history import KRIValueHistory
-    from app.schemas.kri import KRIHistoryEntry
-    from app.services.approval_scenario_policy import load_approval_scenario_policy
-    from app.services.kri_history_service import KRIHistoryService
-
-    # Verify KRI exists and access
-    kri = await _load_kri_with_risk_or_404(db, kri_id, for_update=True)
-    await ensure_can_request_history_correction(db, current_user, kri)
-
-    # Verify history entry exists and belongs to this KRI
-    entry_result = await db.execute(
-        select(KRIValueHistory).where(KRIValueHistory.id == entry_id, KRIValueHistory.kri_id == kri_id)
-    )
-    entry = entry_result.scalar_one_or_none()
-
-    if not entry:
-        raise HTTPException(status_code=404, detail="History entry not found")
-
-    scenario_policy = await load_approval_scenario_policy(
-        db,
-        "kri_history_correction",
-        default_roles=["cro"],
-    )
-
-    if can_resolve_approvals(current_user) or not scenario_policy.requires_approval:
-        # Apply correction immediately
-        try:
-            updated_entry = await KRIHistoryService.apply_history_correction(
-                db=db,
-                entry_id=entry_id,
-                new_value=data.value,
-                corrected_by_id=current_user.id,
-            )
-            await db.commit()
-            await db.refresh(updated_entry)
-            return KRIHistoryEntry.model_validate(updated_entry)
-        except ValueError as e:
-            raise HTTPException(status_code=400, detail=str(e)) from e
-
-    return await create_kri_history_correction_approval(
-        db,
-        kri=kri,
-        entry=entry,
+    return await correct_kri_history_governance(
+        db=db,
+        kri_id=kri_id,
         entry_id=entry_id,
         data=data,
         current_user=current_user,

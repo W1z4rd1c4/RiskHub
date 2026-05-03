@@ -56,13 +56,25 @@ def test_authz_validator_deep_modules_are_importable_and_script_compatible() -> 
     models = importlib.import_module("authz_contract_validator.models")
     catalog = importlib.import_module("authz_contract_validator.capability_catalog")
     frontend_routes = importlib.import_module("authz_contract_validator.frontend_routes")
+    importlib.import_module("authz_contract_validator.git_inputs")
+    importlib.import_module("authz_contract_validator.contract_manifest")
+    importlib.import_module("authz_contract_validator.markdown_validation")
+    importlib.import_module("authz_contract_validator.frontend_local_gates")
+    importlib.import_module("authz_contract_validator.discovery")
+    runner = importlib.import_module("authz_contract_validator.runner")
+    cli = importlib.import_module("authz_contract_validator.cli")
     validator = _load_validator()
+    validator_source = VALIDATOR_PATH.read_text(encoding="utf-8")
 
     assert validator.Finding is models.Finding
     assert validator.ContractPathReference is models.ContractPathReference
     assert validator.DiscoveredAuthzPath is models.DiscoveredAuthzPath
     assert validator._validate_capability_catalog is catalog.validate_capability_catalog
     assert validator._validate_business_route_nav_context is frontend_routes.validate_business_route_nav_context
+    assert callable(runner.run_validation)
+    assert callable(cli.run_cli)
+    assert "authz_runner.run_validation" in validator_source
+    assert "authz_cli.run_cli" in validator_source
 
 
 def test_authorization_capability_contract_is_valid() -> None:

@@ -12,6 +12,7 @@ import { useTranslation } from '@/i18n/hooks';
 import { usePendingApprovalIds } from '@/hooks/usePendingApprovalIds';
 import { useRiskThresholds, useRiskTypes } from '@/hooks/useRiskHubConfig';
 import { buildRiskColumns } from '@/pages/risks/riskColumns';
+import { buildRegisterTableModel } from '@/pages/shared/registerTablePresentation';
 import type { CollectionGroup } from '@/types/collection';
 import type { RiskSummary } from '@/types/risk';
 
@@ -93,6 +94,24 @@ export function RisksTableSection({
             t,
         ]
     );
+    const emptyText = t('empty_state.no_risks');
+    const groupLabel = (group: CollectionGroup) =>
+        formatRiskGroupLabel(group, {
+            unlinkedVendor: t('grouping.unlinked_vendor'),
+            uncategorized: t('common:fallbacks.not_available'),
+            unknownDepartment: t('common:fallbacks.unassigned'),
+            noProcess: t('common:fallbacks.not_available'),
+            unknownRiskType: t('common:fallbacks.unknown_type'),
+        });
+    const tableModel = buildRegisterTableModel({
+        emptyText,
+        groupPresentation: { groupLabel },
+        groups,
+        isLoading,
+        pagination: { currentPage, itemsPerPage, totalItems: totalCount, totalPages },
+        rows: items,
+        rowKey: (risk) => risk.id,
+    });
 
     if (errorKey) {
         return (
@@ -164,11 +183,11 @@ export function RisksTableSection({
         return (
             <>
                 <SortableTable
-                    data={items}
+                    data={tableModel.rows}
                     columns={columns}
                     keyExtractor={(risk) => risk.id}
                     onRowClick={onRowClick}
-                    emptyMessage={t('empty_state.no_risks')}
+                    emptyMessage={tableModel.emptyText}
                     sortKey={sortField}
                     sortDirection={sortDirection}
                     onSort={(key, direction) => onSortChange(direction ? key : null, direction)}
@@ -197,23 +216,15 @@ export function RisksTableSection({
             onPageChange={onPageChange}
             onBack={onBackFromGroup}
             onSelectGroup={onSelectGroup}
-            groupLabel={(group) =>
-                formatRiskGroupLabel(group, {
-                    unlinkedVendor: t('grouping.unlinked_vendor'),
-                    uncategorized: t('common:fallbacks.not_available'),
-                    unknownDepartment: t('common:fallbacks.unassigned'),
-                    noProcess: t('common:fallbacks.not_available'),
-                    unknownRiskType: t('common:fallbacks.unknown_type'),
-                })
-            }
-            emptyMessage={t('empty_state.no_risks')}
+            groupLabel={groupLabel}
+            emptyMessage={tableModel.emptyText}
             renderTable={(groupItems) => (
                 <SortableTable
                     data={groupItems}
                     columns={columns}
                     keyExtractor={(risk) => risk.id}
                     onRowClick={onRowClick}
-                    emptyMessage={t('empty_state.no_risks')}
+                    emptyMessage={tableModel.emptyText}
                 />
             )}
         />

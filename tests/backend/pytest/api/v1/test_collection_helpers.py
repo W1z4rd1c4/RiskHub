@@ -201,4 +201,5 @@ def test_register_list_endpoints_use_definition_based_listing_executor():
 
     for relative_path in endpoint_paths:
         source = (REPO_ROOT / relative_path).read_text(encoding="utf-8")
-        assert "execute_collection_listing_with_definition(" in source
+        assert "execute_register_listing_plan(" in source
+        assert "execute_collection_listing_with_definition(" not in source

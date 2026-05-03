@@ -122,6 +122,23 @@ def test_install_lifecycle_builders_describe_reusable_command_plans() -> None:
     assert doctor_plan.repair_plan.actions == (f"{DEPLOY_SCRIPT} status --target docker",)
 
 
+def test_install_status_and_doctor_consume_diagnostic_modules() -> None:
+    import importlib
+
+    diagnostics = importlib.import_module("install_lib.diagnostics")
+    runtime_adapters = importlib.import_module("install_lib.runtime_adapters")
+    status_source = (SCRIPTS_DIR / "install_lib" / "status.py").read_text(encoding="utf-8")
+    doctor_source = (SCRIPTS_DIR / "install_lib" / "doctor.py").read_text(encoding="utf-8")
+
+    assert callable(diagnostics.build_status_diagnostic_plan)
+    assert callable(diagnostics.build_doctor_diagnostic_plan)
+    assert callable(runtime_adapters.run_lifecycle_commands)
+    assert "from install_lib.diagnostics import" in status_source
+    assert "from install_lib.diagnostics import" in doctor_source
+    assert "from install_lib.runtime_adapters import" in status_source
+    assert "from install_lib.runtime_adapters import" in doctor_source
+
+
 def _write_config(path: Path) -> None:
     path.write_text(
         "\n".join(

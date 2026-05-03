@@ -1,5 +1,7 @@
 import { AlertCircle, XCircle } from 'lucide-react';
 
+import { buildDetailMutationPresentation } from './detailMutationPresentation';
+
 export interface DetailActionMessage {
     key: string;
     isError?: boolean;
@@ -24,15 +26,19 @@ export function DetailActionBanner({
     pendingText,
     sectionSuffix,
 }: DetailActionBannerProps) {
+    const presentation = buildDetailMutationPresentation({
+        approvalsLabel,
+        message,
+        onNavigateApprovals,
+        pendingText,
+    });
+
     return (
-        <div className={`p-4 rounded-xl border flex items-start gap-3 ${message.isError
-            ? 'bg-rose-500/10 border-rose-500/20 text-rose-400'
-            : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
-            }`}>
+        <div className={`p-4 rounded-xl border flex items-start gap-3 ${presentation.className}`}>
             <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
             <div>
                 <p className="text-sm font-medium">{messageText}</p>
-                {!message.isError && pendingText && approvalsLabel && onNavigateApprovals ? (
+                {presentation.showApprovalLink ? (
                     <p className="text-xs mt-1 opacity-75">
                         {pendingText}{' '}
                         <button onClick={onNavigateApprovals} className="underline hover:no-underline">

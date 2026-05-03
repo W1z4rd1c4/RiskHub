@@ -12,6 +12,7 @@ import { useTranslation } from '@/i18n/hooks';
 import { usePendingApprovalIds } from '@/hooks/usePendingApprovalIds';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { getControlMonitoringMeta } from '@/lib/monitoringStatus';
+import { buildRegisterTableModel } from '@/pages/shared/registerTablePresentation';
 import type { CollectionGroup } from '@/types/collection';
 import { ControlStatus, type ControlSummary } from '@/types/control';
 
@@ -178,6 +179,31 @@ export function ControlsTableSection({
         ],
         [onRestoreControl, pendingApprovalIds, t]
     );
+    const emptyText = t('empty_state.no_controls');
+    const groupLabel = (group: CollectionGroup) =>
+        formatControlGroupLabel(group, {
+            unlinkedVendor: t('grouping.unlinked_vendor'),
+            uncategorized: t('form.labels.uncategorized'),
+            unknownDepartment: t('common:fallbacks.unassigned'),
+            noProcess: t('common:fallbacks.not_available'),
+            unknownRiskType: t('common:fallbacks.unknown_type'),
+            unknownRisk: t('common:fallbacks.unknown_risk'),
+            controlForm: (value) => t(`form.${value}`, value),
+        });
+    const tableModel = buildRegisterTableModel({
+        emptyText,
+        groupPresentation: {
+            groupLabel,
+            hideActive: viewMode === 'risk',
+            hideHighlighted: viewMode === 'risk',
+        },
+        groups,
+        isLoading,
+        pagination: { currentPage, itemsPerPage, totalItems: totalCount, totalPages },
+        rows: items,
+        rowKey: (control) => control.id,
+    });
+
     if (errorKey) {
         return (
             <div className="glass-card p-20 flex flex-col items-center justify-center text-center gap-4">
@@ -245,11 +271,11 @@ export function ControlsTableSection({
         return (
             <>
                 <SortableTable
-                    data={items}
+                    data={tableModel.rows}
                     columns={columns}
                     keyExtractor={(control) => control.id}
                     onRowClick={onRowClick}
-                    emptyMessage={t('empty_state.no_controls')}
+                    emptyMessage={tableModel.emptyText}
                 />
                 <Pagination
                     currentPage={currentPage}
@@ -277,17 +303,7 @@ export function ControlsTableSection({
             onSelectGroup={onSelectGroup}
             hideActive={viewMode === 'risk'}
             hideHighlighted={viewMode === 'risk'}
-            groupLabel={(group) =>
-                formatControlGroupLabel(group, {
-                    unlinkedVendor: t('grouping.unlinked_vendor'),
-                    uncategorized: t('form.labels.uncategorized'),
-                    unknownDepartment: t('common:fallbacks.unassigned'),
-                    noProcess: t('common:fallbacks.not_available'),
-                    unknownRiskType: t('common:fallbacks.unknown_type'),
-                    unknownRisk: t('common:fallbacks.unknown_risk'),
-                    controlForm: (value) => t(`form.${value}`, value),
-                })
-            }
+            groupLabel={groupLabel}
             renderGroupBody={(group) => {
                 if (viewMode !== 'risk') {
                     return null;
@@ -332,14 +348,14 @@ export function ControlsTableSection({
                     </div>
                 );
             }}
-            emptyMessage={t('empty_state.no_controls')}
+            emptyMessage={tableModel.emptyText}
             renderTable={(groupItems) => (
                 <SortableTable
                     data={groupItems}
                     columns={columns}
                     keyExtractor={(control) => control.id}
                     onRowClick={onRowClick}
-                    emptyMessage={t('empty_state.no_controls')}
+                    emptyMessage={tableModel.emptyText}
                 />
             )}
         />

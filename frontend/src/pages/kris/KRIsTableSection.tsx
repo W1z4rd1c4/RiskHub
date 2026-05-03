@@ -5,6 +5,7 @@ import { getKriMonitoringMeta } from '@/lib/monitoringStatus';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { useTranslation } from '@/i18n/hooks';
 import { formatMetricNumberValue } from '@/i18n/formatters';
+import { buildRegisterTableModel } from '@/pages/shared/registerTablePresentation';
 import type { CollectionGroup } from '@/types/collection';
 import type { KeyRiskIndicator } from '@/types/kri';
 
@@ -143,6 +144,25 @@ export function KRIsTableSection({
             ),
         },
     ];
+    const emptyText = t('empty_state.no_kris');
+    const groupLabel = (group: CollectionGroup) =>
+        formatKriGroupLabel(group, {
+            unlinkedVendor: t('grouping.unlinked_vendor'),
+            uncategorized: t('common:fallbacks.not_available'),
+            unknownDepartment: t('common:fallbacks.unassigned'),
+            noProcess: t('common:fallbacks.not_available'),
+            unknownRiskType: t('common:fallbacks.unknown_type'),
+            unknownRisk: t('common:fallbacks.unknown_risk'),
+        });
+    const tableModel = buildRegisterTableModel({
+        emptyText,
+        groupPresentation: { groupLabel },
+        groups,
+        isLoading,
+        pagination: { currentPage, itemsPerPage, totalItems: totalCount, totalPages },
+        rows: items,
+        rowKey: (kri) => kri.id,
+    });
 
     if (errorKey) {
         return (
@@ -193,11 +213,11 @@ export function KRIsTableSection({
         return (
             <>
                 <SortableTable
-                    data={items}
+                    data={tableModel.rows}
                     columns={columns}
                     keyExtractor={(kri) => kri.id}
                     onRowClick={onRowClick}
-                    emptyMessage={t('empty_state.no_kris')}
+                    emptyMessage={tableModel.emptyText}
                 />
                 <Pagination
                     currentPage={currentPage}
@@ -211,6 +231,9 @@ export function KRIsTableSection({
     }
 
     if (selectedGroupValue) {
+        const selectedGroup = tableModel.groupCards.find((group) => group.value === selectedGroupValue);
+        const selectedLabel =
+            selectedGroupLabel || selectedGroup?.label || t('empty.unknown_group', { ns: 'common' });
         return (
             <div className="space-y-4">
                 <div className="flex items-center gap-4">
@@ -222,11 +245,11 @@ export function KRIsTableSection({
                         {t('common:actions.back')}
                     </button>
                     <div className="flex items-center gap-3">
-                        <h3 className="text-xl font-bold text-white">{selectedGroupLabel}</h3>
+                        <h3 className="text-xl font-bold text-white">{selectedLabel}</h3>
                     </div>
                 </div>
                 <SortableTable
-                    data={items}
+                    data={tableModel.rows}
                     columns={columns}
                     keyExtractor={(kri) => kri.id}
                     onRowClick={onRowClick}
@@ -253,24 +276,17 @@ export function KRIsTableSection({
 
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {groups.map((group) => {
-                const label = formatKriGroupLabel(group, {
-                    unlinkedVendor: t('grouping.unlinked_vendor'),
-                    uncategorized: t('common:fallbacks.not_available'),
-                    unknownDepartment: t('common:fallbacks.unassigned'),
-                    noProcess: t('common:fallbacks.not_available'),
-                    unknownRiskType: t('common:fallbacks.unknown_type'),
-                    unknownRisk: t('common:fallbacks.unknown_risk'),
-                });
+            {tableModel.groupCards.map((card) => {
+                const group = card.group;
                 return (
                     <button
-                        key={group.value}
-                        onClick={() => onSelectGroup(group.value, label)}
+                        key={card.value}
+                        onClick={() => onSelectGroup(card.value, card.label)}
                         className="glass-card group text-left hover:border-accent/30 hover:shadow-lg hover:shadow-accent/5 transition-all duration-300"
                     >
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-lg font-bold text-white group-hover:text-accent transition-colors">
-                                {label}
+                                {card.label}
                             </h3>
                             <ChevronRight className="h-5 w-5 text-slate-500 group-hover:text-accent group-hover:translate-x-1 transition-all" />
                         </div>
@@ -296,12 +312,12 @@ export function KRIsTableSection({
 
                         <div className="flex items-center gap-6">
                             <div>
-                                <p className="text-3xl font-black text-white">{group.count}</p>
+                                <p className="text-3xl font-black text-white">{card.count}</p>
                                 <p className="text-xs text-slate-500 uppercase tracking-wider">Items</p>
                             </div>
-                            {group.highlighted_count && group.highlighted_count > 0 && (
+                            {card.showHighlighted && (
                                     <div>
-                                        <p className="text-xl font-bold text-rose-400">{group.highlighted_count}</p>
+                                        <p className="text-xl font-bold text-rose-400">{card.highlightedCount}</p>
                                         <p className="text-xs text-slate-500 uppercase tracking-wider">{t('tables.high_risk', { ns: 'common' })}</p>
                                     </div>
                                 )}

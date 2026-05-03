@@ -15,7 +15,7 @@ from .filters import (
     _filter_rows_by_risk_criteria,
     _prefilter_department_id_for_as_of,
 )
-from .pipeline import ExportPipelineDefinition, ExportRow, render_export_pipeline
+from app.services._reporting.exports import ExportRow, ReportExportDefinition, render_report_export_definition
 from .rehydrate import _rehydrate_department_names, _rehydrate_user_names
 from .rows import _risk_to_row
 
@@ -49,7 +49,7 @@ async def _export_risks(
             extra_visible_ids=extra_visible_ids,
         )
 
-    definition = ExportPipelineDefinition(
+    definition = ReportExportDefinition(
         title=f"Risk Export (as of {as_of_date.isoformat()})",
         sheet_name="Risks",
         filename_base="risks",
@@ -113,7 +113,7 @@ async def _export_risks(
         ],
     )
 
-    return await render_export_pipeline(
+    return await render_report_export_definition(
         definition=definition,
         export_format=export_format,
         as_of_date=as_of_date,

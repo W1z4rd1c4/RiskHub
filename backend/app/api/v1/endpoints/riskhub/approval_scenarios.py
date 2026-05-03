@@ -8,7 +8,7 @@ from app.db.session import get_db
 from app.models import ApprovalScenario, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas.riskhub import ApprovalScenarioCapabilities, ApprovalScenarioRead, ApprovalScenarioUpdate
-from app.services._riskhub_config import build_config_audit_plan
+from app.services._riskhub_config import build_config_audit_plan, run_config_update
 from app.services.approval_scenario_policy import normalize_approval_scenario_roles
 
 from ._shared import get_cro_user
@@ -99,12 +99,16 @@ async def update_approval_scenario(
             changes=activity_changes or None,
             description=f"Approval scenario '{key}' updated: {', '.join(changes)}",
         )
-        await log_activity(
+        await run_config_update(
             db=db,
             actor=cro_user,
-            **audit_plan.as_log_kwargs(),
+            audit_plan=audit_plan,
+            entity=scenario,
+            refresh_entity=True,
+            log_activity_func=log_activity,
         )
-    await db.commit()
-    await db.refresh(scenario)
+    else:
+        await db.commit()
+        await db.refresh(scenario)
 
     return _approval_scenario_read(scenario, updated_by_name=cro_user.name)

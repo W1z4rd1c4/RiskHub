@@ -10,9 +10,9 @@ from install_lib.common import (
     curl_ok,
     port_listening,
     run_capture,
-    run_command,
 )
-from install_lib.lifecycle import build_status_diagnostic_plan
+from install_lib.diagnostics import build_status_diagnostic_plan
+from install_lib.runtime_adapters import run_lifecycle_commands
 from install_lib.runtime_state import docker_container_state, production_status_payload, resolve_production_target
 
 
@@ -97,8 +97,7 @@ def run_status(
             mode=mode,
             resolved_target=resolved_target,
         )
-        for command in diagnostic_plan.probe_commands:
-            run_command(command, options=options)
+        run_lifecycle_commands(diagnostic_plan.probe_commands, options=options)
         return
 
     if mode == "demo":

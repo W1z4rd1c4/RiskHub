@@ -13,14 +13,14 @@ from app.models.global_config import ConfigDefaults
 from app.models.key_risk_indicator import KeyRiskIndicator
 from app.models.notification import NotificationType
 from app.models.user import User
-from app.services.deadline_notifications import (
+from app.services._deadline_execution import (
     DeadlineNotificationExecutionPlan,
     VisibilityCheck,
     execute_deadline_notification_plan,
     has_recent_deadline_notification,
     increment_deadline_results,
+    run_deadline_items,
 )
-from app.services.deadline_runner import run_deadline_items
 from app.services.kri_deadline_decisions import (
     build_kri_limit_notification_plan,
     build_kri_reporting_notification_plan,

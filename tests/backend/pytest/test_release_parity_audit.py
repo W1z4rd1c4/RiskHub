@@ -22,6 +22,9 @@ STARTUP_MODULE = importlib.import_module("release_parity_audit.startup")
 UI_PARITY_MODULE = importlib.import_module("release_parity_audit.ui_parity")
 RUN_STATE_MODULE = importlib.import_module("release_parity_audit.run_state")
 PHASE_RUNNER_MODULE = importlib.import_module("release_parity_audit.phase_runner")
+ARTIFACT_WRITER_MODULE = importlib.import_module("release_parity_audit.artifact_writer")
+LAUNCH_CLASSIFIER_MODULE = importlib.import_module("release_parity_audit.launch_classifier")
+HTTP_PROBE_MODULE = importlib.import_module("release_parity_audit.http_probe")
 evaluate_findings_and_decision = DECISION_MODULE.evaluate_findings_and_decision
 build_report = REPORTING_MODULE.build_report
 build_run_status = REPORTING_MODULE.build_run_status
@@ -88,6 +91,19 @@ def test_release_parity_audit_exposes_modular_helper_boundaries() -> None:
     assert callable(RUNTIME_MODULE.run_dynamic_paths)
     assert callable(STARTUP_MODULE.build_startup_inventory)
     assert callable(UI_PARITY_MODULE.evaluate_ui_parity)
+
+
+def test_release_parity_audit_delegates_io_classification_and_http_boundaries() -> None:
+    audit_source = (REPO_ROOT / "scripts" / "security" / "release_parity_audit" / "audit.py").read_text(
+        encoding="utf-8"
+    )
+
+    assert callable(ARTIFACT_WRITER_MODULE.write_audit_json)
+    assert callable(LAUNCH_CLASSIFIER_MODULE.classify_launch_failure)
+    assert callable(HTTP_PROBE_MODULE.http_json)
+    assert "from release_parity_audit.artifact_writer import" in audit_source
+    assert "from release_parity_audit.http_probe import" in audit_source
+    assert "from release_parity_audit.launch_classifier import" in audit_source
 
 
 def test_release_parity_runtime_orchestration_is_not_pass_through() -> None:

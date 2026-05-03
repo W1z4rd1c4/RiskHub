@@ -10,7 +10,7 @@ from app.services.export_snapshot_service import ExportSnapshotService
 from ._shared import ExportFormat
 from .fetch import _fetch_vendors_for_export
 from .filters import _filter_rows_by_final_scope, _filter_rows_by_vendor_criteria, _prefilter_department_id_for_as_of
-from .pipeline import ExportPipelineDefinition, ExportRow, render_export_pipeline
+from app.services._reporting.exports import ExportRow, ReportExportDefinition, render_report_export_definition
 from .rehydrate import _rehydrate_department_names, _rehydrate_user_names
 from .rows import _vendor_to_row
 
@@ -30,7 +30,7 @@ async def _export_vendors(
     models = await _fetch_vendors_for_export(db, current_user=current_user, department_id=fetch_department_id)
     rows = [_vendor_to_row(vendor) for vendor in models]
 
-    definition = ExportPipelineDefinition(
+    definition = ReportExportDefinition(
         title=f"Vendor Export (as of {as_of_date.isoformat()})",
         sheet_name="Vendors",
         filename_base="vendors",
@@ -83,7 +83,7 @@ async def _export_vendors(
         row_values=_vendor_row_values,
     )
 
-    return await render_export_pipeline(
+    return await render_report_export_definition(
         definition=definition,
         export_format=export_format,
         as_of_date=as_of_date,

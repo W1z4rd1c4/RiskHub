@@ -18,7 +18,7 @@ from .filters import (
     _normalize_kri_status,
     _prefilter_department_id_for_as_of,
 )
-from .pipeline import ExportPipelineDefinition, ExportRow, render_export_pipeline
+from app.services._reporting.exports import ExportRow, ReportExportDefinition, render_report_export_definition
 from .rehydrate import _rehydrate_department_names, _rehydrate_user_names
 from .rows import _kri_to_row
 
@@ -57,7 +57,7 @@ async def _export_kris(
             extra_visible_id_field="risk_id",
         )
 
-    definition = ExportPipelineDefinition(
+    definition = ReportExportDefinition(
         title=f"KRI Export (as of {as_of_date.isoformat()})",
         sheet_name="KRIs",
         filename_base="kris",
@@ -131,7 +131,7 @@ async def _export_kris(
         ],
     )
 
-    return await render_export_pipeline(
+    return await render_report_export_definition(
         definition=definition,
         export_format=export_format,
         as_of_date=as_of_date,

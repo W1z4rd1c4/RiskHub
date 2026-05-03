@@ -4,7 +4,12 @@ import { lookupApi } from '@/services/lookupApi';
 import { logError } from '@/services/logger';
 import type { ControlEffectiveness } from '@/types/risk';
 
-import { getLinkedTargetId } from './linkModes';
+import {
+    buildLinkedTargetIdSet,
+    emptyLinkManagementSearchState,
+    LINK_SEARCH_DEBOUNCE_MS,
+    shouldResetLinkSearchState,
+} from './linkManagementState';
 import { restoreLinkTarget, searchLinkTargets } from './linkSearchAdapters';
 import type { DepartmentLookup, ExistingLinkItem, LinkMode, SearchResultItem } from './linkTypes';
 
@@ -47,7 +52,7 @@ export function useLinkManagementWorkflow({
     const wasOpenRef = useRef(false);
 
     const linkedTargetIdSet = useMemo(
-        () => new Set(existingLinks.map((link) => getLinkedTargetId(link, mode))),
+        () => buildLinkedTargetIdSet(existingLinks, mode),
         [existingLinks, mode],
     );
 
@@ -128,16 +133,16 @@ export function useLinkManagementWorkflow({
             return;
         }
 
-        if (!wasOpenRef.current) return;
+        if (!shouldResetLinkSearchState(wasOpenRef.current, isOpen)) return;
         wasOpenRef.current = false;
 
-        setSearchQuery((prev) => (prev === '' ? prev : ''));
-        setSearchResults((prev) => (prev.length === 0 ? prev : []));
-        setSelectedTargetId((prev) => (prev === null ? prev : null));
-        setSelectedDeptId((prev) => (prev === null ? prev : null));
-        setSelectedProcess((prev) => (prev === '' ? prev : ''));
-        setSelectedCategory((prev) => (prev === '' ? prev : ''));
-        setIncludeArchived((prev) => (prev ? false : prev));
+        setSearchQuery(emptyLinkManagementSearchState.searchQuery);
+        setSearchResults([]);
+        setSelectedTargetId(emptyLinkManagementSearchState.selectedTargetId);
+        setSelectedDeptId(emptyLinkManagementSearchState.selectedDeptId);
+        setSelectedProcess(emptyLinkManagementSearchState.selectedProcess);
+        setSelectedCategory(emptyLinkManagementSearchState.selectedCategory);
+        setIncludeArchived(emptyLinkManagementSearchState.includeArchived);
     }, [isOpen]);
 
     useEffect(() => {
@@ -145,7 +150,7 @@ export function useLinkManagementWorkflow({
 
         const delayDebounceFn = setTimeout(() => {
             void handleSearch();
-        }, 300);
+        }, LINK_SEARCH_DEBOUNCE_MS);
 
         return () => clearTimeout(delayDebounceFn);
     }, [handleSearch, isOpen, showSearch]);

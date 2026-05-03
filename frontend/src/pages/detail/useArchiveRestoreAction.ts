@@ -1,8 +1,7 @@
-import { useCallback, useState } from 'react';
-
-import { isApprovalCreatedResponse } from '@/types/approval';
+import { useCallback } from 'react';
 
 import type { DetailActionMessage } from './DetailActionBanner';
+import { useEntityDetailMutationWorkflow } from './useEntityDetailMutationWorkflow';
 
 interface UseArchiveRestoreActionOptions {
     setMessage: (message: DetailActionMessage) => void;
@@ -26,7 +25,10 @@ export function useArchiveRestoreAction({
     setMessage,
     toErrorKey,
 }: UseArchiveRestoreActionOptions) {
-    const [isRunning, setIsRunning] = useState(false);
+    const { isMutating, runEntityMutation } = useEntityDetailMutationWorkflow({
+        setMessage,
+        toErrorKey,
+    });
 
     const runArchive = useCallback(async ({
         approvalKey,
@@ -34,41 +36,28 @@ export function useArchiveRestoreAction({
         closeDialog,
         onImmediate,
     }: RunArchiveOptions) => {
-        try {
-            setIsRunning(true);
-            const response = await archive();
-            if (isApprovalCreatedResponse(response)) {
-                setMessage({ key: approvalKey, isError: false });
-                closeDialog?.();
-                return;
-            }
-            await onImmediate();
-        } catch (error) {
-            setMessage({ key: toErrorKey(error), isError: true });
-        } finally {
-            setIsRunning(false);
-        }
-    }, [setMessage, toErrorKey]);
+        await runEntityMutation({
+            approvalKey,
+            closeDialog,
+            execute: archive,
+            onDirectSuccess: onImmediate,
+        });
+    }, [runEntityMutation]);
 
     const runRestore = useCallback(async ({
         onRestored,
         restore,
         successKey,
     }: RunRestoreOptions) => {
-        try {
-            setIsRunning(true);
-            await restore();
-            await onRestored();
-            setMessage({ key: successKey, isError: false });
-        } catch (error) {
-            setMessage({ key: toErrorKey(error), isError: true });
-        } finally {
-            setIsRunning(false);
-        }
-    }, [setMessage, toErrorKey]);
+        await runEntityMutation({
+            execute: restore,
+            onDirectSuccess: onRestored,
+            successKey,
+        });
+    }, [runEntityMutation]);
 
     return {
-        isRunning,
+        isRunning: isMutating,
         runArchive,
         runRestore,
     };

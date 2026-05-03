@@ -4,6 +4,7 @@ import { useTranslation } from '@/i18n/hooks';
 
 import { CollectionGroupDrillDown, Pagination, SortableTable, type Column, type SortDirection, type ViewMode } from '@/components/tables';
 import { issuePill, issueSeverityClass, issueStatusClass } from '@/components/issues/issueUi';
+import { buildRegisterTableModel } from '@/pages/shared/registerTablePresentation';
 import type { CollectionGroup } from '@/types/collection';
 import type { IssueListFilters, IssueStatus, IssueSummary } from '@/types/issue';
 
@@ -155,6 +156,24 @@ export function IssuesTableSection({
         ],
         [i18n.language, severityLabel, sourceLabel, statusLabel, t]
     );
+    const emptyText = t('list.empty');
+    const groupLabel = (group: CollectionGroup) =>
+        formatIssueGroupLabel(group, {
+            unlinkedVendor: t('fallbacks.unlinked_vendor'),
+            uncategorized: t('fallbacks.uncategorized', 'Uncategorized'),
+            unknownDepartment: t('fallbacks.unknown_department'),
+            noProcess: t('fallbacks.no_process', 'No Process'),
+            unknownRiskType: t('common:fallbacks.unknown_type'),
+        });
+    const tableModel = buildRegisterTableModel({
+        emptyText,
+        groupPresentation: { groupLabel, hideActive: true },
+        groups,
+        isLoading,
+        pagination: { currentPage, itemsPerPage, totalItems: totalCount, totalPages },
+        rows: items,
+        rowKey: (issue) => issue.id,
+    });
 
     if (errorKey) {
         return (
@@ -230,11 +249,11 @@ export function IssuesTableSection({
         return (
             <>
                 <SortableTable
-                    data={items}
+                    data={tableModel.rows}
                     columns={columns}
                     keyExtractor={(issue) => issue.id}
                     onRowClick={onRowClick}
-                    emptyMessage={t('list.empty')}
+                    emptyMessage={tableModel.emptyText}
                     sortKey={sortField}
                     sortDirection={sortDirection}
                     onSort={(key, direction) =>
@@ -266,23 +285,15 @@ export function IssuesTableSection({
             onBack={onBackFromGroup}
             onSelectGroup={onSelectGroup}
             hideActive
-            groupLabel={(group) =>
-                formatIssueGroupLabel(group, {
-                    unlinkedVendor: t('fallbacks.unlinked_vendor'),
-                    uncategorized: t('fallbacks.uncategorized', 'Uncategorized'),
-                    unknownDepartment: t('fallbacks.unknown_department'),
-                    noProcess: t('fallbacks.no_process', 'No Process'),
-                    unknownRiskType: t('common:fallbacks.unknown_type'),
-                })
-            }
-            emptyMessage={t('list.empty')}
+            groupLabel={groupLabel}
+            emptyMessage={tableModel.emptyText}
             renderTable={(groupItems) => (
                 <SortableTable
                     data={groupItems}
                     columns={columns}
                     keyExtractor={(issue) => issue.id}
                     onRowClick={onRowClick}
-                    emptyMessage={t('list.empty')}
+                    emptyMessage={tableModel.emptyText}
                 />
             )}
         />

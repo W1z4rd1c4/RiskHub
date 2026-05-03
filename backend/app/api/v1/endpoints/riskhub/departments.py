@@ -6,12 +6,19 @@ from sqlalchemy.orm import selectinload
 from app.core.activity_logger import log_activity
 from app.db.session import get_db
 from app.models import User
-from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas.riskhub import DepartmentHubCreate, DepartmentHubRead, DepartmentHubUpdate
 from app.services._riskhub_config import (
     department_to_read,
+    department_create_audit_plan,
+    department_delete_audit_plan,
+    department_restore_audit_plan,
+    department_update_audit_plan,
     get_department_dependency_counts,
     load_department_for_update,
+    run_config_create,
+    run_config_delete,
+    run_config_restore,
+    run_config_update,
     validate_department_manager,
 )
 
@@ -71,17 +78,12 @@ async def create_department(
     db.add(dept)
     await db.flush()
 
-    await log_activity(
+    await run_config_create(
         db=db,
         actor=cro_user,
-        action=ActivityAction.CREATE,
-        entity_type=ActivityEntityType.DEPARTMENT,
-        entity_id=dept.id,
-        entity_name=dept.name,
-        safe_entity_label=dept.code or dept.name,
-        description=f"Created department: {dept.name}",
+        audit_plan=department_create_audit_plan(dept),
+        log_activity_func=log_activity,
     )
-    await db.commit()
 
     result = await db.execute(
         select(Department).options(selectinload(Department.manager)).where(Department.id == dept.id)
@@ -125,17 +127,12 @@ async def update_department(
 
     await db.flush()
 
-    await log_activity(
+    await run_config_update(
         db=db,
         actor=cro_user,
-        action=ActivityAction.UPDATE,
-        entity_type=ActivityEntityType.DEPARTMENT,
-        entity_id=dept.id,
-        entity_name=dept.name,
-        safe_entity_label=dept.code or dept.name,
-        description=f"Updated department: {dept.name}",
+        audit_plan=department_update_audit_plan(dept),
+        log_activity_func=log_activity,
     )
-    await db.commit()
 
     result = await db.execute(
         select(Department)
@@ -186,19 +183,16 @@ async def delete_department(
     dept.is_active = False
     await db.flush()
 
-    await log_activity(
+    outcome = await run_config_delete(
         db=db,
         actor=cro_user,
-        action=ActivityAction.DELETE,
-        entity_type=ActivityEntityType.DEPARTMENT,
-        entity_id=dept.id,
-        entity_name=dept.name,
-        safe_entity_label=dept.code or dept.name,
-        description=f"Deleted department: {dept.name}",
+        audit_plan=department_delete_audit_plan(dept),
+        entity=dept,
+        response_payload={"status": "deleted", "id": id},
+        log_activity_func=log_activity,
     )
-    await db.commit()
 
-    return {"status": "deleted", "id": id}
+    return outcome.response_payload or {"status": "deleted", "id": id}
 
 
 @router.post("/departments/{id}/restore", response_model=DepartmentHubRead)
@@ -216,20 +210,13 @@ async def restore_department(
     dept.is_active = True
     await db.flush()
 
-    await log_activity(
+    await run_config_restore(
         db=db,
         actor=cro_user,
-        action=ActivityAction.UPDATE,
-        entity_type=ActivityEntityType.DEPARTMENT,
-        entity_id=dept.id,
-        entity_name=dept.name,
-        safe_entity_label=dept.code or dept.name,
-        safe_description="Restored department",
-        safe_description_siem="Restored department",
-        description=f"Restored department: {dept.name}",
+        audit_plan=department_restore_audit_plan(dept),
+        entity=dept,
+        refresh_entity=True,
+        log_activity_func=log_activity,
     )
-    await db.commit()
-
-    await db.refresh(dept)
 
     return department_to_read(dept, await get_department_dependency_counts(db, dept.id))

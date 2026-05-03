@@ -9,7 +9,7 @@ from app.models.issue import IssueSeverity, IssueStatus
 
 from ._shared import ExportFormat, _as_of_datetime
 from .fetch import _fetch_issues_for_export
-from .pipeline import ExportPipelineDefinition, ExportRow, render_export_pipeline
+from app.services._reporting.exports import ExportRow, ReportExportDefinition, render_report_export_definition
 from .rows import _issue_to_row
 
 
@@ -45,7 +45,7 @@ async def _export_issues(
             return [row for row in current_rows if bool(row.get("is_overdue"))]
         return current_rows
 
-    definition = ExportPipelineDefinition(
+    definition = ReportExportDefinition(
         title=f"Issue Export (as of {as_of_date.isoformat()})",
         sheet_name="Issues",
         filename_base="issues",
@@ -110,7 +110,7 @@ async def _export_issues(
         ],
     )
 
-    return await render_export_pipeline(
+    return await render_report_export_definition(
         definition=definition,
         export_format=export_format,
         as_of_date=as_of_date,

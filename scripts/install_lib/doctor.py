@@ -11,8 +11,9 @@ from install_lib.common import (
     port_listening,
     run_command,
 )
-from install_lib.lifecycle import build_doctor_diagnostic_plan
+from install_lib.diagnostics import build_doctor_diagnostic_plan
 from install_lib.production import summary_demo, summary_dev, summary_production_lifecycle, verify_demo, verify_dev
+from install_lib.runtime_adapters import run_lifecycle_commands
 from install_lib.runtime_state import (
     docker_container_state,
     production_status_payload,
@@ -108,8 +109,7 @@ def run_doctor(
 
         if deep:
             if options.dry_run:
-                for command in diagnostic_plan.deep_check_commands:
-                    run_command(command, options=options)
+                run_lifecycle_commands(diagnostic_plan.deep_check_commands, options=options)
                 deep_check = "dry_run"
             else:
                 try:
@@ -122,8 +122,7 @@ def run_doctor(
         if repair:
             repair_plan = diagnostic_plan.repair_plan
             actions.extend(repair_plan.actions)
-            for command in repair_plan.commands:
-                run_command(command, options=options)
+            run_lifecycle_commands(repair_plan.commands, options=options)
             if not options.dry_run:
                 repair_applied = True
                 verify_demo(options)
@@ -164,8 +163,7 @@ def run_doctor(
 
         if deep:
             if options.dry_run:
-                for command in diagnostic_plan.deep_check_commands:
-                    run_command(command, options=options)
+                run_lifecycle_commands(diagnostic_plan.deep_check_commands, options=options)
                 deep_check = "dry_run"
             else:
                 try:
@@ -178,8 +176,7 @@ def run_doctor(
         if repair:
             repair_plan = diagnostic_plan.repair_plan
             actions.extend(repair_plan.actions)
-            for command in repair_plan.commands:
-                run_command(command, options=options)
+            run_lifecycle_commands(repair_plan.commands, options=options)
             if not options.dry_run:
                 repair_applied = True
                 verify_dev(options)
@@ -237,7 +234,7 @@ def run_doctor(
         if deep:
             smoke_command = list(diagnostic_plan.deep_check_commands[0])
             if options.dry_run:
-                run_command(smoke_command, options=options)
+                run_lifecycle_commands([smoke_command], options=options)
                 deep_check = "dry_run"
             else:
                 try:

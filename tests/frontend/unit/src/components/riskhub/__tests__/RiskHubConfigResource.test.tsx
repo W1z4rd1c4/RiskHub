@@ -3,7 +3,10 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 
-import { useRiskHubConfigResource } from '@/components/riskhub/useRiskHubConfigResource';
+import {
+    buildRiskHubConfigActionModel,
+    useRiskHubConfigResource,
+} from '@/components/riskhub/useRiskHubConfigResource';
 
 vi.mock('@/services/apiClient', () => ({
     apiClient: {
@@ -59,6 +62,21 @@ function renderResourceHarness(deleteResource: (id: number) => Promise<void>) {
 }
 
 describe('useRiskHubConfigResource', () => {
+    it('builds shared action models with create authority and disabled reasons', () => {
+        expect(buildRiskHubConfigActionModel({
+            can_create: false,
+            can_delete: true,
+            can_restore: false,
+            can_update: true,
+        })).toMatchObject({
+            canCreate: false,
+            canDelete: true,
+            canRestore: false,
+            canUpdate: true,
+            disabledReason: 'create_disabled',
+        });
+    });
+
     it('keeps delete confirmation open and sets the UI error key when delete fails', async () => {
         const deleteResource = vi.fn().mockRejectedValue(new Error('delete failed'));
         renderResourceHarness(deleteResource);

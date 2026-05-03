@@ -39,7 +39,7 @@ from app.services._monitoring_status import (
     apply_kri_monitoring_status_filter,
     apply_kri_timeliness_status_filter,
 )
-from app.services._register_listings.lifecycle import plan_kri_listing
+from app.services._register_listings.lifecycle import execute_register_listing_plan, plan_kri_listing
 from app.services.authorization_capabilities import kri_capabilities
 
 from ..access import can_create_kri_for_any_parent_risk, kri_read_scope_clause
@@ -433,10 +433,9 @@ async def list_kris(
         build_in_memory_grouped_page=build_in_memory_grouped_page,
     )
 
-    return await collection_exec.execute_collection_listing_with_definition(
+    return await execute_register_listing_plan(
         db=db,
         response_model=KRIListResponse,
         query=collection_query,
-        ordered_query=listing_plan.ordered_query,
-        definition=listing_plan.listing_definition,
+        plan=listing_plan,
     )
