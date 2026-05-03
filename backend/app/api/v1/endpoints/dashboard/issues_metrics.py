@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
@@ -97,7 +97,7 @@ async def get_issue_aging(
     current_user: User = Depends(require_permission("issues", "read")),
     department_id: Optional[int] = Query(None, description="Filter by department"),
 ) -> IssueAgingResponse:
-    now = datetime.now(UTC)
+    now = utc_now()
     issues = await _load_scoped_issues(db, current_user, department_id=department_id)
     open_issues = _open_unsuppressed_issues(issues, now)
 
@@ -129,7 +129,7 @@ async def get_issues_by_severity(
     current_user: User = Depends(require_permission("issues", "read")),
     department_id: Optional[int] = Query(None, description="Filter by department"),
 ) -> IssueSeverityBreakdownResponse:
-    now = datetime.now(UTC)
+    now = utc_now()
     issues = await _load_scoped_issues(db, current_user, department_id=department_id)
     open_issues = _open_unsuppressed_issues(issues, now)
 

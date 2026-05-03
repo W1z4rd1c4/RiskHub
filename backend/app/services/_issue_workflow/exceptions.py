@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime
 
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.activity_logger import build_change_set, log_activity
-from app.core.datetime_utils import coerce_utc
+from app.core.datetime_utils import coerce_utc, utc_now
 from app.models import Issue, IssueException, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.models.issue import IssueExceptionStatus, IssueStatus
@@ -21,7 +21,7 @@ async def request_exception(
     reason: str,
     actor: User,
 ) -> IssueException:
-    now = datetime.now(UTC)
+    now = utc_now()
     exception = IssueException(
         issue_id=issue.id,
         status=IssueExceptionStatus.requested.value,
@@ -60,7 +60,7 @@ async def approve_exception(
     coerced_expires_at = coerce_utc(expires_at)
     if coerced_expires_at is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="expires_at is required")
-    now = datetime.now(UTC)
+    now = utc_now()
     if coerced_expires_at <= now:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="expires_at must be in the future")
     updates = {

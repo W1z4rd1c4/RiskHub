@@ -37,7 +37,11 @@ from app.models.global_config import clear_config_cache
 from app.models.key_risk_indicator import KRIFrequency
 from app.models.kri_history import KRIValueHistory
 from app.models.user import AccessScope
-from app.services.approval_execution_service import approve_request_workflow
+from app.services.approval_execution_service import (
+    approve_request_workflow,
+    cancel_request_workflow,
+    reject_request_workflow,
+)
 from app.services.kri_history_service import KRIHistoryService
 
 
@@ -647,7 +651,7 @@ async def test_approve_sanitizes_500_detail_on_commit_failure(
     async def _raise_enqueue(*args, **kwargs):
         raise RuntimeError("db exploded sensitive details")
 
-    monkeypatch.setattr("app.api.v1.endpoints.approvals.resolve.OutboxService.enqueue", _raise_enqueue)
+    monkeypatch.setattr("app.services.approval_execution_service.OutboxService.enqueue", _raise_enqueue)
 
     response = await auth_client.post(
         f"/api/v1/approvals/{approval.id}/approve",
@@ -1001,6 +1005,97 @@ async def test_cancel_own_request(auth_client: AsyncClient, test_risk):
     response = await auth_client.post(f"/api/v1/approvals/{approval_id}/cancel")
     assert response.status_code == 200
     assert response.json()["status"] == "cancelled"
+
+
+@pytest.mark.asyncio
+async def test_reject_request_workflow_updates_status_logs_and_enqueues_outbox(
+    client_approval_requester: AsyncClient,
+    db_session: AsyncSession,
+    test_risk: Risk,
+    test_user_cro: User,
+):
+    create_response = await client_approval_requester.post(
+        "/api/v1/approvals",
+        json={"resource_type": "risk", "resource_id": test_risk.id, "reason": "Reject through service"},
+    )
+    assert create_response.status_code == 201
+    approval_id = create_response.json()["id"]
+
+    approval = await reject_request_workflow(
+        db_session,
+        approval_id=approval_id,
+        current_user=test_user_cro,
+        resolution_notes="Rejected through service",
+    )
+
+    assert approval.status == ApprovalStatus.REJECTED
+    assert approval.resolved_by_id == test_user_cro.id
+    assert approval.resolution_notes == "Rejected through service"
+
+    activity = (
+        await db_session.execute(
+            select(ActivityLog).where(
+                ActivityLog.entity_type == ActivityEntityType.APPROVAL.value,
+                ActivityLog.entity_id == approval_id,
+                ActivityLog.action == ActivityAction.REJECT.value,
+            )
+        )
+    ).scalar_one_or_none()
+    assert activity is not None
+
+    outbox = (
+        await db_session.execute(
+            select(OutboxEvent).where(
+                OutboxEvent.event_type == "approval.request_resolved",
+                OutboxEvent.aggregate_id == approval_id,
+            )
+        )
+    ).scalar_one_or_none()
+    assert outbox is not None
+    assert outbox.payload["approved"] is False
+
+
+@pytest.mark.asyncio
+async def test_cancel_request_workflow_supports_privileged_cancel_and_enqueues_outbox(
+    client_approval_requester: AsyncClient,
+    db_session: AsyncSession,
+    test_risk: Risk,
+    test_user_cro: User,
+):
+    create_response = await client_approval_requester.post(
+        "/api/v1/approvals",
+        json={"resource_type": "risk", "resource_id": test_risk.id, "reason": "Cancel through service"},
+    )
+    assert create_response.status_code == 201
+    approval_id = create_response.json()["id"]
+
+    approval = await cancel_request_workflow(db_session, approval_id=approval_id, current_user=test_user_cro)
+
+    assert approval.status == ApprovalStatus.CANCELLED
+    assert approval.resolved_by_id == test_user_cro.id
+
+    activity = (
+        await db_session.execute(
+            select(ActivityLog).where(
+                ActivityLog.entity_type == ActivityEntityType.APPROVAL.value,
+                ActivityLog.entity_id == approval_id,
+                ActivityLog.action == ActivityAction.CANCEL.value,
+            )
+        )
+    ).scalar_one_or_none()
+    assert activity is not None
+    assert activity.description == f"Approval request cancelled by {test_user_cro.name} (privileged)"
+
+    outbox = (
+        await db_session.execute(
+            select(OutboxEvent).where(
+                OutboxEvent.event_type == "approval.request_cancelled",
+                OutboxEvent.aggregate_id == approval_id,
+            )
+        )
+    ).scalar_one_or_none()
+    assert outbox is not None
+    assert outbox.payload["cancelled_by_user_id"] == test_user_cro.id
 
 
 @pytest.mark.asyncio

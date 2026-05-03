@@ -6,6 +6,7 @@ from uuid import uuid4
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.datetime_utils import coerce_utc, utc_now
+from app.core.scheduler_errors import format_scheduler_error
 from app.models.scheduler_job_run import SchedulerJobRun
 
 type DbContextFactory = Callable[[], AbstractAsyncContextManager[AsyncSession]]
@@ -115,18 +116,19 @@ async def execute_tracked_job(
     try:
         result = normalize_result(await job_func())
     except Exception as exc:
+        error_message = format_scheduler_error(exc)
         await record_job_finish_with_context(
             db_context=db_context,
             job_run_id=job_run.id,
             status="failed",
-            error_message=str(exc),
+            error_message=error_message,
         )
         logger.exception(
             "scheduler_job_failed",
             job_name=job_name,
             run_id=run_id,
             instance_id=instance_id,
-            error_message=str(exc),
+            error_message=error_message,
         )
         raise
 
@@ -178,14 +180,15 @@ async def execute_tracked_job_with_session(
     try:
         result = normalize_result(await job_func(db))
     except Exception as exc:
+        error_message = format_scheduler_error(exc)
         await db.rollback()
-        await record_job_finish(db, job_run_id=job_run.id, status="failed", error_message=str(exc))
+        await record_job_finish(db, job_run_id=job_run.id, status="failed", error_message=error_message)
         logger.exception(
             "scheduler_job_failed",
             job_name=job_name,
             run_id=run_id,
             instance_id=instance_id,
-            error_message=str(exc),
+            error_message=error_message,
         )
         raise
 

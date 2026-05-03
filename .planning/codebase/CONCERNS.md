@@ -14,7 +14,7 @@
 - Committee quarterly snapshot semantics: `backend/app/services/quarterly_comparison_service.py`, `backend/app/services/_quarterly_comparison/`, `backend/app/api/v1/endpoints/dashboard/quarterly.py`
 - Cross-entity link management: shared frontend dialog/workflow helpers and backend vendor-link endpoints must preserve stale-response guards, restore behavior, and visibility filtering (`frontend/src/components/linking/`, `backend/app/api/v1/endpoints/vendor_links.py`)
 - Directory identity lifecycle: provider reconciliation must not overwrite RiskHub-local access fields after user creation; break-glass remains temporary and tightly capability-gated (`backend/app/services/directory_identity_service.py`, `backend/app/services/_access_workflow/`, `frontend/src/pages/users/BreakGlassEnableDialog.tsx`)
-- RBAC scope enforcement consistency between backend and frontend gating: `backend/app/core/permissions.py`, `backend/app/core/_permissions/`, `frontend/src/components/PermissionGate.tsx`
+- RBAC scope enforcement consistency between backend and frontend gating: `backend/app/core/permissions.py`, `backend/app/core/_permissions/`, `frontend/src/authz/useAuthz.ts`, and backend capability metadata consumed by frontend action surfaces
 - Time policy (UTC-aware timestamps) and coercion boundaries: `backend/app/core/datetime_utils.py`
 - SSO token verification + exchange flow: `backend/app/services/sso_token_service.py`, `backend/app/api/v1/endpoints/auth/sso.py`, `frontend/src/services/entraAuth.ts`
 - Admin auth/session workflow: `backend/app/services/_auth_session_workflow/`, `backend/app/api/v1/endpoints/admin/console.py`, `frontend/src/pages/admin-console/sections/AdminConsoleOpsPanels.tsx`
@@ -55,7 +55,7 @@
 ## Log Growth and Operational Hygiene
 
 - Repository root contains very large dev log artifacts (e.g. `.dev-backend.log`), which can impact local disk usage and tooling performance
-- Ongoing cleanup policy and log rotation discipline should be enforced for local/dev workflows
+- Ongoing cleanup policy and log rotation discipline should be enforced for local/dev workflows; `./scripts/install.sh doctor --mode dev` warns when `backend/logs` or `tests/results` grow beyond the local artifact budget.
 
 ## Test-Parity Risk
 

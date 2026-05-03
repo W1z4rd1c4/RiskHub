@@ -1,7 +1,7 @@
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import asc, desc, func, or_, select
+from sqlalchemy import String, asc, case, desc, func, literal, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -13,13 +13,14 @@ from app.api.v1.endpoints._collection import (
     coerce_optional_enum,
     coerce_optional_int,
     coerce_optional_string,
+    is_group_summary_request,
     merge_collection_filters,
     parse_collection_query,
 )
-from app.core.permissions import can_read_vendor, get_user_department_ids
+from app.core.permissions import can_read_vendor, get_user_department_ids, vendor_visibility_clause
 from app.core.security import check_permission, require_permission
 from app.db.session import get_db
-from app.models import ControlRiskLink, KeyRiskIndicator, Risk, User, VendorRiskLink
+from app.models import ControlRiskLink, Department, KeyRiskIndicator, Risk, User, Vendor, VendorRiskLink
 from app.schemas.risk import RiskListResponse, RiskStatusEnum
 from app.schemas.vendor_shared import LinkedVendorRead
 from app.services.authorization_capabilities import risk_capabilities
@@ -31,6 +32,8 @@ RISK_GROUP_UNCATEGORIZED = "__uncategorized__"
 RISK_GROUP_UNKNOWN_DEPARTMENT = "__unknown_department__"
 RISK_GROUP_NO_PROCESS = "__no_process__"
 RISK_GROUP_UNKNOWN_RISK_TYPE = "__unknown_risk_type__"
+
+RISK_SQL_GROUPS = {"category", "department", "process", "risk_type", "type", "vendor"}
 
 
 def _risk_group_entries(risk, group_by: str) -> list[CollectionGroupEntry]:
@@ -57,6 +60,105 @@ def _risk_group_entries(risk, group_by: str) -> list[CollectionGroupEntry]:
         return [CollectionGroupEntry(value, value)]
 
     return []
+
+
+def _risk_group_value_filter(group_by: str, group_value: str):
+    if group_by == "category":
+        if group_value == RISK_GROUP_UNCATEGORIZED:
+            return or_(Risk.category.is_(None), Risk.category == "")
+        return Risk.category == group_value
+    if group_by == "department":
+        if group_value == RISK_GROUP_UNKNOWN_DEPARTMENT:
+            return Risk.department_id.is_(None)
+        return Risk.department.has(Department.name == group_value)
+    if group_by == "process":
+        if group_value == RISK_GROUP_NO_PROCESS:
+            return or_(Risk.process.is_(None), Risk.process == "")
+        return Risk.process == group_value
+    if group_by in {"risk_type", "type"}:
+        if group_value == RISK_GROUP_UNKNOWN_RISK_TYPE:
+            return or_(Risk.risk_type.is_(None), Risk.risk_type == "")
+        return Risk.risk_type == group_value
+    if group_by == "vendor" and group_value.startswith("vendor:"):
+        try:
+            vendor_id = int(group_value.removeprefix("vendor:"))
+        except ValueError:
+            return Risk.id.is_(None)
+        return Risk.id.in_(select(VendorRiskLink.risk_id).where(VendorRiskLink.vendor_id == vendor_id))
+    if group_by == "vendor" and group_value == RISK_GROUP_UNLINKED_VENDOR:
+        return ~Risk.id.in_(select(VendorRiskLink.risk_id))
+    return None
+
+
+async def _load_risk_sql_groups(
+    db: AsyncSession,
+    filtered_ids,
+    group_by: str,
+    *,
+    current_user: User,
+    can_read_vendors: bool,
+) -> list:
+    if group_by == "category":
+        value_expr = func.coalesce(func.nullif(Risk.category, ""), RISK_GROUP_UNCATEGORIZED)
+        label_expr = value_expr
+        joins = ()
+    elif group_by == "department":
+        value_expr = func.coalesce(func.nullif(Department.name, ""), RISK_GROUP_UNKNOWN_DEPARTMENT)
+        label_expr = value_expr
+        joins = (Risk.department,)
+    elif group_by == "process":
+        value_expr = func.coalesce(func.nullif(Risk.process, ""), RISK_GROUP_NO_PROCESS)
+        label_expr = value_expr
+        joins = ()
+    elif group_by in {"risk_type", "type"}:
+        value_expr = func.coalesce(func.nullif(Risk.risk_type, ""), RISK_GROUP_UNKNOWN_RISK_TYPE)
+        label_expr = value_expr
+        joins = ()
+    elif group_by == "vendor" and can_read_vendors:
+        value_expr = func.coalesce(literal("vendor:") + func.cast(Vendor.id, String), RISK_GROUP_UNLINKED_VENDOR)
+        label_expr = func.coalesce(Vendor.name, RISK_GROUP_UNLINKED_VENDOR)
+        joins = ("vendor",)
+    elif group_by == "vendor":
+        value_expr = literal(RISK_GROUP_UNLINKED_VENDOR)
+        label_expr = value_expr
+        joins = ()
+    else:
+        return []
+
+    group_query = (
+        select(
+            value_expr.label("value"),
+            label_expr.label("label"),
+            func.count(Risk.id).label("count"),
+            func.sum(case((Risk.status == RiskStatusEnum.active.value, 1), else_=0)).label("active_count"),
+            func.sum(case((Risk.net_score >= 16, 1), else_=0)).label("highlighted_count"),
+        )
+        .select_from(Risk)
+        .join(filtered_ids, Risk.id == filtered_ids.c.id)
+    )
+    for join_target in joins:
+        if join_target == "vendor":
+            group_query = group_query.outerjoin(VendorRiskLink, VendorRiskLink.risk_id == Risk.id).outerjoin(
+                Vendor, Vendor.id == VendorRiskLink.vendor_id
+            )
+            vendor_clause = vendor_visibility_clause(current_user)
+            if vendor_clause is not None:
+                group_query = group_query.where(or_(Vendor.id.is_(None), vendor_clause))
+        else:
+            group_query = group_query.outerjoin(join_target)
+    group_query = group_query.group_by(value_expr, label_expr).order_by(func.lower(label_expr))
+    rows = (await db.execute(group_query)).all()
+    return [
+        {
+            "value": row.value,
+            "label": row.label,
+            "count": row.count or 0,
+            "active_count": row.active_count or 0,
+            "highlighted_count": row.highlighted_count or 0,
+            "meta": {},
+        }
+        for row in rows
+    ]
 
 
 @router.get("", response_model=RiskListResponse)
@@ -296,6 +398,43 @@ async def list_risks(
         return items
 
     ordered_query = base_query.options(*query_options)
+
+    if collection_query.group_by and collection_query.group_by in RISK_SQL_GROUPS:
+        filtered_ids = base_query.with_only_columns(Risk.id).order_by(None).subquery()
+        groups = await _load_risk_sql_groups(
+            db,
+            filtered_ids,
+            collection_query.group_by,
+            current_user=current_user,
+            can_read_vendors=can_read_vendors,
+        )
+        grouped_total = total
+
+        if is_group_summary_request(collection_query):
+            return RiskListResponse(
+                items=[],
+                total=grouped_total,
+                offset=offset,
+                limit=limit,
+                groups=groups,
+                capabilities=collection_capabilities,
+            )
+
+        group_filter = _risk_group_value_filter(collection_query.group_by, collection_query.group_value)
+        grouped_query = ordered_query.where(group_filter) if group_filter is not None else ordered_query
+        grouped_total = (
+            await db.execute(select(func.count()).select_from(grouped_query.order_by(None).subquery()))
+        ).scalar() or 0
+        result = await db.execute(grouped_query.offset(offset).limit(limit))
+        paginated_items = await serialize_risks(list(result.scalars().all()))
+        return RiskListResponse(
+            items=paginated_items,
+            total=grouped_total,
+            offset=offset,
+            limit=limit,
+            groups=groups,
+            capabilities=collection_capabilities,
+        )
 
     if collection_query.group_by:
         result = await db.execute(ordered_query)

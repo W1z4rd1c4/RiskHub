@@ -1,8 +1,7 @@
-from datetime import UTC, datetime
 from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import and_, false, func, or_, select
+from sqlalchemy import and_, case, false, func, or_, select, union_all
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -14,9 +13,11 @@ from app.api.v1.endpoints._collection import (
     coerce_optional_int,
     coerce_optional_literal,
     coerce_optional_string,
+    is_group_summary_request,
     merge_collection_filters,
     parse_collection_query,
 )
+from app.core.datetime_utils import utc_now
 from app.core.permissions import (
     can_read_control_id,
     can_read_risk_id,
@@ -26,8 +27,20 @@ from app.core.permissions import (
 )
 from app.core.security import require_permission
 from app.db.session import get_db
-from app.models import Control, ControlExecution, ControlRiskLink, Issue, IssueLink, KeyRiskIndicator, User
+from app.models import (
+    Control,
+    ControlExecution,
+    ControlRiskLink,
+    Department,
+    Issue,
+    IssueLink,
+    KeyRiskIndicator,
+    Risk,
+    User,
+    Vendor,
+)
 from app.models.issue import IssueSeverity, IssueStatus
+from app.schemas.collection import CollectionGroupRead
 from app.schemas.issue import IssueListResponse
 from app.services.authorization_capabilities import issue_capabilities
 from app.services.issue_visibility_service import unsuppressed_issue_clause
@@ -41,6 +54,7 @@ ISSUE_GROUP_UNCATEGORIZED = "__uncategorized__"
 ISSUE_GROUP_UNKNOWN_DEPARTMENT = "__unknown_department__"
 ISSUE_GROUP_NO_PROCESS = "__no_process__"
 ISSUE_GROUP_UNKNOWN_RISK_TYPE = "__unknown_risk_type__"
+ISSUE_SQL_GROUPS = {"category", "department", "process", "risk_type", "type", "vendor"}
 
 
 def _issue_context_values(issue, *, group_by: str) -> set[str]:
@@ -85,6 +99,139 @@ def _issue_group_entries(issue, group_by: str) -> list[CollectionGroupEntry]:
     if group_by in {"risk_type", "type"}:
         return [CollectionGroupEntry(ISSUE_GROUP_UNKNOWN_RISK_TYPE, ISSUE_GROUP_UNKNOWN_RISK_TYPE)]
     return []
+
+
+def _count_distinct_issue_if(condition):
+    return func.count(func.distinct(case((condition, Issue.id))))
+
+
+def _issue_risk_context_subquery(group_by: str):
+    if group_by == "category":
+        value_expr = func.coalesce(Risk.category, ISSUE_GROUP_UNCATEGORIZED)
+    elif group_by == "process":
+        value_expr = func.coalesce(Risk.process, ISSUE_GROUP_NO_PROCESS)
+    elif group_by in {"risk_type", "type"}:
+        value_expr = func.coalesce(Risk.risk_type, ISSUE_GROUP_UNKNOWN_RISK_TYPE)
+    else:
+        return None
+
+    direct_risks = (
+        select(IssueLink.issue_id.label("issue_id"), value_expr.label("value"))
+        .join(Risk, Risk.id == IssueLink.risk_id)
+        .where(IssueLink.risk_id.is_not(None))
+    )
+    kri_risks = (
+        select(IssueLink.issue_id.label("issue_id"), value_expr.label("value"))
+        .join(KeyRiskIndicator, KeyRiskIndicator.id == IssueLink.kri_id)
+        .join(Risk, Risk.id == KeyRiskIndicator.risk_id)
+        .where(IssueLink.kri_id.is_not(None))
+    )
+    control_risks = (
+        select(IssueLink.issue_id.label("issue_id"), value_expr.label("value"))
+        .join(ControlRiskLink, ControlRiskLink.control_id == IssueLink.control_id)
+        .join(Risk, Risk.id == ControlRiskLink.risk_id)
+        .where(IssueLink.control_id.is_not(None))
+    )
+    execution_risks = (
+        select(IssueLink.issue_id.label("issue_id"), value_expr.label("value"))
+        .join(ControlExecution, ControlExecution.id == IssueLink.execution_id)
+        .join(ControlRiskLink, ControlRiskLink.control_id == ControlExecution.control_id)
+        .join(Risk, Risk.id == ControlRiskLink.risk_id)
+        .where(IssueLink.execution_id.is_not(None))
+    )
+    return union_all(direct_risks, kri_risks, control_risks, execution_risks).subquery()
+
+
+async def _load_issue_sql_groups(
+    db: AsyncSession,
+    filtered_ids,
+    group_by: str,
+) -> list[CollectionGroupRead]:
+    active_expr = Issue.status != IssueStatus.closed.value
+    highlighted_expr = Issue.severity.in_((IssueSeverity.high.value, IssueSeverity.critical.value))
+
+    if group_by == "department":
+        value_expr = func.coalesce(Department.name, ISSUE_GROUP_UNKNOWN_DEPARTMENT)
+        label_expr = value_expr
+        query = (
+            select(
+                value_expr.label("value"),
+                label_expr.label("label"),
+                func.count(func.distinct(Issue.id)).label("count"),
+                _count_distinct_issue_if(active_expr).label("active_count"),
+                _count_distinct_issue_if(highlighted_expr).label("highlighted_count"),
+            )
+            .select_from(Issue)
+            .join(filtered_ids, filtered_ids.c.id == Issue.id)
+            .outerjoin(Department, Department.id == Issue.department_id)
+            .group_by(value_expr, label_expr)
+            .order_by(func.lower(label_expr))
+        )
+    elif group_by == "vendor":
+        value_expr = func.coalesce(Vendor.name, ISSUE_GROUP_UNLINKED_VENDOR)
+        label_expr = value_expr
+        query = (
+            select(
+                value_expr.label("value"),
+                label_expr.label("label"),
+                func.count(func.distinct(Issue.id)).label("count"),
+                _count_distinct_issue_if(active_expr).label("active_count"),
+                _count_distinct_issue_if(highlighted_expr).label("highlighted_count"),
+            )
+            .select_from(Issue)
+            .join(filtered_ids, filtered_ids.c.id == Issue.id)
+            .join(IssueLink, IssueLink.issue_id == Issue.id)
+            .join(Vendor, Vendor.id == IssueLink.vendor_id)
+            .group_by(value_expr, label_expr)
+            .order_by(func.lower(label_expr))
+        )
+    else:
+        context = _issue_risk_context_subquery(group_by)
+        if context is None:
+            return []
+        value_expr = context.c.value
+        label_expr = context.c.value
+        query = (
+            select(
+                value_expr.label("value"),
+                label_expr.label("label"),
+                func.count(func.distinct(Issue.id)).label("count"),
+                _count_distinct_issue_if(active_expr).label("active_count"),
+                _count_distinct_issue_if(highlighted_expr).label("highlighted_count"),
+            )
+            .select_from(Issue)
+            .join(filtered_ids, filtered_ids.c.id == Issue.id)
+            .join(context, context.c.issue_id == Issue.id)
+            .group_by(value_expr, label_expr)
+            .order_by(func.lower(label_expr))
+        )
+
+    return [
+        CollectionGroupRead(
+            value=str(row.value),
+            label=str(row.label),
+            count=row.count,
+            active_count=row.active_count,
+            highlighted_count=row.highlighted_count,
+            meta={},
+        )
+        for row in (await db.execute(query)).all()
+    ]
+
+
+def _issue_group_filter(group_by: str, group_value: str):
+    if group_by == "department":
+        return func.coalesce(Department.name, ISSUE_GROUP_UNKNOWN_DEPARTMENT) == group_value
+    if group_by == "vendor":
+        return Issue.id.in_(
+            select(IssueLink.issue_id)
+            .join(Vendor, Vendor.id == IssueLink.vendor_id)
+            .where(func.coalesce(Vendor.name, ISSUE_GROUP_UNLINKED_VENDOR) == group_value)
+        )
+    context = _issue_risk_context_subquery(group_by)
+    if context is not None:
+        return Issue.id.in_(select(context.c.issue_id).where(context.c.value == group_value))
+    return None
 
 
 @router.get("/issues", response_model=IssueListResponse)
@@ -169,7 +316,7 @@ async def list_issues(
     }
 
     query = select(Issue)
-    now = datetime.now(UTC)
+    now = utc_now()
     scope_clause = await get_issue_scope_clause(db, current_user)
     if scope_clause is not None:
         query = query.where(scope_clause)
@@ -286,6 +433,49 @@ async def list_issues(
     )
 
     ordered_query = query.options(*query_options)
+
+    if collection_query.group_by and collection_query.group_by in ISSUE_SQL_GROUPS:
+        filtered_ids = query.with_only_columns(Issue.id).order_by(None).subquery()
+        groups = await _load_issue_sql_groups(db, filtered_ids, collection_query.group_by)
+        if is_group_summary_request(collection_query):
+            return IssueListResponse(
+                items=[],
+                total=total,
+                offset=offset,
+                limit=limit,
+                groups=groups,
+                capabilities=collection_capabilities,
+            )
+
+        group_filter = _issue_group_filter(collection_query.group_by, collection_query.group_value or "")
+        grouped_query = ordered_query.outerjoin(Department, Department.id == Issue.department_id)
+        if group_filter is not None:
+            grouped_query = grouped_query.where(group_filter)
+        grouped_total = (
+            await db.execute(select(func.count()).select_from(grouped_query.order_by(None).subquery()))
+        ).scalar() or 0
+        result = await db.execute(grouped_query.offset(offset).limit(limit))
+        issues = list(result.scalars().all())
+        linked_visibility = await build_issue_linked_visibility(db, current_user, issues)
+        items = []
+        for issue in issues:
+            capabilities = await issue_capabilities(db, current_user=current_user, issue=issue)
+            items.append(
+                _serialize_issue_summary(
+                    issue,
+                    current_user=current_user,
+                    capabilities=capabilities,
+                    linked_visibility=linked_visibility,
+                )
+            )
+        return IssueListResponse(
+            items=items,
+            total=grouped_total,
+            offset=offset,
+            limit=limit,
+            groups=groups,
+            capabilities=collection_capabilities,
+        )
 
     if collection_query.group_by:
         result = await db.execute(ordered_query)

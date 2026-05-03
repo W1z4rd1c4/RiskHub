@@ -5,29 +5,18 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.api import deps
-from app.core.activity_logger import log_activity
-from app.core.approval_display import approval_resource_label
-from app.core.datetime_utils import utc_now
 from app.core.permissions import can_resolve_approvals
 from app.db.session import get_db
 from app.models import ApprovalRequest, ApprovalStatus, User
-from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas.approval_request import ApprovalRequestListResponse, ApprovalRequestRead, ApprovalRequestResolve
 from app.services.approval_queue_visibility import (
     count_visible_pending_approvals_for_user,
     visible_pending_approvals_for_user,
 )
-from app.services.approval_scenario_policy import (
-    can_view_approval_resource,
-    scenario_allows_privileged_resolution,
-    user_matches_approval_scenario_role,
-)
-from app.services.outbox import OutboxService
 
-from ._shared import _build_approval_read, _get_approval_department_id, logger
+from ._shared import _build_approval_read, logger
 
 router = APIRouter()
 
@@ -85,77 +74,14 @@ async def reject_request(
     Only users with approval-resolution authority can reject.
     Requires mandatory resolution_notes.
     """
-    result = await db.execute(
-        select(ApprovalRequest)
-        .options(selectinload(ApprovalRequest.requested_by), selectinload(ApprovalRequest.resolved_by))
-        .where(ApprovalRequest.id == approval_id)
-    )
-    approval = result.scalar_one_or_none()
+    from app.services.approval_execution_service import reject_request_workflow
 
-    if not approval:
-        raise HTTPException(status_code=404, detail="Approval request not found")
-
-    # Allow rejecting any pending status (PENDING or PENDING_PRIVILEGED)
-    if approval.status not in (ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED):
-        raise HTTPException(status_code=400, detail=f"Cannot reject request with status: {approval.status.value}")
-
-    scenario_match = user_matches_approval_scenario_role(approval, current_user)
-    privileged_scenario_match = scenario_allows_privileged_resolution(approval, current_user)
-    if scenario_match is None:
-        if not can_resolve_approvals(current_user):
-            raise HTTPException(status_code=403, detail="Only authorized approval resolvers can reject requests")
-    elif approval.requested_by_id == current_user.id:
-        raise HTTPException(
-            status_code=403,
-            detail="Requesters must cancel their own approval requests instead of rejecting them",
-        )
-    elif approval.status == ApprovalStatus.PENDING:
-        if not scenario_match:
-            raise HTTPException(
-                status_code=403,
-                detail="This approval scenario does not allow your role to reject this request",
-            )
-        if not can_resolve_approvals(current_user) and not await can_view_approval_resource(db, current_user, approval):
-            raise HTTPException(status_code=403, detail="Access denied")
-    elif not can_resolve_approvals(current_user) or privileged_scenario_match is not True:
-        raise HTTPException(status_code=403, detail="This request requires approval-resolution authority")
-
-    previous_status = approval.status
-
-    # Update approval status
-    approval.status = ApprovalStatus.REJECTED
-    approval.resolved_by_id = current_user.id
-    approval.resolved_at = utc_now()
-    approval.resolution_notes = resolve_data.resolution_notes
-
-    department_id = await _get_approval_department_id(db, approval)
-    await log_activity(
+    approval = await reject_request_workflow(
         db,
-        entity_type=ActivityEntityType.APPROVAL,
-        entity_id=approval.id,
-        entity_name=approval_resource_label(approval),
-        action=ActivityAction.REJECT,
-        actor=current_user,
-        department_id=department_id,
-        changes={"status": {"old": previous_status.value, "new": approval.status.value}},
+        approval_id=approval_id,
+        current_user=current_user,
+        resolution_notes=resolve_data.resolution_notes,
     )
-    await OutboxService.enqueue(
-        db,
-        event_type="approval.request_resolved",
-        aggregate_type="approval_request",
-        aggregate_id=approval.id,
-        idempotency_key=f"approval.request_resolved:{approval.id}:{approval.status.value.lower()}",
-        payload={"approval_id": approval.id, "approved": False},
-    )
-    await db.commit()
-
-    # Reload with relationships
-    result = await db.execute(
-        select(ApprovalRequest)
-        .options(selectinload(ApprovalRequest.requested_by), selectinload(ApprovalRequest.resolved_by))
-        .where(ApprovalRequest.id == approval.id)
-    )
-    approval = result.scalar_one()
 
     return _build_approval_read(approval, current_user)
 
@@ -170,72 +96,9 @@ async def cancel_request(
     Cancel own pending request.
     Only the original requester can cancel.
     """
-    result = await db.execute(
-        select(ApprovalRequest)
-        .options(selectinload(ApprovalRequest.requested_by), selectinload(ApprovalRequest.resolved_by))
-        .where(ApprovalRequest.id == approval_id)
-    )
-    approval = result.scalar_one_or_none()
+    from app.services.approval_execution_service import cancel_request_workflow
 
-    if not approval:
-        raise HTTPException(status_code=404, detail="Approval request not found")
-
-    # §5.5: Request creator OR approval resolvers can cancel PENDING/PENDING_PRIVILEGED requests
-    is_requester = approval.requested_by_id == current_user.id
-    is_privileged = can_resolve_approvals(current_user)
-
-    if not is_requester and not is_privileged:
-        raise HTTPException(status_code=403, detail="Only the requester or approval resolvers can cancel requests")
-
-    if approval.status not in (ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED):
-        raise HTTPException(status_code=400, detail=f"Cannot cancel request with status: {approval.status.value}")
-
-    # Update status
-    approval.status = ApprovalStatus.CANCELLED
-    approval.resolved_by_id = current_user.id
-    approval.resolved_at = utc_now()
-
-    # Log activity for cancellation - distinguish self vs privileged
-    department_id = await _get_approval_department_id(db, approval)
-    if is_requester:
-        cancel_description = "Approval request cancelled by requester"
-    else:
-        cancel_description = f"Approval request cancelled by {current_user.name} (privileged)"
-    await log_activity(
-        db,
-        entity_type=ActivityEntityType.APPROVAL,
-        entity_id=approval.id,
-        entity_name=approval_resource_label(approval),
-        action=ActivityAction.CANCEL,
-        actor=current_user,
-        department_id=department_id,
-        safe_description=cancel_description,
-        safe_description_siem=(
-            "Approval request cancelled by requester"
-            if is_requester
-            else "Approval request cancelled by privileged user"
-        ),
-        description=cancel_description,
-    )
-
-    await OutboxService.enqueue(
-        db,
-        event_type="approval.request_cancelled",
-        aggregate_type="approval_request",
-        aggregate_id=approval.id,
-        idempotency_key=f"approval.request_cancelled:{approval.id}",
-        payload={"approval_id": approval.id, "cancelled_by_user_id": current_user.id},
-    )
-
-    await db.commit()
-
-    # Reload with relationships
-    result = await db.execute(
-        select(ApprovalRequest)
-        .options(selectinload(ApprovalRequest.requested_by), selectinload(ApprovalRequest.resolved_by))
-        .where(ApprovalRequest.id == approval.id)
-    )
-    approval = result.scalar_one()
+    approval = await cancel_request_workflow(db, approval_id=approval_id, current_user=current_user)
 
     return _build_approval_read(approval, current_user)
 

@@ -16,7 +16,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--skip-prod-readiness",
         action="store_true",
-        help="Skip executing run_prod_readiness_audit_local.sh in isolated worktree and ingest latest existing artifact instead.",
+        help=(
+            "Skip executing run_prod_readiness_audit_local.sh in isolated worktree and ingest latest existing "
+            "artifact instead."
+        ),
     )
     return parser.parse_args()
 

@@ -196,7 +196,7 @@ Canonical Source: `docs/security/authorization-capability-contract.md`, `docs/se
   - endpoint guards/dependencies
   - service-level authorization checks
   - response `capabilities` shape and semantics
-  - frontend `PermissionGate` / permission hooks
+  - frontend `useAuthz` route/read projections, `usePermissions` compatibility hooks, and backend capability metadata
   - reports, exports, dashboards, departments, and vendor-linked visibility
   - `docs/security/authorization-capability-contract.md`
   - `docs/security/authorization-capability-contract.json`

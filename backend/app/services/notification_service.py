@@ -1,10 +1,11 @@
 """Notification service for creating and managing in-app notifications."""
 
 import logging
-from datetime import UTC, datetime
+from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.datetime_utils import utc_now
 from app.core.permissions import can_read_vendor_id
 from app.models.approval_request import ApprovalRequest
 from app.models.notification import Notification, NotificationType
@@ -68,7 +69,7 @@ class NotificationService:
             message=message,
             resource_type=resource_type,
             resource_id=resource_id,
-            created_at=created_at or datetime.now(UTC),
+            created_at=created_at or utc_now(),
         )
         db.add(notification)
         await db.flush()  # Get ID without committing

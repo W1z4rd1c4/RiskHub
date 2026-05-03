@@ -13,6 +13,7 @@ from app.models import (
     ApprovalRequest,
     ApprovalResourceType,
     ApprovalStatus,
+    Issue,
     KeyRiskIndicator,
     Notification,
     OutboxEvent,
@@ -336,6 +337,53 @@ async def test_retryable_outbox_handler_failure_marks_retry(
         assert refreshed.status == "pending"
         assert refreshed.last_error == "temporary notification outage"
         assert coerce_utc(refreshed.available_at) > coerce_utc(event.available_at)
+
+
+@pytest.mark.asyncio
+async def test_issue_notification_transport_failure_is_retryable(
+    db_session: AsyncSession,
+    async_engine: AsyncEngine,
+    test_department,
+    test_user: User,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    issue = Issue(
+        title="Outbox transport retry issue",
+        description="Issue used for outbox transport retry classification",
+        severity="high",
+        status="open",
+        source_type="manual",
+        department_id=test_department.id,
+        owner_user_id=test_user.id,
+        created_by_id=test_user.id,
+    )
+    db_session.add(issue)
+    await db_session.flush()
+    event = OutboxEvent(
+        event_type="issue.assigned",
+        aggregate_type="issue",
+        aggregate_id=issue.id,
+        idempotency_key="issue.assigned:transport-retry",
+        payload={"issue_id": issue.id, "owner_user_id": test_user.id, "actor_user_id": 99999},
+        status="pending",
+        available_at=utc_now(),
+    )
+    db_session.add(event)
+    await db_session.commit()
+
+    async def fail_transport(*args, **kwargs):
+        raise ConnectionError("notification store unavailable")
+
+    monkeypatch.setattr(NotificationService, "create_notification", fail_transport)
+
+    processed = await dispatch_pending_outbox_events(_sessionmaker(async_engine))
+    assert processed == 0
+
+    async with _sessionmaker(async_engine)() as read_session:
+        refreshed = await read_session.get(OutboxEvent, event.id)
+        assert refreshed is not None
+        assert refreshed.status == "pending"
+        assert refreshed.last_error == "notification store unavailable"
 
 
 @pytest.mark.asyncio

@@ -11,6 +11,7 @@ import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { useTranslation } from '@/i18n/hooks';
 import { RiskHubFieldError, RiskHubModalActions, RiskHubModalFrame } from './panelPrimitives';
 import { riskHubCapabilityEnabled, useRiskHubCapabilities } from './useRiskHubCapabilities';
+import { useRiskHubConfigPanelState } from './useRiskHubConfigPanelState';
 
 interface DepartmentModalProps {
     isOpen: boolean;
@@ -128,15 +129,11 @@ function DepartmentModal({ isOpen, onClose, department, onSave }: DepartmentModa
 export function DepartmentsPanel() {
     const queryClient = useQueryClient();
     const { t } = useTranslation(['admin', 'common']);
-    const [showInactive, setShowInactive] = useState(false);
-    const [modalOpen, setModalOpen] = useState(false);
-    const [editingDept, setEditingDept] = useState<DepartmentHubRead | null>(null);
-    const [deleteConfirm, setDeleteConfirm] = useState<DepartmentHubRead | null>(null);
-    const [actionErrorKey, setActionErrorKey] = useState<string | null>(null);
+    const panel = useRiskHubConfigPanelState<DepartmentHubRead>();
 
     const { data: departments, isLoading } = useQuery({
-        queryKey: ['departments', showInactive],
-        queryFn: () => riskHubApi.getDepartments(showInactive),
+        queryKey: ['departments', panel.showInactive],
+        queryFn: () => riskHubApi.getDepartments(panel.showInactive),
     });
     const { data: riskHubCapabilities } = useRiskHubCapabilities();
     const canCreate = riskHubCapabilityEnabled(riskHubCapabilities?.departments, 'can_create');
@@ -162,20 +159,20 @@ export function DepartmentsPanel() {
     });
 
     const handleSave = async (data: DepartmentHubCreate | DepartmentHubUpdate) => {
-        if (editingDept) {
-            await updateMutation.mutateAsync({ id: editingDept.id, data: data as DepartmentHubUpdate });
+        if (panel.editingItem) {
+            await updateMutation.mutateAsync({ id: panel.editingItem.id, data: data as DepartmentHubUpdate });
         } else {
             await createMutation.mutateAsync(data as DepartmentHubCreate);
         }
     };
 
     const handleDelete = async () => {
-        if (deleteConfirm) {
+        if (panel.deleteConfirm) {
             try {
-                await deleteMutation.mutateAsync(deleteConfirm.id);
-                setDeleteConfirm(null);
+                await deleteMutation.mutateAsync(panel.deleteConfirm.id);
+                panel.closeDelete();
             } catch (error: unknown) {
-                setActionErrorKey(apiClient.toUiMessageKey(error));
+                panel.setActionErrorKey(apiClient.toUiMessageKey(error));
             }
         }
     };
@@ -186,10 +183,10 @@ export function DepartmentsPanel() {
 
     return (
         <div className="space-y-4">
-            {actionErrorKey && (
+            {panel.actionErrorKey && (
                 <div className="flex items-center gap-2 text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
                     <AlertCircle className="h-4 w-4" />
-                    {t(actionErrorKey, { ns: 'errorKeys' })}
+                    {t(panel.actionErrorKey, { ns: 'errorKeys' })}
                 </div>
             )}
             <div className="flex items-center justify-between">
@@ -202,8 +199,8 @@ export function DepartmentsPanel() {
                     <label className="flex items-center gap-2 text-sm text-slate-400">
                         <input
                             type="checkbox"
-                            checked={showInactive}
-                            onChange={(e) => setShowInactive(e.target.checked)}
+                            checked={panel.showInactive}
+                            onChange={(e) => panel.setShowInactive(e.target.checked)}
                             className="rounded border-white/20 bg-white/5 text-accent focus:ring-accent"
                         />
                         {t('admin:departments_panel.show_deleted')}
@@ -211,7 +208,7 @@ export function DepartmentsPanel() {
 
                     {canCreate ? (
                         <button
-                            onClick={() => { setEditingDept(null); setModalOpen(true); }}
+                            onClick={panel.openCreate}
                             className="flex items-center gap-2 px-3 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors"
                         >
                             <Plus className="h-4 w-4" />
@@ -292,7 +289,7 @@ export function DepartmentsPanel() {
                                 <td className="py-3 px-4 text-right">
                                     <div className="flex items-center justify-end gap-2">
                                         <button
-                                            onClick={() => { setEditingDept(dept); setModalOpen(true); }}
+                                            onClick={() => panel.openEdit(dept)}
                                             className={cn(
                                                 "p-1.5 rounded transition-colors",
                                                 canUpdate
@@ -308,7 +305,7 @@ export function DepartmentsPanel() {
 
                                         {canDelete && (
                                             <button
-                                                onClick={() => setDeleteConfirm(dept)}
+                                                onClick={() => panel.requestDelete(dept)}
                                                 className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"
                                                 title={t('common:actions.delete')}
                                                 aria-label={t('common:actions.delete')}
@@ -338,54 +335,54 @@ export function DepartmentsPanel() {
 
             {/* Create/Edit Modal */}
             <DepartmentModal
-                isOpen={modalOpen}
-                onClose={() => { setModalOpen(false); setEditingDept(null); }}
-                department={editingDept}
+                isOpen={panel.modalOpen}
+                onClose={panel.closeModal}
+                department={panel.editingItem}
                 onSave={handleSave}
             />
 
             {/* Delete Confirmation */}
-            {deleteConfirm && (
+            {panel.deleteConfirm && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
                     <div className="bg-slate-900 border border-white/10 shadow-2xl rounded-2xl w-full max-w-sm p-6">
                         <h3 className="text-lg font-bold text-white mb-2">{t('confirmations.delete_department')}</h3>
                         <div className="text-slate-400 text-sm mb-4">
-                            {t('admin:departments_panel.delete_confirm', { name: deleteConfirm.name })}
-                            {(deleteConfirm.user_count > 0
-                                || deleteConfirm.risk_count > 0
-                                || deleteConfirm.control_count > 0
-                                || deleteConfirm.kri_count > 0
-                                || deleteConfirm.vendor_count > 0
-                                || deleteConfirm.pending_orphan_count > 0) && (
+                            {t('admin:departments_panel.delete_confirm', { name: panel.deleteConfirm.name })}
+                            {(panel.deleteConfirm.user_count > 0
+                                || panel.deleteConfirm.risk_count > 0
+                                || panel.deleteConfirm.control_count > 0
+                                || panel.deleteConfirm.kri_count > 0
+                                || panel.deleteConfirm.vendor_count > 0
+                                || panel.deleteConfirm.pending_orphan_count > 0) && (
                                 <div className="mt-3 p-3 bg-red-500/10 border border-red-500/20 rounded-lg space-y-1 text-red-400 text-xs">
                                     <div className="flex items-center gap-2 font-bold">
                                         <AlertCircle className="h-4 w-4" />
                                         {t('admin:departments_panel.delete_blocked_title')}
                                     </div>
                                     <ul className="list-disc list-inside ml-1">
-                                        {deleteConfirm.user_count > 0 && <li>{t('admin:departments_panel.linked_counts.users', { count: deleteConfirm.user_count })}</li>}
-                                        {deleteConfirm.risk_count > 0 && <li>{t('admin:departments_panel.linked_counts.risks', { count: deleteConfirm.risk_count })}</li>}
-                                        {deleteConfirm.control_count > 0 && <li>{t('admin:departments_panel.linked_counts.controls', { count: deleteConfirm.control_count })}</li>}
-                                        {deleteConfirm.kri_count > 0 && <li>{t('admin:departments_panel.linked_counts.kris', { count: deleteConfirm.kri_count })}</li>}
-                                        {deleteConfirm.vendor_count > 0 && <li>{t('admin:departments_panel.linked_counts.vendors', { count: deleteConfirm.vendor_count })}</li>}
-                                        {deleteConfirm.pending_orphan_count > 0 && <li>{t('admin:departments_panel.linked_counts.pending_orphans', { count: deleteConfirm.pending_orphan_count })}</li>}
+                                        {panel.deleteConfirm.user_count > 0 && <li>{t('admin:departments_panel.linked_counts.users', { count: panel.deleteConfirm.user_count })}</li>}
+                                        {panel.deleteConfirm.risk_count > 0 && <li>{t('admin:departments_panel.linked_counts.risks', { count: panel.deleteConfirm.risk_count })}</li>}
+                                        {panel.deleteConfirm.control_count > 0 && <li>{t('admin:departments_panel.linked_counts.controls', { count: panel.deleteConfirm.control_count })}</li>}
+                                        {panel.deleteConfirm.kri_count > 0 && <li>{t('admin:departments_panel.linked_counts.kris', { count: panel.deleteConfirm.kri_count })}</li>}
+                                        {panel.deleteConfirm.vendor_count > 0 && <li>{t('admin:departments_panel.linked_counts.vendors', { count: panel.deleteConfirm.vendor_count })}</li>}
+                                        {panel.deleteConfirm.pending_orphan_count > 0 && <li>{t('admin:departments_panel.linked_counts.pending_orphans', { count: panel.deleteConfirm.pending_orphan_count })}</li>}
                                     </ul>
                                 </div>
                             )}
                         </div>
                         <div className="flex justify-end gap-3">
                             <button
-                                onClick={() => setDeleteConfirm(null)}
+                                onClick={panel.closeDelete}
                                 className="px-4 py-2 text-slate-400 hover:text-white transition-colors"
                             >
                                 {t('common:actions.cancel')}
                             </button>
-                            {deleteConfirm.user_count === 0
-                                && deleteConfirm.risk_count === 0
-                                && deleteConfirm.control_count === 0
-                                && deleteConfirm.kri_count === 0
-                                && deleteConfirm.vendor_count === 0
-                                && deleteConfirm.pending_orphan_count === 0 && (
+                            {panel.deleteConfirm.user_count === 0
+                                && panel.deleteConfirm.risk_count === 0
+                                && panel.deleteConfirm.control_count === 0
+                                && panel.deleteConfirm.kri_count === 0
+                                && panel.deleteConfirm.vendor_count === 0
+                                && panel.deleteConfirm.pending_orphan_count === 0 && (
                                 <button
                                     onClick={handleDelete}
                                     className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"

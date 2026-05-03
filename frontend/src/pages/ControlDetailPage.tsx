@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -12,11 +12,8 @@ import {
     RotateCcw
 } from 'lucide-react';
 import { controlApi } from '@/services/controlApi';
-import { riskApi } from '@/services/riskApi';
-import type { Control, ControlRiskLink } from '@/types/control';
+import type { Control } from '@/types/control';
 import { ControlStatus } from '@/types/control';
-import type { ControlEffectiveness } from '@/types/risk';
-import type { Risk } from '@/types/risk';
 import { ExecutionHistory } from '@/components/executions/ExecutionHistory';
 import { ExecutionLogModal } from '@/components/executions/ExecutionLogModal';
 import { ArchiveConfirmDialog } from '@/components/ArchiveConfirmDialog';
@@ -26,13 +23,10 @@ import { getControlMonitoringMeta } from '@/lib/monitoringStatus';
 import { apiClient } from '@/services/apiClient';
 import { ControlDetailOverviewTab } from '@/pages/controls/ControlDetailOverviewTab';
 import { ContextualIssueAction } from '@/pages/detail/ContextualIssueAction';
-import { DetailActionBanner, type DetailActionMessage } from '@/pages/detail/DetailActionBanner';
-import { useArchiveRestoreAction } from '@/pages/detail/useArchiveRestoreAction';
+import { DetailActionBanner } from '@/pages/detail/DetailActionBanner';
 import { useDetailResource } from '@/pages/detail/useDetailResource';
 import { ReadAccessDeniedState } from '@/pages/shared/ReadAccessDeniedState';
-import { logError } from '@/services/logger';
-
-type TabView = 'overview' | 'history';
+import { useControlDetailWorkflow } from '@/pages/controls/useControlDetailWorkflow';
 
 export function ControlDetailPage() {
     const { id } = useParams<{ id: string }>();
@@ -40,20 +34,6 @@ export function ControlDetailPage() {
     const location = useLocation();
     const { t } = useTranslation(['common', 'controls', 'errorKeys']);
     const { t: tIssues } = useTranslation('issues');
-    const [linkedRisks, setLinkedRisks] = useState<ControlRiskLink[]>([]);
-    const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
-    const [isLogModalOpen, setIsLogModalOpen] = useState(false);
-    const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
-    const [historyKey, setHistoryKey] = useState(0);
-    const [activeTab, setActiveTab] = useState<TabView>('overview');
-    const [selectedRisk, setSelectedRisk] = useState<Risk | null>(null);
-    const [isRiskModalOpen, setIsRiskModalOpen] = useState(false);
-    const [isLoadingRisk, setIsLoadingRisk] = useState(false);
-    const [linkedRisksErrorKey, setLinkedRisksErrorKey] = useState<string | null>(null);
-    const [linkErrorKey, setLinkErrorKey] = useState<string | null>(null);
-    const [approvalMessage, setApprovalMessage] = useState<DetailActionMessage | null>(null);
-    const [isIssueModalOpen, setIsIssueModalOpen] = useState(false);
-
     const loadControl = useCallback((controlId: number) => controlApi.getControl(controlId), []);
     const {
         errorKey,
@@ -68,98 +48,16 @@ export function ControlDetailPage() {
         toErrorKey: (error) => apiClient.toUiMessageKey(error),
     });
 
-    const { runArchive, runRestore } = useArchiveRestoreAction({
-        setMessage: setApprovalMessage,
-        toErrorKey: (error) => apiClient.toUiMessageKey(error),
-    });
+    const workflow = useControlDetailWorkflow({ control, controlId, fetchControl, navigate });
 
     useEffect(() => {
         const flash = (location.state as { controlFlash?: { message: string; tone: 'warn' } } | null)?.controlFlash;
         if (!flash) {
             return;
         }
-        setApprovalMessage({ key: flash.message, isError: false });
+        workflow.setApprovalMessage({ key: flash.message, isError: false });
         void navigate(location.pathname, { replace: true });
-    }, [location.pathname, location.state, navigate]);
-
-    const fetchLinkedRisks = useCallback(async () => {
-        if (controlId === null) return;
-
-        try {
-            const riskData = await controlApi.getLinkedRisks(controlId);
-            setLinkedRisks(riskData);
-            setLinkedRisksErrorKey(null);
-        } catch (err) {
-            logError('Error fetching linked risks:', err);
-            setLinkedRisksErrorKey('controls:detail.linked_risks_load_failed');
-        }
-    }, [controlId]);
-
-    useEffect(() => {
-        void fetchLinkedRisks();
-    }, [fetchLinkedRisks]);
-
-    const handleArchive = async (reason: string) => {
-        if (!control) return;
-        await runArchive({
-            archive: () => controlApi.deleteControl(control.id, reason),
-            approvalKey: 'controls:detail.archive_approval_submitted',
-            closeDialog: () => setIsArchiveDialogOpen(false),
-            onImmediate: () => navigate('/controls'),
-        });
-    };
-
-    const handleRestore = async () => {
-        if (!control) return;
-        await runRestore({
-            restore: () => controlApi.restoreControl(control.id),
-            successKey: 'controls:detail.control_restored',
-            onRestored: async () => {
-                await fetchControl();
-                await fetchLinkedRisks();
-            },
-        });
-    };
-
-    const handleLinkRisk = async (riskId: number, effectiveness: ControlEffectiveness, notes?: string) => {
-        if (!control) return;
-        setLinkErrorKey(null);
-        try {
-            await controlApi.linkRisk(control.id, { risk_id: riskId, effectiveness, notes });
-            const riskData = await controlApi.getLinkedRisks(control.id);
-            setLinkedRisks(riskData);
-        } catch (err) {
-            logError('Linking failed:', err);
-            setLinkErrorKey(apiClient.toUiMessageKey(err));
-        }
-    };
-
-    const handleUnlinkRisk = async (riskId: number) => {
-        if (!control) return;
-        setLinkErrorKey(null);
-        try {
-            await controlApi.unlinkRisk(control.id, riskId);
-            const riskData = await controlApi.getLinkedRisks(control.id);
-            setLinkedRisks(riskData);
-        } catch (err) {
-            logError('Unlinking failed:', err);
-            setLinkErrorKey(apiClient.toUiMessageKey(err));
-        }
-    };
-
-    const handleRiskClick = async (riskId: number, e: React.MouseEvent) => {
-        e.stopPropagation();
-        setIsLoadingRisk(true);
-        try {
-            const risk = await riskApi.getRisk(riskId);
-            setSelectedRisk(risk);
-            setIsRiskModalOpen(true);
-        } catch (err) {
-            logError('Failed to fetch risk details:', err);
-        } finally {
-            setIsLoadingRisk(false);
-        }
-    };
+    }, [location.pathname, location.state, navigate, workflow]);
 
     if (isLoading) {
         return (
@@ -194,8 +92,8 @@ export function ControlDetailPage() {
         );
     }
 
-    const activeLinkedRisks = linkedRisks.filter((link) => link.risk?.status !== 'archived');
-    const archivedLinkedRisks = linkedRisks.filter((link) => link.risk?.status === 'archived');
+    const activeLinkedRisks = workflow.linkedRisks.filter((link) => link.risk?.status !== 'archived');
+    const archivedLinkedRisks = workflow.linkedRisks.filter((link) => link.risk?.status === 'archived');
     const monitoring = getControlMonitoringMeta(control.monitoring_status);
     const MonitoringIcon = monitoring.icon;
     const canUpdateControl = resolveCapabilityFlag(control.capabilities, 'can_update');
@@ -218,12 +116,12 @@ export function ControlDetailPage() {
     return (
         <div className="space-y-8">
             {/* Approval/Error Message Banner */}
-            {approvalMessage && (
+            {workflow.approvalMessage && (
                 <DetailActionBanner
                     approvalsLabel={t('navigation:tabs.approvals')}
-                    message={approvalMessage}
-                    messageText={actionMessageText(approvalMessage.key)}
-                    onClose={() => setApprovalMessage(null)}
+                    message={workflow.approvalMessage}
+                    messageText={actionMessageText(workflow.approvalMessage.key)}
+                    onClose={() => workflow.setApprovalMessage(null)}
                     onNavigateApprovals={() => navigate('/approvals')}
                     pendingText={t('controls:detail.view_pending_approvals')}
                     sectionSuffix={t('controls:detail.section_suffix')}
@@ -260,10 +158,10 @@ export function ControlDetailPage() {
                         contextEntityId={control.id}
                         contextEntityLabel={control.name}
                         contextEntityType="control"
-                        isOpen={isIssueModalOpen}
-                        onClose={() => setIsIssueModalOpen(false)}
+                        isOpen={workflow.isIssueModalOpen}
+                        onClose={() => workflow.setIsIssueModalOpen(false)}
                         onCreated={(issue) => navigate(`/issues/${issue.id}`)}
-                        onOpen={() => setIsIssueModalOpen(true)}
+                        onOpen={() => workflow.setIsIssueModalOpen(true)}
                     />
                     {/* Edit button: show for controls:write OR control owner */}
                     {canUpdateControl && (
@@ -277,7 +175,7 @@ export function ControlDetailPage() {
                     )}
                     {control.status === ControlStatus.ARCHIVED ? (
                         canRestoreControl && <button
-                            onClick={handleRestore}
+                            onClick={workflow.handleRestore}
                             className="p-3 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-emerald-400 hover:border-emerald-400/50 transition-all"
                             title={t('controls:actions.unarchive')}
                         >
@@ -285,7 +183,7 @@ export function ControlDetailPage() {
                         </button>
                     ) : (
                         canArchiveControl && <button
-                            onClick={() => setIsArchiveDialogOpen(true)}
+                            onClick={() => workflow.setIsArchiveDialogOpen(true)}
                             className="p-3 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-rose-400 hover:border-rose-400/50 transition-all"
                         >
                             <Trash2 className="h-5 w-5" />
@@ -297,8 +195,8 @@ export function ControlDetailPage() {
             {/* Tabs */}
             <div className="flex items-center gap-2 border-b border-white/10">
                 <button
-                    onClick={() => setActiveTab('overview')}
-                    className={`px-6 py-3 font-bold transition-all ${activeTab === 'overview'
+                    onClick={() => workflow.setActiveTab('overview')}
+                    className={`px-6 py-3 font-bold transition-all ${workflow.activeTab === 'overview'
                         ? 'text-accent border-b-2 border-accent'
                         : 'text-slate-500 hover:text-white'
                         }`}
@@ -306,8 +204,8 @@ export function ControlDetailPage() {
                     <Target className="h-4 w-4 inline mr-2" />{t('controls:tabs.overview')}
                 </button>
                 <button
-                    onClick={() => setActiveTab('history')}
-                    className={`px-6 py-3 font-bold transition-all ${activeTab === 'history'
+                    onClick={() => workflow.setActiveTab('history')}
+                    className={`px-6 py-3 font-bold transition-all ${workflow.activeTab === 'history'
                         ? 'text-accent border-b-2 border-accent'
                         : 'text-slate-500 hover:text-white'
                         }`}
@@ -317,34 +215,31 @@ export function ControlDetailPage() {
             </div>
 
             {/* Overview Tab */}
-            {activeTab === 'overview' && (
+            {workflow.activeTab === 'overview' && (
                 <ControlDetailOverviewTab
                     control={control}
                     t={t}
-                    linkedRisks={linkedRisks}
+                    linkedRisks={workflow.linkedRisks}
                     activeLinkedRisks={activeLinkedRisks}
                     archivedLinkedRisks={archivedLinkedRisks}
                     canLinkRisk={canLinkRisk}
                     canUnlinkRisk={canUnlinkRisk}
-                    linkErrorKey={linkErrorKey}
-                    linkedRisksErrorKey={linkedRisksErrorKey}
-                    isLinkDialogOpen={isLinkDialogOpen}
-                    selectedRisk={selectedRisk}
-                    isRiskModalOpen={isRiskModalOpen}
-                    onOpenLinkDialog={() => setIsLinkDialogOpen(true)}
-                    onCloseLinkDialog={() => setIsLinkDialogOpen(false)}
-                    onLinkRisk={handleLinkRisk}
-                    onUnlinkRisk={handleUnlinkRisk}
-                    onRiskClick={handleRiskClick}
-                    onCloseRiskModal={() => {
-                        setIsRiskModalOpen(false);
-                        setSelectedRisk(null);
-                    }}
+                    linkErrorKey={workflow.linkErrorKey}
+                    linkedRisksErrorKey={workflow.linkedRisksErrorKey}
+                    isLinkDialogOpen={workflow.isLinkDialogOpen}
+                    selectedRisk={workflow.selectedRisk}
+                    isRiskModalOpen={workflow.isRiskModalOpen}
+                    onOpenLinkDialog={() => workflow.setIsLinkDialogOpen(true)}
+                    onCloseLinkDialog={() => workflow.setIsLinkDialogOpen(false)}
+                    onLinkRisk={workflow.handleLinkRisk}
+                    onUnlinkRisk={workflow.handleUnlinkRisk}
+                    onRiskClick={workflow.handleRiskClick}
+                    onCloseRiskModal={workflow.closeRiskModal}
                 />
             )}
 
             {/* History Tab */}
-            {activeTab === 'history' && (
+            {workflow.activeTab === 'history' && (
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -357,7 +252,7 @@ export function ControlDetailPage() {
                         </h3>
                         {canLogExecution && (
                             <button
-                                onClick={() => setIsLogModalOpen(true)}
+                                onClick={() => workflow.setIsLogModalOpen(true)}
                                 className="px-4 py-2 bg-accent/10 border border-accent/20 rounded-xl text-accent text-[10px] font-black uppercase tracking-widest hover:bg-accent hover:text-white transition-all flex items-center gap-2 group-hover:shadow-lg group-hover:shadow-accent/30"
                             >
                                 <Plus className="h-3.5 w-3.5" />
@@ -367,7 +262,7 @@ export function ControlDetailPage() {
                     </div>
 
                     <ExecutionHistory
-                        key={historyKey}
+                        key={workflow.historyKey}
                         controlId={control.id}
                         controlName={control.name}
                         canCreateIssue={canCreateIssue}
@@ -378,27 +273,24 @@ export function ControlDetailPage() {
             )}
 
             <ExecutionLogModal
-                isOpen={isLogModalOpen}
-                onClose={() => setIsLogModalOpen(false)}
+                isOpen={workflow.isLogModalOpen}
+                onClose={() => workflow.setIsLogModalOpen(false)}
                 controlId={control.id}
                 controlName={control.name}
-                onSuccess={() => {
-                    setHistoryKey((prev) => prev + 1);
-                    void fetchControl();
-                }}
+                onSuccess={workflow.handleExecutionLogged}
             />
 
             <ArchiveConfirmDialog
-                isOpen={isArchiveDialogOpen}
-                onClose={() => setIsArchiveDialogOpen(false)}
-                onConfirm={handleArchive}
+                isOpen={workflow.isArchiveDialogOpen}
+                onClose={() => workflow.setIsArchiveDialogOpen(false)}
+                onConfirm={workflow.handleArchive}
                 resourceType="control"
                 resourceName={control.name}
             />
 
             {/* Global Loading Overlay for Risk Fetching */}
             <AnimatePresence>
-                {isLoadingRisk && (
+                {workflow.isLoadingRisk && (
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}

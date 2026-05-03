@@ -6,7 +6,7 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import ControlRiskLink, Department, IssueLink, Risk, User
+from app.models import Control, ControlRiskLink, Department, Issue, IssueLink, KeyRiskIndicator, Risk, User
 
 
 def _group_by_value(groups: list[dict], value: str) -> dict | None:
@@ -162,6 +162,107 @@ async def test_risks_grouped_contract_returns_summary_and_drilldown(
 
 
 @pytest.mark.asyncio
+async def test_risks_grouped_summary_does_not_serialize_all_rows(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    test_department: Department,
+    test_user: User,
+    seed_risk_types,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    risk = Risk(
+        risk_id_code="GRP-BOUNDED-SUMMARY-001",
+        name="Bounded Summary Risk",
+        process="Bounded Summary Process",
+        description="Risk proves grouped summaries do not serialize rows",
+        department_id=test_department.id,
+        owner_id=test_user.id,
+        risk_type="operational",
+        category="Bounded Summary Category",
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=2,
+        status="active",
+    )
+    db_session.add(risk)
+    await db_session.commit()
+
+    def fail_risk_summary(*args, **kwargs):
+        raise AssertionError("group summaries should not serialize risk rows")
+
+    monkeypatch.setattr("app.api.v1.endpoints.risks.crud.list.risk_to_summary", fail_risk_summary)
+
+    response = await auth_client.get(
+        "/api/v1/risks",
+        params={"offset": 0, "limit": 10, "group_by": "category"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["items"] == []
+    assert _group_by_value(payload["groups"], "Bounded Summary Category") is not None
+
+
+@pytest.mark.asyncio
+async def test_risks_grouped_drilldown_serializes_only_requested_page(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    test_department: Department,
+    test_user: User,
+    seed_risk_types,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    risks = [
+        Risk(
+            risk_id_code=f"GRP-BOUNDED-DRILL-{index:03d}",
+            name=f"Bounded Drill Risk {index}",
+            process="Bounded Drill Process",
+            description="Risk proves grouped drilldowns serialize only the page",
+            department_id=test_department.id,
+            owner_id=test_user.id,
+            risk_type="operational",
+            category="Bounded Drill Category",
+            gross_probability=3,
+            gross_impact=3,
+            net_probability=2,
+            net_impact=2,
+            status="active",
+        )
+        for index in range(3)
+    ]
+    db_session.add_all(risks)
+    await db_session.commit()
+
+    from app.api.mappers.risk import risk_to_summary as original_risk_to_summary
+
+    serialized_ids: list[int] = []
+
+    def spy_risk_summary(risk, *args, **kwargs):
+        serialized_ids.append(risk.id)
+        return original_risk_to_summary(risk, *args, **kwargs)
+
+    monkeypatch.setattr("app.api.v1.endpoints.risks.crud.list.risk_to_summary", spy_risk_summary)
+
+    response = await auth_client.get(
+        "/api/v1/risks",
+        params={
+            "offset": 1,
+            "limit": 1,
+            "group_by": "category",
+            "group_value": "Bounded Drill Category",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert len(payload["items"]) == 1
+    assert payload["total"] == 3
+    assert len(serialized_ids) == 1
+    assert serialized_ids == [payload["items"][0]["id"]]
+
+
+@pytest.mark.asyncio
 async def test_controls_grouped_contract_returns_summary_and_drilldown(
     auth_client: AsyncClient,
     db_session: AsyncSession,
@@ -287,6 +388,89 @@ async def test_controls_grouped_contract_returns_summary_and_drilldown(
 
 
 @pytest.mark.asyncio
+async def test_controls_grouped_summary_does_not_serialize_all_rows(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    test_department: Department,
+    test_user: User,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    control = Control(
+        name="Bounded Control Summary",
+        description="Control proves grouped summaries do not serialize rows",
+        department_id=test_department.id,
+        control_owner_id=test_user.id,
+        control_form="manual",
+        frequency="daily",
+        risk_level=5,
+        status="active",
+    )
+    db_session.add(control)
+    await db_session.commit()
+
+    async def fail_control_capabilities(*args, **kwargs):
+        raise AssertionError("control group summaries should not serialize control rows")
+
+    monkeypatch.setattr("app.api.v1.endpoints.controls.crud.list.control_capabilities", fail_control_capabilities)
+
+    response = await auth_client.get(
+        "/api/v1/controls",
+        params={"offset": 0, "limit": 10, "group_by": "category"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["items"] == []
+    assert _group_by_value(payload["groups"], "manual") is not None
+
+
+@pytest.mark.asyncio
+async def test_controls_grouped_drilldown_serializes_only_requested_page(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    test_department: Department,
+    test_user: User,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    controls = [
+        Control(
+            name=f"Bounded Control Drill {index}",
+            description="Control proves grouped drilldowns serialize only requested page",
+            department_id=test_department.id,
+            control_owner_id=test_user.id,
+            control_form="manual",
+            frequency="daily",
+            risk_level=5,
+            status="active",
+        )
+        for index in range(3)
+    ]
+    db_session.add_all(controls)
+    await db_session.commit()
+
+    serialized_control_ids: list[int] = []
+    from app.services.authorization_capabilities import control_capabilities as original_control_capabilities
+
+    async def spy_control_capabilities(_db, *, current_user, control):
+        serialized_control_ids.append(control.id)
+        return await original_control_capabilities(_db, current_user=current_user, control=control)
+
+    monkeypatch.setattr("app.api.v1.endpoints.controls.crud.list.control_capabilities", spy_control_capabilities)
+
+    response = await auth_client.get(
+        "/api/v1/controls",
+        params={"offset": 1, "limit": 1, "group_by": "category", "group_value": "manual"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert len(payload["items"]) == 1
+    assert payload["total"] == 3
+    assert len(serialized_control_ids) == 1
+    assert serialized_control_ids == [payload["items"][0]["id"]]
+
+
+@pytest.mark.asyncio
 async def test_issues_grouped_contract_uses_risk_contexts_for_category_drilldown(
     auth_client: AsyncClient,
     db_session: AsyncSession,
@@ -354,6 +538,208 @@ async def test_issues_grouped_contract_uses_risk_contexts_for_category_drilldown
     drilldown = drilldown_response.json()
     assert any(item["id"] == issue_id for item in drilldown["items"])
     assert _group_by_value(drilldown["groups"], "Grouped Issue Category") is not None
+
+
+@pytest.mark.asyncio
+async def test_issues_grouped_summary_does_not_serialize_all_rows(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    test_department: Department,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    issue = Issue(
+        title="Bounded Issue Summary",
+        description="Issue proves grouped summaries do not serialize rows",
+        severity="critical",
+        status="open",
+        department_id=test_department.id,
+        source_type="manual",
+    )
+    db_session.add(issue)
+    await db_session.commit()
+
+    async def fail_issue_capabilities(*args, **kwargs):
+        raise AssertionError("issue group summaries should not serialize issue rows")
+
+    monkeypatch.setattr("app.api.v1.endpoints.issues.crud.list.issue_capabilities", fail_issue_capabilities)
+
+    response = await auth_client.get(
+        "/api/v1/issues",
+        params={"offset": 0, "limit": 10, "group_by": "department"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["items"] == []
+    assert _group_by_value(payload["groups"], test_department.name) is not None
+
+
+@pytest.mark.asyncio
+async def test_issues_grouped_drilldown_serializes_only_requested_page(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    test_department: Department,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    issues = [
+        Issue(
+            title=f"Bounded Issue Drill {index}",
+            description="Issue proves grouped drilldowns serialize only requested page",
+            severity="critical",
+            status="open",
+            department_id=test_department.id,
+            source_type="manual",
+        )
+        for index in range(3)
+    ]
+    db_session.add_all(issues)
+    await db_session.commit()
+
+    serialized_issue_ids: list[int] = []
+    from app.services.authorization_capabilities import issue_capabilities as original_issue_capabilities
+
+    async def spy_issue_capabilities(_db, *, current_user, issue):
+        serialized_issue_ids.append(issue.id)
+        return await original_issue_capabilities(_db, current_user=current_user, issue=issue)
+
+    monkeypatch.setattr("app.api.v1.endpoints.issues.crud.list.issue_capabilities", spy_issue_capabilities)
+
+    response = await auth_client.get(
+        "/api/v1/issues",
+        params={"offset": 1, "limit": 1, "group_by": "department", "group_value": test_department.name},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert len(payload["items"]) == 1
+    assert payload["total"] == 3
+    assert len(serialized_issue_ids) == 1
+    assert serialized_issue_ids == [payload["items"][0]["id"]]
+
+
+@pytest.mark.asyncio
+async def test_kris_grouped_summary_does_not_serialize_all_rows(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    test_department: Department,
+    test_user: User,
+    seed_risk_types,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    risk = Risk(
+        risk_id_code="GRP-KRI-SUMMARY-RISK-001",
+        name="Bounded KRI Summary Risk",
+        process="Bounded KRI Process",
+        description="Risk linked to bounded KRI summary",
+        department_id=test_department.id,
+        owner_id=test_user.id,
+        risk_type="operational",
+        category="Bounded KRI Category",
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=2,
+        status="active",
+    )
+    db_session.add(risk)
+    await db_session.flush()
+    db_session.add(
+        KeyRiskIndicator(
+            risk_id=risk.id,
+            metric_name="Bounded KRI Summary",
+            description="KRI proves grouped summaries do not serialize rows",
+            current_value=50.0,
+            lower_limit=0.0,
+            upper_limit=100.0,
+            unit="%",
+            frequency="monthly",
+        )
+    )
+    await db_session.commit()
+
+    async def fail_kri_capabilities(*args, **kwargs):
+        raise AssertionError("KRI group summaries should not serialize KRI rows")
+
+    monkeypatch.setattr("app.api.v1.endpoints.kris.crud.list.kri_capabilities", fail_kri_capabilities)
+
+    response = await auth_client.get(
+        "/api/v1/kris",
+        params={"offset": 0, "limit": 10, "group_by": "category"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["items"] == []
+    assert _group_by_value(payload["groups"], "Bounded KRI Category") is not None
+
+
+@pytest.mark.asyncio
+async def test_kris_grouped_drilldown_serializes_only_requested_page(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    test_department: Department,
+    test_user: User,
+    seed_risk_types,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    risk = Risk(
+        risk_id_code="GRP-KRI-DRILL-RISK-001",
+        name="Bounded KRI Drill Risk",
+        process="Bounded KRI Drill Process",
+        description="Risk linked to bounded KRI drilldowns",
+        department_id=test_department.id,
+        owner_id=test_user.id,
+        risk_type="operational",
+        category="Bounded KRI Drill Category",
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=2,
+        status="active",
+    )
+    db_session.add(risk)
+    await db_session.flush()
+    kris = [
+        KeyRiskIndicator(
+            risk_id=risk.id,
+            metric_name=f"Bounded KRI Drill {index}",
+            description="KRI proves grouped drilldowns serialize only requested page",
+            current_value=50.0,
+            lower_limit=0.0,
+            upper_limit=100.0,
+            unit="%",
+            frequency="monthly",
+        )
+        for index in range(3)
+    ]
+    db_session.add_all(kris)
+    await db_session.commit()
+
+    serialized_kri_ids: list[int] = []
+    from app.services.authorization_capabilities import kri_capabilities as original_kri_capabilities
+
+    async def spy_kri_capabilities(_db, *, current_user, kri):
+        serialized_kri_ids.append(kri.id)
+        return await original_kri_capabilities(_db, current_user=current_user, kri=kri)
+
+    monkeypatch.setattr("app.api.v1.endpoints.kris.crud.list.kri_capabilities", spy_kri_capabilities)
+
+    response = await auth_client.get(
+        "/api/v1/kris",
+        params={
+            "offset": 1,
+            "limit": 1,
+            "group_by": "category",
+            "group_value": "Bounded KRI Drill Category",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert len(payload["items"]) == 1
+    assert payload["total"] == 3
+    assert len(serialized_kri_ids) == 1
+    assert serialized_kri_ids == [payload["items"][0]["id"]]
 
 
 @pytest.mark.asyncio

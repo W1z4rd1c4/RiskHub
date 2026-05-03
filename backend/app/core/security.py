@@ -1,5 +1,5 @@
 import logging
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 from typing import Any, Iterable, Optional
 
 import jwt
@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.config import Settings, get_settings
+from app.core.datetime_utils import utc_now
 from app.core.permissions import ensure_business_view_access, has_permission
 from app.db.session import get_db
 from app.models import Role, RolePermission, User
@@ -63,7 +64,7 @@ def create_access_token(
     """
     active_settings = settings or get_settings()
     to_encode = data.copy()
-    expire = datetime.now(UTC) + (expires_delta or timedelta(minutes=active_settings.access_token_expire_minutes))
+    expire = utc_now() + (expires_delta or timedelta(minutes=active_settings.access_token_expire_minutes))
     to_encode.update(
         {
             "type": ACCESS_TOKEN_TYPE,

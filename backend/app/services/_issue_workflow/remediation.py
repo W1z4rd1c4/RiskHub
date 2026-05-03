@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime
 
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.activity_logger import build_change_set, log_activity
-from app.core.datetime_utils import coerce_utc
+from app.core.datetime_utils import coerce_utc, utc_now
 from app.models import Issue, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.models.issue import IssueRemediationStatus, IssueStatus
@@ -125,7 +125,7 @@ async def update_progress(
         remediation_updates["completion_notes"] = completion_notes
 
     if target_status == IssueRemediationStatus.completed.value or progress_percent == 100:
-        now = datetime.now(UTC)
+        now = utc_now()
         remediation_updates.update(_completion_updates(remediation, now))
 
     remediation_changes = build_change_set(remediation, remediation_updates)

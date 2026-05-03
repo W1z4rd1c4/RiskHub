@@ -10,12 +10,20 @@ from app.core.permissions import can_read_issue_id
 from app.models import Issue, NotificationType, Permission, Role, RolePermission, User
 from app.models.user import AccessScope
 from app.services.notification_service import NotificationService
+from app.services.outbox.errors import OutboxDependencyError
 from app.services.outbox.handlers.common import get_active_user_with_permissions
 from app.services.outbox.payloads import (
     IssueAssignedPayload,
     IssueExceptionApprovedPayload,
     IssueExceptionRequestedPayload,
 )
+
+
+async def _create_issue_notification(**kwargs) -> None:
+    try:
+        await NotificationService.create_notification(**kwargs)
+    except ConnectionError as exc:
+        raise OutboxDependencyError(str(exc)) from exc
 
 
 async def _load_issue(db: AsyncSession, issue_id: int) -> Issue | None:
@@ -34,7 +42,7 @@ async def handle_issue_assigned(db: AsyncSession, payload: IssueAssignedPayload)
     if recipient is None or not await can_read_issue_id(db, recipient, issue.id):
         return
 
-    await NotificationService.create_notification(
+    await _create_issue_notification(
         db=db,
         user_id=payload.owner_user_id,
         notification_type=NotificationType.ISSUE_ASSIGNED,
@@ -74,7 +82,7 @@ async def handle_issue_exception_requested(db: AsyncSession, payload: IssueExcep
         recipient = await get_active_user_with_permissions(db, recipient_id)
         if recipient is None or not await can_read_issue_id(db, recipient, issue.id):
             continue
-        await NotificationService.create_notification(
+        await _create_issue_notification(
             db=db,
             user_id=recipient.id,
             notification_type=NotificationType.ISSUE_EXCEPTION_REQUESTED,
@@ -100,7 +108,7 @@ async def handle_issue_exception_approved(db: AsyncSession, payload: IssueExcept
         recipient = await get_active_user_with_permissions(db, user_id)
         if recipient is None or not await can_read_issue_id(db, recipient, issue.id):
             continue
-        await NotificationService.create_notification(
+        await _create_issue_notification(
             db=db,
             user_id=user_id,
             notification_type=NotificationType.ISSUE_EXCEPTION_APPROVED,

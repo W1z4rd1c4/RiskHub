@@ -3,15 +3,23 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from install_lib.common import InstallPaths, SharedOptions, command_exists, curl_ok, port_listening, production_public_url, run_command
+from install_lib.common import (
+    InstallPaths,
+    SharedOptions,
+    command_exists,
+    curl_ok,
+    port_listening,
+    run_command,
+)
 from install_lib.production import summary_demo, summary_dev, summary_production_lifecycle, verify_demo, verify_dev
 from install_lib.runtime_state import (
     docker_container_state,
-    load_install_state,
     production_status_payload,
     rebuild_install_state_from_live,
     resolve_production_target,
 )
+
+LOCAL_ARTIFACT_WARNING_BYTES = 100 * 1024 * 1024
 
 
 def _write_secret_placeholder(secret_path: Path) -> None:
@@ -21,6 +29,34 @@ def _write_secret_placeholder(secret_path: Path) -> None:
         "redis_password": "replace-with-redis-password\n",
     }
     secret_path.write_text(placeholders.get(secret_path.name, "replace-me\n"), encoding="utf-8")
+
+
+def _bounded_tree_size(path: Path, *, limit_bytes: int) -> int:
+    if not path.exists():
+        return 0
+    total = 0
+    for child in path.rglob("*"):
+        if not child.is_file():
+            continue
+        try:
+            total += child.stat().st_size
+        except OSError:
+            continue
+        if total >= limit_bytes:
+            return total
+    return total
+
+
+def _append_local_artifact_findings(paths: InstallPaths, findings: list[str], actions: list[str]) -> None:
+    artifact_checks = (
+        ("local_backend_logs_oversized", paths.repo_root / "backend" / "logs", "rm -rf backend/logs/*"),
+        ("local_test_results_oversized", paths.repo_root / "tests" / "results", "rm -rf tests/results/*"),
+    )
+    for finding, path, cleanup_command in artifact_checks:
+        if _bounded_tree_size(path, limit_bytes=LOCAL_ARTIFACT_WARNING_BYTES) < LOCAL_ARTIFACT_WARNING_BYTES:
+            continue
+        findings.append(finding)
+        actions.append(f"optional local cleanup: {cleanup_command}")
 
 
 def run_doctor(
@@ -42,6 +78,7 @@ def run_doctor(
     deep_check = "not_run"
 
     payload: dict
+    _append_local_artifact_findings(paths, findings, actions)
 
     if mode == "demo":
         if not command_exists("docker"):
@@ -197,8 +234,23 @@ def run_doctor(
 
         if repair:
             if not config_path.exists():
-                actions.append(f"{paths.deploy_script} init --target {resolved_target} --config {config_path} --secret-dir {secret_dir}")
-                run_command([paths.deploy_script, "init", "--target", resolved_target, "--config", str(config_path), "--secret-dir", str(secret_dir)], options=options)
+                actions.append(
+                    f"{paths.deploy_script} init --target {resolved_target} "
+                    f"--config {config_path} --secret-dir {secret_dir}"
+                )
+                run_command(
+                    [
+                        paths.deploy_script,
+                        "init",
+                        "--target",
+                        resolved_target,
+                        "--config",
+                        str(config_path),
+                        "--secret-dir",
+                        str(secret_dir),
+                    ],
+                    options=options,
+                )
             actions.append(f"ensure runtime/scaffold directories at {secret_dir} and {runtime_dir}")
             if not options.dry_run:
                 secret_dir.mkdir(parents=True, exist_ok=True)
@@ -219,14 +271,34 @@ def run_doctor(
 
             if resolved_target == "docker":
                 actions.append("restart docker managed resources")
-                for container_name in ("riskhub-redis", "riskhub-backend", "riskhub-backend-scheduler", "riskhub-frontend"):
+                for container_name in (
+                    "riskhub-redis",
+                    "riskhub-backend",
+                    "riskhub-backend-scheduler",
+                    "riskhub-frontend",
+                ):
                     if docker_container_state(container_name) != "missing":
                         run_command(["docker", "restart", container_name], options=options)
 
             actions.append(f"{paths.deploy_script} status --target {resolved_target}")
-            actions.append(f"{paths.deploy_script} smoke --target {resolved_target} --config {config_path} --secret-dir {secret_dir}")
+            actions.append(
+                f"{paths.deploy_script} smoke --target {resolved_target} "
+                f"--config {config_path} --secret-dir {secret_dir}"
+            )
             run_command([paths.deploy_script, "status", "--target", resolved_target], options=options)
-            run_command([paths.deploy_script, "smoke", "--target", resolved_target, "--config", str(config_path), "--secret-dir", str(secret_dir)], options=options)
+            run_command(
+                [
+                    paths.deploy_script,
+                    "smoke",
+                    "--target",
+                    resolved_target,
+                    "--config",
+                    str(config_path),
+                    "--secret-dir",
+                    str(secret_dir),
+                ],
+                options=options,
+            )
             if not options.dry_run:
                 rebuild_install_state_from_live(
                     paths,

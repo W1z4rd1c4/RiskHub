@@ -6,6 +6,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.datetime_utils import utc_now
 from app.models.activity_log import ActivityAction, ActivityEntityType, ActivityLog
 from app.models.kri_history import KRIValueHistory
 
@@ -17,7 +18,7 @@ class ExportSnapshotService:
 
     @staticmethod
     def as_of_cutoff(as_of_date: date | None) -> datetime:
-        target_date = as_of_date or datetime.now(UTC).date()
+        target_date = as_of_date or utc_now().date()
         return datetime.combine(target_date, time.max).replace(tzinfo=UTC)
 
     @staticmethod
@@ -33,7 +34,7 @@ class ExportSnapshotService:
         Reverse-replay changes newer than as_of cutoff.
         """
         cutoff = ExportSnapshotService.as_of_cutoff(as_of_date)
-        now = datetime.now(UTC)
+        now = utc_now()
         if cutoff >= now or not rows:
             return rows
 
@@ -87,7 +88,7 @@ class ExportSnapshotService:
         as_of_date: date | None,
         id_key: str = "id",
     ) -> list[dict[str, Any]]:
-        target_date = as_of_date or datetime.now(UTC).date()
+        target_date = as_of_date or utc_now().date()
         kri_ids = [int(row[id_key]) for row in rows if row.get(id_key) is not None]
         if not kri_ids:
             return rows

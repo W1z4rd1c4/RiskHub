@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime
 
 from sqlalchemy import exists, select
 from sqlalchemy.sql.elements import ColumnElement
 
-from app.core.datetime_utils import coerce_utc
+from app.core.datetime_utils import coerce_utc, utc_now
 from app.models.issue import Issue, IssueException, IssueExceptionStatus
 
 
@@ -20,12 +20,12 @@ def issue_has_active_approved_exception(issue: Issue, now: datetime) -> bool:
 
 
 def unsuppressed_issue_clause(now: datetime) -> ColumnElement[bool]:
-    utc_now = coerce_utc(now) or datetime.now(UTC)
+    utc_now_value = coerce_utc(now) or utc_now()
     return ~exists(
         select(IssueException.id).where(
             IssueException.issue_id == Issue.id,
             IssueException.status == IssueExceptionStatus.approved.value,
             IssueException.expires_at.is_not(None),
-            IssueException.expires_at > utc_now,
+            IssueException.expires_at > utc_now_value,
         )
     )

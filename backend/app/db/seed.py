@@ -1,13 +1,14 @@
 """Seed script to populate database with initial data."""
 
 import asyncio
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 from typing import Any, cast
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
+from app.core.datetime_utils import utc_now
 from app.db.rbac_seed_contract import (
     RBAC_PERMISSIONS as PERMISSIONS,
 )
@@ -235,7 +236,7 @@ async def seed_controls_and_risks(db: AsyncSession):
     # Create sample executions for first 3 controls
     for i, control in enumerate(controls[:3]):
         for days_ago in [30, 15, 0]:
-            exec_time = datetime.now(UTC) - timedelta(days=days_ago)
+            exec_time = utc_now() - timedelta(days=days_ago)
             execution = ControlExecution(
                 control_id=control.id,
                 executed_by_id=admin_user.id if admin_user else None,

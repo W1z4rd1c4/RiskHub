@@ -1,7 +1,7 @@
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import func, or_, select
+from sqlalchemy import String, case, func, literal, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -12,6 +12,7 @@ from app.api.v1.endpoints._collection import (
     coerce_optional_enum,
     coerce_optional_int,
     coerce_optional_string,
+    is_group_summary_request,
     merge_collection_filters,
     parse_collection_query,
 )
@@ -23,7 +24,9 @@ from app.core.datetime_utils import utc_now
 from app.core.permissions import can_read_vendor, visible_risk_ids
 from app.core.security import check_permission, require_permission
 from app.db.session import get_db
-from app.models import Control, ControlRiskLink, Risk, User, VendorControlLink
+from app.models import Control, ControlRiskLink, Risk, User, Vendor, VendorControlLink
+from app.models.department import Department
+from app.schemas.collection import CollectionGroupRead
 from app.schemas.control import (
     ControlFormEnum,
     ControlListResponse,
@@ -45,6 +48,7 @@ CONTROL_GROUP_UNKNOWN_DEPARTMENT = "__unknown_department__"
 CONTROL_GROUP_NO_PROCESS = "__no_process__"
 CONTROL_GROUP_UNKNOWN_RISK_TYPE = "__unknown_risk_type__"
 CONTROL_GROUP_UNKNOWN_RISK = "__unknown_risk__"
+CONTROL_SQL_GROUPS = {"category", "department", "process", "risk", "risk_type", "type", "vendor"}
 
 
 def _group_value(value) -> str:
@@ -88,6 +92,143 @@ def _control_group_entries(control: ControlSummary, group_by: str) -> list[Colle
         ]
 
     return []
+
+
+def _count_distinct_control_if(condition):
+    return func.count(func.distinct(case((condition, Control.id))))
+
+
+async def _load_control_sql_groups(
+    db: AsyncSession,
+    filtered_ids,
+    group_by: str,
+    *,
+    can_read_vendors: bool,
+) -> list[CollectionGroupRead]:
+    active_expr = Control.status == ControlStatusEnum.active.value
+    highlighted_expr = Control.risk_level >= 4
+    meta_expr = None
+
+    if group_by == "category":
+        value_expr = func.coalesce(Control.control_form, CONTROL_GROUP_UNCATEGORIZED)
+        label_expr = value_expr
+        from_clause = Control
+    elif group_by == "department":
+        value_expr = func.coalesce(Department.name, CONTROL_GROUP_UNKNOWN_DEPARTMENT)
+        label_expr = value_expr
+        from_clause = Control
+    elif group_by == "process":
+        value_expr = func.coalesce(Risk.process, CONTROL_GROUP_NO_PROCESS)
+        label_expr = value_expr
+        from_clause = Control
+    elif group_by in {"risk_type", "type"}:
+        value_expr = func.coalesce(Risk.risk_type, CONTROL_GROUP_UNKNOWN_RISK_TYPE)
+        label_expr = value_expr
+        from_clause = Control
+    elif group_by == "risk":
+        value_expr = func.coalesce(Risk.name, CONTROL_GROUP_UNKNOWN_RISK)
+        label_expr = value_expr
+        meta_expr = {
+            "risk_type": func.coalesce(Risk.risk_type, ""),
+            "risk_department_name": func.coalesce(Department.name, ""),
+            "risk_owner_name": literal(""),
+        }
+        from_clause = Control
+    elif group_by == "vendor" and can_read_vendors:
+        value_expr = literal("vendor:") + func.cast(Vendor.id, String)
+        label_expr = Vendor.name
+        from_clause = Control
+    elif group_by == "vendor":
+        value_expr = literal(CONTROL_GROUP_UNLINKED_VENDOR)
+        label_expr = value_expr
+        from_clause = Control
+    else:
+        return []
+
+    selected_columns = [
+        value_expr.label("value"),
+        label_expr.label("label"),
+        func.count(func.distinct(Control.id)).label("count"),
+        _count_distinct_control_if(active_expr).label("active_count"),
+        _count_distinct_control_if(highlighted_expr).label("highlighted_count"),
+    ]
+    if isinstance(meta_expr, dict):
+        selected_columns.extend(expr.label(key) for key, expr in meta_expr.items())
+
+    query = (
+        select(*selected_columns)
+        .select_from(from_clause)
+        .join(filtered_ids, filtered_ids.c.id == Control.id)
+    )
+
+    if group_by == "department":
+        query = query.outerjoin(Department, Department.id == Control.department_id)
+    elif group_by in {"process", "risk_type", "type", "risk"}:
+        query = query.join(ControlRiskLink, ControlRiskLink.control_id == Control.id).join(
+            Risk, Risk.id == ControlRiskLink.risk_id
+        )
+        if group_by == "risk":
+            query = query.outerjoin(Department, Department.id == Risk.department_id)
+    elif group_by == "vendor" and can_read_vendors:
+        query = query.join(VendorControlLink, VendorControlLink.control_id == Control.id).join(
+            Vendor, Vendor.id == VendorControlLink.vendor_id
+        )
+
+    group_columns = [value_expr, label_expr]
+    if isinstance(meta_expr, dict):
+        group_columns.extend(meta_expr.values())
+    query = query.group_by(*group_columns).order_by(func.lower(label_expr))
+
+    groups = []
+    for row in (await db.execute(query)).all():
+        meta = {}
+        if isinstance(meta_expr, dict):
+            meta = {key: getattr(row, key, "") for key in meta_expr}
+        groups.append(
+            CollectionGroupRead(
+                value=str(row.value),
+                label=str(row.label),
+                count=row.count,
+                active_count=row.active_count,
+                highlighted_count=row.highlighted_count,
+                meta=meta,
+            )
+        )
+    return groups
+
+
+def _control_group_filter(group_by: str, group_value: str):
+    if group_by == "category":
+        return func.coalesce(Control.control_form, CONTROL_GROUP_UNCATEGORIZED) == group_value
+    if group_by == "department":
+        return func.coalesce(Department.name, CONTROL_GROUP_UNKNOWN_DEPARTMENT) == group_value
+    if group_by == "process":
+        return Control.id.in_(
+            select(ControlRiskLink.control_id)
+            .join(Risk, Risk.id == ControlRiskLink.risk_id)
+            .where(func.coalesce(Risk.process, CONTROL_GROUP_NO_PROCESS) == group_value)
+        )
+    if group_by in {"risk_type", "type"}:
+        return Control.id.in_(
+            select(ControlRiskLink.control_id)
+            .join(Risk, Risk.id == ControlRiskLink.risk_id)
+            .where(func.coalesce(Risk.risk_type, CONTROL_GROUP_UNKNOWN_RISK_TYPE) == group_value)
+        )
+    if group_by == "risk":
+        return Control.id.in_(
+            select(ControlRiskLink.control_id)
+            .join(Risk, Risk.id == ControlRiskLink.risk_id)
+            .where(func.coalesce(Risk.name, CONTROL_GROUP_UNKNOWN_RISK) == group_value)
+        )
+    if group_by == "vendor" and group_value.startswith("vendor:"):
+        try:
+            vendor_id = int(group_value.removeprefix("vendor:"))
+        except ValueError:
+            return Control.id.is_(None)
+        return Control.id.in_(select(VendorControlLink.control_id).where(VendorControlLink.vendor_id == vendor_id))
+    if group_by == "vendor" and group_value == CONTROL_GROUP_UNLINKED_VENDOR:
+        return ~Control.id.in_(select(VendorControlLink.control_id))
+    return None
 
 
 @router.get("", response_model=ControlListResponse)
@@ -164,8 +305,6 @@ async def list_controls(
 
     # Join for secondary search fields (Risk via ControlRiskLink)
     from sqlalchemy.orm import aliased
-
-    from app.models.department import Department
 
     RiskDept = aliased(Department)
 
@@ -323,6 +462,40 @@ async def list_controls(
         return _control_group_entries(control, group_by)
 
     ordered_query = filtered_query.options(*query_options).order_by(Control.name)
+
+    if collection_query.group_by and collection_query.group_by in CONTROL_SQL_GROUPS:
+        filtered_ids = filtered_query.with_only_columns(Control.id).order_by(None).subquery()
+        groups = await _load_control_sql_groups(
+            db,
+            filtered_ids,
+            collection_query.group_by,
+            can_read_vendors=can_read_vendors,
+        )
+        if is_group_summary_request(collection_query):
+            return ControlListResponse(
+                items=[],
+                total=total,
+                offset=offset,
+                limit=limit,
+                groups=groups,
+                capabilities=collection_capabilities,
+            )
+
+        group_filter = _control_group_filter(collection_query.group_by, collection_query.group_value or "")
+        grouped_query = ordered_query.where(group_filter) if group_filter is not None else ordered_query
+        grouped_total = (
+            await db.execute(select(func.count()).select_from(grouped_query.order_by(None).subquery()))
+        ).scalar() or 0
+        result = await db.execute(grouped_query.offset(offset).limit(limit))
+        paginated_items = await serialize_controls(list(result.scalars().all()))
+        return ControlListResponse(
+            items=paginated_items,
+            total=grouped_total,
+            offset=offset,
+            limit=limit,
+            groups=groups,
+            capabilities=collection_capabilities,
+        )
 
     if collection_query.group_by:
         result = await db.execute(ordered_query)

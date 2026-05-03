@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import subprocess
 import sys
 from pathlib import Path
 
@@ -13,6 +14,119 @@ sys.modules[SPEC.name] = MODULE
 SPEC.loader.exec_module(MODULE)
 CommandResult = MODULE.CommandResult
 ReleaseParityAudit = MODULE.ReleaseParityAudit
+DECISION_MODULE = importlib.import_module("release_parity_audit.decision")
+REPORTING_MODULE = importlib.import_module("release_parity_audit.reporting")
+evaluate_findings_and_decision = DECISION_MODULE.evaluate_findings_and_decision
+build_report = REPORTING_MODULE.build_report
+build_run_status = REPORTING_MODULE.build_run_status
+matrix_payload = REPORTING_MODULE.matrix_payload
+
+
+def test_release_parity_audit_py_direct_help_executes() -> None:
+    result = subprocess.run(
+        [sys.executable, str(REPO_ROOT / "scripts" / "security" / "release_parity_audit" / "audit.py"), "--help"],
+        cwd=REPO_ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "Run release parity audit" in result.stdout
+    assert "--skip-prod-readiness" in result.stdout
+
+
+def test_release_parity_run_records_public_command_result_type(tmp_path: Path) -> None:
+    audit = ReleaseParityAudit("test-public-command-result", run_prod_readiness=False)
+    audit.logs_dir = tmp_path
+
+    audit._run("noop", "true", required=False)
+
+    assert len(audit.command_results) == 1
+    assert isinstance(audit.command_results[0], CommandResult)
+
+
+def test_release_parity_reporting_module_preserves_report_sections(tmp_path: Path) -> None:
+    report = build_report(
+        run_id="test-report",
+        decision={"decision": "GO"},
+        required_failures=0,
+        baseline={"git_branch": "main", "git_sha": "abc123"},
+        findings=[],
+        artifact_root=tmp_path,
+        fingerprints_dir=tmp_path / "fingerprints",
+        deps_dir=tmp_path / "deps",
+        ui_dir=tmp_path / "ui",
+    )
+
+    assert "# Release Parity Audit (test-report)" in report
+    assert "- Decision: **GO**" in report
+    assert "## Evidence Map" in report
+
+
+def test_release_parity_report_status_and_matrix_modules_keep_json_shape(tmp_path: Path) -> None:
+    result = CommandResult(
+        command_id="noop",
+        command="true",
+        cwd=str(tmp_path),
+        required=False,
+        rc=0,
+        start_utc="2026-03-18T00:00:00+00:00",
+        end_utc="2026-03-18T00:00:01+00:00",
+        duration_sec=1.0,
+        log_path=str(tmp_path / "noop.log"),
+        timeout_sec=None,
+    )
+
+    status = build_run_status(
+        run_id="test-status",
+        generated_at_utc="2026-03-18T00:00:01+00:00",
+        decision={"decision": "GO"},
+        required_failures=0,
+        artifact_root=tmp_path,
+        matrix_path=tmp_path / "matrix.json",
+    )
+
+    assert matrix_payload([result]) == [result.to_json()]
+    assert status["status"] == "complete"
+    assert status["decision"] == "GO"
+
+
+def test_release_parity_decision_module_preserves_invalid_environment_decision(tmp_path: Path) -> None:
+    findings, decision = evaluate_findings_and_decision(
+        run_id="test-invalid-env-module",
+        baseline={"git_sha": "abc123", "git_branch": "main"},
+        runtime_fingerprints=[
+            {
+                "startup_path_id": "dev_sh_full",
+                "context_id": "dev_sh_full",
+                "git_sha_expected": "abc123",
+                "git_sha_observed": "abc123",
+                "launch_failed": True,
+                "launch_rc": 1,
+                "launch_log": "/tmp/dev.log",
+                "launch_failure": {
+                    "classification": "environment_contamination",
+                    "code": "unexpected_port_owner",
+                    "summary": "A required local port was owned by an unexpected process on the audit host.",
+                },
+            }
+        ],
+        static_resolution={"ci_runtime_policy": {"node_versions": ["24"]}, "dev_startup": {}},
+        toolchain_fingerprint={"dev_sh_effective_node": {"selected": True, "major": 24}},
+        dep_diffs={"backend_drift": [], "frontend_drift": []},
+        ui_parity={"mismatches_same_auth_mode_same_commit": []},
+        required_failures=1,
+        artifact_root=tmp_path,
+        deps_dir=tmp_path / "deps",
+        fingerprints_dir=tmp_path / "fingerprints",
+        ui_dir=tmp_path / "ui",
+        iso_now=lambda: "2026-03-18T00:00:01+00:00",
+    )
+
+    assert decision["decision"] == "INVALID_ENVIRONMENT"
+    assert decision["finding_counts"]["ENV"] == 2
+    assert any(item["severity"] == "ENV" for item in findings)
 
 
 def test_launch_failure_fingerprint_classifies_unexpected_port_owner_as_environment_contamination(

@@ -4,10 +4,11 @@ import asyncio
 import hashlib
 import importlib
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from typing import Any
 
 from app.core.config import EntraConfidentialCredential, Settings
+from app.core.datetime_utils import utc_now
 from app.core.outbound_guard import OutboundRequestError, guard_resolved_outbound_url
 from app.services.graph_directory_errors import (
     GraphCredentialError,
@@ -64,7 +65,7 @@ class GraphAccessTokenProvider:
             credential_fingerprint=self._settings.entra_credential_fingerprint,
         )
         cache_entry = _GRAPH_TOKEN_CACHE.setdefault(cache_key, _GraphTokenCacheEntry())
-        now = datetime.now(UTC)
+        now = utc_now()
         if cache_entry.token and cache_entry.expiry and now < cache_entry.expiry - timedelta(seconds=60):
             self._token = cache_entry.token
             self._token_expiry = cache_entry.expiry
@@ -81,7 +82,7 @@ class GraphAccessTokenProvider:
             raise GraphProviderUnavailableError(str(exc)) from exc
 
         async with cache_entry.lock:
-            now = datetime.now(UTC)
+            now = utc_now()
             if cache_entry.token and cache_entry.expiry and now < cache_entry.expiry - timedelta(seconds=60):
                 self._token = cache_entry.token
                 self._token_expiry = cache_entry.expiry

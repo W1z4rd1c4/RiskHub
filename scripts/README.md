@@ -80,3 +80,4 @@ make -f scripts/Makefile security-contract-probe
 
 Security probe outputs are written under `tests/results/security/`.
 Documentation audit outputs are written under `tests/results/docs/`.
+Local doctor checks warn when ignored local artifacts such as `backend/logs/` or `tests/results/` grow beyond the maintenance budget. Use `rm -rf backend/logs/* tests/results/*` when those artifacts are no longer needed.

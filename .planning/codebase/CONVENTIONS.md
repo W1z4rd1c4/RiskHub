@@ -41,7 +41,7 @@
 - Centralized fetch wrapper in `frontend/src/services/apiClient.ts`
 - Runtime response schemas are domain-split under `frontend/src/services/api/schemas/entities/`; keep public aggregate exports stable from the schema index.
 - Auth state and permissions sourced from `AuthContext` (`frontend/src/contexts/AuthContext.tsx`)
-- UI authorization gates via `PermissionGate` and `usePermissions` (`frontend/src/components/PermissionGate.tsx`, `frontend/src/hooks/usePermissions.ts`)
+- UI authorization gates use `useAuthz` for route/read projections, `usePermissions` only as compatibility session hints, and backend capability metadata for protected actions (`frontend/src/authz/useAuthz.ts`, `frontend/src/hooks/usePermissions.ts`)
 - User-facing UI must not render raw numeric database IDs as fallback labels; prefer names, codes, titles, or `Unknown <entity>` text.
 - Public component imports may stay as compatibility facades while large pages are split into workflow hooks and focused sections; new work should import the focused modules when it owns the area.
 - Entra ID SSO support via MSAL (`frontend/src/services/entraAuth.ts`, `frontend/src/pages/SsoCallbackPage.tsx`)

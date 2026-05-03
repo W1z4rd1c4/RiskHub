@@ -21,6 +21,7 @@ from app.core.scheduler import (
     get_scheduler_role_status,
     start_scheduler_async,
 )
+from app.core.scheduler_errors import FatalSchedulerJobError
 from app.core.settings import Settings
 from app.models.outbox_event import OutboxEvent
 from app.models.scheduler_job_run import SchedulerJobRun
@@ -290,6 +291,33 @@ async def test_execute_tracked_job_records_failure(async_engine: AsyncEngine, is
         assert len(rows) == 1
         assert rows[0].status == "failed"
         assert rows[0].error_message == "boom"
+
+
+@pytest.mark.asyncio
+async def test_execute_tracked_job_records_expected_failure_category(
+    async_engine: AsyncEngine,
+    isolated_scheduler,
+) -> None:
+    async def failing_job() -> None:
+        raise FatalSchedulerJobError("source data invalid")
+
+    with pytest.raises(FatalSchedulerJobError, match="source data invalid"):
+        await execute_tracked_job("test_expected_failure_job", failing_job)
+
+    async_session = async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
+    async with async_session() as session:
+        rows = (
+            (
+                await session.execute(
+                    select(SchedulerJobRun).where(SchedulerJobRun.job_name == "test_expected_failure_job")
+                )
+            )
+            .scalars()
+            .all()
+        )
+        assert len(rows) == 1
+        assert rows[0].status == "failed"
+        assert rows[0].error_message == "[expected:fatal] source data invalid"
 
 
 @pytest.mark.asyncio

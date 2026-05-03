@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
-
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.activity_logger import build_change_set, log_activity
+from app.core.datetime_utils import utc_now
 from app.models import Issue, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.models.issue import IssueStatus
@@ -27,7 +26,7 @@ async def close_issue(
     if issue.status != IssueStatus.ready_for_validation.value:
         _conflict(f"Issue must be ready_for_validation before closing (current={issue.status})")
 
-    now = datetime.now(UTC)
+    now = utc_now()
     issue_updates = {
         "status": IssueStatus.closed.value,
         "closed_at": now,

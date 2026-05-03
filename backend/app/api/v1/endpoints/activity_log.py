@@ -1,13 +1,13 @@
 """Activity Log API endpoints."""
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import String, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.datetime_utils import coerce_utc
+from app.core.datetime_utils import coerce_utc, utc_now
 from app.core.permissions import get_user_department_ids, has_permission
 from app.core.security import require_business_permission
 from app.db.session import get_db
@@ -92,7 +92,7 @@ async def list_activity_logs(
         query = query.where(ActivityLog.action == action)
     if search:
         if not date_from and not date_to:
-            date_from = datetime.now(UTC) - timedelta(days=90)
+            date_from = utc_now() - timedelta(days=90)
         pattern = f"%{search}%"
         query = query.where(
             or_(

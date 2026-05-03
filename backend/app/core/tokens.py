@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import secrets
 from collections.abc import Iterable
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from typing import Any
 from uuid import uuid4
 
@@ -13,6 +13,7 @@ from starlette.responses import Response
 
 from app.core.client_ip import resolve_request_client_ip
 from app.core.config import Settings
+from app.core.datetime_utils import utc_now
 
 REFRESH_TOKEN_TYPE = "refresh"
 REFRESH_TOKEN_AUDIENCE = "riskhub-refresh"
@@ -38,7 +39,7 @@ def create_refresh_token(
     settings: Settings,
     expires_delta: timedelta | None = None,
 ) -> tuple[str, datetime]:
-    expires_at = datetime.now(UTC) + (expires_delta or refresh_token_lifetime(settings))
+    expires_at = utc_now() + (expires_delta or refresh_token_lifetime(settings))
     payload: dict[str, Any] = {
         "type": REFRESH_TOKEN_TYPE,
         "aud": REFRESH_TOKEN_AUDIENCE,

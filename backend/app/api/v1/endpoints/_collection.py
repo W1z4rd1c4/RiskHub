@@ -96,6 +96,10 @@ def merge_collection_filters(
     return defaults | query.filters
 
 
+def is_group_summary_request(query: CollectionQuery) -> bool:
+    return query.group_by is not None and not query.group_value
+
+
 def coerce_optional_enum[E: Enum](enum_cls: type[E], value: Any, field_name: str) -> E | None:
     if value is None or value == "":
         return None

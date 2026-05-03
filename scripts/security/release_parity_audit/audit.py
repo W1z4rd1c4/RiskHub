@@ -7,10 +7,19 @@ Generates evidence artifacts under:
 
 from __future__ import annotations
 
-import argparse
-import hashlib
-import json
 import os
+import sys
+
+if __package__ in {None, ""}:
+    _PACKAGE_DIR = os.path.dirname(os.path.abspath(__file__))
+    _PACKAGE_PARENT = os.path.dirname(_PACKAGE_DIR)
+    if sys.path and os.path.abspath(sys.path[0]) == _PACKAGE_DIR:
+        sys.path.pop(0)
+    if _PACKAGE_PARENT not in sys.path:
+        sys.path.insert(0, _PACKAGE_PARENT)
+
+import argparse
+import json
 import re
 import shlex
 import shutil
@@ -18,13 +27,17 @@ import signal
 import subprocess
 import tempfile
 import time
-from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
+from release_parity_audit.artifacts import sha256_file, write_json, write_text
+from release_parity_audit.command_runner import run_command
+from release_parity_audit.decision import evaluate_findings_and_decision
+from release_parity_audit.reporting import build_report, build_run_status, matrix_payload
+from release_parity_audit.types import CommandResult
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 
@@ -48,34 +61,6 @@ CORE_FRONTEND_PACKAGES = [
     "@vitejs/plugin-react",
     "typescript",
 ]
-
-
-@dataclass
-class CommandResult:
-    command_id: str
-    command: str
-    cwd: str
-    required: bool
-    rc: int
-    start_utc: str
-    end_utc: str
-    duration_sec: float
-    log_path: str
-    timeout_sec: int | None
-
-    def to_json(self) -> dict[str, Any]:
-        return {
-            "id": self.command_id,
-            "command": self.command,
-            "cwd": self.cwd,
-            "required": self.required,
-            "rc": self.rc,
-            "start_utc": self.start_utc,
-            "end_utc": self.end_utc,
-            "duration_sec": self.duration_sec,
-            "log": self.log_path,
-            "timeout_sec": self.timeout_sec,
-        }
 
 
 class ReleaseParityAudit:
@@ -128,10 +113,10 @@ class ReleaseParityAudit:
         return ts.isoformat()
 
     def _write_json(self, path: Path, payload: Any) -> None:
-        path.write_text(json.dumps(payload, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
+        write_json(path, payload)
 
     def _write_text(self, path: Path, text: str) -> None:
-        path.write_text(text, encoding="utf-8")
+        write_text(path, text)
 
     def _run(
         self,
@@ -143,56 +128,19 @@ class ReleaseParityAudit:
         timeout_sec: int | None = None,
         env: dict[str, str] | None = None,
     ) -> CommandResult:
-        cwd = cwd or ROOT_DIR
-        start = self._utc_now()
-        start_epoch = time.time()
-        log_path = self.logs_dir / f"{command_id}.log"
-        run_env = os.environ.copy()
-        if env:
-            run_env.update(env)
-
-        rc = 124
-        output = ""
-        timed_out = False
-        try:
-            completed = subprocess.run(
-                ["bash", "-c", command],
-                cwd=str(cwd),
-                env=run_env,
-                text=True,
-                capture_output=True,
-                timeout=timeout_sec,
-                check=False,
-            )
-            rc = completed.returncode
-            output = (completed.stdout or "") + (completed.stderr or "")
-        except subprocess.TimeoutExpired as exc:
-            timed_out = True
-            rc = 124
-            output = (exc.stdout or "") + (exc.stderr or "")
-
-        end = self._utc_now()
-        end_epoch = time.time()
-        duration = round(end_epoch - start_epoch, 3)
-        log_body = f"$ {command}\n\n{output}"
-        if timed_out:
-            log_body += f"\n\n[TIMEOUT] command exceeded {timeout_sec}s\n"
-        self._write_text(log_path, log_body)
-
-        result = CommandResult(
-            command_id=command_id,
-            command=command,
-            cwd=str(cwd),
+        result = run_command(
+            command_id,
+            command,
+            cwd=cwd or ROOT_DIR,
+            logs_dir=self.logs_dir,
             required=required,
-            rc=rc,
-            start_utc=self._iso(start),
-            end_utc=self._iso(end),
-            duration_sec=duration,
-            log_path=str(log_path),
             timeout_sec=timeout_sec,
+            env=env,
+            utc_now=self._utc_now,
+            iso=self._iso,
         )
         self.command_results.append(result)
-        if required and rc != 0:
+        if required and result.rc != 0:
             self.required_failures += 1
         return result
 
@@ -220,11 +168,7 @@ class ReleaseParityAudit:
         return False
 
     def _sha256_file(self, path: Path) -> str:
-        digest = hashlib.sha256()
-        with path.open("rb") as handle:
-            for chunk in iter(lambda: handle.read(65536), b""):
-                digest.update(chunk)
-        return digest.hexdigest()
+        return sha256_file(path)
 
     @staticmethod
     def _canonical_package_name(name: str) -> str:
@@ -473,7 +417,11 @@ class ReleaseParityAudit:
                 "docker_tooling_missing",
                 "Docker tooling was unavailable for a Docker-backed startup path.",
             )
-        if "unsupported node.js major" in log_lower or "node.js is required but was not found" in log_lower or "npm is required but was not found" in log_lower:
+        if (
+            "unsupported node.js major" in log_lower
+            or "node.js is required but was not found" in log_lower
+            or "npm is required but was not found" in log_lower
+        ):
             return result(
                 "environment_contamination",
                 "toolchain_mismatch",
@@ -584,7 +532,8 @@ class ReleaseParityAudit:
             + "  await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 45000 });\n"
             + "  await page.waitForLoadState('networkidle', { timeout: 20000 }).catch(() => {});\n"
             + "  await page.waitForSelector('h1:has-text(\"RiskHub\")', { timeout: 30000 });\n"
-            + "  await page.addStyleTag({ content: '* , *::before, *::after { animation: none !important; transition: none !important; }' });\n"
+            + "  await page.addStyleTag({ content: "
+            + "'* , *::before, *::after { animation: none !important; transition: none !important; }' });\n"
             + "  await page.evaluate(async () => {\n"
             + "    if (document.fonts && document.fonts.ready) {\n"
             + "      await document.fonts.ready;\n"
@@ -728,7 +677,10 @@ class ReleaseParityAudit:
                 "id": "deploy_cli_prod_docker",
                 "entrypoint": "scripts/deploy.sh",
                 "mode": "prod_docker",
-                "command": "./scripts/deploy.sh deploy --target docker --config /etc/riskhub/riskhub.env --secret-dir /etc/riskhub/secrets --version <version>",
+                "command": (
+                    "./scripts/deploy.sh deploy --target docker --config /etc/riskhub/riskhub.env "
+                    "--secret-dir /etc/riskhub/secrets --version <version>"
+                ),
                 "type": "runtime",
             },
             {
@@ -844,16 +796,16 @@ class ReleaseParityAudit:
         ci_node_versions = re.findall(r"node-version:\s*'([^']+)'", "\n".join([e2e, lint, security]))
         ci_python_versions = re.findall(r"python-version:\s*'([^']+)'", "\n".join([e2e, lint, security]))
 
-        floating_lines = [line.strip() for line in req_text.splitlines() if ">=" in line and not line.strip().startswith("#")]
+        floating_lines = [
+            line.strip() for line in req_text.splitlines() if ">=" in line and not line.strip().startswith("#")
+        ]
         pinned_lines = [
-            line.strip()
-            for line in req_text.splitlines()
-            if "==" in line and not line.strip().startswith("#")
+            line.strip() for line in req_text.splitlines() if "==" in line and not line.strip().startswith("#")
         ]
 
         self.static_resolution = {
             "dev_startup": {
-                "backend_venv_conditional_install": "requirements.txt\" -nt \"venv/.deps_installed" in dev_sh,
+                "backend_venv_conditional_install": 'requirements.txt" -nt "venv/.deps_installed' in dev_sh,
                 "backend_uses_pip_install_requirements": "pip install -q -r requirements.txt" in dev_sh,
                 "backend_has_layered_requirements": all(
                     (req_root / name).exists()
@@ -879,7 +831,8 @@ class ReleaseParityAudit:
                 "node_versions": sorted(set(ci_node_versions)),
                 "python_versions": sorted(set(ci_python_versions)),
                 "frontend_ci_lockfile_install": "npm ci" in e2e and "npm ci" in lint and "npm ci" in security,
-                "backend_ci_uses_pip_install_requirements": "pip install -r requirements.txt" in e2e or "pip install -r requirements.txt" in lint,
+                "backend_ci_uses_pip_install_requirements": "pip install -r requirements.txt" in e2e
+                or "pip install -r requirements.txt" in lint,
             },
             "evidence": [
                 "scripts/dev.sh:231",
@@ -900,15 +853,9 @@ class ReleaseParityAudit:
         self._write_json(self.artifact_root / "static-resolution.json", self.static_resolution)
 
     def _capture_baseline(self) -> None:
-        git_sha = (
-            subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT_DIR, text=True).strip()
-        )
-        git_branch = (
-            subprocess.check_output(["git", "branch", "--show-current"], cwd=ROOT_DIR, text=True).strip()
-        )
-        git_status = subprocess.check_output(
-            ["git", "status", "--short", "--branch"], cwd=ROOT_DIR, text=True
-        )
+        git_sha = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT_DIR, text=True).strip()
+        git_branch = subprocess.check_output(["git", "branch", "--show-current"], cwd=ROOT_DIR, text=True).strip()
+        git_status = subprocess.check_output(["git", "status", "--short", "--branch"], cwd=ROOT_DIR, text=True)
         self.baseline = {
             "captured_at_utc": self._iso(self._utc_now()),
             "git_sha": git_sha,
@@ -1080,8 +1027,7 @@ class ReleaseParityAudit:
     def _capture_dependencies(self) -> None:
         self._run(
             "deps_backend_local_freeze",
-            "cd backend && ./venv/bin/pip freeze > "
-            + shlex.quote(str(self.deps_dir / "backend-local.txt")),
+            "cd backend && ./venv/bin/pip freeze > " + shlex.quote(str(self.deps_dir / "backend-local.txt")),
             required=False,
             timeout_sec=180,
         )
@@ -1117,8 +1063,7 @@ class ReleaseParityAudit:
 
         self._run(
             "deps_frontend_installed",
-            "cd frontend && npm ls --depth=0 --json > "
-            + shlex.quote(str(self.deps_dir / "frontend-installed.json")),
+            "cd frontend && npm ls --depth=0 --json > " + shlex.quote(str(self.deps_dir / "frontend-installed.json")),
             required=False,
             timeout_sec=180,
         )
@@ -1147,9 +1092,7 @@ class ReleaseParityAudit:
             text = local_file.read_text(encoding="utf-8", errors="replace")
             parsed_versions = self._parse_package_versions(text)
             for package in CRITICAL_BACKEND_PACKAGES:
-                backend_local_versions[package] = parsed_versions.get(
-                    self._canonical_package_name(package)
-                )
+                backend_local_versions[package] = parsed_versions.get(self._canonical_package_name(package))
 
         backend_image_versions: dict[str, str | None] = {}
         image_file = self.deps_dir / "backend-image.txt"
@@ -1157,9 +1100,7 @@ class ReleaseParityAudit:
             text = image_file.read_text(encoding="utf-8", errors="replace")
             parsed_versions = self._parse_package_versions(text)
             for package in CRITICAL_BACKEND_PACKAGES:
-                backend_image_versions[package] = parsed_versions.get(
-                    self._canonical_package_name(package)
-                )
+                backend_image_versions[package] = parsed_versions.get(self._canonical_package_name(package))
 
         frontend_installed_versions: dict[str, str | None] = {}
         installed_file = self.deps_dir / "frontend-installed.json"
@@ -1481,14 +1422,12 @@ class ReleaseParityAudit:
             )
 
     def _ensure_startup_path_runtime_coverage(self) -> None:
-        existing_ids = {
-            str(fp.get("startup_path_id"))
-            for fp in self.runtime_fingerprints
-            if fp.get("startup_path_id")
-        }
+        existing_ids = {str(fp.get("startup_path_id")) for fp in self.runtime_fingerprints if fp.get("startup_path_id")}
         coverage_notes = {
             "dev_sh_backend": "Covered functionally by backend_runtime_dev; direct blocking invocation omitted.",
-            "compose_sh_up_db_only": "Covered functionally by backend_db_runtime_dev; direct infra-only invocation omitted.",
+            "compose_sh_up_db_only": (
+                "Covered functionally by backend_db_runtime_dev; direct infra-only invocation omitted."
+            ),
         }
         for path in self.startup_paths:
             startup_id = path["id"]
@@ -1636,9 +1575,7 @@ class ReleaseParityAudit:
         for key, items in groups.items():
             hashes = {entry["screenshot_sha256"] for entry in items}
             if len(items) > 1 and len(hashes) > 1:
-                state_signatures = {
-                    json.dumps(entry.get("ui_state"), sort_keys=True) for entry in items
-                }
+                state_signatures = {json.dumps(entry.get("ui_state"), sort_keys=True) for entry in items}
                 item_payload = {
                     "group_key": {
                         "auth_mode": key[0],
@@ -1661,315 +1598,52 @@ class ReleaseParityAudit:
         self._write_json(self.ui_dir / "parity.json", self.ui_parity)
 
     def _evaluate_findings_and_decision(self) -> None:
-        findings: list[dict[str, Any]] = []
-
-        baseline_sha = self.baseline.get("git_sha")
-        for fp in self.runtime_fingerprints:
-            observed = fp.get("git_sha_observed")
-            context_id = fp.get("context_id")
-            if observed is not None and baseline_sha is not None and observed != baseline_sha:
-                findings.append(
-                    {
-                        "id": f"P0-git-sha-mismatch-{context_id}",
-                        "severity": "P0",
-                        "classification": "unexpected",
-                        "summary": "Runtime git SHA differs from selected baseline main HEAD.",
-                        "context_id": context_id,
-                        "expected": baseline_sha,
-                        "observed": observed,
-                    }
-                )
-
-        for fp in self.runtime_fingerprints:
-            if not fp.get("launch_failed"):
-                continue
-            startup_path_id = fp.get("startup_path_id", "unknown")
-            failure = fp.get("launch_failure", {})
-            if failure.get("classification") == "environment_contamination":
-                findings.append(
-                    {
-                        "id": f"ENV-startup-path-{startup_path_id}-{failure.get('code', 'unknown')}",
-                        "severity": "ENV",
-                        "classification": "environment_contamination",
-                        "summary": failure.get(
-                            "summary",
-                            "The audit host was not valid evidence for this startup path.",
-                        ),
-                        "startup_path_id": startup_path_id,
-                        "context_id": fp.get("context_id"),
-                        "launch_rc": fp.get("launch_rc"),
-                        "launch_log": fp.get("launch_log"),
-                    }
-                )
-            else:
-                findings.append(
-                    {
-                        "id": f"P1-startup-path-failed-{startup_path_id}",
-                        "severity": "P1",
-                        "classification": "unexpected",
-                        "summary": failure.get(
-                            "summary",
-                            "Startup command failed for this path before parity fingerprints could be captured.",
-                        ),
-                        "startup_path_id": startup_path_id,
-                        "context_id": fp.get("context_id"),
-                        "launch_rc": fp.get("launch_rc"),
-                        "launch_log": fp.get("launch_log"),
-                    }
-                )
-
-        for diff in self.dep_diffs.get("backend_drift", []):
-            findings.append(
-                {
-                    "id": f"P1-backend-dep-drift-{diff['package']}",
-                    "severity": "P1",
-                    "classification": "unexpected",
-                    "summary": "Critical backend dependency differs between local venv and backend image.",
-                    "package": diff["package"],
-                    "local": diff["local"],
-                    "image": diff["image"],
-                    "evidence": [str(self.deps_dir / "backend-local.txt"), str(self.deps_dir / "backend-image.txt")],
-                }
-            )
-
-        if self.ui_parity.get("mismatches_same_auth_mode_same_commit"):
-            findings.append(
-                {
-                    "id": "P1-ui-parity-mismatch",
-                    "severity": "P1",
-                    "classification": "unexpected",
-                    "summary": "UI screenshots differ across contexts with same auth mode, app version, and git SHA.",
-                    "groups": self.ui_parity.get("mismatches_same_auth_mode_same_commit"),
-                    "evidence": [str(self.ui_dir / "parity.json")],
-                }
-            )
-
-        expected_node_major = None
-        node_versions = self.static_resolution.get("ci_runtime_policy", {}).get("node_versions", [])
-        if node_versions:
-            expected_node_major = int(str(node_versions[0]).split(".")[0])
-
-        effective_node = self.toolchain_fingerprint.get("dev_sh_effective_node", {})
-        effective_node_major = effective_node.get("major")
-        if expected_node_major and effective_node_major and effective_node_major != expected_node_major:
-            findings.append(
-                {
-                    "id": "P2-node-major-mismatch",
-                    "severity": "P2",
-                    "classification": "unexpected",
-                    "summary": "Effective Node runtime for scripts/dev.sh differs from the CI/Docker baseline.",
-                    "expected_node_major": expected_node_major,
-                    "observed_node_major": effective_node_major,
-                    "evidence": [str(self.fingerprints_dir / "toolchain.json"), str(self.artifact_root / "static-resolution.json")],
-                }
-            )
-        elif expected_node_major and not effective_node.get("selected"):
-            findings.append(
-                {
-                    "id": "ENV-dev-sh-node-runtime-unavailable",
-                    "severity": "ENV",
-                    "classification": "environment_contamination",
-                    "summary": "scripts/dev.sh could not resolve a Node runtime matching the CI/Docker baseline on this host.",
-                    "expected_node_major": expected_node_major,
-                    "observed_node_major": effective_node_major,
-                    "evidence": [str(self.fingerprints_dir / "toolchain.json"), str(self.fingerprints_dir / "startup-preflight.json")],
-                }
-            )
-
-        dev_startup = self.static_resolution.get("dev_startup", {})
-        if dev_startup.get("frontend_has_npm_install_fallback") and not dev_startup.get(
-            "frontend_prefers_npm_ci_with_lockfile"
-        ):
-            findings.append(
-                {
-                    "id": "P2-dev-frontend-nonreproducible-install",
-                    "severity": "P2",
-                    "classification": "unexpected",
-                    "summary": "scripts/dev.sh uses npm install (not npm ci), which is non-lockfile-reproducible.",
-                    "evidence": ["scripts/dev.sh:231", "scripts/dev.sh:233"],
-                }
-            )
-
-        for diff in self.dep_diffs.get("frontend_drift", []):
-            findings.append(
-                {
-                    "id": f"P2-frontend-lock-drift-{diff['package']}",
-                    "severity": "P2",
-                    "classification": "unexpected",
-                    "summary": "Installed frontend dependency differs from lockfile resolution.",
-                    "package": diff["package"],
-                    "installed": diff["installed"],
-                    "lock": diff["lock"],
-                    "evidence": [str(self.deps_dir / "frontend-installed.json"), str(self.deps_dir / "frontend-lock.json")],
-                }
-            )
-
-        env_only_launch_failures = any(
-            item["classification"] == "environment_contamination" for item in findings
+        self.findings, self.decision = evaluate_findings_and_decision(
+            run_id=self.run_id,
+            baseline=self.baseline,
+            runtime_fingerprints=self.runtime_fingerprints,
+            static_resolution=self.static_resolution,
+            toolchain_fingerprint=self.toolchain_fingerprint,
+            dep_diffs=self.dep_diffs,
+            ui_parity=self.ui_parity,
+            required_failures=self.required_failures,
+            artifact_root=self.artifact_root,
+            deps_dir=self.deps_dir,
+            fingerprints_dir=self.fingerprints_dir,
+            ui_dir=self.ui_dir,
+            iso_now=lambda: self._iso(self._utc_now()),
         )
-        product_launch_failures = any(str(item["id"]).startswith("P1-startup-path-failed-") for item in findings)
-        if self.required_failures > 0 and not product_launch_failures:
-            findings.append(
-                {
-                    "id": "ENV-required-command-failures" if env_only_launch_failures else "P1-required-command-failures",
-                    "severity": "ENV" if env_only_launch_failures else "P1",
-                    "classification": "environment_contamination" if env_only_launch_failures else "unexpected",
-                    "summary": (
-                        "One or more required audit commands failed because the host environment was not valid release evidence."
-                        if env_only_launch_failures
-                        else "One or more required audit commands failed."
-                    ),
-                    "required_failures": self.required_failures,
-                    "evidence": [str(self.artifact_root / "matrix.json")],
-                }
-            )
-
-        self.findings = findings
-        self._write_json(self.artifact_root / "findings.json", findings)
+        self._write_json(self.artifact_root / "findings.json", self.findings)
         self._write_json(
             self.fingerprints_dir / "launch-failure-analysis.json",
             self.launch_failure_analysis,
         )
-
-        has_p0_p1 = any(item["severity"] in {"P0", "P1"} for item in findings)
-        has_p2 = any(item["severity"] == "P2" for item in findings)
-        has_environment_contamination = any(
-            item["classification"] == "environment_contamination" for item in findings
-        )
-
-        if has_p0_p1:
-            decision = "NO-GO"
-        elif has_environment_contamination:
-            decision = "INVALID_ENVIRONMENT"
-        elif has_p2:
-            decision = "CONDITIONAL"
-        else:
-            decision = "GO"
-
-        self.decision = {
-            "run_id": self.run_id,
-            "generated_at_utc": self._iso(self._utc_now()),
-            "decision": decision,
-            "required_failures": self.required_failures,
-            "finding_counts": {
-                "P0": sum(1 for item in findings if item["severity"] == "P0"),
-                "P1": sum(1 for item in findings if item["severity"] == "P1"),
-                "P2": sum(1 for item in findings if item["severity"] == "P2"),
-                "ENV": sum(1 for item in findings if item["severity"] == "ENV"),
-            },
-            "go_criteria": "No unresolved P0/P1 findings",
-        }
         self._write_json(self.artifact_root / "decision.json", self.decision)
 
     def _write_report(self) -> None:
         matrix_path = self.artifact_root / "matrix.json"
-        self._write_json(matrix_path, [entry.to_json() for entry in self.command_results])
-        self.run_status = {
-            "run_id": self.run_id,
-            "generated_at_utc": self._iso(self._utc_now()),
-            "status": "complete",
-            "decision": self.decision.get("decision", "UNKNOWN"),
-            "required_failures": self.required_failures,
-            "artifact_root": str(self.artifact_root),
-            "matrix": str(matrix_path),
-        }
+        self._write_json(matrix_path, matrix_payload(self.command_results))
+        self.run_status = build_run_status(
+            run_id=self.run_id,
+            generated_at_utc=self._iso(self._utc_now()),
+            decision=self.decision,
+            required_failures=self.required_failures,
+            artifact_root=self.artifact_root,
+            matrix_path=matrix_path,
+        )
         self._write_json(self.artifact_root / "run_status.json", self.run_status)
-
-        report_lines = [
-            f"# Release Parity Audit ({self.run_id})",
-            "",
-            "## Result",
-            f"- Decision: **{self.decision.get('decision', 'UNKNOWN')}**",
-            f"- Required command failures: `{self.required_failures}`",
-            f"- Baseline branch: `{self.baseline.get('git_branch')}`",
-            f"- Baseline git SHA: `{self.baseline.get('git_sha')}`",
-            "",
-            "## Parity Matrix",
-            f"- Startup inventory: `{self.artifact_root / 'startup-paths.json'}`",
-            f"- Runtime fingerprints: `{self.fingerprints_dir / 'runtime.json'}`",
-            f"- Toolchain fingerprint: `{self.fingerprints_dir / 'toolchain.json'}`",
-            f"- Startup preflight: `{self.fingerprints_dir / 'startup-preflight.json'}`",
-            f"- Launch-failure analysis: `{self.fingerprints_dir / 'launch-failure-analysis.json'}`",
-            f"- Dependency diffs: `{self.deps_dir / 'diffs.json'}`",
-            f"- UI parity: `{self.ui_dir / 'parity.json'}`",
-            f"- Command matrix: `{self.artifact_root / 'matrix.json'}`",
-            f"- Run status: `{self.artifact_root / 'run_status.json'}`",
-            "",
-            "## Findings",
-        ]
-        if not self.findings:
-            report_lines.append("- No unexpected parity mismatches were detected.")
-        else:
-            for finding in self.findings:
-                report_lines.append(
-                    f"- `{finding['id']}` [{finding['severity']}] {finding['summary']}"
-                )
-                if finding["severity"] in {"P0", "P1"}:
-                    report_lines.append("  - Release impact: blocks GO.")
-                elif finding["severity"] == "ENV":
-                    report_lines.append("  - Release impact: invalidates this host as release evidence until rerun on a clean environment.")
-
-        report_lines.extend(
-            [
-                "",
-                "## Remediation Queue",
-            ]
+        report = build_report(
+            run_id=self.run_id,
+            decision=self.decision,
+            required_failures=self.required_failures,
+            baseline=self.baseline,
+            findings=self.findings,
+            artifact_root=self.artifact_root,
+            fingerprints_dir=self.fingerprints_dir,
+            deps_dir=self.deps_dir,
+            ui_dir=self.ui_dir,
         )
-        remediation = [
-            finding for finding in self.findings if finding["severity"] in {"P1", "P2", "P0"}
-        ]
-        if not remediation:
-            report_lines.append("- None.")
-        else:
-            for idx, finding in enumerate(remediation, start=1):
-                report_lines.append(f"{idx}. `{finding['id']}` ({finding['severity']})")
-                if finding["id"] == "P2-dev-frontend-nonreproducible-install":
-                    report_lines.append("   - Fix: switch `scripts/dev.sh` frontend bootstrap from `npm install` to `npm ci` when lockfile is present.")
-                    report_lines.append("   - Guard: add a script-contract test asserting lockfile-respecting install path.")
-                elif finding["id"] == "P2-node-major-mismatch":
-                    expected_major = finding.get("expected_node_major")
-                    if expected_major is None:
-                        report_lines.append("   - Fix: align host Node to CI/Docker baseline major from workflow config for release-critical validation runs.")
-                    else:
-                        report_lines.append(
-                            f"   - Fix: align host Node to CI/Docker baseline major ({expected_major}) for release-critical validation runs."
-                        )
-                    report_lines.append("   - Guard: enforce `.nvmrc`/`.node-version` + preflight version check in startup scripts.")
-                elif finding["id"] == "P1-ui-parity-mismatch":
-                    report_lines.append("   - Fix: align auth/profile inputs and frontend build/runtime mode before comparing screenshots.")
-                    report_lines.append("   - Guard: add a deterministic UI parity smoke scenario with fixed auth mode and seed data.")
-                elif str(finding["id"]).startswith("P1-startup-path-failed-"):
-                    report_lines.append("   - Fix: repair startup path command and ensure it reaches healthy backend/frontend state.")
-                    report_lines.append("   - Guard: add script-level smoke checks for each startup entrypoint before release cut.")
-                elif finding["severity"] == "ENV":
-                    report_lines.append("   - Fix: clean the host environment or provide the missing prerequisite, then rerun parity on a valid evidence host.")
-                    report_lines.append("   - Guard: preserve the startup preflight gate and launch-failure classification to prevent false product blockers.")
-                elif finding["severity"] == "P1":
-                    report_lines.append("   - Fix: pin backend runtime dependencies for release reproducibility and rebuild release image.")
-                    report_lines.append("   - Guard: add backend dependency parity gate comparing local lock set vs image lock set.")
-                elif finding["severity"] == "P0":
-                    report_lines.append("   - Fix: ensure runtime and artifact baselines resolve to selected release commit.")
-                    report_lines.append("   - Guard: embed and verify git SHA in runtime health metadata.")
-                else:
-                    report_lines.append("   - Fix: resolve mismatch and rerun parity audit.")
-
-        report_lines.extend(
-            [
-                "",
-                "## Evidence Map",
-                f"- `scripts/dev.sh:295`, `scripts/dev.sh:313`",
-                f"- `scripts/dev.sh:231`, `scripts/dev.sh:233`",
-                f"- `backend/requirements.txt:1`, `backend/requirements-runtime.txt:1`, `backend/requirements-db.txt:1`",
-                f"- `backend/Dockerfile:7`, `backend/Dockerfile:25`",
-                f"- `frontend/Dockerfile:7`, `frontend/Dockerfile:16`",
-                f"- `.github/workflows/e2e.yml:39`, `.github/workflows/e2e.yml:45`, `.github/workflows/e2e.yml:55`",
-                f"- `backend/app/api/v1/endpoints/auth/config.py:13`, `frontend/src/pages/LoginPage.tsx:327`",
-                f"- `backend/app/core/config.py:15`, `backend/app/api/v1/endpoints/health.py:61`",
-                f"- `scripts/security/run_prod_readiness_audit_local.sh:246`, `docs/security/reports/prod-readiness-deep-audit-2026-02-22.md:17`",
-            ]
-        )
-
-        self._write_text(self.artifact_root / "report.md", "\n".join(report_lines) + "\n")
+        self._write_text(self.artifact_root / "report.md", report)
 
     def run(self) -> None:
         self._capture_baseline()
@@ -1994,7 +1668,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--skip-prod-readiness",
         action="store_true",
-        help="Skip executing run_prod_readiness_audit_local.sh in isolated worktree and ingest latest existing artifact instead.",
+        help=(
+            "Skip executing run_prod_readiness_audit_local.sh in isolated worktree and ingest latest existing "
+            "artifact instead."
+        ),
     )
     return parser.parse_args()
 

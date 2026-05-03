@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.datetime_utils import coerce_utc
+from app.core.datetime_utils import coerce_utc, utc_now
 from app.core.permissions import (
     can_read_vendor,
     visible_control_ids,
@@ -49,7 +49,7 @@ class IssueLinkedVisibility:
 
 
 def _active_exception(issue: Issue) -> IssueException | None:
-    now = datetime.now(UTC)
+    now = utc_now()
     approved = []
     for ex in issue.exceptions:
         expires_at = coerce_utc(ex.expires_at)

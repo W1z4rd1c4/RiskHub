@@ -10,6 +10,7 @@ import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { useTranslation } from '@/i18n/hooks';
 import { RiskHubFieldError, RiskHubModalActions, RiskHubModalFrame } from './panelPrimitives';
 import { riskHubCapabilityEnabled, useRiskHubCapabilities } from './useRiskHubCapabilities';
+import { useRiskHubConfigPanelState } from './useRiskHubConfigPanelState';
 
 interface RiskTypeModalProps {
     isOpen: boolean;
@@ -147,14 +148,11 @@ function RiskTypeModal({ isOpen, onClose, riskType, onSave }: RiskTypeModalProps
 export function RiskTypesPanel() {
     const queryClient = useQueryClient();
     const { t } = useTranslation(['admin', 'common']);
-    const [showInactive, setShowInactive] = useState(false);
-    const [modalOpen, setModalOpen] = useState(false);
-    const [editingType, setEditingType] = useState<RiskType | null>(null);
-    const [deleteConfirm, setDeleteConfirm] = useState<RiskType | null>(null);
+    const panel = useRiskHubConfigPanelState<RiskType>();
 
     const { data: riskTypes, isLoading, error } = useQuery({
-        queryKey: ['riskTypes', showInactive],
-        queryFn: () => riskHubApi.getRiskTypes(showInactive),
+        queryKey: ['riskTypes', panel.showInactive],
+        queryFn: () => riskHubApi.getRiskTypes(panel.showInactive),
     });
     const { data: riskHubCapabilities } = useRiskHubCapabilities();
 
@@ -179,17 +177,17 @@ export function RiskTypesPanel() {
     });
 
     const handleSave = async (data: RiskTypeCreate | RiskTypeUpdate) => {
-        if (editingType) {
-            await updateMutation.mutateAsync({ id: editingType.id, data: data as RiskTypeUpdate });
+        if (panel.editingItem) {
+            await updateMutation.mutateAsync({ id: panel.editingItem.id, data: data as RiskTypeUpdate });
         } else {
             await createMutation.mutateAsync(data as RiskTypeCreate);
         }
     };
 
     const handleDelete = async () => {
-        if (deleteConfirm) {
-            await deleteMutation.mutateAsync(deleteConfirm.id);
-            setDeleteConfirm(null);
+        if (panel.deleteConfirm) {
+            await deleteMutation.mutateAsync(panel.deleteConfirm.id);
+            panel.closeDelete();
         }
     };
     const canCreate = riskHubCapabilityEnabled(riskHubCapabilities?.risk_types, 'can_create');
@@ -214,8 +212,8 @@ export function RiskTypesPanel() {
                     <label className="flex items-center gap-2 text-sm text-slate-400">
                         <input
                             type="checkbox"
-                            checked={showInactive}
-                            onChange={(e) => setShowInactive(e.target.checked)}
+                            checked={panel.showInactive}
+                            onChange={(e) => panel.setShowInactive(e.target.checked)}
                             className="rounded border-white/20 bg-white/5 text-accent focus:ring-accent"
                         />
                         {t('admin:risk_types_panel.show_deleted')}
@@ -223,7 +221,7 @@ export function RiskTypesPanel() {
 
                     {canCreate ? (
                         <button
-                            onClick={() => { setEditingType(null); setModalOpen(true); }}
+                            onClick={panel.openCreate}
                             className="flex items-center gap-2 px-3 py-2 bg-accent text-white rounded-lg hover:bg-accent/90 transition-colors"
                         >
                             <Plus className="h-4 w-4" />
@@ -294,7 +292,7 @@ export function RiskTypesPanel() {
                                     <div className="flex items-center justify-end gap-2">
                                         {canUpdate ? (
                                             <button
-                                                onClick={() => { setEditingType(type); setModalOpen(true); }}
+                                                onClick={() => panel.openEdit(type)}
                                                 className="p-1.5 text-slate-400 hover:text-white hover:bg-white/10 rounded transition-colors"
                                                 title={t('common:actions.edit')}
                                                 aria-label={t('common:actions.edit')}
@@ -305,7 +303,7 @@ export function RiskTypesPanel() {
 
                                         {canDelete && (
                                             <button
-                                                onClick={() => setDeleteConfirm(type)}
+                                                onClick={() => panel.requestDelete(type)}
                                                 className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"
                                                 title={t('common:actions.delete')}
                                                 aria-label={t('common:actions.delete')}
@@ -335,28 +333,28 @@ export function RiskTypesPanel() {
 
             {/* Create/Edit Modal */}
             <RiskTypeModal
-                isOpen={modalOpen}
-                onClose={() => { setModalOpen(false); setEditingType(null); }}
-                riskType={editingType}
+                isOpen={panel.modalOpen}
+                onClose={panel.closeModal}
+                riskType={panel.editingItem}
                 onSave={handleSave}
             />
 
             {/* Delete Confirmation */}
-            {deleteConfirm && (
+            {panel.deleteConfirm && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
                     <div className="bg-slate-900 border border-white/10 shadow-2xl rounded-2xl w-full max-w-sm p-6">
                         <h3 className="text-lg font-bold text-white mb-2">{t('confirmations.delete_risk_type')}</h3>
                         <p className="text-slate-400 text-sm mb-4">
-                            {t('admin:risk_types_panel.delete_confirm', { name: deleteConfirm.display_name })}
-                            {deleteConfirm.risk_count > 0 && (
+                            {t('admin:risk_types_panel.delete_confirm', { name: panel.deleteConfirm.display_name })}
+                            {panel.deleteConfirm.risk_count > 0 && (
                                 <span className="block mt-2 text-amber-400">
-                                    {t('admin:risk_types_panel.delete_warning', { count: deleteConfirm.risk_count })}
+                                    {t('admin:risk_types_panel.delete_warning', { count: panel.deleteConfirm.risk_count })}
                                 </span>
                             )}
                         </p>
                         <div className="flex justify-end gap-3">
                             <button
-                                onClick={() => setDeleteConfirm(null)}
+                                onClick={panel.closeDelete}
                                 className="px-4 py-2 text-slate-400 hover:text-white transition-colors"
                             >
                                 {t('common:actions.cancel')}

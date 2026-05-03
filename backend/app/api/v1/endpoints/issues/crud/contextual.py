@@ -1,10 +1,8 @@
-from datetime import UTC, datetime
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.activity_logger import log_activity
-from app.core.datetime_utils import coerce_utc
+from app.core.datetime_utils import coerce_utc, utc_now
 from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import Issue, IssueRemediationPlan, User
@@ -46,7 +44,7 @@ async def create_contextual_issue(
     )
 
     due_at = coerce_utc(payload.due_at)
-    now = datetime.now(UTC)
+    now = utc_now()
     issue = Issue(
         title=payload.title,
         description=payload.description,

@@ -1,9 +1,8 @@
-from datetime import UTC, datetime
-
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.datetime_utils import utc_now
 from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import IssueException, User
@@ -145,7 +144,7 @@ async def revoke_exception(
             )
         ).scalar_one_or_none()
     else:
-        now = datetime.now(UTC)
+        now = utc_now()
         target_exception = (
             (
                 await db.execute(
