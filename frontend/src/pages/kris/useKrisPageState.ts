@@ -27,6 +27,7 @@ import {
     type CollectionWorkflowLoadRequest,
     useCollectionPageWorkflow,
 } from '../shared/collectionPageWorkflow';
+import { resetCollectionGroupAndPage } from '../shared/collectionViewVocabulary';
 
 const TIMELINESS_FILTER_VALUES = ['due_soon'] as const;
 
@@ -92,8 +93,7 @@ export function useKrisPageState({ searchParams, setSearchParams }: UseKrisPageS
     }, [fetchKris]);
 
     const updateRouteFilters = useCallback((nextStatusFilter: KriStatusFilter, nextTimelinessFilter: KriTimelinessFilter) => {
-        setCurrentPage(1);
-        resetGroupSelection();
+        resetCollectionGroupAndPage(resetGroupSelection, setCurrentPage);
 
         const nextParams = new URLSearchParams(searchParams);
         nextParams.delete('monitoring_status');
@@ -113,14 +113,12 @@ export function useKrisPageState({ searchParams, setSearchParams }: UseKrisPageS
 
     const updateViewMode = useCallback((nextViewMode: ViewMode) => {
         setViewMode(nextViewMode);
-        setCurrentPage(1);
-        resetGroupSelection();
+        resetCollectionGroupAndPage(resetGroupSelection, setCurrentPage);
     }, [resetGroupSelection]);
 
     const updateSearch = useCallback((value: string) => {
         setSearch(value);
-        setCurrentPage(1);
-        resetGroupSelection();
+        resetCollectionGroupAndPage(resetGroupSelection, setCurrentPage);
     }, [resetGroupSelection]);
 
     const selectGroup = useCallback((groupValue: string, groupLabel: string) => {
@@ -129,8 +127,7 @@ export function useKrisPageState({ searchParams, setSearchParams }: UseKrisPageS
     }, [selectCollectionGroup]);
 
     const clearSelectedGroup = useCallback(() => {
-        resetGroupSelection();
-        setCurrentPage(1);
+        resetCollectionGroupAndPage(resetGroupSelection, setCurrentPage);
     }, [resetGroupSelection]);
 
     const restoreKri = useCallback(async (kriId: number) => {

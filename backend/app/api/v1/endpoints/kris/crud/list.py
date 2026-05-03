@@ -420,11 +420,7 @@ async def list_kris(
             is_highlighted=lambda item: getattr(item, "monitoring_status", None) == "breach",
         )
 
-    return await collection_exec.execute_collection_listing(
-        db=db,
-        response_model=KRIListResponse,
-        query=collection_query,
-        ordered_query=ordered_query,
+    listing_definition = collection_exec.CollectionListingDefinition(
         capabilities=collection_capabilities,
         serialize_items=serialize_kris,
         load_total=load_total,
@@ -433,4 +429,12 @@ async def list_kris(
         build_sql_group_filter=build_sql_group_filter,
         sql_group_query_transform=lambda query: query.outerjoin(Department, Department.id == Risk.department_id),
         build_in_memory_grouped_page=build_in_memory_grouped_page,
+    )
+
+    return await collection_exec.execute_collection_listing_with_definition(
+        db=db,
+        response_model=KRIListResponse,
+        query=collection_query,
+        ordered_query=ordered_query,
+        definition=listing_definition,
     )

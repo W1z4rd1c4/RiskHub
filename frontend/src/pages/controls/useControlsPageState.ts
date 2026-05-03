@@ -22,6 +22,7 @@ import {
     type CollectionWorkflowLoadRequest,
     useCollectionPageWorkflow,
 } from '../shared/collectionPageWorkflow';
+import { resetCollectionGroupAndPage } from '../shared/collectionViewVocabulary';
 
 export function useControlsPageState() {
     const [search, setSearch] = useState('');
@@ -72,8 +73,7 @@ export function useControlsPageState() {
     } = collectionWorkflow;
 
     const resetGroupAndPage = useCallback(() => {
-        resetGroupSelection();
-        setCurrentPage(1);
+        resetCollectionGroupAndPage(resetGroupSelection, setCurrentPage);
     }, [resetGroupSelection]);
 
     useEffect(() => {

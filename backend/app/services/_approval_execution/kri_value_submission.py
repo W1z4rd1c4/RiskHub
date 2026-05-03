@@ -9,8 +9,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core import activity_logger
 from app.models import ApprovalRequest, KeyRiskIndicator, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
+from app.services._kri_history.governance import (
+    build_kri_value_history_activity_changes,
+    build_kri_value_mutation_changes,
+    capture_kri_value_mutation_snapshot,
+)
 
-from .kri_changes import build_kri_changes
 from .results import SideEffectResult
 
 logger = logging.getLogger("app.services.approval_execution_service")
@@ -44,9 +48,7 @@ async def _apply_kri_value_submission(
     period_end = date_type.fromisoformat(period_end_str)
     recorded_at = datetime.fromisoformat(recorded_at_str) if recorded_at_str else None
 
-    old_kri_current_value = kri.current_value
-    old_kri_last_period_end = kri.last_period_end
-    old_kri_last_reported_at = kri.last_reported_at
+    mutation_snapshot = capture_kri_value_mutation_snapshot(kri)
 
     try:
         logger.info(f"Recording KRI value for approval: {value_change.get('new')}")
@@ -70,14 +72,15 @@ async def _apply_kri_value_submission(
             action=ActivityAction.CREATE,
             actor=current_user,
             department_id=department_id,
-            changes={
-                "value": {"old": value_change.get("old"), "new": value_change.get("new")},
-                "period_end": {"old": None, "new": period_end.isoformat()},
-            },
+            changes=build_kri_value_history_activity_changes(
+                old_value=value_change.get("old"),
+                new_value=value_change.get("new"),
+                period_end=period_end,
+            ),
             description=f"Recorded via approval #{approval_id}",
         )
 
-        kri_changes = build_kri_changes(kri, old_kri_current_value, old_kri_last_period_end, old_kri_last_reported_at)
+        kri_changes = build_kri_value_mutation_changes(kri, mutation_snapshot)
         if kri_changes:
             await activity_logger.log_activity(
                 db,

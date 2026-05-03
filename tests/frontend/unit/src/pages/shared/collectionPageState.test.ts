@@ -7,6 +7,10 @@ import {
     createCollectionSuccessPatch,
     resolveCollectionLoadFailure,
 } from '@/pages/shared/collectionPageState';
+import {
+    getCollectionGroupBy,
+    resetCollectionGroupAndPage,
+} from '@/pages/shared/collectionViewVocabulary';
 import { ApiClientError } from '@/services/apiClient';
 
 describe('resolveCollectionLoadFailure', () => {
@@ -149,5 +153,30 @@ describe('collection state model', () => {
             isAccessDenied: true,
             hasLoadedOnce: false,
         });
+    });
+});
+
+describe('collection view vocabulary', () => {
+    it('maps register view modes to backend group values through one shared helper', () => {
+        const groups = {
+            department: 'department',
+            risk_type: 'risk_type',
+            vendor: 'vendor',
+        };
+
+        expect(getCollectionGroupBy('department', groups)).toBe('department');
+        expect(getCollectionGroupBy('risk_type', groups)).toBe('risk_type');
+        expect(getCollectionGroupBy('all', groups)).toBeNull();
+    });
+
+    it('resets group selection and paging through one shared helper', () => {
+        const calls: string[] = [];
+
+        resetCollectionGroupAndPage(
+            () => calls.push('reset-group'),
+            (page) => calls.push(`page:${page}`)
+        );
+
+        expect(calls).toEqual(['reset-group', 'page:1']);
     });
 });

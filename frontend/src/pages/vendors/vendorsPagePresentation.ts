@@ -2,6 +2,8 @@ import type { ViewMode } from '@/components/tables';
 import type { CollectionGroup } from '@/types/collection';
 import type { VendorListParams, VendorStatus, VendorType } from '@/types/vendor';
 
+import { getCollectionGroupBy } from '../shared/collectionViewVocabulary';
+
 export const VENDOR_GROUP_UNASSIGNED = '__unassigned__';
 export const VENDOR_GROUP_NO_PROCESS = '__no_process__';
 export const VENDOR_GROUP_UNLINKED_RISK = '__unlinked_risk__';
@@ -9,6 +11,13 @@ export const VENDOR_GROUP_DORA_RELEVANT = '__dora_relevant__';
 export const VENDOR_GROUP_SUPPORTS_CORE_FUNCTION = '__supports_core_function__';
 export const VENDOR_GROUP_SIGNIFICANT_VENDOR = '__significant_vendor__';
 export const VENDOR_GROUP_INSIGNIFICANT_VENDOR = '__insignificant_vendor__';
+const VENDOR_VIEW_MODE_GROUPS = {
+    department: 'department',
+    process: 'process',
+    type: 'type',
+    risk: 'risk',
+    flag: 'flag',
+} as const satisfies Partial<Record<ViewMode, string>>;
 
 interface BuildVendorListParamsOptions {
     currentPage: number;
@@ -87,23 +96,7 @@ export function buildVendorExportFilters({
 }
 
 export function getVendorGroupBy(viewMode: ViewMode): string | null {
-    switch (viewMode) {
-        case 'all':
-        case 'category':
-        case 'risk_type':
-        case 'vendor':
-            return null;
-        case 'department':
-            return 'department';
-        case 'process':
-            return 'process';
-        case 'type':
-            return 'type';
-        case 'risk':
-            return 'risk';
-        case 'flag':
-            return 'flag';
-    }
+    return getCollectionGroupBy(viewMode, VENDOR_VIEW_MODE_GROUPS);
 }
 
 export function formatVendorGroupLabel(

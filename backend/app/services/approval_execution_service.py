@@ -24,7 +24,12 @@ from ._approval_execution.authorization import apply_status_transition, assert_c
 from ._approval_execution.constants import EDITABLE_FIELDS
 from ._approval_execution.loading import get_approval_department_id, load_approval
 from ._approval_execution.logging import log_approval_approve
-from ._approval_execution.resolution import finalize_approval_resolution
+from ._approval_execution.resolution import (
+    approval_cancelled_event_plan,
+    approval_escalated_event_plan,
+    approval_resolved_event_plan,
+    finalize_approval_resolution_plan,
+)
 from ._approval_execution.results import apply_auto_rejection
 from ._approval_execution.side_effects import apply_side_effects
 
@@ -88,12 +93,10 @@ async def reject_request_workflow(
             changes={"status": {"old": previous_status.value, "new": approval.status.value}},
         )
 
-    await finalize_approval_resolution(
+    await finalize_approval_resolution_plan(
         db,
         approval=approval,
-        event_type="approval.request_resolved",
-        idempotency_key=lambda: f"approval.request_resolved:{approval.id}:{approval.status.value.lower()}",
-        payload=lambda: {"approval_id": approval.id, "approved": False},
+        plan=approval_resolved_event_plan(approval),
         before_commit=apply_rejection,
         outbox_service=OutboxService,
     )
@@ -145,12 +148,10 @@ async def cancel_request_workflow(
             description=cancel_description,
         )
 
-    await finalize_approval_resolution(
+    await finalize_approval_resolution_plan(
         db,
         approval=approval,
-        event_type="approval.request_cancelled",
-        idempotency_key=lambda: f"approval.request_cancelled:{approval.id}",
-        payload=lambda: {"approval_id": approval.id, "cancelled_by_user_id": current_user.id},
+        plan=approval_cancelled_event_plan(approval, cancelled_by_user_id=current_user.id),
         before_commit=apply_cancellation,
         outbox_service=OutboxService,
     )
@@ -173,12 +174,10 @@ async def _apply_approved_resolution(
 
         await db.flush()
 
-    await finalize_approval_resolution(
+    await finalize_approval_resolution_plan(
         db,
         approval=approval,
-        event_type="approval.request_resolved",
-        idempotency_key=lambda: f"approval.request_resolved:{approval.id}:{approval.status.value.lower()}",
-        payload=lambda: {"approval_id": approval.id, "approved": approval.status == ApprovalStatus.APPROVED},
+        plan=approval_resolved_event_plan(approval),
         before_commit=apply_approval,
         outbox_service=OutboxService,
     )
@@ -204,12 +203,10 @@ async def _apply_escalation_resolution(
             description=f"Escalated to privileged approval by {current_user.name}",
         )
 
-    await finalize_approval_resolution(
+    await finalize_approval_resolution_plan(
         db,
         approval=approval,
-        event_type="approval.request_created",
-        idempotency_key=lambda: f"approval.request_created:{approval.id}:{approval.status.value.lower()}",
-        payload=lambda: {"approval_id": approval.id},
+        plan=approval_escalated_event_plan(approval),
         before_commit=apply_escalation,
         outbox_service=OutboxService,
     )

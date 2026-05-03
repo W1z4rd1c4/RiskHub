@@ -26,6 +26,8 @@ class ExportPipelineDefinition:
     sheet_name: str
     filename_base: str
     headers: list[str]
+    stages: Sequence[ExportStage] = ()
+    row_values: Callable[[ExportRow], list[Any]] | None = None
 
 
 async def apply_export_stages(
@@ -49,13 +51,18 @@ async def render_export_pipeline(
     export_format: ExportFormat,
     as_of_date: date,
     rows: list[ExportRow],
-    stages: Sequence[ExportStage],
-    row_values: Callable[[ExportRow], list[Any]],
+    stages: Sequence[ExportStage] | None = None,
+    row_values: Callable[[ExportRow], list[Any]] | None = None,
     render_export: RenderExport = _render_export,
 ) -> StreamingResponse:
     """Run row stages, convert rows to cell values, and render the export response."""
-    final_rows = await apply_export_stages(rows, stages)
-    data_rows = [row_values(row) for row in final_rows]
+    resolved_stages = definition.stages if stages is None else stages
+    resolved_row_values = definition.row_values if row_values is None else row_values
+    if resolved_row_values is None:
+        raise ValueError("Export pipeline requires row_values")
+
+    final_rows = await apply_export_stages(rows, resolved_stages)
+    data_rows = [resolved_row_values(row) for row in final_rows]
 
     return render_export(
         title=definition.title,

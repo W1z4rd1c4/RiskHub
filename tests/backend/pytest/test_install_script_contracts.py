@@ -50,8 +50,10 @@ def _install_paths() -> InstallPaths:
 
 def test_install_lifecycle_builders_describe_reusable_command_plans() -> None:
     from install_lib.lifecycle import (
+        build_doctor_diagnostic_plan,
         build_doctor_repair_plan,
         build_logs_command,
+        build_status_diagnostic_plan,
         build_status_dry_run_commands,
     )
 
@@ -83,6 +85,41 @@ def test_install_lifecycle_builders_describe_reusable_command_plans() -> None:
         [COMPOSE_SCRIPT, "up", "--profile", "db-only"],
         [DEV_SCRIPT, "--daemon"],
     )
+
+    status_plan = build_status_diagnostic_plan(paths=paths, mode="demo", resolved_target=None)
+    assert status_plan.probe_commands == tuple(
+        build_status_dry_run_commands(paths=paths, mode="demo", resolved_target=None)
+    )
+
+    doctor_plan = build_doctor_diagnostic_plan(
+        paths=paths,
+        mode="production",
+        resolved_target="docker",
+        config_path=Path("/tmp/riskhub.env"),
+        secret_dir=Path("/tmp/riskhub-secrets"),
+        repair=True,
+        deep=True,
+    )
+    assert doctor_plan.payload_defaults == {
+        "mode": "production",
+        "target": "docker",
+        "repair_requested": True,
+        "repair_applied": False,
+        "deep_check": "not_run",
+    }
+    assert doctor_plan.deep_check_commands == (
+        [
+            DEPLOY_SCRIPT,
+            "smoke",
+            "--target",
+            "docker",
+            "--config",
+            "/tmp/riskhub.env",
+            "--secret-dir",
+            "/tmp/riskhub-secrets",
+        ],
+    )
+    assert doctor_plan.repair_plan.actions == (f"{DEPLOY_SCRIPT} status --target docker",)
 
 
 def _write_config(path: Path) -> None:

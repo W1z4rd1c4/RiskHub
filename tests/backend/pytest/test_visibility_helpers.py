@@ -12,6 +12,7 @@ from app.core.permissions import (
     visible_risk_ids,
     visible_vendor_ids,
 )
+from app.core._permissions.entity_visibility import ENTITY_VISIBILITY_PROJECTIONS
 from app.models import Department, KeyRiskIndicator, Permission, Risk, Role, RolePermission, User, Vendor
 from app.models.risk import RiskStatus
 from app.models.user import AccessScope
@@ -173,6 +174,48 @@ async def test_can_read_risk_id_allows_direct_owner_exception(
 
     allowed = await can_read_risk_id(db_session, dept_scoped_user_with_vendor_risk_read, risk.id)
     assert allowed is True
+
+
+@pytest.mark.asyncio
+async def test_entity_visibility_projection_matches_risk_visibility_shapes(
+    db_session: AsyncSession,
+    other_department: Department,
+    test_department: Department,
+    test_user: User,
+    dept_scoped_user_with_vendor_risk_read: User,
+):
+    visible_risk = Risk(
+        risk_id_code="R-VIS-PROJ",
+        name="Visible Projection Risk",
+        description="Visible by department",
+        process="Projection Process",
+        department_id=test_department.id,
+        owner_id=test_user.id,
+        status=RiskStatus.active.value,
+    )
+    hidden_risk = Risk(
+        risk_id_code="R-HID-PROJ",
+        name="Hidden Projection Risk",
+        description="Hidden by department",
+        process="Projection Process",
+        department_id=other_department.id,
+        owner_id=test_user.id,
+        status=RiskStatus.active.value,
+    )
+    db_session.add_all([visible_risk, hidden_risk])
+    await db_session.commit()
+    await db_session.refresh(visible_risk)
+    await db_session.refresh(hidden_risk)
+
+    projection = ENTITY_VISIBILITY_PROJECTIONS["risk"]
+    candidate_ids = [visible_risk.id, hidden_risk.id]
+
+    assert await projection.visible_ids(db_session, dept_scoped_user_with_vendor_risk_read, candidate_ids) == (
+        await visible_risk_ids(db_session, dept_scoped_user_with_vendor_risk_read, candidate_ids)
+    )
+    assert await projection.can_read_id(db_session, dept_scoped_user_with_vendor_risk_read, visible_risk.id) == (
+        await can_read_risk_id(db_session, dept_scoped_user_with_vendor_risk_read, visible_risk.id)
+    )
 
 
 @pytest.mark.asyncio

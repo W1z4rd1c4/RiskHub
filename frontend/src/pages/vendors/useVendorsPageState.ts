@@ -21,6 +21,7 @@ import {
     type CollectionWorkflowLoadRequest,
     useCollectionPageWorkflow,
 } from '../shared/collectionPageWorkflow';
+import { resetCollectionGroupAndPage } from '../shared/collectionViewVocabulary';
 
 export function useVendorsPageState() {
     const [search, setSearch] = useState('');
@@ -96,8 +97,7 @@ export function useVendorsPageState() {
     }, [collectionWorkflow.capabilities, clearGroupSelection, viewMode]);
 
     const resetGroupSelection = useCallback(() => {
-        clearGroupSelection();
-        setCurrentPage(1);
+        resetCollectionGroupAndPage(clearGroupSelection, setCurrentPage);
     }, [clearGroupSelection]);
 
     const restoreVendor = useCallback(

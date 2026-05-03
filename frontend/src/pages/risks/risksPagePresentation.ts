@@ -3,12 +3,21 @@ import { DEFAULT_LIST_PAGE_SIZE } from '@/constants/list';
 import type { CollectionGroup } from '@/types/collection';
 import type { RiskStatus, RiskSummary } from '@/types/risk';
 
+import { getCollectionGroupBy } from '../shared/collectionViewVocabulary';
+
 export const CRITICAL_RISK_MIN_NET_SCORE = 15;
 export const RISK_GROUP_UNLINKED_VENDOR = '__unlinked_vendor__';
 export const RISK_GROUP_UNCATEGORIZED = '__uncategorized__';
 export const RISK_GROUP_UNKNOWN_DEPARTMENT = '__unknown_department__';
 export const RISK_GROUP_NO_PROCESS = '__no_process__';
 export const RISK_GROUP_UNKNOWN_RISK_TYPE = '__unknown_risk_type__';
+const RISK_VIEW_MODE_GROUPS = {
+    category: 'category',
+    department: 'department',
+    process: 'process',
+    risk_type: 'risk_type',
+    vendor: 'vendor',
+} as const satisfies Partial<Record<ViewMode, string>>;
 
 export interface RisksPageInitialState {
     criticalFilter: boolean;
@@ -104,23 +113,7 @@ export function buildRiskExportFilters({
 }
 
 export function getRiskGroupBy(viewMode: ViewMode): string | null {
-    switch (viewMode) {
-        case 'all':
-        case 'flag':
-        case 'risk':
-        case 'type':
-            return null;
-        case 'category':
-            return 'category';
-        case 'department':
-            return 'department';
-        case 'process':
-            return 'process';
-        case 'risk_type':
-            return 'risk_type';
-        case 'vendor':
-            return 'vendor';
-    }
+    return getCollectionGroupBy(viewMode, RISK_VIEW_MODE_GROUPS);
 }
 
 export function formatRiskGroupLabel(

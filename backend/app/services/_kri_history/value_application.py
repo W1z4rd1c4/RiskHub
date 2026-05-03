@@ -14,6 +14,8 @@ from app.schemas.kri import KRIRecordValue, KRIResponse
 from app.schemas.vendor_shared import LinkedVendorRead
 from app.services.authorization_capabilities import kri_capabilities
 
+from .governance import describe_kri_limit_breach
+
 logger = logging.getLogger(__name__)
 
 
@@ -66,16 +68,12 @@ async def _apply_kri_value_directly(
     await db.commit()
     await db.refresh(kri)
 
-    breach_detected = False
-    breach_msg = ""
-    if data.value < kri.lower_limit:
-        breach_detected = True
-        breach_msg = f"Value {data.value} is below lower limit {kri.lower_limit}"
-    elif data.value > kri.upper_limit:
-        breach_detected = True
-        breach_msg = f"Value {data.value} exceeds upper limit {kri.upper_limit}"
-
-    if breach_detected:
+    breach_msg = describe_kri_limit_breach(
+        value=data.value,
+        lower_limit=kri.lower_limit,
+        upper_limit=kri.upper_limit,
+    )
+    if breach_msg is not None:
         if kri.reporting_owner_id:
             reporting_owner_id = kri.reporting_owner_id
 

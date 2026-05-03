@@ -40,33 +40,28 @@ async def _export_controls(
         control_monitoring_config = await get_control_monitoring_config(db)
         return _apply_control_monitoring_rows(current_rows, config=control_monitoring_config, as_of_date=as_of_date)
 
-    return await render_export_pipeline(
-        definition=ExportPipelineDefinition(
-            title=f"Control Export (as of {as_of_date.isoformat()})",
-            sheet_name="Controls",
-            filename_base="controls",
-            headers=[
-                "Name",
-                "Description",
-                "Department",
-                "Owner",
-                "Frequency",
-                "Form",
-                "Risk Level",
-                "Status",
-                "Monitoring Status",
-                "Latest Execution Result",
-                "Latest Executed At",
-                "Days Since Last Execution",
-                "Linked Risk",
-                "Linked Risk ID",
-                "Linked Risks",
-            ],
-        ),
-        export_format=export_format,
-        as_of_date=as_of_date,
-        rows=rows,
-        stages=[
+    definition = ExportPipelineDefinition(
+        title=f"Control Export (as of {as_of_date.isoformat()})",
+        sheet_name="Controls",
+        filename_base="controls",
+        headers=[
+            "Name",
+            "Description",
+            "Department",
+            "Owner",
+            "Frequency",
+            "Form",
+            "Risk Level",
+            "Status",
+            "Monitoring Status",
+            "Latest Execution Result",
+            "Latest Executed At",
+            "Days Since Last Execution",
+            "Linked Risk",
+            "Linked Risk ID",
+            "Linked Risks",
+        ],
+        stages=(
             lambda current_rows: ExportSnapshotService.apply_as_of_snapshot(
                 db,
                 rows=current_rows,
@@ -98,7 +93,7 @@ async def _export_controls(
                 monitoring_status_filter=monitoring_status_filter,
                 search=search,
             ),
-        ],
+        ),
         row_values=lambda row: [
             row.get("name"),
             row.get("description"),
@@ -116,4 +111,11 @@ async def _export_controls(
             row.get("risk_id_code"),
             row.get("linked_risk_count"),
         ],
+    )
+
+    return await render_export_pipeline(
+        definition=definition,
+        export_format=export_format,
+        as_of_date=as_of_date,
+        rows=rows,
     )

@@ -49,31 +49,26 @@ async def _export_risks(
             extra_visible_ids=extra_visible_ids,
         )
 
-    return await render_export_pipeline(
-        definition=ExportPipelineDefinition(
-            title=f"Risk Export (as of {as_of_date.isoformat()})",
-            sheet_name="Risks",
-            filename_base="risks",
-            headers=[
-                "Risk ID",
-                "Name",
-                "Process",
-                "Category",
-                "Type",
-                "Gross Score",
-                "Net Score",
-                "Status",
-                "Priority",
-                "Owner",
-                "Department",
-                "Controls",
-                "KRIs",
-            ],
-        ),
-        export_format=export_format,
-        as_of_date=as_of_date,
-        rows=rows,
-        stages=[
+    definition = ExportPipelineDefinition(
+        title=f"Risk Export (as of {as_of_date.isoformat()})",
+        sheet_name="Risks",
+        filename_base="risks",
+        headers=[
+            "Risk ID",
+            "Name",
+            "Process",
+            "Category",
+            "Type",
+            "Gross Score",
+            "Net Score",
+            "Status",
+            "Priority",
+            "Owner",
+            "Department",
+            "Controls",
+            "KRIs",
+        ],
+        stages=(
             lambda current_rows: ExportSnapshotService.apply_as_of_snapshot(
                 db,
                 rows=current_rows,
@@ -100,7 +95,7 @@ async def _export_risks(
                 risk_type=risk_type,
                 is_priority=is_priority,
             ),
-        ],
+        ),
         row_values=lambda row: [
             row.get("risk_id_code"),
             row.get("name"),
@@ -116,4 +111,11 @@ async def _export_risks(
             row.get("control_count"),
             row.get("kri_count"),
         ],
+    )
+
+    return await render_export_pipeline(
+        definition=definition,
+        export_format=export_format,
+        as_of_date=as_of_date,
+        rows=rows,
     )

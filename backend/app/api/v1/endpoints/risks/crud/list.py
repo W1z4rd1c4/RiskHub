@@ -477,11 +477,7 @@ async def list_risks(
             is_highlighted=lambda risk: risk.net_score >= 16,
         )
 
-    return await collection_exec.execute_collection_listing(
-        db=db,
-        response_model=RiskListResponse,
-        query=collection_query,
-        ordered_query=ordered_query,
+    listing_definition = collection_exec.CollectionListingDefinition(
         capabilities=collection_capabilities,
         serialize_items=serialize_risks,
         total=total,
@@ -489,4 +485,12 @@ async def list_risks(
         load_sql_groups=load_sql_groups,
         build_sql_group_filter=build_sql_group_filter,
         build_in_memory_grouped_page=build_in_memory_grouped_page,
+    )
+
+    return await collection_exec.execute_collection_listing_with_definition(
+        db=db,
+        response_model=RiskListResponse,
+        query=collection_query,
+        ordered_query=ordered_query,
+        definition=listing_definition,
     )

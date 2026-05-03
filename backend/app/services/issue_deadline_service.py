@@ -20,16 +20,10 @@ from app.models.issue import IssueExceptionStatus, IssueStatus
 from app.models.notification import NotificationType
 from app.models.role import Permission, RoleType
 from app.services._issue_workflow.transitions import _is_remediation_complete, _status_value
-from app.services.deadline_notifications import create_deadline_notification, increment_deadline_results
+from app.services import issue_deadline_decisions as deadline_decisions
+from app.services.deadline_notifications import DeadlineNotificationExecutionPlan, execute_deadline_notification_plan
+from app.services.deadline_notifications import increment_deadline_results
 from app.services.deadline_runner import run_deadline_items
-from app.services.issue_deadline_decisions import (
-    build_issue_due_soon_notification_plan,
-    build_issue_escalation_notification_plan,
-    build_issue_overdue_notification_plan,
-    should_escalate_issue_overdue,
-    should_send_issue_due_soon,
-    should_send_issue_overdue,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -113,16 +107,18 @@ class IssueDeadlineService:
         message: str,
         now: datetime,
     ) -> bool:
-        return await create_deadline_notification(
+        return await execute_deadline_notification_plan(
             db=db,
-            user_id=user.id,
-            notification_type=notification_type,
-            title=title,
-            message=message,
-            resource_type="issue",
-            resource_id=issue.id,
-            created_at=now,
-            visibility_check=lambda: can_read_issue_id(db, user, issue.id),
+            plan=DeadlineNotificationExecutionPlan(
+                user_id=user.id,
+                notification_type=notification_type,
+                title=title,
+                message=message,
+                resource_type="issue",
+                resource_id=issue.id,
+                now=now,
+                visibility_check=lambda: can_read_issue_id(db, user, issue.id),
+            ),
         )
 
     @staticmethod
@@ -223,14 +219,14 @@ class IssueDeadlineService:
         }
         recipients = [users_by_id[uid] for uid in owner_ids if uid in users_by_id]
 
-        if should_send_issue_due_soon(
+        if deadline_decisions.should_send_issue_due_soon(
             now=now,
             due_at=due_at,
             due_soon_cutoff=due_soon_cutoff,
             due_soon_backoff=due_soon_backoff,
             last_due_soon_notified_at=issue.last_due_soon_notified_at,
         ):
-            plan = build_issue_due_soon_notification_plan(issue=issue, due_at=due_at)
+            plan = deadline_decisions.build_issue_due_soon_notification_plan(issue=issue, due_at=due_at)
             created_for_issue = 0
             for user in recipients:
                 created = await IssueDeadlineService._create_issue_notification(
@@ -253,13 +249,13 @@ class IssueDeadlineService:
         if due_at >= now:
             return issue_results
 
-        if should_send_issue_overdue(
+        if deadline_decisions.should_send_issue_overdue(
             now=now,
             due_at=due_at,
             overdue_cutoff=overdue_cutoff,
             last_overdue_notified_at=issue.last_overdue_notified_at,
         ):
-            plan = build_issue_overdue_notification_plan(issue=issue, due_at=due_at)
+            plan = deadline_decisions.build_issue_overdue_notification_plan(issue=issue, due_at=due_at)
             created_for_issue = 0
             for user in recipients:
                 created = await IssueDeadlineService._create_issue_notification(
@@ -279,14 +275,14 @@ class IssueDeadlineService:
                 increment_deadline_results(issue_results, "overdue")
                 increment_deadline_results(issue_results, "notifications_created", count=created_for_issue)
 
-        if should_escalate_issue_overdue(
+        if deadline_decisions.should_escalate_issue_overdue(
             now=now,
             due_at=due_at,
             escalation_cutoff=escalation_cutoff,
             last_escalated_at=issue.last_escalated_at,
             issue_severity=issue.severity,
         ):
-            plan = build_issue_escalation_notification_plan(issue=issue, due_at=due_at)
+            plan = deadline_decisions.build_issue_escalation_notification_plan(issue=issue, due_at=due_at)
             created_escalations = 0
             recipient_ids = {u.id for u in escalation_users} - {u.id for u in recipients}
             for user in escalation_users:

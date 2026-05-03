@@ -57,34 +57,29 @@ async def _export_kris(
             extra_visible_id_field="risk_id",
         )
 
-    return await render_export_pipeline(
-        definition=ExportPipelineDefinition(
-            title=f"KRI Export (as of {as_of_date.isoformat()})",
-            sheet_name="KRIs",
-            filename_base="kris",
-            headers=[
-                "Metric",
-                "Risk",
-                "Risk ID",
-                "Department",
-                "Current Value",
-                "Lower Limit",
-                "Upper Limit",
-                "Unit",
-                "Breach",
-                "Frequency",
-                "Status",
-                "Monitoring Status",
-                "Required Due Date",
-                "Days Overdue",
-                "Reporting Owner",
-                "Last Reported",
-            ],
-        ),
-        export_format=export_format,
-        as_of_date=as_of_date,
-        rows=rows,
-        stages=[
+    definition = ExportPipelineDefinition(
+        title=f"KRI Export (as of {as_of_date.isoformat()})",
+        sheet_name="KRIs",
+        filename_base="kris",
+        headers=[
+            "Metric",
+            "Risk",
+            "Risk ID",
+            "Department",
+            "Current Value",
+            "Lower Limit",
+            "Upper Limit",
+            "Unit",
+            "Breach",
+            "Frequency",
+            "Status",
+            "Monitoring Status",
+            "Required Due Date",
+            "Days Overdue",
+            "Reporting Owner",
+            "Last Reported",
+        ],
+        stages=(
             lambda current_rows: ExportSnapshotService.apply_as_of_snapshot(
                 db,
                 rows=current_rows,
@@ -115,7 +110,7 @@ async def _export_kris(
                 search=search,
                 as_of_date=as_of_date,
             ),
-        ],
+        ),
         row_values=lambda row: [
             row.get("metric_name"),
             row.get("risk_name"),
@@ -134,4 +129,11 @@ async def _export_kris(
             row.get("reporting_owner_name"),
             row.get("last_reported_at"),
         ],
+    )
+
+    return await render_export_pipeline(
+        definition=definition,
+        export_format=export_format,
+        as_of_date=as_of_date,
+        rows=rows,
     )

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable, Collection, Sequence
+from dataclasses import dataclass
 from inspect import isawaitable
 from typing import Any, TypeVar
 
@@ -23,6 +24,20 @@ BuildInMemoryGroupedPage = Callable[
     [list[TItem], CollectionQuery],
     tuple[list[TItem], int, list[CollectionGroupRead]],
 ]
+
+
+@dataclass(frozen=True)
+class CollectionListingDefinition:
+    capabilities: dict[str, bool] | None
+    serialize_items: SerializeItems[Any, Any]
+    serialize_sql_items: SerializeItems[Any, Any] | None = None
+    total: int | None = None
+    load_total: LoadTotal | None = None
+    sql_group_keys: Collection[str] = frozenset()
+    load_sql_groups: LoadSqlGroups | None = None
+    build_sql_group_filter: BuildSqlGroupFilter | None = None
+    sql_group_query_transform: QueryTransform | None = None
+    build_in_memory_grouped_page: BuildInMemoryGroupedPage[Any] | None = None
 
 
 def build_collection_page_kwargs(
@@ -174,4 +189,30 @@ async def execute_collection_listing(
         items=items,
         total=await resolved_total(),
         capabilities=capabilities,
+    )
+
+
+async def execute_collection_listing_with_definition(
+    *,
+    db: AsyncSession,
+    response_model: type[TResponse],
+    query: CollectionQuery,
+    ordered_query: Any,
+    definition: CollectionListingDefinition,
+) -> TResponse:
+    return await execute_collection_listing(
+        db=db,
+        response_model=response_model,
+        query=query,
+        ordered_query=ordered_query,
+        capabilities=definition.capabilities,
+        serialize_items=definition.serialize_items,
+        serialize_sql_items=definition.serialize_sql_items,
+        total=definition.total,
+        load_total=definition.load_total,
+        sql_group_keys=definition.sql_group_keys,
+        load_sql_groups=definition.load_sql_groups,
+        build_sql_group_filter=definition.build_sql_group_filter,
+        sql_group_query_transform=definition.sql_group_query_transform,
+        build_in_memory_grouped_page=definition.build_in_memory_grouped_page,
     )

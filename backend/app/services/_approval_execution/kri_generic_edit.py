@@ -9,6 +9,11 @@ from app.core import activity_logger
 from app.core.owner_reference_validation import validate_active_owner_reference
 from app.models import ApprovalRequest, KeyRiskIndicator, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
+from app.services._kri_history.governance import (
+    build_kri_value_history_activity_changes,
+    build_kri_value_mutation_changes,
+    capture_kri_value_mutation_snapshot,
+)
 from app.services.kri_vendor_assignment import assign_vendors_to_kri, ensure_vendors_exist, normalize_vendor_ids
 
 from .constants import EDITABLE_FIELDS
@@ -103,9 +108,7 @@ async def _apply_kri_generic_edit(
         logger.warning(f"Approval #{approval_id}: Rejected non-whitelisted fields for KRI: {rejected_fields}")
 
     if value_change is not None:
-        old_kri_current_value = kri.current_value
-        old_kri_last_period_end = kri.last_period_end
-        old_kri_last_reported_at = kri.last_reported_at
+        mutation_snapshot = capture_kri_value_mutation_snapshot(kri)
 
         try:
             history_entry = await KRIHistoryService.record_value(
@@ -125,28 +128,15 @@ async def _apply_kri_generic_edit(
                 action=ActivityAction.CREATE,
                 actor=current_user,
                 department_id=department_id,
-                changes={
-                    "value": {"old": value_change.get("old"), "new": value_change.get("new")},
-                    "period_end": {"old": None, "new": history_entry.period_end.isoformat()},
-                },
+                changes=build_kri_value_history_activity_changes(
+                    old_value=value_change.get("old"),
+                    new_value=value_change.get("new"),
+                    period_end=history_entry.period_end,
+                ),
                 description=f"Recorded via approval #{approval_id}",
             )
 
-            if old_kri_current_value != kri.current_value:
-                applied_changes["current_value"] = {
-                    "old": old_kri_current_value,
-                    "new": kri.current_value,
-                }
-            if old_kri_last_period_end != kri.last_period_end:
-                applied_changes["last_period_end"] = {
-                    "old": old_kri_last_period_end,
-                    "new": kri.last_period_end,
-                }
-            if old_kri_last_reported_at != kri.last_reported_at:
-                applied_changes["last_reported_at"] = {
-                    "old": old_kri_last_reported_at,
-                    "new": kri.last_reported_at,
-                }
+            applied_changes.update(build_kri_value_mutation_changes(kri, mutation_snapshot))
 
         except ValueError as e:
             logger.error(f"Failed to record value during approval: {str(e)}")

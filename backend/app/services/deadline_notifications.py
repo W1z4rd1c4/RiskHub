@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 
 from sqlalchemy import and_, select
@@ -13,6 +14,24 @@ from app.models.notification import Notification, NotificationType
 from app.services.notification_service import NotificationService
 
 VisibilityCheck = Callable[[], Awaitable[bool]]
+
+
+@dataclass(frozen=True)
+class DeadlineNotificationExecutionPlan:
+    """Declarative deadline notification work with optional dedupe and result accounting."""
+
+    user_id: int
+    notification_type: NotificationType
+    title: str
+    message: str
+    resource_type: str
+    resource_id: int
+    now: datetime
+    lookback_days: int | None = None
+    not_before: datetime | None = None
+    message_contains: str | None = None
+    visibility_check: VisibilityCheck | None = None
+    result_bucket: str | None = None
 
 
 async def has_recent_deadline_notification(
@@ -83,3 +102,41 @@ def increment_deadline_results(results: dict[str, int], *keys: str, count: int =
     """Increment deadline result counters that are present in the result mapping."""
     for key in keys:
         results[key] = results.get(key, 0) + count
+
+
+async def execute_deadline_notification_plan(
+    db: AsyncSession,
+    *,
+    plan: DeadlineNotificationExecutionPlan,
+    results: dict[str, int] | None = None,
+) -> bool:
+    """Execute one deadline notification plan with dedupe, visibility, creation, and counters."""
+    if plan.lookback_days is not None and await has_recent_deadline_notification(
+        db,
+        resource_type=plan.resource_type,
+        resource_id=plan.resource_id,
+        notification_type=plan.notification_type,
+        lookback_days=plan.lookback_days,
+        now=plan.now,
+        not_before=plan.not_before,
+        message_contains=plan.message_contains,
+    ):
+        return False
+
+    created = await create_deadline_notification(
+        db,
+        user_id=plan.user_id,
+        notification_type=plan.notification_type,
+        title=plan.title,
+        message=plan.message,
+        resource_type=plan.resource_type,
+        resource_id=plan.resource_id,
+        created_at=plan.now,
+        visibility_check=plan.visibility_check,
+    )
+    if created and results is not None:
+        result_keys = ("notifications_created",)
+        if plan.result_bucket is not None:
+            result_keys = (*result_keys, plan.result_bucket)
+        increment_deadline_results(results, *result_keys)
+    return created

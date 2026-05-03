@@ -13,7 +13,8 @@ from app.api.v1.endpoints._collection import (
     parse_collection_query,
 )
 from app.api.v1.endpoints._collection_execution import (
-    execute_collection_listing,
+    CollectionListingDefinition,
+    execute_collection_listing_with_definition,
 )
 from app.core.activity_logger import build_change_set, log_activity
 from app.core.permissions import can_read_vendor, is_vendor_owner, risk_visibility_clause
@@ -397,11 +398,7 @@ async def list_vendors(
 
     sql_group_keys = {collection_query.group_by} if collection_query.group_by else frozenset()
 
-    return await execute_collection_listing(
-        db=db,
-        response_model=VendorListResponse,
-        query=collection_query,
-        ordered_query=ordered_query,
+    listing_definition = CollectionListingDefinition(
         capabilities=collection_capabilities,
         serialize_items=serialize_vendors,
         serialize_sql_items=serialize_grouped_vendors,
@@ -409,6 +406,14 @@ async def list_vendors(
         sql_group_keys=sql_group_keys,
         load_sql_groups=load_sql_groups,
         build_sql_group_filter=build_sql_group_filter,
+    )
+
+    return await execute_collection_listing_with_definition(
+        db=db,
+        response_model=VendorListResponse,
+        query=collection_query,
+        ordered_query=ordered_query,
+        definition=listing_definition,
     )
 
 

@@ -10,6 +10,8 @@ from app.models.notification import Notification, NotificationType
 from app.models.user import User
 from app.services.deadline_notifications import (
     create_deadline_notification,
+    DeadlineNotificationExecutionPlan,
+    execute_deadline_notification_plan,
     has_recent_deadline_notification,
     increment_deadline_results,
 )
@@ -186,6 +188,49 @@ def test_increment_deadline_results_updates_present_and_new_keys():
     increment_deadline_results(results, "notifications_created", "due_soon", count=2)
 
     assert results == {"notifications_created": 3, "due_soon": 2}
+
+
+@pytest.mark.asyncio
+async def test_execute_deadline_notification_plan_dedupes_visibility_and_results(
+    db_session: AsyncSession,
+    test_user: User,
+):
+    now = datetime(2026, 4, 24, 12, 0, tzinfo=UTC)
+    results = {"notifications_created": 0, "due_soon": 0}
+
+    plan = DeadlineNotificationExecutionPlan(
+        user_id=test_user.id,
+        notification_type=NotificationType.KRI_DUE_SOON,
+        title="KRI due soon",
+        message="KRI is due soon for 2026-04-30.",
+        resource_type="kri",
+        resource_id=301,
+        lookback_days=7,
+        now=now,
+        result_bucket="due_soon",
+        message_contains="2026-04-30",
+        visibility_check=lambda: _async_bool(True),
+    )
+
+    created = await execute_deadline_notification_plan(db_session, plan=plan, results=results)
+    duplicate = await execute_deadline_notification_plan(db_session, plan=plan, results=results)
+
+    notifications = (
+        (
+            await db_session.execute(
+                select(Notification).where(
+                    Notification.resource_type == "kri",
+                    Notification.resource_id == 301,
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert created is True
+    assert duplicate is False
+    assert len(notifications) == 1
+    assert results == {"notifications_created": 1, "due_soon": 1}
 
 
 @pytest.mark.asyncio

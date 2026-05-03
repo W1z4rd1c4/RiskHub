@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 
 import pytest
 
@@ -12,6 +13,8 @@ from app.api.v1.endpoints._collection import (
 )
 from app.api.v1.endpoints._collection_execution import build_collection_page_kwargs
 from app.schemas.collection import CollectionGroupRead
+
+REPO_ROOT = Path(__file__).resolve().parents[5]
 
 
 @dataclass(frozen=True)
@@ -137,7 +140,10 @@ class ExampleCollectionResponse:
 
 @pytest.mark.asyncio
 async def test_execute_collection_listing_returns_sql_group_summary_without_serializing_items():
-    from app.api.v1.endpoints._collection_execution import execute_collection_listing
+    from app.api.v1.endpoints._collection_execution import (
+        CollectionListingDefinition,
+        execute_collection_listing_with_definition,
+    )
 
     calls: list[str] = []
     groups = [
@@ -158,17 +164,19 @@ async def test_execute_collection_listing_returns_sql_group_summary_without_seri
         calls.append("serialize")
         return items
 
-    response = await execute_collection_listing(
+    response = await execute_collection_listing_with_definition(
         db=None,
         response_model=ExampleCollectionResponse,
         query=CollectionQuery(group_by="status", offset=0, limit=10),
         ordered_query=object(),
-        total=5,
-        capabilities={"can_create": True},
-        serialize_items=serialize_items,
-        sql_group_keys={"status"},
-        load_sql_groups=load_sql_groups,
-        build_sql_group_filter=lambda group_by, group_value: object(),
+        definition=CollectionListingDefinition(
+            total=5,
+            capabilities={"can_create": True},
+            serialize_items=serialize_items,
+            sql_group_keys={"status"},
+            load_sql_groups=load_sql_groups,
+            build_sql_group_filter=lambda group_by, group_value: object(),
+        ),
     )
 
     assert calls == ["groups:status"]
@@ -180,3 +188,17 @@ async def test_execute_collection_listing_returns_sql_group_summary_without_seri
         "groups": groups,
         "capabilities": {"can_create": True},
     }
+
+
+def test_register_list_endpoints_use_definition_based_listing_executor():
+    endpoint_paths = [
+        "backend/app/api/v1/endpoints/risks/crud/list.py",
+        "backend/app/api/v1/endpoints/controls/crud/list.py",
+        "backend/app/api/v1/endpoints/kris/crud/list.py",
+        "backend/app/api/v1/endpoints/issues/crud/list.py",
+        "backend/app/api/v1/endpoints/vendors/crud.py",
+    ]
+
+    for relative_path in endpoint_paths:
+        source = (REPO_ROOT / relative_path).read_text(encoding="utf-8")
+        assert "execute_collection_listing_with_definition(" in source

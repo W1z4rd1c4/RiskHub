@@ -283,11 +283,7 @@ async def list_issues(
             is_highlighted=lambda issue: issue.severity in {IssueSeverity.high.value, IssueSeverity.critical.value},
         )
 
-    return await collection_exec.execute_collection_listing(
-        db=db,
-        response_model=IssueListResponse,
-        query=collection_query,
-        ordered_query=ordered_query,
+    listing_definition = collection_exec.CollectionListingDefinition(
         capabilities=collection_capabilities,
         serialize_items=serialize_issues,
         total=total,
@@ -296,4 +292,12 @@ async def list_issues(
         build_sql_group_filter=build_sql_group_filter,
         sql_group_query_transform=lambda query: query.outerjoin(Department, Department.id == Issue.department_id),
         build_in_memory_grouped_page=build_in_memory_grouped_page,
+    )
+
+    return await collection_exec.execute_collection_listing_with_definition(
+        db=db,
+        response_model=IssueListResponse,
+        query=collection_query,
+        ordered_query=ordered_query,
+        definition=listing_definition,
     )

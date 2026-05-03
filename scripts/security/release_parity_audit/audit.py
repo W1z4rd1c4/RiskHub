@@ -37,7 +37,9 @@ from release_parity_audit.artifacts import sha256_file, write_json, write_text
 from release_parity_audit.command_runner import run_command
 from release_parity_audit.decision import evaluate_findings_and_decision
 from release_parity_audit.dependencies import capture_dependencies
+from release_parity_audit.phase_runner import ReleaseParityPhase, ReleaseParityPhaseRunner
 from release_parity_audit.reporting import build_report, build_run_status, matrix_payload
+from release_parity_audit.run_state import ReleaseParityRunState
 from release_parity_audit.runtime import run_dynamic_paths
 from release_parity_audit.startup import build_startup_inventory
 from release_parity_audit.types import CommandResult
@@ -80,8 +82,8 @@ class ReleaseParityAudit:
         self.tmp_dir = self.artifact_root / "tmp"
         self.prod_ingest_dir = self.artifact_root / "prod_readiness_ingest"
 
-        self.command_results: list[CommandResult] = []
-        self.required_failures = 0
+        self.run_state = ReleaseParityRunState()
+        self.phase_runner = ReleaseParityPhaseRunner()
 
         self.baseline: dict[str, Any] = {}
         self.startup_paths: list[dict[str, Any]] = []
@@ -116,6 +118,22 @@ class ReleaseParityAudit:
     def _iso(ts: datetime) -> str:
         return ts.isoformat()
 
+    @property
+    def command_results(self) -> list[CommandResult]:
+        return self.run_state.command_results
+
+    @command_results.setter
+    def command_results(self, value: list[CommandResult]) -> None:
+        self.run_state.command_results = value
+
+    @property
+    def required_failures(self) -> int:
+        return self.run_state.required_failures
+
+    @required_failures.setter
+    def required_failures(self, value: int) -> None:
+        self.run_state.required_failures = value
+
     def _write_json(self, path: Path, payload: Any) -> None:
         write_json(path, payload)
 
@@ -143,9 +161,7 @@ class ReleaseParityAudit:
             utc_now=self._utc_now,
             iso=self._iso,
         )
-        self.command_results.append(result)
-        if required and result.rc != 0:
-            self.required_failures += 1
+        self.run_state.record_command_result(result)
         return result
 
     def _http_json(self, url: str, timeout: float = 8.0) -> tuple[int, Any]:
@@ -1092,16 +1108,20 @@ class ReleaseParityAudit:
         self._write_text(self.artifact_root / "report.md", report)
 
     def run(self) -> None:
-        self._capture_baseline()
-        self._build_startup_inventory()
-        self._extract_static_resolution()
-        self._capture_toolchain()
-        self._capture_startup_preflight()
-        self._run_dynamic_paths()
-        self._capture_dependencies()
-        self._evaluate_ui_parity()
-        self._evaluate_findings_and_decision()
-        self._write_report()
+        self.phase_runner.run(
+            [
+                ReleaseParityPhase("capture_baseline", self._capture_baseline),
+                ReleaseParityPhase("startup_inventory", self._build_startup_inventory),
+                ReleaseParityPhase("static_resolution", self._extract_static_resolution),
+                ReleaseParityPhase("toolchain", self._capture_toolchain),
+                ReleaseParityPhase("startup_preflight", self._capture_startup_preflight),
+                ReleaseParityPhase("dynamic_paths", self._run_dynamic_paths),
+                ReleaseParityPhase("dependencies", self._capture_dependencies),
+                ReleaseParityPhase("ui_parity", self._evaluate_ui_parity),
+                ReleaseParityPhase("decision", self._evaluate_findings_and_decision),
+                ReleaseParityPhase("report", self._write_report),
+            ]
+        )
 
 
 def parse_args() -> argparse.Namespace:

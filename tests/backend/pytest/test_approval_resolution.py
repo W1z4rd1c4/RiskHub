@@ -43,6 +43,41 @@ async def test_finalize_approval_resolution_enqueues_after_before_commit(monkeyp
 
 
 @pytest.mark.asyncio
+async def test_finalize_approval_resolution_plan_evaluates_payload_after_before_commit(monkeypatch):
+    db = _FakeDb()
+    approval = SimpleNamespace(id=11, status=SimpleNamespace(value="approved"))
+    enqueued_payloads: list[dict] = []
+
+    async def before_commit() -> None:
+        approval.status = SimpleNamespace(value="rejected")
+
+    async def fake_enqueue(*args, **kwargs) -> None:
+        enqueued_payloads.append(kwargs)
+
+    monkeypatch.setattr(resolution.OutboxService, "enqueue", fake_enqueue)
+
+    await resolution.finalize_approval_resolution_plan(
+        db,
+        approval=approval,
+        plan=resolution.approval_resolved_event_plan(approval),
+        before_commit=before_commit,
+    )
+
+    assert enqueued_payloads == [
+        {
+            "db": db,
+            "event_type": "approval.request_resolved",
+            "aggregate_type": "approval_request",
+            "aggregate_id": 11,
+            "idempotency_key": "approval.request_resolved:11:rejected",
+            "payload": {"approval_id": 11, "approved": False},
+        }
+    ]
+    assert db.commits == 1
+    assert db.rollbacks == 0
+
+
+@pytest.mark.asyncio
 async def test_finalize_approval_resolution_rolls_back_when_outbox_fails(monkeypatch):
     db = _FakeDb()
     approval = SimpleNamespace(id=9)

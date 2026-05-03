@@ -27,6 +27,7 @@ import {
     type CollectionWorkflowLoadRequest,
     useCollectionPageWorkflow,
 } from '../shared/collectionPageWorkflow';
+import { resetCollectionGroupAndPage } from '../shared/collectionViewVocabulary';
 
 interface UseIssuesPageStateOptions {
     initialState: IssuesPageInitialState;
@@ -106,8 +107,7 @@ export function useIssuesPageState({ initialState }: UseIssuesPageStateOptions) 
     } = collectionWorkflow;
 
     const resetGroupAndPage = useCallback(() => {
-        resetGroupSelection();
-        setCurrentPage(1);
+        resetCollectionGroupAndPage(resetGroupSelection, setCurrentPage);
     }, [resetGroupSelection]);
 
     useEffect(() => {

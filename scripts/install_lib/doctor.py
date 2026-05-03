@@ -11,7 +11,7 @@ from install_lib.common import (
     port_listening,
     run_command,
 )
-from install_lib.lifecycle import build_doctor_repair_plan
+from install_lib.lifecycle import build_doctor_diagnostic_plan
 from install_lib.production import summary_demo, summary_dev, summary_production_lifecycle, verify_demo, verify_dev
 from install_lib.runtime_state import (
     docker_container_state,
@@ -82,6 +82,15 @@ def run_doctor(
     _append_local_artifact_findings(paths, findings, actions)
 
     if mode == "demo":
+        diagnostic_plan = build_doctor_diagnostic_plan(
+            paths=paths,
+            mode=mode,
+            resolved_target=None,
+            config_path=config_path,
+            secret_dir=secret_dir,
+            repair=repair,
+            deep=deep,
+        )
         if not command_exists("docker"):
             findings.append("docker_daemon_unavailable")
         for name, key in (
@@ -99,8 +108,8 @@ def run_doctor(
 
         if deep:
             if options.dry_run:
-                run_command(["curl", "-fsS", "http://localhost/login"], options=options)
-                run_command(["curl", "-fsS", "http://localhost/api/v1/auth/config"], options=options)
+                for command in diagnostic_plan.deep_check_commands:
+                    run_command(command, options=options)
                 deep_check = "dry_run"
             else:
                 try:
@@ -111,7 +120,7 @@ def run_doctor(
                     findings.append("deep_verify_failed")
 
         if repair:
-            repair_plan = build_doctor_repair_plan(paths=paths, mode=mode, resolved_target=None)
+            repair_plan = diagnostic_plan.repair_plan
             actions.extend(repair_plan.actions)
             for command in repair_plan.commands:
                 run_command(command, options=options)
@@ -120,14 +129,22 @@ def run_doctor(
                 verify_demo(options)
 
         payload = {
-            "mode": "demo",
-            "repair_requested": repair,
-            "repair_applied": repair_applied,
+            **diagnostic_plan.payload_defaults,
             "deep_check": deep_check,
+            "repair_applied": repair_applied,
             "findings": findings,
             "actions": actions,
         }
     elif mode == "dev":
+        diagnostic_plan = build_doctor_diagnostic_plan(
+            paths=paths,
+            mode=mode,
+            resolved_target=None,
+            config_path=config_path,
+            secret_dir=secret_dir,
+            repair=repair,
+            deep=deep,
+        )
         if docker_container_state("riskhub-db") != "running":
             findings.append("db_container_not_running")
         if docker_container_state("riskhub-redis") != "running":
@@ -147,11 +164,7 @@ def run_doctor(
 
         if deep:
             if options.dry_run:
-                for command in (
-                    ["curl", "-fsS", "http://localhost:5173/login"],
-                    ["curl", "-fsS", "http://localhost:8000/api/v1/readyz"],
-                    ["curl", "-fsS", "http://localhost:8000/api/v1/auth/config"],
-                ):
+                for command in diagnostic_plan.deep_check_commands:
                     run_command(command, options=options)
                 deep_check = "dry_run"
             else:
@@ -163,7 +176,7 @@ def run_doctor(
                     findings.append("deep_verify_failed")
 
         if repair:
-            repair_plan = build_doctor_repair_plan(paths=paths, mode=mode, resolved_target=None)
+            repair_plan = diagnostic_plan.repair_plan
             actions.extend(repair_plan.actions)
             for command in repair_plan.commands:
                 run_command(command, options=options)
@@ -172,15 +185,23 @@ def run_doctor(
                 verify_dev(options)
 
         payload = {
-            "mode": "dev",
-            "repair_requested": repair,
-            "repair_applied": repair_applied,
+            **diagnostic_plan.payload_defaults,
             "deep_check": deep_check,
+            "repair_applied": repair_applied,
             "findings": findings,
             "actions": actions,
         }
     else:
         resolved_target = resolve_production_target(paths, target, runtime_dir)
+        diagnostic_plan = build_doctor_diagnostic_plan(
+            paths=paths,
+            mode=mode,
+            resolved_target=resolved_target,
+            config_path=config_path,
+            secret_dir=secret_dir,
+            repair=repair,
+            deep=deep,
+        )
         state_payload = production_status_payload(
             paths,
             target=resolved_target,
@@ -214,16 +235,7 @@ def run_doctor(
                     findings.append(finding_name)
 
         if deep:
-            smoke_command = [
-                paths.deploy_script,
-                "smoke",
-                "--target",
-                resolved_target,
-                "--config",
-                str(config_path),
-                "--secret-dir",
-                str(secret_dir),
-            ]
+            smoke_command = list(diagnostic_plan.deep_check_commands[0])
             if options.dry_run:
                 run_command(smoke_command, options=options)
                 deep_check = "dry_run"
@@ -313,11 +325,9 @@ def run_doctor(
                 repair_applied = True
 
         payload = {
-            "mode": "production",
-            "target": resolved_target,
-            "repair_requested": repair,
-            "repair_applied": repair_applied,
+            **diagnostic_plan.payload_defaults,
             "deep_check": deep_check,
+            "repair_applied": repair_applied,
             "findings": findings,
             "actions": actions,
         }

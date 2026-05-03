@@ -20,6 +20,8 @@ DEPENDENCIES_MODULE = importlib.import_module("release_parity_audit.dependencies
 RUNTIME_MODULE = importlib.import_module("release_parity_audit.runtime")
 STARTUP_MODULE = importlib.import_module("release_parity_audit.startup")
 UI_PARITY_MODULE = importlib.import_module("release_parity_audit.ui_parity")
+RUN_STATE_MODULE = importlib.import_module("release_parity_audit.run_state")
+PHASE_RUNNER_MODULE = importlib.import_module("release_parity_audit.phase_runner")
 evaluate_findings_and_decision = DECISION_MODULE.evaluate_findings_and_decision
 build_report = REPORTING_MODULE.build_report
 build_run_status = REPORTING_MODULE.build_run_status
@@ -48,6 +50,37 @@ def test_release_parity_run_records_public_command_result_type(tmp_path: Path) -
 
     assert len(audit.command_results) == 1
     assert isinstance(audit.command_results[0], CommandResult)
+
+
+def test_release_parity_run_state_and_phase_runner_are_deep_modules(tmp_path: Path) -> None:
+    result = CommandResult(
+        command_id="required_fail",
+        command="false",
+        cwd=str(tmp_path),
+        required=True,
+        rc=1,
+        start_utc="2026-03-18T00:00:00+00:00",
+        end_utc="2026-03-18T00:00:01+00:00",
+        duration_sec=1.0,
+        log_path=str(tmp_path / "required_fail.log"),
+        timeout_sec=None,
+    )
+    state = RUN_STATE_MODULE.ReleaseParityRunState()
+
+    state.record_command_result(result)
+
+    calls: list[str] = []
+    runner = PHASE_RUNNER_MODULE.ReleaseParityPhaseRunner()
+    runner.run(
+        [
+            PHASE_RUNNER_MODULE.ReleaseParityPhase("capture", lambda: calls.append("capture")),
+            PHASE_RUNNER_MODULE.ReleaseParityPhase("report", lambda: calls.append("report")),
+        ]
+    )
+
+    assert state.command_results == [result]
+    assert state.required_failures == 1
+    assert calls == ["capture", "report"]
 
 
 def test_release_parity_audit_exposes_modular_helper_boundaries() -> None:

@@ -6,12 +6,22 @@ import {
 } from '@/types/control';
 import type { CollectionGroup } from '@/types/collection';
 
+import { getCollectionGroupBy } from '../shared/collectionViewVocabulary';
+
 export const CONTROL_GROUP_UNLINKED_VENDOR = '__unlinked_vendor__';
 export const CONTROL_GROUP_UNCATEGORIZED = '__uncategorized__';
 export const CONTROL_GROUP_UNKNOWN_DEPARTMENT = '__unknown_department__';
 export const CONTROL_GROUP_NO_PROCESS = '__no_process__';
 export const CONTROL_GROUP_UNKNOWN_RISK_TYPE = '__unknown_risk_type__';
 export const CONTROL_GROUP_UNKNOWN_RISK = '__unknown_risk__';
+const CONTROL_VIEW_MODE_GROUPS = {
+    category: 'category',
+    department: 'department',
+    process: 'process',
+    risk_type: 'risk_type',
+    vendor: 'vendor',
+    risk: 'risk',
+} as const satisfies Partial<Record<ViewMode, string>>;
 
 export type ControlListStatusFilter = '' | 'archived' | ControlMonitoringStatus;
 
@@ -89,25 +99,7 @@ export function getControlStatusColor(status: ControlStatus): string {
 }
 
 export function getControlGroupBy(viewMode: ViewMode): string | null {
-    switch (viewMode) {
-        case 'category':
-            return 'category';
-        case 'all':
-            return null;
-        case 'department':
-            return 'department';
-        case 'process':
-            return 'process';
-        case 'risk_type':
-            return 'risk_type';
-        case 'flag':
-        case 'type':
-            return null;
-        case 'vendor':
-            return 'vendor';
-        case 'risk':
-            return 'risk';
-    }
+    return getCollectionGroupBy(viewMode, CONTROL_VIEW_MODE_GROUPS);
 }
 
 export function formatControlGroupLabel(

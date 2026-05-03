@@ -8,7 +8,6 @@ import json
 import re
 import subprocess
 import sys
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -21,6 +20,13 @@ from authz_contract_manifest import (  # noqa: E402
     BUSINESS_ROUTE_NAV_EXPECTATIONS,
     FRONTEND_LOCAL_GATE_CLASSIFICATIONS,
     FrontendLocalGateClassification,
+)
+from authz_contract_validator import capability_catalog as capability_catalog_validator  # noqa: E402
+from authz_contract_validator import frontend_routes as frontend_route_validator  # noqa: E402
+from authz_contract_validator.models import (  # noqa: E402
+    ContractPathReference as AuthzContractPathReference,
+    DiscoveredAuthzPath as AuthzDiscoveredAuthzPath,
+    Finding as AuthzFinding,
 )
 
 CONTRACT_MD = Path("docs/security/authorization-capability-contract.md")
@@ -102,25 +108,9 @@ MATRIX_FIELD_MAP = {
 }
 
 
-@dataclass(frozen=True)
-class Finding:
-    reason: str
-    detail: str
-
-
-@dataclass(frozen=True)
-class ContractPathReference:
-    action_id: str
-    field: str
-    path: Path
-    exists: bool
-
-
-@dataclass(frozen=True)
-class DiscoveredAuthzPath:
-    path: Path
-    kind: str
-    token: str
+Finding = AuthzFinding
+ContractPathReference = AuthzContractPathReference
+DiscoveredAuthzPath = AuthzDiscoveredAuthzPath
 
 
 def _repo_path(path: Path) -> Path:
@@ -269,379 +259,21 @@ def _line_matches_any_pattern(line: str, patterns: tuple[str, ...]) -> bool:
     return any(re.fullmatch(pattern, line) for pattern in patterns)
 
 
-def _normalize_typescript_expression(expression: str) -> str:
-    return re.sub(r"\s+", " ", expression.strip())
+_normalize_typescript_expression = frontend_route_validator.normalize_typescript_expression
+_describe_business_nav_authority = frontend_route_validator.describe_business_nav_authority
+_extract_route_objects_from_array = frontend_route_validator.extract_route_objects_from_array
+_extract_single_quoted_field = frontend_route_validator.extract_single_quoted_field
+_extract_is_visible_expression = frontend_route_validator.extract_is_visible_expression
+_validate_business_route_nav_context = frontend_route_validator.validate_business_route_nav_context
 
 
-def _describe_business_nav_authority(expression: str) -> str:
-    permission_match = re.search(r"hasPermission\('([^']+)', '([^']+)'\)", expression)
-    if permission_match:
-        return f"{permission_match.group(1)}:{permission_match.group(2)}"
-    return _normalize_typescript_expression(expression)
-
-
-def _extract_route_objects_from_array(source: str, array_name: str) -> list[str]:
-    array_marker = f"export const {array_name}"
-    marker_index = source.find(array_marker)
-    if marker_index == -1:
-        return []
-    assignment_index = source.find("=", marker_index)
-    if assignment_index == -1:
-        return []
-    array_start = source.find("[", assignment_index)
-    if array_start == -1:
-        return []
-
-    objects: list[str] = []
-    object_start: int | None = None
-    brace_depth = 0
-    in_string: str | None = None
-    escaped = False
-
-    for index in range(array_start + 1, len(source)):
-        char = source[index]
-        if in_string is not None:
-            if escaped:
-                escaped = False
-            elif char == "\\":
-                escaped = True
-            elif char == in_string:
-                in_string = None
-            continue
-
-        if char in {"'", '"', "`"}:
-            in_string = char
-            continue
-        if char == "{":
-            if brace_depth == 0:
-                object_start = index
-            brace_depth += 1
-            continue
-        if char == "}":
-            if brace_depth == 0:
-                continue
-            brace_depth -= 1
-            if brace_depth == 0 and object_start is not None:
-                objects.append(source[object_start: index + 1])
-                object_start = None
-            continue
-        if char == "]" and brace_depth == 0:
-            break
-
-    return objects
-
-
-def _extract_single_quoted_field(source: str, field_name: str) -> str | None:
-    match = re.search(rf"\b{re.escape(field_name)}:\s*'([^']+)'", source)
-    return match.group(1) if match else None
-
-
-def _extract_is_visible_expression(route_source: str) -> str | None:
-    marker = "isVisible:"
-    marker_index = route_source.find(marker)
-    if marker_index == -1:
-        return None
-
-    start = marker_index + len(marker)
-    expression_chars: list[str] = []
-    brace_depth = 0
-    bracket_depth = 0
-    paren_depth = 0
-    in_string: str | None = None
-    escaped = False
-
-    for char in route_source[start:]:
-        if in_string is not None:
-            expression_chars.append(char)
-            if escaped:
-                escaped = False
-            elif char == "\\":
-                escaped = True
-            elif char == in_string:
-                in_string = None
-            continue
-
-        if char in {"'", '"', "`"}:
-            in_string = char
-            expression_chars.append(char)
-            continue
-        if char == "{":
-            brace_depth += 1
-        elif char == "}":
-            if brace_depth == 0 and bracket_depth == 0 and paren_depth == 0:
-                break
-            brace_depth = max(0, brace_depth - 1)
-        elif char == "[":
-            bracket_depth += 1
-        elif char == "]":
-            bracket_depth = max(0, bracket_depth - 1)
-        elif char == "(":
-            paren_depth += 1
-        elif char == ")":
-            paren_depth = max(0, paren_depth - 1)
-        elif char == "," and brace_depth == 0 and bracket_depth == 0 and paren_depth == 0:
-            break
-        expression_chars.append(char)
-
-    expression = "".join(expression_chars).strip()
-    return expression or None
-
-
-def _validate_business_route_nav_context(source: str | None = None) -> list[Finding]:
-    findings: list[Finding] = []
-    business_source = source if source is not None else _read_source(Path("frontend/src/routing/business.tsx"))
-    for route_source in _extract_route_objects_from_array(business_source, "businessRoutes"):
-        if "nav:" not in route_source:
-            continue
-        key = _extract_single_quoted_field(route_source, "key")
-        if key is None:
-            continue
-        expected_expression = BUSINESS_ROUTE_NAV_EXPECTATIONS.get(key)
-        if expected_expression is None:
-            continue
-        actual_expression = _extract_is_visible_expression(route_source)
-        if actual_expression is None:
-            findings.append(
-                Finding(
-                    "frontend_business_nav_gate_mismatch",
-                    f"frontend/src/routing/business.tsx route {key!r} is missing nav.isVisible; "
-                    f"expected {expected_expression!r}.",
-                )
-            )
-            continue
-
-        normalized_actual = _normalize_typescript_expression(actual_expression)
-        normalized_expected = _normalize_typescript_expression(expected_expression)
-        if normalized_actual != normalized_expected:
-            path = _extract_single_quoted_field(route_source, "path")
-            href = _extract_single_quoted_field(route_source, "href")
-            expected_authority = _describe_business_nav_authority(expected_expression)
-            findings.append(
-                Finding(
-                    "frontend_business_nav_gate_mismatch",
-                    f"frontend/src/routing/business.tsx route {key!r}"
-                    f" path={path!r} href={href!r} has nav.isVisible {normalized_actual!r}; "
-                    f"expected {normalized_expected!r} ({expected_authority}).",
-                )
-            )
-    return findings
-
-
-def _read_catalog_source(
-    path: Path,
-    source_by_path: Mapping[Path | str, str] | None = None,
-) -> str:
-    if source_by_path is not None:
-        if path in source_by_path:
-            return source_by_path[path]
-        path_posix = path.as_posix()
-        if path_posix in source_by_path:
-            return source_by_path[path_posix]
-    return _read_source(path)
-
-
-def _extract_python_class_body(source: str, class_name: str) -> str | None:
-    lines = source.splitlines()
-    class_pattern = re.compile(rf"^\s*class\s+{re.escape(class_name)}\b")
-    for index, line in enumerate(lines):
-        if not class_pattern.search(line):
-            continue
-        class_indent = len(line) - len(line.lstrip())
-        body_lines: list[str] = []
-        for body_line in lines[index + 1:]:
-            if not body_line.strip():
-                body_lines.append(body_line)
-                continue
-            body_indent = len(body_line) - len(body_line.lstrip())
-            if body_indent <= class_indent:
-                break
-            body_lines.append(body_line)
-        return "\n".join(body_lines)
-    return None
-
-
-def _extract_backend_capability_fields(source: str, class_name: str) -> set[str] | None:
-    body = _extract_python_class_body(source, class_name)
-    if body is None:
-        return None
-    return {
-        match.group(1)
-        for line in body.splitlines()
-        if (match := BACKEND_BOOL_FIELD_PATTERN.match(line))
-    }
-
-
-def _find_matching_closing_brace(source: str, open_brace_index: int) -> int | None:
-    depth = 0
-    in_string: str | None = None
-    escaped = False
-    for index in range(open_brace_index, len(source)):
-        char = source[index]
-        if in_string is not None:
-            if escaped:
-                escaped = False
-            elif char == "\\":
-                escaped = True
-            elif char == in_string:
-                in_string = None
-            continue
-
-        if char in {"'", '"', "`"}:
-            in_string = char
-            continue
-        if char == "{":
-            depth += 1
-            continue
-        if char == "}":
-            depth -= 1
-            if depth == 0:
-                return index
-    return None
-
-
-def _extract_typescript_schema_body(source: str, schema_name: str) -> str | None:
-    schema_pattern = re.compile(
-        rf"\b(?:export\s+)?const\s+{re.escape(schema_name)}\s*=\s*passthroughObject\s*\("
-    )
-    match = schema_pattern.search(source)
-    if match is None:
-        return None
-
-    open_brace_index = source.find("{", match.end())
-    if open_brace_index == -1:
-        return None
-    closing_brace_index = _find_matching_closing_brace(source, open_brace_index)
-    if closing_brace_index is None:
-        return None
-    return source[open_brace_index + 1: closing_brace_index]
-
-
-def _extract_frontend_capability_fields(source: str, schema_name: str) -> set[str] | None:
-    body = _extract_typescript_schema_body(source, schema_name)
-    if body is None:
-        return None
-    return {
-        match.group(1)
-        for line in body.splitlines()
-        if (match := FRONTEND_BOOL_FIELD_PATTERN.match(line))
-    }
-
-
-def _validate_capability_catalog(
-    catalog: Any,
-    *,
-    source_by_path: Mapping[Path | str, str] | None = None,
-) -> list[Finding]:
-    findings: list[Finding] = []
-    if not isinstance(catalog, dict):
-        return [Finding("capability_catalog_shape", "root must be a JSON object")]
-
-    surfaces = catalog.get("surfaces")
-    if not isinstance(surfaces, list) or not surfaces:
-        return [Finding("capability_catalog_surfaces", "surfaces must be a non-empty list")]
-
-    seen_ids: set[str] = set()
-    for index, surface in enumerate(surfaces, start=1):
-        if not isinstance(surface, dict):
-            findings.append(Finding("capability_catalog_surface_shape", f"surface #{index} must be an object"))
-            continue
-
-        surface_id = surface.get("id")
-        if not isinstance(surface_id, str) or not surface_id:
-            surface_id = f"#{index}"
-            findings.append(Finding("capability_catalog_surface_id", f"surface #{index} needs an id"))
-        elif surface_id in seen_ids:
-            findings.append(Finding("capability_catalog_duplicate_surface", surface_id))
-        else:
-            seen_ids.add(surface_id)
-
-        fields = surface.get("fields")
-        if (
-            not isinstance(fields, list)
-            or not fields
-            or not all(isinstance(field, str) and field for field in fields)
-        ):
-            findings.append(
-                Finding("capability_catalog_fields", f"{surface_id}: fields must be non-empty strings")
-            )
-            continue
-        expected_fields = set(fields)
-        if len(expected_fields) != len(fields):
-            findings.append(Finding("capability_catalog_duplicate_field", str(surface_id)))
-
-        backend = surface.get("backend")
-        frontend = surface.get("frontend")
-        if not isinstance(backend, dict):
-            findings.append(Finding("capability_catalog_backend_shape", str(surface_id)))
-            continue
-        if not isinstance(frontend, dict):
-            findings.append(Finding("capability_catalog_frontend_shape", str(surface_id)))
-            continue
-
-        backend_path_raw = backend.get("path")
-        backend_class = backend.get("class")
-        frontend_path_raw = frontend.get("path")
-        frontend_schema = frontend.get("schema")
-        if not isinstance(backend_path_raw, str) or not isinstance(backend_class, str):
-            findings.append(Finding("capability_catalog_backend_reference", str(surface_id)))
-            continue
-        if not isinstance(frontend_path_raw, str) or not isinstance(frontend_schema, str):
-            findings.append(Finding("capability_catalog_frontend_reference", str(surface_id)))
-            continue
-
-        backend_path = Path(backend_path_raw)
-        backend_source = _read_catalog_source(backend_path, source_by_path)
-        backend_fields = _extract_backend_capability_fields(backend_source, backend_class)
-        if backend_fields is None:
-            findings.append(
-                Finding(
-                    "capability_catalog_backend_class_missing",
-                    f"{surface_id}: {backend_path.as_posix()} {backend_class}",
-                )
-            )
-        else:
-            for field in sorted(expected_fields - backend_fields):
-                findings.append(
-                    Finding(
-                        "capability_catalog_backend_field_missing",
-                        f"{surface_id}: {backend_class}.{field}",
-                    )
-                )
-            for field in sorted(backend_fields - expected_fields):
-                findings.append(
-                    Finding(
-                        "capability_catalog_backend_field_extra",
-                        f"{surface_id}: {backend_class}.{field}",
-                    )
-                )
-
-        frontend_path = Path(frontend_path_raw)
-        frontend_source = _read_catalog_source(frontend_path, source_by_path)
-        frontend_fields = _extract_frontend_capability_fields(frontend_source, frontend_schema)
-        if frontend_fields is None:
-            findings.append(
-                Finding(
-                    "capability_catalog_frontend_schema_missing",
-                    f"{surface_id}: {frontend_path.as_posix()} {frontend_schema}",
-                )
-            )
-        else:
-            for field in sorted(expected_fields - frontend_fields):
-                findings.append(
-                    Finding(
-                        "capability_catalog_frontend_field_missing",
-                        f"{surface_id}: {frontend_schema}.{field}",
-                    )
-                )
-            for field in sorted(frontend_fields - expected_fields):
-                findings.append(
-                    Finding(
-                        "capability_catalog_frontend_field_extra",
-                        f"{surface_id}: {frontend_schema}.{field}",
-                    )
-                )
-
-    return findings
+_read_catalog_source = capability_catalog_validator._read_catalog_source
+_extract_python_class_body = capability_catalog_validator._extract_python_class_body
+_extract_backend_capability_fields = capability_catalog_validator._extract_backend_capability_fields
+_find_matching_closing_brace = capability_catalog_validator._find_matching_closing_brace
+_extract_typescript_schema_body = capability_catalog_validator._extract_typescript_schema_body
+_extract_frontend_capability_fields = capability_catalog_validator._extract_frontend_capability_fields
+_validate_capability_catalog = capability_catalog_validator.validate_capability_catalog
 
 
 def _is_exact_manifest_path(path_posix: str, raw_prefix: str) -> bool:

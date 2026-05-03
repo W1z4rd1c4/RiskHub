@@ -48,6 +48,23 @@ def test_authz_contract_manifest_exports_local_gate_policy_data() -> None:
         assert classification["allowed_patterns"]
 
 
+def test_authz_validator_deep_modules_are_importable_and_script_compatible() -> None:
+    validator_dir = VALIDATOR_PATH.parent
+    if str(validator_dir) not in sys.path:
+        sys.path.insert(0, str(validator_dir))
+
+    models = importlib.import_module("authz_contract_validator.models")
+    catalog = importlib.import_module("authz_contract_validator.capability_catalog")
+    frontend_routes = importlib.import_module("authz_contract_validator.frontend_routes")
+    validator = _load_validator()
+
+    assert validator.Finding is models.Finding
+    assert validator.ContractPathReference is models.ContractPathReference
+    assert validator.DiscoveredAuthzPath is models.DiscoveredAuthzPath
+    assert validator._validate_capability_catalog is catalog.validate_capability_catalog
+    assert validator._validate_business_route_nav_context is frontend_routes.validate_business_route_nav_context
+
+
 def test_authorization_capability_contract_is_valid() -> None:
     validator = _load_validator()
 

@@ -8,6 +8,8 @@ import type {
     IssueStatus,
 } from '@/types/issue';
 
+import { getCollectionGroupBy } from '../shared/collectionViewVocabulary';
+
 export const ISSUE_STATUSES: IssueStatus[] = [
     'open',
     'triaged',
@@ -72,6 +74,13 @@ export const ISSUE_GROUP_UNCATEGORIZED = '__uncategorized__';
 export const ISSUE_GROUP_UNKNOWN_DEPARTMENT = '__unknown_department__';
 export const ISSUE_GROUP_NO_PROCESS = '__no_process__';
 export const ISSUE_GROUP_UNKNOWN_RISK_TYPE = '__unknown_risk_type__';
+const ISSUE_VIEW_MODE_GROUPS = {
+    category: 'category',
+    department: 'department',
+    process: 'process',
+    risk_type: 'risk_type',
+    vendor: 'vendor',
+} as const satisfies Partial<Record<ViewMode, string>>;
 
 function parseBooleanQueryParam(value: string | null): boolean | null {
     if (value === 'true') {
@@ -214,23 +223,7 @@ export function buildIssueExportFilters({
 }
 
 export function getIssueGroupBy(viewMode: ViewMode): string | null {
-    switch (viewMode) {
-        case 'all':
-        case 'risk':
-        case 'flag':
-        case 'type':
-            return null;
-        case 'category':
-            return 'category';
-        case 'department':
-            return 'department';
-        case 'process':
-            return 'process';
-        case 'risk_type':
-            return 'risk_type';
-        case 'vendor':
-            return 'vendor';
-    }
+    return getCollectionGroupBy(viewMode, ISSUE_VIEW_MODE_GROUPS);
 }
 
 export function formatIssueGroupLabel(

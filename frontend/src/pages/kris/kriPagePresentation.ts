@@ -2,6 +2,8 @@ import type { ViewMode } from '@/components/tables';
 import type { CollectionGroup } from '@/types/collection';
 import type { KRIMonitoringStatus, KRITimelinessStatus } from '@/types/kri';
 
+import { getCollectionGroupBy } from '../shared/collectionViewVocabulary';
+
 export type KriStatusFilter = 'all' | 'archived' | KRIMonitoringStatus;
 export type KriTimelinessFilter = KRITimelinessStatus | null;
 
@@ -13,6 +15,15 @@ export const KRI_GROUP_UNKNOWN_DEPARTMENT = '__unknown_department__';
 export const KRI_GROUP_NO_PROCESS = '__no_process__';
 export const KRI_GROUP_UNKNOWN_RISK_TYPE = '__unknown_risk_type__';
 export const KRI_GROUP_UNKNOWN_RISK = '__unknown_risk__';
+const KRI_VIEW_MODE_GROUPS = {
+    category: 'category',
+    department: 'department',
+    process: 'process',
+    type: 'risk_type',
+    risk_type: 'risk_type',
+    vendor: 'vendor',
+    risk: 'risk',
+} as const satisfies Partial<Record<ViewMode, string>>;
 
 export function isMonitoringStatus(
     value: string | null,
@@ -107,24 +118,7 @@ export function buildKriExportFilters(params: {
 }
 
 export function getKriGroupBy(viewMode: ViewMode): string | null {
-    switch (viewMode) {
-        case 'all':
-        case 'flag':
-            return null;
-        case 'category':
-            return 'category';
-        case 'department':
-            return 'department';
-        case 'process':
-            return 'process';
-        case 'type':
-        case 'risk_type':
-            return 'risk_type';
-        case 'vendor':
-            return 'vendor';
-        case 'risk':
-            return 'risk';
-    }
+    return getCollectionGroupBy(viewMode, KRI_VIEW_MODE_GROUPS);
 }
 
 export function formatKriGroupLabel(group: CollectionGroup, labels: {

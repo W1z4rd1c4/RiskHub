@@ -1,0 +1,2 @@
+"""Authorization contract validator modules."""
+
