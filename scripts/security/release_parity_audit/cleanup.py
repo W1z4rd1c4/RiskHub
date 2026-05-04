@@ -7,3 +7,7 @@ from dataclasses import dataclass
 class CleanupCommand:
     command_id: str
     command: str
+
+
+def build_cleanup_command(*, command_id: str, command: str) -> CleanupCommand:
+    return CleanupCommand(command_id=command_id, command=command)

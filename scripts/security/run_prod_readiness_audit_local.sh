@@ -514,8 +514,9 @@ run_status_path = Path(sys.argv[9])
 report_artifact_path = Path(sys.argv[10])
 logs_dir = artifact_root / "logs"
 
-matrix = json.loads(matrix_path.read_text(encoding="utf-8"))
-rc_by_id = {row["id"]: int(row["rc"]) for row in matrix}
+matrix_payload = matrix_path.read_text(encoding="utf-8")
+matrix_rows = json.loads(matrix_payload)
+rc_by_id = {row["id"]: int(row["rc"]) for row in matrix_rows}
 
 def rc(command_id: str) -> int:
     return int(rc_by_id.get(command_id, 127))

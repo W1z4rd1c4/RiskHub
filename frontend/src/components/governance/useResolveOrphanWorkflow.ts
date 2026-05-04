@@ -11,6 +11,7 @@ import type { ControlRiskLink } from '@/types/control';
 import type { OrphanedItem } from '@/types/orphanedItem';
 import type { RiskSummary } from '@/types/risk';
 
+import { buildOrphanResolutionLabel, resolveOrphanStaleTarget } from './orphanResolutionState';
 import {
     canSubmitOrphanResolution,
     filterRisks,
@@ -139,6 +140,8 @@ export function useResolveOrphanWorkflow({
         return sortedAssignableUsers(users, searchQuery, selectedDeptFilter, orphan?.department_name ?? null);
     }, [orphan?.department_name, searchQuery, selectedDeptFilter, users]);
 
+    const staleTarget = resolveOrphanStaleTarget({ stale: errorKey === 'orphaned_items.errors.stale_target' });
+    const safeOrphanLabel = buildOrphanResolutionLabel(orphan?.item_name, orphan?.item_type ?? 'item');
     const canSubmit = orphan && requirements
         ? canSubmitOrphanResolution({
             isInitialized,
@@ -148,7 +151,7 @@ export function useResolveOrphanWorkflow({
             selectedDepartmentId,
             selectedRiskId,
             selectedUserId,
-        })
+        }) && staleTarget.canSubmit
         : false;
 
     function handleSelectUser(user: OrphanUserOption) {
@@ -190,6 +193,7 @@ export function useResolveOrphanWorkflow({
         isSubmitting,
         requirements,
         riskSearchQuery,
+        safeOrphanLabel,
         searchQuery,
         selectedDepartmentId,
         selectedDeptFilter,

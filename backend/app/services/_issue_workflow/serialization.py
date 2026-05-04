@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import IssueException, User
 from app.schemas.issue import IssueExceptionRead
+from app.services._issue_workflow.contracts import IssueWorkflowOutcome
 from app.services._issue_register import serialize_issue_read_for_actor
 from app.services._issue_register.serialization import (
     _active_exception,
@@ -24,8 +25,6 @@ async def serialize_exception_with_user_names(
 
 
 async def serialize_refreshed_issue(db: AsyncSession, *, issue_id: int, current_user: User):
-    from app.services._issue_workflow.lifecycle import IssueWorkflowOutcome
-
     refreshed = await get_issue_with_relations(db, issue_id)
     if refreshed is None:
         raise HTTPException(status_code=404, detail="Issue not found")

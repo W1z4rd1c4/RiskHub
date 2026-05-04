@@ -46,7 +46,8 @@ from app.services._issue_register import (
     load_issue_sql_groups,
     serialize_issue_summaries_for_actor,
 )
-from app.services._register_listings.lifecycle import execute_register_listing_plan, plan_issue_listing
+from app.services._register_listings.issues import plan_issue_listing
+from app.services._register_listings.lifecycle import execute_register_listing_plan
 from app.services.authorization_capabilities import issue_capabilities
 from app.services.issue_visibility_service import unsuppressed_issue_clause
 

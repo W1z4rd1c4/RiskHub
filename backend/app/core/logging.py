@@ -13,11 +13,9 @@ Log files:
 """
 
 import logging
-import logging.handlers
 import os
-import sys
 from contextvars import ContextVar
-from dataclasses import dataclass
+from functools import partial
 from pathlib import Path
 from typing import Any
 
@@ -46,33 +44,16 @@ _active_logging_config: dict[str, int | str | bool] = {
     "audit_retention_count": DEFAULT_LOG_RETENTION_COUNT,
 }
 
-
-@dataclass(frozen=True)
-class ResolvedLoggingConfig:
-    log_level: str
-    json_console: bool
-    app_rotation_size_mb: int
-    app_retention_count: int
-    audit_rotation_size_mb: int
-    audit_retention_count: int
-
-    @property
-    def app_size_bytes(self) -> int:
-        return self.app_rotation_size_mb * 1024 * 1024
-
-    @property
-    def audit_size_bytes(self) -> int:
-        return self.audit_rotation_size_mb * 1024 * 1024
-
-    def as_active_config(self) -> dict[str, int | str | bool]:
-        return {
-            "log_level": self.log_level,
-            "json_console": self.json_console,
-            "app_rotation_size_mb": self.app_rotation_size_mb,
-            "app_retention_count": self.app_retention_count,
-            "audit_rotation_size_mb": self.audit_rotation_size_mb,
-            "audit_retention_count": self.audit_retention_count,
-        }
+ResolvedLoggingConfig = logging_config.ResolvedLoggingConfig
+AuditFilter = logging_handlers.AuditFilter
+NonAuditFilter = logging_handlers.NonAuditFilter
+_resolve_logging_config = partial(
+    logging_config.resolve_logging_config,
+    default_app_size_mb=DEFAULT_LOG_ROTATION_SIZE_MB,
+    default_app_count=DEFAULT_LOG_RETENTION_COUNT,
+    default_audit_size_mb=DEFAULT_LOG_ROTATION_SIZE_MB,
+    default_audit_count=DEFAULT_LOG_RETENTION_COUNT,
+)
 
 
 def add_context_vars(
@@ -88,20 +69,6 @@ def add_context_vars(
     if (client_ip := client_ip_ctx.get()) is not None:
         event_dict["client_ip"] = client_ip
     return event_dict
-
-
-class AuditFilter(logging.Filter):
-    """Filter to include ONLY audit logger events."""
-
-    def filter(self, record: logging.LogRecord) -> bool:
-        return record.name == "audit" or record.name.startswith("audit.")
-
-
-class NonAuditFilter(logging.Filter):
-    """Filter to EXCLUDE audit logger events (for app log)."""
-
-    def filter(self, record: logging.LogRecord) -> bool:
-        return record.name != "audit" and not record.name.startswith("audit.")
 
 
 def get_log_settings() -> tuple[int, int, int, int]:
@@ -122,112 +89,6 @@ def get_log_settings() -> tuple[int, int, int, int]:
 
 def get_active_logging_config() -> dict[str, int | str | bool]:
     return dict(_active_logging_config)
-
-
-def _resolve_logging_config(
-    *,
-    log_level: str,
-    json_console: bool,
-    rotation_size_mb: int | None = None,
-    retention_count: int | None = None,
-    app_rotation_size_mb: int | None = None,
-    app_retention_count: int | None = None,
-    audit_rotation_size_mb: int | None = None,
-    audit_retention_count: int | None = None,
-) -> ResolvedLoggingConfig:
-    default_app_size, default_app_count, default_audit_size, default_audit_count = get_log_settings()
-
-    if rotation_size_mb is not None:
-        if app_rotation_size_mb is None:
-            app_rotation_size_mb = rotation_size_mb
-        if audit_rotation_size_mb is None:
-            audit_rotation_size_mb = rotation_size_mb
-    if retention_count is not None:
-        if app_retention_count is None:
-            app_retention_count = retention_count
-        if audit_retention_count is None:
-            audit_retention_count = retention_count
-
-    return ResolvedLoggingConfig(
-        log_level=log_level.upper(),
-        json_console=json_console,
-        app_rotation_size_mb=app_rotation_size_mb
-        if app_rotation_size_mb is not None
-        else default_app_size // (1024 * 1024),
-        app_retention_count=app_retention_count if app_retention_count is not None else default_app_count,
-        audit_rotation_size_mb=audit_rotation_size_mb
-        if audit_rotation_size_mb is not None
-        else default_audit_size // (1024 * 1024),
-        audit_retention_count=audit_retention_count if audit_retention_count is not None else default_audit_count,
-    )
-
-
-def _shared_processors() -> list[structlog.types.Processor]:
-    return [
-        structlog.stdlib.add_log_level,
-        structlog.stdlib.add_logger_name,
-        structlog.processors.TimeStamper(fmt="iso"),
-        add_context_vars,
-        structlog.processors.StackInfoRenderer(),
-        structlog.processors.UnicodeDecoder(),
-    ]
-
-
-def _build_json_formatter(
-    shared_processors: list[structlog.types.Processor],
-) -> structlog.stdlib.ProcessorFormatter:
-    return structlog.stdlib.ProcessorFormatter(
-        foreign_pre_chain=shared_processors,
-        processors=[
-            structlog.stdlib.ProcessorFormatter.remove_processors_meta,
-            structlog.processors.JSONRenderer(),
-        ],
-    )
-
-
-def _build_console_formatter(
-    *,
-    shared_processors: list[structlog.types.Processor],
-    json_console: bool,
-) -> structlog.stdlib.ProcessorFormatter:
-    return structlog.stdlib.ProcessorFormatter(
-        foreign_pre_chain=shared_processors,
-        processors=[
-            structlog.stdlib.ProcessorFormatter.remove_processors_meta,
-            structlog.dev.ConsoleRenderer() if not json_console else structlog.processors.JSONRenderer(),
-        ],
-    )
-
-
-def _build_file_handler(
-    *,
-    log_file: str,
-    size_bytes: int,
-    backup_count: int,
-    formatter: logging.Formatter,
-    audit: bool,
-) -> logging.handlers.RotatingFileHandler:
-    handler = logging.handlers.RotatingFileHandler(
-        log_file,
-        maxBytes=size_bytes,
-        backupCount=backup_count,
-        encoding="utf-8",
-    )
-    handler.setFormatter(formatter)
-    handler.setLevel(logging.DEBUG)
-    handler.addFilter(AuditFilter() if audit else NonAuditFilter())
-    return handler
-
-
-def _build_console_handler(
-    *,
-    formatter: logging.Formatter,
-    log_level: str,
-) -> logging.StreamHandler:
-    handler = logging.StreamHandler(sys.stdout)
-    handler.setFormatter(formatter)
-    handler.setLevel(getattr(logging, log_level))
-    return handler
 
 
 def configure_logging_from_snapshot(snapshot: dict[str, int | str | bool]) -> structlog.BoundLogger:
@@ -266,9 +127,14 @@ def configure_logging(
     Returns:
         Configured structlog logger
     """
-    resolved_config = _resolve_logging_config(
+    default_app_size, default_app_count, default_audit_size, default_audit_count = get_log_settings()
+    resolved_config = logging_config.resolve_logging_config(
         log_level=log_level,
         json_console=json_console,
+        default_app_size_mb=default_app_size // (1024 * 1024),
+        default_app_count=default_app_count,
+        default_audit_size_mb=default_audit_size // (1024 * 1024),
+        default_audit_count=default_audit_count,
         rotation_size_mb=rotation_size_mb,
         retention_count=retention_count,
         app_rotation_size_mb=app_rotation_size_mb,
@@ -285,7 +151,7 @@ def configure_logging(
     audit_log_file = str(log_dir / "audit.json.log")
 
     # Shared processors for both structlog and stdlib logging
-    shared_processors = _shared_processors()
+    shared_processors = logging_handlers.shared_processors(add_context_vars)
 
     # Configure structlog
     structlog.configure(
@@ -299,16 +165,16 @@ def configure_logging(
     )
 
     # JSON formatter for file handlers
-    json_formatter = _build_json_formatter(shared_processors)
+    json_formatter = logging_handlers.build_json_formatter(shared_processors)
 
     # Console formatter (JSON or pretty based on env)
-    console_formatter = _build_console_formatter(
-        shared_processors=shared_processors,
+    console_formatter = logging_handlers.build_console_formatter(
+        processors=shared_processors,
         json_console=resolved_config.json_console,
     )
 
     # App file handler - general logs (excludes audit)
-    app_handler = _build_file_handler(
+    app_handler = logging_handlers.build_file_handler(
         log_file=app_log_file,
         size_bytes=resolved_config.app_size_bytes,
         backup_count=resolved_config.app_retention_count,
@@ -317,7 +183,7 @@ def configure_logging(
     )
 
     # Audit file handler - security/audit events only
-    audit_handler = _build_file_handler(
+    audit_handler = logging_handlers.build_file_handler(
         log_file=audit_log_file,
         size_bytes=resolved_config.audit_size_bytes,
         backup_count=resolved_config.audit_retention_count,
@@ -326,7 +192,7 @@ def configure_logging(
     )
 
     # Console handler (all logs)
-    console_handler = _build_console_handler(
+    console_handler = logging_handlers.build_console_handler(
         formatter=console_formatter,
         log_level=resolved_config.log_level,
     )

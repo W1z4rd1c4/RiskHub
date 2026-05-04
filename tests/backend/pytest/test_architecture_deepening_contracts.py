@@ -1,7 +1,70 @@
 from __future__ import annotations
 
+import ast
 import inspect
 from pathlib import Path
+
+
+REPO_ROOT = Path(__file__).resolve().parents[3]
+
+
+def _source(relative_path: str) -> str:
+    return (REPO_ROOT / relative_path).read_text(encoding="utf-8")
+
+
+def _tree(relative_path: str) -> ast.Module:
+    return ast.parse(_source(relative_path), filename=relative_path)
+
+
+def _defined_class_names(relative_path: str) -> set[str]:
+    return {node.name for node in ast.walk(_tree(relative_path)) if isinstance(node, ast.ClassDef)}
+
+
+def _defined_function_names(relative_path: str) -> set[str]:
+    return {
+        node.name
+        for node in ast.walk(_tree(relative_path))
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef)
+    }
+
+
+def _imports_module(relative_path: str, module_name: str) -> bool:
+    for node in ast.walk(_tree(relative_path)):
+        if isinstance(node, ast.Import):
+            if any(alias.name == module_name for alias in node.names):
+                return True
+        if isinstance(node, ast.ImportFrom) and node.module == module_name:
+            return True
+    return False
+
+
+def _imports_relative_module(relative_path: str, module_name: str) -> bool:
+    for node in ast.walk(_tree(relative_path)):
+        if isinstance(node, ast.ImportFrom) and node.level > 0 and node.module == module_name:
+            return True
+    return False
+
+
+def _has_varargs_forwarder(relative_path: str) -> bool:
+    for node in ast.walk(_tree(relative_path)):
+        if not isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
+            continue
+        if node.args.vararg is None and node.args.kwarg is None:
+            continue
+        body_source = ast.get_source_segment(_source(relative_path), node) or ""
+        if "return " in body_source and ("*args" in body_source or "**kwargs" in body_source):
+            return True
+    return False
+
+
+def _production_frontend_import_count(export_name: str) -> int:
+    count = 0
+    for path in (REPO_ROOT / "frontend" / "src").rglob("*.ts*"):
+        if path.name.endswith(".test.ts") or path.name.endswith(".test.tsx"):
+            continue
+        if export_name in path.read_text(encoding="utf-8"):
+            count += 1
+    return count
 
 
 def test_risk_questionnaire_routes_use_lifecycle_interface() -> None:
@@ -199,7 +262,6 @@ def test_auth_session_outcomes_delegate_to_split_modules() -> None:
     assert hasattr(cookies, "apply_session_cookie_plan")
     assert hasattr(audit, "record_session_audit_plan")
 
-    outcome_source = inspect.getsource(outcomes)
     for module_name in (
         "audit",
         "cookies",
@@ -208,9 +270,30 @@ def test_auth_session_outcomes_delegate_to_split_modules() -> None:
         "sso_challenges",
         "sso_identity",
     ):
-        assert f"app.services._auth_session.{module_name}" in outcome_source
+        assert _imports_relative_module("backend/app/services/_auth_session/outcomes.py", module_name)
 
+    outcome_source = inspect.getsource(outcomes)
     assert "app.api.v1.endpoints.auth" not in outcome_source
+
+
+def test_auth_session_split_modules_are_not_facade_back_wrappers() -> None:
+    for relative_path in (
+        "backend/app/services/_auth_session/refresh.py",
+        "backend/app/services/_auth_session/sso_challenges.py",
+        "backend/app/services/_auth_session/jit.py",
+    ):
+        assert not _imports_module(relative_path, "app.services._auth_session.outcomes")
+        assert "from . import outcomes" not in _source(relative_path)
+        assert not _has_varargs_forwarder(relative_path)
+
+    outcome_source = _source("backend/app/services/_auth_session/outcomes.py")
+    for implementation_detail in (
+        "descendant_stmt =",
+        "select(RefreshToken).where",
+        "SsoChallenge(",
+        "normalize_business_role(",
+    ):
+        assert implementation_detail not in outcome_source
 
 
 def test_riskhub_config_routes_use_lifecycle_contracts() -> None:
@@ -418,6 +501,72 @@ def test_register_listings_use_entity_definition_modules() -> None:
         assert local_definition not in route_source
 
 
+def test_collection_contracts_have_one_canonical_definition() -> None:
+    duplicate_contracts = []
+    for relative_path in (
+        "backend/app/api/v1/endpoints/_collection.py",
+        "backend/app/api/v1/endpoints/_collection_execution.py",
+        "backend/app/services/_collection_contracts.py",
+    ):
+        class_names = _defined_class_names(relative_path)
+        for contract_name in ("CollectionQuery", "CollectionListingDefinition"):
+            if contract_name in class_names:
+                duplicate_contracts.append((relative_path, contract_name))
+
+    assert duplicate_contracts == [
+        ("backend/app/services/_collection_contracts.py", "CollectionQuery"),
+        ("backend/app/services/_collection_contracts.py", "CollectionListingDefinition"),
+    ]
+
+
+def test_register_listing_entity_modules_own_planners() -> None:
+    for relative_path, planner_name in (
+        ("backend/app/services/_register_listings/risks.py", "plan_risk_listing"),
+        ("backend/app/services/_register_listings/controls.py", "plan_control_listing"),
+        ("backend/app/services/_register_listings/kris.py", "plan_kri_listing"),
+        ("backend/app/services/_register_listings/issues.py", "plan_issue_listing"),
+        ("backend/app/services/_register_listings/vendors.py", "plan_vendor_listing"),
+    ):
+        assert planner_name in _defined_function_names(relative_path)
+        assert not _has_varargs_forwarder(relative_path)
+        assert "from .lifecycle import RegisterListingPlan, plan_" not in _source(relative_path)
+
+    lifecycle_functions = _defined_function_names("backend/app/services/_register_listings/lifecycle.py")
+    for old_generic_planner in (
+        "plan_risk_listing",
+        "plan_control_listing",
+        "plan_kri_listing",
+        "plan_issue_listing",
+        "plan_vendor_listing",
+    ):
+        assert old_generic_planner not in lifecycle_functions
+
+    route_sources = "\n".join(
+        _source(path)
+        for path in (
+            "backend/app/api/v1/endpoints/risks/crud/list.py",
+            "backend/app/api/v1/endpoints/controls/crud/list.py",
+            "backend/app/api/v1/endpoints/kris/crud/list.py",
+            "backend/app/api/v1/endpoints/issues/crud/list.py",
+            "backend/app/api/v1/endpoints/vendors/crud.py",
+            "backend/app/api/v1/endpoints/vendors/_listing.py",
+        )
+    )
+    for leaked_detail in (
+        "_load_risk_sql_groups",
+        "_risk_listing_group_value_filter",
+        "_load_control_sql_groups",
+        "_control_listing_group_filter",
+        "_load_kri_sql_groups",
+        "_kri_listing_group_filter",
+        "_load_issue_sql_groups",
+        "_issue_listing_group_filter",
+        "_load_vendor_sql_groups",
+        "_vendor_listing_group_value_filter",
+    ):
+        assert leaked_detail not in route_sources
+
+
 def test_report_exporters_use_reporting_export_definitions() -> None:
     from app.api.v1.endpoints.reports.unified_exports import (
         export_controls,
@@ -538,6 +687,28 @@ def test_kri_history_uses_service_owned_intake_and_projection() -> None:
     assert "approval_intake" in inspect.getsource(governance)
 
 
+def test_kri_history_direct_application_and_routes_do_not_use_private_wrappers() -> None:
+    direct_path = "backend/app/services/_kri_history/direct_application.py"
+    assert not _has_varargs_forwarder(direct_path)
+    assert "_apply_kri_value_directly" not in _source(direct_path)
+
+    route_sources = "\n".join(
+        _source(path)
+        for path in (
+            "backend/app/api/v1/endpoints/kris/history.py",
+            "backend/app/api/v1/endpoints/kris/history_helpers.py",
+            "backend/app/api/v1/endpoints/kris/history_submission.py",
+            "backend/app/api/v1/endpoints/kris/history_value_application.py",
+        )
+    )
+    for private_import in (
+        "from app.services._kri_history.submission import _create_kri_submission_approval",
+        "from app.services._kri_history.value_application import _apply_kri_value_directly",
+        "from app.services._kri_history.value_application import (",
+    ):
+        assert private_import not in route_sources
+
+
 def test_approval_queue_routes_use_queue_lifecycle_module() -> None:
     from app.api.v1.endpoints.approvals import queue, resolve
     from app.services._approval_queue import lifecycle
@@ -642,6 +813,74 @@ def test_issue_workflow_lifecycle_uses_service_owned_helpers() -> None:
         assert f"app.services._issue_workflow.{module_name}" in lifecycle_source
 
     assert "app.api.v1.endpoints.issues" not in lifecycle_source
+
+
+def test_issue_workflow_lifecycle_no_longer_owns_update_source_mutation() -> None:
+    assert "from app.services._issue_workflow.lifecycle import IssueWorkflowOutcome" not in _source(
+        "backend/app/services/_issue_workflow/serialization.py"
+    )
+
+    lifecycle_source = _source("backend/app/services/_issue_workflow/lifecycle.py")
+    for source_mutation_detail in (
+        'if "source_type" in updates or "source_id" in updates:',
+        "missing_source_id_for_concrete_switch",
+        "clear_issue_source_links(",
+        "ensure_issue_source_link(",
+        "build_change_set(",
+    ):
+        assert source_mutation_detail not in lifecycle_source
+
+
+def test_core_logging_and_scheduler_facades_do_not_own_split_implementations() -> None:
+    logging_source = _source("backend/app/core/logging.py")
+    for logging_detail in (
+        "def _resolve_logging_config",
+        "def _build_json_formatter",
+        "def _build_console_handler",
+        "def _build_file_handler",
+    ):
+        assert logging_detail not in logging_source
+
+    scheduler_source = _source("backend/app/core/scheduler.py")
+    for scheduler_detail in (
+        "FULL_SCHEDULER_JOB_IDS =",
+        "OPTIONAL_SCHEDULER_JOB_IDS =",
+        "OUTBOX_ONLY_SCHEDULER_JOB_IDS =",
+        "def _register_scheduler_jobs",
+    ):
+        assert scheduler_detail not in scheduler_source
+
+
+def test_release_and_prod_readiness_modules_are_not_placeholder_markers() -> None:
+    for relative_path in (
+        "scripts/security/release_parity_audit/toolchain.py",
+        "scripts/security/release_parity_audit/startup_preflight.py",
+        "scripts/security/release_parity_audit/screenshots.py",
+        "scripts/security/release_parity_audit/fingerprints.py",
+        "scripts/security/release_parity_audit/cleanup.py",
+        "scripts/security/release_parity_audit/facade.py",
+    ):
+        source = _source(relative_path)
+        assert source.count("@dataclass") <= 2
+        assert len(_defined_function_names(relative_path)) >= 1
+
+    prod_script = _source("scripts/security/run_prod_readiness_audit_local.sh")
+    assert "def score_phase" not in prod_script
+    assert "matrix = json.loads(matrix_path.read_text" not in prod_script
+
+
+def test_frontend_workflow_helpers_are_used_by_production_code() -> None:
+    for export_name in (
+        "nextEntityFormStep",
+        "previousEntityFormStep",
+        "resolveSubmitOutcome",
+        "resetLinkPaginationOnSearch",
+        "resolveLinkActionOutcome",
+        "buildQuestionnaireComparisonModel",
+        "buildOrphanResolutionLabel",
+        "resolveOrphanStaleTarget",
+    ):
+        assert _production_frontend_import_count(export_name) >= 2
 
 
 def test_notification_routes_use_inbox_module() -> None:

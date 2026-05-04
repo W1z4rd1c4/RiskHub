@@ -70,26 +70,6 @@ def _plan_register_listing(
     )
 
 
-def plan_risk_listing(**kwargs: Any) -> RegisterListingPlan:
-    return _plan_register_listing(**kwargs)
-
-
-def plan_control_listing(**kwargs: Any) -> RegisterListingPlan:
-    return _plan_register_listing(**kwargs)
-
-
-def plan_kri_listing(**kwargs: Any) -> RegisterListingPlan:
-    return _plan_register_listing(**kwargs)
-
-
-def plan_issue_listing(**kwargs: Any) -> RegisterListingPlan:
-    return _plan_register_listing(**kwargs)
-
-
-def plan_vendor_listing(**kwargs: Any) -> RegisterListingPlan:
-    return _plan_register_listing(**kwargs)
-
-
 async def execute_register_listing_plan(
     *,
     db: Any,

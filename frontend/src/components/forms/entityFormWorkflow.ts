@@ -1,6 +1,7 @@
 export interface EntityFormStepState {
     currentStep: number;
     maxStep?: number;
+    minStep?: number;
 }
 
 export interface EntityFormSubmitOutcomeInput {
@@ -11,8 +12,8 @@ export function nextEntityFormStep({ currentStep, maxStep = currentStep + 1 }: E
     return Math.min(currentStep + 1, maxStep);
 }
 
-export function previousEntityFormStep({ currentStep }: EntityFormStepState): number {
-    return Math.max(currentStep - 1, 1);
+export function previousEntityFormStep({ currentStep, minStep = 1 }: EntityFormStepState): number {
+    return Math.max(currentStep - 1, minStep);
 }
 
 export function resolveSubmitOutcome({ approvalQueued = false }: EntityFormSubmitOutcomeInput) {

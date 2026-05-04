@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable, Collection, Sequence
+from collections.abc import Awaitable, Callable, Collection, Iterable, Sequence
 from dataclasses import dataclass
 from inspect import isawaitable
-from typing import Any, TypeVar
+from typing import Any, Literal, TypeVar
 
 from pydantic import BaseModel, Field
 from sqlalchemy import false, func, select
@@ -18,7 +18,7 @@ TResponse = TypeVar("TResponse")
 
 class CollectionSort(BaseModel):
     field: str
-    direction: str = "asc"
+    direction: Literal["asc", "desc"] = "asc"
 
 
 class CollectionQuery(BaseModel):
@@ -107,6 +107,84 @@ def build_collection_response(
     )
 
 
+def build_grouped_collection_response[T](
+    items: Iterable[T],
+    *,
+    group_by: str,
+    group_value: str | None,
+    get_entries: Callable[[T, str], Iterable[CollectionGroupEntry]],
+    is_active: Callable[[T], bool] | None = None,
+    is_highlighted: Callable[[T], bool] | None = None,
+) -> tuple[list[T], int, list[CollectionGroupRead]]:
+    item_entries: list[tuple[T, list[CollectionGroupEntry]]] = []
+    group_map: dict[str, dict[str, Any]] = {}
+
+    for item in items:
+        entries = list(get_entries(item, group_by))
+        item_entries.append((item, entries))
+
+        seen_values: set[str] = set()
+        for entry in entries:
+            if entry.value in seen_values:
+                continue
+            seen_values.add(entry.value)
+
+            group = group_map.setdefault(
+                entry.value,
+                {
+                    "value": entry.value,
+                    "label": entry.label,
+                    "count": 0,
+                    "active_count": 0,
+                    "highlighted_count": 0,
+                    "meta": entry.meta or {},
+                },
+            )
+            group["count"] += 1
+            if is_active is None or is_active(item):
+                group["active_count"] += 1
+            if is_highlighted is not None and is_highlighted(item):
+                group["highlighted_count"] += 1
+
+    groups = [
+        CollectionGroupRead.model_validate(group)
+        for group in sorted(group_map.values(), key=lambda group: str(group["label"]).lower())
+    ]
+
+    if not group_value:
+        return [], len(item_entries), groups
+
+    grouped_items = [
+        item
+        for item, entries in item_entries
+        if any(entry.value == group_value for entry in entries)
+    ]
+    return grouped_items, len(grouped_items), groups
+
+
+def build_grouped_collection_page[T](
+    items: Iterable[T],
+    query: CollectionQuery,
+    *,
+    get_entries: Callable[[T, str], Iterable[CollectionGroupEntry]],
+    is_active: Callable[[T], bool] | None = None,
+    is_highlighted: Callable[[T], bool] | None = None,
+) -> tuple[list[T], int, list[CollectionGroupRead]]:
+    if not query.group_by:
+        item_list = list(items)
+        return item_list, len(item_list), []
+
+    grouped_items, grouped_total, groups = build_grouped_collection_response(
+        items,
+        group_by=query.group_by,
+        group_value=query.group_value,
+        get_entries=get_entries,
+        is_active=is_active,
+        is_highlighted=is_highlighted,
+    )
+    return grouped_items[query.offset : query.offset + query.limit], grouped_total, groups
+
+
 def apply_collection_group_filter(query: Any, group_filter: Any | None) -> Any:
     if group_filter is None:
         return query.where(false())
@@ -139,21 +217,56 @@ async def execute_collection_listing_with_definition(
     *,
     db: AsyncSession,
     response_model: type[TResponse],
-    query: Any,
+    query: CollectionQuery,
     ordered_query: Any,
     definition: CollectionListingDefinition,
 ) -> TResponse:
-    async def resolved_total() -> int:
-        if definition.total is not None:
-            return definition.total
-        if definition.load_total is None:
-            raise ValueError("Collection listing requires total or load_total")
-        return await definition.load_total()
+    return await execute_collection_listing(
+        db=db,
+        response_model=response_model,
+        query=query,
+        ordered_query=ordered_query,
+        capabilities=definition.capabilities,
+        serialize_items=definition.serialize_items,
+        serialize_sql_items=definition.serialize_sql_items,
+        total=definition.total,
+        load_total=definition.load_total,
+        sql_group_keys=definition.sql_group_keys,
+        load_sql_groups=definition.load_sql_groups,
+        build_sql_group_filter=definition.build_sql_group_filter,
+        sql_group_query_transform=definition.sql_group_query_transform,
+        build_in_memory_grouped_page=definition.build_in_memory_grouped_page,
+    )
 
-    if query.group_by and query.group_by in definition.sql_group_keys:
-        if definition.load_sql_groups is None or definition.build_sql_group_filter is None:
+
+async def execute_collection_listing(
+    *,
+    db: AsyncSession,
+    response_model: type[TResponse],
+    query: CollectionQuery,
+    ordered_query: Any,
+    capabilities: dict[str, bool] | None,
+    serialize_items: SerializeItems[TModel, TItem],
+    serialize_sql_items: SerializeItems[TModel, TItem] | None = None,
+    total: int | None = None,
+    load_total: LoadTotal | None = None,
+    sql_group_keys: Collection[str] = frozenset(),
+    load_sql_groups: LoadSqlGroups | None = None,
+    build_sql_group_filter: BuildSqlGroupFilter | None = None,
+    sql_group_query_transform: QueryTransform | None = None,
+    build_in_memory_grouped_page: BuildInMemoryGroupedPage[TItem] | None = None,
+) -> TResponse:
+    async def resolved_total() -> int:
+        if total is not None:
+            return total
+        if load_total is None:
+            raise ValueError("Collection listing requires total or load_total")
+        return await load_total()
+
+    if query.group_by and query.group_by in sql_group_keys:
+        if load_sql_groups is None or build_sql_group_filter is None:
             raise ValueError("SQL collection grouping requires group loader and filter builder")
-        groups = await definition.load_sql_groups(query.group_by)
+        groups = await load_sql_groups(query.group_by)
         if is_group_summary_request(query):
             return build_collection_response(
                 response_model,
@@ -161,21 +274,15 @@ async def execute_collection_listing_with_definition(
                 items=[],
                 total=await resolved_total(),
                 groups=groups,
-                capabilities=definition.capabilities,
+                capabilities=capabilities,
             )
 
-        group_filter = await _resolve_maybe_awaitable(
-            definition.build_sql_group_filter(query.group_by, query.group_value)
-        )
-        grouped_query = (
-            ordered_query
-            if definition.sql_group_query_transform is None
-            else definition.sql_group_query_transform(ordered_query)
-        )
+        group_filter = await _resolve_maybe_awaitable(build_sql_group_filter(query.group_by, query.group_value))
+        grouped_query = ordered_query if sql_group_query_transform is None else sql_group_query_transform(ordered_query)
         grouped_query = apply_collection_group_filter(grouped_query, group_filter)
         grouped_total = await count_collection_rows(db, grouped_query)
         models = await load_collection_scalars_page(db, grouped_query, offset=query.offset, limit=query.limit)
-        sql_serializer = definition.serialize_sql_items or definition.serialize_items
+        sql_serializer = serialize_sql_items or serialize_items
         items = await sql_serializer(models)
         return build_collection_response(
             response_model,
@@ -183,31 +290,31 @@ async def execute_collection_listing_with_definition(
             items=items,
             total=grouped_total,
             groups=groups,
-            capabilities=definition.capabilities,
+            capabilities=capabilities,
         )
 
     if query.group_by:
-        if definition.build_in_memory_grouped_page is None:
+        if build_in_memory_grouped_page is None:
             raise ValueError(f"No collection grouping executor registered for {query.group_by!r}")
         result = await db.execute(ordered_query)
         models = list(result.scalars().all())
-        all_items = await definition.serialize_items(models)
-        paginated_items, grouped_total, groups = definition.build_in_memory_grouped_page(all_items, query)
+        all_items = await serialize_items(models)
+        paginated_items, grouped_total, groups = build_in_memory_grouped_page(all_items, query)
         return build_collection_response(
             response_model,
             query=query,
             items=paginated_items,
             total=grouped_total,
             groups=groups,
-            capabilities=definition.capabilities,
+            capabilities=capabilities,
         )
 
     models = await load_collection_scalars_page(db, ordered_query, offset=query.offset, limit=query.limit)
-    items = await definition.serialize_items(models)
+    items = await serialize_items(models)
     return build_collection_response(
         response_model,
         query=query,
         items=items,
         total=await resolved_total(),
-        capabilities=definition.capabilities,
+        capabilities=capabilities,
     )

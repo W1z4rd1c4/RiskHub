@@ -33,7 +33,7 @@ async def create_kri_submission_approval(
     data: KRIRecordValue,
     current_user: User,
 ):
-    from .value_application import _apply_kri_value_directly
+    from .direct_application import apply_kri_value_directly
 
     latest_closed_end = latest_closed_period_end(kri)
 
@@ -68,7 +68,7 @@ async def create_kri_submission_approval(
         default_roles=["risk_owner", "risk_manager", "cro"],
     )
     if not scenario_policy.requires_approval:
-        return await _apply_kri_value_directly(
+        return await apply_kri_value_directly(
             db,
             kri=kri,
             data=data,

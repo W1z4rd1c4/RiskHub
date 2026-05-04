@@ -8,6 +8,8 @@ import {
     buildLinkedTargetIdSet,
     emptyLinkManagementSearchState,
     LINK_SEARCH_DEBOUNCE_MS,
+    resetLinkPaginationOnSearch,
+    resolveLinkActionOutcome,
     shouldResetLinkSearchState,
 } from './linkManagementState';
 import { restoreLinkTarget, searchLinkTargets } from './linkSearchAdapters';
@@ -160,8 +162,11 @@ export function useLinkManagementWorkflow({
         try {
             setIsLinking(true);
             await onLink(selectedTargetId, 'medium', '');
-            onClose();
+            if (resolveLinkActionOutcome({ action: 'link', ok: true }).shouldClose) {
+                onClose();
+            }
         } catch (err) {
+            resolveLinkActionOutcome({ action: 'link', ok: false });
             logError('Linking failed.', err);
         } finally {
             setIsLinking(false);
@@ -177,7 +182,9 @@ export function useLinkManagementWorkflow({
         try {
             setIsUnlinking(unlinkTargetId);
             await onUnlink(unlinkTargetId);
+            resolveLinkActionOutcome({ action: 'unlink', ok: true });
         } catch (err) {
+            resolveLinkActionOutcome({ action: 'unlink', ok: false });
             logError('Unlinking failed.', err);
         } finally {
             setIsUnlinking(null);
@@ -188,10 +195,17 @@ export function useLinkManagementWorkflow({
     const handleUnarchiveSearchResult = async (targetId: number) => {
         try {
             await restoreLinkTarget(mode, targetId);
+            resolveLinkActionOutcome({ action: 'unarchive', ok: true });
             await handleSearch();
         } catch (err) {
+            resolveLinkActionOutcome({ action: 'unarchive', ok: false });
             logError('Unarchive failed.', err);
         }
+    };
+
+    const handleSearchQueryChange = (value: string) => {
+        resetLinkPaginationOnSearch({ page: 1 });
+        setSearchQuery(value);
     };
 
     return {
@@ -215,7 +229,7 @@ export function useLinkManagementWorkflow({
         selectedProcess,
         selectedTargetId,
         setIncludeArchived,
-        setSearchQuery,
+        setSearchQuery: handleSearchQueryChange,
         setSelectedCategory,
         setSelectedDeptId,
         setSelectedProcess,

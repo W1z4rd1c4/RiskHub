@@ -4,33 +4,18 @@ import json
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Literal
+from typing import Any
 
 from fastapi import HTTPException, status
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import ValidationError
 
 from app.schemas.collection import CollectionGroupRead
-
-
-class CollectionSort(BaseModel):
-    field: str
-    direction: Literal["asc", "desc"] = "asc"
-
-
-class CollectionQuery(BaseModel):
-    offset: int = Field(default=0, ge=0)
-    limit: int = Field(default=50, ge=1)
-    sort: CollectionSort | None = None
-    filters: dict[str, Any] = Field(default_factory=dict)
-    group_by: str | None = None
-    group_value: str | None = None
-
-
-@dataclass(frozen=True)
-class CollectionGroupEntry:
-    value: str
-    label: str
-    meta: dict[str, Any] | None = None
+from app.services._collection_contracts import (
+    CollectionGroupEntry,
+    CollectionQuery,
+    CollectionSort,
+    is_group_summary_request,
+)
 
 
 @dataclass(frozen=True)
@@ -134,10 +119,6 @@ def merge_collection_filters(
     defaults: dict[str, Any],
 ) -> dict[str, Any]:
     return defaults | query.filters
-
-
-def is_group_summary_request(query: CollectionQuery) -> bool:
-    return query.group_by is not None and not query.group_value
 
 
 def build_empty_collection_page(

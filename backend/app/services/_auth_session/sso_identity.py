@@ -15,7 +15,7 @@ from app.services.sso_token_service import (
 )
 
 
-async def _log_failed_sso(
+async def log_failed_sso(
     db: AsyncSession,
     *,
     entity_name: str,
@@ -45,7 +45,7 @@ async def verify_sso_identity(
     try:
         identity = await identity_verifier(id_token=payload.id_token, settings=settings)
     except SsoProviderUnavailableError:
-        await _log_failed_sso(
+        await log_failed_sso(
             db,
             entity_name="sso",
             description="Failed SSO login: verification unavailable",
@@ -58,7 +58,7 @@ async def verify_sso_identity(
             },
         )
     except SsoTokenVerificationError as e:
-        await _log_failed_sso(
+        await log_failed_sso(
             db,
             entity_name="sso",
             description=f"Failed SSO login: {e.code}",
@@ -79,3 +79,6 @@ async def verify_sso_identity(
         return None, JSONResponse(status_code=status_code_value, content={"detail": "Invalid SSO token", "code": code})
 
     return identity, None
+
+
+_log_failed_sso = log_failed_sso

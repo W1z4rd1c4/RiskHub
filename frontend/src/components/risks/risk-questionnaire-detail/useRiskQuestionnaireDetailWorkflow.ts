@@ -12,7 +12,10 @@ import {
     groupClarificationsBySection,
     isChangedAnswer,
 } from './questionnairePresentation';
-import { resolveQuestionnaireDetailTransition } from './questionnaireDetailWorkflow';
+import {
+    buildQuestionnaireComparisonModel,
+    resolveQuestionnaireDetailTransition,
+} from './questionnaireDetailWorkflow';
 import { shouldAutoOpenQuestionnaire } from './questionnaireWorkflowState';
 
 const DEFAULT_COMPARE_MODE = false;
@@ -255,6 +258,10 @@ export function useRiskQuestionnaireDetailWorkflow({
     };
 
     const previousAnswers = (questionnaire?.previous_submission?.answers ?? {}) as Record<string, unknown>;
+    const comparisonModel = buildQuestionnaireComparisonModel({
+        currentAnswerCount: Object.keys(answers).length,
+        previousAnswerCount: Object.keys(previousAnswers).length,
+    });
     const getPreviousAnswer = (key: string): unknown => previousAnswers[key];
     const isChanged = (key: string): boolean => isChangedAnswer({
         key,
@@ -299,7 +306,8 @@ export function useRiskQuestionnaireDetailWorkflow({
         close,
         compareState: {
             compareMode,
-            hasPreviousCycle: questionnaire?.previous_submission !== null,
+            hasPreviousCycle: questionnaire?.previous_submission !== null || comparisonModel.hasPreviousSubmission,
+            comparisonModel,
             previousCycleLoaded: questionnaire?.previous_submission !== undefined,
             setCompareMode,
         },

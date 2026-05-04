@@ -21,7 +21,14 @@ from app.core.scheduler_ownership import (
     mark_scheduler_runtime_stopped,
     release_scheduler_lock,
 )
-from app.core import scheduler_registry as scheduler_registry
+from app.core.scheduler_registry import (
+    DEFAULT_SCHEDULER_JOB_PROFILE,
+    FULL_SCHEDULER_JOB_IDS,
+    OPTIONAL_SCHEDULER_JOB_IDS,
+    OUTBOX_ONLY_SCHEDULER_JOB_IDS,
+    SCHEDULER_JOB_PROFILE_ENV,
+    SCHEDULER_RUNTIME_JOB_NAME,
+)
 from app.core.scheduler_runtime import (
     get_outbox_dispatch_runtime_state,
     get_scheduler_role_status,
@@ -70,19 +77,6 @@ _lock_provider: "SchedulerLockProvider | None" = None
 _runtime_run_id: str | None = None
 _outbox_dispatch_state = outbox_dispatch_state
 
-SCHEDULER_RUNTIME_JOB_NAME = "__scheduler_runtime__"
-SCHEDULER_JOB_PROFILE_ENV = "SCHEDULER_JOB_PROFILE"
-DEFAULT_SCHEDULER_JOB_PROFILE = "full"
-FULL_SCHEDULER_JOB_IDS = (
-    "kri_deadline_check",
-    "questionnaire_deadline_check",
-    "issue_deadline_check",
-    "ad_deprovision_check",
-    "orphan_scan",
-    "outbox_dispatch",
-)
-OPTIONAL_SCHEDULER_JOB_IDS = ("sso_jwks_refresh",)
-OUTBOX_ONLY_SCHEDULER_JOB_IDS = ("outbox_dispatch",)
 PROCESS_INSTANCE_ID = str(uuid4())
 PROCESS_STARTED_AT = utc_now()
 

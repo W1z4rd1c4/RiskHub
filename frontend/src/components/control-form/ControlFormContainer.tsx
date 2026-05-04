@@ -15,6 +15,11 @@ import {
 import { useTranslation } from '@/i18n/hooks';
 import { StepIndicator } from '@/components/ui/StepIndicator';
 import { ApprovalQueuedBanner } from '@/components/forms/ApprovalQueuedBanner';
+import {
+    nextEntityFormStep,
+    previousEntityFormStep,
+    resolveSubmitOutcome,
+} from '@/components/forms/entityFormWorkflow';
 import type { Control } from '@/types/control';
 import type { ControlEffectiveness } from '@/types/risk';
 import { ControlFormExecutionStep } from './ControlFormExecutionStep';
@@ -128,13 +133,15 @@ export function ControlForm({
         setError(null);
         if (!validateStep(currentStep)) return;
 
-        setCurrentStep(prev => Math.min(prev + 1, steps.length - 1));
+        setCurrentStep(prev => nextEntityFormStep({ currentStep: prev, maxStep: steps.length - 1 }));
     };
 
     const prevStep = () => {
         setError(null);
-        setCurrentStep(prev => Math.max(prev - 1, 0));
+        setCurrentStep(prev => previousEntityFormStep({ currentStep: prev, minStep: 0 }));
     };
+
+    const submitOutcome = resolveSubmitOutcome({ approvalQueued: Boolean(approvalQueued) });
 
     const handleStepClick = (index: number) => {
         // In edit mode, allow free navigation to any step
@@ -173,7 +180,7 @@ export function ControlForm({
 
             <div className="glass-card min-h-[400px] flex flex-col">
                 {/* Approval-queued banner */}
-                {approvalQueued && (
+                {submitOutcome.approvalQueued && approvalQueued && (
                     <ApprovalQueuedBanner
                         closeLabel={t('common:actions.close')}
                         message={approvalQueued.message.startsWith('errorKeys.') ? t(approvalQueued.message, { ns: 'errorKeys' }) : approvalQueued.message}

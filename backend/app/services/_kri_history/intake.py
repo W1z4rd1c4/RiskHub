@@ -11,8 +11,8 @@ from app.schemas.kri import KRIRecordValue, KRIResponse
 
 from .loading import _assert_kri_submit_access, _load_kri_with_risk_or_404
 from .recording import DuplicateKRIPeriodError
-from .submission import _create_kri_submission_approval
-from .value_application import _apply_kri_value_directly
+from .approval_intake import create_kri_submission_approval
+from .direct_application import apply_kri_value_directly
 
 
 class KRIValueIntakeMode(StrEnum):
@@ -42,14 +42,14 @@ async def record_kri_value_intake(
     mode = select_kri_value_intake_mode(can_resolve=can_resolve_approvals(current_user))
     try:
         if mode is KRIValueIntakeMode.DIRECT:
-            return await _apply_kri_value_directly(
+            return await apply_kri_value_directly(
                 db,
                 kri=kri,
                 data=data,
                 current_user=current_user,
                 is_privileged_submission=True,
             )
-        return await _create_kri_submission_approval(db, kri=kri, data=data, current_user=current_user)
+        return await create_kri_submission_approval(db, kri=kri, data=data, current_user=current_user)
     except DuplicateKRIPeriodError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except ValueError as exc:
