@@ -23,6 +23,10 @@ from typing import Any
 
 import structlog
 
+from app.core import logging_config as logging_config
+from app.core import logging_handlers as logging_handlers
+from app.core import logging_runtime as logging_runtime
+
 # Context variables for request tracking
 request_id_ctx: ContextVar[str | None] = ContextVar("request_id", default=None)
 user_id_ctx: ContextVar[int | None] = ContextVar("user_id", default=None)

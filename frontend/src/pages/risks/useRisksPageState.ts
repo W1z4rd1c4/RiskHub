@@ -24,6 +24,7 @@ import {
     useCollectionPageWorkflow,
 } from '../shared/collectionPageWorkflow';
 import { resetCollectionGroupAndPage } from '../shared/collectionViewVocabulary';
+import { applyRegisterViewModeChange } from '../shared/useRegisterPageWorkflow';
 
 interface UseRisksPageStateOptions {
     initialState: RisksPageInitialState;
@@ -186,8 +187,7 @@ export function useRisksPageState({ initialState }: UseRisksPageStateOptions) {
     }, [resetGroupAndPage]);
 
     const updateViewMode = useCallback((value: ViewMode) => {
-        setViewMode(value);
-        resetGroupAndPage();
+        applyRegisterViewModeChange(value, setViewMode, resetGroupAndPage);
     }, [resetGroupAndPage]);
 
     const selectGroup = useCallback((groupValue: string, groupLabel: string) => {

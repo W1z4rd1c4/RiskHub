@@ -9,11 +9,29 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
-from app.api.v1.endpoints._monitoring_response import (
-    load_monitoring_response_context,
-    serialize_control_read,
-    serialize_kri_response,
-    serialize_risk_read,
+from app.services._entity_mutation_lifecycle.archive_plans import (
+    assert_can_request_delete_control as _assert_can_request_delete_control,
+    assert_can_request_delete_kri as _assert_can_request_delete_kri,
+    assert_can_request_delete_risk as _assert_can_request_delete_risk,
+)
+from app.services._entity_mutation_lifecycle.approval_plans import (
+    build_pending_changes as _build_pending_changes_from_plan,
+    build_priority_risk_change_set as _build_priority_risk_change_set_from_plan,
+)
+from app.services._entity_mutation_lifecycle.direct_apply import (
+    reload_control_with_relationships as _reload_control_with_relationships,
+    reload_kri_with_relationships as _reload_kri_with_relationships,
+    reload_risk_with_relationships as _reload_risk_with_relationships,
+)
+from app.services._entity_mutation_lifecycle.policy import (
+    assert_no_existing_pending_delete_request as _assert_no_existing_pending_delete_request,
+    assert_no_pending_delete as _assert_no_pending_delete,
+    raise_missing_permission as _raise_missing_permission,
+)
+from app.services._entity_mutation_lifecycle.projection import (
+    serialize_control_mutation_response,
+    serialize_kri_mutation_response,
+    serialize_risk_mutation_response,
 )
 from app.core.activity_logger import build_change_set, log_activity
 from app.core.approval_helpers import (
@@ -95,13 +113,6 @@ class EntityDirectApplyPlan:
     department_id: int | None
 
 
-def _raise_missing_permission(resource: str, action: str) -> None:
-    raise HTTPException(
-        status_code=status.HTTP_403_FORBIDDEN,
-        detail=f"Permission denied: {resource}:{action}",
-    )
-
-
 async def _validate_risk_type(db: AsyncSession, risk_type_code: str) -> None:
     result = await db.execute(
         select(RiskTypeConfig).where(
@@ -132,67 +143,6 @@ async def _first_high_risk_linked_risk(db: AsyncSession, control_id: int) -> tup
         if await is_high_risk_for_approval_async(risk, db):
             return True, risk
     return False, None
-
-
-async def _assert_can_request_delete_risk(
-    db: AsyncSession,
-    *,
-    risk_id: int,
-    current_user: User,
-) -> Risk:
-    if not check_permission(current_user, "risks", "delete"):
-        _raise_missing_permission("risks", "delete")
-
-    risk = (await db.execute(select(Risk).where(Risk.id == risk_id))).scalar_one_or_none()
-    if risk is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Risk not found")
-
-    is_owner = risk.owner_id == current_user.id
-    if not is_owner:
-        check_department_access(risk.department_id, current_user)
-
-    return risk
-
-
-async def _assert_can_request_delete_control(
-    db: AsyncSession,
-    *,
-    control_id: int,
-    current_user: User,
-) -> Control:
-    if not check_permission(current_user, "controls", "delete"):
-        _raise_missing_permission("controls", "delete")
-
-    control = (await db.execute(select(Control).where(Control.id == control_id))).scalar_one_or_none()
-    if control is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Control not found")
-
-    check_department_access(control.department_id, current_user)
-    return control
-
-
-async def _assert_can_request_delete_kri(
-    db: AsyncSession,
-    *,
-    kri_id: int,
-    current_user: User,
-) -> KeyRiskIndicator:
-    if not check_permission(current_user, "risks", "delete"):
-        _raise_missing_permission("risks", "delete")
-
-    kri = (
-        await db.execute(
-            select(KeyRiskIndicator)
-            .join(Risk)
-            .where(KeyRiskIndicator.id == kri_id)
-            .options(joinedload(KeyRiskIndicator.risk))
-        )
-    ).scalar_one_or_none()
-    if kri is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="KRI not found")
-
-    check_department_access(kri.risk.department_id, current_user)
-    return kri
 
 
 async def _load_risk_or_404(db: AsyncSession, risk_id: int) -> Risk:
@@ -457,9 +407,13 @@ async def update_risk_detail(
 
     reloaded_risk = await _reload_risk_with_relationships(db, risk.id)
     now = utc_now()
-    monitoring_context = await load_monitoring_response_context(db, now=now, today=now.date())
     capabilities = await risk_capabilities(db, current_user=current_user, risk=reloaded_risk)
-    response = serialize_risk_read(reloaded_risk, monitoring_context, capabilities=capabilities)
+    response = await serialize_risk_mutation_response(
+        db,
+        risk=reloaded_risk,
+        now=now,
+        capabilities=capabilities,
+    )
     return EntityMutationOutcome(kind="applied", response=response)
 
 
@@ -666,9 +620,13 @@ async def update_control_detail(
 
     reloaded_control = await _reload_control_with_relationships(db, control.id)
     now = utc_now()
-    monitoring_context = await load_monitoring_response_context(db, now=now, today=now.date())
     capabilities = await control_capabilities(db, current_user=current_user, control=reloaded_control)
-    response = serialize_control_read(reloaded_control, monitoring_context, capabilities=capabilities)
+    response = await serialize_control_mutation_response(
+        db,
+        control=reloaded_control,
+        now=now,
+        capabilities=capabilities,
+    )
     return EntityMutationOutcome(kind="applied", response=response)
 
 
@@ -832,11 +790,11 @@ async def update_kri_detail(
     reloaded_kri = result.scalar_one()
 
     now = utc_now()
-    monitoring_context = await load_monitoring_response_context(db, now=now, today=now.date())
     capabilities = await kri_capabilities(db, current_user=current_user, kri=reloaded_kri)
-    response = serialize_kri_response(
-        reloaded_kri,
-        monitoring_context,
+    response = await serialize_kri_mutation_response(
+        db,
+        kri=reloaded_kri,
+        now=now,
         linked_vendors=visible_linked_vendors(current_user, getattr(reloaded_kri, "vendor_links", [])),
         capabilities=capabilities,
     )

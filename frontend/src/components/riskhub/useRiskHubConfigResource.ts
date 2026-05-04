@@ -66,8 +66,8 @@ export function buildRiskHubConfigActionModel(capabilities: CapabilityMap): Risk
     };
 }
 
-function resourceQueryKey(
-    definition: RiskHubConfigResourceDefinition<unknown, unknown, unknown>,
+function resourceQueryKey<TItem, TCreate, TUpdate>(
+    definition: RiskHubConfigResourceDefinition<TItem, TCreate, TUpdate>,
     showInactive: boolean,
 ): QueryKey {
     if (definition.includeShowInactive === false) {
@@ -108,7 +108,7 @@ export function useRiskHubConfigResource<TItem, TCreate, TUpdate>(
     });
 
     const deleteMutation = useMutation({
-        mutationFn: (id: number) => {
+        mutationFn: (id: ResourceId) => {
             if (!definition.delete) {
                 throw new Error('Delete mutation is not configured');
             }
@@ -118,7 +118,7 @@ export function useRiskHubConfigResource<TItem, TCreate, TUpdate>(
     });
 
     const restoreMutation = useMutation({
-        mutationFn: (id: number) => {
+        mutationFn: (id: ResourceId) => {
             if (!definition.restore) {
                 throw new Error('Restore mutation is not configured');
             }

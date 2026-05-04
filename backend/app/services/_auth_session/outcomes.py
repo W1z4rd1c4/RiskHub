@@ -32,7 +32,15 @@ from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas.auth import SsoExchangeRequest, SsoStartRequest, SsoStartResponse
 from app.services.directory_identity_service import normalize_business_role
 from app.services.sso_challenge_store import SsoChallenge
-from app.services.sso_token_service import SsoProviderUnavailableError, SsoTokenVerificationError
+from app.services._auth_session.audit import record_session_audit_plan as _record_session_audit_plan
+from app.services._auth_session.cookies import apply_session_cookie_plan as _apply_session_cookie_plan
+from app.services._auth_session.jit import resolve_jit_user as _resolve_jit_user
+from app.services._auth_session.refresh import resolve_refresh_session as _refresh_session_adapter
+from app.services._auth_session.sso_challenges import (
+    resolve_sso_exchange as _sso_exchange_adapter,
+    resolve_sso_start as _sso_start_adapter,
+)
+from app.services._auth_session.sso_identity import verify_sso_identity
 
 SESSION_RENEWAL_MINIMUM_SECONDS = 60
 RefreshStatus = Literal[
@@ -524,46 +532,12 @@ async def _verify_sso_identity(
     payload: SsoExchangeRequest,
     settings: Settings,
     db: AsyncSession,
+    token_verifier=None,
 ):
-    try:
-        import app.api.v1.endpoints.auth as auth_pkg
-
-        identity = await auth_pkg.verify_entra_id_token(id_token=payload.id_token, settings=settings)
-    except SsoProviderUnavailableError:
-        await _log_failed_sso(
-            db,
-            entity_name="sso",
-            description="Failed SSO login: verification unavailable",
-        )
-        return None, JSONResponse(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            content={
-                "detail": "SSO verification unavailable. Please try again later.",
-                "code": "SSO_DISCOVERY_FAILED",
-            },
-        )
-    except SsoTokenVerificationError as e:
-        await _log_failed_sso(
-            db,
-            entity_name="sso",
-            description=f"Failed SSO login: {e.code}",
-        )
-        status_code_value = status.HTTP_401_UNAUTHORIZED
-        code = "SSO_TOKEN_INVALID"
-        if e.code == "tenant_mismatch":
-            code = "SSO_TENANT_MISMATCH"
-        elif e.code == "email_domain_not_allowed":
-            status_code_value = status.HTTP_403_FORBIDDEN
-            code = "SSO_EMAIL_DOMAIN_FORBIDDEN"
-        elif e.code == "email_required":
-            status_code_value = status.HTTP_400_BAD_REQUEST
-            code = "SSO_EMAIL_MISSING"
-        elif e.code == "missing_token":
-            status_code_value = status.HTTP_400_BAD_REQUEST
-            code = "SSO_TOKEN_INVALID"
-        return None, JSONResponse(status_code=status_code_value, content={"detail": "Invalid SSO token", "code": code})
-
-    return identity, None
+    kwargs = {"payload": payload, "settings": settings, "db": db}
+    if token_verifier is not None:
+        kwargs["identity_verifier"] = token_verifier
+    return await verify_sso_identity(**kwargs)
 
 
 def _sanitize_return_to(value: str | None) -> str:
@@ -840,6 +814,7 @@ async def resolve_sso_exchange(
     response: Response,
     db: AsyncSession,
     settings: Settings,
+    token_verifier=None,
 ) -> SsoExchangeResolution:
     if settings.auth_mode not in ("microsoft_sso", "hybrid_dev"):
         return SsoExchangeResolution(
@@ -850,7 +825,12 @@ async def resolve_sso_exchange(
             ),
         )
 
-    identity, error_response = await _verify_sso_identity(payload=payload, settings=settings, db=db)
+    identity, error_response = await _verify_sso_identity(
+        payload=payload,
+        settings=settings,
+        db=db,
+        token_verifier=token_verifier,
+    )
     if error_response is not None:
         return SsoExchangeResolution(
             outcome=SsoSessionOutcome(status="blocked", cookie_plan=SessionCookiePlan(action="none")),

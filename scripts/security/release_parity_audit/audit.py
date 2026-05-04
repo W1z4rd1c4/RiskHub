@@ -32,16 +32,22 @@ from pathlib import Path
 from typing import Any
 
 from release_parity_audit.artifact_writer import sha256_audit_file, write_audit_json, write_audit_text
+from release_parity_audit.cleanup import CleanupCommand
 from release_parity_audit.command_runner import run_command
 from release_parity_audit.decision import evaluate_findings_and_decision
 from release_parity_audit.dependencies import capture_dependencies
+from release_parity_audit.facade import ReleaseParityFacadePlan
+from release_parity_audit.fingerprints import RuntimeFingerprint
 from release_parity_audit.http_probe import http_json, wait_http
 from release_parity_audit.launch_classifier import classify_launch_failure
 from release_parity_audit.phase_runner import ReleaseParityPhase, ReleaseParityPhaseRunner
 from release_parity_audit.reporting import build_report, build_run_status, matrix_payload
 from release_parity_audit.run_state import ReleaseParityRunState
 from release_parity_audit.runtime import run_dynamic_paths
+from release_parity_audit.screenshots import ScreenshotCapturePlan
 from release_parity_audit.startup import build_startup_inventory
+from release_parity_audit.startup_preflight import StartupPreflightSnapshot
+from release_parity_audit.toolchain import ToolchainSnapshot
 from release_parity_audit.types import CommandResult
 from release_parity_audit.ui_parity import evaluate_ui_parity
 

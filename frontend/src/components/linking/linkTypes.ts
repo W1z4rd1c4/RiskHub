@@ -1,4 +1,7 @@
 import type { ControlEffectiveness } from '@/types/risk';
+import type { ControlCapabilities } from '@/types/control';
+import type { KRICapabilities } from '@/types/kri';
+import type { RiskCapabilities } from '@/types/risk';
 
 export type LinkMode = 'control-to-risk' | 'risk-to-control' | 'vendor-to-kri';
 
@@ -8,7 +11,11 @@ export interface DepartmentLookup {
     code?: string;
 }
 
-export type SearchResultCapabilities = Record<string, boolean | null | undefined>;
+export type SearchResultCapabilities =
+    | ControlCapabilities
+    | KRICapabilities
+    | RiskCapabilities
+    | Record<string, boolean | null | undefined>;
 
 export interface SearchResultItem {
     id: number;

@@ -31,6 +31,27 @@ build_run_status = REPORTING_MODULE.build_run_status
 matrix_payload = REPORTING_MODULE.matrix_payload
 
 
+def test_release_parity_audit_facade_imports_second_pass_modules() -> None:
+    source = (REPO_ROOT / "scripts" / "security" / "release_parity_audit" / "audit.py").read_text()
+    for module_name in (
+        "cleanup",
+        "facade",
+        "fingerprints",
+        "screenshots",
+        "startup_preflight",
+        "toolchain",
+    ):
+        importlib.import_module(f"release_parity_audit.{module_name}")
+        assert f"release_parity_audit.{module_name}" in source
+
+
+def test_prod_readiness_shell_delegates_to_python_package() -> None:
+    script_source = (REPO_ROOT / "scripts" / "security" / "run_prod_readiness_audit_local.sh").read_text()
+    for module_name in ("artifacts", "cli", "commands", "phases", "run_state", "scoring"):
+        importlib.import_module(f"prod_readiness_audit.{module_name}")
+    assert "prod_readiness_audit.cli" in script_source
+
+
 def test_release_parity_audit_py_direct_help_executes() -> None:
     result = subprocess.run(
         [sys.executable, str(REPO_ROOT / "scripts" / "security" / "release_parity_audit" / "audit.py"), "--help"],

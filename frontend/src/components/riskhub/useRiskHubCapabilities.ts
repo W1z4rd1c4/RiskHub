@@ -10,9 +10,9 @@ export function useRiskHubCapabilities() {
     });
 }
 
-export function riskHubCapabilityEnabled<T extends Record<string, unknown> | null | undefined>(
-    capabilities: T,
-    key: keyof NonNullable<T>,
+export function riskHubCapabilityEnabled<T extends object>(
+    capabilities: T | null | undefined,
+    key: keyof T,
 ): boolean {
     return resolveCapabilityFlag(capabilities, key);
 }

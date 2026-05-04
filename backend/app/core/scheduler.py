@@ -21,6 +21,7 @@ from app.core.scheduler_ownership import (
     mark_scheduler_runtime_stopped,
     release_scheduler_lock,
 )
+from app.core import scheduler_registry as scheduler_registry
 from app.core.scheduler_runtime import (
     get_outbox_dispatch_runtime_state,
     get_scheduler_role_status,

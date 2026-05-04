@@ -69,12 +69,15 @@ async def sso_exchange(
     db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ):
+    from app.api.v1.endpoints import auth as auth_pkg
+
     exchange = await resolve_sso_exchange(
         payload=payload,
         request=request,
         response=response,
         db=db,
         settings=settings,
+        token_verifier=auth_pkg.verify_entra_id_token,
     )
 
     if exchange.error_response is not None:

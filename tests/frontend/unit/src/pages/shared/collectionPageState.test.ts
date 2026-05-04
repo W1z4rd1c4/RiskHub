@@ -11,6 +11,10 @@ import {
     getCollectionGroupBy,
     resetCollectionGroupAndPage,
 } from '@/pages/shared/collectionViewVocabulary';
+import {
+    buildRegisterExportCriteria,
+    resolveRegisterFilterChange,
+} from '@/pages/shared/useRegisterPageWorkflow';
 import { ApiClientError } from '@/services/apiClient';
 
 describe('resolveCollectionLoadFailure', () => {
@@ -178,5 +182,27 @@ describe('collection view vocabulary', () => {
         );
 
         expect(calls).toEqual(['reset-group', 'page:1']);
+    });
+});
+
+describe('register page workflow', () => {
+    it('resets page and group selection when filters change', () => {
+        expect(resolveRegisterFilterChange({ currentPage: 4, selectedGroupValue: 'risk:1' })).toEqual({
+            currentPage: 1,
+            selectedGroupValue: null,
+        });
+    });
+
+    it('builds export criteria from the current register filters', () => {
+        expect(buildRegisterExportCriteria({
+            filters: { status: 'active', search: 'vendor' },
+            sort: { field: 'name', direction: 'asc' },
+            view: { groupBy: 'department', groupValue: 'Operations' },
+        })).toEqual({
+            filters: { status: 'active', search: 'vendor' },
+            sort: { field: 'name', direction: 'asc' },
+            groupBy: 'department',
+            groupValue: 'Operations',
+        });
     });
 });

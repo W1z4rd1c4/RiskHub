@@ -26,8 +26,25 @@ from app.schemas.issue import (
     IssueUpdate,
 )
 from app.services._issue_register import serialize_issue_read_for_actor
+from app.services._issue_workflow.loading import (
+    get_issue_with_relations as _get_issue_with_relations,
+    get_readable_issue_or_404 as _get_readable_issue_or_404,
+    get_writable_issue_or_404 as _get_writable_issue_or_404,
+)
+from app.services._issue_workflow.outbox import enqueue_issue_outbox
+from app.services._issue_workflow.serialization import (
+    active_exception as _active_exception,
+    serialize_exception_with_user_names as _serialize_exception_with_user_names,
+)
+from app.services._issue_workflow.source_validation import (
+    clear_issue_source_links,
+    ensure_issue_source_link,
+    ensure_owner_assignable as _ensure_owner_assignable,
+    issue_link_department_ids as _issue_link_department_ids,
+    resolve_issue_source_metadata,
+    validate_user_exists as _validate_user_exists,
+)
 from app.services.issue_workflow_service import IssueWorkflowService
-from app.services.outbox import OutboxService
 
 CONCRETE_SOURCE_TYPES = {"control_execution", "kri_breach"}
 
@@ -62,8 +79,6 @@ def _source_type_value(source_type: Any) -> str:
 
 
 async def _serialize_refreshed_issue(db: AsyncSession, *, issue_id: int, current_user: User) -> IssueWorkflowOutcome:
-    from app.api.v1.endpoints.issues._shared import _get_issue_with_relations
-
     refreshed = await _get_issue_with_relations(db, issue_id)
     if refreshed is None:
         raise HTTPException(status_code=404, detail="Issue not found")
@@ -72,14 +87,7 @@ async def _serialize_refreshed_issue(db: AsyncSession, *, issue_id: int, current
 
 
 async def _enqueue_issue_outbox(db: AsyncSession, plan: IssueOutboxPlan) -> None:
-    await OutboxService.enqueue(
-        db,
-        event_type=plan.event_type,
-        aggregate_type=plan.aggregate_type,
-        aggregate_id=plan.aggregate_id,
-        idempotency_key=plan.idempotency_key,
-        payload=plan.payload,
-    )
+    await enqueue_issue_outbox(db, plan)
 
 
 async def update_issue_detail(
@@ -89,17 +97,6 @@ async def update_issue_detail(
     payload: IssueUpdate,
     current_user: User,
 ) -> IssueWorkflowOutcome:
-    from app.api.v1.endpoints.issues._shared import (
-        _ensure_owner_assignable,
-        _get_issue_with_relations,
-        _get_writable_issue_or_404,
-        _issue_link_department_ids,
-        _validate_user_exists,
-        clear_issue_source_links,
-        ensure_issue_source_link,
-        resolve_issue_source_metadata,
-    )
-
     issue = await _get_writable_issue_or_404(db, issue_id, current_user)
     updates = payload.model_dump(exclude_unset=True)
 
@@ -254,12 +251,6 @@ async def assign_issue_detail(
     payload: IssueAssignRequest,
     current_user: User,
 ) -> IssueWorkflowOutcome:
-    from app.api.v1.endpoints.issues._shared import (
-        _ensure_owner_assignable,
-        _get_writable_issue_or_404,
-        _validate_user_exists,
-    )
-
     issue = await _get_writable_issue_or_404(db, issue_id, current_user)
     await _validate_user_exists(db, payload.owner_user_id)
     await _ensure_owner_assignable(
@@ -300,8 +291,6 @@ async def start_remediation_detail(
     payload: IssueStartRemediationRequest,
     current_user: User,
 ) -> IssueWorkflowOutcome:
-    from app.api.v1.endpoints.issues._shared import _get_writable_issue_or_404
-
     issue = await _get_writable_issue_or_404(db, issue_id, current_user)
     await IssueWorkflowService.start_remediation(
         db,
@@ -320,8 +309,6 @@ async def update_remediation_progress_detail(
     payload: IssueProgressUpdateRequest,
     current_user: User,
 ) -> IssueWorkflowOutcome:
-    from app.api.v1.endpoints.issues._shared import _get_writable_issue_or_404
-
     issue = await _get_writable_issue_or_404(db, issue_id, current_user)
     remediation_status = payload.remediation_status.value if payload.remediation_status else None
     await IssueWorkflowService.update_progress(
@@ -344,8 +331,6 @@ async def close_issue_detail(
     payload: IssueCloseRequest,
     current_user: User,
 ) -> IssueWorkflowOutcome:
-    from app.api.v1.endpoints.issues._shared import _get_writable_issue_or_404
-
     issue = await _get_writable_issue_or_404(db, issue_id, current_user)
     await IssueWorkflowService.close_issue(
         db,
@@ -365,8 +350,6 @@ async def request_exception_detail(
     payload: IssueExceptionRequestCreate,
     current_user: User,
 ) -> IssueWorkflowOutcome:
-    from app.api.v1.endpoints.issues._shared import _get_writable_issue_or_404, _serialize_exception_with_user_names
-
     issue = await _get_writable_issue_or_404(db, issue_id, current_user)
     exception = await IssueWorkflowService.request_exception(
         db,
@@ -434,12 +417,6 @@ async def approve_exception_detail(
     payload: IssueExceptionApproveRequest,
     current_user: User,
 ) -> IssueWorkflowOutcome:
-    from app.api.v1.endpoints.issues._shared import (
-        _active_exception,
-        _get_readable_issue_or_404,
-        _serialize_exception_with_user_names,
-    )
-
     issue = await _get_readable_issue_or_404(db, issue_id, current_user)
     active = _active_exception(issue)
     if active is not None:
@@ -528,8 +505,6 @@ async def revoke_exception_detail(
     payload: IssueExceptionRevokeRequest,
     current_user: User,
 ) -> IssueWorkflowOutcome:
-    from app.api.v1.endpoints.issues._shared import _get_readable_issue_or_404, _serialize_exception_with_user_names
-
     issue = await _get_readable_issue_or_404(db, issue_id, current_user)
     selection = await _select_exception_for_revocation(
         db,

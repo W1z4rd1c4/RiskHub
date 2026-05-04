@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import { shouldAutoOpenQuestionnaire } from '@/components/risks/risk-questionnaire-detail/questionnaireWorkflowState';
+import {
+    buildQuestionnaireComparisonModel,
+    resolveQuestionnaireDetailTransition,
+} from '@/components/risks/risk-questionnaire-detail/questionnaireDetailWorkflow';
 import type { RiskQuestionnaireDetail } from '@/types/riskQuestionnaire';
 
 function detail(
@@ -31,5 +35,21 @@ describe('questionnaire workflow state', () => {
         expect(shouldAutoOpenQuestionnaire(detail('sent', { can_open: false }))).toBe(false);
         expect(shouldAutoOpenQuestionnaire(detail('submitted', { can_open: true }))).toBe(false);
         expect(shouldAutoOpenQuestionnaire(detail('sent', null))).toBe(false);
+    });
+
+    it('maps detail lifecycle transitions and comparison facts', () => {
+        expect(resolveQuestionnaireDetailTransition({ kind: 'read', shouldAutoOpen: false })).toEqual({
+            shouldOpen: false,
+            shouldRefresh: false,
+        });
+        expect(resolveQuestionnaireDetailTransition({ kind: 'submit', shouldAutoOpen: false })).toEqual({
+            shouldOpen: false,
+            shouldRefresh: true,
+        });
+        expect(buildQuestionnaireComparisonModel({ currentAnswerCount: 3, previousAnswerCount: 2 })).toEqual({
+            currentAnswerCount: 3,
+            previousAnswerCount: 2,
+            hasPreviousSubmission: true,
+        });
     });
 });

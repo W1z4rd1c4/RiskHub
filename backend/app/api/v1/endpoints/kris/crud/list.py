@@ -117,7 +117,7 @@ def _visible_kri_vendor_context(filtered_ids, current_user: User, *, can_read_ve
     return query.subquery()
 
 
-async def _load_kri_sql_groups(
+async def _kri_listing_load_sql_groups(
     db: AsyncSession,
     filtered_ids,
     group_by: str,
@@ -210,7 +210,7 @@ async def _load_kri_sql_groups(
     return groups
 
 
-def _kri_group_filter(group_by: str, group_value: str, *, vendor_context=None):
+def _kri_listing_group_filter(group_by: str, group_value: str, *, vendor_context=None):
     if group_by == "category":
         return func.coalesce(Risk.category, KRI_GROUP_UNCATEGORIZED) == group_value
     if group_by == "department":
@@ -393,7 +393,7 @@ async def list_kris(
         return await collection_exec.count_collection_rows(db, filtered_query)
 
     async def load_sql_groups(group_by: str):
-        return await _load_kri_sql_groups(
+        return await _kri_listing_load_sql_groups(
             db,
             filtered_ids,
             group_by,
@@ -407,7 +407,7 @@ async def list_kris(
             if group_by == "vendor"
             else None
         )
-        return _kri_group_filter(
+        return _kri_listing_group_filter(
             group_by,
             group_value or "",
             vendor_context=vendor_context,

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import pytest
 import pytest_asyncio
@@ -26,6 +27,26 @@ from app.core.settings import Settings
 from app.models.outbox_event import OutboxEvent
 from app.models.scheduler_job_run import SchedulerJobRun
 from app.services.outbox.store import NON_POSTGRES_OUTBOX_SINGLE_WORKER_ERROR
+
+REPO_ROOT = Path(__file__).resolve().parents[3]
+
+
+def test_core_logging_and_scheduler_facades_import_split_runtime_modules() -> None:
+    import importlib
+
+    for module_name in (
+        "app.core.logging_config",
+        "app.core.logging_handlers",
+        "app.core.logging_runtime",
+        "app.core.scheduler_registry",
+        "app.core.scheduler_runtime",
+    ):
+        importlib.import_module(module_name)
+
+    logging_source = (REPO_ROOT / "backend" / "app" / "core" / "logging.py").read_text()
+    scheduler_source = (REPO_ROOT / "backend" / "app" / "core" / "scheduler.py").read_text()
+    assert "logging_config" in logging_source
+    assert "scheduler_runtime" in scheduler_source
 
 
 def _registered_job_ids(test_scheduler: AsyncIOScheduler) -> set[str]:

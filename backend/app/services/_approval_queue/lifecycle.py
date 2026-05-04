@@ -33,6 +33,10 @@ from app.services.approval_queue_visibility import (
     visible_pending_approvals_for_user,
 )
 from app.services.approval_scenario_policy import apply_approval_scenario_snapshot, load_approval_scenario_policy
+from app.services._approval_queue.counts import count_pending_approval_queue as _count_pending_queue_adapter
+from app.services._approval_queue.delete_intake import assert_delete_request_allowed as _assert_delete_request_allowed
+from app.services._approval_queue.logging import queue_logger
+from app.services._approval_queue.projection import build_approval_read, project_approval_read
 
 DELETE_SCENARIO_DEFAULT_ROLES = ["risk_owner", "risk_manager", "cro"]
 
@@ -73,7 +77,7 @@ async def _build_delete_intake_plan(
     request_data: ApprovalRequestCreate,
     current_user: User,
 ) -> ApprovalRequestIntakePlan:
-    from app.api.v1.endpoints.approvals._delete_authorization import (
+    from app.services._entity_mutation_lifecycle.archive_plans import (
         assert_can_request_delete_control,
         assert_can_request_delete_kri,
         assert_can_request_delete_risk,
@@ -137,8 +141,6 @@ async def create_delete_approval_request(
     request_data: ApprovalRequestCreate,
     current_user: User,
 ) -> ApprovalRequestRead:
-    from app.api.v1.endpoints.approvals._shared import _build_approval_read
-
     plan = await _build_delete_intake_plan(db=db, request_data=request_data, current_user=current_user)
     scenario_policy = await load_approval_scenario_policy(
         db,
@@ -184,17 +186,12 @@ async def create_delete_approval_request(
         .options(selectinload(ApprovalRequest.requested_by), selectinload(ApprovalRequest.resolved_by))
         .where(ApprovalRequest.id == approval.id)
     )
-    return _build_approval_read(result.scalar_one(), current_user)
+    return build_approval_read(result.scalar_one(), current_user)
 
 
 def _project_approval_queue_item(approval: ApprovalRequest, current_user: User) -> ApprovalQueueProjection:
-    from app.api.v1.endpoints.approvals._shared import _build_approval_read, logger
-
-    try:
-        return ApprovalQueueProjection(approval=approval, item=_build_approval_read(approval, current_user))
-    except Exception as exc:
-        logger.error(f"Skipping corrupted approval request {approval.id}: {exc}")
-        return ApprovalQueueProjection(approval=approval, item=None, skipped_reason=str(exc))
+    item, skipped_reason = project_approval_read(approval, current_user)
+    return ApprovalQueueProjection(approval=approval, item=item, skipped_reason=skipped_reason)
 
 
 def _approval_queue_page(
@@ -226,9 +223,7 @@ async def list_approval_queue_page(
     resource_type: ApprovalResourceTypeEnum | None,
     my_requests: bool,
 ) -> ApprovalRequestListResponse:
-    from app.api.v1.endpoints.approvals._shared import logger
-
-    logger.info(
+    queue_logger.info(
         (
             f"List approvals: user={current_user.id} can_resolve={can_resolve_approvals(current_user)} "
             f"filter={status_filter} my={my_requests}"

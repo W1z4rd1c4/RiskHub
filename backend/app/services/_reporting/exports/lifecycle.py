@@ -5,8 +5,8 @@ from datetime import date
 
 from fastapi.responses import StreamingResponse
 
-from app.api.v1.endpoints.reports.unified_exports._shared import ExportFormat
-from app.api.v1.endpoints.reports.unified_exports.pipeline import (
+from app.services._reporting.exports.pipeline import (
+    ExportFormat,
     ExportPipelineDefinition,
     ExportRow,
     render_export_pipeline,

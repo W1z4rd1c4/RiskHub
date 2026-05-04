@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Python planning entrypoint: prod_readiness_audit.cli
 set -euo pipefail
 
 ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"

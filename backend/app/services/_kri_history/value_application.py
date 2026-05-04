@@ -5,7 +5,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
-from app.api.v1.endpoints._monitoring_response import load_monitoring_response_context, serialize_kri_response
 from app.core.datetime_utils import utc_now
 from app.core.permissions import can_read_vendor
 from app.core.security import check_permission
@@ -15,6 +14,7 @@ from app.schemas.vendor_shared import LinkedVendorRead
 from app.services.authorization_capabilities import kri_capabilities
 
 from .governance import describe_kri_limit_breach
+from .projection import serialize_kri_history_response
 
 logger = logging.getLogger(__name__)
 
@@ -127,11 +127,11 @@ async def _apply_kri_value_directly(
         )
     )
     reloaded_kri = result.scalar_one()
-    monitoring_context = await load_monitoring_response_context(db, now=now, today=now.date())
     capabilities = await kri_capabilities(db, current_user=current_user, kri=reloaded_kri)
-    return serialize_kri_response(
-        reloaded_kri,
-        monitoring_context,
+    return await serialize_kri_history_response(
+        db,
+        kri=reloaded_kri,
+        now=now,
         linked_vendors=visible_linked_vendors(current_user, getattr(reloaded_kri, "vendor_links", [])),
         capabilities=capabilities,
     )

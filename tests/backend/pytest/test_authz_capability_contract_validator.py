@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import importlib
 import json
 import sys
 from pathlib import Path
@@ -75,6 +76,28 @@ def test_authz_validator_deep_modules_are_importable_and_script_compatible() -> 
     assert callable(cli.run_cli)
     assert "authz_runner.run_validation" in validator_source
     assert "authz_cli.run_cli" in validator_source
+
+
+def test_authz_validator_compatibility_package_delegates_to_runner() -> None:
+    validator_dir = VALIDATOR_PATH.parent
+    if str(validator_dir) not in sys.path:
+        sys.path.insert(0, str(validator_dir))
+
+    for module_name in (
+        "models",
+        "git_inputs",
+        "contract_manifest",
+        "markdown_validation",
+        "capability_catalog",
+        "frontend_routes",
+        "frontend_local_gates",
+        "discovery",
+        "runner",
+        "cli",
+    ):
+        importlib.import_module(f"authz_validator.{module_name}")
+
+    assert "authz_runner.run_validation" in VALIDATOR_PATH.read_text(encoding="utf-8")
 
 
 def test_authorization_capability_contract_is_valid() -> None:

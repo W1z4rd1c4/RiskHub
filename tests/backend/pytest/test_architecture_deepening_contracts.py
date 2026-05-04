@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+from pathlib import Path
 
 
 def test_risk_questionnaire_routes_use_lifecycle_interface() -> None:
@@ -187,6 +188,31 @@ def test_auth_routes_use_session_outcome_module() -> None:
     assert "_jit_provision_user" not in sso_source
 
 
+def test_auth_session_outcomes_delegate_to_split_modules() -> None:
+    from app.services._auth_session import audit, cookies, jit, outcomes, refresh, sso_challenges, sso_identity
+
+    assert hasattr(refresh, "resolve_refresh_session")
+    assert hasattr(sso_challenges, "resolve_sso_start")
+    assert hasattr(sso_challenges, "resolve_sso_exchange")
+    assert hasattr(sso_identity, "verify_sso_identity")
+    assert hasattr(jit, "resolve_jit_user")
+    assert hasattr(cookies, "apply_session_cookie_plan")
+    assert hasattr(audit, "record_session_audit_plan")
+
+    outcome_source = inspect.getsource(outcomes)
+    for module_name in (
+        "audit",
+        "cookies",
+        "jit",
+        "refresh",
+        "sso_challenges",
+        "sso_identity",
+    ):
+        assert f"app.services._auth_session.{module_name}" in outcome_source
+
+    assert "app.api.v1.endpoints.auth" not in outcome_source
+
+
 def test_riskhub_config_routes_use_lifecycle_contracts() -> None:
     from app.api.v1.endpoints.riskhub import approval_scenarios, departments, risk_types, roles
     from app.services._riskhub_config import lifecycle
@@ -269,6 +295,35 @@ def test_entity_mutation_routes_use_lifecycle_interface() -> None:
         assert approval_choreography not in route_source
 
 
+def test_entity_mutation_lifecycle_uses_split_service_modules() -> None:
+    from app.services._entity_mutation_lifecycle import (
+        approval_plans,
+        archive_plans,
+        direct_apply,
+        lifecycle,
+        policy,
+        projection,
+    )
+
+    assert hasattr(policy, "assert_no_pending_delete")
+    assert hasattr(approval_plans, "create_risk_edit_approval_if_required")
+    assert hasattr(direct_apply, "reload_risk_with_relationships")
+    assert hasattr(archive_plans, "assert_can_request_delete_risk")
+    assert hasattr(projection, "serialize_risk_mutation_response")
+
+    lifecycle_source = inspect.getsource(lifecycle)
+    for module_name in (
+        "approval_plans",
+        "archive_plans",
+        "direct_apply",
+        "policy",
+        "projection",
+    ):
+        assert f"app.services._entity_mutation_lifecycle.{module_name}" in lifecycle_source
+
+    assert "app.api.v1.endpoints" not in lifecycle_source
+
+
 def test_register_list_routes_use_listing_planners() -> None:
     from app.api.v1.endpoints.controls.crud import list as control_list
     from app.api.v1.endpoints.issues.crud import list as issue_list
@@ -325,6 +380,44 @@ def test_register_list_routes_execute_listing_plans_through_module() -> None:
     assert "execute_collection_listing_with_definition" not in route_source
 
 
+def test_register_listings_use_entity_definition_modules() -> None:
+    from app.api.v1.endpoints.controls.crud import list as control_list
+    from app.api.v1.endpoints.issues.crud import list as issue_list
+    from app.api.v1.endpoints.kris.crud import list as kri_list
+    from app.api.v1.endpoints.risks.crud import list as risk_list
+    from app.api.v1.endpoints.vendors import crud as vendor_list
+    from app.services._register_listings import controls, issues, kris, risks, vendors
+
+    for module, planner in (
+        (risks, "plan_risk_listing"),
+        (controls, "plan_control_listing"),
+        (kris, "plan_kri_listing"),
+        (issues, "plan_issue_listing"),
+        (vendors, "plan_vendor_listing"),
+    ):
+        assert hasattr(module, planner)
+
+    route_source = (
+        inspect.getsource(risk_list)
+        + inspect.getsource(control_list)
+        + inspect.getsource(kri_list)
+        + inspect.getsource(issue_list)
+        + inspect.getsource(vendor_list)
+    )
+
+    for local_definition in (
+        "def _load_risk_sql_groups",
+        "def _load_control_sql_groups",
+        "def _load_kri_sql_groups",
+        "def _load_vendor_sql_groups",
+        "def _risk_group_value_filter",
+        "def _control_group_filter",
+        "def _kri_group_filter",
+        "def _vendor_group_value_filter",
+    ):
+        assert local_definition not in route_source
+
+
 def test_report_exporters_use_reporting_export_definitions() -> None:
     from app.api.v1.endpoints.reports.unified_exports import (
         export_controls,
@@ -350,6 +443,19 @@ def test_report_exporters_use_reporting_export_definitions() -> None:
     assert "ReportExportDefinition(" in exporter_source
     assert "render_report_export_definition(" in exporter_source
     assert "ExportPipelineDefinition(" not in exporter_source
+
+
+def test_backend_service_modules_do_not_import_endpoint_adapters() -> None:
+    services_root = Path(__file__).resolve().parents[3] / "backend" / "app" / "services"
+    offenders: list[str] = []
+    for path in sorted(services_root.rglob("*.py")):
+        if "__pycache__" in path.parts:
+            continue
+        source = path.read_text()
+        if "app.api.v1.endpoints" in source:
+            offenders.append(str(path.relative_to(services_root)))
+
+    assert offenders == []
 
 
 def test_dashboard_routes_use_metric_composition_module() -> None:
@@ -413,6 +519,25 @@ def test_kri_history_routes_use_governance_interface() -> None:
         assert route_owned_choreography not in route_source
 
 
+def test_kri_history_uses_service_owned_intake_and_projection() -> None:
+    from app.services._kri_history import approval_intake, correction_plans, direct_application, governance, projection
+
+    assert hasattr(approval_intake, "create_kri_submission_approval")
+    assert hasattr(approval_intake, "create_kri_history_correction_approval")
+    assert hasattr(direct_application, "apply_kri_value_directly")
+    assert hasattr(projection, "serialize_kri_history_response")
+    assert hasattr(correction_plans, "build_kri_correction_plan")
+
+    service_sources = (
+        inspect.getsource(approval_intake)
+        + inspect.getsource(direct_application)
+        + inspect.getsource(governance)
+        + inspect.getsource(projection)
+    )
+    assert "app.api.v1.endpoints" not in service_sources
+    assert "approval_intake" in inspect.getsource(governance)
+
+
 def test_approval_queue_routes_use_queue_lifecycle_module() -> None:
     from app.api.v1.endpoints.approvals import queue, resolve
     from app.services._approval_queue import lifecycle
@@ -431,6 +556,21 @@ def test_approval_queue_routes_use_queue_lifecycle_module() -> None:
         assert lifecycle_function in route_source
 
     assert "create_approval_request_with_audit" not in route_source
+
+
+def test_approval_queue_lifecycle_uses_service_owned_helpers() -> None:
+    from app.services._approval_queue import counts, delete_intake, lifecycle, logging, projection
+
+    assert hasattr(delete_intake, "assert_delete_request_allowed")
+    assert hasattr(projection, "build_approval_read")
+    assert hasattr(counts, "count_pending_approval_queue")
+    assert hasattr(logging, "queue_logger")
+
+    lifecycle_source = inspect.getsource(lifecycle)
+    for module_name in ("counts", "delete_intake", "logging", "projection"):
+        assert f"app.services._approval_queue.{module_name}" in lifecycle_source
+
+    assert "app.api.v1.endpoints.approvals" not in lifecycle_source
 
 
 def test_vendor_link_services_use_vendor_governance_modules() -> None:
@@ -486,6 +626,22 @@ def test_issue_workflow_routes_use_lifecycle_module() -> None:
         assert lifecycle_function in route_source
 
     assert "OutboxService.enqueue" not in route_source
+
+
+def test_issue_workflow_lifecycle_uses_service_owned_helpers() -> None:
+    from app.services._issue_workflow import lifecycle, loading, outbox, serialization, source_validation
+
+    assert hasattr(loading, "get_issue_with_relations")
+    assert hasattr(loading, "get_writable_issue_or_404")
+    assert hasattr(serialization, "serialize_refreshed_issue")
+    assert hasattr(outbox, "enqueue_issue_outbox")
+    assert hasattr(source_validation, "resolve_issue_source_metadata")
+
+    lifecycle_source = inspect.getsource(lifecycle)
+    for module_name in ("loading", "outbox", "serialization", "source_validation"):
+        assert f"app.services._issue_workflow.{module_name}" in lifecycle_source
+
+    assert "app.api.v1.endpoints.issues" not in lifecycle_source
 
 
 def test_notification_routes_use_inbox_module() -> None:

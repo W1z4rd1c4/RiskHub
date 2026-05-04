@@ -12,6 +12,7 @@ import {
     groupClarificationsBySection,
     isChangedAnswer,
 } from './questionnairePresentation';
+import { resolveQuestionnaireDetailTransition } from './questionnaireDetailWorkflow';
 import { shouldAutoOpenQuestionnaire } from './questionnaireWorkflowState';
 
 const DEFAULT_COMPARE_MODE = false;
@@ -88,7 +89,11 @@ export function useRiskQuestionnaireDetailWorkflow({
             setLoading(true);
             try {
                 let data = await riskQuestionnairesApi.get(questionnaireId, { includePrevious: DEFAULT_COMPARE_MODE });
-                if (shouldAutoOpenQuestionnaire(data)) {
+                const transition = resolveQuestionnaireDetailTransition({
+                    kind: 'read',
+                    shouldAutoOpen: shouldAutoOpenQuestionnaire(data),
+                });
+                if (transition.shouldOpen) {
                     try {
                         data = await riskQuestionnairesApi.open(questionnaireId, { includePrevious: DEFAULT_COMPARE_MODE });
                     } catch {

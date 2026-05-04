@@ -135,7 +135,7 @@ def _vendor_flag_membership_query(filtered_ids):
     ).subquery()
 
 
-async def _load_vendor_sql_groups(
+async def _vendor_listing_load_sql_groups(
     db: AsyncSession,
     filtered_ids,
     group_by: str,
@@ -223,7 +223,7 @@ async def _load_vendor_sql_groups(
     return _vendor_group_rows_to_reads(rows)
 
 
-def _vendor_group_value_filter(group_by: str, group_value: str, *, risk_context=None):
+def _vendor_listing_group_value_filter(group_by: str, group_value: str, *, risk_context=None):
     if group_by == "department":
         if group_value == VENDOR_GROUP_UNASSIGNED:
             return Vendor.department_id.is_(None)
@@ -342,7 +342,7 @@ async def list_vendors(
     ordered_query = base_query.options(*query_options)
 
     async def load_sql_groups(group_by: str):
-        return await _load_vendor_sql_groups(
+        return await _vendor_listing_load_sql_groups(
             db,
             filtered_vendor_ids,
             group_by,
@@ -361,7 +361,7 @@ async def list_vendors(
             if group_by == "risk"
             else None
         )
-        return _vendor_group_value_filter(
+        return _vendor_listing_group_value_filter(
             group_by,
             group_value or "",
             risk_context=risk_context,

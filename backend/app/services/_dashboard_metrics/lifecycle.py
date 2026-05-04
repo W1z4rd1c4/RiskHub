@@ -203,30 +203,30 @@ async def build_available_periods(db: AsyncSession, current_user: User) -> dict[
 
 
 async def build_committee_summary_metrics(*, db: AsyncSession, current_user: User) -> dict[str, Any]:
-    from app.api.v1.endpoints.dashboard.committee_helpers import (
-        _activity_payload,
-        _department_exposure_payload,
-        _empty_committee_core,
-        _fetch_committee_core,
-        _fetch_vendor_sections,
-        _risk_payload,
-        _vendor_payload,
+    from app.services._dashboard_metrics.committee_projection import (
+        activity_payload,
+        department_exposure_payload,
+        empty_committee_core,
+        fetch_committee_core,
+        fetch_vendor_sections,
+        risk_payload,
+        vendor_payload,
     )
 
     dept_ids = get_user_department_ids(current_user)
     if dept_ids is not None and not dept_ids:
-        return _empty_committee_core()
+        return empty_committee_core()
 
-    critical_risks, recent_activity, dept_exposure = await _fetch_committee_core(db, dept_ids=dept_ids)
-    vendor_sections = await _fetch_vendor_sections(
+    critical_risks, recent_activity, dept_exposure = await fetch_committee_core(db, dept_ids=dept_ids)
+    vendor_sections = await fetch_vendor_sections(
         db,
         current_user=current_user,
         can_read_vendors=has_permission(current_user, "vendors", "read"),
     )
 
     return {
-        "critical_risks": [_risk_payload(risk) for risk in critical_risks],
-        "recent_activity": [_activity_payload(item) for item in recent_activity],
-        "department_exposure": [_department_exposure_payload(row) for row in dept_exposure],
-        "critical_vendors": [_vendor_payload(vendor) for vendor in vendor_sections["critical_vendors"]],
+        "critical_risks": [risk_payload(risk) for risk in critical_risks],
+        "recent_activity": [activity_payload(item) for item in recent_activity],
+        "department_exposure": [department_exposure_payload(row) for row in dept_exposure],
+        "critical_vendors": [vendor_payload(vendor) for vendor in vendor_sections["critical_vendors"]],
     }

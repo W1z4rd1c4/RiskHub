@@ -4,10 +4,10 @@ from collections.abc import Awaitable, Callable, Collection, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
-from app.api.v1.endpoints._collection import CollectionQuery
-from app.api.v1.endpoints._collection_execution import (
+from app.services._collection_contracts import (
     BuildInMemoryGroupedPage,
     BuildSqlGroupFilter,
+    CollectionQuery,
     CollectionListingDefinition,
     LoadSqlGroups,
     LoadTotal,

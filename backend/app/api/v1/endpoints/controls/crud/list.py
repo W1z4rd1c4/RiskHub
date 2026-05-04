@@ -145,7 +145,7 @@ def _visible_control_vendor_context(filtered_ids, current_user: User, *, can_rea
     return query.subquery()
 
 
-async def _load_control_sql_groups(
+async def _control_listing_load_sql_groups(
     db: AsyncSession,
     filtered_ids,
     group_by: str,
@@ -248,7 +248,7 @@ async def _load_control_sql_groups(
     return groups
 
 
-def _control_group_filter(group_by: str, group_value: str, *, risk_context=None, vendor_context=None):
+def _control_listing_group_filter(group_by: str, group_value: str, *, risk_context=None, vendor_context=None):
     if group_by == "category":
         return func.coalesce(Control.control_form, CONTROL_GROUP_UNCATEGORIZED) == group_value
     if group_by == "department":
@@ -546,7 +546,7 @@ async def list_controls(
     filtered_ids = filtered_query.with_only_columns(Control.id).order_by(None).subquery()
 
     async def load_sql_groups(group_by: str):
-        return await _load_control_sql_groups(
+        return await _control_listing_load_sql_groups(
             db,
             filtered_ids,
             group_by,
@@ -565,7 +565,7 @@ async def list_controls(
             if group_by == "vendor"
             else None
         )
-        return _control_group_filter(
+        return _control_listing_group_filter(
             group_by,
             group_value or "",
             risk_context=risk_context,

@@ -73,7 +73,7 @@ def _risk_group_entries(risk, group_by: str) -> list[CollectionGroupEntry]:
     return []
 
 
-def _risk_group_value_filter(group_by: str, group_value: str, *, vendor_context=None):
+def _risk_listing_group_value_filter(group_by: str, group_value: str, *, vendor_context=None):
     if group_by == "category":
         if group_value == RISK_GROUP_UNCATEGORIZED:
             return or_(Risk.category.is_(None), Risk.category == "")
@@ -120,7 +120,7 @@ def _visible_risk_vendor_context(filtered_ids, current_user: User, *, can_read_v
     return query.subquery()
 
 
-async def _load_risk_sql_groups(
+async def _risk_listing_load_sql_groups(
     db: AsyncSession,
     filtered_ids,
     group_by: str,
@@ -449,7 +449,7 @@ async def list_risks(
     filtered_ids = base_query.with_only_columns(Risk.id).order_by(None).subquery()
 
     async def load_sql_groups(group_by: str):
-        return await _load_risk_sql_groups(
+        return await _risk_listing_load_sql_groups(
             db,
             filtered_ids,
             group_by,
@@ -463,7 +463,7 @@ async def list_risks(
             if group_by == "vendor"
             else None
         )
-        return _risk_group_value_filter(
+        return _risk_listing_group_value_filter(
             group_by,
             group_value or "",
             vendor_context=vendor_context,

@@ -1,6 +1,9 @@
 import { controlApi } from '@/services/controlApi';
 import { kriApi } from '@/services/kriApi';
 import { riskApi } from '@/services/riskApi';
+import type { ControlSummary } from '@/types/control';
+import type { KeyRiskIndicator } from '@/types/kri';
+import type { RiskSummary } from '@/types/risk';
 
 import type { DepartmentLookup, LinkMode, SearchResultItem } from './linkTypes';
 
@@ -30,7 +33,7 @@ function buildCollectionParams(args: SearchLinkTargetsArgs): Record<string, stri
     return params;
 }
 
-function mapRiskResult(item: SearchResultItem): SearchResultItem {
+function mapRiskResult(item: RiskSummary): SearchResultItem {
     return {
         id: item.id,
         name: item.name,
@@ -42,7 +45,7 @@ function mapRiskResult(item: SearchResultItem): SearchResultItem {
     };
 }
 
-function mapControlResult(item: SearchResultItem): SearchResultItem {
+function mapControlResult(item: ControlSummary): SearchResultItem {
     return {
         id: item.id,
         name: item.name,
@@ -50,24 +53,13 @@ function mapControlResult(item: SearchResultItem): SearchResultItem {
         status: item.status,
         risk_level: item.risk_level,
         frequency: item.frequency,
-        department: item.department,
-        department_name: item.department_name ?? item.department?.name,
+        department_name: item.department_name,
         control_owner_name: item.control_owner_name,
         capabilities: item.capabilities,
     };
 }
 
-function mapKriResult(item: {
-    id: number;
-    metric_name: string;
-    description?: string | null;
-    is_archived?: boolean;
-    monitoring_status?: string | null;
-    risk_department_name?: string | null;
-    risk_process?: string | null;
-    risk_category?: string | null;
-    capabilities?: SearchResultItem["capabilities"];
-}): SearchResultItem {
+function mapKriResult(item: KeyRiskIndicator): SearchResultItem {
     return {
         id: item.id,
         name: item.metric_name,

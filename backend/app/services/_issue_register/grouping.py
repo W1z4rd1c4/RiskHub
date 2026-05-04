@@ -1,7 +1,7 @@
 from sqlalchemy import case, func, or_, select, union_all
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.v1.endpoints._collection import CollectionGroupEntry
+from app.services._collection_contracts import CollectionGroupEntry
 from app.core.permissions import risk_visibility_clause, vendor_visibility_clause
 from app.models import (
     ControlExecution,

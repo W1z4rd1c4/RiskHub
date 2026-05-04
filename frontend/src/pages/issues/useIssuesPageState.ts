@@ -28,6 +28,7 @@ import {
     useCollectionPageWorkflow,
 } from '../shared/collectionPageWorkflow';
 import { resetCollectionGroupAndPage } from '../shared/collectionViewVocabulary';
+import { applyRegisterViewModeChange } from '../shared/useRegisterPageWorkflow';
 
 interface UseIssuesPageStateOptions {
     initialState: IssuesPageInitialState;
@@ -195,8 +196,7 @@ export function useIssuesPageState({ initialState }: UseIssuesPageStateOptions) 
     );
 
     const updateViewMode = useCallback((value: ViewMode) => {
-        setViewMode(value);
-        resetGroupAndPage();
+        applyRegisterViewModeChange(value, setViewMode, resetGroupAndPage);
     }, [resetGroupAndPage]);
 
     const selectGroup = useCallback((groupValue: string, groupLabel: string) => {

@@ -8,6 +8,44 @@ import tempfile
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
+
+
+def test_install_and_deploy_runtime_plan_modules_are_importable() -> None:
+    import importlib
+
+    env = os.environ.copy()
+    existing_pythonpath = env.get("PYTHONPATH")
+    env["PYTHONPATH"] = (
+        f"{SCRIPTS_DIR}{os.pathsep}{existing_pythonpath}" if existing_pythonpath else str(SCRIPTS_DIR)
+    )
+    for import_statement in (
+        "import install_lib.lifecycle; import install_lib.diagnostics",
+        "import install_lib.diagnostics; import install_lib.lifecycle",
+    ):
+        result = subprocess.run(
+            [sys.executable, "-c", import_statement],
+            cwd=REPO_ROOT,
+            env=env,
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0, result.stderr
+
+    sys.path.insert(0, str(REPO_ROOT / "scripts"))
+    for module_name in (
+        "install_lib.diagnostics",
+        "install_lib.lifecycle",
+        "install_lib.runtime_adapters",
+        "install_lib.runtime_state",
+        "deploy.lib.runtime_plan",
+    ):
+        importlib.import_module(module_name)
+
+    lifecycle_source = (REPO_ROOT / "scripts" / "install_lib" / "lifecycle.py").read_text(encoding="utf-8")
+    assert "from install_lib import diagnostics" not in lifecycle_source
+    assert "from install_lib.diagnostics" not in lifecycle_source
+
+
 SCRIPTS_DIR = REPO_ROOT / "scripts"
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))

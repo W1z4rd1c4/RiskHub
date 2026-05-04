@@ -28,3 +28,15 @@ export function buildLinkedTargetIdSet(existingLinks: ExistingLinkItem[], mode: 
 export function shouldResetLinkSearchState(wasOpen: boolean, isOpen: boolean): boolean {
     return wasOpen && !isOpen;
 }
+
+export function resetLinkPaginationOnSearch({ page }: { page: number }): { page: number } {
+    void page;
+    return { page: 1 };
+}
+
+export function resolveLinkActionOutcome({ ok }: { action: 'link' | 'unlink' | 'unarchive'; ok: boolean }) {
+    return {
+        shouldClose: ok,
+        shouldRefresh: ok,
+    };
+}
