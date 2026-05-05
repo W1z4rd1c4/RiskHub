@@ -47,7 +47,7 @@ def test_release_parity_audit_facade_imports_second_pass_modules() -> None:
 
 def test_prod_readiness_shell_delegates_to_python_package() -> None:
     script_source = (REPO_ROOT / "scripts" / "security" / "run_prod_readiness_audit_local.sh").read_text()
-    for module_name in ("artifacts", "cli", "commands", "phases", "run_state", "scoring"):
+    for module_name in ("artifacts", "audit_inputs", "cli", "commands", "phases", "run_state", "scoring"):
         importlib.import_module(f"prod_readiness_audit.{module_name}")
     assert "prod_readiness_audit.cli" in script_source
 

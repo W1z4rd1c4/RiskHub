@@ -57,6 +57,26 @@ def _has_varargs_forwarder(relative_path: str) -> bool:
     return False
 
 
+def _function_body_source(relative_path: str, function_name: str) -> str:
+    source = _source(relative_path)
+    for node in ast.walk(_tree(relative_path)):
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef) and node.name == function_name:
+            return ast.get_source_segment(source, node) or ""
+    raise AssertionError(f"{function_name} not found in {relative_path}")
+
+
+def _defined_function_count(relative_path: str) -> int:
+    return len(_defined_function_names(relative_path))
+
+
+def _count_function_definitions(relative_path: str, function_name: str) -> int:
+    return sum(
+        1
+        for node in ast.walk(_tree(relative_path))
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef) and node.name == function_name
+    )
+
+
 def _production_frontend_import_count(export_name: str) -> int:
     count = 0
     for path in (REPO_ROOT / "frontend" / "src").rglob("*.ts*"):
@@ -294,6 +314,98 @@ def test_auth_session_split_modules_are_not_facade_back_wrappers() -> None:
         "normalize_business_role(",
     ):
         assert implementation_detail not in outcome_source
+
+
+def test_corrective_architecture_gate_rejects_shallow_split_modules() -> None:
+    release_modules = {
+        "scripts/security/release_parity_audit/toolchain.py": ("capture_toolchain",),
+        "scripts/security/release_parity_audit/startup_preflight.py": (
+            "detect_dev_sh_effective_node",
+            "port_listeners",
+        ),
+        "scripts/security/release_parity_audit/screenshots.py": ("capture_login_screenshot",),
+        "scripts/security/release_parity_audit/fingerprints.py": ("capture_backend_fingerprint",),
+        "scripts/security/release_parity_audit/cleanup.py": ("stop_local_dev_processes", "compose_down"),
+        "scripts/security/release_parity_audit/facade.py": ("release_parity_phases",),
+    }
+    for relative_path, required_functions in release_modules.items():
+        assert _defined_function_count(relative_path) >= len(required_functions)
+        for function_name in required_functions:
+            assert function_name in _defined_function_names(relative_path)
+
+    audit_source = _source("scripts/security/release_parity_audit/audit.py")
+    for leaked_runtime_detail in (
+        '["docker", "info"]',
+        "subprocess.Popen(",
+        "await page.screenshot",
+        "git worktree add --detach",
+        "screen -S riskhub-backend -X quit",
+    ):
+        assert leaked_runtime_detail not in audit_source
+
+    prod_script = _source("scripts/security/run_prod_readiness_audit_local.sh")
+    for leaked_shell_implementation in ("<<'PY'", "run_cmd()", "p3_build_push_backend_deploy"):
+        assert leaked_shell_implementation not in prod_script
+
+    issue_route_source = _source("backend/app/api/v1/endpoints/issues/crud/list.py")
+    for leaked_listing_detail in (
+        "async def load_sql_groups",
+        "async def build_sql_group_filter",
+        "def build_in_memory_grouped_page",
+        "sortable_fields =",
+        "select(Issue)",
+        "can_read_risk_id",
+        "issue_group_filter(",
+    ):
+        assert leaked_listing_detail not in issue_route_source
+    issue_planner_source = _function_body_source(
+        "backend/app/services/_register_listings/issues.py",
+        "plan_issue_listing",
+    )
+    assert "**kwargs" not in issue_planner_source
+    assert "load_sql_groups" in issue_planner_source
+    assert "build_sql_group_filter" in issue_planner_source
+    assert "select(Issue)" in _source("backend/app/services/_register_listings/issues.py")
+
+    for relative_path in (
+        "backend/app/services/_auth_session/contracts.py",
+        "backend/app/services/_auth_session/sso_challenges.py",
+        "backend/app/services/_auth_session/jit.py",
+    ):
+        source = _source(relative_path)
+        assert "JSONResponse" not in source
+        assert "fastapi.responses" not in source
+    assert "error_response" not in _source("backend/app/services/_auth_session/contracts.py")
+
+    grouped_helper_defs = sum(
+        _count_function_definitions(path, "build_grouped_collection_response")
+        + _count_function_definitions(path, "build_grouped_collection_page")
+        for path in (
+            "backend/app/services/_collection_contracts.py",
+            "backend/app/api/v1/endpoints/_collection.py",
+        )
+    )
+    assert grouped_helper_defs == 2
+
+    update_plan_source = _source("backend/app/services/_issue_workflow/update_plans.py")
+    for leaked_execution_detail in ("await db.commit()", "serialize_issue_read_for_actor", "setattr(issue"):
+        assert leaked_execution_detail not in update_plan_source
+    assert "IssueUpdatePlan(" in update_plan_source
+    lifecycle_source = _source("backend/app/services/_issue_workflow/lifecycle.py")
+    assert "def _select_exception_for_approval" not in lifecycle_source
+    assert "def _select_exception_for_revocation" not in lifecycle_source
+
+    logging_source = _source("backend/app/core/logging.py")
+    for leaked_logging_detail in ("structlog.configure(", "root_logger.addHandler", 'open(log_path, "rb")'):
+        assert leaked_logging_detail not in logging_source
+    scheduler_source = _source("backend/app/core/scheduler.py")
+    for leaked_scheduler_detail in (
+        "scheduler = AsyncIOScheduler()",
+        "lock_acquired = await provider.acquire()",
+        "scheduler.start()",
+        "scheduler.shutdown(wait=False)",
+    ):
+        assert leaked_scheduler_detail not in scheduler_source
 
 
 def test_riskhub_config_routes_use_lifecycle_contracts() -> None:

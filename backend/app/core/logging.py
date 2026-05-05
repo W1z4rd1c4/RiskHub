@@ -12,7 +12,6 @@ Log files:
 - logs/audit.json.log: Audit/security events only (for SIEM)
 """
 
-import logging
 import os
 from contextvars import ContextVar
 from functools import partial
@@ -78,12 +77,9 @@ def get_log_settings() -> tuple[int, int, int, int]:
     Returns:
         Tuple of (app_size_bytes, app_count, audit_size_bytes, audit_count)
     """
-    default_bytes = DEFAULT_LOG_ROTATION_SIZE_MB * 1024 * 1024
-    return (
-        default_bytes,
-        DEFAULT_LOG_RETENTION_COUNT,
-        default_bytes,
-        DEFAULT_LOG_RETENTION_COUNT,
+    return logging_runtime.log_settings(
+        rotation_size_mb=DEFAULT_LOG_ROTATION_SIZE_MB,
+        retention_count=DEFAULT_LOG_RETENTION_COUNT,
     )
 
 
@@ -92,14 +88,7 @@ def get_active_logging_config() -> dict[str, int | str | bool]:
 
 
 def configure_logging_from_snapshot(snapshot: dict[str, int | str | bool]) -> structlog.BoundLogger:
-    return configure_logging(
-        log_level=str(snapshot["log_level"]),
-        json_console=bool(snapshot["json_console"]),
-        app_rotation_size_mb=int(snapshot["app_rotation_size_mb"]),
-        app_retention_count=int(snapshot["app_retention_count"]),
-        audit_rotation_size_mb=int(snapshot["audit_rotation_size_mb"]),
-        audit_retention_count=int(snapshot["audit_retention_count"]),
-    )
+    return logging_runtime.configure_logging_from_snapshot(snapshot=snapshot, configure=configure_logging)
 
 
 def configure_logging(
@@ -127,14 +116,16 @@ def configure_logging(
     Returns:
         Configured structlog logger
     """
-    default_app_size, default_app_count, default_audit_size, default_audit_count = get_log_settings()
-    resolved_config = logging_config.resolve_logging_config(
+    return logging_runtime.configure_logging_runtime(
+        context_processor=add_context_vars,
+        active_config=_active_logging_config,
+        log_directory=get_log_directory(),
+        default_app_size_mb=DEFAULT_LOG_ROTATION_SIZE_MB,
+        default_app_count=DEFAULT_LOG_RETENTION_COUNT,
+        default_audit_size_mb=DEFAULT_LOG_ROTATION_SIZE_MB,
+        default_audit_count=DEFAULT_LOG_RETENTION_COUNT,
         log_level=log_level,
         json_console=json_console,
-        default_app_size_mb=default_app_size // (1024 * 1024),
-        default_app_count=default_app_count,
-        default_audit_size_mb=default_audit_size // (1024 * 1024),
-        default_audit_count=default_audit_count,
         rotation_size_mb=rotation_size_mb,
         retention_count=retention_count,
         app_rotation_size_mb=app_rotation_size_mb,
@@ -142,83 +133,6 @@ def configure_logging(
         audit_rotation_size_mb=audit_rotation_size_mb,
         audit_retention_count=audit_retention_count,
     )
-
-    # Ensure logs directory exists
-    log_dir = Path(__file__).parent.parent.parent / "logs"
-    log_dir.mkdir(exist_ok=True)
-
-    app_log_file = str(log_dir / "app.json.log")
-    audit_log_file = str(log_dir / "audit.json.log")
-
-    # Shared processors for both structlog and stdlib logging
-    shared_processors = logging_handlers.shared_processors(add_context_vars)
-
-    # Configure structlog
-    structlog.configure(
-        processors=shared_processors
-        + [
-            structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
-        ],
-        logger_factory=structlog.stdlib.LoggerFactory(),
-        wrapper_class=structlog.stdlib.BoundLogger,
-        cache_logger_on_first_use=True,
-    )
-
-    # JSON formatter for file handlers
-    json_formatter = logging_handlers.build_json_formatter(shared_processors)
-
-    # Console formatter (JSON or pretty based on env)
-    console_formatter = logging_handlers.build_console_formatter(
-        processors=shared_processors,
-        json_console=resolved_config.json_console,
-    )
-
-    # App file handler - general logs (excludes audit)
-    app_handler = logging_handlers.build_file_handler(
-        log_file=app_log_file,
-        size_bytes=resolved_config.app_size_bytes,
-        backup_count=resolved_config.app_retention_count,
-        formatter=json_formatter,
-        audit=False,
-    )
-
-    # Audit file handler - security/audit events only
-    audit_handler = logging_handlers.build_file_handler(
-        log_file=audit_log_file,
-        size_bytes=resolved_config.audit_size_bytes,
-        backup_count=resolved_config.audit_retention_count,
-        formatter=json_formatter,
-        audit=True,
-    )
-
-    # Console handler (all logs)
-    console_handler = logging_handlers.build_console_handler(
-        formatter=console_formatter,
-        log_level=resolved_config.log_level,
-    )
-
-    # Configure root logger
-    root_logger = logging.getLogger()
-    root_logger.setLevel(logging.DEBUG)
-
-    # Remove existing handlers to avoid duplicates on reload
-    for handler in root_logger.handlers[:]:
-        root_logger.removeHandler(handler)
-
-    root_logger.addHandler(app_handler)
-    root_logger.addHandler(audit_handler)
-    root_logger.addHandler(console_handler)
-
-    # Adjust uvicorn loggers to use same format
-    for logger_name in ["uvicorn", "uvicorn.access", "uvicorn.error"]:
-        uvicorn_logger = logging.getLogger(logger_name)
-        uvicorn_logger.handlers = []
-        uvicorn_logger.propagate = True
-
-    _active_logging_config.update(resolved_config.as_active_config())
-
-    # Get a structlog logger to return
-    return structlog.get_logger("riskhub")
 
 
 def reconfigure_log_rotation(
@@ -228,16 +142,25 @@ def reconfigure_log_rotation(
     audit_rotation_size_mb: int,
     audit_retention_count: int,
 ) -> structlog.BoundLogger:
-    active_config = get_active_logging_config()
-    active_config.update(
-        {
-            "app_rotation_size_mb": app_rotation_size_mb,
-            "app_retention_count": app_retention_count,
-            "audit_rotation_size_mb": audit_rotation_size_mb,
-            "audit_retention_count": audit_retention_count,
-        }
+    return logging_runtime.reconfigure_log_rotation_runtime(
+        active_config=get_active_logging_config(),
+        configure=configure_logging,
+        app_rotation_size_mb=app_rotation_size_mb,
+        app_retention_count=app_retention_count,
+        audit_rotation_size_mb=audit_rotation_size_mb,
+        audit_retention_count=audit_retention_count,
     )
-    return configure_logging_from_snapshot(active_config)
+
+
+def get_log_directory() -> Path:
+    """
+    Get the log directory path used by configure_logging().
+
+    This is the single source of truth for log file locations.
+    Returns:
+        Path to the logs directory (backend/logs/)
+    """
+    return Path(__file__).parent.parent.parent / "logs"
 
 
 # Module-level logger for import convenience
@@ -257,17 +180,6 @@ def get_audit_logger() -> structlog.BoundLogger:
     return structlog.get_logger("audit")
 
 
-def get_log_directory() -> Path:
-    """
-    Get the log directory path used by configure_logging().
-
-    This is the single source of truth for log file locations.
-    Returns:
-        Path to the logs directory (backend/logs/)
-    """
-    return Path(__file__).parent.parent.parent / "logs"
-
-
 def tail_log_file(log_path: Path, line_count: int = 100) -> tuple[list[str], int]:
     """
     Efficiently read the last N lines from a log file.
@@ -281,64 +193,4 @@ def tail_log_file(log_path: Path, line_count: int = 100) -> tuple[list[str], int
     Returns:
         Tuple of (list of lines, total line count estimate)
     """
-    if not log_path.exists():
-        return [], 0
-
-    lines: list[str] = []
-    file_size = log_path.stat().st_size
-
-    if file_size == 0:
-        return [], 0
-
-    # Read in chunks from the end
-    chunk_size = 8192
-    buffer = ""
-
-    with open(log_path, "rb") as f:
-        # Start from end
-        remaining = file_size
-
-        while remaining > 0 and len(lines) < line_count:
-            # Read chunk
-            read_size = min(chunk_size, remaining)
-            remaining -= read_size
-            f.seek(remaining)
-            chunk = f.read(read_size).decode("utf-8", errors="replace")
-
-            buffer = chunk + buffer
-
-            # Extract complete lines
-            while "\n" in buffer and len(lines) < line_count:
-                last_newline = buffer.rfind("\n")
-                if last_newline == len(buffer) - 1:
-                    # Line ends with newline, find the previous one
-                    prev_newline = buffer.rfind("\n", 0, last_newline)
-                    if prev_newline >= 0:
-                        line = buffer[prev_newline + 1 : last_newline]
-                        buffer = buffer[: prev_newline + 1]
-                        if line.strip():
-                            lines.append(line)
-                    else:
-                        # Only one line in buffer, need more data
-                        break
-                else:
-                    # Buffer doesn't end with newline, split at last
-                    line = buffer[last_newline + 1 :]
-                    buffer = buffer[: last_newline + 1]
-                    if line.strip():
-                        lines.append(line)
-
-    # Add any remaining content
-    if buffer.strip() and len(lines) < line_count:
-        for line in buffer.strip().split("\n"):
-            if line.strip() and len(lines) < line_count:
-                lines.append(line)
-
-    # Reverse to get chronological order (oldest first)
-    lines.reverse()
-
-    # Estimate total lines (rough approximation)
-    avg_line_size = file_size / max(len(lines), 1) if lines else 100
-    total_estimate = int(file_size / avg_line_size) if avg_line_size > 0 else 0
-
-    return lines[-line_count:], total_estimate
+    return logging_runtime.tail_log_file_runtime(log_path, line_count)

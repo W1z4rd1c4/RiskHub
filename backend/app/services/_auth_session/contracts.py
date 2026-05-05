@@ -4,8 +4,6 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Literal
 
-from fastapi.responses import JSONResponse
-
 from app.core.config import Settings
 from app.core.datetime_utils import coerce_utc
 from app.core.tokens import refresh_token_lifetime
@@ -88,17 +86,38 @@ class SsoSessionOutcome:
 
 
 @dataclass(frozen=True)
+class SsoFailure:
+    status_code: int
+    detail: str
+    code: str
+    clear_challenge_cookie: bool = False
+
+
+@dataclass(frozen=True)
+class SsoStartResolution:
+    response: object | None = None
+    failure: SsoFailure | None = None
+    challenge_id: str | None = None
+    max_age: int | None = None
+
+    @property
+    def is_authorized(self) -> bool:
+        return self.failure is None and self.response is not None
+
+
+@dataclass(frozen=True)
 class SsoExchangeResolution:
     outcome: SsoSessionOutcome
     user: User | None = None
     identity: object | None = None
     post_login_redirect_to: str | None = None
-    error_response: JSONResponse | None = None
+    failure: SsoFailure | None = None
+    clear_challenge_cookie: bool = False
     now: datetime | None = None
 
     @property
     def is_authorized(self) -> bool:
-        return self.error_response is None and self.user is not None and self.outcome.status == "success"
+        return self.failure is None and self.user is not None and self.outcome.status == "success"
 
 
 def refresh_session_context_outcome(

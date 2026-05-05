@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from fastapi import HTTPException, status
-from fastapi.responses import JSONResponse
+from http import HTTPStatus
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,6 +11,7 @@ from app.core.user_query_options import user_selectinload_options
 from app.models import Role, User
 from app.services.directory_identity_service import normalize_business_role
 
+from .contracts import SsoFailure
 from .sso_identity import log_failed_sso
 
 
@@ -41,7 +41,7 @@ async def _resolve_safe_default_role(db: AsyncSession) -> Role:
             return role
 
     candidates = ", ".join(str(name) for name in SAFE_DIRECTORY_DEFAULT_ROLE_CANDIDATES)
-    raise HTTPException(status_code=500, detail=f"No safe default role found ({candidates}). Seed roles first.")
+    raise RuntimeError(f"No safe default role found ({candidates}). Seed roles first.")
 
 
 async def sync_sso_user_profile(
@@ -49,7 +49,7 @@ async def sync_sso_user_profile(
     *,
     user: User,
     identity,
-) -> JSONResponse | None:
+) -> SsoFailure | None:
     from app.core.datetime_utils import utc_now
 
     now = utc_now()
@@ -65,9 +65,10 @@ async def sync_sso_user_profile(
                 entity_name=identity.email or "unknown",
                 description="Failed SSO login: identity conflict",
             )
-            return JSONResponse(
-                status_code=status.HTTP_409_CONFLICT,
-                content={"detail": "SSO identity conflict", "code": "SSO_IDENTITY_COLLISION"},
+            return SsoFailure(
+                status_code=HTTPStatus.CONFLICT,
+                detail="SSO identity conflict",
+                code="SSO_IDENTITY_COLLISION",
             )
         user.email = normalized_email
 
@@ -87,7 +88,7 @@ async def _resolve_existing_sso_user(
     *,
     identity,
     settings: Settings,
-) -> tuple[User | None, JSONResponse | None]:
+) -> tuple[User | None, SsoFailure | None]:
     user = await _find_user_by_external_id(db, identity.external_id)
     if user is not None:
         return user, None
@@ -105,9 +106,10 @@ async def _resolve_existing_sso_user(
             entity_name=identity.email or "unknown",
             description="Failed SSO login: identity conflict",
         )
-        return None, JSONResponse(
-            status_code=status.HTTP_409_CONFLICT,
-            content={"detail": "SSO identity conflict", "code": "SSO_IDENTITY_COLLISION"},
+        return None, SsoFailure(
+            status_code=HTTPStatus.CONFLICT,
+            detail="SSO identity conflict",
+            code="SSO_IDENTITY_COLLISION",
         )
 
     if email_user.external_id is None:
@@ -117,9 +119,10 @@ async def _resolve_existing_sso_user(
                 entity_name=identity.email or "unknown",
                 description="Failed SSO login: explicit directory linking required",
             )
-            return None, JSONResponse(
-                status_code=status.HTTP_403_FORBIDDEN,
-                content={"detail": "SSO account link required", "code": "SSO_LINK_REQUIRED"},
+            return None, SsoFailure(
+                status_code=HTTPStatus.FORBIDDEN,
+                detail="SSO account link required",
+                code="SSO_LINK_REQUIRED",
             )
         email_user.external_id = identity.external_id
         db.add(email_user)
@@ -155,7 +158,7 @@ async def resolve_jit_user(
     db: AsyncSession,
     identity,
     settings: Settings,
-) -> tuple[User | None, JSONResponse | None]:
+) -> tuple[User | None, SsoFailure | None]:
     user, resolution_error = await _resolve_existing_sso_user(db, identity=identity, settings=settings)
     if user is not None or resolution_error is not None:
         return user, resolution_error
@@ -166,9 +169,10 @@ async def resolve_jit_user(
             entity_name=identity.email or "unknown",
             description="Failed SSO login: user not provisioned",
         )
-        return None, JSONResponse(
-            status_code=status.HTTP_403_FORBIDDEN,
-            content={"detail": "User not provisioned", "code": "SSO_USER_NOT_PROVISIONED"},
+        return None, SsoFailure(
+            status_code=HTTPStatus.FORBIDDEN,
+            detail="User not provisioned",
+            code="SSO_USER_NOT_PROVISIONED",
         )
 
     if not identity.email or "@" not in identity.email:
@@ -177,9 +181,10 @@ async def resolve_jit_user(
             entity_name="unknown",
             description="Failed SSO login: missing email claim",
         )
-        return None, JSONResponse(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            content={"detail": "Email claim missing", "code": "SSO_EMAIL_MISSING"},
+        return None, SsoFailure(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail="Email claim missing",
+            code="SSO_EMAIL_MISSING",
         )
 
     return await _jit_provision_sso_user(db, identity=identity), None

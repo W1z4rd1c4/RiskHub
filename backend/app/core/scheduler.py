@@ -1,6 +1,6 @@
 """Background task scheduler for KRI deadline checking and other periodic tasks."""
 
-import os
+import sys
 from collections.abc import Awaitable, Callable
 from contextlib import asynccontextmanager
 from uuid import uuid4
@@ -8,6 +8,7 @@ from uuid import uuid4
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
+from app.core import scheduler_runtime
 from app.core.datetime_utils import utc_now
 from app.core.logging import get_logger
 from app.core.scheduler_locks import (
@@ -70,7 +71,8 @@ __all__ = [
 ]
 
 # Global scheduler instance
-scheduler = AsyncIOScheduler()
+_scheduler_factory = AsyncIOScheduler
+scheduler = _scheduler_factory()
 _db_sessionmaker: async_sessionmaker[AsyncSession] | None = None
 _db_engine: AsyncEngine | None = None
 _lock_provider: "SchedulerLockProvider | None" = None
@@ -191,53 +193,11 @@ async def _release_lock_provider(*, suppress_exceptions: bool) -> None:
 
 
 def get_scheduler_runtime_state() -> dict[str, object]:
-    lock_provider = _lock_provider.provider_name if _lock_provider is not None else None
-    enable = os.getenv("ENABLE_SCHEDULER", "false").lower() == "true"
-    lock_acquired = bool(_lock_provider.lock_acquired) if _lock_provider is not None else False
-    state_details = get_scheduler_role_status(
-        scheduler_enabled=enable,
-        scheduler_running=scheduler.running,
-        lock_acquired=lock_acquired,
-    )
-    return {
-        "process_role": "scheduler" if enable else "api",
-        "instance_id": PROCESS_INSTANCE_ID,
-        "process_started_at": PROCESS_STARTED_AT.isoformat(),
-        "scheduler_enabled": enable,
-        "scheduler_running": scheduler.running,
-        "lock_provider": lock_provider,
-        "lock_acquired": lock_acquired,
-        **state_details,
-    }
+    return scheduler_runtime.get_scheduler_runtime_state(sys.modules[__name__])
 
 
 def setup_scheduler() -> tuple[str, tuple[str, ...]]:
-    """Configure scheduled jobs. Job definitions live in scheduler_jobs."""
-    from app.core.config import get_settings
-    from app.core.scheduler_jobs import (
-        register_full_scheduler_jobs,
-        register_outbox_only_scheduler_jobs,
-        resolve_scheduler_job_profile,
-        set_db_sessionmaker_ref,
-    )
-
-    settings = get_settings()
-    scheduler.remove_all_jobs()
-    set_db_sessionmaker_ref(_db_sessionmaker)
-
-    profile = resolve_scheduler_job_profile()
-    if profile == "outbox_only":
-        registered_job_ids = register_outbox_only_scheduler_jobs()
-    else:
-        registered_job_ids = register_full_scheduler_jobs(settings)
-
-    logger.info(
-        "scheduler_configured",
-        scheduler_job_profile=profile,
-        registered_job_ids=list(registered_job_ids),
-        instance_id=PROCESS_INSTANCE_ID,
-    )
-    return profile, registered_job_ids
+    return scheduler_runtime.setup_scheduler(sys.modules[__name__])
 
 
 def start_scheduler():
@@ -252,72 +212,9 @@ def start_scheduler():
 
 
 async def start_scheduler_async() -> None:
-    """Start the scheduler after acquiring runtime ownership."""
-    global _lock_provider
-    global _runtime_run_id
-
-    enable = os.getenv("ENABLE_SCHEDULER", "false").lower()
-    if enable != "true":
-        logger.info("scheduler_disabled", scheduler_enabled=False, instance_id=PROCESS_INSTANCE_ID)
-        return
-    if _db_sessionmaker is None:
-        logger.warning(
-            "scheduler_not_started", reason="db_sessionmaker_not_configured", instance_id=PROCESS_INSTANCE_ID
-        )
-        return
-    if _db_engine is None:
-        logger.warning("scheduler_not_started", reason="db_engine_not_configured", instance_id=PROCESS_INSTANCE_ID)
-        return
-
-    if scheduler.running:
-        return
-
-    from app.core.scheduler_jobs import resolve_process_worker_count
-
-    ensure_outbox_runtime_supported(
-        dialect_name=_db_engine.dialect.name,
-        worker_count=resolve_process_worker_count(),
-    )
-
-    provider = _resolve_lock_provider()
-    _lock_provider = provider
-    lock_acquired = await provider.acquire()
-    logger.info(
-        "scheduler_lock_attempt",
-        scheduler_enabled=True,
-        instance_id=PROCESS_INSTANCE_ID,
-        lock_provider=provider.provider_name,
-        lock_acquired=lock_acquired,
-    )
-    if not lock_acquired:
-        return
-
-    try:
-        profile, registered_job_ids = setup_scheduler()
-        scheduler.start()
-        await _mark_runtime_started()
-    except Exception:
-        if scheduler.running:
-            try:
-                scheduler.shutdown(wait=False)
-            except Exception:
-                logger.exception(
-                    "scheduler_shutdown_failed_after_start_error",
-                    instance_id=PROCESS_INSTANCE_ID,
-                    lock_provider=provider.provider_name,
-                )
-        _runtime_run_id = None
-        await _release_lock_provider(suppress_exceptions=True)
-        raise
-
-    logger.info(
-        "scheduler_started",
-        scheduler_enabled=True,
-        scheduler_job_profile=profile,
-        registered_job_ids=list(registered_job_ids),
-        instance_id=PROCESS_INSTANCE_ID,
-        lock_provider=provider.provider_name,
-        lock_acquired=True,
+    await scheduler_runtime.start_scheduler_async(
+        sys.modules[__name__],
+        ensure_outbox_runtime_supported=ensure_outbox_runtime_supported,
     )
 
 
@@ -327,22 +224,4 @@ def stop_scheduler():
 
 
 async def stop_scheduler_async() -> None:
-    """Stop the scheduler and release runtime ownership."""
-    global _runtime_run_id
-
-    try:
-        if scheduler.running:
-            try:
-                scheduler.shutdown(wait=False)
-            except Exception:
-                logger.exception("scheduler_shutdown_failed", instance_id=PROCESS_INSTANCE_ID)
-
-            try:
-                await _mark_runtime_stopped()
-            except Exception:
-                logger.exception("scheduler_runtime_stop_mark_failed", instance_id=PROCESS_INSTANCE_ID)
-            else:
-                logger.info("scheduler_stopped", instance_id=PROCESS_INSTANCE_ID)
-    finally:
-        _runtime_run_id = None
-        await _release_lock_provider(suppress_exceptions=True)
+    await scheduler_runtime.stop_scheduler_async(sys.modules[__name__])

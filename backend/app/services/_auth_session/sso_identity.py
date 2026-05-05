@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from fastapi import status
-from fastapi.responses import JSONResponse
+from http import HTTPStatus
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.activity_logger import log_activity
@@ -13,6 +12,8 @@ from app.services.sso_token_service import (
     SsoTokenVerificationError,
     verify_entra_id_token,
 )
+
+from .contracts import SsoFailure
 
 
 async def log_failed_sso(
@@ -50,12 +51,10 @@ async def verify_sso_identity(
             entity_name="sso",
             description="Failed SSO login: verification unavailable",
         )
-        return None, JSONResponse(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            content={
-                "detail": "SSO verification unavailable. Please try again later.",
-                "code": "SSO_DISCOVERY_FAILED",
-            },
+        return None, SsoFailure(
+            status_code=HTTPStatus.SERVICE_UNAVAILABLE,
+            detail="SSO verification unavailable. Please try again later.",
+            code="SSO_DISCOVERY_FAILED",
         )
     except SsoTokenVerificationError as e:
         await log_failed_sso(
@@ -63,20 +62,20 @@ async def verify_sso_identity(
             entity_name="sso",
             description=f"Failed SSO login: {e.code}",
         )
-        status_code_value = status.HTTP_401_UNAUTHORIZED
+        status_code_value = HTTPStatus.UNAUTHORIZED
         code = "SSO_TOKEN_INVALID"
         if e.code == "tenant_mismatch":
             code = "SSO_TENANT_MISMATCH"
         elif e.code == "email_domain_not_allowed":
-            status_code_value = status.HTTP_403_FORBIDDEN
+            status_code_value = HTTPStatus.FORBIDDEN
             code = "SSO_EMAIL_DOMAIN_FORBIDDEN"
         elif e.code == "email_required":
-            status_code_value = status.HTTP_400_BAD_REQUEST
+            status_code_value = HTTPStatus.BAD_REQUEST
             code = "SSO_EMAIL_MISSING"
         elif e.code == "missing_token":
-            status_code_value = status.HTTP_400_BAD_REQUEST
+            status_code_value = HTTPStatus.BAD_REQUEST
             code = "SSO_TOKEN_INVALID"
-        return None, JSONResponse(status_code=status_code_value, content={"detail": "Invalid SSO token", "code": code})
+        return None, SsoFailure(status_code=status_code_value, detail="Invalid SSO token", code=code)
 
     return identity, None
 

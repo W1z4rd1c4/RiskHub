@@ -12,6 +12,7 @@ from sqlalchemy.orm import selectinload
 from app.core.config import Settings, get_settings
 from app.core.datetime_utils import utc_now
 from app.core.policy import SAFE_DIRECTORY_DEFAULT_ROLE_CANDIDATES
+from app.core.tokens import get_sso_challenge_cookie_name
 from app.db.session import get_db
 from app.main import app
 from app.models import Role, User
@@ -183,6 +184,9 @@ async def test_sso_exchange_strict_mode_rejects_stale_tab_challenge(
     )
     assert exchange.status_code == 401, exchange.text
     assert exchange.json()["code"] == "SSO_STATE_MISMATCH"
+    set_cookie = exchange.headers.get("set-cookie", "")
+    assert f"{get_sso_challenge_cookie_name()}=" in set_cookie
+    assert "Max-Age=0" in set_cookie
 
 
 @pytest.mark.asyncio
@@ -616,6 +620,9 @@ async def test_sso_exchange_blocks_unknown_user_when_jit_disabled(
     )
     assert res.status_code == 403
     assert res.json()["code"] == "SSO_USER_NOT_PROVISIONED"
+    set_cookie = res.headers.get("set-cookie", "")
+    assert f"{get_sso_challenge_cookie_name()}=" in set_cookie
+    assert "Max-Age=0" in set_cookie
 
 
 @pytest.mark.asyncio
@@ -644,6 +651,7 @@ async def test_sso_exchange_blocks_inactive_user(
         json={"id_token": "fake", "state": challenge["state"]},
     )
     assert res.status_code == 403
+    assert res.json()["code"] == "USER_INACTIVE"
 
 
 @pytest.mark.asyncio

@@ -1,13 +1,14 @@
 {
   "version": "1.0",
-  "last_reviewed": "2026-05-04",
-  "last_architecture_refactor_reviewed": "2026-05-04",
+  "last_reviewed": "2026-05-05",
+  "last_architecture_refactor_reviewed": "2026-05-05",
   "architecture_refactor_notes": [
     "2026-05-03: Collection listing execution, tabular report export rendering, approval side-effect helper reuse, and validator static data were moved behind deeper Modules. User-visible authorization policy and capability semantics are unchanged.",
     "2026-05-03: Entity visibility projections, collection listing definitions, export pipeline definitions, approval resolution plans, and KRI value governance were moved behind deeper Modules. User-visible authorization policy and capability semantics are unchanged.",
     "2026-05-03: Additional architecture-only deepening moved entity mutation lifecycle, register listing execution, monitoring response projection, questionnaire lifecycle, KRI history governance, and frontend link presentation behind shared Modules. User-visible authorization policy and capability semantics are unchanged.",
     "2026-05-03: Follow-up architecture-only split moved approval queue projection, shared collection listing contracts, and KRI history response projection into service-owned Modules. User-visible authorization policy and capability semantics are unchanged.",
-    "2026-05-04: Corrective architecture-only pass moved KRI value direct application and approval intake behind service-owned Modules, alongside auth session outcomes, collection contracts, register listing planners, issue workflow planning, logging/scheduler runtime, release tooling, and frontend helper ownership. User-visible authorization policy and capability semantics are unchanged."
+    "2026-05-04: Corrective architecture-only pass moved KRI value direct application and approval intake behind service-owned Modules, alongside auth session outcomes, collection contracts, register listing planners, issue workflow planning, logging/scheduler runtime, release tooling, and frontend helper ownership. User-visible authorization policy and capability semantics are unchanged.",
+    "2026-05-05: Corrective architecture-only follow-up moved SSO exchange route adaptation and issue register listing planning behind production-owned Modules while preserving backend authorization, issue visibility, and capability semantics."
   ],
   "owner": "RiskHub Maintainer",
   "capability_catalog": "docs/security/capability-catalog.json",
@@ -78,6 +79,7 @@
     "backend/app/services/_admin_telemetry/",
     "backend/app/services/_approval_execution/",
     "backend/app/services/_approval_queue/",
+    "backend/app/services/_auth_session/",
     "backend/app/services/_authorization_capabilities/",
     "backend/app/services/_collection_contracts.py",
     "backend/app/services/_control_execution/",
@@ -609,7 +611,7 @@
       "action": "Create, read, update, link, assign, progress, close, approve exceptions, and view issue activity history",
       "actor_scope": "Requires issues:read/write/approve plus issue scope, owner assignment, linked-entity visibility helpers, read-only KRI reporting-owner scope for directly KRI-linked issues, activity history requires activity_log:read and business-view eligibility, active vendor checks for vendor context/link mutations, validated link-backed issue source provenance, protected current source links, set-based linked-resource redaction, duplicate active-exception request denial, and derived context filters",
       "backend_authority": "backend/app/api/v1/endpoints/issues/",
-      "service_policy": "backend/app/core/_permissions/issues.py, backend/app/api/v1/endpoints/issues/_shared/source.py, backend/app/api/v1/endpoints/issues/_shared/links.py, backend/app/api/v1/endpoints/issues/_shared/serialization.py, backend/app/core/_permissions/visible_ids.py, backend/app/services/authorization_capabilities.py, backend/app/services/_authorization_capabilities/; issue list/detail linked risk/control/KRI/vendor labels, risk/vendor contexts, and grouped context labels/counts are redacted through precomputed visible ID/context sets with fail-closed invalid drilldown filters, backend/app/services/_issue_register/ owns list grouping/context query helpers used by HTTP adapters",
+      "service_policy": "backend/app/core/_permissions/issues.py, backend/app/api/v1/endpoints/issues/_shared/source.py, backend/app/api/v1/endpoints/issues/_shared/links.py, backend/app/api/v1/endpoints/issues/_shared/serialization.py, backend/app/core/_permissions/visible_ids.py, backend/app/services/authorization_capabilities.py, backend/app/services/_authorization_capabilities/; backend/app/api/v1/endpoints/issues/crud/list.py remains the HTTP Adapter for issue list criteria; issue list/detail linked risk/control/KRI/vendor labels, risk/vendor contexts, and grouped context labels/counts are redacted through precomputed visible ID/context sets with fail-closed invalid drilldown filters, backend/app/services/_issue_register/ owns list grouping/context query helpers, and backend/app/services/_register_listings/issues.py owns issue register listing planning used by HTTP adapters",
       "response_capability": "backend/app/schemas/issue.py IssueCapabilities including can_view_activity_history, source_display, source_link, and IssueLink.is_source_link metadata on IssueSummary, IssueRead, and IssueListResponse collection capabilities",
       "frontend_gate": "frontend/src/pages/issues/, frontend/src/components/issues/, frontend/src/pages/IssuesPage.tsx, frontend/src/pages/IssueDetailPage.tsx, frontend/src/pages/IssueNewPage.tsx, frontend/src/pages/shared/collectionPageState.ts, frontend/src/pages/detail/ContextualIssueAction.tsx, and frontend/src/components/executions/ use backend capabilities and render denied/clear stale rows and capabilities on backend 403",
       "tests": [
@@ -672,7 +674,7 @@
       "action": "Authenticate, refresh, bootstrap session, read auth config, read platform admin capabilities/logs, and revoke sessions",
       "actor_scope": "Session authority is backend JWT/refresh/session version; cookie-issuing password login requires an allowed Origin/Referer; refresh replay of a rotated token revokes the rotated child refresh-token chain; admin session revocation and structured log reads are platform-admin-only",
       "backend_authority": "backend/app/api/v1/endpoints/auth/ and backend/app/api/v1/endpoints/admin/",
-      "service_policy": "backend/app/core/security.py, backend/app/api/v1/endpoints/auth/_request_protection.py, and backend/app/services/sso_token_service.py",
+      "service_policy": "backend/app/core/security.py, backend/app/api/v1/endpoints/auth/_request_protection.py, backend/app/api/v1/endpoints/auth/sso.py as the SSO HTTP Adapter, backend/app/services/_auth_session/ owns transport-neutral SSO/refresh outcomes, and backend/app/services/sso_token_service.py",
       "response_capability": "GET /api/v1/admin/capabilities exposes admin-console action metadata; session/user permissions are returned through auth/bootstrap responses, not per-business-action capabilities",
       "frontend_gate": "frontend/src/contexts/AuthContext.tsx and frontend/src/services/session/, frontend/src/authz/useAuthz.ts, frontend/src/authz/policy.ts, frontend/src/hooks/usePermissions.ts, frontend/src/lib/capabilities.ts, frontend/src/routing/, frontend/src/components/layout/Sidebar.tsx, frontend/src/pages/AdminConsolePage.tsx, and frontend/src/pages/admin-console/sections/ use route/session projection plus backend admin capabilities for admin action buttons; business route navigation read projections mirror backend read guards and are route-context validated by scripts/security/validate_authz_capability_contract.py",
       "tests": [

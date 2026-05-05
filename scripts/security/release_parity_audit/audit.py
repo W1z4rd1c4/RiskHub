@@ -22,32 +22,40 @@ import argparse
 import json
 import re
 import shlex
-import shutil
-import signal
 import subprocess
-import tempfile
-import time
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from release_parity_audit.artifact_writer import sha256_audit_file, write_audit_json, write_audit_text
-from release_parity_audit.cleanup import CleanupCommand
+from release_parity_audit.cleanup import CleanupCommand, compose_down, stop_local_dev_processes
 from release_parity_audit.command_runner import run_command
 from release_parity_audit.decision import evaluate_findings_and_decision
 from release_parity_audit.dependencies import capture_dependencies
-from release_parity_audit.facade import ReleaseParityFacadePlan
-from release_parity_audit.fingerprints import RuntimeFingerprint
+from release_parity_audit.facade import ReleaseParityFacadePlan, release_parity_phases
+from release_parity_audit.fingerprints import (
+    RuntimeFingerprint,
+    capture_backend_fingerprint,
+    ingest_latest_existing_prod_readiness,
+    ingest_prod_readiness_by_running_worktree,
+    start_background_service,
+)
 from release_parity_audit.http_probe import http_json, wait_http
 from release_parity_audit.launch_classifier import classify_launch_failure
-from release_parity_audit.phase_runner import ReleaseParityPhase, ReleaseParityPhaseRunner
+from release_parity_audit.phase_runner import ReleaseParityPhaseRunner
 from release_parity_audit.reporting import build_report, build_run_status, matrix_payload
 from release_parity_audit.run_state import ReleaseParityRunState
 from release_parity_audit.runtime import run_dynamic_paths
-from release_parity_audit.screenshots import ScreenshotCapturePlan
+from release_parity_audit.screenshots import ScreenshotCapturePlan, capture_login_screenshot
 from release_parity_audit.startup import build_startup_inventory
-from release_parity_audit.startup_preflight import StartupPreflightSnapshot
-from release_parity_audit.toolchain import ToolchainSnapshot
+from release_parity_audit.startup_preflight import (
+    StartupPreflightSnapshot,
+    capture_startup_preflight,
+    detect_dev_sh_effective_node,
+    node_major_from_binary,
+    port_listeners,
+)
+from release_parity_audit.toolchain import ToolchainSnapshot, capture_toolchain
 from release_parity_audit.types import CommandResult
 from release_parity_audit.ui_parity import evaluate_ui_parity
 
@@ -200,195 +208,21 @@ class ReleaseParityAudit:
 
     @staticmethod
     def _node_major_from_binary(binary: str) -> int | None:
-        try:
-            completed = subprocess.run(
-                [binary, "-p", "process.versions.node.split('.')[0]"],
-                check=False,
-                capture_output=True,
-                text=True,
-            )
-        except OSError:
-            return None
-        if completed.returncode != 0:
-            return None
-        value = (completed.stdout or "").strip()
-        return int(value) if value.isdigit() else None
+        return node_major_from_binary(binary)
 
     def _detect_dev_sh_effective_node(self) -> dict[str, Any]:
-        required_major = 24
-
-        def candidate_payload(bin_dir: Path, source: str) -> dict[str, Any] | None:
-            node_binary = bin_dir / "node"
-            npm_binary = bin_dir / "npm"
-            if not node_binary.is_file() or not os.access(node_binary, os.X_OK):
-                return None
-            if not npm_binary.is_file() or not os.access(npm_binary, os.X_OK):
-                return None
-            major = self._node_major_from_binary(str(node_binary))
-            if major != required_major:
-                return None
-            version_result = subprocess.run(
-                [str(node_binary), "--version"],
-                check=False,
-                capture_output=True,
-                text=True,
-            )
-            npm_result = subprocess.run(
-                [str(npm_binary), "--version"],
-                check=False,
-                capture_output=True,
-                text=True,
-            )
-            return {
-                "selected": True,
-                "required_major": required_major,
-                "source": source,
-                "node_path": str(node_binary),
-                "npm_path": str(npm_binary),
-                "node_version": (version_result.stdout or "").strip(),
-                "npm_version": (npm_result.stdout or "").strip(),
-                "major": major,
-            }
-
-        current_node = shutil.which("node")
-        current_npm = shutil.which("npm")
-        if current_node and current_npm and self._node_major_from_binary(current_node) == required_major:
-            version_result = subprocess.run(
-                [current_node, "--version"],
-                check=False,
-                capture_output=True,
-                text=True,
-            )
-            npm_result = subprocess.run(
-                [current_npm, "--version"],
-                check=False,
-                capture_output=True,
-                text=True,
-            )
-            return {
-                "selected": True,
-                "required_major": required_major,
-                "source": "PATH",
-                "node_path": current_node,
-                "npm_path": current_npm,
-                "node_version": (version_result.stdout or "").strip(),
-                "npm_version": (npm_result.stdout or "").strip(),
-                "major": required_major,
-            }
-
-        candidate_dirs: list[tuple[Path, str]] = []
-        node24_bin = os.environ.get("NODE24_BIN")
-        if node24_bin:
-            candidate_dirs.append((Path(node24_bin), "NODE24_BIN"))
-        candidate_dirs.extend(
-            [
-                (Path("/opt/homebrew/opt/node@24/bin"), "homebrew_default"),
-                (Path("/usr/local/opt/node@24/bin"), "homebrew_usr_local"),
-            ]
-        )
-
-        brew_binary = shutil.which("brew")
-        if brew_binary:
-            brew_prefix = subprocess.run(
-                [brew_binary, "--prefix", "node@24"],
-                check=False,
-                capture_output=True,
-                text=True,
-            )
-            prefix = (brew_prefix.stdout or "").strip()
-            if prefix:
-                candidate_dirs.append((Path(prefix) / "bin", "brew_prefix"))
-
-        nvm_root = Path.home() / ".nvm" / "versions" / "node"
-        if nvm_root.exists():
-            for match in sorted(nvm_root.glob("v24*/bin")):
-                candidate_dirs.append((match, "nvm"))
-
-        seen: set[str] = set()
-        for bin_dir, source in candidate_dirs:
-            key = str(bin_dir)
-            if key in seen:
-                continue
-            seen.add(key)
-            payload = candidate_payload(bin_dir, source)
-            if payload is not None:
-                return payload
-
-        host_major = self._node_major_from_binary(current_node) if current_node else None
-        return {
-            "selected": False,
-            "required_major": required_major,
-            "source": None,
-            "node_path": current_node,
-            "npm_path": current_npm,
-            "node_version": self.toolchain_fingerprint.get("host_node", {}).get("value"),
-            "npm_version": self.toolchain_fingerprint.get("host_npm", {}).get("value"),
-            "major": host_major,
-        }
+        return detect_dev_sh_effective_node(self.toolchain_fingerprint)
 
     @staticmethod
     def _port_listeners(port: int) -> list[dict[str, Any]]:
-        try:
-            completed = subprocess.run(
-                ["lsof", "-nP", f"-iTCP:{port}", "-sTCP:LISTEN"],
-                check=False,
-                capture_output=True,
-                text=True,
-            )
-        except OSError:
-            return []
-        if completed.returncode != 0:
-            return []
-        listeners: list[dict[str, Any]] = []
-        for raw_line in completed.stdout.splitlines()[1:]:
-            line = raw_line.strip()
-            if not line:
-                continue
-            parts = re.split(r"\s+", line, maxsplit=8)
-            if len(parts) < 9:
-                continue
-            listeners.append(
-                {
-                    "command": parts[0],
-                    "pid": parts[1],
-                    "user": parts[2],
-                    "name": parts[8],
-                }
-            )
-        return listeners
+        return port_listeners(port)
 
     def _capture_startup_preflight(self) -> None:
-        docker_available = False
-        docker_message = ""
-        try:
-            completed = subprocess.run(
-                ["docker", "info"],
-                check=False,
-                capture_output=True,
-                text=True,
-            )
-            docker_available = completed.returncode == 0
-            docker_message = ((completed.stdout or "") + (completed.stderr or "")).strip()
-        except OSError as exc:
-            docker_message = str(exc)
-
-        preflight = {
-            "captured_at_utc": self._iso(self._utc_now()),
-            "docker_daemon": {
-                "available": docker_available,
-                "message": docker_message[:4000],
-            },
-            "ports": {
-                "8000": self._port_listeners(8000),
-                "5173": self._port_listeners(5173),
-                "80": self._port_listeners(80),
-            },
-            "toolchain": {
-                "dev_sh_effective_node": self._detect_dev_sh_effective_node(),
-                "backend_venv_python_exists": (ROOT_DIR / "backend" / "venv" / "bin" / "python").exists(),
-                "frontend_lockfile_exists": (ROOT_DIR / "frontend" / "package-lock.json").exists(),
-            },
-        }
+        preflight = capture_startup_preflight(
+            root_dir=ROOT_DIR,
+            toolchain_fingerprint=self.toolchain_fingerprint,
+            captured_at_utc=self._iso(self._utc_now()),
+        )
         self.startup_preflight = preflight
         self._write_json(self.fingerprints_dir / "startup-preflight.json", preflight)
 
@@ -397,131 +231,30 @@ class ReleaseParityAudit:
         return classify_launch_failure(startup_path_id, log_text, launch_rc)
 
     def _stop_local_dev_processes(self) -> None:
-        self._run(
-            "cleanup_local_dev_processes",
-            "screen -S riskhub-backend -X quit >/dev/null 2>&1 || true; "
-            "screen -S riskhub-frontend -X quit >/dev/null 2>&1 || true; "
-            "if [ -f .dev-backend.pid ]; then kill $(cat .dev-backend.pid) >/dev/null 2>&1 || true; fi; "
-            "if [ -f .dev-frontend.pid ]; then kill $(cat .dev-frontend.pid) >/dev/null 2>&1 || true; fi",
-            required=False,
-        )
+        stop_local_dev_processes(self._run)
 
     def _compose_down(self, command_id: str) -> None:
-        self._run(
-            command_id,
-            "if command -v docker-compose >/dev/null 2>&1; then "
-            "docker-compose -f docker-compose.yml down --remove-orphans; "
-            "else docker compose -f docker-compose.yml down --remove-orphans; fi",
-            required=False,
-            timeout_sec=240,
-        )
+        compose_down(self._run, command_id)
 
     def _capture_backend_fingerprint(self, context_id: str, base_url: str) -> dict[str, Any]:
-        fp: dict[str, Any] = {
-            "context_id": context_id,
-            "base_url": base_url,
-            "captured_at_utc": self._iso(self._utc_now()),
-            "git_sha_expected": self.baseline.get("git_sha"),
-        }
-        endpoints: dict[str, Any] = {}
-        for name, endpoint in {
-            "health": "/api/v1/health",
-            "auth_config": "/api/v1/auth/config",
-            "root": "/",
-        }.items():
-            url = f"{base_url}{endpoint}"
-            try:
-                status, payload = self._http_json(url, timeout=8.0)
-                endpoints[name] = {"status": status, "payload": payload}
-            except Exception as exc:  # noqa: BLE001
-                endpoints[name] = {"error": str(exc)}
-        fp["endpoints"] = endpoints
-
-        health_payload = endpoints.get("health", {}).get("payload", {})
-        auth_payload = endpoints.get("auth_config", {}).get("payload", {})
-        fp["app_version"] = health_payload.get("version")
-        fp["service_name"] = health_payload.get("service")
-        fp["auth_mode"] = auth_payload.get("auth_mode")
-        fp["demo_login_enabled"] = auth_payload.get("demo_login_enabled")
-        fp["sso_enabled"] = auth_payload.get("sso", {}).get("enabled") if isinstance(auth_payload, dict) else None
-        fp["git_sha_observed"] = self.baseline.get("git_sha")
-        return fp
+        return capture_backend_fingerprint(
+            context_id=context_id,
+            base_url=base_url,
+            baseline=self.baseline,
+            captured_at_utc=self._iso(self._utc_now()),
+            http_json=self._http_json,
+        )
 
     def _capture_screenshot(
         self, command_id: str, url: str, output_path: Path
     ) -> tuple[bool, str | None, dict[str, Any] | None]:
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        ui_state_path = output_path.with_suffix(".state.json")
-        cmd = (
-            "cd frontend && "
-            + "node - "
-            + shlex.quote(url)
-            + " "
-            + shlex.quote(str(output_path))
-            + " "
-            + shlex.quote(str(ui_state_path))
-            + " <<'NODE'\n"
-            + "const fs = require('fs');\n"
-            + "const { chromium } = require('playwright');\n"
-            + "const targetUrl = process.argv[2];\n"
-            + "const outputPath = process.argv[3];\n"
-            + "const uiStatePath = process.argv[4];\n"
-            + "(async () => {\n"
-            + "  const browser = await chromium.launch({ headless: true });\n"
-            + "  const context = await browser.newContext({\n"
-            + "    viewport: { width: 1280, height: 720 },\n"
-            + "    serviceWorkers: 'block',\n"
-            + "    locale: 'en-US',\n"
-            + "  });\n"
-            + "  const page = await context.newPage();\n"
-            + "  await page.emulateMedia({ reducedMotion: 'reduce' });\n"
-            + "  await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 45000 });\n"
-            + "  await page.waitForLoadState('networkidle', { timeout: 20000 }).catch(() => {});\n"
-            + "  await page.waitForSelector('h1:has-text(\"RiskHub\")', { timeout: 30000 });\n"
-            + "  await page.addStyleTag({ content: "
-            + "'* , *::before, *::after { animation: none !important; transition: none !important; }' });\n"
-            + "  await page.evaluate(async () => {\n"
-            + "    if (document.fonts && document.fonts.ready) {\n"
-            + "      await document.fonts.ready;\n"
-            + "    }\n"
-            + "  });\n"
-            + "  await page.waitForTimeout(1500);\n"
-            + "  const uiState = await page.evaluate(() => {\n"
-            + "    const heading = document.querySelector('h1')?.textContent?.trim() || null;\n"
-            + "    const bodyText = document.body?.innerText || '';\n"
-            + "    const hasConfigWarning = bodyText.includes('Auth config unavailable; showing demo login');\n"
-            + "    const hasSsoButton = Array.from(document.querySelectorAll('button')).some((btn) =>\n"
-            + "      (btn.textContent || '').toLowerCase().includes('microsoft')\n"
-            + "    );\n"
-            + "    const demoCardCount = document.querySelectorAll('.glass-card').length;\n"
-            + "    return {\n"
-            + "      path: window.location.pathname,\n"
-            + "      heading,\n"
-            + "      has_config_warning: hasConfigWarning,\n"
-            + "      has_sso_button: hasSsoButton,\n"
-            + "      demo_card_count: demoCardCount,\n"
-            + "    };\n"
-            + "  });\n"
-            + "  await page.screenshot({ path: outputPath, fullPage: true });\n"
-            + "  fs.writeFileSync(uiStatePath, JSON.stringify(uiState, null, 2));\n"
-            + "  await context.close();\n"
-            + "  await browser.close();\n"
-            + "})().catch((err) => {\n"
-            + "  console.error(err);\n"
-            + "  process.exit(1);\n"
-            + "});\n"
-            + "NODE"
+        return capture_login_screenshot(
+            command_id=command_id,
+            url=url,
+            output_path=output_path,
+            run_command=self._run,
+            sha256_file=self._sha256_file,
         )
-        result = self._run(command_id, cmd, required=False, timeout_sec=180)
-        if result.rc == 0 and output_path.exists():
-            ui_state: dict[str, Any] | None = None
-            if ui_state_path.exists():
-                try:
-                    ui_state = json.loads(ui_state_path.read_text(encoding="utf-8"))
-                except json.JSONDecodeError:
-                    ui_state = None
-            return True, self._sha256_file(output_path), ui_state
-        return False, None, None
 
     def _start_background_service(
         self,
@@ -534,53 +267,22 @@ class ReleaseParityAudit:
         screenshot_file: Path | None = None,
         max_wait_sec: int = 90,
     ) -> dict[str, Any]:
-        log_path = self.logs_dir / f"{context_id}.log"
-        with log_path.open("w", encoding="utf-8") as handle:
-            handle.write(f"$ {command}\n\n")
-            handle.flush()
-            proc = subprocess.Popen(  # noqa: S603
-                ["bash", "-c", command],
-                cwd=str(ROOT_DIR),
-                stdout=handle,
-                stderr=subprocess.STDOUT,
-                preexec_fn=os.setsid,
-                text=True,
-            )
-            started = False
-            start_epoch = time.time()
-            try:
-                while time.time() - start_epoch < max_wait_sec:
-                    if proc.poll() is not None:
-                        break
-                    if self._wait_http(readiness_url, timeout_sec=2):
-                        started = True
-                        break
-                fingerprint: dict[str, Any] = {
-                    "context_id": context_id,
-                    "command": command,
-                    "started": started,
-                    "log": str(log_path),
-                    "git_sha_expected": self.baseline.get("git_sha"),
-                    "git_sha_observed": self.baseline.get("git_sha"),
-                }
-                if started and endpoint_base_url:
-                    fingerprint.update(self._capture_backend_fingerprint(context_id, endpoint_base_url))
-                if started and screenshot_url and screenshot_file:
-                    ok, shot_hash, ui_state = self._capture_screenshot(
-                        f"{context_id}_screenshot", screenshot_url, screenshot_file
-                    )
-                    fingerprint["screenshot"] = str(screenshot_file) if ok else None
-                    fingerprint["screenshot_sha256"] = shot_hash
-                    fingerprint["ui_state"] = ui_state
-                return fingerprint
-            finally:
-                if proc.poll() is None:
-                    os.killpg(proc.pid, signal.SIGTERM)
-                    try:
-                        proc.wait(timeout=10)
-                    except subprocess.TimeoutExpired:
-                        os.killpg(proc.pid, signal.SIGKILL)
-                        proc.wait(timeout=5)
+        return start_background_service(
+            context_id=context_id,
+            command=command,
+            logs_dir=self.logs_dir,
+            root_dir=ROOT_DIR,
+            baseline=self.baseline,
+            readiness_url=readiness_url,
+            wait_http=self._wait_http,
+            http_json=self._http_json,
+            capture_screenshot=self._capture_screenshot,
+            captured_at_utc=lambda: self._iso(self._utc_now()),
+            endpoint_base_url=endpoint_base_url,
+            screenshot_url=screenshot_url,
+            screenshot_file=screenshot_file,
+            max_wait_sec=max_wait_sec,
+        )
 
     def _build_startup_inventory(self) -> None:
         self.startup_paths = build_startup_inventory()
@@ -676,24 +378,7 @@ class ReleaseParityAudit:
         self._write_json(self.meta_dir / "baseline.json", self.baseline)
 
     def _capture_toolchain(self) -> None:
-        commands = {
-            "host_python": "python3 --version",
-            "host_node": "node --version",
-            "host_npm": "npm --version",
-            "backend_venv_python": "cd backend && ./venv/bin/python --version",
-            "backend_venv_pip": "cd backend && ./venv/bin/pip --version",
-            "docker_version": "docker version --format '{{.Server.Version}}'",
-        }
-        toolchain: dict[str, Any] = {}
-        for key, cmd in commands.items():
-            res = self._run(f"toolchain_{key}", cmd, required=False, timeout_sec=120)
-            log_text = Path(res.log_path).read_text(encoding="utf-8", errors="replace")
-            last = ""
-            for line in log_text.splitlines():
-                if line and not line.startswith("$ "):
-                    last = line.strip()
-            toolchain[key] = {"rc": res.rc, "value": last}
-        toolchain["dev_sh_effective_node"] = self._detect_dev_sh_effective_node()
+        toolchain = capture_toolchain(run_command=self._run, root_dir=ROOT_DIR)
         self.toolchain_fingerprint = toolchain
         self._write_json(self.fingerprints_dir / "toolchain.json", toolchain)
 
@@ -891,95 +576,22 @@ class ReleaseParityAudit:
             )
 
     def _ingest_latest_existing_prod_readiness(self) -> None:
-        candidates = sorted(
-            (ROOT_DIR / "tests" / "results" / "prod").glob("prod-readiness-audit-*"),
-            key=lambda p: p.stat().st_mtime,
-        )
-        if not candidates:
-            self.runtime_fingerprints.append(
-                {
-                    "context_id": "prod_readiness_ingest",
-                    "startup_path_id": "prod_readiness",
-                    "error": "No existing prod-readiness artifacts found",
-                }
-            )
-            return
-        latest = candidates[-1]
-        target = self.prod_ingest_dir / latest.name
-        if target.exists():
-            shutil.rmtree(target)
-        shutil.copytree(latest, target)
-        self.runtime_fingerprints.append(
-            {
-                "context_id": "prod_readiness_ingest",
-                "startup_path_id": "prod_readiness",
-                "source": str(latest),
-                "copied_to": str(target),
-                "captured_at_utc": self._iso(self._utc_now()),
-            }
+        ingest_latest_existing_prod_readiness(
+            root_dir=ROOT_DIR,
+            prod_ingest_dir=self.prod_ingest_dir,
+            runtime_fingerprints=self.runtime_fingerprints,
+            captured_at_utc=self._iso(self._utc_now()),
         )
 
     def _ingest_prod_readiness_by_running_worktree(self) -> None:
-        worktree_dir = Path(tempfile.mkdtemp(prefix="riskhub-parity-worktree-"))
-        added = self._run(
-            "prod_readiness_worktree_add",
-            f"git worktree add --detach {shlex.quote(str(worktree_dir))} HEAD",
-            required=False,
-            timeout_sec=300,
+        ingest_prod_readiness_by_running_worktree(
+            root_dir=ROOT_DIR,
+            prod_ingest_dir=self.prod_ingest_dir,
+            runtime_fingerprints=self.runtime_fingerprints,
+            run_command=self._run,
+            captured_at_utc=lambda: self._iso(self._utc_now()),
+            fallback_ingest=self._ingest_latest_existing_prod_readiness,
         )
-        if added.rc != 0:
-            self._ingest_latest_existing_prod_readiness()
-            return
-        try:
-            run_res = self._run(
-                "prod_readiness_run",
-                "bash scripts/security/run_prod_readiness_audit_local.sh",
-                cwd=worktree_dir,
-                required=False,
-                timeout_sec=10800,
-            )
-            candidates = sorted(
-                (worktree_dir / "tests" / "results" / "prod").glob("prod-readiness-audit-*"),
-                key=lambda p: p.stat().st_mtime,
-            )
-            if not candidates:
-                self.runtime_fingerprints.append(
-                    {
-                        "context_id": "prod_readiness_ingest",
-                        "startup_path_id": "prod_readiness",
-                        "error": "No artifact generated by run_prod_readiness_audit_local.sh",
-                        "run_rc": run_res.rc,
-                    }
-                )
-                return
-            latest = candidates[-1]
-            target = self.prod_ingest_dir / latest.name
-            if target.exists():
-                shutil.rmtree(target)
-            shutil.copytree(latest, target)
-            summary_path = target / "SUMMARY.json"
-            summary = None
-            if summary_path.exists():
-                summary = json.loads(summary_path.read_text(encoding="utf-8"))
-            self.runtime_fingerprints.append(
-                {
-                    "context_id": "prod_readiness_ingest",
-                    "startup_path_id": "prod_readiness",
-                    "source_worktree": str(latest),
-                    "copied_to": str(target),
-                    "run_rc": run_res.rc,
-                    "summary": summary,
-                    "captured_at_utc": self._iso(self._utc_now()),
-                }
-            )
-        finally:
-            self._run(
-                "prod_readiness_worktree_remove",
-                f"git worktree remove --force {shlex.quote(str(worktree_dir))}",
-                required=False,
-                timeout_sec=300,
-            )
-            shutil.rmtree(worktree_dir, ignore_errors=True)
 
     def _evaluate_ui_parity(self) -> None:
         self.ui_parity = evaluate_ui_parity(self.runtime_fingerprints)
@@ -1034,20 +646,7 @@ class ReleaseParityAudit:
         self._write_text(self.artifact_root / "report.md", report)
 
     def run(self) -> None:
-        self.phase_runner.run(
-            [
-                ReleaseParityPhase("capture_baseline", self._capture_baseline),
-                ReleaseParityPhase("startup_inventory", self._build_startup_inventory),
-                ReleaseParityPhase("static_resolution", self._extract_static_resolution),
-                ReleaseParityPhase("toolchain", self._capture_toolchain),
-                ReleaseParityPhase("startup_preflight", self._capture_startup_preflight),
-                ReleaseParityPhase("dynamic_paths", self._run_dynamic_paths),
-                ReleaseParityPhase("dependencies", self._capture_dependencies),
-                ReleaseParityPhase("ui_parity", self._evaluate_ui_parity),
-                ReleaseParityPhase("decision", self._evaluate_findings_and_decision),
-                ReleaseParityPhase("report", self._write_report),
-            ]
-        )
+        self.phase_runner.run(release_parity_phases(self))
 
 
 def parse_args() -> argparse.Namespace:

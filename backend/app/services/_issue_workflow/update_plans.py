@@ -1,23 +1,12 @@
 from __future__ import annotations
 
 from fastapi import HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.activity_logger import build_change_set, log_activity
 from app.core.datetime_utils import coerce_utc
 from app.core.permissions import can_access_department_id
-from app.models import User
-from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas.issue import IssueUpdate
-from app.services._issue_register import serialize_issue_read_for_actor
-from app.services._issue_workflow.contracts import IssueWorkflowOutcome
-from app.services._issue_workflow.loading import (
-    get_issue_with_relations,
-    get_writable_issue_or_404,
-)
+from app.services._issue_workflow.contracts import IssueUpdatePlan
 from app.services._issue_workflow.source_validation import (
-    clear_issue_source_links,
-    ensure_issue_source_link,
     ensure_owner_assignable,
     issue_link_department_ids,
     resolve_issue_source_metadata,
@@ -31,14 +20,7 @@ def source_type_value(source_type) -> str:
     return source_type.value if hasattr(source_type, "value") else str(source_type)
 
 
-async def update_issue_detail(
-    *,
-    db: AsyncSession,
-    issue_id: int,
-    payload: IssueUpdate,
-    current_user: User,
-) -> IssueWorkflowOutcome:
-    issue = await get_writable_issue_or_404(db, issue_id, current_user)
+async def build_issue_update_plan(*, db, issue, payload: IssueUpdate, current_user) -> IssueUpdatePlan:
     updates = payload.model_dump(exclude_unset=True)
 
     if "status" in updates:
@@ -83,7 +65,8 @@ async def update_issue_detail(
             denied_status=status.HTTP_409_CONFLICT,
         )
 
-    if "source_type" in updates or "source_id" in updates:
+    source_link_requested = "source_type" in updates or "source_id" in updates
+    if source_link_requested:
         if updates.get("source_type") is None and "source_type" in updates:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="source_type cannot be null")
         new_source_type = updates.get("source_type", issue.source_type)
@@ -127,59 +110,4 @@ async def update_issue_detail(
     if "source_type" in updates and updates["source_type"] is not None:
         updates["source_type"] = updates["source_type"].value
 
-    changes = build_change_set(issue, updates)
-    for key, value in updates.items():
-        setattr(issue, key, value)
-    db.add(issue)
-    await db.flush()
-
-    source_link = None
-    source_link_created = False
-    if "source_type" in updates or "source_id" in updates:
-        await clear_issue_source_links(db, issue_id=issue.id)
-        resolved_source = await resolve_issue_source_metadata(
-            db,
-            current_user,
-            source_type=issue.source_type,
-            source_id=issue.source_id,
-        )
-        if resolved_source is not None:
-            source_link_result = await ensure_issue_source_link(
-                db,
-                issue_id=issue.id,
-                link_values=resolved_source.link_values,
-                is_source_link=True,
-            )
-            if source_link_result is not None:
-                source_link, source_link_created = source_link_result
-        db.expire(issue, ["links"])
-
-    await log_activity(
-        db,
-        entity_type=ActivityEntityType.ISSUE,
-        entity_id=issue.id,
-        entity_name=issue.title,
-        action=ActivityAction.UPDATE,
-        actor=current_user,
-        department_id=issue.department_id,
-        changes=changes,
-    )
-    if source_link is not None and source_link_created:
-        await log_activity(
-            db,
-            entity_type=ActivityEntityType.ISSUE,
-            entity_id=issue.id,
-            entity_name=issue.title,
-            action=ActivityAction.LINK,
-            actor=current_user,
-            department_id=issue.department_id,
-            changes={"link_id": {"old": None, "new": source_link.id}},
-            description=f"Linked issue source to issue {issue.title}",
-        )
-
-    await db.commit()
-    reloaded_issue = await get_issue_with_relations(db, issue.id)
-    if reloaded_issue is None:
-        raise HTTPException(status_code=404, detail="Issue not found")
-    response = await serialize_issue_read_for_actor(db, current_user=current_user, issue=reloaded_issue)
-    return IssueWorkflowOutcome(response=response)
+    return IssueUpdatePlan(updates=updates, source_link_requested=source_link_requested)

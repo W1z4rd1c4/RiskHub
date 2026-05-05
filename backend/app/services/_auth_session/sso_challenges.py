@@ -2,20 +2,14 @@ from __future__ import annotations
 
 import secrets
 from datetime import timedelta
+from http import HTTPStatus
 
-from fastapi import status
-from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
-from starlette.responses import Response
 
 from app.core.config import Settings
 from app.core.datetime_utils import utc_now
-from app.core.tokens import (
-    clear_sso_challenge_cookie,
-    get_sso_challenge_cookie,
-    set_sso_challenge_cookie,
-)
+from app.core.tokens import get_sso_challenge_cookie
 from app.schemas.auth import SsoExchangeRequest, SsoStartRequest, SsoStartResponse
 from app.services.sso_challenge_store import SsoChallenge
 
@@ -23,7 +17,9 @@ from .contracts import (
     SESSION_RENEWAL_MINIMUM_SECONDS,
     SessionCookiePlan,
     SsoExchangeResolution,
+    SsoFailure,
     SsoSessionOutcome,
+    SsoStartResolution,
     sso_session_outcome,
 )
 from .jit import resolve_jit_user, sync_sso_user_profile
@@ -41,16 +37,13 @@ def _sanitize_return_to(value: str | None) -> str:
     return "/"
 
 
-def _challenge_response(
+def _challenge_failure(
     *,
-    settings: Settings,
     status_code: int,
     code: str,
     detail: str,
-) -> JSONResponse:
-    response = JSONResponse(status_code=status_code, content={"detail": detail, "code": code})
-    clear_sso_challenge_cookie(response, settings)
-    return response
+) -> SsoFailure:
+    return SsoFailure(status_code=status_code, detail=detail, code=code, clear_challenge_cookie=True)
 
 
 async def _verify_sso_identity(
@@ -69,10 +62,8 @@ async def _verify_sso_identity(
 async def _consume_sso_challenge(
     *,
     request: Request,
-    response: Response,
     payload: SsoExchangeRequest,
     identity,
-    settings: Settings,
     db: AsyncSession,
 ):
     challenge_id = get_sso_challenge_cookie(request)
@@ -80,29 +71,27 @@ async def _consume_sso_challenge(
         await log_failed_sso(
             db, entity_name=identity.email or "unknown", description="Failed SSO login: challenge missing"
         )
-        return None, _challenge_response(
-            settings=settings,
-            status_code=status.HTTP_401_UNAUTHORIZED,
+        return None, _challenge_failure(
+            status_code=HTTPStatus.UNAUTHORIZED,
             code="SSO_CHALLENGE_MISSING",
             detail="SSO login challenge missing or expired.",
         )
 
     challenge_store = getattr(request.app.state, "sso_challenge_store", None)
     if challenge_store is None:
-        return None, JSONResponse(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            content={"detail": "SSO challenge store unavailable.", "code": "SSO_CHALLENGE_UNAVAILABLE"},
+        return None, SsoFailure(
+            status_code=HTTPStatus.SERVICE_UNAVAILABLE,
+            detail="SSO challenge store unavailable.",
+            code="SSO_CHALLENGE_UNAVAILABLE",
         )
 
     challenge = await challenge_store.consume(challenge_id)
-    clear_sso_challenge_cookie(response, settings)
     if challenge is None:
         await log_failed_sso(
             db, entity_name=identity.email or "unknown", description="Failed SSO login: challenge expired"
         )
-        return None, _challenge_response(
-            settings=settings,
-            status_code=status.HTTP_401_UNAUTHORIZED,
+        return None, _challenge_failure(
+            status_code=HTTPStatus.UNAUTHORIZED,
             code="SSO_CHALLENGE_EXPIRED",
             detail="SSO login challenge expired or was already used.",
         )
@@ -111,9 +100,8 @@ async def _consume_sso_challenge(
         await log_failed_sso(
             db, entity_name=identity.email or "unknown", description="Failed SSO login: state mismatch"
         )
-        return None, _challenge_response(
-            settings=settings,
-            status_code=status.HTTP_401_UNAUTHORIZED,
+        return None, _challenge_failure(
+            status_code=HTTPStatus.UNAUTHORIZED,
             code="SSO_STATE_MISMATCH",
             detail="SSO state mismatch.",
         )
@@ -122,9 +110,8 @@ async def _consume_sso_challenge(
         await log_failed_sso(
             db, entity_name=identity.email or "unknown", description="Failed SSO login: nonce missing"
         )
-        return None, _challenge_response(
-            settings=settings,
-            status_code=status.HTTP_401_UNAUTHORIZED,
+        return None, _challenge_failure(
+            status_code=HTTPStatus.UNAUTHORIZED,
             code="SSO_NONCE_MISSING",
             detail="SSO token missing nonce claim.",
         )
@@ -133,9 +120,8 @@ async def _consume_sso_challenge(
         await log_failed_sso(
             db, entity_name=identity.email or "unknown", description="Failed SSO login: nonce mismatch"
         )
-        return None, _challenge_response(
-            settings=settings,
-            status_code=status.HTTP_401_UNAUTHORIZED,
+        return None, _challenge_failure(
+            status_code=HTTPStatus.UNAUTHORIZED,
             code="SSO_NONCE_MISMATCH",
             detail="SSO nonce mismatch.",
         )
@@ -147,20 +133,21 @@ async def resolve_sso_start(
     *,
     payload: SsoStartRequest,
     request: Request,
-    response: Response,
     settings: Settings,
-) -> SsoStartResponse | JSONResponse:
+) -> SsoStartResolution:
     if settings.auth_mode not in ("microsoft_sso", "hybrid_dev"):
-        return JSONResponse(
-            status_code=status.HTTP_403_FORBIDDEN,
-            content={"detail": "SSO is not enabled.", "code": "SSO_DISABLED"},
+        return SsoStartResolution(
+            failure=SsoFailure(status_code=HTTPStatus.FORBIDDEN, detail="SSO is not enabled.", code="SSO_DISABLED")
         )
 
     challenge_store = getattr(request.app.state, "sso_challenge_store", None)
     if challenge_store is None:
-        return JSONResponse(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            content={"detail": "SSO challenge store unavailable.", "code": "SSO_CHALLENGE_UNAVAILABLE"},
+        return SsoStartResolution(
+            failure=SsoFailure(
+                status_code=HTTPStatus.SERVICE_UNAVAILABLE,
+                detail="SSO challenge store unavailable.",
+                code="SSO_CHALLENGE_UNAVAILABLE",
+            )
         )
 
     ttl_seconds = max(int(settings.auth_sso_challenge_ttl_seconds), SESSION_RENEWAL_MINIMUM_SECONDS)
@@ -178,15 +165,17 @@ async def resolve_sso_start(
         expires_at=issued_at + timedelta(seconds=ttl_seconds),
     )
     await challenge_store.store(challenge)
-    set_sso_challenge_cookie(response, challenge.challenge_id, settings, max_age=ttl_seconds)
-    return SsoStartResponse(nonce=challenge.nonce, state=challenge.state, expires_in=ttl_seconds)
+    return SsoStartResolution(
+        response=SsoStartResponse(nonce=challenge.nonce, state=challenge.state, expires_in=ttl_seconds),
+        challenge_id=challenge.challenge_id,
+        max_age=ttl_seconds,
+    )
 
 
 async def resolve_sso_exchange(
     *,
     payload: SsoExchangeRequest,
     request: Request,
-    response: Response,
     db: AsyncSession,
     settings: Settings,
     token_verifier=None,
@@ -194,10 +183,7 @@ async def resolve_sso_exchange(
     if settings.auth_mode not in ("microsoft_sso", "hybrid_dev"):
         return SsoExchangeResolution(
             outcome=SsoSessionOutcome(status="blocked", cookie_plan=SessionCookiePlan(action="none")),
-            error_response=JSONResponse(
-                status_code=status.HTTP_403_FORBIDDEN,
-                content={"detail": "SSO is not enabled.", "code": "SSO_DISABLED"},
-            ),
+            failure=SsoFailure(status_code=HTTPStatus.FORBIDDEN, detail="SSO is not enabled.", code="SSO_DISABLED"),
         )
 
     identity, error_response = await _verify_sso_identity(
@@ -209,22 +195,21 @@ async def resolve_sso_exchange(
     if error_response is not None:
         return SsoExchangeResolution(
             outcome=SsoSessionOutcome(status="blocked", cookie_plan=SessionCookiePlan(action="none")),
-            error_response=error_response,
+            failure=error_response,
         )
 
     post_login_redirect_to, challenge_error = await _consume_sso_challenge(
         request=request,
-        response=response,
         payload=payload,
         identity=identity,
-        settings=settings,
         db=db,
     )
     if challenge_error is not None:
         return SsoExchangeResolution(
             outcome=SsoSessionOutcome(status="challenge_expired", cookie_plan=SessionCookiePlan(action="clear_refresh")),
             identity=identity,
-            error_response=challenge_error,
+            failure=challenge_error,
+            clear_challenge_cookie=challenge_error.clear_challenge_cookie,
         )
 
     user, resolution_error = await resolve_jit_user(db=db, identity=identity, settings=settings)
@@ -232,16 +217,19 @@ async def resolve_sso_exchange(
         return SsoExchangeResolution(
             outcome=SsoSessionOutcome(status="blocked", cookie_plan=SessionCookiePlan(action="none")),
             identity=identity,
-            error_response=resolution_error,
+            failure=resolution_error,
+            clear_challenge_cookie=True,
         )
     if user is None:
         return SsoExchangeResolution(
             outcome=SsoSessionOutcome(status="blocked", cookie_plan=SessionCookiePlan(action="none")),
             identity=identity,
-            error_response=JSONResponse(
-                status_code=status.HTTP_403_FORBIDDEN,
-                content={"detail": "User not provisioned", "code": "SSO_USER_NOT_PROVISIONED"},
+            failure=SsoFailure(
+                status_code=HTTPStatus.FORBIDDEN,
+                detail="User not provisioned",
+                code="SSO_USER_NOT_PROVISIONED",
             ),
+            clear_challenge_cookie=True,
         )
 
     profile_sync_error = await sync_sso_user_profile(db, user=user, identity=identity)
@@ -250,7 +238,8 @@ async def resolve_sso_exchange(
             outcome=SsoSessionOutcome(status="blocked", cookie_plan=SessionCookiePlan(action="none")),
             user=user,
             identity=identity,
-            error_response=profile_sync_error,
+            failure=profile_sync_error,
+            clear_challenge_cookie=True,
         )
 
     if not user.is_active:
@@ -258,10 +247,12 @@ async def resolve_sso_exchange(
             outcome=SsoSessionOutcome(status="blocked", cookie_plan=SessionCookiePlan(action="none")),
             user=user,
             identity=identity,
-            error_response=JSONResponse(
-                status_code=status.HTTP_403_FORBIDDEN,
-                content={"detail": "User account is inactive", "code": "USER_INACTIVE"},
+            failure=SsoFailure(
+                status_code=HTTPStatus.FORBIDDEN,
+                detail="User account is inactive",
+                code="USER_INACTIVE",
             ),
+            clear_challenge_cookie=True,
         )
 
     now = utc_now()
@@ -282,9 +273,11 @@ async def resolve_sso_exchange(
             outcome=outcome,
             user=user,
             identity=identity,
-            error_response=JSONResponse(
-                status_code=outcome.status_code or status.HTTP_401_UNAUTHORIZED,
-                content={"detail": outcome.detail, "code": outcome.code},
+            failure=SsoFailure(
+                status_code=outcome.status_code or HTTPStatus.UNAUTHORIZED,
+                detail=outcome.detail or "SSO token expired",
+                code=outcome.code or "SSO_TOKEN_EXPIRED",
+                clear_challenge_cookie=True,
             ),
             now=now,
         )
@@ -294,5 +287,6 @@ async def resolve_sso_exchange(
         user=user,
         identity=identity,
         post_login_redirect_to=post_login_redirect_to,
+        clear_challenge_cookie=True,
         now=now,
     )

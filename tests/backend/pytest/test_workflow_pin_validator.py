@@ -95,12 +95,17 @@ def test_security_and_release_workflows_invoke_directory_wide_validator() -> Non
 
 
 def test_local_prod_readiness_audit_pins_syft_and_grype_images() -> None:
-    text = LOCAL_PROD_AUDIT.read_text(encoding="utf-8")
+    package_text = (
+        LOCAL_PROD_AUDIT.read_text(encoding="utf-8")
+        + (REPO_ROOT / "scripts" / "security" / "prod_readiness_audit" / "phases.py").read_text(
+            encoding="utf-8"
+        )
+    )
 
-    assert "anchore/syft:latest" not in text
-    assert "anchore/grype:latest" not in text
-    assert "anchore/syft:v1.42.3@sha256:" in text
-    assert "anchore/grype:v0.110.0@sha256:" in text
+    assert "anchore/syft:latest" not in package_text
+    assert "anchore/grype:latest" not in package_text
+    assert "anchore/syft:v1.42.3@sha256:" in package_text
+    assert "anchore/grype:v0.110.0@sha256:" in package_text
 
 
 def test_lint_workflow_runs_blocking_frontend_vitest_job() -> None:

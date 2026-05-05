@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends
+from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
 from starlette.responses import Response
@@ -9,6 +10,7 @@ from app.core.tokens import (
     clear_sso_challenge_cookie,
     create_refresh_token,
     new_token_jti,
+    set_sso_challenge_cookie,
 )
 from app.db.session import get_db
 from app.schemas.auth import SsoExchangeRequest, SsoStartRequest, SsoStartResponse, TokenResponse
@@ -23,6 +25,13 @@ from ._shared import (
 
 router = APIRouter()
 logger = get_logger("auth.sso")
+
+
+def _sso_failure_response(failure, *, settings: Settings, clear_challenge_cookie: bool = False) -> JSONResponse:
+    response = JSONResponse(status_code=int(failure.status_code), content={"detail": failure.detail, "code": failure.code})
+    if clear_challenge_cookie:
+        clear_sso_challenge_cookie(response, settings)
+    return response
 
 
 @router.post(
@@ -42,12 +51,22 @@ async def sso_start(
     if forbidden_response := validate_request_origin(request, settings):
         return forbidden_response
 
-    return await resolve_sso_start(
+    start = await resolve_sso_start(
         payload=payload,
         request=request,
-        response=response,
         settings=settings,
     )
+    if start.failure is not None:
+        return _sso_failure_response(
+            start.failure,
+            settings=settings,
+            clear_challenge_cookie=start.failure.clear_challenge_cookie,
+        )
+    assert start.response is not None
+    assert start.challenge_id is not None
+    assert start.max_age is not None
+    set_sso_challenge_cookie(response, start.challenge_id, settings, max_age=start.max_age)
+    return start.response
 
 
 @router.post(
@@ -74,14 +93,17 @@ async def sso_exchange(
     exchange = await resolve_sso_exchange(
         payload=payload,
         request=request,
-        response=response,
         db=db,
         settings=settings,
         token_verifier=auth_pkg.verify_entra_id_token,
     )
 
-    if exchange.error_response is not None:
-        return exchange.error_response
+    if exchange.failure is not None:
+        return _sso_failure_response(
+            exchange.failure,
+            settings=settings,
+            clear_challenge_cookie=exchange.clear_challenge_cookie or exchange.failure.clear_challenge_cookie,
+        )
     user = exchange.user
     identity = exchange.identity
     session_outcome = exchange.outcome

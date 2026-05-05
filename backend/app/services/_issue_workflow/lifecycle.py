@@ -1,12 +1,9 @@
 from __future__ import annotations
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.datetime_utils import utc_now
-from app.models import IssueException, User
-from app.models.issue import IssueExceptionStatus
+from app.models import User
 from app.schemas.issue import (
     IssueAssignRequest,
     IssueCloseRequest,
@@ -23,12 +20,21 @@ from app.services._issue_workflow.contracts import (
     IssueUpdatePlan,
     IssueWorkflowOutcome,
 )
+from app.services._issue_workflow.exception_selection import (
+    select_exception_for_approval,
+    select_exception_for_revocation,
+)
 from app.services._issue_workflow.loading import (
     get_issue_with_relations as _get_issue_with_relations,
     get_readable_issue_or_404 as _get_readable_issue_or_404,
     get_writable_issue_or_404 as _get_writable_issue_or_404,
 )
-from app.services._issue_workflow.outbox import enqueue_issue_outbox
+from app.services._issue_workflow.outbox import (
+    enqueue_issue_outbox,
+    issue_assigned_outbox_plan,
+    issue_exception_approved_outbox_plan,
+    issue_exception_requested_outbox_plan,
+)
 from app.services._issue_workflow.serialization import (
     active_exception as _active_exception,
     serialize_exception_with_user_names as _serialize_exception_with_user_names,
@@ -37,8 +43,9 @@ from app.services._issue_workflow.source_validation import (
     ensure_owner_assignable as _ensure_owner_assignable,
     validate_user_exists as _validate_user_exists,
 )
-from app.services._issue_workflow.update_plans import update_issue_detail
+from app.services._issue_workflow.execution import update_issue_detail
 from app.services.issue_workflow_service import IssueWorkflowService
+
 
 async def _serialize_refreshed_issue(db: AsyncSession, *, issue_id: int, current_user: User) -> IssueWorkflowOutcome:
     refreshed = await _get_issue_with_relations(db, issue_id)
@@ -50,7 +57,6 @@ async def _serialize_refreshed_issue(db: AsyncSession, *, issue_id: int, current
 
 async def _enqueue_issue_outbox(db: AsyncSession, plan: IssueOutboxPlan) -> None:
     await enqueue_issue_outbox(db, plan)
-
 
 
 async def assign_issue_detail(
@@ -77,17 +83,7 @@ async def assign_issue_detail(
     )
     await _enqueue_issue_outbox(
         db,
-        IssueOutboxPlan(
-            event_type="issue.assigned",
-            aggregate_type="issue",
-            aggregate_id=issue.id,
-            idempotency_key=f"issue:{issue.id}:assigned:{payload.owner_user_id}:{current_user.id}",
-            payload={
-                "issue_id": issue.id,
-                "owner_user_id": payload.owner_user_id,
-                "actor_user_id": current_user.id,
-            },
-        ),
+        issue_assigned_outbox_plan(issue=issue, owner_user_id=payload.owner_user_id, actor_id=current_user.id),
     )
     await db.commit()
     return await _serialize_refreshed_issue(db, issue_id=issue.id, current_user=current_user)
@@ -168,55 +164,12 @@ async def request_exception_detail(
     )
     await _enqueue_issue_outbox(
         db,
-        IssueOutboxPlan(
-            event_type="issue.exception_requested",
-            aggregate_type="issue_exception",
-            aggregate_id=exception.id,
-            idempotency_key=f"issue:{issue.id}:exception-requested:{exception.id}",
-            payload={
-                "issue_id": issue.id,
-                "actor_user_id": current_user.id,
-            },
-        ),
+        issue_exception_requested_outbox_plan(issue=issue, exception=exception, actor_id=current_user.id),
     )
     await db.commit()
     await db.refresh(exception)
     response = await _serialize_exception_with_user_names(db, exception)
     return IssueWorkflowOutcome(response=response)
-
-
-async def _select_exception_for_approval(
-    db: AsyncSession,
-    *,
-    issue_id: int,
-    exception_id: int | None,
-) -> IssueExceptionSelection:
-    if exception_id is not None:
-        exception = (
-            await db.execute(
-                select(IssueException).where(
-                    IssueException.id == exception_id,
-                    IssueException.issue_id == issue_id,
-                )
-            )
-        ).scalar_one_or_none()
-        return IssueExceptionSelection(exception=exception)
-
-    exception = (
-        (
-            await db.execute(
-                select(IssueException)
-                .where(
-                    IssueException.issue_id == issue_id,
-                    IssueException.status == IssueExceptionStatus.requested.value,
-                )
-                .order_by(IssueException.created_at.desc())
-            )
-        )
-        .scalars()
-        .first()
-    )
-    return IssueExceptionSelection(exception=exception)
 
 
 async def approve_exception_detail(
@@ -234,7 +187,7 @@ async def approve_exception_detail(
             detail="Issue already has an active approved exception",
         )
 
-    selection = await _select_exception_for_approval(
+    selection = await select_exception_for_approval(
         db,
         issue_id=issue.id,
         exception_id=payload.exception_id,
@@ -251,60 +204,12 @@ async def approve_exception_detail(
     )
     await _enqueue_issue_outbox(
         db,
-        IssueOutboxPlan(
-            event_type="issue.exception_approved",
-            aggregate_type="issue_exception",
-            aggregate_id=approved.id,
-            idempotency_key=f"issue:{issue.id}:exception-approved:{approved.id}",
-            payload={
-                "issue_id": issue.id,
-                "requested_by_id": approved.requested_by_id,
-                "owner_user_id": issue.owner_user_id,
-                "actor_user_id": current_user.id,
-            },
-        ),
+        issue_exception_approved_outbox_plan(issue=issue, approved=approved, actor_id=current_user.id),
     )
     await db.commit()
     await db.refresh(approved)
     response = await _serialize_exception_with_user_names(db, approved)
     return IssueWorkflowOutcome(response=response)
-
-
-async def _select_exception_for_revocation(
-    db: AsyncSession,
-    *,
-    issue_id: int,
-    exception_id: int | None,
-) -> IssueExceptionSelection:
-    if exception_id is not None:
-        exception = (
-            await db.execute(
-                select(IssueException).where(
-                    IssueException.id == exception_id,
-                    IssueException.issue_id == issue_id,
-                )
-            )
-        ).scalar_one_or_none()
-        return IssueExceptionSelection(exception=exception)
-
-    now = utc_now()
-    exception = (
-        (
-            await db.execute(
-                select(IssueException)
-                .where(
-                    IssueException.issue_id == issue_id,
-                    IssueException.status == IssueExceptionStatus.approved.value,
-                    IssueException.expires_at.is_not(None),
-                    IssueException.expires_at > now,
-                )
-                .order_by(IssueException.approved_at.desc(), IssueException.created_at.desc())
-            )
-        )
-        .scalars()
-        .first()
-    )
-    return IssueExceptionSelection(exception=exception)
 
 
 async def revoke_exception_detail(
@@ -315,7 +220,7 @@ async def revoke_exception_detail(
     current_user: User,
 ) -> IssueWorkflowOutcome:
     issue = await _get_readable_issue_or_404(db, issue_id, current_user)
-    selection = await _select_exception_for_revocation(
+    selection = await select_exception_for_revocation(
         db,
         issue_id=issue.id,
         exception_id=payload.exception_id,

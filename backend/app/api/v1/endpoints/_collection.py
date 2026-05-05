@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any
@@ -9,11 +8,12 @@ from typing import Any
 from fastapi import HTTPException, status
 from pydantic import ValidationError
 
-from app.schemas.collection import CollectionGroupRead
 from app.services._collection_contracts import (
     CollectionGroupEntry,
     CollectionQuery,
     CollectionSort,
+    build_grouped_collection_page,
+    build_grouped_collection_response,
     is_group_summary_request,
 )
 
@@ -220,86 +220,3 @@ def coerce_optional_literal(field_name: str, value: Any, allowed_values: set[str
     if coerced not in allowed_values:
         raise _invalid_filter(field_name)
     return coerced
-
-
-def build_grouped_collection_response[T](
-    items: Iterable[T],
-    *,
-    group_by: str,
-    group_value: str | None,
-    get_entries: Callable[[T, str], Iterable[CollectionGroupEntry]],
-    is_active: Callable[[T], bool] | None = None,
-    is_highlighted: Callable[[T], bool] | None = None,
-) -> tuple[list[T], int, list[CollectionGroupRead]]:
-    item_entries: list[tuple[T, list[CollectionGroupEntry]]] = []
-    group_map: dict[str, dict[str, Any]] = {}
-
-    for item in items:
-        entries = list(get_entries(item, group_by))
-        item_entries.append((item, entries))
-
-        seen_values: set[str] = set()
-        for entry in entries:
-            if entry.value in seen_values:
-                continue
-            seen_values.add(entry.value)
-
-            group = group_map.setdefault(
-                entry.value,
-                {
-                    "value": entry.value,
-                    "label": entry.label,
-                    "count": 0,
-                    "active_count": 0,
-                    "highlighted_count": 0,
-                    "meta": entry.meta or {},
-                },
-            )
-            group["count"] += 1
-            if is_active is None or is_active(item):
-                group["active_count"] += 1
-            if is_highlighted is not None and is_highlighted(item):
-                group["highlighted_count"] += 1
-
-    groups = [
-        CollectionGroupRead.model_validate(group)
-        for group in sorted(group_map.values(), key=lambda group: str(group["label"]).lower())
-    ]
-
-    if not group_value:
-        return [], len(item_entries), groups
-
-    grouped_items = [
-        item
-        for item, entries in item_entries
-        if any(entry.value == group_value for entry in entries)
-    ]
-    return grouped_items, len(grouped_items), groups
-
-
-def build_grouped_collection_page[T](
-    items: Iterable[T],
-    query: CollectionQuery,
-    *,
-    get_entries: Callable[[T, str], Iterable[CollectionGroupEntry]],
-    is_active: Callable[[T], bool] | None = None,
-    is_highlighted: Callable[[T], bool] | None = None,
-) -> tuple[list[T], int, list[CollectionGroupRead]]:
-    if not query.group_by:
-        item_list = list(items)
-        return item_list, len(item_list), []
-
-    grouped_items, grouped_total, groups = build_grouped_collection_response(
-        items,
-        group_by=query.group_by,
-        group_value=query.group_value,
-        get_entries=get_entries,
-        is_active=is_active,
-        is_highlighted=is_highlighted,
-    )
-    paginated_items = (
-        grouped_items[query.offset : query.offset + query.limit]
-        if query.group_value
-        else []
-    )
-    return paginated_items, grouped_total, groups
