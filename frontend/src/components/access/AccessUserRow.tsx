@@ -20,12 +20,8 @@ import type { AccessUserRead } from '@/types/access';
 
 import { PermissionChips } from './PermissionMatrix';
 import { ExpandedAccessDetailsRow } from './ExpandedAccessDetailsRow';
-import {
-    canBreakGlassEnableUser,
-    canChangeUserActiveStatus,
-    canEditAccessUser,
-    userScopeBadgeClassName,
-} from './usersTablePresentation';
+import { buildAccessUserActionModel, buildAccessUserPresentationModel } from './useAccessUsersWorkflow';
+import { userScopeBadgeClassName } from './usersTablePresentation';
 
 interface AccessUserRowProps {
     canRunDirectoryChecks: boolean;
@@ -111,9 +107,9 @@ export function AccessUserRow({
     user,
 }: AccessUserRowProps) {
     const { t, i18n } = useTranslation('admin');
-    const canEditAccess = canEditAccessUser(user);
-    const canChangeActiveStatus = canChangeUserActiveStatus(user);
-    const canBreakGlassEnable = canBreakGlassEnableUser(user);
+    const actionModel = buildAccessUserActionModel(user, { defaultAllowed: false });
+    const presentationModel = buildAccessUserPresentationModel(user);
+    const canChangeActiveStatus = actionModel.canDeactivate || actionModel.canReactivate;
 
     return (
         <Fragment>
@@ -121,13 +117,13 @@ export function AccessUserRow({
                 <td className="py-4 px-4">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center text-accent font-bold">
-                            {user.name.charAt(0)}
+                            {presentationModel.safeName.charAt(0)}
                         </div>
                         <div>
-                            <p className="font-medium text-white group-hover:text-accent transition-colors">{user.name}</p>
+                            <p className="font-medium text-white group-hover:text-accent transition-colors">{presentationModel.safeName}</p>
                             <p className="text-xs text-slate-500 flex items-center gap-1">
                                 <Mail className="h-3 w-3" />
-                                {user.email}
+                                {presentationModel.emailText}
                             </p>
                         </div>
                     </div>
@@ -136,7 +132,7 @@ export function AccessUserRow({
                     <div className="space-y-1">
                         <p className="text-sm text-white flex items-center gap-1.5">
                             <Shield className="h-3.5 w-3.5 text-purple-400" />
-                            {user.role.display_name}
+                            {presentationModel.roleText}
                         </p>
                         <p className="text-xs text-slate-500 flex items-center gap-1.5">
                             <Building2 className="h-3.5 w-3.5 text-slate-500" />
@@ -146,7 +142,7 @@ export function AccessUserRow({
                             <p className="text-xs text-slate-500">
                                 {t('users.directory_status_label', { defaultValue: 'Directory status:' })}{' '}
                                 <span className="text-slate-300">
-                                    {user.directory_sync_status || t('common:fallbacks.not_available')}
+                                    {presentationModel.directoryStatus || t('common:fallbacks.not_available')}
                                 </span>
                                 {user.directory_last_checked_at && (
                                     <>
@@ -196,7 +192,7 @@ export function AccessUserRow({
                 </td>
                 <td className="py-4 px-4 text-right">
                     <div className="flex items-center justify-end gap-2">
-                        {canEditAccess && (
+                        {actionModel.canEdit && (
                             <button
                                 onClick={() => onEditAccess(user)}
                                 className="p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-lg transition-all"
@@ -221,7 +217,7 @@ export function AccessUserRow({
                                 {user.is_active ? <UserX className="h-4 w-4" aria-hidden="true" /> : <UserCheck className="h-4 w-4" aria-hidden="true" />}
                             </button>
                         )}
-                        {canBreakGlassEnable && onBreakGlassEnable && (
+                        {actionModel.canBreakGlassEnable && onBreakGlassEnable && (
                             <button
                                 onClick={() => onBreakGlassEnable(user)}
                                 className="rounded-lg border border-amber-500/30 px-2.5 py-1.5 text-xs text-amber-300 transition hover:bg-amber-500/10"
@@ -233,7 +229,7 @@ export function AccessUserRow({
                                 </span>
                             </button>
                         )}
-                        {canRunDirectoryChecks && user.external_id && onCheckDirectory && (
+                        {canRunDirectoryChecks && actionModel.canRunDirectoryCheck && onCheckDirectory && (
                             <button
                                 onClick={() => onCheckDirectory(user)}
                                 disabled={checkingDirectoryUserId === user.id}

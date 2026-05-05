@@ -268,6 +268,43 @@ def test_identity_access_routes_use_lifecycle_module() -> None:
         assert leaked_rule not in route_source
 
 
+def test_identity_access_lifecycle_split_modules_own_decisions() -> None:
+    assert {
+        "ensure_sso_local_field_update_allowed",
+        "ensure_directory_reenable_allowed",
+        "ensure_remaining_global_privileged_user",
+        "is_global_privileged_user",
+    } <= _defined_function_names("backend/app/services/_identity_access_lifecycle/policy.py")
+    assert {
+        "import_directory_identity",
+        "resolve_role_for_directory_import",
+    } <= _defined_function_names("backend/app/services/_identity_access_lifecycle/directory_import.py")
+    assert {
+        "update_user_profile",
+        "flag_orphaned_items_for_deactivation",
+    } <= _defined_function_names("backend/app/services/_identity_access_lifecycle/profile_updates.py")
+    assert {
+        "update_access_profile",
+        "normalize_access_scope_update",
+    } <= _defined_function_names("backend/app/services/_identity_access_lifecycle/access_scope.py")
+    assert {
+        "log_user_update_and_commit",
+        "commit_directory_import",
+    } <= _defined_function_names("backend/app/services/_identity_access_lifecycle/execution.py")
+    assert "build_directory_import_response" in _defined_function_names(
+        "backend/app/services/_identity_access_lifecycle/projection.py"
+    )
+
+    lifecycle_source = _source("backend/app/services/_identity_access_lifecycle/lifecycle.py")
+    for leaked_implementation_detail in (
+        "await db.commit()",
+        "OrphanedItemService.flag_orphaned_items",
+        "def _ensure_sso_local_field_update_allowed",
+        "def _resolve_role_for_directory_import",
+    ):
+        assert leaked_implementation_detail not in lifecycle_source
+
+
 def test_orphan_services_use_governance_definitions() -> None:
     from app.services._orphaned_items import core, governance, resolution, workflow
 
@@ -486,6 +523,35 @@ def test_riskhub_config_routes_use_lifecycle_contracts() -> None:
         assert lifecycle_function in route_source
 
 
+def test_global_config_routes_use_config_lifecycle() -> None:
+    from app.api.v1.endpoints.riskhub import global_config as route_module
+    from app.services._riskhub_config import global_config
+
+    assert {
+        "list_all_global_configs",
+        "list_global_config_category",
+        "update_global_config",
+    } <= _defined_function_names("backend/app/services/_riskhub_config/global_config.py")
+
+    route_source = inspect.getsource(route_module)
+    for service_function in (
+        "list_all_global_configs",
+        "list_global_config_category",
+        "update_global_config",
+    ):
+        assert service_function in route_source
+        assert hasattr(global_config, service_function)
+
+    for route_owned_detail in (
+        "select(GlobalConfig)",
+        "build_change_set(",
+        "await log_activity(",
+        "await db.commit()",
+        "GlobalConfigRead(",
+    ):
+        assert route_owned_detail not in route_source
+
+
 def test_quarterly_comparison_service_is_composition_facade() -> None:
     from app.services import quarterly_comparison_service
     from app.services._quarterly_comparison import composition
@@ -609,7 +675,6 @@ def test_register_list_routes_use_listing_planners() -> None:
         + inspect.getsource(control_list)
         + inspect.getsource(kri_list)
         + inspect.getsource(issue_list)
-        + inspect.getsource(vendor_list)
     )
 
     for planner in (
@@ -617,9 +682,10 @@ def test_register_list_routes_use_listing_planners() -> None:
         "plan_control_listing",
         "plan_kri_listing",
         "plan_issue_listing",
-        "plan_vendor_listing",
     ):
         assert planner in route_source
+
+    assert "list_vendor_governance" in inspect.getsource(vendor_list)
 
     assert "execute_register_listing_plan" in route_source
     assert "CollectionListingDefinition(" not in route_source
@@ -752,30 +818,58 @@ def test_register_listing_entity_modules_own_planners() -> None:
 
 
 def test_report_exporters_use_reporting_export_definitions() -> None:
-    from app.api.v1.endpoints.reports.unified_exports import (
-        export_controls,
-        export_issues,
-        export_kris,
-        export_risks,
-        export_vendors,
-    )
     from app.services._reporting.exports import lifecycle
 
     assert hasattr(lifecycle, "ReportExportDefinition")
     assert hasattr(lifecycle, "ReportExportExecutionPlan")
     assert hasattr(lifecycle, "ReportExportOutcome")
 
-    exporter_source = (
-        inspect.getsource(export_risks)
-        + inspect.getsource(export_controls)
-        + inspect.getsource(export_kris)
-        + inspect.getsource(export_issues)
-        + inspect.getsource(export_vendors)
+    exporter_source = "\n".join(
+        _source(path)
+        for path in (
+            "backend/app/services/_reporting/exports/risks.py",
+            "backend/app/services/_reporting/exports/controls.py",
+            "backend/app/services/_reporting/exports/kris.py",
+            "backend/app/services/_reporting/exports/issues.py",
+            "backend/app/services/_reporting/exports/vendors.py",
+        )
     )
 
     assert "ReportExportDefinition(" in exporter_source
     assert "render_report_export_definition(" in exporter_source
     assert "ExportPipelineDefinition(" not in exporter_source
+
+
+def test_report_export_routes_use_service_export_definitions() -> None:
+    for relative_path, exporter in (
+        ("backend/app/services/_reporting/exports/risks.py", "_export_risks"),
+        ("backend/app/services/_reporting/exports/controls.py", "_export_controls"),
+        ("backend/app/services/_reporting/exports/kris.py", "_export_kris"),
+        ("backend/app/services/_reporting/exports/vendors.py", "_export_vendors"),
+        ("backend/app/services/_reporting/exports/issues.py", "_export_issues"),
+    ):
+        assert exporter in _defined_function_names(relative_path)
+        source = _source(relative_path)
+        assert "ReportExportDefinition(" in source
+        assert "render_report_export_definition(" in source
+
+    endpoint_source = "\n".join(
+        _source(path)
+        for path in (
+            "backend/app/api/v1/endpoints/reports/unified_exports/export_risks.py",
+            "backend/app/api/v1/endpoints/reports/unified_exports/export_controls.py",
+            "backend/app/api/v1/endpoints/reports/unified_exports/export_kris.py",
+            "backend/app/api/v1/endpoints/reports/unified_exports/export_vendors.py",
+            "backend/app/api/v1/endpoints/reports/unified_exports/export_issues.py",
+        )
+    )
+    for leaked_export_detail in (
+        "_fetch_risks_for_export",
+        "_filter_rows_by_final_scope",
+        "_risk_to_row",
+        "ReportExportDefinition(",
+    ):
+        assert leaked_export_detail not in endpoint_source
 
 
 def test_backend_service_modules_do_not_import_endpoint_adapters() -> None:
@@ -914,18 +1008,52 @@ def test_approval_queue_routes_use_queue_lifecycle_module() -> None:
 
 
 def test_approval_queue_lifecycle_uses_service_owned_helpers() -> None:
-    from app.services._approval_queue import counts, delete_intake, lifecycle, logging, projection
+    from app.services._approval_queue import counts, delete_intake, execution, lifecycle, projection, queries
 
     assert hasattr(delete_intake, "assert_delete_request_allowed")
     assert hasattr(projection, "build_approval_read")
     assert hasattr(counts, "count_pending_approval_queue")
-    assert hasattr(logging, "queue_logger")
+    assert hasattr(execution, "create_delete_approval_request")
+    assert hasattr(queries, "list_approval_queue_page")
 
     lifecycle_source = inspect.getsource(lifecycle)
-    for module_name in ("counts", "delete_intake", "logging", "projection"):
-        assert f"app.services._approval_queue.{module_name}" in lifecycle_source
+    for module_name in ("contracts", "counts", "execution", "queries"):
+        assert f"from .{module_name} import" in lifecycle_source
 
     assert "app.api.v1.endpoints.approvals" not in lifecycle_source
+
+
+def test_approval_queue_lifecycle_delegates_intake_query_projection() -> None:
+    assert {
+        "ApprovalRequestIntakePlan",
+        "ApprovalQueueProjection",
+        "ApprovalQueuePage",
+    } <= _defined_class_names("backend/app/services/_approval_queue/contracts.py")
+    assert {
+        "build_delete_intake_plan",
+        "ensure_delete_approval_not_pending",
+    } <= _defined_function_names("backend/app/services/_approval_queue/delete_intake.py")
+    assert {
+        "create_delete_approval_request",
+        "reload_delete_approval_request",
+    } <= _defined_function_names("backend/app/services/_approval_queue/execution.py")
+    assert {
+        "approval_queue_page",
+        "project_approval_queue_item",
+    } <= _defined_function_names("backend/app/services/_approval_queue/projection.py")
+    assert {
+        "list_approval_queue_page",
+        "list_my_approval_queue_page",
+    } <= _defined_function_names("backend/app/services/_approval_queue/queries.py")
+
+    lifecycle_source = _source("backend/app/services/_approval_queue/lifecycle.py")
+    for leaked_implementation_detail in (
+        "create_approval_request_with_audit",
+        "select(ApprovalRequest)",
+        "def _build_delete_intake_plan",
+        "def _approval_queue_page",
+    ):
+        assert leaked_implementation_detail not in lifecycle_source
 
 
 def test_vendor_link_services_use_vendor_governance_modules() -> None:
@@ -942,6 +1070,41 @@ def test_vendor_link_services_use_vendor_governance_modules() -> None:
     assert "from app.services._vendor_governance.links" in service_source
 
 
+def test_vendor_routes_are_adapters_over_vendor_governance() -> None:
+    assert {
+        "list_vendor_governance",
+        "build_vendor_collection_capabilities",
+    } <= _defined_function_names("backend/app/services/_vendor_governance/listing.py")
+    assert {
+        "create_vendor_detail",
+        "read_vendor_detail",
+        "update_vendor_detail",
+        "archive_vendor_detail",
+        "restore_vendor_detail",
+    } <= _defined_function_names("backend/app/services/_vendor_governance/lifecycle.py")
+    assert {
+        "assert_vendor_readable",
+        "assert_vendor_update_allowed",
+        "assert_vendor_delete_allowed",
+    } <= _defined_function_names("backend/app/services/_vendor_governance/policy.py")
+    assert "serialize_vendor_reads" in _defined_function_names(
+        "backend/app/services/_vendor_governance/projection.py"
+    )
+
+    route_source = _source("backend/app/api/v1/endpoints/vendors/crud.py") + _source(
+        "backend/app/api/v1/endpoints/vendors/lifecycle.py"
+    )
+    for leaked_implementation_detail in (
+        "async def serialize_vendors",
+        "async def serialize_grouped_vendors",
+        "await log_activity(",
+        "await db.commit()",
+        "build_change_set(",
+        "select(Vendor)",
+    ):
+        assert leaked_implementation_detail not in route_source
+
+
 def test_deadline_services_use_deadline_execution_module() -> None:
     from app.services import issue_deadline_service, kri_deadline_service
     from app.services._deadline_execution import lifecycle
@@ -954,6 +1117,33 @@ def test_deadline_services_use_deadline_execution_module() -> None:
     assert "from app.services._deadline_execution" in service_source
     assert "from app.services.deadline_notifications" not in service_source
     assert "from app.services.deadline_runner" not in service_source
+
+
+def test_deadline_execution_module_owns_execution_plans() -> None:
+    assert {
+        "DeadlineRunPlan",
+        "DeadlineNotificationPlan",
+        "DeadlineRunOutcome",
+    } <= _defined_class_names("backend/app/services/_deadline_execution/contracts.py")
+    assert {
+        "build_deadline_notification_plan",
+        "has_recent_deadline_notification",
+    } <= _defined_function_names("backend/app/services/_deadline_execution/plans.py")
+    assert {
+        "execute_deadline_notification_plan",
+        "run_deadline_items",
+    } <= _defined_function_names("backend/app/services/_deadline_execution/executor.py")
+    assert "increment_deadline_results" in _defined_function_names(
+        "backend/app/services/_deadline_execution/results.py"
+    )
+
+    lifecycle_source = _source("backend/app/services/_deadline_execution/lifecycle.py")
+    for leaked_implementation_detail in (
+        "from app.services.deadline_notifications import",
+        "from app.services.deadline_runner import",
+        "DeadlineNotificationExecutionPlan",
+    ):
+        assert leaked_implementation_detail not in lifecycle_source
 
 
 def test_issue_workflow_routes_use_lifecycle_module() -> None:
@@ -1156,6 +1346,34 @@ def test_notification_routes_use_inbox_module() -> None:
 
     assert "paginate_visible_notifications" not in route_source
     assert "count_visible_unread_notifications" not in route_source
+
+
+def test_activity_log_routes_use_query_module() -> None:
+    assert {
+        "ActivityLogQueryCriteria",
+    } <= _defined_class_names("backend/app/services/_activity_log_query/criteria.py")
+    assert {
+        "activity_log_capabilities",
+        "activity_log_department_scope",
+    } <= _defined_function_names("backend/app/services/_activity_log_query/policy.py")
+    assert {
+        "list_activity_log_entries",
+        "list_activity_log_entity_types",
+        "list_activity_log_actions",
+    } <= _defined_function_names("backend/app/services/_activity_log_query/query.py")
+    assert "build_activity_log_response" in _defined_function_names(
+        "backend/app/services/_activity_log_query/projection.py"
+    )
+
+    route_source = _source("backend/app/api/v1/endpoints/activity_log.py")
+    for leaked_query_detail in (
+        "select(ActivityLog)",
+        "ActivityLog.description.ilike",
+        "select(func.count())",
+        "ActivityLogRead.model_validate",
+        "get_user_department_ids(",
+    ):
+        assert leaked_query_detail not in route_source
 
 
 def test_admin_console_routes_use_telemetry_composition_module() -> None:

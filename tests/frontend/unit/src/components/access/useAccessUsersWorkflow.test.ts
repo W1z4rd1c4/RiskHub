@@ -43,4 +43,11 @@ describe('useAccessUsersWorkflow helpers', () => {
 
         expect(source).toContain('useAccessUsersWorkflow');
     });
+
+    it('keeps action and presentation models wired to production access rows', () => {
+        const source = fs.readFileSync(path.resolve(process.cwd(), 'src/components/access/AccessUserRow.tsx'), 'utf8');
+
+        expect(source).toContain('buildAccessUserActionModel');
+        expect(source).toContain('buildAccessUserPresentationModel');
+    });
 });

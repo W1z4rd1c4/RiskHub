@@ -6,6 +6,7 @@ from app.models.user import User
 from app.schemas.approval_request import ApprovalRequestRead
 from app.services.authorization_capabilities import approval_capabilities
 
+from .contracts import ApprovalQueuePage, ApprovalQueueProjection
 from .logging import queue_logger
 
 
@@ -44,3 +45,27 @@ def project_approval_read(approval: ApprovalRequest, current_user: User):
     except Exception as exc:
         queue_logger.error(f"Skipping corrupted approval request {approval.id}: {exc}")
         return None, str(exc)
+
+
+def project_approval_queue_item(approval: ApprovalRequest, current_user: User) -> ApprovalQueueProjection:
+    item, skipped_reason = project_approval_read(approval, current_user)
+    return ApprovalQueueProjection(approval=approval, item=item, skipped_reason=skipped_reason)
+
+
+def approval_queue_page(
+    *,
+    approvals: list[ApprovalRequest],
+    total: int,
+    skip: int,
+    limit: int,
+    current_user: User,
+) -> ApprovalQueuePage:
+    projections = [project_approval_queue_item(approval, current_user) for approval in approvals]
+    items = [projection.item for projection in projections if projection.item is not None]
+    return ApprovalQueuePage(
+        items=items,
+        total=total,
+        skip=skip,
+        limit=limit,
+        skipped_corrupt_payloads=sum(1 for projection in projections if projection.item is None),
+    )

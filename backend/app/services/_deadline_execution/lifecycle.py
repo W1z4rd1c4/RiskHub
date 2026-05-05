@@ -1,28 +1,24 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Any
-
-from app.services.deadline_notifications import (
-    DeadlineNotificationExecutionPlan,
+from .contracts import (
+    DeadlineNotificationPlan,
+    DeadlineRunOutcome,
+    DeadlineRunPlan,
     VisibilityCheck,
-    create_deadline_notification,
-    execute_deadline_notification_plan,
-    has_recent_deadline_notification,
-    increment_deadline_results,
 )
-from app.services.deadline_runner import run_deadline_items
+from .executor import create_deadline_notification, execute_deadline_notification_plan, run_deadline_items
+from .plans import build_deadline_notification_plan, has_recent_deadline_notification
+from .results import increment_deadline_results
 
-DeadlineNotificationPlan = DeadlineNotificationExecutionPlan
-
-
-@dataclass(frozen=True)
-class DeadlineRunPlan:
-    items: list[Any]
-    total_key: str | None = None
-    item_label: str = "deadline item"
-
-
-@dataclass(frozen=True)
-class DeadlineRunOutcome:
-    results: dict[str, int]
+__all__ = [
+    "DeadlineNotificationPlan",
+    "DeadlineRunOutcome",
+    "DeadlineRunPlan",
+    "VisibilityCheck",
+    "build_deadline_notification_plan",
+    "create_deadline_notification",
+    "execute_deadline_notification_plan",
+    "has_recent_deadline_notification",
+    "increment_deadline_results",
+    "run_deadline_items",
+]

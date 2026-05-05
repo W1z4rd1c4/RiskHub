@@ -1,5 +1,5 @@
+from .contracts import DeadlineNotificationExecutionPlan
 from .lifecycle import (
-    DeadlineNotificationExecutionPlan,
     DeadlineNotificationPlan,
     DeadlineRunOutcome,
     DeadlineRunPlan,

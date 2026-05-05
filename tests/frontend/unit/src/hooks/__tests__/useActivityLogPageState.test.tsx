@@ -1,6 +1,7 @@
 import { act, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { buildActivityLogFilters, transitionActivityLogViewMode } from '@/hooks/activityLogPageWorkflow';
 import { useActivityLogPageState } from '@/hooks/useActivityLogPageState';
 import type { ActivityLogListResponse } from '@/types/activityLog';
 
@@ -194,5 +195,47 @@ describe('useActivityLogPageState', () => {
         render(<CapabilityHarness />);
 
         await waitFor(() => expect(screen.getByTestId('department-filter')).toHaveTextContent('true'));
+    });
+
+    it('uses workflow helpers for view transitions and filter payloads', () => {
+        expect(
+            transitionActivityLogViewMode({
+                nextMode: 'by_risk',
+                selectedActorId: 1,
+                selectedDepartmentId: 2,
+                selectedRiskId: 3,
+            })
+        ).toEqual({
+            selectedActorId: null,
+            selectedDepartmentId: null,
+            selectedRiskId: 3,
+        });
+
+        expect(
+            buildActivityLogFilters({
+                page: 2,
+                limit: 50,
+                search: 'policy',
+                entityTypes: ['risk'],
+                entityId: 7,
+                viewMode: 'by_risk',
+                selectedActorId: 11,
+                selectedDepartmentId: 12,
+                action: 'update',
+                dateFrom: '2026-04-20',
+                dateTo: '2026-04-21',
+            })
+        ).toEqual({
+            skip: 100,
+            limit: 50,
+            search: 'policy',
+            entity_type: ['risk'],
+            entity_id: 7,
+            actor_id: undefined,
+            department_id: undefined,
+            action: 'update',
+            date_from: '2026-04-20T00:00:00.000',
+            date_to: '2026-04-21T23:59:59.999',
+        });
     });
 });

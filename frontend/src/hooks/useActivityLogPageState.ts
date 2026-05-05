@@ -1,20 +1,23 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useDebouncedValue } from './useDebouncedValue';
-import { activityLogApi, type ActivityLogFilters } from '@/services/activityLogApi';
+import {
+    activityLogEntityTypes,
+    buildActivityLogFilters,
+    transitionActivityLogViewMode,
+    type ActiveTab,
+    type ViewMode,
+} from './activityLogPageWorkflow';
+import { activityLogApi } from '@/services/activityLogApi';
 import type { ActivityLogCapabilities, ActivityLogEntry } from '@/types/activityLog';
 import { lookupApi, type UserLookupItem } from '@/services/lookupApi';
 import { riskApi } from '@/services/riskApi';
 import { logError } from '@/services/logger';
 import { isForbiddenApiError } from '@/services/apiClient';
 
-/** View modes for the activity log */
-export type ViewMode = 'chronological' | 'by_person' | 'by_department' | 'by_risk';
+export type { ActiveTab, ViewMode } from './activityLogPageWorkflow';
 
 /** Error types for display-specific handling */
 export type ErrorType = 'access_denied' | 'network_error' | null;
-
-/** Tab types for entity type filtering */
-export type ActiveTab = 'kri' | 'risk' | 'control' | 'user';
 
 interface UseActivityLogPageStateReturn {
     // View mode
@@ -148,11 +151,16 @@ export function useActivityLogPageState(
     const setViewMode = useCallback((mode: ViewMode) => {
         setViewModeInternal(mode);
         setPage(0);
-        // Reset selectors when changing mode
-        if (mode !== 'by_person') setSelectedActorId(null);
-        if (mode !== 'by_department') setSelectedDepartmentId(null);
-        if (mode !== 'by_risk') setSelectedRiskId(null);
-    }, []);
+        const nextSelectors = transitionActivityLogViewMode({
+            nextMode: mode,
+            selectedActorId,
+            selectedDepartmentId,
+            selectedRiskId,
+        });
+        setSelectedActorId(nextSelectors.selectedActorId);
+        setSelectedDepartmentId(nextSelectors.selectedDepartmentId);
+        setSelectedRiskId(nextSelectors.selectedRiskId);
+    }, [selectedActorId, selectedDepartmentId, selectedRiskId]);
 
     // setActiveTab wrapper: reset page on tab change
     const setActiveTab = useCallback((tab: ActiveTab) => {
@@ -190,23 +198,7 @@ export function useActivityLogPageState(
 
     // Build entity types based on tab and view mode
     const getEntityTypes = useCallback((): string[] | undefined => {
-        // View mode by_risk overrides tab filtering
-        if (viewMode === 'by_risk' && selectedRiskId) {
-            return ['risk'];
-        }
-        // Map tabs to entity types (chronological and other modes use tab filtering)
-        switch (activeTab) {
-            case 'kri':
-                return ['kri', 'kri_value'];
-            case 'risk':
-                return ['risk'];
-            case 'control':
-                return ['control', 'control_execution', 'control_risk_link'];
-            case 'user':
-                return ['user', 'role', 'department', 'approval', 'config'];
-            default:
-                return undefined;
-        }
+        return activityLogEntityTypes({ viewMode, selectedRiskId, activeTab });
     }, [viewMode, selectedRiskId, activeTab]);
 
     // Fetch entries 
@@ -227,18 +219,19 @@ export function useActivityLogPageState(
             const entityTypes = getEntityTypes();
             const entityId = (viewMode === 'by_risk' && selectedRiskId) ? selectedRiskId : undefined;
 
-            const filters: ActivityLogFilters = {
-                skip: page * limit,
+            const filters = buildActivityLogFilters({
+                page,
                 limit,
-                search: debouncedSearch || undefined,
-                entity_type: entityTypes,
-                entity_id: entityId,
-                actor_id: viewMode === 'by_person' && selectedActorId ? selectedActorId : undefined,
-                department_id: viewMode === 'by_department' && selectedDepartmentId ? selectedDepartmentId : undefined,
-                action: action || undefined,
-                date_from: dateFrom ? `${dateFrom}T00:00:00.000` : undefined,
-                date_to: dateTo ? `${dateTo}T23:59:59.999` : undefined,
-            };
+                search: debouncedSearch,
+                entityTypes,
+                entityId,
+                viewMode,
+                selectedActorId,
+                selectedDepartmentId,
+                action,
+                dateFrom,
+                dateTo,
+            });
             const response = await activityLogApi.list(filters);
             if (requestId === latestEntriesRequestIdRef.current) {
                 setEntries(response.items);

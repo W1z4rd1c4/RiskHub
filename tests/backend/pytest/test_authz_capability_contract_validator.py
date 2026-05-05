@@ -100,6 +100,46 @@ def test_authz_validator_compatibility_package_delegates_to_runner() -> None:
     assert "authz_runner.run_validation" in VALIDATOR_PATH.read_text(encoding="utf-8")
 
 
+def test_authz_validator_script_is_cli_adapter() -> None:
+    validator_dir = VALIDATOR_PATH.parent
+    if str(validator_dir) not in sys.path:
+        sys.path.insert(0, str(validator_dir))
+
+    validator_source = VALIDATOR_PATH.read_text(encoding="utf-8")
+
+    for implementation_detail in (
+        "FRONTEND_AUTHZ_TOKEN_PATTERN",
+        "BACKEND_ENDPOINT_AUTHZ_PATTERN",
+        "def _extract_contract_matrix_rows",
+        "def _validate_manifest",
+        "def _discover_authz_paths",
+    ):
+        assert implementation_detail not in validator_source
+
+    module_expectations = {
+        "authz_contract_validator.contract_manifest": (
+            "extract_contract_path_references",
+            "validate_manifest",
+            "validate_doc_touch",
+        ),
+        "authz_contract_validator.markdown_validation": (
+            "extract_contract_matrix_rows",
+            "validate_markdown",
+        ),
+        "authz_contract_validator.discovery": (
+            "discover_authz_paths",
+            "validate_discovered_authz_paths",
+        ),
+        "authz_contract_validator.frontend_local_gates": (
+            "validate_frontend_local_gate_classifications",
+        ),
+    }
+    for module_name, function_names in module_expectations.items():
+        module = importlib.import_module(module_name)
+        for function_name in function_names:
+            assert callable(getattr(module, function_name))
+
+
 def test_authorization_capability_contract_is_valid() -> None:
     validator = _load_validator()
 

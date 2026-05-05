@@ -1,30 +1,23 @@
 """Activity Log API endpoints."""
 
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import String, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.datetime_utils import coerce_utc, utc_now
-from app.core.permissions import get_user_department_ids, has_permission
 from app.core.security import require_business_permission
 from app.db.session import get_db
-from app.models import ActivityLog, User
-from app.models.activity_log import ActivityAction, ActivityEntityType
-from app.schemas.activity_log import ActivityLogCapabilities, ActivityLogListResponse, ActivityLogRead
+from app.models import User
+from app.schemas.activity_log import ActivityLogListResponse
+from app.services._activity_log_query.criteria import build_activity_log_query_criteria
+from app.services._activity_log_query.query import (
+    list_activity_log_actions,
+    list_activity_log_entries,
+    list_activity_log_entity_types,
+)
 
 router = APIRouter()
-
-
-def _activity_log_capabilities(current_user: User) -> ActivityLogCapabilities:
-    return ActivityLogCapabilities(
-        can_read=True,
-        can_filter_by_department=get_user_department_ids(current_user) is None,
-        can_view_entity_filters=True,
-        can_export_csv=has_permission(current_user, "reports", "read"),
-    )
 
 
 @router.get("", response_model=ActivityLogListResponse)
@@ -60,70 +53,19 @@ async def list_activity_logs(
 
     Note: `search` defaults to the last 90 days unless an explicit date range is provided.
     """
-    date_from = coerce_utc(date_from)
-    date_to = coerce_utc(date_to)
-    query = select(ActivityLog)
-
-    # Access control: department scoping
-    dept_ids = get_user_department_ids(current_user)
-    if dept_ids is not None:  # Non-privileged user
-        if not dept_ids:
-            # User has no department access
-            return ActivityLogListResponse(
-                items=[],
-                total=0,
-                skip=skip,
-                limit=limit,
-                capabilities=_activity_log_capabilities(current_user),
-            )
-        query = query.where(ActivityLog.department_id.in_(dept_ids))
-
-    # Apply filters
-    if entity_type:
-        query = query.where(ActivityLog.entity_type.in_(entity_type))
-    if entity_id:
-        query = query.where(ActivityLog.entity_id == entity_id)
-    if actor_id:
-        query = query.where(ActivityLog.actor_id == actor_id)
-    if department_id:
-        # Additional department filter (privileged users can filter by any dept)
-        query = query.where(ActivityLog.department_id == department_id)
-    if action:
-        query = query.where(ActivityLog.action == action)
-    if search:
-        if not date_from and not date_to:
-            date_from = utc_now() - timedelta(days=90)
-        pattern = f"%{search}%"
-        query = query.where(
-            or_(
-                ActivityLog.description.ilike(pattern),
-                ActivityLog.entity_name.ilike(pattern),
-                ActivityLog.actor_name.ilike(pattern),
-                cast(ActivityLog.changes, String).ilike(pattern),
-            )
-        )
-    if date_from:
-        query = query.where(ActivityLog.created_at >= date_from)
-    if date_to:
-        query = query.where(ActivityLog.created_at <= date_to)
-
-    # Count total
-    count_query = select(func.count()).select_from(query.subquery())
-    total_result = await db.execute(count_query)
-    total = total_result.scalar() or 0
-
-    # Fetch entries with pagination (newest first)
-    query = query.order_by(ActivityLog.created_at.desc()).offset(skip).limit(limit)
-    result = await db.execute(query)
-    entries = result.scalars().all()
-
-    return ActivityLogListResponse(
-        items=[ActivityLogRead.model_validate(e) for e in entries],
-        total=total,
+    criteria = build_activity_log_query_criteria(
         skip=skip,
         limit=limit,
-        capabilities=_activity_log_capabilities(current_user),
+        entity_type=entity_type,
+        entity_id=entity_id,
+        actor_id=actor_id,
+        department_id=department_id,
+        action=action,
+        search=search,
+        date_from=date_from,
+        date_to=date_to,
     )
+    return await list_activity_log_entries(db=db, current_user=current_user, criteria=criteria)
 
 
 @router.get("/entity-types", response_model=list[str])
@@ -137,7 +79,7 @@ async def get_entity_types(
     ),
 ):
     """Get list of all entity types for filter dropdown."""
-    return [e.value for e in ActivityEntityType]
+    return list_activity_log_entity_types()
 
 
 @router.get("/actions", response_model=list[str])
@@ -151,4 +93,4 @@ async def get_actions(
     ),
 ):
     """Get list of all action types for filter dropdown."""
-    return [a.value for a in ActivityAction]
+    return list_activity_log_actions()

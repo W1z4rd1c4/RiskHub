@@ -4,6 +4,8 @@ import type { AccessUserRead } from '@/types/access';
 
 export type AccessUsersWorkflowState = {
     importedUserTransition: ImportedUserTransition | null;
+    actionModelsByUserId: Map<number, AccessUserActionModel>;
+    presentationModelsByUserId: Map<number, AccessUserPresentationModel>;
 };
 
 export type AccessUserActionModel = {
@@ -35,18 +37,30 @@ type AccessUsersWorkflowOptions = {
     users: AccessUserRead[];
 };
 
+type AccessUserActionModelOptions = {
+    defaultAllowed?: boolean;
+};
+
 function unknownText(label: string): string {
     return `Unknown ${label}`;
 }
 
-export function buildAccessUserActionModel(user: AccessUserRead): AccessUserActionModel {
+export function buildAccessUserActionModel(
+    user: AccessUserRead,
+    options: AccessUserActionModelOptions = {},
+): AccessUserActionModel {
     const capabilities = user.capabilities;
-    const canChangeStatus = capabilities?.can_change_active_status ?? capabilities?.can_deactivate ?? true;
+    const defaultAllowed = options.defaultAllowed ?? true;
+    const canChangeStatus = capabilities?.can_change_active_status ?? capabilities?.can_deactivate ?? defaultAllowed;
+
+    const canEdit = capabilities
+        ? capabilities.can_edit_business_access === true
+            || capabilities.can_edit_identity === true
+            || capabilities.can_edit_role === true
+        : defaultAllowed;
 
     return {
-        canEdit: Boolean(
-            capabilities?.can_edit_business_access ?? capabilities?.can_edit_identity ?? capabilities?.can_edit_role ?? true,
-        ),
+        canEdit,
         canDeactivate: Boolean(user.is_active && canChangeStatus),
         canReactivate: Boolean(!user.is_active && canChangeStatus),
         canBreakGlassEnable: Boolean(capabilities?.can_break_glass_enable ?? false),
@@ -91,6 +105,18 @@ export function useAccessUsersWorkflow(options: AccessUsersWorkflowOptions): Acc
         () => resolveImportedUserTransition(options),
         [options.importedUserId, options.importedUserName, options.isAccessMode, options.users],
     );
+    const actionModelsByUserId = useMemo(
+        () => new Map(options.users.map((user) => [user.id, buildAccessUserActionModel(user)])),
+        [options.users],
+    );
+    const presentationModelsByUserId = useMemo(
+        () => new Map(options.users.map((user) => [user.id, buildAccessUserPresentationModel(user)])),
+        [options.users],
+    );
 
-    return { importedUserTransition };
+    return {
+        actionModelsByUserId,
+        importedUserTransition,
+        presentationModelsByUserId,
+    };
 }

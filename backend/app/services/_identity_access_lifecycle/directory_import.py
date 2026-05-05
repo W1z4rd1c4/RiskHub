@@ -1,0 +1,146 @@
+from __future__ import annotations
+
+from typing import Literal
+
+from fastapi import HTTPException, status
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.config import Settings
+from app.core.email import email_equals
+from app.models import Role, User
+from app.schemas.directory import DirectoryImportRequest, DirectoryUserRead
+from app.services.ad_deprovision_service import ADDeprovisionService
+from app.services.directory_identity_service import (
+    DirectoryIdentityConflictError,
+    apply_directory_profile,
+    resolve_directory_email,
+)
+
+from .contracts import IdentityImportOutcome
+from .execution import commit_directory_import, load_directory_import_user
+from .projection import build_directory_import_response
+
+
+async def resolve_safe_default_role(db: AsyncSession) -> Role:
+    from app.core.policy import SAFE_DIRECTORY_DEFAULT_ROLE_CANDIDATES
+
+    for name in SAFE_DIRECTORY_DEFAULT_ROLE_CANDIDATES:
+        result = await db.execute(select(Role).where(Role.name == name))
+        role = result.scalar_one_or_none()
+        if role:
+            return role
+
+    candidates = ", ".join(str(name) for name in SAFE_DIRECTORY_DEFAULT_ROLE_CANDIDATES)
+    raise HTTPException(status_code=500, detail=f"No safe default role found ({candidates}). Seed roles first.")
+
+
+async def resolve_role_for_directory_import(
+    db: AsyncSession,
+    *,
+    override_role_id: int | None,
+) -> Role:
+    if override_role_id is not None:
+        result = await db.execute(select(Role).where(Role.id == override_role_id).where(Role.is_active.is_(True)))
+        role = result.scalar_one_or_none()
+        if role is None:
+            raise HTTPException(status_code=400, detail="Invalid role_id override")
+        return role
+    return await resolve_safe_default_role(db)
+
+
+async def import_directory_identity(
+    *,
+    db: AsyncSession,
+    settings: Settings,
+    current_user: User,
+    directory_user: DirectoryUserRead,
+    payload: DirectoryImportRequest,
+    provider_name: str,
+) -> IdentityImportOutcome:
+    normalized_email = resolve_directory_email(directory_user)
+    if normalized_email is None:
+        raise HTTPException(status_code=400, detail="Directory user is missing an importable email address")
+
+    user = (await db.execute(select(User).where(User.external_id == directory_user.external_id))).scalar_one_or_none()
+    import_status: Literal["created", "updated"] = "updated"
+    seed_directory_department = False
+    if user is None:
+        existing_email_user = (
+            await db.execute(select(User).where(email_equals(User.email, normalized_email)))
+        ).scalar_one_or_none()
+        if existing_email_user is not None and existing_email_user.external_id not in (
+            None,
+            directory_user.external_id,
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Directory identity conflict: email already linked to a different external_id",
+            )
+        if existing_email_user is not None:
+            user = existing_email_user
+        else:
+            role = await resolve_role_for_directory_import(db, override_role_id=payload.role_id)
+            user = User(
+                email=normalized_email,
+                name=directory_user.display_name or normalized_email,
+                external_id=directory_user.external_id,
+                hashed_password=None,
+                role_id=role.id,
+                is_active=True,
+            )
+            db.add(user)
+            import_status = "created"
+            seed_directory_department = True
+
+    if payload.role_id is not None and import_status == "updated":
+        role = await resolve_role_for_directory_import(db, override_role_id=payload.role_id)
+        user.role_id = role.id
+
+    try:
+        await apply_directory_profile(
+            db,
+            user=user,
+            directory_user=directory_user,
+            sync_business_role=settings.entra_business_role_enabled,
+            seed_department=seed_directory_department,
+        )
+    except DirectoryIdentityConflictError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+
+    if directory_user.account_enabled and user.deprovision_reason in ADDeprovisionService.AUTO_DEPROVISION_REASONS:
+        user.is_active = True
+        user.deprovisioned_at = None
+        user.deprovision_reason = None
+        user.break_glass_expires_at = None
+        user.break_glass_reason = None
+        user.break_glass_granted_by_user_id = None
+
+    if not directory_user.account_enabled:
+        await ADDeprovisionService.deprovision_user(
+            db,
+            user=user,
+            actor=current_user,
+            trigger="directory_import",
+            sync_status="directory_disabled",
+            deprovision_reason=ADDeprovisionService.DEPROVISION_REASON_DIRECTORY_DISABLED,
+        )
+
+    db.add(user)
+    await db.flush()
+    await commit_directory_import(
+        db=db,
+        user=user,
+        current_user=current_user,
+        import_status=import_status,
+        provider_name=provider_name,
+        account_enabled=directory_user.account_enabled,
+    )
+
+    refreshed = await load_directory_import_user(db, user_id=user.id)
+    response = build_directory_import_response(
+        refreshed=refreshed,
+        directory_user=directory_user,
+        import_status=import_status,
+    )
+    return IdentityImportOutcome(status=import_status, user=refreshed, response=response)

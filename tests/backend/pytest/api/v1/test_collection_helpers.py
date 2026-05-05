@@ -196,10 +196,13 @@ def test_register_list_endpoints_use_definition_based_listing_executor():
         "backend/app/api/v1/endpoints/controls/crud/list.py",
         "backend/app/api/v1/endpoints/kris/crud/list.py",
         "backend/app/api/v1/endpoints/issues/crud/list.py",
-        "backend/app/api/v1/endpoints/vendors/crud.py",
     ]
 
     for relative_path in endpoint_paths:
         source = (REPO_ROOT / relative_path).read_text(encoding="utf-8")
         assert "execute_register_listing_plan(" in source
         assert "execute_collection_listing_with_definition(" not in source
+
+    vendor_source = (REPO_ROOT / "backend/app/api/v1/endpoints/vendors/crud.py").read_text(encoding="utf-8")
+    assert "list_vendor_governance(" in vendor_source
+    assert "execute_collection_listing_with_definition(" not in vendor_source

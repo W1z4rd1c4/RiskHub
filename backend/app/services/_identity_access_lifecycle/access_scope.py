@@ -1,0 +1,110 @@
+from __future__ import annotations
+
+from fastapi import HTTPException, status
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.activity_logger import build_change_set
+from app.core.config import Settings
+from app.core.email import email_equals
+from app.core.user_query_options import user_selectinload_options
+from app.models import User
+from app.models.user import AccessScope
+from app.schemas.access import AccessUserUpdate
+from app.services._access_workflow import (
+    PLATFORM_ADMIN_FIELDS,
+    authorize_access_update_fields,
+    is_platform_admin,
+)
+
+from .execution import log_user_update_and_commit
+from .policy import (
+    ensure_directory_reenable_allowed,
+    ensure_remaining_global_privileged_user,
+    ensure_role_change_keeps_privileged_access,
+    ensure_sso_local_field_update_allowed,
+    is_global_privileged_user,
+)
+
+
+def normalize_access_scope_update(update_data: dict) -> None:
+    if "access_scope" in update_data:
+        update_data["access_scope"] = AccessScope(update_data["access_scope"])
+
+
+async def update_access_profile(
+    *,
+    db: AsyncSession,
+    settings: Settings,
+    current_user: User,
+    user_id: int,
+    user_data: AccessUserUpdate | dict,
+) -> User:
+    update_data = user_data if isinstance(user_data, dict) else user_data.model_dump(exclude_unset=True)
+    result = await db.execute(
+        select(User).options(*user_selectinload_options(include_permissions=True)).where(User.id == user_id)
+    )
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    if is_platform_admin(user) and not is_platform_admin(current_user):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    platform_update = {field: value for field, value in update_data.items() if field in PLATFORM_ADMIN_FIELDS}
+    new_role = await authorize_access_update_fields(
+        db=db,
+        current_user=current_user,
+        target_user=user,
+        update_data=update_data,
+    )
+
+    ensure_sso_local_field_update_allowed(
+        settings=settings,
+        user=user,
+        update_data=platform_update,
+        fields=set(platform_update),
+    )
+    ensure_directory_reenable_allowed(user=user, update_data=update_data)
+
+    if "email" in platform_update and platform_update["email"] != user.email:
+        email_check = await db.execute(
+            select(User.id).where(email_equals(User.email, platform_update["email"])).where(User.id != user.id).limit(1)
+        )
+        if email_check.scalar_one_or_none():
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
+
+    if new_role is not None:
+        await ensure_role_change_keeps_privileged_access(
+            db,
+            current_user=current_user,
+            user=user,
+            new_role=new_role,
+            require_active=False,
+        )
+
+    if "access_scope" in update_data:
+        normalize_access_scope_update(update_data)
+        if current_user.id == user.id and update_data["access_scope"] != AccessScope.GLOBAL:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot remove your own privileged access",
+            )
+        if is_global_privileged_user(user) and update_data["access_scope"] != AccessScope.GLOBAL:
+            await ensure_remaining_global_privileged_user(
+                db,
+                user=user,
+                detail="Cannot remove the last admin/CRO from privileged access",
+                require_active=False,
+            )
+
+    changes = build_change_set(user, update_data)
+    for field, value in update_data.items():
+        setattr(user, field, value)
+
+    return await log_user_update_and_commit(
+        db=db,
+        user=user,
+        current_user=current_user,
+        changes=changes,
+        include_permissions=True,
+    )
