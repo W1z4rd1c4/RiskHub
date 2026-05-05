@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import os
+import json
 import re
+import shlex
 import shutil
 import subprocess
 from dataclasses import dataclass
@@ -197,3 +199,27 @@ def capture_startup_preflight(
             "frontend_lockfile_exists": (root_dir / "frontend" / "package-lock.json").exists(),
         },
     }
+
+
+def docker_container_state(names: list[str], *, run_command) -> dict[str, Any]:
+    state: dict[str, Any] = {}
+    for name in names:
+        cmd = (
+            "docker inspect "
+            "--format '{{json .Name}} {{json .Config.Image}} {{json .State.Status}} {{json .State.Health.Status}}' "
+            f"{shlex.quote(name)}"
+        )
+        res = run_command(f"docker_inspect_{name}", cmd, required=False, timeout_sec=60)
+        parsed: dict[str, Any] = {"exists": res.rc == 0}
+        if res.rc == 0:
+            text = Path(res.log_path).read_text(encoding="utf-8", errors="replace")
+            lines = [line.strip() for line in text.splitlines() if line.strip() and not line.startswith("$ ")]
+            if lines:
+                parts = lines[-1].split(" ", 3)
+                if len(parts) == 4:
+                    parsed["name"] = json.loads(parts[0])
+                    parsed["image"] = json.loads(parts[1])
+                    parsed["status"] = json.loads(parts[2])
+                    parsed["health"] = None if parts[3] == "null" else json.loads(parts[3])
+        state[name] = parsed
+    return state

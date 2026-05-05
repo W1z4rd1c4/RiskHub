@@ -19,19 +19,18 @@ if __package__ in {None, ""}:
         sys.path.insert(0, _PACKAGE_PARENT)
 
 import argparse
-import json
 import re
-import shlex
-import subprocess
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from release_parity_audit.artifact_writer import sha256_audit_file, write_audit_json, write_audit_text
+from release_parity_audit.baseline import capture_release_baseline
 from release_parity_audit.cleanup import CleanupCommand, compose_down, stop_local_dev_processes
 from release_parity_audit.command_runner import run_command
 from release_parity_audit.decision import evaluate_findings_and_decision
 from release_parity_audit.dependencies import capture_dependencies
+from release_parity_audit.env_preparation import prepare_deploy_cli_prod_layout, prepare_prod_env_files
 from release_parity_audit.facade import ReleaseParityFacadePlan, release_parity_phases
 from release_parity_audit.fingerprints import (
     RuntimeFingerprint,
@@ -41,7 +40,7 @@ from release_parity_audit.fingerprints import (
     start_background_service,
 )
 from release_parity_audit.http_probe import http_json, wait_http
-from release_parity_audit.launch_classifier import classify_launch_failure
+from release_parity_audit.launch_classifier import build_launch_failure_fingerprint, classify_launch_failure
 from release_parity_audit.phase_runner import ReleaseParityPhaseRunner
 from release_parity_audit.reporting import build_report, build_run_status, matrix_payload
 from release_parity_audit.run_state import ReleaseParityRunState
@@ -49,12 +48,13 @@ from release_parity_audit.runtime import run_dynamic_paths
 from release_parity_audit.screenshots import ScreenshotCapturePlan, capture_login_screenshot
 from release_parity_audit.startup import build_startup_inventory
 from release_parity_audit.startup_preflight import (
-    StartupPreflightSnapshot,
     capture_startup_preflight,
     detect_dev_sh_effective_node,
+    docker_container_state,
     node_major_from_binary,
     port_listeners,
 )
+from release_parity_audit.static_resolution import extract_static_resolution
 from release_parity_audit.toolchain import ToolchainSnapshot, capture_toolchain
 from release_parity_audit.types import CommandResult
 from release_parity_audit.ui_parity import evaluate_ui_parity
@@ -289,92 +289,11 @@ class ReleaseParityAudit:
         self._write_json(self.artifact_root / "startup-paths.json", self.startup_paths)
 
     def _extract_static_resolution(self) -> None:
-        dev_sh = (ROOT_DIR / "scripts" / "dev.sh").read_text(encoding="utf-8")
-        req_root = ROOT_DIR / "backend"
-        req_text = "\n".join(
-            (
-                (req_root / "requirements.txt").read_text(encoding="utf-8"),
-                (req_root / "requirements-runtime.txt").read_text(encoding="utf-8"),
-                (req_root / "requirements-db.txt").read_text(encoding="utf-8"),
-            )
-        )
-        backend_docker = (ROOT_DIR / "backend" / "Dockerfile").read_text(encoding="utf-8")
-        frontend_docker = (ROOT_DIR / "frontend" / "Dockerfile").read_text(encoding="utf-8")
-        e2e = (ROOT_DIR / ".github" / "workflows" / "e2e.yml").read_text(encoding="utf-8")
-        lint = (ROOT_DIR / ".github" / "workflows" / "lint.yml").read_text(encoding="utf-8")
-        security = (ROOT_DIR / ".github" / "workflows" / "security.yml").read_text(encoding="utf-8")
-
-        ci_node_versions = re.findall(r"node-version:\s*'([^']+)'", "\n".join([e2e, lint, security]))
-        ci_python_versions = re.findall(r"python-version:\s*'([^']+)'", "\n".join([e2e, lint, security]))
-
-        floating_lines = [
-            line.strip() for line in req_text.splitlines() if ">=" in line and not line.strip().startswith("#")
-        ]
-        pinned_lines = [
-            line.strip() for line in req_text.splitlines() if "==" in line and not line.strip().startswith("#")
-        ]
-
-        self.static_resolution = {
-            "dev_startup": {
-                "backend_venv_conditional_install": 'requirements.txt" -nt "venv/.deps_installed' in dev_sh,
-                "backend_uses_pip_install_requirements": "pip install -q -r requirements.txt" in dev_sh,
-                "backend_has_layered_requirements": all(
-                    (req_root / name).exists()
-                    for name in ("requirements.txt", "requirements-runtime.txt", "requirements-db.txt")
-                ),
-                "frontend_conditional_install_on_missing_node_modules": "if [ ! -d node_modules ]; then" in dev_sh,
-                "frontend_has_npm_install_fallback": "npm install" in dev_sh,
-                "frontend_lockfile_install_enforced": "npm ci" in dev_sh,
-                "frontend_prefers_npm_ci_with_lockfile": 'if [ "$install_mode" = "npm_ci" ]; then' in dev_sh,
-            },
-            "backend_requirements_policy": {
-                "floating_constraints_count": len(floating_lines),
-                "floating_constraints": floating_lines,
-                "pinned_constraints_count": len(pinned_lines),
-                "pinned_constraints": pinned_lines,
-            },
-            "docker_runtime_policy": {
-                "backend_python_image": re.findall(r"FROM\s+(python:[^\s]+)", backend_docker),
-                "frontend_node_image": re.findall(r"FROM\s+(node:[^\s]+)", frontend_docker),
-                "frontend_build_uses_npm_ci": "npm ci" in frontend_docker,
-            },
-            "ci_runtime_policy": {
-                "node_versions": sorted(set(ci_node_versions)),
-                "python_versions": sorted(set(ci_python_versions)),
-                "frontend_ci_lockfile_install": "npm ci" in e2e and "npm ci" in lint and "npm ci" in security,
-                "backend_ci_uses_pip_install_requirements": "pip install -r requirements.txt" in e2e
-                or "pip install -r requirements.txt" in lint,
-            },
-            "evidence": [
-                "scripts/dev.sh:231",
-                "scripts/dev.sh:233",
-                "scripts/dev.sh:295",
-                "scripts/dev.sh:313",
-                "backend/requirements.txt:1",
-                "backend/requirements-runtime.txt:1",
-                "backend/requirements-db.txt:1",
-                "backend/Dockerfile:7",
-                "frontend/Dockerfile:7",
-                "frontend/Dockerfile:16",
-                ".github/workflows/e2e.yml:39",
-                ".github/workflows/e2e.yml:45",
-                ".github/workflows/e2e.yml:55",
-            ],
-        }
+        self.static_resolution = extract_static_resolution(root_dir=ROOT_DIR)
         self._write_json(self.artifact_root / "static-resolution.json", self.static_resolution)
 
     def _capture_baseline(self) -> None:
-        git_sha = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT_DIR, text=True).strip()
-        git_branch = subprocess.check_output(["git", "branch", "--show-current"], cwd=ROOT_DIR, text=True).strip()
-        git_status = subprocess.check_output(["git", "status", "--short", "--branch"], cwd=ROOT_DIR, text=True)
-        self.baseline = {
-            "captured_at_utc": self._iso(self._utc_now()),
-            "git_sha": git_sha,
-            "git_branch": git_branch,
-            "git_status": git_status,
-            "is_clean": len([line for line in git_status.splitlines() if line and not line.startswith("##")]) == 0,
-            "root": str(ROOT_DIR),
-        }
+        self.baseline = capture_release_baseline(root_dir=ROOT_DIR, captured_at_utc=self._iso(self._utc_now()))
         self._write_json(self.meta_dir / "baseline.json", self.baseline)
 
     def _capture_toolchain(self) -> None:
@@ -383,107 +302,13 @@ class ReleaseParityAudit:
         self._write_json(self.fingerprints_dir / "toolchain.json", toolchain)
 
     def _docker_container_state(self, names: list[str]) -> dict[str, Any]:
-        state: dict[str, Any] = {}
-        for name in names:
-            cmd = (
-                "docker inspect "
-                "--format '{{json .Name}} {{json .Config.Image}} {{json .State.Status}} {{json .State.Health.Status}}' "
-                f"{shlex.quote(name)}"
-            )
-            res = self._run(f"docker_inspect_{name}", cmd, required=False, timeout_sec=60)
-            parsed: dict[str, Any] = {"exists": res.rc == 0}
-            if res.rc == 0:
-                text = Path(res.log_path).read_text(encoding="utf-8", errors="replace")
-                lines = [line.strip() for line in text.splitlines() if line.strip() and not line.startswith("$ ")]
-                if lines:
-                    parts = lines[-1].split(" ", 3)
-                    if len(parts) == 4:
-                        parsed["name"] = json.loads(parts[0])
-                        parsed["image"] = json.loads(parts[1])
-                        parsed["status"] = json.loads(parts[2])
-                        parsed["health"] = None if parts[3] == "null" else json.loads(parts[3])
-            state[name] = parsed
-        return state
+        return docker_container_state(names, run_command=self._run)
 
     def _prepare_prod_env_files(self) -> tuple[Path, Path]:
-        backend_env = self.tmp_dir / "backend.env"
-        frontend_env = self.tmp_dir / "frontend.env"
-        backend_env.write_text(
-            "\n".join(
-                [
-                    "DEBUG=false",
-                    "MOCK_AUTH_ENABLED=false",
-                    "AUTH_MODE=microsoft_sso",
-                    "SECRET_KEY=release-parity-audit-secret-key-32-characters",
-                    "DATABASE_URL=postgresql+asyncpg://riskhub:riskhub@postgres.example.com:5432/riskhub",
-                    'CORS_ORIGINS=["https://riskhub.example.com"]',
-                    'ALLOWED_HOSTS=["riskhub.example.com"]',
-                    "REDIS_PASSWORD=release_parity_redis_password",
-                    "REDIS_URL=",
-                    "ENTRA_TENANT_ID=00000000-0000-0000-0000-000000000000",
-                    "ENTRA_CLIENT_ID=11111111-1111-1111-1111-111111111111",
-                    "ENTRA_CLIENT_SECRET=release-parity-entra-client-secret",
-                    "BOOTSTRAP_ADMIN_EMAIL=admin@example.com",
-                    "BOOTSTRAP_ADMIN_ROLE=admin",
-                    "BOOTSTRAP_ADMIN_ACCESS_SCOPE=global",
-                    "BOOTSTRAP_CRO_EMAIL=cro@example.com",
-                    "BOOTSTRAP_CRO_ACCESS_SCOPE=global",
-                ]
-            )
-            + "\n",
-            encoding="utf-8",
-        )
-        frontend_env.write_text(
-            "\n".join(
-                [
-                    "FRONTEND_HOST_PORT=28081",
-                    "FRONTEND_CONTAINER_PORT=80",
-                    "SERVER_NAME=riskhub.example.com",
-                ]
-            )
-            + "\n",
-            encoding="utf-8",
-        )
-        return backend_env, frontend_env
+        return prepare_prod_env_files(self.tmp_dir)
 
     def _prepare_deploy_cli_prod_layout(self) -> tuple[Path, Path, Path]:
-        config_path = self.tmp_dir / "riskhub.env"
-        secret_dir = self.tmp_dir / "secrets"
-        runtime_dir = self.tmp_dir / "runtime"
-
-        config_path.write_text(
-            "\n".join(
-                [
-                    "PUBLIC_URL=https://riskhub.example.com",
-                    "ENTRA_TENANT_ID=00000000-0000-0000-0000-000000000000",
-                    "ENTRA_CLIENT_ID=11111111-1111-1111-1111-111111111111",
-                    "BOOTSTRAP_ADMIN_EMAIL=admin@example.com",
-                    "BOOTSTRAP_CRO_EMAIL=cro@example.com",
-                    "API_WORKERS=4",
-                    "FRONTEND_BIND_PORT=28081",
-                ]
-            )
-            + "\n",
-            encoding="utf-8",
-        )
-
-        secret_dir.mkdir(parents=True, exist_ok=True)
-        runtime_dir.mkdir(parents=True, exist_ok=True)
-        secret_dir.chmod(0o750)
-        runtime_dir.chmod(0o750)
-
-        secrets = {
-            "database_url": "postgresql+asyncpg://riskhub:riskhub@postgres.example.com:5432/riskhub\n",
-            "secret_key": "release-parity-audit-secret-key-32-characters\n",
-            "entra_client_secret": "release-parity-entra-client-secret\n",
-            "redis_password": "release_parity_redis_password\n",
-        }
-        for name, value in secrets.items():
-            path = secret_dir / name
-            path.write_text(value, encoding="utf-8")
-            path.chmod(0o440)
-
-        return config_path, secret_dir, runtime_dir
+        return prepare_deploy_cli_prod_layout(self.tmp_dir)
 
     def _launch_failure_fingerprint(
         self,
@@ -493,29 +318,15 @@ class ReleaseParityAudit:
         *,
         docker_containers: list[str] | None = None,
     ) -> dict[str, Any]:
-        log_text = Path(launch_result.log_path).read_text(encoding="utf-8", errors="replace")
-        failure = self._classify_launch_failure(startup_path_id, log_text, launch_result.rc)
-        fp: dict[str, Any] = {
-            "startup_path_id": startup_path_id,
-            "context_id": context_id,
-            "captured_at_utc": self._iso(self._utc_now()),
-            "git_sha_expected": self.baseline.get("git_sha"),
-            "git_sha_observed": self.baseline.get("git_sha"),
-            "launch_failed": True,
-            "launch_rc": launch_result.rc,
-            "launch_log": launch_result.log_path,
-            "launch_failure": failure,
-        }
-        if docker_containers:
-            fp["docker_state"] = self._docker_container_state(docker_containers)
-        self.launch_failure_analysis.append(
-            {
-                "startup_path_id": startup_path_id,
-                "context_id": context_id,
-                "launch_log": launch_result.log_path,
-                **failure,
-            }
+        fp, analysis = build_launch_failure_fingerprint(
+            startup_path_id=startup_path_id,
+            context_id=context_id,
+            launch_result=launch_result,
+            baseline=self.baseline,
+            captured_at_utc=self._iso(self._utc_now()),
+            docker_state=self._docker_container_state(docker_containers) if docker_containers else None,
         )
+        self.launch_failure_analysis.append(analysis)
         return fp
 
     def _capture_dependencies(self) -> None:
@@ -644,6 +455,36 @@ class ReleaseParityAudit:
             ui_dir=self.ui_dir,
         )
         self._write_text(self.artifact_root / "report.md", report)
+
+    def capture_baseline(self) -> None:
+        self._capture_baseline()
+
+    def build_startup_inventory(self) -> None:
+        self._build_startup_inventory()
+
+    def extract_static_resolution(self) -> None:
+        self._extract_static_resolution()
+
+    def capture_toolchain(self) -> None:
+        self._capture_toolchain()
+
+    def capture_startup_preflight(self) -> None:
+        self._capture_startup_preflight()
+
+    def run_dynamic_paths(self) -> None:
+        self._run_dynamic_paths()
+
+    def capture_dependencies(self) -> None:
+        self._capture_dependencies()
+
+    def evaluate_ui_parity(self) -> None:
+        self._evaluate_ui_parity()
+
+    def evaluate_findings_and_decision(self) -> None:
+        self._evaluate_findings_and_decision()
+
+    def write_report(self) -> None:
+        self._write_report()
 
     def run(self) -> None:
         self.phase_runner.run(release_parity_phases(self))

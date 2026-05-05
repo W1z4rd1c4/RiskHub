@@ -57,6 +57,26 @@ def _has_varargs_forwarder(relative_path: str) -> bool:
     return False
 
 
+def _assigned_names(relative_path: str) -> set[str]:
+    names: set[str] = set()
+    for node in ast.walk(_tree(relative_path)):
+        if isinstance(node, ast.Assign | ast.AnnAssign):
+            targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+            for target in targets:
+                if isinstance(target, ast.Name):
+                    names.add(target.id)
+    return names
+
+
+def _calls_private_audit_method(relative_path: str) -> bool:
+    for node in ast.walk(_tree(relative_path)):
+        if not isinstance(node, ast.Attribute) or not node.attr.startswith("_"):
+            continue
+        if isinstance(node.value, ast.Name) and node.value.id == "audit":
+            return True
+    return False
+
+
 def _function_body_source(relative_path: str, function_name: str) -> str:
     source = _source(relative_path)
     for node in ast.walk(_tree(relative_path)):
@@ -167,6 +187,36 @@ def test_control_execution_governance_uses_split_modules() -> None:
     governance_source = inspect.getsource(link_governance)
     assert "from app.services._control_execution.monitoring" in governance_source
     assert "app.api.v1.endpoints" not in governance_source
+
+
+def test_control_execution_split_modules_own_link_governance() -> None:
+    assert {
+        "load_control_for_link",
+        "load_risk_for_link",
+        "assert_control_readable_for_link",
+        "assert_control_writable_for_link",
+        "risk_link_access_decision",
+        "assert_risk_writable_for_link",
+    } <= _defined_function_names("backend/app/services/_control_execution/access.py")
+    assert {
+        "list_control_execution_projections",
+        "read_control_execution_projection",
+        "create_control_execution_projection",
+        "redact_links_for_visible_risks",
+        "visible_risk_control_links",
+    } <= _defined_function_names("backend/app/services/_control_execution/projection.py")
+    assert {
+        "load_link_for_control",
+        "load_link_for_risk",
+        "reload_link_for_control_response",
+        "reload_link_for_risk_response",
+        "create_control_risk_link_outcome",
+        "delete_control_risk_link_plan",
+    } <= _defined_function_names("backend/app/services/_control_execution/link_policy.py")
+
+    governance_helpers = _defined_function_names("backend/app/services/_control_execution/link_governance.py")
+    assert "_load_control" not in governance_helpers
+    assert "_projection_for_execution" not in governance_helpers
 
 
 def test_directory_identity_facade_uses_lifecycle_module() -> None:
@@ -507,16 +557,38 @@ def test_entity_mutation_lifecycle_uses_split_service_modules() -> None:
     assert hasattr(projection, "serialize_risk_mutation_response")
 
     lifecycle_source = inspect.getsource(lifecycle)
-    for module_name in (
-        "approval_plans",
-        "archive_plans",
-        "direct_apply",
-        "policy",
-        "projection",
-    ):
+    for module_name in ("approval_plans", "archive_plans", "direct_apply", "policy"):
         assert f"app.services._entity_mutation_lifecycle.{module_name}" in lifecycle_source
 
+    direct_apply_source = inspect.getsource(direct_apply)
+    assert "app.services._entity_mutation_lifecycle.projection" in direct_apply_source
     assert "app.api.v1.endpoints" not in lifecycle_source
+
+
+def test_entity_mutation_split_modules_own_implementation() -> None:
+    assert not _imports_relative_module("backend/app/services/_entity_mutation_lifecycle/approval_plans.py", "lifecycle")
+    assert not _has_varargs_forwarder("backend/app/services/_entity_mutation_lifecycle/approval_plans.py")
+
+    assert {
+        "create_risk_edit_approval_if_required",
+        "create_control_edit_approval_if_required",
+        "create_kri_edit_approval_if_required",
+    } <= _defined_function_names("backend/app/services/_entity_mutation_lifecycle/approval_plans.py")
+    assert {
+        "apply_risk_update_directly",
+        "apply_control_update_directly",
+        "apply_kri_update_directly",
+    } <= _defined_function_names("backend/app/services/_entity_mutation_lifecycle/direct_apply.py")
+    assert {
+        "archive_risk_detail",
+        "archive_control_detail",
+        "archive_kri_detail",
+    } <= _defined_function_names("backend/app/services/_entity_mutation_lifecycle/archive_plans.py")
+
+    lifecycle_helpers = _defined_function_names("backend/app/services/_entity_mutation_lifecycle/lifecycle.py")
+    assert "_create_risk_edit_approval_if_required" not in lifecycle_helpers
+    assert "_create_control_edit_approval_if_required" not in lifecycle_helpers
+    assert "_risk_score_change_set" not in lifecycle_helpers
 
 
 def test_register_list_routes_use_listing_planners() -> None:
@@ -912,7 +984,7 @@ def test_issue_workflow_routes_use_lifecycle_module() -> None:
 
 
 def test_issue_workflow_lifecycle_uses_service_owned_helpers() -> None:
-    from app.services._issue_workflow import lifecycle, loading, outbox, serialization, source_validation
+    from app.services._issue_workflow import execution, lifecycle, loading, outbox, serialization, source_validation
 
     assert hasattr(loading, "get_issue_with_relations")
     assert hasattr(loading, "get_writable_issue_or_404")
@@ -921,8 +993,9 @@ def test_issue_workflow_lifecycle_uses_service_owned_helpers() -> None:
     assert hasattr(source_validation, "resolve_issue_source_metadata")
 
     lifecycle_source = inspect.getsource(lifecycle)
+    execution_source = inspect.getsource(execution)
     for module_name in ("loading", "outbox", "serialization", "source_validation"):
-        assert f"app.services._issue_workflow.{module_name}" in lifecycle_source
+        assert f"app.services._issue_workflow.{module_name}" in execution_source
 
     assert "app.api.v1.endpoints.issues" not in lifecycle_source
 
@@ -941,6 +1014,24 @@ def test_issue_workflow_lifecycle_no_longer_owns_update_source_mutation() -> Non
         "build_change_set(",
     ):
         assert source_mutation_detail not in lifecycle_source
+
+
+def test_issue_workflow_lifecycle_delegates_mutation_execution() -> None:
+    assert {
+        "assign_issue_detail",
+        "start_remediation_detail",
+        "update_remediation_progress_detail",
+        "close_issue_detail",
+        "request_exception_detail",
+        "approve_exception_detail",
+        "revoke_exception_detail",
+    } <= _defined_function_names("backend/app/services/_issue_workflow/execution.py")
+
+    lifecycle_source = _source("backend/app/services/_issue_workflow/lifecycle.py")
+    assert "IssueWorkflowService." not in lifecycle_source
+    assert "db.commit(" not in lifecycle_source
+    assert "_serialize_refreshed_issue" not in _defined_function_names("backend/app/services/_issue_workflow/lifecycle.py")
+    assert "_enqueue_issue_outbox" not in _defined_function_names("backend/app/services/_issue_workflow/lifecycle.py")
 
 
 def test_core_logging_and_scheduler_facades_do_not_own_split_implementations() -> None:
@@ -963,6 +1054,30 @@ def test_core_logging_and_scheduler_facades_do_not_own_split_implementations() -
         assert scheduler_detail not in scheduler_source
 
 
+def test_scheduler_facade_does_not_own_runtime_state() -> None:
+    scheduler_state_names = {
+        "scheduler",
+        "_db_sessionmaker",
+        "_db_engine",
+        "_lock_provider",
+        "_runtime_run_id",
+        "_outbox_dispatch_state",
+    }
+    assert not scheduler_state_names.intersection(_assigned_names("backend/app/core/scheduler.py"))
+    assert "sys.modules[__name__]" not in _source("backend/app/core/scheduler.py")
+
+    runtime_functions = _defined_function_names("backend/app/core/scheduler_runtime.py")
+    assert {
+        "configure_scheduler",
+        "get_db_context",
+        "get_scheduler_runtime_state",
+        "setup_scheduler",
+        "start_scheduler_async",
+        "stop_scheduler_async",
+    } <= runtime_functions
+    assert "ModuleType" not in _source("backend/app/core/scheduler_runtime.py")
+
+
 def test_release_and_prod_readiness_modules_are_not_placeholder_markers() -> None:
     for relative_path in (
         "scripts/security/release_parity_audit/toolchain.py",
@@ -979,6 +1094,29 @@ def test_release_and_prod_readiness_modules_are_not_placeholder_markers() -> Non
     prod_script = _source("scripts/security/run_prod_readiness_audit_local.sh")
     assert "def score_phase" not in prod_script
     assert "matrix = json.loads(matrix_path.read_text" not in prod_script
+
+
+def test_release_parity_audit_delegates_phase_implementation() -> None:
+    assert {
+        "capture_release_baseline",
+    } <= _defined_function_names("scripts/security/release_parity_audit/baseline.py")
+    assert {
+        "extract_static_resolution",
+    } <= _defined_function_names("scripts/security/release_parity_audit/static_resolution.py")
+    assert {
+        "prepare_prod_env_files",
+        "prepare_deploy_cli_prod_layout",
+    } <= _defined_function_names("scripts/security/release_parity_audit/env_preparation.py")
+    assert not _calls_private_audit_method("scripts/security/release_parity_audit/facade.py")
+
+    audit_source = _source("scripts/security/release_parity_audit/audit.py")
+    for leaked_phase_detail in (
+        "subprocess.check_output",
+        ".read_text(",
+        ".write_text(",
+        "re.findall(",
+    ):
+        assert leaked_phase_detail not in audit_source
 
 
 def test_frontend_workflow_helpers_are_used_by_production_code() -> None:

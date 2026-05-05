@@ -1,26 +1,18 @@
-"""Background task scheduler for KRI deadline checking and other periodic tasks."""
+"""Compatibility facade for scheduler runtime ownership and job tracking."""
 
-import sys
+from __future__ import annotations
+
 from collections.abc import Awaitable, Callable
-from contextlib import asynccontextmanager
-from uuid import uuid4
 
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from app.core import scheduler_runtime
-from app.core.datetime_utils import utc_now
 from app.core.logging import get_logger
 from app.core.scheduler_locks import (
     SCHEDULER_LOCK_CLASS_ID,
     SCHEDULER_LOCK_OBJECT_ID,
     PostgresAdvisoryLockProvider,
     SchedulerLockProvider,
-)
-from app.core.scheduler_ownership import (
-    mark_scheduler_runtime_started,
-    mark_scheduler_runtime_stopped,
-    release_scheduler_lock,
 )
 from app.core.scheduler_registry import (
     DEFAULT_SCHEDULER_JOB_PROFILE,
@@ -34,6 +26,7 @@ from app.core.scheduler_runtime import (
     get_outbox_dispatch_runtime_state,
     get_scheduler_role_status,
     outbox_dispatch_state,
+    runtime_state,
 )
 from app.core.scheduler_tracking import execute_tracked_job as _execute_tracked_job
 from app.core.scheduler_tracking import execute_tracked_job_with_session as _execute_tracked_job_with_session
@@ -62,6 +55,7 @@ __all__ = [
     "get_db_context",
     "get_outbox_dispatch_runtime_state",
     "get_scheduler_runtime_state",
+    "get_scheduler_role_status",
     "scheduler",
     "setup_scheduler",
     "start_scheduler",
@@ -70,36 +64,61 @@ __all__ = [
     "stop_scheduler_async",
 ]
 
-# Global scheduler instance
-_scheduler_factory = AsyncIOScheduler
-scheduler = _scheduler_factory()
-_db_sessionmaker: async_sessionmaker[AsyncSession] | None = None
-_db_engine: AsyncEngine | None = None
-_lock_provider: "SchedulerLockProvider | None" = None
-_runtime_run_id: str | None = None
-_outbox_dispatch_state = outbox_dispatch_state
+PROCESS_INSTANCE_ID = runtime_state.process_instance_id
+PROCESS_STARTED_AT = runtime_state.process_started_at
 
-PROCESS_INSTANCE_ID = str(uuid4())
-PROCESS_STARTED_AT = utc_now()
+
+def __getattr__(name: str):
+    if name == "scheduler":
+        return runtime_state.scheduler
+    if name == "_db_sessionmaker":
+        return runtime_state.db_sessionmaker
+    if name == "_db_engine":
+        return runtime_state.db_engine
+    if name == "_lock_provider":
+        return runtime_state.lock_provider
+    if name == "_runtime_run_id":
+        return runtime_state.runtime_run_id
+    if name == "_outbox_dispatch_state":
+        return outbox_dispatch_state
+    raise AttributeError(name)
+
+
+def _sync_runtime_from_compat_globals() -> None:
+    compat = globals()
+    if "scheduler" in compat:
+        runtime_state.scheduler = compat["scheduler"]
+    if "_db_sessionmaker" in compat:
+        runtime_state.db_sessionmaker = compat["_db_sessionmaker"]
+    if "_db_engine" in compat:
+        runtime_state.db_engine = compat["_db_engine"]
+    if "_lock_provider" in compat:
+        runtime_state.lock_provider = compat["_lock_provider"]
+    if "_runtime_run_id" in compat:
+        runtime_state.runtime_run_id = compat["_runtime_run_id"]
+
+
+def _sync_compat_globals_from_runtime() -> None:
+    compat = globals()
+    if "scheduler" in compat:
+        compat["scheduler"] = runtime_state.scheduler
+    if "_db_sessionmaker" in compat:
+        compat["_db_sessionmaker"] = runtime_state.db_sessionmaker
+    if "_db_engine" in compat:
+        compat["_db_engine"] = runtime_state.db_engine
+    if "_lock_provider" in compat:
+        compat["_lock_provider"] = runtime_state.lock_provider
+    if "_runtime_run_id" in compat:
+        compat["_runtime_run_id"] = runtime_state.runtime_run_id
 
 
 def configure_scheduler(sessionmaker: async_sessionmaker[AsyncSession], engine: AsyncEngine) -> None:
-    global _db_sessionmaker
-    global _db_engine
-    _db_sessionmaker = sessionmaker
-    _db_engine = engine
+    scheduler_runtime.configure_scheduler(sessionmaker, engine)
+    _sync_compat_globals_from_runtime()
 
 
-@asynccontextmanager
-async def get_db_context():
-    """Context manager for database session in scheduler jobs."""
-    if _db_sessionmaker is None:
-        raise RuntimeError("Scheduler DB sessionmaker not configured")
-    async with _db_sessionmaker() as session:
-        try:
-            yield session
-        finally:
-            await session.close()
+def get_db_context():
+    return scheduler_runtime.get_db_context()
 
 
 async def _record_job_start(
@@ -125,7 +144,6 @@ async def execute_tracked_job(
     *,
     trigger_type: str = "scheduled",
 ) -> dict | None:
-    """Run a scheduled job with durable execution tracking."""
     return await _execute_tracked_job(
         job_name,
         job_func,
@@ -143,7 +161,6 @@ async def execute_tracked_job_with_session(
     *,
     trigger_type: str = "manual",
 ) -> dict | None:
-    """Run a tracked job using an existing session, for request-driven manual operations."""
     return await _execute_tracked_job_with_session(
         db,
         job_name,
@@ -155,73 +172,59 @@ async def execute_tracked_job_with_session(
 
 
 def _resolve_lock_provider() -> SchedulerLockProvider:
-    if _db_engine is not None and _db_engine.dialect.name == "postgresql":
-        return PostgresAdvisoryLockProvider(_db_engine)
-    return SchedulerLockProvider()
+    return scheduler_runtime.resolve_lock_provider()
 
 
 async def _mark_runtime_started() -> None:
-    global _runtime_run_id
-    _runtime_run_id = await mark_scheduler_runtime_started(
-        db_context=get_db_context,
-        instance_id=PROCESS_INSTANCE_ID,
-        runtime_job_name=SCHEDULER_RUNTIME_JOB_NAME,
-    )
+    await scheduler_runtime.mark_runtime_started()
+    _sync_compat_globals_from_runtime()
 
 
 async def _mark_runtime_stopped() -> None:
-    await mark_scheduler_runtime_stopped(
-        db_context=get_db_context,
-        runtime_job_name=SCHEDULER_RUNTIME_JOB_NAME,
-        runtime_run_id=_runtime_run_id,
-    )
+    await scheduler_runtime.mark_runtime_stopped()
+    _sync_compat_globals_from_runtime()
 
 
 async def _release_lock_provider(*, suppress_exceptions: bool) -> None:
-    global _lock_provider
-
-    provider = _lock_provider
-    try:
-        await release_scheduler_lock(
-            provider=provider,
-            logger=logger,
-            instance_id=PROCESS_INSTANCE_ID,
-            suppress_exceptions=suppress_exceptions,
-        )
-    finally:
-        _lock_provider = None
+    await scheduler_runtime.release_lock_provider(suppress_exceptions=suppress_exceptions)
+    _sync_compat_globals_from_runtime()
 
 
 def get_scheduler_runtime_state() -> dict[str, object]:
-    return scheduler_runtime.get_scheduler_runtime_state(sys.modules[__name__])
+    _sync_runtime_from_compat_globals()
+    return scheduler_runtime.get_scheduler_runtime_state()
 
 
 def setup_scheduler() -> tuple[str, tuple[str, ...]]:
-    return scheduler_runtime.setup_scheduler(sys.modules[__name__])
+    _sync_runtime_from_compat_globals()
+    result = scheduler_runtime.setup_scheduler()
+    _sync_compat_globals_from_runtime()
+    return result
 
 
 def start_scheduler():
-    """
-    Start the scheduler. Call during app startup.
-
-    Multi-worker safety: Only starts if ENABLE_SCHEDULER=true.
-    In production with multiple Uvicorn/Gunicorn workers, set ENABLE_SCHEDULER=true
-    on exactly ONE worker process to avoid duplicate job executions.
-    """
     raise RuntimeError("start_scheduler is async; call await start_scheduler_async() instead")
 
 
 async def start_scheduler_async() -> None:
+    _sync_runtime_from_compat_globals()
     await scheduler_runtime.start_scheduler_async(
-        sys.modules[__name__],
         ensure_outbox_runtime_supported=ensure_outbox_runtime_supported,
+        resolve_lock_provider_func=_resolve_lock_provider,
+        mark_runtime_started_func=_mark_runtime_started,
+        release_lock_provider_func=_release_lock_provider,
     )
+    _sync_compat_globals_from_runtime()
 
 
 def stop_scheduler():
-    """Stop the scheduler. Call during app shutdown."""
     raise RuntimeError("stop_scheduler is async; call await stop_scheduler_async() instead")
 
 
 async def stop_scheduler_async() -> None:
-    await scheduler_runtime.stop_scheduler_async(sys.modules[__name__])
+    _sync_runtime_from_compat_globals()
+    await scheduler_runtime.stop_scheduler_async(
+        mark_runtime_stopped_func=_mark_runtime_stopped,
+        release_lock_provider_func=_release_lock_provider,
+    )
+    _sync_compat_globals_from_runtime()

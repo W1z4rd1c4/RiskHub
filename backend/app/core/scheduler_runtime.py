@@ -1,8 +1,64 @@
 from __future__ import annotations
 
 import os
-from types import ModuleType
-from typing import Callable
+from collections.abc import Callable
+from contextlib import asynccontextmanager
+from dataclasses import dataclass, field
+from datetime import datetime
+from uuid import uuid4
+
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
+
+from app.core.datetime_utils import utc_now
+from app.core.logging import get_logger
+from app.core.scheduler_locks import PostgresAdvisoryLockProvider, SchedulerLockProvider
+from app.core.scheduler_ownership import (
+    mark_scheduler_runtime_started,
+    mark_scheduler_runtime_stopped,
+    release_scheduler_lock,
+)
+from app.core.scheduler_registry import SCHEDULER_RUNTIME_JOB_NAME
+
+logger = get_logger("scheduler")
+
+
+@dataclass
+class SchedulerRuntimeState:
+    scheduler: AsyncIOScheduler = field(default_factory=AsyncIOScheduler)
+    db_sessionmaker: async_sessionmaker[AsyncSession] | None = None
+    db_engine: AsyncEngine | None = None
+    lock_provider: SchedulerLockProvider | None = None
+    runtime_run_id: str | None = None
+    process_instance_id: str = field(default_factory=lambda: str(uuid4()))
+    process_started_at: datetime = field(default_factory=utc_now)
+
+
+runtime_state = SchedulerRuntimeState()
+
+outbox_dispatch_state: dict[str, object | None] = {
+    "last_started_at": None,
+    "last_finished_at": None,
+    "last_status": None,
+    "last_processed": None,
+    "last_error": None,
+}
+
+
+def configure_scheduler(sessionmaker: async_sessionmaker[AsyncSession], engine: AsyncEngine) -> None:
+    runtime_state.db_sessionmaker = sessionmaker
+    runtime_state.db_engine = engine
+
+
+@asynccontextmanager
+async def get_db_context():
+    if runtime_state.db_sessionmaker is None:
+        raise RuntimeError("Scheduler DB sessionmaker not configured")
+    async with runtime_state.db_sessionmaker() as session:
+        try:
+            yield session
+        finally:
+            await session.close()
 
 
 def get_scheduler_role_status(
@@ -35,15 +91,6 @@ def get_scheduler_role_status(
     }
 
 
-outbox_dispatch_state: dict[str, object | None] = {
-    "last_started_at": None,
-    "last_finished_at": None,
-    "last_status": None,
-    "last_processed": None,
-    "last_error": None,
-}
-
-
 def get_outbox_dispatch_runtime_state() -> dict[str, object | None]:
     return {
         "last_started_at": outbox_dispatch_state["last_started_at"],
@@ -54,30 +101,65 @@ def get_outbox_dispatch_runtime_state() -> dict[str, object | None]:
     }
 
 
-def get_scheduler_runtime_state(module: ModuleType) -> dict[str, object]:
-    lock_provider = module._lock_provider.provider_name if module._lock_provider is not None else None
+def get_scheduler_runtime_state() -> dict[str, object]:
+    lock_provider = runtime_state.lock_provider.provider_name if runtime_state.lock_provider is not None else None
     enable = os.getenv("ENABLE_SCHEDULER", "false").lower() == "true"
-    lock_acquired = bool(module._lock_provider.lock_acquired) if module._lock_provider is not None else False
+    lock_acquired = bool(runtime_state.lock_provider.lock_acquired) if runtime_state.lock_provider is not None else False
     state_details = get_scheduler_role_status(
         scheduler_enabled=enable,
-        scheduler_running=module.scheduler.running,
+        scheduler_running=runtime_state.scheduler.running,
         lock_acquired=lock_acquired,
     )
     return {
         "process_role": "scheduler" if enable else "api",
-        "instance_id": module.PROCESS_INSTANCE_ID,
-        "process_started_at": module.PROCESS_STARTED_AT.isoformat(),
+        "instance_id": runtime_state.process_instance_id,
+        "process_started_at": runtime_state.process_started_at.isoformat(),
         "scheduler_enabled": enable,
-        "scheduler_running": module.scheduler.running,
+        "scheduler_running": runtime_state.scheduler.running,
         "lock_provider": lock_provider,
         "lock_acquired": lock_acquired,
         **state_details,
     }
 
 
-def setup_scheduler(module: ModuleType) -> tuple[str, tuple[str, ...]]:
-    """Configure scheduled jobs. Job definitions live in scheduler_jobs."""
+def resolve_lock_provider() -> SchedulerLockProvider:
+    if runtime_state.db_engine is not None and runtime_state.db_engine.dialect.name == "postgresql":
+        return PostgresAdvisoryLockProvider(runtime_state.db_engine)
+    return SchedulerLockProvider()
+
+
+async def mark_runtime_started() -> None:
+    runtime_state.runtime_run_id = await mark_scheduler_runtime_started(
+        db_context=get_db_context,
+        instance_id=runtime_state.process_instance_id,
+        runtime_job_name=SCHEDULER_RUNTIME_JOB_NAME,
+    )
+
+
+async def mark_runtime_stopped() -> None:
+    await mark_scheduler_runtime_stopped(
+        db_context=get_db_context,
+        runtime_job_name=SCHEDULER_RUNTIME_JOB_NAME,
+        runtime_run_id=runtime_state.runtime_run_id,
+    )
+
+
+async def release_lock_provider(*, suppress_exceptions: bool) -> None:
+    provider = runtime_state.lock_provider
+    try:
+        await release_scheduler_lock(
+            provider=provider,
+            logger=logger,
+            instance_id=runtime_state.process_instance_id,
+            suppress_exceptions=suppress_exceptions,
+        )
+    finally:
+        runtime_state.lock_provider = None
+
+
+def setup_scheduler() -> tuple[str, tuple[str, ...]]:
     from app.core.config import get_settings
+    from app.core import scheduler_jobs
     from app.core.scheduler_jobs import (
         register_full_scheduler_jobs,
         register_outbox_only_scheduler_jobs,
@@ -86,8 +168,9 @@ def setup_scheduler(module: ModuleType) -> tuple[str, tuple[str, ...]]:
     )
 
     settings = get_settings()
-    module.scheduler.remove_all_jobs()
-    set_db_sessionmaker_ref(module._db_sessionmaker)
+    runtime_state.scheduler.remove_all_jobs()
+    scheduler_jobs.scheduler = runtime_state.scheduler
+    set_db_sessionmaker_ref(runtime_state.db_sessionmaker)
 
     profile = resolve_scheduler_job_profile()
     if profile == "outbox_only":
@@ -95,57 +178,58 @@ def setup_scheduler(module: ModuleType) -> tuple[str, tuple[str, ...]]:
     else:
         registered_job_ids = register_full_scheduler_jobs(settings)
 
-    module.logger.info(
+    logger.info(
         "scheduler_configured",
         scheduler_job_profile=profile,
         registered_job_ids=list(registered_job_ids),
-        instance_id=module.PROCESS_INSTANCE_ID,
+        instance_id=runtime_state.process_instance_id,
     )
     return profile, registered_job_ids
 
 
 async def start_scheduler_async(
-    module: ModuleType,
     *,
     ensure_outbox_runtime_supported: Callable[..., None],
+    resolve_lock_provider_func: Callable[[], SchedulerLockProvider] = resolve_lock_provider,
+    mark_runtime_started_func: Callable[[], object] = mark_runtime_started,
+    release_lock_provider_func: Callable[..., object] = release_lock_provider,
 ) -> None:
-    """Start the scheduler after acquiring runtime ownership."""
     enable = os.getenv("ENABLE_SCHEDULER", "false").lower()
     if enable != "true":
-        module.logger.info("scheduler_disabled", scheduler_enabled=False, instance_id=module.PROCESS_INSTANCE_ID)
+        logger.info("scheduler_disabled", scheduler_enabled=False, instance_id=runtime_state.process_instance_id)
         return
-    if module._db_sessionmaker is None:
-        module.logger.warning(
+    if runtime_state.db_sessionmaker is None:
+        logger.warning(
             "scheduler_not_started",
             reason="db_sessionmaker_not_configured",
-            instance_id=module.PROCESS_INSTANCE_ID,
+            instance_id=runtime_state.process_instance_id,
         )
         return
-    if module._db_engine is None:
-        module.logger.warning(
+    if runtime_state.db_engine is None:
+        logger.warning(
             "scheduler_not_started",
             reason="db_engine_not_configured",
-            instance_id=module.PROCESS_INSTANCE_ID,
+            instance_id=runtime_state.process_instance_id,
         )
         return
 
-    if module.scheduler.running:
+    if runtime_state.scheduler.running:
         return
 
     from app.core.scheduler_jobs import resolve_process_worker_count
 
     ensure_outbox_runtime_supported(
-        dialect_name=module._db_engine.dialect.name,
+        dialect_name=runtime_state.db_engine.dialect.name,
         worker_count=resolve_process_worker_count(),
     )
 
-    provider = module._resolve_lock_provider()
-    module._lock_provider = provider
+    provider = resolve_lock_provider_func()
+    runtime_state.lock_provider = provider
     lock_acquired = await provider.acquire()
-    module.logger.info(
+    logger.info(
         "scheduler_lock_attempt",
         scheduler_enabled=True,
-        instance_id=module.PROCESS_INSTANCE_ID,
+        instance_id=runtime_state.process_instance_id,
         lock_provider=provider.provider_name,
         lock_acquired=lock_acquired,
     )
@@ -153,49 +237,52 @@ async def start_scheduler_async(
         return
 
     try:
-        profile, registered_job_ids = setup_scheduler(module)
-        module.scheduler.start()
-        await module._mark_runtime_started()
+        profile, registered_job_ids = setup_scheduler()
+        runtime_state.scheduler.start()
+        await mark_runtime_started_func()
     except Exception:
-        if module.scheduler.running:
+        if runtime_state.scheduler.running:
             try:
-                module.scheduler.shutdown(wait=False)
+                runtime_state.scheduler.shutdown(wait=False)
             except Exception:
-                module.logger.exception(
+                logger.exception(
                     "scheduler_shutdown_failed_after_start_error",
-                    instance_id=module.PROCESS_INSTANCE_ID,
+                    instance_id=runtime_state.process_instance_id,
                     lock_provider=provider.provider_name,
                 )
-        module._runtime_run_id = None
-        await module._release_lock_provider(suppress_exceptions=True)
+        runtime_state.runtime_run_id = None
+        await release_lock_provider_func(suppress_exceptions=True)
         raise
 
-    module.logger.info(
+    logger.info(
         "scheduler_started",
         scheduler_enabled=True,
         scheduler_job_profile=profile,
         registered_job_ids=list(registered_job_ids),
-        instance_id=module.PROCESS_INSTANCE_ID,
+        instance_id=runtime_state.process_instance_id,
         lock_provider=provider.provider_name,
         lock_acquired=True,
     )
 
 
-async def stop_scheduler_async(module: ModuleType) -> None:
-    """Stop the scheduler and release runtime ownership."""
+async def stop_scheduler_async(
+    *,
+    mark_runtime_stopped_func: Callable[[], object] = mark_runtime_stopped,
+    release_lock_provider_func: Callable[..., object] = release_lock_provider,
+) -> None:
     try:
-        if module.scheduler.running:
+        if runtime_state.scheduler.running:
             try:
-                module.scheduler.shutdown(wait=False)
+                runtime_state.scheduler.shutdown(wait=False)
             except Exception:
-                module.logger.exception("scheduler_shutdown_failed", instance_id=module.PROCESS_INSTANCE_ID)
+                logger.exception("scheduler_shutdown_failed", instance_id=runtime_state.process_instance_id)
 
             try:
-                await module._mark_runtime_stopped()
+                await mark_runtime_stopped_func()
             except Exception:
-                module.logger.exception("scheduler_runtime_stop_mark_failed", instance_id=module.PROCESS_INSTANCE_ID)
+                logger.exception("scheduler_runtime_stop_mark_failed", instance_id=runtime_state.process_instance_id)
             else:
-                module.logger.info("scheduler_stopped", instance_id=module.PROCESS_INSTANCE_ID)
+                logger.info("scheduler_stopped", instance_id=runtime_state.process_instance_id)
     finally:
-        module._runtime_run_id = None
-        await module._release_lock_provider(suppress_exceptions=True)
+        runtime_state.runtime_run_id = None
+        await release_lock_provider_func(suppress_exceptions=True)

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 
@@ -68,3 +69,36 @@ def classify_launch_failure(startup_path_id: str, log_text: str, launch_rc: int)
         "startup_path_failed",
         f"Startup path {startup_path_id} failed before parity fingerprints could be captured.",
     )
+
+
+def build_launch_failure_fingerprint(
+    *,
+    startup_path_id: str,
+    context_id: str,
+    launch_result,
+    baseline: dict[str, Any],
+    captured_at_utc: str,
+    docker_state: dict[str, Any] | None = None,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    log_text = Path(launch_result.log_path).read_text(encoding="utf-8", errors="replace")
+    failure = classify_launch_failure(startup_path_id, log_text, launch_result.rc)
+    fingerprint: dict[str, Any] = {
+        "startup_path_id": startup_path_id,
+        "context_id": context_id,
+        "captured_at_utc": captured_at_utc,
+        "git_sha_expected": baseline.get("git_sha"),
+        "git_sha_observed": baseline.get("git_sha"),
+        "launch_failed": True,
+        "launch_rc": launch_result.rc,
+        "launch_log": launch_result.log_path,
+        "launch_failure": failure,
+    }
+    if docker_state is not None:
+        fingerprint["docker_state"] = docker_state
+    analysis = {
+        "startup_path_id": startup_path_id,
+        "context_id": context_id,
+        "launch_log": launch_result.log_path,
+        **failure,
+    }
+    return fingerprint, analysis
