@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { riskScoreVariantClass } from '@/lib/riskScoreTheme';
 import { riskHubApi, type PublicRiskType } from '@/services/riskHubApi';
 
 // Internal type that matches what the rest of the app expects
@@ -150,26 +151,17 @@ export function useRiskThresholds() {
         // Helper to get score color class based on thresholds
         getScoreColor: (score: number): string => {
             const t = query.data || DEFAULT_THRESHOLDS;
-            if (score >= t.critical) return 'text-rose-400 bg-rose-400/10 border-rose-400/20';
-            if (score >= t.high) return 'text-orange-400 bg-orange-400/10 border-orange-400/20';
-            if (score >= t.medium) return 'text-amber-400 bg-amber-400/10 border-amber-400/20';
-            return 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20';
+            return riskScoreVariantClass('badge', score, t);
         },
         // Helper to get score color for matrix cells
         getMatrixCellColor: (score: number): string => {
             const t = query.data || DEFAULT_THRESHOLDS;
-            if (score >= t.critical) return 'bg-rose-500/40 hover:bg-rose-500/60';
-            if (score >= t.high) return 'bg-orange-500/40 hover:bg-orange-500/60';
-            if (score >= t.medium) return 'bg-amber-500/40 hover:bg-amber-500/60';
-            return 'bg-emerald-500/40 hover:bg-emerald-500/60';
+            return riskScoreVariantClass('matrix-cell', score, t);
         },
         // Helper to get score badge color
         getScoreBadgeColor: (score: number): string => {
             const t = query.data || DEFAULT_THRESHOLDS;
-            if (score >= t.critical) return 'bg-rose-500/20 text-rose-400';
-            if (score >= t.high) return 'bg-orange-500/20 text-orange-400';
-            if (score >= t.medium) return 'bg-amber-500/20 text-amber-400';
-            return 'bg-emerald-500/20 text-emerald-400';
+            return riskScoreVariantClass('card', score, t);
         },
     };
 }

@@ -6,7 +6,8 @@ from app.core.activity_logger import build_change_set, log_activity
 from app.db.session import get_db
 from app.models import Risk, RiskTypeConfig, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
-from app.schemas.riskhub import RiskTypeCapabilities, RiskTypeCreate, RiskTypeRead, RiskTypeUpdate
+from app.schemas.riskhub import RiskTypeCreate, RiskTypeRead, RiskTypeUpdate
+from app.services._authorization_capabilities import risk_type_capabilities
 from app.services._riskhub_config import (
     build_config_audit_plan,
     run_config_create,
@@ -18,15 +19,6 @@ from app.services._riskhub_config import (
 from ._shared import get_cro_user
 
 router = APIRouter()
-
-
-def _risk_type_capabilities(risk_type: RiskTypeConfig | None = None) -> RiskTypeCapabilities:
-    return RiskTypeCapabilities(
-        can_create=True,
-        can_update=bool(risk_type is None or risk_type.is_active),
-        can_delete=bool(risk_type is not None and risk_type.is_active and not risk_type.is_system),
-        can_restore=bool(risk_type is not None and not risk_type.is_active),
-    )
 
 
 async def _active_risk_type_counts(db: AsyncSession) -> dict[str, int]:
@@ -58,7 +50,7 @@ def _risk_type_read(risk_type: RiskTypeConfig, risk_count: int | None = None) ->
         risk_count=risk_count if risk_count is not None else risk_type.risk_count,
         created_at=risk_type.created_at.isoformat(),
         updated_at=risk_type.updated_at.isoformat(),
-        capabilities=_risk_type_capabilities(risk_type),
+        capabilities=risk_type_capabilities(risk_type),
     )
 
 

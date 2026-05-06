@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { useRiskThresholds } from '@/hooks/useRiskHubConfig';
 import { parseUpdateResult } from '@/lib/approvalUi';
+import { riskScoreVariantClass } from '@/lib/riskScoreTheme';
 import { ApiClientError } from '@/services/apiClient';
 import { riskApi } from '@/services/riskApi';
 import { riskHubApi } from '@/services/riskHubApi';
@@ -88,17 +89,11 @@ export function useRiskScorePresentation() {
     const { thresholds } = useRiskThresholds();
 
     const getScoreTextColor = (score: number) => {
-        if (score >= thresholds.critical) return 'text-rose-400';
-        if (score >= thresholds.high) return 'text-orange-400';
-        if (score >= thresholds.medium) return 'text-amber-400';
-        return 'text-emerald-400';
+        return riskScoreVariantClass('text', score, thresholds);
     };
 
     const getSliderAccent = (score: number) => {
-        if (score >= thresholds.critical) return 'accent-rose-500';
-        if (score >= thresholds.high) return 'accent-orange-500';
-        if (score >= thresholds.medium) return 'accent-amber-500';
-        return 'accent-emerald-500';
+        return riskScoreVariantClass('slider', score, thresholds);
     };
 
     return { getScoreTextColor, getSliderAccent };

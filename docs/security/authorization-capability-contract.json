@@ -1,7 +1,7 @@
 {
   "version": "1.0",
-  "last_reviewed": "2026-05-05",
-  "last_architecture_refactor_reviewed": "2026-05-05",
+    "last_reviewed": "2026-05-06",
+    "last_architecture_refactor_reviewed": "2026-05-06",
   "architecture_refactor_notes": [
     "2026-05-03: Collection listing execution, tabular report export rendering, approval side-effect helper reuse, and validator static data were moved behind deeper Modules. User-visible authorization policy and capability semantics are unchanged.",
     "2026-05-03: Entity visibility projections, collection listing definitions, export pipeline definitions, approval resolution plans, and KRI value governance were moved behind deeper Modules. User-visible authorization policy and capability semantics are unchanged.",
@@ -10,7 +10,8 @@
     "2026-05-04: Corrective architecture-only pass moved KRI value direct application and approval intake behind service-owned Modules, alongside auth session outcomes, collection contracts, register listing planners, issue workflow planning, logging/scheduler runtime, release tooling, and frontend helper ownership. User-visible authorization policy and capability semantics are unchanged.",
     "2026-05-05: Corrective architecture-only follow-up moved SSO exchange route adaptation and issue register listing planning behind production-owned Modules while preserving backend authorization, issue visibility, and capability semantics.",
     "2026-05-05: Corrective architecture-only split moved entity mutation approval/policy/direct/archive planning and control execution access/projection/link policy behind service-owned Modules. User-visible authorization policy and capability semantics are unchanged.",
-    "2026-05-05: Nine-area corrective architecture-only pass moved identity/access lifecycle, approval queue intake/projection, vendor governance, report export definitions, activity log query, deadline execution, authz validator internals, global config lifecycle, and users access workflow behind production-owned Modules. User-visible authorization policy and capability semantics are unchanged."
+        "2026-05-05: Nine-area corrective architecture-only pass moved identity/access lifecycle, approval queue intake/projection, vendor governance, report export definitions, activity log query, deadline execution, authz validator internals, global config lifecycle, and users access workflow behind production-owned Modules. User-visible authorization policy and capability semantics are unchanged.",
+        "2026-05-06: Architecture-only authorization perimeter pass moved Risk Hub config capability builders and service-level permission checks behind the existing authorization capability Module. User-visible authorization policy and capability semantics are unchanged."
   ],
   "owner": "RiskHub Maintainer",
   "capability_catalog": "docs/security/capability-catalog.json",

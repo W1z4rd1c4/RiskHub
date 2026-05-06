@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import User, Vendor
 from app.models.department import Department
+from app.api.v1.endpoints.riskhub import departments as department_endpoint
 
 
 @pytest.mark.asyncio
@@ -193,7 +194,117 @@ async def test_create_department_rejects_inactive_manager(
     )
 
     assert response.status_code == 400
-    assert response.json()["detail"] == "Department manager must be active"
+    assert response.json()["detail"] == "Department manager can only be assigned after department creation"
+
+
+@pytest.mark.asyncio
+async def test_create_department_rejects_manager_who_cannot_belong_to_new_department(
+    client_cro: AsyncClient,
+    test_user_employee: User,
+):
+    response = await client_cro.post(
+        "/api/v1/riskhub/departments",
+        json={"name": "Preassigned Manager", "code": "PRE_MGR", "manager_id": test_user_employee.id},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Department manager can only be assigned after department creation"
+
+
+@pytest.mark.asyncio
+async def test_update_department_rejects_manager_from_another_department(
+    client_cro: AsyncClient,
+    db_session: AsyncSession,
+    test_user_employee: User,
+):
+    target_dept = Department(name="Target Department", code="TARGET_DEPT", is_active=True)
+    db_session.add(target_dept)
+    await db_session.commit()
+    await db_session.refresh(target_dept)
+
+    response = await client_cro.patch(
+        f"/api/v1/riskhub/departments/{target_dept.id}",
+        json={"manager_id": test_user_employee.id},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Department manager must belong to the selected department"
+
+
+@pytest.mark.asyncio
+async def test_update_department_accepts_active_manager_from_same_department(
+    client_cro: AsyncClient,
+    db_session: AsyncSession,
+    test_user_employee: User,
+):
+    target_dept = Department(name="Owned Department", code="OWNED_DEPT", is_active=True)
+    db_session.add(target_dept)
+    await db_session.flush()
+    manager = User(
+        email="department-manager@example.com",
+        hashed_password="hash",
+        name="Department Manager",
+        role_id=test_user_employee.role_id,
+        department_id=target_dept.id,
+        is_active=True,
+    )
+    db_session.add(manager)
+    await db_session.commit()
+    await db_session.refresh(target_dept)
+    await db_session.refresh(manager)
+
+    response = await client_cro.patch(
+        f"/api/v1/riskhub/departments/{target_dept.id}",
+        json={"manager_id": manager.id},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["manager_id"] == manager.id
+    assert response.json()["manager_name"] == "Department Manager"
+
+
+@pytest.mark.asyncio
+async def test_update_department_locks_org_chart_before_manager_validation(
+    client_cro: AsyncClient,
+    db_session: AsyncSession,
+    test_user_employee: User,
+    monkeypatch,
+):
+    target_dept = Department(name="Locked Department", code="LOCKED_DEPT", is_active=True)
+    db_session.add(target_dept)
+    await db_session.flush()
+    manager = User(
+        email="locked-department-manager@example.com",
+        hashed_password="hash",
+        name="Locked Department Manager",
+        role_id=test_user_employee.role_id,
+        department_id=target_dept.id,
+        is_active=True,
+    )
+    db_session.add(manager)
+    await db_session.commit()
+    await db_session.refresh(target_dept)
+    await db_session.refresh(manager)
+
+    events: list[str] = []
+
+    async def capture_lock(db):
+        events.append("lock")
+
+    async def capture_validate(db, manager_id, *, department_id):
+        events.append("validate")
+
+    monkeypatch.setattr(department_endpoint, "acquire_org_chart_lock", capture_lock, raising=False)
+    monkeypatch.setattr(department_endpoint, "validate_department_manager", capture_validate)
+
+    response = await client_cro.patch(
+        f"/api/v1/riskhub/departments/{target_dept.id}",
+        json={"manager_id": manager.id},
+    )
+
+    assert response.status_code == 200
+    assert events == ["lock", "validate"]
+    assert response.json()["manager_id"] == manager.id
 
 
 @pytest.mark.asyncio

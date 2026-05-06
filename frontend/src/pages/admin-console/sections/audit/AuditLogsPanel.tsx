@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { FileDown, RefreshCw } from 'lucide-react';
 
@@ -6,12 +6,15 @@ import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { useTranslation } from '@/i18n/hooks';
 import { cn } from '@/lib/utils';
 import { adminApi } from '@/services/adminApi';
+import { lookupApi } from '@/services/lookupApi';
 
 import { AuditDetailsModal } from './AuditDetailsModal';
 import { AuditLogsTable } from './AuditLogsTable';
 import { exportAuditLogsToCsv, exportAuditLogsToJson } from './auditExport';
 import { getAuditEventTypes } from './auditPresentation';
 import { LogSettingsPanel } from './LogSettingsPanel';
+
+const AUDIT_USER_LOOKUP_CHUNK_SIZE = 200;
 
 export function AuditLogsPanel() {
     const { t, i18n } = useTranslation('admin');
@@ -25,6 +28,30 @@ export function AuditLogsPanel() {
         queryFn: () => adminApi.getAuditLogs({ lines, event_type: eventFilter || undefined }),
         refetchInterval: autoRefresh ? 5000 : false,
     });
+    const logs = useMemo(() => data?.entries || [], [data?.entries]);
+    const auditUserIds = useMemo(
+        () => [...new Set(logs.map((log) => log.user_id).filter((userId): userId is number => userId !== null))]
+            .sort((a, b) => a - b),
+        [logs],
+    );
+    const { data: auditUsers } = useQuery({
+        queryKey: ['adminAuditLogUsers', auditUserIds],
+        queryFn: async () => {
+            const chunks = [];
+            for (let index = 0; index < auditUserIds.length; index += AUDIT_USER_LOOKUP_CHUNK_SIZE) {
+                chunks.push(auditUserIds.slice(index, index + AUDIT_USER_LOOKUP_CHUNK_SIZE));
+            }
+            const batches = await Promise.all(
+                chunks.map((ids) => lookupApi.getUsers({ ids, include_inactive: true })),
+            );
+            return batches.flat();
+        },
+        enabled: auditUserIds.length > 0,
+    });
+    const auditUserNameById = useMemo(
+        () => new Map((auditUsers ?? []).map((user) => [user.id, user.name])),
+        [auditUsers],
+    );
     const { data: capabilities } = useQuery({
         queryKey: ['adminCapabilities'],
         queryFn: () => adminApi.getCapabilities(),
@@ -34,7 +61,6 @@ export function AuditLogsPanel() {
         return <div className="admin-muted text-center py-8">{t('application_logs.loading')}</div>;
     }
 
-    const logs = data?.entries || [];
     const eventTypes = getAuditEventTypes(logs);
     const canExportLoadedAuditLogs = capabilities?.can_export_loaded_audit_logs === true;
     const canUpdateLogConfig = capabilities?.can_update_log_config === true;
@@ -113,6 +139,7 @@ export function AuditLogsPanel() {
             <AuditLogsTable
                 logs={logs}
                 language={i18n.language}
+                resolveUserName={(userId) => auditUserNameById.get(userId)}
                 t={t}
                 onViewDetails={setSelectedLogExtra}
             />

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -33,6 +33,7 @@ async def lookup_users(
     q: str | None = None,
     include_inactive: bool = False,
     department_id: int | None = None,
+    ids: list[int] | None = Query(None),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
     current_user: User = Depends(deps.get_current_user),
@@ -50,6 +51,7 @@ async def lookup_users(
         q: Optional text search (name or email)
         include_inactive: Include inactive users (default False)
         department_id: Optional filter by department (scoped to caller's access)
+        ids: Optional exact user IDs to resolve (scoped to caller's access)
         skip: Number of records to skip (default 0)
         limit: Maximum number of records to return (default 50, max 200)
     """
@@ -59,11 +61,16 @@ async def lookup_users(
 
     # Enforce max lookup size
     limit = min(limit, MAX_LOOKUP_SIZE)
+    if ids is not None and len(ids) > MAX_LOOKUP_SIZE:
+        raise HTTPException(status_code=400, detail="Too many user ids requested")
+    exact_ids = list(dict.fromkeys(ids or []))
 
     query = build_visible_users_query(current_user, department_id=department_id).options(
         selectinload(User.role),
         selectinload(User.department),
     )
+    if exact_ids:
+        query = query.where(User.id.in_(exact_ids))
 
     # Apply active filter
     if not include_inactive:
@@ -75,7 +82,10 @@ async def lookup_users(
         query = query.where(or_(User.name.ilike(search_term), User.email.ilike(search_term)))
 
     # Deterministic ordering for stable paging
-    result = await db.execute(query.order_by(User.id).offset(skip).limit(limit))
+    if exact_ids:
+        result = await db.execute(query.order_by(User.id))
+    else:
+        result = await db.execute(query.order_by(User.id).offset(skip).limit(limit))
     users = result.scalars().all()
 
     return [

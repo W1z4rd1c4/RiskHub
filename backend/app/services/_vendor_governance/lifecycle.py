@@ -3,9 +3,9 @@ from __future__ import annotations
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.activity_logger import build_change_set, log_activity
+from app.core.activity_logger import log_activity
+from app.core.audit import vendor as audit_vendor
 from app.models import User, Vendor
-from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas.vendor import VendorCreate, VendorRead, VendorStatusEnum, VendorUpdate
 
 from .policy import (
@@ -35,20 +35,16 @@ async def create_vendor_detail(
 
     vendor = Vendor(**payload.model_dump())
     db.add(vendor)
-    await db.commit()
-    await db.refresh(vendor)
+    await db.flush()
 
-    await log_activity(
+    await audit_vendor.vendor_created(
         db,
-        entity_type=ActivityEntityType.VENDOR,
-        entity_id=vendor.id,
-        entity_name=vendor.name,
-        action=ActivityAction.CREATE,
         actor=current_user,
-        department_id=vendor.department_id,
-        description=f"Created vendor {vendor.name}",
+        vendor=vendor,
+        log_activity_func=log_activity,
     )
     await db.commit()
+    await db.refresh(vendor)
 
     refreshed = await load_vendor_with_deps(db, vendor.id)
     if not refreshed:
@@ -79,26 +75,21 @@ async def update_vendor_detail(
         return serialize_vendor_detail(vendor, current_user=current_user)
 
     await assert_vendor_governance_update_allowed(db, current_user=current_user, vendor=vendor, updates=updates)
-    changes = build_change_set(vendor, updates)
+    changes = audit_vendor.vendor_update_changes(vendor, updates)
     for field, value in updates.items():
         if hasattr(value, "value"):
             value = value.value
         setattr(vendor, field, value)
 
-    await db.commit()
-    await db.refresh(vendor)
-
-    await log_activity(
+    await audit_vendor.vendor_updated(
         db,
-        entity_type=ActivityEntityType.VENDOR,
-        entity_id=vendor.id,
-        entity_name=vendor.name,
-        action=ActivityAction.UPDATE,
         actor=current_user,
-        department_id=vendor.department_id,
+        vendor=vendor,
         changes=changes,
+        log_activity_func=log_activity,
     )
     await db.commit()
+    await db.refresh(vendor)
 
     refreshed = await load_vendor_with_deps(db, vendor.id)
     if not refreshed:
@@ -113,21 +104,15 @@ async def archive_vendor_detail(
     current_user: User,
 ) -> None:
     vendor = await assert_vendor_archive_allowed(db, vendor_id=vendor_id, current_user=current_user)
-    changes = build_change_set(vendor, {"status": "inactive"})
+    changes = audit_vendor.vendor_archive_changes(vendor)
     vendor.status = "inactive"
-    await db.commit()
-    await db.refresh(vendor)
 
-    await log_activity(
+    await audit_vendor.vendor_archived(
         db,
-        entity_type=ActivityEntityType.VENDOR,
-        entity_id=vendor.id,
-        entity_name=vendor.name,
-        action=ActivityAction.ARCHIVE,
         actor=current_user,
-        department_id=vendor.department_id,
+        vendor=vendor,
         changes=changes,
-        description=f"Archived vendor {vendor.name}",
+        log_activity_func=log_activity,
     )
     await db.commit()
 
@@ -139,20 +124,14 @@ async def restore_vendor_detail(
     current_user: User,
 ) -> VendorRead:
     vendor = await assert_vendor_restore_allowed(db, vendor_id=vendor_id, current_user=current_user)
-    changes = build_change_set(vendor, {"status": VendorStatusEnum.active.value})
+    changes = audit_vendor.vendor_restore_changes(vendor)
     vendor.status = VendorStatusEnum.active.value
-    await log_activity(
+    await audit_vendor.vendor_restored(
         db,
-        entity_type=ActivityEntityType.VENDOR,
-        entity_id=vendor.id,
-        entity_name=vendor.name,
-        safe_description="Restored Vendor",
-        safe_description_siem="Restored Vendor",
-        action=ActivityAction.UPDATE,
         actor=current_user,
-        department_id=vendor.department_id,
+        vendor=vendor,
         changes=changes,
-        description=f"Restored vendor {vendor.name}",
+        log_activity_func=log_activity,
     )
     await db.commit()
     await db.refresh(vendor)

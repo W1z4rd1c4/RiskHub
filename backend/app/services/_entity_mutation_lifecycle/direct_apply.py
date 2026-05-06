@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
 from app.core.activity_logger import build_change_set, log_activity
+from app.core.audit.risk import risk_update_changes, risk_updated
 from app.core.datetime_utils import utc_now
 from app.models import Control, KeyRiskIndicator, Risk, User, VendorKRILink
 from app.models.activity_log import ActivityAction, ActivityEntityType
@@ -89,7 +90,7 @@ async def apply_risk_update_directly(
     current_user: User,
 ) -> EntityMutationOutcome:
     extra_changes = risk_score_change_set(risk, update_data)
-    changes = build_change_set(risk, update_data, extra_changes=extra_changes)
+    changes = risk_update_changes(risk, update_data, extra_changes=extra_changes)
 
     for field, value in update_data.items():
         if hasattr(value, "value"):
@@ -99,16 +100,12 @@ async def apply_risk_update_directly(
     risk.gross_score = risk.gross_probability * risk.gross_impact
     risk.net_score = risk.net_probability * risk.net_impact
 
-    await log_activity(
+    await risk_updated(
         db,
-        entity_type=ActivityEntityType.RISK,
-        entity_id=risk.id,
-        entity_name=f"{risk.risk_id_code}: {risk.description[:50]}",
-        safe_entity_label=risk.risk_id_code,
-        action=ActivityAction.UPDATE,
         actor=current_user,
-        department_id=risk.department_id,
         changes=changes,
+        risk=risk,
+        log_activity_func=log_activity,
     )
     await db.commit()
     await db.refresh(risk)

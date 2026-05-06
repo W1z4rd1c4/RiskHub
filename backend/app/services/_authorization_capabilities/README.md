@@ -11,6 +11,8 @@ Resource-specific backend capability builders used by the public authorization c
 - `controls.py` - control capabilities.
 - `issues.py` - issue capabilities.
 - `kris.py` - KRI capabilities.
+- `perimeter.py` - service-layer capability enforcement helpers.
+- `riskhub_config.py` - RiskHub configuration section capabilities.
 - `risks.py` - risk capabilities.
 - `vendors.py` - vendor capabilities.
 

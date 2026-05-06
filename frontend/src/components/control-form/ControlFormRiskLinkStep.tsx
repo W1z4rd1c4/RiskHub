@@ -1,7 +1,8 @@
 import { Search, Target, X } from 'lucide-react';
 
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
-import type { ControlEffectiveness, RiskSummary } from '@/types/risk';
+import type { ControlEffectiveness } from '@/types/risk';
+import { useControlRiskLinkStep } from './controlRiskLinkStepContext';
 
 type TranslateFn = (
   key: string,
@@ -11,51 +12,34 @@ type TranslateFn = (
 
 interface ControlFormRiskLinkStepProps {
   t: TranslateFn;
-  selectedRisk?: RiskSummary;
-  setSelectedRiskId: (value: number | undefined) => void;
-  riskEffectiveness: ControlEffectiveness;
-  setRiskEffectiveness: (value: ControlEffectiveness) => void;
-  linkNotes: string;
-  setLinkNotes: (value: string) => void;
-  selectedDept: string;
-  setSelectedDept: (value: string) => void;
-  selectedProcess: string;
-  setSelectedProcess: (value: string) => void;
-  selectedCategory: string;
-  setSelectedCategory: (value: string) => void;
-  uniqueDepartments: string[];
-  uniqueProcesses: string[];
-  uniqueCategories: string[];
-  riskSearch: string;
-  setRiskSearch: (value: string) => void;
-  isLoadingRisks: boolean;
-  risks: RiskSummary[];
-  filteredRisks: RiskSummary[];
 }
 
 export function ControlFormRiskLinkStep({
   t,
-  selectedRisk,
-  setSelectedRiskId,
-  riskEffectiveness,
-  setRiskEffectiveness,
-  linkNotes,
-  setLinkNotes,
-  selectedDept,
-  setSelectedDept,
-  selectedProcess,
-  setSelectedProcess,
-  selectedCategory,
-  setSelectedCategory,
-  uniqueDepartments,
-  uniqueProcesses,
-  uniqueCategories,
-  riskSearch,
-  setRiskSearch,
-  isLoadingRisks,
-  risks,
-  filteredRisks,
 }: ControlFormRiskLinkStepProps) {
+  const {
+    selectedRisk,
+    setSelectedRiskId,
+    riskEffectiveness,
+    setRiskEffectiveness,
+    linkNotes,
+    setLinkNotes,
+    selectedDept,
+    setSelectedDept,
+    selectedProcess,
+    setSelectedProcess,
+    selectedCategory,
+    setSelectedCategory,
+    uniqueDepartments,
+    uniqueProcesses,
+    uniqueCategories,
+    riskSearch,
+    setRiskSearch,
+    isLoadingRisks,
+    risks,
+    filteredRisks,
+  } = useControlRiskLinkStep();
+
   return (
     <div>
       <h3 className="text-[10px] font-black text-white uppercase tracking-widest mb-4 flex items-center gap-2">

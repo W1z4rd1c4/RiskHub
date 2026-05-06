@@ -475,14 +475,7 @@ class TestOverdueKris:
         """Test overdue detection uses latest closed calendar period."""
         import app.services._kri_history.clock as kri_history_clock
 
-        fixed_today = date(2025, 2, 20)
-
-        class FixedDate(date):
-            @classmethod
-            def today(cls):
-                return fixed_today
-
-        monkeypatch.setattr(kri_history_clock, "date", FixedDate)
+        monkeypatch.setattr(kri_history_clock, "utc_now", lambda: datetime(2025, 2, 20, 12, tzinfo=UTC))
 
         kri = KeyRiskIndicator(
             risk_id=test_risk.id,

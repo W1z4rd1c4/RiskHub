@@ -6,6 +6,7 @@ from sqlalchemy import Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.datetime_utils import UtcAwareDatetime, coerce_utc
 from app.core.permissions import control_visibility_clause, visible_risk_ids
 from app.core.security import require_permission
 from app.db.session import get_db
@@ -33,6 +34,9 @@ def _audit_trail_query(
     from_date: Optional[datetime],
     to_date: Optional[datetime],
 ) -> Select:
+    from_date = coerce_utc(from_date)
+    to_date = coerce_utc(to_date)
+
     query = (
         select(ControlExecution)
         .join(Control, ControlExecution.control_id == Control.id)
@@ -141,8 +145,8 @@ async def download_audit_trail_export(
     department_id: Optional[int] = Query(None, description="Filter by department"),
     result: Optional[ExecutionResultEnum] = Query(None, description="Filter by result"),
     control_id: Optional[int] = Query(None, description="Filter by control"),
-    from_date: Optional[datetime] = Query(None, description="Filter from date"),
-    to_date: Optional[datetime] = Query(None, description="Filter to date"),
+    from_date: UtcAwareDatetime | None = Query(None, description="Filter from date"),
+    to_date: UtcAwareDatetime | None = Query(None, description="Filter to date"),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_permission("reports", "read")),
 ):

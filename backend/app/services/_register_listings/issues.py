@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import Enum
 from typing import Any
 
 from fastapi import HTTPException
@@ -29,6 +28,13 @@ from app.models import (
 )
 from app.models.issue import IssueSeverity, IssueStatus
 from app.services._collection_contracts import CollectionQuery, build_grouped_collection_page
+from app.services._collection_filters import (
+    coerce_optional_bool,
+    coerce_optional_enum,
+    coerce_optional_int,
+    coerce_optional_literal,
+    coerce_optional_string,
+)
 from app.services._issue_register import (
     ISSUE_SQL_GROUPS,
     issue_group_entries,
@@ -53,69 +59,6 @@ class IssueListingCriteria:
     capability_loader: Any = issue_capabilities
 
 
-def _coerce_optional_enum(enum_cls: type[Enum], value: Any, field_name: str):
-    if value is None or value == "":
-        return None
-    if isinstance(value, enum_cls):
-        return value
-    try:
-        return enum_cls(value)
-    except (TypeError, ValueError) as exc:
-        raise _invalid_filter(field_name) from exc
-
-
-def _invalid_filter(field_name: str) -> HTTPException:
-    return HTTPException(status_code=422, detail=f"Invalid {field_name} filter value")
-
-
-def _coerce_optional_int(field_name: str, value: Any) -> int | None:
-    if value is None or value == "":
-        return None
-    if isinstance(value, bool):
-        raise _invalid_filter(field_name)
-    if isinstance(value, int):
-        return value
-    if isinstance(value, str):
-        raw_value = value.strip()
-        if raw_value and raw_value.lstrip("-").isdigit():
-            return int(raw_value)
-    raise _invalid_filter(field_name)
-
-
-def _coerce_optional_bool(field_name: str, value: Any) -> bool | None:
-    if value is None or value == "":
-        return None
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, int):
-        if value == 0:
-            return False
-        if value == 1:
-            return True
-        raise _invalid_filter(field_name)
-    if isinstance(value, str):
-        normalized = value.strip().lower()
-        if normalized in {"true", "1", "yes", "on"}:
-            return True
-        if normalized in {"false", "0", "no", "off"}:
-            return False
-    raise _invalid_filter(field_name)
-
-
-def _coerce_optional_string(field_name: str, value: Any) -> str | None:
-    if value is None or isinstance(value, str):
-        return value or None
-    raise _invalid_filter(field_name)
-
-
-def _coerce_optional_literal(field_name: str, value: Any, allowed_values: set[str]) -> str | None:
-    if value is None or value == "":
-        return None
-    if isinstance(value, str) and value in allowed_values:
-        return value
-    raise _invalid_filter(field_name)
-
-
 async def plan_issue_listing(
     *,
     db: AsyncSession,
@@ -124,22 +67,22 @@ async def plan_issue_listing(
 ) -> RegisterListingPlan:
     collection_query = criteria.query
     filter_values = criteria.filters
-    status = _coerce_optional_enum(IssueStatus, filter_values.get("status"), "status")
-    severity = _coerce_optional_enum(IssueSeverity, filter_values.get("severity"), "severity")
-    severity_group_filter = _coerce_optional_literal(
+    status = coerce_optional_enum(IssueStatus, filter_values.get("status"), "status")
+    severity = coerce_optional_enum(IssueSeverity, filter_values.get("severity"), "severity")
+    severity_group_filter = coerce_optional_literal(
         "severity_group", filter_values.get("severity_group"), {"high_critical"}
     )
-    owner_user_id = _coerce_optional_int("owner_user_id", filter_values.get("owner_user_id"))
-    department_id = _coerce_optional_int("department_id", filter_values.get("department_id"))
-    overdue = _coerce_optional_bool("overdue", filter_values.get("overdue"))
+    owner_user_id = coerce_optional_int("owner_user_id", filter_values.get("owner_user_id"))
+    department_id = coerce_optional_int("department_id", filter_values.get("department_id"))
+    overdue = coerce_optional_bool("overdue", filter_values.get("overdue"))
     exclude_active_exceptions_filter = (
-        _coerce_optional_bool("exclude_active_exceptions", filter_values.get("exclude_active_exceptions")) or False
+        coerce_optional_bool("exclude_active_exceptions", filter_values.get("exclude_active_exceptions")) or False
     )
-    linked_risk_id = _coerce_optional_int("linked_risk_id", filter_values.get("linked_risk_id"))
-    linked_control_id = _coerce_optional_int("linked_control_id", filter_values.get("linked_control_id"))
-    linked_vendor_id = _coerce_optional_int("linked_vendor_id", filter_values.get("linked_vendor_id"))
-    search = _coerce_optional_string("search", filter_values.get("search"))
-    include_closed_filter = _coerce_optional_bool("include_closed", filter_values.get("include_closed"))
+    linked_risk_id = coerce_optional_int("linked_risk_id", filter_values.get("linked_risk_id"))
+    linked_control_id = coerce_optional_int("linked_control_id", filter_values.get("linked_control_id"))
+    linked_vendor_id = coerce_optional_int("linked_vendor_id", filter_values.get("linked_vendor_id"))
+    search = coerce_optional_string("search", filter_values.get("search"))
+    include_closed_filter = coerce_optional_bool("include_closed", filter_values.get("include_closed"))
     include_closed = True if include_closed_filter is None else include_closed_filter
     sort_by = collection_query.sort.field if collection_query.sort else criteria.sort_by
     sort_order = collection_query.sort.direction if collection_query.sort else criteria.sort_order

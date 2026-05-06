@@ -1,7 +1,10 @@
+import asyncio
+
 import pytest
 import pytest_asyncio
+from fastapi import HTTPException
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from app.api import deps
 from app.core import security
@@ -10,6 +13,8 @@ from app.core.security import verify_password
 from app.db.session import get_db
 from app.main import app
 from app.models import Department, Role, User
+from app.schemas import UserUpdate
+from app.services._identity_access_lifecycle.profile_updates import update_user_profile
 
 
 @pytest_asyncio.fixture
@@ -286,6 +291,120 @@ async def test_update_user_ignores_entra_business_role_payload(
 
 
 @pytest.mark.asyncio
+async def test_update_user_rejects_manager_cycle(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: User,
+    test_user_employee: User,
+):
+    test_user_employee.manager_id = test_user.id
+    db_session.add(test_user_employee)
+    await db_session.commit()
+
+    response = await auth_client.patch(
+        f"/api/v1/users/{test_user.id}",
+        json={"manager_id": test_user_employee.id},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "User manager hierarchy cannot contain a cycle"
+
+
+@pytest.mark.asyncio
+async def test_update_user_rejects_self_manager_cycle(
+    auth_client: AsyncClient,
+    test_user: User,
+):
+    response = await auth_client.patch(
+        f"/api/v1/users/{test_user.id}",
+        json={"manager_id": test_user.id},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "User manager hierarchy cannot contain a cycle"
+
+
+@pytest.mark.postgres
+@pytest.mark.asyncio
+async def test_postgres_concurrent_manager_updates_cannot_create_two_user_cycle(
+    async_engine: AsyncEngine,
+    db_session: AsyncSession,
+    test_user: User,
+    test_user_employee: User,
+):
+    if async_engine.dialect.name != "postgresql":
+        pytest.skip("Postgres advisory-lock behavior only applies under PostgreSQL")
+
+    peer = User(
+        email="org-cycle-peer@example.com",
+        hashed_password="hash",
+        name="Org Cycle Peer",
+        role_id=test_user_employee.role_id,
+        department_id=test_user_employee.department_id,
+        is_active=True,
+    )
+    db_session.add(peer)
+    await db_session.commit()
+    await db_session.refresh(peer)
+
+    session_maker = async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
+    settings = Settings(mock_auth_enabled=True, debug=True)
+
+    async def assign_manager(user_id: int, manager_id: int) -> str:
+        async with session_maker() as session:
+            actor = await session.get(User, test_user.id)
+            try:
+                await update_user_profile(
+                    db=session,
+                    settings=settings,
+                    current_user=actor,
+                    user_id=user_id,
+                    user_data=UserUpdate(manager_id=manager_id),
+                )
+            except HTTPException as exc:
+                await session.rollback()
+                return str(exc.detail)
+            return "ok"
+
+    results = await asyncio.gather(
+        assign_manager(test_user_employee.id, peer.id),
+        assign_manager(peer.id, test_user_employee.id),
+    )
+
+    assert results.count("ok") == 1
+    assert "User manager hierarchy cannot contain a cycle" in results
+
+    async with session_maker() as session:
+        first = await session.get(User, test_user_employee.id)
+        second = await session.get(User, peer.id)
+        assert not (first.manager_id == second.id and second.manager_id == first.id)
+
+
+@pytest.mark.asyncio
+async def test_update_user_rejects_department_change_when_user_manages_current_department(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user_employee: User,
+):
+    source_dept = Department(name="Managed Source", code="MANAGED_SRC", is_active=True)
+    target_dept = Department(name="Transfer Target", code="TRANSFER_TGT", is_active=True)
+    db_session.add_all([source_dept, target_dept])
+    await db_session.flush()
+    test_user_employee.department_id = source_dept.id
+    source_dept.manager_id = test_user_employee.id
+    await db_session.commit()
+    await db_session.refresh(target_dept)
+
+    response = await auth_client.patch(
+        f"/api/v1/users/{test_user_employee.id}",
+        json={"department_id": target_dept.id},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Clear the department manager before moving this user"
+
+
+@pytest.mark.asyncio
 async def test_update_user_requires_platform_admin(
     client_cro: AsyncClient,
     test_user_employee: User,
@@ -329,6 +448,28 @@ async def test_create_user_requires_platform_admin(client_cro: AsyncClient, test
     )
     assert response.status_code == 403
     assert response.json()["detail"] == "Only Admin can manage user lifecycle"
+
+
+@pytest.mark.asyncio
+async def test_create_user_with_manager_keeps_valid_manager_chain(
+    client_platform_admin: AsyncClient,
+    test_user_employee: User,
+):
+    response = await client_platform_admin.post(
+        "/api/v1/users",
+        json={
+            "email": "managed.new.user@example.com",
+            "name": "Managed New User",
+            "password": "StrongPass123!",
+            "role_id": test_user_employee.role_id,
+            "department_id": test_user_employee.department_id,
+            "manager_id": test_user_employee.id,
+            "is_active": True,
+        },
+    )
+
+    assert response.status_code == 201
+    assert response.json()["manager_id"] == test_user_employee.id
 
 
 @pytest.mark.asyncio
@@ -432,6 +573,57 @@ async def test_update_user_rejects_deactivating_last_privileged_user(auth_client
 
 
 @pytest.mark.asyncio
+async def test_update_user_deactivation_clears_org_manager_references(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user_employee: User,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    from app.services._identity_access_lifecycle import profile_updates
+
+    call_order: list[str] = []
+    original_clear = profile_updates.clear_manager_references_for_inactive_user
+
+    async def capture_lock(db: AsyncSession) -> None:
+        call_order.append("lock")
+
+    async def capture_clear(db: AsyncSession, *, user_id: int) -> None:
+        call_order.append("clear")
+        await original_clear(db, user_id=user_id)
+
+    monkeypatch.setattr(profile_updates, "acquire_org_chart_lock", capture_lock)
+    monkeypatch.setattr(profile_updates, "clear_manager_references_for_inactive_user", capture_clear)
+
+    managed_dept = Department(name="Managed Deactivation", code="MANAGED_DEACT", is_active=True)
+    db_session.add(managed_dept)
+    await db_session.flush()
+    test_user_employee.department_id = managed_dept.id
+    managed_dept.manager_id = test_user_employee.id
+    subordinate = User(
+        email="deactivation-subordinate@example.com",
+        hashed_password="hash",
+        name="Deactivation Subordinate",
+        role_id=test_user_employee.role_id,
+        department_id=managed_dept.id,
+        manager_id=test_user_employee.id,
+        is_active=True,
+    )
+    db_session.add(subordinate)
+    await db_session.commit()
+    await db_session.refresh(managed_dept)
+    await db_session.refresh(subordinate)
+
+    response = await auth_client.patch(f"/api/v1/users/{test_user_employee.id}", json={"is_active": False})
+
+    assert response.status_code == 200
+    assert call_order == ["lock", "clear"]
+    await db_session.refresh(managed_dept)
+    await db_session.refresh(subordinate)
+    assert managed_dept.manager_id is None
+    assert subordinate.manager_id is None
+
+
+@pytest.mark.asyncio
 async def test_list_roles(client_platform_admin: AsyncClient):
     """Test listing roles for admin-only lifecycle flows."""
     response = await client_platform_admin.get("/api/v1/users/roles")
@@ -527,6 +719,87 @@ async def test_lookup_paging_determinism(auth_client: AsyncClient, db_session: A
 
     # No overlap between pages
     assert ids1.isdisjoint(ids2), "Paging should be deterministic with no overlap"
+
+
+@pytest.mark.asyncio
+async def test_lookup_users_by_ids_resolves_beyond_default_page(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    test_role,
+):
+    """Exact-ID lookup must not be limited to the first default lookup page."""
+    from app.models import Department
+
+    dept = Department(name="Exact Lookup Dept", code="EXACT-LOOKUP")
+    db_session.add(dept)
+    await db_session.commit()
+    await db_session.refresh(dept)
+
+    users = []
+    for i in range(55):
+        user = User(
+            name=f"Exact Lookup User {i:02d}",
+            email=f"exact-lookup-user-{i:02d}@example.com",
+            role_id=test_role.id,
+            department_id=dept.id,
+            is_active=True,
+        )
+        db_session.add(user)
+        users.append(user)
+    await db_session.commit()
+    target = users[-1]
+    await db_session.refresh(target)
+
+    response = await auth_client.get(f"/api/v1/users/lookup?ids={target.id}")
+
+    assert response.status_code == 200
+    assert [user["id"] for user in response.json()] == [target.id]
+
+
+@pytest.mark.asyncio
+async def test_lookup_users_by_ids_can_include_inactive_historical_actor(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    test_role,
+):
+    """Audit actor resolution can explicitly include inactive historical users."""
+    from app.models import Department
+
+    dept = Department(name="Inactive Lookup Dept", code="INACTIVE-LOOKUP")
+    db_session.add(dept)
+    await db_session.commit()
+    await db_session.refresh(dept)
+
+    inactive_user = User(
+        name="Inactive Audit Actor",
+        email="inactive-audit-actor@example.com",
+        role_id=test_role.id,
+        department_id=dept.id,
+        is_active=False,
+    )
+    db_session.add(inactive_user)
+    await db_session.commit()
+    await db_session.refresh(inactive_user)
+
+    hidden_response = await auth_client.get(f"/api/v1/users/lookup?ids={inactive_user.id}")
+    visible_response = await auth_client.get(
+        f"/api/v1/users/lookup?ids={inactive_user.id}&include_inactive=true"
+    )
+
+    assert hidden_response.status_code == 200
+    assert hidden_response.json() == []
+    assert visible_response.status_code == 200
+    assert [user["id"] for user in visible_response.json()] == [inactive_user.id]
+
+
+@pytest.mark.asyncio
+async def test_lookup_users_by_ids_rejects_oversized_id_lists(auth_client: AsyncClient):
+    query = "&".join(f"ids={i}" for i in range(1, 202))
+
+    response = await auth_client.get(f"/api/v1/users/lookup?{query}")
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Too many user ids requested"
 
 
 @pytest.mark.asyncio

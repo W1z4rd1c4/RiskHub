@@ -6,11 +6,14 @@ import asyncio
 
 import pytest
 import pytest_asyncio
-from httpx import AsyncClient
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.core.config import Settings, get_settings
 from app.core.datetime_utils import utc_now
+from app.db.session import get_db
+from app.main import app
 from app.models import Control, ControlRiskLink, Department, KeyRiskIndicator, Risk, RiskQuestionnaire, User
 from app.models.risk import RiskStatus
 from app.models.risk_questionnaire import RiskQuestionnaireStatus
@@ -603,17 +606,43 @@ async def test_open_questionnaire_forbidden_for_ineligible_user(
 @pytest.mark.postgres
 @pytest.mark.asyncio
 async def test_concurrent_send_creates_single_open_questionnaire(
+    async_engine,
     db_session: AsyncSession,
-    client_cro: AsyncClient,
+    test_user_cro: User,
     risk_owned_by_employee: Risk,
 ):
     if db_session.bind is None or db_session.bind.dialect.name != "postgresql":
         pytest.skip("Requires PostgreSQL row locks and partial unique indexes")
 
-    responses = await asyncio.gather(
-        client_cro.post(f"/api/v1/risks/{risk_owned_by_employee.id}/questionnaires/send"),
-        client_cro.post(f"/api/v1/risks/{risk_owned_by_employee.id}/questionnaires/send"),
-    )
+    session_maker = async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
+
+    def override_settings():
+        return Settings(mock_auth_enabled=True, debug=True)
+
+    async def override_get_db():
+        async with session_maker() as session:
+            try:
+                yield session
+            except Exception:
+                await session.rollback()
+                raise
+
+    previous_overrides = dict(app.dependency_overrides)
+    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_settings] = override_settings
+
+    try:
+        transport = ASGITransport(app=app)
+        headers = {"X-Mock-User-Id": str(test_user_cro.id)}
+        async with AsyncClient(transport=transport, base_url="http://test", headers=headers) as client_cro:
+            responses = await asyncio.gather(
+                client_cro.post(f"/api/v1/risks/{risk_owned_by_employee.id}/questionnaires/send"),
+                client_cro.post(f"/api/v1/risks/{risk_owned_by_employee.id}/questionnaires/send"),
+            )
+    finally:
+        app.dependency_overrides.clear()
+        app.dependency_overrides.update(previous_overrides)
+
     statuses = sorted(resp.status_code for resp in responses)
     assert statuses == [201, 409]
 

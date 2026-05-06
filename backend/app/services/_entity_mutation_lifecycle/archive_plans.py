@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from app.core.activity_logger import log_activity
+from app.core.audit.risk import risk_archived
 from app.core.approval_helpers import (
     build_approval_queued_response,
     create_approval_request_with_audit,
@@ -16,7 +17,6 @@ from app.core.approval_helpers import (
 )
 from app.core.datetime_utils import utc_now
 from app.core.permissions import can_resolve_approvals, check_department_access
-from app.core.security import check_permission
 from app.models import (
     ApprovalActionType,
     ApprovalRequest,
@@ -30,8 +30,9 @@ from app.models import (
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas.control import ControlStatusEnum
 from app.schemas.risk import RiskStatusEnum
+from app.services._authorization_capabilities import require_capability
 from app.services._entity_mutation_lifecycle.contracts import EntityMutationOutcome
-from app.services._entity_mutation_lifecycle.policy import raise_missing_permission, assert_no_existing_pending_delete_request
+from app.services._entity_mutation_lifecycle.policy import assert_no_existing_pending_delete_request
 from app.services.approval_scenario_policy import apply_approval_scenario_snapshot, load_approval_scenario_policy
 
 
@@ -41,8 +42,7 @@ async def assert_can_request_delete_risk(
     risk_id: int,
     current_user: User,
 ) -> Risk:
-    if not check_permission(current_user, "risks", "delete"):
-        raise_missing_permission("risks", "delete")
+    require_capability(current_user, "risks", "delete")
 
     risk = (await db.execute(select(Risk).where(Risk.id == risk_id))).scalar_one_or_none()
     if risk is None:
@@ -60,8 +60,7 @@ async def assert_can_request_delete_control(
     control_id: int,
     current_user: User,
 ) -> Control:
-    if not check_permission(current_user, "controls", "delete"):
-        raise_missing_permission("controls", "delete")
+    require_capability(current_user, "controls", "delete")
 
     control = (await db.execute(select(Control).where(Control.id == control_id))).scalar_one_or_none()
     if control is None:
@@ -77,8 +76,7 @@ async def assert_can_request_delete_kri(
     kri_id: int,
     current_user: User,
 ) -> KeyRiskIndicator:
-    if not check_permission(current_user, "risks", "delete"):
-        raise_missing_permission("risks", "delete")
+    require_capability(current_user, "risks", "delete")
 
     kri = (
         await db.execute(
@@ -112,15 +110,11 @@ async def archive_risk_detail(
 
     if can_resolve_approvals(current_user) or not scenario_policy.requires_approval:
         risk.status = RiskStatusEnum.archived.value
-        await log_activity(
+        await risk_archived(
             db,
-            entity_type=ActivityEntityType.RISK,
-            entity_id=risk.id,
-            entity_name=f"{risk.risk_id_code}",
-            safe_entity_label=risk.risk_id_code,
-            action=ActivityAction.ARCHIVE,
             actor=current_user,
-            department_id=risk.department_id,
+            risk=risk,
+            log_activity_func=log_activity,
         )
         await db.commit()
         return EntityMutationOutcome(kind="applied", response=Response(status_code=status.HTTP_204_NO_CONTENT))
@@ -289,6 +283,7 @@ async def archive_kri_detail(
         resource_name=name_snippet or "Unknown KRI",
         requested_by_id=current_user.id,
         reason=reason,
+        action_type=ApprovalActionType.DELETE,
         status=ApprovalStatus.PENDING,
         primary_approver_id=primary_approver_id,
     )

@@ -3,14 +3,18 @@ Tests for audit trail report endpoints.
 """
 
 import csv
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from io import StringIO
 
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
+from sqlalchemy.sql import visitors
+from sqlalchemy.sql.elements import BindParameter
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.v1.endpoints.reports._export_context import ReportExportContext
+from app.api.v1.endpoints.reports.audit_trail_excel import _audit_trail_query
 from app.models import Department
 from app.models.control import Control
 from app.models.control_execution import ControlExecution
@@ -102,6 +106,54 @@ async def test_audit_trail_filter_by_result(
     response_passed = await auth_client.get("/api/v1/reports/audit-trail/export?format=csv&result=passed")
     assert response_passed.status_code == 200
     assert "text/csv" in response_passed.headers["content-type"]
+
+
+@pytest.mark.asyncio
+async def test_audit_trail_export_accepts_naive_datetime_query_strings(
+    auth_client: AsyncClient,
+    audit_trail_test_data: dict,
+):
+    from_date = (datetime.now(UTC) - timedelta(days=1)).replace(tzinfo=None).isoformat(timespec="seconds")
+    to_date = (datetime.now(UTC) + timedelta(days=1)).replace(tzinfo=None).isoformat(timespec="seconds")
+
+    response = await auth_client.get(
+        f"/api/v1/reports/audit-trail/export?format=csv&from_date={from_date}&to_date={to_date}"
+    )
+
+    assert response.status_code == 200
+    payload = response.content.decode("utf-8")
+    assert "All checks passed successfully" in payload
+    assert "Critical issue found in the control" not in payload
+
+
+def test_audit_trail_query_coerces_naive_datetime_filters_to_utc(test_user):
+    context = ReportExportContext(
+        current_user=test_user,
+        department_id=None,
+        department_ids=None,
+        export_date=date(2026, 5, 1),
+    )
+
+    query = _audit_trail_query(
+        context,
+        result_filter=None,
+        control_id=None,
+        from_date=datetime(2026, 5, 1, 9, 0),
+        to_date=datetime(2026, 5, 1, 17, 0),
+    )
+
+    datetime_bind_values: list[datetime] = []
+
+    def collect_datetime_bind(bind: BindParameter) -> None:
+        if isinstance(bind.value, datetime):
+            datetime_bind_values.append(bind.value)
+
+    visitors.traverse(query, {}, {"bindparam": collect_datetime_bind})
+
+    assert datetime_bind_values == [
+        datetime(2026, 5, 1, 9, 0, tzinfo=UTC),
+        datetime(2026, 5, 1, 17, 0, tzinfo=UTC),
+    ]
 
 
 @pytest.mark.asyncio

@@ -967,8 +967,18 @@ def test_kri_history_uses_service_owned_intake_and_projection() -> None:
 
 def test_kri_history_direct_application_and_routes_do_not_use_private_wrappers() -> None:
     direct_path = "backend/app/services/_kri_history/direct_application.py"
+    value_application_path = "backend/app/services/_kri_history/value_application.py"
     assert not _has_varargs_forwarder(direct_path)
     assert "_apply_kri_value_directly" not in _source(direct_path)
+    assert "_apply_kri_value_directly" not in _source(value_application_path)
+    assert "_run_best_effort_notification" not in _source(value_application_path)
+
+
+def test_risk_restore_passes_display_name_before_activity_redaction() -> None:
+    restore_source = _function_body_source("backend/app/api/v1/endpoints/risks/crud/restore.py", "restore_risk")
+
+    assert "entity_name=risk_display_name(risk)" in restore_source
+    assert "safe_entity_label=risk.risk_id_code" in restore_source
 
     route_sources = "\n".join(
         _source(path)

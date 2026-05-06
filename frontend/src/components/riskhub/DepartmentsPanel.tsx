@@ -39,10 +39,13 @@ function DepartmentModal({ isOpen, onClose, department, onSave }: DepartmentModa
 
     // Fetch users for manager selection
     const { data: users } = useQuery({
-        queryKey: ['users', 'access'],
-        queryFn: () => accessApi.listAccessUsers(),
-        enabled: isOpen,
+        queryKey: ['users', 'access', 'department-managers', department?.id],
+        queryFn: () => accessApi.listAccessUsers({ department_id: department!.id }),
+        enabled: isOpen && Boolean(department?.id),
     });
+    const managerOptions = (users ?? [])
+        .filter((user) => user.is_active && user.department_id === department?.id)
+        .map((user) => ({ value: user.id.toString(), label: `${user.name} (${user.email})` }));
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -61,7 +64,6 @@ function DepartmentModal({ isOpen, onClose, department, onSave }: DepartmentModa
                 await onSave({
                     name,
                     code: code || undefined,
-                    manager_id: managerId
                 });
             }
             onClose();
@@ -101,18 +103,20 @@ function DepartmentModal({ isOpen, onClose, department, onSave }: DepartmentModa
                         <p className="text-xs text-slate-500 mt-1">{t('admin:departments_panel.modal.hints.code')}</p>
                     </div>
 
-                    <div>
-                        <label className="block text-sm font-medium text-slate-300 mb-1">{t('common:labels.owner')}</label>
-                        <ThemedSelect
-                            value={managerId?.toString() ?? ''}
-                            onValueChange={(v) => setManagerId(v ? Number(v) : undefined)}
-                            placeholder={t('admin:departments_panel.modal.placeholders.no_manager')}
-                            allowEmpty
-                            emptyLabel={t('admin:departments_panel.modal.placeholders.no_manager')}
-                            className="w-full"
-                            options={users?.map(user => ({ value: user.id.toString(), label: `${user.name} (${user.email})` })) ?? []}
-                        />
-                    </div>
+                    {department && (
+                        <div>
+                            <label className="block text-sm font-medium text-slate-300 mb-1">{t('common:labels.owner')}</label>
+                            <ThemedSelect
+                                value={managerId?.toString() ?? ''}
+                                onValueChange={(v) => setManagerId(v ? Number(v) : undefined)}
+                                placeholder={t('admin:departments_panel.modal.placeholders.no_manager')}
+                                allowEmpty
+                                emptyLabel={t('admin:departments_panel.modal.placeholders.no_manager')}
+                                className="w-full"
+                                options={managerOptions}
+                            />
+                        </div>
+                    )}
 
                     <RiskHubFieldError errorKey={errorKey} />
                     <RiskHubModalActions

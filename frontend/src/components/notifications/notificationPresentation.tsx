@@ -93,7 +93,7 @@ function toneClassName(tone: NotificationTone): string {
             return 'text-rose-500';
         case 'sky':
             return 'text-sky-400';
-        default:
+        case 'slate':
             return 'text-slate-400';
     }
 }
@@ -117,7 +117,7 @@ export function NotificationPresentationIcon({
             return <CheckCircle className={className} />;
         case 'clock':
             return <Clock className={className} />;
-        default:
+        case 'bell':
             return <Bell className={className} />;
     }
 }

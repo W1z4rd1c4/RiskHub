@@ -16,10 +16,19 @@ export interface UserLookupItem {
     manager_id?: number | null;
 }
 
+export interface UserLookupParams {
+    department_id?: number;
+    ids?: number[];
+    include_inactive?: boolean;
+    limit?: number;
+    q?: string;
+    skip?: number;
+}
+
 export const lookupApi = {
-    async getUsers(): Promise<UserLookupItem[]> {
+    async getUsers(params?: UserLookupParams): Promise<UserLookupItem[]> {
         // Use scoped lookup endpoint - works for all authenticated users
-        return apiClient.get('/users/lookup', { schema: userLookupArraySchema });
+        return apiClient.get('/users/lookup', { params, schema: userLookupArraySchema });
     },
 
     async getDepartments(): Promise<DepartmentSummary[]> {

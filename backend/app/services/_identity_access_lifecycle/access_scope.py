@@ -16,6 +16,11 @@ from app.services._access_workflow import (
     authorize_access_update_fields,
     is_platform_admin,
 )
+from app.services._org_chart import (
+    acquire_org_chart_lock,
+    validate_dept_manager_dept_change,
+    validate_no_manager_cycle,
+)
 
 from .execution import log_user_update_and_commit
 from .policy import (
@@ -96,6 +101,13 @@ async def update_access_profile(
                 detail="Cannot remove the last admin/CRO from privileged access",
                 require_active=False,
             )
+
+    if "manager_id" in update_data and update_data["manager_id"] != user.manager_id:
+        await acquire_org_chart_lock(db)
+        await validate_no_manager_cycle(db, user_id=user.id, new_manager_id=update_data["manager_id"])
+    if "department_id" in update_data and update_data["department_id"] != user.department_id:
+        await acquire_org_chart_lock(db)
+        await validate_dept_manager_dept_change(db, user=user, new_department_id=update_data["department_id"])
 
     changes = build_change_set(user, update_data)
     for field, value in update_data.items():

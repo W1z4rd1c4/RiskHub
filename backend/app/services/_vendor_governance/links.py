@@ -8,8 +8,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.permissions import can_read_vendor, is_vendor_owner
-from app.core.security import check_permission
 from app.models import User, Vendor, VendorControlLink, VendorKRILink, VendorRiskLink
+from app.services._authorization_capabilities import has_capability, require_capability
 from app.services._monitoring_response import (
     load_monitoring_response_context,
     serialize_control_brief_for_link,
@@ -49,24 +49,20 @@ async def require_vendor_access(
     require_write: bool = False,
 ) -> Vendor:
     """Check vendor read access, optional vendor write access, and entity read access."""
-    if not check_permission(current_user, "vendors", "read"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: vendors:read")
-    if not check_permission(current_user, entity_permission, "read"):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail=f"Permission denied: {entity_permission}:read"
-        )
+    require_capability(current_user, "vendors", "read")
+    require_capability(current_user, entity_permission, "read")
 
     vendor = await get_vendor(db, vendor_id)
     if not vendor or not can_read_vendor(vendor, current_user):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
 
-    if require_write and vendor.status != "active":
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Cannot mutate links for inactive vendor")
-
     if require_write and not (
-        check_permission(current_user, "vendors", "write") or is_vendor_owner(vendor, current_user)
+        has_capability(current_user, "vendors", "write") or is_vendor_owner(vendor, current_user)
     ):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: vendors:write")
+
+    if require_write and vendor.status != "active":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Cannot mutate links for inactive vendor")
 
     return vendor
 

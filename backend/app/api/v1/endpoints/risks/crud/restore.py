@@ -5,6 +5,7 @@ from sqlalchemy.orm import selectinload
 
 from app.api.v1.endpoints._monitoring_response import load_monitoring_response_context, serialize_risk_read
 from app.core.activity_logger import build_change_set, log_activity
+from app.core.audit.risk import risk_display_name
 from app.core.datetime_utils import utc_now
 from app.core.permissions import check_department_access
 from app.core.security import require_permission
@@ -53,7 +54,7 @@ async def restore_risk(
         db,
         entity_type=ActivityEntityType.RISK,
         entity_id=risk.id,
-        entity_name=f"{risk.risk_id_code}",
+        entity_name=risk_display_name(risk),
         safe_entity_label=risk.risk_id_code,
         safe_description="Restored risk",
         safe_description_siem="Restored risk",

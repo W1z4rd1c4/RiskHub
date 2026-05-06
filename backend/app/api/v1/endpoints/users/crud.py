@@ -14,6 +14,7 @@ from app.db.session import get_db
 from app.models import User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas import UserCreate, UserRead
+from app.services._org_chart import acquire_org_chart_lock, validate_no_manager_cycle
 
 from ._lifecycle import require_admin_user_lifecycle
 
@@ -103,8 +104,13 @@ async def create_user(
         hashed_password=get_password_hash(user_data.password),
     )
 
+    if new_user.manager_id is not None:
+        await acquire_org_chart_lock(db)
+
     db.add(new_user)
     await db.flush()
+    if new_user.manager_id is not None:
+        await validate_no_manager_cycle(db, user_id=new_user.id, new_manager_id=new_user.manager_id)
 
     # Log activity within the same transaction
     await log_activity(

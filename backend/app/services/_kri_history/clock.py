@@ -1,5 +1,7 @@
 from datetime import date
 
+from app.core.datetime_utils import utc_now
+
 
 def today() -> date:
-    return date.today()
+    return utc_now().date()

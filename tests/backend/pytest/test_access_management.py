@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import Settings, get_settings
 from app.db.session import get_db
 from app.main import app
-from app.models import User
+from app.models import Department, User
 from app.models.user import AccessScope
 from app.services.ad_deprovision_service import ADDeprovisionService
 
@@ -251,6 +251,60 @@ async def test_access_update_rejects_admin_manager_change(
     )
     assert response.status_code == 403
     assert response.json()["detail"] == "Only CRO can update user business access fields"
+
+
+@pytest.mark.asyncio
+async def test_access_update_rejects_manager_cycle(
+    client_cro: AsyncClient,
+    db_session,
+    test_user_employee: User,
+):
+    manager = User(
+        email="cycle-manager@example.com",
+        hashed_password="hash",
+        name="Cycle Manager",
+        role_id=test_user_employee.role_id,
+        department_id=test_user_employee.department_id,
+        is_active=True,
+    )
+    db_session.add(manager)
+    await db_session.flush()
+    test_user_employee.manager_id = manager.id
+    db_session.add(test_user_employee)
+    await db_session.commit()
+    await db_session.refresh(manager)
+
+    response = await client_cro.patch(
+        f"/api/v1/access/users/{manager.id}",
+        json={"manager_id": test_user_employee.id},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "User manager hierarchy cannot contain a cycle"
+
+
+@pytest.mark.asyncio
+async def test_access_update_rejects_department_change_when_user_manages_current_department(
+    client_cro: AsyncClient,
+    db_session,
+    test_user_employee: User,
+):
+    source_dept = Department(name="Access Managed Source", code="ACCESS_SRC", is_active=True)
+    target_dept = Department(name="Access Transfer Target", code="ACCESS_TGT", is_active=True)
+    db_session.add_all([source_dept, target_dept])
+    await db_session.flush()
+    test_user_employee.department_id = source_dept.id
+    source_dept.manager_id = test_user_employee.id
+    await db_session.commit()
+    await db_session.refresh(target_dept)
+
+    response = await client_cro.patch(
+        f"/api/v1/access/users/{test_user_employee.id}",
+        json={"department_id": target_dept.id},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Clear the department manager before moving this user"
 
 
 @pytest.mark.asyncio

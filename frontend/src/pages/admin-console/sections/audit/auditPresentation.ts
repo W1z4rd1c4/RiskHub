@@ -15,6 +15,12 @@ export function formatAuditEvent(event: string | null, fallback: string): string
     return event?.replace(/_/g, ' ') || fallback;
 }
 
-export function formatAuditUser(userId: number | null, systemLabel: string): string {
-    return userId ? `USR-${userId}` : systemLabel;
+export function formatAuditUser(
+    userId: number | null,
+    systemLabel: string,
+    unknownUserLabel: string,
+    resolveUserName?: (userId: number) => string | null | undefined,
+): string {
+    if (!userId) return systemLabel;
+    return resolveUserName?.(userId) || unknownUserLabel;
 }

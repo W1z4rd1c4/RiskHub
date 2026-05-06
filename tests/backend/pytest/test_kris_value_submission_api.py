@@ -8,6 +8,9 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import (
+    ActivityAction,
+    ActivityEntityType,
+    ActivityLog,
     ApprovalRequest,
     ApprovalResourceType,
     ApprovalScenario,
@@ -24,6 +27,7 @@ from app.models.key_risk_indicator import KeyRiskIndicator, KRIFrequency
 from app.models.kri_history import KRIValueHistory
 from app.models.risk import RiskStatus
 from app.models.user import AccessScope
+from app.services.kri_history_service import KRIHistoryService
 
 pytest_plugins = ("tests.backend.pytest.kri_history_api_support",)
 
@@ -300,6 +304,86 @@ async def test_record_value_creates_history_entry(
 
 
 @pytest.mark.asyncio
+async def test_direct_record_value_creates_kri_value_activity(
+    auth_client: AsyncClient,
+    test_kri_for_api,
+    db_session: AsyncSession,
+):
+    response = await auth_client.post(f"/api/v1/kris/{test_kri_for_api.id}/values", json={"value": 78.5})
+
+    assert response.status_code == 200
+    history_entry = await db_session.scalar(
+        select(KRIValueHistory).where(KRIValueHistory.kri_id == test_kri_for_api.id)
+    )
+    assert history_entry is not None
+
+    activity = await db_session.scalar(
+        select(ActivityLog).where(
+            ActivityLog.entity_type == ActivityEntityType.KRI_VALUE.value,
+            ActivityLog.entity_id == history_entry.id,
+            ActivityLog.action == ActivityAction.CREATE.value,
+        )
+    )
+    assert activity is not None
+    assert activity.changes["value"] == {"old": None, "new": 78.5}
+    assert activity.changes["period_end"]["new"] == history_entry.period_end.isoformat()
+
+    kri_update = await db_session.scalar(
+        select(ActivityLog).where(
+            ActivityLog.entity_type == ActivityEntityType.KRI.value,
+            ActivityLog.entity_id == test_kri_for_api.id,
+            ActivityLog.action == ActivityAction.UPDATE.value,
+        )
+    )
+    assert kri_update is not None
+    assert kri_update.changes["current_value"]["new"] == 78.5
+    assert kri_update.changes["last_period_end"]["new"] == "[REDACTED]"
+
+
+@pytest.mark.asyncio
+async def test_direct_kri_value_recording_uses_utc_today_for_default_period(
+    db_session: AsyncSession,
+    test_risk,
+    test_user,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Default period selection must follow UTC, not the host-local date."""
+    utc_instant = datetime(2026, 5, 1, 0, 30, tzinfo=UTC)
+
+    class HostLocalDate(date):
+        @classmethod
+        def today(cls):
+            return cls(2026, 4, 30)
+
+    monkeypatch.setattr("app.services._kri_history.clock.date", HostLocalDate)
+    monkeypatch.setattr("app.services._kri_history.clock.utc_now", lambda: utc_instant, raising=False)
+    monkeypatch.setattr("app.services._kri_history.recording.utc_now", lambda: utc_instant)
+
+    kri = KeyRiskIndicator(
+        risk_id=test_risk.id,
+        metric_name="UTC Period KRI",
+        description="KRI used to verify UTC period selection",
+        current_value=10.0,
+        lower_limit=0.0,
+        upper_limit=100.0,
+        unit="%",
+        frequency=KRIFrequency.daily.value,
+    )
+    db_session.add(kri)
+    await db_session.flush()
+
+    history_entry = await KRIHistoryService.record_value(
+        db=db_session,
+        kri=kri,
+        value=25.0,
+        recorded_by_id=test_user.id,
+        is_privileged=True,
+    )
+
+    assert history_entry.period_end == date(2026, 5, 1)
+
+
+@pytest.mark.asyncio
 async def test_privileged_record_value_rejects_future_recorded_at(
     auth_client: AsyncClient,
     test_kri_for_api,
@@ -490,6 +574,17 @@ async def test_disabled_kri_value_submit_scenario_applies_with_non_privileged_wi
         select(func.count()).select_from(KRIValueHistory).where(KRIValueHistory.kri_id == kri.id)
     )
     assert history_count == 1
+
+    activity_count = await db_session.scalar(
+        select(func.count())
+        .select_from(ActivityLog)
+        .where(
+            ActivityLog.entity_id.in_([kri.id]),
+            ActivityLog.entity_type == ActivityEntityType.KRI.value,
+            ActivityLog.action == ActivityAction.UPDATE.value,
+        )
+    )
+    assert activity_count == 1
 
 
 @pytest.mark.asyncio

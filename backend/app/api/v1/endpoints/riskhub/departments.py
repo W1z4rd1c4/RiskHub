@@ -21,6 +21,7 @@ from app.services._riskhub_config import (
     run_config_update,
     validate_department_manager,
 )
+from app.services._org_chart import acquire_org_chart_lock
 
 from ._shared import get_cro_user
 
@@ -56,7 +57,8 @@ async def create_department(
     """Create a new department. CRO only."""
     from app.models.department import Department
 
-    await validate_department_manager(db, data.manager_id)
+    if data.manager_id is not None:
+        raise HTTPException(status_code=400, detail="Department manager can only be assigned after department creation")
 
     # Check for duplicate name
     existing = await db.execute(select(Department).where(Department.name == data.name))
@@ -72,7 +74,7 @@ async def create_department(
     dept = Department(
         name=data.name,
         code=data.code if data.code else data.name.lower().replace(" ", "_")[:20],
-        manager_id=data.manager_id,
+        manager_id=None,
         is_active=True,
     )
     db.add(dept)
@@ -122,7 +124,8 @@ async def update_department(
             raise HTTPException(status_code=400, detail=f"Department code '{data.code}' already exists")
         dept.code = data.code
     if "manager_id" in data.model_fields_set:
-        await validate_department_manager(db, data.manager_id)
+        await acquire_org_chart_lock(db)
+        await validate_department_manager(db, data.manager_id, department_id=dept.id)
         dept.manager_id = data.manager_id
 
     await db.flush()
@@ -138,6 +141,7 @@ async def update_department(
         select(Department)
         .options(selectinload(Department.manager), selectinload(Department.users))
         .where(Department.id == dept.id)
+        .execution_options(populate_existing=True)
     )
     dept = result.scalar_one()
 

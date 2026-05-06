@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import UTC, date, datetime
+from types import SimpleNamespace
 
 import pytest
 from fastapi import HTTPException
@@ -43,6 +44,7 @@ from app.services.approval_execution_service import (
     cancel_request_workflow,
     reject_request_workflow,
 )
+from app.services._approval_execution import kri_value_submission
 from app.services.kri_history_service import KRIHistoryService
 
 
@@ -404,6 +406,36 @@ async def test_queue_created_control_delete_mirrors_direct_tiering_metadata(
 
 
 @pytest.mark.asyncio
+async def test_queued_kri_delete_sets_explicit_delete_action_type(
+    client_approval_requester: AsyncClient,
+    db_session: AsyncSession,
+    test_risk: Risk,
+):
+    kri = KeyRiskIndicator(
+        risk_id=test_risk.id,
+        metric_name="Queued KRI Delete Action",
+        description="KRI used to verify explicit delete action type",
+        current_value=10.0,
+        lower_limit=0.0,
+        upper_limit=100.0,
+        unit="%",
+        frequency=KRIFrequency.monthly.value,
+    )
+    db_session.add(kri)
+    await db_session.commit()
+    await db_session.refresh(kri)
+
+    response = await client_approval_requester.delete(
+        f"/api/v1/kris/{kri.id}",
+        params={"reason": "Queue KRI delete"},
+    )
+
+    assert response.status_code == 202
+    approval = await _load_approval(db_session, response.json()["approval_id"])
+    assert approval.action_type == ApprovalActionType.DELETE
+
+
+@pytest.mark.asyncio
 async def test_queue_created_risk_delete_respects_configured_high_risk_threshold(
     client_approval_requester: AsyncClient,
     db_session: AsyncSession,
@@ -556,6 +588,7 @@ async def test_queue_created_kri_delete_routes_risk_owner_scenario_to_primary_ap
     assert create_response.status_code == 201
     approval_id = create_response.json()["id"]
     approval = await _load_approval(db_session, approval_id)
+    assert approval.action_type == ApprovalActionType.DELETE
     assert approval.scenario_key == "kri_delete"
     assert approval.primary_approver_id == test_user_employee.id
     assert approval.scenario_approver_roles == ["risk_owner", "risk_manager", "cro"]
@@ -569,6 +602,49 @@ async def test_queue_created_kri_delete_routes_risk_owner_scenario_to_primary_ap
 
     await db_session.refresh(kri)
     assert kri.is_archived is True
+
+
+@pytest.mark.asyncio
+async def test_kri_value_approval_coerces_recorded_at_to_utc(monkeypatch: pytest.MonkeyPatch):
+    captured: dict[str, datetime | date | None] = {}
+    period_end = date(2026, 5, 31)
+    kri = SimpleNamespace(
+        id=1001,
+        metric_name="UTC Approval KRI",
+        current_value=10.0,
+        last_period_end=None,
+        last_reported_at=None,
+    )
+    actor = SimpleNamespace(id=77)
+
+    async def fake_record_value(**kwargs):
+        captured["recorded_at"] = kwargs["recorded_at"]
+        captured["validation_date"] = kwargs["validation_date"]
+        return SimpleNamespace(id=2002, period_end=period_end)
+
+    async def noop_log_activity(*args, **kwargs):
+        return None
+
+    monkeypatch.setattr(KRIHistoryService, "record_value", fake_record_value)
+    monkeypatch.setattr(kri_value_submission.activity_logger, "log_activity", noop_log_activity)
+
+    await kri_value_submission._apply_kri_value_submission(
+        db=SimpleNamespace(),
+        approval=SimpleNamespace(id=55),
+        kri=kri,
+        changes={
+            "current_value": {"old": 10.0, "new": 12.5},
+            "period_end": period_end.isoformat(),
+            "recorded_at": "2026-05-01T00:30:00+02:00",
+        },
+        current_user=actor,
+        approval_id=55,
+        department_id=None,
+    )
+
+    assert captured["recorded_at"] == datetime(2026, 4, 30, 22, 30, tzinfo=UTC)
+    assert captured["recorded_at"].tzinfo is UTC
+    assert captured["validation_date"] == date(2026, 4, 30)
 
 
 @pytest.mark.asyncio
@@ -1904,6 +1980,68 @@ async def test_approve_kri_value_submission_with_period_end(
     assert entry.value == 55.0
 
 
+@pytest.mark.asyncio
+async def test_approve_legacy_kri_value_submission_without_recorded_at_uses_utc_today(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    test_risk,
+    test_user_employee: User,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    utc_instant = datetime(2026, 5, 1, 0, 30, tzinfo=UTC)
+
+    class HostLocalDate(date):
+        @classmethod
+        def today(cls):
+            return cls(2026, 4, 30)
+
+    monkeypatch.setattr("app.services._kri_history.clock.date", HostLocalDate)
+    monkeypatch.setattr("app.services._kri_history.clock.utc_now", lambda: utc_instant)
+    monkeypatch.setattr("app.services._kri_history.recording.utc_now", lambda: utc_instant)
+
+    kri = KeyRiskIndicator(
+        risk_id=test_risk.id,
+        metric_name="Legacy UTC Approval KRI",
+        description="KRI used to test legacy value approval dates",
+        current_value=30.0,
+        lower_limit=0.0,
+        upper_limit=100.0,
+        unit="%",
+        frequency=KRIFrequency.daily.value,
+    )
+    db_session.add(kri)
+    await db_session.commit()
+    await db_session.refresh(kri)
+
+    approval = ApprovalRequest(
+        resource_type=ApprovalResourceType.KRI,
+        resource_id=kri.id,
+        resource_name="Legacy UTC Approval KRI (value submission)",
+        requested_by_id=test_user_employee.id,
+        reason="Legacy KRI value submission: 55.0",
+        action_type=ApprovalActionType.EDIT,
+        pending_changes={
+            "current_value": {"old": 30.0, "new": 55.0},
+            "period_end": date(2026, 5, 1).isoformat(),
+        },
+        status=ApprovalStatus.PENDING,
+    )
+    db_session.add(approval)
+    await db_session.commit()
+    await db_session.refresh(approval)
+
+    response = await auth_client.post(
+        f"/api/v1/approvals/{approval.id}/approve",
+        json={"resolution_notes": "Approve legacy value submission"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "approved"
+    await db_session.refresh(kri)
+    assert kri.current_value == 55.0
+    assert kri.last_period_end == date(2026, 5, 1)
+
+
 @pytest.mark.postgres
 @pytest.mark.asyncio
 async def test_concurrent_kri_value_approval_records_history_once(
@@ -1945,7 +2083,7 @@ async def test_concurrent_kri_value_approval_records_history_once(
         pending_changes={
             "current_value": {"old": 30.0, "new": 55.0},
             "period_end": closed_period_end.isoformat(),
-            "recorded_at": datetime.now(UTC).isoformat(),
+            "recorded_at": datetime(2026, 4, 10, 12, 0, tzinfo=UTC).isoformat(),
         },
         status=ApprovalStatus.PENDING,
     )

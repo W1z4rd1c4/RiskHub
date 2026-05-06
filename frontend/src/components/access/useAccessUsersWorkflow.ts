@@ -101,17 +101,18 @@ export function resolveImportedUserTransition({
 }
 
 export function useAccessUsersWorkflow(options: AccessUsersWorkflowOptions): AccessUsersWorkflowState {
+    const { importedUserId, importedUserName, isAccessMode, users } = options;
     const importedUserTransition = useMemo(
-        () => resolveImportedUserTransition(options),
-        [options.importedUserId, options.importedUserName, options.isAccessMode, options.users],
+        () => resolveImportedUserTransition({ importedUserId, importedUserName, isAccessMode, users }),
+        [importedUserId, importedUserName, isAccessMode, users],
     );
     const actionModelsByUserId = useMemo(
-        () => new Map(options.users.map((user) => [user.id, buildAccessUserActionModel(user)])),
-        [options.users],
+        () => new Map(users.map((user) => [user.id, buildAccessUserActionModel(user)])),
+        [users],
     );
     const presentationModelsByUserId = useMemo(
-        () => new Map(options.users.map((user) => [user.id, buildAccessUserPresentationModel(user)])),
-        [options.users],
+        () => new Map(users.map((user) => [user.id, buildAccessUserPresentationModel(user)])),
+        [users],
     );
 
     return {

@@ -10,6 +10,12 @@ from app.core.email import email_equals
 from app.core.security import get_password_hash
 from app.models import Role, User
 from app.schemas import UserUpdate
+from app.services._org_chart import (
+    acquire_org_chart_lock,
+    clear_manager_references_for_inactive_user,
+    validate_dept_manager_dept_change,
+    validate_no_manager_cycle,
+)
 from app.services.orphaned_item_service import OrphanedItemService
 
 from .execution import log_user_update_and_commit
@@ -91,7 +97,16 @@ async def update_user_profile(
         )
     if is_deactivating:
         orphan_count = await flag_orphaned_items_for_deactivation(db, user=user)
+        await acquire_org_chart_lock(db)
+        await clear_manager_references_for_inactive_user(db, user_id=user.id)
         extra_changes["orphaned_items_flagged"] = {"old": None, "new": orphan_count}
+
+    if "manager_id" in update_data and update_data["manager_id"] != user.manager_id:
+        await acquire_org_chart_lock(db)
+        await validate_no_manager_cycle(db, user_id=user.id, new_manager_id=update_data["manager_id"])
+    if "department_id" in update_data and update_data["department_id"] != user.department_id:
+        await acquire_org_chart_lock(db)
+        await validate_dept_manager_dept_change(db, user=user, new_department_id=update_data["department_id"])
 
     changes = build_change_set(user, update_data, extra_changes=extra_changes)
     for field, value in update_data.items():

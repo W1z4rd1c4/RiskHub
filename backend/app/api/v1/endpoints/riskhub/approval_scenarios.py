@@ -7,7 +7,8 @@ from app.core.activity_logger import log_activity
 from app.db.session import get_db
 from app.models import ApprovalScenario, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
-from app.schemas.riskhub import ApprovalScenarioCapabilities, ApprovalScenarioRead, ApprovalScenarioUpdate
+from app.schemas.riskhub import ApprovalScenarioRead, ApprovalScenarioUpdate
+from app.services._authorization_capabilities import approval_scenario_capabilities
 from app.services._riskhub_config import build_config_audit_plan, run_config_update
 from app.services.approval_scenario_policy import normalize_approval_scenario_roles
 
@@ -29,7 +30,7 @@ def _approval_scenario_read(scenario: ApprovalScenario, *, updated_by_name: str 
         approver_roles=scenario.get_approver_roles(),
         updated_at=scenario.updated_at.isoformat(),
         updated_by_name=resolved_updated_by_name,
-        capabilities=ApprovalScenarioCapabilities(can_update=True),
+        capabilities=approval_scenario_capabilities(),
     )
 
 

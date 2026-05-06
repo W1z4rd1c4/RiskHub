@@ -5,14 +5,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.v1.endpoints._monitoring_response import load_monitoring_response_context, serialize_risk_read
-from app.core.activity_logger import log_activity
+from app.core.audit.risk import risk_created
 from app.core.datetime_utils import utc_now
 from app.core.owner_reference_validation import validate_active_owner_reference
 from app.core.permissions import check_department_access
 from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import KeyRiskIndicator, Risk, User
-from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas.risk import RiskCreate, RiskRead
 from app.services.authorization_capabilities import risk_capabilities
 
@@ -76,16 +75,10 @@ async def create_risk(
             db.add(risk)
             await db.flush()
 
-            # Log activity within the same transaction
-            await log_activity(
+            await risk_created(
                 db,
-                entity_type=ActivityEntityType.RISK,
-                entity_id=risk.id,
-                entity_name=f"{risk.risk_id_code}: {risk.description[:50] if risk.description else risk.name}",
-                safe_entity_label=risk.risk_id_code,
-                action=ActivityAction.CREATE,
                 actor=current_user,
-                department_id=risk.department_id,
+                risk=risk,
             )
             await db.commit()
             await db.refresh(risk)

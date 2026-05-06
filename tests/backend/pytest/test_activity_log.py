@@ -26,12 +26,15 @@ from app.models import (
     ApprovalScenario,
     Department,
     Permission,
+    Risk,
     Role,
     RolePermission,
     User,
 )
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.models.user import AccessScope
+from app.services._entity_mutation_lifecycle.archive_plans import archive_risk_detail
+from app.core.audit.risk import risk_archived, risk_updated
 
 
 @pytest.mark.asyncio
@@ -133,6 +136,73 @@ async def test_risk_update_activity_log_changes(
     assert changes["net_probability"]["new"] == 1
     assert changes["net_score"]["old"] == 4
     assert changes["net_score"]["new"] == 1
+
+
+@pytest.mark.asyncio
+async def test_risk_updated_audit_name_falls_back_when_description_missing(test_user: User):
+    calls: list[dict] = []
+    risk = Risk(
+        id=42,
+        risk_id_code="R-NULL-DESC",
+        name="Null Description Risk",
+        process="Audit",
+        description=None,
+        department_id=None,
+        owner_id=test_user.id,
+        risk_type="operational",
+        category="Testing",
+        gross_probability=1,
+        gross_impact=1,
+        net_probability=1,
+        net_impact=1,
+        status="active",
+    )
+
+    async def capture_log_activity(*args, **kwargs):
+        calls.append(kwargs)
+
+    await risk_updated(
+        db=None,
+        actor=test_user,
+        risk=risk,
+        changes={"name": {"old": "Old", "new": "Null Description Risk"}},
+        log_activity_func=capture_log_activity,
+    )
+
+    assert calls[0]["entity_name"] == "R-NULL-DESC: Null Description Risk"
+
+
+@pytest.mark.asyncio
+async def test_risk_archived_audit_name_falls_back_when_name_missing(test_user: User):
+    calls: list[dict] = []
+    risk = Risk(
+        id=43,
+        risk_id_code="R-NULL-NAME",
+        name=None,
+        process="Audit",
+        description=None,
+        department_id=None,
+        owner_id=test_user.id,
+        risk_type="operational",
+        category="Testing",
+        gross_probability=1,
+        gross_impact=1,
+        net_probability=1,
+        net_impact=1,
+        status="active",
+    )
+
+    async def capture_log_activity(*args, **kwargs):
+        calls.append(kwargs)
+
+    await risk_archived(
+        db=None,
+        actor=test_user,
+        risk=risk,
+        log_activity_func=capture_log_activity,
+    )
+
+    assert calls[0]["entity_name"] == "R-NULL-NAME: R-NULL-NAME"
 
 
 @pytest.mark.asyncio
@@ -372,6 +442,48 @@ async def test_risk_restore_activity_log_keeps_safe_restore_description(
     assert entry.entity_name == "R-REST-01"
     assert entry.changes["status"]["old"] == "archived"
     assert entry.changes["status"]["new"] == "active"
+
+
+@pytest.mark.asyncio
+async def test_direct_risk_archive_activity_name_includes_code_and_name(
+    db_session,
+    test_user: User,
+    test_department: Department,
+    seed_risk_types,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    risk = Risk(
+        risk_id_code="R-ARCH-NAME",
+        name="Direct Archive Name Risk",
+        process="Archive Process",
+        description="Risk used to validate archive logging",
+        department_id=test_department.id,
+        owner_id=test_user.id,
+        risk_type="operational",
+        category="Testing",
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=2,
+        status="active",
+    )
+    db_session.add(risk)
+    await db_session.commit()
+    await db_session.refresh(risk)
+
+    captured_activity: dict[str, object] = {}
+
+    async def capture_log_activity(*args, **kwargs):
+        captured_activity.update(kwargs)
+
+    monkeypatch.setattr(
+        "app.services._entity_mutation_lifecycle.archive_plans.log_activity",
+        capture_log_activity,
+    )
+
+    await archive_risk_detail(db=db_session, risk_id=risk.id, reason="Archive name shape", current_user=test_user)
+
+    assert captured_activity["entity_name"] == "R-ARCH-NAME: Direct Archive Name Risk"
 
 
 @pytest.mark.asyncio

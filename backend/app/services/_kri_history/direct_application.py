@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
+from app.core.audit.kri import kri_value_created, kri_value_mutation_updated
 from app.core.datetime_utils import utc_now
 from app.core.permissions import can_read_vendor
 from app.core.security import check_permission
@@ -13,7 +14,11 @@ from app.schemas.kri import KRIRecordValue, KRIResponse
 from app.schemas.vendor_shared import LinkedVendorRead
 from app.services.authorization_capabilities import kri_capabilities
 
-from .governance import describe_kri_limit_breach
+from .governance import (
+    build_kri_value_mutation_changes,
+    capture_kri_value_mutation_snapshot,
+    describe_kri_limit_breach,
+)
 from .projection import serialize_kri_history_response
 
 logger = logging.getLogger(__name__)
@@ -56,7 +61,8 @@ async def apply_kri_value_directly(
     from app.services.kri_history_service import KRIHistoryService
     from app.services.notification_service import NotificationService
 
-    await KRIHistoryService.record_value(
+    mutation_snapshot = capture_kri_value_mutation_snapshot(kri)
+    history_entry = await KRIHistoryService.record_value(
         db=db,
         kri=kri,
         value=data.value,
@@ -65,6 +71,22 @@ async def apply_kri_value_directly(
         period_end=data.period_end,
         is_privileged=is_privileged_submission,
     )
+    await kri_value_created(
+        db,
+        actor=current_user,
+        kri=kri,
+        history_entry=history_entry,
+        value=data.value,
+    )
+    kri_changes = build_kri_value_mutation_changes(kri, mutation_snapshot)
+    if kri_changes:
+        await kri_value_mutation_updated(
+            db,
+            actor=current_user,
+            kri=kri,
+            changes=kri_changes,
+            description="Updated via direct value submission",
+        )
     await db.commit()
     await db.refresh(kri)
 

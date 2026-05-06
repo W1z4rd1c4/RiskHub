@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { useRiskThresholds } from '@/hooks/useRiskHubConfig';
 import { useTranslation } from '@/i18n/hooks';
+import { riskScoreVariantClass } from '@/lib/riskScoreTheme';
 
 interface RiskScoreMatrixProps {
     probability: number;  // 1-5
@@ -40,31 +41,6 @@ export function RiskScoreMatrix({
         medium: overrideThresholds?.medium ?? configThresholds.medium,
     };
 
-    // Cell colors based on score (probability × impact at that position)
-    const getCellColor = (p: number, i: number) => {
-        const cellScore = p * i;
-        if (cellScore >= thresholds.critical) return 'bg-rose-500/40 hover:bg-rose-500/60';
-        if (cellScore >= thresholds.high) return 'bg-orange-500/40 hover:bg-orange-500/60';
-        if (cellScore >= thresholds.medium) return 'bg-amber-500/40 hover:bg-amber-500/60';
-        return 'bg-emerald-500/40 hover:bg-emerald-500/60';
-    };
-
-    // Get score badge color (background + text)
-    const getScoreColorClass = (s: number) => {
-        if (s >= thresholds.critical) return 'bg-rose-500/20 text-rose-400';
-        if (s >= thresholds.high) return 'bg-orange-500/20 text-orange-400';
-        if (s >= thresholds.medium) return 'bg-amber-500/20 text-amber-400';
-        return 'bg-emerald-500/20 text-emerald-400';
-    };
-
-    // Get text-only color class based on score (for title)
-    const getTitleColorClass = (s: number) => {
-        if (s >= thresholds.critical) return 'text-rose-400';
-        if (s >= thresholds.high) return 'text-orange-400';
-        if (s >= thresholds.medium) return 'text-amber-400';
-        return 'text-emerald-400';
-    };
-
     // Highlighted cell border
     const isSelected = (p: number, i: number) => p === probability && i === impact;
 
@@ -80,7 +56,7 @@ export function RiskScoreMatrix({
     return (
         <div className="flex flex-col items-center">
             {/* Type label - color matches score threshold */}
-            <div className={`${labelClass} font-black uppercase tracking-widest mb-3 ${getTitleColorClass(score)}`}>
+            <div className={`${labelClass} font-black uppercase tracking-widest mb-3 ${riskScoreVariantClass('text', score, thresholds)}`}>
                 {type === 'gross' ? t('matrix.gross_risk') : t('matrix.net_risk')}
             </div>
 
@@ -103,7 +79,7 @@ export function RiskScoreMatrix({
                                     animate={{ opacity: 1, scale: 1 }}
                                     transition={{ delay: (p + i) * 0.02 }}
                                     className={`
-                                        ${cellClass} ${getCellColor(p, i)}
+                                        ${cellClass} ${riskScoreVariantClass('matrix-cell', p * i, thresholds)}
                                         rounded-sm flex items-center justify-center font-bold
                                         transition-all duration-200 m-0.5
                                         ${onSelect ? 'cursor-pointer hover:scale-105 active:scale-95' : 'cursor-default'}
@@ -131,7 +107,7 @@ export function RiskScoreMatrix({
             </span>
 
             {/* Score display */}
-            <div className={`mt-3 px-4 py-1.5 rounded-full font-black text-sm ${getScoreColorClass(score)}`}>
+            <div className={`mt-3 px-4 py-1.5 rounded-full font-black text-sm ${riskScoreVariantClass('card', score, thresholds)}`}>
                 {t('matrix.score_label', { score })}
             </div>
         </div>

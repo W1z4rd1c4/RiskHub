@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApprovalScenariosPanel } from '@/components/riskhub/ApprovalScenariosPanel';
 import { DepartmentsPanel } from '@/components/riskhub/DepartmentsPanel';
 import { RiskTypesPanel } from '@/components/riskhub/RiskTypesPanel';
+import { accessApi } from '@/services/accessApi';
 import { riskHubApi } from '@/services/riskHubApi';
 
 vi.mock('@/i18n/hooks', () => ({
@@ -44,7 +45,9 @@ vi.mock('@/components/ui/ThemedSelect', () => ({
 vi.mock('@/services/accessApi', () => ({
     accessApi: {
         listAccessUsers: vi.fn().mockResolvedValue([
-            { id: 9, name: 'Dana Manager', email: 'dana@example.test' },
+            { id: 9, name: 'Dana Manager', email: 'dana@example.test', department_id: 3, is_active: true },
+            { id: 10, name: 'Inactive Manager', email: 'inactive@example.test', department_id: 3, is_active: false },
+            { id: 11, name: 'Other Manager', email: 'other@example.test', department_id: 4, is_active: true },
         ]),
     },
 }));
@@ -185,7 +188,7 @@ describe('Risk Hub config panels', () => {
         });
     });
 
-    it('creates departments with manager selections', async () => {
+    it('creates departments without manager assignment', async () => {
         renderWithQueryClient(<DepartmentsPanel />);
 
         await screen.findByText('Operations');
@@ -196,17 +199,36 @@ describe('Risk Hub config panels', () => {
         fireEvent.change(screen.getByPlaceholderText('admin:departments_panel.modal.placeholders.code'), {
             target: { value: 'claims' },
         });
+        expect(screen.queryByLabelText('manager-select')).not.toBeInTheDocument();
+        fireEvent.click(screen.getByRole('button', { name: 'admin:departments_panel.modal.save_department' }));
+
+        await waitFor(() => {
+            expect(riskHubApi.createDepartment).toHaveBeenCalledWith({
+                code: 'CLAIMS',
+                name: 'Claims',
+            });
+        });
+    });
+
+    it('keeps manager assignment available when editing departments', async () => {
+        renderWithQueryClient(<DepartmentsPanel />);
+
+        await screen.findByText('Operations');
+        fireEvent.click(screen.getByRole('button', { name: 'common:actions.edit' }));
         await screen.findByText('Dana Manager (dana@example.test)');
+        expect(accessApi.listAccessUsers).toHaveBeenCalledWith({ department_id: 3 });
+        expect(screen.queryByText('Inactive Manager (inactive@example.test)')).not.toBeInTheDocument();
+        expect(screen.queryByText('Other Manager (other@example.test)')).not.toBeInTheDocument();
         fireEvent.change(screen.getByLabelText('manager-select'), {
             target: { value: '9' },
         });
         fireEvent.click(screen.getByRole('button', { name: 'admin:departments_panel.modal.save_department' }));
 
         await waitFor(() => {
-            expect(riskHubApi.createDepartment).toHaveBeenCalledWith({
-                code: 'CLAIMS',
+            expect(riskHubApi.updateDepartment).toHaveBeenCalledWith(3, {
+                code: 'OPS',
                 manager_id: 9,
-                name: 'Claims',
+                name: 'Operations',
             });
         });
     });

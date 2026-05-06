@@ -8,6 +8,8 @@ from app.api.v1.endpoints.vendors import crud as vendor_crud
 from app.core.user_query_options import user_selectinload_options
 from app.models import Department, Permission, Risk, Role, RolePermission, User, Vendor, VendorRiskLink
 from app.models.user import AccessScope
+from app.schemas.vendor import VendorCreate, VendorUpdate
+from app.services._vendor_governance.lifecycle import archive_vendor_detail, create_vendor_detail, update_vendor_detail
 
 
 async def _grant(db_session: AsyncSession, role: Role, resource: str, action: str) -> None:
@@ -314,6 +316,123 @@ async def test_vendor_create_requires_vendors_write(
         },
     )
     assert resp.status_code == 201
+
+
+@pytest.mark.asyncio
+async def test_vendor_create_rolls_back_when_audit_logging_fails(
+    db_session: AsyncSession,
+    test_department: Department,
+    test_user: User,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    async def fail_log_activity(*args, **kwargs):
+        raise RuntimeError("audit unavailable")
+
+    monkeypatch.setattr("app.services._vendor_governance.lifecycle.log_activity", fail_log_activity)
+
+    with pytest.raises(RuntimeError, match="audit unavailable"):
+        await create_vendor_detail(
+            db=db_session,
+            payload=VendorCreate(
+                name="Audit Rollback Create Vendor",
+                process="IT",
+                department_id=test_department.id,
+                outsourcing_owner_user_id=test_user.id,
+                vendor_type="ict",
+                risk_score_1_5=3,
+                supports_important_core_insurance_function=False,
+                dora_relevant=False,
+                is_significant_vendor=False,
+                has_alternative_providers=False,
+                status="active",
+            ),
+            current_user=test_user,
+        )
+
+    await db_session.rollback()
+    vendor = await db_session.scalar(select(Vendor).where(Vendor.name == "Audit Rollback Create Vendor"))
+    assert vendor is None
+
+
+@pytest.mark.asyncio
+async def test_vendor_update_rolls_back_when_audit_logging_fails(
+    db_session: AsyncSession,
+    test_department: Department,
+    test_user: User,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    vendor = Vendor(
+        name="Audit Rollback Update Vendor",
+        process="IT",
+        subprocess=None,
+        department_id=test_department.id,
+        outsourcing_owner_user_id=test_user.id,
+        vendor_type="ict",
+        risk_score_1_5=3,
+        supports_important_core_insurance_function=False,
+        dora_relevant=False,
+        is_significant_vendor=False,
+        has_alternative_providers=False,
+        status="active",
+    )
+    db_session.add(vendor)
+    await db_session.commit()
+    await db_session.refresh(vendor)
+
+    async def fail_log_activity(*args, **kwargs):
+        raise RuntimeError("audit unavailable")
+
+    monkeypatch.setattr("app.services._vendor_governance.lifecycle.log_activity", fail_log_activity)
+
+    with pytest.raises(RuntimeError, match="audit unavailable"):
+        await update_vendor_detail(
+            db=db_session,
+            vendor_id=vendor.id,
+            payload=VendorUpdate(name="Audit Rollback Updated Vendor"),
+            current_user=test_user,
+        )
+
+    await db_session.rollback()
+    await db_session.refresh(vendor)
+    assert vendor.name == "Audit Rollback Update Vendor"
+
+
+@pytest.mark.asyncio
+async def test_vendor_archive_rolls_back_when_audit_logging_fails(
+    db_session: AsyncSession,
+    test_department: Department,
+    test_user: User,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    vendor = Vendor(
+        name="Audit Rollback Archive Vendor",
+        process="IT",
+        subprocess=None,
+        department_id=test_department.id,
+        outsourcing_owner_user_id=test_user.id,
+        vendor_type="ict",
+        risk_score_1_5=3,
+        supports_important_core_insurance_function=False,
+        dora_relevant=False,
+        is_significant_vendor=False,
+        has_alternative_providers=False,
+        status="active",
+    )
+    db_session.add(vendor)
+    await db_session.commit()
+    await db_session.refresh(vendor)
+
+    async def fail_log_activity(*args, **kwargs):
+        raise RuntimeError("audit unavailable")
+
+    monkeypatch.setattr("app.services._vendor_governance.lifecycle.log_activity", fail_log_activity)
+
+    with pytest.raises(RuntimeError, match="audit unavailable"):
+        await archive_vendor_detail(db=db_session, vendor_id=vendor.id, current_user=test_user)
+
+    await db_session.rollback()
+    await db_session.refresh(vendor)
+    assert vendor.status == "active"
 
 
 @pytest.mark.asyncio

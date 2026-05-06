@@ -125,6 +125,45 @@ async def test_vendor_links_require_vendor_write_or_owner(
 
 
 @pytest.mark.asyncio
+async def test_inactive_vendor_link_mutation_requires_write_before_status_check(
+    db_session: AsyncSession,
+    client_employee: AsyncClient,
+    test_department: Department,
+    test_role_employee: Role,
+):
+    await _grant(db_session, test_role_employee, "vendors", "read")
+    await _grant(db_session, test_role_employee, "risks", "read")
+
+    vendor = Vendor(
+        name="Inactive Not Owned Vendor",
+        process="IT",
+        subprocess=None,
+        department_id=test_department.id,
+        outsourcing_owner_user_id=99999,
+        vendor_type="ict",
+        risk_score_1_5=3,
+        supports_important_core_insurance_function=False,
+        dora_relevant=False,
+        is_significant_vendor=False,
+        has_alternative_providers=False,
+        status="inactive",
+    )
+    risk = _make_risk(risk_id_code="ILV-FORBID-R001", department_id=test_department.id)
+    db_session.add_all([vendor, risk])
+    await db_session.commit()
+    await db_session.refresh(vendor)
+    await db_session.refresh(risk)
+
+    resp = await client_employee.post(
+        f"/api/v1/vendors/{vendor.id}/linked-risks",
+        json={"risk_id": risk.id},
+    )
+
+    assert resp.status_code == 403
+    assert resp.json()["detail"] == "Permission denied: vendors:write"
+
+
+@pytest.mark.asyncio
 async def test_vendor_risk_link_blocks_cross_department_risk(
     db_session: AsyncSession,
     client_employee: AsyncClient,

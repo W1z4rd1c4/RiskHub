@@ -10,6 +10,7 @@ from app.core.config import Settings
 from app.core.datetime_utils import utc_now
 from app.models import RefreshToken, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
+from app.services._org_chart import acquire_org_chart_lock, clear_manager_references_for_inactive_user
 from app.services.directory_identity_service import DirectoryIdentityConflictError, apply_directory_profile
 from app.services.directory_provider_service import (
     DirectoryProviderError,
@@ -265,6 +266,8 @@ class ADDeprovisionService:
         if user.is_active:
             user.is_active = False
             user.token_version += 1
+        await acquire_org_chart_lock(db)
+        await clear_manager_references_for_inactive_user(db, user_id=user.id)
         db.add(user)
 
         revoked_rows = await db.execute(

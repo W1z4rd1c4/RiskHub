@@ -317,7 +317,7 @@ async def test_risks_grouped_summary_does_not_serialize_all_rows(
     def fail_risk_summary(*args, **kwargs):
         raise AssertionError("group summaries should not serialize risk rows")
 
-    monkeypatch.setattr("app.api.v1.endpoints.risks.crud.list.risk_to_summary", fail_risk_summary)
+    monkeypatch.setattr("app.services._register_listings.risks.risk_to_summary", fail_risk_summary)
 
     response = await auth_client.get(
         "/api/v1/risks",
@@ -368,7 +368,7 @@ async def test_risks_grouped_drilldown_serializes_only_requested_page(
         serialized_ids.append(risk.id)
         return original_risk_to_summary(risk, *args, **kwargs)
 
-    monkeypatch.setattr("app.api.v1.endpoints.risks.crud.list.risk_to_summary", spy_risk_summary)
+    monkeypatch.setattr("app.services._register_listings.risks.risk_to_summary", spy_risk_summary)
 
     response = await auth_client.get(
         "/api/v1/risks",

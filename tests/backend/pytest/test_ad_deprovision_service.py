@@ -33,9 +33,34 @@ async def test_deprovision_missing_user_deactivates_revokes_and_flags_orphans(
     test_department,
     monkeypatch,
 ):
+    import app.services.ad_deprovision_service as ad_deprovision_module
+
+    call_order: list[str] = []
+    original_clear = ad_deprovision_module.clear_manager_references_for_inactive_user
+
+    async def capture_lock(db: AsyncSession) -> None:
+        call_order.append("lock")
+
+    async def capture_clear(db: AsyncSession, *, user_id: int) -> None:
+        call_order.append("clear")
+        await original_clear(db, user_id=user_id)
+
+    monkeypatch.setattr(ad_deprovision_module, "acquire_org_chart_lock", capture_lock, raising=False)
+    monkeypatch.setattr(ad_deprovision_module, "clear_manager_references_for_inactive_user", capture_clear)
+
     test_user_employee.external_id = "oid-missing-user"
     test_user_employee.token_version = 1
-    db_session.add(test_user_employee)
+    test_department.manager_id = test_user_employee.id
+    subordinate = User(
+        email="ad-deprovision-subordinate@example.com",
+        hashed_password="hash",
+        name="AD Deprovision Subordinate",
+        role_id=test_user_employee.role_id,
+        department_id=test_department.id,
+        manager_id=test_user_employee.id,
+        is_active=True,
+    )
+    db_session.add_all([test_user_employee, test_department, subordinate])
 
     risk = Risk(
         risk_id_code="R-DEPROV-1",
@@ -87,6 +112,7 @@ async def test_deprovision_missing_user_deactivates_revokes_and_flags_orphans(
         trigger="pytest",
     )
     assert result["status"] == "deprovisioned"
+    assert call_order == ["lock", "clear"]
     assert result["revoked_sessions"] == 1
     assert result["orphaned_items_flagged"] >= 2
 
@@ -94,6 +120,12 @@ async def test_deprovision_missing_user_deactivates_revokes_and_flags_orphans(
     assert refreshed_user.is_active is False
     assert refreshed_user.deprovision_reason == ADDeprovisionService.DEPROVISION_REASON_MISSING
     assert refreshed_user.token_version == 2
+    refreshed_department = (
+        await db_session.execute(select(Department).where(Department.id == test_department.id))
+    ).scalar_one()
+    refreshed_subordinate = (await db_session.execute(select(User).where(User.id == subordinate.id))).scalar_one()
+    assert refreshed_department.manager_id is None
+    assert refreshed_subordinate.manager_id is None
 
     refresh_rows = (
         (await db_session.execute(select(RefreshToken).where(RefreshToken.user_id == test_user_employee.id)))

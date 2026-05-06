@@ -67,6 +67,28 @@ async def test_postgres_partial_approval_index_contract(db_session) -> None:  # 
 
 @pytest.mark.asyncio
 @pytest.mark.postgres
+async def test_postgres_department_manager_index_contract(db_session) -> None:  # type: ignore[no-untyped-def]
+    _require_postgres(db_session)
+
+    result = await db_session.execute(
+        text(
+            """
+            SELECT indexdef
+            FROM pg_indexes
+            WHERE schemaname = current_schema()
+              AND tablename = 'departments'
+              AND indexname = 'ix_departments_manager_id'
+            """
+        )
+    )
+    row = result.one_or_none()
+
+    assert row is not None, "ix_departments_manager_id index must exist in Postgres"
+    assert "(manager_id)" in row.indexdef.lower()
+
+
+@pytest.mark.asyncio
+@pytest.mark.postgres
 async def test_postgres_timestamp_columns_remain_timestamptz(db_session) -> None:  # type: ignore[no-untyped-def]
     _require_postgres(db_session)
 

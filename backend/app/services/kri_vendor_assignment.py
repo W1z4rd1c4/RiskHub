@@ -7,8 +7,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.permissions import can_read_vendor, is_vendor_owner
-from app.core.security import check_permission
 from app.models import KeyRiskIndicator, User, Vendor, VendorKRILink, VendorRiskLink
+from app.services._authorization_capabilities import has_capability, require_capability
 
 
 def normalize_vendor_ids(vendor_ids: Sequence[int] | None) -> list[int]:
@@ -43,17 +43,13 @@ async def validate_assignable_vendors(
     if not normalized_vendor_ids:
         return []
 
-    if not check_permission(current_user, "vendors", "read"):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Permission denied: vendors:read",
-        )
+    require_capability(current_user, "vendors", "read")
 
     result = await db.execute(select(Vendor).where(Vendor.id.in_(normalized_vendor_ids)))
     vendors = {vendor.id: vendor for vendor in result.scalars().all()}
 
     ordered_vendors: list[Vendor] = []
-    has_vendor_write = check_permission(current_user, "vendors", "write")
+    has_vendor_write = has_capability(current_user, "vendors", "write")
     for vendor_id in normalized_vendor_ids:
         vendor = vendors.get(vendor_id)
         if vendor is None or not can_read_vendor(vendor, current_user):

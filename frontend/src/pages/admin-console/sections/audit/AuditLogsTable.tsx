@@ -7,11 +7,12 @@ import { formatAuditEvent, formatAuditUser, getAuditEventClassName } from './aud
 interface AuditLogsTableProps {
     logs: RecentLogEntry[];
     language: string;
+    resolveUserName?: (userId: number) => string | null | undefined;
     t: (key: string, options?: Record<string, unknown>) => string;
     onViewDetails: (extra: Record<string, unknown>) => void;
 }
 
-export function AuditLogsTable({ logs, language, t, onViewDetails }: AuditLogsTableProps) {
+export function AuditLogsTable({ logs, language, resolveUserName, t, onViewDetails }: AuditLogsTableProps) {
     return (
         <div className="overflow-x-auto border border-white/10 rounded-xl">
             <table className="w-full text-sm text-left">
@@ -46,7 +47,12 @@ export function AuditLogsTable({ logs, language, t, onViewDetails }: AuditLogsTa
                                     </span>
                                 </td>
                                 <td className="admin-title py-3 px-4 font-medium">
-                                    {formatAuditUser(log.user_id, t('common:fallbacks.system'))}
+                                    {formatAuditUser(
+                                        log.user_id,
+                                        t('common:fallbacks.system'),
+                                        t('common:fallbacks.unknown_user'),
+                                        resolveUserName,
+                                    )}
                                 </td>
                                 <td className="admin-subtle py-3 px-4 font-mono text-xs">
                                     {log.client_ip || t('common:fallbacks.not_available')}

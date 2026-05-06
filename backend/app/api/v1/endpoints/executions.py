@@ -2,12 +2,12 @@
 Control execution endpoints with RBAC and department scoping.
 """
 
-from datetime import datetime
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.datetime_utils import UtcAwareDatetime
 from app.core.security import require_business_permission, require_permission
 from app.db.session import get_db
 from app.models import User
@@ -45,8 +45,8 @@ async def read_executions(
     limit: int = Query(100, ge=1, le=200),
     control_id: Optional[int] = Query(None),
     result: Optional[ExecutionResultEnum] = Query(None),
-    from_date: Optional[datetime] = Query(None),
-    to_date: Optional[datetime] = Query(None),
+    from_date: UtcAwareDatetime | None = Query(None),
+    to_date: UtcAwareDatetime | None = Query(None),
 ) -> Any:
     """
     Retrieve control executions. Scoped to user's accessible departments.

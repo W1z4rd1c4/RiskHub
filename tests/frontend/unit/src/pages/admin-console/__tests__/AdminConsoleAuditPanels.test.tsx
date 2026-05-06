@@ -10,6 +10,7 @@ const getAuditLogsMock = vi.fn();
 const getCapabilitiesMock = vi.fn();
 const getLogConfigMock = vi.fn();
 const updateLogConfigMock = vi.fn();
+const getLookupUsersMock = vi.fn();
 const invalidateQueriesMock = vi.fn();
 let latestQueryClient: ReturnType<typeof createTestQueryClient> | null = null;
 
@@ -64,6 +65,12 @@ vi.mock('@/services/adminApi', () => ({
         getCapabilities: (...args: unknown[]) => getCapabilitiesMock(...args),
         getLogConfig: (...args: unknown[]) => getLogConfigMock(...args),
         updateLogConfig: (...args: unknown[]) => updateLogConfigMock(...args),
+    },
+}));
+
+vi.mock('@/services/lookupApi', () => ({
+    lookupApi: {
+        getUsers: (...args: unknown[]) => getLookupUsersMock(...args),
     },
 }));
 
@@ -136,6 +143,9 @@ describe('AuditLogsPanel', () => {
             can_export_loaded_audit_logs: true,
         });
         getAuditLogsMock.mockResolvedValue(auditLogsPayload());
+        getLookupUsersMock.mockResolvedValue([
+            { id: 7, name: 'Ada Lovelace', email: 'ada@example.test' },
+        ]);
         Object.defineProperty(URL, 'createObjectURL', {
             configurable: true,
             value: vi.fn(() => 'blob:audit-export'),
@@ -251,6 +261,26 @@ describe('AuditLogsPanel', () => {
             expect(navigator.clipboard.writeText).toHaveBeenCalledWith(expect.stringContaining('"changed": true'));
         });
         expect(await screen.findByRole('button', { name: 'audit.details_modal.copied' })).toBeInTheDocument();
+    });
+
+    it('resolves audit actor names through the user lookup', async () => {
+        render(<AuditLogsPanel />, { wrapper: createWrapper() });
+
+        expect(await screen.findByText('Ada Lovelace')).toBeInTheDocument();
+        expect(getLookupUsersMock).toHaveBeenCalledWith({
+            ids: [7],
+            include_inactive: true,
+        });
+        expect(screen.queryByText('USR-7')).not.toBeInTheDocument();
+    });
+
+    it('falls back to Unknown user when an audit actor cannot be resolved', async () => {
+        getLookupUsersMock.mockResolvedValueOnce([]);
+
+        render(<AuditLogsPanel />, { wrapper: createWrapper() });
+
+        expect(await screen.findByText('common:fallbacks.unknown_user')).toBeInTheDocument();
+        expect(screen.queryByText('USR-7')).not.toBeInTheDocument();
     });
 
     it('exports CSV and JSON from the loaded audit log entries without refetching', async () => {

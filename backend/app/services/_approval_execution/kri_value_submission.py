@@ -7,6 +7,7 @@ from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import activity_logger
+from app.core.datetime_utils import coerce_utc
 from app.models import ApprovalRequest, KeyRiskIndicator, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.services._kri_history.governance import (
@@ -46,7 +47,7 @@ async def _apply_kri_value_submission(
         raise HTTPException(status_code=400, detail="Invalid KRI value submission payload")
 
     period_end = date_type.fromisoformat(period_end_str)
-    recorded_at = datetime.fromisoformat(recorded_at_str) if recorded_at_str else None
+    recorded_at = coerce_utc(datetime.fromisoformat(recorded_at_str)) if recorded_at_str else None
 
     mutation_snapshot = capture_kri_value_mutation_snapshot(kri)
 

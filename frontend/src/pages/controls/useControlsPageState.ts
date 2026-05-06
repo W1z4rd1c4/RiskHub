@@ -1,9 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback } from 'react';
 
-import type { ExportDialogSubmitPayload } from '@/components/reports/ExportDialog';
 import type { ViewMode } from '@/components/tables';
-import { DEFAULT_LIST_PAGE_SIZE } from '@/constants/list';
-import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { controlApi } from '@/services/controlApi';
 import { logError } from '@/services/logger';
 import { reportApi } from '@/services/reportApi';
@@ -16,47 +13,83 @@ import {
     getControlGroupBy,
 } from './controlsPagePresentation';
 import {
-    getTotalPages,
-} from '../shared/collectionPageState';
-import {
-    type CollectionWorkflowLoadRequest,
-    useCollectionPageWorkflow,
-} from '../shared/collectionPageWorkflow';
-import { resetCollectionGroupAndPage } from '../shared/collectionViewVocabulary';
+    useRegisterPageController,
+} from '../shared/useRegisterPageController';
+
+type ControlRegisterFilters = {
+    statusFilter: ControlListStatusFilter;
+};
 
 export function useControlsPageState() {
-    const [search, setSearch] = useState('');
-    const [statusFilter, setStatusFilter] = useState<ControlListStatusFilter>('');
-    const [currentPage, setCurrentPage] = useState(1);
-    const [viewMode, setViewMode] = useState<ViewMode>('all');
-    const limit = DEFAULT_LIST_PAGE_SIZE;
-    const debouncedSearch = useDebouncedValue(search, 300);
-    const groupBy = getControlGroupBy(viewMode);
-
     const loadControlPage = useCallback(
-        ({ currentPage, groupBy, groupValue }: CollectionWorkflowLoadRequest) => controlApi.getControls(
+        ({
+            currentPage,
+            debouncedSearch,
+            filters,
+            groupBy,
+            groupValue,
+            limit,
+        }: {
+            currentPage: number;
+            debouncedSearch: string;
+            filters: ControlRegisterFilters;
+            groupBy?: string | null;
+            groupValue?: string | null;
+            limit: number;
+        }) => controlApi.getControls(
             buildControlListParams({
                 currentPage,
                 limit,
                 search: debouncedSearch,
-                statusFilter,
+                statusFilter: filters.statusFilter,
                 groupBy,
                 groupValue,
             })
         ),
-        [debouncedSearch, limit, statusFilter]
+        []
     );
 
     const logLoadError = useCallback((error: unknown) => {
         logError('Error fetching controls:', error);
     }, []);
 
-    const collectionWorkflow = useCollectionPageWorkflow<ControlSummary>({
-        currentPage,
+    const submitExport = useCallback(
+        async ({
+            format,
+            asOfDate,
+            filters,
+            search,
+        }: {
+            format: string;
+            asOfDate?: string | null;
+            filters: ControlRegisterFilters;
+            search: string;
+        }) => {
+            await reportApi.exportControls({
+                format,
+                asOfDate,
+                filters: buildControlExportFilters({
+                    statusFilter: filters.statusFilter,
+                    search,
+                }),
+            });
+        },
+        []
+    );
+
+    const logExportError = useCallback((error: unknown) => {
+        logError('Export failed:', error);
+    }, []);
+
+    const registerController = useRegisterPageController<ControlSummary, ControlRegisterFilters, ViewMode>({
         fallbackErrorKey: 'errors.load_failed',
-        groupBy,
+        getGroupBy: getControlGroupBy,
+        initialFilters: { statusFilter: '' },
+        initialViewMode: 'all',
         loadPage: loadControlPage,
+        onExportError: logExportError,
         onLoadError: logLoadError,
+        submitExport,
     });
     const {
         closeExportDialog,
@@ -64,21 +97,13 @@ export function useControlsPageState() {
         isExportDialogOpen,
         isExporting,
         openExportDialog,
-        resetGroupSelection,
-        selectGroup: setSelectedGroup,
+        clearSelectedGroup,
         selectedGroupLabel,
         selectedGroupValue,
         setErrorKey,
-        setIsExporting,
-    } = collectionWorkflow;
-
-    const resetGroupAndPage = useCallback(() => {
-        resetCollectionGroupAndPage(resetGroupSelection, setCurrentPage);
-    }, [resetGroupSelection]);
-
-    useEffect(() => {
-        void fetchControls();
-    }, [fetchControls]);
+        selectGroup,
+        updateFilter,
+    } = registerController;
 
     const restoreControl = useCallback(
         async (controlId: number) => {
@@ -93,81 +118,38 @@ export function useControlsPageState() {
         [fetchControls, setErrorKey]
     );
 
-    const handleExport = useCallback(
-        async ({ format, asOfDate }: ExportDialogSubmitPayload) => {
-            setIsExporting(true);
-            try {
-                await reportApi.exportControls({
-                    format,
-                    asOfDate,
-                    filters: buildControlExportFilters({
-                        statusFilter,
-                        search,
-                    }),
-                });
-                closeExportDialog();
-            } catch (error) {
-                logError('Export failed:', error);
-            } finally {
-                setIsExporting(false);
-            }
-        },
-        [closeExportDialog, search, setIsExporting, statusFilter]
-    );
-
-    const updateSearch = useCallback((value: string) => {
-        setSearch(value);
-        resetGroupAndPage();
-    }, [resetGroupAndPage]);
-
     const updateStatusFilter = useCallback((value: ControlListStatusFilter) => {
-        setStatusFilter(value);
-        resetGroupAndPage();
-    }, [resetGroupAndPage]);
-
-    const updateViewMode = useCallback((value: ViewMode) => {
-        setViewMode(value);
-        resetGroupAndPage();
-    }, [resetGroupAndPage]);
-
-    const selectGroup = useCallback((groupValue: string, groupLabel: string) => {
-        setSelectedGroup(groupValue, groupLabel);
-        setCurrentPage(1);
-    }, [setSelectedGroup]);
-
-    const clearSelectedGroup = useCallback(() => {
-        resetGroupSelection();
-        setCurrentPage(1);
-    }, [resetGroupSelection]);
+        updateFilter('statusFilter', value);
+    }, [updateFilter]);
 
     return {
-        currentPage,
-        capabilities: collectionWorkflow.capabilities,
-        errorKey: collectionWorkflow.errorKey,
+        currentPage: registerController.currentPage,
+        capabilities: registerController.capabilities,
+        errorKey: registerController.errorKey,
         fetchControls,
-        groups: collectionWorkflow.groups,
-        handleExport,
-        hasLoadedOnce: collectionWorkflow.hasLoadedOnce,
+        groups: registerController.groups,
+        handleExport: registerController.handleExport,
+        hasLoadedOnce: registerController.hasLoadedOnce,
         isExportDialogOpen,
         isExporting,
-        isAccessDenied: collectionWorkflow.isAccessDenied,
-        isLoading: collectionWorkflow.isLoading,
-        items: collectionWorkflow.items,
-        limit,
+        isAccessDenied: registerController.isAccessDenied,
+        isLoading: registerController.isLoading,
+        items: registerController.items,
+        limit: registerController.limit,
         openExportDialog,
         closeExportDialog,
         restoreControl,
-        search,
+        search: registerController.search,
         selectedGroupLabel,
         selectedGroupValue,
-        setCurrentPage,
-        statusFilter,
-        totalCount: collectionWorkflow.totalCount,
-        totalPages: getTotalPages(collectionWorkflow.totalCount, limit),
-        updateSearch,
+        setCurrentPage: registerController.setCurrentPage,
+        statusFilter: registerController.filters.statusFilter,
+        totalCount: registerController.totalCount,
+        totalPages: registerController.totalPages,
+        updateSearch: registerController.updateSearch,
         updateStatusFilter,
-        updateViewMode,
-        viewMode,
+        updateViewMode: registerController.updateViewMode,
+        viewMode: registerController.viewMode,
         selectGroup,
         clearSelectedGroup,
     };

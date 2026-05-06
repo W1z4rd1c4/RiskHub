@@ -15,9 +15,8 @@ import {
 import { useTranslation } from '@/i18n/hooks';
 import { StepIndicator } from '@/components/ui/StepIndicator';
 import { ApprovalQueuedBanner } from '@/components/forms/ApprovalQueuedBanner';
+import { useFormStepNavigation } from '@/components/forms/FormStepContext';
 import {
-    nextEntityFormStep,
-    previousEntityFormStep,
     resolveSubmitOutcome,
 } from '@/components/forms/entityFormWorkflow';
 import type { Control } from '@/types/control';
@@ -27,6 +26,10 @@ import { ControlFormIdentityStep } from './ControlFormIdentityStep';
 import { ControlFormOwnershipStep } from './ControlFormOwnershipStep';
 import { ControlFormRiskLinkStep } from './ControlFormRiskLinkStep';
 import { ControlFormStatusStep } from './ControlFormStatusStep';
+import {
+    ControlRiskLinkStepProvider,
+    type ControlRiskLinkStepContextValue,
+} from './controlRiskLinkStepContext';
 import { collectRiskFilterOptions, filterRisks, filterUsers, getUniqueRoles } from './controlFormFilters';
 import { useControlFormLookups } from './useControlFormLookups';
 import { useControlFormWorkflow } from './useControlFormWorkflow';
@@ -119,6 +122,28 @@ export function ControlForm({
     const uniqueRoles = getUniqueRoles(users);
     const selectedRisk = risks.find((risk) => risk.id === selectedRiskId);
     const visibleError = error ?? dataErrorKey;
+    const riskLinkStepContext: ControlRiskLinkStepContextValue = {
+        selectedRisk,
+        setSelectedRiskId,
+        riskEffectiveness,
+        setRiskEffectiveness,
+        linkNotes,
+        setLinkNotes,
+        selectedDept,
+        setSelectedDept,
+        selectedProcess,
+        setSelectedProcess,
+        selectedCategory,
+        setSelectedCategory,
+        uniqueDepartments,
+        uniqueProcesses,
+        uniqueCategories,
+        riskSearch,
+        setRiskSearch,
+        isLoadingRisks,
+        risks,
+        filteredRisks,
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -129,44 +154,16 @@ export function ControlForm({
         });
     };
 
-    const nextStep = () => {
-        setError(null);
-        if (!validateStep(currentStep)) return;
-
-        setCurrentStep(prev => nextEntityFormStep({ currentStep: prev, maxStep: steps.length - 1 }));
-    };
-
-    const prevStep = () => {
-        setError(null);
-        setCurrentStep(prev => previousEntityFormStep({ currentStep: prev, minStep: 0 }));
-    };
+    const { handleStepClick, nextStep, prevStep } = useFormStepNavigation({
+        currentStep,
+        isEdit,
+        maxStep: steps.length - 1,
+        setCurrentStep,
+        setError,
+        validateStep,
+    });
 
     const submitOutcome = resolveSubmitOutcome({ approvalQueued: Boolean(approvalQueued) });
-
-    const handleStepClick = (index: number) => {
-        // In edit mode, allow free navigation to any step
-        if (isEdit) {
-            setError(null);
-            setCurrentStep(index);
-            return;
-        }
-
-        // Allow going back
-        if (index < currentStep) {
-            setError(null);
-            setCurrentStep(index);
-            return;
-        }
-
-        // If clicking next step immediately, validate current
-        if (index === currentStep + 1) {
-            nextStep();
-            return;
-        }
-
-        // Prevent jumping multiple steps or if current invalid
-        // logic: if index > currentStep + 1, we ignore
-    };
 
     return (
         <form onSubmit={handleSubmit} className="space-y-8 max-w-4xl mx-auto">
@@ -245,29 +242,9 @@ export function ControlForm({
 
                     {currentStep === 4 && (
                         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-                            <ControlFormRiskLinkStep
-                                t={t}
-                                selectedRisk={selectedRisk}
-                                setSelectedRiskId={setSelectedRiskId}
-                                riskEffectiveness={riskEffectiveness}
-                                setRiskEffectiveness={setRiskEffectiveness}
-                                linkNotes={linkNotes}
-                                setLinkNotes={setLinkNotes}
-                                selectedDept={selectedDept}
-                                setSelectedDept={setSelectedDept}
-                                selectedProcess={selectedProcess}
-                                setSelectedProcess={setSelectedProcess}
-                                selectedCategory={selectedCategory}
-                                setSelectedCategory={setSelectedCategory}
-                                uniqueDepartments={uniqueDepartments}
-                                uniqueProcesses={uniqueProcesses}
-                                uniqueCategories={uniqueCategories}
-                                riskSearch={riskSearch}
-                                setRiskSearch={setRiskSearch}
-                                isLoadingRisks={isLoadingRisks}
-                                risks={risks}
-                                filteredRisks={filteredRisks}
-                            />
+                            <ControlRiskLinkStepProvider value={riskLinkStepContext}>
+                                <ControlFormRiskLinkStep t={t} />
+                            </ControlRiskLinkStepProvider>
                         </div>
                     )}
                 </div>

@@ -3,7 +3,7 @@
 Back to tree: [`docs/DOCUMENTATION_TREE.md`](../DOCUMENTATION_TREE.md)
 
 > Version: 1.0
-> Last reviewed: 2026-05-05
+> Last reviewed: 2026-05-06
 > Owner: RiskHub Maintainer
 > Machine-readable mirror: [`authorization-capability-contract.json`](./authorization-capability-contract.json)
 > Capability field catalog: [`capability-catalog.json`](./capability-catalog.json)
@@ -70,12 +70,11 @@ For architecture-only refactors, record the moved internal module and state whet
 If the business policy itself changes, update [`../BUSINESS_LOGIC.md`](../BUSINESS_LOGIC.md).
 If the verification path changes, update [`../TESTING.md`](../TESTING.md).
 
-Latest architecture-only note: identity/access lifecycle, approval queue,
-vendor governance, report exports, activity log query, deadline execution,
-authz validator internals, global config lifecycle, and users access workflow
-were reconciled on 2026-05-05 after moving behavior behind production-owned
-Modules. User-visible authorization policy and capability semantics are
-unchanged.
+Latest architecture-only note: Risk Hub config capability builders and
+service-level permission checks were reconciled on 2026-05-06 by moving
+role/department/risk-type/approval-scenario capability construction and
+service perimeter checks into `backend/app/services/_authorization_capabilities/`.
+User-visible authorization policy and capability semantics are unchanged.
 
 ## Contract Matrix
 
@@ -147,6 +146,7 @@ unchanged.
 | `backend/app/api/v1/endpoints/auth/sso.py`, `backend/app/api/v1/endpoints/issues/crud/list.py`, and `backend/app/services/_register_listings/issues.py` | 2026-05-05 architecture-only reconciliation: SSO HTTP adaptation and issue register listing planning remain contract-covered after corrective Module ownership changes. User-visible authorization policy and capability semantics unchanged. |
 | `backend/app/services/_entity_mutation_lifecycle/approval_plans.py`, `policy.py`, `direct_apply.py`, `archive_plans.py`, `projection.py`, `backend/app/services/_control_execution/access.py`, `projection.py`, `link_policy.py`, and `link_governance.py` | 2026-05-05 corrective architecture-only split: entity mutation approval/policy/direct/archive planning and control execution access/projection/link policy moved behind service-owned Modules. User-visible authorization policy and capability semantics unchanged. |
 | `backend/app/services/_identity_access_lifecycle/`, `backend/app/services/_approval_queue/`, `backend/app/services/_vendor_governance/`, `backend/app/services/_reporting/exports/`, `backend/app/services/_activity_log_query/`, `backend/app/services/_deadline_execution/`, `backend/app/services/_riskhub_config/global_config.py`, `scripts/security/authz_contract_validator/`, and `frontend/src/components/access/useAccessUsersWorkflow.ts` | 2026-05-05 nine-area corrective architecture-only pass: identity/access, approval queue, vendor governance, report export, activity log, deadline execution, authz validator, global config, and users access workflow behavior moved behind production-owned Modules. User-visible authorization policy and capability semantics unchanged. |
+| `backend/app/services/_authorization_capabilities/riskhub_config.py`, `backend/app/services/_authorization_capabilities/perimeter.py`, `backend/app/services/_riskhub_config/roles.py`, `backend/app/services/_riskhub_config/departments.py`, `backend/app/api/v1/endpoints/riskhub/risk_types.py`, `backend/app/api/v1/endpoints/riskhub/approval_scenarios.py`, `backend/app/services/_entity_mutation_lifecycle/archive_plans.py`, `backend/app/services/kri_vendor_assignment.py`, and `backend/app/services/_vendor_governance/links.py` | 2026-05-06 architecture-only authorization perimeter pass: Risk Hub config capabilities and service-level permission checks moved behind the existing authorization capability Module. User-visible authorization policy and capability semantics unchanged. |
 | `frontend/src/lib/capabilities.ts` | Backend-first capability fallback resolver. |
 | `frontend/src/authz/policy.ts` | Local route/navigation policy projection that mirrors backend policy. |
 | `docs/TESTING.md` | Existing RBAC, authz, capability, report, dashboard, vendor, KRI, questionnaire, and access verification lanes. |

@@ -1,11 +1,11 @@
 """Activity Log API endpoints."""
 
-from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.datetime_utils import UtcAwareDatetime
 from app.core.security import require_business_permission
 from app.db.session import get_db
 from app.models import User
@@ -41,8 +41,8 @@ async def list_activity_logs(
     search: Optional[str] = Query(
         None, description="Fulltext search in sanitized entity labels, actor names, and change payloads"
     ),
-    date_from: Optional[datetime] = Query(None, description="Start date"),
-    date_to: Optional[datetime] = Query(None, description="End date"),
+    date_from: UtcAwareDatetime | None = Query(None, description="Start date"),
+    date_to: UtcAwareDatetime | None = Query(None, description="End date"),
 ):
     """
     List activity log entries with filters.

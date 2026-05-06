@@ -10,7 +10,9 @@ from sqlalchemy.orm import aliased, selectinload
 from app.models import Control, KeyRiskIndicator, OrphanedItem, Risk, User, Vendor
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.models.department import Department
-from app.schemas.riskhub import DepartmentHubCapabilities, DepartmentHubRead
+from app.schemas.riskhub import DepartmentHubRead
+from app.services._authorization_capabilities import department_capabilities
+from app.services._org_chart import validate_department_manager_membership
 
 from .lifecycle import ConfigAuditPlan, build_config_audit_plan
 
@@ -37,15 +39,6 @@ class DepartmentDependencyCounts:
                 self.pending_orphans,
             )
         )
-
-
-def department_capabilities(department: Department, counts: DepartmentDependencyCounts) -> DepartmentHubCapabilities:
-    return DepartmentHubCapabilities(
-        can_update=bool(department.is_active),
-        can_delete=bool(department.is_active and not department.is_system and not counts.blocks_delete),
-        can_restore=bool(not department.is_active),
-    )
-
 
 def department_to_read(department: Department, counts: DepartmentDependencyCounts) -> DepartmentHubRead:
     return DepartmentHubRead(
@@ -118,15 +111,13 @@ async def load_department_for_update(db: AsyncSession, department_id: int) -> De
     return department
 
 
-async def validate_department_manager(db: AsyncSession, manager_id: int | None) -> None:
-    if manager_id is None:
-        return
-    result = await db.execute(select(User).where(User.id == manager_id))
-    manager = result.scalar_one_or_none()
-    if not manager:
-        raise HTTPException(status_code=400, detail="Manager user not found")
-    if not manager.is_active:
-        raise HTTPException(status_code=400, detail="Department manager must be active")
+async def validate_department_manager(
+    db: AsyncSession,
+    manager_id: int | None,
+    *,
+    department_id: int | None = None,
+) -> None:
+    await validate_department_manager_membership(db, department_id=department_id, manager_id=manager_id)
 
 
 async def get_department_dependency_counts(db: AsyncSession, department_id: int) -> DepartmentDependencyCounts:

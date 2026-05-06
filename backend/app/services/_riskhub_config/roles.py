@@ -5,26 +5,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.policy import PROTECTED_SYSTEM_ROLES
-from app.models.role import Permission, Role, RolePermission, RoleType
-from app.schemas.riskhub import RoleHubCapabilities, RoleHubRead
-
-IMMUTABLE_ROLE_NAMES = {RoleType.CRO, RoleType.ADMIN, RoleType.VIEWER}
-
-
-def role_capabilities(role: Role, *, active_user_count: int | None = None) -> RoleHubCapabilities:
-    active_users = (
-        active_user_count
-        if active_user_count is not None
-        else len([user for user in role.users if user.is_active])
-    )
-    protected = role.is_system or role.name in PROTECTED_SYSTEM_ROLES
-    mutable = role.name not in IMMUTABLE_ROLE_NAMES
-    return RoleHubCapabilities(
-        can_update=bool(role.is_active and mutable),
-        can_delete=bool(role.is_active and not protected and active_users == 0),
-        can_restore=bool(not role.is_active),
-    )
+from app.models.role import Permission, Role, RolePermission
+from app.schemas.riskhub import RoleHubRead
+from app.services._authorization_capabilities import role_capabilities
 
 
 def role_to_read(role: Role, *, user_count: int | None = None) -> RoleHubRead:

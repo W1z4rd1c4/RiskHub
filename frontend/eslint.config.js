@@ -68,6 +68,13 @@ export default defineConfig([
       // This is a React guidance rule; in this codebase it produces false positives
       // (e.g. page-reset patterns) and blocks lint.
       "react-hooks/set-state-in-effect": "off",
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "TemplateElement[value.raw=/\\b(USR|RISK|RSK|CTL|KRI|VND)-/]",
+          message: "Do not render raw database IDs in user-facing labels; use a display-name resolver or Unknown <entity> fallback.",
+        },
+      ],
     },
   },
   {
@@ -76,6 +83,8 @@ export default defineConfig([
       "src/routing/**/*.{ts,tsx}",
       "src/test/**/*.{ts,tsx}",
       "src/components/ui/**/*.{ts,tsx}",
+      "src/components/forms/FormStepContext.tsx",
+      "src/components/notifications/notificationPresentation.tsx",
     ],
     rules: {
       "react-refresh/only-export-components": "off",
