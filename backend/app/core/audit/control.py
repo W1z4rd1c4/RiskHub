@@ -5,6 +5,7 @@ from collections.abc import Mapping
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.activity_logger import build_change_set, log_activity
+from app.core.audit._emit import emit_adapter
 from app.core.audit.changes import resolve_audit_changes
 from app.core.audit.labels import safe_entity_label
 from app.core.audit.types import AuditLogActivity
@@ -27,7 +28,7 @@ async def control_created(
     control: Control,
     log_activity_func: AuditLogActivity = log_activity,
 ) -> None:
-    await log_activity_func(
+    await emit_adapter(
         db,
         entity_type=ActivityEntityType.CONTROL,
         entity_id=control.id,
@@ -36,6 +37,7 @@ async def control_created(
         action=ActivityAction.CREATE,
         actor=actor,
         department_id=control.department_id,
+        log_activity_func=log_activity_func,
     )
 
 
@@ -51,7 +53,7 @@ async def control_updated(
     log_activity_func: AuditLogActivity = log_activity,
 ) -> None:
     changes = resolve_audit_changes(changes=changes, before_data=before_data, after_data=after_data)
-    await log_activity_func(
+    await emit_adapter(
         db,
         entity_type=ActivityEntityType.CONTROL,
         entity_id=control.id,
@@ -62,6 +64,7 @@ async def control_updated(
         department_id=control.department_id,
         changes=changes,
         description=description,
+        log_activity_func=log_activity_func,
     )
 
 
@@ -77,7 +80,7 @@ async def control_archived(
     log_activity_func: AuditLogActivity = log_activity,
 ) -> None:
     changes = resolve_audit_changes(changes=changes, before_data=before_data, after_data=after_data)
-    await log_activity_func(
+    await emit_adapter(
         db,
         entity_type=ActivityEntityType.CONTROL,
         entity_id=control.id,
@@ -88,6 +91,7 @@ async def control_archived(
         department_id=control.department_id,
         changes=changes,
         description=description,
+        log_activity_func=log_activity_func,
     )
 
 
@@ -102,7 +106,7 @@ async def control_restored(
     log_activity_func: AuditLogActivity = log_activity,
 ) -> None:
     changes = resolve_audit_changes(changes=changes, before_data=before_data, after_data=after_data)
-    await log_activity_func(
+    await emit_adapter(
         db,
         entity_type=ActivityEntityType.CONTROL,
         entity_id=control.id,
@@ -115,4 +119,5 @@ async def control_restored(
         department_id=control.department_id,
         changes=changes,
         description=f"Restored control {control.name}",
+        log_activity_func=log_activity_func,
     )

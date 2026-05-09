@@ -9,11 +9,8 @@ API endpoint package for `issues` domain.
 - `__init__.py`
 - `__pycache__/`
 - `constants.py`
-- `links.py`
-- `loading.py`
 - `serialization.py`
 - `source.py`
-- `validation.py`
 
 ## Notes
 

@@ -3,7 +3,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.api.v1.endpoints._monitoring_response import load_monitoring_response_context, serialize_control_read
 from app.core.audit.control import control_created
 from app.core.datetime_utils import utc_now
 from app.core.owner_reference_validation import validate_active_owner_reference
@@ -12,6 +11,7 @@ from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import Control, User
 from app.schemas.control import ControlCreate, ControlRead
+from app.services._monitoring_response import load_monitoring_response_context, serialize_control_read
 from app.services.authorization_capabilities import control_capabilities
 from app.services.transaction_boundary import commit_service_transaction
 

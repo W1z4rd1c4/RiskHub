@@ -8,7 +8,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import NotFoundError, ValidationError
-from app.core.permissions import can_resolve_approvals
 from app.models import KeyRiskIndicator, User
 from app.models.kri_history import KRIValueHistory
 from app.schemas.approval_request import ApprovalQueuedResponse
@@ -20,6 +19,7 @@ from app.schemas.kri import (
     KRIRecordValue,
     KRIResponse,
 )
+from app.services.approval_scenario_policy import approval_privilege_tier
 
 
 class KRIValueMutationTarget(Protocol):
@@ -235,7 +235,7 @@ async def correct_kri_history_governance(
         "kri_history_correction",
         default_roles=["cro"],
     )
-    if can_resolve_approvals(current_user) or not scenario_policy.requires_approval:
+    if approval_privilege_tier(current_user).is_privileged or not scenario_policy.requires_approval:
         try:
             updated_entry = await KRIHistoryService.apply_history_correction(
                 db=db,

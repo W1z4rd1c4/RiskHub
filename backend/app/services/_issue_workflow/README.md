@@ -8,7 +8,7 @@ Business/service-layer logic for `_issue_workflow`.
 
 - `__init__.py`
 - `__pycache__/`
-- `assignment.py`
+- `assignment.py` - owner-assignment validation (user existence, owner-to-department eligibility) and assignment application.
 - `closure.py`
 - `contracts.py`
 - `exceptions.py`

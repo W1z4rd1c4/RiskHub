@@ -5,9 +5,9 @@ from enum import StrEnum
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import ConflictError, ValidationError
-from app.core.permissions import can_resolve_approvals
 from app.models import User
 from app.schemas.kri import KRIRecordValue, KRIResponse
+from app.services.approval_scenario_policy import approval_privilege_tier
 
 from .approval_intake import create_kri_submission_approval
 from .direct_application import apply_kri_value_directly
@@ -39,7 +39,7 @@ async def record_kri_value_intake(
         raise ConflictError("Cannot submit values for archived KRI")
     await _assert_kri_submit_access(db, kri=kri, kri_id=kri_id, current_user=current_user)
 
-    mode = select_kri_value_intake_mode(can_resolve=can_resolve_approvals(current_user))
+    mode = select_kri_value_intake_mode(can_resolve=approval_privilege_tier(current_user).is_privileged)
     try:
         if mode is KRIValueIntakeMode.DIRECT:
             return await apply_kri_value_directly(

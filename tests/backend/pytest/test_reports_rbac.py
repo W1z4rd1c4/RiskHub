@@ -181,16 +181,16 @@ class TestReportDepartmentScoping:
 
 
 class TestReportExcelEndpoints:
-    """Test legacy Excel endpoint bridge behavior."""
+    """Test removed Excel export format behavior."""
 
     @pytest.mark.asyncio
-    async def test_admin_controls_excel_endpoint_returns_gone(
+    async def test_admin_controls_xlsx_export_returns_gone(
         self,
         auth_client: AsyncClient,
         test_control_own_dept: Control,
     ):
-        """Legacy Excel endpoint is removed and returns 410."""
-        response = await auth_client.get("/api/v1/reports/controls/excel")
+        """XLSX exports are removed and return 410."""
+        response = await auth_client.get("/api/v1/reports/controls/export?format=xlsx")
         assert response.status_code == 410
         assert response.json()["detail"]["code"] == "excel_export_removed"
 
@@ -360,36 +360,39 @@ class TestReportMonitoringExports:
         assert response.json()["detail"] == "monitoring_status and timeliness_status cannot be used together"
 
     @pytest.mark.asyncio
-    async def test_admin_risks_excel_endpoint_returns_gone(
+    async def test_admin_risks_xlsx_export_returns_gone(
         self,
         auth_client: AsyncClient,
         test_risk: Risk,
     ):
-        """Legacy Excel endpoint is removed and returns 410."""
-        response = await auth_client.get("/api/v1/reports/risks/excel")
+        """XLSX exports are removed and return 410."""
+        response = await auth_client.get("/api/v1/reports/risks/export?format=xlsx")
         assert response.status_code == 410
         assert response.json()["detail"]["code"] == "excel_export_removed"
 
     @pytest.mark.asyncio
-    async def test_admin_summary_excel_endpoint_returns_gone(
+    async def test_admin_summary_xlsx_export_returns_gone(
         self,
         auth_client: AsyncClient,
         test_control_own_dept: Control,
     ):
-        response = await auth_client.get("/api/v1/reports/summary/excel")
+        response = await auth_client.get("/api/v1/reports/summary/export?format=xlsx")
         assert response.status_code == 410
         assert response.json()["detail"]["code"] == "excel_export_removed"
 
     @pytest.mark.asyncio
-    async def test_employee_cannot_export_cross_department_excel(
+    async def test_employee_cross_department_xlsx_export_returns_gone(
         self,
         client_employee: AsyncClient,
         second_department: Department,
         test_control_other_dept: Control,
     ):
-        """Employee remains blocked from cross-department legacy endpoint."""
-        response = await client_employee.get(f"/api/v1/reports/controls/excel?department_id={second_department.id}")
-        assert response.status_code == 403
+        """XLSX rejection is preserved on the supported export endpoint."""
+        response = await client_employee.get(
+            f"/api/v1/reports/controls/export?format=xlsx&department_id={second_department.id}"
+        )
+        assert response.status_code == 410
+        assert response.json()["detail"]["code"] == "excel_export_removed"
 
 
 class TestUnifiedExportEndpoints:

@@ -4,7 +4,6 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
-from app.core.permissions import can_resolve_approvals
 from app.db.session import get_db
 from app.models import User
 from app.schemas.notification import (
@@ -21,6 +20,7 @@ from app.services._notification_inbox.lifecycle import (
     read_notification_preferences,
     update_notification_preferences,
 )
+from app.services.approval_scenario_policy import approval_privilege_tier
 from app.services.kri_deadline_service import KRIDeadlineService
 
 router = APIRouter()
@@ -124,7 +124,7 @@ async def trigger_kri_deadline_check(
     """
     from fastapi import HTTPException
 
-    if not can_resolve_approvals(current_user):
+    if not approval_privilege_tier(current_user).is_privileged:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions. Only Admin, CRO, or Risk Manager can trigger.",

@@ -14,13 +14,9 @@ from app.services._issue_register import (
     resolve_issue_source_metadata,
     serialize_issue_read_for_actor,
 )
+from app.services._issue_workflow.assignment import ensure_owner_assignable, validate_user_exists
+from app.services._issue_workflow.loading import get_issue_with_relations
 from app.services.transaction_boundary import commit_service_transaction
-
-from .._shared import (
-    _ensure_owner_assignable,
-    _get_issue_with_relations,
-    _validate_user_exists,
-)
 
 router = APIRouter()
 
@@ -47,8 +43,8 @@ async def create_issue(
             detail="Source entity department must match issue department",
         )
 
-    await _validate_user_exists(db, payload.owner_user_id)
-    await _ensure_owner_assignable(
+    await validate_user_exists(db, payload.owner_user_id)
+    await ensure_owner_assignable(
         db,
         owner_user_id=payload.owner_user_id,
         department_id=payload.department_id,
@@ -104,7 +100,7 @@ async def create_issue(
         )
 
     await commit_service_transaction(db)
-    reloaded_issue = await _get_issue_with_relations(db, issue.id)
+    reloaded_issue = await get_issue_with_relations(db, issue.id)
     if reloaded_issue is None:
         raise HTTPException(status_code=404, detail="Issue not found")
     return await serialize_issue_read_for_actor(db, current_user=current_user, issue=reloaded_issue)

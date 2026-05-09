@@ -3,13 +3,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.api.v1.endpoints._monitoring_response import load_monitoring_response_context, serialize_control_read
 from app.core.datetime_utils import utc_now
 from app.core.permissions import check_department_access
 from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import Control, User
 from app.schemas.control import ControlRead
+from app.services._monitoring_response import load_monitoring_response_context, serialize_control_read
 from app.services.authorization_capabilities import control_capabilities
 
 router = APIRouter()

@@ -7,7 +7,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import ColumnElement
 
 from app.core.permissions import (
-    can_resolve_approvals,
     control_visibility_clause,
     get_issue_scope_clause,
     has_permission,
@@ -18,7 +17,7 @@ from app.core.permissions import (
 from app.models import ApprovalRequest, Control, Issue, KeyRiskIndicator, Notification, Risk, RiskQuestionnaire, User
 from app.models.approval_request import ApprovalResourceType
 from app.models.vendor import Vendor
-from app.services.approval_scenario_policy import can_view_approval_resource, user_matches_approval_scenario_role
+from app.services.approval_scenario_policy import approval_privilege_tier, can_view_approval_resource
 from app.services.risk_questionnaire_service import can_read_questionnaire
 
 
@@ -73,14 +72,12 @@ async def _can_view_approval_notification(db: AsyncSession, current_user: User, 
     approval = await db.get(ApprovalRequest, approval_id)
     if approval is None:
         return False
-    if approval.requested_by_id == current_user.id or approval.primary_approver_id == current_user.id:
+    tier = approval_privilege_tier(current_user, approval)
+    if tier.is_requester or tier.is_primary_approver:
         return True
-    if can_resolve_approvals(current_user):
+    if tier.is_privileged:
         return True
-    return (
-        user_matches_approval_scenario_role(approval, current_user) is True
-        and await can_view_approval_resource(db, current_user, approval)
-    )
+    return tier.scenario_match is True and await can_view_approval_resource(db, current_user, approval)
 
 
 async def _can_view_questionnaire_notification(db: AsyncSession, current_user: User, questionnaire_id: int) -> bool:
@@ -204,7 +201,7 @@ def _approval_exists_clause(
         ApprovalRequest.requested_by_id == current_user.id,
         ApprovalRequest.primary_approver_id == current_user.id,
     ]
-    if can_resolve_approvals(current_user):
+    if approval_privilege_tier(current_user).is_privileged:
         direct_clauses.append(true())
 
     role_name = getattr(getattr(current_user, "role", None), "name", None)

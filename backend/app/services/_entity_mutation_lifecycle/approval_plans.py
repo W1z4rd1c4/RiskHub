@@ -14,7 +14,7 @@ from app.core.approval_helpers import (
     get_risk_edit_approval_metadata,
 )
 from app.core.exceptions import ValidationError
-from app.core.permissions import can_resolve_approvals, has_sensitive_field_changes, is_high_risk_for_approval_async
+from app.core.permissions import has_sensitive_field_changes, is_high_risk_for_approval_async
 from app.models import (
     ApprovalActionType,
     ApprovalRequest,
@@ -27,7 +27,11 @@ from app.models import (
     User,
 )
 from app.services._entity_mutation_lifecycle.contracts import EntityMutationOutcome
-from app.services.approval_scenario_policy import apply_approval_scenario_snapshot, load_approval_scenario_policy
+from app.services.approval_scenario_policy import (
+    apply_approval_scenario_snapshot,
+    approval_privilege_tier,
+    load_approval_scenario_policy,
+)
 
 
 def build_pending_changes(target: object, update_data: dict[str, Any]) -> dict[str, dict[str, Any]]:
@@ -66,7 +70,7 @@ async def create_risk_edit_approval_if_required(
     update_data: dict[str, Any],
     current_user: User,
 ) -> EntityMutationOutcome | None:
-    if can_resolve_approvals(current_user):
+    if approval_privilege_tier(current_user).is_privileged:
         return None
 
     old_data: dict[str, object] = {
@@ -159,7 +163,7 @@ async def create_control_edit_approval_if_required(
     update_data: dict[str, Any],
     is_owner: bool,
 ) -> EntityMutationOutcome | None:
-    if can_resolve_approvals(current_user):
+    if approval_privilege_tier(current_user).is_privileged:
         return None
 
     requires_approval = False
@@ -264,7 +268,7 @@ async def create_kri_edit_approval_if_required(
         "kri_edit",
         default_roles=["risk_owner", "risk_manager", "cro"],
     )
-    if can_resolve_approvals(current_user) or not scenario_policy.requires_approval:
+    if approval_privilege_tier(current_user).is_privileged or not scenario_policy.requires_approval:
         return None
 
     existing = await db.execute(

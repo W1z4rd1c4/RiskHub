@@ -11,7 +11,6 @@ API endpoint package for `reports` domain.
 - `_scoping.py`
 - `_streaming.py`
 - `audit_trail_excel.py`
-- `legacy_excel.py`
 - `summary_excel.py`
 - `unified_exports/`
 

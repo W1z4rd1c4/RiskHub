@@ -1,37 +1,17 @@
 """Risk Hub questionnaire endpoints (CRO-only batch send)."""
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.endpoints.riskhub import get_cro_user
 from app.db.session import get_db
 from app.models import Risk, User
+from app.schemas.riskhub import BatchSendRequest, BatchSendResponse
 from app.services.risk_questionnaire_service import send_questionnaire_for_risk
 from app.services.transaction_boundary import commit_service_transaction
 
 router = APIRouter(prefix="/riskhub/questionnaires", tags=["riskhub"])
-
-
-class RiskFilters(BaseModel):
-    department_id: int | None = None
-    process: str | None = None
-    category: str | None = None
-    status: str | None = None
-
-
-class BatchSendRequest(BaseModel):
-    select_all: bool
-    risk_ids: list[int] | None = None
-    filters: RiskFilters | None = None
-
-
-class BatchSendResponse(BaseModel):
-    created_count: int
-    skipped_no_owner: list[int]
-    skipped_open_exists: list[int]
-    errors: list[str]
 
 
 @router.post("/batch-send", response_model=BatchSendResponse)

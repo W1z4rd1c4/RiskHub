@@ -5,7 +5,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.permissions import (
     can_access_department_id,
     can_read_risk_id,
-    can_resolve_approvals,
     has_permission,
     is_high_risk_for_approval_async,
     is_risk_control_owner,
@@ -14,6 +13,7 @@ from app.core.permissions import (
 from app.models import ApprovalActionType, ApprovalRequest, ApprovalResourceType, Risk, User
 from app.schemas.risk import RiskCapabilities
 from app.services._risk_questionnaires.policy import can_send_questionnaire
+from app.services.approval_scenario_policy import approval_privilege_tier
 
 from .common import has_pending_action, pending_approvals
 
@@ -51,7 +51,7 @@ async def risk_capabilities(
         and can_access_department_id(current_user, risk.department_id)
         and not is_archived
     )
-    is_resolver = can_resolve_approvals(current_user)
+    is_resolver = approval_privilege_tier(current_user).is_privileged
     requires_privileged_delete = (
         bool(risk.is_priority or risk.net_score >= high_risk_min_net_score)
         if high_risk_min_net_score is not None

@@ -1,9 +1,6 @@
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.v1.endpoints._monitoring_response import (
-    serialize_control_risk_link,
-)
 from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import User
@@ -12,6 +9,9 @@ from app.services._control_execution import (
     create_risk_control_link,
     delete_risk_control_link,
     list_risk_control_links,
+)
+from app.services._monitoring_response import (
+    serialize_control_risk_link,
 )
 
 router = APIRouter()

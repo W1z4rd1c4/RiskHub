@@ -4,7 +4,6 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.api.v1.endpoints._monitoring_response import load_monitoring_response_context, serialize_risk_read
 from app.core.audit.risk import risk_created
 from app.core.datetime_utils import utc_now
 from app.core.owner_reference_validation import validate_active_owner_reference
@@ -14,6 +13,7 @@ from app.db.session import get_db
 from app.models import KeyRiskIndicator, Risk, User
 from app.schemas.risk import RiskCreate, RiskRead
 from app.services._entity_mutation_lifecycle.policy import validate_risk_type
+from app.services._monitoring_response import load_monitoring_response_context, serialize_risk_read
 from app.services.authorization_capabilities import risk_capabilities
 from app.services.transaction_boundary import commit_service_transaction
 

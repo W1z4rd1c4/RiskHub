@@ -1,7 +1,6 @@
 from typing import Literal, cast
 
 from fastapi import APIRouter, Depends, Request, Response, status
-from pydantic import BaseModel
 from redis.exceptions import RedisError
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
@@ -9,30 +8,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.scheduler import get_scheduler_runtime_state
 from app.db.session import get_db
+from app.schemas.health import HealthResponse, LivenessResponse, ReadinessResponse
 
 router = APIRouter()
-
-
-class LivenessResponse(BaseModel):
-    """Process liveness response model."""
-
-    status: Literal["alive"]
-
-
-class ReadinessResponse(BaseModel):
-    """Readiness response model."""
-
-    ready: bool
-    database: Literal["connected", "disconnected"]
-    redis: Literal["connected", "disconnected", "disabled"]
-    scheduler_role: Literal["disabled", "leader", "follower"]
-    scheduler_status: Literal["disabled", "leader_running", "follower_ready", "error"]
-
-
-class HealthResponse(ReadinessResponse):
-    """Diagnostic health response model."""
-
-    status: Literal["healthy", "degraded"]
 
 
 async def _get_database_status(db: AsyncSession) -> Literal["connected", "disconnected"]:

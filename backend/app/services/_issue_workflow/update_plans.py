@@ -6,13 +6,10 @@ from app.core.datetime_utils import coerce_utc
 from app.core.permissions import can_access_department_id
 from app.schemas.issue import IssueUpdate
 from app.services._issue_register.constants import source_type_value
+from app.services._issue_register.source_mutation import issue_link_department_ids
+from app.services._issue_workflow.assignment import ensure_owner_assignable, validate_user_exists
 from app.services._issue_workflow.contracts import IssueUpdatePlan
-from app.services._issue_workflow.source_validation import (
-    ensure_owner_assignable,
-    issue_link_department_ids,
-    resolve_issue_source_metadata,
-    validate_user_exists,
-)
+from app.services._issue_workflow.source_validation import resolve_issue_source_metadata
 
 CONCRETE_SOURCE_TYPES = {"control_execution", "kri_breach"}
 

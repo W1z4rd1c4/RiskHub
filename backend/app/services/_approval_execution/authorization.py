@@ -4,12 +4,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.datetime_utils import utc_now
 from app.core.exceptions import AuthorizationError, ValidationError
-from app.core.permissions import can_resolve_approvals
 from app.models import ApprovalRequest, ApprovalStatus, User
 from app.services.approval_scenario_policy import (
     can_view_approval_resource,
-    scenario_allows_privileged_resolution,
-    user_matches_approval_scenario_role,
+    resolve_approval_privilege_tier,
 )
 
 
@@ -27,34 +25,30 @@ async def assert_can_approve(
         AuthorizationError if user cannot approve
         ValidationError if approval is not in a pending state
     """
-    is_privileged = can_resolve_approvals(current_user)
-    is_primary_approver = approval.primary_approver_id == current_user.id
-    is_requester = approval.requested_by_id == current_user.id
-    scenario_match = user_matches_approval_scenario_role(approval, current_user)
-    privileged_scenario_match = scenario_allows_privileged_resolution(approval, current_user)
+    tier = await resolve_approval_privilege_tier(db, current_user, approval)
 
-    if is_requester:
+    if tier.is_requester:
         raise AuthorizationError("Users cannot approve their own requests")
 
     if approval.status == ApprovalStatus.PENDING:
-        if scenario_match is False:
+        if tier.scenario_match is False:
             raise AuthorizationError("This approval scenario does not allow your role to approve this request")
         if (
-            scenario_match is True
-            and not is_primary_approver
-            and not is_privileged
+            tier.scenario_match is True
+            and not tier.is_primary_approver
+            and not tier.is_privileged
             and not await can_view_approval_resource(db, current_user, approval)
         ):
             raise AuthorizationError("Access denied")
-        if scenario_match is None and not is_primary_approver and not is_privileged:
+        if tier.scenario_match is None and not tier.is_primary_approver and not tier.is_privileged:
             raise AuthorizationError("Only the primary approver or a privileged user can approve this request")
     elif approval.status == ApprovalStatus.PENDING_PRIVILEGED:
-        if privileged_scenario_match is False or not is_privileged:
+        if tier.privileged_scenario_match is False or not tier.is_privileged:
             raise AuthorizationError("This request requires approval-resolution authority")
     else:
         raise ValidationError(f"Cannot approve request with status: {approval.status.value}")
 
-    return is_privileged, is_primary_approver, scenario_match is True
+    return tier.is_privileged, tier.is_primary_approver, tier.scenario_match is True
 
 
 def apply_status_transition(

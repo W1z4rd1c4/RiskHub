@@ -139,3 +139,30 @@
 - `cd frontend && npx tsc --noEmit`: passed
 - `npm run -w tests/frontend/unit test -- --run`: runbook command failed before tests (`ENOENT` for missing root `package.json`); equivalent repo command `cd frontend && pnpm vitest run ../tests/frontend/unit/src` passed (`180 files`, `775 tests passed`)
 - `npm run -w tests/frontend/unit lint`: runbook command failed before lint (`ENOENT` for missing root `package.json`); equivalent repo command `cd frontend && pnpm lint` passed
+
+## Wave 5 — Integration Cleanup
+
+- Completed: 2026-05-09 23:00:48 CEST
+- Commit SHA: recorded by the Wave 5 commit containing this entry
+- Items completed: `#74b`, `#17`, `#49`, `#59`, `#9`, `#34`, `#27`, `#8`, `#28`, `#30`, `#16`, `#38`, `#31`, `#43`, `#44`
+- Items failed: none
+- Elapsed time: current session wave execution
+
+### Phase 4 Corrections Honored
+
+- `#34`: kept `can_resolve_approvals` canonical to policy/permissions, extracted `approval_privilege_tier`, and updated authz contract artifacts.
+- `#8`: added `_issue_workflow.assignment` as the owner-validation home and updated contract sensitive paths for the new policy surface.
+- `#16`: removed the legacy `/excel` tombstones while preserving `excel_export_removed` on `/export?format=xlsx`.
+- `#38`: renamed `RiskFilters` to `BatchSendRiskFilters` and verified the frontend Zod mirror by running `cd frontend && npx tsc --noEmit`.
+- `#43`: kept all 37 audit adapter functions at module scope and added the AST lock requiring `safe_entity_label=` on `emit_adapter` calls.
+- `#44`: modeled `risk_questionnaires` as a dual-router module with both routes under the `questionnaires` tag, and matched the registry lock to current mounted route prefixes.
+
+### Gate Results
+
+- `make -f scripts/Makefile test-architecture-locks`: passed (`165 passed`, 1 snapshot passed)
+- `pytest -m contract`: passed under backend venv activation (`226 passed`, `1740 deselected`, 1 warning)
+- `pytest tests/backend/pytest -m "not postgres and not benchmark" -x`: passed (`1933 passed`, `3 skipped`, `30 deselected`, 17 warnings)
+- `python3 scripts/security/validate_authz_capability_contract.py`: passed
+- `ruff check backend/app`: passed
+- `mypy backend/app`: baseline delta clean (`8 errors in 6 files`, unchanged from baseline)
+- Frontend gates: not run at wave end; Wave 5 did not edit frontend files. Item `#38` frontend type sanity passed with `cd frontend && npx tsc --noEmit`.

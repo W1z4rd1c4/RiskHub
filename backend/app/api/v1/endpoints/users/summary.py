@@ -15,6 +15,7 @@ from app.models import ApprovalRequest, ApprovalStatus, OrphanedItem, User
 from app.schemas.user import UserShellSummary
 from app.services._authorization_capabilities import build_me_capabilities
 from app.services.approval_queue_visibility import count_visible_pending_approvals_for_user
+from app.services.approval_scenario_policy import approval_privilege_tier
 from app.services.notification_visibility import count_visible_unread_notifications
 
 router = APIRouter()
@@ -23,9 +24,7 @@ SHELL_SUMMARY_CACHE = TTLCache[dict](ttl_seconds=15, max_entries=500)
 
 
 async def _count_pending_approvals(db: AsyncSession, current_user: User) -> int:
-    from app.core.permissions import can_resolve_approvals
-
-    if can_resolve_approvals(current_user):
+    if approval_privilege_tier(current_user).is_privileged:
         result = await db.execute(
             select(func.count())
             .select_from(ApprovalRequest)

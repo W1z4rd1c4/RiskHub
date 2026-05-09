@@ -181,16 +181,79 @@ def test_control_execution_and_link_routes_use_governance_interface() -> None:
 
 
 def test_control_execution_governance_uses_split_modules() -> None:
-    from app.services._control_execution import access, link_governance, link_policy, monitoring, projection
+    from app.services._control_execution import access, link_governance, link_policy, projection
 
     assert hasattr(access, "ControlRiskAccessDecision")
     assert hasattr(projection, "ControlExecutionProjection")
-    assert hasattr(monitoring, "load_control_execution_monitoring_context")
     assert hasattr(link_policy, "ControlRiskLinkPlan")
 
     governance_source = inspect.getsource(link_governance)
-    assert "from app.services._control_execution.monitoring" in governance_source
+    assert "from app.services._monitoring_response import" in governance_source
     assert "app.api.v1.endpoints" not in governance_source
+
+
+def test_notification_approval_helpers_no_duplicate_can_view() -> None:
+    """S6.5: duplicate can_user_view_approval_resource removed; canonical consumed."""
+    import importlib
+    import inspect
+
+    helpers = importlib.import_module("app.services._notification_approval_helpers")
+    assert not hasattr(helpers, "can_user_view_approval_resource"), (
+        "S6.5: duplicate must be deleted from _notification_approval_helpers"
+    )
+    src = inspect.getsource(helpers.eligible_approval_notification_recipients)
+    assert "can_view_approval_resource" in src, (
+        "Caller must consume approval_scenario_policy.can_view_approval_resource"
+    )
+
+
+def test_can_resolve_approvals_only_in_policy_or_permissions() -> None:
+    """S6.6: can_resolve_approvals calls stay behind the canonical tier helper."""
+    import ast
+    from pathlib import Path
+
+    repo = Path(__file__).resolve().parents[3]
+    backend_app = repo / "backend" / "app"
+    allowed = {
+        "backend/app/services/approval_scenario_policy.py",
+        "backend/app/core/_permissions/evaluation.py",
+        "backend/app/core/permissions.py",
+    }
+    offenders: list[str] = []
+    for py in backend_app.rglob("*.py"):
+        rel = str(py.relative_to(repo))
+        if rel in allowed:
+            continue
+        try:
+            tree = ast.parse(py.read_text(encoding="utf-8"))
+        except SyntaxError:
+            continue
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            fn = node.func
+            name = (
+                fn.id
+                if isinstance(fn, ast.Name)
+                else fn.attr
+                if isinstance(fn, ast.Attribute)
+                else None
+            )
+            if name == "can_resolve_approvals":
+                offenders.append(f"{rel}:{node.lineno}")
+    assert not offenders, (
+        "S6.6: can_resolve_approvals() must only be called from approval_scenario_policy "
+        "or core.permissions. Offenders:\n  " + "\n  ".join(offenders)
+    )
+
+
+def test_resolve_approval_privilege_tier_canonical() -> None:
+    """S6.6: helper exported from approval_scenario_policy."""
+    import importlib
+
+    policy = importlib.import_module("app.services.approval_scenario_policy")
+    assert hasattr(policy, "resolve_approval_privilege_tier")
+    assert hasattr(policy, "ApprovalPrivilegeTier")
 
 
 def test_control_execution_split_modules_own_link_governance() -> None:
@@ -1152,6 +1215,17 @@ def test_issue_workflow_lifecycle_uses_service_owned_helpers() -> None:
         assert f"app.services._issue_workflow.{module_name}" in execution_source
 
     assert "app.api.v1.endpoints.issues" not in lifecycle_source
+
+
+def test_issue_workflow_owner_validation_lives_in_dedicated_module() -> None:
+    from app.services._issue_workflow import assignment
+
+    source = _source("backend/app/services/_issue_workflow/source_validation.py")
+    assert "async def validate_user_exists" not in source
+    assert "async def ensure_owner_assignable" not in source
+
+    assert hasattr(assignment, "validate_user_exists")
+    assert hasattr(assignment, "ensure_owner_assignable")
 
 
 def test_issue_workflow_lifecycle_no_longer_owns_update_source_mutation() -> None:

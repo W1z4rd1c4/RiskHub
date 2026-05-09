@@ -3,7 +3,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
-from app.api.v1.endpoints._monitoring_response import load_monitoring_response_context, serialize_kri_response
 from app.core.datetime_utils import utc_now
 from app.core.permissions import can_read_kri_id
 from app.core.security import require_permission
@@ -11,6 +10,7 @@ from app.db.session import get_db
 from app.models import KeyRiskIndicator, Risk, User, VendorKRILink
 from app.schemas.kri import KRIResponse
 from app.services._kri_history.direct_application import visible_linked_vendors
+from app.services._monitoring_response import load_monitoring_response_context, serialize_kri_response
 from app.services.authorization_capabilities import kri_capabilities
 
 router = APIRouter()

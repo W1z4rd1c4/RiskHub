@@ -60,7 +60,7 @@ def active_exception(issue: Issue) -> IssueException | None:
     return approved[0]
 
 
-def _serialize_issue_link(
+def serialize_issue_link(
     link: IssueLink,
     current_user: User | None = None,
     *,
@@ -99,7 +99,7 @@ def _serialize_issue_source_link(
     source_link = _issue_source_link(issue)
     if source_link is None:
         return None
-    return _serialize_issue_link(
+    return serialize_issue_link(
         source_link,
         current_user=current_user,
         is_source_link=True,
@@ -353,7 +353,7 @@ def _serialize_issue_read(
             "created_by_name": created_by_name,
             "validation_note": issue.validation_note,
             "links": [
-                _serialize_issue_link(
+                serialize_issue_link(
                     link,
                     current_user=current_user,
                     is_source_link=source_link is not None and link.id == source_link.id,

@@ -10,13 +10,11 @@ from sqlalchemy.orm import selectinload
 from app.core.activity_logger import log_activity
 from app.core.approval_display import approval_resource_label
 from app.core.datetime_utils import utc_now
-from app.core.permissions import can_resolve_approvals
 from app.models import ApprovalRequest, ApprovalStatus, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.services.approval_scenario_policy import (
     can_view_approval_resource,
-    scenario_allows_privileged_resolution,
-    user_matches_approval_scenario_role,
+    resolve_approval_privilege_tier,
 )
 from app.services.outbox import OutboxService
 
@@ -112,9 +110,8 @@ async def cancel_request_workflow(
     """Cancel a pending approval request and return the refreshed model."""
     approval = await load_approval(db, approval_id)
 
-    is_requester = approval.requested_by_id == current_user.id
-    is_privileged = can_resolve_approvals(current_user)
-    if not is_requester and not is_privileged:
+    tier = await resolve_approval_privilege_tier(db, current_user, approval)
+    if not tier.is_requester and not tier.is_privileged:
         raise HTTPException(status_code=403, detail="Only the requester or approval resolvers can cancel requests")
 
     if approval.status not in (ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED):
@@ -128,7 +125,7 @@ async def cancel_request_workflow(
         department_id = await get_approval_department_id(db, approval)
         cancel_description = (
             "Approval request cancelled by requester"
-            if is_requester
+            if tier.is_requester
             else f"Approval request cancelled by {current_user.name} (privileged)"
         )
         await log_activity(
@@ -142,7 +139,7 @@ async def cancel_request_workflow(
             safe_description=cancel_description,
             safe_description_siem=(
                 "Approval request cancelled by requester"
-                if is_requester
+                if tier.is_requester
                 else "Approval request cancelled by privileged user"
             ),
             description=cancel_description,
@@ -216,25 +213,24 @@ async def _assert_can_reject(db: AsyncSession, approval: ApprovalRequest, curren
     if approval.status not in (ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED):
         raise HTTPException(status_code=400, detail=f"Cannot reject request with status: {approval.status.value}")
 
-    scenario_match = user_matches_approval_scenario_role(approval, current_user)
-    privileged_scenario_match = scenario_allows_privileged_resolution(approval, current_user)
-    if scenario_match is None:
-        if not can_resolve_approvals(current_user):
+    tier = await resolve_approval_privilege_tier(db, current_user, approval)
+    if tier.scenario_match is None:
+        if not tier.is_privileged:
             raise HTTPException(status_code=403, detail="Only authorized approval resolvers can reject requests")
-    elif approval.requested_by_id == current_user.id:
+    elif tier.is_requester:
         raise HTTPException(
             status_code=403,
             detail="Requesters must cancel their own approval requests instead of rejecting them",
         )
     elif approval.status == ApprovalStatus.PENDING:
-        if not scenario_match:
+        if not tier.scenario_match:
             raise HTTPException(
                 status_code=403,
                 detail="This approval scenario does not allow your role to reject this request",
             )
-        if not can_resolve_approvals(current_user) and not await can_view_approval_resource(db, current_user, approval):
+        if not tier.is_privileged and not await can_view_approval_resource(db, current_user, approval):
             raise HTTPException(status_code=403, detail="Access denied")
-    elif not can_resolve_approvals(current_user) or privileged_scenario_match is not True:
+    elif not tier.is_privileged or tier.privileged_scenario_match is not True:
         raise HTTPException(status_code=403, detail="This request requires approval-resolution authority")
 
 

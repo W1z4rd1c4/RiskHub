@@ -10,7 +10,7 @@ This directory records architecture decisions that should not be re-litigated by
 - [ADR-004 UTC-Aware Datetime Single Source Of Truth](./ADR-004-utc-aware-datetime-ssot.md)
 - [ADR-005 Archivable Mixin Schema Contract](./ADR-005-archivable-mixin-schema-contract.md)
 - [ADR-006 Snapshot Equivalence-Class Testing Policy](./ADR-006-snapshot-equivalence-class-testing-policy.md)
-- [ADR-007 Bounded Context Taxonomy](./ADR-007-bounded-context-taxonomy.md)
+- [ADR-007 Bounded Context Taxonomy](./ADR-007-bounded-context-taxonomy.md) (includes Amendment 1)
 - [ADR-008 Risk Threshold Single Source Of Truth](./ADR-008-risk-threshold-ssot.md)
 - [ADR-009 Reserved Surfaces Convention](./ADR-009-reserved-surfaces-convention.md)
 - [ADR-010 Postgres Migration Rehearsal Contract](./ADR-010-postgres-migration-rehearsal-contract.md)

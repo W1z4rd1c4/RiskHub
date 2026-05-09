@@ -18,7 +18,7 @@ from app.core.audit.kri import kri_archived
 from app.core.audit.risk import risk_archived
 from app.core.datetime_utils import utc_now
 from app.core.exceptions import NotFoundError
-from app.core.permissions import can_resolve_approvals, check_department_access
+from app.core.permissions import check_department_access
 from app.models import (
     ApprovalActionType,
     ApprovalRequest,
@@ -32,7 +32,11 @@ from app.models import (
 from app.services._authorization_capabilities import require_capability
 from app.services._entity_mutation_lifecycle.contracts import EntityMutationOutcome
 from app.services._entity_mutation_lifecycle.policy import assert_no_existing_pending_delete_request
-from app.services.approval_scenario_policy import apply_approval_scenario_snapshot, load_approval_scenario_policy
+from app.services.approval_scenario_policy import (
+    apply_approval_scenario_snapshot,
+    approval_privilege_tier,
+    load_approval_scenario_policy,
+)
 
 
 async def assert_can_request_delete_risk(
@@ -107,7 +111,7 @@ async def archive_risk_detail(
         default_roles=["risk_owner", "risk_manager", "cro"],
     )
 
-    if can_resolve_approvals(current_user) or not scenario_policy.requires_approval:
+    if approval_privilege_tier(current_user).is_privileged or not scenario_policy.requires_approval:
         try:
             risk.mark_archived(current_user)
             await risk_archived(
@@ -183,7 +187,7 @@ async def archive_control_detail(
         default_roles=["risk_owner", "risk_manager", "cro"],
     )
 
-    if can_resolve_approvals(current_user) or not scenario_policy.requires_approval:
+    if approval_privilege_tier(current_user).is_privileged or not scenario_policy.requires_approval:
         try:
             control.mark_archived(current_user)
             control.updated_by_id = current_user.id
@@ -252,7 +256,7 @@ async def archive_kri_detail(
         default_roles=["risk_owner", "risk_manager", "cro"],
     )
 
-    if can_resolve_approvals(current_user) or not scenario_policy.requires_approval:
+    if approval_privilege_tier(current_user).is_privileged or not scenario_policy.requires_approval:
         try:
             now = utc_now()
             kri.mark_archived(current_user, when=now)

@@ -8,15 +8,11 @@ from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import Control, ControlExecution, IssueLink, KeyRiskIndicator, Risk, User
 from app.schemas.issue import IssueLinkCreate, IssueLinkRead
+from app.services._issue_register.linked_context import issue_source_link, link_matches_issue_source
+from app.services._issue_register.serialization import serialize_issue_link
+from app.services._issue_register.source_mutation import resolve_vendor_department_and_access
+from app.services._issue_workflow.loading import get_writable_issue_or_404
 from app.services.transaction_boundary import commit_service_transaction
-
-from ._shared import (
-    _get_writable_issue_or_404,
-    _issue_source_link,
-    _link_matches_issue_source,
-    _resolve_vendor_department_and_access,
-    _serialize_issue_link,
-)
 
 router = APIRouter()
 
@@ -65,7 +61,7 @@ async def _resolve_link_department_and_access(
         return row[1]
 
     if payload.vendor_id is not None:
-        return await _resolve_vendor_department_and_access(db, current_user, payload.vendor_id)
+        return await resolve_vendor_department_and_access(db, current_user, payload.vendor_id)
 
     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid link payload")
 
@@ -77,7 +73,7 @@ async def add_issue_link(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_permission("issues", "write")),
 ) -> IssueLinkRead:
-    issue = await _get_writable_issue_or_404(db, issue_id, current_user)
+    issue = await get_writable_issue_or_404(db, issue_id, current_user)
     linked_department_id = await _resolve_link_department_and_access(db, current_user, payload)
     if linked_department_id != issue.department_id:
         raise HTTPException(
@@ -98,7 +94,7 @@ async def add_issue_link(
         )
     ).scalar_one_or_none()
     if existing is not None:
-        return _serialize_issue_link(existing, current_user=current_user)
+        return serialize_issue_link(existing, current_user=current_user)
 
     link = IssueLink(
         issue_id=issue.id,
@@ -115,7 +111,7 @@ async def add_issue_link(
 
     await commit_service_transaction(db)
     await db.refresh(link)
-    return _serialize_issue_link(link, current_user=current_user)
+    return serialize_issue_link(link, current_user=current_user)
 
 
 @router.delete("/issues/{issue_id}/links/{link_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -125,14 +121,14 @@ async def delete_issue_link(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_permission("issues", "write")),
 ):
-    issue = await _get_writable_issue_or_404(db, issue_id, current_user)
+    issue = await get_writable_issue_or_404(db, issue_id, current_user)
     link = (
         await db.execute(select(IssueLink).where(IssueLink.id == link_id, IssueLink.issue_id == issue_id))
     ).scalar_one_or_none()
     if link is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Issue link not found")
-    source_link = _issue_source_link(issue)
-    if _link_matches_issue_source(issue, link) or (source_link is not None and source_link.id == link.id):
+    source_link = issue_source_link(issue)
+    if link_matches_issue_source(issue, link) or (source_link is not None and source_link.id == link.id):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Cannot remove the current source link; change or clear issue source metadata first",

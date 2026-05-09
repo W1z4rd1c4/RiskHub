@@ -4,10 +4,10 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.permissions import can_resolve_approvals
 from app.models import ApprovalRequest, ApprovalResourceType, ApprovalStatus, User
 from app.schemas.approval_request import ApprovalRequestListResponse, ApprovalResourceTypeEnum, ApprovalStatusEnum
 from app.services.approval_queue_visibility import visible_pending_approvals_for_user
+from app.services.approval_scenario_policy import approval_privilege_tier
 
 from .logging import queue_logger
 from .projection import approval_queue_page
@@ -23,14 +23,15 @@ async def list_approval_queue_page(
     resource_type: ApprovalResourceTypeEnum | None,
     my_requests: bool,
 ) -> ApprovalRequestListResponse:
+    tier = approval_privilege_tier(current_user)
     queue_logger.info(
         (
-            f"List approvals: user={current_user.id} can_resolve={can_resolve_approvals(current_user)} "
+            f"List approvals: user={current_user.id} can_resolve={tier.is_privileged} "
             f"filter={status_filter} my={my_requests}"
         )
     )
     base_query = select(ApprovalRequest)
-    is_privileged = can_resolve_approvals(current_user)
+    is_privileged = tier.is_privileged
     if is_privileged:
         if my_requests:
             base_query = base_query.where(ApprovalRequest.requested_by_id == current_user.id)

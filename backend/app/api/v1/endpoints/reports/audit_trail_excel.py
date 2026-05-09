@@ -20,7 +20,6 @@ from ._streaming import (
     EXCEL_EXPORT_REMOVED_OPENAPI_RESPONSE,
     ExportFormatQuery,
     _stream_binary,
-    excel_export_removed,
     resolve_export_format,
 )
 
@@ -128,15 +127,6 @@ async def _to_csv_rows(
             ]
         )
     return headers, rows
-
-
-@router.get("/audit-trail/excel", responses=EXCEL_EXPORT_REMOVED_OPENAPI_RESPONSE)
-async def download_audit_trail_excel(
-    department_id: Optional[int] = Query(None, description="Filter by department"),
-    current_user: User = Depends(require_permission("reports", "read")),
-):
-    build_report_export_context(current_user=current_user, department_id=department_id)
-    raise excel_export_removed(replacement="/api/v1/reports/audit-trail/export?format=csv")
 
 
 @router.get("/audit-trail/export", responses=EXCEL_EXPORT_REMOVED_OPENAPI_RESPONSE)

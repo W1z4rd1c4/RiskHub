@@ -7,16 +7,16 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.api.v1.endpoints._monitoring_response import (
-    build_control_monitoring_fields,
-    load_monitoring_response_context,
-)
 from app.core.datetime_utils import utc_now
 from app.core.pagination import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
 from app.core.security import check_permission, require_permission
 from app.db.session import get_db
 from app.models import Control, User
 from app.schemas.control import ControlFormEnum, ControlStatusEnum, ControlSummary, normalize_control_frequency
+from app.services._monitoring_response import (
+    build_control_monitoring_fields,
+    load_monitoring_response_context,
+)
 
 from ._shared import _assert_department_in_scope
 

@@ -21,6 +21,7 @@ from app.models.notification import Notification, NotificationType
 from app.models.risk import RiskStatus
 from app.models.user import AccessScope
 from app.services._riskhub_config.approval_scenario_roles import set_approval_scenario_roles
+from app.services import _notification_approval_helpers as notification_approval_helpers
 from app.services.approval_execution_service import approve_request_workflow
 from app.services.approval_scenario_policy import can_view_approval_resource
 from app.services.outbox import dispatch_pending_outbox_events
@@ -627,6 +628,64 @@ class TestApprovalWorkflow:
             )
 
             assert await can_view_approval_resource(db_session, test_user_employee, approval) is True
+
+    @pytest.mark.parametrize("resource_type", [ApprovalResourceType.RISK, ApprovalResourceType.CONTROL, ApprovalResourceType.KRI])
+    async def test_notification_recipients_skip_hidden_approval_resource(
+        self,
+        db_session: AsyncSession,
+        test_user_employee: User,
+        resource_type: ApprovalResourceType,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        other_department = Department(name=f"Hidden Approval {resource_type.value}", code=f"HID-{resource_type.value}")
+        db_session.add(other_department)
+        await db_session.commit()
+        await db_session.refresh(other_department)
+
+        risk = await create_test_risk(
+            db_session,
+            department_id=other_department.id,
+            owner_id=None,
+            risk_id_code=f"R-HIDDEN-{resource_type.value}",
+            name=f"Hidden {resource_type.value} Risk",
+        )
+        resource_id = risk.id
+        if resource_type == ApprovalResourceType.CONTROL:
+            control = await create_test_control(
+                db_session,
+                department_id=other_department.id,
+                owner_id=None,
+                name=f"Hidden {resource_type.value} Control",
+            )
+            resource_id = control.id
+        elif resource_type == ApprovalResourceType.KRI:
+            kri = await create_test_kri(
+                db_session,
+                risk_id=risk.id,
+                metric_name=f"Hidden {resource_type.value} KRI",
+            )
+            resource_id = kri.id
+
+        async def _candidates(_db: AsyncSession, _approval: ApprovalRequest) -> list[User]:
+            return [test_user_employee]
+
+        monkeypatch.setattr(notification_approval_helpers, "load_scenario_approval_notification_candidates", _candidates)
+        approval = ApprovalRequest(
+            resource_type=resource_type,
+            resource_id=resource_id,
+            resource_name=f"{resource_type.value} hidden notification check",
+            action_type=ApprovalActionType.EDIT,
+            requested_by_id=test_user_employee.id,
+            status=ApprovalStatus.PENDING,
+        )
+
+        recipients, skipped = await notification_approval_helpers.eligible_approval_notification_recipients(
+            db_session,
+            approval,
+        )
+
+        assert recipients == []
+        assert skipped["hidden_resource"] == 1
 
     async def test_non_privileged_scenario_approver_finalizes_non_tiered_request(
         self,

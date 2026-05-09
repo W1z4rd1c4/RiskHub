@@ -22,14 +22,6 @@ async def test_openapi_contract_parity_for_targeted_security_paths(client: Async
 
     _assert_response_codes(schema, "/api/v1/auth/sso/exchange", "post", {"422", "503"})
 
-    for excel_path in (
-        "/api/v1/reports/controls/excel",
-        "/api/v1/reports/risks/excel",
-        "/api/v1/reports/summary/excel",
-        "/api/v1/reports/audit-trail/excel",
-    ):
-        _assert_response_codes(schema, excel_path, "get", {"410"})
-
     for export_path in (
         "/api/v1/reports/summary/export",
         "/api/v1/reports/audit-trail/export",

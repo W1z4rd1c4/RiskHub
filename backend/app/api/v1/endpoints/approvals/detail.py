@@ -6,12 +6,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api import deps
-from app.core.permissions import can_resolve_approvals
 from app.db.session import get_db
 from app.models import ApprovalRequest, User
 from app.schemas.approval_request import ApprovalRequestRead
 from app.services._approval_queue.projection import build_approval_read
-from app.services.approval_scenario_policy import can_view_approval_resource, user_matches_approval_scenario_role
+from app.services.approval_scenario_policy import can_view_approval_resource, resolve_approval_privilege_tier
 
 router = APIRouter()
 
@@ -41,15 +40,16 @@ async def get_approval_request(
     if not approval:
         raise HTTPException(status_code=404, detail="Approval request not found")
 
-    is_requester = approval.requested_by_id == current_user.id
-    is_primary_approver = approval.primary_approver_id == current_user.id
-    is_privileged = can_resolve_approvals(current_user)
-    is_scenario_approver = user_matches_approval_scenario_role(
-        approval, current_user
-    ) is True and await can_view_approval_resource(db, current_user, approval)
+    tier = await resolve_approval_privilege_tier(db, current_user, approval)
+    is_scenario_approver = tier.scenario_match is True and await can_view_approval_resource(db, current_user, approval)
 
     # Permission check: requester, primary approver, or approval resolver
-    if not is_requester and not is_primary_approver and not is_privileged and not is_scenario_approver:
+    if (
+        not tier.is_requester
+        and not tier.is_primary_approver
+        and not tier.is_privileged
+        and not is_scenario_approver
+    ):
         raise HTTPException(status_code=403, detail="Access denied")
 
     return build_approval_read(approval, current_user)

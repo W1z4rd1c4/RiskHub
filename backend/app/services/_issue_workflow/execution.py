@@ -17,7 +17,7 @@ from app.schemas.issue import (
     IssueStartRemediationRequest,
     IssueUpdate,
 )
-from app.services._issue_workflow.assignment import assign_issue
+from app.services._issue_workflow.assignment import assign_issue, ensure_owner_assignable, validate_user_exists
 from app.services._issue_workflow.closure import close_issue
 from app.services._issue_workflow.contracts import IssueWorkflowOutcome
 from app.services._issue_workflow.exception_selection import (
@@ -45,9 +45,7 @@ from app.services._issue_workflow.serialization import (
 from app.services._issue_workflow.source_validation import (
     clear_issue_source_links,
     ensure_issue_source_link,
-    ensure_owner_assignable,
     resolve_issue_source_metadata,
-    validate_user_exists,
 )
 from app.services._issue_workflow.update_plans import build_issue_update_plan
 

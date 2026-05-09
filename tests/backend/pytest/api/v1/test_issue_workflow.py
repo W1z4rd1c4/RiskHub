@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from app.models import (
+    Department,
     Issue,
     IssueException,
     IssueRemediationPlan,
@@ -18,6 +19,7 @@ from app.models import (
     Role,
     RolePermission,
     User,
+    Vendor,
 )
 from app.models.issue import IssueExceptionStatus
 from app.models.user import AccessScope
@@ -209,6 +211,93 @@ async def test_issue_workflow_happy_path(
     assert close_resp.json()["capabilities"]["can_mark_remediation_blocked"] is False
     assert close_resp.json()["capabilities"]["can_mark_remediation_completed"] is False
     assert close_resp.json()["capabilities"]["can_close"] is False
+
+
+@pytest.mark.asyncio
+async def test_issue_assignment_validation_errors_remain_http_stable(
+    db_session: AsyncSession,
+    client_factory,
+    test_department: Department,
+    test_role_employee: Role,
+    test_user: User,
+    test_user_cro: User,
+):
+    other_department = Department(
+        name="Issue Assignment Other",
+        code="IAO",
+        description="Other department for issue owner validation",
+    )
+    db_session.add(other_department)
+    await db_session.flush()
+    other_owner = User(
+        email="issue.assignment.other.owner@test.com",
+        name="Issue Assignment Other Owner",
+        role_id=test_role_employee.id,
+        department_id=other_department.id,
+        access_scope=AccessScope.DEPARTMENT,
+        is_active=True,
+    )
+    archived_vendor = Vendor(
+        name="Archived Issue Assignment Vendor",
+        process="IT",
+        subprocess=None,
+        department_id=test_department.id,
+        outsourcing_owner_user_id=test_user.id,
+        vendor_type="ict",
+        risk_score_1_5=3,
+        supports_important_core_insurance_function=False,
+        dora_relevant=False,
+        is_significant_vendor=False,
+        has_alternative_providers=False,
+        status="active",
+        is_archived=True,
+    )
+    db_session.add_all([other_owner, archived_vendor])
+    await db_session.commit()
+    await db_session.refresh(other_owner)
+    await db_session.refresh(archived_vendor)
+
+    async with client_factory(user=test_user_cro) as client:
+        missing_owner = await client.post(
+            "/api/v1/issues",
+            json={
+                "title": "Missing owner validation issue",
+                "severity": "medium",
+                "source_type": "manual",
+                "department_id": test_department.id,
+                "owner_user_id": 999_999_999,
+            },
+        )
+        assert missing_owner.status_code == 400
+        assert missing_owner.json()["detail"] == "User 999999999 not found"
+
+        cross_department_owner = await client.post(
+            "/api/v1/issues",
+            json={
+                "title": "Cross department owner validation issue",
+                "severity": "medium",
+                "source_type": "manual",
+                "department_id": test_department.id,
+                "owner_user_id": other_owner.id,
+            },
+        )
+        assert cross_department_owner.status_code == 403
+        assert (
+            cross_department_owner.json()["detail"]
+            == "Owner user must have global scope or belong to the issue department"
+        )
+
+        archived_vendor_context = await client.post(
+            "/api/v1/issues/contextual",
+            json={
+                "entity_type": "vendor",
+                "entity_id": archived_vendor.id,
+                "title": "Archived vendor contextual issue",
+                "severity": "high",
+            },
+        )
+        assert archived_vendor_context.status_code == 409
+        assert archived_vendor_context.json()["detail"] == "Cannot link archived vendor"
 
 
 @pytest.mark.asyncio

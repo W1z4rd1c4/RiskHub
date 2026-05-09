@@ -3,6 +3,7 @@ from __future__ import annotations
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.activity_logger import log_activity
+from app.core.audit._emit import emit_adapter
 from app.core.audit.labels import safe_entity_label
 from app.core.audit.types import AuditLogActivity
 from app.models import ApprovalRequest, User
@@ -21,7 +22,7 @@ async def approval_created(
     department_id: int | None = None,
     log_activity_func: AuditLogActivity = log_activity,
 ) -> None:
-    await log_activity_func(
+    await emit_adapter(
         db,
         entity_type=ActivityEntityType.APPROVAL,
         entity_id=approval.id,
@@ -31,6 +32,7 @@ async def approval_created(
         actor=actor,
         department_id=department_id,
         description=f"Created {approval.action_type.value} approval request",
+        log_activity_func=log_activity_func,
     )
 
 
@@ -43,7 +45,7 @@ async def approval_approved(
     changes: dict[str, dict[str, object]] | None = None,
     log_activity_func: AuditLogActivity = log_activity,
 ) -> None:
-    await log_activity_func(
+    await emit_adapter(
         db,
         entity_type=ActivityEntityType.APPROVAL,
         entity_id=approval.id,
@@ -54,6 +56,7 @@ async def approval_approved(
         department_id=department_id,
         changes=changes,
         description=f"Approved {approval.action_type.value} approval request",
+        log_activity_func=log_activity_func,
     )
 
 
@@ -65,7 +68,7 @@ async def approval_rejected(
     department_id: int | None = None,
     log_activity_func: AuditLogActivity = log_activity,
 ) -> None:
-    await log_activity_func(
+    await emit_adapter(
         db,
         entity_type=ActivityEntityType.APPROVAL,
         entity_id=approval.id,
@@ -75,6 +78,7 @@ async def approval_rejected(
         actor=actor,
         department_id=department_id,
         description=f"Rejected {approval.action_type.value} approval request",
+        log_activity_func=log_activity_func,
     )
 
 
@@ -86,7 +90,7 @@ async def approval_cancelled(
     department_id: int | None = None,
     log_activity_func: AuditLogActivity = log_activity,
 ) -> None:
-    await log_activity_func(
+    await emit_adapter(
         db,
         entity_type=ActivityEntityType.APPROVAL,
         entity_id=approval.id,
@@ -96,4 +100,5 @@ async def approval_cancelled(
         actor=actor,
         department_id=department_id,
         description=f"Cancelled {approval.action_type.value} approval request",
+        log_activity_func=log_activity_func,
     )

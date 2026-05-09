@@ -23,7 +23,7 @@ def test_protocol_contract_probe_classification_rules() -> None:
     case = probe.ProbeCase(
         case_id="case",
         method="GET",
-        path="/api/v1/reports/controls/excel",
+        path="/api/v1/reports/controls/export?format=xlsx",
         expected_statuses=(410,),
         classification_hint=probe.CLASSIFICATION_CONTRACT_DRIFT,
         description="doc parity",
@@ -90,14 +90,14 @@ def test_protocol_contract_probe_output_schema(tmp_path: Path) -> None:
         {
             "target": "local",
             "base_url": "http://127.0.0.1:8000",
-            "case_id": "xlsx-rejected-risks-export",
+            "case_id": "xlsx-rejected-controls-export",
             "description": "xlsx rejection is documented",
             "method": "GET",
-            "path": "/api/v1/reports/risks/export?format=xlsx",
+            "path": "/api/v1/reports/controls/export?format=xlsx",
             "status_code": 410,
             "expected_statuses": [410],
             "documented_statuses": ["200", "410", "422"],
-            "openapi_operation_path": "/api/v1/reports/risks/export",
+            "openapi_operation_path": "/api/v1/reports/controls/export",
             "classification": probe.CLASSIFICATION_CONTRACT_DRIFT,
             "drift_detected": False,
             "classification_reason": "status documented in OpenAPI responses",
@@ -128,5 +128,5 @@ def test_protocol_contract_probe_output_schema(tmp_path: Path) -> None:
     with output_csv.open("r", encoding="utf-8", newline="") as handle:
         rows = list(csv.DictReader(handle))
     assert len(rows) == 1
-    assert rows[0]["case_id"] == "xlsx-rejected-risks-export"
+    assert rows[0]["case_id"] == "xlsx-rejected-controls-export"
     assert rows[0]["classification"] == probe.CLASSIFICATION_CONTRACT_DRIFT

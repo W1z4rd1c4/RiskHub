@@ -5,6 +5,7 @@ from collections.abc import Mapping
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.activity_logger import build_change_set, log_activity
+from app.core.audit._emit import emit_adapter
 from app.core.audit.changes import resolve_audit_changes
 from app.core.audit.labels import safe_entity_label
 from app.core.audit.types import AuditLogActivity
@@ -19,7 +20,7 @@ async def vendor_created(
     vendor: Vendor,
     log_activity_func: AuditLogActivity = log_activity,
 ) -> None:
-    await log_activity_func(
+    await emit_adapter(
         db,
         entity_type=ActivityEntityType.VENDOR,
         entity_id=vendor.id,
@@ -29,6 +30,7 @@ async def vendor_created(
         actor=actor,
         department_id=vendor.department_id,
         description=f"Created vendor {vendor.name}",
+        log_activity_func=log_activity_func,
     )
 
 
@@ -47,7 +49,7 @@ async def vendor_updated(
     log_activity_func: AuditLogActivity = log_activity,
 ) -> None:
     changes = resolve_audit_changes(changes=changes, before_data=before_data, after_data=after_data)
-    await log_activity_func(
+    await emit_adapter(
         db,
         entity_type=ActivityEntityType.VENDOR,
         entity_id=vendor.id,
@@ -57,6 +59,7 @@ async def vendor_updated(
         actor=actor,
         department_id=vendor.department_id,
         changes=changes,
+        log_activity_func=log_activity_func,
     )
 
 
@@ -75,7 +78,7 @@ async def vendor_archived(
     log_activity_func: AuditLogActivity = log_activity,
 ) -> None:
     changes = resolve_audit_changes(changes=changes, before_data=before_data, after_data=after_data)
-    await log_activity_func(
+    await emit_adapter(
         db,
         entity_type=ActivityEntityType.VENDOR,
         entity_id=vendor.id,
@@ -86,6 +89,7 @@ async def vendor_archived(
         department_id=vendor.department_id,
         changes=changes,
         description=f"Archived vendor {vendor.name}",
+        log_activity_func=log_activity_func,
     )
 
 
@@ -104,7 +108,7 @@ async def vendor_restored(
     log_activity_func: AuditLogActivity = log_activity,
 ) -> None:
     changes = resolve_audit_changes(changes=changes, before_data=before_data, after_data=after_data)
-    await log_activity_func(
+    await emit_adapter(
         db,
         entity_type=ActivityEntityType.VENDOR,
         entity_id=vendor.id,
@@ -117,6 +121,7 @@ async def vendor_restored(
         department_id=vendor.department_id,
         changes=changes,
         description=f"Restored vendor {vendor.name}",
+        log_activity_func=log_activity_func,
     )
 
 
@@ -129,7 +134,7 @@ async def vendor_link_created(
     target_id: int,
     log_activity_func: AuditLogActivity = log_activity,
 ) -> None:
-    await log_activity_func(
+    await emit_adapter(
         db,
         entity_type=ActivityEntityType.VENDOR_LINK,
         entity_id=vendor.id,
@@ -144,6 +149,7 @@ async def vendor_link_created(
             "vendor_id": {"old": None, "new": vendor.id},
         },
         description=f"Created vendor {link_kind} link",
+        log_activity_func=log_activity_func,
     )
 
 
@@ -156,7 +162,7 @@ async def vendor_link_deleted(
     target_id: int,
     log_activity_func: AuditLogActivity = log_activity,
 ) -> None:
-    await log_activity_func(
+    await emit_adapter(
         db,
         entity_type=ActivityEntityType.VENDOR_LINK,
         entity_id=vendor.id,
@@ -171,4 +177,5 @@ async def vendor_link_deleted(
             "vendor_id": {"old": vendor.id, "new": None},
         },
         description=f"Deleted vendor {link_kind} link",
+        log_activity_func=log_activity_func,
     )

@@ -1,23 +1,20 @@
 from __future__ import annotations
 
-from app.core.permissions import can_resolve_approvals
 from app.models import ApprovalRequest, ApprovalStatus, User
 from app.schemas.approval_request import ApprovalRequestCapabilities
-from app.services.approval_scenario_policy import (
-    scenario_allows_privileged_resolution,
-    user_matches_approval_scenario_role,
-)
+from app.services.approval_scenario_policy import approval_privilege_tier
 
 from .common import PENDING_APPROVAL_STATUSES
 
 
 def approval_capabilities(*, approval: ApprovalRequest, current_user: User) -> ApprovalRequestCapabilities:
-    is_privileged = can_resolve_approvals(current_user)
-    is_requester = approval.requested_by_id == current_user.id
-    is_primary_approver = approval.primary_approver_id == current_user.id
+    tier = approval_privilege_tier(current_user, approval)
+    is_privileged = tier.is_privileged
+    is_requester = tier.is_requester
+    is_primary_approver = tier.is_primary_approver
     is_pending = approval.status in PENDING_APPROVAL_STATUSES
-    scenario_match = user_matches_approval_scenario_role(approval, current_user)
-    privileged_scenario_match = scenario_allows_privileged_resolution(approval, current_user)
+    scenario_match = tier.scenario_match
+    privileged_scenario_match = tier.privileged_scenario_match
     if scenario_match is None:
         can_approve = not is_requester and (
             (approval.status == ApprovalStatus.PENDING and (is_primary_approver or is_privileged))

@@ -5,16 +5,16 @@ from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
-from app.api.v1.endpoints._monitoring_response import (
-    load_monitoring_response_context,
-    serialize_kri_response,
-)
 from app.core.datetime_utils import utc_now
 from app.core.pagination import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
 from app.core.security import check_permission, require_permission
 from app.db.session import get_db
 from app.models import KeyRiskIndicator, Risk, User
 from app.schemas.kri import KRIListResponse
+from app.services._monitoring_response import (
+    load_monitoring_response_context,
+    serialize_kri_response,
+)
 from app.services._monitoring_status import KRIMonitoringStatus, apply_kri_monitoring_status_filter
 
 from ._shared import _assert_department_in_scope

@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.permissions import can_read_control_id, can_read_kri_id, can_read_risk_id
+from app.core.permissions import can_read_control_id, can_read_kri_id, can_read_risk_id, can_resolve_approvals
 from app.models import ApprovalRequest, ApprovalResourceType, User
 from app.models.approval_scenario import ApprovalScenario
 from app.services._riskhub_config.approval_scenario_roles import get_approval_scenario_roles
@@ -32,6 +32,15 @@ class ApprovalScenarioPolicy:
     key: str
     requires_approval: bool
     approver_roles: list[str]
+
+
+@dataclass(frozen=True)
+class ApprovalPrivilegeTier:
+    is_privileged: bool
+    is_primary_approver: bool
+    is_requester: bool
+    scenario_match: bool | None
+    privileged_scenario_match: bool | None
 
 
 def normalize_approval_scenario_roles(
@@ -140,3 +149,36 @@ async def can_view_approval_resource(db: AsyncSession, user: User, approval: App
     if approval.resource_type == ApprovalResourceType.KRI:
         return await can_read_kri_id(db, user, approval.resource_id)
     return False
+
+
+def approval_privilege_tier(
+    user: User,
+    approval: ApprovalRequest | None = None,
+) -> ApprovalPrivilegeTier:
+    """Resolve approval privilege data without requiring a database round-trip."""
+    if approval is None:
+        return ApprovalPrivilegeTier(
+            is_privileged=can_resolve_approvals(user),
+            is_primary_approver=False,
+            is_requester=False,
+            scenario_match=None,
+            privileged_scenario_match=None,
+        )
+
+    return ApprovalPrivilegeTier(
+        is_privileged=can_resolve_approvals(user),
+        is_primary_approver=approval.primary_approver_id == user.id,
+        is_requester=approval.requested_by_id == user.id,
+        scenario_match=user_matches_approval_scenario_role(approval, user),
+        privileged_scenario_match=scenario_allows_privileged_resolution(approval, user),
+    )
+
+
+async def resolve_approval_privilege_tier(
+    db: AsyncSession,
+    user: User,
+    approval: ApprovalRequest,
+) -> ApprovalPrivilegeTier:
+    """Single source of truth for approval-resolution authorization tier."""
+    _ = db
+    return approval_privilege_tier(user, approval)

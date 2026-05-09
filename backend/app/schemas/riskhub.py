@@ -263,3 +263,34 @@ class RiskHubCapabilitiesRead(BaseModel):
     approval_scenarios: RiskHubPanelCapability
     system_settings: RiskHubPanelCapability
     questionnaires: RiskHubPanelCapability
+
+
+# ============================================================================
+# Risk Hub Questionnaire Batch-Send Schemas
+# ============================================================================
+
+
+class BatchSendRiskFilters(BaseModel):
+    """Filter criteria for batch questionnaire send."""
+
+    department_id: int | None = None
+    process: str | None = None
+    category: str | None = None
+    status: str | None = None
+
+
+class BatchSendRequest(BaseModel):
+    """Batch questionnaire send request."""
+
+    select_all: bool
+    risk_ids: list[int] | None = None
+    filters: BatchSendRiskFilters | None = None
+
+
+class BatchSendResponse(BaseModel):
+    """Batch questionnaire send response."""
+
+    created_count: int
+    skipped_no_owner: list[int]
+    skipped_open_exists: list[int]
+    errors: list[str]

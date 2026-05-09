@@ -6,8 +6,7 @@ from app.db.session import get_db
 from app.models import User
 from app.schemas.issue import IssueRead
 from app.services._issue_register import serialize_issue_read_for_actor
-
-from .._shared import _get_readable_issue_or_404
+from app.services._issue_workflow.loading import get_readable_issue_or_404
 
 router = APIRouter()
 
@@ -18,5 +17,5 @@ async def get_issue(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_permission("issues", "read")),
 ) -> IssueRead:
-    issue = await _get_readable_issue_or_404(db, issue_id, current_user)
+    issue = await get_readable_issue_or_404(db, issue_id, current_user)
     return await serialize_issue_read_for_actor(db, current_user=current_user, issue=issue)

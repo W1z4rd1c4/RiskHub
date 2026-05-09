@@ -6,12 +6,12 @@ from app.core.approval_helpers import check_control_requires_privileged_approval
 from app.core.permissions import (
     can_access_department_id,
     can_read_control_id,
-    can_resolve_approvals,
     has_permission,
     is_control_owner,
 )
 from app.models import ApprovalActionType, ApprovalRequest, ApprovalResourceType, Control, User
 from app.schemas.control import ControlCapabilities
+from app.services.approval_scenario_policy import approval_privilege_tier
 
 from .common import has_pending_action, pending_approvals
 
@@ -51,7 +51,7 @@ async def control_capabilities(
     can_update = bool(can_read and has_update_authority and can_update_scope and not has_pending_delete)
     can_delete_scope = can_access_department_id(current_user, control.department_id)
     can_delete = bool(has_permission(current_user, "controls", "delete") and can_delete_scope)
-    is_resolver = can_resolve_approvals(current_user)
+    is_resolver = approval_privilege_tier(current_user).is_privileged
     requires_privileged = (
         requires_privileged_approval
         if requires_privileged_approval is not None

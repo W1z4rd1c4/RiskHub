@@ -3,13 +3,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.api.v1.endpoints._monitoring_response import load_monitoring_response_context, serialize_kri_response
 from app.core.datetime_utils import utc_now
 from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import KeyRiskIndicator, Risk, User, VendorKRILink
 from app.schemas.kri import KRIResponse
 from app.services._kri_history.direct_application import visible_linked_vendors
+from app.services._monitoring_response import load_monitoring_response_context, serialize_kri_response
 from app.services._monitoring_status import KRIMonitoringStatus
 
 from ..access import apply_kri_department_scope

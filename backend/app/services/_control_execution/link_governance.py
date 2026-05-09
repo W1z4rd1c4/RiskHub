@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.datetime_utils import utc_now
 from app.core.permissions import can_read_risk_id
 from app.core.security import check_permission
 from app.models import Control, ControlRiskLink, Risk, User
@@ -21,7 +22,6 @@ from app.services._control_execution.link_policy import (
     delete_control_risk_link_plan,
     load_link,
 )
-from app.services._control_execution.monitoring import load_control_execution_monitoring_context
 from app.services._control_execution.projection import (
     ControlExecutionListOutcome,
     ControlExecutionProjection,
@@ -32,6 +32,12 @@ from app.services._control_execution.projection import (
     redact_links_for_visible_risks,
     visible_risk_control_links,
 )
+from app.services._monitoring_response import MonitoringResponseContext, load_monitoring_response_context
+
+
+async def _ctx(db: AsyncSession) -> MonitoringResponseContext:
+    now = utc_now()
+    return await load_monitoring_response_context(db, now=now, today=now.date())
 
 
 async def list_control_risk_links(
@@ -58,7 +64,7 @@ async def list_control_risk_links(
         .all()
     )
     visible_links = await redact_links_for_visible_risks(db, current_user=current_user, links=links)
-    context = await load_control_execution_monitoring_context(db)
+    context = await _ctx(db)
     return [ControlRiskLinkOutcome(link=link, monitoring_context=context) for link in visible_links]
 
 
@@ -87,7 +93,7 @@ async def create_control_risk_link(
     )
     return ControlRiskLinkOutcome(
         link=link,
-        monitoring_context=await load_control_execution_monitoring_context(db),
+        monitoring_context=await _ctx(db),
     )
 
 
@@ -137,7 +143,7 @@ async def list_risk_control_links(
         .all()
     )
     visible_links = await visible_risk_control_links(db, current_user=current_user, links=links)
-    context = await load_control_execution_monitoring_context(db)
+    context = await _ctx(db)
     return [ControlRiskLinkOutcome(link=link, monitoring_context=context) for link in visible_links]
 
 
@@ -166,7 +172,7 @@ async def create_risk_control_link(
     )
     return ControlRiskLinkOutcome(
         link=link,
-        monitoring_context=await load_control_execution_monitoring_context(db),
+        monitoring_context=await _ctx(db),
     )
 
 

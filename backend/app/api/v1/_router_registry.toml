@@ -1,0 +1,138 @@
+# Lock for BE-N6: enumerates every include_router call in app/api/v1/router.py.
+# This registry is additive metadata; router.py remains the production source
+# until the follow-up registry-driven include loop ships.
+
+[[modules]]
+module = "health"
+prefixes = ["/livez", "/readyz", "/health"]
+tags = ["health"]
+
+[[modules]]
+module = "auth"
+prefix = "/auth"
+tags = ["auth"]
+
+[[modules]]
+module = "users"
+prefix = "/users"
+tags = ["users"]
+
+[[modules]]
+module = "access"
+prefix = "/access"
+tags = ["access"]
+
+[[modules]]
+module = "controls"
+prefix = "/controls"
+tags = ["controls"]
+
+[[modules]]
+module = "risks"
+prefix = "/risks"
+tags = ["risks"]
+
+[[modules]]
+module = "issues"
+prefix = "/issues"
+tags = ["issues"]
+
+[[modules]]
+module = "vendors"
+prefix = "/vendors"
+tags = ["vendors"]
+
+[[modules]]
+module = "vendor_links"
+prefix = "/vendors"
+tags = ["vendor-links"]
+
+[[modules]]
+module = "vendor_reports"
+prefix = "/vendor-reports"
+tags = ["vendor-reports"]
+
+# DUAL-ROUTER: risk_questionnaires registers BOTH .risk_router and .router.
+# Both are under the /questionnaires tag per the Phase 6 correction.
+[[modules]]
+module = "risk_questionnaires"
+dual_router = true
+dual_routes = [
+    { router_attr = "risk_router", prefix = "/risks", tags = ["questionnaires"] },
+    { router_attr = "router",      prefix = "/questionnaires", tags = ["questionnaires"] },
+]
+
+[[modules]]
+module = "dashboard"
+prefix = "/dashboard"
+tags = ["dashboard"]
+
+[[modules]]
+module = "departments"
+prefix = "/departments"
+tags = ["departments"]
+
+[[modules]]
+module = "reports"
+prefix = "/reports"
+tags = ["reports"]
+
+[[modules]]
+module = "executions"
+prefix = "/executions"
+tags = ["executions"]
+
+[[modules]]
+module = "kris"
+prefix = "/kris"
+tags = ["Key Risk Indicators"]
+
+[[modules]]
+module = "approvals"
+prefix = "/approvals"
+tags = ["approvals"]
+
+[[modules]]
+module = "notifications"
+prefix = "/notifications"
+tags = ["notifications"]
+
+[[modules]]
+module = "admin"
+prefix = "/admin"
+tags = ["admin"]
+
+[[modules]]
+module = "directory"
+prefix = "/directory"
+tags = ["directory"]
+
+[[modules]]
+module = "orphaned_items"
+prefix = "/orphaned-items"
+tags = ["governance"]
+
+[[modules]]
+module = "lookups"
+prefix = "/lookups"
+tags = ["lookups"]
+
+[[modules]]
+module = "activity_log"
+prefix = "/activity-log"
+tags = ["activity-log"]
+
+[[modules]]
+module = "riskhub"
+prefix = "/riskhub"
+tags = ["riskhub"]
+
+[[modules]]
+module = "riskhub_questionnaires"
+prefix = "/riskhub"
+tags = ["riskhub"]
+
+[[modules]]
+module = "preferences"
+prefix = "/preferences"
+tags = ["preferences"]

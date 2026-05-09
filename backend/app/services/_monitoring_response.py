@@ -1,3 +1,9 @@
+"""Read-shape projection for monitoring responses.
+
+Pairs with _monitoring_status (see services/_monitoring_status/README.md).
+File-level entry per ADR-007 amendment.
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass

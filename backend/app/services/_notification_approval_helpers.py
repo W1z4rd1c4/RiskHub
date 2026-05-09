@@ -1,12 +1,15 @@
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.permissions import can_read_control_id, can_read_kri_id, can_read_risk_id
 from app.core.user_query_options import user_selectinload_options
-from app.models.approval_request import ApprovalRequest, ApprovalResourceType
+from app.models.approval_request import ApprovalRequest
 from app.models.role import Permission, Role, RolePermission
 from app.models.user import AccessScope, User
-from app.services.approval_scenario_policy import RISK_OWNER_APPROVER_ROLE, scenario_roles_for_approval
+from app.services.approval_scenario_policy import (
+    RISK_OWNER_APPROVER_ROLE,
+    can_view_approval_resource,
+    scenario_roles_for_approval,
+)
 
 
 def approval_action_label(approval: ApprovalRequest) -> str:
@@ -69,16 +72,6 @@ async def load_scenario_approval_notification_candidates(db: AsyncSession, appro
     return unique_candidates
 
 
-async def can_user_view_approval_resource(db: AsyncSession, user: User, approval: ApprovalRequest) -> bool:
-    if approval.resource_type == ApprovalResourceType.RISK:
-        return await can_read_risk_id(db, user, approval.resource_id)
-    if approval.resource_type == ApprovalResourceType.CONTROL:
-        return await can_read_control_id(db, user, approval.resource_id)
-    if approval.resource_type == ApprovalResourceType.KRI:
-        return await can_read_kri_id(db, user, approval.resource_id)
-    return False
-
-
 async def eligible_approval_notification_recipients(
     db: AsyncSession,
     approval: ApprovalRequest,
@@ -95,7 +88,7 @@ async def eligible_approval_notification_recipients(
         if exclude_user_id is not None and candidate.id == exclude_user_id:
             skipped["excluded_actor"] += 1
             continue
-        if not await can_user_view_approval_resource(db, candidate, approval):
+        if not await can_view_approval_resource(db, candidate, approval):
             skipped["hidden_resource"] += 1
             continue
         recipients.append(candidate)

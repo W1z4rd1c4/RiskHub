@@ -5,6 +5,7 @@ from collections.abc import Mapping
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.activity_logger import log_activity
+from app.core.audit._emit import emit_adapter
 from app.core.audit.changes import resolve_audit_changes
 from app.core.audit.labels import safe_entity_label
 from app.core.audit.types import AuditLogActivity
@@ -29,7 +30,7 @@ async def kri_created(
     kri: KeyRiskIndicator,
     log_activity_func: AuditLogActivity = log_activity,
 ) -> None:
-    await log_activity_func(
+    await emit_adapter(
         db,
         entity_type=ActivityEntityType.KRI,
         entity_id=kri.id,
@@ -38,6 +39,7 @@ async def kri_created(
         action=ActivityAction.CREATE,
         actor=actor,
         department_id=_kri_department_id(kri),
+        log_activity_func=log_activity_func,
     )
 
 
@@ -53,7 +55,7 @@ async def kri_updated(
     log_activity_func: AuditLogActivity = log_activity,
 ) -> None:
     changes = resolve_audit_changes(changes=changes, before_data=before_data, after_data=after_data)
-    await log_activity_func(
+    await emit_adapter(
         db,
         entity_type=ActivityEntityType.KRI,
         entity_id=kri.id,
@@ -64,6 +66,7 @@ async def kri_updated(
         department_id=_kri_department_id(kri),
         changes=changes,
         description=description,
+        log_activity_func=log_activity_func,
     )
 
 
@@ -79,7 +82,7 @@ async def kri_archived(
     log_activity_func: AuditLogActivity = log_activity,
 ) -> None:
     changes = resolve_audit_changes(changes=changes, before_data=before_data, after_data=after_data)
-    await log_activity_func(
+    await emit_adapter(
         db,
         entity_type=ActivityEntityType.KRI,
         entity_id=kri.id,
@@ -90,6 +93,7 @@ async def kri_archived(
         department_id=_kri_department_id(kri),
         changes=changes,
         description=description,
+        log_activity_func=log_activity_func,
     )
 
 
@@ -104,7 +108,7 @@ async def kri_restored(
     log_activity_func: AuditLogActivity = log_activity,
 ) -> None:
     changes = resolve_audit_changes(changes=changes, before_data=before_data, after_data=after_data)
-    await log_activity_func(
+    await emit_adapter(
         db,
         entity_type=ActivityEntityType.KRI,
         entity_id=kri.id,
@@ -117,6 +121,7 @@ async def kri_restored(
         department_id=_kri_department_id(kri),
         changes=changes,
         description=f"Restored KRI {kri.metric_name}",
+        log_activity_func=log_activity_func,
     )
 
 
@@ -132,7 +137,7 @@ async def kri_value_created(
     log_activity_func: AuditLogActivity = log_activity,
 ) -> None:
     entity_label = f"{kri.metric_name} ({history_entry.period_end.isoformat()})"
-    await log_activity_func(
+    await emit_adapter(
         db,
         entity_type=ActivityEntityType.KRI_VALUE,
         entity_id=history_entry.id,
@@ -147,6 +152,7 @@ async def kri_value_created(
             period_end=history_entry.period_end,
         ),
         description=description,
+        log_activity_func=log_activity_func,
     )
 
 
@@ -159,7 +165,7 @@ async def kri_value_mutation_updated(
     description: str,
     log_activity_func: AuditLogActivity = log_activity,
 ) -> None:
-    await log_activity_func(
+    await emit_adapter(
         db,
         entity_type=ActivityEntityType.KRI,
         entity_id=kri.id,
@@ -170,6 +176,7 @@ async def kri_value_mutation_updated(
         department_id=_kri_department_id(kri),
         changes=changes,
         description=description,
+        log_activity_func=log_activity_func,
     )
 
 
@@ -184,7 +191,7 @@ async def kri_history_corrected(
     log_activity_func: AuditLogActivity = log_activity,
 ) -> None:
     entity_label = f"{kri_display_name(kri)} ({history_entry.period_end.isoformat()})"
-    await log_activity_func(
+    await emit_adapter(
         db,
         entity_type=ActivityEntityType.KRI_VALUE,
         entity_id=history_entry.id,
@@ -195,4 +202,5 @@ async def kri_history_corrected(
         department_id=_kri_department_id(kri),
         changes=changes,
         description=description,
+        log_activity_func=log_activity_func,
     )

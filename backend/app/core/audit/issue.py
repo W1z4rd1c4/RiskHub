@@ -5,6 +5,7 @@ from collections.abc import Mapping
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.activity_logger import log_activity
+from app.core.audit._emit import emit_adapter
 from app.core.audit.changes import resolve_audit_changes
 from app.core.audit.labels import safe_entity_label
 from app.core.audit.types import AuditLogActivity
@@ -23,7 +24,7 @@ async def issue_created(
     issue: Issue,
     log_activity_func: AuditLogActivity = log_activity,
 ) -> None:
-    await log_activity_func(
+    await emit_adapter(
         db,
         entity_type=ActivityEntityType.ISSUE,
         entity_id=issue.id,
@@ -32,6 +33,7 @@ async def issue_created(
         action=ActivityAction.CREATE,
         actor=actor,
         department_id=issue.department_id,
+        log_activity_func=log_activity_func,
     )
 
 
@@ -47,7 +49,7 @@ async def issue_updated(
     log_activity_func: AuditLogActivity = log_activity,
 ) -> None:
     changes = resolve_audit_changes(changes=changes, before_data=before_data, after_data=after_data)
-    await log_activity_func(
+    await emit_adapter(
         db,
         entity_type=ActivityEntityType.ISSUE,
         entity_id=issue.id,
@@ -58,6 +60,7 @@ async def issue_updated(
         department_id=issue.department_id,
         changes=changes,
         description=description,
+        log_activity_func=log_activity_func,
     )
 
 
@@ -73,7 +76,7 @@ async def issue_status_changed(
     log_activity_func: AuditLogActivity = log_activity,
 ) -> None:
     changes = resolve_audit_changes(changes=changes, before_data=before_data, after_data=after_data)
-    await log_activity_func(
+    await emit_adapter(
         db,
         entity_type=ActivityEntityType.ISSUE,
         entity_id=issue.id,
@@ -84,6 +87,7 @@ async def issue_status_changed(
         department_id=issue.department_id,
         changes=changes,
         description=description,
+        log_activity_func=log_activity_func,
     )
 
 
@@ -118,7 +122,7 @@ async def issue_linked(
     description: str | None = None,
     log_activity_func: AuditLogActivity = log_activity,
 ) -> None:
-    await log_activity_func(
+    await emit_adapter(
         db,
         entity_type=ActivityEntityType.ISSUE,
         entity_id=issue.id,
@@ -129,6 +133,7 @@ async def issue_linked(
         department_id=issue.department_id,
         changes={"link_id": {"old": None, "new": link.id}} if link else None,
         description=description,
+        log_activity_func=log_activity_func,
     )
 
 
@@ -141,7 +146,7 @@ async def issue_unlinked(
     description: str | None = None,
     log_activity_func: AuditLogActivity = log_activity,
 ) -> None:
-    await log_activity_func(
+    await emit_adapter(
         db,
         entity_type=ActivityEntityType.ISSUE,
         entity_id=issue.id,
@@ -152,6 +157,7 @@ async def issue_unlinked(
         department_id=issue.department_id,
         changes={"link_id": {"old": link.id, "new": None}} if link else None,
         description=description,
+        log_activity_func=log_activity_func,
     )
 
 
@@ -163,7 +169,7 @@ async def issue_remediation_created(
     plan: IssueRemediationPlan,
     log_activity_func: AuditLogActivity = log_activity,
 ) -> None:
-    await log_activity_func(
+    await emit_adapter(
         db,
         entity_type=ActivityEntityType.ISSUE_REMEDIATION,
         entity_id=plan.id,
@@ -172,6 +178,7 @@ async def issue_remediation_created(
         action=ActivityAction.CREATE,
         actor=actor,
         department_id=issue.department_id,
+        log_activity_func=log_activity_func,
     )
 
 
@@ -188,7 +195,7 @@ async def issue_remediation_updated(
     log_activity_func: AuditLogActivity = log_activity,
 ) -> None:
     changes = resolve_audit_changes(changes=changes, before_data=before_data, after_data=after_data)
-    await log_activity_func(
+    await emit_adapter(
         db,
         entity_type=ActivityEntityType.ISSUE_REMEDIATION,
         entity_id=plan.id,
@@ -199,6 +206,7 @@ async def issue_remediation_updated(
         department_id=issue.department_id,
         changes=changes,
         description=description,
+        log_activity_func=log_activity_func,
     )
 
 
@@ -215,7 +223,7 @@ async def issue_remediation_status_changed(
     log_activity_func: AuditLogActivity = log_activity,
 ) -> None:
     changes = resolve_audit_changes(changes=changes, before_data=before_data, after_data=after_data)
-    await log_activity_func(
+    await emit_adapter(
         db,
         entity_type=ActivityEntityType.ISSUE_REMEDIATION,
         entity_id=plan.id,
@@ -226,6 +234,7 @@ async def issue_remediation_status_changed(
         department_id=issue.department_id,
         changes=changes,
         description=description,
+        log_activity_func=log_activity_func,
     )
 
 
@@ -239,7 +248,7 @@ async def issue_exception_created(
     description: str | None = None,
     log_activity_func: AuditLogActivity = log_activity,
 ) -> None:
-    await log_activity_func(
+    await emit_adapter(
         db,
         entity_type=ActivityEntityType.ISSUE_EXCEPTION,
         entity_id=exception.id,
@@ -250,6 +259,7 @@ async def issue_exception_created(
         department_id=issue.department_id,
         changes=changes,
         description=description,
+        log_activity_func=log_activity_func,
     )
 
 
@@ -266,7 +276,7 @@ async def issue_exception_updated(
     log_activity_func: AuditLogActivity = log_activity,
 ) -> None:
     changes = resolve_audit_changes(changes=changes, before_data=before_data, after_data=after_data)
-    await log_activity_func(
+    await emit_adapter(
         db,
         entity_type=ActivityEntityType.ISSUE_EXCEPTION,
         entity_id=exception.id,
@@ -277,6 +287,7 @@ async def issue_exception_updated(
         department_id=issue.department_id,
         changes=changes,
         description=description,
+        log_activity_func=log_activity_func,
     )
 
 
@@ -292,7 +303,7 @@ async def issue_exception_approved(
     log_activity_func: AuditLogActivity = log_activity,
 ) -> None:
     changes = resolve_audit_changes(changes=changes, before_data=before_data, after_data=after_data)
-    await log_activity_func(
+    await emit_adapter(
         db,
         entity_type=ActivityEntityType.ISSUE_EXCEPTION,
         entity_id=exception.id,
@@ -302,6 +313,7 @@ async def issue_exception_approved(
         actor=actor,
         department_id=issue.department_id,
         changes=changes,
+        log_activity_func=log_activity_func,
     )
 
 
@@ -318,7 +330,7 @@ async def issue_exception_status_changed(
     log_activity_func: AuditLogActivity = log_activity,
 ) -> None:
     changes = resolve_audit_changes(changes=changes, before_data=before_data, after_data=after_data)
-    await log_activity_func(
+    await emit_adapter(
         db,
         entity_type=ActivityEntityType.ISSUE_EXCEPTION,
         entity_id=exception.id,
@@ -329,4 +341,5 @@ async def issue_exception_status_changed(
         department_id=issue.department_id,
         changes=changes,
         description=description,
+        log_activity_func=log_activity_func,
     )

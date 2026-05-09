@@ -267,11 +267,11 @@ async def test_scoped_audit_trail_filters_linked_risks_by_visibility(
 
 
 @pytest.mark.asyncio
-async def test_audit_trail_legacy_excel_endpoint_returns_gone(
+async def test_audit_trail_xlsx_export_returns_gone(
     auth_client: AsyncClient,
     audit_trail_test_data: dict,
 ):
-    response = await auth_client.get("/api/v1/reports/audit-trail/excel")
+    response = await auth_client.get("/api/v1/reports/audit-trail/export?format=xlsx")
     assert response.status_code == 410
     detail = response.json()["detail"]
     assert detail["code"] == "excel_export_removed"

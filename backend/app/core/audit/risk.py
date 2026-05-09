@@ -6,6 +6,7 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.activity_logger import build_change_set, log_activity
+from app.core.audit._emit import emit_adapter
 from app.core.audit.changes import resolve_audit_changes
 from app.core.audit.types import AuditLogActivity
 from app.models import Risk, User
@@ -24,7 +25,7 @@ async def risk_created(
     risk: Risk,
     log_activity_func: AuditLogActivity = log_activity,
 ) -> None:
-    await log_activity_func(
+    await emit_adapter(
         db,
         entity_type=ActivityEntityType.RISK,
         entity_id=risk.id,
@@ -33,6 +34,7 @@ async def risk_created(
         action=ActivityAction.CREATE,
         actor=actor,
         department_id=risk.department_id,
+        log_activity_func=log_activity_func,
     )
 
 
@@ -57,7 +59,7 @@ async def risk_updated(
     log_activity_func: AuditLogActivity = log_activity,
 ) -> None:
     changes = resolve_audit_changes(changes=changes, before_data=before_data, after_data=after_data)
-    await log_activity_func(
+    await emit_adapter(
         db,
         entity_type=ActivityEntityType.RISK,
         entity_id=risk.id,
@@ -68,6 +70,7 @@ async def risk_updated(
         department_id=risk.department_id,
         changes=changes,
         description=description,
+        log_activity_func=log_activity_func,
     )
 
 
@@ -83,7 +86,7 @@ async def risk_archived(
     log_activity_func: AuditLogActivity = log_activity,
 ) -> None:
     changes = resolve_audit_changes(changes=changes, before_data=before_data, after_data=after_data)
-    await log_activity_func(
+    await emit_adapter(
         db,
         entity_type=ActivityEntityType.RISK,
         entity_id=risk.id,
@@ -94,6 +97,7 @@ async def risk_archived(
         department_id=risk.department_id,
         changes=changes,
         description=description,
+        log_activity_func=log_activity_func,
     )
 
 
@@ -108,7 +112,7 @@ async def risk_restored(
     log_activity_func: AuditLogActivity = log_activity,
 ) -> None:
     changes = resolve_audit_changes(changes=changes, before_data=before_data, after_data=after_data)
-    await log_activity_func(
+    await emit_adapter(
         db,
         entity_type=ActivityEntityType.RISK,
         entity_id=risk.id,
@@ -121,4 +125,5 @@ async def risk_restored(
         department_id=risk.department_id,
         changes=changes,
         description=f"Restored risk {risk.risk_id_code}",
+        log_activity_func=log_activity_func,
     )

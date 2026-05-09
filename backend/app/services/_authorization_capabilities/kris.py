@@ -5,7 +5,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.permissions import (
     can_access_department_id,
     can_read_kri_id,
-    can_resolve_approvals,
     has_permission,
     is_high_risk_for_approval_async,
     is_kri_reporting_owner,
@@ -13,6 +12,7 @@ from app.core.permissions import (
 from app.models import ApprovalActionType, ApprovalRequest, ApprovalResourceType, KeyRiskIndicator, User
 from app.schemas.kri import KRICapabilities
 from app.services._kri_history.workflow import can_request_history_correction
+from app.services.approval_scenario_policy import approval_privilege_tier
 
 from .common import has_pending_action, pending_approvals
 
@@ -71,7 +71,7 @@ async def kri_capabilities(
         and risk is not None
         and can_access_department_id(current_user, risk.department_id)
     )
-    is_resolver = can_resolve_approvals(current_user)
+    is_resolver = approval_privilege_tier(current_user).is_privileged
     is_reporting_owner = (
         is_reporting_owner_override
         if is_reporting_owner_override is not None
