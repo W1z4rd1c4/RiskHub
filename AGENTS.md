@@ -234,6 +234,7 @@ Canonical Source: `docs/adr/README.md`, `docs/README.md`
   - `backend/app/api/v1/endpoints/_reserved_modules.toml`
 - Outbox worker transaction ownership is consolidated in `backend/app/services/outbox/dispatcher.py`; `backend/app/services/outbox/store.py` flushes only.
 - Transaction-boundary changes follow ADR-002; auth/session scheme changes follow ADR-011; archive-state changes follow ADR-005; forward-only Postgres migration rehearsals follow ADR-010.
+- ADR-011/#76 sunset the eight auth-flow endpoint commits from `auth/{sso,refresh,logout,password,demo}.py` and `auth/_sso_helpers.py`; auth endpoints call `backend/app/services/_auth_session_workflow/` commit boundaries instead of `db.commit()`.
 
 ## client_factory
 

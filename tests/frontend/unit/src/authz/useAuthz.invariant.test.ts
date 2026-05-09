@@ -35,6 +35,22 @@ describe('useAuthz invariants', () => {
         expect(buildAuthzBody).toContain('meCapabilities.resource_permissions[key] === true');
     });
 
+    it('tracks access_user as a required capability surface', () => {
+        const catalog = JSON.parse(readRepoSource('docs/security/capability-catalog.json')) as {
+            surfaces: Array<{ id: string }>;
+        };
+        const surfaceIds = new Set(catalog.surfaces.map((surface) => surface.id));
+        const identitySchemaSource = readRepoSource('frontend/src/services/api/schemas/entities/identity.ts');
+        const accessTypesSource = readRepoSource('frontend/src/types/access.ts');
+
+        expect(surfaceIds).toContain('access_user');
+        expect(identitySchemaSource).toContain('export const accessUserCapabilitiesSchema');
+        expect(identitySchemaSource).toContain('capabilities: accessUserCapabilitiesSchema,');
+        expect(identitySchemaSource).not.toContain('capabilities: accessUserCapabilitiesSchema.nullable().optional()');
+        expect(accessTypesSource).toContain('capabilities: AccessUserCapabilities;');
+        expect(accessTypesSource).not.toContain('capabilities?: AccessUserCapabilities | null;');
+    });
+
     it('strict mode covers every business route read resource permission', () => {
         const businessRoutesSource = readRepoSource('frontend/src/routing/business.tsx');
         const routeResources = new Set(

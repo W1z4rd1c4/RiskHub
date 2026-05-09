@@ -322,7 +322,7 @@ async def test_list_executions_filters_linked_risks_without_scalar_per_row_check
 
     assert response.status_code == 200
     item = next(item for item in response.json()["items"] if item["id"] == execution.id)
-    assert item["linked_risks"] == [risk.process]
+    assert item["linked_risks"] == [risk.name]
 
 
 @pytest.mark.asyncio

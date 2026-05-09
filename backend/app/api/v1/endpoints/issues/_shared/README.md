@@ -11,10 +11,10 @@ API endpoint package for `issues` domain.
 - `constants.py`
 - `links.py`
 - `loading.py`
-- `notifications.py`
 - `serialization.py`
+- `source.py`
 - `validation.py`
 
 ## Notes
 
-Keep this README updated when responsibilities or structure in this folder change.
+Keep this README updated when responsibilities or structure in this folder change. Issue notifications are outbox-only; endpoint shared helpers must not emit `NotificationService` side effects directly.

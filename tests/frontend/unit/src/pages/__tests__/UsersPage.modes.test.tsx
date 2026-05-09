@@ -99,15 +99,15 @@ type AccessUserApi = {
     effective_permissions: string[];
     external_id?: string | null;
     deprovision_reason?: string | null;
-    capabilities?: {
+    capabilities: {
         can_edit_identity: boolean;
         can_edit_business_access: boolean;
         can_edit_role: boolean;
         can_deactivate: boolean;
-        can_change_active_status?: boolean;
-        can_break_glass_enable?: boolean;
+        can_change_active_status: boolean;
+        can_break_glass_enable: boolean;
         can_revoke_sessions: boolean;
-    } | null;
+    };
 };
 
 const makeUser = (overrides: Partial<AuthMeUser>): AuthMeUser => ({
@@ -317,7 +317,7 @@ describe('UsersPage mode selection', () => {
         expect(screen.queryByLabelText('Deactivate')).not.toBeInTheDocument();
     });
 
-    it('hides active status changes when capability metadata is absent', async () => {
+    it('hides active status changes when backend capabilities deny them', async () => {
         server.use(
             http.get('*/api/v1/auth/me', () =>
                 HttpResponse.json(
@@ -332,7 +332,15 @@ describe('UsersPage mode selection', () => {
             http.get('*/api/v1/access/users', () =>
                 HttpResponse.json([
                     makeAccessUser({
-                        capabilities: null,
+                        capabilities: {
+                            can_edit_identity: true,
+                            can_edit_business_access: false,
+                            can_edit_role: true,
+                            can_deactivate: false,
+                            can_change_active_status: false,
+                            can_break_glass_enable: false,
+                            can_revoke_sessions: true,
+                        },
                     }),
                 ])
             ),

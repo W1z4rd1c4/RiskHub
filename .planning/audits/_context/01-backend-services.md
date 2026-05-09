@@ -1269,3 +1269,12 @@ All inside `_issue_workflow/execution.py`:
 - Direct importers of `app.services.approval_scenario_policy`: 13 distinct modules (Bash grep §12.4).
 
 End of Phase 1 mapping. No verification, no opinions, no audit-finding cross-checks.
+
+## Wave 2 Implementation Note — Audit #57 REJECT
+
+`backend/app/services/quarterly_comparison_service.py` is retained as a
+load-bearing compatibility facade for quarterly comparison callers. The
+canonical implementation remains under `backend/app/services/_quarterly_comparison/`.
+
+Presence lock:
+`tests/backend/pytest/architecture/test_quarterly_comparison_facade_present_red.py`.

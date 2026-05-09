@@ -55,7 +55,7 @@ class AccessUserRead(BaseModel):
     directory_sync_status: Optional[str] = None
     deprovisioned_at: UtcAwareDatetime | None = None
     deprovision_reason: Optional[str] = None
-    capabilities: "AccessUserCapabilities | None" = None
+    capabilities: "AccessUserCapabilities"
 
     model_config = {"from_attributes": True}
 

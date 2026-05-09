@@ -29,3 +29,4 @@ Security invariants:
 - `GET /auth/csrf` is the only explicit CSRF-seeding endpoint; refresh-session issuance also reissues the readable CSRF cookie
 - cookie-authenticated `POST /auth/refresh` requires allowed Origin/Referer plus matching double-submit CSRF
 - normal `POST /auth/logout` invalidates the full app session family for the resolved user, not only the current refresh row
+- auth/session write transactions are service-owned per ADR-011 and finding #76; endpoint modules must call `backend/app/services/_auth_session_workflow/` commit boundaries instead of `db.commit()`

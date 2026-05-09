@@ -1,4 +1,8 @@
-"""Compatibility facade for Risk Committee quarterly comparison metrics."""
+"""Compatibility facade for Risk Committee quarterly comparison metrics.
+
+Audit #57 verdict: Reject deletion. This facade is kept as the stable
+backwards-compatible import path for existing quarterly comparison callers.
+"""
 
 from app.services._quarterly_comparison.composition import (
     PERIOD_METRICS,

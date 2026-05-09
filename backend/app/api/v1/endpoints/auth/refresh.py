@@ -28,6 +28,7 @@ from app.services._auth_session import (
     apply_session_cookie_plan,
     resolve_refresh_session,
 )
+from app.services._auth_session_workflow import commit_refresh_session
 
 from ._request_protection import validate_csrf, validate_request_origin
 from ._shared import _build_token_response, _issue_refresh_session
@@ -174,5 +175,5 @@ async def refresh_session(
         },
     )
     token_response = _build_token_response(user, settings=settings, session_expires_at=expires_at)
-    await db.commit()
+    await commit_refresh_session(db)
     return token_response

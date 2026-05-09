@@ -13,11 +13,11 @@ from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import KeyRiskIndicator, Risk, User
 from app.schemas.risk import RiskCreate, RiskRead
+from app.services._entity_mutation_lifecycle.policy import validate_risk_type
 from app.services.authorization_capabilities import risk_capabilities
 from app.services.transaction_boundary import commit_service_transaction
 
 from ..id_generation import generate_risk_id_code
-from ._shared import validate_risk_type
 from .list import router
 
 

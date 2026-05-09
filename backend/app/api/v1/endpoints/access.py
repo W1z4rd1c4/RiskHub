@@ -55,7 +55,7 @@ def _require_access_user_write(user: User) -> None:
         )
 
 
-def _build_access_user_read(user: User, *, current_user: User | None = None) -> AccessUserRead:
+def _build_access_user_read(user: User, *, current_user: User) -> AccessUserRead:
     return AccessUserRead(
         id=user.id,
         email=user.email,
@@ -78,7 +78,7 @@ def _build_access_user_read(user: User, *, current_user: User | None = None) -> 
         directory_sync_status=user.directory_sync_status,
         deprovisioned_at=user.deprovisioned_at,
         deprovision_reason=user.deprovision_reason,
-        capabilities=access_user_capabilities(current_user, user) if current_user is not None else None,
+        capabilities=access_user_capabilities(current_user, user),
     )
 
 

@@ -11,6 +11,7 @@ from app.core.tokens import clear_refresh_cookie, get_refresh_cookie, token_deco
 from app.db.session import get_db
 from app.models import RefreshToken, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
+from app.services._auth_session_workflow import commit_logout, commit_logout_all
 
 from ._request_protection import validate_csrf, validate_request_origin
 from ._shared import _invalidate_user_sessions
@@ -98,7 +99,7 @@ async def logout(
             },
         )
         clear_refresh_cookie(response, settings)
-        await db.commit()
+        await commit_logout(db)
         return {"message": "Logged out successfully", "revoked_sessions": revoked}
 
     clear_refresh_cookie(response, settings)
@@ -129,6 +130,6 @@ async def logout_all_devices(
         },
     )
     clear_refresh_cookie(response, settings)
-    await db.commit()
+    await commit_logout_all(db)
 
     return {"message": "Logged out from all devices", "revoked_sessions": revoked}

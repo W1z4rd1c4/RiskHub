@@ -7,7 +7,6 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
-from app.api.v1.endpoints.issues._shared.notifications import _notify_exception_approved, _notify_issue_assigned
 from app.models import (
     Issue,
     IssueException,
@@ -676,18 +675,22 @@ async def test_direct_issue_notifications_support_manager_scoped_recipients(
     assert reloaded_assigned_issue is not None
     assert reloaded_exception_issue is not None
 
-    await _notify_issue_assigned(
+    await handle_issue_assigned(
         db_session,
-        issue=reloaded_assigned_issue,
-        owner_user_id=recipient_id,
-        actor=actor,
+        IssueAssignedPayload(
+            issue_id=reloaded_assigned_issue.id,
+            owner_user_id=recipient_id,
+            actor_user_id=actor.id,
+        ),
     )
-    await _notify_exception_approved(
+    await handle_issue_exception_approved(
         db_session,
-        issue=reloaded_exception_issue,
-        requested_by_id=recipient_id,
-        owner_user_id=None,
-        actor=actor,
+        IssueExceptionApprovedPayload(
+            issue_id=reloaded_exception_issue.id,
+            requested_by_id=recipient_id,
+            owner_user_id=None,
+            actor_user_id=actor.id,
+        ),
     )
 
     notifications = (

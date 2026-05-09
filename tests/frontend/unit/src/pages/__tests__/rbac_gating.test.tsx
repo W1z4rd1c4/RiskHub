@@ -62,11 +62,13 @@ type AccessUserApi = {
     access_scope: 'global' | 'department' | 'manager';
     scope_label: string;
     effective_permissions: string[];
-    capabilities?: {
+    capabilities: {
         can_edit_identity: boolean;
         can_edit_business_access: boolean;
         can_edit_role: boolean;
         can_deactivate: boolean;
+        can_change_active_status: boolean;
+        can_break_glass_enable: boolean;
         can_revoke_sessions: boolean;
     };
 };
@@ -112,6 +114,15 @@ const makeAccessUser = (overrides: Partial<AccessUserApi> = {}): AccessUserApi =
     access_scope: 'department',
     scope_label: 'Department',
     effective_permissions: ['risks:read'],
+    capabilities: {
+        can_edit_identity: false,
+        can_edit_business_access: false,
+        can_edit_role: false,
+        can_deactivate: false,
+        can_change_active_status: false,
+        can_break_glass_enable: false,
+        can_revoke_sessions: false,
+    },
     ...overrides,
 });
 
@@ -366,6 +377,8 @@ describe('RBAC UI gating', () => {
                     can_edit_business_access: false,
                     can_edit_role: false,
                     can_deactivate: false,
+                    can_change_active_status: false,
+                    can_break_glass_enable: false,
                     can_revoke_sessions: false,
                 },
             })])),
@@ -393,6 +406,8 @@ describe('RBAC UI gating', () => {
                     can_edit_business_access: true,
                     can_edit_role: true,
                     can_deactivate: true,
+                    can_change_active_status: true,
+                    can_break_glass_enable: true,
                     can_revoke_sessions: true,
                 },
             })])),

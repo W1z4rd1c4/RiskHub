@@ -8,7 +8,6 @@ API endpoint package for `risks` domain.
 
 - `__init__.py`
 - `__pycache__/`
-- `_shared.py`
 - `archive.py`
 - `create.py`
 - `detail.py`

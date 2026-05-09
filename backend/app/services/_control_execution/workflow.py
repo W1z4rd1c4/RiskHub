@@ -152,5 +152,5 @@ def linked_risk_names_for_visible_ids(control: Control | None, readable_risk_ids
         if risk is None:
             continue
         if risk.id in readable_risk_ids:
-            names.append(risk.process)
+            names.append(risk.name)
     return names

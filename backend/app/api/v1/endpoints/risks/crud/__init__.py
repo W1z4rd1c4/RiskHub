@@ -1,5 +1,4 @@
 from . import archive, detail, restore, update
-from ._shared import validate_risk_type
 from .archive import delete_risk
 from .create import create_risk
 from .detail import get_risk
@@ -20,5 +19,4 @@ __all__ = [
     "restore_risk",
     "router",
     "update_risk",
-    "validate_risk_type",
 ]

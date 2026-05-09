@@ -9,12 +9,6 @@ from .constants import (
 )
 from .links import _issue_link_department_ids, _resolve_vendor_department_and_access
 from .loading import _get_issue_with_relations, _get_readable_issue_or_404, _get_writable_issue_or_404
-from .notifications import (
-    _get_active_user_with_permissions,
-    _notify_exception_approved,
-    _notify_exception_requested,
-    _notify_issue_assigned,
-)
 from .serialization import (
     _active_exception,
     _issue_source_link,
@@ -50,7 +44,6 @@ __all__ = [
     "ResolvedIssueSource",
     "_active_exception",
     "_ensure_owner_assignable",
-    "_get_active_user_with_permissions",
     "_get_issue_with_relations",
     "_get_readable_issue_or_404",
     "_get_writable_issue_or_404",
@@ -59,9 +52,6 @@ __all__ = [
     "_label_or_fallback",
     "_link_display",
     "_link_matches_issue_source",
-    "_notify_exception_approved",
-    "_notify_exception_requested",
-    "_notify_issue_assigned",
     "_resolve_user_name",
     "_resolve_vendor_department_and_access",
     "_serialize_exception",

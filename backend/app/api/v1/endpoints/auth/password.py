@@ -14,6 +14,7 @@ from app.core.user_query_options import user_selectinload_options
 from app.db.session import get_db
 from app.models import User
 from app.schemas.auth import LoginRequest, TokenResponse
+from app.services._auth_session_workflow import commit_failed_password_login, commit_successful_password_login
 from app.services.account_lockout_service import AccountLockoutBackendError
 
 from ._request_protection import validate_request_origin
@@ -125,7 +126,7 @@ async def login(
             safe_description_siem=f"Failed login attempt{' (account now locked)' if is_now_locked else ''}",
             description=f"Failed login attempt: invalid credentials{' (account now locked)' if is_now_locked else ''}",
         )
-        await db.commit()
+        await commit_failed_password_login(db)
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     if not user.is_active:
@@ -158,6 +159,6 @@ async def login(
         description=f"User logged in: {user.email}",
     )
 
-    await db.commit()
+    await commit_successful_password_login(db)
 
     return token_response

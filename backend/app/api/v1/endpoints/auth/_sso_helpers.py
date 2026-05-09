@@ -13,6 +13,7 @@ from app.core.tokens import clear_sso_challenge_cookie, get_sso_challenge_cookie
 from app.core.user_query_options import user_selectinload_options
 from app.models import User
 from app.schemas.auth import SsoExchangeRequest
+from app.services._auth_session_workflow import commit_failed_sso_audit
 from app.services.directory_identity_service import normalize_business_role
 from app.services.sso_token_service import SsoProviderUnavailableError, SsoTokenVerificationError
 
@@ -45,7 +46,7 @@ async def _log_failed_sso(
         safe_description_siem=description,
         description=description,
     )
-    await db.commit()
+    await commit_failed_sso_audit(db)
 
 
 async def _verify_sso_identity(

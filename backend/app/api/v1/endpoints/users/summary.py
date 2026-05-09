@@ -2,16 +2,18 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
 from app.core.datetime_utils import utc_now
 from app.core.permission_cache import build_permission_sensitive_cache_key
-from app.core.permissions import can_manage_users, ensure_business_view_access, has_permission
+from app.core.permissions import has_permission
 from app.core.ttl_cache import TTLCache
 from app.db.session import get_db
 from app.models import ApprovalRequest, ApprovalStatus, OrphanedItem, User
 from app.schemas.user import UserShellSummary
+from app.services._authorization_capabilities import build_me_capabilities
 from app.services.approval_queue_visibility import count_visible_pending_approvals_for_user
 from app.services.notification_visibility import count_visible_unread_notifications
 
@@ -42,16 +44,8 @@ async def _count_questionnaire_inbox(db: AsyncSession, current_user: User) -> in
     return await count_questionnaire_inbox(db, current_user)
 
 
-def _can_view_governance(current_user: User) -> bool:
-    try:
-        ensure_business_view_access(current_user, detail="Platform admins cannot access Governance business data")
-    except Exception:
-        return False
-    return can_manage_users(current_user)
-
-
 async def _build_shell_summary(db: AsyncSession, current_user: User) -> dict:
-    can_view_governance = _can_view_governance(current_user)
+    can_view_governance = build_me_capabilities(current_user).can_view_governance
 
     unread_notifications_count = await count_visible_unread_notifications(db, current_user)
 
@@ -59,7 +53,7 @@ async def _build_shell_summary(db: AsyncSession, current_user: User) -> dict:
     questionnaire_inbox_count = 0
     try:
         questionnaire_inbox_count = await _count_questionnaire_inbox(db, current_user)
-    except Exception:
+    except SQLAlchemyError:
         questionnaire_inbox_count = 0
 
     orphan_total_count = 0

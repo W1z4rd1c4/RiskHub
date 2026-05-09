@@ -224,10 +224,11 @@ Local helpers:
 
 - `risks/__init__.py:1-8` includes: `control_links`, `vendor_links`,
   `crud.router`. Re-exports `generate_risk_id_code` (line 3).
-- `risks/crud/__init__.py:1-24` two-level compositor; includes `archive`,
-  `detail`, `restore`, `update`, `create`, `list`. Re-exports
-  `validate_risk_type` (line 5) and `delete_risk`, `get_risk`, `list_risks`,
-  `restore_risk`, `update_risk`, `create_risk`.
+- `risks/crud/__init__.py:1-22` two-level compositor; includes `archive`,
+  `detail`, `restore`, `update`, `create`, `list`. Re-exports verb handlers
+  (`delete_risk`, `get_risk`, `list_risks`, `restore_risk`, `update_risk`,
+  `create_risk`) but no longer re-exports `validate_risk_type`; `crud/create.py`
+  imports the service-side `_entity_mutation_lifecycle.policy` helper directly.
 
 Routes (mounted with `/risks` prefix from `router.py:39`):
 
@@ -253,9 +254,8 @@ Endpoint commit calls in this package:
 
 Local helpers / facades:
 
-- `risks/crud/_shared.py:8-20` — `validate_risk_type` raises
-  `HTTPException(400, ...)` on unknown risk_type. Quote line 17-19:
-  `raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Unknown risk type '{risk_type_code}'...")`.
+- Wave 2 #19 removed `risks/crud/_shared.py`; risk-type validation now delegates
+  to `app/services/_entity_mutation_lifecycle/policy.py::validate_risk_type`.
 - `risks/id_generation.py:7-42` — `generate_risk_id_code(db, process)`.
 
 Service-side counterpart of `validate_risk_type` (referenced by audit S1.4):
@@ -801,7 +801,7 @@ Local helpers:
 | `endpoints/issues/_shared/serialization.py` | 43 | Compat re-export of `app.services._issue_register.linked_context` and `serialization` | (re-exposed via `_shared/__init__.py`); also `issues/links.py:14-19` |
 | `endpoints/kris/linked_vendors.py` | 6 | Pure re-export of `app.services._kri_history.value_application.visible_linked_vendors` | `kris/crud/create.py:22` `from ..linked_vendors import visible_linked_vendors`; `kris/crud/restore.py:17` |
 | `endpoints/risks/__init__.py` | 8 | Two-level router compositor re-export of nested `crud`, `control_links`, `vendor_links` (audit candidate S1.something) | `api/v1/router.py:25` |
-| `endpoints/risks/crud/__init__.py` | 24 | Two-level compositor; re-exports verb handlers and `validate_risk_type` | `api/v1/router.py:25`; `risks/__init__.py:2` |
+| `endpoints/risks/crud/__init__.py` | 22 | Two-level compositor; re-exports verb handlers only; `validate_risk_type` re-export removed in Wave 2 #1 | `api/v1/router.py:25`; `risks/__init__.py:2` |
 | `endpoints/controls/__init__.py` | 5 | Composes `crud.router` + `executions` + `linking` | `api/v1/router.py:38` |
 | `endpoints/controls/crud/__init__.py` | 23 | Re-exports verb handlers and `router` | (transitive) |
 | `endpoints/kris/__init__.py` | 6 | Composes `crud.router` + `history` | `api/v1/router.py:49` |
@@ -825,11 +825,8 @@ Local helpers:
 
 ### 4.1 `validate_risk_type` (audit S1.4)
 
-- Endpoint copy: `risks/crud/_shared.py:8-20` — raises `HTTPException(400, ...)`.
-- Service-side copy referenced by audit: `app/services/_entity_mutation_lifecycle/policy.py:29-39`
-  — raises `ValidationError`. Audit body (`2026-05-09-deepening-audit.md`,
-  candidate text) describes "two functions with identical bodies; differ only
-  in raised exception class."
+- Endpoint copy removed in Wave 2 #19: `risks/crud/create.py` delegates to
+  `app/services/_entity_mutation_lifecycle/policy.py:29-39`.
 
 ### 4.2 `assert_can_request_delete_*` (audit S6.x area, C-N1)
 

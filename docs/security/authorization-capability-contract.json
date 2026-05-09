@@ -53,7 +53,6 @@
     "backend/app/api/v1/endpoints/riskhub/",
     "backend/app/api/v1/endpoints/risks/",
     "backend/app/api/v1/endpoints/users/",
-    "backend/app/api/v1/endpoints/vendor_link_helpers.py",
     "backend/app/api/v1/endpoints/vendor_links.py",
     "backend/app/api/v1/endpoints/vendor_reports.py",
     "backend/app/api/v1/endpoints/vendors/",
@@ -203,12 +202,29 @@
       "findings": []
     },
     {
+      "id": "AUTHZ-ACCESS-USER",
+      "surface": "Access management",
+      "action": "Read backend-authoritative access-user action capabilities on access user rows",
+      "actor_scope": "Same access-list visibility; backend computes per-target identity, business-access, role, lifecycle, break-glass, and session actions",
+      "backend_authority": "backend/app/api/v1/endpoints/access.py returns AccessUserRead.capabilities for access user list/update responses",
+      "service_policy": "backend/app/services/_access_workflow/policy.py::access_user_capabilities",
+      "response_capability": "backend/app/schemas/access.py AccessUserCapabilities; docs/security/capability-catalog.json access_user surface validates backend and frontend field parity",
+      "frontend_gate": "frontend/src/services/api/schemas/entities/identity.ts requires accessUserCapabilitiesSchema on each AccessUserRead; frontend/src/components/access/useAccessUsersWorkflow.ts and frontend/src/components/access/usersTablePresentation.ts consume backend capabilities without optional fallback",
+      "tests": [
+        "tests/backend/pytest/test_access_management.py",
+        "tests/backend/pytest/architecture/test_capability_catalog_includes_access_user_red.py",
+        "tests/frontend/unit/src/authz/useAuthz.invariant.test.ts"
+      ],
+      "status": "authoritative",
+      "findings": []
+    },
+    {
       "id": "AUTHZ-USERS-DIRECTORY",
       "surface": "User directory",
       "action": "List paginated user directory mode entries and role facets",
       "actor_scope": "Requires users:read; visible user universe is scoped by backend user visibility policy",
       "backend_authority": "backend/app/api/v1/endpoints/users/ for /api/v1/users/directory",
-      "service_policy": "backend/app/core/permissions.py, backend/app/core/permission_cache.py, backend/app/api/v1/endpoints/users/_visibility.py, and backend/app/api/v1/endpoints/users/_lifecycle.py",
+      "service_policy": "backend/app/core/permissions.py, backend/app/core/permission_cache.py, backend/app/api/v1/endpoints/users/_visibility.py, backend/app/api/v1/endpoints/users/_lifecycle.py; backend/app/api/v1/endpoints/users/summary.py consumes backend/app/services/_authorization_capabilities/::build_me_capabilities for /me/shell-summary can_view_governance",
       "response_capability": "backend/app/schemas/user.py UserDirectoryCapabilities plus backend-provided available_roles facets",
       "frontend_gate": "frontend/src/authz/BusinessRouteGuards.tsx, frontend/src/pages/UsersPage.tsx, frontend/src/pages/UserNewPage.tsx, frontend/src/pages/users/useUsersPageData.ts, and frontend/src/pages/users/useUserNewPageAccess.ts",
       "tests": [
@@ -477,7 +493,7 @@
       "action": "Read vendor lists, details, grouped views, linked risks, controls, and KRIs",
       "actor_scope": "Requires vendors:read and vendor ownership/department visibility; linked entities require their own read policy",
       "backend_authority": "backend/app/api/v1/endpoints/vendors/ and backend/app/api/v1/endpoints/vendor_links.py",
-      "service_policy": "backend/app/services/_vendor_workflow/policy.py, backend/app/services/_register_listings/vendors.py, backend/app/api/v1/endpoints/vendor_link_helpers.py, and backend/app/core/_permissions/visible_ids.py for set-based linked-risk redaction; vendor grouped summaries/drilldowns use SQL-backed counts, bounded page serialization, and visible risk-link contexts, backend/app/services/_vendor_links/ shared read/list workflow; backend/app/services/_vendor_governance/projection.py, backend/app/services/_vendor_governance/lifecycle.py, backend/app/services/_vendor_governance/policy.py, and backend/app/services/_vendor_governance/links.py own vendor read projection, capabilities, and linked-risk redaction behind HTTP adapters",
+      "service_policy": "backend/app/services/_vendor_workflow/policy.py, backend/app/services/_register_listings/vendors.py, backend/app/services/_vendor_governance/links.py, and backend/app/core/_permissions/visible_ids.py for set-based linked-risk redaction; vendor grouped summaries/drilldowns use SQL-backed counts, bounded page serialization, and visible risk-link contexts; backend/app/services/_vendor_links/ owns shared read/list workflow; backend/app/services/_vendor_governance/projection.py, backend/app/services/_vendor_governance/lifecycle.py, and backend/app/services/_vendor_governance/policy.py own vendor read projection and capabilities behind HTTP adapters",
       "response_capability": "backend/app/schemas/vendor.py VendorCapabilities on VendorRead and VendorListResponse collection capabilities",
       "frontend_gate": "frontend/src/routing/business.tsx uses a vendors:read navigation projection; frontend/src/pages/vendors/ and frontend/src/types/vendor.ts, frontend/src/pages/VendorsPage.tsx, frontend/src/pages/VendorDetailPage.tsx, and frontend/src/pages/shared/collectionPageState.ts use backend read authority and render denied/clear stale rows and capabilities on backend 403",
       "tests": [
@@ -500,7 +516,7 @@
       "action": "Create, update, archive, restore, and mutate vendor links",
       "actor_scope": "Requires vendors:write/delete or vendor-owner exception; edit and link mutations require an active visible vendor and visible target entity; inactive vendors can only be restored when authorized",
       "backend_authority": "backend/app/api/v1/endpoints/vendors/ and backend/app/api/v1/endpoints/vendor_links.py",
-      "service_policy": "backend/app/services/_vendor_workflow/policy.py, backend/app/api/v1/endpoints/vendor_link_helpers.py, backend/app/services/_vendor_links/ shared link/unlink workflow; backend/app/services/_vendor_governance/lifecycle.py and policy.py own create/update/archive/restore authorization outcomes while preserving vendor owner exceptions and inactive-vendor rejection",
+      "service_policy": "backend/app/services/_vendor_workflow/policy.py and backend/app/services/_vendor_links/ own shared link/unlink workflow; backend/app/services/_vendor_governance/links.py owns vendor link authorization and mutation helpers; backend/app/services/_vendor_governance/lifecycle.py and policy.py own create/update/archive/restore authorization outcomes while preserving vendor owner exceptions and inactive-vendor rejection",
       "response_capability": "backend/app/schemas/vendor.py VendorCapabilities.can_update, can_archive, can_restore, can_link_risk, can_link_control, can_link_kri, can_create_linked_risk, can_create_linked_control, can_create_linked_kri, and can_create_issue",
       "frontend_gate": "frontend/src/pages/vendors/, frontend/src/pages/VendorsPage.tsx, frontend/src/pages/VendorDetailPage.tsx, and vendor detail tabs use backend capabilities; direct create/edit routes load collection/detail capability metadata before rendering forms",
       "tests": [

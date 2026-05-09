@@ -15,6 +15,7 @@ from app.core.tokens import (
 from app.db.session import get_db
 from app.schemas.auth import SsoExchangeRequest, SsoStartRequest, SsoStartResponse, TokenResponse
 from app.services._auth_session import resolve_sso_exchange, resolve_sso_start
+from app.services._auth_session_workflow import commit_sso_exchange
 
 from ._request_protection import validate_request_origin
 from ._shared import (
@@ -167,5 +168,5 @@ async def sso_exchange(
         tenant_sha256=_sha256_trunc(identity.tenant_id),
         entra_business_role_present=identity.business_role is not None,
     )
-    await db.commit()
+    await commit_sso_exchange(db)
     return token_response

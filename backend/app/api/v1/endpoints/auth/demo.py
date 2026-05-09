@@ -10,6 +10,7 @@ from app.core.user_query_options import user_selectinload_options
 from app.db.session import get_db
 from app.models import User
 from app.schemas.auth import DemoLoginRequest, TokenResponse
+from app.services._auth_session_workflow import commit_demo_login
 
 from ._shared import _build_token_response, _issue_refresh_session
 
@@ -64,7 +65,7 @@ async def _build_demo_response(
         safe_description_siem="User logged in (demo)",
         description=login_detail,
     )
-    await db.commit()
+    await commit_demo_login(db)
     return token_response
 
 
