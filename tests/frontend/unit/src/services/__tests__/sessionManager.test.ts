@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { clearAccessToken, setAccessToken } from '@test/accessTokenStoreHarness';
-import { clearAuthenticatedSession, applyAuthenticatedSession } from '@/services/session/manager';
+import { clearAuthenticatedSession, applyAuthenticatedSession } from '@/services/session/coordinator';
 import { __resetSessionStoreForTests, getSessionSnapshot } from '@/services/session/store';
 
 const AUTH_RESPONSE = {

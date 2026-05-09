@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { clearAccessToken, getAccessToken, setAccessToken } from '@test/accessTokenStoreHarness';
 import { authApi } from '@/services/authApi';
 import { clearCsrfToken, __setCsrfTokenForTests } from '@/services/csrfToken';
-import { clearRefreshSessionHint, __setRefreshSessionHintForTests } from '@/services/session/refreshHint';
+import { clearRefreshSessionHint, __setRefreshSessionHintForTests } from '@/services/session/sessionStorage';
 
 describe('authApi logout responses', () => {
     beforeEach(() => {

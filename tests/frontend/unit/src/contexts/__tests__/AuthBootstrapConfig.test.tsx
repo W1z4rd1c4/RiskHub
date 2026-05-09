@@ -8,8 +8,8 @@ import {
     __resetAuthSessionCoordinatorForTests,
     clearBootstrapSession,
     setBootstrapSession,
-} from '@/services/session/bootstrap';
-import { syncAuthenticatedToken } from '@/services/session/manager';
+} from '@/services/session/coordinator';
+import { syncAuthenticatedToken } from '@/services/session/coordinator';
 import { __resetSessionStoreForTests } from '@/services/session/store';
 
 const { getAuthConfigMock, syncPreferencesFromServerMock } = vi.hoisted(() => ({

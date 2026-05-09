@@ -1,7 +1,7 @@
 import { getErrorMessageKey } from '@/i18n/errorMessageKey';
-import { clearAuthenticatedSession } from '@/services/session/manager';
-import { isExplicitLogoutSuppressed } from '@/services/session/logoutSuppression';
-import { trySilentSessionRefresh } from '@/services/session/sso';
+import { clearAuthenticatedSession } from '@/services/session/coordinator';
+import { isExplicitLogoutSuppressed } from '@/services/session/sessionStorage';
+import { trySilentSessionRefresh } from '@/services/session/coordinator';
 
 import { ApiClientError } from './apiErrors';
 

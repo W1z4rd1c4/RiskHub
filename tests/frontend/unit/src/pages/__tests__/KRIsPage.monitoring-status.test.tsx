@@ -9,7 +9,7 @@ import { AuthProviderWithReady, waitForAuthBootstrapReady } from '@test/authBoot
 import { server } from '@test/mocks/server';
 import { createTestQueryClient } from '@test/queryClient';
 import { clearAccessToken, setAccessToken } from '@test/accessTokenStoreHarness';
-import { clearBootstrapSession } from '@/services/session/bootstrap';
+import { clearBootstrapSession } from '@/services/session/coordinator';
 import { KRIsPage } from '@/pages/KRIsPage';
 
 const UNLINKED_VENDOR_GROUP = '__unlinked_vendor__';

@@ -1,7 +1,8 @@
 import { clearAccessToken } from '@test/accessTokenStoreHarness';
 import { beforeEach, describe, it, expect, vi } from 'vitest';
 
-vi.mock('@/services/session/sso', () => ({
+vi.mock('@/services/session/coordinator', () => ({
+    clearAuthenticatedSession: vi.fn(),
     trySilentSessionRefresh: vi.fn(async () => {
         const { setAccessToken } = await import('@test/accessTokenStoreHarness');
         setAccessToken('refreshed-token');
@@ -14,7 +15,7 @@ import { http, HttpResponse } from 'msw';
 import { server } from '@test/mocks/server';
 import { z } from '@/services/api/schemas';
 import { apiClient } from '@/services/apiClient';
-import { trySilentSessionRefresh } from '@/services/session/sso';
+import { trySilentSessionRefresh } from '@/services/session/coordinator';
 
 const okSchema = z.object({ ok: z.boolean() }).passthrough();
 

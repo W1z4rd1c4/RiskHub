@@ -20,5 +20,4 @@ Focused auth-provider helpers used by `AuthContext.tsx`.
 - Keep `AuthContext.tsx` as compatibility composition glue over
   `SessionContext.tsx`, `PreferencesContext.tsx`, and `AuthActionsContext.tsx`.
 - The canonical client auth state lives in `frontend/src/services/session/store.ts`.
-- `frontend/src/services/session/manager.ts` owns the allowed session-state transitions over that canonical snapshot.
-- `frontend/src/services/session/bootstrap.ts` owns bootstrap restore behavior over the refresh-based session helpers; do not reintroduce a second auth cache.
+- `frontend/src/services/session/coordinator.ts` owns allowed session-state transitions, bootstrap restore behavior, silent refresh, and cooldown/single-flight state; do not reintroduce a second auth cache.

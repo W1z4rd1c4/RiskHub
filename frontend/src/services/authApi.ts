@@ -22,8 +22,8 @@ import {
 } from '@/services/api/responseParsing';
 import { clearCsrfToken, getCsrfToken } from '@/services/csrfToken';
 import { AuthRequestError, fetchAuthResponse } from '@/services/authRequest';
-import { clearRefreshSessionHint } from '@/services/session/refreshHint';
-import { applyAnonymousSession } from '@/services/session/manager';
+import { clearRefreshSessionHint } from '@/services/session/sessionStorage';
+import { applyAnonymousSession } from '@/services/session/coordinator';
 import { getSessionSnapshot } from '@/services/session/store';
 
 const API_URL = '/api/v1/auth';

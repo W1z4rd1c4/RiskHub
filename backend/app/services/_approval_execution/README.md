@@ -20,6 +20,7 @@ Business/service-layer logic for `_approval_execution`.
 - `kri_value_submission.py`
 - `loading.py`
 - `logging.py`
+- `privilege_context.py`
 - `resolution.py`
 - `results.py` — canonical `SideEffectResult`, `apply_auto_rejection`, and `auto_reject_kri_approval` helpers.
 - `side_effects.py`
@@ -28,3 +29,9 @@ Business/service-layer logic for `_approval_execution`.
 ## Notes
 
 Keep this README updated when responsibilities or structure in this folder change.
+
+`privilege_context.py` is the canonical FastAPI dependency for approvals
+endpoints. Use `Depends(get_privilege_context)` to obtain the authenticated
+`PrivilegeContext`, then pass `ctx.user` to service-layer APIs or call
+`ctx.tier_for_approval(db, approval)` when an endpoint needs approval-specific
+tier data.

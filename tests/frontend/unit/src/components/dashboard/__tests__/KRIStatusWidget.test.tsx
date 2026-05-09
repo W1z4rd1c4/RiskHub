@@ -19,6 +19,11 @@ vi.mock('@/contexts/DashboardFilterContext', () => ({
             departmentId: null,
         },
     }),
+    useDashboardFilterSelector: (selector: (state: { filters: { departmentId: number | null } }) => unknown) => selector({
+        filters: {
+            departmentId: null,
+        },
+    }),
 }));
 
 vi.mock('@/services/kriApi', () => ({

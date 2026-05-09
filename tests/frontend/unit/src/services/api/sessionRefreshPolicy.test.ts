@@ -6,7 +6,7 @@ import {
     shouldAttemptSilentSessionRefresh,
 } from '@/services/api/sessionRefreshPolicy';
 
-vi.mock('@/services/session/logoutSuppression', () => ({
+vi.mock('@/services/session/sessionStorage', () => ({
     isExplicitLogoutSuppressed: vi.fn(() => false),
 }));
 

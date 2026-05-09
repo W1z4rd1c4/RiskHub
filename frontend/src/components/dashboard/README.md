@@ -21,6 +21,7 @@ UI components for `dashboard` area.
 - `QuarterlyComparisonWidget.tsx`
 - `RiskCommitteeSection.tsx`
 - `RiskDistributionMatrix.tsx`
+- `WidgetShell.tsx`
 - `...`
 
 ## Notes
@@ -29,5 +30,13 @@ UI components for `dashboard` area.
 
 - overdue -> `/kris?monitoring_status=not_submitted`
 - upcoming -> `/kris?timeliness_status=due_soon`
+
+`WidgetShell.tsx` is the shared dashboard widget branch wrapper. It accepts
+`title`, `isLoading`, `error`, `isEmpty`, `emptyLabel`, and optional custom
+fallback nodes, then renders exactly one loading, error, empty, or data branch.
+
+Dashboard filter consumers should use `useDashboardFilterSelector` for the
+smallest needed filter slice and `useDashboardFilterMutators` for writes. Keep
+`useDashboardFilters` as the compatibility facade for older call sites.
 
 Keep this README updated when responsibilities or structure in this folder change.

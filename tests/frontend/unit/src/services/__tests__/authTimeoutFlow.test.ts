@@ -4,17 +4,17 @@ import { clearAccessToken, setAccessToken } from '@test/accessTokenStoreHarness'
 import { clearAuthConfigCache, getAuthConfig } from '@/services/authConfig';
 import { AUTH_REQUEST_TIMEOUT_MS } from '@/services/authRequest';
 import { authApi } from '@/services/authApi';
-import { __resetAuthSessionCoordinatorForTests, bootstrapAuthSession, clearBootstrapSession } from '@/services/session/bootstrap';
+import { __resetAuthSessionCoordinatorForTests, bootstrapAuthSession, clearBootstrapSession } from '@/services/session/coordinator';
 import { __setCsrfTokenForTests, clearCsrfToken } from '@/services/csrfToken';
 import {
     __resetExplicitLogoutSuppressionForTests,
     setExplicitLogoutSuppressed,
-} from '@/services/session/logoutSuppression';
+} from '@/services/session/sessionStorage';
 import {
     __setRefreshSessionHintForTests,
     clearRefreshSessionHint,
-} from '@/services/session/refreshHint';
-import { __resetSilentSessionRefreshForTests, trySilentSessionRefresh } from '@/services/session/sso';
+} from '@/services/session/sessionStorage';
+import { __resetSilentSessionRefreshForTests, trySilentSessionRefresh } from '@/services/session/coordinator';
 
 function createAbortablePendingResponse(signal?: AbortSignal): Promise<Response> {
     return new Promise<Response>((_resolve, reject) => {

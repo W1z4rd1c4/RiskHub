@@ -15,6 +15,23 @@ vi.mock('@/contexts/DashboardFilterContext', () => ({
             controlForm: null,
         },
     }),
+    useDashboardFilterSelector: (
+        selector: (state: {
+            filters: {
+                departmentId: number | null;
+                riskLevel: 'all';
+                controlStatus: string | null;
+                controlForm: string | null;
+            };
+        }) => unknown,
+    ) => selector({
+        filters: {
+            departmentId: null,
+            riskLevel: 'all',
+            controlStatus: null,
+            controlForm: null,
+        },
+    }),
 }));
 
 vi.mock('@/hooks/useRiskHubConfig', () => ({

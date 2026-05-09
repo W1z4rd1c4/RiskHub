@@ -228,3 +228,32 @@
 - `npm run -w tests/frontend/unit test -- --run`: runbook command failed before tests (`ENOENT` for missing root `package.json`); equivalent repo command `cd frontend && pnpm test:run` passed (`194 files`, `859 tests passed`)
 - `npm run -w tests/frontend/unit lint`: runbook command failed before lint (`ENOENT` for missing root `package.json`); equivalent repo command `cd frontend && pnpm lint` passed
 - Fix-forward attempts: 2; first the contract gate exposed a stale admin telemetry architecture lock still inspecting `admin.console`, then the validator required auth/session contract coverage for the new `SessionContext` local permission helper.
+
+## Wave 7 — Ownership, Dashboard, Approvals, and Session Cleanup
+
+- Completed: 2026-05-10 00:41:45 CEST
+- Commit SHA: recorded by the Wave 7 commit containing this entry
+- Items completed: `#45b`, `#68`, `#60`, `#71`
+- Items failed: none
+- Elapsed time: current session wave execution
+
+### Phase 4 Corrections Honored
+
+- `#45b`: generated the ownership resolver helpers through a factory while preserving KRI archived-target asymmetry.
+- `#68`: introduced `WidgetShell`, scoped dashboard filter selectors, and render-counter coverage for selector isolation.
+- `#60`: routed approvals endpoints through `PrivilegeContext` while keeping the approval-specific tier calculation explicit.
+- `#71`: merged the frontend session service into four modules while preserving module-scope single-flight refresh, cooldown, bootstrap, and storage semantics.
+
+### Gate Results
+
+- `make -f scripts/Makefile test-architecture-locks`: passed (`178 passed`, 1 snapshot passed)
+- `pytest -m contract`: passed under the root backend venv command (`278 passed`, `1740 deselected`, 1 warning)
+- `pytest tests/backend/pytest -m "not postgres and not benchmark" -x`: passed (`1985 passed`, `3 skipped`, `30 deselected`, 17 warnings)
+- `python3 scripts/security/validate_authz_capability_contract.py`: passed
+- `ruff check backend/app`: passed
+- Focused touched backend mypy: passed
+- `mypy backend/app`: baseline delta clean (`8 errors in 6 files`, unchanged from baseline)
+- `cd frontend && npx tsc --noEmit`: passed
+- `npm run -w tests/frontend/unit test -- --run`: runbook command failed before tests (`ENOENT` for missing root `package.json`); equivalent repo command `cd frontend && pnpm test:run` passed (`201 files`, `879 tests passed`)
+- `npm run -w tests/frontend/unit lint`: runbook command failed before lint (`ENOENT` for missing root `package.json`); equivalent repo command `cd frontend && pnpm lint` passed
+- Fix-forward attempts: 1; the frontend full suite exposed a stale partial mock for `@/services/session/coordinator` in `apiClient.401-recovery.test.ts`, then passed after the mock included `clearAuthenticatedSession`.

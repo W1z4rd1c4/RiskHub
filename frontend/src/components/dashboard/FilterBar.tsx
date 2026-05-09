@@ -9,7 +9,12 @@ import {
     Shield,
     RotateCcw
 } from 'lucide-react';
-import { useDashboardFilters, type RiskLevel } from '../../contexts/DashboardFilterContext';
+import { WidgetShell } from '@/components/dashboard/WidgetShell';
+import {
+    useDashboardFilterMutators,
+    useDashboardFilterSelector,
+    type RiskLevel,
+} from '../../contexts/DashboardFilterContext';
 import { lookupApi } from '../../services/lookupApi';
 import { ThemedSelect } from '../ui/ThemedSelect';
 import { useTranslation } from '@/i18n/hooks';
@@ -25,15 +30,15 @@ interface FilterBarProps {
 }
 
 export function FilterBar({ canUseDepartmentFilter }: FilterBarProps) {
+    const filters = useDashboardFilterSelector(state => state.filters);
+    const hasActiveFilters = useDashboardFilterSelector(state => state.hasActiveFilters);
     const {
-        filters,
         setDepartmentId,
         setRiskLevel,
         setControlStatus,
         setControlForm,
         resetFilters,
-        hasActiveFilters,
-    } = useDashboardFilters();
+    } = useDashboardFilterMutators();
 
     const [departments, setDepartments] = useState<Department[]>([]);
     const [isExpanded, setIsExpanded] = useState(false);
@@ -92,141 +97,143 @@ export function FilterBar({ canUseDepartmentFilter }: FilterBarProps) {
     ].filter(Boolean) as { key: string; label: string; onRemove: () => void }[];
 
     return (
-        <div className="glass-card !p-4 mb-6">
-            {/* Header Row */}
-            <div className="flex items-center justify-between gap-4">
-                <button
-                    onClick={() => setIsExpanded(!isExpanded)}
-                    className="flex items-center gap-2 text-sm font-bold text-slate-400 hover:text-white transition-colors"
-                >
-                    <Filter className="h-4 w-4" />
-                    <span>{t('dashboard:filters.title')}</span>
-                    {activeFilterChips.length > 0 && (
-                        <span className="ml-1 w-5 h-5 rounded-full bg-accent text-white text-xs flex items-center justify-center">
-                            {activeFilterChips.length}
-                        </span>
-                    )}
-                </button>
+        <WidgetShell title={t('dashboard:filters.title')}>
+            <div className="glass-card !p-4 mb-6">
+                {/* Header Row */}
+                <div className="flex items-center justify-between gap-4">
+                    <button
+                        onClick={() => setIsExpanded(!isExpanded)}
+                        className="flex items-center gap-2 text-sm font-bold text-slate-400 hover:text-white transition-colors"
+                    >
+                        <Filter className="h-4 w-4" />
+                        <span>{t('dashboard:filters.title')}</span>
+                        {activeFilterChips.length > 0 && (
+                            <span className="ml-1 w-5 h-5 rounded-full bg-accent text-white text-xs flex items-center justify-center">
+                                {activeFilterChips.length}
+                            </span>
+                        )}
+                    </button>
 
-                {/* Active Filter Chips */}
-                <div className="flex-1 flex items-center gap-2 overflow-x-auto scrollbar-hide">
-                    <AnimatePresence mode="popLayout">
-                        {activeFilterChips.map(chip => (
-                            <motion.div
-                                key={chip.key}
-                                initial={{ opacity: 0, scale: 0.8 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.8 }}
-                                className="flex items-center gap-1 px-3 py-1 bg-accent/20 text-accent text-xs font-bold rounded-full whitespace-nowrap"
-                            >
-                                {chip.label}
-                                <button
-                                    onClick={chip.onRemove}
-                                    className="ml-1 hover:bg-accent/30 rounded-full p-0.5 transition-colors"
+                    {/* Active Filter Chips */}
+                    <div className="flex-1 flex items-center gap-2 overflow-x-auto scrollbar-hide">
+                        <AnimatePresence mode="popLayout">
+                            {activeFilterChips.map(chip => (
+                                <motion.div
+                                    key={chip.key}
+                                    initial={{ opacity: 0, scale: 0.8 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.8 }}
+                                    className="flex items-center gap-1 px-3 py-1 bg-accent/20 text-accent text-xs font-bold rounded-full whitespace-nowrap"
                                 >
-                                    <X className="h-3 w-3" />
-                                </button>
-                            </motion.div>
-                        ))}
-                    </AnimatePresence>
+                                    {chip.label}
+                                    <button
+                                        onClick={chip.onRemove}
+                                        className="ml-1 hover:bg-accent/30 rounded-full p-0.5 transition-colors"
+                                    >
+                                        <X className="h-3 w-3" />
+                                    </button>
+                                </motion.div>
+                            ))}
+                        </AnimatePresence>
+                    </div>
+
+                    {(hasActiveFilters || activeFilterChips.length > 0) && (
+                        <button
+                            onClick={resetFilters}
+                            className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-all"
+                        >
+                            <RotateCcw className="h-3 w-3" />
+                            {t('dashboard:filters.clear_all')}
+                        </button>
+                    )}
                 </div>
 
-                {(hasActiveFilters || activeFilterChips.length > 0) && (
-                    <button
-                        onClick={resetFilters}
-                        className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-all"
-                    >
-                        <RotateCcw className="h-3 w-3" />
-                        {t('dashboard:filters.clear_all')}
-                    </button>
-                )}
-            </div>
+                {/* Expanded Filter Panel */}
+                <AnimatePresence>
+                    {isExpanded && (
+                        <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            className="overflow-hidden"
+                        >
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4 mt-4 border-t border-white/5">
+                                {canUseDepartmentFilter && (
+                                    <div className="space-y-2">
+                                        <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                                            <Building2 className="h-3 w-3" />
+                                            {t('dashboard:filters.department')}
+                                        </label>
+                                        <ThemedSelect
+                                            value={filters.departmentId?.toString() ?? ''}
+                                            onValueChange={(v) => setDepartmentId(v ? Number(v) : null)}
+                                            placeholder={t('common:filters.all_departments')}
+                                            allowEmpty
+                                            emptyLabel={t('common:filters.all_departments')}
+                                            options={departments.map(dept => ({ value: dept.id.toString(), label: dept.name }))}
+                                        />
+                                    </div>
+                                )}
 
-            {/* Expanded Filter Panel */}
-            <AnimatePresence>
-                {isExpanded && (
-                    <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        className="overflow-hidden"
-                    >
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pt-4 mt-4 border-t border-white/5">
-                            {canUseDepartmentFilter && (
+                                {/* Risk Level Toggle */}
                                 <div className="space-y-2">
                                     <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                                        <Building2 className="h-3 w-3" />
-                                        {t('dashboard:filters.department')}
+                                        <AlertTriangle className="h-3 w-3" />
+                                        {t('dashboard:filters.risk_level')}
+                                    </label>
+                                    <div className="flex flex-wrap gap-1">
+                                        {riskLevels.map(level => (
+                                            <button
+                                                key={level.value}
+                                                onClick={() => setRiskLevel(level.value)}
+                                                className={`px-2 py-1 text-xs font-bold rounded-md transition-all
+                                                    ${filters.riskLevel === level.value
+                                                        ? `${level.color} ring-1 ring-white/20`
+                                                        : 'bg-white/5 text-slate-400 hover:bg-white/10'
+                                                    }`}
+                                            >
+                                                {level.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Control Status Dropdown */}
+                                <div className="space-y-2">
+                                    <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                                        <CheckCircle className="h-3 w-3" />
+                                        {t('dashboard:filters.control_status')}
                                     </label>
                                     <ThemedSelect
-                                        value={filters.departmentId?.toString() ?? ''}
-                                        onValueChange={(v) => setDepartmentId(v ? Number(v) : null)}
-                                        placeholder={t('common:filters.all_departments')}
+                                        value={filters.controlStatus ?? ''}
+                                        onValueChange={(v) => setControlStatus(v || null)}
+                                        placeholder={t('common:filters.all_statuses')}
                                         allowEmpty
-                                        emptyLabel={t('common:filters.all_departments')}
-                                        options={departments.map(dept => ({ value: dept.id.toString(), label: dept.name }))}
+                                        emptyLabel={t('common:filters.all_statuses')}
+                                        options={controlStatuses.filter(s => s.value !== null).map(status => ({ value: status.value!, label: status.label }))}
                                     />
                                 </div>
-                            )}
 
-                            {/* Risk Level Toggle */}
-                            <div className="space-y-2">
-                                <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                                    <AlertTriangle className="h-3 w-3" />
-                                    {t('dashboard:filters.risk_level')}
-                                </label>
-                                <div className="flex flex-wrap gap-1">
-                                    {riskLevels.map(level => (
-                                        <button
-                                            key={level.value}
-                                            onClick={() => setRiskLevel(level.value)}
-                                            className={`px-2 py-1 text-xs font-bold rounded-md transition-all
-                                                ${filters.riskLevel === level.value
-                                                    ? `${level.color} ring-1 ring-white/20`
-                                                    : 'bg-white/5 text-slate-400 hover:bg-white/10'
-                                                }`}
-                                        >
-                                            {level.label}
-                                        </button>
-                                    ))}
+                                {/* Control Form Dropdown */}
+                                <div className="space-y-2">
+                                    <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
+                                        <Shield className="h-3 w-3" />
+                                        {t('dashboard:filters.control_form')}
+                                    </label>
+                                    <ThemedSelect
+                                        value={filters.controlForm ?? ''}
+                                        onValueChange={(v) => setControlForm(v || null)}
+                                        placeholder={t('common:filters.all_forms')}
+                                        allowEmpty
+                                        emptyLabel={t('common:filters.all_forms')}
+                                        options={controlForms.filter(f => f.value !== null).map(form => ({ value: form.value!, label: form.label }))}
+                                    />
                                 </div>
                             </div>
-
-                            {/* Control Status Dropdown */}
-                            <div className="space-y-2">
-                                <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                                    <CheckCircle className="h-3 w-3" />
-                                    {t('dashboard:filters.control_status')}
-                                </label>
-                                <ThemedSelect
-                                    value={filters.controlStatus ?? ''}
-                                    onValueChange={(v) => setControlStatus(v || null)}
-                                    placeholder={t('common:filters.all_statuses')}
-                                    allowEmpty
-                                    emptyLabel={t('common:filters.all_statuses')}
-                                    options={controlStatuses.filter(s => s.value !== null).map(status => ({ value: status.value!, label: status.label }))}
-                                />
-                            </div>
-
-                            {/* Control Form Dropdown */}
-                            <div className="space-y-2">
-                                <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500">
-                                    <Shield className="h-3 w-3" />
-                                    {t('dashboard:filters.control_form')}
-                                </label>
-                                <ThemedSelect
-                                    value={filters.controlForm ?? ''}
-                                    onValueChange={(v) => setControlForm(v || null)}
-                                    placeholder={t('common:filters.all_forms')}
-                                    allowEmpty
-                                    emptyLabel={t('common:filters.all_forms')}
-                                    options={controlForms.filter(f => f.value !== null).map(form => ({ value: form.value!, label: form.label }))}
-                                />
-                            </div>
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-        </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </div>
+        </WidgetShell>
     );
 }

@@ -11,6 +11,7 @@ Folder for `backend/app/core/_permissions` implementation assets.
 - `entity_access.py`
 - `evaluation.py`
 - `issues.py`
+- `_ownership_factory.py`
 - `ownership.py`
 - `scoping.py`
 - `sensitive.py`
@@ -18,3 +19,8 @@ Folder for `backend/app/core/_permissions` implementation assets.
 ## Notes
 
 Keep this README updated when responsibilities or structure in this folder change.
+
+`ownership.py` keeps the public helper names stable while binding KRI and Control
+ownership checks through `_ownership_factory.py`. KRI direct ownership checks
+include archived records for legacy compatibility; KRI risk-scoped ownership
+checks filter `is_archived = false`.

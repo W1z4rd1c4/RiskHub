@@ -6,7 +6,8 @@ import { useNavigate } from 'react-router-dom';
 import { dashboardApi } from '../../services/dashboardApi';
 import { useTranslation } from '@/i18n/hooks';
 
-import { useDashboardFilters } from '../../contexts/DashboardFilterContext';
+import { WidgetShell } from '@/components/dashboard/WidgetShell';
+import { useDashboardFilterSelector } from '../../contexts/DashboardFilterContext';
 import { useRiskThresholds } from '@/hooks/useRiskHubConfig';
 import { classifyRiskScore, riskScoreVariantClass } from '@/lib/riskScoreTheme';
 import { logError } from '@/services/logger';
@@ -32,7 +33,7 @@ interface RiskDrilldownModalProps {
 export function RiskDrilldownModal({ isOpen, onClose, probability, impact, riskType = 'net' }: RiskDrilldownModalProps) {
     const { t } = useTranslation('dashboard');
     const navigate = useNavigate();
-    const { filters } = useDashboardFilters();
+    const filters = useDashboardFilterSelector(state => state.filters);
     const { thresholds } = useRiskThresholds();
     const [risks, setRisks] = useState<RiskInCell[]>([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -83,6 +84,7 @@ export function RiskDrilldownModal({ isOpen, onClose, probability, impact, riskT
         void navigate(`/risks/${riskId}`);
         onClose();
     };
+    const contentTitle = t('risk_drilldown.results', 'Risk drilldown results');
 
     if (typeof document === 'undefined') return null;
 
@@ -136,25 +138,28 @@ export function RiskDrilldownModal({ isOpen, onClose, probability, impact, riskT
 
                             {/* Content */}
                             <div className="p-6 max-h-[400px] overflow-y-auto custom-scrollbar">
-                                {isLoading && (
-                                    <div className="flex items-center justify-center py-8">
-                                        <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-                                    </div>
-                                )}
-
-                                {error && (
-                                    <div className="text-center py-8 text-rose-400">
-                                        {error}
-                                    </div>
-                                )}
-
-                                {!isLoading && !error && risks.length === 0 && (
-                                    <div className="text-center py-8 text-slate-500">
-                                        {t('risk_drilldown.no_risks_at_position')}
-                                    </div>
-                                )}
-
-                                {!isLoading && !error && risks.length > 0 && (
+                                <WidgetShell
+                                    title={contentTitle}
+                                    isLoading={isLoading}
+                                    error={error ? new Error(error) : null}
+                                    isEmpty={risks.length === 0}
+                                    emptyLabel={t('risk_drilldown.no_risks_at_position')}
+                                    loadingFallback={(
+                                        <div className="flex items-center justify-center py-8">
+                                            <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+                                        </div>
+                                    )}
+                                    errorFallback={(
+                                        <div className="text-center py-8 text-rose-400">
+                                            {error}
+                                        </div>
+                                    )}
+                                    emptyFallback={(
+                                        <div className="text-center py-8 text-slate-500">
+                                            {t('risk_drilldown.no_risks_at_position')}
+                                        </div>
+                                    )}
+                                >
                                     <div className="space-y-2">
                                         {risks.map((risk) => (
                                             <motion.button
@@ -192,7 +197,7 @@ export function RiskDrilldownModal({ isOpen, onClose, probability, impact, riskT
                                             </motion.button>
                                         ))}
                                     </div>
-                                )}
+                                </WidgetShell>
                             </div>
 
                             {/* Footer */}

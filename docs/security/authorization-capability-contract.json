@@ -14,7 +14,8 @@
         "2026-05-06: Architecture-only authorization perimeter pass moved Risk Hub config capability builders and service-level permission checks behind the existing authorization capability Module. User-visible authorization policy and capability semantics are unchanged.",
         "2026-05-09: Architecture-only KRI deadline cleanup moved the reporting grace-window default to the KRI period-algebra SSOT while preserving notification visibility, manual trigger authorization, and capability semantics.",
         "2026-05-09: Architecture cleanup Wave 6a moved orphaned-item access behind direct package functions, added outbox SchedulerJobRun visibility, centralized frontend query-key factories, and added literal-flat capability schema contracts. User-visible authorization policy and capability semantics are unchanged.",
-        "2026-05-09: Architecture cleanup Wave 6b split AuthContext into Session, Preferences, and AuthActions providers while preserving the useAuth compatibility surface and route/session authorization semantics."
+        "2026-05-09: Architecture cleanup Wave 6b split AuthContext into Session, Preferences, and AuthActions providers while preserving the useAuth compatibility surface and route/session authorization semantics.",
+        "2026-05-09: Architecture cleanup Wave 7 moved KRI/control ownership resolvers behind a shared factory and approval endpoints behind PrivilegeContext while preserving ownership visibility, approval authority, and capability semantics."
   ],
   "owner": "RiskHub Maintainer",
   "capability_catalog": "docs/security/capability-catalog.json",

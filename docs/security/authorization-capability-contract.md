@@ -90,6 +90,13 @@ On 2026-05-09, the frontend auth session provider was split into
 `SessionContext.tsx`, `PreferencesContext.tsx`, and `AuthActionsContext.tsx`
 behind the existing `AuthContext.tsx` compatibility shim. User-visible
 authorization policy and capability semantics are unchanged.
+On 2026-05-09, ownership-based visibility helpers moved behind
+`backend/app/core/_permissions/_ownership_factory.py`, preserving the KRI
+archived-record asymmetry: direct KRI owner checks include archived KRIs while
+risk-scoped KRI owner checks filter archived KRIs out. Approval endpoints now
+declare `Depends(get_privilege_context)` from
+`backend/app/services/_approval_execution/privilege_context.py`; approval
+authority semantics remain the existing `ApprovalPrivilegeTier` policy.
 
 Strict capabilities rollout note: `STRICT_CAPABILITIES` is a frontend runtime
 configuration flag and remains off by default until operational telemetry
@@ -181,6 +188,7 @@ meets the configured high-risk threshold.
 | `backend/app/services/_authorization_capabilities/riskhub_config.py`, `backend/app/services/_authorization_capabilities/perimeter.py`, `backend/app/services/_riskhub_config/roles.py`, `backend/app/services/_riskhub_config/departments.py`, `backend/app/api/v1/endpoints/riskhub/risk_types.py`, `backend/app/api/v1/endpoints/riskhub/approval_scenarios.py`, `backend/app/services/_entity_mutation_lifecycle/archive_plans.py`, `backend/app/services/_vendor_links/kri_assignment.py`, and `backend/app/services/_vendor_governance/links.py` | 2026-05-06 architecture-only authorization perimeter pass: Risk Hub config capabilities and service-level permission checks moved behind the existing authorization capability Module. User-visible authorization policy and capability semantics unchanged. |
 | `backend/app/services/kri_deadline_service.py`, `backend/app/services/kri_deadline_support.py`, `backend/app/services/_kri_history/constants.py`, and `backend/app/services/_kri_history/periods.py` | 2026-05-09 architecture-only KRI deadline cleanup: reporting grace-window defaults moved to the KRI period-algebra SSOT. User-visible notification visibility, manual trigger authorization, and capability semantics unchanged. |
 | `backend/app/api/v1/endpoints/admin/orphans.py`, `backend/app/api/v1/endpoints/orphaned_items.py`, `backend/app/services/_orphaned_items/`, `backend/app/services/outbox/dispatcher.py`, `frontend/src/lib/queryKeys/`, `frontend/src/services/api/schemas/crudCapabilitySchema.ts`, `frontend/src/components/layout/Sidebar.tsx`, `frontend/src/components/riskhub/useRiskHubCapabilities.ts`, and `frontend/src/pages/admin-console/sections/` | 2026-05-09 architecture cleanup Wave 6a: orphaned-item access moved behind direct package functions, outbox dispatch records scheduler-run visibility, frontend query keys moved behind typed factories, and capability schema parser-compat contracts were added. User-visible authorization policy and capability semantics unchanged. |
+| `backend/app/core/_permissions/_ownership_factory.py`, `backend/app/core/_permissions/ownership.py`, `backend/app/services/_approval_execution/privilege_context.py`, and `backend/app/api/v1/endpoints/approvals/` | 2026-05-09 architecture cleanup Wave 7: KRI/control ownership resolvers moved behind a shared factory and approvals endpoints now consume `PrivilegeContext` as their FastAPI dependency. User-visible authorization policy and capability semantics unchanged. |
 | `frontend/src/lib/capabilities.ts` | Backend-first capability fallback resolver. |
 | `frontend/src/authz/policy.ts` | Local route/navigation policy projection that mirrors backend policy. |
 | `docs/TESTING.md` | Existing RBAC, authz, capability, report, dashboard, vendor, KRI, questionnaire, and access verification lanes. |

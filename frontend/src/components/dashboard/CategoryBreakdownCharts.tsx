@@ -3,9 +3,10 @@
  * Uses theme-aware colors via useChartTheme hook.
  */
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import { WidgetShell } from '@/components/dashboard/WidgetShell';
 import { ColorSwatch } from '@/components/ui/ColorSwatch';
 import { useTranslation } from '@/i18n/hooks';
-import { useDashboardFilters } from '../../contexts/DashboardFilterContext';
+import { useDashboardFilterMutators } from '../../contexts/DashboardFilterContext';
 import { useChartTheme } from '@/hooks/useChartTheme';
 import { getChartTooltipProps } from './chartTooltip';
 
@@ -125,27 +126,29 @@ export function CategoryBreakdownCharts({
 }: CategoryBreakdownChartsProps) {
     const { t } = useTranslation('dashboard');
     const chartTheme = useChartTheme();
-    const { setControlStatus, setControlForm } = useDashboardFilters();
+    const { setControlStatus, setControlForm } = useDashboardFilterMutators();
 
     return (
-        <div className="grid grid-cols-3 gap-8">
-            <MiniPieChart
-                title={t('charts.by_status')}
-                data={controlsByStatus}
-                colors={chartTheme.breakdown.status}
-                onSegmentClick={(key) => setControlStatus(key)}
-            />
-            <MiniPieChart
-                title={t('charts.by_form')}
-                data={controlsByForm}
-                colors={chartTheme.breakdown.form}
-                onSegmentClick={(key) => setControlForm(key)}
-            />
-            <MiniPieChart
-                title={t('charts.by_frequency')}
-                data={controlsByFrequency}
-                colors={chartTheme.breakdown.frequency}
-            />
-        </div>
+        <WidgetShell title={t('charts.breakdown', 'Control breakdown')}>
+            <div className="grid grid-cols-3 gap-8">
+                <MiniPieChart
+                    title={t('charts.by_status')}
+                    data={controlsByStatus}
+                    colors={chartTheme.breakdown.status}
+                    onSegmentClick={(key) => setControlStatus(key)}
+                />
+                <MiniPieChart
+                    title={t('charts.by_form')}
+                    data={controlsByForm}
+                    colors={chartTheme.breakdown.form}
+                    onSegmentClick={(key) => setControlForm(key)}
+                />
+                <MiniPieChart
+                    title={t('charts.by_frequency')}
+                    data={controlsByFrequency}
+                    colors={chartTheme.breakdown.frequency}
+                />
+            </div>
+        </WidgetShell>
     );
 }

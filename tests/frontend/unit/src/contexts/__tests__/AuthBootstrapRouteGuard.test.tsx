@@ -5,11 +5,11 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { ProtectedRoute } from '@/App';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { clearAuthConfigCache } from '@/services/authConfig';
-import { __resetBootstrapSessionCacheForTests, setBootstrapSession } from '@/services/session/bootstrap';
-import { __resetAuthSessionCoordinatorForTests, clearBootstrapSession } from '@/services/session/bootstrap';
+import { __resetBootstrapSessionCacheForTests, setBootstrapSession } from '@/services/session/coordinator';
+import { __resetAuthSessionCoordinatorForTests, clearBootstrapSession } from '@/services/session/coordinator';
 import { AUTH_REQUEST_TIMEOUT_MS } from '@/services/authRequest';
 import { clearAccessToken, setAccessToken } from '@test/accessTokenStoreHarness';
-import { __resetSilentSessionRefreshForTests } from '@/services/session/sso';
+import { __resetSilentSessionRefreshForTests } from '@/services/session/coordinator';
 
 vi.mock('@/utils/userSettingsStorage', () => ({
     syncPreferencesFromServer: vi.fn(async () => undefined),

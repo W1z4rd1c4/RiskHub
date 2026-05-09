@@ -1,4 +1,11 @@
-import { createContext, useContext, useState, type ReactNode } from 'react';
+import {
+    createContext,
+    useContext,
+    useMemo,
+    useState,
+    useSyncExternalStore,
+    type ReactNode,
+} from 'react';
 
 export type RiskLevel = 'all' | 'critical' | 'high' | 'medium' | 'low';
 export type ViewMode = 'executive' | 'department';
@@ -10,16 +17,19 @@ export interface DashboardFilters {
     controlForm: string | null;
 }
 
-interface DashboardFilterContextType {
+interface DashboardFilterSnapshot {
     filters: DashboardFilters;
     viewMode: ViewMode;
+    hasActiveFilters: boolean;
+}
+
+interface DashboardFilterMutators {
     setDepartmentId: (id: number | null) => void;
     setRiskLevel: (level: RiskLevel) => void;
     setControlStatus: (status: string | null) => void;
     setControlForm: (form: string | null) => void;
     setViewMode: (mode: ViewMode) => void;
     resetFilters: () => void;
-    hasActiveFilters: boolean;
 }
 
 const defaultFilters: DashboardFilters = {
@@ -29,66 +39,156 @@ const defaultFilters: DashboardFilters = {
     controlForm: null,
 };
 
-const DashboardFilterContext = createContext<DashboardFilterContextType | undefined>(undefined);
+type DashboardFilterContextType = DashboardFilterSnapshot & DashboardFilterMutators;
+type DashboardFilterListener = () => void;
 
-export function DashboardFilterProvider({ children }: { children: ReactNode }) {
-    const [filters, setFilters] = useState<DashboardFilters>(defaultFilters);
-    const [viewMode, setViewMode] = useState<ViewMode>('executive');
+interface DashboardFilterStore extends DashboardFilterMutators {
+    getSnapshot: () => DashboardFilterSnapshot;
+    subscribe: (listener: DashboardFilterListener) => () => void;
+}
 
-    const setDepartmentId = (id: number | null) => {
-        setFilters(prev => ({ ...prev, departmentId: id }));
-        // Auto-switch to department view when department selected
-        if (id !== null) {
-            setViewMode('department');
-        }
-    };
+const defaultSnapshot: DashboardFilterSnapshot = {
+    filters: defaultFilters,
+    viewMode: 'executive',
+    hasActiveFilters: false,
+};
 
-    const setRiskLevel = (level: RiskLevel) => {
-        setFilters(prev => ({ ...prev, riskLevel: level }));
-    };
+const DashboardFilterStoreContext = createContext<DashboardFilterStore | undefined>(undefined);
 
-    const setControlStatus = (status: string | null) => {
-        setFilters(prev => ({ ...prev, controlStatus: status }));
-    };
-
-    const setControlForm = (form: string | null) => {
-        setFilters(prev => ({ ...prev, controlForm: form }));
-    };
-
-    const resetFilters = () => {
-        setFilters(defaultFilters);
-        setViewMode('executive');
-    };
-
-    const hasActiveFilters =
+function hasActiveFilters(filters: DashboardFilters) {
+    return (
         filters.departmentId !== null ||
         filters.riskLevel !== 'all' ||
         filters.controlStatus !== null ||
-        filters.controlForm !== null;
-
-    return (
-        <DashboardFilterContext.Provider
-            value={{
-                filters,
-                viewMode,
-                setDepartmentId,
-                setRiskLevel,
-                setControlStatus,
-                setControlForm,
-                setViewMode,
-                resetFilters,
-                hasActiveFilters,
-            }}
-        >
-            {children}
-        </DashboardFilterContext.Provider>
+        filters.controlForm !== null
     );
 }
 
-export function useDashboardFilters() {
-    const context = useContext(DashboardFilterContext);
-    if (context === undefined) {
+function buildSnapshot(filters: DashboardFilters, viewMode: ViewMode): DashboardFilterSnapshot {
+    return {
+        filters,
+        viewMode,
+        hasActiveFilters: hasActiveFilters(filters),
+    };
+}
+
+function createDashboardFilterStore(): DashboardFilterStore {
+    let snapshot = defaultSnapshot;
+    const listeners = new Set<DashboardFilterListener>();
+
+    const emit = (next: DashboardFilterSnapshot) => {
+        if (Object.is(next, snapshot)) {
+            return;
+        }
+        snapshot = next;
+        listeners.forEach(listener => listener());
+    };
+
+    const updateSnapshot = (updater: (current: DashboardFilterSnapshot) => DashboardFilterSnapshot) => {
+        emit(updater(snapshot));
+    };
+
+    const updateFilters = (updater: (current: DashboardFilters) => DashboardFilters, nextViewMode?: ViewMode) => {
+        updateSnapshot(current => {
+            const filters = updater(current.filters);
+            const viewMode = nextViewMode ?? current.viewMode;
+            if (filters === current.filters && viewMode === current.viewMode) {
+                return current;
+            }
+            return buildSnapshot(filters, viewMode);
+        });
+    };
+
+    return {
+        getSnapshot: () => snapshot,
+        subscribe: (listener: DashboardFilterListener) => {
+            listeners.add(listener);
+            return () => {
+                listeners.delete(listener);
+            };
+        },
+        setDepartmentId: (id: number | null) => {
+            updateSnapshot(current => {
+                const nextViewMode = id !== null ? 'department' : current.viewMode;
+                if (current.filters.departmentId === id && current.viewMode === nextViewMode) {
+                    return current;
+                }
+                return buildSnapshot({ ...current.filters, departmentId: id }, nextViewMode);
+            });
+        },
+        setRiskLevel: (level: RiskLevel) => {
+            updateFilters(current => current.riskLevel === level ? current : { ...current, riskLevel: level });
+        },
+        setControlStatus: (status: string | null) => {
+            updateFilters(current => current.controlStatus === status ? current : { ...current, controlStatus: status });
+        },
+        setControlForm: (form: string | null) => {
+            updateFilters(current => current.controlForm === form ? current : { ...current, controlForm: form });
+        },
+        setViewMode: (mode: ViewMode) => {
+            updateSnapshot(current => current.viewMode === mode ? current : buildSnapshot(current.filters, mode));
+        },
+        resetFilters: () => {
+            updateSnapshot(current => {
+                if (current.filters === defaultFilters && current.viewMode === 'executive') {
+                    return current;
+                }
+                return defaultSnapshot;
+            });
+        },
+    };
+}
+
+function useDashboardFilterStore() {
+    const store = useContext(DashboardFilterStoreContext);
+    if (store === undefined) {
         throw new Error('useDashboardFilters must be used within a DashboardFilterProvider');
     }
-    return context;
+    return store;
+}
+
+export function DashboardFilterProvider({ children }: { children: ReactNode }) {
+    const [store] = useState(createDashboardFilterStore);
+
+    return (
+        <DashboardFilterStoreContext.Provider value={store}>
+            {children}
+        </DashboardFilterStoreContext.Provider>
+    );
+}
+
+export function useDashboardFilterSelector<T>(selector: (state: DashboardFilterSnapshot) => T): T {
+    const store = useDashboardFilterStore();
+    return useSyncExternalStore(
+        store.subscribe,
+        () => selector(store.getSnapshot()),
+        () => selector(store.getSnapshot()),
+    );
+}
+
+export function useDashboardFilterMutators(): DashboardFilterMutators {
+    const store = useDashboardFilterStore();
+    return useMemo(
+        () => ({
+            setDepartmentId: store.setDepartmentId,
+            setRiskLevel: store.setRiskLevel,
+            setControlStatus: store.setControlStatus,
+            setControlForm: store.setControlForm,
+            setViewMode: store.setViewMode,
+            resetFilters: store.resetFilters,
+        }),
+        [store],
+    );
+}
+
+export function useDashboardFilters(): DashboardFilterContextType {
+    const snapshot = useDashboardFilterSelector(state => state);
+    const mutators = useDashboardFilterMutators();
+    return useMemo(
+        () => ({
+            ...snapshot,
+            ...mutators,
+        }),
+        [mutators, snapshot],
+    );
 }

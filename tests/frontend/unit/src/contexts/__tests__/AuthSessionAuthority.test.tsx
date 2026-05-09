@@ -3,8 +3,8 @@ import { render, screen, waitFor } from '@testing-library/react';
 
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { clearAccessToken, setAccessToken } from '@test/accessTokenStoreHarness';
-import * as authSessionCoordinator from '@/services/session/bootstrap';
-import { clearBootstrapSession } from '@/services/session/bootstrap';
+import * as authSessionCoordinator from '@/services/session/coordinator';
+import { clearBootstrapSession } from '@/services/session/coordinator';
 import { __resetSessionStoreForTests } from '@/services/session/store';
 
 vi.mock('@/utils/userSettingsStorage', () => ({

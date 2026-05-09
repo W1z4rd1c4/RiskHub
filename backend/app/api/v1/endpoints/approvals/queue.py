@@ -5,9 +5,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api import deps
 from app.db.session import get_db
-from app.models import User
 from app.schemas.approval_request import (
     ApprovalRequestCreate,
     ApprovalRequestListResponse,
@@ -15,6 +13,7 @@ from app.schemas.approval_request import (
     ApprovalResourceTypeEnum,
     ApprovalStatusEnum,
 )
+from app.services._approval_execution.privilege_context import PrivilegeContext, get_privilege_context
 from app.services._approval_queue import (
     create_delete_approval_request,
     list_approval_queue_page,
@@ -27,19 +26,19 @@ router = APIRouter()
 async def create_approval_request(
     request_data: ApprovalRequestCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user),
+    ctx: PrivilegeContext = Depends(get_privilege_context),
 ):
     """
     Create a new approval request for resource deletion.
     Mirrors the underlying delete route's authorization and delete-workflow metadata.
     """
-    return await create_delete_approval_request(db=db, request_data=request_data, current_user=current_user)
+    return await create_delete_approval_request(db=db, request_data=request_data, current_user=ctx.user)
 
 
 @router.get("", response_model=ApprovalRequestListResponse)
 async def list_approval_requests(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user),
+    ctx: PrivilegeContext = Depends(get_privilege_context),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=100),
     status_filter: Optional[ApprovalStatusEnum] = Query(None, alias="status"),
@@ -53,7 +52,7 @@ async def list_approval_requests(
     """
     return await list_approval_queue_page(
         db=db,
-        current_user=current_user,
+        current_user=ctx.user,
         skip=skip,
         limit=limit,
         status_filter=status_filter,

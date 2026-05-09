@@ -177,7 +177,7 @@ def approval_privilege_tier(
 async def resolve_approval_privilege_tier(
     db: AsyncSession,
     user: User,
-    approval: ApprovalRequest,
+    approval: ApprovalRequest | None = None,
 ) -> ApprovalPrivilegeTier:
     """Single source of truth for approval-resolution authorization tier."""
     _ = db

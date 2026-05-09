@@ -5,12 +5,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.api import deps
 from app.db.session import get_db
-from app.models import ApprovalRequest, User
+from app.models import ApprovalRequest
 from app.schemas.approval_request import ApprovalRequestRead
+from app.services._approval_execution.privilege_context import PrivilegeContext, get_privilege_context
 from app.services._approval_queue.projection import build_approval_read
-from app.services.approval_scenario_policy import can_view_approval_resource, resolve_approval_privilege_tier
+from app.services.approval_scenario_policy import can_view_approval_resource
 
 router = APIRouter()
 
@@ -27,7 +27,7 @@ router = APIRouter()
 async def get_approval_request(
     approval_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(deps.get_current_user),
+    ctx: PrivilegeContext = Depends(get_privilege_context),
 ):
     """Get a single approval request for requester, primary approver, or approval resolvers."""
     result = await db.execute(
@@ -40,8 +40,8 @@ async def get_approval_request(
     if not approval:
         raise HTTPException(status_code=404, detail="Approval request not found")
 
-    tier = await resolve_approval_privilege_tier(db, current_user, approval)
-    is_scenario_approver = tier.scenario_match is True and await can_view_approval_resource(db, current_user, approval)
+    tier = await ctx.tier_for_approval(db, approval)
+    is_scenario_approver = tier.scenario_match is True and await can_view_approval_resource(db, ctx.user, approval)
 
     # Permission check: requester, primary approver, or approval resolver
     if (
@@ -52,4 +52,4 @@ async def get_approval_request(
     ):
         raise HTTPException(status_code=403, detail="Access denied")
 
-    return build_approval_read(approval, current_user)
+    return build_approval_read(approval, ctx.user)
