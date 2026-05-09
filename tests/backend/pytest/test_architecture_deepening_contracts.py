@@ -953,13 +953,12 @@ def test_kri_history_routes_use_governance_interface() -> None:
 
 
 def test_kri_history_uses_service_owned_intake_and_projection() -> None:
-    from app.services._kri_history import approval_intake, correction_plans, direct_application, governance, projection
+    from app.services._kri_history import approval_intake, direct_application, governance, projection
 
     assert hasattr(approval_intake, "create_kri_submission_approval")
     assert hasattr(approval_intake, "create_kri_history_correction_approval")
     assert hasattr(direct_application, "apply_kri_value_directly")
     assert hasattr(projection, "serialize_kri_history_response")
-    assert hasattr(correction_plans, "build_kri_correction_plan")
 
     service_sources = (
         inspect.getsource(approval_intake)
@@ -995,7 +994,6 @@ def test_risk_restore_passes_display_name_before_activity_redaction() -> None:
         )
     )
     for private_import in (
-        "from app.services._kri_history.submission import _create_kri_submission_approval",
         "from app.services._kri_history.value_application import _apply_kri_value_directly",
         "from app.services._kri_history.value_application import (",
     ):
@@ -1003,72 +1001,41 @@ def test_risk_restore_passes_display_name_before_activity_redaction() -> None:
 
 
 def test_approval_queue_routes_use_queue_lifecycle_module() -> None:
+    """S6.3: routes consume the package directly; no `lifecycle` indirection."""
     from app.api.v1.endpoints.approvals import queue, resolve
-    from app.services._approval_queue import lifecycle
+    from app.services import _approval_queue as queue_pkg
 
-    assert hasattr(lifecycle, "ApprovalRequestIntakePlan")
-    assert hasattr(lifecycle, "ApprovalQueuePage")
-    assert hasattr(lifecycle, "ApprovalQueueProjection")
+    assert hasattr(queue_pkg, "ApprovalQueuePage")
+    assert hasattr(queue_pkg, "ApprovalQueueProjection")
+    assert hasattr(queue_pkg, "ApprovalRequestIntakePlan")
 
     route_source = inspect.getsource(queue) + inspect.getsource(resolve)
-    for lifecycle_function in (
-        "create_delete_approval_request",
-        "list_approval_queue_page",
-        "count_pending_approval_queue",
-        "list_my_approval_queue_page",
-    ):
-        assert lifecycle_function in route_source
-
-    assert "create_approval_request_with_audit" not in route_source
+    assert "from app.services._approval_queue" in route_source
+    assert "from app.services._approval_queue.lifecycle" not in route_source
 
 
 def test_approval_queue_lifecycle_uses_service_owned_helpers() -> None:
-    from app.services._approval_queue import counts, delete_intake, execution, lifecycle, projection, queries
+    """S6.3: package __init__ imports leaf submodules; no lifecycle aggregator."""
+    import inspect
+    from app.services import _approval_queue as queue_pkg
 
-    assert hasattr(delete_intake, "assert_delete_request_allowed")
-    assert hasattr(projection, "build_approval_read")
-    assert hasattr(counts, "count_pending_approval_queue")
-    assert hasattr(execution, "create_delete_approval_request")
-    assert hasattr(queries, "list_approval_queue_page")
-
-    lifecycle_source = inspect.getsource(lifecycle)
+    package_source = inspect.getsource(queue_pkg)
     for module_name in ("contracts", "counts", "execution", "queries"):
-        assert f"from .{module_name} import" in lifecycle_source
+        assert f"from .{module_name} import" in package_source
 
-    assert "app.api.v1.endpoints.approvals" not in lifecycle_source
+    assert "from .lifecycle" not in package_source
 
 
 def test_approval_queue_lifecycle_delegates_intake_query_projection() -> None:
-    assert {
-        "ApprovalRequestIntakePlan",
-        "ApprovalQueueProjection",
-        "ApprovalQueuePage",
-    } <= _defined_class_names("backend/app/services/_approval_queue/contracts.py")
-    assert {
-        "build_delete_intake_plan",
-        "ensure_delete_approval_not_pending",
-    } <= _defined_function_names("backend/app/services/_approval_queue/delete_intake.py")
-    assert {
-        "create_delete_approval_request",
-        "reload_delete_approval_request",
-    } <= _defined_function_names("backend/app/services/_approval_queue/execution.py")
-    assert {
-        "approval_queue_page",
-        "project_approval_queue_item",
-    } <= _defined_function_names("backend/app/services/_approval_queue/projection.py")
-    assert {
-        "list_approval_queue_page",
-        "list_my_approval_queue_page",
-    } <= _defined_function_names("backend/app/services/_approval_queue/queries.py")
-
-    lifecycle_source = _source("backend/app/services/_approval_queue/lifecycle.py")
+    """S6.3: __init__ never inlines write-side logic; banned strings stay banned."""
+    package_source = _source("backend/app/services/_approval_queue/__init__.py")
     for leaked_implementation_detail in (
         "create_approval_request_with_audit",
         "select(ApprovalRequest)",
         "def _build_delete_intake_plan",
         "def _approval_queue_page",
     ):
-        assert leaked_implementation_detail not in lifecycle_source
+        assert leaked_implementation_detail not in package_source
 
 
 def test_vendor_link_services_use_vendor_governance_modules() -> None:
@@ -1421,3 +1388,39 @@ def test_admin_console_routes_use_telemetry_composition_module() -> None:
         "revoke_user_sessions(",
     ):
         assert route_owned_query not in route_source
+
+
+def test_auto_reject_kri_approval_consolidated() -> None:
+    """Bonus #75: byte-identical duplicates removed; canonical lives in results."""
+    import importlib
+
+    history = importlib.import_module("app.services._approval_execution.kri_history_correction")
+    submission = importlib.import_module("app.services._approval_execution.kri_value_submission")
+    results = importlib.import_module("app.services._approval_execution.results")
+    assert not hasattr(history, "_auto_reject_kri_approval"), (
+        "Bonus #75: duplicate must be deleted from kri_history_correction"
+    )
+    assert not hasattr(submission, "_auto_reject_kri_approval"), (
+        "Bonus #75: duplicate must be deleted from kri_value_submission"
+    )
+    assert hasattr(results, "auto_reject_kri_approval"), (
+        "Bonus #75: canonical helper must live in _approval_execution.results"
+    )
+
+
+def test_endpoint_shim_build_approval_read_repointed() -> None:
+    """S6.2: endpoint copy deleted; resolve+detail consume queue projection."""
+    import importlib
+    import inspect
+
+    shared = importlib.import_module("app.api.v1.endpoints.approvals._shared")
+    resolve = importlib.import_module("app.api.v1.endpoints.approvals.resolve")
+    detail = importlib.import_module("app.api.v1.endpoints.approvals.detail")
+    projection = importlib.import_module("app.services._approval_queue.projection")
+    assert not hasattr(shared, "_build_approval_read"), (
+        "S6.2: endpoint copy of _build_approval_read must be deleted"
+    )
+    assert hasattr(projection, "build_approval_read"), "canonical must remain"
+    src = inspect.getsource(resolve) + inspect.getsource(detail)
+    assert "build_approval_read" in src, "endpoints must consume canonical helper"
+    assert "_build_approval_read" not in src, "endpoints must not call deleted shim"

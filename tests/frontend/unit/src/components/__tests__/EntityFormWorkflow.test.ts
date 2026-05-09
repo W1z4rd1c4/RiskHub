@@ -5,7 +5,6 @@ import {
     previousEntityFormStep,
     resolveSubmitOutcome,
 } from '@/components/forms/entityFormWorkflow';
-import { buildVendorContextWarning } from '@/components/kri-form/kriFormWorkflow';
 
 describe('entity form workflow', () => {
     it('keeps wizard steps within bounds', () => {
@@ -24,11 +23,4 @@ describe('entity form workflow', () => {
         });
     });
 
-    it('builds vendor context warnings without exposing raw ids', () => {
-        expect(buildVendorContextWarning({ expectedVendorName: null, selectedVendorName: null })).toBeNull();
-        expect(buildVendorContextWarning({
-            expectedVendorName: 'Vendor A',
-            selectedVendorName: 'Vendor B',
-        })).toBe('Selected vendor differs from Vendor A');
-    });
 });

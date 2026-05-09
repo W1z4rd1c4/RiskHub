@@ -17,7 +17,6 @@ Business/service-layer logic for `_issue_workflow`.
 - `loading.py`
 - `outbox.py`
 - `remediation.py`
-- `service.py`
 - `serialization.py`
 - `source_validation.py`
 - `transitions.py`

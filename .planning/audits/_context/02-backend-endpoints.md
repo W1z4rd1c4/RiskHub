@@ -257,6 +257,10 @@ Local helpers / facades:
 - Wave 2 #19 removed `risks/crud/_shared.py`; risk-type validation now delegates
   to `app/services/_entity_mutation_lifecycle/policy.py::validate_risk_type`.
 - `risks/id_generation.py:7-42` — `generate_risk_id_code(db, process)`.
+- `risks/__init__.py` re-export of `generate_risk_id_code` is load-bearing for
+  `tests/backend/pytest/test_risks.py:556` and
+  `tests/backend/pytest/test_risk_id_generation.py:13`. Future cleanup removing
+  the re-export must migrate both tests first.
 
 Service-side counterpart of `validate_risk_type` (referenced by audit S1.4):
 
@@ -484,10 +488,11 @@ Local helpers:
 - `approvals/__init__.py:1-9` includes `detail`, `resolve`, `queue`. Quote
   `__init__.py:4-7` `from .queue import router`, `router.include_router(resolve.router)`,
   `router.include_router(detail.router)`.
-- `_shared.py` (61 lines) — REAL helpers:
-  - `_get_approval_department_id` (line 17).
-  - `_build_approval_read` (line 34).
-  - `logger` (line 14, used by `resolve.py`).
+- `_shared.py` — REAL helpers after Wave 3 item `#7`:
+  - `_build_approval_read`.
+  - `logger` (used by `resolve.py`).
+- `_get_approval_department_id` endpoint shim deleted in Wave 3 item `#7`; canonical helper remains
+  `app.services._approval_execution.loading.get_approval_department_id`.
 - `_delete_authorization.py` (81 lines) — REAL helpers:
   - `_raise_missing_permission` (line 13).
   - `assert_can_request_delete_risk` (line 20).

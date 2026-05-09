@@ -532,6 +532,11 @@ Categorization by domain prefix (counts from `ls | sed | awk -F'_' '{print $1}' 
 | `directory_*`, `graph_directory*` | 3 | `test_directory_import.py`, `test_directory_lookup.py`, `test_graph_directory_components.py` |
 | Remaining (~70) | — | `test_health.py`, `test_executions.py`, `test_users.py`, `test_visibility_helpers.py`, `test_threshold_propagation.py`, `test_timezone_policy.py`, `test_email_canonicalization.py`, … |
 
+Risk ID package facade dependency: `test_risks.py` and
+`test_risk_id_generation.py` import `generate_risk_id_code` from
+`app.api.v1.endpoints.risks`, so that package re-export is a test-surface
+contract.
+
 ### 6.1 Architecture-deepening contracts at root
 
 `tests/backend/pytest/test_architecture_deepening_contracts.py` (also marked `pytestmark = pytest.mark.contract` — `:9`) — bundles many cross-cutting AST and import contracts. Helpers: `_imports_module`, `_assigned_names`, `_calls_private_audit_method`, `_function_body_source`, `_production_frontend_import_count` (which scans `frontend/src/**/*.ts*` for production usages).

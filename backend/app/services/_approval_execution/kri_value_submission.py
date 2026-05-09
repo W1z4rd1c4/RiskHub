@@ -15,13 +15,9 @@ from app.services._kri_history.governance import (
     capture_kri_value_mutation_snapshot,
 )
 
-from .results import SideEffectResult
+from .results import SideEffectResult, auto_reject_kri_approval
 
 logger = logging.getLogger("app.services.approval_execution_service")
-
-
-def _auto_reject_kri_approval(approval: ApprovalRequest, reason: str) -> SideEffectResult:
-    return SideEffectResult.auto_rejected(reason)
 
 
 def _pending_change_new(value):
@@ -94,7 +90,7 @@ async def _apply_kri_value_submission(
 
     except ValueError as e:
         logger.warning("Approval #%s: auto-rejecting stale KRI value submission: %s", approval_id, e)
-        return _auto_reject_kri_approval(
+        return auto_reject_kri_approval(
             approval,
             f"KRI value submission no longer passes apply-time validation ({e}).",
         )

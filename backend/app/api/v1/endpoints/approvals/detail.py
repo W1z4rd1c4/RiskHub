@@ -10,9 +10,8 @@ from app.core.permissions import can_resolve_approvals
 from app.db.session import get_db
 from app.models import ApprovalRequest, User
 from app.schemas.approval_request import ApprovalRequestRead
+from app.services._approval_queue.projection import build_approval_read
 from app.services.approval_scenario_policy import can_view_approval_resource, user_matches_approval_scenario_role
-
-from ._shared import _build_approval_read
 
 router = APIRouter()
 
@@ -53,4 +52,4 @@ async def get_approval_request(
     if not is_requester and not is_primary_approver and not is_privileged and not is_scenario_approver:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    return _build_approval_read(approval, current_user)
+    return build_approval_read(approval, current_user)

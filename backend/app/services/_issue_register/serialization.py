@@ -44,7 +44,7 @@ from .linked_context import (
 )
 
 
-def _active_exception(issue: Issue) -> IssueException | None:
+def active_exception(issue: Issue) -> IssueException | None:
     now = utc_now()
     approved = []
     for ex in issue.exceptions:

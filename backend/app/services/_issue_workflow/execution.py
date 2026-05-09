@@ -17,11 +17,14 @@ from app.schemas.issue import (
     IssueStartRemediationRequest,
     IssueUpdate,
 )
+from app.services._issue_workflow.assignment import assign_issue
+from app.services._issue_workflow.closure import close_issue
 from app.services._issue_workflow.contracts import IssueWorkflowOutcome
 from app.services._issue_workflow.exception_selection import (
     select_exception_for_approval,
     select_exception_for_revocation,
 )
+from app.services._issue_workflow.exceptions import approve_exception, request_exception, revoke_exception
 from app.services._issue_workflow.loading import (
     get_issue_with_relations,
     get_readable_issue_or_404,
@@ -33,6 +36,7 @@ from app.services._issue_workflow.outbox import (
     issue_exception_approved_outbox_plan,
     issue_exception_requested_outbox_plan,
 )
+from app.services._issue_workflow.remediation import start_remediation, update_progress
 from app.services._issue_workflow.serialization import (
     active_exception,
     serialize_exception_with_user_names,
@@ -46,7 +50,6 @@ from app.services._issue_workflow.source_validation import (
     validate_user_exists,
 )
 from app.services._issue_workflow.update_plans import build_issue_update_plan
-from app.services.issue_workflow_service import IssueWorkflowService
 
 
 async def update_issue_detail(
@@ -116,7 +119,7 @@ async def assign_issue_detail(
         owner_user_id=payload.owner_user_id,
         department_id=issue.department_id,
     )
-    await IssueWorkflowService.assign_issue(
+    await assign_issue(
         db,
         issue=issue,
         owner_user_id=payload.owner_user_id,
@@ -140,7 +143,7 @@ async def start_remediation_detail(
     current_user: User,
 ) -> IssueWorkflowOutcome[IssueRead]:
     issue = await get_writable_issue_or_404(db, issue_id, current_user)
-    await IssueWorkflowService.start_remediation(
+    await start_remediation(
         db,
         issue=issue,
         target_date=payload.target_date,
@@ -159,7 +162,7 @@ async def update_remediation_progress_detail(
 ) -> IssueWorkflowOutcome[IssueRead]:
     issue = await get_writable_issue_or_404(db, issue_id, current_user)
     remediation_status = payload.remediation_status.value if payload.remediation_status else None
-    await IssueWorkflowService.update_progress(
+    await update_progress(
         db,
         issue=issue,
         progress_percent=payload.progress_percent,
@@ -180,7 +183,7 @@ async def close_issue_detail(
     current_user: User,
 ) -> IssueWorkflowOutcome[IssueRead]:
     issue = await get_writable_issue_or_404(db, issue_id, current_user)
-    await IssueWorkflowService.close_issue(
+    await close_issue(
         db,
         issue=issue,
         validation_note=payload.validation_note,
@@ -199,7 +202,7 @@ async def request_exception_detail(
     current_user: User,
 ) -> IssueWorkflowOutcome[IssueExceptionRead]:
     issue = await get_writable_issue_or_404(db, issue_id, current_user)
-    exception = await IssueWorkflowService.request_exception(
+    exception = await request_exception(
         db,
         issue=issue,
         reason=payload.reason,
@@ -234,7 +237,7 @@ async def approve_exception_detail(
     if selection.exception is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Requested exception not found")
 
-    approved = await IssueWorkflowService.approve_exception(
+    approved = await approve_exception(
         db,
         issue=issue,
         exception=selection.exception,
@@ -263,7 +266,7 @@ async def revoke_exception_detail(
     if selection.exception is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Approved exception not found")
 
-    revoked = await IssueWorkflowService.revoke_exception(
+    revoked = await revoke_exception(
         db,
         issue=issue,
         exception=selection.exception,

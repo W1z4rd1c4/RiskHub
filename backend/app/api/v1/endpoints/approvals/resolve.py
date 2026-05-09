@@ -14,8 +14,9 @@ from app.services._approval_queue import (
     count_pending_approval_queue,
     list_my_approval_queue_page,
 )
+from app.services._approval_queue.projection import build_approval_read
 
-from ._shared import _build_approval_read, logger
+from ._shared import logger
 
 router = APIRouter()
 
@@ -58,7 +59,7 @@ async def approve_request(
         logger.exception("Error applying approval %s", approval_id)
         raise HTTPException(status_code=500, detail="Failed to process approval request")
 
-    return _build_approval_read(approval, current_user)
+    return build_approval_read(approval, current_user)
 
 
 @router.post("/{approval_id}/reject", response_model=ApprovalRequestRead, responses=_APPROVAL_AUTH_NOT_FOUND_RESPONSES)
@@ -82,7 +83,7 @@ async def reject_request(
         resolution_notes=resolve_data.resolution_notes,
     )
 
-    return _build_approval_read(approval, current_user)
+    return build_approval_read(approval, current_user)
 
 
 @router.post("/{approval_id}/cancel", response_model=ApprovalRequestRead, responses=_APPROVAL_AUTH_NOT_FOUND_RESPONSES)
@@ -99,7 +100,7 @@ async def cancel_request(
 
     approval = await cancel_request_workflow(db, approval_id=approval_id, current_user=current_user)
 
-    return _build_approval_read(approval, current_user)
+    return build_approval_read(approval, current_user)
 
 
 @router.get(

@@ -1,4 +1,5 @@
-"""Internal implementation for issue workflow service.
+"""Issue workflow implementation modules.
 
-Public API is exposed via `app.services.issue_workflow_service`.
+Route-facing orchestration lives in `execution.py`; lifecycle operations are
+free functions in the sibling modules.
 """

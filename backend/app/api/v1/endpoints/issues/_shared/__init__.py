@@ -10,7 +10,6 @@ from .constants import (
 from .links import _issue_link_department_ids, _resolve_vendor_department_and_access
 from .loading import _get_issue_with_relations, _get_readable_issue_or_404, _get_writable_issue_or_404
 from .serialization import (
-    _active_exception,
     _issue_source_link,
     _label_or_fallback,
     _link_display,
@@ -22,6 +21,7 @@ from .serialization import (
     _serialize_issue_read,
     _serialize_issue_summary,
     _serialize_remediation,
+    active_exception,
     build_issue_linked_visibility,
 )
 from .source import (
@@ -42,7 +42,6 @@ __all__ = [
     "UNKNOWN_USER_LABEL",
     "UNKNOWN_VENDOR_LABEL",
     "ResolvedIssueSource",
-    "_active_exception",
     "_ensure_owner_assignable",
     "_get_issue_with_relations",
     "_get_readable_issue_or_404",
@@ -61,6 +60,7 @@ __all__ = [
     "_serialize_issue_summary",
     "_serialize_remediation",
     "_validate_user_exists",
+    "active_exception",
     "build_issue_linked_visibility",
     "clear_issue_source_links",
     "ensure_issue_source_link",

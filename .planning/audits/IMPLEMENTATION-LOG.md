@@ -78,3 +78,37 @@
 - `cd frontend && npm run test:run`: passed (`163 passed`, `734 tests passed`)
 - `cd frontend && npm run lint`: passed
 - Fix-forward attempts: 1; the first frontend unit gate exposed stale access-user fixtures that still omitted required capability fields, then the full gate was restarted and passed.
+
+## Wave 3 — P2 Dead-Code A
+
+- Completed: 2026-05-09 21:03:31 CEST
+- Commit SHA: recorded by the Wave 3 commit containing this entry
+- Items completed: `#2`, `#3`, `#4`, `#5`, `#6`, `#7`, `#41`, `#50`, `#52`, `#53`, `#54`, `#75`, `#18`, `#20`
+- Items failed: none
+- Elapsed time: current session wave execution
+
+### Phase 4 Corrections Honored
+
+- `#2`: used the live issue source-validation aliases instead of stale line references.
+- `#3` / `#4` / `#5` / `#6`: added frontend absence locks and updated the frontend architecture audit context.
+- `#7`: updated backend endpoint context after removing the approval department shim.
+- `#41`: repointed endpoint serialization barrels to the canonical issue-register functions.
+- `#50`: removed `_kri_history/submission.py` from authorization contract artifacts.
+- `#52`: updated the architecture-deepening contract for deleted KRI correction-plan facade.
+- `#53`: used direct issue-workflow execution imports and deleted both facade modules.
+- `#54`: rewrote approval-queue deepening locks to assert direct queue-module exports.
+- `#75`: consolidated the KRI auto-reject helper in `_approval_execution.results`.
+- `#18`: locked approval read response parity and repointed endpoints to `_approval_queue.projection`.
+- `#20`: kept the risk ID package re-export stable and documented it as load-bearing.
+
+### Gate Results
+
+- `make -f scripts/Makefile test-architecture-locks`: passed (`113 passed`, 1 snapshot passed)
+- `pytest -m contract`: passed under backend venv activation (`163 passed`, `1726 deselected`, 1 warning)
+- `pytest tests/backend/pytest -m "not postgres and not benchmark" -x`: passed (`1856 passed`, `3 skipped`, `30 deselected`, 17 warnings)
+- `python3 scripts/security/validate_authz_capability_contract.py`: passed
+- `ruff check backend/app`: passed
+- `mypy backend/app`: baseline delta clean (`8 errors in 6 files`, unchanged from baseline)
+- `cd frontend && npx tsc --noEmit`: passed
+- `npm run -w tests/frontend/unit test -- --run`: runbook command failed before tests (`ENOENT` for missing root `package.json`); equivalent repo command `cd frontend && npm run test:run` passed (`167 passed`, `737 tests passed`)
+- `npm run -w tests/frontend/unit lint`: runbook command failed before lint (`ENOENT` for missing root `package.json`); equivalent repo command `cd frontend && npm run lint` passed

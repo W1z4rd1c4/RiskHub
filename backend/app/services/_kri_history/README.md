@@ -18,7 +18,6 @@ Business/service-layer logic for `_kri_history`.
 - `queries.py`
 - `recording.py`
 - `service.py`
-- `submission.py`
 - `value_application.py`
 
 ## Notes

@@ -114,11 +114,6 @@ async def resolve_vendor_department_and_access(
     return resolved_department_id
 
 
-_ensure_owner_assignable = ensure_owner_assignable
-_issue_link_department_ids = issue_link_department_ids
-_resolve_vendor_department_and_access = resolve_vendor_department_and_access
-_validate_user_exists = validate_user_exists
-
 __all__ = [
     "clear_issue_source_links",
     "ensure_issue_source_link",

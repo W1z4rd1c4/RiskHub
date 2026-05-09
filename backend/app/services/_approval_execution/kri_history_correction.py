@@ -15,13 +15,9 @@ from app.services._kri_history.governance import (
     capture_kri_value_mutation_snapshot,
 )
 
-from .results import SideEffectResult
+from .results import SideEffectResult, auto_reject_kri_approval
 
 logger = logging.getLogger("app.services.approval_execution_service")
-
-
-def _auto_reject_kri_approval(approval: ApprovalRequest, reason: str) -> SideEffectResult:
-    return SideEffectResult.auto_rejected(reason)
 
 
 async def _apply_kri_history_correction(
@@ -47,13 +43,13 @@ async def _apply_kri_history_correction(
     entry = entry_result.scalar_one_or_none()
     if entry is None:
         logger.warning("Approval #%s: KRI history entry %s no longer exists", approval.id, entry_id)
-        return _auto_reject_kri_approval(
+        return auto_reject_kri_approval(
             approval,
             "KRI history correction no longer passes apply-time validation (history entry no longer exists).",
         )
     if entry.kri_id != kri.id:
         logger.warning("Approval #%s: KRI history entry %s no longer belongs to KRI %s", approval.id, entry_id, kri.id)
-        return _auto_reject_kri_approval(
+        return auto_reject_kri_approval(
             approval,
             "KRI history correction no longer passes apply-time validation (history entry target changed).",
         )
@@ -64,7 +60,7 @@ async def _apply_kri_history_correction(
             old_value,
             entry.value,
         )
-        return _auto_reject_kri_approval(
+        return auto_reject_kri_approval(
             approval,
             "KRI history correction no longer passes apply-time validation (history entry value changed).",
         )
@@ -75,7 +71,7 @@ async def _apply_kri_history_correction(
             period_end,
             entry.period_end.isoformat(),
         )
-        return _auto_reject_kri_approval(
+        return auto_reject_kri_approval(
             approval,
             "KRI history correction no longer passes apply-time validation (history entry period changed).",
         )
@@ -116,7 +112,7 @@ async def _apply_kri_history_correction(
 
     except ValueError as e:
         logger.warning("Approval #%s: auto-rejecting stale KRI history correction: %s", approval.id, e)
-        return _auto_reject_kri_approval(
+        return auto_reject_kri_approval(
             approval,
             f"KRI history correction no longer passes apply-time validation ({e}).",
         )

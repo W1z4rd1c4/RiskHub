@@ -48,17 +48,13 @@ Pure mapping of `frontend/src/` as it exists at HEAD (post-`Fix RiskHub contract
 ## 3. KRI form (S3.x targets)
 
 ### Files
-- `frontend/src/components/kri-form/`: `KRIFormContainer.tsx`, `KriApprovalQueuedBanner.tsx`, `KriDetailsStep.tsx`, `KriFormErrorAlert.tsx`, `KriFormFooter.tsx`, `KriFormNavigation.tsx`, `KriFormStepContent.tsx`, `KriMismatchDialog.tsx`, `KriRiskSelectionStep.tsx`, `KriVendorContextBanner.tsx`, `kriForm.selectors.ts`, `kriForm.types.ts`, `kriForm.utils.ts`, `kriFormWorkflow.ts`, `useKriFormState.ts`, `useKriLookups.ts`, `useKriSubmit.ts`, `README.md`.
+- `frontend/src/components/kri-form/`: `KRIFormContainer.tsx`, `KriApprovalQueuedBanner.tsx`, `KriDetailsStep.tsx`, `KriFormErrorAlert.tsx`, `KriFormFooter.tsx`, `KriFormNavigation.tsx`, `KriFormStepContent.tsx`, `KriMismatchDialog.tsx`, `KriRiskSelectionStep.tsx`, `KriVendorContextBanner.tsx`, `kriForm.selectors.ts`, `kriForm.types.ts`, `kriForm.utils.ts`, `useKriFormState.ts`, `useKriLookups.ts`, `useKriSubmit.ts`, `README.md`.
 - No internal `__tests__/` directory inside `kri-form/`.
 
 ### `kriFormWorkflow.ts` (S3.11)
-- File length: 14 lines (`Read` confirmed lines 1–14, line 15 empty).
-- Exports: `interface VendorContextWarningInput` (`kri-form/kriFormWorkflow.ts:1-4`); `function buildVendorContextWarning` (`kri-form/kriFormWorkflow.ts:6-14`).
-  ```
-  export function buildVendorContextWarning({…}): string | null { … }
-  ```
-- Production importers: **0**. `grep -rn "kriFormWorkflow\|buildVendorContextWarning" frontend/src --include=*.ts --include=*.tsx` returns only the file itself.
-- Test importers: **1** — `tests/frontend/unit/src/components/__tests__/EntityFormWorkflow.test.ts:8` `import { buildVendorContextWarning } from '@/components/kri-form/kriFormWorkflow';`.
+- Deleted in Wave 3 item `#3`.
+- Absence lock: `tests/frontend/unit/src/components/kri-form/kriFormWorkflow.absent.spec.ts`.
+- `tests/frontend/unit/src/components/__tests__/EntityFormWorkflow.test.ts` no longer imports `buildVendorContextWarning`.
 
 ### KRI shim (S3.9)
 - `frontend/src/components/KRIForm.tsx` is 2 lines:
@@ -74,13 +70,11 @@ Pure mapping of `frontend/src/` as it exists at HEAD (post-`Fix RiskHub contract
 ## 4. Control form (S2.8, S2.9, FE-deadcode-1)
 
 ### Files
-- `frontend/src/components/control-form/`: `ControlFormContainer.tsx`, `ControlFormExecutionStep.tsx`, `ControlFormIdentityStep.tsx`, `ControlFormOwnershipStep.tsx`, `ControlFormRiskLinkStep.tsx`, `ControlFormStatusStep.tsx`, `controlFormFilters.ts`, `controlFormUtils.ts`, `controlFormValidation.ts`, `controlFormWorkflow.ts`, `controlRiskLinkStepContext.ts`, `useControlFormLookups.ts`, `useControlFormWorkflow.ts`, `README.md`. No `__tests__/` directory.
+- `frontend/src/components/control-form/`: `ControlFormContainer.tsx`, `ControlFormExecutionStep.tsx`, `ControlFormIdentityStep.tsx`, `ControlFormOwnershipStep.tsx`, `ControlFormRiskLinkStep.tsx`, `ControlFormStatusStep.tsx`, `controlFormFilters.ts`, `controlFormUtils.ts`, `controlFormValidation.ts`, `controlRiskLinkStepContext.ts`, `useControlFormLookups.ts`, `useControlFormWorkflow.ts`, `README.md`. No `__tests__/` directory.
 
 ### `controlFormWorkflow.ts` (FE-deadcode-1)
-- Length: 3 lines.
-- Exports: `function buildControlOwnerOptionLabel` (`control-form/controlFormWorkflow.ts:1-3`).
-- Production importers: **0** (`grep -rn "controlFormWorkflow\|buildControlOwnerOptionLabel" frontend/src` returns only the file itself).
-- Test importers: **0** (`grep -rn "controlFormWorkflow\|buildControlOwnerOptionLabel" tests` empty).
+- Deleted in Wave 3 item `#4`.
+- Absence lock: `tests/frontend/unit/src/components/control-form/controlFormWorkflow.absent.spec.ts`.
 
 ### `controlFormUtils.ts` (S2.9)
 - Length: 13 lines (`control-form/controlFormUtils.ts:1-13`).
@@ -108,15 +102,11 @@ Pure mapping of `frontend/src/` as it exists at HEAD (post-`Fix RiskHub contract
 ## 5. Governance (FE-deadcode-2, S7.10)
 
 ### Files
-- `frontend/src/components/governance/`: `OrphanQuickViewModal.tsx`, `OrphanedItemsTable.tsx`, `ResolveOrphanDepartmentSelection.tsx`, `ResolveOrphanFooter.tsx`, `ResolveOrphanModal.tsx`, `ResolveOrphanOwnerSelection.tsx`, `ResolveOrphanRiskSelection.tsx`, `ResolveOrphanSummary.tsx`, `index.ts`, `orphanResolutionPresentation.ts`, `orphanResolutionState.ts`, `resolveOrphanHelpers.ts`, `useResolveOrphanWorkflow.ts`, `README.md`.
+- `frontend/src/components/governance/`: `OrphanQuickViewModal.tsx`, `OrphanedItemsTable.tsx`, `ResolveOrphanDepartmentSelection.tsx`, `ResolveOrphanFooter.tsx`, `ResolveOrphanModal.tsx`, `ResolveOrphanOwnerSelection.tsx`, `ResolveOrphanRiskSelection.tsx`, `ResolveOrphanSummary.tsx`, `index.ts`, `orphanResolutionState.ts`, `resolveOrphanHelpers.ts`, `useResolveOrphanWorkflow.ts`, `README.md`.
 
 ### `orphanResolutionPresentation.ts` (FE-deadcode-2)
-- Length: 1 line.
-  ```
-  export { buildOrphanResolutionLabel } from './orphanResolutionState';
-  ```
-- Production importers: **0** (`grep -rn "orphanResolutionPresentation"` returns only the file itself).
-- Test importers: **0**.
+- Deleted in Wave 3 item `#5`.
+- Absence lock: `tests/frontend/unit/src/components/governance/orphanResolutionPresentation.absent.spec.ts`.
 
 ### `orphanResolutionState.ts` (canonical)
 - 11 lines. Exports `buildOrphanResolutionLabel` (line 1) and `resolveOrphanStaleTarget` (line 5).
@@ -137,18 +127,11 @@ Pure mapping of `frontend/src/` as it exists at HEAD (post-`Fix RiskHub contract
 ## 6. Notifications (FE-deadcode-3)
 
 ### Files
-- `frontend/src/components/notifications/`: `NotificationBell.tsx`, `notificationPresentation.tsx`, `resourcePath.ts`, `__tests__/`, `README.md`.
+- `frontend/src/components/notifications/`: `NotificationBell.tsx`, `notificationPresentation.tsx`, `__tests__/`, `README.md`.
 
 ### `resourcePath.ts` (FE-deadcode-3)
-- Length: 5 lines.
-  ```
-  export {
-      getNotificationPath,
-      getNotificationResourcePath,
-  } from './notificationPresentation';
-  ```
-- Production importers: **0** (`grep -rn "notifications/resourcePath"` returns no callers; only the file itself in the broader `resourcePath` query).
-- Test importers: **0**.
+- Deleted in Wave 3 item `#6`.
+- Absence lock: `tests/frontend/unit/src/components/notifications/resourcePath.absent.spec.ts`.
 
 ### Canonical: `notificationPresentation.tsx`
 - Defines `getNotificationResourcePath` (line 40), `getNotificationPath` (line 63), `buildNotificationPresentation` (line 67), `NotificationPresentationIcon` (line 101).
@@ -388,10 +371,10 @@ The audit task mentions `frontend/src/components/approval/*` — this directory 
 | S2.8 (ControlForm shim) | `components/ControlForm.tsx` | 1 line | `pages/ControlEditPage.tsx:6`, `pages/ControlNewPage.tsx:6` | `tests/.../approval_ui_rendering.spec.tsx:14` |
 | S2.9 (controlFormUtils) | `components/control-form/controlFormUtils.ts` | 13 lines | 3 (`ControlFormExecutionStep.tsx:5`, `useControlFormWorkflow.ts:14`, `useControlFormLookups.ts:9`) | 0 |
 | S3.9 (KRIForm shim) | `components/KRIForm.tsx` | 2 lines | `pages/KRINewPage.tsx:5` | 2 (`KRIForm.edit.test.tsx:5`, `KRIForm.vendor-context.test.tsx:4`) |
-| S3.11 (kriFormWorkflow) | `components/kri-form/kriFormWorkflow.ts` | 14 lines | 0 | 1 (`EntityFormWorkflow.test.ts:8`) |
-| FE-deadcode-1 (controlFormWorkflow) | `components/control-form/controlFormWorkflow.ts` | 3 lines | 0 | 0 |
-| FE-deadcode-2 (orphanResolutionPresentation) | `components/governance/orphanResolutionPresentation.ts` | 1 line | 0 | 0 |
-| FE-deadcode-3 (resourcePath) | `components/notifications/resourcePath.ts` | 5 lines | 0 | 0 |
+| S3.11 (kriFormWorkflow) | `components/kri-form/kriFormWorkflow.ts` | deleted in Wave 3 `#3` | 0 | 0 |
+| FE-deadcode-1 (controlFormWorkflow) | `components/control-form/controlFormWorkflow.ts` | deleted in Wave 3 `#4` | 0 | 0 |
+| FE-deadcode-2 (orphanResolutionPresentation) | `components/governance/orphanResolutionPresentation.ts` | deleted in Wave 3 `#5` | 0 | 0 |
+| FE-deadcode-3 (resourcePath) | `components/notifications/resourcePath.ts` | deleted in Wave 3 `#6` | 0 | 0 |
 | S7.3 (usePermissions) | `hooks/usePermissions.ts` | 20 lines | composed by all consumers; 9-key passthrough | (per audit) |
 | S7.4 (BusinessRouteGuards) | `authz/BusinessRouteGuards.tsx` | 37 lines | `routing/core.tsx:5`, `routing/business.tsx:16-19` | n/a |
 | S7.8 (session split) | `services/session/` | 8 files | `AuthContext.tsx:7`, `ApprovalsPage.tsx:4`, plus `manager.ts` named exports | n/a |

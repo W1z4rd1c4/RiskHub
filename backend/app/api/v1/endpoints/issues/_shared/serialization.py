@@ -15,7 +15,6 @@ from app.services._issue_register.linked_context import (
     link_matches_issue_source as _link_matches_issue_source,
 )
 from app.services._issue_register.serialization import (
-    _active_exception,
     _resolve_user_name,
     _serialize_exception,
     _serialize_exception_with_user_names,
@@ -23,11 +22,11 @@ from app.services._issue_register.serialization import (
     _serialize_issue_read,
     _serialize_issue_summary,
     _serialize_remediation,
+    active_exception,
 )
 
 __all__ = [
     "IssueLinkedVisibility",
-    "_active_exception",
     "_issue_source_link",
     "_label_or_fallback",
     "_link_display",
@@ -39,5 +38,6 @@ __all__ = [
     "_serialize_issue_read",
     "_serialize_issue_summary",
     "_serialize_remediation",
+    "active_exception",
     "build_issue_linked_visibility",
 ]
