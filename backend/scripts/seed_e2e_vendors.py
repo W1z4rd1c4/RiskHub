@@ -1,6 +1,6 @@
 """
 Phase 179-13: Deterministic Vendor Seed Matrix
-Seeds deterministic E2E vendors with active/inactive states.
+Seeds deterministic E2E vendors with active/archived states.
 """
 
 import asyncio
@@ -8,6 +8,7 @@ import asyncio
 from sqlalchemy import func, select
 
 from app.core.config import get_settings
+from app.core.datetime_utils import utc_now
 from app.db.session import session_context
 from app.models import Vendor, VendorStatus
 from scripts.e2e_mappings import load_mappings, require_department_id, require_user_id
@@ -32,6 +33,7 @@ E2E_VENDORS = [
         "replaceability": "hard",
         "has_alternative_providers": False,
         "status": VendorStatus.active.value,
+        "is_archived": False,
     },
     {
         "registration_id": "E2E-VREG-002",
@@ -52,6 +54,7 @@ E2E_VENDORS = [
         "replaceability": "medium",
         "has_alternative_providers": True,
         "status": VendorStatus.active.value,
+        "is_archived": False,
     },
     {
         "registration_id": "E2E-VREG-003",
@@ -72,6 +75,7 @@ E2E_VENDORS = [
         "replaceability": "easy",
         "has_alternative_providers": True,
         "status": VendorStatus.active.value,
+        "is_archived": False,
     },
     {
         "registration_id": "E2E-VREG-004",
@@ -91,7 +95,8 @@ E2E_VENDORS = [
         "is_significant_vendor": False,
         "replaceability": "medium",
         "has_alternative_providers": True,
-        "status": VendorStatus.inactive.value,
+        "status": VendorStatus.active.value,
+        "is_archived": True,
     },
     {
         "registration_id": "E2E-VREG-005",
@@ -111,7 +116,8 @@ E2E_VENDORS = [
         "is_significant_vendor": True,
         "replaceability": "hard",
         "has_alternative_providers": False,
-        "status": VendorStatus.inactive.value,
+        "status": VendorStatus.active.value,
+        "is_archived": True,
     },
     {
         "registration_id": "E2E-VREG-006",
@@ -132,6 +138,7 @@ E2E_VENDORS = [
         "replaceability": "easy",
         "has_alternative_providers": True,
         "status": VendorStatus.active.value,
+        "is_archived": False,
     },
 ]
 
@@ -147,9 +154,11 @@ async def seed_vendors():
 
         created = 0
         updated = 0
+        now = utc_now()
         for entry in E2E_VENDORS:
             owner_id = require_user_id(users, entry["owner"])
             department_id = require_department_id(departments, entry["dept"])
+            is_archived = bool(entry.get("is_archived", False))
 
             payload = {
                 "name": entry["name"],
@@ -170,6 +179,9 @@ async def seed_vendors():
                 "replaceability": entry["replaceability"],
                 "has_alternative_providers": entry["has_alternative_providers"],
                 "status": entry["status"],
+                "is_archived": is_archived,
+                "archived_at": now if is_archived else None,
+                "archived_by_id": owner_id if is_archived else None,
             }
 
             result = await db.execute(select(Vendor).where(Vendor.registration_id == entry["registration_id"]))
@@ -192,25 +204,26 @@ async def seed_vendors():
             await db.execute(
                 select(func.count(Vendor.id)).where(
                     Vendor.name.like("E2E-VENDOR-%"),
-                    Vendor.status == VendorStatus.active.value,
+                    Vendor.is_archived.is_(False),
                 )
             )
         ).scalar_one()
-        inactive = (
+        archived = (
             await db.execute(
                 select(func.count(Vendor.id)).where(
                     Vendor.name.like("E2E-VENDOR-%"),
-                    Vendor.status == VendorStatus.inactive.value,
+                    Vendor.is_archived.is_(True),
                 )
             )
         ).scalar_one()
 
-        print(f"\n✅ Vendors seeded: total={total}, active={active}, inactive={inactive}")
+        print(f"\n✅ Vendors seeded: total={total}, active={active}, archived={archived}")
         print(f"   Created={created}, updated={updated}")
         return {
             "total": total,
             "active": active,
-            "inactive": inactive,
+            "archived": archived,
+            "inactive": archived,
             "created": created,
             "updated": updated,
         }

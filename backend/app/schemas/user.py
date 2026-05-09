@@ -1,9 +1,9 @@
-from datetime import datetime
 from enum import Enum
 from typing import Optional
 
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
+from app.core.datetime_utils import UtcAwareDatetime
 from app.core.email import normalize_email
 
 
@@ -84,10 +84,33 @@ class UserRead(BaseModel):
     department_name: Optional[str] = None
     manager_id: Optional[int] = None
     manager_name: Optional[str] = None  # Manager's name
-    created_at: datetime
-    updated_at: datetime
+    created_at: UtcAwareDatetime
+    updated_at: UtcAwareDatetime
 
     model_config = {"from_attributes": True}
+
+
+class MeCapabilities(BaseModel):
+    """Backend-authoritative shell and route-gate capabilities for the current user."""
+
+    can_view_user_directory: bool = False
+    can_view_access_users: bool = False
+    can_view_department_access_users: bool = False
+    can_view_users_route: bool = False
+    can_manage_access: bool = False
+    can_view_department_access: bool = False
+    can_view_admin_console: bool = False
+    can_view_riskhub: bool = False
+    can_view_governance: bool = False
+    can_view_activity_log: bool = False
+    can_view_committee: bool = False
+    can_view_users_page: bool = False
+    is_second_line: bool = False
+    can_read_risks: bool = False
+    can_read_controls: bool = False
+    can_read_vendors: bool = False
+    can_read_departments: bool = False
+    resource_permissions: dict[str, bool] = Field(default_factory=dict)
 
 
 class UserBrief(BaseModel):
@@ -105,6 +128,7 @@ class UserBrief(BaseModel):
     entra_business_role: Optional[str] = None
     department_id: Optional[int] = None
     department_name: Optional[str] = None
+    me_capabilities: MeCapabilities | None = None
 
     model_config = {"from_attributes": True}
 
@@ -174,7 +198,7 @@ class UserShellSummary(BaseModel):
     questionnaire_inbox_count: int = 0
     orphan_total_count: int = 0
     can_view_governance: bool = False
-    generated_at: datetime
+    generated_at: UtcAwareDatetime
 
 
 class DepartmentBase(BaseModel):
@@ -189,7 +213,7 @@ class DepartmentRead(DepartmentBase):
     """Schema for reading Department."""
 
     id: int
-    created_at: datetime
-    updated_at: datetime
+    created_at: UtcAwareDatetime
+    updated_at: UtcAwareDatetime
 
     model_config = {"from_attributes": True}

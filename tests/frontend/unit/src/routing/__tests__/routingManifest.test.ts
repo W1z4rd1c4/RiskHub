@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { buildAuthz, type AuthUser, type PermissionChecker } from '@/authz/policy';
 import { getSidebarNavRoutes, protectedAppRoutes } from '@/routing';
+import type { MeCapabilities } from '@/services/authApi';
 
 function createPermissionChecker(permissions: string[]): PermissionChecker {
   const allowed = new Set(permissions);
@@ -12,6 +13,30 @@ function visibleSidebarHrefs(user: AuthUser, permissions: string[]) {
   const hasPermission = createPermissionChecker(permissions);
   const authz = buildAuthz(user, hasPermission);
   return getSidebarNavRoutes({ authz, hasPermission }).map((route) => route.nav.href);
+}
+
+function meCapabilities(overrides: Partial<MeCapabilities> = {}): MeCapabilities {
+  return {
+    can_view_user_directory: false,
+    can_view_access_users: false,
+    can_view_department_access_users: false,
+    can_view_users_route: false,
+    can_manage_access: false,
+    can_view_department_access: false,
+    can_view_admin_console: false,
+    can_view_riskhub: false,
+    can_view_governance: false,
+    can_view_activity_log: false,
+    can_view_committee: false,
+    can_view_users_page: false,
+    is_second_line: false,
+    can_read_risks: false,
+    can_read_controls: false,
+    can_read_vendors: false,
+    can_read_departments: false,
+    resource_permissions: {},
+    ...overrides,
+  };
 }
 
 describe('routing manifest parity', () => {
@@ -134,5 +159,21 @@ describe('routing manifest parity', () => {
     expect(hrefs).toContain('/kris');
     expect(hrefs).not.toContain('/controls');
     expect(hrefs).not.toContain('/departments');
+  });
+
+  it('shows Issues navigation from strict MeCapabilities issues:read', () => {
+    const hasPermission = createPermissionChecker([]);
+    const authz = buildAuthz(
+      { role: 'risk_manager', access_scope: 'global' },
+      hasPermission,
+      meCapabilities({
+        resource_permissions: { 'issues:read': true },
+      }),
+      true,
+    );
+
+    const hrefs = getSidebarNavRoutes({ authz, hasPermission }).map((route) => route.nav.href);
+
+    expect(hrefs).toContain('/issues');
   });
 });

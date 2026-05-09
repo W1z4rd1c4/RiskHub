@@ -1,10 +1,10 @@
 """Pydantic schemas for access management endpoints."""
 
-from datetime import datetime
 from typing import Optional
 
 from pydantic import BaseModel, EmailStr, field_validator
 
+from app.core.datetime_utils import UtcAwareDatetime
 from app.core.email import normalize_email
 from app.schemas.user import AccessScopeEnum, RoleRead
 
@@ -50,10 +50,10 @@ class AccessUserRead(BaseModel):
     external_id: Optional[str] = None
     job_title: Optional[str] = None
     entra_business_role: Optional[str] = None
-    directory_last_checked_at: datetime | None = None
-    directory_last_seen_at: datetime | None = None
+    directory_last_checked_at: UtcAwareDatetime | None = None
+    directory_last_seen_at: UtcAwareDatetime | None = None
     directory_sync_status: Optional[str] = None
-    deprovisioned_at: datetime | None = None
+    deprovisioned_at: UtcAwareDatetime | None = None
     deprovision_reason: Optional[str] = None
     capabilities: "AccessUserCapabilities | None" = None
 

@@ -1,0 +1,79 @@
+[[public_names]]
+name = "Capabilities"
+intent = "keep"
+expires_at = "2026-09-01"
+
+[[public_names]]
+name = "approval_capabilities"
+intent = "phase-3-deprecate"
+expires_at = "2026-09-01"
+
+[[public_names]]
+name = "approval_scenario_capabilities"
+intent = "phase-3-deprecate"
+expires_at = "2026-09-01"
+
+[[public_names]]
+name = "build_me_capabilities"
+intent = "keep"
+expires_at = "2026-09-01"
+
+[[public_names]]
+name = "can_view_loaded_vendor"
+intent = "phase-3-deprecate"
+expires_at = "2026-09-01"
+
+[[public_names]]
+name = "can_view_vendor_link"
+intent = "phase-3-deprecate"
+expires_at = "2026-09-01"
+
+[[public_names]]
+name = "control_capabilities"
+intent = "phase-3-deprecate"
+expires_at = "2026-09-01"
+
+[[public_names]]
+name = "department_capabilities"
+intent = "phase-3-deprecate"
+expires_at = "2026-09-01"
+
+[[public_names]]
+name = "has_capability"
+intent = "keep"
+expires_at = "2026-09-01"
+
+[[public_names]]
+name = "issue_capabilities"
+intent = "phase-3-deprecate"
+expires_at = "2026-09-01"
+
+[[public_names]]
+name = "kri_capabilities"
+intent = "phase-3-deprecate"
+expires_at = "2026-09-01"
+
+[[public_names]]
+name = "risk_capabilities"
+intent = "phase-3-deprecate"
+expires_at = "2026-09-01"
+
+[[public_names]]
+name = "risk_type_capabilities"
+intent = "phase-3-deprecate"
+expires_at = "2026-09-01"
+
+[[public_names]]
+name = "require_capability"
+intent = "keep"
+expires_at = "2026-09-01"
+
+[[public_names]]
+name = "role_capabilities"
+intent = "phase-3-deprecate"
+expires_at = "2026-09-01"
+
+[[public_names]]
+name = "vendor_capabilities"
+intent = "phase-3-deprecate"
+expires_at = "2026-09-01"

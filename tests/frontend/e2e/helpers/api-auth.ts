@@ -20,16 +20,19 @@ const DEMO_TOKEN_OPTIONS_BY_ACCOUNT_NAME: Record<string, DemoTokenOptions> = {
 export interface VendorLookup {
     id: number;
     status: string;
+    is_archived?: boolean;
 }
 
 export interface RiskLookup {
     id: number;
     status: string;
+    is_archived?: boolean;
 }
 
 export interface ControlLookup {
     id: number;
     status: string;
+    is_archived?: boolean;
 }
 
 export interface KRILookup {
@@ -49,6 +52,26 @@ interface NotificationListResponse {
     items: NotificationLookup[];
     total: number;
     unread_count: number;
+}
+
+function matchesArchiveState(
+    item: { status: string; is_archived?: boolean },
+    desiredStatus: 'active' | 'archived',
+): boolean {
+    if (desiredStatus === 'archived') {
+        return item.is_archived === true;
+    }
+    return item.status === 'active' && item.is_archived !== true;
+}
+
+function matchesVendorStatus(
+    item: { status: string; is_archived?: boolean },
+    desiredStatus: 'active' | 'inactive',
+): boolean {
+    if (desiredStatus === 'inactive') {
+        return item.is_archived === true;
+    }
+    return item.status === 'active' && item.is_archived !== true;
 }
 
 export function getApiBaseUrl(): string {
@@ -161,9 +184,11 @@ export async function getVendorByRegistration(registrationId: string): Promise<V
     if (!response.ok) {
         throw new Error(`Failed to load vendors for ${registrationId}: ${response.status}`);
     }
-    const body = await response.json() as { items: Array<{ id: number; registration_id: string; status: string }> };
+    const body = await response.json() as {
+        items: Array<{ id: number; registration_id: string; status: string; is_archived?: boolean }>;
+    };
     const vendor = body.items.find((item) => item.registration_id === registrationId);
-    return vendor ? { id: vendor.id, status: vendor.status } : null;
+    return vendor ? { id: vendor.id, status: vendor.status, is_archived: vendor.is_archived } : null;
 }
 
 export async function ensureVendorStatus(registrationId: string, status: 'active' | 'inactive'): Promise<number> {
@@ -173,7 +198,7 @@ export async function ensureVendorStatus(registrationId: string, status: 'active
         throw new Error(`Vendor ${registrationId} not found`);
     }
 
-    if (vendor.status === status) {
+    if (matchesVendorStatus(vendor, status)) {
         return vendor.id;
     }
 
@@ -217,9 +242,11 @@ export async function getRiskByCode(code: string): Promise<RiskLookup | null> {
     if (!response.ok) {
         throw new Error(`Failed to load risks for ${code}: ${response.status}`);
     }
-    const body = await response.json() as { items: Array<{ id: number; risk_id_code: string; status: string }> };
+    const body = await response.json() as {
+        items: Array<{ id: number; risk_id_code: string; status: string; is_archived?: boolean }>;
+    };
     const risk = body.items.find((item) => item.risk_id_code === code);
-    return risk ? { id: risk.id, status: risk.status } : null;
+    return risk ? { id: risk.id, status: risk.status, is_archived: risk.is_archived } : null;
 }
 
 export async function ensureRiskStatus(code: string, status: 'active' | 'archived'): Promise<number> {
@@ -229,7 +256,7 @@ export async function ensureRiskStatus(code: string, status: 'active' | 'archive
         throw new Error(`Risk ${code} not found`);
     }
 
-    if (risk.status === status) {
+    if (matchesArchiveState(risk, status)) {
         return risk.id;
     }
 
@@ -261,8 +288,11 @@ export async function ensureRiskStatus(code: string, status: 'active' | 'archive
     if (!updated) {
         throw new Error(`Risk ${code} not found after status update`);
     }
-    if (updated.status !== status) {
-        throw new Error(`Risk ${code} expected status=${status} but got status=${updated.status}`);
+    if (!matchesArchiveState(updated, status)) {
+        throw new Error(
+            `Risk ${code} expected status=${status} but got status=${updated.status} ` +
+            `is_archived=${String(updated.is_archived)}`,
+        );
     }
 
     return risk.id;
@@ -282,9 +312,11 @@ export async function getControlByName(name: string): Promise<ControlLookup | nu
     if (!response.ok) {
         throw new Error(`Failed to load controls for ${name}: ${response.status}`);
     }
-    const body = await response.json() as { items: Array<{ id: number; name: string; status: string }> };
+    const body = await response.json() as {
+        items: Array<{ id: number; name: string; status: string; is_archived?: boolean }>;
+    };
     const control = body.items.find((item) => item.name === name);
-    return control ? { id: control.id, status: control.status } : null;
+    return control ? { id: control.id, status: control.status, is_archived: control.is_archived } : null;
 }
 
 export async function ensureControlStatus(name: string, status: 'active' | 'archived'): Promise<number> {
@@ -294,7 +326,7 @@ export async function ensureControlStatus(name: string, status: 'active' | 'arch
         throw new Error(`Control '${name}' not found`);
     }
 
-    if (control.status === status) {
+    if (matchesArchiveState(control, status)) {
         return control.id;
     }
 
@@ -326,8 +358,11 @@ export async function ensureControlStatus(name: string, status: 'active' | 'arch
     if (!updated) {
         throw new Error(`Control '${name}' not found after status update`);
     }
-    if (updated.status !== status) {
-        throw new Error(`Control '${name}' expected status=${status} but got status=${updated.status}`);
+    if (!matchesArchiveState(updated, status)) {
+        throw new Error(
+            `Control '${name}' expected status=${status} but got status=${updated.status} ` +
+            `is_archived=${String(updated.is_archived)}`,
+        );
     }
 
     return control.id;

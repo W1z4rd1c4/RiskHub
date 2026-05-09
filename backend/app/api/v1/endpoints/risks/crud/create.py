@@ -14,6 +14,7 @@ from app.db.session import get_db
 from app.models import KeyRiskIndicator, Risk, User
 from app.schemas.risk import RiskCreate, RiskRead
 from app.services.authorization_capabilities import risk_capabilities
+from app.services.transaction_boundary import commit_service_transaction
 
 from ..id_generation import generate_risk_id_code
 from ._shared import validate_risk_type
@@ -80,7 +81,7 @@ async def create_risk(
                 actor=current_user,
                 risk=risk,
             )
-            await db.commit()
+            await commit_service_transaction(db)
             await db.refresh(risk)
 
             # Reload with relationships

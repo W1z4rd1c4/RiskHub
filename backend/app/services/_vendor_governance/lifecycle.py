@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.activity_logger import log_activity
 from app.core.audit import vendor as audit_vendor
+from app.core.exceptions import NotFoundError
 from app.models import User, Vendor
-from app.schemas.vendor import VendorCreate, VendorRead, VendorStatusEnum, VendorUpdate
+from app.schemas.vendor import VendorCreate, VendorRead, VendorUpdate
 
 from .policy import (
     assert_vendor_archive_allowed,
@@ -48,7 +48,7 @@ async def create_vendor_detail(
 
     refreshed = await load_vendor_with_deps(db, vendor.id)
     if not refreshed:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
+        raise NotFoundError("Vendor not found")
     return serialize_vendor_detail(refreshed, current_user=current_user)
 
 
@@ -93,7 +93,7 @@ async def update_vendor_detail(
 
     refreshed = await load_vendor_with_deps(db, vendor.id)
     if not refreshed:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
+        raise NotFoundError("Vendor not found")
     return serialize_vendor_detail(refreshed, current_user=current_user)
 
 
@@ -105,7 +105,7 @@ async def archive_vendor_detail(
 ) -> None:
     vendor = await assert_vendor_archive_allowed(db, vendor_id=vendor_id, current_user=current_user)
     changes = audit_vendor.vendor_archive_changes(vendor)
-    vendor.status = "inactive"
+    vendor.mark_archived(current_user)
 
     await audit_vendor.vendor_archived(
         db,
@@ -125,7 +125,7 @@ async def restore_vendor_detail(
 ) -> VendorRead:
     vendor = await assert_vendor_restore_allowed(db, vendor_id=vendor_id, current_user=current_user)
     changes = audit_vendor.vendor_restore_changes(vendor)
-    vendor.status = VendorStatusEnum.active.value
+    vendor.mark_restored(current_user)
     await audit_vendor.vendor_restored(
         db,
         actor=current_user,
@@ -138,5 +138,5 @@ async def restore_vendor_detail(
 
     refreshed = await load_vendor_with_deps(db, vendor.id)
     if not refreshed:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
+        raise NotFoundError("Vendor not found")
     return serialize_vendor_detail(refreshed, current_user=current_user)

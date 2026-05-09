@@ -2,13 +2,13 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.activity_logger import log_activity
+from app.core.audit.issue import issue_linked, issue_unlinked
 from app.core.permissions import can_read_control_id, can_read_kri_id, can_read_risk_id
 from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import Control, ControlExecution, IssueLink, KeyRiskIndicator, Risk, User
-from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas.issue import IssueLinkCreate, IssueLinkRead
+from app.services.transaction_boundary import commit_service_transaction
 
 from ._shared import (
     _get_writable_issue_or_404,
@@ -111,18 +111,9 @@ async def add_issue_link(
     db.add(link)
     await db.flush()
 
-    await log_activity(
-        db,
-        entity_type=ActivityEntityType.ISSUE,
-        entity_id=issue.id,
-        entity_name=issue.title,
-        action=ActivityAction.LINK,
-        actor=current_user,
-        department_id=issue.department_id,
-        changes={"link_id": {"old": None, "new": link.id}},
-    )
+    await issue_linked(db, actor=current_user, issue=issue, link=link)
 
-    await db.commit()
+    await commit_service_transaction(db)
     await db.refresh(link)
     return _serialize_issue_link(link, current_user=current_user)
 
@@ -148,15 +139,6 @@ async def delete_issue_link(
         )
 
     await db.delete(link)
-    await log_activity(
-        db,
-        entity_type=ActivityEntityType.ISSUE,
-        entity_id=issue.id,
-        entity_name=issue.title,
-        action=ActivityAction.UNLINK,
-        actor=current_user,
-        department_id=issue.department_id,
-        changes={"link_id": {"old": link.id, "new": None}},
-    )
-    await db.commit()
+    await issue_unlinked(db, actor=current_user, issue=issue, link=link)
+    await commit_service_transaction(db)
     return None

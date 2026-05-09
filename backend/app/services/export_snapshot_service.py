@@ -131,7 +131,10 @@ class ExportSnapshotService:
 
     @staticmethod
     def _undo_archive_without_change_set(row: dict[str, Any], entity_type: ActivityEntityType) -> None:
-        if entity_type in (ActivityEntityType.RISK, ActivityEntityType.CONTROL):
+        if entity_type in (ActivityEntityType.RISK, ActivityEntityType.CONTROL, ActivityEntityType.VENDOR):
+            row["is_archived"] = False
+            row["archived_at"] = None
+            row["archived_by_id"] = None
             if row.get("status") in {"archived", "inactive"}:
                 row["status"] = "active"
             return
@@ -141,8 +144,3 @@ class ExportSnapshotService:
             row["archived_at"] = None
             row["archived_by_id"] = None
             row["status"] = "active"
-            return
-
-        if entity_type == ActivityEntityType.VENDOR:
-            if row.get("status") == "inactive":
-                row["status"] = "active"

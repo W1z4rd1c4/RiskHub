@@ -118,7 +118,8 @@ async def test_dora_register_excludes_inactive_vendors(
                 dora_relevant=True,
                 is_significant_vendor=False,
                 has_alternative_providers=False,
-                status="inactive",
+                status="active",
+                is_archived=True,
             ),
         ]
     )
@@ -187,7 +188,8 @@ async def test_vendor_reports_unfiltered_include_visible_cross_department_owner_
         dora_relevant=True,
         is_significant_vendor=True,
         has_alternative_providers=False,
-        status="inactive",
+        status="active",
+        is_archived=True,
     )
     db_session.add_all([visible_owned_other, unrelated_other, inactive_owned_other])
     await db_session.commit()

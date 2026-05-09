@@ -2,11 +2,12 @@ from datetime import datetime
 from typing import Any
 
 from app.api.mappers.risk import active_kris_for_risk
-from app.services._issue_register.serialization import _issue_source_link, _link_display
 from app.core.datetime_utils import coerce_utc
 from app.models import Control, Issue, KeyRiskIndicator, Risk, User, Vendor
 from app.models.issue import IssueStatus
+from app.services._issue_register.serialization import _issue_source_link, _link_display
 from app.services._monitoring_status import build_control_monitoring_facts
+from app.services._monitoring_status.kris import classify_kri_breach
 from app.services.issue_visibility_service import issue_has_active_approved_exception
 
 from .shared import _enum_value, _joined, _latest_exception
@@ -29,6 +30,7 @@ def _risk_to_row(risk: Risk) -> dict[str, Any]:
         "net_impact": risk.net_impact,
         "net_score": risk.net_score,
         "status": risk.status,
+        "is_archived": bool(risk.is_archived),
         "is_priority": bool(risk.is_priority),
         "owner_id": risk.owner_id,
         "owner_name": risk.owner.name if getattr(risk, "owner", None) else None,
@@ -49,6 +51,7 @@ def _control_to_row(control: Control) -> dict[str, Any]:
         "name": control.name,
         "description": control.description,
         "status": control.status,
+        "is_archived": bool(control.is_archived),
         "frequency": control.frequency,
         "control_form": control.control_form,
         "risk_level": control.risk_level,
@@ -87,7 +90,11 @@ def _kri_to_row(kri: KeyRiskIndicator) -> dict[str, Any]:
         "lower_limit": kri.lower_limit,
         "upper_limit": kri.upper_limit,
         "unit": kri.unit,
-        "breach_status": kri.breach_status,
+        "breach_status": classify_kri_breach(
+            current_value=kri.current_value,
+            lower_limit=kri.lower_limit,
+            upper_limit=kri.upper_limit,
+        ),
         "frequency": kri.frequency,
         "status": status,
         "is_archived": bool(kri.is_archived),
@@ -111,6 +118,7 @@ def _vendor_to_row(vendor: Vendor) -> dict[str, Any]:
         "subprocess": vendor.subprocess,
         "description": vendor.description,
         "status": vendor.status,
+        "is_archived": bool(vendor.is_archived),
         "department_id": vendor.department_id,
         "department_name": vendor.department.name if getattr(vendor, "department", None) else None,
         "outsourcing_owner_user_id": vendor.outsourcing_owner_user_id,

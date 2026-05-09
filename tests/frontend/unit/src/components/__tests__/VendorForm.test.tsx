@@ -110,6 +110,15 @@ describe('VendorForm', () => {
         expect(createVendorMock).not.toHaveBeenCalled();
     });
 
+    it('does not offer inactive as a vendor form status option', async () => {
+        render(<VendorForm onSaved={vi.fn()} onCancel={vi.fn()} />);
+
+        await waitFor(() => expect(getUsersMock).toHaveBeenCalled());
+
+        expect(screen.getByRole('option', { name: 'status.active' })).toBeInTheDocument();
+        expect(screen.queryByRole('option', { name: 'status.inactive' })).not.toBeInTheDocument();
+    });
+
     it('autofills the department from the selected owner and submits the mapped payload', async () => {
         const onSaved = vi.fn();
         render(<VendorForm onSaved={onSaved} onCancel={vi.fn()} />);

@@ -7,12 +7,13 @@ import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { apiClient } from '@/services/apiClient';
 import { reportApi } from '@/services/reportApi';
 import { vendorApi } from '@/services/vendorApi';
-import type { Vendor, VendorListParams, VendorStatus, VendorType } from '@/types/vendor';
+import type { Vendor, VendorListParams, VendorType } from '@/types/vendor';
 
 import {
     buildVendorExportFilters,
     buildVendorListParams,
     getVendorGroupBy,
+    type VendorListStatusFilter,
 } from './vendorsPagePresentation';
 import {
     getTotalPages,
@@ -25,7 +26,7 @@ import { resetCollectionGroupAndPage } from '../shared/collectionViewVocabulary'
 
 export function useVendorsPageState() {
     const [search, setSearch] = useState('');
-    const [statusFilter, setStatusFilter] = useState<VendorStatus | ''>('active');
+    const [statusFilter, setStatusFilter] = useState<VendorListStatusFilter>('active');
     const [typeFilter, setTypeFilter] = useState<VendorType | ''>('');
     const [currentPage, setCurrentPage] = useState(1);
     const [sortField, setSortField] = useState<VendorListParams['sort_by'] | null>(null);
@@ -140,7 +141,7 @@ export function useVendorsPageState() {
         resetGroupSelection();
     }, [resetGroupSelection]);
 
-    const updateStatusFilter = useCallback((value: VendorStatus | '') => {
+    const updateStatusFilter = useCallback((value: VendorListStatusFilter) => {
         setStatusFilter(value);
         resetGroupSelection();
     }, [resetGroupSelection]);

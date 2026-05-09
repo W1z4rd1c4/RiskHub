@@ -14,16 +14,15 @@ from app.schemas.vendor import (
     VendorCreate,
     VendorListResponse,
     VendorRead,
-    VendorStatusEnum,
     VendorTypeEnum,
     VendorUpdate,
 )
+from app.services._register_listings.vendors import list_vendor_governance
 from app.services._vendor_governance.lifecycle import (
     create_vendor_detail,
     read_vendor_detail,
     update_vendor_detail,
 )
-from app.services._vendor_governance.listing import list_vendor_governance
 from app.services._vendor_governance.projection import get_visible_vendor_risk_ids as _get_visible_risk_ids
 
 router = APIRouter()
@@ -37,7 +36,7 @@ async def list_vendors(
     skip: int | None = Query(None, ge=0),
     limit: int = Query(50, ge=1, le=100),
     search: Optional[str] = None,
-    status_filter: Optional[VendorStatusEnum] = Query(None, alias="status"),
+    status_filter: Optional[str] = Query(None, alias="status"),
     include_archived: bool = Query(False, description="Include archived vendors (inactive status)"),
     vendor_type: Optional[VendorTypeEnum] = None,
     dora_relevant: Optional[bool] = None,

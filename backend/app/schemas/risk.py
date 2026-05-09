@@ -1,9 +1,10 @@
-from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Optional
 
 from pydantic import BaseModel, Field, computed_field, field_validator
 
+from app.core.datetime_utils import UtcAwareDatetime
+from app.models.global_config import ConfigDefaults
 from app.schemas.collection import CollectionGroupRead
 from app.schemas.execution import ExecutionResultEnum
 from app.schemas.vendor_shared import LinkedVendorRead
@@ -27,7 +28,6 @@ class RiskStatusEnum(str, Enum):
 
     active = "active"
     emerging = "emerging"
-    archived = "archived"
 
 
 class ControlStatusEnum(str, Enum):
@@ -36,7 +36,6 @@ class ControlStatusEnum(str, Enum):
     draft = "draft"
     active = "active"
     inactive = "inactive"
-    archived = "archived"
 
 
 class ControlEffectivenessEnum(str, Enum):
@@ -157,14 +156,17 @@ class RiskRead(RiskBase):
     """Schema for reading a Risk with relationships and computed scores."""
 
     id: int
-    gross_score: int  # Computed: gross_probability × gross_impact
-    net_score: int  # Computed: net_probability × net_impact
+    gross_score: int = Field(..., ge=1, le=ConfigDefaults.MAX_NET_SCORE)  # gross_probability × gross_impact
+    net_score: int = Field(..., ge=1, le=ConfigDefaults.MAX_NET_SCORE)  # net_probability × net_impact
+    is_archived: bool = False
+    archived_at: Optional[UtcAwareDatetime] = None
+    archived_by_id: Optional[int] = None
     owner: Optional[UserBriefForRisk] = None
     department: Optional[DepartmentBriefForRisk] = None
     kris: list["KRIResponse"] = Field(default_factory=list)
     capabilities: RiskCapabilities | None = None
-    created_at: datetime
-    updated_at: datetime
+    created_at: UtcAwareDatetime
+    updated_at: UtcAwareDatetime
 
     model_config = {"from_attributes": True}
 
@@ -180,11 +182,12 @@ class RiskSummary(BaseModel):
     risk_type: str
     category: Optional[str] = None
     description: str
-    gross_score: int
+    gross_score: int = Field(..., ge=1, le=ConfigDefaults.MAX_NET_SCORE)
     gross_probability: int
     gross_impact: int
-    net_score: int
+    net_score: int = Field(..., ge=1, le=ConfigDefaults.MAX_NET_SCORE)
     status: RiskStatusEnum
+    is_archived: bool = False
     is_priority: bool
     department_id: Optional[int] = None
     department_name: Optional[str] = None
@@ -241,10 +244,11 @@ class ControlBriefForLink(BaseModel):
     frequency: str
     risk_level: int
     status: ControlStatusEnum
+    is_archived: bool
     monitoring_status: ControlMonitoringStatus
     monitoring_status_reason: ControlMonitoringReason
     latest_execution_result: Optional[ExecutionResultEnum] = None
-    latest_executed_at: Optional[datetime] = None
+    latest_executed_at: Optional[UtcAwareDatetime] = None
     days_since_last_execution: Optional[int] = None
     execution_log_count: int = 0
 
@@ -259,9 +263,10 @@ class RiskBriefForLink(BaseModel):
     name: str
     process: str
     description: str  # Used by ControlDetailPage and ExistingLinksPanel
-    gross_score: int
-    net_score: int
+    gross_score: int = Field(..., ge=1, le=ConfigDefaults.MAX_NET_SCORE)
+    net_score: int = Field(..., ge=1, le=ConfigDefaults.MAX_NET_SCORE)
     status: Optional[RiskStatusEnum] = None
+    is_archived: bool
 
     model_config = {"from_attributes": True}
 
@@ -276,6 +281,6 @@ class ControlRiskLinkRead(BaseModel):
     notes: Optional[str] = None
     control: Optional[ControlBriefForLink] = None
     risk: Optional[RiskBriefForLink] = None
-    created_at: datetime
+    created_at: UtcAwareDatetime
 
     model_config = {"from_attributes": True}

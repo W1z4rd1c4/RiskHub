@@ -1,7 +1,8 @@
 import { AlertCircle, Shield, ShieldAlert, Target, TrendingDown, Users } from 'lucide-react';
 
 import { useTranslation } from '@/i18n/hooks';
-import { HIGH_RISK_MIN_NET_SCORE, type TabView } from '@/hooks/useDepartmentDetail';
+import type { TabView } from '@/hooks/useDepartmentDetail';
+import { useRiskThresholds } from '@/hooks/useRiskHubConfig';
 import type { KRIMonitoringStatus } from '@/types/kri';
 import type { DepartmentDetail } from '@/services/departmentApi';
 
@@ -31,8 +32,9 @@ export function DepartmentStatsGrid({
     onSelectUsers,
 }: DepartmentStatsGridProps) {
     const { t } = useTranslation(['common', 'dashboard']);
+    const { thresholds } = useRiskThresholds();
     const breachCount = department.kri_monitoring_counts?.breach ?? 0;
-    const highRiskCount = department.risk_distribution.critical + department.risk_distribution.high;
+    const highRiskCount = department.high_risk_count;
 
     return (
         <div className="grid grid-cols-6 gap-4">
@@ -108,7 +110,7 @@ export function DepartmentStatsGrid({
                 className={`glass-card cursor-pointer text-left hover:bg-white/5 transition-all group ${
                     activeTab === 'risks' && riskFilter === 'high' ? 'border-rose-500/50 bg-rose-500/5' : ''
                 }`}
-                title={`Net score >= ${HIGH_RISK_MIN_NET_SCORE}`}
+                title={`Net score >= ${thresholds.high}`}
             >
                 <div className="flex items-center gap-3 mb-2">
                     <AlertCircle className="h-5 w-5 text-rose-400 group-hover:scale-110 transition-transform" />

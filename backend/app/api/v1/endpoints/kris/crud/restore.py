@@ -4,15 +4,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
 from app.api.v1.endpoints._monitoring_response import load_monitoring_response_context, serialize_kri_response
-from app.core.activity_logger import build_change_set, log_activity
+from app.core.audit.kri import kri_restored
 from app.core.datetime_utils import utc_now
 from app.core.permissions import check_department_access
 from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import KeyRiskIndicator, Risk, User, VendorKRILink
-from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas.kri import KRIResponse
 from app.services.authorization_capabilities import kri_capabilities
+from app.services.transaction_boundary import commit_service_transaction
 
 from ..linked_vendors import visible_linked_vendors
 
@@ -47,29 +47,20 @@ async def restore_kri(
     if not kri.is_archived:
         raise HTTPException(status_code=400, detail="KRI is not archived")
 
-    changes = build_change_set(
-        kri,
-        {"is_archived": False, "archived_at": None, "archived_by_id": None},
-    )
-    kri.is_archived = False
-    kri.archived_at = None
-    kri.archived_by_id = None
+    before_data = {
+        "is_archived": kri.is_archived,
+        "archived_at": kri.archived_at,
+        "archived_by_id": kri.archived_by_id,
+    }
+    kri.mark_restored(current_user)
+    after_data = {
+        "is_archived": kri.is_archived,
+        "archived_at": kri.archived_at,
+        "archived_by_id": kri.archived_by_id,
+    }
 
-    await log_activity(
-        db,
-        entity_type=ActivityEntityType.KRI,
-        entity_id=kri.id,
-        entity_name=f"{kri.metric_name}",
-        safe_entity_label=kri.metric_name,
-        safe_description="Restored KRI",
-        safe_description_siem="Restored KRI",
-        action=ActivityAction.UPDATE,
-        actor=current_user,
-        department_id=kri.risk.department_id,
-        changes=changes,
-        description=f"Restored KRI {kri.metric_name}",
-    )
-    await db.commit()
+    await kri_restored(db, actor=current_user, kri=kri, before_data=before_data, after_data=after_data)
+    await commit_service_transaction(db)
     await db.refresh(kri)
 
     result = await db.execute(

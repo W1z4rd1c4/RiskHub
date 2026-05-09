@@ -1,9 +1,10 @@
 """Pydantic schemas for notification API endpoints."""
 
-from datetime import datetime
 from enum import Enum
 
 from pydantic import BaseModel, Field
+
+from app.core.datetime_utils import UtcAwareDatetime
 
 
 class NotificationTypeEnum(str, Enum):
@@ -43,7 +44,7 @@ class NotificationCreate(NotificationBase):
 
     user_id: int
     type: NotificationTypeEnum
-    expires_at: datetime | None = None
+    expires_at: UtcAwareDatetime | None = None
 
 
 class NotificationRead(NotificationBase):
@@ -52,8 +53,8 @@ class NotificationRead(NotificationBase):
     id: int
     type: NotificationTypeEnum
     is_read: bool
-    created_at: datetime
-    expires_at: datetime | None = None
+    created_at: UtcAwareDatetime
+    expires_at: UtcAwareDatetime | None = None
 
     model_config = {"from_attributes": True}
 

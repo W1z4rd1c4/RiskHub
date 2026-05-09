@@ -1,7 +1,8 @@
-from datetime import datetime
 from typing import Optional
 
 from pydantic import BaseModel, Field
+
+from app.core.datetime_utils import UtcAwareDatetime
 
 
 class DepartmentBase(BaseModel):
@@ -16,8 +17,8 @@ class DepartmentRead(DepartmentBase):
     """Schema for reading a Department."""
 
     id: int
-    created_at: datetime
-    updated_at: datetime
+    created_at: UtcAwareDatetime
+    updated_at: UtcAwareDatetime
 
     model_config = {"from_attributes": True}
 
@@ -65,7 +66,7 @@ class RecentExecution(BaseModel):
     control_id: int
     control_name: str
     result: str
-    executed_at: datetime
+    executed_at: UtcAwareDatetime
     executed_by: str
 
     model_config = {"from_attributes": True}
@@ -75,12 +76,13 @@ class DepartmentDetail(DepartmentBase):
     """Detailed schema for department detail view."""
 
     id: int
-    created_at: datetime
-    updated_at: datetime
+    created_at: UtcAwareDatetime
+    updated_at: UtcAwareDatetime
 
     # Counts
     user_count: int
     risk_count: int
+    high_risk_count: int
     control_count: int
     kri_count: int = 0
     kri_monitoring_counts: dict[str, int] = Field(default_factory=dict)

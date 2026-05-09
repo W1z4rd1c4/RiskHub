@@ -2,10 +2,11 @@ from datetime import datetime
 from enum import Enum as PyEnum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+from app.models._archivable import ArchivableMixin
 
 if TYPE_CHECKING:
     from app.models.control import Control
@@ -27,12 +28,10 @@ class RiskStatus(str, PyEnum):
 
     - active: Current identified risks under management (shown in dashboards)
     - emerging: Market/country risks being monitored (excluded from dashboards)
-    - archived: Soft-deleted risks (approved deletion)
     """
 
     active = "active"
     emerging = "emerging"
-    archived = "archived"
 
 
 class ControlEffectiveness(str, PyEnum):
@@ -43,7 +42,7 @@ class ControlEffectiveness(str, PyEnum):
     low = "low"
 
 
-class Risk(Base):
+class Risk(ArchivableMixin, Base):
     """
     Risk model based on OS 18 Řízení rizik - Registr rizik structure.
 
@@ -127,6 +126,9 @@ class ControlRiskLink(Base):
     """
 
     __tablename__ = "control_risk_links"
+    __table_args__ = (
+        UniqueConstraint("control_id", "risk_id", name="ux_control_risk_links_control_risk"),
+    )
 
     # Primary key
     id: Mapped[int] = mapped_column(primary_key=True)

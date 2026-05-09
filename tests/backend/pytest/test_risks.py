@@ -5,7 +5,7 @@ Tests for Risk API endpoints.
 import pytest
 from httpx import AsyncClient
 
-from app.models import Department, KeyRiskIndicator, Risk, User
+from app.models import Control, ControlRiskLink, Department, KeyRiskIndicator, Risk, User
 
 
 @pytest.mark.asyncio
@@ -97,6 +97,50 @@ async def test_list_risks(auth_client: AsyncClient, test_user: User, test_depart
     assert by_code["R-102-NOSUB"]["subprocess"] is None
     assert by_code["R-102"]["capabilities"]["can_read"] is True
     assert by_code["R-102"]["capabilities"]["can_link_controls"] is True
+
+
+@pytest.mark.asyncio
+async def test_employee_listing_other_department_risks_returns_filtered_200(
+    client_employee: AsyncClient,
+    db_session,
+    test_user_employee: User,
+    seed_risk_types,
+):
+    """Explicit department filters are strict for department-scoped users."""
+    other_department = Department(name="Other Risk Dept", code="OTHER-RISK", description="Foreign department")
+    db_session.add(other_department)
+    await db_session.commit()
+    await db_session.refresh(other_department)
+
+    cross_department_owned_risk = Risk(
+        risk_id_code="R-CROSS-DEPT-OWNED",
+        name="Cross Department Owned Risk",
+        process="Cross Department Visibility",
+        description="Owned by the employee but outside the employee department",
+        department_id=other_department.id,
+        owner_id=test_user_employee.id,
+        risk_type="operational",
+        category="Operations",
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=2,
+        status="active",
+    )
+    db_session.add(cross_department_owned_risk)
+    await db_session.commit()
+
+    broad_response = await client_employee.get("/api/v1/risks")
+    assert broad_response.status_code == 200
+    broad_items = broad_response.json()["items"]
+    assert {item["risk_id_code"] for item in broad_items} == {"R-CROSS-DEPT-OWNED"}
+
+    response = await client_employee.get("/api/v1/risks", params={"department_id": other_department.id})
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total"] == 0
+    assert data["items"] == []
 
 
 @pytest.mark.asyncio
@@ -192,6 +236,54 @@ async def test_risk_detail_omits_archived_kris(
 
 
 @pytest.mark.asyncio
+async def test_risk_linked_control_payload_includes_archive_state(
+    auth_client: AsyncClient,
+    db_session,
+    test_user: User,
+    test_department: Department,
+    seed_risk_types,
+):
+    """Linked control payloads must carry archive truth separately from lifecycle status."""
+    risk = Risk(
+        risk_id_code="R-LINK-ARCH-CONTROL",
+        name="Risk Linked Archived Control",
+        process="Archive payload",
+        description="Risk with archived linked control",
+        department_id=test_department.id,
+        owner_id=test_user.id,
+        risk_type="operational",
+        category="Operational",
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=2,
+        status="active",
+    )
+    archived_control = Control(
+        name="Archived linked control",
+        description="Archived linked control normalized to active lifecycle status",
+        department_id=test_department.id,
+        control_owner_id=test_user.id,
+        control_form="manual",
+        frequency="monthly",
+        risk_level=3,
+        status="active",
+        is_archived=True,
+    )
+    db_session.add_all([risk, archived_control])
+    await db_session.flush()
+    db_session.add(ControlRiskLink(control_id=archived_control.id, risk_id=risk.id, effectiveness="medium"))
+    await db_session.commit()
+
+    response = await auth_client.get(f"/api/v1/risks/{risk.id}/controls")
+
+    assert response.status_code == 200
+    link = next(item for item in response.json() if item["control_id"] == archived_control.id)
+    assert link["control"]["status"] == "active"
+    assert link["control"]["is_archived"] is True
+
+
+@pytest.mark.asyncio
 async def test_update_risk(auth_client: AsyncClient, test_user: User, test_department: Department, seed_risk_types):
     """Test updating a risk."""
     # Create a risk first
@@ -265,6 +357,69 @@ async def test_filter_risks_by_status(
     assert len(data) >= 1
     for risk in data:
         assert risk["status"] == "active"
+
+
+@pytest.mark.asyncio
+async def test_risk_status_filter_excludes_archived_normalized_risks(
+    auth_client: AsyncClient,
+    db_session,
+    test_user: User,
+    test_department: Department,
+    seed_risk_types,
+):
+    """Lifecycle status filters should still exclude soft-archived risks."""
+    live_risk = Risk(
+        risk_id_code="R-ACTIVE-ARCHIVE-FILTER",
+        name="Active Status Filter Risk",
+        process="Archive Filter",
+        description="Live risk for active-status archive filtering",
+        department_id=test_department.id,
+        owner_id=test_user.id,
+        risk_type="operational",
+        category="Test",
+        gross_probability=2,
+        gross_impact=2,
+        gross_score=4,
+        net_probability=1,
+        net_impact=1,
+        net_score=1,
+        status="active",
+        is_archived=False,
+    )
+    archived_risk = Risk(
+        risk_id_code="R-ARCHIVED-NORMALIZED-FILTER",
+        name="Archived Normalized Risk",
+        process="Archive Filter",
+        description="Archived risk normalized back to active lifecycle status",
+        department_id=test_department.id,
+        owner_id=test_user.id,
+        risk_type="operational",
+        category="Test",
+        gross_probability=2,
+        gross_impact=3,
+        gross_score=6,
+        net_probability=1,
+        net_impact=2,
+        net_score=2,
+        status="active",
+        is_archived=True,
+    )
+    db_session.add_all([live_risk, archived_risk])
+    await db_session.commit()
+    await db_session.refresh(live_risk)
+    await db_session.refresh(archived_risk)
+
+    active_response = await auth_client.get("/api/v1/risks?status=active")
+    assert active_response.status_code == 200
+    active_ids = {item["id"] for item in active_response.json()["items"]}
+    assert live_risk.id in active_ids
+    assert archived_risk.id not in active_ids
+
+    archived_response = await auth_client.get("/api/v1/risks?status=archived")
+    assert archived_response.status_code == 200
+    archived_ids = {item["id"] for item in archived_response.json()["items"]}
+    assert archived_risk.id in archived_ids
+    assert live_risk.id not in archived_ids
 
 
 @pytest.mark.asyncio

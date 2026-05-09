@@ -5,10 +5,14 @@ from datetime import datetime
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.activity_logger import build_change_set, log_activity
+from app.core.activity_logger import build_change_set
+from app.core.audit.issue import (
+    issue_remediation_status_changed,
+    issue_remediation_updated,
+    issue_status_changed,
+)
 from app.core.datetime_utils import coerce_utc, utc_now
 from app.models import Issue, User
-from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.models.issue import IssueRemediationStatus, IssueStatus
 
 from .transitions import (
@@ -51,25 +55,18 @@ async def start_remediation(
     db.add(issue)
     db.add(remediation)
 
-    await log_activity(
+    await issue_status_changed(
         db,
-        entity_type=ActivityEntityType.ISSUE,
-        entity_id=issue.id,
-        entity_name=issue.title,
-        action=ActivityAction.STATUS_CHANGE,
         actor=actor,
-        department_id=issue.department_id,
+        issue=issue,
         changes=issue_changes,
         description=f"Started remediation for issue {issue.title}",
     )
-    await log_activity(
+    await issue_remediation_status_changed(
         db,
-        entity_type=ActivityEntityType.ISSUE_REMEDIATION,
-        entity_id=remediation.id or issue.id,
-        entity_name=f"Remediation for {issue.title}",
-        action=ActivityAction.STATUS_CHANGE,
         actor=actor,
-        department_id=issue.department_id,
+        issue=issue,
+        plan=remediation,
         changes=remediation_changes,
     )
     return issue
@@ -153,26 +150,14 @@ async def update_progress(
     db.add(issue)
     db.add(remediation)
 
-    await log_activity(
+    await issue_remediation_updated(
         db,
-        entity_type=ActivityEntityType.ISSUE_REMEDIATION,
-        entity_id=remediation.id or issue.id,
-        entity_name=f"Remediation for {issue.title}",
-        action=ActivityAction.UPDATE,
         actor=actor,
-        department_id=issue.department_id,
+        issue=issue,
+        plan=remediation,
         changes=remediation_changes,
         description=f"Updated remediation progress for issue {issue.title}",
     )
     if issue_changes:
-        await log_activity(
-            db,
-            entity_type=ActivityEntityType.ISSUE,
-            entity_id=issue.id,
-            entity_name=issue.title,
-            action=ActivityAction.STATUS_CHANGE,
-            actor=actor,
-            department_id=issue.department_id,
-            changes=issue_changes,
-        )
+        await issue_status_changed(db, actor=actor, issue=issue, changes=issue_changes)
     return issue

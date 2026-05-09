@@ -4,6 +4,8 @@ import { cn } from '@/lib/utils';
 import type { RiskDistributionItem } from '../../types/dashboard';
 import { useTranslation } from '@/i18n/hooks';
 import { useStatusTheme } from '@/hooks/useStatusTheme';
+import { useRiskThresholds } from '@/hooks/useRiskHubConfig';
+import { classifyRiskScore } from '@/lib/riskScoreTheme';
 
 interface RiskDistributionMatrixProps {
     distribution: RiskDistributionItem[];
@@ -18,6 +20,7 @@ interface RiskDistributionMatrixProps {
 export function RiskDistributionMatrix({ distribution, onCellClick }: RiskDistributionMatrixProps) {
     const { t } = useTranslation('dashboard');
     const statusTheme = useStatusTheme();
+    const { thresholds } = useRiskThresholds();
 
     const getCountForCell = (p: number, i: number) => {
         const item = distribution.find(d => d.probability === p && d.impact === i);
@@ -30,10 +33,7 @@ export function RiskDistributionMatrix({ distribution, onCellClick }: RiskDistri
         if (count === 0) {
             return `${statusTheme.matrix.emptyCell} opacity-20`;
         }
-        if (score >= 16) return statusTheme.matrix.critical;
-        if (score >= 10) return statusTheme.matrix.high;
-        if (score >= 5) return statusTheme.matrix.medium;
-        return statusTheme.matrix.low;
+        return statusTheme.matrix[classifyRiskScore(score, thresholds)];
     };
 
     const handleCellClick = (p: number, i: number) => {

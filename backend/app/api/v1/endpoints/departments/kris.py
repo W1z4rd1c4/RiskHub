@@ -14,7 +14,6 @@ from app.core.pagination import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
 from app.core.security import check_permission, require_permission
 from app.db.session import get_db
 from app.models import KeyRiskIndicator, Risk, User
-from app.models.risk import RiskStatus
 from app.schemas.kri import KRIListResponse
 from app.services._monitoring_status import KRIMonitoringStatus, apply_kri_monitoring_status_filter
 
@@ -52,7 +51,7 @@ async def list_department_kris(
         .where(
             and_(
                 Risk.department_id == department_id,
-                Risk.status != RiskStatus.archived.value,
+                Risk.live(),
                 KeyRiskIndicator.is_archived.is_(False),
             )
         )

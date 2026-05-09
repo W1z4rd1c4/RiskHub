@@ -28,7 +28,10 @@ logger = get_logger("auth.sso")
 
 
 def _sso_failure_response(failure, *, settings: Settings, clear_challenge_cookie: bool = False) -> JSONResponse:
-    response = JSONResponse(status_code=int(failure.status_code), content={"detail": failure.detail, "code": failure.code})
+    response = JSONResponse(
+        status_code=int(failure.status_code),
+        content={"detail": failure.detail, "code": failure.code},
+    )
     if clear_challenge_cookie:
         clear_sso_challenge_cookie(response, settings)
     return response

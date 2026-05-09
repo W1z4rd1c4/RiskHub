@@ -3,18 +3,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Literal, TypeAlias, cast
 
-from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.exceptions import AuthorizationError, ConflictError, NotFoundError, ValidationError
 from app.core.permissions import can_read_vendor, is_vendor_owner
 from app.models import User, Vendor, VendorControlLink, VendorKRILink, VendorRiskLink
 from app.services._authorization_capabilities import has_capability, require_capability
-from app.services._monitoring_response import (
-    load_monitoring_response_context,
-    serialize_control_brief_for_link,
-    serialize_kri_response,
-)
 
 VendorLink: TypeAlias = VendorRiskLink | VendorControlLink | VendorKRILink
 VendorLinkModel: TypeAlias = type[VendorRiskLink] | type[VendorControlLink] | type[VendorKRILink]
@@ -54,15 +49,15 @@ async def require_vendor_access(
 
     vendor = await get_vendor(db, vendor_id)
     if not vendor or not can_read_vendor(vendor, current_user):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
+        raise NotFoundError("Vendor not found")
 
     if require_write and not (
         has_capability(current_user, "vendors", "write") or is_vendor_owner(vendor, current_user)
     ):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied: vendors:write")
+        raise AuthorizationError("Permission denied: vendors:write")
 
-    if require_write and vendor.status != "active":
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Cannot mutate links for inactive vendor")
+    if require_write and vendor.is_archived:
+        raise ConflictError("Cannot mutate links for archived vendor")
 
     return vendor
 
@@ -91,7 +86,7 @@ async def ensure_link_absent(
     entity_id: int,
 ) -> None:
     if await get_existing_link(db, link_model, vendor_id, entity_field, entity_id):
-        raise HTTPException(status_code=400, detail="Link already exists")
+        raise ValidationError("Link already exists")
 
 
 async def create_vendor_link(
@@ -103,7 +98,7 @@ async def create_vendor_link(
 ) -> dict[str, str]:
     await ensure_link_absent(db, link_model, vendor_id, entity_field, entity_id)
     db.add(cast(Any, link_model)(vendor_id=vendor_id, **{entity_field: entity_id}))
-    await db.commit()
+    await db.flush()
     return {"status": "linked"}
 
 
@@ -116,7 +111,7 @@ async def delete_vendor_link(
 ) -> None:
     link = await get_existing_link(db, link_model, vendor_id, entity_field, entity_id)
     if not link:
-        raise HTTPException(status_code=404, detail="Link not found")
+        raise NotFoundError("Link not found")
 
     await db.delete(link)
-    await db.commit()
+    await db.flush()

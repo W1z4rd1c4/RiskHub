@@ -7,6 +7,7 @@ export interface KRIVendorOption {
     id: number;
     name: string;
     status?: string | null;
+    is_archived?: boolean;
 }
 
 interface KRIVendorSelectorProps {
@@ -127,7 +128,7 @@ export function KRIVendorSelector({
                                         </span>
                                     </div>
                                     <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-slate-600">
-                                        {vendor.status === 'inactive'
+                                        {vendor.is_archived
                                             ? t('vendors:status.inactive')
                                             : t('vendors:status.active')}
                                     </p>

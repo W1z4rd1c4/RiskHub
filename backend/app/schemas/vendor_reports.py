@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Optional
 
 from pydantic import BaseModel
+
+from app.core.datetime_utils import UtcAwareDatetime
 
 
 class VendorAnnualReportVendorRow(BaseModel):
@@ -35,7 +36,7 @@ class VendorAnnualReportProcessEvaluation(BaseModel):
 
 class VendorAnnualReportData(BaseModel):
     year: int
-    generated_at: datetime
+    generated_at: UtcAwareDatetime
     vendors: list[VendorAnnualReportVendorRow]
     process_evaluation: VendorAnnualReportProcessEvaluation
 

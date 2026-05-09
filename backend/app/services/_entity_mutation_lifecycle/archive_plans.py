@@ -1,21 +1,23 @@
 from __future__ import annotations
 
-from fastapi import HTTPException, status
+from fastapi import status
 from fastapi.responses import Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
-from app.core.activity_logger import log_activity
-from app.core.audit.risk import risk_archived
 from app.core.approval_helpers import (
     build_approval_queued_response,
     create_approval_request_with_audit,
     get_control_delete_approval_metadata,
-    get_risk_delete_approval_metadata,
     get_primary_approver_for_risk,
+    get_risk_delete_approval_metadata,
 )
+from app.core.audit.control import control_archived
+from app.core.audit.kri import kri_archived
+from app.core.audit.risk import risk_archived
 from app.core.datetime_utils import utc_now
+from app.core.exceptions import NotFoundError
 from app.core.permissions import can_resolve_approvals, check_department_access
 from app.models import (
     ApprovalActionType,
@@ -27,9 +29,6 @@ from app.models import (
     Risk,
     User,
 )
-from app.models.activity_log import ActivityAction, ActivityEntityType
-from app.schemas.control import ControlStatusEnum
-from app.schemas.risk import RiskStatusEnum
 from app.services._authorization_capabilities import require_capability
 from app.services._entity_mutation_lifecycle.contracts import EntityMutationOutcome
 from app.services._entity_mutation_lifecycle.policy import assert_no_existing_pending_delete_request
@@ -46,7 +45,7 @@ async def assert_can_request_delete_risk(
 
     risk = (await db.execute(select(Risk).where(Risk.id == risk_id))).scalar_one_or_none()
     if risk is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Risk not found")
+        raise NotFoundError("Risk not found")
 
     if risk.owner_id != current_user.id:
         check_department_access(risk.department_id, current_user)
@@ -64,7 +63,7 @@ async def assert_can_request_delete_control(
 
     control = (await db.execute(select(Control).where(Control.id == control_id))).scalar_one_or_none()
     if control is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Control not found")
+        raise NotFoundError("Control not found")
 
     check_department_access(control.department_id, current_user)
     return control
@@ -87,7 +86,7 @@ async def assert_can_request_delete_kri(
         )
     ).scalar_one_or_none()
     if kri is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="KRI not found")
+        raise NotFoundError("KRI not found")
 
     check_department_access(kri.risk.department_id, current_user)
     return kri
@@ -109,14 +108,18 @@ async def archive_risk_detail(
     )
 
     if can_resolve_approvals(current_user) or not scenario_policy.requires_approval:
-        risk.status = RiskStatusEnum.archived.value
-        await risk_archived(
-            db,
-            actor=current_user,
-            risk=risk,
-            log_activity_func=log_activity,
-        )
-        await db.commit()
+        try:
+            risk.mark_archived(current_user)
+            await risk_archived(
+                db,
+                actor=current_user,
+                risk=risk,
+            )
+            await db.commit()
+        except Exception:
+            # Deliberately broad: audit hooks can fail before commit; rollback keeps this request session reusable.
+            await db.rollback()
+            raise
         return EntityMutationOutcome(kind="applied", response=Response(status_code=status.HTTP_204_NO_CONTENT))
 
     await assert_no_existing_pending_delete_request(
@@ -181,18 +184,15 @@ async def archive_control_detail(
     )
 
     if can_resolve_approvals(current_user) or not scenario_policy.requires_approval:
-        control.status = ControlStatusEnum.archived.value
-        control.updated_by_id = current_user.id
-        await log_activity(
-            db,
-            entity_type=ActivityEntityType.CONTROL,
-            entity_id=control.id,
-            entity_name=f"{control.name}",
-            action=ActivityAction.ARCHIVE,
-            actor=current_user,
-            department_id=control.department_id,
-        )
-        await db.commit()
+        try:
+            control.mark_archived(current_user)
+            control.updated_by_id = current_user.id
+            await control_archived(db, actor=current_user, control=control)
+            await db.commit()
+        except Exception:
+            # Deliberately broad: audit hooks can fail before commit; rollback keeps this request session reusable.
+            await db.rollback()
+            raise
         return EntityMutationOutcome(kind="applied", response=Response(status_code=status.HTTP_204_NO_CONTENT))
 
     await assert_no_existing_pending_delete_request(
@@ -253,21 +253,16 @@ async def archive_kri_detail(
     )
 
     if can_resolve_approvals(current_user) or not scenario_policy.requires_approval:
-        kri.is_archived = True
-        kri.archived_at = utc_now()
-        kri.archived_by_id = current_user.id
-        await log_activity(
-            db,
-            entity_type=ActivityEntityType.KRI,
-            entity_id=kri.id,
-            entity_name=f"{kri.metric_name}",
-            safe_entity_label=kri.metric_name,
-            action=ActivityAction.ARCHIVE,
-            actor=current_user,
-            department_id=kri.risk.department_id,
-        )
-        await db.commit()
-        return EntityMutationOutcome(kind="applied", response=Response(status_code=204))
+        try:
+            now = utc_now()
+            kri.mark_archived(current_user, when=now)
+            await kri_archived(db, actor=current_user, kri=kri)
+            await db.commit()
+        except Exception:
+            # Deliberately broad: audit hooks can fail before commit; rollback keeps this request session reusable.
+            await db.rollback()
+            raise
+        return EntityMutationOutcome(kind="applied", response=Response(status_code=status.HTTP_204_NO_CONTENT))
 
     await assert_no_existing_pending_delete_request(
         db,

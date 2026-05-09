@@ -1,15 +1,16 @@
 from __future__ import annotations
 
-from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.approval_helpers import (
     build_approval_queued_response,
     create_approval_request_with_audit,
+    get_kri_edit_approval_metadata,
     get_primary_approver_for_risk,
 )
 from app.core.datetime_utils import utc_now
+from app.core.exceptions import ValidationError
 from app.models import (
     ApprovalActionType,
     ApprovalRequest,
@@ -38,7 +39,7 @@ async def create_kri_submission_approval(
     latest_closed_end = latest_closed_period_end(kri)
 
     if data.period_end and data.period_end != latest_closed_end:
-        raise HTTPException(status_code=400, detail="Non-privileged users cannot specify custom period_end")
+        raise ValidationError("Non-privileged users cannot specify custom period_end")
 
     existing_history = await db.scalar(
         select(KRIValueHistory.id)
@@ -60,7 +61,7 @@ async def create_kri_submission_approval(
         )
     )
     if existing.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="A value submission request is already pending for this KRI")
+        raise ValidationError("A value submission request is already pending for this KRI")
 
     scenario_policy = await load_approval_scenario_policy(
         db,
@@ -76,13 +77,19 @@ async def create_kri_submission_approval(
             is_privileged_submission=False,
         )
 
-    primary_approver_id = await get_primary_approver_for_risk(db, kri.risk_id, requester_id=current_user.id)
-    requires_privileged = bool(kri.risk and kri.risk.is_priority)
+    primary_approver_id, requires_privileged = await get_kri_edit_approval_metadata(
+        db,
+        kri=kri,
+        requester_id=current_user.id,
+    )
     recorded_at = utc_now().isoformat()
     pending_changes = {
         "current_value": {"old": kri.current_value, "new": data.value},
-        "period_end": latest_closed_end.isoformat(),
-        "recorded_at": recorded_at,
+        "period_end": {
+            "old": kri.last_period_end.isoformat() if kri.last_period_end is not None else None,
+            "new": latest_closed_end.isoformat(),
+        },
+        "recorded_at": {"old": None, "new": recorded_at},
     }
 
     approval = ApprovalRequest(
@@ -108,7 +115,7 @@ async def create_kri_submission_approval(
 
     return build_approval_queued_response(
         message="Value submission requires approval"
-        + (" (priority risk - privileged approval also required)" if requires_privileged else ""),
+        + (" (privileged approval also required)" if requires_privileged else ""),
         approval_id=approval.id,
         action_type="edit",
         pending_fields=list(pending_changes.keys()),
@@ -136,7 +143,7 @@ async def create_kri_history_correction_approval(
         )
     )
     if existing.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="Edit request already pending for this KRI")
+        raise ValidationError("Edit request already pending for this KRI")
 
     primary_approver_id = await get_primary_approver_for_risk(db, kri.risk_id, requester_id=current_user.id)
     scenario_policy = await load_approval_scenario_policy(

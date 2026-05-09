@@ -24,8 +24,9 @@ describe('link management helpers', () => {
             'risk-to-control',
             {
                 id: 99,
+                is_archived: true,
                 name: 'Archived control',
-                status: 'archived',
+                status: 'active',
                 capabilities: { can_restore: false },
             },
             t,

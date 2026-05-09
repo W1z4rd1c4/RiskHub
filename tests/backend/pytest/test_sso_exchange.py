@@ -4,7 +4,7 @@ from datetime import timedelta
 
 import pytest
 import pytest_asyncio
-from httpx import ASGITransport, AsyncClient
+from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -13,7 +13,6 @@ from app.core.config import Settings, get_settings
 from app.core.datetime_utils import utc_now
 from app.core.policy import SAFE_DIRECTORY_DEFAULT_ROLE_CANDIDATES
 from app.core.tokens import get_sso_challenge_cookie_name
-from app.db.session import get_db
 from app.main import app
 from app.models import Role, User
 from app.services.sso_token_service import VerifiedIdentity
@@ -46,21 +45,9 @@ async def _start_sso_challenge(client: AsyncClient, *, return_to: str = "/") -> 
 
 
 @pytest_asyncio.fixture(scope="function")
-async def sso_client(db_session: AsyncSession) -> AsyncClient:
-    async def override_get_db():
-        yield db_session
-
-    def override_settings():
-        return _sso_settings()
-
-    app.dependency_overrides[get_db] = override_get_db
-    app.dependency_overrides[get_settings] = override_settings
-
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+async def sso_client(client_factory) -> AsyncClient:
+    async with client_factory(settings=_sso_settings) as ac:
         yield ac
-
-    app.dependency_overrides.clear()
 
 
 @pytest.mark.asyncio

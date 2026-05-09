@@ -1,15 +1,15 @@
-from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.exceptions import NotFoundError
 from app.models import ApprovalRequest, ApprovalResourceType, Control, KeyRiskIndicator, Risk
 
 
 async def load_approval(db: AsyncSession, approval_id: int) -> ApprovalRequest:
     """Load an approval with required relationships.
 
-    Raises HTTPException 404 if not found.
+    Raises NotFoundError if not found.
     """
     result = await db.execute(
         select(ApprovalRequest)
@@ -24,7 +24,7 @@ async def load_approval(db: AsyncSession, approval_id: int) -> ApprovalRequest:
     )
     approval = result.scalar_one_or_none()
     if not approval:
-        raise HTTPException(status_code=404, detail="Approval request not found")
+        raise NotFoundError("Approval request not found")
     return approval
 
 

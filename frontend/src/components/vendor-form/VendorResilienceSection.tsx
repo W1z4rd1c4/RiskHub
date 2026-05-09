@@ -43,12 +43,9 @@ export function VendorResilienceSection({ formData, onChange }: VendorResilience
                 <div className="vendor-field">
                     <label className="vendor-label">{t('form.status')}</label>
                     <ThemedSelect
-                        value={(formData.status || 'active') as string}
-                        onValueChange={(value) => onChange('status', value)}
-                        options={[
-                            { value: 'active', label: t('status.active') },
-                            { value: 'inactive', label: t('status.inactive') },
-                        ]}
+                        value="active"
+                        onValueChange={() => onChange('status', 'active')}
+                        options={[{ value: 'active', label: t('status.active') }]}
                     />
                 </div>
 

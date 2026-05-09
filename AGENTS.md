@@ -204,6 +204,39 @@ Canonical Source: `docs/security/authorization-capability-contract.md`, `docs/se
 - Do not introduce new frontend-only action gates for protected mutations when backend capability metadata can be exposed instead.
 - Authorization-sensitive changes must pass `python3 scripts/security/validate_authz_capability_contract.py`.
 
+## Authorization Capability Contract
+
+Canonical Source: `docs/security/authorization-capability-contract.md`, `docs/security/authorization-capability-contract.json`, `docs/security/capability-catalog.json`
+
+- `Capabilities.can(action, resource)` is the global resource/action capability Interface for route-level checks.
+- Per-row capability data remains on `{Risk,Control,Vendor,Issue,KRI}Read.capabilities`.
+- The accepted frontend authz invariant test home is `tests/frontend/unit/src/authz/useAuthz.invariant.test.ts`.
+- The accepted B1 strict department filter behavior coverage is `tests/backend/pytest/test_risks.py`.
+
+## Architecture Locks
+
+Canonical Source: `docs/adr/README.md`, `docs/README.md`
+
+- Backend architecture invariant tests live in `tests/backend/pytest/architecture/` and are marked with `pytest.mark.contract`.
+- Run `make -f scripts/Makefile test-architecture-locks` after changing capability exports, transaction ownership, audit adapters, archive semantics, or schema/datetime conventions.
+- Keep these registry files in sync with code changes:
+  - `tests/backend/pytest/architecture/_capabilities_all_allowlist.toml`
+  - `tests/backend/pytest/architecture/_endpoint_commit_allowlist.toml`
+  - `tests/backend/pytest/architecture/_archive_allowlist.toml`
+  - `tests/backend/pytest/architecture/_naming_allowlist.toml`
+  - `tests/backend/pytest/_get_db_override_whitelist.toml`
+  - `backend/app/core/audit/_audit_matrix.toml`
+  - `backend/app/api/v1/endpoints/_reserved_modules.toml`
+- Outbox worker transaction ownership is consolidated in `backend/app/services/outbox/dispatcher.py`; `backend/app/services/outbox/store.py` flushes only.
+- Transaction-boundary changes follow ADR-002; archive-state changes follow ADR-005; forward-only Postgres migration rehearsals follow ADR-010.
+
+## client_factory
+
+Canonical Source: `tests/backend/pytest/conftest.py`, `tests/backend/pytest/_get_db_override_whitelist.toml`
+
+- API tests should use `client_factory` from `tests/backend/pytest/conftest.py` instead of local `dependency_overrides[get_db]` blocks unless the whitelist documents the exception.
+- New override exceptions must be added to `tests/backend/pytest/_get_db_override_whitelist.toml` with a rationale.
+
 ## Frontend Display Guardrails
 
 Canonical Source: `docs/agent/FRONTEND_DISPLAY_GUARDRAILS.md`

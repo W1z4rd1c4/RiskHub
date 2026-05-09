@@ -10,11 +10,13 @@ from app.core.permissions import risk_visibility_clause
 from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import Department, Risk, User
-from app.models.global_config import ConfigDefaults
-from app.models.risk import RiskStatus
 from app.schemas.dashboard import RiskDistributionItem, RiskDistributionResponse, RiskTrendPoint
+from app.services._dashboard_metrics.risk_levels import (
+    build_risk_level_condition_from_ranges,
+    get_configured_risk_level_ranges,
+)
 
-from ._shared import build_risk_level_condition, month_period_expr
+from ._shared import month_period_expr
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -39,12 +41,13 @@ async def get_risk_distribution(
     # Build conditions
     conditions = []
     if not include_archived:
-        conditions.append(Risk.status != RiskStatus.archived.value)
+        conditions.append(Risk.live())
     visibility_clause = await risk_visibility_clause(db, current_user, department_id=department_id)
     if visibility_clause is not None:
         conditions.append(visibility_clause)
     if risk_level:
-        risk_level_cond = build_risk_level_condition(risk_level)
+        risk_level_ranges = await get_configured_risk_level_ranges(db)
+        risk_level_cond = build_risk_level_condition_from_ranges(risk_level, risk_level_ranges)
         if risk_level_cond is not None:
             conditions.append(risk_level_cond)
 
@@ -107,7 +110,7 @@ async def get_risks_by_cell(
     conditions = [prob_col == probability, impact_col == impact]
 
     if not include_archived:
-        conditions.append(Risk.status != RiskStatus.archived.value)
+        conditions.append(Risk.live())
 
     visibility_clause = await risk_visibility_clause(db, current_user, department_id=department_id)
     if visibility_clause is not None:
@@ -160,14 +163,14 @@ async def get_risk_trends(
         # Build conditions
         conditions = []
         if not include_archived:
-            conditions.append(Risk.status != RiskStatus.archived.value)
+            conditions.append(Risk.live())
         visibility_clause = await risk_visibility_clause(db, current_user, department_id=department_id)
         if visibility_clause is not None:
             conditions.append(visibility_clause)
 
         # Query risk counts grouped by month
         period_expr = month_period_expr(db, Risk.created_at)
-        critical_threshold = ConfigDefaults.CRITICAL_RISK_MIN_NET_SCORE
+        critical_threshold = (await get_configured_risk_level_ranges(db))["critical"][0]
         query = select(
             period_expr.label("period"),
             func.count(Risk.id).label("total_new"),

@@ -32,15 +32,22 @@ os.environ["DATABASE_URL"] = TEST_DATABASE_URL
 
 import asyncio
 import sys
+from contextlib import asynccontextmanager
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import AsyncGenerator, Generator
+from typing import Any, AsyncGenerator, AsyncIterator, Callable, Generator
+from uuid import UUID
 
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import text
+from sqlalchemy import create_engine, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
+from syrupy.assertion import SnapshotAssertion
+from syrupy.extensions.amber import AmberSnapshotExtension
+from syrupy.location import PyTestLocation
 
 # Tests now live outside /backend, so add backend root explicitly for imports.
 _REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -59,6 +66,122 @@ _ALEMBIC_INI_PATH = _BACKEND_ROOT / "alembic.ini"
 _USING_POSTGRES = TEST_DATABASE_URL.startswith("postgresql")
 
 
+@dataclass(frozen=True)
+class AlembicLiveDb:
+    database_url: str
+    current_revision: str | None
+    head_revision: str | None
+
+
+@pytest.fixture
+def alembic_live_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Generator[AlembicLiveDb, None, None]:
+    """Create a disposable migration-versioned DB and report revision state.
+
+    SQLite cannot execute several historical ALTER CONSTRAINT migrations. The fast
+    harness therefore creates metadata and stamps the disposable DB at head. The
+    Postgres gate remains responsible for exercising the real Alembic migration
+    chain against a production-like dialect.
+    """
+    from alembic.config import Config
+    from alembic.runtime.migration import MigrationContext
+    from alembic.script import ScriptDirectory
+    from app.core.settings import get_settings
+
+    db_path = tmp_path / "riskhub-alembic-live.db"
+    database_url = f"sqlite:///{db_path}"
+    monkeypatch.setenv("DATABASE_URL", database_url)
+    monkeypatch.setenv("TEST_DATABASE_URL", database_url.replace("sqlite://", "sqlite+aiosqlite://", 1))
+    get_settings.cache_clear()
+
+    alembic_cfg = Config(str(_ALEMBIC_INI_PATH))
+    script = ScriptDirectory.from_config(alembic_cfg)
+    head_revision = script.get_current_head()
+
+    engine = create_engine(database_url)
+    try:
+        with engine.begin() as connection:
+            Base.metadata.create_all(connection)
+            connection.execute(text("CREATE TABLE IF NOT EXISTS alembic_version (version_num VARCHAR(32) NOT NULL)"))
+            connection.execute(text("DELETE FROM alembic_version"))
+            connection.execute(
+                text("INSERT INTO alembic_version (version_num) VALUES (:revision)"),
+                {"revision": head_revision},
+            )
+        with engine.connect() as connection:
+            current_revision = MigrationContext.configure(connection).get_current_revision()
+        yield AlembicLiveDb(
+            database_url=database_url,
+            current_revision=current_revision,
+            head_revision=head_revision,
+        )
+    finally:
+        engine.dispose()
+        get_settings.cache_clear()
+
+
+@pytest.fixture
+def frozen_clock():
+    from freezegun import freeze_time
+
+    frozen_now = datetime(2026, 5, 7, 12, 0, 0, tzinfo=UTC)
+    with freeze_time(frozen_now):
+        yield
+
+
+@pytest.fixture
+def stable_uuid():
+    counter = 0
+
+    def next_uuid() -> UUID:
+        nonlocal counter
+        counter += 1
+        return UUID(f"00000000-0000-7000-8000-{counter:012d}")
+
+    return next_uuid
+
+
+_REDACT_EXACT = {"id", "trace_id", "request_id", "ip", "email"}
+
+
+class RedactingSnapshotExtension(AmberSnapshotExtension):
+    """Syrupy extension that redacts volatile identity and timestamp fields."""
+
+    @classmethod
+    def _redact(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            return {
+                key: "<redacted>" if cls._should_redact_key(str(key)) else cls._redact(value)
+                for key, value in data.items()
+            }
+        if isinstance(data, list):
+            return [cls._redact(value) for value in data]
+        if isinstance(data, tuple):
+            return tuple(cls._redact(value) for value in data)
+        return data
+
+    @staticmethod
+    def _should_redact_key(key: str) -> bool:
+        return key in _REDACT_EXACT or key.endswith("_at")
+
+    def serialize(self, data: Any, **kwargs: Any) -> str:
+        return super().serialize(self._redact(data), **kwargs)
+
+
+@pytest.fixture
+def snapshot(request: pytest.FixtureRequest) -> SnapshotAssertion:
+    return SnapshotAssertion(
+        update_snapshots=request.config.option.update_snapshots,
+        extension_class=RedactingSnapshotExtension,
+        test_location=PyTestLocation(request.node),
+        session=request.session.config._syrupy,
+    )
+
+
+@pytest.fixture
+def redacting_snapshot_extension() -> type[RedactingSnapshotExtension]:
+    return RedactingSnapshotExtension
+
+
 def pytest_configure(config: pytest.Config) -> None:
     # Ensure marker availability even when pytest rootdir resolves to repository root.
     config.addinivalue_line(
@@ -68,6 +191,10 @@ def pytest_configure(config: pytest.Config) -> None:
     config.addinivalue_line(
         "markers",
         "postgres: Tests that require PostgreSQL behavior or a Postgres test database",
+    )
+    config.addinivalue_line(
+        "markers",
+        "contract: Architecture, documentation, and repository invariant-lock tests",
     )
 
 
@@ -743,6 +870,69 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
         yield ac
 
     app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def client_factory(db_session: AsyncSession):
+    """Create async clients while centralizing app dependency overrides."""
+    from app.api import deps
+    from app.core import security
+    from app.core.config import Settings, get_settings
+
+    SettingsProvider = Settings | Callable[[], Settings] | None
+    DbProvider = Callable[[], AsyncIterator[Any]] | None
+
+    @asynccontextmanager
+    async def _client_factory(
+        *,
+        user: User | None = None,
+        current_user: User | None = None,
+        settings: SettingsProvider = None,
+        headers: dict[str, str] | None = None,
+        db_override: DbProvider = None,
+        raise_app_exceptions: bool = True,
+    ) -> AsyncIterator[AsyncClient]:
+        def override_settings() -> Settings:
+            if callable(settings):
+                return settings()
+            return settings or Settings(mock_auth_enabled=True, debug=True)
+
+        async def override_get_db() -> AsyncIterator[Any]:
+            if db_override is not None:
+                async for session in db_override():
+                    yield session
+                return
+            yield db_session
+
+        previous_overrides = dict(app.dependency_overrides)
+        app.dependency_overrides[get_db] = override_get_db
+        app.dependency_overrides[get_settings] = override_settings
+
+        if current_user is not None:
+
+            async def override_get_current_user() -> User:
+                return current_user
+
+            app.dependency_overrides[deps.get_current_user] = override_get_current_user
+            app.dependency_overrides[security.get_current_user] = override_get_current_user
+
+        client_headers = dict(headers or {})
+        if user is not None:
+            client_headers.setdefault("X-Mock-User-Id", str(user.id))
+
+        transport = ASGITransport(app=app, raise_app_exceptions=raise_app_exceptions)
+        try:
+            async with AsyncClient(
+                transport=transport,
+                base_url="http://test",
+                headers=client_headers or None,
+            ) as ac:
+                yield ac
+        finally:
+            app.dependency_overrides.clear()
+            app.dependency_overrides.update(previous_overrides)
+
+    return _client_factory
 
 
 @pytest_asyncio.fixture(scope="function")

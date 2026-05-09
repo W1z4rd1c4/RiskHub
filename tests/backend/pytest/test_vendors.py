@@ -3,12 +3,12 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.v1.endpoints.vendors import _listing as vendor_listing
 from app.api.v1.endpoints.vendors import crud as vendor_crud
 from app.core.user_query_options import user_selectinload_options
 from app.models import Department, Permission, Risk, Role, RolePermission, User, Vendor, VendorRiskLink
 from app.models.user import AccessScope
 from app.schemas.vendor import VendorCreate, VendorUpdate
+from app.services._register_listings import vendors as vendor_listing
 from app.services._vendor_governance.lifecycle import archive_vendor_detail, create_vendor_detail, update_vendor_detail
 
 
@@ -193,7 +193,8 @@ async def test_inactive_vendor_rejects_patch_and_suppresses_mutation_capabilitie
         dora_relevant=False,
         is_significant_vendor=False,
         has_alternative_providers=False,
-        status="inactive",
+        status="active",
+        is_archived=True,
     )
     db_session.add(vendor)
     await db_session.commit()
@@ -472,7 +473,8 @@ async def test_vendors_include_archived_toggle(
         dora_relevant=False,
         is_significant_vendor=False,
         has_alternative_providers=False,
-        status="inactive",
+        status="active",
+        is_archived=True,
     )
     db_session.add_all([active_vendor, inactive_vendor])
     await db_session.commit()
@@ -487,6 +489,24 @@ async def test_vendors_include_archived_toggle(
     assert include_resp.status_code == 200
     include_names = {v["name"] for v in include_resp.json()["items"]}
     assert "Inactive Toggle Vendor" in include_names
+
+    active_resp = await client_employee.get("/api/v1/vendors?status=active")
+    assert active_resp.status_code == 200
+    active_names = {v["name"] for v in active_resp.json()["items"]}
+    assert "Active Toggle Vendor" in active_names
+    assert "Inactive Toggle Vendor" not in active_names
+
+    inactive_resp = await client_employee.get("/api/v1/vendors?status=inactive&include_archived=true")
+    assert inactive_resp.status_code == 200
+    inactive_names = {v["name"] for v in inactive_resp.json()["items"]}
+    assert "Inactive Toggle Vendor" in inactive_names
+    assert "Active Toggle Vendor" not in inactive_names
+
+    archived_resp = await client_employee.get("/api/v1/vendors?status=archived&include_archived=true")
+    assert archived_resp.status_code == 200
+    archived_names = {v["name"] for v in archived_resp.json()["items"]}
+    assert "Inactive Toggle Vendor" in archived_names
+    assert "Active Toggle Vendor" not in archived_names
 
 
 @pytest.mark.asyncio
@@ -650,7 +670,7 @@ async def test_vendors_list_linked_risks_supports_manager_derived_scope(
         )
     ).scalar_one()
 
-    visible_risk_ids = await vendor_listing.get_visible_risk_ids(
+    visible_risk_ids = await vendor_listing.get_visible_vendor_risk_ids(
         db_session,
         current_user=loaded_user,
         vendors=[vendor],
@@ -798,7 +818,8 @@ async def test_vendor_restore_requires_vendors_delete(
         dora_relevant=False,
         is_significant_vendor=False,
         has_alternative_providers=False,
-        status="inactive",
+        status="active",
+        is_archived=True,
     )
     db_session.add(vendor)
     await db_session.commit()
@@ -832,7 +853,8 @@ async def test_vendor_restore_reactivates_inactive_vendor(
         dora_relevant=False,
         is_significant_vendor=False,
         has_alternative_providers=False,
-        status="inactive",
+        status="active",
+        is_archived=True,
     )
     db_session.add(vendor)
     await db_session.commit()

@@ -74,6 +74,35 @@ export default defineConfig([
           selector: "TemplateElement[value.raw=/\\b(USR|RISK|RSK|CTL|KRI|VND)-/]",
           message: "Do not render raw database IDs in user-facing labels; use a display-name resolver or Unknown <entity> fallback.",
         },
+        {
+          selector: "BinaryExpression[operator='>='][left.property.name=/^(net_score|gross_score)$/][right.value=/^(5|10|15|16)$/]",
+          message: "Do not hardcode risk-score thresholds; use useRiskThresholds() with riskScoreVariantClass().",
+        },
+      ],
+    },
+  },
+  {
+    files: [
+      "src/components/dashboard/**/*.{ts,tsx}",
+      "src/components/tables/MiniHeatmap.tsx",
+      "src/pages/departments/**/*.{ts,tsx}",
+      "src/pages/risks/**/*.{ts,tsx}",
+    ],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "TemplateElement[value.raw=/\\b(USR|RISK|RSK|CTL|KRI|VND)-/]",
+          message: "Do not render raw database IDs in user-facing labels; use a display-name resolver or Unknown <entity> fallback.",
+        },
+        {
+          selector: "BinaryExpression[operator='>='][left.property.name=/^(net_score|gross_score)$/][right.value=/^(5|10|15|16)$/]",
+          message: "Do not hardcode risk-score thresholds; use useRiskThresholds() with riskScoreVariantClass().",
+        },
+        {
+          selector: "BinaryExpression[operator='>='][left.name='score'][right.value=/^(5|10|15|16)$/]",
+          message: "Do not hardcode risk-score thresholds; use useRiskThresholds() with riskScoreVariantClass().",
+        },
       ],
     },
   },

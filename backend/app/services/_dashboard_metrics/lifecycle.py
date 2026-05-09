@@ -18,10 +18,13 @@ from app.core.permissions import (
 from app.core.snapshot_service import get_quarter_label
 from app.models import Control, Risk, User, Vendor
 from app.models.control import ControlForm, ControlFrequency, ControlStatus
-from app.models.global_config import ConfigDefaults
 from app.models.quarterly_metric_snapshot import QuarterlyMetricSnapshot
 from app.models.risk import RiskStatus
 from app.schemas.dashboard import DashboardSummaryResponse
+from app.services._dashboard_metrics.risk_levels import (
+    build_risk_level_condition_from_ranges,
+    get_configured_risk_level_ranges,
+)
 
 
 @dataclass(frozen=True)
@@ -45,20 +48,6 @@ class DashboardSnapshotDecision:
     available: bool
 
 
-def _build_risk_level_condition(risk_level: Literal["critical", "high", "medium", "low"] | None):
-    if risk_level == "critical":
-        return Risk.net_score >= ConfigDefaults.CRITICAL_RISK_MIN_NET_SCORE
-    if risk_level == "high":
-        return Risk.net_score.between(ConfigDefaults.HIGH_RISK_MIN_NET_SCORE, ConfigDefaults.HIGH_RISK_MAX_NET_SCORE)
-    if risk_level == "medium":
-        return Risk.net_score.between(
-            ConfigDefaults.MEDIUM_RISK_MIN_NET_SCORE, ConfigDefaults.MEDIUM_RISK_MAX_NET_SCORE
-        )
-    if risk_level == "low":
-        return Risk.net_score <= ConfigDefaults.LOW_RISK_MAX_NET_SCORE
-    return None
-
-
 async def build_dashboard_summary_metrics(
     *,
     db: AsyncSession,
@@ -71,14 +60,15 @@ async def build_dashboard_summary_metrics(
 ) -> DashboardSummaryResponse:
     control_visibility = control_visibility_clause(current_user, department_id=department_id)
     risk_visibility = await risk_visibility_clause(db, current_user, department_id=department_id)
+    risk_level_ranges = await get_configured_risk_level_ranges(db)
 
     control_conditions: list[ColumnElement[bool]] = []
     if control_visibility is not None:
         control_conditions.append(control_visibility)
     if control_status:
         control_conditions.append(Control.status == control_status)
-    elif not include_archived:
-        control_conditions.append(Control.status != ControlStatus.archived.value)
+    if not include_archived:
+        control_conditions.append(Control.live())
     if control_form:
         control_conditions.append(Control.control_form == control_form)
 
@@ -86,8 +76,8 @@ async def build_dashboard_summary_metrics(
     if risk_visibility is not None:
         risk_conditions.append(risk_visibility)
     if not include_archived:
-        risk_conditions.append(Risk.status != RiskStatus.archived.value)
-    risk_level_condition = _build_risk_level_condition(risk_level)
+        risk_conditions.append(Risk.live())
+    risk_level_condition = build_risk_level_condition_from_ranges(risk_level, risk_level_ranges)
     if risk_level_condition is not None:
         risk_conditions.append(risk_level_condition)
 
@@ -97,17 +87,19 @@ async def build_dashboard_summary_metrics(
     total_controls = (await db.execute(control_query)).scalar() or 0
 
     controls_by_status = {}
-    for status_enum in ControlStatus:
-        conditions = [Control.status == status_enum.value] + control_conditions
+    for control_status_enum in ControlStatus:
+        conditions = [Control.status == control_status_enum.value] + control_conditions
         count = (await db.execute(select(func.count(Control.id)).where(and_(*conditions)))).scalar() or 0
         if count > 0:
-            controls_by_status[status_enum.value] = count
+            controls_by_status[control_status_enum.value] = count
 
     controls_by_form = {}
     for form in ControlForm:
         form_filter = Control.control_form == control_form if control_form else None
         conditions = [Control.control_form == form.value] + [
-            condition for condition in control_conditions if form_filter is None or condition.compare(form_filter) is False
+            condition
+            for condition in control_conditions
+            if form_filter is None or condition.compare(form_filter) is False
         ]
         count = (await db.execute(select(func.count(Control.id)).where(and_(*conditions)))).scalar() or 0
         if count > 0:
@@ -126,13 +118,15 @@ async def build_dashboard_summary_metrics(
     total_risks = (await db.execute(risk_query)).scalar() or 0
 
     risks_by_status = {}
-    for status_enum in RiskStatus:
-        conditions = [Risk.status == status_enum.value] + risk_conditions
+    for risk_status_enum in RiskStatus:
+        conditions = [Risk.status == risk_status_enum.value] + risk_conditions
         count = (await db.execute(select(func.count(Risk.id)).where(and_(*conditions)))).scalar() or 0
         if count > 0:
-            risks_by_status[status_enum.value] = count
+            risks_by_status[risk_status_enum.value] = count
 
-    critical_conditions = [Risk.net_score >= ConfigDefaults.CRITICAL_RISK_MIN_NET_SCORE] + risk_conditions
+    critical_level_condition = build_risk_level_condition_from_ranges("critical", risk_level_ranges)
+    assert critical_level_condition is not None
+    critical_conditions = [critical_level_condition] + risk_conditions
     critical_risks_count = (
         await db.execute(select(func.count(Risk.id)).where(and_(*critical_conditions)))
     ).scalar() or 0
@@ -144,7 +138,7 @@ async def build_dashboard_summary_metrics(
 
     total_vendors = 0
     high_risk_vendors_count = 0
-    vendor_conditions = [Vendor.status == "active"]
+    vendor_conditions = [Vendor.live()]
     vendor_scope_filter = vendor_visibility_clause(current_user, department_id=department_id)
     if vendor_scope_filter is not None:
         vendor_conditions.append(vendor_scope_filter)

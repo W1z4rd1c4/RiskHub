@@ -49,6 +49,7 @@ async def count_risks_without_kri(db: AsyncSession, department_ids: list[int] | 
     risks_with_kri = select(KeyRiskIndicator.risk_id.distinct())
     query = select(func.count(Risk.id)).where(
         Risk.status == RiskStatus.active.value,
+        Risk.live(),
         Risk.id.notin_(risks_with_kri),
     )
     if department_ids is not None:

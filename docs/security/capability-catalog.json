@@ -5,6 +5,45 @@
   "description": "Validator catalog for backend Pydantic capability models and frontend Zod capability schemas. The authorization capability contract remains the source of protected action semantics; this catalog checks field-shape drift only.",
   "surfaces": [
     {
+      "id": "capabilities",
+      "interface": {
+        "path": "backend/app/services/_authorization_capabilities/perimeter.py",
+        "class": "Capabilities",
+        "method": "can"
+      }
+    },
+    {
+      "id": "me_capabilities",
+      "backend": {
+        "path": "backend/app/schemas/user.py",
+        "class": "MeCapabilities"
+      },
+      "frontend": {
+        "path": "frontend/src/services/api/schemas/auth.ts",
+        "schema": "meCapabilitiesSchema"
+      },
+      "fields": [
+        "can_view_user_directory",
+        "can_view_access_users",
+        "can_view_department_access_users",
+        "can_view_users_route",
+        "can_manage_access",
+        "can_view_department_access",
+        "can_view_admin_console",
+        "can_view_riskhub",
+        "can_view_governance",
+        "can_view_activity_log",
+        "can_view_committee",
+        "can_view_users_page",
+        "is_second_line",
+        "can_read_risks",
+        "can_read_controls",
+        "can_read_vendors",
+        "can_read_departments",
+        "resource_permissions"
+      ]
+    },
+    {
       "id": "risk",
       "backend": {
         "path": "backend/app/schemas/risk.py",

@@ -25,7 +25,11 @@ async def list_activity_log_entries(
     dept_ids = activity_log_department_scope(current_user)
     if dept_ids is not None:
         if not dept_ids:
-            return build_empty_activity_log_response(skip=criteria.skip, limit=criteria.limit, current_user=current_user)
+            return build_empty_activity_log_response(
+                skip=criteria.skip,
+                limit=criteria.limit,
+                current_user=current_user,
+            )
         query = query.where(ActivityLog.department_id.in_(dept_ids))
 
     if criteria.entity_type:

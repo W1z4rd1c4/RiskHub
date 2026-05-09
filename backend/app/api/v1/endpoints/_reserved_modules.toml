@@ -1,0 +1,66 @@
+# Reserved platform surfaces that are intentionally present in enums/seeds/docs
+# before their full product workflows are implemented.
+
+[[reserved]]
+kind = "activity_entity_type"
+name = "VENDOR_ASSESSMENT"
+surface = "Vendor extended domains"
+reason = "Reserved until vendor assessment workflow ships."
+code = "backend/app/models/activity_log.py"
+docs = "docs/BUSINESS_LOGIC.md#91-entity-level-logging"
+
+[[reserved]]
+kind = "activity_entity_type"
+name = "VENDOR_INCIDENT"
+surface = "Vendor extended domains"
+reason = "Reserved until vendor incident workflow ships."
+code = "backend/app/models/activity_log.py"
+docs = "docs/BUSINESS_LOGIC.md#91-entity-level-logging"
+
+[[reserved]]
+kind = "activity_entity_type"
+name = "VENDOR_SLA"
+surface = "Vendor extended domains"
+reason = "Reserved until vendor SLA workflow ships."
+code = "backend/app/models/activity_log.py"
+docs = "docs/BUSINESS_LOGIC.md#91-entity-level-logging"
+
+[[reserved]]
+kind = "activity_entity_type"
+name = "VENDOR_REMEDIATION"
+surface = "Vendor extended domains"
+reason = "Reserved until vendor remediation workflow ships."
+code = "backend/app/models/activity_log.py"
+docs = "docs/BUSINESS_LOGIC.md#91-entity-level-logging"
+
+[[reserved]]
+kind = "role"
+name = "CONTROL_OWNER"
+surface = "Role catalog"
+reason = "Reserved until granular control ownership workflow ships."
+code = "backend/app/models/role.py"
+docs = "docs/BUSINESS_LOGIC.md#11-role-definitions"
+
+[[reserved]]
+kind = "permission"
+name = "vendor_contracts:read"
+surface = "Vendor contract governance"
+reason = "Reserved until DORA vendor contract governance ships."
+code = "backend/app/db/rbac_seed_contract.py"
+docs = "docs/BUSINESS_LOGIC.md#41-resource-permissions"
+
+[[reserved]]
+kind = "permission"
+name = "vendor_contracts:write"
+surface = "Vendor contract governance"
+reason = "Reserved until DORA vendor contract governance ships."
+code = "backend/app/db/rbac_seed_contract.py"
+docs = "docs/BUSINESS_LOGIC.md#41-resource-permissions"
+
+[[reserved]]
+kind = "permission"
+name = "controls:approve"
+surface = "Control approvals"
+reason = "Reserved until granular control approval workflow ships."
+code = "backend/app/db/rbac_seed_contract.py"
+docs = "docs/BUSINESS_LOGIC.md#41-resource-permissions"

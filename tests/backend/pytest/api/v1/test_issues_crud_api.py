@@ -754,7 +754,8 @@ async def test_issue_vendor_context_and_links_reject_inactive_vendor(
         dora_relevant=False,
         is_significant_vendor=False,
         has_alternative_providers=False,
-        status="inactive",
+        status="active",
+        is_archived=True,
     )
     active_vendor = Vendor(
         name="Active Issue Vendor",

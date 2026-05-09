@@ -1,20 +1,16 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
-from app.core.activity_logger import log_activity
 from app.core.config import Settings, get_settings
-from app.core.email import email_equals
-from app.core.security import get_password_hash
 from app.core.user_query_options import user_selectinload_options
 from app.db.session import get_db
 from app.models import User
-from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas import UserCreate, UserRead
-from app.services._org_chart import acquire_org_chart_lock, validate_no_manager_cycle
+from app.services._identity_access_lifecycle import create_user_profile
 
 from ._lifecycle import require_admin_user_lifecycle
 
@@ -82,50 +78,9 @@ async def create_user(
         HTTPException: If user doesn't have permission or email exists
     """
     require_admin_user_lifecycle(current_user)
-    if settings.auth_mode == "microsoft_sso":
-        raise HTTPException(
-            status_code=403,
-            detail="Manual user creation is disabled in microsoft_sso mode. Use /api/v1/directory/users/{oid}/import.",
-        )
-
-    # Check if email already exists
-    result = await db.execute(select(User).where(email_equals(User.email, user_data.email)))
-    if result.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="Email already registered")
-
-    # Create user
-    new_user = User(
-        email=user_data.email,
-        name=user_data.name,
-        role_id=user_data.role_id,
-        department_id=user_data.department_id,
-        manager_id=user_data.manager_id,
-        is_active=user_data.is_active,
-        hashed_password=get_password_hash(user_data.password),
+    return await create_user_profile(
+        db=db,
+        settings=settings,
+        current_user=current_user,
+        user_data=user_data,
     )
-
-    if new_user.manager_id is not None:
-        await acquire_org_chart_lock(db)
-
-    db.add(new_user)
-    await db.flush()
-    if new_user.manager_id is not None:
-        await validate_no_manager_cycle(db, user_id=new_user.id, new_manager_id=new_user.manager_id)
-
-    # Log activity within the same transaction
-    await log_activity(
-        db,
-        entity_type=ActivityEntityType.USER,
-        entity_id=new_user.id,
-        entity_name=new_user.name,
-        action=ActivityAction.CREATE,
-        actor=current_user,
-        department_id=new_user.department_id,
-    )
-    await db.commit()
-    await db.refresh(new_user)
-
-    # Reload with all relationships to ensure they are available for schema validation
-    # This prevents MissingGreenlet errors in async context
-    result = await db.execute(select(User).options(*user_selectinload_options()).where(User.id == new_user.id))
-    return result.scalar_one()

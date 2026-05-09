@@ -5,10 +5,10 @@ from typing import Any
 
 
 @dataclass(frozen=True)
-class KriCorrectionPlan:
+class KriCorrectionDraft:
     entry_id: int
     pending_changes: dict[str, Any]
 
 
-def build_kri_correction_plan(*, entry_id: int, pending_changes: dict[str, Any]) -> KriCorrectionPlan:
-    return KriCorrectionPlan(entry_id=entry_id, pending_changes=pending_changes)
+def build_kri_correction_plan(*, entry_id: int, pending_changes: dict[str, Any]) -> KriCorrectionDraft:
+    return KriCorrectionDraft(entry_id=entry_id, pending_changes=pending_changes)

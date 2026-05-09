@@ -13,8 +13,8 @@ from app.schemas.activity_log import ActivityLogListResponse
 from app.services._activity_log_query.criteria import build_activity_log_query_criteria
 from app.services._activity_log_query.query import (
     list_activity_log_actions,
-    list_activity_log_entries,
     list_activity_log_entity_types,
+    list_activity_log_entries,
 )
 
 router = APIRouter()

@@ -6,11 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.permissions import (
-    can_read_vendor,
     check_department_access,
     get_user_department_ids,
-    has_permission,
-    is_vendor_owner,
 )
 from app.models import Department, User, Vendor
 from app.models.user import AccessScope
@@ -82,30 +79,3 @@ async def validate_vendor_governance_assignment(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Vendor owner must belong to the selected department",
         )
-
-
-def vendor_capabilities(current_user: User, vendor: Vendor) -> dict[str, bool]:
-    can_write = has_permission(current_user, "vendors", "write")
-    can_delete = has_permission(current_user, "vendors", "delete")
-    can_update = can_write or is_vendor_owner(vendor, current_user)
-    is_visible = can_read_vendor(vendor, current_user)
-    is_active = vendor.status == "active"
-    can_archive = bool(is_visible and can_delete and vendor.status == "active")
-    can_restore = bool(is_visible and can_delete and vendor.status == "inactive")
-    can_mutate_links = bool(is_visible and is_active and can_update)
-    return {
-        "can_read": bool(is_visible),
-        "can_update": bool(is_visible and is_active and can_update),
-        "can_archive": can_archive,
-        "can_restore": can_restore,
-        "can_create_linked_risk": bool(can_mutate_links and has_permission(current_user, "risks", "write")),
-        "can_create_linked_control": bool(can_mutate_links and has_permission(current_user, "controls", "write")),
-        "can_create_linked_kri": bool(can_mutate_links and has_permission(current_user, "risks", "write")),
-        "can_link_risk": bool(can_mutate_links and has_permission(current_user, "risks", "read")),
-        "can_link_control": bool(can_mutate_links and has_permission(current_user, "controls", "read")),
-        "can_link_kri": bool(can_mutate_links and has_permission(current_user, "risks", "read")),
-        "can_view_linked_risks": bool(is_visible and has_permission(current_user, "risks", "read")),
-        "can_view_linked_controls": bool(is_visible and has_permission(current_user, "controls", "read")),
-        "can_view_linked_kris": bool(is_visible and has_permission(current_user, "risks", "read")),
-        "can_create_issue": bool(is_visible and is_active and has_permission(current_user, "issues", "write")),
-    }

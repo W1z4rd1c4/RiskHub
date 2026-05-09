@@ -4,16 +4,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.v1.endpoints._monitoring_response import load_monitoring_response_context, serialize_risk_read
-from app.core.activity_logger import build_change_set, log_activity
-from app.core.audit.risk import risk_display_name
+from app.core.audit.risk import risk_restored
 from app.core.datetime_utils import utc_now
 from app.core.permissions import check_department_access
 from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import KeyRiskIndicator, Risk, User
-from app.models.activity_log import ActivityAction, ActivityEntityType
-from app.schemas.risk import RiskRead, RiskStatusEnum
+from app.schemas.risk import RiskRead
 from app.services.authorization_capabilities import risk_capabilities
+from app.services.transaction_boundary import commit_service_transaction
 
 router = APIRouter()
 
@@ -44,27 +43,23 @@ async def restore_risk(
     if not is_owner:
         check_department_access(risk.department_id, current_user)
 
-    if risk.status != RiskStatusEnum.archived.value:
+    if not risk.is_archived:
         raise HTTPException(status_code=400, detail="Risk is not archived")
 
-    changes = build_change_set(risk, {"status": RiskStatusEnum.active.value})
-    risk.status = RiskStatusEnum.active.value
+    before_data = {
+        "is_archived": risk.is_archived,
+        "archived_at": risk.archived_at,
+        "archived_by_id": risk.archived_by_id,
+    }
+    risk.mark_restored(current_user)
+    after_data = {
+        "is_archived": risk.is_archived,
+        "archived_at": risk.archived_at,
+        "archived_by_id": risk.archived_by_id,
+    }
 
-    await log_activity(
-        db,
-        entity_type=ActivityEntityType.RISK,
-        entity_id=risk.id,
-        entity_name=risk_display_name(risk),
-        safe_entity_label=risk.risk_id_code,
-        safe_description="Restored risk",
-        safe_description_siem="Restored risk",
-        action=ActivityAction.UPDATE,
-        actor=current_user,
-        department_id=risk.department_id,
-        changes=changes,
-        description=f"Restored risk {risk.risk_id_code}",
-    )
-    await db.commit()
+    await risk_restored(db, actor=current_user, risk=risk, before_data=before_data, after_data=after_data)
+    await commit_service_transaction(db)
     await db.refresh(risk)
 
     result = await db.execute(

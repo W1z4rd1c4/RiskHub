@@ -36,6 +36,7 @@ function buildCollectionParams(args: SearchLinkTargetsArgs): Record<string, stri
 function mapRiskResult(item: RiskSummary): SearchResultItem {
     return {
         id: item.id,
+        is_archived: item.is_archived,
         name: item.name,
         description: item.description,
         process: item.process,
@@ -48,6 +49,7 @@ function mapRiskResult(item: RiskSummary): SearchResultItem {
 function mapControlResult(item: ControlSummary): SearchResultItem {
     return {
         id: item.id,
+        is_archived: item.is_archived,
         name: item.name,
         description: item.description,
         status: item.status,
@@ -62,9 +64,10 @@ function mapControlResult(item: ControlSummary): SearchResultItem {
 function mapKriResult(item: KeyRiskIndicator): SearchResultItem {
     return {
         id: item.id,
+        is_archived: item.is_archived,
         name: item.metric_name,
         description: item.description,
-        status: item.is_archived ? 'archived' : String(item.monitoring_status ?? ''),
+        status: String(item.monitoring_status ?? ''),
         department_name: item.risk_department_name,
         process: item.risk_process,
         category: item.risk_category,

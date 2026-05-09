@@ -1,8 +1,8 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { QueryClientProvider } from '@tanstack/react-query';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { HTMLAttributes, ReactNode } from 'react';
 import { createTestQueryClient } from '@test/queryClient';
+import { renderWithQueryClient } from '@test/utils';
 
 import { ApiClientError } from '@/services/apiClient';
 
@@ -76,7 +76,7 @@ vi.mock('@/services/lookupApi', () => ({
 
 import { AuditLogsPanel } from '@/pages/admin-console/sections/AdminConsoleAuditPanels';
 
-function createWrapper() {
+function createAuditQueryClient() {
     const queryClient = createTestQueryClient();
     latestQueryClient = queryClient;
     const originalInvalidate = queryClient.invalidateQueries.bind(queryClient);
@@ -85,9 +85,11 @@ function createWrapper() {
         return originalInvalidate(...args);
     }) as typeof queryClient.invalidateQueries;
 
-    return function Wrapper({ children }: { children: ReactNode }) {
-        return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
-    };
+    return queryClient;
+}
+
+function renderAuditLogsPanel() {
+    return renderWithQueryClient(<AuditLogsPanel />, { queryClient: createAuditQueryClient() });
 }
 
 function auditLogsPayload() {
@@ -157,7 +159,7 @@ describe('AuditLogsPanel', () => {
     });
 
     it('loads and saves log rotation settings', async () => {
-        render(<AuditLogsPanel />, { wrapper: createWrapper() });
+        renderAuditLogsPanel();
 
         const sizeInput = await screen.findByDisplayValue('25');
         fireEvent.change(sizeInput, { target: { value: '30' } });
@@ -190,7 +192,7 @@ describe('AuditLogsPanel', () => {
             })
             .mockReturnValueOnce(new Promise(() => undefined));
 
-        render(<AuditLogsPanel />, { wrapper: createWrapper() });
+        renderAuditLogsPanel();
 
         const sizeInput = await screen.findByDisplayValue('25');
         fireEvent.change(sizeInput, { target: { value: '30' } });
@@ -225,7 +227,7 @@ describe('AuditLogsPanel', () => {
                 audit_log_retention_count: 9,
             });
 
-        render(<AuditLogsPanel />, { wrapper: createWrapper() });
+        renderAuditLogsPanel();
 
         const sizeInput = await screen.findByDisplayValue('25');
         fireEvent.change(sizeInput, { target: { value: '30' } });
@@ -240,7 +242,7 @@ describe('AuditLogsPanel', () => {
     });
 
     it('renders audit logs, filters by event, opens details, and copies details', async () => {
-        render(<AuditLogsPanel />, { wrapper: createWrapper() });
+        renderAuditLogsPanel();
 
         expect(await screen.findAllByText('user update')).not.toHaveLength(0);
         fireEvent.change(screen.getByLabelText('audit.all_events'), { target: { value: 'user_update' } });
@@ -264,7 +266,7 @@ describe('AuditLogsPanel', () => {
     });
 
     it('resolves audit actor names through the user lookup', async () => {
-        render(<AuditLogsPanel />, { wrapper: createWrapper() });
+        renderAuditLogsPanel();
 
         expect(await screen.findByText('Ada Lovelace')).toBeInTheDocument();
         expect(getLookupUsersMock).toHaveBeenCalledWith({
@@ -277,7 +279,7 @@ describe('AuditLogsPanel', () => {
     it('falls back to Unknown user when an audit actor cannot be resolved', async () => {
         getLookupUsersMock.mockResolvedValueOnce([]);
 
-        render(<AuditLogsPanel />, { wrapper: createWrapper() });
+        renderAuditLogsPanel();
 
         expect(await screen.findByText('common:fallbacks.unknown_user')).toBeInTheDocument();
         expect(screen.queryByText('USR-7')).not.toBeInTheDocument();
@@ -286,7 +288,7 @@ describe('AuditLogsPanel', () => {
     it('exports CSV and JSON from the loaded audit log entries without refetching', async () => {
         const clickMock = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
 
-        render(<AuditLogsPanel />, { wrapper: createWrapper() });
+        renderAuditLogsPanel();
 
         await screen.findAllByText('user update');
         fireEvent.click(screen.getByRole('button', { name: 'CSV' }));
@@ -308,7 +310,7 @@ describe('AuditLogsPanel', () => {
         });
         const clickMock = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
 
-        render(<AuditLogsPanel />, { wrapper: createWrapper() });
+        renderAuditLogsPanel();
 
         await screen.findByText('audit.event_feed');
         fireEvent.click(screen.getByRole('button', { name: 'CSV' }));
@@ -322,7 +324,7 @@ describe('AuditLogsPanel', () => {
     it('hides audit export and log config save actions when admin capabilities are missing', async () => {
         getCapabilitiesMock.mockResolvedValueOnce({});
 
-        render(<AuditLogsPanel />, { wrapper: createWrapper() });
+        renderAuditLogsPanel();
 
         await screen.findAllByText('user update');
         await waitFor(() => {
@@ -340,7 +342,7 @@ describe('AuditLogsPanel', () => {
             rawMessage: 'Invalid log settings',
         }));
 
-        render(<AuditLogsPanel />, { wrapper: createWrapper() });
+        renderAuditLogsPanel();
 
         const sizeInput = await screen.findByDisplayValue('25');
         fireEvent.change(sizeInput, { target: { value: '0' } });

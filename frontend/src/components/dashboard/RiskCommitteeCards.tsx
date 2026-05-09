@@ -4,6 +4,8 @@ import { Activity, AlertTriangle, Building2, Clock, Handshake, Star } from 'luci
 import type { DashboardCommitteeSummary } from '@/services/dashboardApi';
 import type { SafeTFunction } from '@/i18n/hooks';
 import { buildVendorDetailPath } from '@/pages/vendors/vendorDetailPresentation';
+import { useRiskThresholds } from '@/hooks/useRiskHubConfig';
+import { riskScoreVariantClass } from '@/lib/riskScoreTheme';
 import { QuarterlyComparisonWidget } from './QuarterlyComparisonWidget';
 
 const ACTION_COLORS: Record<string, string> = {
@@ -25,13 +27,6 @@ function formatTimeAgo(dateStr: string, t: SafeTFunction): string {
     if (diffDays < 7) return t('risk_committee.days_ago', { count: diffDays });
     if (diffDays < 30) return t('risk_committee.weeks_ago', { count: Math.floor(diffDays / 7) });
     return t('risk_committee.months_ago', { count: Math.floor(diffDays / 30) });
-}
-
-function getRiskScoreColor(score: number): string {
-    if (score >= 15) return 'text-rose-400';
-    if (score >= 10) return 'text-orange-400';
-    if (score >= 5) return 'text-amber-400';
-    return 'text-emerald-400';
 }
 
 function getVendorRiskColor(score: number): string {
@@ -72,6 +67,8 @@ export function RiskCommitteeErrorState({ message, t }: { message: string | null
 }
 
 function CriticalRisksCard({ summary, t }: { summary: DashboardCommitteeSummary; t: SafeTFunction }) {
+    const { thresholds } = useRiskThresholds();
+
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -107,7 +104,7 @@ function CriticalRisksCard({ summary, t }: { summary: DashboardCommitteeSummary;
                                         <span>{risk.process}</span>
                                     </div>
                                 </div>
-                                <span className={`text-sm font-black shrink-0 ${getRiskScoreColor(risk.net_score)}`}>
+                                <span className={`text-sm font-black shrink-0 ${riskScoreVariantClass('text', risk.net_score, thresholds)}`}>
                                     {risk.net_score}
                                 </span>
                             </div>
@@ -179,6 +176,8 @@ function CriticalVendorsCard({
 }
 
 function DepartmentExposureCard({ summary, t }: { summary: DashboardCommitteeSummary; t: SafeTFunction }) {
+    const { thresholds } = useRiskThresholds();
+
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -206,7 +205,7 @@ function DepartmentExposureCard({ summary, t }: { summary: DashboardCommitteeSum
                             >
                                 <div className="flex items-center justify-between mb-2">
                                     <span className="text-sm font-bold text-white">{dept.name}</span>
-                                    <span className={`text-sm font-black ${getRiskScoreColor(dept.total_exposure)}`}>
+                                    <span className={`text-sm font-black ${riskScoreVariantClass('text', dept.total_exposure, thresholds)}`}>
                                         {dept.total_exposure}
                                     </span>
                                 </div>

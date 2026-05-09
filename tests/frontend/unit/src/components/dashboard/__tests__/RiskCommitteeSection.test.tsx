@@ -21,6 +21,12 @@ vi.mock('@/components/dashboard/QuarterlyComparisonWidget', () => ({
     QuarterlyComparisonWidget: () => <div>quarterly comparison</div>,
 }));
 
+vi.mock('@/hooks/useRiskHubConfig', () => ({
+    useRiskThresholds: () => ({
+        thresholds: { critical: 20, high: 12, medium: 6 },
+    }),
+}));
+
 vi.mock('@/services/logger', () => ({
     logError: vi.fn(),
 }));
@@ -143,5 +149,18 @@ describe('RiskCommitteeSection', () => {
         await waitFor(() => {
             expect(mockNavigate).toHaveBeenCalledWith('/vendors/42?tab=assessments&section=schedule');
         });
+    });
+
+    it('uses configured risk thresholds for committee risk score coloring', async () => {
+        const summary = populatedSummary();
+        summary.critical_risks[0].net_score = 15;
+        vi.mocked(dashboardApi.fetchCommitteeSummary).mockResolvedValue(summary);
+
+        render(<RiskCommitteeSection />);
+
+        expect(await screen.findByText('Solvency Stress')).toBeInTheDocument();
+        const score = screen.getByText('15');
+        expect(score).toHaveClass('text-orange-400');
+        expect(score).not.toHaveClass('text-rose-400');
     });
 });

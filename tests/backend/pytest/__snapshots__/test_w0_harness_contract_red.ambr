@@ -1,0 +1,8 @@
+# serializer version: 1
+# name: test_snapshot_round_trip
+  dict({
+    'created_at': '<redacted>',
+    'id': '<redacted>',
+    'name': 'RiskHub',
+  })
+# ---

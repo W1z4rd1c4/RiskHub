@@ -3,12 +3,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from fastapi import HTTPException
 from sqlalchemy import and_, false, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.datetime_utils import utc_now
+from app.core.exceptions import ValidationError
 from app.core.permissions import (
     can_read_control_id,
     can_read_risk_id,
@@ -27,6 +27,7 @@ from app.models import (
     User,
 )
 from app.models.issue import IssueSeverity, IssueStatus
+from app.schemas.issue import IssueSummary
 from app.services._collection_contracts import CollectionQuery, build_grouped_collection_page
 from app.services._collection_filters import (
     coerce_optional_bool,
@@ -47,7 +48,7 @@ from app.services._issue_register import (
 from app.services.authorization_capabilities import issue_capabilities
 from app.services.issue_visibility_service import unsuppressed_issue_clause
 
-from .lifecycle import RegisterListingPlan, _plan_register_listing
+from .lifecycle import RegisterListingPlan, SerializeItems, _plan_register_listing
 
 
 @dataclass(frozen=True)
@@ -64,7 +65,7 @@ async def plan_issue_listing(
     db: AsyncSession,
     current_user: User,
     criteria: IssueListingCriteria,
-) -> RegisterListingPlan:
+) -> RegisterListingPlan[Issue, IssueSummary]:
     collection_query = criteria.query
     filter_values = criteria.filters
     status = coerce_optional_enum(IssueStatus, filter_values.get("status"), "status")
@@ -179,9 +180,9 @@ async def plan_issue_listing(
         "created_at": Issue.created_at,
     }
     if sort_by is not None and sort_by not in sortable_fields:
-        raise HTTPException(status_code=400, detail="Invalid sort_by value")
+        raise ValidationError("Invalid sort_by value")
     if sort_order is not None and sort_order not in {"asc", "desc"}:
-        raise HTTPException(status_code=400, detail="Invalid sort_order value")
+        raise ValidationError("Invalid sort_order value")
 
     if sort_by is not None:
         direction = sort_order or "asc"
@@ -228,13 +229,14 @@ async def plan_issue_listing(
             vendor_context=vendor_context,
         )
 
-    async def serialize_issues(issues):
+    async def _serialize_issues(issues: list[Issue]) -> list[IssueSummary]:
         return await serialize_issue_summaries_for_actor(
             db,
             current_user=current_user,
             issues=issues,
             capability_loader=criteria.capability_loader,
         )
+    serialize_issues: SerializeItems[Issue, IssueSummary] = _serialize_issues
 
     def build_in_memory_grouped_page(all_items, query):
         return build_grouped_collection_page(

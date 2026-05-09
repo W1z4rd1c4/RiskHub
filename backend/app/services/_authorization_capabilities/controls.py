@@ -10,7 +10,7 @@ from app.core.permissions import (
     has_permission,
     is_control_owner,
 )
-from app.models import ApprovalActionType, ApprovalRequest, ApprovalResourceType, Control, ControlStatus, User
+from app.models import ApprovalActionType, ApprovalRequest, ApprovalResourceType, Control, User
 from app.schemas.control import ControlCapabilities
 
 from .common import has_pending_action, pending_approvals
@@ -35,7 +35,7 @@ async def control_capabilities(
         )
     has_pending_delete = has_pending_action(approvals, ApprovalActionType.DELETE)
     has_pending_update = has_pending_action(approvals, ApprovalActionType.EDIT)
-    is_archived = control.status == ControlStatus.archived.value
+    is_archived = control.is_archived
     is_owner = (
         is_owner_override
         if is_owner_override is not None
@@ -64,7 +64,9 @@ async def control_capabilities(
         and has_permission(current_user, "risks", "read")
     )
     can_execute = bool(has_permission(current_user, "controls", "execute") and can_read)
-    is_executable = control.status in {ControlStatus.active.value, ControlStatus.draft.value}
+    from app.services._control_execution.workflow import control_is_executable
+
+    is_executable = control_is_executable(control)
     return ControlCapabilities(
         can_read=can_read,
         can_update=bool(can_update and not is_archived),

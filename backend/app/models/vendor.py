@@ -9,6 +9,7 @@ from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, Numeric, String, 
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+from app.models._archivable import ArchivableMixin
 
 if TYPE_CHECKING:
     from app.models.department import Department
@@ -20,7 +21,6 @@ if TYPE_CHECKING:
 
 class VendorStatus(str, PyEnum):
     active = "active"
-    inactive = "inactive"
 
 
 class VendorType(str, PyEnum):
@@ -37,7 +37,7 @@ class VendorReplaceability(str, PyEnum):
     hard = "hard"
 
 
-class Vendor(Base):
+class Vendor(ArchivableMixin, Base):
     __tablename__ = "vendors"
 
     id: Mapped[int] = mapped_column(primary_key=True)

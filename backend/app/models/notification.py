@@ -1,6 +1,6 @@
 """Notification model for in-app notifications."""
 
-from datetime import UTC, datetime
+from datetime import datetime
 from enum import Enum as PyEnum
 from typing import TYPE_CHECKING
 
@@ -8,6 +8,7 @@ from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Te
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.core.datetime_utils import utc_now
 from app.db.base import Base
 
 if TYPE_CHECKING:
@@ -69,9 +70,7 @@ class Notification(Base):
     is_read: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, index=True)
 
     # Timestamps
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Relationships

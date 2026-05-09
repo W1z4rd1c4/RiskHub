@@ -2,6 +2,7 @@ import type {
     AuthConfigResponse,
     AuthUser,
     DemoPersona,
+    MeCapabilities,
     TokenResponse,
 } from '@/services/authApi';
 
@@ -39,6 +40,28 @@ export const authUserSchema: z.ZodType<AuthUser> = passthroughObject({
     effective_permissions: stringArraySchema,
     access_scope: z.enum(['global', 'department', 'manager']),
     scope_label: z.string(),
+    me_capabilities: z.lazy(() => meCapabilitiesSchema).nullable().optional(),
+});
+
+export const meCapabilitiesSchema: z.ZodType<MeCapabilities> = passthroughObject({
+    can_view_user_directory: z.boolean(),
+    can_view_access_users: z.boolean(),
+    can_view_department_access_users: z.boolean(),
+    can_view_users_route: z.boolean(),
+    can_manage_access: z.boolean(),
+    can_view_department_access: z.boolean(),
+    can_view_admin_console: z.boolean(),
+    can_view_riskhub: z.boolean(),
+    can_view_governance: z.boolean(),
+    can_view_activity_log: z.boolean(),
+    can_view_committee: z.boolean(),
+    can_view_users_page: z.boolean(),
+    is_second_line: z.boolean(),
+    can_read_risks: z.boolean(),
+    can_read_controls: z.boolean(),
+    can_read_vendors: z.boolean(),
+    can_read_departments: z.boolean(),
+    resource_permissions: z.record(z.string(), z.boolean()),
 });
 
 export const tokenResponseSchema: z.ZodType<TokenResponse> = passthroughObject({
@@ -52,6 +75,7 @@ export const authConfigResponseSchema: z.ZodType<AuthConfigResponse> = passthrou
     auth_mode: z.enum(['password', 'microsoft_sso', 'hybrid_dev']),
     demo_login_enabled: z.boolean(),
     password_login_enabled: z.boolean(),
+    strict_capabilities: z.boolean().default(false),
     sso: passthroughObject({
         enabled: z.boolean(),
         provider: z.literal('entra'),

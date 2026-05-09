@@ -1,5 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import { cleanup } from '@testing-library/react';
+import './src/i18n';
 
 class StorageMock {
     private store = new Map<string, string>();

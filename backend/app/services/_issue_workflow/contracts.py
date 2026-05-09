@@ -1,15 +1,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Generic, TypeVar
 
 from app.models import IssueException
 from app.schemas.issue import IssueExceptionRead, IssueRead
 
+TResponse = TypeVar("TResponse", IssueRead, IssueExceptionRead)
+
 
 @dataclass(frozen=True)
-class IssueWorkflowOutcome:
-    response: IssueRead | IssueExceptionRead
+class IssueWorkflowOutcome(Generic[TResponse]):
+    response: TResponse
 
 
 @dataclass(frozen=True)

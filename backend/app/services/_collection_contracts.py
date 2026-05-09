@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable, Collection, Iterable, Sequence
 from dataclasses import dataclass
 from inspect import isawaitable
-from typing import Any, Literal, TypeVar
+from typing import Any, Generic, Literal, TypeVar
 
 from pydantic import BaseModel, Field
 from sqlalchemy import false, func, select
@@ -37,7 +37,7 @@ class CollectionGroupEntry:
     meta: dict[str, Any] | None = None
 
 
-SerializeItems = Callable[[Sequence[TModel]], Awaitable[list[TItem]]]
+SerializeItems = Callable[[list[TModel]], Awaitable[list[TItem]]]
 LoadSqlGroups = Callable[[str], Awaitable[list[CollectionGroupRead]]]
 BuildSqlGroupFilter = Callable[[str, str | None], Any | Awaitable[Any]]
 QueryTransform = Callable[[Any], Any]
@@ -49,17 +49,17 @@ BuildInMemoryGroupedPage = Callable[
 
 
 @dataclass(frozen=True)
-class CollectionListingDefinition:
+class CollectionListingDefinition(Generic[TModel, TItem]):
     capabilities: dict[str, bool] | None
-    serialize_items: SerializeItems[Any, Any]
-    serialize_sql_items: SerializeItems[Any, Any] | None = None
+    serialize_items: SerializeItems[TModel, TItem]
+    serialize_sql_items: SerializeItems[TModel, TItem] | None = None
     total: int | None = None
     load_total: LoadTotal | None = None
     sql_group_keys: Collection[str] = frozenset()
     load_sql_groups: LoadSqlGroups | None = None
     build_sql_group_filter: BuildSqlGroupFilter | None = None
     sql_group_query_transform: QueryTransform | None = None
-    build_in_memory_grouped_page: BuildInMemoryGroupedPage[Any] | None = None
+    build_in_memory_grouped_page: BuildInMemoryGroupedPage[TItem] | None = None
 
 
 def is_group_summary_request(query: Any) -> bool:
@@ -219,7 +219,7 @@ async def execute_collection_listing_with_definition(
     response_model: type[TResponse],
     query: CollectionQuery,
     ordered_query: Any,
-    definition: CollectionListingDefinition,
+    definition: CollectionListingDefinition[TModel, TItem],
 ) -> TResponse:
     return await execute_collection_listing(
         db=db,

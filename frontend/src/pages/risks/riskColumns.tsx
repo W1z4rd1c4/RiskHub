@@ -4,7 +4,8 @@ import { AlertCircle, ChevronRight, Lock, Star } from 'lucide-react';
 import { RiskTypeBadge } from '@/components/ui/RiskTypeBadge';
 import type { Column } from '@/components/tables/SortableTable';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
-import type { RiskStatus, RiskSummary } from '@/types/risk';
+import type { RiskSummary } from '@/types/risk';
+import { getRiskDisplayStatus, type RiskDisplayStatus } from '@/pages/risks/risksPagePresentation';
 
 type TranslateFn = (key: string, options?: Record<string, unknown>) => string;
 
@@ -18,14 +19,14 @@ type BuildRiskColumnsParams = {
     handleRestoreRisk: (riskId: number, event: MouseEvent) => void | Promise<void>;
 };
 
-export function getRiskStatusColor(status: RiskStatus): string {
+export function getRiskStatusColor(status: RiskDisplayStatus): string {
     switch (status) {
         case 'active':
             return 'text-emerald-400 bg-emerald-400/10';
         case 'emerging':
             return 'text-amber-400 bg-amber-400/10';
         case 'archived':
-            return 'text-rose-400 bg-rose-400/10';
+            return 'text-slate-400 bg-slate-400/10';
         default:
             return 'text-slate-400 bg-slate-400/10';
     }
@@ -139,11 +140,14 @@ export function buildRiskColumns({
             key: 'status',
             label: t('fields.status'),
             sortable: true,
-            render: (risk) => (
-                <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${getRiskStatusColor(risk.status)}`}>
-                    {risk.status}
+            render: (risk) => {
+                const displayStatus = getRiskDisplayStatus(risk);
+                return (
+                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${getRiskStatusColor(displayStatus)}`}>
+                        {displayStatus}
                 </span>
-            ),
+                );
+            },
         },
         {
             key: 'control_count',
@@ -192,7 +196,7 @@ export function buildRiskColumns({
             label: '',
             render: (risk) => (
                 <div className="text-right flex items-center justify-end gap-2">
-                    {risk.status === 'archived' &&
+                    {risk.is_archived &&
                         resolveCapabilityFlag(risk.capabilities, 'can_restore') && (
                         <button
                             onClick={(e) => handleRestoreRisk(risk.id, e)}

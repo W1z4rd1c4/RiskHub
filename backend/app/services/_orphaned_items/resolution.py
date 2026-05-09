@@ -14,8 +14,8 @@ from app.models.orphaned_item import OrphanedItem
 from app.models.risk import Risk
 from app.models.user import User
 
-from .logging import logger
 from .governance import orphan_item_definition, orphan_resolution_plan
+from .logging import logger
 from .workflow import OrphanResolutionConflict, assert_orphan_still_matches_target_state
 
 

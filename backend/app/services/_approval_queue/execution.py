@@ -14,7 +14,6 @@ from .contracts import ApprovalRequestIntakePlan
 from .delete_intake import build_delete_intake_plan, ensure_delete_approval_not_pending
 from .projection import build_approval_read
 
-
 DELETE_SCENARIO_DEFAULT_ROLES = ["risk_owner", "risk_manager", "cro"]
 
 

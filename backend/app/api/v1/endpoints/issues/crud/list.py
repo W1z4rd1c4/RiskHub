@@ -9,9 +9,9 @@ from app.db.session import get_db
 from app.models import User
 from app.models.issue import IssueSeverity, IssueStatus
 from app.schemas.issue import IssueListResponse
-from app.services.authorization_capabilities import issue_capabilities
 from app.services._register_listings.issues import IssueListingCriteria, plan_issue_listing
 from app.services._register_listings.lifecycle import execute_register_listing_plan
+from app.services.authorization_capabilities import issue_capabilities
 
 router = APIRouter()
 

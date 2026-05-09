@@ -10,6 +10,7 @@ from app.models import (
     Control,
     ControlRiskLink,
     Department,
+    GlobalConfig,
     Issue,
     IssueLink,
     KeyRiskIndicator,
@@ -23,6 +24,7 @@ from app.models import (
     VendorKRILink,
     VendorRiskLink,
 )
+from app.models.global_config import clear_config_cache
 
 
 def _group_by_value(groups: list[dict], value: str) -> dict | None:
@@ -285,6 +287,129 @@ async def test_risks_grouped_contract_returns_summary_and_drilldown(
     assert drilldown["limit"] == 10
     assert any(item["id"] == risk_id for item in drilldown["items"])
     assert _group_by_value(drilldown["groups"], "Grouped Category") is not None
+
+
+@pytest.mark.asyncio
+async def test_risks_grouped_highlighted_count_uses_configured_critical_threshold(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    test_department: Department,
+    test_user: User,
+    seed_risk_types,
+):
+    clear_config_cache()
+    try:
+        db_session.add(
+            GlobalConfig(
+                key="critical_risk_min_net_score",
+                value="20",
+                value_type="int",
+                category="risk_thresholds",
+                display_name="Critical Risk Threshold",
+            )
+        )
+        await db_session.commit()
+        clear_config_cache()
+
+        create_response = await auth_client.post(
+            "/api/v1/risks",
+            json={
+                "risk_id_code": "GRP-RISK-CONFIG-CRITICAL",
+                "name": "Configured Critical Group Risk",
+                "process": "Grouped Process",
+                "description": "Risk used to verify configured highlighted count threshold",
+                "department_id": test_department.id,
+                "owner_id": test_user.id,
+                "risk_type": "operational",
+                "category": "Configured Critical Category",
+                "gross_probability": 4,
+                "gross_impact": 4,
+                "net_probability": 4,
+                "net_impact": 4,
+                "status": "active",
+            },
+        )
+        assert create_response.status_code == 201
+
+        summary_response = await auth_client.get(
+            "/api/v1/risks",
+            params={"offset": 0, "limit": 10, "group_by": "category"},
+        )
+
+        assert summary_response.status_code == 200
+        group = _group_by_value(summary_response.json()["groups"], "Configured Critical Category")
+        assert group is not None
+        assert group["count"] == 1
+        assert group["highlighted_count"] == 0
+    finally:
+        clear_config_cache()
+
+
+@pytest.mark.asyncio
+async def test_risks_grouped_active_count_excludes_archived_normalized_risks(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    test_department: Department,
+    test_user: User,
+    seed_risk_types,
+):
+    live_risk = Risk(
+        risk_id_code="GRP-RISK-ACTIVE-LIVE",
+        name="Grouped Active Live Risk",
+        process="Grouped Active Process",
+        description="Live active risk counted as active in grouped summaries",
+        department_id=test_department.id,
+        owner_id=test_user.id,
+        risk_type="operational",
+        category="Grouped Active Count Category",
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=2,
+        status="active",
+        is_archived=False,
+    )
+    archived_risk = Risk(
+        risk_id_code="GRP-RISK-ACTIVE-ARCHIVED",
+        name="Grouped Active Archived Risk",
+        process="Grouped Active Process",
+        description="Archived-normalized risk should not count as active",
+        department_id=test_department.id,
+        owner_id=test_user.id,
+        risk_type="operational",
+        category="Grouped Active Count Category",
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=2,
+        status="active",
+        is_archived=True,
+    )
+    db_session.add_all([live_risk, archived_risk])
+    await db_session.commit()
+
+    archived_response = await auth_client.get(
+        "/api/v1/risks",
+        params={"offset": 0, "limit": 10, "group_by": "category", "status": "archived"},
+    )
+    assert archived_response.status_code == 200
+    archived_group = _group_by_value(archived_response.json()["groups"], "Grouped Active Count Category")
+    assert archived_group is not None
+    assert archived_group["count"] == 1
+    assert archived_group["active_count"] == 0
+
+    include_archived_response = await auth_client.get(
+        "/api/v1/risks",
+        params={"offset": 0, "limit": 10, "group_by": "category", "include_archived": "true"},
+    )
+    assert include_archived_response.status_code == 200
+    include_archived_group = _group_by_value(
+        include_archived_response.json()["groups"],
+        "Grouped Active Count Category",
+    )
+    assert include_archived_group is not None
+    assert include_archived_group["count"] == 2
+    assert include_archived_group["active_count"] == 1
 
 
 @pytest.mark.asyncio
@@ -563,6 +688,59 @@ async def test_controls_grouped_contract_returns_summary_and_drilldown(
 
 
 @pytest.mark.asyncio
+async def test_controls_grouped_active_count_excludes_archived_normalized_controls(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    test_department: Department,
+    test_user: User,
+):
+    live_control = Control(
+        name="Grouped Active Live Control",
+        description="Live active control counted as active in grouped summaries",
+        department_id=test_department.id,
+        control_owner_id=test_user.id,
+        control_form="manual",
+        frequency="daily",
+        risk_level=3,
+        status="active",
+        is_archived=False,
+    )
+    archived_control = Control(
+        name="Grouped Active Archived Control",
+        description="Archived-normalized control should not count as active",
+        department_id=test_department.id,
+        control_owner_id=test_user.id,
+        control_form="manual",
+        frequency="daily",
+        risk_level=3,
+        status="active",
+        is_archived=True,
+    )
+    db_session.add_all([live_control, archived_control])
+    await db_session.commit()
+
+    archived_response = await auth_client.get(
+        "/api/v1/controls",
+        params={"offset": 0, "limit": 10, "group_by": "category", "status": "archived"},
+    )
+    assert archived_response.status_code == 200
+    archived_group = _group_by_value(archived_response.json()["groups"], "manual")
+    assert archived_group is not None
+    assert archived_group["count"] == 1
+    assert archived_group["active_count"] == 0
+
+    include_archived_response = await auth_client.get(
+        "/api/v1/controls",
+        params={"offset": 0, "limit": 10, "group_by": "category", "include_archived": "true"},
+    )
+    assert include_archived_response.status_code == 200
+    include_archived_group = _group_by_value(include_archived_response.json()["groups"], "manual")
+    assert include_archived_group is not None
+    assert include_archived_group["count"] == 2
+    assert include_archived_group["active_count"] == 1
+
+
+@pytest.mark.asyncio
 async def test_controls_grouped_summary_does_not_serialize_all_rows(
     auth_client: AsyncClient,
     db_session: AsyncSession,
@@ -586,7 +764,7 @@ async def test_controls_grouped_summary_does_not_serialize_all_rows(
     async def fail_control_capabilities(*args, **kwargs):
         raise AssertionError("control group summaries should not serialize control rows")
 
-    monkeypatch.setattr("app.api.v1.endpoints.controls.crud.list.control_capabilities", fail_control_capabilities)
+    monkeypatch.setattr("app.services._register_listings.controls.control_capabilities", fail_control_capabilities)
 
     response = await auth_client.get(
         "/api/v1/controls",
@@ -630,7 +808,7 @@ async def test_controls_grouped_drilldown_serializes_only_requested_page(
         serialized_control_ids.append(control.id)
         return await original_control_capabilities(_db, current_user=current_user, control=control, **kwargs)
 
-    monkeypatch.setattr("app.api.v1.endpoints.controls.crud.list.control_capabilities", spy_control_capabilities)
+    monkeypatch.setattr("app.services._register_listings.controls.control_capabilities", spy_control_capabilities)
 
     response = await auth_client.get(
         "/api/v1/controls",
@@ -988,7 +1166,7 @@ async def test_kris_grouped_summary_does_not_serialize_all_rows(
     async def fail_kri_capabilities(*args, **kwargs):
         raise AssertionError("KRI group summaries should not serialize KRI rows")
 
-    monkeypatch.setattr("app.api.v1.endpoints.kris.crud.list.kri_capabilities", fail_kri_capabilities)
+    monkeypatch.setattr("app.services._register_listings.kris.kri_capabilities", fail_kri_capabilities)
 
     response = await auth_client.get(
         "/api/v1/kris",
@@ -1050,7 +1228,7 @@ async def test_kris_grouped_drilldown_serializes_only_requested_page(
         serialized_kri_ids.append(kri.id)
         return await original_kri_capabilities(_db, current_user=current_user, kri=kri, **kwargs)
 
-    monkeypatch.setattr("app.api.v1.endpoints.kris.crud.list.kri_capabilities", spy_kri_capabilities)
+    monkeypatch.setattr("app.services._register_listings.kris.kri_capabilities", spy_kri_capabilities)
 
     response = await auth_client.get(
         "/api/v1/kris",

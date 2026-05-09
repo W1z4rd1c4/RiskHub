@@ -1,8 +1,5 @@
 from __future__ import annotations
 
-from datetime import datetime
-from typing import Optional
-
 from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,7 +8,6 @@ from sqlalchemy.orm import selectinload
 from app.core.permissions import can_read_risk_id
 from app.core.security import check_permission
 from app.models import Control, ControlRiskLink, Risk, User
-from app.schemas.execution import ControlExecutionWriteBase, ExecutionResultEnum
 from app.services._control_execution.access import (
     ControlRiskAccessDecision,
     assert_control_readable_for_link,

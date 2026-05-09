@@ -20,6 +20,7 @@ This file is the primary documentation index for `docs/`.
 | Agent | Execution rules and AGENTS mappings | [`docs/agent/README.md`](./agent/README.md) |
 | Development | Local startup and Docker development workflows | [`docs/development/README.md`](./development/README.md) |
 | Security | Security policy, reports, and closure records | [`docs/security/README.md`](./security/README.md) |
+| Architecture decisions | Accepted architecture decision records | [`docs/adr/README.md`](./adr/README.md) |
 | Audits | Point-in-time audit records for specific integrations or operating areas | [`docs/audits/README.md`](./audits/README.md) |
 | Deployment | Runtime and production deployment guidance | [`docs/deployment/README.md`](./deployment/README.md) |
 | Reference | Reference inventories and legacy path maps | [`docs/reference/README.md`](./reference/README.md) |
@@ -40,6 +41,7 @@ This file is the primary documentation index for `docs/`.
 - [`docs/PERFORMANCE_BASELINE.md`](./PERFORMANCE_BASELINE.md)
 - [`docs/AUTHZ_LIST_POLICY.md`](./AUTHZ_LIST_POLICY.md)
 - [`docs/GLOSSARY.md`](./GLOSSARY.md)
+- [`docs/adr/README.md`](./adr/README.md)
 
 Current operational truth for Docker-backed live verification is intentionally centralized in:
 
@@ -72,6 +74,48 @@ Outputs:
 
 - `tests/results/docs/docs-tree-audit-<timestamp>/docs-tree-audit.json`
 - `tests/results/docs/docs-tree-audit-<timestamp>/docs-tree-audit.md`
+
+## Architecture Locks
+
+Architecture invariant tests live under `tests/backend/pytest/architecture/` and run through
+`make -f scripts/Makefile test-architecture-locks`. Backend architecture locks use
+`pytest.mark.contract` so structural guards remain separate from behavior coverage.
+The main registries behind those locks are:
+
+- `tests/backend/pytest/architecture/_capabilities_all_allowlist.toml`
+- `tests/backend/pytest/architecture/_endpoint_commit_allowlist.toml`
+- `tests/backend/pytest/architecture/_archive_allowlist.toml`
+- `tests/backend/pytest/architecture/_naming_allowlist.toml`
+- `backend/app/core/audit/_audit_matrix.toml`
+
+## Authorization Capability Contract
+
+Capability policy is governed by [`docs/security/authorization-capability-contract.md`](./security/authorization-capability-contract.md)
+and [`docs/security/authorization-capability-contract.json`](./security/authorization-capability-contract.json).
+The capability catalog is [`docs/security/capability-catalog.json`](./security/capability-catalog.json).
+Reserved endpoint and permission surfaces are registered in
+`backend/app/api/v1/endpoints/_reserved_modules.toml`. Global route capability projection follows
+ADR-001 through `Capabilities.can(action, resource)` and `MeCapabilities`; per-row
+action metadata remains on `{Risk,Control,Vendor,Issue,KRI}Read.capabilities`.
+The accepted frontend authz invariant lives at
+`tests/frontend/unit/src/authz/useAuthz.invariant.test.ts`; the accepted B1 strict
+department-filter behavior test lives in `tests/backend/pytest/test_risks.py`.
+
+## Migration Rehearsal
+
+Postgres data migrations that are forward-only or lock-sensitive must follow
+[`docs/adr/ADR-010-postgres-migration-rehearsal-contract.md`](./adr/ADR-010-postgres-migration-rehearsal-contract.md).
+Archive-state normalization is governed by ADR-005, transaction ownership by ADR-002,
+and reserved endpoint/permission surfaces by ADR-009.
+Outbox worker transaction ownership is consolidated in
+`backend/app/services/outbox/dispatcher.py`. `ControlStatus.inactive` remains a
+non-archive lifecycle state; vendor `inactive` is not retained as a lifecycle status.
+
+## client_factory
+
+Backend API tests should use the shared `client_factory` fixture from
+`tests/backend/pytest/conftest.py` rather than writing local `dependency_overrides[get_db]`
+blocks. The temporary exception registry is `tests/backend/pytest/_get_db_override_whitelist.toml`.
 
 ## Boundary Notes
 

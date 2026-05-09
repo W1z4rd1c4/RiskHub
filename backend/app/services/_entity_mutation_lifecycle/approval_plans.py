@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,9 +9,11 @@ from app.core.approval_helpers import (
     build_approval_queued_response,
     check_control_requires_privileged_approval,
     create_approval_request_with_audit,
+    get_kri_edit_approval_metadata,
     get_primary_approver_for_control,
-    get_primary_approver_for_risk,
+    get_risk_edit_approval_metadata,
 )
+from app.core.exceptions import ValidationError
 from app.core.permissions import can_resolve_approvals, has_sensitive_field_changes, is_high_risk_for_approval_async
 from app.models import (
     ApprovalActionType,
@@ -99,7 +100,7 @@ async def create_risk_edit_approval_if_required(
         )
     )
     if existing.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="Edit request already pending for this risk")
+        raise ValidationError("Edit request already pending for this risk")
 
     if is_priority_risk_edit and not has_sensitive:
         changed = build_priority_risk_change_set(risk, update_data)
@@ -110,9 +111,11 @@ async def create_risk_edit_approval_if_required(
         if is_priority_risk_edit and not has_sensitive
         else f"Change to sensitive fields: {', '.join(changed.keys())}"
     )
-    primary_approver_id = None
-    if scenario_policy is not None:
-        primary_approver_id = await get_primary_approver_for_risk(db, risk.id, requester_id=current_user.id)
+    primary_approver_id, requires_privileged = await get_risk_edit_approval_metadata(
+        db,
+        risk=risk,
+        requester_id=current_user.id,
+    )
 
     approval = ApprovalRequest(
         resource_type=ApprovalResourceType.RISK,
@@ -124,6 +127,7 @@ async def create_risk_edit_approval_if_required(
         pending_changes=changed,
         status=ApprovalStatus.PENDING,
         primary_approver_id=primary_approver_id,
+        requires_privileged_approval=requires_privileged,
     )
     if scenario_policy is not None:
         apply_approval_scenario_snapshot(approval, scenario_policy)
@@ -141,6 +145,8 @@ async def create_risk_edit_approval_if_required(
         action_type="edit",
         pending_fields=list(changed.keys()),
         pending_changes=changed,
+        primary_approver_id=primary_approver_id,
+        requires_privileged_approval=requires_privileged,
     )
     return EntityMutationOutcome(kind="approval_queued", response=response)
 
@@ -204,7 +210,7 @@ async def create_control_edit_approval_if_required(
         )
     )
     if existing.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="Edit request already pending for this control")
+        raise ValidationError("Edit request already pending for this control")
 
     primary_approver_id = await get_primary_approver_for_control(db, control.id)
     if primary_approver_id == current_user.id:
@@ -270,7 +276,7 @@ async def create_kri_edit_approval_if_required(
         )
     )
     if existing.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="Edit request already pending for this KRI")
+        raise ValidationError("Edit request already pending for this KRI")
 
     pending_changes = {key: {"old": getattr(kri, key, None), "new": value} for key, value in update_data.items()}
     if normalized_vendor_ids is not None and normalized_vendor_ids != current_vendor_ids:
@@ -279,7 +285,11 @@ async def create_kri_edit_approval_if_required(
             "new": normalized_vendor_ids,
         }
     name_snippet = (kri.metric_name or "").strip()[:50]
-    primary_approver_id = await get_primary_approver_for_risk(db, kri.risk_id, requester_id=current_user.id)
+    primary_approver_id, requires_privileged = await get_kri_edit_approval_metadata(
+        db,
+        kri=kri,
+        requester_id=current_user.id,
+    )
     approval = ApprovalRequest(
         resource_type=ApprovalResourceType.KRI,
         resource_id=kri.id,
@@ -290,6 +300,7 @@ async def create_kri_edit_approval_if_required(
         pending_changes=pending_changes,
         status=ApprovalStatus.PENDING,
         primary_approver_id=primary_approver_id,
+        requires_privileged_approval=requires_privileged,
     )
     apply_approval_scenario_snapshot(approval, scenario_policy)
 
@@ -307,5 +318,6 @@ async def create_kri_edit_approval_if_required(
         pending_fields=list(pending_changes.keys()),
         pending_changes=pending_changes,
         primary_approver_id=primary_approver_id,
+        requires_privileged_approval=requires_privileged,
     )
     return EntityMutationOutcome(kind="approval_queued", response=response)

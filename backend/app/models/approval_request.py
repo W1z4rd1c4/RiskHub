@@ -1,6 +1,6 @@
 """Approval request model for tracking deletion and edit approval workflows."""
 
-from datetime import UTC, datetime
+from datetime import datetime
 from enum import Enum as PyEnum
 from typing import TYPE_CHECKING
 
@@ -8,6 +8,7 @@ from sqlalchemy import JSON, DateTime, ForeignKey, Index, Integer, String, Text
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.core.datetime_utils import utc_now
 from app.db.base import Base
 
 if TYPE_CHECKING:
@@ -103,9 +104,7 @@ class ApprovalRequest(Base):
     privileged_approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Timestamps
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
 
     # Relationships - use selectin loading for async compatibility
     requested_by: Mapped["User"] = relationship("User", foreign_keys=[requested_by_id], lazy="selectin")

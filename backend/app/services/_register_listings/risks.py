@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
-from sqlalchemy import String, asc, case, desc, false, func, literal, or_, select
+from sqlalchemy import String, and_, asc, case, desc, false, func, literal, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.mappers.risk import risk_to_summary
-from app.core.permissions import can_read_vendor, get_user_department_ids, vendor_visibility_clause
+from app.core.permissions import can_read_vendor, risk_visibility_clause, vendor_visibility_clause
 from app.core.security import check_permission
 from app.models import (
     ApprovalResourceType,
@@ -20,6 +20,7 @@ from app.models import (
     Vendor,
     VendorRiskLink,
 )
+from app.models._archivable import archived_clause
 from app.models.global_config import ConfigDefaults, get_config_int
 from app.schemas.risk import RiskStatusEnum
 from app.schemas.vendor_shared import LinkedVendorRead
@@ -96,7 +97,12 @@ async def load_risk_sql_groups(
     *,
     current_user: User,
     can_read_vendors: bool,
+    critical_risk_min_net_score: int,
 ) -> list[dict[str, Any]]:
+    value_expr: Any
+    label_expr: Any
+    joins: tuple[Any, ...]
+
     if group_by == "category":
         value_expr = func.coalesce(func.nullif(Risk.category, ""), RISK_GROUP_UNCATEGORIZED)
         label_expr = value_expr
@@ -128,13 +134,14 @@ async def load_risk_sql_groups(
     else:
         return []
 
+    active_expr = and_(Risk.status == RiskStatusEnum.active.value, Risk.live())
     group_query = (
         select(
             value_expr.label("value"),
             label_expr.label("label"),
             func.count(Risk.id).label("count"),
-            func.sum(case((Risk.status == RiskStatusEnum.active.value, 1), else_=0)).label("active_count"),
-            func.sum(case((Risk.net_score >= 16, 1), else_=0)).label("highlighted_count"),
+            func.sum(case((active_expr, 1), else_=0)).label("active_count"),
+            func.sum(case((Risk.net_score >= critical_risk_min_net_score, 1), else_=0)).label("highlighted_count"),
         )
         .select_from(Risk)
         .join(filtered_ids, Risk.id == filtered_ids.c.id)
@@ -143,13 +150,13 @@ async def load_risk_sql_groups(
         if join_target == "vendor":
             group_query = group_query.outerjoin(vendor_context, vendor_context.c.risk_id == Risk.id)
         else:
-            group_query = group_query.outerjoin(join_target)
+            group_query = group_query.outerjoin(cast(Any, join_target))
     rows = (await db.execute(group_query.group_by(value_expr, label_expr).order_by(func.lower(label_expr)))).all()
     return [
         {
             "value": row.value,
             "label": row.label,
-            "count": row.count or 0,
+            "count": row._mapping["count"] or 0,
             "active_count": row.active_count or 0,
             "highlighted_count": row.highlighted_count or 0,
             "meta": {},
@@ -188,13 +195,13 @@ def risk_group_value_filter(group_by: str, group_value: str, *, vendor_context=N
     return None
 
 
-def risk_in_memory_grouped_page(all_items: list[Any], query):
+def risk_in_memory_grouped_page(all_items: list[Any], query, *, critical_risk_min_net_score: int):
     return build_grouped_collection_page(
         all_items,
         query,
         get_entries=risk_group_entries,
-        is_active=lambda risk: risk.status == RiskStatusEnum.active.value,
-        is_highlighted=lambda risk: risk.net_score >= 16,
+        is_active=lambda risk: risk.status == RiskStatusEnum.active.value and not risk.is_archived,
+        is_highlighted=lambda risk: risk.net_score >= critical_risk_min_net_score,
     )
 
 
@@ -206,9 +213,10 @@ def _plan_risk_listing(
     can_read_vendors: bool,
     ordered_query: Any,
     capabilities: dict[str, bool] | None,
-    serialize_items: SerializeItems[Any, Any],
+    serialize_items: SerializeItems[Risk, Any],
     total: int,
-) -> RegisterListingPlan:
+    critical_risk_min_net_score: int,
+) -> RegisterListingPlan[Risk, Any]:
     vendor_context = None
 
     def get_vendor_context():
@@ -224,6 +232,7 @@ def _plan_risk_listing(
             group_by,
             current_user=current_user,
             can_read_vendors=can_read_vendors,
+            critical_risk_min_net_score=critical_risk_min_net_score,
         )
 
     def build_sql_group_filter(group_by: str, group_value: str | None):
@@ -238,7 +247,11 @@ def _plan_risk_listing(
         sql_group_keys=RISK_SQL_GROUPS,
         load_sql_groups=load_sql_groups,
         build_sql_group_filter=build_sql_group_filter,
-        build_in_memory_grouped_page=risk_in_memory_grouped_page,
+        build_in_memory_grouped_page=lambda all_items, query: risk_in_memory_grouped_page(
+            all_items,
+            query,
+            critical_risk_min_net_score=critical_risk_min_net_score,
+        ),
     )
 
 
@@ -247,14 +260,15 @@ async def plan_risk_listing(
     db: AsyncSession,
     current_user: User,
     criteria: RiskListingCriteria,
-) -> RegisterListingPlan:
+) -> RegisterListingPlan[Risk, Any]:
     from app.core.permissions import get_risk_ids_where_control_owner, get_risk_ids_where_kri_reporting_owner
 
     collection_query = criteria.query
     filter_values = criteria.filters
     department_id = coerce_optional_int("department_id", filter_values.get("department_id"))
     status_value = filter_values.get("status")
-    status = coerce_optional_enum(RiskStatusEnum, status_value, "status")
+    archived_status_filter = str(status_value).lower() == "archived" if status_value is not None else False
+    status = None if archived_status_filter else coerce_optional_enum(RiskStatusEnum, status_value, "status")
     risk_type = coerce_optional_string("risk_type", filter_values.get("risk_type"))
     is_priority = coerce_optional_bool("is_priority", filter_values.get("is_priority"))
     search = coerce_optional_string("search", filter_values.get("search"))
@@ -268,34 +282,17 @@ async def plan_risk_listing(
 
     base_query = select(Risk)
 
-    dept_ids = get_user_department_ids(current_user)
-    if dept_ids is not None:
-        reporting_owner_risk_ids = await get_risk_ids_where_kri_reporting_owner(db, current_user.id)
-        control_owner_risk_ids = await get_risk_ids_where_control_owner(db, current_user.id)
-        cross_dept_risk_ids = set(reporting_owner_risk_ids) | set(control_owner_risk_ids)
+    visibility_clause = await risk_visibility_clause(db, current_user, department_id=department_id)
+    if visibility_clause is not None:
+        base_query = base_query.where(visibility_clause)
 
-        if cross_dept_risk_ids:
-            base_query = base_query.where(
-                or_(
-                    Risk.department_id.in_(dept_ids),
-                    Risk.owner_id == current_user.id,
-                    Risk.id.in_(cross_dept_risk_ids),
-                )
-            )
-        else:
-            base_query = base_query.where(
-                or_(
-                    Risk.department_id.in_(dept_ids),
-                    Risk.owner_id == current_user.id,
-                )
-            )
-    elif department_id:
-        base_query = base_query.where(Risk.department_id == department_id)
-
-    if status:
+    if archived_status_filter:
+        base_query = base_query.where(archived_clause(Risk, archived=True))
+    elif status:
         base_query = base_query.where(Risk.status == status.value)
+        base_query = base_query.where(archived_clause(Risk, archived=False))
     elif not include_archived:
-        base_query = base_query.where(Risk.status != RiskStatusEnum.archived.value)
+        base_query = base_query.where(archived_clause(Risk, archived=False))
 
     if risk_type:
         base_query = base_query.where(Risk.risk_type == risk_type)
@@ -344,6 +341,11 @@ async def plan_risk_listing(
     count_query = select(func.count()).select_from(base_query.subquery())
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0
+    critical_risk_min_net_score = await get_config_int(
+        db,
+        "critical_risk_min_net_score",
+        ConfigDefaults.CRITICAL_RISK_MIN_NET_SCORE,
+    )
 
     order_column: Any = Risk.risk_id_code
     if sort_by:
@@ -421,7 +423,14 @@ async def plan_risk_listing(
                     vendor = getattr(link, "vendor", None)
                     if vendor is None or not can_read_vendor(vendor, current_user):
                         continue
-                    linked_vendors.append(LinkedVendorRead(id=vendor.id, name=vendor.name))
+                    linked_vendors.append(
+                        LinkedVendorRead(
+                            id=vendor.id,
+                            name=vendor.name,
+                            status=vendor.status,
+                            is_archived=vendor.is_archived,
+                        )
+                    )
             capabilities = await risk_capabilities(
                 db,
                 current_user=current_user,
@@ -447,4 +456,5 @@ async def plan_risk_listing(
         capabilities=collection_capabilities,
         serialize_items=serialize_risks,
         total=total,
+        critical_risk_min_net_score=critical_risk_min_net_score,
     )

@@ -6,11 +6,10 @@ import type { ControlSummary } from '@/types/control';
 import type { KeyRiskIndicator, KRIMonitoringStatus } from '@/types/kri';
 import { logError } from '@/services/logger';
 import { isForbiddenApiError } from '@/services/apiClient';
+import { useRiskThresholds } from '@/hooks/useRiskHubConfig';
 
 // Pagination constants - must match backend MAX_PAGE_SIZE
 export const DEPARTMENT_PAGE_SIZE = 100;
-// High risk threshold (net_score >= 10 = High or Critical)
-export const HIGH_RISK_MIN_NET_SCORE = 10;
 
 // Simplified user type for scoped lookup
 export interface DeptUser {
@@ -75,6 +74,7 @@ export function useDepartmentDetail({
     kriPage,
     userPage,
 }: UseDepartmentDetailParams): UseDepartmentDetailResult {
+    const { thresholds } = useRiskThresholds();
     const [refreshNonce, setRefreshNonce] = useState(0);
     // Department metadata
     const [department, setDepartment] = useState<DepartmentDetail | null>(null);
@@ -130,7 +130,7 @@ export function useDepartmentDetail({
             limit: DEPARTMENT_PAGE_SIZE,
         };
         if (riskFilter === 'high') {
-            params.min_net_score = HIGH_RISK_MIN_NET_SCORE;
+            params.min_net_score = thresholds.high;
         }
         departmentApi.getDepartmentRisks(departmentId, params)
             .then((data) => {
@@ -144,7 +144,7 @@ export function useDepartmentDetail({
         return () => {
             cancelled = true;
         };
-    }, [departmentId, activeTab, riskPage, riskFilter, refreshNonce]);
+    }, [departmentId, activeTab, riskPage, riskFilter, refreshNonce, thresholds.high]);
 
     // Fetch controls when controls tab is active or page changes
     useEffect(() => {
@@ -212,7 +212,7 @@ export function useDepartmentDetail({
     const getRiskCount = () => {
         if (!department) return 0;
         if (riskFilter === 'high') {
-            return department.risk_distribution.critical + department.risk_distribution.high;
+            return department.high_risk_count;
         }
         return department.risk_count;
     };

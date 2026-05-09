@@ -42,7 +42,7 @@ async def _collect_summary_counts():
             await db.execute(
                 select(func.count(Risk.id)).where(
                     Risk.risk_id_code.like("E2E-%"),
-                    Risk.status != "archived",
+                    Risk.is_archived.is_(False),
                 )
             )
         ).scalar_one()
@@ -50,7 +50,7 @@ async def _collect_summary_counts():
             await db.execute(
                 select(func.count(Risk.id)).where(
                     Risk.risk_id_code.like("E2E-%"),
-                    Risk.status == "archived",
+                    Risk.is_archived.is_(True),
                 )
             )
         ).scalar_one()
@@ -59,7 +59,7 @@ async def _collect_summary_counts():
             await db.execute(
                 select(func.count(Control.id)).where(
                     Control.name.like("E2E-%"),
-                    Control.status != "archived",
+                    Control.is_archived.is_(False),
                 )
             )
         ).scalar_one()
@@ -67,7 +67,7 @@ async def _collect_summary_counts():
             await db.execute(
                 select(func.count(Control.id)).where(
                     Control.name.like("E2E-%"),
-                    Control.status == "archived",
+                    Control.is_archived.is_(True),
                 )
             )
         ).scalar_one()
@@ -93,15 +93,15 @@ async def _collect_summary_counts():
             await db.execute(
                 select(func.count(Vendor.id)).where(
                     Vendor.name.like("E2E-VENDOR-%"),
-                    Vendor.status == "active",
+                    Vendor.is_archived.is_(False),
                 )
             )
         ).scalar_one()
-        vendors_inactive = (
+        vendors_archived = (
             await db.execute(
                 select(func.count(Vendor.id)).where(
                     Vendor.name.like("E2E-VENDOR-%"),
-                    Vendor.status == "inactive",
+                    Vendor.is_archived.is_(True),
                 )
             )
         ).scalar_one()
@@ -118,7 +118,8 @@ async def _collect_summary_counts():
             "kris_active": kris_active,
             "kris_archived": kris_archived,
             "vendors_active": vendors_active,
-            "vendors_inactive": vendors_inactive,
+            "vendors_archived": vendors_archived,
+            "vendors_inactive": vendors_archived,
             "approvals_total": approvals_total,
         }
 
@@ -161,7 +162,7 @@ async def seed_e2e_all():
     print(f"   • Risks active/archived: {summary['risks_active']}/{summary['risks_archived']}")
     print(f"   • Controls active/archived: {summary['controls_active']}/{summary['controls_archived']}")
     print(f"   • KRIs active/archived: {summary['kris_active']}/{summary['kris_archived']}")
-    print(f"   • Vendors active/inactive: {summary['vendors_active']}/{summary['vendors_inactive']}")
+    print(f"   • Vendors active/archived: {summary['vendors_active']}/{summary['vendors_archived']}")
     print(f"   • Approval requests with E2E marker: {summary['approvals_total']}")
     print("\n💡 All entities prefixed with 'E2E-' for isolation")
     return 0

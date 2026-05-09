@@ -9,8 +9,7 @@ from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import Control, ControlExecution, Department, KeyRiskIndicator, Risk, User
 from app.models.control import ControlStatus
-from app.models.global_config import ConfigDefaults
-from app.models.risk import RiskStatus
+from app.models.global_config import ConfigDefaults, get_config_int
 from app.schemas.dashboard import DepartmentMetrics
 
 router = APIRouter()
@@ -41,20 +40,27 @@ async def get_department_metrics(
 
     dept_result = await db.execute(dept_query)
     departments = dept_result.scalars().all()
+    high_threshold = await get_config_int(
+        db,
+        "high_risk_min_net_score",
+        ConfigDefaults.HIGH_RISK_MIN_NET_SCORE,
+    )
 
     metrics = []
     for dept in departments:
         # Control count (exclude archived by default)
         control_query = select(func.count(Control.id)).where(Control.department_id == dept.id)
         if not include_archived:
-            control_query = control_query.where(Control.status != ControlStatus.archived.value)
+            control_query = control_query.where(Control.live())
         control_count_result = await db.execute(control_query)
         control_count = control_count_result.scalar() or 0
 
         # Active control count for compliance rate
         active_control_result = await db.execute(
             select(func.count(Control.id)).where(
-                Control.department_id == dept.id, Control.status == ControlStatus.active.value
+                Control.department_id == dept.id,
+                Control.status == ControlStatus.active.value,
+                Control.live(),
             )
         )
         active_control_count = active_control_result.scalar() or 0
@@ -62,17 +68,16 @@ async def get_department_metrics(
         # Risk count (exclude archived by default)
         risk_query = select(func.count(Risk.id)).where(Risk.department_id == dept.id)
         if not include_archived:
-            risk_query = risk_query.where(Risk.status != RiskStatus.archived.value)
+            risk_query = risk_query.where(Risk.live())
         risk_count_result = await db.execute(risk_query)
         risk_count = risk_count_result.scalar() or 0
 
         # High risk count (net_score >= high threshold, exclude archived by default)
-        high_threshold = ConfigDefaults.HIGH_RISK_MIN_NET_SCORE
         high_risk_query = select(func.count(Risk.id)).where(
             Risk.department_id == dept.id, Risk.net_score >= high_threshold
         )
         if not include_archived:
-            high_risk_query = high_risk_query.where(Risk.status != RiskStatus.archived.value)
+            high_risk_query = high_risk_query.where(Risk.live())
         high_risk_result = await db.execute(high_risk_query)
         high_risk_count = high_risk_result.scalar() or 0
 
@@ -81,7 +86,7 @@ async def get_department_metrics(
             select(func.count(Control.id.distinct())).join(ControlExecution).where(Control.department_id == dept.id)
         )
         if not include_archived:
-            audited_control_query = audited_control_query.where(Control.status != ControlStatus.archived.value)
+            audited_control_query = audited_control_query.where(Control.live())
         audited_control_result = await db.execute(audited_control_query)
         audited_control_count = audited_control_result.scalar() or 0
 
@@ -91,7 +96,7 @@ async def get_department_metrics(
             .join(Risk)
             .where(
                 Risk.department_id == dept.id,
-                Risk.status != RiskStatus.archived.value,
+                Risk.live(),
                 KeyRiskIndicator.is_archived.is_(False),
                 or_(
                     KeyRiskIndicator.current_value < KeyRiskIndicator.lower_limit,
@@ -108,7 +113,7 @@ async def get_department_metrics(
             .join(Risk)
             .where(
                 Risk.department_id == dept.id,
-                Risk.status != RiskStatus.archived.value,
+                Risk.live(),
                 KeyRiskIndicator.is_archived.is_(False),
             )
         )

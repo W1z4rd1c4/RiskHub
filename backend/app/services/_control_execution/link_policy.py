@@ -73,7 +73,9 @@ async def reload_link_for_risk_response(db: AsyncSession, link_id: int) -> Contr
 
 async def assert_link_does_not_exist(db: AsyncSession, *, control_id: int, risk_id: int) -> None:
     existing = await db.execute(
-        select(ControlRiskLink).where(ControlRiskLink.control_id == control_id).where(ControlRiskLink.risk_id == risk_id)
+        select(ControlRiskLink)
+        .where(ControlRiskLink.control_id == control_id)
+        .where(ControlRiskLink.risk_id == risk_id)
     )
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Link already exists")

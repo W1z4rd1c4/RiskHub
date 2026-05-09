@@ -24,6 +24,9 @@ const CONTROL_VIEW_MODE_GROUPS = {
 } as const satisfies Partial<Record<ViewMode, string>>;
 
 export type ControlListStatusFilter = '' | 'archived' | ControlMonitoringStatus;
+export const ARCHIVED_CONTROL_FILTER = 'archived' as const;
+export const ARCHIVED_CONTROL_BADGE_CLASS_NAME = 'text-yellow-400 bg-yellow-400/10';
+export type ControlDisplayStatus = ControlStatus | typeof ARCHIVED_CONTROL_FILTER;
 
 interface BuildControlListParamsOptions {
     currentPage: number;
@@ -51,9 +54,9 @@ export function buildControlListParams({
         offset: (currentPage - 1) * limit,
         limit,
         search: search.trim() || undefined,
-        status: statusFilter === 'archived' ? ControlStatus.ARCHIVED : undefined,
-        monitoring_status: statusFilter && statusFilter !== 'archived' ? statusFilter : undefined,
-        include_archived: statusFilter === 'archived',
+        status: statusFilter === ARCHIVED_CONTROL_FILTER ? ARCHIVED_CONTROL_FILTER : undefined,
+        monitoring_status: statusFilter && statusFilter !== ARCHIVED_CONTROL_FILTER ? statusFilter : undefined,
+        include_archived: statusFilter === ARCHIVED_CONTROL_FILTER,
         group_by: groupBy || undefined,
         group_value: groupValue || undefined,
     };
@@ -64,8 +67,8 @@ export function buildControlExportFilters({
     statusFilter,
 }: BuildControlExportFiltersOptions) {
     return {
-        status: statusFilter === 'archived' ? ControlStatus.ARCHIVED : null,
-        monitoringStatus: statusFilter && statusFilter !== 'archived' ? statusFilter : null,
+        status: statusFilter === ARCHIVED_CONTROL_FILTER ? ARCHIVED_CONTROL_FILTER : null,
+        monitoringStatus: statusFilter && statusFilter !== ARCHIVED_CONTROL_FILTER ? statusFilter : null,
         search: search.trim() || null,
     };
 }
@@ -78,20 +81,23 @@ export function getControlRiskLevelColor(level: number): string {
     return 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20';
 }
 
-export function getControlStatusColor(status: ControlStatus): string {
+export function getControlDisplayStatus(control: { status: ControlStatus; is_archived: boolean }): ControlDisplayStatus {
+    return control.is_archived ? ARCHIVED_CONTROL_FILTER : control.status;
+}
+
+export function getControlStatusColor(status: ControlDisplayStatus): string {
     switch (status) {
+        case ARCHIVED_CONTROL_FILTER:
+            return ARCHIVED_CONTROL_BADGE_CLASS_NAME;
         case ControlStatus.ACTIVE:
             return 'text-emerald-400 bg-emerald-400/10';
         case ControlStatus.DRAFT:
             return 'text-slate-400 bg-slate-400/10';
         case ControlStatus.INACTIVE:
             return 'text-rose-400 bg-rose-400/10';
-        case ControlStatus.ARCHIVED:
-            return 'text-yellow-400 bg-yellow-400/10';
         case 'active':
         case 'draft':
         case 'inactive':
-        case 'archived':
             return 'text-slate-400 bg-slate-400/10';
         default:
             return 'text-slate-400 bg-slate-400/10';

@@ -11,7 +11,7 @@ from app.core.permissions import (
     is_risk_control_owner,
     is_risk_kri_reporting_owner,
 )
-from app.models import ApprovalActionType, ApprovalRequest, ApprovalResourceType, Risk, RiskStatus, User
+from app.models import ApprovalActionType, ApprovalRequest, ApprovalResourceType, Risk, User
 from app.schemas.risk import RiskCapabilities
 from app.services._risk_questionnaires.policy import can_send_questionnaire
 
@@ -38,7 +38,7 @@ async def risk_capabilities(
         )
     has_pending_delete = has_pending_action(approvals, ApprovalActionType.DELETE)
     has_pending_update = has_pending_action(approvals, ApprovalActionType.EDIT)
-    is_archived = risk.status == RiskStatus.archived.value
+    is_archived = risk.is_archived
     is_owner = risk.owner_id == current_user.id
     can_read = can_read_override if can_read_override is not None else await can_read_risk_id(db, current_user, risk.id)
     has_update_authority = has_permission(current_user, "risks", "write") or is_owner

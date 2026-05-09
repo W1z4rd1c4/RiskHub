@@ -2,69 +2,42 @@ from __future__ import annotations
 
 import pytest
 import pytest_asyncio
-from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
+from httpx import AsyncClient
 
-from app.core.config import Settings, get_settings
-from app.db.session import get_db
-from app.main import app
+from app.core.config import Settings
 from app.schemas.directory import DirectoryUserRead
 
 
 @pytest_asyncio.fixture
 async def directory_admin_client(
-    db_session: AsyncSession,
+    client_factory,
     test_user_platform_admin,
 ) -> AsyncClient:
-    async def override_get_db():
-        yield db_session
-
-    def override_settings():
-        return Settings(
-            debug=True,
-            secret_key="test-secret-key-32-chars-minimum-value",
-            mock_auth_enabled=True,
-            directory_provider="ad_emulator",
-            ad_emulator_base_url="http://ad-emulator.local",
-        )
-
-    app.dependency_overrides[get_db] = override_get_db
-    app.dependency_overrides[get_settings] = override_settings
-
-    transport = ASGITransport(app=app)
-    headers = {"X-Mock-User-Id": str(test_user_platform_admin.id)}
-    async with AsyncClient(transport=transport, base_url="http://test", headers=headers) as ac:
+    settings = Settings(
+        debug=True,
+        secret_key="test-secret-key-32-chars-minimum-value",
+        mock_auth_enabled=True,
+        directory_provider="ad_emulator",
+        ad_emulator_base_url="http://ad-emulator.local",
+    )
+    async with client_factory(user=test_user_platform_admin, settings=settings) as ac:
         yield ac
-
-    app.dependency_overrides.clear()
 
 
 @pytest_asyncio.fixture
 async def directory_employee_client(
-    db_session: AsyncSession,
+    client_factory,
     test_user_employee,
 ) -> AsyncClient:
-    async def override_get_db():
-        yield db_session
-
-    def override_settings():
-        return Settings(
-            debug=True,
-            secret_key="test-secret-key-32-chars-minimum-value",
-            mock_auth_enabled=True,
-            directory_provider="ad_emulator",
-            ad_emulator_base_url="http://ad-emulator.local",
-        )
-
-    app.dependency_overrides[get_db] = override_get_db
-    app.dependency_overrides[get_settings] = override_settings
-
-    transport = ASGITransport(app=app)
-    headers = {"X-Mock-User-Id": str(test_user_employee.id)}
-    async with AsyncClient(transport=transport, base_url="http://test", headers=headers) as ac:
+    settings = Settings(
+        debug=True,
+        secret_key="test-secret-key-32-chars-minimum-value",
+        mock_auth_enabled=True,
+        directory_provider="ad_emulator",
+        ad_emulator_base_url="http://ad-emulator.local",
+    )
+    async with client_factory(user=test_user_employee, settings=settings) as ac:
         yield ac
-
-    app.dependency_overrides.clear()
 
 
 @pytest.mark.asyncio

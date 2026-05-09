@@ -38,6 +38,7 @@ function buildControlDetail(overrides: Record<string, unknown>) {
         documentation_location: null,
         created_by_id: 99,
         updated_by_id: 99,
+        is_archived: false,
         created_at: FIXTURE_CREATED_AT,
         updated_at: FIXTURE_UPDATED_AT,
         control_owner: {
@@ -82,6 +83,7 @@ export const mockControlSummaries = mockControls.map((control) => ({
     frequency: control.frequency,
     risk_level: control.risk_level,
     status: control.status,
+    is_archived: control.is_archived,
     control_form: control.control_form,
     control_owner_name: (control.control_owner as { name: string }).name,
     risk_type: null,

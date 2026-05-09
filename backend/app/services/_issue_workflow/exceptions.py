@@ -5,10 +5,15 @@ from datetime import datetime
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.activity_logger import build_change_set, log_activity
+from app.core.activity_logger import build_change_set
+from app.core.audit.issue import (
+    issue_exception_approved,
+    issue_exception_created,
+    issue_exception_status_changed,
+    issue_status_changed,
+)
 from app.core.datetime_utils import coerce_utc, utc_now
 from app.models import Issue, IssueException, User
-from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.models.issue import IssueExceptionStatus, IssueStatus
 
 from .transitions import _conflict, _is_remediation_complete, _status_value
@@ -41,14 +46,11 @@ async def request_exception(
     db.add(exception)
     await db.flush()
 
-    await log_activity(
+    await issue_exception_created(
         db,
-        entity_type=ActivityEntityType.ISSUE_EXCEPTION,
-        entity_id=exception.id,
-        entity_name=f"Exception for {issue.title}",
-        action=ActivityAction.CREATE,
         actor=actor,
-        department_id=issue.department_id,
+        issue=issue,
+        exception=exception,
         changes={"status": {"old": None, "new": IssueExceptionStatus.requested.value}},
         description=f"Requested exception for issue {issue.title}",
     )
@@ -83,17 +85,7 @@ async def approve_exception(
         setattr(exception, key, exception_value)
     db.add(exception)
 
-    await log_activity(
-        db,
-        entity_type=ActivityEntityType.ISSUE_EXCEPTION,
-        entity_id=exception.id,
-        entity_name=f"Exception for {issue.title}",
-        action=ActivityAction.APPROVE,
-        actor=actor,
-        department_id=issue.department_id,
-        changes=changes,
-        description=f"Approved exception for issue {issue.title}",
-    )
+    await issue_exception_approved(db, actor=actor, issue=issue, exception=exception, changes=changes)
     return exception
 
 
@@ -115,14 +107,11 @@ async def revoke_exception(
         setattr(exception, key, exception_value)
     db.add(exception)
 
-    await log_activity(
+    await issue_exception_status_changed(
         db,
-        entity_type=ActivityEntityType.ISSUE_EXCEPTION,
-        entity_id=exception.id,
-        entity_name=f"Exception for {issue.title}",
-        action=ActivityAction.STATUS_CHANGE,
         actor=actor,
-        department_id=issue.department_id,
+        issue=issue,
+        exception=exception,
         changes=changes,
         description=f"Revoked exception for issue {issue.title}",
     )
@@ -137,14 +126,10 @@ async def revoke_exception(
             setattr(issue, key, issue_value)
         db.add(issue)
 
-        await log_activity(
+        await issue_status_changed(
             db,
-            entity_type=ActivityEntityType.ISSUE,
-            entity_id=issue.id,
-            entity_name=issue.title,
-            action=ActivityAction.STATUS_CHANGE,
             actor=actor,
-            department_id=issue.department_id,
+            issue=issue,
             changes=issue_changes,
             description=f"Re-opened issue after exception revocation: {issue.title}",
         )

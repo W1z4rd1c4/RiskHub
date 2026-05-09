@@ -12,7 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps as api_deps
-from app.core.config import Settings, get_settings
+from app.core.config import Settings
 from app.core.datetime_utils import utc_now
 from app.core.security import create_access_token
 from app.core.tokens import (
@@ -22,7 +22,6 @@ from app.core.tokens import (
     create_refresh_token,
     decode_refresh_token,
 )
-from app.db.session import get_db
 from app.main import app
 from app.middleware.logging_context import _extract_user_id_from_token
 from app.models import ActivityLog, RefreshToken, User
@@ -78,31 +77,20 @@ def _extract_csrf_cookie(response) -> str | None:
 
 
 @pytest_asyncio.fixture
-async def refresh_client(db_session: AsyncSession) -> AsyncClient:
-    async def override_get_db():
-        yield db_session
-
-    def override_settings():
-        return Settings(
-            debug=True,
-            secret_key=TEST_SECRET_KEY,
-            mock_auth_enabled=True,
-            auth_mode="microsoft_sso",
-            cors_origins=[TEST_ORIGIN],
-            entra_tenant_id="00000000-0000-0000-0000-000000000000",
-            entra_client_id="11111111-1111-1111-1111-111111111111",
-            directory_provider="ad_emulator",
-            ad_emulator_base_url="http://ad-emulator.local",
-        )
-
-    app.dependency_overrides[get_db] = override_get_db
-    app.dependency_overrides[get_settings] = override_settings
-
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+async def refresh_client(client_factory) -> AsyncClient:
+    settings = Settings(
+        debug=True,
+        secret_key=TEST_SECRET_KEY,
+        mock_auth_enabled=True,
+        auth_mode="microsoft_sso",
+        cors_origins=[TEST_ORIGIN],
+        entra_tenant_id="00000000-0000-0000-0000-000000000000",
+        entra_client_id="11111111-1111-1111-1111-111111111111",
+        directory_provider="ad_emulator",
+        ad_emulator_base_url="http://ad-emulator.local",
+    )
+    async with client_factory(settings=settings) as ac:
         yield ac
-
-    app.dependency_overrides.clear()
 
 
 async def _start_sso_challenge(refresh_client: AsyncClient, *, return_to: str = "/") -> dict[str, str | int]:

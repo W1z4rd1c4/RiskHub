@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from http import HTTPStatus
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.activity_logger import log_activity

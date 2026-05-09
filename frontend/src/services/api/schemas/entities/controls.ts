@@ -66,6 +66,7 @@ export const linkedRiskSchema: z.ZodType<LinkedRisk> = passthroughObject({
     department_id: z.number().nullable().optional(),
     department_name: z.string().nullable().optional(),
     status: z.string().nullable().optional(),
+    is_archived: z.boolean().optional(),
 });
 export const linkedRiskArraySchema = z.array(linkedRiskSchema);
 
@@ -77,6 +78,7 @@ export const linkedControlSchema: z.ZodType<LinkedControl> = controlMonitoringFi
     department_id: z.number().nullable().optional(),
     department_name: z.string().nullable().optional(),
     status: z.string().nullable().optional(),
+    is_archived: z.boolean().optional(),
 });
 export const linkedControlArraySchema = z.array(linkedControlSchema);
 
@@ -105,7 +107,8 @@ export const controlSchema: z.ZodType<Control> = controlMonitoringFieldsSchema.e
     report_recipient: z.string().nullable().optional(),
     documentation_location: z.string().nullable().optional(),
     department_id: z.number().nullable().optional(),
-    status: z.enum(['draft', 'active', 'inactive', 'archived']),
+    status: z.enum(['draft', 'active', 'inactive']),
+    is_archived: z.boolean(),
     created_by_id: z.number().nullable().optional(),
     updated_by_id: z.number().nullable().optional(),
     created_at: z.string(),
@@ -132,7 +135,8 @@ export const controlSummarySchema: z.ZodType<ControlSummary> = controlMonitoring
         'continuous',
     ]),
     risk_level: z.number(),
-    status: z.enum(['draft', 'active', 'inactive', 'archived']),
+    status: z.enum(['draft', 'active', 'inactive']),
+    is_archived: z.boolean(),
     control_form: z.enum(['manual', 'automatic']),
     control_owner_name: z.string().nullable().optional(),
     risk_type: z.string().nullable().optional(),
@@ -161,6 +165,7 @@ export const controlRiskLinkSchema: z.ZodType<ControlRiskLink> = passthroughObje
             frequency: z.string().optional(),
             risk_level: z.number().optional(),
             status: z.string().optional(),
+            is_archived: z.boolean(),
         })
         .optional(),
     risk: passthroughObject({
@@ -170,6 +175,7 @@ export const controlRiskLinkSchema: z.ZodType<ControlRiskLink> = passthroughObje
         process: z.string(),
         description: z.string(),
         status: z.string().optional(),
+        is_archived: z.boolean(),
     }).optional(),
 });
 export const controlRiskLinkArraySchema = z.array(controlRiskLinkSchema);

@@ -35,10 +35,18 @@ import {
     z,
 } from './common';
 
-const pendingChangeSchema: z.ZodType<PendingChange> = passthroughObject({
-    old: z.unknown(),
-    new: z.unknown(),
-});
+const pendingChangeSchema: z.ZodType<PendingChange> = z.preprocess(
+    (value) => {
+        if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+            return value;
+        }
+        return { old: undefined, new: value };
+    },
+    passthroughObject({
+        old: z.unknown(),
+        new: z.unknown(),
+    }),
+);
 
 export const activityLogEntrySchema: z.ZodType<ActivityLogEntry> = passthroughObject({
     id: z.number(),

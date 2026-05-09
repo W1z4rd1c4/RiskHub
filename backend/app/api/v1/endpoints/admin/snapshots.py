@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 from app.models import User
 from app.schemas.admin import SnapshotListItem, SnapshotResponse
+from app.services.transaction_boundary import commit_service_transaction
 
 from ._deps import require_platform_admin
 
@@ -49,7 +50,7 @@ async def capture_quarterly_snapshot(
         notes=notes or f"Manual capture by {admin_user.name}",
     )
 
-    await db.commit()
+    await commit_service_transaction(db)
 
     return _snapshot_response(snapshot, message=f"Successfully captured snapshot for {snapshot.quarter}")
 

@@ -6,10 +6,63 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.audit.issue import issue_status_changed
+from app.core.datetime_utils import utc_now
+from app.models import Issue, User
+from app.models.issue import IssueSourceType, IssueStatus
 from app.models.key_risk_indicator import KeyRiskIndicator
 from app.models.kri_history import KRIValueHistory
+from app.services._monitoring_status.kris import classify_kri_breach
 
 from .logging import logger
+
+AUTO_CLOSED_KRI_BREACH_NOTE = "Auto-closed because corrected KRI breach is now within limits."
+
+
+def _status_value(status: IssueStatus | str) -> str:
+    return status.value if isinstance(status, IssueStatus) else str(status)
+
+
+async def _close_retracted_kri_breach_issues(
+    db: AsyncSession,
+    *,
+    entry: KRIValueHistory,
+    corrected_by_id: int | None,
+) -> None:
+    result = await db.execute(
+        select(Issue)
+        .where(
+            Issue.source_type == IssueSourceType.kri_breach,
+            Issue.source_id == entry.id,
+            Issue.status != IssueStatus.closed,
+        )
+        .with_for_update()
+    )
+    issues = list(result.scalars().all())
+    if not issues:
+        return
+
+    actor = await db.get(User, corrected_by_id) if corrected_by_id is not None else None
+    now = utc_now()
+    for issue in issues:
+        old_status = _status_value(issue.status)
+        old_closed_at = issue.closed_at
+        old_validation_note = issue.validation_note
+        issue.status = IssueStatus.closed
+        issue.closed_at = now
+        issue.validation_note = AUTO_CLOSED_KRI_BREACH_NOTE
+        if actor is not None:
+            await issue_status_changed(
+                db,
+                actor=actor,
+                issue=issue,
+                changes={
+                    "status": {"old": old_status, "new": IssueStatus.closed.value},
+                    "closed_at": {"old": old_closed_at, "new": now},
+                    "validation_note": {"old": old_validation_note, "new": AUTO_CLOSED_KRI_BREACH_NOTE},
+                },
+                description=AUTO_CLOSED_KRI_BREACH_NOTE,
+            )
 
 
 async def apply_history_correction(
@@ -48,17 +101,17 @@ async def apply_history_correction(
     if locked_kri is None:
         raise ValueError(f"KRI {entry.kri_id} not found")
 
-    # Recalculate breach status
-    if new_value < entry.lower_limit:
-        breach_status = "below"
-    elif new_value > entry.upper_limit:
-        breach_status = "above"
-    else:
-        breach_status = "within"
+    breach_status = classify_kri_breach(
+        current_value=new_value,
+        lower_limit=entry.lower_limit,
+        upper_limit=entry.upper_limit,
+    )
 
     # Update entry
     entry.value = new_value
     entry.breach_status = breach_status
+    if breach_status == "within":
+        await _close_retracted_kri_breach_issues(db, entry=entry, corrected_by_id=corrected_by_id)
 
     # Check if this is the latest entry for the KRI
     latest_result = await db.execute(

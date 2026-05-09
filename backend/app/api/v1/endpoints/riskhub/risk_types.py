@@ -23,7 +23,7 @@ router = APIRouter()
 
 async def _active_risk_type_counts(db: AsyncSession) -> dict[str, int]:
     result = await db.execute(
-        select(Risk.risk_type, func.count(Risk.id)).where(Risk.status != "archived").group_by(Risk.risk_type)
+        select(Risk.risk_type, func.count(Risk.id)).where(Risk.live()).group_by(Risk.risk_type)
     )
     return {row[0]: row[1] for row in result.all()}
 
@@ -31,7 +31,7 @@ async def _active_risk_type_counts(db: AsyncSession) -> dict[str, int]:
 async def _active_risk_count_for_type(db: AsyncSession, risk_type_code: str) -> int:
     return (
         await db.execute(
-            select(func.count(Risk.id)).where(Risk.risk_type == risk_type_code, Risk.status != "archived")
+            select(func.count(Risk.id)).where(Risk.risk_type == risk_type_code, Risk.live())
         )
     ).scalar() or 0
 

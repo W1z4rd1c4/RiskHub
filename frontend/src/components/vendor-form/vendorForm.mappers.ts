@@ -2,7 +2,6 @@ import type { SafeTFunction } from '@/i18n/hooks';
 import type {
     VendorCreate,
     VendorReplaceability,
-    VendorStatus,
     VendorType,
 } from '@/types/vendor';
 
@@ -80,7 +79,7 @@ export function buildVendorPayload(formData: VendorFormData): VendorCreate {
             formData.materiality_assessed_max_impact_pct_own_funds ?? null,
         replaceability: (formData.replaceability || null) as VendorReplaceability | null,
         has_alternative_providers: !!formData.has_alternative_providers,
-        status: (formData.status || 'active') as VendorStatus,
+        status: 'active',
     };
 }
 

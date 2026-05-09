@@ -53,7 +53,7 @@ async def build_control_trends(
         # For department filtering, we need to join with Control
         if department_id is not None or control_status:
             # Build subquery for control IDs matching filters
-            control_conditions: list[ColumnElement[bool]] = []
+            control_conditions: list[ColumnElement[bool]] = [Control.live()]
             visibility_clause = control_visibility_clause(current_user, department_id=department_id)
             if visibility_clause is not None:
                 control_conditions.append(visibility_clause)
@@ -63,10 +63,12 @@ async def build_control_trends(
             control_ids_query = select(Control.id).where(and_(*control_conditions))
             conditions.append(ControlExecution.control_id.in_(control_ids_query))
         else:
+            control_conditions = [Control.live()]
             visibility_clause = control_visibility_clause(current_user)
             if visibility_clause is not None:
-                control_ids_query = select(Control.id).where(visibility_clause)
-                conditions.append(ControlExecution.control_id.in_(control_ids_query))
+                control_conditions.append(visibility_clause)
+            control_ids_query = select(Control.id).where(and_(*control_conditions))
+            conditions.append(ControlExecution.control_id.in_(control_ids_query))
 
         # Check if there are any executions matching conditions
         count_query = select(func.count(ControlExecution.id))

@@ -185,6 +185,7 @@ function makeRiskCapabilities(overrides: Partial<Record<string, boolean>> = {}) 
         can_unlink_controls: false,
         can_view_linked_controls: true,
         can_view_linked_vendors: true,
+        can_send_questionnaire: false,
         can_create_issue: false,
         has_pending_delete_approval: false,
         has_pending_update_approval: false,
@@ -303,6 +304,50 @@ describe('RBAC UI gating', () => {
         expect(employeeAuthz.canViewUsersPage).toBe(true);
         expect(employeeAuthz.canViewDepartmentAccess).toBe(false);
         expect(employeeAuthz.canViewRiskHub).toBe(false);
+    });
+
+    it('Authz policy: prefers backend me-capabilities over role-string inference when available', () => {
+        const admin = makeUser({
+            role: 'admin',
+            access_scope: 'global',
+            effective_permissions: ['*:*'],
+        });
+        const backendCapabilities = {
+            can_view_user_directory: false,
+            can_view_access_users: false,
+            can_view_department_access_users: false,
+            can_view_users_route: false,
+            can_manage_access: false,
+            can_view_department_access: false,
+            can_view_admin_console: false,
+            can_view_riskhub: true,
+            can_view_governance: true,
+            can_view_activity_log: true,
+            can_view_committee: true,
+            can_view_users_page: false,
+            is_second_line: true,
+            can_read_risks: false,
+            can_read_controls: false,
+            can_read_vendors: false,
+            can_read_departments: false,
+            resource_permissions: {
+                'risks:read': false,
+                'controls:read': false,
+                'vendors:read': false,
+                'departments:read': false,
+                'users:read': false,
+                'users:write': false,
+            },
+        };
+
+        const authz = buildAuthz(admin, makeHasPermission(admin.effective_permissions), backendCapabilities, true);
+
+        expect(authz.canViewAdminConsole).toBe(false);
+        expect(authz.canViewRiskHub).toBe(true);
+        expect(authz.canViewGovernance).toBe(true);
+        expect(authz.canReadRisks).toBe(false);
+        expect(authz.can('read', 'risks')).toBe(false);
+        expect(authz.can('write', 'users')).toBe(false);
     });
 
     it('UsersPage: global non-admin user can view access data but cannot see edit action', async () => {
@@ -661,6 +706,7 @@ describe('RBAC UI gating', () => {
                     frequency: 'monthly',
                     risk_level: 3,
                     status: 'active',
+                    is_archived: false,
                     created_at: new Date().toISOString(),
                     updated_at: new Date().toISOString(),
                     control_owner: { id: 20, name: 'Owner', email: 'owner@riskhub.test' },
@@ -699,6 +745,7 @@ describe('RBAC UI gating', () => {
                     frequency: 'monthly',
                     risk_level: 3,
                     status: 'active',
+                    is_archived: false,
                     created_at: new Date().toISOString(),
                     updated_at: new Date().toISOString(),
                     control_owner: { id: 21, name: 'Owner', email: 'owner@riskhub.test' },
@@ -743,7 +790,8 @@ describe('RBAC UI gating', () => {
                             gross_probability: 3,
                             gross_impact: 3,
                             net_score: 4,
-                            status: 'archived',
+                            status: 'active',
+                            is_archived: true,
                             is_priority: false,
                             capabilities: makeRiskCapabilities({ can_restore: true }),
                         },
@@ -787,7 +835,8 @@ describe('RBAC UI gating', () => {
                             gross_probability: 3,
                             gross_impact: 3,
                             net_score: 4,
-                            status: 'archived',
+                            status: 'active',
+                            is_archived: true,
                             is_priority: false,
                             capabilities: makeRiskCapabilities({ can_restore: false }),
                         },
@@ -968,7 +1017,8 @@ describe('RBAC UI gating', () => {
                             department_name: 'Operations',
                             frequency: 'monthly',
                             risk_level: 3,
-                            status: 'archived',
+                            status: 'active',
+                            is_archived: true,
                             control_form: 'manual',
                             capabilities: makeControlCapabilities({ can_restore: true, is_archived: true }),
                         },
@@ -1006,7 +1056,8 @@ describe('RBAC UI gating', () => {
                             department_name: 'Operations',
                             frequency: 'monthly',
                             risk_level: 3,
-                            status: 'archived',
+                            status: 'active',
+                            is_archived: true,
                             control_form: 'manual',
                             capabilities: makeControlCapabilities({ can_restore: false, is_archived: true }),
                         },
@@ -1049,6 +1100,7 @@ describe('RBAC UI gating', () => {
                             frequency: 'monthly',
                             risk_level: 3,
                             status: 'active',
+                            is_archived: false,
                             control_form: 'manual',
                             capabilities: makeControlCapabilities(),
                         },
@@ -1085,6 +1137,7 @@ describe('RBAC UI gating', () => {
                             frequency: 'monthly',
                             risk_level: 3,
                             status: 'active',
+                            is_archived: false,
                             control_form: 'manual',
                             capabilities: makeControlCapabilities(),
                         },
@@ -1126,6 +1179,7 @@ describe('RBAC UI gating', () => {
                             frequency: 'monthly',
                             risk_level: 3,
                             status: 'active',
+                            is_archived: false,
                             control_form: 'manual',
                             capabilities: makeControlCapabilities(),
                         },

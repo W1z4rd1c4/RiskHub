@@ -9,16 +9,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.services._vendor_governance.links import (
-    VendorLinkField,
-    VendorLinkModel,
-    create_vendor_link,
-    delete_vendor_link,
-    load_monitoring_response_context,
-    require_vendor_access,
-    serialize_control_brief_for_link,
-    serialize_kri_response,
-)
+from app.core.activity_logger import log_activity
+from app.core.audit.types import AuditLogActivity
+from app.core.audit.vendor import vendor_link_created, vendor_link_deleted
 from app.core.datetime_utils import utc_now
 from app.core.permissions import can_read_control_id, can_read_kri_id, can_read_risk_id
 from app.models import (
@@ -32,6 +25,18 @@ from app.models import (
 )
 from app.schemas.control import ControlStatusEnum as ControlReadStatusEnum
 from app.schemas.vendor_links import LinkedControlRead, LinkedKRIRead, LinkedRiskRead
+from app.services._monitoring_response import (
+    load_monitoring_response_context,
+    serialize_control_brief_for_link,
+    serialize_kri_response,
+)
+from app.services._vendor_governance.links import (
+    VendorLinkField,
+    VendorLinkModel,
+    create_vendor_link,
+    delete_vendor_link,
+    require_vendor_access,
+)
 
 VendorLinkKind = Literal["risk", "control", "kri"]
 
@@ -90,23 +95,23 @@ async def _ensure_visible_target(
     entity_id: int,
 ) -> None:
     if target.kind == "risk":
-        result = await db.execute(select(Risk).where(Risk.id == entity_id))
-        risk = result.scalar_one_or_none()
+        risk_result = await db.execute(select(Risk).where(Risk.id == entity_id))
+        risk = risk_result.scalar_one_or_none()
         if not risk or not await _can_read_risk(db, current_user, entity_id):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=target.not_found_detail)
         return
 
     if target.kind == "control":
-        result = await db.execute(
+        control_result = await db.execute(
             select(Control).options(selectinload(Control.department)).where(Control.id == entity_id)
         )
-        control = result.scalar_one_or_none()
+        control = control_result.scalar_one_or_none()
         if not control or not await _can_read_control(db, current_user, control):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=target.not_found_detail)
         return
 
-    result = await db.execute(select(KeyRiskIndicator).where(KeyRiskIndicator.id == entity_id))
-    kri = result.scalar_one_or_none()
+    kri_result = await db.execute(select(KeyRiskIndicator).where(KeyRiskIndicator.id == entity_id))
+    kri = kri_result.scalar_one_or_none()
     if not kri or not await _can_read_kri(db, current_user, entity_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=target.not_found_detail)
 
@@ -144,6 +149,7 @@ async def list_vendor_linked_risks(
                     department_id=risk.department_id,
                     department_name=risk.department.name if getattr(risk, "department", None) else None,
                     status=getattr(risk, "status", None),
+                    is_archived=bool(risk.is_archived),
                 )
             )
     return visible
@@ -183,6 +189,7 @@ async def list_vendor_linked_controls(
                     department_id=control.department_id,
                     department_name=control.department.name if getattr(control, "department", None) else None,
                     status=ControlReadStatusEnum(control_brief.status.value),
+                    is_archived=bool(control.is_archived),
                     monitoring_status=control_brief.monitoring_status,
                     monitoring_status_reason=control_brief.monitoring_status_reason,
                     latest_execution_result=control_brief.latest_execution_result,
@@ -262,9 +269,10 @@ async def link_vendor_target(
     current_user: User,
     kind: VendorLinkKind,
     entity_id: int,
+    log_activity_func: AuditLogActivity = log_activity,
 ) -> dict[str, str]:
     target = vendor_link_target(kind)
-    await require_vendor_access(
+    vendor = await require_vendor_access(
         db,
         vendor_id,
         current_user,
@@ -272,7 +280,22 @@ async def link_vendor_target(
         require_write=True,
     )
     await _ensure_visible_target(db, current_user, target, entity_id)
-    return await create_vendor_link(db, target.link_model, vendor_id, target.entity_field, entity_id)
+    try:
+        result = await create_vendor_link(db, target.link_model, vendor_id, target.entity_field, entity_id)
+        await vendor_link_created(
+            db,
+            actor=current_user,
+            vendor=vendor,
+            link_kind=kind,
+            target_id=entity_id,
+            log_activity_func=log_activity_func,
+        )
+        await db.commit()
+        return result
+    except Exception:
+        # Keep the relationship mutation and the audit record atomic.
+        await db.rollback()
+        raise
 
 
 async def unlink_vendor_target(
@@ -282,9 +305,10 @@ async def unlink_vendor_target(
     current_user: User,
     kind: VendorLinkKind,
     entity_id: int,
+    log_activity_func: AuditLogActivity = log_activity,
 ) -> None:
     target = vendor_link_target(kind)
-    await require_vendor_access(
+    vendor = await require_vendor_access(
         db,
         vendor_id,
         current_user,
@@ -292,4 +316,18 @@ async def unlink_vendor_target(
         require_write=True,
     )
     await _ensure_visible_target(db, current_user, target, entity_id)
-    await delete_vendor_link(db, target.link_model, vendor_id, target.entity_field, entity_id)
+    try:
+        await delete_vendor_link(db, target.link_model, vendor_id, target.entity_field, entity_id)
+        await vendor_link_deleted(
+            db,
+            actor=current_user,
+            vendor=vendor,
+            link_kind=kind,
+            target_id=entity_id,
+            log_activity_func=log_activity_func,
+        )
+        await db.commit()
+    except Exception:
+        # Keep the relationship mutation and the audit record atomic.
+        await db.rollback()
+        raise

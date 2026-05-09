@@ -12,6 +12,7 @@ from app.models import (
     Control,
     ControlExecution,
     Department,
+    GlobalConfig,
     KeyRiskIndicator,
     KRIValueHistory,
     Permission,
@@ -21,6 +22,7 @@ from app.models import (
     User,
     Vendor,
 )
+from app.models.global_config import clear_config_cache
 from app.models.user import AccessScope
 
 
@@ -48,6 +50,111 @@ async def test_dashboard_summary(auth_client: AsyncClient):
     data = response.json()
     assert "total_controls" in data
     assert "total_risks" in data
+
+
+@pytest.mark.asyncio
+async def test_dashboard_summary_active_control_status_excludes_archived_normalized_controls(
+    auth_client: AsyncClient,
+    db_session,
+    test_department: Department,
+    test_user: User,
+):
+    before_response = await auth_client.get("/api/v1/dashboard/summary?control_status=active")
+    assert before_response.status_code == 200
+    before_total = before_response.json()["total_controls"]
+
+    live_control = Control(
+        name="Dashboard Active Live Control",
+        description="Live active control counted in active dashboard filter",
+        department_id=test_department.id,
+        control_owner_id=test_user.id,
+        status="active",
+        is_archived=False,
+    )
+    archived_control = Control(
+        name="Dashboard Archived Normalized Active Control",
+        description="Archived control normalized to active lifecycle status",
+        department_id=test_department.id,
+        control_owner_id=test_user.id,
+        status="active",
+        is_archived=True,
+    )
+    db_session.add_all([live_control, archived_control])
+    await db_session.commit()
+
+    response = await auth_client.get("/api/v1/dashboard/summary?control_status=active")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["total_controls"] == before_total + 1
+
+
+@pytest.mark.asyncio
+async def test_dashboard_summary_risk_level_and_critical_count_use_configured_thresholds(
+    auth_client: AsyncClient,
+    db_session,
+    test_user: User,
+    seed_risk_types,
+):
+    config = GlobalConfig(
+        key="critical_risk_min_net_score",
+        value="20",
+        value_type="int",
+        category="risk_thresholds",
+        display_name="Critical Risk Threshold",
+    )
+    dept = Department(name="Dashboard Summary Critical Threshold Dept", code="DASH-SUM-CRIT", is_system=True)
+    db_session.add_all([config, dept])
+    await db_session.commit()
+    await db_session.refresh(dept)
+    clear_config_cache()
+
+    default_critical_only = Risk(
+        risk_id_code="DASH-SUM-RISK-DEFAULT-CRIT",
+        name="Dashboard Summary Default Critical Only",
+        process="Dashboard configured threshold",
+        description="Critical under defaults but not configured threshold",
+        category="Test",
+        department_id=dept.id,
+        owner_id=test_user.id,
+        risk_type="operational",
+        gross_probability=4,
+        gross_impact=4,
+        gross_score=16,
+        net_probability=4,
+        net_impact=4,
+        net_score=16,
+        status="active",
+    )
+    configured_critical = Risk(
+        risk_id_code="DASH-SUM-RISK-CONFIG-CRIT",
+        name="Dashboard Summary Configured Critical",
+        process="Dashboard configured threshold",
+        description="Critical at configured threshold",
+        category="Test",
+        department_id=dept.id,
+        owner_id=test_user.id,
+        risk_type="operational",
+        gross_probability=4,
+        gross_impact=5,
+        gross_score=20,
+        net_probability=4,
+        net_impact=5,
+        net_score=20,
+        status="active",
+    )
+    db_session.add_all([default_critical_only, configured_critical])
+    await db_session.commit()
+
+    try:
+        response = await auth_client.get(f"/api/v1/dashboard/summary?department_id={dept.id}&risk_level=critical")
+
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["total_risks"] == 1
+        assert payload["critical_risks_count"] == 1
+    finally:
+        clear_config_cache()
 
 
 @pytest.mark.asyncio
@@ -123,6 +230,77 @@ async def test_risk_distribution(auth_client: AsyncClient):
 
 
 @pytest.mark.asyncio
+async def test_risk_distribution_risk_level_filter_uses_configured_thresholds(
+    auth_client: AsyncClient,
+    db_session,
+    test_user: User,
+    seed_risk_types,
+):
+    config = GlobalConfig(
+        key="critical_risk_min_net_score",
+        value="12",
+        value_type="int",
+        category="risk_thresholds",
+        display_name="Critical Risk Threshold",
+    )
+    dept = Department(name="Dashboard Matrix Critical Threshold Dept", code="DASH-MATRIX-CRIT", is_system=True)
+    db_session.add_all([config, dept])
+    await db_session.commit()
+    await db_session.refresh(dept)
+    clear_config_cache()
+
+    configured_critical = Risk(
+        risk_id_code="DASH-MATRIX-RISK-CONFIG-CRIT",
+        name="Dashboard Matrix Configured Critical",
+        process="Dashboard configured threshold",
+        description="Critical under configured threshold",
+        category="Test",
+        department_id=dept.id,
+        owner_id=test_user.id,
+        risk_type="operational",
+        gross_probability=3,
+        gross_impact=4,
+        gross_score=12,
+        net_probability=3,
+        net_impact=4,
+        net_score=12,
+        status="active",
+    )
+    configured_high = Risk(
+        risk_id_code="DASH-MATRIX-RISK-CONFIG-HIGH",
+        name="Dashboard Matrix Configured High",
+        process="Dashboard configured threshold",
+        description="Below configured critical threshold",
+        category="Test",
+        department_id=dept.id,
+        owner_id=test_user.id,
+        risk_type="operational",
+        gross_probability=2,
+        gross_impact=5,
+        gross_score=10,
+        net_probability=2,
+        net_impact=5,
+        net_score=10,
+        status="active",
+    )
+    db_session.add_all([configured_critical, configured_high])
+    await db_session.commit()
+
+    try:
+        response = await auth_client.get(
+            f"/api/v1/dashboard/risk-distribution?department_id={dept.id}&risk_level=critical"
+        )
+
+        assert response.status_code == 200
+        distribution = response.json()["distribution"]
+        assert sum(item["count"] for item in distribution) == 1
+        assert distribution[0]["probability"] == 3
+        assert distribution[0]["impact"] == 4
+    finally:
+        clear_config_cache()
+
+
+@pytest.mark.asyncio
 async def test_departments(auth_client: AsyncClient):
     """Test the departments endpoint."""
     response = await auth_client.get("/api/v1/dashboard/departments")
@@ -130,6 +308,75 @@ async def test_departments(auth_client: AsyncClient):
     assert response.status_code == 200
     data = response.json()
     assert isinstance(data, list)
+
+
+@pytest.mark.asyncio
+async def test_dashboard_departments_high_risk_count_uses_config_threshold(
+    auth_client: AsyncClient,
+    db_session,
+    test_user: User,
+    seed_risk_types,
+):
+    config = GlobalConfig(
+        key="high_risk_min_net_score",
+        value="12",
+        value_type="int",
+        category="risk_thresholds",
+        display_name="High Risk Threshold",
+    )
+    dept = Department(name="Dashboard Configured High Risk Dept", code="DASH-HIGH-CFG", is_system=True)
+    db_session.add_all([config, dept])
+    await db_session.commit()
+    await db_session.refresh(dept)
+    clear_config_cache()
+
+    below_configured_high = Risk(
+        risk_id_code="DASH-RISK-CONFIG-BELOW-HIGH",
+        name="Dashboard Below Configured High Risk",
+        process="Dashboard configured threshold",
+        description="Default-high but below configured-high",
+        category="Test",
+        department_id=dept.id,
+        owner_id=test_user.id,
+        risk_type="operational",
+        gross_probability=4,
+        gross_impact=4,
+        gross_score=16,
+        net_probability=1,
+        net_impact=11,
+        net_score=11,
+        status="active",
+    )
+    configured_high = Risk(
+        risk_id_code="DASH-RISK-CONFIG-HIGH",
+        name="Dashboard Configured High Risk",
+        process="Dashboard configured threshold",
+        description="At configured high threshold",
+        category="Test",
+        department_id=dept.id,
+        owner_id=test_user.id,
+        risk_type="operational",
+        gross_probability=4,
+        gross_impact=4,
+        gross_score=16,
+        net_probability=3,
+        net_impact=4,
+        net_score=12,
+        status="active",
+    )
+    db_session.add_all([below_configured_high, configured_high])
+    await db_session.commit()
+
+    try:
+        response = await auth_client.get(f"/api/v1/dashboard/departments?department_id={dept.id}")
+
+        assert response.status_code == 200
+        payload = response.json()
+        assert len(payload) == 1
+        assert payload[0]["department_id"] == dept.id
+        assert payload[0]["high_risk_count"] == 1
+    finally:
+        clear_config_cache()
 
 
 @pytest.mark.asyncio
@@ -272,6 +519,57 @@ async def test_control_trends(auth_client: AsyncClient):
     for item in data:
         assert "period" in item
         assert "execution_count" in item
+
+
+@pytest.mark.asyncio
+async def test_control_trends_active_status_excludes_archived_normalized_controls(
+    auth_client: AsyncClient,
+    db_session,
+    test_department: Department,
+    test_user: User,
+):
+    live_control = Control(
+        name="Dashboard Trend Live Active Control",
+        description="Live active control with execution history",
+        department_id=test_department.id,
+        control_owner_id=test_user.id,
+        status="active",
+        is_archived=False,
+    )
+    archived_control = Control(
+        name="Dashboard Trend Archived Active Control",
+        description="Archived control normalized to active lifecycle status",
+        department_id=test_department.id,
+        control_owner_id=test_user.id,
+        status="active",
+        is_archived=True,
+    )
+    db_session.add_all([live_control, archived_control])
+    await db_session.flush()
+    db_session.add_all(
+        [
+            ControlExecution(
+                control_id=live_control.id,
+                executed_by_id=test_user.id,
+                result="passed",
+                executed_at=datetime(2026, 4, 20, 12, 0, tzinfo=UTC),
+            ),
+            ControlExecution(
+                control_id=archived_control.id,
+                executed_by_id=test_user.id,
+                result="passed",
+                executed_at=datetime(2026, 4, 20, 13, 0, tzinfo=UTC),
+            ),
+        ]
+    )
+    await db_session.commit()
+
+    response = await auth_client.get(
+        f"/api/v1/dashboard/control-trends?department_id={test_department.id}&control_status=active"
+    )
+
+    assert response.status_code == 200
+    assert sum(item["execution_count"] for item in response.json()) == 1
 
 
 @pytest.mark.asyncio
@@ -590,6 +888,299 @@ async def test_committee_summary_scoped_for_department_head(client: AsyncClient,
 
     assert payload["recent_activity"]
     assert all(a["description"] == "Created risk A" for a in payload["recent_activity"])
+
+
+@pytest.mark.asyncio
+async def test_committee_core_excludes_archived_normalized_active_risks(
+    db_session,
+    test_department: Department,
+):
+    """Committee risk rollups must not count archived risks normalized to active status."""
+    from app.models.risk import RiskStatus
+    from app.services._dashboard_metrics.committee_projection import fetch_committee_core
+
+    live_risk = Risk(
+        risk_id_code="DASH-LIVE-001",
+        name="Dashboard Live Risk",
+        process="Dashboard",
+        category="Operational",
+        description="Live risk should remain in committee rollups.",
+        department_id=test_department.id,
+        risk_type="operational",
+        gross_probability=2,
+        gross_impact=2,
+        gross_score=4,
+        net_probability=2,
+        net_impact=2,
+        net_score=4,
+        status=RiskStatus.active.value,
+        is_archived=False,
+    )
+    archived_risk = Risk(
+        risk_id_code="DASH-ARCH-001",
+        name="Dashboard Archived Risk",
+        process="Dashboard",
+        category="Operational",
+        description="Archived risk should stay out of active committee rollups.",
+        department_id=test_department.id,
+        risk_type="operational",
+        gross_probability=5,
+        gross_impact=5,
+        gross_score=25,
+        net_probability=5,
+        net_impact=5,
+        net_score=25,
+        status=RiskStatus.active.value,
+        is_archived=True,
+    )
+    db_session.add_all([live_risk, archived_risk])
+    await db_session.commit()
+
+    critical_risks, _recent_activity, department_exposure = await fetch_committee_core(
+        db_session,
+        dept_ids=[test_department.id],
+    )
+
+    critical_ids = {risk.id for risk in critical_risks}
+    assert live_risk.id in critical_ids
+    assert archived_risk.id not in critical_ids
+
+    exposure = next(row for row in department_exposure if row.id == test_department.id)
+    assert exposure.risk_count == 1
+    assert exposure.total_exposure == live_risk.net_score
+
+
+@pytest.mark.asyncio
+async def test_committee_critical_vendors_excludes_archived_normalized_active_vendors(
+    db_session,
+    test_department: Department,
+    test_user: User,
+):
+    """Committee vendor rollups must use archive truth, not lifecycle status alone."""
+    from app.models.vendor import VendorStatus, VendorType
+    from app.services._dashboard_metrics.committee_projection import fetch_vendor_sections
+
+    live_vendor = Vendor(
+        name="Committee Live Critical Vendor",
+        process="Dashboard",
+        department_id=test_department.id,
+        outsourcing_owner_user_id=test_user.id,
+        vendor_type=VendorType.ict.value,
+        risk_score_1_5=4,
+        status=VendorStatus.active.value,
+        is_archived=False,
+    )
+    archived_vendor = Vendor(
+        name="Committee Archived Critical Vendor",
+        process="Dashboard",
+        department_id=test_department.id,
+        outsourcing_owner_user_id=test_user.id,
+        vendor_type=VendorType.ict.value,
+        risk_score_1_5=5,
+        status=VendorStatus.active.value,
+        is_archived=True,
+    )
+    db_session.add_all([live_vendor, archived_vendor])
+    await db_session.commit()
+
+    sections = await fetch_vendor_sections(db_session, current_user=test_user, can_read_vendors=True)
+
+    critical_vendor_ids = {vendor.id for vendor in sections["critical_vendors"]}
+    assert live_vendor.id in critical_vendor_ids
+    assert archived_vendor.id not in critical_vendor_ids
+
+
+@pytest.mark.asyncio
+async def test_department_active_control_count_excludes_archived_normalized_controls(
+    auth_client: AsyncClient,
+    db_session,
+    test_user: User,
+    test_department: Department,
+):
+    """Department compliance rate must not treat archived controls as active controls."""
+    live_control = Control(
+        name="Dashboard Live Control",
+        description="Live control for department active count",
+        department_id=test_department.id,
+        control_owner_id=test_user.id,
+        control_form="manual",
+        frequency="monthly",
+        risk_level=3,
+        status="active",
+        is_archived=False,
+    )
+    archived_control = Control(
+        name="Dashboard Archived Control",
+        description="Archived control normalized to active lifecycle status",
+        department_id=test_department.id,
+        control_owner_id=test_user.id,
+        control_form="manual",
+        frequency="monthly",
+        risk_level=3,
+        status="active",
+        is_archived=True,
+    )
+    db_session.add_all([live_control, archived_control])
+    await db_session.commit()
+
+    response = await auth_client.get(f"/api/v1/dashboard/departments?department_id={test_department.id}")
+
+    assert response.status_code == 200
+    metrics = next(item for item in response.json() if item["department_id"] == test_department.id)
+    assert metrics["control_count"] == 1
+    assert metrics["compliance_rate"] == 1.0
+
+
+@pytest.mark.asyncio
+async def test_quarterly_unaudited_controls_excludes_archived_normalized_controls(
+    db_session,
+    test_user: User,
+    test_department: Department,
+):
+    """Quarterly unaudited-control metric must ignore archived active-status controls."""
+    from app.services._quarterly_comparison.period_metrics import get_quarter_period_metrics
+
+    archived_control = Control(
+        name="Quarterly Archived Control",
+        description="Archived control normalized to active lifecycle status",
+        department_id=test_department.id,
+        control_owner_id=test_user.id,
+        control_form="manual",
+        frequency="monthly",
+        risk_level=3,
+        status="active",
+        is_archived=True,
+    )
+    db_session.add(archived_control)
+    await db_session.commit()
+
+    metrics = await get_quarter_period_metrics(
+        db_session,
+        datetime(2026, 4, 1, tzinfo=UTC),
+        datetime(2026, 7, 1, tzinfo=UTC),
+        [test_department.id],
+    )
+
+    assert metrics["unaudited_controls"] == 0
+
+
+@pytest.mark.asyncio
+async def test_snapshot_risks_without_kri_excludes_archived_normalized_risks(
+    db_session,
+    test_user: User,
+    test_department: Department,
+):
+    """Snapshot KRI gaps must count only live active risks."""
+    from app.core._snapshot_metrics.kri import count_risks_without_kri
+
+    live_risk = Risk(
+        risk_id_code="R-SNAP-LIVE-NO-KRI",
+        name="Snapshot live no KRI",
+        process="Snapshot metrics",
+        description="Live active risk without KRI",
+        department_id=test_department.id,
+        owner_id=test_user.id,
+        risk_type="operational",
+        category="Operations",
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=2,
+        status="active",
+        is_archived=False,
+    )
+    archived_risk = Risk(
+        risk_id_code="R-SNAP-ARCH-NO-KRI",
+        name="Snapshot archived no KRI",
+        process="Snapshot metrics",
+        description="Archived normalized active risk without KRI",
+        department_id=test_department.id,
+        owner_id=test_user.id,
+        risk_type="operational",
+        category="Operations",
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=2,
+        status="active",
+        is_archived=True,
+    )
+    db_session.add_all([live_risk, archived_risk])
+    await db_session.commit()
+
+    count = await count_risks_without_kri(db_session, [test_department.id])
+
+    assert count == 1
+
+
+@pytest.mark.asyncio
+async def test_risk_trends_critical_new_uses_configured_thresholds(
+    auth_client: AsyncClient,
+    db_session,
+    test_user: User,
+    seed_risk_types,
+):
+    config = GlobalConfig(
+        key="critical_risk_min_net_score",
+        value="20",
+        value_type="int",
+        category="risk_thresholds",
+        display_name="Critical Risk Threshold",
+    )
+    dept = Department(name="Dashboard Trend Critical Threshold Dept", code="DASH-TREND-CRIT", is_system=True)
+    db_session.add_all([config, dept])
+    await db_session.commit()
+    await db_session.refresh(dept)
+    clear_config_cache()
+
+    default_critical_only = Risk(
+        risk_id_code="DASH-TREND-RISK-DEFAULT-CRIT",
+        name="Dashboard Trend Default Critical Only",
+        process="Dashboard configured threshold",
+        description="Critical under defaults but not configured threshold",
+        category="Test",
+        department_id=dept.id,
+        owner_id=test_user.id,
+        risk_type="operational",
+        gross_probability=4,
+        gross_impact=4,
+        gross_score=16,
+        net_probability=4,
+        net_impact=4,
+        net_score=16,
+        status="active",
+        created_at=datetime(2026, 4, 20, 12, 0, tzinfo=UTC),
+    )
+    configured_critical = Risk(
+        risk_id_code="DASH-TREND-RISK-CONFIG-CRIT",
+        name="Dashboard Trend Configured Critical",
+        process="Dashboard configured threshold",
+        description="Critical at configured threshold",
+        category="Test",
+        department_id=dept.id,
+        owner_id=test_user.id,
+        risk_type="operational",
+        gross_probability=4,
+        gross_impact=5,
+        gross_score=20,
+        net_probability=4,
+        net_impact=5,
+        net_score=20,
+        status="active",
+        created_at=datetime(2026, 4, 21, 12, 0, tzinfo=UTC),
+    )
+    db_session.add_all([default_critical_only, configured_critical])
+    await db_session.commit()
+
+    try:
+        response = await auth_client.get(f"/api/v1/dashboard/risk-trends?department_id={dept.id}")
+
+        assert response.status_code == 200
+        payload = response.json()
+        assert sum(point["total_new"] for point in payload) == 2
+        assert sum(point["critical_new"] for point in payload) == 1
+    finally:
+        clear_config_cache()
 
 
 @pytest.mark.asyncio

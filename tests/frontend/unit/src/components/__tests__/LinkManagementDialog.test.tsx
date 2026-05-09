@@ -114,8 +114,10 @@ function controlResult(
     status = 'active',
     capabilities: { can_restore?: boolean } = {},
 ) {
+    const isArchived = status === 'archived';
     return {
         id,
+        is_archived: isArchived,
         name,
         description: `${name} description`,
         department: { name: 'Risk' },
@@ -123,7 +125,7 @@ function controlResult(
         control_owner_name: 'Control Owner',
         frequency: 'monthly',
         risk_level: 3,
-        status,
+        status: isArchived ? 'active' : status,
         capabilities,
     };
 }

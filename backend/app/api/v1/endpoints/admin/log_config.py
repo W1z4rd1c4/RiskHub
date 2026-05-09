@@ -12,6 +12,7 @@ from app.core.logging import (
 from app.db.session import get_db
 from app.models import User
 from app.schemas.admin import LogConfig, LogConfigUpdate
+from app.services.transaction_boundary import commit_service_transaction
 
 from ._deps import require_platform_admin
 
@@ -122,7 +123,7 @@ async def update_log_config(
             audit_rotation_size_mb=canonical.audit_log_rotation_size_mb,
             audit_retention_count=canonical.audit_log_retention_count,
         )
-        await db.commit()
+        await commit_service_transaction(db)
     except Exception:
         await db.rollback()
         if runtime_reconfigure_attempted:

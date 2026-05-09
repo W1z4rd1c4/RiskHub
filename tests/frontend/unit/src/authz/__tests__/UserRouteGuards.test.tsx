@@ -137,7 +137,7 @@ describe('users route guards', () => {
         clearBootstrapSession();
     });
 
-    it('redirects denied /users visits before UsersPage mounts or loads auth config', async () => {
+    it('redirects denied /users visits before UsersPage mounts while auth config bootstraps', async () => {
         server.use(
             http.get('*/api/v1/auth/me', () =>
                 HttpResponse.json(
@@ -156,10 +156,10 @@ describe('users route guards', () => {
         await waitFor(() => {
             expect(screen.getByText('Home route')).toBeInTheDocument();
         });
-        expect(mockGetAuthConfig).not.toHaveBeenCalled();
+        expect(mockGetAuthConfig).toHaveBeenCalledTimes(1);
     });
 
-    it('redirects denied /users/new visits before UserNewPage mounts or loads auth config', async () => {
+    it('redirects denied /users/new visits before UserNewPage mounts while auth config bootstraps', async () => {
         server.use(
             http.get('*/api/v1/auth/me', () =>
                 HttpResponse.json(
@@ -178,6 +178,6 @@ describe('users route guards', () => {
         await waitFor(() => {
             expect(screen.getByText('Home route')).toBeInTheDocument();
         });
-        expect(mockGetAuthConfig).not.toHaveBeenCalled();
+        expect(mockGetAuthConfig).toHaveBeenCalledTimes(1);
     });
 });

@@ -9,6 +9,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import ApprovalScenario, Department, Risk, RiskTypeConfig, User
+from app.services._riskhub_config.approval_scenario_roles import (
+    get_approval_scenario_roles,
+    set_approval_scenario_roles,
+)
 from app.services.approval_scenario_policy import load_approval_scenario_policy
 
 
@@ -30,7 +34,7 @@ async def _upsert_approval_scenario(
         )
         db_session.add(scenario)
     scenario.requires_approval = requires_approval
-    scenario.set_approver_roles(roles)
+    set_approval_scenario_roles(scenario, roles)
     await db_session.commit()
     await db_session.refresh(scenario)
     return scenario
@@ -449,7 +453,9 @@ async def test_riskhub_risk_count_excludes_archived_risks(
         department_id=test_department.id,
         owner_id=test_user_cro.id,
         risk_type="operational",
-        status="archived",
+        status="active",
+
+        is_archived=True,
     )
     db_session.add(archived_risk)
     await db_session.commit()
@@ -530,7 +536,7 @@ async def test_update_tier_capable_approval_scenario_adds_privileged_finishers(
 
     scenario = await db_session.scalar(select(ApprovalScenario).where(ApprovalScenario.key == "risk_delete"))
     assert scenario is not None
-    assert scenario.get_approver_roles() == ["risk_owner", "risk_manager", "cro"]
+    assert get_approval_scenario_roles(scenario) == ["risk_owner", "risk_manager", "cro"]
 
 
 @pytest.mark.asyncio
@@ -600,7 +606,28 @@ async def test_update_required_risk_owner_scenarios_add_privileged_finishers(
 
         scenario = await db_session.scalar(select(ApprovalScenario).where(ApprovalScenario.key == key))
         assert scenario is not None
-        assert scenario.get_approver_roles() == ["risk_owner", "risk_manager", "cro"]
+        assert get_approval_scenario_roles(scenario) == ["risk_owner", "risk_manager", "cro"]
+
+
+@pytest.mark.asyncio
+async def test_update_tiered_edit_scenarios_add_privileged_finishers_for_non_privileged_roles(
+    client_cro: AsyncClient,
+    db_session: AsyncSession,
+):
+    for key in ("risk_edit_priority", "kri_edit"):
+        await _upsert_approval_scenario(db_session, key=key, roles=["employee"])
+
+        response = await client_cro.patch(
+            f"/api/v1/riskhub/approval-scenarios/{key}",
+            json={"approver_roles": ["employee"], "requires_approval": True},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["approver_roles"] == ["employee", "risk_manager", "cro"]
+
+        scenario = await db_session.scalar(select(ApprovalScenario).where(ApprovalScenario.key == key))
+        assert scenario is not None
+        assert get_approval_scenario_roles(scenario) == ["employee", "risk_manager", "cro"]
 
 
 @pytest.mark.asyncio
@@ -638,7 +665,7 @@ async def test_update_required_non_tier_approval_scenario_empty_roles_uses_privi
 
     scenario = await db_session.scalar(select(ApprovalScenario).where(ApprovalScenario.key == "risk_edit_priority"))
     assert scenario is not None
-    assert scenario.get_approver_roles() == ["risk_manager", "cro"]
+    assert get_approval_scenario_roles(scenario) == ["risk_manager", "cro"]
 
 
 @pytest.mark.asyncio
@@ -659,7 +686,7 @@ async def test_update_disabled_approval_scenario_empty_roles_preserved(
 
     scenario = await db_session.scalar(select(ApprovalScenario).where(ApprovalScenario.key == "risk_edit_priority"))
     assert scenario is not None
-    assert scenario.get_approver_roles() == []
+    assert get_approval_scenario_roles(scenario) == []
 
 
 @pytest.mark.asyncio
@@ -685,7 +712,7 @@ async def test_update_reenabled_required_scenario_with_empty_roles_uses_privileg
 
     scenario = await db_session.scalar(select(ApprovalScenario).where(ApprovalScenario.key == "risk_edit_priority"))
     assert scenario is not None
-    assert scenario.get_approver_roles() == ["risk_manager", "cro"]
+    assert get_approval_scenario_roles(scenario) == ["risk_manager", "cro"]
 
 
 @pytest.mark.asyncio

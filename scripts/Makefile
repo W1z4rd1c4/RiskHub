@@ -3,7 +3,7 @@
 
 AUTHZ_CONTRACT_BASE_REF ?= HEAD
 
-.PHONY: help dev dev-full docker docker-lan docker-reset stop clean test test-fast test-db-contracts test-postgres-ci test-benchmarks migrate logs shell db db-shell lint lint-frontend lint-backend quality-suppression-budget quality-repo-contracts readme-coverage docs-tree-audit docs-topology-consistency verify verify-prod-install-scripts verify-startup-scripts security-contract-probe security-redis-resilience security-gap-round5 public-repo-hygiene public-leak-audit prod-readiness-audit-local release-parity-audit
+.PHONY: help dev dev-full docker docker-lan docker-reset stop clean test test-fast test-db-contracts test-postgres-ci test-benchmarks test-architecture-locks migrate logs shell db db-shell lint lint-frontend lint-backend quality-suppression-budget quality-repo-contracts readme-coverage docs-tree-audit docs-topology-consistency verify verify-prod-install-scripts verify-startup-scripts security-contract-probe security-redis-resilience security-gap-round5 public-repo-hygiene public-leak-audit prod-readiness-audit-local release-parity-audit
 
 # Default target
 help:
@@ -33,6 +33,7 @@ help:
 	@echo "  make test-db-contracts - Run the blocking Postgres DB-truth contract"
 	@echo "  make test-benchmarks - Run environment-sensitive backend benchmark tests"
 	@echo "  make test-postgres-ci - Run the blocking Postgres CI regression contract"
+	@echo "  make test-architecture-locks - Run architecture invariant-lock tests"
 	@echo "  make test-e2e     - Run Playwright E2E tests"
 	@echo "  make lint         - Run frontend + backend lint"
 	@echo "  make lint-frontend - Run frontend lint + typecheck + deadcode + build + debt budget"
@@ -107,25 +108,31 @@ db-shell:
 
 # Run backend tests
 test:
-	cd backend && pytest -v -m "not benchmark"
+	cd backend && ./venv/bin/python -m pytest -v -m "not postgres and not benchmark"
 
 test-fast:
-	cd backend && pytest -q -m "not postgres and not benchmark"
+	cd backend && ./venv/bin/python -m pytest -q -m "not postgres and not benchmark"
 
 test-db-contracts: test-postgres-ci
 
 test-benchmarks:
-	cd backend && pytest -q -m benchmark --no-cov
+	cd backend && ./venv/bin/python -m pytest -q -m benchmark --no-cov
 
 test-postgres-ci:
 	@test -n "$$TEST_DATABASE_URL" || (echo "TEST_DATABASE_URL is required for make test-postgres-ci" >&2; exit 1)
-	cd backend && TEST_DATABASE_URL="$$TEST_DATABASE_URL" pytest -m postgres -q --no-cov
-	cd backend && TEST_DATABASE_URL="$$TEST_DATABASE_URL" pytest -q \
+	@count=$$(cd backend && TEST_DATABASE_URL="$$TEST_DATABASE_URL" ./venv/bin/python -m pytest --collect-only -q -m postgres --strict-markers --no-cov | grep -c "test_"); \
+		if [ "$$count" -lt 1 ]; then echo "Expected at least one postgres-marked test, collected $$count" >&2; exit 1; fi
+	cd backend && TEST_DATABASE_URL="$$TEST_DATABASE_URL" ./venv/bin/python -m pytest -m postgres -q --strict-markers --no-cov
+	cd backend && TEST_DATABASE_URL="$$TEST_DATABASE_URL" ./venv/bin/python -m pytest -q \
+		--strict-markers \
 		--no-cov \
 		../tests/backend/pytest/test_postgres_schema_contracts.py \
 		../tests/backend/pytest/test_outbox_approval_flow.py \
 		../tests/backend/pytest/test_approval_workflow.py \
 		../tests/backend/pytest/test_health.py
+
+test-architecture-locks:
+	cd backend && ./venv/bin/python -m pytest -q ../tests/backend/pytest/architecture ../tests/backend/pytest/test_w0_harness_contract_red.py --no-cov
 
 # Run backend tests with coverage
 test-cov:

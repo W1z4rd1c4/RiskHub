@@ -68,6 +68,13 @@ class QuestionnaireDeadlineService:
                 now=now,
                 not_before=questionnaire.sent_at,
             ):
+                async def can_assignee_read_due_soon() -> bool:
+                    return await can_read_questionnaire(
+                        db,
+                        assignee,
+                        questionnaire,
+                    )
+
                 created = await create_deadline_notification(
                     db=db,
                     user_id=assignee.id,
@@ -82,11 +89,7 @@ class QuestionnaireDeadlineService:
                     resource_type="risk",
                     resource_id=questionnaire.risk_id,
                     created_at=now,
-                    visibility_check=lambda assignee=assignee, questionnaire=questionnaire: can_read_questionnaire(
-                        db,
-                        assignee,
-                        questionnaire,
-                    ),
+                    visibility_check=can_assignee_read_due_soon,
                 )
                 if created:
                     increment_deadline_results(results, "notifications_created", "due_soon")
@@ -102,6 +105,13 @@ class QuestionnaireDeadlineService:
                 now=now,
                 not_before=questionnaire.sent_at,
             ):
+                async def can_assignee_read_overdue() -> bool:
+                    return await can_read_questionnaire(
+                        db,
+                        assignee,
+                        questionnaire,
+                    )
+
                 created = await create_deadline_notification(
                     db=db,
                     user_id=assignee.id,
@@ -116,11 +126,7 @@ class QuestionnaireDeadlineService:
                     resource_type="risk",
                     resource_id=questionnaire.risk_id,
                     created_at=now,
-                    visibility_check=lambda assignee=assignee, questionnaire=questionnaire: can_read_questionnaire(
-                        db,
-                        assignee,
-                        questionnaire,
-                    ),
+                    visibility_check=can_assignee_read_overdue,
                 )
                 if created:
                     increment_deadline_results(results, "notifications_created", "overdue")
@@ -175,13 +181,16 @@ class QuestionnaireDeadlineService:
                 overdue_weekday=overdue_weekday,
             )
 
+        def questionnaire_item_id(questionnaire: RiskQuestionnaire) -> int:
+            return questionnaire.id
+
         return await run_deadline_items(
             db,
             items=questionnaires,
             results=results,
             total_key="total_checked",
             item_label="questionnaire",
-            item_id=lambda questionnaire: questionnaire.id,
+            item_id=questionnaire_item_id,
             process_item=process_questionnaire,
             logger=logger,
         )

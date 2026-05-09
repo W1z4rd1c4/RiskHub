@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime
 from enum import Enum as PyEnum
 from typing import TYPE_CHECKING
 
@@ -24,6 +24,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.core.datetime_utils import utc_now
 from app.db.base import Base
 
 if TYPE_CHECKING:
@@ -99,9 +100,7 @@ class Issue(Base):
     owner_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
     created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
 
-    opened_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC)
-    )
+    opened_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utc_now)
     due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     validation_note: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -151,10 +150,10 @@ class IssueLink(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     issue_id: Mapped[int] = mapped_column(ForeignKey("issues.id", ondelete="CASCADE"), nullable=False, index=True)
-    risk_id: Mapped[int | None] = mapped_column(ForeignKey("risks.id"), nullable=True)
-    control_id: Mapped[int | None] = mapped_column(ForeignKey("controls.id"), nullable=True)
-    execution_id: Mapped[int | None] = mapped_column(ForeignKey("control_executions.id"), nullable=True)
-    kri_id: Mapped[int | None] = mapped_column(ForeignKey("key_risk_indicators.id"), nullable=True)
+    risk_id: Mapped[int | None] = mapped_column(ForeignKey("risks.id"), nullable=True, index=True)
+    control_id: Mapped[int | None] = mapped_column(ForeignKey("controls.id"), nullable=True, index=True)
+    execution_id: Mapped[int | None] = mapped_column(ForeignKey("control_executions.id"), nullable=True, index=True)
+    kri_id: Mapped[int | None] = mapped_column(ForeignKey("key_risk_indicators.id"), nullable=True, index=True)
     vendor_id: Mapped[int | None] = mapped_column(ForeignKey("vendors.id"), nullable=True, index=True)
     is_source_link: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=false())
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)

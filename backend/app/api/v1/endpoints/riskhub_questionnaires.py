@@ -9,6 +9,7 @@ from app.api.v1.endpoints.riskhub import get_cro_user
 from app.db.session import get_db
 from app.models import Risk, User
 from app.services.risk_questionnaire_service import send_questionnaire_for_risk
+from app.services.transaction_boundary import commit_service_transaction
 
 router = APIRouter(prefix="/riskhub/questionnaires", tags=["riskhub"])
 
@@ -43,7 +44,7 @@ async def batch_send_questionnaires(
         if payload.filters is None:
             raise HTTPException(status_code=400, detail="filters is required when select_all=true")
 
-        query = select(Risk).where(Risk.status != "archived")
+        query = select(Risk)
         if payload.filters.department_id is not None:
             query = query.where(Risk.department_id == payload.filters.department_id)
         if payload.filters.process:
@@ -51,7 +52,12 @@ async def batch_send_questionnaires(
         if payload.filters.category:
             query = query.where(Risk.category == payload.filters.category)
         if payload.filters.status:
-            query = query.where(Risk.status == payload.filters.status)
+            if payload.filters.status == "archived":
+                query = query.where(Risk.archived())
+            else:
+                query = query.where(Risk.status == payload.filters.status, Risk.live())
+        else:
+            query = query.where(Risk.live())
 
         result = await db.execute(query)
         target_risk_ids = [r.id for r in result.scalars().all()]
@@ -80,7 +86,7 @@ async def batch_send_questionnaires(
         except Exception as e:
             errors.append(f"risk_id={risk_id}: {e}")
 
-    await db.commit()
+    await commit_service_transaction(db)
     return BatchSendResponse(
         created_count=created_count,
         skipped_no_owner=sorted(skipped_no_owner),

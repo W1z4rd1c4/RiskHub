@@ -2,6 +2,7 @@
 
 import logging
 from datetime import date, datetime
+from functools import partial
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,9 +23,9 @@ from app.services._deadline_execution import (
     run_deadline_items,
 )
 from app.services.kri_deadline_decisions import (
+    KriDeadlineNotificationPlan,
     build_kri_limit_notification_plan,
     build_kri_reporting_notification_plan,
-    KriDeadlineNotificationPlan,
 )
 from app.services.kri_deadline_support import (
     initialize_results,
@@ -35,6 +36,10 @@ from app.services.kri_deadline_support import (
 from app.services.kri_history_service import KRIHistoryService
 
 logger = logging.getLogger(__name__)
+
+
+def _kri_item_id(kri: KeyRiskIndicator) -> int:
+    return kri.id
 
 
 class KRIDeadlineService:
@@ -76,7 +81,7 @@ class KRIDeadlineService:
         return latest_closed_end
 
     @staticmethod
-    async def _can_recipient_read_kri(db: AsyncSession, *, user_id: int, kri_id: int) -> bool:
+    async def _can_read(db: AsyncSession, *, user_id: int, kri_id: int) -> bool:
         user = (
             await db.execute(
                 select(User)
@@ -152,11 +157,7 @@ class KRIDeadlineService:
             now=now,
             results=results,
             lookback_days=config["duplicate_lookback_days"],
-            visibility_check=lambda: KRIDeadlineService._can_recipient_read_kri(
-                db,
-                user_id=reporting_owner,
-                kri_id=kri.id,
-            ),
+            visibility_check=partial(KRIDeadlineService._can_read, db, user_id=reporting_owner, kri_id=kri.id),
         )
 
     @staticmethod
@@ -186,18 +187,16 @@ class KRIDeadlineService:
 
             owner_id = kri.risk.owner_id if kri.risk else None
             if owner_id:
+                breach_owner_id = owner_id
+
                 await KRIDeadlineService._execute_kri_notification(
                     db,
-                    user_id=owner_id,
+                    user_id=breach_owner_id,
                     kri_id=kri.id,
                     plan=plan,
                     now=now,
                     results=results,
-                    visibility_check=lambda owner_id=owner_id: KRIDeadlineService._can_recipient_read_kri(
-                        db,
-                        user_id=owner_id,
-                        kri_id=kri.id,
-                    ),
+                    visibility_check=partial(KRIDeadlineService._can_read, db, user_id=breach_owner_id, kri_id=kri.id),
                 )
 
             for rm in risk_managers:
@@ -212,7 +211,7 @@ class KRIDeadlineService:
                     plan=plan,
                     now=now,
                     results=results,
-                    visibility_check=lambda rm=rm: can_read_kri_id(db, rm, kri.id),
+                    visibility_check=partial(can_read_kri_id, db, rm, kri.id),
                 )
 
             increment_deadline_results(results, "breached")
@@ -228,11 +227,7 @@ class KRIDeadlineService:
                 now=now,
                 results=results,
                 lookback_days=config["duplicate_lookback_days"],
-                visibility_check=lambda owner_id=owner_id: KRIDeadlineService._can_recipient_read_kri(
-                    db,
-                    user_id=owner_id,
-                    kri_id=kri.id,
-                ),
+                visibility_check=partial(KRIDeadlineService._can_read, db, user_id=owner_id, kri_id=kri.id),
             )
 
     @staticmethod
@@ -324,9 +319,11 @@ class KRIDeadlineService:
             items=kris,
             results=results,
             total_key="total_kris_checked",
-            item_label="KRI", item_id=lambda kri: kri.id,
+            item_label="KRI",
+            item_id=_kri_item_id,
             process_item=process_kri,
-            skip_result_keys={"total_kris_checked"}, logger=logger,
+            skip_result_keys={"total_kris_checked"},
+            logger=logger,
         )
         logger.info(f"KRI deadline check complete: {results}")
         return results

@@ -14,12 +14,12 @@ import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { getControlMonitoringMeta } from '@/lib/monitoringStatus';
 import { buildRegisterTableModel } from '@/pages/shared/registerTablePresentation';
 import type { CollectionGroup } from '@/types/collection';
-import { ControlStatus, type ControlSummary } from '@/types/control';
+import type { ControlSummary } from '@/types/control';
 
 import {
+    ARCHIVED_CONTROL_BADGE_CLASS_NAME,
     formatControlGroupLabel,
     getControlRiskLevelColor,
-    getControlStatusColor,
 } from './controlsPagePresentation';
 
 interface ControlsTableSectionProps {
@@ -140,11 +140,9 @@ export function ControlsTableSection({
                                 <MonitoringIcon className="h-3 w-3" />
                                 {t(monitoring.labelKey)}
                             </span>
-                            {control.status === ControlStatus.ARCHIVED && (
+                            {control.is_archived && (
                                 <span
-                                    className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${getControlStatusColor(
-                                        control.status
-                                    )}`}
+                                    className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${ARCHIVED_CONTROL_BADGE_CLASS_NAME}`}
                                 >
                                     {t('status.archived')}
                                 </span>
@@ -158,7 +156,7 @@ export function ControlsTableSection({
                 label: '',
                 render: (control) => (
                     <div className="text-right flex items-center justify-end gap-2">
-                        {control.status === ControlStatus.ARCHIVED &&
+                        {control.is_archived &&
                             resolveCapabilityFlag(control.capabilities, 'can_restore') && (
                                 <button
                                     type="button"

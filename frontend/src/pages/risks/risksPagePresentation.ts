@@ -5,12 +5,13 @@ import type { RiskStatus, RiskSummary } from '@/types/risk';
 
 import { getCollectionGroupBy } from '../shared/collectionViewVocabulary';
 
-export const CRITICAL_RISK_MIN_NET_SCORE = 15;
 export const RISK_GROUP_UNLINKED_VENDOR = '__unlinked_vendor__';
 export const RISK_GROUP_UNCATEGORIZED = '__uncategorized__';
 export const RISK_GROUP_UNKNOWN_DEPARTMENT = '__unknown_department__';
 export const RISK_GROUP_NO_PROCESS = '__no_process__';
 export const RISK_GROUP_UNKNOWN_RISK_TYPE = '__unknown_risk_type__';
+export type RiskListStatusFilter = RiskStatus | 'archived' | '';
+export type RiskDisplayStatus = RiskStatus | 'archived';
 const RISK_VIEW_MODE_GROUPS = {
     category: 'category',
     department: 'department',
@@ -25,6 +26,7 @@ export interface RisksPageInitialState {
 }
 
 interface BuildRiskListParamsOptions {
+    criticalMinNetScore: number;
     currentPage: number;
     criticalFilter: boolean;
     hasBreachFilter: boolean | undefined;
@@ -33,7 +35,7 @@ interface BuildRiskListParamsOptions {
     search: string;
     sortDirection: SortDirection;
     sortField: string | null;
-    statusFilter: RiskStatus | '';
+    statusFilter: RiskListStatusFilter;
     typeFilter: string;
     groupBy?: string | null;
     groupValue?: string | null;
@@ -42,7 +44,7 @@ interface BuildRiskListParamsOptions {
 interface BuildRiskExportFiltersOptions {
     priorityFilter: boolean | undefined;
     search: string;
-    statusFilter: RiskStatus | '';
+    statusFilter: RiskListStatusFilter;
     typeFilter: string;
 }
 
@@ -67,7 +69,12 @@ export function normalizeRiskSummaries(items: RiskSummary[]): RiskSummary[] {
     return items.map(normalizeRiskSummary);
 }
 
+export function getRiskDisplayStatus(risk: Pick<RiskSummary, 'status' | 'is_archived'>): RiskDisplayStatus {
+    return risk.is_archived ? 'archived' : risk.status;
+}
+
 export function buildRiskListParams({
+    criticalMinNetScore,
     currentPage,
     criticalFilter,
     hasBreachFilter,
@@ -89,7 +96,7 @@ export function buildRiskListParams({
         risk_type: typeFilter || undefined,
         is_priority: priorityFilter,
         has_breach: hasBreachFilter,
-        min_net_score: criticalFilter ? CRITICAL_RISK_MIN_NET_SCORE : undefined,
+        min_net_score: criticalFilter ? criticalMinNetScore : undefined,
         sort_by: sortField || undefined,
         sort_order: sortDirection || undefined,
         include_archived: statusFilter === 'archived',

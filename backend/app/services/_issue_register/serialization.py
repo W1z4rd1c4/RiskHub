@@ -29,12 +29,17 @@ from .constants import (
 )
 from .linked_context import (
     IssueLinkedVisibility,
-    build_issue_linked_visibility,
-    issue_link_candidate_ids as _issue_link_candidate_ids,
+)
+from .linked_context import (
     issue_source_link as _issue_source_link,
+)
+from .linked_context import (
     label_or_fallback as _label_or_fallback,
+)
+from .linked_context import (
     link_display as _link_display,
-    link_matches_issue_source as _link_matches_issue_source,
+)
+from .linked_context import (
     link_risks as _link_risks,
 )
 

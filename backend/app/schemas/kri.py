@@ -2,12 +2,13 @@
 Pydantic schemas for Key Risk Indicators.
 """
 
-from datetime import date, datetime
+from datetime import date
 from enum import Enum
 from typing import Literal, Optional
 
 from pydantic import BaseModel, Field, computed_field
 
+from app.core.datetime_utils import UtcAwareDatetime
 from app.schemas.collection import CollectionGroupRead
 from app.schemas.vendor_shared import LinkedVendorRead
 from app.services._monitoring_status import KRIMonitoringReason, KRIMonitoringStatus
@@ -104,7 +105,7 @@ class KRIResponse(KRIBase, KRIMonitoringBundle):
     id: int
     risk_id: int
     is_archived: bool = False
-    archived_at: Optional[datetime] = None
+    archived_at: Optional[UtcAwareDatetime] = None
     archived_by_id: Optional[int] = None
 
     # Description is inherited from KRIBase, explicitly included in response
@@ -127,10 +128,10 @@ class KRIResponse(KRIBase, KRIMonitoringBundle):
 
     # Period tracking
     last_period_end: Optional[date] = None
-    last_reported_at: Optional[datetime] = None
+    last_reported_at: Optional[UtcAwareDatetime] = None
 
-    last_updated: datetime
-    created_at: datetime
+    last_updated: UtcAwareDatetime
+    created_at: UtcAwareDatetime
 
     @computed_field
     def breach_status(self) -> Literal["above", "below", "within"]:
@@ -175,7 +176,7 @@ class KRIHistoryEntry(BaseModel):
     kri_id: int
     period_start: date
     period_end: date
-    recorded_at: datetime
+    recorded_at: UtcAwareDatetime
     value: float
     lower_limit: float
     upper_limit: float
@@ -217,7 +218,7 @@ class KRIRecordValue(BaseModel):
     """Schema for recording a new KRI value."""
 
     value: float
-    recorded_at: Optional[datetime] = None  # Server default if not provided
+    recorded_at: Optional[UtcAwareDatetime] = None  # Server default if not provided
     period_end: Optional[date] = None  # For privileged backdating
 
 

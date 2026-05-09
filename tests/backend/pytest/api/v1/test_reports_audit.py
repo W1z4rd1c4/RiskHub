@@ -9,9 +9,9 @@ from io import StringIO
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import visitors
 from sqlalchemy.sql.elements import BindParameter
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.endpoints.reports._export_context import ReportExportContext
 from app.api.v1.endpoints.reports.audit_trail_excel import _audit_trail_query

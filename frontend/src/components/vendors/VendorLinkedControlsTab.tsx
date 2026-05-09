@@ -63,8 +63,8 @@ export function VendorLinkedControlsTab({
         [linkedControls],
     );
 
-    const activeControls = linkedControls.filter((control) => control.status !== 'archived');
-    const archivedControls = linkedControls.filter((control) => control.status === 'archived');
+    const activeControls = linkedControls.filter((control) => !control.is_archived);
+    const archivedControls = linkedControls.filter((control) => control.is_archived);
 
     const handleLink = async (controlId: number) => {
         await vendorLinkApi.linkControl(vendorId, controlId);

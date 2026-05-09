@@ -6,6 +6,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.datetime_utils import utc_now
 from app.models import User, Vendor
+from app.models._archivable import archived_clause
 from app.schemas.vendor_reports import (
     VendorAnnualReportData,
     VendorAnnualReportProcessEvaluation,
@@ -28,7 +29,7 @@ class VendorReportingService:
 
         vendor_stmt = (
             select(Vendor)
-            .where(Vendor.status == "active")
+            .where(archived_clause(Vendor, archived=False))
             .options(selectinload(Vendor.department), selectinload(Vendor.outsourcing_owner))
             .order_by(Vendor.name)
         )
@@ -82,7 +83,7 @@ class VendorReportingService:
         vendor_stmt = (
             select(Vendor)
             .options(selectinload(Vendor.department), selectinload(Vendor.outsourcing_owner))
-            .where(Vendor.status == "active")
+            .where(archived_clause(Vendor, archived=False))
             .order_by(Vendor.name)
         )
         vendor_stmt = apply_vendor_report_scope(vendor_stmt, current_user, department_id=department_id)

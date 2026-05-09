@@ -1,5 +1,7 @@
 """Visibility helpers for user-owned notification payloads."""
 
+from typing import Any
+
 from sqlalchemy import String, and_, cast, false, func, or_, select, true
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import ColumnElement
@@ -128,7 +130,7 @@ async def count_visible_unread_notifications(db: AsyncSession, current_user: Use
 
 def _risk_exists_clause(
     visibility_clause: ColumnElement[bool] | None,
-    resource_id: ColumnElement[int],
+    resource_id: Any,
 ) -> ColumnElement[bool]:
     query = select(Risk.id).where(Risk.id == resource_id)
     if visibility_clause is not None:
@@ -138,7 +140,7 @@ def _risk_exists_clause(
 
 def _control_exists_clause(
     visibility_clause: ColumnElement[bool] | None,
-    resource_id: ColumnElement[int],
+    resource_id: Any,
 ) -> ColumnElement[bool]:
     query = select(Control.id).where(Control.id == resource_id)
     if visibility_clause is not None:
@@ -148,7 +150,7 @@ def _control_exists_clause(
 
 def _kri_exists_clause(
     visibility_clause: ColumnElement[bool] | None,
-    resource_id: ColumnElement[int],
+    resource_id: Any,
 ) -> ColumnElement[bool]:
     query = select(KeyRiskIndicator.id).join(Risk, Risk.id == KeyRiskIndicator.risk_id).where(
         KeyRiskIndicator.id == resource_id
@@ -160,7 +162,7 @@ def _kri_exists_clause(
 
 def _vendor_exists_clause(
     visibility_clause: ColumnElement[bool] | None,
-    resource_id: ColumnElement[int],
+    resource_id: Any,
 ) -> ColumnElement[bool]:
     query = select(Vendor.id).where(Vendor.id == resource_id)
     if visibility_clause is not None:
@@ -170,7 +172,7 @@ def _vendor_exists_clause(
 
 def _issue_exists_clause(
     visibility_clause: ColumnElement[bool] | None,
-    resource_id: ColumnElement[int],
+    resource_id: Any,
 ) -> ColumnElement[bool]:
     query = select(Issue.id).where(Issue.id == resource_id)
     if visibility_clause is not None:
@@ -180,7 +182,7 @@ def _issue_exists_clause(
 
 def _questionnaire_exists_clause(
     risk_visibility_clause_value: ColumnElement[bool] | None,
-    resource_id: ColumnElement[int],
+    resource_id: Any,
 ) -> ColumnElement[bool]:
     query = select(RiskQuestionnaire.id).join(Risk, Risk.id == RiskQuestionnaire.risk_id).where(
         RiskQuestionnaire.id == resource_id
@@ -196,7 +198,7 @@ def _approval_exists_clause(
     risk_clause: ColumnElement[bool] | None,
     control_clause: ColumnElement[bool] | None,
     kri_clause: ColumnElement[bool] | None,
-    resource_id: ColumnElement[int],
+    resource_id: Any,
 ) -> ColumnElement[bool]:
     direct_clauses: list[ColumnElement[bool]] = [
         ApprovalRequest.requested_by_id == current_user.id,
@@ -206,7 +208,7 @@ def _approval_exists_clause(
         direct_clauses.append(true())
 
     role_name = getattr(getattr(current_user, "role", None), "name", None)
-    scenario_clause = false()
+    scenario_clause: ColumnElement[bool] = false()
     if role_name:
         scenario_clause = and_(
             ApprovalRequest.scenario_approver_roles.is_not(None),

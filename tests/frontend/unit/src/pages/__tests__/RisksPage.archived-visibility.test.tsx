@@ -89,7 +89,8 @@ describe('RisksPage archived visibility', () => {
             id: 2,
             risk_id_code: 'R-ARC-001',
             name: 'Archived Risk',
-            status: 'archived',
+            status: 'active',
+            is_archived: true,
         };
 
         server.use(

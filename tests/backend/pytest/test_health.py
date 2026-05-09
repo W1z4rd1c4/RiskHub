@@ -4,7 +4,6 @@ from redis.exceptions import RedisError
 from sqlalchemy.exc import SQLAlchemyError
 
 import app.api.v1.endpoints.health as health_endpoint
-from app.db.session import get_db
 from app.main import app
 
 
@@ -19,31 +18,23 @@ async def test_livez_returns_alive() -> None:
 
 
 @pytest.mark.asyncio
-async def test_health_check_returns_diagnostic_shape(db_session) -> None:
-    async def override_get_db():
-        yield db_session
+async def test_health_check_returns_diagnostic_shape(client_factory) -> None:
+    async with client_factory() as client:
+        response = await client.get("/api/v1/health")
 
-    app.dependency_overrides[get_db] = override_get_db
-    try:
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get("/api/v1/health")
-
-        assert response.status_code == 200
-        assert response.json() == {
-            "status": "healthy",
-            "ready": True,
-            "database": "connected",
-            "redis": "disabled",
-            "scheduler_role": "disabled",
-            "scheduler_status": "disabled",
-        }
-    finally:
-        app.dependency_overrides.clear()
+    assert response.status_code == 200
+    assert response.json() == {
+        "status": "healthy",
+        "ready": True,
+        "database": "connected",
+        "redis": "disabled",
+        "scheduler_role": "disabled",
+        "scheduler_status": "disabled",
+    }
 
 
 @pytest.mark.asyncio
-async def test_readyz_returns_service_unavailable_for_database_errors() -> None:
+async def test_readyz_returns_service_unavailable_for_database_errors(client_factory) -> None:
     class _BrokenDbSession:
         async def execute(self, *_args, **_kwargs):
             raise SQLAlchemyError("db offline")
@@ -51,66 +42,50 @@ async def test_readyz_returns_service_unavailable_for_database_errors() -> None:
     async def override_get_db():
         yield _BrokenDbSession()
 
-    app.dependency_overrides[get_db] = override_get_db
-    try:
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get("/api/v1/readyz")
+    async with client_factory(db_override=override_get_db) as client:
+        response = await client.get("/api/v1/readyz")
 
-        assert response.status_code == 503
-        assert response.json() == {
-            "ready": False,
-            "database": "disconnected",
-            "redis": "disabled",
-            "scheduler_role": "disabled",
-            "scheduler_status": "disabled",
-        }
-    finally:
-        app.dependency_overrides.clear()
+    assert response.status_code == 503
+    assert response.json() == {
+        "ready": False,
+        "database": "disconnected",
+        "redis": "disabled",
+        "scheduler_role": "disabled",
+        "scheduler_status": "disabled",
+    }
 
 
 @pytest.mark.asyncio
 async def test_readyz_stays_ready_when_redis_is_disconnected(
-    db_session,
+    client_factory,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     class _BrokenRedis:
         async def ping(self):
             raise RedisError("redis offline")
 
-    async def override_get_db():
-        yield db_session
-
     monkeypatch.setattr(app.state, "redis", _BrokenRedis(), raising=False)
-    app.dependency_overrides[get_db] = override_get_db
-    try:
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            readiness = await client.get("/api/v1/readyz")
-            health = await client.get("/api/v1/health")
+    async with client_factory() as client:
+        readiness = await client.get("/api/v1/readyz")
+        health = await client.get("/api/v1/health")
 
-        assert readiness.status_code == 200
-        assert readiness.json() == {
-            "ready": True,
-            "database": "connected",
-            "redis": "disconnected",
-            "scheduler_role": "disabled",
-            "scheduler_status": "disabled",
-        }
-        assert health.status_code == 200
-        assert health.json()["status"] == "degraded"
-    finally:
-        app.dependency_overrides.clear()
+    assert readiness.status_code == 200
+    assert readiness.json() == {
+        "ready": True,
+        "database": "connected",
+        "redis": "disconnected",
+        "scheduler_role": "disabled",
+        "scheduler_status": "disabled",
+    }
+    assert health.status_code == 200
+    assert health.json()["status"] == "degraded"
 
 
 @pytest.mark.asyncio
 async def test_health_reports_scheduler_follower_ready(
-    db_session,
+    client_factory,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    async def override_get_db():
-        yield db_session
-
     monkeypatch.setattr(
         health_endpoint,
         "get_scheduler_runtime_state",
@@ -126,25 +101,20 @@ async def test_health_reports_scheduler_follower_ready(
             "scheduler_status": "follower_ready",
         },
     )
-    app.dependency_overrides[get_db] = override_get_db
-    try:
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            readiness = await client.get("/api/v1/readyz")
-            health = await client.get("/api/v1/health")
+    async with client_factory() as client:
+        readiness = await client.get("/api/v1/readyz")
+        health = await client.get("/api/v1/health")
 
-        assert readiness.status_code == 200
-        assert readiness.json()["scheduler_role"] == "follower"
-        assert readiness.json()["scheduler_status"] == "follower_ready"
-        assert health.status_code == 200
-        assert health.json()["status"] == "healthy"
-        assert health.json()["ready"] is True
-    finally:
-        app.dependency_overrides.clear()
+    assert readiness.status_code == 200
+    assert readiness.json()["scheduler_role"] == "follower"
+    assert readiness.json()["scheduler_status"] == "follower_ready"
+    assert health.status_code == 200
+    assert health.json()["status"] == "healthy"
+    assert health.json()["ready"] is True
 
 
 @pytest.mark.asyncio
-async def test_readyz_does_not_swallow_unexpected_errors() -> None:
+async def test_readyz_does_not_swallow_unexpected_errors(client_factory) -> None:
     class _UnexpectedBrokenDbSession:
         async def execute(self, *_args, **_kwargs):
             raise ValueError("unexpected db failure")
@@ -152,12 +122,7 @@ async def test_readyz_does_not_swallow_unexpected_errors() -> None:
     async def override_get_db():
         yield _UnexpectedBrokenDbSession()
 
-    app.dependency_overrides[get_db] = override_get_db
-    try:
-        transport = ASGITransport(app=app, raise_app_exceptions=False)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get("/api/v1/readyz")
+    async with client_factory(db_override=override_get_db, raise_app_exceptions=False) as client:
+        response = await client.get("/api/v1/readyz")
 
-        assert response.status_code == 500
-    finally:
-        app.dependency_overrides.clear()
+    assert response.status_code == 500

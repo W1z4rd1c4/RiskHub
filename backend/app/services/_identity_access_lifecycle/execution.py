@@ -39,7 +39,9 @@ async def log_user_update_and_commit(
     await db.refresh(user)
 
     result = await db.execute(
-        select(User).options(*user_selectinload_options(include_permissions=include_permissions)).where(User.id == user.id)
+        select(User)
+        .options(*user_selectinload_options(include_permissions=include_permissions))
+        .where(User.id == user.id)
     )
     return result.scalar_one()
 

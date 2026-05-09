@@ -1,32 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { http, HttpResponse } from 'msw';
 
+import { renderWithoutProviders as render, screen, userEvent, waitFor } from '@test/render';
 import { server } from '@test/mocks/server';
 import LoginPage from '@/pages/LoginPage';
 import SsoCallbackPage from '@/pages/SsoCallbackPage';
 import { clearAccessToken, getAccessToken } from '@test/accessTokenStoreHarness';
 import { clearAuthConfigCache } from '@/services/authConfig';
 import { entraAuth } from '@/services/entraAuth';
-
-// Mock i18next so tests don't depend on full i18n initialization.
-vi.mock('react-i18next', async () => {
-  const actual = await vi.importActual<typeof import('react-i18next')>('react-i18next');
-  const translate = (key: string) => {
-    if (key === 'login_sso_prod.button_label') return 'Continue with Microsoft';
-    if (key === 'login_sso.continue_with_microsoft') return 'Continue with Microsoft';
-    return key;
-  };
-  return {
-    ...actual,
-    useTranslation: () => ({
-      t: translate,
-      i18n: { language: 'en', changeLanguage: vi.fn(), t: translate },
-    }),
-  };
-});
 
 vi.mock('@/services/entraAuth', () => ({
   entraAuth: {

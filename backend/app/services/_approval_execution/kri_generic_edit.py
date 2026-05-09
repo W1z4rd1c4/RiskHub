@@ -2,15 +2,14 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import activity_logger
+from app.core.audit.kri import kri_updated, kri_value_created
+from app.core.exceptions import ValidationError
 from app.core.owner_reference_validation import validate_active_owner_reference
 from app.models import ApprovalRequest, KeyRiskIndicator, User
-from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.services._kri_history.governance import (
-    build_kri_value_history_activity_changes,
     build_kri_value_mutation_changes,
     capture_kri_value_mutation_snapshot,
 )
@@ -119,40 +118,30 @@ async def _apply_kri_generic_edit(
                 is_privileged=True,
             )
 
-            await activity_logger.log_activity(
+            await kri_value_created(
                 db,
-                entity_type=ActivityEntityType.KRI_VALUE,
-                entity_id=history_entry.id,
-                entity_name=f"{kri.metric_name} ({history_entry.period_end.isoformat()})",
-                safe_entity_label=f"{kri.metric_name} ({history_entry.period_end.isoformat()})",
-                action=ActivityAction.CREATE,
+                kri=kri,
+                history_entry=history_entry,
+                value=value_change.get("new"),
+                old_value=value_change.get("old"),
                 actor=current_user,
-                department_id=department_id,
-                changes=build_kri_value_history_activity_changes(
-                    old_value=value_change.get("old"),
-                    new_value=value_change.get("new"),
-                    period_end=history_entry.period_end,
-                ),
                 description=f"Recorded via approval #{approval_id}",
+                log_activity_func=activity_logger.log_activity,
             )
 
             applied_changes.update(build_kri_value_mutation_changes(kri, mutation_snapshot))
 
         except ValueError as e:
             logger.error(f"Failed to record value during approval: {str(e)}")
-            raise HTTPException(status_code=400, detail=f"KRI value recording failed: {str(e)}")
+            raise ValidationError(f"KRI value recording failed: {str(e)}")
 
     if applied_changes:
-        await activity_logger.log_activity(
+        await kri_updated(
             db,
-            entity_type=ActivityEntityType.KRI,
-            entity_id=kri.id,
-            entity_name=f"{kri.metric_name}",
-            safe_entity_label=kri.metric_name,
-            action=ActivityAction.UPDATE,
             actor=current_user,
-            department_id=department_id,
+            kri=kri,
             changes=applied_changes,
             description=f"Updated via approval #{approval_id}",
+            log_activity_func=activity_logger.log_activity,
         )
     return SideEffectResult.applied()

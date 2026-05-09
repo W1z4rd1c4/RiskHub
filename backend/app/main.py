@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import inspect
 from contextlib import asynccontextmanager
+from typing import cast
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,6 +14,7 @@ from app.api.v1.router import api_router
 from app.core.client_ip import find_broad_trusted_proxy_entries
 from app.core.config import Settings, get_settings
 from app.core.datetime_utils import utc_now
+from app.core.exceptions import DomainError, domain_error_handler
 from app.core.logging import (
     DEFAULT_LOG_RETENTION_COUNT,
     DEFAULT_LOG_ROTATION_SIZE_MB,
@@ -227,6 +229,14 @@ def configure_database_and_scheduler(app: FastAPI, settings: Settings) -> None:
     configure_scheduler(app.state.db_sessionmaker, app.state.db_engine)
 
 
+def register_exception_handlers(app: FastAPI) -> None:
+    async def _domain_error_handler_adapter(request: Request, exc: Exception) -> Response:
+        # Starlette requires an Exception-typed handler; this adapter is registered for DomainError only.
+        return await domain_error_handler(request, cast(DomainError, exc))
+
+    app.add_exception_handler(DomainError, _domain_error_handler_adapter)
+
+
 def register_middleware(app: FastAPI, settings: Settings) -> None:
     from app.middleware.language import LanguageMiddleware
     from app.middleware.logging_context import LoggingContextMiddleware
@@ -371,6 +381,7 @@ def create_app(settings: Settings) -> FastAPI:
     configure_default_runtime_state(app, settings)
     configure_app_dependencies(app, settings)
     configure_database_and_scheduler(app, settings)
+    register_exception_handlers(app)
     register_middleware(app, settings)
     register_routes(app, settings)
     return app

@@ -1,3 +1,5 @@
+from . import projection as projection
+from . import source_mutation as source_mutation
 from .grouping import (
     ISSUE_GROUP_NO_PROCESS,
     ISSUE_GROUP_UNCATEGORIZED,
@@ -6,14 +8,12 @@ from .grouping import (
     ISSUE_GROUP_UNLINKED_VENDOR,
     ISSUE_SQL_GROUPS,
     issue_group_entries,
-    issue_group_filter,
     issue_group_fallback_value,
+    issue_group_filter,
     issue_risk_context_subquery,
     issue_vendor_context_subquery,
     load_issue_sql_groups,
 )
-from . import projection as projection
-from . import source_mutation as source_mutation
 from .projection import serialize_issue_read_for_actor, serialize_issue_summaries_for_actor
 from .source_mutation import (
     ResolvedIssueSource,

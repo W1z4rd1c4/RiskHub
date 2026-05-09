@@ -1,5 +1,6 @@
 """Tests for KRI value submission API endpoints."""
 
+import logging
 from datetime import UTC, date, datetime, timedelta
 
 import pytest
@@ -27,6 +28,7 @@ from app.models.key_risk_indicator import KeyRiskIndicator, KRIFrequency
 from app.models.kri_history import KRIValueHistory
 from app.models.risk import RiskStatus
 from app.models.user import AccessScope
+from app.services._riskhub_config.approval_scenario_roles import set_approval_scenario_roles
 from app.services.kri_history_service import KRIHistoryService
 
 pytest_plugins = ("tests.backend.pytest.kri_history_api_support",)
@@ -46,7 +48,7 @@ async def _upsert_kri_value_submit_scenario(
         )
         db_session.add(scenario)
     scenario.requires_approval = requires_approval
-    scenario.set_approver_roles(["risk_owner", "risk_manager", "cro"])
+    set_approval_scenario_roles(scenario, ["risk_owner", "risk_manager", "cro"])
     await db_session.commit()
     await db_session.refresh(scenario)
     return scenario
@@ -308,6 +310,7 @@ async def test_direct_record_value_creates_kri_value_activity(
     auth_client: AsyncClient,
     test_kri_for_api,
     db_session: AsyncSession,
+    frozen_clock,
 ):
     response = await auth_client.post(f"/api/v1/kris/{test_kri_for_api.id}/values", json={"value": 78.5})
 
@@ -325,6 +328,7 @@ async def test_direct_record_value_creates_kri_value_activity(
         )
     )
     assert activity is not None
+    assert activity.created_at.date().isoformat() == "2026-05-07"
     assert activity.changes["value"] == {"old": None, "new": 78.5}
     assert activity.changes["period_end"]["new"] == history_entry.period_end.isoformat()
 
@@ -338,6 +342,60 @@ async def test_direct_record_value_creates_kri_value_activity(
     assert kri_update is not None
     assert kri_update.changes["current_value"]["new"] == 78.5
     assert kri_update.changes["last_period_end"]["new"] == "[REDACTED]"
+
+
+@pytest.mark.asyncio
+async def test_direct_record_value_persists_when_breach_notification_flush_fails(
+    auth_client: AsyncClient,
+    test_kri_for_api,
+    test_user: User,
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+):
+    """Best-effort breach notification failures must not roll back the recorded KRI value."""
+    from app.models.notification import Notification
+
+    test_kri_for_api.reporting_owner_id = test_user.id
+    test_kri_for_api.lower_limit = 0.0
+    test_kri_for_api.upper_limit = 100.0
+    await db_session.commit()
+
+    async def poison_notification_flush(**kwargs):
+        db = kwargs["db"]
+        db.add(
+            Notification(
+                user_id=None,
+                type=kwargs["notification_type"],
+                title="Poisoned notification",
+                message="This intentionally violates the notification user_id constraint.",
+                resource_type=kwargs.get("resource_type"),
+                resource_id=kwargs.get("resource_id"),
+            )
+        )
+        await db.flush()
+
+    monkeypatch.setattr(
+        "app.services.notification_service.NotificationService.create_notification",
+        poison_notification_flush,
+    )
+
+    with caplog.at_level(logging.WARNING, logger="app.services._kri_history.direct_application"):
+        response = await auth_client.post(f"/api/v1/kris/{test_kri_for_api.id}/values", json={"value": 150.0})
+
+    assert response.status_code == 200
+    warning_messages = "\n".join(record.getMessage() for record in caplog.records)
+    assert "Failed to notify KRI reporting owner about breach" in warning_messages
+    assert "Failed to notify Risk owner about KRI breach" in warning_messages
+    await db_session.refresh(test_kri_for_api)
+    assert test_kri_for_api.current_value == 150.0
+    history_entry = await db_session.scalar(
+        select(KRIValueHistory).where(
+            KRIValueHistory.kri_id == test_kri_for_api.id,
+            KRIValueHistory.value == 150.0,
+        )
+    )
+    assert history_entry is not None
 
 
 @pytest.mark.asyncio
@@ -528,7 +586,10 @@ async def test_non_privileged_value_submission_returns_202(
     assert "approval_id" in data
     assert data["action_type"] == "edit"
     assert data["pending_changes"]["current_value"]["new"] == 75.0
-    assert "period_end" in data["pending_changes"]
+    assert data["pending_changes"]["period_end"]["old"] is None
+    assert data["pending_changes"]["period_end"]["new"] == "2026-04-30"
+    assert data["pending_changes"]["recorded_at"]["old"] is None
+    assert data["pending_changes"]["recorded_at"]["new"]
 
     approval = await db_session.get(ApprovalRequest, data["approval_id"])
     assert approval is not None
@@ -703,7 +764,9 @@ async def test_disabled_kri_value_submit_scenario_returns_readable_linked_vendor
     )
 
     assert response.status_code == 200
-    assert response.json()["linked_vendors"] == [{"id": vendor.id, "name": vendor.name}]
+    assert response.json()["linked_vendors"] == [
+        {"id": vendor.id, "name": vendor.name, "status": "active", "is_archived": False}
+    ]
 
 
 @pytest.mark.asyncio
@@ -735,7 +798,9 @@ async def test_privileged_record_value_returns_readable_linked_vendors(
     response = await auth_client.post(f"/api/v1/kris/{test_kri_for_api.id}/values", json={"value": 82.0})
 
     assert response.status_code == 200
-    assert response.json()["linked_vendors"] == [{"id": vendor.id, "name": vendor.name}]
+    assert response.json()["linked_vendors"] == [
+        {"id": vendor.id, "name": vendor.name, "status": "active", "is_archived": False}
+    ]
 
 
 @pytest.mark.asyncio
@@ -816,7 +881,7 @@ async def test_non_privileged_value_submission_uses_kri_history_clock(
     )
 
     assert response.status_code == 202
-    assert response.json()["pending_changes"]["period_end"] == "2026-03-31"
+    assert response.json()["pending_changes"]["period_end"]["new"] == "2026-03-31"
 
 
 @pytest.mark.asyncio

@@ -8,6 +8,8 @@ import type { KRIFrequency, KRIMonitoringFields } from '@/types/kri';
 export interface LinkedVendorSummary {
     id: number;
     name: string;
+    status?: string | null;
+    is_archived?: boolean;
 }
 
 export interface LinkedRisk {
@@ -23,6 +25,7 @@ export interface LinkedRisk {
     department_id?: number | null;
     department_name?: string | null;
     status?: string | null;
+    is_archived?: boolean;
 }
 
 export interface LinkedControl extends ControlMonitoringFields {
@@ -33,6 +36,7 @@ export interface LinkedControl extends ControlMonitoringFields {
     department_id?: number | null;
     department_name?: string | null;
     status?: ControlStatus | string | null;
+    is_archived?: boolean;
 }
 
 export interface LinkedKRI extends KRIMonitoringFields {

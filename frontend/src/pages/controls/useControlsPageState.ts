@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 
+import type { ExportDialogSubmitPayload } from '@/components/reports/ExportDialog';
 import type { ViewMode } from '@/components/tables';
 import { controlApi } from '@/services/controlApi';
 import { logError } from '@/services/logger';
@@ -60,8 +61,8 @@ export function useControlsPageState() {
             filters,
             search,
         }: {
-            format: string;
-            asOfDate?: string | null;
+            format: ExportDialogSubmitPayload['format'];
+            asOfDate: string;
             filters: ControlRegisterFilters;
             search: string;
         }) => {

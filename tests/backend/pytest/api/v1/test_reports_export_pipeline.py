@@ -20,6 +20,7 @@ from app.api.v1.endpoints.reports.unified_exports.pipeline import (
     apply_export_stages,
     render_export_pipeline,
 )
+from app.services._reporting.exports.filters import _filter_rows_by_vendor_criteria
 
 
 @pytest.mark.asyncio
@@ -137,3 +138,27 @@ def test_tabular_exporters_delegate_rendering_to_shared_pipeline():
         assert "_render_export(" not in source
         assert "stages" not in render_keywords
         assert "row_values" not in render_keywords
+
+
+def test_vendor_export_inactive_status_filter_is_archived_alias():
+    rows = [
+        {
+            "name": "Live Vendor",
+            "status": "active",
+            "is_archived": False,
+        },
+        {
+            "name": "Archived Vendor",
+            "status": "active",
+            "is_archived": True,
+        },
+    ]
+
+    filtered = _filter_rows_by_vendor_criteria(
+        rows,
+        status_filter="inactive",
+        search=None,
+        vendor_type=None,
+    )
+
+    assert [row["name"] for row in filtered] == ["Archived Vendor"]

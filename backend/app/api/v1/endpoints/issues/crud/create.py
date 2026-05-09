@@ -1,13 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.activity_logger import log_activity
+from app.core.audit.issue import issue_created, issue_linked
 from app.core.datetime_utils import coerce_utc, utc_now
 from app.core.permissions import can_access_department_id
 from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import Issue, IssueRemediationPlan, User
-from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.models.issue import IssueStatus
 from app.schemas.issue import IssueCreate, IssueRead
 from app.services._issue_register import (
@@ -15,6 +14,7 @@ from app.services._issue_register import (
     resolve_issue_source_metadata,
     serialize_issue_read_for_actor,
 )
+from app.services.transaction_boundary import commit_service_transaction
 
 from .._shared import (
     _ensure_owner_assignable,
@@ -93,30 +93,17 @@ async def create_issue(
         if source_link_result is not None:
             source_link, source_link_created = source_link_result
 
-    await log_activity(
-        db,
-        entity_type=ActivityEntityType.ISSUE,
-        entity_id=issue.id,
-        entity_name=issue.title,
-        action=ActivityAction.CREATE,
-        actor=current_user,
-        department_id=issue.department_id,
-        description=f"Created issue: {issue.title}",
-    )
+    await issue_created(db, actor=current_user, issue=issue)
     if source_link is not None and source_link_created:
-        await log_activity(
+        await issue_linked(
             db,
-            entity_type=ActivityEntityType.ISSUE,
-            entity_id=issue.id,
-            entity_name=issue.title,
-            action=ActivityAction.LINK,
             actor=current_user,
-            department_id=issue.department_id,
-            changes={"link_id": {"old": None, "new": source_link.id}},
+            issue=issue,
+            link=source_link,
             description=f"Linked issue source to issue {issue.title}",
         )
 
-    await db.commit()
+    await commit_service_transaction(db)
     reloaded_issue = await _get_issue_with_relations(db, issue.id)
     if reloaded_issue is None:
         raise HTTPException(status_code=404, detail="Issue not found")

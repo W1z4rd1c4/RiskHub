@@ -1,21 +1,24 @@
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable, Collection, Sequence
+from collections.abc import Awaitable, Callable, Collection
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Generic, TypeVar
 
 from app.services._collection_contracts import (
     BuildInMemoryGroupedPage,
     BuildSqlGroupFilter,
-    CollectionQuery,
     CollectionListingDefinition,
+    CollectionQuery,
     LoadSqlGroups,
     LoadTotal,
     QueryTransform,
     execute_collection_listing_with_definition,
 )
 
-SerializeItems = Callable[[Sequence[Any]], Awaitable[list[Any]]]
+TModel = TypeVar("TModel")
+TItem = TypeVar("TItem")
+
+SerializeItems = Callable[[list[TModel]], Awaitable[list[TItem]]]
 RegisterListingDefinition = CollectionListingDefinition
 
 
@@ -34,28 +37,28 @@ class RegisterSerializerContext:
 
 
 @dataclass(frozen=True)
-class RegisterListingPlan:
+class RegisterListingPlan(Generic[TModel, TItem]):
     ordered_query: Any
-    listing_definition: RegisterListingDefinition
+    listing_definition: CollectionListingDefinition[TModel, TItem]
 
 
 def _plan_register_listing(
     *,
     ordered_query: Any,
     capabilities: dict[str, bool] | None,
-    serialize_items: SerializeItems,
-    serialize_sql_items: SerializeItems | None = None,
+    serialize_items: SerializeItems[TModel, TItem],
+    serialize_sql_items: SerializeItems[TModel, TItem] | None = None,
     total: int | None = None,
     load_total: LoadTotal | None = None,
     sql_group_keys: Collection[str] = frozenset(),
     load_sql_groups: LoadSqlGroups | None = None,
     build_sql_group_filter: BuildSqlGroupFilter | None = None,
     sql_group_query_transform: QueryTransform | None = None,
-    build_in_memory_grouped_page: BuildInMemoryGroupedPage[Any] | None = None,
-) -> RegisterListingPlan:
+    build_in_memory_grouped_page: BuildInMemoryGroupedPage[TItem] | None = None,
+) -> RegisterListingPlan[TModel, TItem]:
     return RegisterListingPlan(
         ordered_query=ordered_query,
-        listing_definition=RegisterListingDefinition(
+        listing_definition=CollectionListingDefinition(
             capabilities=capabilities,
             serialize_items=serialize_items,
             serialize_sql_items=serialize_sql_items,
@@ -75,7 +78,7 @@ async def execute_register_listing_plan(
     db: Any,
     response_model: type[Any],
     query: CollectionQuery,
-    plan: RegisterListingPlan,
+    plan: RegisterListingPlan[TModel, TItem],
 ) -> Any:
     return await execute_collection_listing_with_definition(
         db=db,

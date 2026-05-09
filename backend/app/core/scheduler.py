@@ -56,7 +56,6 @@ __all__ = [
     "get_outbox_dispatch_runtime_state",
     "get_scheduler_runtime_state",
     "get_scheduler_role_status",
-    "scheduler",
     "setup_scheduler",
     "start_scheduler",
     "start_scheduler_async",

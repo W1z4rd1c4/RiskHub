@@ -3,6 +3,8 @@ import { ArrowLeft, Edit, FileText, RotateCcw, Trash2 } from 'lucide-react';
 import { useTranslation } from '@/i18n/hooks';
 import type { Vendor } from '@/types/vendor';
 
+import { getVendorDisplayStatus, type VendorDisplayStatus } from './vendorsPagePresentation';
+
 interface VendorDetailHeaderProps {
     canArchive: boolean;
     canCreateIssue: boolean;
@@ -16,7 +18,7 @@ interface VendorDetailHeaderProps {
     vendor: Vendor;
 }
 
-function statusClass(status: Vendor['status']) {
+function statusClass(status: VendorDisplayStatus) {
     if (status === 'active') {
         return 'text-emerald-400 border-emerald-400/20 bg-emerald-400/5';
     }
@@ -53,6 +55,7 @@ export function VendorDetailHeader({
     const { t } = useTranslation('vendors');
     const { t: tIssues } = useTranslation('issues');
     const { t: tCommon } = useTranslation('common');
+    const displayStatus = getVendorDisplayStatus(vendor);
 
     return (
         <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
@@ -68,8 +71,8 @@ export function VendorDetailHeader({
 
                 <div className="flex flex-wrap items-center gap-4">
                     <h1 className="text-4xl font-black tracking-tighter text-white">{vendor.name}</h1>
-                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${statusClass(vendor.status)}`}>
-                        {t(`status.${vendor.status}`, vendor.status)}
+                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${statusClass(displayStatus)}`}>
+                        {t(`status.${displayStatus}`, displayStatus)}
                     </span>
                 </div>
 

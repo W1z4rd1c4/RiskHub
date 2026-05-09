@@ -1,8 +1,16 @@
 import { useMemo } from 'react';
 import type { RiskSummary } from '@/types/risk';
 import { useTranslation } from '@/i18n/hooks';
+import { useRiskThresholds } from '@/hooks/useRiskHubConfig';
+import { classifyRiskScore, type RiskScoreBand } from '@/lib/riskScoreTheme';
 
 const HEATMAP_AXIS = [1, 2, 3, 4, 5] as const;
+const CELL_COLOR_BY_BAND: Record<RiskScoreBand, string> = {
+    critical: 'bg-rose-500/60',
+    high: 'bg-orange-500/60',
+    medium: 'bg-amber-500/60',
+    low: 'bg-emerald-500/60',
+};
 
 interface MiniHeatmapProps {
     risks: RiskSummary[];
@@ -13,6 +21,7 @@ interface MiniHeatmapProps {
  */
 export function MiniHeatmap({ risks }: MiniHeatmapProps) {
     const { t } = useTranslation('common');
+    const { thresholds } = useRiskThresholds();
     // Generate 5x5 matrix of counts
     const matrix = useMemo<number[][]>(() => {
         const grid = Array.from({ length: HEATMAP_AXIS.length }, () =>
@@ -32,10 +41,7 @@ export function MiniHeatmap({ risks }: MiniHeatmapProps) {
         if (count === 0) return 'bg-white/5';
 
         const score = p * i;
-        if (score >= 16) return 'bg-rose-500/60';
-        if (score >= 10) return 'bg-orange-500/60';
-        if (score >= 5) return 'bg-amber-500/60';
-        return 'bg-emerald-500/60';
+        return CELL_COLOR_BY_BAND[classifyRiskScore(score, thresholds)];
     };
 
     return (

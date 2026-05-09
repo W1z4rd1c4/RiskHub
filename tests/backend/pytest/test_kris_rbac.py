@@ -25,6 +25,7 @@ from app.models import (
 )
 from app.models.key_risk_indicator import KRIFrequency
 from app.models.risk import RiskStatus
+from app.services._riskhub_config.approval_scenario_roles import set_approval_scenario_roles
 from tests.backend.pytest.factories import create_test_kri, create_test_risk, create_test_vendor
 
 
@@ -46,7 +47,7 @@ async def _upsert_approval_scenario(
         )
         db_session.add(scenario)
     scenario.requires_approval = requires_approval
-    scenario.set_approver_roles(roles)
+    set_approval_scenario_roles(scenario, roles)
     await db_session.commit()
     await db_session.refresh(scenario)
     return scenario
@@ -519,29 +520,10 @@ async def test_user_readonly(db_session, test_department, test_role_no_write):
 
 
 @pytest_asyncio.fixture
-async def client_readonly(db_session, test_user_readonly):
+async def client_readonly(client_factory, test_user_readonly):
     """Client for read-only user."""
-    from httpx import ASGITransport, AsyncClient
-
-    from app.core.config import Settings, get_settings
-    from app.db.session import get_db
-    from app.main import app
-
-    def override_settings():
-        return Settings(mock_auth_enabled=True, debug=True)
-
-    async def override_get_db():
-        yield db_session
-
-    app.dependency_overrides[get_db] = override_get_db
-    app.dependency_overrides[get_settings] = override_settings
-
-    transport = ASGITransport(app=app)
-    headers = {"X-Mock-User-Id": str(test_user_readonly.id)}
-    async with AsyncClient(transport=transport, base_url="http://test", headers=headers) as ac:
+    async with client_factory(user=test_user_readonly) as ac:
         yield ac
-
-    app.dependency_overrides.clear()
 
 
 @pytest.mark.asyncio
@@ -644,29 +626,10 @@ async def test_user_dept_head(db_session, test_department, test_role_with_write)
 
 
 @pytest_asyncio.fixture
-async def client_dept_head(db_session, test_user_dept_head):
+async def client_dept_head(client_factory, test_user_dept_head):
     """Client for department head user (has write but not privileged)."""
-    from httpx import ASGITransport, AsyncClient
-
-    from app.core.config import Settings, get_settings
-    from app.db.session import get_db
-    from app.main import app
-
-    def override_settings():
-        return Settings(mock_auth_enabled=True, debug=True)
-
-    async def override_get_db():
-        yield db_session
-
-    app.dependency_overrides[get_db] = override_get_db
-    app.dependency_overrides[get_settings] = override_settings
-
-    transport = ASGITransport(app=app)
-    headers = {"X-Mock-User-Id": str(test_user_dept_head.id)}
-    async with AsyncClient(transport=transport, base_url="http://test", headers=headers) as ac:
+    async with client_factory(user=test_user_dept_head) as ac:
         yield ac
-
-    app.dependency_overrides.clear()
 
 
 @pytest_asyncio.fixture
@@ -734,28 +697,9 @@ async def test_user_dept_head_vendor_links(db_session, test_department, test_rol
 
 
 @pytest_asyncio.fixture
-async def client_dept_head_vendor_links(db_session, test_user_dept_head_vendor_links):
-    from httpx import ASGITransport, AsyncClient
-
-    from app.core.config import Settings, get_settings
-    from app.db.session import get_db
-    from app.main import app
-
-    def override_settings():
-        return Settings(mock_auth_enabled=True, debug=True)
-
-    async def override_get_db():
-        yield db_session
-
-    app.dependency_overrides[get_db] = override_get_db
-    app.dependency_overrides[get_settings] = override_settings
-
-    transport = ASGITransport(app=app)
-    headers = {"X-Mock-User-Id": str(test_user_dept_head_vendor_links.id)}
-    async with AsyncClient(transport=transport, base_url="http://test", headers=headers) as ac:
+async def client_dept_head_vendor_links(client_factory, test_user_dept_head_vendor_links):
+    async with client_factory(user=test_user_dept_head_vendor_links) as ac:
         yield ac
-
-    app.dependency_overrides.clear()
 
 
 @pytest.mark.asyncio
@@ -943,28 +887,9 @@ async def test_user_dept_head_delete(db_session, test_department, test_role_with
 
 
 @pytest_asyncio.fixture
-async def client_dept_head_delete(db_session, test_user_dept_head_delete):
-    from httpx import ASGITransport, AsyncClient
-
-    from app.core.config import Settings, get_settings
-    from app.db.session import get_db
-    from app.main import app
-
-    def override_settings():
-        return Settings(mock_auth_enabled=True, debug=True)
-
-    async def override_get_db():
-        yield db_session
-
-    app.dependency_overrides[get_db] = override_get_db
-    app.dependency_overrides[get_settings] = override_settings
-
-    transport = ASGITransport(app=app)
-    headers = {"X-Mock-User-Id": str(test_user_dept_head_delete.id)}
-    async with AsyncClient(transport=transport, base_url="http://test", headers=headers) as ac:
+async def client_dept_head_delete(client_factory, test_user_dept_head_delete):
+    async with client_factory(user=test_user_dept_head_delete) as ac:
         yield ac
-
-    app.dependency_overrides.clear()
 
 
 @pytest.mark.asyncio

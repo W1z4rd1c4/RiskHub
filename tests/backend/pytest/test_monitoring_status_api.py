@@ -321,7 +321,7 @@ async def test_kri_list_filters_by_timeliness_status_due_soon(
     )
 
     monkeypatch.setattr(
-        "app.api.v1.endpoints.kris.crud.list.utc_now",
+        "app.services._register_listings.kris.utc_now",
         lambda: datetime(2026, 3, 27, 12, 0, tzinfo=UTC),
     )
 

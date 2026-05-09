@@ -6,7 +6,6 @@ from app.core.permissions import get_user_department_ids
 from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import Risk, User
-from app.models.risk import RiskStatus
 
 router = APIRouter()
 
@@ -26,7 +25,7 @@ async def get_risk_filters(
     dept_ids = get_user_department_ids(current_user)
 
     # Build base query with archived filter
-    base_conditions = [Risk.status != RiskStatus.archived.value]
+    base_conditions = [Risk.live()]
 
     # Add department scoping for non-privileged users
     if dept_ids is not None:

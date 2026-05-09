@@ -10,18 +10,21 @@ from app.models import (
     ApprovalScenario,
     Department,
     GlobalConfig,
+    KeyRiskIndicator,
     Risk,
     User,
 )
 from app.models.approval_request import ApprovalStatus
 from app.models.global_config import clear_config_cache
+from app.models.kri_history import KRIValueHistory
 from app.models.notification import Notification, NotificationType
 from app.models.risk import RiskStatus
 from app.models.user import AccessScope
+from app.services._riskhub_config.approval_scenario_roles import set_approval_scenario_roles
 from app.services.approval_execution_service import approve_request_workflow
 from app.services.approval_scenario_policy import can_view_approval_resource
 from app.services.outbox import dispatch_pending_outbox_events
-from tests.backend.pytest.factories import create_test_control, create_test_kri
+from tests.backend.pytest.factories import create_test_control, create_test_kri, create_test_risk
 
 
 def _sessionmaker(async_engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
@@ -94,7 +97,7 @@ async def _upsert_approval_scenario(
         )
         db_session.add(scenario)
     scenario.requires_approval = requires_approval
-    scenario.set_approver_roles(approver_roles)
+    set_approval_scenario_roles(scenario, approver_roles)
     await db_session.commit()
     await db_session.refresh(scenario)
     return scenario
@@ -127,8 +130,84 @@ class TestApprovalWorkflow:
         assert response.json()["status"] == "approved"
 
         # 3. Verify risk is archived (auto-executed)
-        response = await client_risk_manager.get(f"/api/v1/risks/{test_risk.id}")
-        assert response.json()["status"] == "archived"
+        risk_id = test_risk.id
+        db_session.expire_all()
+        response = await client_risk_manager.get(f"/api/v1/risks/{risk_id}")
+        data = response.json()
+        assert data["status"] == "active"
+        assert data["is_archived"] is True
+
+    async def test_kri_value_submission_approval_applies_structured_pending_changes(
+        self,
+        client_approval_requester: AsyncClient,
+        client_risk_manager: AsyncClient,
+        db_session: AsyncSession,
+        test_department,
+        test_user_approval_requester: User,
+        test_user_risk_manager: User,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """KRI submission approval round-trips old/new pending changes into a history write."""
+        from datetime import UTC, datetime
+
+        import app.services._kri_history.clock as kri_clock
+
+        monkeypatch.setattr(kri_clock, "today", lambda: kri_clock.date(2026, 4, 10))
+        monkeypatch.setattr(
+            "app.services._kri_history.approval_intake.utc_now",
+            lambda: datetime(2026, 4, 10, 12, 0, tzinfo=UTC),
+        )
+        await _upsert_approval_scenario(
+            db_session,
+            key="kri_value_submit",
+            requires_approval=True,
+            approver_roles=["risk_manager", "cro"],
+        )
+        risk = await create_test_risk(
+            db_session,
+            department_id=test_department.id,
+            owner_id=test_user_risk_manager.id,
+            risk_id_code="R-KRI-SUBMIT-APPROVAL",
+            name="KRI Submit Approval Risk",
+        )
+        kri = await create_test_kri(
+            db_session,
+            risk_id=risk.id,
+            metric_name="KRI Submit Approval",
+            overrides={"frequency": "quarterly", "reporting_owner_id": test_user_approval_requester.id},
+        )
+        kri_id = kri.id
+
+        submit_response = await client_approval_requester.post(f"/api/v1/kris/{kri.id}/values", json={"value": 64.0})
+        assert submit_response.status_code == 202
+        approval_id = submit_response.json()["approval_id"]
+        pending_changes = submit_response.json()["pending_changes"]
+        assert pending_changes["current_value"] == {"old": 50.0, "new": 64.0}
+        assert pending_changes["period_end"]["new"] == "2026-03-31"
+        assert pending_changes["recorded_at"]["new"]
+
+        approve_response = await client_risk_manager.post(
+            f"/api/v1/approvals/{approval_id}/approve",
+            json={"resolution_notes": "Apply submitted KRI value"},
+        )
+        assert approve_response.status_code == 200
+        assert approve_response.json()["status"] == "approved"
+
+        db_session.expire_all()
+        persisted_kri = await db_session.get(KeyRiskIndicator, kri_id)
+        assert persisted_kri is not None
+        assert persisted_kri.current_value == 64.0
+        assert persisted_kri.last_period_end == kri_clock.date(2026, 3, 31)
+
+        history_entry = (
+            await db_session.execute(
+                select(KRIValueHistory).where(
+                    KRIValueHistory.kri_id == kri_id,
+                    KRIValueHistory.period_end == kri_clock.date(2026, 3, 31),
+                )
+            )
+        ).scalar_one()
+        assert history_entry.value == 64.0
 
     async def test_high_net_score_risk_delete_requires_privileged_follow_up(
         self,
@@ -187,7 +266,7 @@ class TestApprovalWorkflow:
         assert approval.privileged_approver_id is not None
 
         persisted_risk = await _load_risk(db_session, risk.id)
-        assert persisted_risk.status == RiskStatus.archived.value
+        assert persisted_risk.is_archived is True
 
     async def test_primary_approval_escalation_rolls_back_on_commit_failure(
         self,
@@ -250,6 +329,7 @@ class TestApprovalWorkflow:
         self,
         client_approval_requester: AsyncClient,
         client_employee: AsyncClient,
+        client_risk_manager: AsyncClient,
         db_session: AsyncSession,
         test_department,
         test_user_employee: User,
@@ -287,7 +367,7 @@ class TestApprovalWorkflow:
         assert approval.privileged_approver_id is None
 
         persisted_risk = await _load_risk(db_session, risk.id)
-        assert persisted_risk.status == RiskStatus.archived.value
+        assert persisted_risk.is_archived is True
 
     async def test_disabled_risk_delete_scenario_applies_directly(
         self,
@@ -318,7 +398,7 @@ class TestApprovalWorkflow:
 
         assert response.status_code == 204
         persisted_risk = await _load_risk(db_session, risk.id)
-        assert persisted_risk.status == RiskStatus.archived.value
+        assert persisted_risk.is_archived is True
         approvals = (
             await db_session.execute(
                 select(ApprovalRequest).where(
@@ -552,6 +632,7 @@ class TestApprovalWorkflow:
         self,
         client_approval_requester: AsyncClient,
         client_employee: AsyncClient,
+        client_risk_manager: AsyncClient,
         db_session: AsyncSession,
         test_department,
         test_user_risk_manager: User,
@@ -595,7 +676,7 @@ class TestApprovalWorkflow:
         approval = await _load_approval(db_session, approval_id)
         assert approval.status == ApprovalStatus.APPROVED
         persisted_risk = await _load_risk(db_session, risk.id)
-        assert persisted_risk.status == RiskStatus.archived.value
+        assert persisted_risk.is_archived is True
 
     async def test_non_privileged_scenario_approver_escalates_tiered_request(
         self,
@@ -659,7 +740,7 @@ class TestApprovalWorkflow:
         approval = await _load_approval(db_session, approval_id)
         assert approval.status == ApprovalStatus.APPROVED
         persisted_risk = await _load_risk(db_session, risk.id)
-        assert persisted_risk.status == RiskStatus.archived.value
+        assert persisted_risk.is_archived is True
 
     async def test_live_scenario_save_prevents_tiered_request_deadlock(
         self,
@@ -964,6 +1045,7 @@ class TestApprovalWorkflow:
         self,
         client_approval_requester: AsyncClient,
         client_employee: AsyncClient,
+        client_risk_manager: AsyncClient,
         db_session: AsyncSession,
         test_department,
         test_user_employee: User,
@@ -1019,7 +1101,14 @@ class TestApprovalWorkflow:
             json={"resolution_notes": "Owner approves priority edit"},
         )
         assert approve_response.status_code == 200
-        assert approve_response.json()["status"] == "approved"
+        assert approve_response.json()["status"] == "pending_privileged"
+
+        final_response = await client_risk_manager.post(
+            f"/api/v1/approvals/{approval_id}/approve",
+            json={"resolution_notes": "Privileged approval for priority edit"},
+        )
+        assert final_response.status_code == 200
+        assert final_response.json()["status"] == "approved"
 
         persisted_risk = await _load_risk(db_session, priority_risk.id)
         assert persisted_risk.description == "Risk owner scenario description"

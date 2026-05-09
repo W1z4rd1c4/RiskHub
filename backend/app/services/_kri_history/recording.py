@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.datetime_utils import coerce_utc, utc_now
 from app.models.key_risk_indicator import KeyRiskIndicator
 from app.models.kri_history import KRIValueHistory
+from app.services._monitoring_status.kris import classify_kri_breach
 
 from . import clock
 from .logging import logger
@@ -100,13 +101,11 @@ async def record_value(
     if not is_privileged and not is_within_reporting_window(period_end, as_of=today):
         raise ValueError(f"Reporting window closed. Due date was {due_date(period_end)}")
 
-    # Calculate breach status
-    if value < kri.lower_limit:
-        breach_status = "below"
-    elif value > kri.upper_limit:
-        breach_status = "above"
-    else:
-        breach_status = "within"
+    breach_status = classify_kri_breach(
+        current_value=value,
+        lower_limit=kri.lower_limit,
+        upper_limit=kri.upper_limit,
+    )
 
     history_recorded_at = coerce_utc(recorded_at) or now
     if history_recorded_at > now:

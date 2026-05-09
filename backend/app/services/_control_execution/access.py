@@ -6,7 +6,12 @@ from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.permissions import check_department_access, is_control_owner, is_risk_control_owner, is_risk_kri_reporting_owner
+from app.core.permissions import (
+    check_department_access,
+    is_control_owner,
+    is_risk_control_owner,
+    is_risk_kri_reporting_owner,
+)
 from app.models import Control, Risk, User
 
 

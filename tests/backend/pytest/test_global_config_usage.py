@@ -7,6 +7,9 @@ Validates that configuration values from global_config affect:
 """
 
 import pytest
+from httpx import AsyncClient
+from pydantic import ValidationError as PydanticValidationError
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.permissions import (
@@ -17,11 +20,13 @@ from app.models import Department, Risk, User
 from app.models.global_config import (
     ConfigDefaults,
     GlobalConfig,
+    build_risk_level_ranges,
     clear_config_cache,
     get_config_float,
     get_config_int,
     get_config_value,
 )
+from app.schemas.risk import RiskBriefForLink, RiskRead, RiskStatusEnum, RiskSummary
 
 
 @pytest.fixture(autouse=True)
@@ -112,10 +117,160 @@ async def test_get_config_float_validates_type(
 # ============================================================================
 
 
+async def _upsert_threshold_config(
+    db_session: AsyncSession,
+    *,
+    key: str,
+    value: int,
+    display_name: str,
+) -> GlobalConfig:
+    result = await db_session.execute(select(GlobalConfig).where(GlobalConfig.key == key))
+    config = result.scalar_one_or_none()
+    if config is None:
+        config = GlobalConfig(
+            key=key,
+            value=str(value),
+            value_type="int",
+            category="risk_thresholds",
+            display_name=display_name,
+            min_value=1,
+            max_value=25,
+            is_editable=True,
+        )
+        db_session.add(config)
+    else:
+        config.value = str(value)
+        config.value_type = "int"
+        config.category = "risk_thresholds"
+        config.display_name = display_name
+        config.min_value = 1
+        config.max_value = 25
+        config.is_editable = True
+    await db_session.commit()
+    await db_session.refresh(config)
+    return config
+
+
+async def _seed_risk_threshold_configs(
+    db_session: AsyncSession,
+    *,
+    medium: int = 5,
+    high: int = 10,
+    critical: int = 16,
+) -> None:
+    await _upsert_threshold_config(
+        db_session,
+        key="medium_risk_min_net_score",
+        value=medium,
+        display_name="Medium Risk Minimum Net Score",
+    )
+    await _upsert_threshold_config(
+        db_session,
+        key="high_risk_min_net_score",
+        value=high,
+        display_name="High Risk Minimum Net Score",
+    )
+    await _upsert_threshold_config(
+        db_session,
+        key="critical_risk_min_net_score",
+        value=critical,
+        display_name="Critical Risk Minimum Net Score",
+    )
+    clear_config_cache()
+
+
 def test_ConfigDefaults_thresholds_match_seed_defaults():
     assert ConfigDefaults.MEDIUM_RISK_MIN_NET_SCORE == 5
     assert ConfigDefaults.HIGH_RISK_MIN_NET_SCORE == 10
     assert ConfigDefaults.CRITICAL_RISK_MIN_NET_SCORE == 16
+    assert ConfigDefaults.MAX_NET_SCORE == 25
+
+
+def test_risk_response_schemas_bound_computed_scores_to_max_net_score():
+    from datetime import UTC, datetime
+
+    now = datetime(2026, 5, 9, tzinfo=UTC)
+
+    with pytest.raises(PydanticValidationError):
+        RiskRead(
+            risk_id_code="R-BOUNDS-READ",
+            name="Bounds Read",
+            process="Bounds",
+            risk_type="operational",
+            description="Bounds",
+            gross_probability=5,
+            gross_impact=5,
+            net_probability=5,
+            net_impact=5,
+            gross_score=26,
+            net_score=25,
+            status=RiskStatusEnum.active,
+            is_priority=False,
+            id=1,
+            created_at=now,
+            updated_at=now,
+        )
+
+    with pytest.raises(PydanticValidationError):
+        RiskSummary(
+            id=1,
+            risk_id_code="R-BOUNDS-SUMMARY",
+            name="Bounds Summary",
+            process="Bounds",
+            risk_type="operational",
+            description="Bounds",
+            gross_score=25,
+            gross_probability=5,
+            gross_impact=5,
+            net_score=26,
+            status=RiskStatusEnum.active,
+            is_priority=False,
+        )
+
+    with pytest.raises(PydanticValidationError):
+        RiskBriefForLink(
+            id=1,
+            risk_id_code="R-BOUNDS-LINK",
+            name="Bounds Link",
+            process="Bounds",
+            description="Bounds",
+            gross_score=26,
+            net_score=25,
+            is_archived=False,
+        )
+
+
+@pytest.mark.asyncio
+async def test_global_config_update_rejects_non_increasing_risk_thresholds(
+    client_cro: AsyncClient,
+    db_session: AsyncSession,
+):
+    await _seed_risk_threshold_configs(db_session, medium=5, high=10, critical=16)
+
+    response = await client_cro.patch("/api/v1/riskhub/config/medium_risk_min_net_score", json={"value": "10"})
+
+    assert response.status_code == 422
+    assert response.json()["detail"][0]["loc"] == ["body", "value"]
+
+
+def test_build_risk_level_ranges_rejects_non_increasing_thresholds():
+    with pytest.raises(ValueError, match="non-increasing thresholds"):
+        build_risk_level_ranges(5, 5, 16)
+
+
+@pytest.mark.asyncio
+async def test_global_config_update_clears_threshold_cache_after_commit(
+    client_cro: AsyncClient,
+    db_session: AsyncSession,
+):
+    await _seed_risk_threshold_configs(db_session, medium=5, high=10, critical=16)
+
+    assert await get_config_int(db_session, "high_risk_min_net_score", ConfigDefaults.HIGH_RISK_MIN_NET_SCORE) == 10
+
+    response = await client_cro.patch("/api/v1/riskhub/config/high_risk_min_net_score", json={"value": "12"})
+
+    assert response.status_code == 200
+    assert await get_config_int(db_session, "high_risk_min_net_score", ConfigDefaults.HIGH_RISK_MIN_NET_SCORE) == 12
 
 
 @pytest.mark.asyncio

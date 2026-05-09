@@ -9,6 +9,7 @@ import {
     authConfigResponseSchema,
     authUserSchema,
     logoutSuccessSchema,
+    meCapabilitiesSchema,
     ssoStartResponseSchema,
     tokenResponseSchema,
     voidSchema,
@@ -51,6 +52,7 @@ export interface AuthConfigResponse {
     auth_mode: AuthMode;
     demo_login_enabled: boolean;
     password_login_enabled: boolean;
+    strict_capabilities: boolean;
     sso: {
         enabled: boolean;
         provider: 'entra';
@@ -80,10 +82,32 @@ export interface TokenResponse {
         effective_permissions: string[];
         access_scope: 'global' | 'department' | 'manager';
         scope_label: string;
+        me_capabilities?: MeCapabilities | null;
     };
 }
 
 export type AuthUser = TokenResponse['user'];
+
+export interface MeCapabilities {
+    can_view_user_directory: boolean;
+    can_view_access_users: boolean;
+    can_view_department_access_users: boolean;
+    can_view_users_route: boolean;
+    can_manage_access: boolean;
+    can_view_department_access: boolean;
+    can_view_admin_console: boolean;
+    can_view_riskhub: boolean;
+    can_view_governance: boolean;
+    can_view_activity_log: boolean;
+    can_view_committee: boolean;
+    can_view_users_page: boolean;
+    is_second_line: boolean;
+    can_read_risks: boolean;
+    can_read_controls: boolean;
+    can_read_vendors: boolean;
+    can_read_departments: boolean;
+    resource_permissions: Record<string, boolean>;
+}
 
 interface ParsedAuthError {
     detail: string;
@@ -208,6 +232,13 @@ async function getCurrentUser(token: string): Promise<TokenResponse['user']> {
     }, 'Failed to get current user', authUserSchema);
 }
 
+async function getMeCapabilities(token: string): Promise<MeCapabilities> {
+    return requestAuthJson('/me/capabilities', {
+        headers: { 'Authorization': `Bearer ${token}` },
+        credentials: 'include',
+    }, 'Failed to get current user capabilities', meCapabilitiesSchema);
+}
+
 async function ensureCsrf(): Promise<void> {
     await requestAuthVoid('/csrf', {
         method: 'GET',
@@ -300,6 +331,7 @@ export const authApi = {
     ssoStart,
     ssoExchange,
     getCurrentUser,
+    getMeCapabilities,
     refresh,
     ensureCsrf,
     logoutAll,

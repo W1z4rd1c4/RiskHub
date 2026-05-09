@@ -11,7 +11,6 @@ from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import KeyRiskIndicator, Risk, User
 from app.models.kri_history import KRIValueHistory
-from app.models.risk import RiskStatus
 from app.schemas.dashboard import KRIBreachTrendPoint
 
 from ._shared import month_period_expr
@@ -31,7 +30,7 @@ async def get_kri_breach_trends(
         # Build conditions: join KRIValueHistory -> KRI -> Risk; filter active/non-archived
         conditions = [
             KRIValueHistory.period_end.isnot(None),
-            Risk.status != RiskStatus.archived.value,
+            Risk.live(),
             KeyRiskIndicator.is_archived.is_(False),
         ]
         visibility_clause = await kri_visibility_clause(db, current_user, department_id=department_id)

@@ -3,7 +3,7 @@ from datetime import timedelta
 from typing import Any, Iterable, Optional
 
 import jwt
-from fastapi import Depends, Header, HTTPException, status
+from fastapi import Depends, Header
 from jwt import InvalidTokenError
 from passlib.context import CryptContext
 from sqlalchemy import select
@@ -12,6 +12,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.config import Settings, get_settings
 from app.core.datetime_utils import utc_now
+from app.core.exceptions import AuthenticationError, AuthorizationError
 from app.core.permissions import ensure_business_view_access, has_permission
 from app.db.session import get_db
 from app.models import Role, RolePermission, User
@@ -129,9 +130,8 @@ async def get_current_user(
 
     # Production: Mock auth not allowed - this function should not be used
     # Use deps.get_current_user instead for JWT-based auth
-    raise HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Mock auth disabled. Use JWT authentication via /auth/login",
+    raise AuthenticationError(
+        "Mock auth disabled. Use JWT authentication via /auth/login",
         headers={"WWW-Authenticate": "Bearer"},
     )
 
@@ -146,7 +146,7 @@ def check_permission(user: User, resource: str, action: str) -> bool:
 
 
 def forbid(detail: str) -> None:
-    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=detail)
+    raise AuthorizationError(detail)
 
 
 def require_any_permission(permissions: Iterable[tuple[str, str]]):
@@ -163,6 +163,7 @@ def require_any_permission(permissions: Iterable[tuple[str, str]]):
             forbid(f"Permission denied: requires one of [{required}]")
         return current_user
 
+    setattr(permission_checker, "required_any_capability", tuple(perms))
     return permission_checker
 
 
@@ -178,6 +179,7 @@ def require_permission(resource: str, action: str):
             forbid(f"Permission denied: {resource}:{action}")
         return current_user
 
+    setattr(permission_checker, "required_capability", (resource, action))
     return permission_checker
 
 
@@ -198,4 +200,6 @@ def require_business_permission(
             forbid(f"Permission denied: {resource}:{action}")
         return current_user
 
+    setattr(permission_checker, "required_capability", (resource, action))
+    setattr(permission_checker, "requires_business_view", True)
     return permission_checker

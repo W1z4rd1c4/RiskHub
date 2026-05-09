@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from typing import Literal
 
-from fastapi import HTTPException, status
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
 from app.core.email import email_equals
+from app.core.exceptions import ConflictError, ServiceFailure, ValidationError
 from app.models import Role, User
 from app.schemas.directory import DirectoryImportRequest, DirectoryUserRead
 from app.services.ad_deprovision_service import ADDeprovisionService
@@ -22,6 +23,11 @@ from .execution import commit_directory_import, load_directory_import_user
 from .projection import build_directory_import_response
 
 
+def _is_external_id_integrity_error(exc: IntegrityError) -> bool:
+    message = str(exc).lower()
+    return "external_id" in message or "ix_users_external_id" in message
+
+
 async def resolve_safe_default_role(db: AsyncSession) -> Role:
     from app.core.policy import SAFE_DIRECTORY_DEFAULT_ROLE_CANDIDATES
 
@@ -32,7 +38,7 @@ async def resolve_safe_default_role(db: AsyncSession) -> Role:
             return role
 
     candidates = ", ".join(str(name) for name in SAFE_DIRECTORY_DEFAULT_ROLE_CANDIDATES)
-    raise HTTPException(status_code=500, detail=f"No safe default role found ({candidates}). Seed roles first.")
+    raise ServiceFailure(f"No safe default role found ({candidates}). Seed roles first.")
 
 
 async def resolve_role_for_directory_import(
@@ -44,7 +50,7 @@ async def resolve_role_for_directory_import(
         result = await db.execute(select(Role).where(Role.id == override_role_id).where(Role.is_active.is_(True)))
         role = result.scalar_one_or_none()
         if role is None:
-            raise HTTPException(status_code=400, detail="Invalid role_id override")
+            raise ValidationError("Invalid role_id override")
         return role
     return await resolve_safe_default_role(db)
 
@@ -60,7 +66,7 @@ async def import_directory_identity(
 ) -> IdentityImportOutcome:
     normalized_email = resolve_directory_email(directory_user)
     if normalized_email is None:
-        raise HTTPException(status_code=400, detail="Directory user is missing an importable email address")
+        raise ValidationError("Directory user is missing an importable email address")
 
     user = (await db.execute(select(User).where(User.external_id == directory_user.external_id))).scalar_one_or_none()
     import_status: Literal["created", "updated"] = "updated"
@@ -73,10 +79,7 @@ async def import_directory_identity(
             None,
             directory_user.external_id,
         ):
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Directory identity conflict: email already linked to a different external_id",
-            )
+            raise ConflictError("Directory identity conflict: email already linked to a different external_id")
         if existing_email_user is not None:
             user = existing_email_user
         else:
@@ -98,44 +101,50 @@ async def import_directory_identity(
         user.role_id = role.id
 
     try:
-        await apply_directory_profile(
-            db,
+        try:
+            await apply_directory_profile(
+                db,
+                user=user,
+                directory_user=directory_user,
+                sync_business_role=settings.entra_business_role_enabled,
+                seed_department=seed_directory_department,
+            )
+        except DirectoryIdentityConflictError as exc:
+            raise ConflictError(str(exc)) from exc
+
+        if directory_user.account_enabled and user.deprovision_reason in ADDeprovisionService.AUTO_DEPROVISION_REASONS:
+            user.is_active = True
+            user.deprovisioned_at = None
+            user.deprovision_reason = None
+            user.break_glass_expires_at = None
+            user.break_glass_reason = None
+            user.break_glass_granted_by_user_id = None
+
+        if not directory_user.account_enabled:
+            await ADDeprovisionService.deprovision_user(
+                db,
+                user=user,
+                actor=current_user,
+                trigger="directory_import",
+                sync_status="directory_disabled",
+                deprovision_reason=ADDeprovisionService.DEPROVISION_REASON_DIRECTORY_DISABLED,
+            )
+
+        db.add(user)
+        await db.flush()
+        await commit_directory_import(
+            db=db,
             user=user,
-            directory_user=directory_user,
-            sync_business_role=settings.entra_business_role_enabled,
-            seed_department=seed_directory_department,
+            current_user=current_user,
+            import_status=import_status,
+            provider_name=provider_name,
+            account_enabled=directory_user.account_enabled,
         )
-    except DirectoryIdentityConflictError as exc:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
-
-    if directory_user.account_enabled and user.deprovision_reason in ADDeprovisionService.AUTO_DEPROVISION_REASONS:
-        user.is_active = True
-        user.deprovisioned_at = None
-        user.deprovision_reason = None
-        user.break_glass_expires_at = None
-        user.break_glass_reason = None
-        user.break_glass_granted_by_user_id = None
-
-    if not directory_user.account_enabled:
-        await ADDeprovisionService.deprovision_user(
-            db,
-            user=user,
-            actor=current_user,
-            trigger="directory_import",
-            sync_status="directory_disabled",
-            deprovision_reason=ADDeprovisionService.DEPROVISION_REASON_DIRECTORY_DISABLED,
-        )
-
-    db.add(user)
-    await db.flush()
-    await commit_directory_import(
-        db=db,
-        user=user,
-        current_user=current_user,
-        import_status=import_status,
-        provider_name=provider_name,
-        account_enabled=directory_user.account_enabled,
-    )
+    except IntegrityError as exc:
+        await db.rollback()
+        if _is_external_id_integrity_error(exc):
+            raise ConflictError("Directory identity conflict: external_id already imported") from exc
+        raise
 
     refreshed = await load_directory_import_user(db, user_id=user.id)
     response = build_directory_import_response(

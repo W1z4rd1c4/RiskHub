@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from app.models import User, Vendor
-from app.schemas.vendor import VendorCapabilities, VendorLinkedRiskSummary, VendorListResponse, VendorRead
-from app.services._vendor_workflow import vendor_capabilities
+from app.schemas.vendor import VendorLinkedRiskSummary, VendorListResponse, VendorRead
+from app.services.authorization_capabilities import vendor_capabilities
 
 
 def vendor_to_read(
@@ -12,9 +12,7 @@ def vendor_to_read(
     linked_risks: list[VendorLinkedRiskSummary] | None = None,
 ) -> VendorRead:
     base = VendorRead.model_validate(vendor)
-    capabilities = (
-        VendorCapabilities(**vendor_capabilities(current_user, vendor)) if current_user is not None else None
-    )
+    capabilities = vendor_capabilities(current_user, vendor) if current_user is not None else None
     return base.model_copy(
         update={
             "department_name": vendor.department.name if vendor.department else None,

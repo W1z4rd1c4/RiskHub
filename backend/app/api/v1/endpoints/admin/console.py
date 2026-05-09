@@ -15,10 +15,6 @@ from app.schemas.admin import (
     SystemStatsResponse,
     TechnicalLogEntry,
 )
-from app.services._auth_session_workflow import (
-    SessionWorkflowError,
-    list_active_session_projections,
-)
 from app.services._admin_telemetry.lifecycle import (
     build_outbox_status_snapshot,
     build_scheduler_status_snapshot,
@@ -26,6 +22,11 @@ from app.services._admin_telemetry.lifecycle import (
     build_system_stats_snapshot,
     revoke_admin_user_sessions,
 )
+from app.services._auth_session_workflow import (
+    SessionWorkflowError,
+    list_active_session_projections,
+)
+from app.services.transaction_boundary import commit_service_transaction
 
 from ._deps import require_platform_admin
 
@@ -159,6 +160,6 @@ async def revoke_user_session(
         result = await revoke_admin_user_sessions(db, target_user_id=user_id, admin_user=admin_user)
     except SessionWorkflowError as exc:
         raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
-    await db.commit()
+    await commit_service_transaction(db)
 
     return {"status": "success", "message": f"Revoked {result.revoked_count} active sessions for {result.user_email}"}

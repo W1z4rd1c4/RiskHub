@@ -142,7 +142,7 @@ class OutboxService:
                 now=now,
                 reclaim_before=reclaim_before,
             )
-        await db.commit()
+        await db.flush()
         return event_ids
 
     @staticmethod
@@ -156,7 +156,7 @@ class OutboxService:
         event.locked_by = None
         event.last_error = None
         db.add(event)
-        await db.commit()
+        await db.flush()
 
     @staticmethod
     async def mark_dead_letter(db: AsyncSession, event_id: str, *, error_message: str) -> None:
@@ -169,7 +169,7 @@ class OutboxService:
         event.locked_by = None
         event.last_error = error_message
         db.add(event)
-        await db.commit()
+        await db.flush()
 
     @staticmethod
     async def mark_retry(db: AsyncSession, event_id: str, *, error_message: str) -> None:
@@ -189,7 +189,7 @@ class OutboxService:
         event.locked_by = None
         event.last_error = error_message
         db.add(event)
-        await db.commit()
+        await db.flush()
 
 
 def ensure_outbox_runtime_supported(*, dialect_name: str, worker_count: int) -> None:

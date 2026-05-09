@@ -21,12 +21,11 @@ export const ControlFrequency = {
     CONTINUOUS: 'continuous' as ControlFrequency,
 };
 
-export type ControlStatus = 'draft' | 'active' | 'inactive' | 'archived';
+export type ControlStatus = 'draft' | 'active' | 'inactive';
 export const ControlStatus = {
     DRAFT: 'draft' as ControlStatus,
     ACTIVE: 'active' as ControlStatus,
     INACTIVE: 'inactive' as ControlStatus,
-    ARCHIVED: 'archived' as ControlStatus,
 };
 
 export type ControlMonitoringStatus = 'new' | 'needs_review' | 'failed' | 'passed';
@@ -92,6 +91,7 @@ export interface Control {
     documentation_location?: string | null;
     department_id?: number | null;
     status: ControlStatus;
+    is_archived: boolean;
     created_by_id?: number | null;
     updated_by_id?: number | null;
     created_at: string;
@@ -120,6 +120,7 @@ export interface ControlSummary extends ControlMonitoringFields {
     frequency: ControlFrequency;
     risk_level: number;
     status: ControlStatus;
+    is_archived: boolean;
     control_form: ControlForm;
     control_owner_name?: string | null;
     risk_type?: string | null;
@@ -132,7 +133,10 @@ export interface ControlSummary extends ControlMonitoringFields {
     capabilities?: ControlCapabilities | null;
 }
 
-export type ControlCreate = Omit<Control, 'id' | 'created_at' | 'updated_at' | 'control_owner' | 'department'>;
+export type ControlCreate = Omit<
+    Control,
+    'id' | 'is_archived' | 'created_at' | 'updated_at' | 'control_owner' | 'department'
+>;
 
 export type ControlUpdate = Partial<ControlCreate>;
 
@@ -156,6 +160,7 @@ export interface ControlRiskLink {
         frequency?: ControlFrequency | string;
         risk_level?: number;
         status?: ControlStatus | string;
+        is_archived: boolean;
     };
     risk?: {
         id: number;
@@ -164,6 +169,7 @@ export interface ControlRiskLink {
         process: string;
         description: string;
         status?: string;
+        is_archived: boolean;
     };
 }
 

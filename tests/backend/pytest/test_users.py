@@ -3,14 +3,11 @@ import asyncio
 import pytest
 import pytest_asyncio
 from fastapi import HTTPException
-from httpx import ASGITransport, AsyncClient
+from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
-from app.api import deps
-from app.core import security
 from app.core.config import Settings, get_settings
 from app.core.security import verify_password
-from app.db.session import get_db
 from app.main import app
 from app.models import Department, Role, User
 from app.schemas import UserUpdate
@@ -18,26 +15,10 @@ from app.services._identity_access_lifecycle.profile_updates import update_user_
 
 
 @pytest_asyncio.fixture
-async def auth_client_sso(db_session: AsyncSession, test_user: User):
-    async def override_get_db():
-        yield db_session
-
-    async def override_get_current_user():
-        return test_user
-
-    def override_settings():
-        return Settings(mock_auth_enabled=True, debug=True, auth_mode="microsoft_sso")
-
-    app.dependency_overrides[get_db] = override_get_db
-    app.dependency_overrides[deps.get_current_user] = override_get_current_user
-    app.dependency_overrides[security.get_current_user] = override_get_current_user
-    app.dependency_overrides[get_settings] = override_settings
-
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+async def auth_client_sso(client_factory, test_user: User):
+    settings = Settings(mock_auth_enabled=True, debug=True, auth_mode="microsoft_sso")
+    async with client_factory(current_user=test_user, settings=settings) as ac:
         yield ac
-
-    app.dependency_overrides.clear()
 
 
 @pytest.mark.asyncio

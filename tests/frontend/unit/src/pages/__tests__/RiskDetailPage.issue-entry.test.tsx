@@ -123,6 +123,28 @@ describe('RiskDetailPage issue entry', () => {
         expect(screen.queryByRole('button', { name: 'New Issue' })).not.toBeInTheDocument();
     });
 
+    it('renders archived-normalized risks as archived in the detail header', async () => {
+        mockGetRisk.mockResolvedValueOnce({
+            id: 7,
+            name: 'Archived Liquidity Risk',
+            status: 'active',
+            is_archived: true,
+            is_priority: false,
+            process: 'Treasury',
+            description: 'Archived liquidity mismatch.',
+            kris: [],
+            capabilities: {
+                can_create_issue: true,
+                can_restore: true,
+            },
+        });
+
+        render(<RiskDetailPage />);
+
+        await screen.findByText('Archived Liquidity Risk');
+        expect(screen.getByText('archived')).toBeInTheDocument();
+    });
+
     it('renders denied instead of not found when risk detail is forbidden', async () => {
         mockGetRisk.mockRejectedValueOnce(
             new ApiClientError({

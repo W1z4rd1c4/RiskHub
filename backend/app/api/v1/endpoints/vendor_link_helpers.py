@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.permissions import can_read_vendor, is_vendor_owner
 from app.core.security import check_permission
 from app.models import User, Vendor, VendorControlLink, VendorKRILink, VendorRiskLink
+from app.services.transaction_boundary import commit_service_transaction
 
 VendorLink: TypeAlias = VendorRiskLink | VendorControlLink | VendorKRILink
 VendorLinkModel: TypeAlias = type[VendorRiskLink] | type[VendorControlLink] | type[VendorKRILink]
@@ -40,8 +41,8 @@ async def require_vendor_access(
     if not vendor or not can_read_vendor(vendor, current_user):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
 
-    if require_write and vendor.status != "active":
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Cannot mutate links for inactive vendor")
+    if require_write and vendor.is_archived:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Cannot mutate links for archived vendor")
 
     if require_write and not (
         check_permission(current_user, "vendors", "write") or is_vendor_owner(vendor, current_user)
@@ -87,7 +88,7 @@ async def create_vendor_link(
 ) -> dict[str, str]:
     await ensure_link_absent(db, link_model, vendor_id, entity_field, entity_id)
     db.add(cast(Any, link_model)(vendor_id=vendor_id, **{entity_field: entity_id}))
-    await db.commit()
+    await commit_service_transaction(db)
     return {"status": "linked"}
 
 
@@ -103,4 +104,4 @@ async def delete_vendor_link(
         raise HTTPException(status_code=404, detail="Link not found")
 
     await db.delete(link)
-    await db.commit()
+    await commit_service_transaction(db)

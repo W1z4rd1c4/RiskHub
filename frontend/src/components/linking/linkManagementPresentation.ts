@@ -31,7 +31,7 @@ export function buildLinkSearchResultPresentation(
     t: TranslateFn,
 ): LinkSearchResultPresentation {
     const meta = getResultMeta(mode, result, t);
-    const isArchived = result.status === 'archived';
+    const isArchived = result.is_archived === true;
 
     return {
         canUnarchive: isArchived && resolveCapabilityFlag(result.capabilities, 'can_restore'),

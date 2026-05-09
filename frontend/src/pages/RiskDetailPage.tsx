@@ -23,6 +23,7 @@ import { DetailActionBanner } from '@/pages/detail/DetailActionBanner';
 import { ContextualIssueAction } from '@/pages/detail/ContextualIssueAction';
 import { useRiskDetailState } from '@/pages/detail/useRiskDetailState';
 import { ReadAccessDeniedState } from '@/pages/shared/ReadAccessDeniedState';
+import { getRiskDisplayStatus } from '@/pages/risks/risksPagePresentation';
 
 export function RiskDetailPage() {
     const { id } = useParams<{ id: string }>();
@@ -68,7 +69,6 @@ export function RiskDetailPage() {
         switch (status) {
             case 'active': return 'text-emerald-400 border-emerald-400/20 bg-emerald-400/5';
             case 'emerging': return 'text-amber-400 border-amber-400/20 bg-amber-400/5';
-            case 'archived': return 'text-rose-400 border-rose-400/20 bg-rose-400/5';
             default: return 'text-slate-400 border-slate-400/20 bg-slate-400/5';
         }
     };
@@ -115,6 +115,7 @@ export function RiskDetailPage() {
         resolveCapabilityFlag(risk.capabilities, 'can_request_archive_approval');
     const canRestoreRisk = resolveCapabilityFlag(risk.capabilities, 'can_restore');
     const canCreateIssue = resolveCapabilityFlag(risk.capabilities, 'can_create_issue');
+    const displayStatus = getRiskDisplayStatus(risk);
 
     return (
         <div className="space-y-8">
@@ -156,8 +157,8 @@ export function RiskDetailPage() {
                         {risk.is_priority && (
                             <Star className="h-5 w-5 text-amber-400 fill-amber-400" />
                         )}
-                        <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${getStatusColor(risk.status)}`}>
-                            {risk.status}
+                        <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${getStatusColor(displayStatus)}`}>
+                            {displayStatus}
                         </span>
                     </div>
                     <div className="flex items-center gap-3 text-slate-500 text-sm font-medium">
@@ -186,7 +187,7 @@ export function RiskDetailPage() {
                             <Edit className="h-5 w-5" />
                         </button>
                     )}
-                    {risk.status === 'archived' ? (
+                    {risk.is_archived ? (
                         canRestoreRisk && (
                             <button
                                 onClick={handleRestore}

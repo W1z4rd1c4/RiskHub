@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import Any, TypeVar
+from typing import Any, TypeAlias, TypeVar
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,7 +10,7 @@ from app.models import ApprovalRequest
 from app.services.outbox import OutboxService
 
 TValue = TypeVar("TValue")
-DeferredValue = TValue | Callable[[], TValue]
+DeferredValue: TypeAlias = TValue | Callable[[], TValue]
 BeforeCommit = Callable[[], Awaitable[None]]
 
 
@@ -42,7 +42,11 @@ def approval_resolved_event_plan(approval: ApprovalRequest) -> ApprovalResolutio
     )
 
 
-def approval_cancelled_event_plan(approval: ApprovalRequest, *, cancelled_by_user_id: int) -> ApprovalResolutionEventPlan:
+def approval_cancelled_event_plan(
+    approval: ApprovalRequest,
+    *,
+    cancelled_by_user_id: int,
+) -> ApprovalResolutionEventPlan:
     return ApprovalResolutionEventPlan(
         event_type="approval.request_cancelled",
         idempotency_key=lambda: f"approval.request_cancelled:{approval.id}",

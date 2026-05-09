@@ -4,10 +4,10 @@ from datetime import datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.activity_logger import build_change_set, log_activity
+from app.core.activity_logger import build_change_set
+from app.core.audit.issue import issue_assigned, issue_remediation_updated
 from app.core.datetime_utils import coerce_utc
 from app.models import Issue, User
-from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.models.issue import IssueStatus
 
 from .transitions import _ensure_issue_not_closed, _get_or_init_remediation
@@ -50,25 +50,12 @@ async def assign_issue(
     db.add(issue)
     db.add(remediation)
 
-    await log_activity(
+    await issue_assigned(db, actor=actor, issue=issue, changes=issue_changes)
+    await issue_remediation_updated(
         db,
-        entity_type=ActivityEntityType.ISSUE,
-        entity_id=issue.id,
-        entity_name=issue.title,
-        action=ActivityAction.UPDATE,
         actor=actor,
-        department_id=issue.department_id,
-        changes=issue_changes,
-        description=f"Assigned issue {issue.title}",
-    )
-    await log_activity(
-        db,
-        entity_type=ActivityEntityType.ISSUE_REMEDIATION,
-        entity_id=remediation.id or issue.id,
-        entity_name=f"Remediation for {issue.title}",
-        action=ActivityAction.UPDATE,
-        actor=actor,
-        department_id=issue.department_id,
+        issue=issue,
+        plan=remediation,
         changes=remediation_changes,
     )
     return issue

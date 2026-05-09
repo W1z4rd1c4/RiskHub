@@ -15,7 +15,7 @@ async def _resolve_vendor_department_and_access(
 ) -> int:
     row = (
         await db.execute(
-            select(Vendor.id, Vendor.department_id, User.department_id, Vendor.status)
+            select(Vendor.id, Vendor.department_id, User.department_id, Vendor.is_archived)
             .outerjoin(User, Vendor.outsourcing_owner_user_id == User.id)
             .where(Vendor.id == vendor_id)
         )
@@ -23,9 +23,9 @@ async def _resolve_vendor_department_and_access(
     if row is None or not await can_read_vendor_id(db, current_user, vendor_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Linked vendor not found")
 
-    _, vendor_department_id, owner_department_id, vendor_status = row
-    if vendor_status != "active":
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Cannot link inactive vendor")
+    _, vendor_department_id, owner_department_id, vendor_is_archived = row
+    if vendor_is_archived:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Cannot link archived vendor")
 
     resolved_department_id = vendor_department_id or owner_department_id
     if resolved_department_id is None:

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.exceptions import AuthorizationError
 from app.core.permissions import can_read_kri_id, check_department_access, has_permission, is_kri_reporting_owner
 from app.models import KeyRiskIndicator, User
 
@@ -12,16 +12,13 @@ from .periods import latest_closed_period_for_date
 
 async def ensure_can_read_history(db: AsyncSession, user: User, kri: KeyRiskIndicator) -> None:
     if not await can_read_kri_id(db, user, kri.id):
-        raise HTTPException(status_code=403, detail="Access denied")
+        raise AuthorizationError("Access denied")
 
 
 async def ensure_can_submit_value(db: AsyncSession, user: User, kri: KeyRiskIndicator) -> None:
     is_reporting_owner = await is_kri_reporting_owner(db, user.id, kri.id)
     if not (is_reporting_owner or has_permission(user, "kri", "submit")):
-        raise HTTPException(
-            status_code=403,
-            detail="Permission denied: requires kri:submit permission or be reporting owner",
-        )
+        raise AuthorizationError("Permission denied: requires kri:submit permission or be reporting owner")
     if not is_reporting_owner:
         check_department_access(kri.risk.department_id, user)
 
@@ -39,7 +36,7 @@ async def can_request_history_correction(
 
 async def ensure_can_request_history_correction(db: AsyncSession, user: User, kri: KeyRiskIndicator) -> None:
     if not await can_request_history_correction(db, user, kri):
-        raise HTTPException(status_code=403, detail="Access denied")
+        raise AuthorizationError("Access denied")
 
 
 async def history_capabilities(db: AsyncSession, user: User, kri: KeyRiskIndicator) -> dict[str, bool]:

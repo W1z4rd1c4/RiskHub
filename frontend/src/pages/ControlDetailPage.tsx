@@ -13,7 +13,6 @@ import {
 } from 'lucide-react';
 import { controlApi } from '@/services/controlApi';
 import type { Control } from '@/types/control';
-import { ControlStatus } from '@/types/control';
 import { ExecutionHistory } from '@/components/executions/ExecutionHistory';
 import { ExecutionLogModal } from '@/components/executions/ExecutionLogModal';
 import { ArchiveConfirmDialog } from '@/components/ArchiveConfirmDialog';
@@ -27,6 +26,7 @@ import { DetailActionBanner } from '@/pages/detail/DetailActionBanner';
 import { useDetailResource } from '@/pages/detail/useDetailResource';
 import { ReadAccessDeniedState } from '@/pages/shared/ReadAccessDeniedState';
 import { useControlDetailWorkflow } from '@/pages/controls/useControlDetailWorkflow';
+import { getControlDisplayStatus, getControlStatusColor } from '@/pages/controls/controlsPagePresentation';
 
 export function ControlDetailPage() {
     const { id } = useParams<{ id: string }>();
@@ -92,8 +92,9 @@ export function ControlDetailPage() {
         );
     }
 
-    const activeLinkedRisks = workflow.linkedRisks.filter((link) => link.risk?.status !== 'archived');
-    const archivedLinkedRisks = workflow.linkedRisks.filter((link) => link.risk?.status === 'archived');
+    const activeLinkedRisks = workflow.linkedRisks.filter((link) => !link.risk?.is_archived);
+    const archivedLinkedRisks = workflow.linkedRisks.filter((link) => link.risk?.is_archived);
+    const displayStatus = getControlDisplayStatus(control);
     const monitoring = getControlMonitoringMeta(control.monitoring_status);
     const MonitoringIcon = monitoring.icon;
     const canUpdateControl = resolveCapabilityFlag(control.capabilities, 'can_update');
@@ -139,9 +140,8 @@ export function ControlDetailPage() {
                     </button>
                     <div className="flex items-center gap-4">
                         <h2 className="text-4xl font-black text-white tracking-tighter">{control.name}</h2>
-                        <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${control.status === ControlStatus.ACTIVE ? 'text-emerald-400 border-emerald-400/20 bg-emerald-400/5' : 'text-slate-500 border-white/10'
-                            }`}>
-                            {control.status}
+                        <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-white/10 ${getControlStatusColor(displayStatus)}`}>
+                            {t(`controls:status.${displayStatus}`)}
                         </span>
                         <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${monitoring.badgeClassName}`}>
                             <MonitoringIcon className="h-3 w-3" />
@@ -173,7 +173,7 @@ export function ControlDetailPage() {
                             <Edit className="h-5 w-5" />
                         </button>
                     )}
-                    {control.status === ControlStatus.ARCHIVED ? (
+                    {control.is_archived ? (
                         canRestoreControl && <button
                             onClick={workflow.handleRestore}
                             className="p-3 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-emerald-400 hover:border-emerald-400/50 transition-all"

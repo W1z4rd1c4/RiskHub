@@ -12,6 +12,7 @@ from app.core.datetime_utils import utc_now
 from app.core.tokens import get_sso_challenge_cookie
 from app.schemas.auth import SsoExchangeRequest, SsoStartRequest, SsoStartResponse
 from app.services.sso_challenge_store import SsoChallenge
+from app.services.sso_token_service import VerifiedIdentity
 
 from .contracts import (
     SESSION_RENEWAL_MINIMUM_SECONDS,
@@ -53,17 +54,21 @@ async def _verify_sso_identity(
     db: AsyncSession,
     token_verifier=None,
 ):
-    kwargs = {"payload": payload, "settings": settings, "db": db}
     if token_verifier is not None:
-        kwargs["identity_verifier"] = token_verifier
-    return await verify_sso_identity(**kwargs)
+        return await verify_sso_identity(
+            payload=payload,
+            settings=settings,
+            db=db,
+            identity_verifier=token_verifier,
+        )
+    return await verify_sso_identity(payload=payload, settings=settings, db=db)
 
 
 async def _consume_sso_challenge(
     *,
     request: Request,
     payload: SsoExchangeRequest,
-    identity,
+    identity: VerifiedIdentity,
     db: AsyncSession,
 ):
     challenge_id = get_sso_challenge_cookie(request)
@@ -197,6 +202,7 @@ async def resolve_sso_exchange(
             outcome=SsoSessionOutcome(status="blocked", cookie_plan=SessionCookiePlan(action="none")),
             failure=error_response,
         )
+    assert identity is not None
 
     post_login_redirect_to, challenge_error = await _consume_sso_challenge(
         request=request,
@@ -206,7 +212,10 @@ async def resolve_sso_exchange(
     )
     if challenge_error is not None:
         return SsoExchangeResolution(
-            outcome=SsoSessionOutcome(status="challenge_expired", cookie_plan=SessionCookiePlan(action="clear_refresh")),
+            outcome=SsoSessionOutcome(
+                status="challenge_expired",
+                cookie_plan=SessionCookiePlan(action="clear_refresh"),
+            ),
             identity=identity,
             failure=challenge_error,
             clear_challenge_cookie=challenge_error.clear_challenge_cookie,

@@ -4,6 +4,7 @@ import {
     riskFiltersSchema,
     userLookupArraySchema,
 } from '@/services/api/schemas';
+import type { QueryValue } from './api/apiTypes';
 import type { DepartmentSummary } from './departmentApi';
 
 export interface UserLookupItem {
@@ -16,7 +17,7 @@ export interface UserLookupItem {
     manager_id?: number | null;
 }
 
-export interface UserLookupParams {
+export interface UserLookupParams extends Record<string, QueryValue> {
     department_id?: number;
     ids?: number[];
     include_inactive?: boolean;

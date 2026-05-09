@@ -7,7 +7,7 @@ from app.models.risk import ControlRiskLink, Risk, RiskStatus
 async def count_priority_risks(db: AsyncSession, department_ids: list[int] | None) -> int:
     conditions = [
         Risk.is_priority.is_(True),
-        Risk.status != RiskStatus.archived.value,
+        Risk.live(),
     ]
     if department_ids is not None:
         conditions.append(Risk.department_id.in_(department_ids))
@@ -15,7 +15,7 @@ async def count_priority_risks(db: AsyncSession, department_ids: list[int] | Non
 
 
 async def calculate_control_coverage(db: AsyncSession, department_ids: list[int] | None) -> int:
-    total_active_risk_conditions = [Risk.status == RiskStatus.active.value]
+    total_active_risk_conditions = [Risk.status == RiskStatus.active.value, Risk.live()]
     if department_ids is not None:
         total_active_risk_conditions.append(Risk.department_id.in_(department_ids))
     total_active_risks = await db.scalar(select(func.count(Risk.id)).where(*total_active_risk_conditions)) or 1
@@ -24,7 +24,7 @@ async def calculate_control_coverage(db: AsyncSession, department_ids: list[int]
         select(func.count(Risk.id.distinct()))
         .select_from(Risk)
         .join(ControlRiskLink, ControlRiskLink.risk_id == Risk.id)
-        .where(Risk.status == RiskStatus.active.value)
+        .where(Risk.status == RiskStatus.active.value, Risk.live())
     )
     if department_ids is not None:
         risks_with_controls_query = risks_with_controls_query.where(Risk.department_id.in_(department_ids))
@@ -33,7 +33,7 @@ async def calculate_control_coverage(db: AsyncSession, department_ids: list[int]
 
 
 async def count_active_risks(db: AsyncSession, department_ids: list[int] | None) -> int:
-    conditions = [Risk.status == RiskStatus.active.value]
+    conditions = [Risk.status == RiskStatus.active.value, Risk.live()]
     if department_ids is not None:
         conditions.append(Risk.department_id.in_(department_ids))
     return await db.scalar(select(func.count(Risk.id)).where(*conditions)) or 0

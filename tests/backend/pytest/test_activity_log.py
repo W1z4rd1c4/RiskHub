@@ -5,13 +5,11 @@ Activity Log regression tests.
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from httpx import ASGITransport, AsyncClient
+from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.exc import StatementError
 from sqlalchemy.orm import selectinload
 
-from app.api import deps
-from app.core import security
 from app.core.activity_logger import (
     MAX_CHANGE_KEYS,
     MAX_CHANGE_VALUE_LENGTH,
@@ -19,8 +17,7 @@ from app.core.activity_logger import (
     audit_logger,
     log_activity,
 )
-from app.db.session import get_db
-from app.main import app
+from app.core.audit.risk import risk_archived, risk_updated
 from app.models import (
     ActivityLog,
     ApprovalScenario,
@@ -34,7 +31,6 @@ from app.models import (
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.models.user import AccessScope
 from app.services._entity_mutation_lifecycle.archive_plans import archive_risk_detail
-from app.core.audit.risk import risk_archived, risk_updated
 
 
 @pytest.mark.asyncio
@@ -87,6 +83,7 @@ async def test_activity_log_returns_backend_capabilities(client_cro: AsyncClient
 async def test_risk_update_activity_log_changes(
     auth_client: AsyncClient,
     db_session,
+    frozen_clock,
     test_user: User,
     test_department: Department,
     seed_risk_types,
@@ -129,6 +126,7 @@ async def test_risk_update_activity_log_changes(
     )
     entry = result.scalars().first()
     assert entry is not None
+    assert entry.created_at.date().isoformat() == "2026-05-07"
     changes = entry.changes
     assert changes["process"]["old"] == "Initial Process"
     assert changes["process"]["new"] == "Updated Process"
@@ -209,6 +207,7 @@ async def test_risk_archived_audit_name_falls_back_when_name_missing(test_user: 
 async def test_control_update_activity_log_changes(
     auth_client: AsyncClient,
     db_session,
+    frozen_clock,
     test_user: User,
     test_department: Department,
 ):
@@ -244,6 +243,7 @@ async def test_control_update_activity_log_changes(
     )
     entry = result.scalars().first()
     assert entry is not None
+    assert entry.created_at.date().isoformat() == "2026-05-07"
     changes = entry.changes
     assert changes["name"]["old"] == "[REDACTED]"
     assert changes["name"]["new"] == "[REDACTED]"
@@ -398,6 +398,7 @@ async def test_approval_activity_log_create_and_approve(
 async def test_risk_restore_activity_log_keeps_safe_restore_description(
     auth_client: AsyncClient,
     db_session,
+    frozen_clock,
     test_user: User,
     test_department: Department,
     seed_risk_types,
@@ -439,9 +440,10 @@ async def test_risk_restore_activity_log_keeps_safe_restore_description(
     )
     entry = result.scalars().first()
     assert entry is not None
+    assert entry.created_at.date().isoformat() == "2026-05-07"
     assert entry.entity_name == "R-REST-01"
-    assert entry.changes["status"]["old"] == "archived"
-    assert entry.changes["status"]["new"] == "active"
+    assert entry.changes["is_archived"]["old"] is True
+    assert entry.changes["is_archived"]["new"] is False
 
 
 @pytest.mark.asyncio
@@ -473,17 +475,18 @@ async def test_direct_risk_archive_activity_name_includes_code_and_name(
 
     captured_activity: dict[str, object] = {}
 
-    async def capture_log_activity(*args, **kwargs):
+    async def capture_risk_archived(*args, **kwargs):
         captured_activity.update(kwargs)
 
     monkeypatch.setattr(
-        "app.services._entity_mutation_lifecycle.archive_plans.log_activity",
-        capture_log_activity,
+        "app.services._entity_mutation_lifecycle.archive_plans.risk_archived",
+        capture_risk_archived,
     )
 
     await archive_risk_detail(db=db_session, risk_id=risk.id, reason="Archive name shape", current_user=test_user)
 
-    assert captured_activity["entity_name"] == "R-ARCH-NAME: Direct Archive Name Risk"
+    assert captured_activity["risk"].risk_id_code == "R-ARCH-NAME"
+    assert captured_activity["risk"].name == "Direct Archive Name Risk"
 
 
 @pytest.mark.asyncio
@@ -526,8 +529,8 @@ async def test_control_restore_activity_log_uses_generic_safe_description(
     entry = result.scalars().first()
     assert entry is not None
     assert entry.entity_name == "Control"
-    assert entry.changes["status"]["old"] == "archived"
-    assert entry.changes["status"]["new"] == "active"
+    assert entry.changes["is_archived"]["old"] is True
+    assert entry.changes["is_archived"]["new"] is False
 
 
 @pytest.mark.asyncio
@@ -1247,7 +1250,7 @@ async def test_activity_log_is_append_only(db_session):
 
 
 @pytest.mark.asyncio
-async def test_activity_log_department_scoping(db_session):
+async def test_activity_log_department_scoping(db_session, client_factory):
     dept_a = Department(name="Dept A", code="A", description="Dept A")
     dept_b = Department(name="Dept B", code="B", description="Dept B")
     db_session.add_all([dept_a, dept_b])
@@ -1308,26 +1311,12 @@ async def test_activity_log_department_scoping(db_session):
     )
     await db_session.commit()
 
-    async def override_get_db():
-        yield db_session
-
-    async def override_get_current_user():
-        return scoped_user
-
-    app.dependency_overrides[get_db] = override_get_db
-    app.dependency_overrides[deps.get_current_user] = override_get_current_user
-    app.dependency_overrides[security.get_current_user] = override_get_current_user
-
-    transport = ASGITransport(app=app)
-    try:
-        async with AsyncClient(transport=transport, base_url="http://test") as scoped_client:
-            response = await scoped_client.get("/api/v1/activity-log")
-            assert response.status_code == 200
-            items = response.json()["items"]
-            assert any(item["entity_id"] == 100 for item in items)
-            assert all(item["entity_id"] != 101 for item in items)
-    finally:
-        app.dependency_overrides.clear()
+    async with client_factory(current_user=scoped_user) as scoped_client:
+        response = await scoped_client.get("/api/v1/activity-log")
+        assert response.status_code == 200
+        items = response.json()["items"]
+        assert any(item["entity_id"] == 100 for item in items)
+        assert all(item["entity_id"] != 101 for item in items)
 
 
 @pytest.mark.asyncio

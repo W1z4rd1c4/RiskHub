@@ -18,6 +18,8 @@ import { VendorLinkedControlsTab } from '@/components/vendors/VendorLinkedContro
 import { VendorLinkedKRIsTab } from '@/components/vendors/VendorLinkedKRIsTab';
 import { VendorLinkedRisksTab } from '@/components/vendors/VendorLinkedRisksTab';
 
+import { getVendorDisplayStatus } from './vendorsPagePresentation';
+
 interface VendorOverviewSummary {
     linkedRisks: LinkedRisk[];
     linkedControls: LinkedControl[];
@@ -81,6 +83,7 @@ export function VendorOverviewTab({
         linkedControls: [],
         linkedKRIs: [],
     });
+    const displayStatus = getVendorDisplayStatus(vendor);
 
     const refreshSummary = useCallback(async () => {
         const [linkedRisksResult, linkedControlsResult, linkedKRIsResult] = await Promise.all([
@@ -100,11 +103,11 @@ export function VendorOverviewTab({
     }, [refreshSummary]);
 
     const activeLinkedRisks = useMemo(
-        () => summary.linkedRisks.filter((risk) => risk.status !== 'archived'),
+        () => summary.linkedRisks.filter((risk) => !risk.is_archived),
         [summary.linkedRisks],
     );
     const activeLinkedControls = useMemo(
-        () => summary.linkedControls.filter((control) => control.status !== 'archived'),
+        () => summary.linkedControls.filter((control) => !control.is_archived),
         [summary.linkedControls],
     );
     const activeLinkedKRIs = useMemo(
@@ -146,7 +149,7 @@ export function VendorOverviewTab({
                             {t('columns.status')}
                         </p>
                         <div className="mt-3 text-xl font-black text-white">
-                            {t(`status.${vendor.status}`, vendor.status)}
+                            {t(`status.${displayStatus}`, displayStatus)}
                         </div>
                         <p className="mt-2 text-xs text-slate-500">{t('overview.summary.type_hint', { type: t(`type.${vendor.vendor_type}`, vendor.vendor_type) })}</p>
                     </div>

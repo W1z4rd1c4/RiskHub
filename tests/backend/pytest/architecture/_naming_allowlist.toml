@@ -1,0 +1,5 @@
+# Temporary exceptions for persistence naming-convention locks.
+# The current target is empty; keep this registry present so any future exception
+# carries an explicit rationale and can be removed deliberately.
+
+paths = []

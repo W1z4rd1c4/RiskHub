@@ -54,11 +54,26 @@ describe('ProtectedRoute bootstrap failure handling', () => {
     it('redirects to login with a stable auth error reason when bootstrap times out', async () => {
         vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
             const url = String(input);
+            if (url.endsWith('/api/v1/auth/config')) {
+                return Promise.resolve(new Response(JSON.stringify({
+                    auth_mode: 'hybrid_dev',
+                    demo_login_enabled: true,
+                    password_login_enabled: true,
+                    strict_capabilities: false,
+                    sso: {
+                        enabled: false,
+                        provider: 'entra',
+                        scopes: [],
+                    },
+                }), {
+                    status: 200,
+                    headers: { 'Content-Type': 'application/json' },
+                }));
+            }
             if (
                 !url.endsWith('/api/v1/auth/me') &&
                 !url.endsWith('/api/v1/auth/refresh') &&
-                !url.endsWith('/api/v1/auth/csrf') &&
-                !url.endsWith('/api/v1/auth/config')
+                !url.endsWith('/api/v1/auth/csrf')
             ) {
                 throw new Error(`Unexpected fetch call: ${url}`);
             }

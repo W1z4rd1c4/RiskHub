@@ -8,7 +8,6 @@ from app.models import User
 from app.models.activity_log import ActivityEntityType
 from app.services.export_snapshot_service import ExportSnapshotService
 
-from .shared import ExportFormat
 from .fetch import _fetch_risks_for_export
 from .filters import (
     _filter_rows_by_final_scope,
@@ -18,6 +17,7 @@ from .filters import (
 from .lifecycle import ExportRow, ReportExportDefinition, render_report_export_definition
 from .rehydrate import _rehydrate_department_names, _rehydrate_user_names
 from .rows import _risk_to_row
+from .shared import ExportFormat
 
 
 async def _export_risks(

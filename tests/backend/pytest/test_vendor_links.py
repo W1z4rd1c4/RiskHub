@@ -1,8 +1,12 @@
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
+from app.core.activity_logger import log_activity
 from app.models import (
+    ActivityLog,
     Control,
     Department,
     KeyRiskIndicator,
@@ -17,7 +21,9 @@ from app.models import (
     VendorKRILink,
     VendorRiskLink,
 )
+from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.models.user import AccessScope
+from app.services._vendor_links.workflow import link_vendor_target
 
 
 async def _grant(db_session: AsyncSession, role: Role, resource: str, action: str) -> None:
@@ -146,7 +152,8 @@ async def test_inactive_vendor_link_mutation_requires_write_before_status_check(
         dora_relevant=False,
         is_significant_vendor=False,
         has_alternative_providers=False,
-        status="inactive",
+        status="active",
+        is_archived=True,
     )
     risk = _make_risk(risk_id_code="ILV-FORBID-R001", department_id=test_department.id)
     db_session.add_all([vendor, risk])
@@ -229,7 +236,8 @@ async def test_vendor_link_mutations_reject_inactive_vendor(
         dora_relevant=False,
         is_significant_vendor=False,
         has_alternative_providers=False,
-        status="inactive",
+        status="active",
+        is_archived=True,
     )
     risk = _make_risk(risk_id_code="ILV-R001", department_id=test_department.id)
     control = _make_control(name="Inactive Link Control", department_id=test_department.id)
@@ -574,11 +582,11 @@ async def test_vendor_linked_entities_include_archive_status_metadata(
     )
     active_risk = _make_risk(risk_id_code="META-R001", department_id=test_department.id)
     archived_risk = _make_risk(risk_id_code="META-R002", department_id=test_department.id)
-    archived_risk.status = "archived"
+    archived_risk.is_archived = True
     active_control = _make_control(name="Metadata Active Control", department_id=test_department.id)
     active_control.status = "active"
     archived_control = _make_control(name="Metadata Archived Control", department_id=test_department.id)
-    archived_control.status = "archived"
+    archived_control.is_archived = True
 
     db_session.add_all([vendor, active_risk, archived_risk, active_control, archived_control])
     await db_session.commit()
@@ -600,15 +608,15 @@ async def test_vendor_linked_entities_include_archive_status_metadata(
 
     risks_resp = await client_employee.get(f"/api/v1/vendors/{vendor.id}/linked-risks")
     assert risks_resp.status_code == 200
-    risk_status_map = {item["risk_id_code"]: item.get("status") for item in risks_resp.json()}
-    assert risk_status_map["META-R001"] == "active"
-    assert risk_status_map["META-R002"] == "archived"
+    risk_archived_map = {item["risk_id_code"]: item.get("is_archived") for item in risks_resp.json()}
+    assert risk_archived_map["META-R001"] is False
+    assert risk_archived_map["META-R002"] is True
 
     controls_resp = await client_employee.get(f"/api/v1/vendors/{vendor.id}/linked-controls")
     assert controls_resp.status_code == 200
-    control_status_map = {item["name"]: item.get("status") for item in controls_resp.json()}
-    assert control_status_map["Metadata Active Control"] == "active"
-    assert control_status_map["Metadata Archived Control"] == "archived"
+    control_archived_map = {item["name"]: item.get("is_archived") for item in controls_resp.json()}
+    assert control_archived_map["Metadata Active Control"] is False
+    assert control_archived_map["Metadata Archived Control"] is True
 
 
 @pytest.mark.asyncio
@@ -767,3 +775,170 @@ async def test_kri_list_linked_vendors_filter_invisible_vendors(
     assert "Visible Linked Vendor" in vendor_names
     assert "Cross Dept Owned Vendor" in vendor_names
     assert "Hidden Linked Vendor" not in vendor_names
+
+
+@pytest.mark.asyncio
+async def test_vendor_risk_link_creation_writes_activity_log(
+    db_session: AsyncSession,
+    client_employee: AsyncClient,
+    test_department: Department,
+    test_role_employee: Role,
+    test_user_employee: User,
+):
+    await _grant(db_session, test_role_employee, "vendors", "read")
+    await _grant(db_session, test_role_employee, "vendors", "write")
+    await _grant(db_session, test_role_employee, "risks", "read")
+
+    vendor = Vendor(
+        name="Audited Link Vendor",
+        process="IT",
+        subprocess=None,
+        department_id=test_department.id,
+        outsourcing_owner_user_id=test_user_employee.id,
+        vendor_type="ict",
+        risk_score_1_5=3,
+        supports_important_core_insurance_function=False,
+        dora_relevant=False,
+        is_significant_vendor=False,
+        has_alternative_providers=False,
+        status="active",
+    )
+    risk = _make_risk(risk_id_code="AUD-LINK-R001", department_id=test_department.id)
+    db_session.add_all([vendor, risk])
+    await db_session.commit()
+    await db_session.refresh(vendor)
+    await db_session.refresh(risk)
+
+    response = await client_employee.post(
+        f"/api/v1/vendors/{vendor.id}/linked-risks",
+        json={"risk_id": risk.id},
+    )
+
+    assert response.status_code == 201
+    log_result = await db_session.execute(
+        select(ActivityLog).where(
+            ActivityLog.entity_type == ActivityEntityType.VENDOR_LINK.value,
+            ActivityLog.action == ActivityAction.CREATE.value,
+            ActivityLog.department_id == test_department.id,
+        )
+    )
+    activity_log = log_result.scalar_one_or_none()
+    assert activity_log is not None
+    assert activity_log.changes == {
+        "link_kind": {"old": None, "new": "risk"},
+        "target_id": {"old": None, "new": risk.id},
+        "vendor_id": {"old": None, "new": vendor.id},
+    }
+
+
+@pytest.mark.asyncio
+async def test_vendor_risk_link_deletion_writes_activity_log(
+    db_session: AsyncSession,
+    client_employee: AsyncClient,
+    test_department: Department,
+    test_role_employee: Role,
+    test_user_employee: User,
+):
+    await _grant(db_session, test_role_employee, "vendors", "read")
+    await _grant(db_session, test_role_employee, "vendors", "write")
+    await _grant(db_session, test_role_employee, "risks", "read")
+
+    vendor = Vendor(
+        name="Audited Unlink Vendor",
+        process="IT",
+        subprocess=None,
+        department_id=test_department.id,
+        outsourcing_owner_user_id=test_user_employee.id,
+        vendor_type="ict",
+        risk_score_1_5=3,
+        supports_important_core_insurance_function=False,
+        dora_relevant=False,
+        is_significant_vendor=False,
+        has_alternative_providers=False,
+        status="active",
+    )
+    risk = _make_risk(risk_id_code="AUD-UNLINK-R001", department_id=test_department.id)
+    db_session.add_all([vendor, risk])
+    await db_session.commit()
+    await db_session.refresh(vendor)
+    await db_session.refresh(risk)
+
+    db_session.add(VendorRiskLink(vendor_id=vendor.id, risk_id=risk.id))
+    await db_session.commit()
+
+    response = await client_employee.delete(f"/api/v1/vendors/{vendor.id}/linked-risks/{risk.id}")
+
+    assert response.status_code == 204
+    log_result = await db_session.execute(
+        select(ActivityLog).where(
+            ActivityLog.entity_type == ActivityEntityType.VENDOR_LINK.value,
+            ActivityLog.action == ActivityAction.DELETE.value,
+            ActivityLog.department_id == test_department.id,
+        )
+    )
+    activity_log = log_result.scalar_one_or_none()
+    assert activity_log is not None
+    assert activity_log.changes == {
+        "link_kind": {"old": "risk", "new": None},
+        "target_id": {"old": risk.id, "new": None},
+        "vendor_id": {"old": vendor.id, "new": None},
+    }
+
+
+@pytest.mark.asyncio
+async def test_vendor_link_audit_failure_rolls_back_link_mutation(
+    db_session: AsyncSession,
+    test_department: Department,
+    test_role_employee: Role,
+    test_user_employee: User,
+):
+    await _grant(db_session, test_role_employee, "vendors", "read")
+    await _grant(db_session, test_role_employee, "vendors", "write")
+    await _grant(db_session, test_role_employee, "risks", "read")
+
+    vendor = Vendor(
+        name="Rollback Link Vendor",
+        process="IT",
+        subprocess=None,
+        department_id=test_department.id,
+        outsourcing_owner_user_id=test_user_employee.id,
+        vendor_type="ict",
+        risk_score_1_5=3,
+        supports_important_core_insurance_function=False,
+        dora_relevant=False,
+        is_significant_vendor=False,
+        has_alternative_providers=False,
+        status="active",
+    )
+    risk = _make_risk(risk_id_code="AUD-ROLLBACK-R001", department_id=test_department.id)
+    db_session.add_all([vendor, risk])
+    await db_session.commit()
+    await db_session.refresh(vendor)
+    await db_session.refresh(risk)
+    vendor_id = vendor.id
+    risk_id = risk.id
+    user_result = await db_session.execute(
+        select(User)
+        .options(selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission))
+        .where(User.id == test_user_employee.id)
+    )
+    current_user = user_result.scalar_one()
+
+    async def fail_log_activity(*args, **kwargs):
+        await log_activity(*args, **kwargs)
+        raise RuntimeError("audit sink unavailable")
+
+    with pytest.raises(RuntimeError, match="audit sink unavailable"):
+        await link_vendor_target(
+            db_session,
+            vendor_id=vendor_id,
+            current_user=current_user,
+            kind="risk",
+            entity_id=risk_id,
+            log_activity_func=fail_log_activity,
+        )
+
+    link_result = await db_session.execute(
+        select(VendorRiskLink).where(VendorRiskLink.vendor_id == vendor_id, VendorRiskLink.risk_id == risk_id)
+    )
+    assert link_result.scalar_one_or_none() is None

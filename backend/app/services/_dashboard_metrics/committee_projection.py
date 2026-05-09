@@ -90,6 +90,7 @@ async def fetch_committee_core(
         select(Risk)
         .options(joinedload(Risk.owner), joinedload(Risk.department))
         .where(Risk.status == RiskStatus.active.value)
+        .where(Risk.live())
     )
     critical_risks_query = _apply_scope(critical_risks_query, Risk.department_id, dept_ids)
     critical_risks = (
@@ -123,6 +124,7 @@ async def fetch_committee_core(
         )
         .join(Risk, Risk.department_id == Department.id)
         .where(Risk.status == RiskStatus.active.value)
+        .where(Risk.live())
         .group_by(Department.id)
         .order_by(func.sum(Risk.net_score).desc())
         .limit(DASHBOARD_TOP_DEPARTMENT_EXPOSURE)
@@ -146,7 +148,7 @@ async def fetch_vendor_sections(
     query = (
         select(Vendor)
         .options(joinedload(Vendor.outsourcing_owner), joinedload(Vendor.department))
-        .where(Vendor.status == "active")
+        .where(Vendor.live())
     )
     if vendor_scope_filter is not None:
         query = query.where(vendor_scope_filter)

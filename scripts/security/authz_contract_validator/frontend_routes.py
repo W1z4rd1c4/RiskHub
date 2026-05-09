@@ -137,6 +137,9 @@ def describe_business_nav_authority(expression: str) -> str:
     permission_match = re.search(r"hasPermission\('([^']+)', '([^']+)'\)", expression)
     if permission_match:
         return f"{permission_match.group(1)}:{permission_match.group(2)}"
+    capability_match = re.search(r"authz\.can\('([^']+)', '([^']+)'\)", expression)
+    if capability_match:
+        return f"{capability_match.group(2)}:{capability_match.group(1)}"
     return normalize_typescript_expression(expression)
 
 
@@ -183,4 +186,3 @@ def validate_business_route_nav_context(
                 )
             )
     return findings
-

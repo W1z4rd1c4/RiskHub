@@ -7,10 +7,11 @@ from datetime import date, datetime
 from enum import Enum as PyEnum
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, String, Text, func
+from sqlalchemy import Date, DateTime, Float, ForeignKey, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+from app.models._archivable import ArchivableMixin
 
 if TYPE_CHECKING:
     from app.models.kri_history import KRIValueHistory
@@ -29,7 +30,7 @@ class KRIFrequency(str, PyEnum):
     annually = "annually"
 
 
-class KeyRiskIndicator(Base):
+class KeyRiskIndicator(ArchivableMixin, Base):
     """
     Key Risk Indicator linked to a Risk.
 
@@ -70,11 +71,6 @@ class KeyRiskIndicator(Base):
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    # Archive fields (soft-delete) - matches Risk/Control pattern
-    is_archived: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false", index=True)
-    archived_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
-    archived_by_id: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
-
     # Relationships
     risk: Mapped["Risk"] = relationship("Risk", back_populates="kris")
     reporting_owner: Mapped[Optional["User"]] = relationship(
@@ -83,7 +79,7 @@ class KeyRiskIndicator(Base):
     )
     archived_by: Mapped[Optional["User"]] = relationship(
         "User",
-        foreign_keys=[archived_by_id],
+        foreign_keys=lambda: [KeyRiskIndicator.archived_by_id],
     )
     history_entries: Mapped[list["KRIValueHistory"]] = relationship(
         "KRIValueHistory",
@@ -92,12 +88,3 @@ class KeyRiskIndicator(Base):
         order_by="desc(KRIValueHistory.recorded_at)",
     )
     vendor_links: Mapped[list["VendorKRILink"]] = relationship("VendorKRILink", back_populates="kri")
-
-    @property
-    def breach_status(self) -> str:
-        """Compute breach status based on value vs limits."""
-        if self.current_value < self.lower_limit:
-            return "below"
-        elif self.current_value > self.upper_limit:
-            return "above"
-        return "within"

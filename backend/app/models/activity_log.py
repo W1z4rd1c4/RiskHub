@@ -1,6 +1,6 @@
 """Activity log model for tracking all system changes."""
 
-from datetime import UTC, datetime
+from datetime import datetime
 from enum import Enum as PyEnum
 from typing import TYPE_CHECKING, Optional
 
@@ -8,6 +8,7 @@ from sqlalchemy import JSON, DateTime, ForeignKey, Index, Integer, String, Text,
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.core.datetime_utils import utc_now
 from app.db.base import Base
 
 if TYPE_CHECKING:
@@ -45,6 +46,8 @@ class ActivityEntityType(str, PyEnum):
     KRI = "kri"
     RISK_QUESTIONNAIRE = "risk_questionnaire"
     VENDOR = "vendor"
+    VENDOR_LINK = "vendor_link"
+    # Reserved: vendor extended domains are parked until the DORA feature set ships.
     VENDOR_ASSESSMENT = "vendor_assessment"
     VENDOR_INCIDENT = "vendor_incident"
     VENDOR_SLA = "vendor_sla"
@@ -104,9 +107,7 @@ class ActivityLog(Base):
     description: Mapped[str] = mapped_column(Text, nullable=False)
 
     # Timestamp (immutable)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False, index=True
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False, index=True)
 
     # Relationships
     actor: Mapped[Optional["User"]] = relationship("User", foreign_keys=[actor_id])

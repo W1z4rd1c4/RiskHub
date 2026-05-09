@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from http import HTTPStatus
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 

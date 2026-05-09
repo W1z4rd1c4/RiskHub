@@ -9,7 +9,8 @@ from app.models import ApprovalScenario, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas.riskhub import ApprovalScenarioRead, ApprovalScenarioUpdate
 from app.services._authorization_capabilities import approval_scenario_capabilities
-from app.services._riskhub_config import build_config_audit_plan, run_config_update
+from app.services._riskhub_config import approval_scenario_roles
+from app.services._riskhub_config.lifecycle import build_config_audit_plan, run_config_noop_update, run_config_update
 from app.services.approval_scenario_policy import normalize_approval_scenario_roles
 
 from ._shared import get_cro_user
@@ -27,7 +28,7 @@ def _approval_scenario_read(scenario: ApprovalScenario, *, updated_by_name: str 
         display_name=scenario.display_name,
         description=scenario.description,
         requires_approval=scenario.requires_approval,
-        approver_roles=scenario.get_approver_roles(),
+        approver_roles=approval_scenario_roles.get_approval_scenario_roles(scenario),
         updated_at=scenario.updated_at.isoformat(),
         updated_by_name=resolved_updated_by_name,
         capabilities=approval_scenario_capabilities(),
@@ -75,13 +76,13 @@ async def update_approval_scenario(
             activity_changes["requires_approval"] = {"old": old_val, "new": data.requires_approval}
 
     if data.approver_roles is not None or data.requires_approval is not None:
-        old_roles = scenario.get_approver_roles()
+        old_roles = approval_scenario_roles.get_approval_scenario_roles(scenario)
         normalized_roles = normalize_approval_scenario_roles(
             key,
             data.approver_roles if data.approver_roles is not None else old_roles,
             requires_approval=scenario.requires_approval,
         )
-        scenario.set_approver_roles(normalized_roles)
+        approval_scenario_roles.set_approval_scenario_roles(scenario, normalized_roles)
         if old_roles != normalized_roles:
             changes.append(f"approver_roles: {old_roles} → {normalized_roles}")
             activity_changes["approver_roles"] = {"old": old_roles, "new": normalized_roles}
@@ -109,7 +110,6 @@ async def update_approval_scenario(
             log_activity_func=log_activity,
         )
     else:
-        await db.commit()
-        await db.refresh(scenario)
+        await run_config_noop_update(db=db, entity=scenario, refresh_entity=True)
 
     return _approval_scenario_read(scenario, updated_by_name=cro_user.name)

@@ -87,6 +87,8 @@ export function useKriModalState({
             const linkedVendorOptions = (kri.linked_vendors ?? []).map((vendor) => ({
                 id: vendor.id,
                 name: vendor.name,
+                status: vendor.status,
+                is_archived: vendor.is_archived,
             }));
             setSelectedVendorIds(linkedVendorOptions.map((vendor) => vendor.id));
             setSelectedVendorOptions(linkedVendorOptions);
@@ -130,6 +132,7 @@ export function useKriModalState({
                         id: vendor.id,
                         name: vendor.name,
                         status: vendor.status,
+                        is_archived: vendor.is_archived,
                     })),
                 );
             } catch (err) {

@@ -7,10 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.permissions import can_read_vendor_id, is_issue_owner_assignable_to_department
 from app.models import Control, ControlExecution, IssueLink, KeyRiskIndicator, Risk, User, Vendor
 from app.services._issue_register.source_mutation import (
-    ResolvedIssueSource,
     clear_issue_source_links,
     ensure_issue_source_link,
-    resolve_contextual_issue_source,
     resolve_issue_source_metadata,
 )
 
@@ -95,7 +93,7 @@ async def resolve_vendor_department_and_access(
 ) -> int:
     row = (
         await db.execute(
-            select(Vendor.id, Vendor.department_id, User.department_id, Vendor.status)
+            select(Vendor.id, Vendor.department_id, User.department_id, Vendor.is_archived)
             .outerjoin(User, Vendor.outsourcing_owner_user_id == User.id)
             .where(Vendor.id == vendor_id)
         )
@@ -103,9 +101,9 @@ async def resolve_vendor_department_and_access(
     if row is None or not await can_read_vendor_id(db, current_user, vendor_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Linked vendor not found")
 
-    _, vendor_department_id, owner_department_id, vendor_status = row
-    if vendor_status != "active":
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Cannot link inactive vendor")
+    _, vendor_department_id, owner_department_id, vendor_is_archived = row
+    if vendor_is_archived:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Cannot link archived vendor")
 
     resolved_department_id = vendor_department_id or owner_department_id
     if resolved_department_id is None:
@@ -120,3 +118,13 @@ _ensure_owner_assignable = ensure_owner_assignable
 _issue_link_department_ids = issue_link_department_ids
 _resolve_vendor_department_and_access = resolve_vendor_department_and_access
 _validate_user_exists = validate_user_exists
+
+__all__ = [
+    "clear_issue_source_links",
+    "ensure_issue_source_link",
+    "ensure_owner_assignable",
+    "issue_link_department_ids",
+    "resolve_issue_source_metadata",
+    "resolve_vendor_department_and_access",
+    "validate_user_exists",
+]

@@ -131,6 +131,35 @@ describe('ControlDetailPage issue entry', () => {
         expect(screen.queryByRole('button', { name: 'New Issue' })).not.toBeInTheDocument();
     });
 
+    it('renders archived-normalized controls as archived in the detail header', async () => {
+        mockGetControl.mockResolvedValueOnce({
+            id: 13,
+            name: 'Legacy Access Review',
+            description: 'Control normalized to active lifecycle status.',
+            status: 'active',
+            is_archived: true,
+            risk_level: 3,
+            frequency: 'monthly',
+            control_form: 'manual',
+            control_owner_id: 2,
+            monitoring_status: 'passed',
+            capabilities: {
+                can_create_issue: true,
+                can_restore: true,
+            },
+        });
+
+        render(
+            <MemoryRouter initialEntries={['/controls/13']}>
+                <ControlDetailPage />
+            </MemoryRouter>
+        );
+
+        await screen.findByText('Legacy Access Review');
+        expect(screen.getByText(/^archived$/i)).toBeInTheDocument();
+        expect(screen.queryByText(/^active$/i)).not.toBeInTheDocument();
+    });
+
     it('renders denied instead of not found when control detail is forbidden', async () => {
         mockGetControl.mockRejectedValueOnce(
             new ApiClientError({

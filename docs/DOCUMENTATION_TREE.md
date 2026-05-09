@@ -18,6 +18,7 @@ AGENTS.md
 │   ├── docs/agent/README.md
 │   ├── docs/development/README.md
 │   ├── docs/security/README.md
+│   ├── docs/adr/README.md
 │   ├── docs/audits/README.md
 │   ├── docs/deployment/README.md
 │   ├── docs/reference/README.md
@@ -49,6 +50,8 @@ AGENTS.md
   - [`docs/security/README.md`](./security/README.md)
   - [`docs/security/authorization-capability-contract.md`](./security/authorization-capability-contract.md)
   - [`docs/security/SECURITY.md`](./security/SECURITY.md)
+- Architecture decisions:
+  - [`docs/adr/README.md`](./adr/README.md)
 - Point-in-time subsystem audits:
   - [`docs/audits/README.md`](./audits/README.md)
 - Development startup and local workflows:
@@ -61,6 +64,32 @@ AGENTS.md
 - Agent governance and execution:
   - [`docs/agent/README.md`](./agent/README.md)
   - [`AGENTS.md`](../AGENTS.md)
+- Architecture Locks:
+  - `tests/backend/pytest/architecture/`
+  - `make -f scripts/Makefile test-architecture-locks`
+  - `tests/backend/pytest/architecture/_capabilities_all_allowlist.toml`
+  - `tests/backend/pytest/architecture/_endpoint_commit_allowlist.toml`
+  - `tests/backend/pytest/architecture/_archive_allowlist.toml`
+  - `tests/backend/pytest/architecture/_naming_allowlist.toml`
+  - `backend/app/core/audit/_audit_matrix.toml`
+- Authorization Capability Contract:
+  - [`docs/security/authorization-capability-contract.md`](./security/authorization-capability-contract.md)
+  - [`docs/security/authorization-capability-contract.json`](./security/authorization-capability-contract.json)
+  - [`docs/security/capability-catalog.json`](./security/capability-catalog.json)
+  - `backend/app/api/v1/endpoints/_reserved_modules.toml`
+  - `tests/frontend/unit/src/authz/useAuthz.invariant.test.ts`
+  - `tests/backend/pytest/test_risks.py`
+- Transaction and archive decisions:
+  - `backend/app/services/outbox/dispatcher.py`
+  - `ControlStatus.inactive`
+- Architecture decisions:
+  - [`docs/adr/ADR-001-capabilities-module-unification.md`](./adr/ADR-001-capabilities-module-unification.md)
+  - [`docs/adr/ADR-002-service-owned-transactions.md`](./adr/ADR-002-service-owned-transactions.md)
+  - [`docs/adr/ADR-005-archivable-mixin-schema-contract.md`](./adr/ADR-005-archivable-mixin-schema-contract.md)
+  - [`docs/adr/ADR-010-postgres-migration-rehearsal-contract.md`](./adr/ADR-010-postgres-migration-rehearsal-contract.md)
+- client_factory:
+  - `tests/backend/pytest/conftest.py`
+  - `tests/backend/pytest/_get_db_override_whitelist.toml`
 - Active planning and current truth:
   - [`.planning/STATE.md`](../.planning/STATE.md)
   - [`.planning/ROADMAP.md`](../.planning/ROADMAP.md)

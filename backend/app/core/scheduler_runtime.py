@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -104,7 +104,11 @@ def get_outbox_dispatch_runtime_state() -> dict[str, object | None]:
 def get_scheduler_runtime_state() -> dict[str, object]:
     lock_provider = runtime_state.lock_provider.provider_name if runtime_state.lock_provider is not None else None
     enable = os.getenv("ENABLE_SCHEDULER", "false").lower() == "true"
-    lock_acquired = bool(runtime_state.lock_provider.lock_acquired) if runtime_state.lock_provider is not None else False
+    lock_acquired = (
+        bool(runtime_state.lock_provider.lock_acquired)
+        if runtime_state.lock_provider is not None
+        else False
+    )
     state_details = get_scheduler_role_status(
         scheduler_enabled=enable,
         scheduler_running=runtime_state.scheduler.running,
@@ -158,8 +162,8 @@ async def release_lock_provider(*, suppress_exceptions: bool) -> None:
 
 
 def setup_scheduler() -> tuple[str, tuple[str, ...]]:
-    from app.core.config import get_settings
     from app.core import scheduler_jobs
+    from app.core.config import get_settings
     from app.core.scheduler_jobs import (
         register_full_scheduler_jobs,
         register_outbox_only_scheduler_jobs,
@@ -191,8 +195,8 @@ async def start_scheduler_async(
     *,
     ensure_outbox_runtime_supported: Callable[..., None],
     resolve_lock_provider_func: Callable[[], SchedulerLockProvider] = resolve_lock_provider,
-    mark_runtime_started_func: Callable[[], object] = mark_runtime_started,
-    release_lock_provider_func: Callable[..., object] = release_lock_provider,
+    mark_runtime_started_func: Callable[[], Awaitable[None]] = mark_runtime_started,
+    release_lock_provider_func: Callable[..., Awaitable[None]] = release_lock_provider,
 ) -> None:
     enable = os.getenv("ENABLE_SCHEDULER", "false").lower()
     if enable != "true":
@@ -267,8 +271,8 @@ async def start_scheduler_async(
 
 async def stop_scheduler_async(
     *,
-    mark_runtime_stopped_func: Callable[[], object] = mark_runtime_stopped,
-    release_lock_provider_func: Callable[..., object] = release_lock_provider,
+    mark_runtime_stopped_func: Callable[[], Awaitable[None]] = mark_runtime_stopped,
+    release_lock_provider_func: Callable[..., Awaitable[None]] = release_lock_provider,
 ) -> None:
     try:
         if runtime_state.scheduler.running:

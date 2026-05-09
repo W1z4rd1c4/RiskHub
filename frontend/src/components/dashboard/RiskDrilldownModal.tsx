@@ -7,6 +7,8 @@ import { dashboardApi } from '../../services/dashboardApi';
 import { useTranslation } from '@/i18n/hooks';
 
 import { useDashboardFilters } from '../../contexts/DashboardFilterContext';
+import { useRiskThresholds } from '@/hooks/useRiskHubConfig';
+import { classifyRiskScore, riskScoreVariantClass } from '@/lib/riskScoreTheme';
 import { logError } from '@/services/logger';
 
 interface RiskInCell {
@@ -31,6 +33,7 @@ export function RiskDrilldownModal({ isOpen, onClose, probability, impact, riskT
     const { t } = useTranslation('dashboard');
     const navigate = useNavigate();
     const { filters } = useDashboardFilters();
+    const { thresholds } = useRiskThresholds();
     const [risks, setRisks] = useState<RiskInCell[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -69,17 +72,11 @@ export function RiskDrilldownModal({ isOpen, onClose, probability, impact, riskT
 
     const score = probability * impact;
     const getSeverityColor = () => {
-        if (score >= 16) return 'text-rose-400';
-        if (score >= 10) return 'text-orange-400';
-        if (score >= 5) return 'text-amber-400';
-        return 'text-emerald-400';
+        return riskScoreVariantClass('text', score, thresholds);
     };
 
     const getSeverityLabel = () => {
-        if (score >= 16) return t('issues.severity.critical');
-        if (score >= 10) return t('issues.severity.high');
-        if (score >= 5) return t('issues.severity.medium');
-        return t('issues.severity.low');
+        return t(`issues.severity.${classifyRiskScore(score, thresholds)}`);
     };
 
     const handleRiskClick = (riskId: number) => {
@@ -113,7 +110,7 @@ export function RiskDrilldownModal({ isOpen, onClose, probability, impact, riskT
                             {/* Header */}
                             <div className="flex items-center justify-between p-6 border-b border-white/5">
                                 <div className="flex items-center gap-3">
-                                    <div className={`p-2 rounded-lg ${score >= 16 ? 'bg-rose-500/20' : score >= 10 ? 'bg-orange-500/20' : score >= 5 ? 'bg-amber-500/20' : 'bg-emerald-500/20'}`}>
+                                    <div className={`p-2 rounded-lg ${riskScoreVariantClass('card', score, thresholds)}`}>
                                         <AlertTriangle className={`h-5 w-5 ${getSeverityColor()}`} />
                                     </div>
                                     <div>
@@ -182,11 +179,7 @@ export function RiskDrilldownModal({ isOpen, onClose, probability, impact, riskT
                                                     </div>
                                                     <div className="flex flex-col items-end gap-1 shrink-0">
                                                         <div className="flex items-center gap-2">
-                                                            <span className={`text-sm font-bold ${risk.net_score >= 15 ? 'text-rose-400' :
-                                                                risk.net_score >= 10 ? 'text-orange-400' :
-                                                                    risk.net_score >= 5 ? 'text-amber-400' :
-                                                                        'text-emerald-400'
-                                                                }`}>
+                                                            <span className={`text-sm font-bold ${riskScoreVariantClass('text', risk.net_score, thresholds)}`}>
                                                                 Score: {risk.net_score}
                                                             </span>
                                                             <ExternalLink className="h-4 w-4 text-slate-500 group-hover:text-white transition-colors" />

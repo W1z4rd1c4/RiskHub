@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { isAuthUnavailableError } from '@/services/authRequest';
+import { getAuthConfig } from '@/services/authConfig';
 import {
     applyAnonymousSession,
     bootstrapAuthSession,
@@ -30,6 +31,7 @@ export function useAuthBootstrap({
 
         const fetchCurrentUser = async () => {
             try {
+                await getAuthConfig().catch(() => null);
                 const session = await bootstrapAuthSession();
                 if (!isMounted) return;
                 const preserveLogoutError = getSessionSnapshot().logoutErrorKey !== null;

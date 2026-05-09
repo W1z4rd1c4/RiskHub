@@ -1,9 +1,10 @@
 """Schemas for Activity Log API."""
 
-from datetime import datetime
 from typing import Optional
 
 from pydantic import BaseModel
+
+from app.core.datetime_utils import UtcAwareDatetime
 
 
 class ActivityLogRead(BaseModel):
@@ -19,7 +20,7 @@ class ActivityLogRead(BaseModel):
     department_id: Optional[int] = None
     changes: Optional[dict] = None
     description: str
-    created_at: datetime
+    created_at: UtcAwareDatetime
 
     model_config = {"from_attributes": True}
 

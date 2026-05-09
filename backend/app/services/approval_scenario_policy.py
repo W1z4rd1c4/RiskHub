@@ -10,14 +10,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.permissions import can_read_control_id, can_read_kri_id, can_read_risk_id
 from app.models import ApprovalRequest, ApprovalResourceType, User
 from app.models.approval_scenario import ApprovalScenario
+from app.services._riskhub_config.approval_scenario_roles import get_approval_scenario_roles
 
 RISK_OWNER_APPROVER_ROLE = "risk_owner"
 PRIVILEGED_APPROVER_ROLE_ORDER = ("risk_manager", "cro")
 PRIVILEGED_APPROVER_ROLES = set(PRIVILEGED_APPROVER_ROLE_ORDER)
 TIER_CAPABLE_SCENARIO_KEYS = {
     "risk_delete",
+    "risk_edit_priority",
     "control_delete",
     "kri_delete",
+    "kri_edit",
     "control_edit",
     "kri_value_submit",
     "kri_history_correction",
@@ -85,7 +88,7 @@ async def load_approval_scenario_policy(
         requires_approval=scenario.requires_approval,
         approver_roles=normalize_approval_scenario_roles(
             key,
-            scenario.get_approver_roles(),
+            get_approval_scenario_roles(scenario),
             requires_approval=scenario.requires_approval,
         ),
     )

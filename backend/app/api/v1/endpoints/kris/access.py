@@ -10,7 +10,6 @@ from app.core.permissions import (
 )
 from app.core.security import check_permission
 from app.models import Risk, User
-from app.models.risk import RiskStatus
 
 
 async def kri_read_scope_clause(db: AsyncSession, current_user: User) -> ColumnElement[bool] | None:
@@ -23,7 +22,7 @@ async def can_create_kri_for_any_parent_risk(db: AsyncSession, current_user: Use
     if not check_permission(current_user, "risks", "write"):
         return False
 
-    query = select(Risk.id).where(Risk.status != RiskStatus.archived.value).limit(1)
+    query = select(Risk.id).where(Risk.live()).limit(1)
     dept_ids = get_user_department_ids(current_user)
     if dept_ids is not None:
         if not dept_ids:

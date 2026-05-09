@@ -19,6 +19,7 @@ export type SearchResultCapabilities =
 
 export interface SearchResultItem {
     id: number;
+    is_archived?: boolean;
     name?: string | null;
     description?: string | null;
     process?: string | null;

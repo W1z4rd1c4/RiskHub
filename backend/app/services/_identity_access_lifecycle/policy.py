@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
+from app.core.exceptions import AuthorizationError, ValidationError
 from app.models import Role, User
 from app.models.user import AccessScope
 from app.services._access_workflow import ADMIN_PRIVILEGED_ROLES
@@ -35,7 +35,7 @@ async def ensure_remaining_global_privileged_user(
 
     remaining = await db.execute(query)
     if not remaining.scalar_one_or_none():
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=detail)
+        raise ValidationError(detail)
 
 
 def ensure_sso_local_field_update_allowed(
@@ -49,18 +49,12 @@ def ensure_sso_local_field_update_allowed(
         return
     for field in fields:
         if field in update_data and update_data[field] != getattr(user, field):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"{field} is managed by directory sync for SSO-linked users.",
-            )
+            raise AuthorizationError(f"{field} is managed by directory sync for SSO-linked users.")
 
 
 def ensure_directory_reenable_allowed(*, user: User, update_data: dict) -> None:
     if update_data.get("is_active") is True and requires_break_glass_for_reenable(user):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Directory-deprovisioned users require break-glass enable before reactivation.",
-        )
+        raise AuthorizationError("Directory-deprovisioned users require break-glass enable before reactivation.")
 
 
 async def ensure_role_change_keeps_privileged_access(
@@ -74,10 +68,7 @@ async def ensure_role_change_keeps_privileged_access(
     old_role_is_privileged = bool(user.role and user.role.name in ADMIN_PRIVILEGED_ROLES)
     new_role_is_privileged = new_role.name in ADMIN_PRIVILEGED_ROLES
     if current_user.id == user.id and old_role_is_privileged and not new_role_is_privileged:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cannot demote yourself from admin/CRO role",
-        )
+        raise ValidationError("Cannot demote yourself from admin/CRO role")
     if old_role_is_privileged and not new_role_is_privileged and user.access_scope == AccessScope.GLOBAL:
         await ensure_remaining_global_privileged_user(
             db,

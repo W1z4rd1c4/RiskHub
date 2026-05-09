@@ -1072,7 +1072,9 @@ class TestUnifiedExportEndpoints:
             gross_impact=3,
             net_probability=2,
             net_impact=2,
-            status="archived",
+            status="active",
+
+            is_archived=True,
         )
         db_session.add(risk)
         await db_session.flush()
@@ -1085,7 +1087,7 @@ class TestUnifiedExportEndpoints:
             actor_id=test_user.id,
             actor_name=test_user.name,
             department_id=test_department.id,
-            changes={"status": {"old": "active", "new": "archived"}},
+            changes={"is_archived": {"old": False, "new": True}},
             description="Archived risk",
             created_at=datetime.now(UTC),
         )
@@ -1166,7 +1168,8 @@ class TestUnifiedExportEndpoints:
             dora_relevant=False,
             is_significant_vendor=False,
             has_alternative_providers=True,
-            status="inactive",
+            status="active",
+            is_archived=True,
         )
         db_session.add(vendor)
         await db_session.flush()
@@ -1179,7 +1182,7 @@ class TestUnifiedExportEndpoints:
             actor_id=test_user.id,
             actor_name=test_user.name,
             department_id=test_department.id,
-            changes={"status": {"old": "active", "new": "inactive"}},
+            changes={"is_archived": {"old": False, "new": True}},
             description="Archived vendor",
             created_at=datetime.now(UTC),
         )

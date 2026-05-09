@@ -112,10 +112,11 @@ const linkedControlsFixture: RiskControlLink[] = [
         created_at: '2026-01-01T00:00:00Z',
         control: {
             id: 13,
+            is_archived: true,
             name: 'Archived control',
             frequency: 'annually',
             risk_level: 1,
-            status: 'archived',
+            status: 'active',
         },
     },
 ];

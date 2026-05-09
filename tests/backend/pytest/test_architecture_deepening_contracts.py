@@ -4,6 +4,10 @@ import ast
 import inspect
 from pathlib import Path
 
+import pytest
+
+pytestmark = pytest.mark.contract
+
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
@@ -632,7 +636,10 @@ def test_entity_mutation_lifecycle_uses_split_service_modules() -> None:
 
 
 def test_entity_mutation_split_modules_own_implementation() -> None:
-    assert not _imports_relative_module("backend/app/services/_entity_mutation_lifecycle/approval_plans.py", "lifecycle")
+    assert not _imports_relative_module(
+        "backend/app/services/_entity_mutation_lifecycle/approval_plans.py",
+        "lifecycle",
+    )
     assert not _has_varargs_forwarder("backend/app/services/_entity_mutation_lifecycle/approval_plans.py")
 
     assert {
@@ -679,8 +686,8 @@ def test_register_list_routes_use_listing_planners() -> None:
 
     for planner in (
         "plan_risk_listing",
-        "plan_control_listing",
-        "plan_kri_listing",
+        "build_control_listing_plan",
+        "build_kri_listing_plan",
         "plan_issue_listing",
     ):
         assert planner in route_source
@@ -799,7 +806,6 @@ def test_register_listing_entity_modules_own_planners() -> None:
             "backend/app/api/v1/endpoints/kris/crud/list.py",
             "backend/app/api/v1/endpoints/issues/crud/list.py",
             "backend/app/api/v1/endpoints/vendors/crud.py",
-            "backend/app/api/v1/endpoints/vendors/_listing.py",
         )
     )
     for leaked_detail in (
@@ -927,7 +933,7 @@ def test_kri_history_routes_use_governance_interface() -> None:
     from app.services._kri_history import governance
 
     assert hasattr(governance, "KriValueGovernanceOutcome")
-    assert hasattr(governance, "KriCorrectionPlan")
+    assert hasattr(governance, "KriCorrectionExecutionPlan")
     assert hasattr(governance, "KriHistoryProjection")
 
     route_source = inspect.getsource(history)
@@ -976,17 +982,16 @@ def test_kri_history_direct_application_and_routes_do_not_use_private_wrappers()
 
 def test_risk_restore_passes_display_name_before_activity_redaction() -> None:
     restore_source = _function_body_source("backend/app/api/v1/endpoints/risks/crud/restore.py", "restore_risk")
+    adapter_source = _function_body_source("backend/app/core/audit/risk.py", "risk_restored")
 
-    assert "entity_name=risk_display_name(risk)" in restore_source
-    assert "safe_entity_label=risk.risk_id_code" in restore_source
+    assert "risk_restored(" in restore_source
+    assert "entity_name=risk_display_name(risk)" in adapter_source
+    assert "safe_entity_label=risk.risk_id_code" in adapter_source
 
     route_sources = "\n".join(
         _source(path)
         for path in (
             "backend/app/api/v1/endpoints/kris/history.py",
-            "backend/app/api/v1/endpoints/kris/history_helpers.py",
-            "backend/app/api/v1/endpoints/kris/history_submission.py",
-            "backend/app/api/v1/endpoints/kris/history_value_application.py",
         )
     )
     for private_import in (
@@ -1067,12 +1072,13 @@ def test_approval_queue_lifecycle_delegates_intake_query_projection() -> None:
 
 
 def test_vendor_link_services_use_vendor_governance_modules() -> None:
-    from app.services._vendor_governance import links, listing, reports
+    from app.services._register_listings import vendors as vendor_listing
+    from app.services._vendor_governance import links, reports
     from app.services._vendor_links import workflow
 
     assert hasattr(links, "VendorLinkAccessPlan")
     assert hasattr(links, "VendorLinkedResourceProjection")
-    assert hasattr(listing, "VendorListingGovernance")
+    assert hasattr(vendor_listing, "VendorListingGovernance")
     assert hasattr(reports, "VendorReportDefinition")
 
     service_source = inspect.getsource(workflow)
@@ -1084,7 +1090,7 @@ def test_vendor_routes_are_adapters_over_vendor_governance() -> None:
     assert {
         "list_vendor_governance",
         "build_vendor_collection_capabilities",
-    } <= _defined_function_names("backend/app/services/_vendor_governance/listing.py")
+    } <= _defined_function_names("backend/app/services/_register_listings/vendors.py")
     assert {
         "create_vendor_detail",
         "read_vendor_detail",
@@ -1230,7 +1236,9 @@ def test_issue_workflow_lifecycle_delegates_mutation_execution() -> None:
     lifecycle_source = _source("backend/app/services/_issue_workflow/lifecycle.py")
     assert "IssueWorkflowService." not in lifecycle_source
     assert "db.commit(" not in lifecycle_source
-    assert "_serialize_refreshed_issue" not in _defined_function_names("backend/app/services/_issue_workflow/lifecycle.py")
+    assert "_serialize_refreshed_issue" not in _defined_function_names(
+        "backend/app/services/_issue_workflow/lifecycle.py"
+    )
     assert "_enqueue_issue_outbox" not in _defined_function_names("backend/app/services/_issue_workflow/lifecycle.py")
 
 

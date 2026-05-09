@@ -66,7 +66,9 @@ async def test_create_execution_rejects_archived_control(
         control_form="manual",
         frequency="monthly",
         risk_level=3,
-        status="archived",
+        status="active",
+
+        is_archived=True,
     )
     db_session.add(control)
     await db_session.commit()
@@ -96,7 +98,9 @@ async def test_control_execution_endpoint_rejects_archived_control(
         control_form="manual",
         frequency="monthly",
         risk_level=3,
-        status="archived",
+        status="active",
+
+        is_archived=True,
     )
     db_session.add(control)
     await db_session.commit()

@@ -1,5 +1,5 @@
-"""Vendor governance Interfaces for listings, links, and reports."""
+"""Vendor governance Interfaces for links and reports."""
 
-from . import links, listing, reports
+from . import links, reports
 
-__all__ = ["links", "listing", "reports"]
+__all__ = ["links", "reports"]

@@ -43,7 +43,11 @@ def _stream_binary(
     return StreamingResponse(
         BytesIO(content_bytes),
         media_type="text/csv; charset=utf-8",
-        headers={"Content-Disposition": f'attachment; filename="{_get_filename(filename_base, export_format, as_of_date)}"'},
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="{_get_filename(filename_base, export_format, as_of_date)}"'
+            )
+        },
     )
 
 

@@ -6,11 +6,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
-from app.core.activity_logger import build_change_set, log_activity
+from app.core.activity_logger import build_change_set
+from app.core.audit.control import control_updated
+from app.core.audit.kri import kri_updated
 from app.core.audit.risk import risk_update_changes, risk_updated
 from app.core.datetime_utils import utc_now
 from app.models import Control, KeyRiskIndicator, Risk, User, VendorKRILink
-from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.services._entity_mutation_lifecycle.contracts import EntityMutationOutcome
 from app.services._entity_mutation_lifecycle.projection import (
     serialize_control_mutation_response,
@@ -89,25 +90,28 @@ async def apply_risk_update_directly(
     update_data: dict[str, Any],
     current_user: User,
 ) -> EntityMutationOutcome:
-    extra_changes = risk_score_change_set(risk, update_data)
-    changes = risk_update_changes(risk, update_data, extra_changes=extra_changes)
+    try:
+        extra_changes = risk_score_change_set(risk, update_data)
+        changes = risk_update_changes(risk, update_data, extra_changes=extra_changes)
 
-    for field, value in update_data.items():
-        if hasattr(value, "value"):
-            value = value.value
-        setattr(risk, field, value)
+        for field, value in update_data.items():
+            if hasattr(value, "value"):
+                value = value.value
+            setattr(risk, field, value)
 
-    risk.gross_score = risk.gross_probability * risk.gross_impact
-    risk.net_score = risk.net_probability * risk.net_impact
+        risk.gross_score = risk.gross_probability * risk.gross_impact
+        risk.net_score = risk.net_probability * risk.net_impact
 
-    await risk_updated(
-        db,
-        actor=current_user,
-        changes=changes,
-        risk=risk,
-        log_activity_func=log_activity,
-    )
-    await db.commit()
+        await risk_updated(
+            db,
+            actor=current_user,
+            changes=changes,
+            risk=risk,
+        )
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        raise
     await db.refresh(risk)
 
     reloaded_risk = await reload_risk_with_relationships(db, risk.id)
@@ -129,26 +133,21 @@ async def apply_control_update_directly(
     update_data: dict[str, Any],
     current_user: User,
 ) -> EntityMutationOutcome:
-    changes = build_change_set(control, update_data)
+    try:
+        changes = build_change_set(control, update_data)
 
-    for field, value in update_data.items():
-        if hasattr(value, "value"):
-            value = value.value
-        setattr(control, field, value)
+        for field, value in update_data.items():
+            if hasattr(value, "value"):
+                value = value.value
+            setattr(control, field, value)
 
-    control.updated_by_id = current_user.id
+        control.updated_by_id = current_user.id
 
-    await log_activity(
-        db,
-        entity_type=ActivityEntityType.CONTROL,
-        entity_id=control.id,
-        entity_name=f"{control.name}",
-        action=ActivityAction.UPDATE,
-        actor=current_user,
-        department_id=control.department_id,
-        changes=changes,
-    )
-    await db.commit()
+        await control_updated(db, actor=current_user, control=control, changes=changes)
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        raise
     await db.refresh(control)
 
     reloaded_control = await reload_control_with_relationships(db, control.id)
@@ -184,17 +183,7 @@ async def apply_kri_update_directly(
         if normalized_vendor_ids is not None:
             await assign_vendors_to_kri(db, kri=kri, linked_vendor_ids=normalized_vendor_ids)
 
-        await log_activity(
-            db,
-            entity_type=ActivityEntityType.KRI,
-            entity_id=kri.id,
-            entity_name=f"{kri.metric_name}",
-            safe_entity_label=kri.metric_name,
-            action=ActivityAction.UPDATE,
-            actor=current_user,
-            department_id=kri.risk.department_id,
-            changes=changes,
-        )
+        await kri_updated(db, actor=current_user, kri=kri, changes=changes)
         await db.commit()
     except Exception:
         await db.rollback()

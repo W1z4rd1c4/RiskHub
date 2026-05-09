@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { groupLinkedControls } from '@/components/risks/detail-overview/riskOverviewHelpers';
 import type { RiskControlLink } from '@/types/risk';
 
-function link(id: number, status?: string): RiskControlLink {
+function link(id: number, status?: string, isArchived = false): RiskControlLink {
     return {
         id,
         control_id: id,
@@ -14,6 +14,7 @@ function link(id: number, status?: string): RiskControlLink {
             id,
             name: `Control ${id}`,
             frequency: 'monthly',
+            is_archived: isArchived,
             risk_level: 3,
             status: status ?? 'active',
         },
@@ -25,7 +26,7 @@ describe('risk overview helpers', () => {
         const grouped = groupLinkedControls([
             link(1, 'active'),
             link(2, 'draft'),
-            link(3, 'archived'),
+            link(3, 'active', true),
             link(4, 'inactive'),
         ]);
 

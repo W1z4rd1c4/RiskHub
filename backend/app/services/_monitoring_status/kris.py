@@ -17,6 +17,14 @@ from .types import (
 )
 
 
+def classify_kri_breach(*, current_value: float, lower_limit: float, upper_limit: float) -> str:
+    if current_value < lower_limit:
+        return "below"
+    if current_value > upper_limit:
+        return "above"
+    return "within"
+
+
 def build_kri_monitoring_facts(kri: KeyRiskIndicator) -> KRIMonitoringFacts:
     history_entries_attr = sa_inspect(kri).attrs.history_entries.loaded_value
     history_entries = [] if history_entries_attr is NO_VALUE else list(history_entries_attr or [])
@@ -25,7 +33,11 @@ def build_kri_monitoring_facts(kri: KeyRiskIndicator) -> KRIMonitoringFacts:
         current_value=kri.current_value,
         lower_limit=kri.lower_limit,
         upper_limit=kri.upper_limit,
-        breach_status=kri.breach_status,
+        breach_status=classify_kri_breach(
+            current_value=kri.current_value,
+            lower_limit=kri.lower_limit,
+            upper_limit=kri.upper_limit,
+        ),
         frequency=kri.frequency,
         last_period_end=kri.last_period_end,
         has_submission_history=has_submission_history,

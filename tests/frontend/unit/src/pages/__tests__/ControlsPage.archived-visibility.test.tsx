@@ -75,6 +75,7 @@ describe('ControlsPage archived visibility', () => {
             frequency: 'monthly',
             risk_level: 3,
             status: 'active',
+            is_archived: false,
             control_form: 'manual',
         };
 
@@ -82,7 +83,8 @@ describe('ControlsPage archived visibility', () => {
             ...activeControl,
             id: 2,
             name: 'Archived Control',
-            status: 'archived',
+            status: 'active',
+            is_archived: true,
         };
 
         server.use(
@@ -124,6 +126,7 @@ describe('ControlsPage archived visibility', () => {
             frequency: 'monthly',
             risk_level: 3,
             status: 'active',
+            is_archived: false,
             control_form: 'manual',
             monitoring_status: 'passed',
         };

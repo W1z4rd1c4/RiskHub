@@ -1,9 +1,9 @@
 from typing import Optional
 
-from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.datetime_utils import utc_now
+from app.core.exceptions import AuthorizationError, ValidationError
 from app.core.permissions import can_resolve_approvals
 from app.models import ApprovalRequest, ApprovalStatus, User
 from app.services.approval_scenario_policy import (
@@ -24,8 +24,8 @@ async def assert_can_approve(
         Tuple of (is_privileged, is_primary_approver, is_scenario_approver)
 
     Raises:
-        HTTPException 403 if user cannot approve
-        HTTPException 400 if approval is not in a pending state
+        AuthorizationError if user cannot approve
+        ValidationError if approval is not in a pending state
     """
     is_privileged = can_resolve_approvals(current_user)
     is_primary_approver = approval.primary_approver_id == current_user.id
@@ -34,40 +34,25 @@ async def assert_can_approve(
     privileged_scenario_match = scenario_allows_privileged_resolution(approval, current_user)
 
     if is_requester:
-        raise HTTPException(
-            status_code=403,
-            detail="Users cannot approve their own requests",
-        )
+        raise AuthorizationError("Users cannot approve their own requests")
 
     if approval.status == ApprovalStatus.PENDING:
         if scenario_match is False:
-            raise HTTPException(
-                status_code=403,
-                detail="This approval scenario does not allow your role to approve this request",
-            )
+            raise AuthorizationError("This approval scenario does not allow your role to approve this request")
         if (
             scenario_match is True
             and not is_primary_approver
             and not is_privileged
             and not await can_view_approval_resource(db, current_user, approval)
         ):
-            raise HTTPException(status_code=403, detail="Access denied")
+            raise AuthorizationError("Access denied")
         if scenario_match is None and not is_primary_approver and not is_privileged:
-            raise HTTPException(
-                status_code=403,
-                detail="Only the primary approver or a privileged user can approve this request",
-            )
+            raise AuthorizationError("Only the primary approver or a privileged user can approve this request")
     elif approval.status == ApprovalStatus.PENDING_PRIVILEGED:
         if privileged_scenario_match is False or not is_privileged:
-            raise HTTPException(
-                status_code=403,
-                detail="This request requires approval-resolution authority",
-            )
+            raise AuthorizationError("This request requires approval-resolution authority")
     else:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Cannot approve request with status: {approval.status.value}",
-        )
+        raise ValidationError(f"Cannot approve request with status: {approval.status.value}")
 
     return is_privileged, is_primary_approver, scenario_match is True
 

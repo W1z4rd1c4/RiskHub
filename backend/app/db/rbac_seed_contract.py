@@ -53,6 +53,7 @@ RBAC_PERMISSIONS: tuple[dict[str, str], ...] = (
     {"resource": "controls", "action": "read", "description": "View controls"},
     {"resource": "controls", "action": "write", "description": "Create/edit controls"},
     {"resource": "controls", "action": "delete", "description": "Delete controls"},
+    # Reserved: future control approval workflow.
     {"resource": "controls", "action": "approve", "description": "Approve control changes"},
     {"resource": "controls", "action": "execute", "description": "Log control execution results"},
     {"resource": "risks", "action": "read", "description": "View risks"},
@@ -64,6 +65,7 @@ RBAC_PERMISSIONS: tuple[dict[str, str], ...] = (
     {"resource": "vendors", "action": "read", "description": "View vendors"},
     {"resource": "vendors", "action": "write", "description": "Create/edit vendors"},
     {"resource": "vendors", "action": "delete", "description": "Archive vendors"},
+    # Reserved: vendor contract governance is parked until DORA contract features ship.
     {"resource": "vendor_contracts", "action": "read", "description": "View vendor contracts and DORA clauses"},
     {"resource": "vendor_contracts", "action": "write", "description": "Create/edit vendor contracts and DORA clauses"},
     {"resource": "departments", "action": "read", "description": "View departments"},

@@ -3,7 +3,7 @@ import { AlertCircle, AlertTriangle, RefreshCw, Search, Star } from 'lucide-reac
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { useTranslation } from '@/i18n/hooks';
 import { useRiskTypes } from '@/hooks/useRiskHubConfig';
-import type { RiskStatus } from '@/types/risk';
+import type { RiskListStatusFilter } from './risksPagePresentation';
 
 interface RisksFilterBarProps {
     criticalFilter: boolean;
@@ -13,12 +13,12 @@ interface RisksFilterBarProps {
     onClearHasBreachFilter: () => void;
     onRefresh: () => void;
     onSearchChange: (value: string) => void;
-    onStatusChange: (value: RiskStatus | '') => void;
+    onStatusChange: (value: RiskListStatusFilter) => void;
     onTogglePriorityFilter: () => void;
     onTypeChange: (value: string) => void;
     priorityFilter: boolean | undefined;
     search: string;
-    statusFilter: RiskStatus | '';
+    statusFilter: RiskListStatusFilter;
     typeFilter: string;
 }
 
@@ -57,7 +57,7 @@ export function RisksFilterBar({
             <div className="flex gap-4 items-center">
                 <ThemedSelect
                     value={statusFilter}
-                    onValueChange={(value) => onStatusChange(value as RiskStatus | '')}
+                    onValueChange={(value) => onStatusChange(value as RiskListStatusFilter)}
                     placeholder={t('status.active')}
                     triggerAriaLabel={t('fields.status')}
                     triggerTestId="risks-status-filter-trigger"

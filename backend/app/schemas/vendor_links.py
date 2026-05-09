@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date
 
 from pydantic import BaseModel
 
+from app.core.datetime_utils import UtcAwareDatetime
 from app.schemas.control import ControlMonitoringBundle, ControlStatusEnum
 from app.schemas.risk import RiskStatusEnum
 
@@ -33,6 +34,7 @@ class LinkedRiskRead(BaseModel):
     department_id: int | None = None
     department_name: str | None = None
     status: RiskStatusEnum | None = None
+    is_archived: bool = False
 
     model_config = {"from_attributes": True}
 
@@ -45,6 +47,7 @@ class LinkedControlRead(ControlMonitoringBundle):
     department_id: int | None = None
     department_name: str | None = None
     status: ControlStatusEnum | None = None
+    is_archived: bool = False
 
     model_config = {"from_attributes": True}
 
@@ -79,7 +82,7 @@ class LinkedVendorRiskFactorRead(BaseModel):
     vendor_id: int
     category_key: str
     description: str
-    created_at: datetime
-    updated_at: datetime
+    created_at: UtcAwareDatetime
+    updated_at: UtcAwareDatetime
 
     model_config = {"from_attributes": True}

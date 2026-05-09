@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, renderWithoutProviders as render, screen, waitFor } from '@test/render';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { RiskForm } from '@/components/RiskForm';
 import { ControlForm } from '@/components/ControlForm';
@@ -16,18 +16,6 @@ import { ControlForm } from '@/components/ControlForm';
 import type { Risk } from '@/types/risk';
 import type { Control } from '@/types/control';
 // KeyRiskIndicator type import omitted - not used in current tests
-
-// Mock i18next
-vi.mock('react-i18next', async () => {
-    const actual = await vi.importActual<typeof import('react-i18next')>('react-i18next');
-    return {
-        ...actual,
-        useTranslation: () => ({
-            t: (key: string) => key,
-            i18n: { language: 'en', changeLanguage: vi.fn() },
-        }),
-    };
-});
 
 // Mock the API modules
 vi.mock('@/services/riskApi', () => ({

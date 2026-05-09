@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.activity_logger import log_activity
+from app.core.exceptions import ValidationError
 from app.db.session import get_db
 from app.models import User
 from app.schemas.riskhub import GlobalConfigRead, GlobalConfigUpdate
@@ -55,10 +56,16 @@ async def update_config(
     CRO only. Validates against min/max for int types.
     """
 
-    return await update_global_config(
-        db,
-        key=key,
-        data=data,
-        actor=cro_user,
-        log_activity_func=log_activity,
-    )
+    try:
+        return await update_global_config(
+            db,
+            key=key,
+            data=data,
+            actor=cro_user,
+            log_activity_func=log_activity,
+        )
+    except ValidationError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=[{"loc": ["body", "value"], "msg": exc.detail, "type": "value_error"}],
+        ) from exc

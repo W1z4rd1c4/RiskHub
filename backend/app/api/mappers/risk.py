@@ -43,6 +43,7 @@ def risk_to_summary(
         gross_impact=risk.gross_impact,
         net_score=risk.net_score,
         status=RiskStatusEnum(risk.status),
+        is_archived=bool(risk.is_archived),
         is_priority=bool(risk.is_priority),
         department_id=risk.department_id,
         department_name=risk.department.name if risk.department else None,

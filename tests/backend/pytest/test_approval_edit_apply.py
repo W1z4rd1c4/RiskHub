@@ -13,6 +13,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from app.models import (
+    ActivityAction,
+    ActivityEntityType,
+    ActivityLog,
     ApprovalActionType,
     ApprovalRequest,
     ApprovalResourceType,
@@ -706,7 +709,7 @@ async def test_approval_delete_control_archives_and_sets_updated_by_id(
 
     await db_session.refresh(control)
     assert resolved.status == ApprovalStatus.APPROVED
-    assert control.status == "archived"
+    assert control.is_archived is True
     assert control.updated_by_id == test_user_cro.id
 
 
@@ -750,3 +753,14 @@ async def test_approval_delete_kri_archives_and_sets_archive_metadata(
     assert kri.is_archived is True
     assert kri.archived_at is not None
     assert kri.archived_by_id == test_user_cro.id
+
+    audit_entry = await db_session.scalar(
+        select(ActivityLog).where(
+            ActivityLog.entity_type == ActivityEntityType.KRI,
+            ActivityLog.entity_id == kri.id,
+            ActivityLog.action == ActivityAction.ARCHIVE,
+        )
+    )
+    assert audit_entry is not None
+    assert audit_entry.department_id == test_risk.department_id
+    assert audit_entry.changes == {"is_archived": {"old": False, "new": True}}

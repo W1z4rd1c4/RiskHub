@@ -1,4 +1,4 @@
-export type VendorStatus = 'active' | 'inactive';
+export type VendorStatus = 'active';
 
 export type VendorType =
     | 'ict'
@@ -62,6 +62,9 @@ export interface Vendor {
     has_alternative_providers: boolean;
 
     status: VendorStatus;
+    is_archived: boolean;
+    archived_at?: string | null;
+    archived_by_id?: number | null;
 
     created_at: string;
     updated_at: string;
@@ -73,6 +76,9 @@ export type VendorCreate = Omit<
     | 'department_name'
     | 'linked_risks'
     | 'outsourcing_owner_name'
+    | 'is_archived'
+    | 'archived_at'
+    | 'archived_by_id'
     | 'created_at'
     | 'updated_at'
 >;
@@ -85,7 +91,7 @@ export interface VendorListParams {
     offset?: number;
     limit?: number;
     search?: string;
-    status?: VendorStatus;
+    status?: VendorStatus | 'inactive' | 'archived';
     include_archived?: boolean;
     vendor_type?: VendorType;
     dora_relevant?: boolean;

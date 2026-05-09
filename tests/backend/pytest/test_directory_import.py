@@ -2,13 +2,11 @@ from __future__ import annotations
 
 import pytest
 import pytest_asyncio
-from httpx import ASGITransport, AsyncClient
+from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import Settings, get_settings
-from app.db.session import get_db
-from app.main import app
+from app.core.config import Settings
 from app.models import Department, User
 from app.schemas.directory import DirectoryUserRead
 from app.services.ad_deprovision_service import ADDeprovisionService
@@ -16,59 +14,35 @@ from app.services.ad_deprovision_service import ADDeprovisionService
 
 @pytest_asyncio.fixture
 async def directory_import_client(
-    db_session: AsyncSession,
+    client_factory,
     test_user_platform_admin,
 ) -> AsyncClient:
-    async def override_get_db():
-        yield db_session
-
-    def override_settings():
-        return Settings(
-            debug=True,
-            secret_key="test-secret-key-32-chars-minimum-value",
-            mock_auth_enabled=True,
-            directory_provider="ad_emulator",
-            entra_business_role_attribute_name="riskhubBusinessRole",
-            ad_emulator_base_url="http://ad-emulator.local",
-        )
-
-    app.dependency_overrides[get_db] = override_get_db
-    app.dependency_overrides[get_settings] = override_settings
-
-    transport = ASGITransport(app=app)
-    headers = {"X-Mock-User-Id": str(test_user_platform_admin.id)}
-    async with AsyncClient(transport=transport, base_url="http://test", headers=headers) as ac:
+    settings = Settings(
+        debug=True,
+        secret_key="test-secret-key-32-chars-minimum-value",
+        mock_auth_enabled=True,
+        directory_provider="ad_emulator",
+        entra_business_role_attribute_name="riskhubBusinessRole",
+        ad_emulator_base_url="http://ad-emulator.local",
+    )
+    async with client_factory(user=test_user_platform_admin, settings=settings) as ac:
         yield ac
-
-    app.dependency_overrides.clear()
 
 
 @pytest_asyncio.fixture
 async def directory_import_client_business_role_disabled(
-    db_session: AsyncSession,
+    client_factory,
     test_user_platform_admin,
 ) -> AsyncClient:
-    async def override_get_db():
-        yield db_session
-
-    def override_settings():
-        return Settings(
-            debug=True,
-            secret_key="test-secret-key-32-chars-minimum-value",
-            mock_auth_enabled=True,
-            directory_provider="ad_emulator",
-            ad_emulator_base_url="http://ad-emulator.local",
-        )
-
-    app.dependency_overrides[get_db] = override_get_db
-    app.dependency_overrides[get_settings] = override_settings
-
-    transport = ASGITransport(app=app)
-    headers = {"X-Mock-User-Id": str(test_user_platform_admin.id)}
-    async with AsyncClient(transport=transport, base_url="http://test", headers=headers) as ac:
+    settings = Settings(
+        debug=True,
+        secret_key="test-secret-key-32-chars-minimum-value",
+        mock_auth_enabled=True,
+        directory_provider="ad_emulator",
+        ad_emulator_base_url="http://ad-emulator.local",
+    )
+    async with client_factory(user=test_user_platform_admin, settings=settings) as ac:
         yield ac
-
-    app.dependency_overrides.clear()
 
 
 @pytest.mark.asyncio
@@ -216,8 +190,59 @@ async def test_directory_import_detects_external_id_email_collision(
     monkeypatch.setattr("app.services.directory_provider_service.DirectoryProviderService.get_user", stub_get_user)
 
     response = await directory_import_client.post("/api/v1/directory/users/oid-other/import", json={})
-    assert response.status_code == 409
+    assert response.status_code == 409, response.text
     assert "identity conflict" in response.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_directory_import_external_id_race_returns_conflict(
+    directory_import_client: AsyncClient,
+    db_session: AsyncSession,
+    test_role_employee,
+    monkeypatch,
+):
+    async def stub_get_user(self, external_id: str):
+        return DirectoryUserRead(
+            external_id=external_id,
+            display_name="Racing Identity",
+            email="racing.identity@example.com",
+            user_principal_name="racing.identity@example.com",
+            department="Risk",
+            job_title="Analyst",
+            account_enabled=True,
+            source="ad_emulator",
+        )
+
+    async def race_external_id_insert(
+        db,
+        *,
+        user,
+        directory_user,
+        sync_business_role,
+        seed_department,
+    ):
+        db.add(
+            User(
+                email="external-id-race-winner@example.com",
+                name="External ID Race Winner",
+                external_id=directory_user.external_id,
+                hashed_password=None,
+                role_id=user.role_id,
+                is_active=True,
+            )
+        )
+        await db.flush()
+
+    monkeypatch.setattr("app.services.directory_provider_service.DirectoryProviderService.get_user", stub_get_user)
+    monkeypatch.setattr(
+        "app.services._identity_access_lifecycle.directory_import.apply_directory_profile",
+        race_external_id_insert,
+    )
+
+    response = await directory_import_client.post("/api/v1/directory/users/oid-race/import", json={})
+
+    assert response.status_code == 409, response.text
+    assert "external_id" in response.json()["detail"]
 
 
 @pytest.mark.asyncio

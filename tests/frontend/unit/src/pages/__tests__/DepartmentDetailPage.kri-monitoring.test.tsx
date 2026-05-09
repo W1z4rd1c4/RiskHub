@@ -1,4 +1,5 @@
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -30,6 +31,25 @@ function LocationProbe() {
     return <div data-testid="location">{location.pathname}</div>;
 }
 
+function renderDepartmentDetail({ includeLocationProbe = false }: { includeLocationProbe?: boolean } = {}) {
+    const queryClient = new QueryClient({
+        defaultOptions: {
+            queries: { retry: false },
+        },
+    });
+
+    return render(
+        <QueryClientProvider client={queryClient}>
+            <MemoryRouter initialEntries={['/departments/7']}>
+                <Routes>
+                    <Route path="/departments/:id" element={<DepartmentDetailPage />} />
+                </Routes>
+                {includeLocationProbe ? <LocationProbe /> : null}
+            </MemoryRouter>
+        </QueryClientProvider>
+    );
+}
+
 describe('DepartmentDetailPage KRI monitoring integration', () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -43,6 +63,7 @@ describe('DepartmentDetailPage KRI monitoring integration', () => {
                 updated_at: '2026-03-07T00:00:00Z',
                 user_count: 4,
                 risk_count: 3,
+                high_risk_count: 1,
                 control_count: 2,
                 kri_count: 5,
                 kri_monitoring_counts: {
@@ -105,13 +126,7 @@ describe('DepartmentDetailPage KRI monitoring integration', () => {
     });
 
     it('uses canonical monitoring badges and monitoring-driven filters', async () => {
-        render(
-            <MemoryRouter initialEntries={['/departments/7']}>
-                <Routes>
-                    <Route path="/departments/:id" element={<DepartmentDetailPage />} />
-                </Routes>
-            </MemoryRouter>
-        );
+        renderDepartmentDetail();
 
         const breachCard = screen.getByTitle('dashboard:kri_breaches');
         expect(within(breachCard).getByText('2')).toBeInTheDocument();
@@ -130,13 +145,7 @@ describe('DepartmentDetailPage KRI monitoring integration', () => {
     });
 
     it('renders the backend-provided non-archived KRI total for the tab count', async () => {
-        render(
-            <MemoryRouter initialEntries={['/departments/7']}>
-                <Routes>
-                    <Route path="/departments/:id" element={<DepartmentDetailPage />} />
-                </Routes>
-            </MemoryRouter>
-        );
+        renderDepartmentDetail();
 
         expect(screen.getByRole('button', { name: 'department_detail.tabs.kris:5' })).toBeInTheDocument();
         expect(screen.queryByText('Department Archived Warning KRI')).not.toBeInTheDocument();
@@ -153,6 +162,7 @@ describe('DepartmentDetailPage KRI monitoring integration', () => {
                 updated_at: '2026-03-07T00:00:00Z',
                 user_count: 1,
                 risk_count: 0,
+                high_risk_count: 0,
                 control_count: 0,
                 kri_count: 0,
                 kri_monitoring_counts: {
@@ -190,14 +200,7 @@ describe('DepartmentDetailPage KRI monitoring integration', () => {
             refresh: vi.fn(),
         }));
 
-        render(
-            <MemoryRouter initialEntries={['/departments/7']}>
-                <Routes>
-                    <Route path="/departments/:id" element={<DepartmentDetailPage />} />
-                </Routes>
-                <LocationProbe />
-            </MemoryRouter>
-        );
+        renderDepartmentDetail({ includeLocationProbe: true });
 
         const ui = userEvent.setup();
         await ui.click(screen.getByRole('button', { name: 'department_detail.tabs.users:1' }));
@@ -224,13 +227,7 @@ describe('DepartmentDetailPage KRI monitoring integration', () => {
             refresh: vi.fn(),
         }));
 
-        render(
-            <MemoryRouter initialEntries={['/departments/7']}>
-                <Routes>
-                    <Route path="/departments/:id" element={<DepartmentDetailPage />} />
-                </Routes>
-            </MemoryRouter>
-        );
+        renderDepartmentDetail();
 
         await screen.findByRole('heading', { name: /access denied|access.denied/i });
         expect(screen.queryByText('Compliance')).not.toBeInTheDocument();

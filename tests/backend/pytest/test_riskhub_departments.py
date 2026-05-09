@@ -3,9 +3,9 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.v1.endpoints.riskhub import departments as department_endpoint
 from app.models import User, Vendor
 from app.models.department import Department
-from app.api.v1.endpoints.riskhub import departments as department_endpoint
 
 
 @pytest.mark.asyncio

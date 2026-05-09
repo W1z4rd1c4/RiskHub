@@ -1,12 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.activity_logger import log_activity
+from app.core.audit.issue import issue_created, issue_linked
 from app.core.datetime_utils import coerce_utc, utc_now
 from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import Issue, IssueRemediationPlan, User
-from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.models.issue import IssueRemediationStatus, IssueStatus
 from app.schemas.issue import IssueContextualCreate, IssueRead
 from app.services._issue_register import (
@@ -14,6 +13,7 @@ from app.services._issue_register import (
     resolve_contextual_issue_source,
     serialize_issue_read_for_actor,
 )
+from app.services.transaction_boundary import commit_service_transaction
 
 from .._shared import (
     _ensure_owner_assignable,
@@ -82,29 +82,16 @@ async def create_contextual_issue(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Contextual source link is required")
     link, _link_created = link_result
 
-    await log_activity(
+    await issue_created(db, actor=current_user, issue=issue)
+    await issue_linked(
         db,
-        entity_type=ActivityEntityType.ISSUE,
-        entity_id=issue.id,
-        entity_name=issue.title,
-        action=ActivityAction.CREATE,
         actor=current_user,
-        department_id=issue.department_id,
-        description=f"Created contextual issue: {issue.title}",
-    )
-    await log_activity(
-        db,
-        entity_type=ActivityEntityType.ISSUE,
-        entity_id=issue.id,
-        entity_name=issue.title,
-        action=ActivityAction.LINK,
-        actor=current_user,
-        department_id=issue.department_id,
-        changes={"link_id": {"old": None, "new": link.id}},
+        issue=issue,
+        link=link,
         description=f"Linked contextual source to issue {issue.title}",
     )
 
-    await db.commit()
+    await commit_service_transaction(db)
     reloaded_issue = await _get_issue_with_relations(db, issue.id)
     if reloaded_issue is None:
         raise HTTPException(status_code=404, detail="Issue not found")

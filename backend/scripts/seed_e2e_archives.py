@@ -30,6 +30,7 @@ RISK_MATRIX = [
         "net_probability": 2,
         "net_impact": 2,
         "status": "active",
+        "is_archived": False,
     },
     {
         "risk_id_code": "E2E-ARCH-RISK-ARCHIVED",
@@ -46,7 +47,8 @@ RISK_MATRIX = [
         "gross_impact": 3,
         "net_probability": 3,
         "net_impact": 2,
-        "status": "archived",
+        "status": "active",
+        "is_archived": True,
     },
 ]
 
@@ -57,6 +59,7 @@ CONTROL_MATRIX = [
         "dept": "Risk Management",
         "owner": "risk.manager@riskhub.local",
         "status": "active",
+        "is_archived": False,
         "risk_code": "E2E-ARCH-RISK-ACTIVE",
     },
     {
@@ -64,7 +67,8 @@ CONTROL_MATRIX = [
         "description": "Archive matrix archived control counterpart for deterministic E2E restore tests.",
         "dept": "Risk Management",
         "owner": "risk.manager@riskhub.local",
-        "status": "archived",
+        "status": "active",
+        "is_archived": True,
         "risk_code": "E2E-ARCH-RISK-ARCHIVED",
     },
 ]
@@ -97,20 +101,23 @@ KRI_MATRIX = [
 ]
 
 VENDOR_STATUS_MATRIX = [
-    {"registration_id": "E2E-VREG-001", "status": "active"},
-    {"registration_id": "E2E-VREG-004", "status": "inactive"},
+    {"registration_id": "E2E-VREG-001", "status": "active", "is_archived": False},
+    {"registration_id": "E2E-VREG-004", "status": "active", "is_archived": True},
 ]
 
 
 async def _ensure_risk_matrix(db, users, departments):
     created = 0
     updated = 0
+    now = utc_now()
+    archive_actor_id = require_user_id(users, "risk.manager@riskhub.local")
 
     for entry in RISK_MATRIX:
         owner_id = require_user_id(users, entry["owner"])
         department_id = require_department_id(departments, entry["dept"])
         gross_score = entry["gross_probability"] * entry["gross_impact"]
         net_score = entry["net_probability"] * entry["net_impact"]
+        is_archived = bool(entry["is_archived"])
 
         result = await db.execute(select(Risk).where(Risk.risk_id_code == entry["risk_id_code"]))
         risk = result.scalar_one_or_none()
@@ -132,6 +139,9 @@ async def _ensure_risk_matrix(db, users, departments):
             "net_impact": entry["net_impact"],
             "net_score": net_score,
             "status": entry["status"],
+            "is_archived": is_archived,
+            "archived_at": now if is_archived else None,
+            "archived_by_id": archive_actor_id if is_archived else None,
         }
 
         if risk is None:
@@ -139,6 +149,8 @@ async def _ensure_risk_matrix(db, users, departments):
             created += 1
         else:
             for key, value in payload.items():
+                if key == "archived_at" and risk.is_archived and value is not None and risk.archived_at is not None:
+                    continue
                 setattr(risk, key, value)
             updated += 1
 
@@ -149,10 +161,13 @@ async def _ensure_control_matrix(db, users, departments):
     created = 0
     updated = 0
     links_created = 0
+    now = utc_now()
+    archive_actor_id = require_user_id(users, "risk.manager@riskhub.local")
 
     for entry in CONTROL_MATRIX:
         owner_id = require_user_id(users, entry["owner"])
         department_id = require_department_id(departments, entry["dept"])
+        is_archived = bool(entry["is_archived"])
 
         risk = (await db.execute(select(Risk).where(Risk.risk_id_code == entry["risk_code"]))).scalar_one_or_none()
         if risk is None:
@@ -169,6 +184,9 @@ async def _ensure_control_matrix(db, users, departments):
             "control_form": "manual",
             "risk_level": 3,
             "status": entry["status"],
+            "is_archived": is_archived,
+            "archived_at": now if is_archived else None,
+            "archived_by_id": archive_actor_id if is_archived else None,
         }
 
         if control is None:
@@ -178,6 +196,13 @@ async def _ensure_control_matrix(db, users, departments):
             created += 1
         else:
             for key, value in payload.items():
+                if (
+                    key == "archived_at"
+                    and control.is_archived
+                    and value is not None
+                    and control.archived_at is not None
+                ):
+                    continue
                 setattr(control, key, value)
             updated += 1
 
@@ -245,6 +270,7 @@ async def _ensure_kri_matrix(db, users):
 
 
 async def _ensure_vendor_matrix(db):
+    now = utc_now()
     updated = 0
     for entry in VENDOR_STATUS_MATRIX:
         vendor = (
@@ -255,6 +281,13 @@ async def _ensure_vendor_matrix(db):
                 f"Archive matrix requires seeded vendor '{entry['registration_id']}'. " "Run seed_e2e_vendors first."
             )
         vendor.status = entry["status"]
+        vendor.is_archived = bool(entry["is_archived"])
+        if vendor.is_archived:
+            vendor.archived_at = vendor.archived_at or now
+            vendor.archived_by_id = vendor.archived_by_id or vendor.outsourcing_owner_user_id
+        else:
+            vendor.archived_at = None
+            vendor.archived_by_id = None
         updated += 1
     return updated
 
@@ -278,7 +311,7 @@ async def seed_archives():
             await db.execute(
                 select(func.count(Risk.id)).where(
                     Risk.risk_id_code.like("E2E-ARCH-RISK-%"),
-                    Risk.status != "archived",
+                    Risk.is_archived.is_(False),
                 )
             )
         ).scalar_one()
@@ -286,7 +319,7 @@ async def seed_archives():
             await db.execute(
                 select(func.count(Risk.id)).where(
                     Risk.risk_id_code.like("E2E-ARCH-RISK-%"),
-                    Risk.status == "archived",
+                    Risk.is_archived.is_(True),
                 )
             )
         ).scalar_one()
@@ -294,7 +327,7 @@ async def seed_archives():
             await db.execute(
                 select(func.count(Control.id)).where(
                     Control.name.like("E2E-ARCH-CTRL%"),
-                    Control.status != "archived",
+                    Control.is_archived.is_(False),
                 )
             )
         ).scalar_one()
@@ -302,7 +335,7 @@ async def seed_archives():
             await db.execute(
                 select(func.count(Control.id)).where(
                     Control.name.like("E2E-ARCH-CTRL%"),
-                    Control.status == "archived",
+                    Control.is_archived.is_(True),
                 )
             )
         ).scalar_one()
@@ -326,7 +359,7 @@ async def seed_archives():
             await db.execute(
                 select(func.count(Vendor.id)).where(
                     Vendor.registration_id.in_([item["registration_id"] for item in VENDOR_STATUS_MATRIX]),
-                    Vendor.status == "active",
+                    Vendor.is_archived.is_(False),
                 )
             )
         ).scalar_one()
@@ -334,7 +367,7 @@ async def seed_archives():
             await db.execute(
                 select(func.count(Vendor.id)).where(
                     Vendor.registration_id.in_([item["registration_id"] for item in VENDOR_STATUS_MATRIX]),
-                    Vendor.status == "inactive",
+                    Vendor.is_archived.is_(True),
                 )
             )
         ).scalar_one()
@@ -342,7 +375,7 @@ async def seed_archives():
         print(f"   Risks active/archived: {risks_active}/{risks_archived}")
         print(f"   Controls active/archived: {controls_active}/{controls_archived}")
         print(f"   KRIs active/archived: {kris_active}/{kris_archived}")
-        print(f"   Vendors active/inactive: {vendors_active}/{vendors_archived}")
+        print(f"   Vendors active/archived: {vendors_active}/{vendors_archived}")
 
         return {
             "risk_created": risk_created,

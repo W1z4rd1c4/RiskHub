@@ -20,13 +20,13 @@ from app.core.permissions import (
 )
 from app.models import Control, ControlExecution, ControlRiskLink, User
 from app.schemas.execution import ControlExecutionWriteBase, ExecutionResultEnum
-from app.services._monitoring_response import MonitoringResponseContext
 from app.services._control_execution.workflow import (
     create_execution_record,
     linked_risk_names_for_visible_ids,
     load_execution_with_context,
     visible_linked_risk_names,
 )
+from app.services._monitoring_response import MonitoringResponseContext
 
 
 @dataclass(frozen=True)
@@ -145,7 +145,11 @@ async def list_control_execution_projections(
         from_date=from_date,
         to_date=to_date,
     )
-    list_query = list_query.order_by(desc(ControlExecution.executed_at), desc(ControlExecution.id)).offset(skip).limit(limit)
+    list_query = (
+        list_query.order_by(desc(ControlExecution.executed_at), desc(ControlExecution.id))
+        .offset(skip)
+        .limit(limit)
+    )
 
     executions = list((await db.execute(list_query)).scalars().all())
     readable_linked_risk_ids = await visible_risk_ids(db, current_user, linked_risk_candidate_ids(executions))
@@ -197,7 +201,11 @@ async def redact_links_for_visible_risks(
     current_user: User,
     links: list[ControlRiskLink],
 ) -> list[ControlRiskLink]:
-    readable_risk_ids = await visible_risk_ids(db, current_user, [link.risk_id for link in links if link.risk_id is not None])
+    readable_risk_ids = await visible_risk_ids(
+        db,
+        current_user,
+        [link.risk_id for link in links if link.risk_id is not None],
+    )
     for link in links:
         if link.risk and link.risk.id not in readable_risk_ids:
             cast(Any, link).risk = None

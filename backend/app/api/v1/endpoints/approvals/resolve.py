@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps
+from app.core.exceptions import DomainError
 from app.db.session import get_db
 from app.models import User
 from app.schemas.approval_request import ApprovalRequestListResponse, ApprovalRequestRead, ApprovalRequestResolve
@@ -51,7 +52,7 @@ async def approve_request(
             current_user=current_user,
             resolution_notes=resolve_data.resolution_notes,
         )
-    except HTTPException:
+    except (HTTPException, DomainError):
         raise
     except Exception:
         logger.exception("Error applying approval %s", approval_id)

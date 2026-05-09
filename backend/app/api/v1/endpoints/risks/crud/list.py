@@ -7,7 +7,7 @@ from app.api.v1.endpoints._collection import build_list_context
 from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import User
-from app.schemas.risk import RiskListResponse, RiskStatusEnum
+from app.schemas.risk import RiskListResponse
 from app.services._register_listings.lifecycle import execute_register_listing_plan
 from app.services._register_listings.risks import RiskListingCriteria, plan_risk_listing
 
@@ -21,7 +21,7 @@ async def list_risks(
     skip: int | None = Query(None, ge=0),
     limit: int = Query(50, ge=1, le=100),
     department_id: Optional[int] = None,
-    status: Optional[RiskStatusEnum] = None,
+    status: Optional[str] = None,
     risk_type: Optional[str] = None,
     is_priority: Optional[bool] = None,
     search: Optional[str] = None,
@@ -55,7 +55,7 @@ async def list_risks(
         max_limit=100,
         legacy_filters={
             "department_id": department_id,
-            "status": status.value if status else None,
+            "status": status,
             "risk_type": risk_type,
             "is_priority": is_priority,
             "search": search,

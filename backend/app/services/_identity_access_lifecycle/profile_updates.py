@@ -1,15 +1,17 @@
 from __future__ import annotations
 
-from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.activity_logger import build_change_set
+from app.core.activity_logger import build_change_set, log_activity
 from app.core.config import Settings
 from app.core.email import email_equals
+from app.core.exceptions import AuthorizationError, NotFoundError, ServiceFailure, ValidationError
 from app.core.security import get_password_hash
+from app.core.user_query_options import user_selectinload_options
 from app.models import Role, User
-from app.schemas import UserUpdate
+from app.models.activity_log import ActivityAction, ActivityEntityType
+from app.schemas import UserCreate, UserUpdate
 from app.services._org_chart import (
     acquire_org_chart_lock,
     clear_manager_references_for_inactive_user,
@@ -33,8 +35,58 @@ async def flag_orphaned_items_for_deactivation(db: AsyncSession, *, user: User) 
         created_orphans = await OrphanedItemService.flag_orphaned_items(db, user.id)
     except Exception as exc:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to flag orphaned items") from exc
+        raise ServiceFailure("Failed to flag orphaned items") from exc
     return len(created_orphans)
+
+
+async def create_user_profile(
+    *,
+    db: AsyncSession,
+    settings: Settings,
+    current_user: User,
+    user_data: UserCreate,
+) -> User:
+    if settings.auth_mode == "microsoft_sso":
+        raise AuthorizationError(
+            "Manual user creation is disabled in microsoft_sso mode. Use /api/v1/directory/users/{oid}/import."
+        )
+
+    result = await db.execute(select(User).where(email_equals(User.email, user_data.email)))
+    if result.scalar_one_or_none():
+        raise ValidationError("Email already registered")
+
+    new_user = User(
+        email=user_data.email,
+        name=user_data.name,
+        role_id=user_data.role_id,
+        department_id=user_data.department_id,
+        manager_id=user_data.manager_id,
+        is_active=user_data.is_active,
+        hashed_password=get_password_hash(user_data.password),
+    )
+
+    if new_user.manager_id is not None:
+        await acquire_org_chart_lock(db)
+
+    db.add(new_user)
+    await db.flush()
+    if new_user.manager_id is not None:
+        await validate_no_manager_cycle(db, user_id=new_user.id, new_manager_id=new_user.manager_id)
+
+    await log_activity(
+        db,
+        entity_type=ActivityEntityType.USER,
+        entity_id=new_user.id,
+        entity_name=new_user.name,
+        action=ActivityAction.CREATE,
+        actor=current_user,
+        department_id=new_user.department_id,
+    )
+    await db.commit()
+    await db.refresh(new_user)
+
+    result = await db.execute(select(User).options(*user_selectinload_options()).where(User.id == new_user.id))
+    return result.scalar_one()
 
 
 async def update_user_profile(
@@ -48,22 +100,19 @@ async def update_user_profile(
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
     if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        raise NotFoundError("User not found")
 
     if user_data.email and user_data.email != user.email:
         email_check = await db.execute(select(User).where(email_equals(User.email, user_data.email)))
         if email_check.scalar_one_or_none():
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
+            raise ValidationError("Email already registered")
 
     update_data = user_data.model_dump(exclude_unset=True)
     password_field_provided = "password" in update_data  # gitleaks:allow
     password = update_data.pop("password", None)  # gitleaks:allow
 
     if settings.auth_mode == "microsoft_sso" and password_field_provided:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Password updates are disabled in microsoft_sso mode.",
-        )
+        raise AuthorizationError("Password updates are disabled in microsoft_sso mode.")
 
     ensure_sso_local_field_update_allowed(
         settings=settings,
@@ -78,8 +127,13 @@ async def update_user_profile(
         if new_role_id != user.role_id:
             new_role = (await db.execute(select(Role).where(Role.id == new_role_id))).scalar_one_or_none()
             if not new_role:
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid role_id")
-            await ensure_role_change_keeps_privileged_access(db, current_user=current_user, user=user, new_role=new_role)
+                raise ValidationError("Invalid role_id")
+            await ensure_role_change_keeps_privileged_access(
+                db,
+                current_user=current_user,
+                user=user,
+                new_role=new_role,
+            )
 
     extra_changes: dict[str, dict[str, object]] = {}
     if password is not None:
@@ -88,7 +142,7 @@ async def update_user_profile(
 
     is_deactivating = user.is_active is True and update_data.get("is_active") is False
     if is_deactivating and current_user.id == user.id and is_global_privileged_user(user):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot deactivate your own privileged access")
+        raise ValidationError("Cannot deactivate your own privileged access")
     if is_deactivating and is_global_privileged_user(user):
         await ensure_remaining_global_privileged_user(
             db,
@@ -116,7 +170,7 @@ async def update_user_profile(
         db=db,
         user=user,
         current_user=current_user,
-        changes=changes,
+        changes=changes or {},
         description="Password updated" if password is not None and not update_data else None,
         log_when_empty=True,
     )

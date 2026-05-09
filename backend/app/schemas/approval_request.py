@@ -1,10 +1,11 @@
 """Pydantic schemas for approval request API endpoints."""
 
-from datetime import datetime
 from enum import Enum
 from typing import Any
 
 from pydantic import BaseModel, Field
+
+from app.core.datetime_utils import UtcAwareDatetime
 
 
 class ApprovalStatusEnum(str, Enum):
@@ -106,10 +107,10 @@ class ApprovalRequestRead(BaseModel):
 
     resolved_by_id: int | None = None
     resolved_by_name: str | None = None
-    resolved_at: datetime | None = None
+    resolved_at: UtcAwareDatetime | None = None
     resolution_notes: str | None = None
 
-    created_at: datetime
+    created_at: UtcAwareDatetime
     can_approve: bool
     can_reject: bool
     capabilities: ApprovalRequestCapabilities | None = None

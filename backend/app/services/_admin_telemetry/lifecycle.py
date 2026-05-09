@@ -19,8 +19,8 @@ from app.schemas.admin import (
     SystemHealthResponse,
     SystemStatsResponse,
 )
-from app.services._auth_session_workflow import revoke_user_sessions
 from app.services._admin_telemetry.projections import serialize_scheduler_run
+from app.services._auth_session_workflow import revoke_user_sessions
 
 
 @dataclass(frozen=True)

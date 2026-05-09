@@ -1,0 +1,18 @@
+# Temporary exceptions for the Archivable invariant lock.
+# Keep this list shrinking; each entry must name why direct archive-state access is still unavoidable.
+
+[[paths]]
+path = "backend/app/models/_archivable.py"
+rationale = "Archivable Module owns the archive-state Interface and predicates."
+
+[[paths]]
+path = "backend/app/models/key_risk_indicator.py"
+rationale = "KRI owns its archived_by ORM relationship while delegating archive columns and helper methods to ArchivableMixin."
+
+[[paths]]
+path = "backend/alembic/versions/g2h3i4j5k6l7_add_archivable_columns.py"
+rationale = "Schema migration introducing archive columns."
+
+[[paths]]
+path = "backend/alembic/versions/h3i4j5k6l7m8_unify_archive_state.py"
+rationale = "Forward-only data migration normalizing legacy archive statuses."

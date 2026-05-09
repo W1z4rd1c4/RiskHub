@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
 from typing import Any, Literal
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,9 +9,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.activity_logger import log_activity
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.models.user import User
+from app.services._config.lookup import clear_config_cache
 
 ConfigLifecycleStatus = Literal["created", "updated", "deleted", "restored", "blocked"]
-ConfigLogActivity = Callable[..., Awaitable[None]]
+ConfigLogActivity = Callable[..., Awaitable[Any]]
 
 
 @dataclass(frozen=True)
@@ -100,6 +101,7 @@ async def _run_config_lifecycle(
         **audit_plan.as_log_kwargs(),
     )
     await db.commit()
+    clear_config_cache()
     if refresh_entity and entity is not None:
         await db.refresh(entity)
     return ConfigLifecycleOutcome(
@@ -148,6 +150,19 @@ async def run_config_update(
         refresh_entity=refresh_entity,
         log_activity_func=log_activity_func,
     )
+
+
+async def run_config_noop_update(
+    *,
+    db: AsyncSession,
+    entity: object | None = None,
+    refresh_entity: bool = False,
+) -> ConfigLifecycleOutcome:
+    await db.commit()
+    clear_config_cache()
+    if refresh_entity and entity is not None:
+        await db.refresh(entity)
+    return ConfigLifecycleOutcome(status="updated", entity=entity)
 
 
 async def run_config_delete(

@@ -1,10 +1,9 @@
 """ApprovalScenario model for configurable approval workflow rules."""
-
-import json
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, func
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, String, func
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -40,7 +39,10 @@ class ApprovalScenario(Base):
     requires_approval: Mapped[bool] = mapped_column(Boolean, default=True)
 
     # JSON array of role names that can approve: ["risk_manager", "cro"]
-    approver_roles: Mapped[str] = mapped_column(Text, default='["risk_manager", "cro"]')
+    approver_roles: Mapped[list[str]] = mapped_column(
+        JSON().with_variant(JSONB(), "postgresql"),
+        default=lambda: ["risk_manager", "cro"],
+    )
 
     # Audit fields
     updated_at: Mapped[datetime] = mapped_column(
@@ -50,17 +52,6 @@ class ApprovalScenario(Base):
 
     # Relationship to user who last updated
     updated_by: Mapped["User"] = relationship("User", foreign_keys=[updated_by_id])
-
-    def get_approver_roles(self) -> list[str]:
-        """Return approver roles as a Python list."""
-        try:
-            return json.loads(self.approver_roles)
-        except (json.JSONDecodeError, TypeError):
-            return ["risk_manager", "cro"]  # Default fallback
-
-    def set_approver_roles(self, roles: list[str]):
-        """Set approver roles from a Python list."""
-        self.approver_roles = json.dumps(roles)
 
     def __repr__(self) -> str:
         return f"<ApprovalScenario(key='{self.key}', requires_approval={self.requires_approval})>"

@@ -13,6 +13,7 @@ from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas.directory import DirectoryBreakGlassEnableRequest
 from app.services.ad_deprovision_service import ADDeprovisionService
 from app.services.directory_provider_service import DirectoryProviderUnavailableError
+from app.services.transaction_boundary import commit_service_transaction
 
 from ._deps import require_platform_admin
 
@@ -94,5 +95,5 @@ async def break_glass_enable_directory_user(
             f"(expires_in_hours={payload.expires_in_hours}, reason={payload.reason.strip()})"
         ),
     )
-    await db.commit()
+    await commit_service_transaction(db)
     return {"status": "success", "user_id": user.id}

@@ -28,7 +28,7 @@ export const riskApi = {
         offset?: number;
         limit?: number;
         department_id?: number;
-        status?: RiskStatus;
+        status?: RiskStatus | 'archived';
         risk_type?: string; // Dynamic from Risk Hub config
         is_priority?: boolean;
         search?: string;

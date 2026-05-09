@@ -1,8 +1,9 @@
-from datetime import datetime
 from enum import Enum
 from typing import Optional
 
 from pydantic import BaseModel, Field
+
+from app.core.datetime_utils import UtcAwareDatetime
 
 
 class ExecutionResultEnum(str, Enum):
@@ -40,7 +41,7 @@ class ControlExecutionWriteBase(BaseModel):
     findings: Optional[str] = None
     evidence_reference: Optional[str] = Field(None, max_length=500)
     notes: Optional[str] = None
-    next_scheduled: Optional[datetime] = None
+    next_scheduled: Optional[UtcAwareDatetime] = None
 
 
 class ControlExecutionCreate(ControlExecutionWriteBase):
@@ -60,13 +61,13 @@ class ControlExecutionRead(BaseModel):
     control_id: int
     executed_by_id: int
     executed_by: Optional[UserBriefForExecution] = None
-    executed_at: datetime
+    executed_at: UtcAwareDatetime
     result: ExecutionResultEnum
     findings: Optional[str] = None
     evidence_reference: Optional[str] = None
     notes: Optional[str] = None
-    next_scheduled: Optional[datetime] = None
-    created_at: datetime
+    next_scheduled: Optional[UtcAwareDatetime] = None
+    created_at: UtcAwareDatetime
 
     model_config = {"from_attributes": True}
 

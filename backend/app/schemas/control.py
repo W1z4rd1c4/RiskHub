@@ -1,9 +1,9 @@
-from datetime import datetime
 from enum import Enum
 from typing import Any, Optional
 
 from pydantic import BaseModel, Field, computed_field, field_validator
 
+from app.core.datetime_utils import UtcAwareDatetime
 from app.schemas.collection import CollectionGroupRead
 from app.schemas.execution import ExecutionResultEnum
 from app.schemas.vendor_shared import LinkedVendorRead
@@ -55,12 +55,19 @@ def normalize_control_frequency(value: Any) -> ControlFrequencyEnum:
 
 
 class ControlStatusEnum(str, Enum):
-    """Status of the control."""
+    """
+    API-facing mirror of `app.models.control.ControlStatus`.
+
+    Distinct from the `is_archived` archive flag (ArchivableMixin):
+    - `inactive` = non-archive lifecycle state (defined, not currently enforced, reactivatable).
+    - `is_archived = True` = soft-deletion (hidden from default listings).
+
+    See `app.models.control.ControlStatus` and ADR-005 for the full contract.
+    """
 
     draft = "draft"
     active = "active"
     inactive = "inactive"
-    archived = "archived"
 
 
 class ControlMonitoringBundle(BaseModel):
@@ -69,7 +76,7 @@ class ControlMonitoringBundle(BaseModel):
     monitoring_status: ControlMonitoringStatus
     monitoring_status_reason: ControlMonitoringReason
     latest_execution_result: Optional[ExecutionResultEnum] = None
-    latest_executed_at: Optional[datetime] = None
+    latest_executed_at: Optional[UtcAwareDatetime] = None
     days_since_last_execution: Optional[int] = None
     execution_log_count: int = 0
 
@@ -195,9 +202,10 @@ class ControlRead(ControlBase, ControlMonitoringBundle):
     department: Optional[DepartmentBriefForControl] = None
     created_by_id: Optional[int] = None
     updated_by_id: Optional[int] = None
+    is_archived: bool
     capabilities: ControlCapabilities | None = None
-    created_at: datetime
-    updated_at: datetime
+    created_at: UtcAwareDatetime
+    updated_at: UtcAwareDatetime
 
     model_config = {"from_attributes": True}
 
@@ -213,6 +221,7 @@ class ControlSummary(ControlMonitoringBundle):
     frequency: ControlFrequencyEnum
     risk_level: int
     status: ControlStatusEnum
+    is_archived: bool
     control_form: ControlFormEnum
     control_owner_name: Optional[str] = None
     risk_type: Optional[str] = None

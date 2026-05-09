@@ -6,6 +6,7 @@ from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+from app.models._archivable import ArchivableMixin
 
 if TYPE_CHECKING:
     from app.models.control_execution import ControlExecution
@@ -36,15 +37,34 @@ class ControlFrequency(str, PyEnum):
 
 
 class ControlStatus(str, PyEnum):
-    """Status of the control."""
+    """
+    Control lifecycle status. Distinct from `is_archived` (ArchivableMixin).
+
+    - draft: defined but not yet enforced (executions blocked except by owners during validation).
+    - active: currently enforced (executable).
+    - inactive: defined but not currently enforced (NOT archived; retains metadata for reactivation).
+
+    `inactive` is orthogonal to `is_archived`:
+    - `inactive` represents a non-archive lifecycle state — the control is still part of the
+      catalog and can be reactivated by flipping status back to `active`.
+    - `is_archived = True` (ArchivableMixin) represents soft-deletion — the control is no
+      longer relevant to the catalog and is hidden from default listings.
+
+    Both flags are independent. A control can be `inactive` and not archived, or active and
+    archived (if archived directly from active state). Listing and execution code must check
+    both: see `app.services._control_execution.workflow.is_executable` and the
+    department control stats in `app.api.v1.endpoints.departments.detail`.
+
+    See ADR-005 (`docs/adr/ADR-005-archivable-mixin-schema-contract.md`) for the schema
+    contract that retains `inactive` after the archived state was extracted into the mixin.
+    """
 
     draft = "draft"
     active = "active"
     inactive = "inactive"
-    archived = "archived"
 
 
-class Control(Base):
+class Control(ArchivableMixin, Base):
     """
     Control model implementing 13-point structure from DEFINICIA KONTROL.
 

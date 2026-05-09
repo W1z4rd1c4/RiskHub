@@ -1,9 +1,10 @@
 """Pydantic schemas for risk questionnaires."""
 
-from datetime import datetime
 from enum import Enum
 
 from pydantic import BaseModel
+
+from app.core.datetime_utils import UtcAwareDatetime
 
 
 class RiskQuestionnaireStatusEnum(str, Enum):
@@ -29,9 +30,9 @@ class RiskQuestionnaireListItemRead(BaseModel):
     status: RiskQuestionnaireStatusEnum
     template_key: str
     template_version: str
-    sent_at: datetime
-    due_at: datetime
-    submitted_at: datetime | None = None
+    sent_at: UtcAwareDatetime
+    due_at: UtcAwareDatetime
+    submitted_at: UtcAwareDatetime | None = None
     submitted_by_user_id: int | None = None
 
     assigned_to_user_name: str | None = None
@@ -44,7 +45,7 @@ class RiskQuestionnaireListItemRead(BaseModel):
 
 class RiskQuestionnairePreviousSubmissionRead(BaseModel):
     id: int
-    submitted_at: datetime
+    submitted_at: UtcAwareDatetime
     template_version: str
     answers: dict[str, object] | None = None
 
@@ -81,11 +82,11 @@ class RiskQuestionnaireClarificationRead(BaseModel):
     request_message: str
     requested_by_user_id: int
     requested_by_user_name: str | None = None
-    requested_at: datetime
+    requested_at: UtcAwareDatetime
 
     response_message: str | None = None
     responded_by_user_id: int | None = None
     responded_by_user_name: str | None = None
-    responded_at: datetime | None = None
+    responded_at: UtcAwareDatetime | None = None
 
     model_config = {"from_attributes": True}

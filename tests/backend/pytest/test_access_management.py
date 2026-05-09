@@ -1,34 +1,19 @@
 import pytest
 import pytest_asyncio
-from httpx import ASGITransport, AsyncClient
+from httpx import AsyncClient
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import Settings, get_settings
-from app.db.session import get_db
-from app.main import app
+from app.core.config import Settings
 from app.models import Department, User
 from app.models.user import AccessScope
 from app.services.ad_deprovision_service import ADDeprovisionService
 
 
 @pytest_asyncio.fixture
-async def client_cro_sso(db_session: AsyncSession, test_user_cro: User):
-    async def override_get_db():
-        yield db_session
-
-    def override_settings():
-        return Settings(mock_auth_enabled=True, debug=True, auth_mode="microsoft_sso")
-
-    app.dependency_overrides[get_db] = override_get_db
-    app.dependency_overrides[get_settings] = override_settings
-
-    transport = ASGITransport(app=app)
-    headers = {"X-Mock-User-Id": str(test_user_cro.id)}
-    async with AsyncClient(transport=transport, base_url="http://test", headers=headers) as ac:
+async def client_cro_sso(client_factory, test_user_cro: User):
+    settings = Settings(mock_auth_enabled=True, debug=True, auth_mode="microsoft_sso")
+    async with client_factory(user=test_user_cro, settings=settings) as ac:
         yield ac
-
-    app.dependency_overrides.clear()
 
 
 @pytest.mark.asyncio

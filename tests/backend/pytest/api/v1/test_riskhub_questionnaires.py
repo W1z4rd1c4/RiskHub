@@ -5,6 +5,7 @@ Tests for CRO Risk Hub questionnaire batch send endpoint.
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Department, Risk, RiskQuestionnaire, User
@@ -136,6 +137,77 @@ async def test_batch_send_select_all_true_filters(
     assert data["created_count"] == 1
     assert risk_owned_by_employee.id not in data["skipped_no_owner"]
     assert risk_owned_by_employee.id not in data["skipped_open_exists"]
+
+
+@pytest.mark.asyncio
+async def test_batch_send_select_all_archived_status_targets_archived_risks(
+    db_session: AsyncSession,
+    client_cro: AsyncClient,
+    test_department: Department,
+    test_user_employee: User,
+):
+    live_risk = Risk(
+        risk_id_code="R-BATCH-LIVE",
+        name="Batch Live Risk",
+        process="Batch Archived Process",
+        description="desc",
+        category="Batch Archived Category",
+        department_id=test_department.id,
+        owner_id=test_user_employee.id,
+        risk_type="operational",
+        status=RiskStatus.active.value,
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=2,
+        is_archived=False,
+    )
+    archived_risk = Risk(
+        risk_id_code="R-BATCH-ARCH",
+        name="Batch Archived Risk",
+        process="Batch Archived Process",
+        description="desc",
+        category="Batch Archived Category",
+        department_id=test_department.id,
+        owner_id=test_user_employee.id,
+        risk_type="operational",
+        status=RiskStatus.active.value,
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=2,
+        is_archived=True,
+    )
+    db_session.add_all([live_risk, archived_risk])
+    await db_session.commit()
+    await db_session.refresh(live_risk)
+    await db_session.refresh(archived_risk)
+
+    response = await client_cro.post(
+        "/api/v1/riskhub/questionnaires/batch-send",
+        json={
+            "select_all": True,
+            "filters": {
+                "process": "Batch Archived Process",
+                "category": "Batch Archived Category",
+                "status": "archived",
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["created_count"] == 1
+    questionnaire_risk_ids = {
+        row[0]
+        for row in (
+            await db_session.execute(
+                select(RiskQuestionnaire.risk_id).where(
+                    RiskQuestionnaire.risk_id.in_([live_risk.id, archived_risk.id])
+                )
+            )
+        ).all()
+    }
+    assert questionnaire_risk_ids == {archived_risk.id}
 
 
 @pytest.mark.asyncio

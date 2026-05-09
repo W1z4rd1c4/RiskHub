@@ -17,9 +17,9 @@ export interface DepartmentSummary {
     code: string;
     user_count: number;
     risk_count: number;
+    high_risk_count: number;
     control_count: number;
     kri_count: number;
-    high_risk_count: number;
     breaching_kri_count: number;
     total_net_score: number;
 }
@@ -57,6 +57,7 @@ export interface DepartmentDetail {
     updated_at: string;
     user_count: number;
     risk_count: number;
+    high_risk_count: number;
     control_count: number;
     kri_count: number;
     kri_monitoring_counts: Record<string, number>;

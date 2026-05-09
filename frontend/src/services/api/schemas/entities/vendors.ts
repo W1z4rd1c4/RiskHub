@@ -6,6 +6,8 @@ import { collectionPaginationSchema, passthroughObject, z } from '../common';
 export const linkedVendorSummarySchema: z.ZodType<LinkedVendorSummary> = passthroughObject({
     id: z.number(),
     name: z.string(),
+    status: z.string().nullable().optional(),
+    is_archived: z.boolean().optional(),
 });
 export const linkedVendorSummaryArraySchema = z.array(linkedVendorSummarySchema);
 
@@ -57,7 +59,10 @@ export const vendorSchema: z.ZodType<Vendor> = passthroughObject({
     materiality_assessed_max_impact_pct_own_funds: z.number().nullable().optional(),
     replaceability: z.enum(['easy', 'medium', 'hard']).nullable().optional(),
     has_alternative_providers: z.boolean(),
-    status: z.enum(['active', 'inactive']),
+    status: z.enum(['active']),
+    is_archived: z.boolean(),
+    archived_at: z.string().nullable().optional(),
+    archived_by_id: z.number().nullable().optional(),
     created_at: z.string(),
     updated_at: z.string(),
 });

@@ -159,6 +159,7 @@ def serialize_control_read(
             "department": _loaded_attr(control, "department"),
             "created_by_id": control.created_by_id,
             "updated_by_id": control.updated_by_id,
+            "is_archived": control.is_archived,
             "capabilities": capabilities,
             "created_at": control.created_at,
             "updated_at": control.updated_at,
@@ -175,6 +176,7 @@ def serialize_control_brief_for_link(control, context: MonitoringResponseContext
             "frequency": control.frequency,
             "risk_level": control.risk_level,
             "status": control.status,
+            "is_archived": control.is_archived,
             **build_control_monitoring_fields(control, context),
         }
     )
@@ -211,7 +213,12 @@ def serialize_kri_response(
         linked_vendors
         if linked_vendors is not None
         else [
-            LinkedVendorRead(id=vendor.id, name=vendor.name)
+            LinkedVendorRead(
+                id=vendor.id,
+                name=vendor.name,
+                status=vendor.status,
+                is_archived=vendor.is_archived,
+            )
             for link in (_loaded_attr(kri, "vendor_links", []) or [])
             if (vendor := _loaded_attr(link, "vendor")) is not None
         ]
@@ -258,6 +265,9 @@ def serialize_risk_read(
             "id": risk.id,
             "gross_score": risk.gross_score,
             "net_score": risk.net_score,
+            "is_archived": risk.is_archived,
+            "archived_at": risk.archived_at,
+            "archived_by_id": risk.archived_by_id,
             "owner": _loaded_attr(risk, "owner"),
             "department": _loaded_attr(risk, "department"),
             "kris": [serialize_kri_response(kri, context) for kri in active_kris],

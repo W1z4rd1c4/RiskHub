@@ -4,9 +4,6 @@ from typing import Any
 from app.core.datetime_utils import utc_now
 from app.core.permissions import get_user_department_ids
 from app.models import User
-from app.models.control import ControlStatus
-from app.models.risk import RiskStatus
-from app.models.vendor import VendorStatus
 from app.services._kri_history.periods import period_bounds_for_date
 
 from .shared import ControlMonitoringExportStatus, KRIExportStatus, KRIMonitoringExportStatus, _contains, _safe_int
@@ -72,9 +69,12 @@ def _filter_rows_by_risk_criteria(
     filtered = rows
 
     if status_filter:
-        filtered = [r for r in filtered if str(r.get("status")) == status_filter]
+        if status_filter == "archived":
+            filtered = [r for r in filtered if bool(r.get("is_archived"))]
+        else:
+            filtered = [r for r in filtered if str(r.get("status")) == status_filter and not bool(r.get("is_archived"))]
     else:
-        filtered = [r for r in filtered if str(r.get("status")) != RiskStatus.archived.value]
+        filtered = [r for r in filtered if not bool(r.get("is_archived"))]
 
     if risk_type:
         filtered = [r for r in filtered if str(r.get("risk_type") or "") == risk_type]
@@ -105,9 +105,12 @@ def _filter_rows_by_control_criteria(
 ) -> list[dict[str, Any]]:
     filtered = rows
     if status_filter:
-        filtered = [r for r in filtered if str(r.get("status")) == status_filter]
+        if status_filter == "archived":
+            filtered = [r for r in filtered if bool(r.get("is_archived"))]
+        else:
+            filtered = [r for r in filtered if str(r.get("status")) == status_filter and not bool(r.get("is_archived"))]
     else:
-        filtered = [r for r in filtered if str(r.get("status")) != ControlStatus.archived.value]
+        filtered = [r for r in filtered if not bool(r.get("is_archived"))]
 
     if search:
         needle = search.strip().lower()
@@ -202,9 +205,12 @@ def _filter_rows_by_vendor_criteria(
     filtered = rows
 
     if status_filter:
-        filtered = [r for r in filtered if str(r.get("status")) == status_filter]
+        if status_filter in {"archived", "inactive"}:
+            filtered = [r for r in filtered if bool(r.get("is_archived"))]
+        else:
+            filtered = [r for r in filtered if str(r.get("status")) == status_filter and not bool(r.get("is_archived"))]
     else:
-        filtered = [r for r in filtered if str(r.get("status")) == VendorStatus.active.value]
+        filtered = [r for r in filtered if not bool(r.get("is_archived"))]
 
     if vendor_type:
         filtered = [r for r in filtered if str(r.get("vendor_type") or "") == vendor_type]

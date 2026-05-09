@@ -7,11 +7,12 @@ from app.core.activity_logger import log_activity
 from app.db.session import get_db
 from app.models import User
 from app.schemas.riskhub import DepartmentHubCreate, DepartmentHubRead, DepartmentHubUpdate
+from app.services._org_chart import acquire_org_chart_lock
 from app.services._riskhub_config import (
-    department_to_read,
     department_create_audit_plan,
     department_delete_audit_plan,
     department_restore_audit_plan,
+    department_to_read,
     department_update_audit_plan,
     get_department_dependency_counts,
     load_department_for_update,
@@ -21,7 +22,6 @@ from app.services._riskhub_config import (
     run_config_update,
     validate_department_manager,
 )
-from app.services._org_chart import acquire_org_chart_lock
 
 from ._shared import get_cro_user
 

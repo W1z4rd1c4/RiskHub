@@ -262,6 +262,53 @@ async def test_control_linked_risks_show_direct_owner_risk_and_redact_hidden_ris
 
 
 @pytest.mark.asyncio
+async def test_control_linked_risk_payload_includes_archive_state(
+    auth_client: AsyncClient,
+    db_session,
+    test_department: Department,
+    test_user: User,
+):
+    """Linked risk payloads must carry archive truth separately from lifecycle status."""
+    archived_risk = Risk(
+        risk_id_code="RISK-LINK-ARCHIVED",
+        name="Archived linked risk",
+        process="Archive payload",
+        description="Archived linked risk normalized to active lifecycle status",
+        category="Operational",
+        department_id=test_department.id,
+        owner_id=test_user.id,
+        risk_type="operational",
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=2,
+        status="active",
+        is_archived=True,
+    )
+    control = Control(
+        name="Control Linked Archived Risk",
+        description="Control with archived linked risk",
+        department_id=test_department.id,
+        control_owner_id=test_user.id,
+        control_form="manual",
+        frequency="monthly",
+        risk_level=3,
+        status="active",
+    )
+    db_session.add_all([archived_risk, control])
+    await db_session.flush()
+    db_session.add(ControlRiskLink(control_id=control.id, risk_id=archived_risk.id, effectiveness="medium"))
+    await db_session.commit()
+
+    response = await auth_client.get(f"/api/v1/controls/{control.id}/risks")
+
+    assert response.status_code == 200
+    link = next(item for item in response.json() if item["risk_id"] == archived_risk.id)
+    assert link["risk"]["status"] == "active"
+    assert link["risk"]["is_archived"] is True
+
+
+@pytest.mark.asyncio
 async def test_list_controls_normalizes_legacy_semi_annual_frequency(
     auth_client: AsyncClient,
     db_session,
@@ -355,6 +402,39 @@ async def test_get_control_normalizes_legacy_semi_annual_frequency(
 
 
 @pytest.mark.asyncio
+async def test_control_payloads_emit_archive_state(
+    auth_client: AsyncClient,
+    db_session,
+    test_user: User,
+    test_department: Department,
+):
+    """Control detail and list payloads must expose the archive flag used by restore UI."""
+    archived_control = Control(
+        name="Archived Payload Control",
+        description="Archived control normalized to active lifecycle status",
+        department_id=test_department.id,
+        control_owner_id=test_user.id,
+        control_form="manual",
+        frequency="monthly",
+        risk_level=3,
+        status="active",
+        is_archived=True,
+    )
+    db_session.add(archived_control)
+    await db_session.commit()
+    await db_session.refresh(archived_control)
+
+    detail_response = await auth_client.get(f"/api/v1/controls/{archived_control.id}")
+    assert detail_response.status_code == 200
+    assert detail_response.json()["is_archived"] is True
+
+    list_response = await auth_client.get("/api/v1/controls?status=archived")
+    assert list_response.status_code == 200
+    archived_item = next(item for item in list_response.json()["items"] if item["id"] == archived_control.id)
+    assert archived_item["is_archived"] is True
+
+
+@pytest.mark.asyncio
 async def test_inactive_control_capabilities_do_not_expose_execution(
     auth_client: AsyncClient,
     db_session,
@@ -376,6 +456,37 @@ async def test_inactive_control_capabilities_do_not_expose_execution(
     await db_session.refresh(inactive_control)
 
     response = await auth_client.get(f"/api/v1/controls/{inactive_control.id}")
+
+    assert response.status_code == 200
+    capabilities = response.json()["capabilities"]
+    assert capabilities["can_read"] is True
+    assert capabilities["can_log_execution"] is False
+    assert capabilities["is_executable"] is False
+
+
+@pytest.mark.asyncio
+async def test_archived_active_control_capabilities_do_not_expose_execution(
+    auth_client: AsyncClient,
+    db_session,
+    test_user: User,
+    test_department: Department,
+):
+    archived_control = Control(
+        name="Archived Active Capability Control",
+        description="Archived active controls should not expose execution logging",
+        department_id=test_department.id,
+        control_owner_id=test_user.id,
+        control_form="manual",
+        frequency="monthly",
+        risk_level=3,
+        status="active",
+        is_archived=True,
+    )
+    db_session.add(archived_control)
+    await db_session.commit()
+    await db_session.refresh(archived_control)
+
+    response = await auth_client.get(f"/api/v1/controls/{archived_control.id}")
 
     assert response.status_code == 200
     capabilities = response.json()["capabilities"]
@@ -451,7 +562,7 @@ async def test_cross_department_control_owner_delete_permission_does_not_expose_
     )
     assert update_response.status_code == 202
 
-    control.status = "archived"
+    control.is_archived = True
     db_session.add(control)
     await db_session.commit()
 
@@ -561,6 +672,54 @@ async def test_control_list_include_archived_toggle(
     assert archived_list.status_code == 200
     archived_ids = {item["id"] for item in archived_list.json()["items"]}
     assert control_id in archived_ids
+
+
+@pytest.mark.asyncio
+async def test_control_status_filter_excludes_archived_normalized_controls(
+    auth_client: AsyncClient,
+    db_session,
+    test_user: User,
+    test_department: Department,
+):
+    """Lifecycle status filters should still exclude soft-archived controls."""
+    live_control = Control(
+        name="Active Status Filter Control",
+        description="Live control for active-status archive filtering",
+        department_id=test_department.id,
+        control_owner_id=test_user.id,
+        control_form="manual",
+        frequency="monthly",
+        risk_level=3,
+        status="active",
+        is_archived=False,
+    )
+    archived_control = Control(
+        name="Archived Normalized Control",
+        description="Archived control normalized back to active lifecycle status",
+        department_id=test_department.id,
+        control_owner_id=test_user.id,
+        control_form="manual",
+        frequency="monthly",
+        risk_level=3,
+        status="active",
+        is_archived=True,
+    )
+    db_session.add_all([live_control, archived_control])
+    await db_session.commit()
+    await db_session.refresh(live_control)
+    await db_session.refresh(archived_control)
+
+    active_response = await auth_client.get("/api/v1/controls?status=active")
+    assert active_response.status_code == 200
+    active_ids = {item["id"] for item in active_response.json()["items"]}
+    assert live_control.id in active_ids
+    assert archived_control.id not in active_ids
+
+    archived_response = await auth_client.get("/api/v1/controls?status=archived")
+    assert archived_response.status_code == 200
+    archived_ids = {item["id"] for item in archived_response.json()["items"]}
+    assert archived_control.id in archived_ids
+    assert live_control.id not in archived_ids
 
 
 @pytest.mark.asyncio

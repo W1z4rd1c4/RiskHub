@@ -28,15 +28,13 @@ async def list_breaches(
     include_archived: bool = Query(False, description="Include archived KRIs/risks"),
 ):
     """List only breached KRIs for dashboard widget. Excludes archived risks AND archived KRIs by default."""
-    from app.models.risk import RiskStatus
-
     # Apply department filtering via Risk join
     query = select(KeyRiskIndicator).join(Risk)
 
     # Exclude archived risks AND archived KRIs by default
     if not include_archived:
         query = query.where(
-            Risk.status != RiskStatus.archived.value,
+            Risk.live(),
             KeyRiskIndicator.is_archived.is_(False),
         )
 

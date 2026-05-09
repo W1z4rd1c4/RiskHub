@@ -15,7 +15,7 @@ import { buildRegisterTableModel } from '@/pages/shared/registerTablePresentatio
 import type { CollectionGroup } from '@/types/collection';
 import type { Vendor, VendorListParams } from '@/types/vendor';
 
-import { formatVendorGroupLabel } from './vendorsPagePresentation';
+import { formatVendorGroupLabel, getVendorDisplayStatus } from './vendorsPagePresentation';
 
 function scorePill(score: number) {
     if (score >= 5) return 'text-rose-400 bg-rose-400/10 border-rose-400/20';
@@ -145,11 +145,14 @@ export function VendorsTableSection({
                 key: 'status',
                 label: t('columns.status'),
                 sortable: true,
-                render: (vendor) => (
-                    <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase text-slate-300 bg-white/5 border border-white/10">
-                        {t(`status.${vendor.status}`, vendor.status)}
-                    </span>
-                ),
+                render: (vendor) => {
+                    const displayStatus = getVendorDisplayStatus(vendor);
+                    return (
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase text-slate-300 bg-white/5 border border-white/10">
+                            {t(`status.${displayStatus}`, displayStatus)}
+                        </span>
+                    );
+                },
             },
             {
                 key: 'id',

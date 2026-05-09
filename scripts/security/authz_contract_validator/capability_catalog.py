@@ -13,8 +13,14 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 BACKEND_BOOL_FIELD_PATTERN = re.compile(
     r"^\s+([A-Za-z_][A-Za-z0-9_]*):\s*bool(?:\s*=.*)?(?:\s*#.*)?$"
 )
+BACKEND_BOOL_DICT_FIELD_PATTERN = re.compile(
+    r"^\s+([A-Za-z_][A-Za-z0-9_]*):\s*dict\s*\[\s*str\s*,\s*bool\s*\](?:\s*=.*)?(?:\s*#.*)?$"
+)
 FRONTEND_BOOL_FIELD_PATTERN = re.compile(
     r"^\s*([A-Za-z_][A-Za-z0-9_]*):\s*z\.boolean\(\)"
+)
+FRONTEND_BOOL_RECORD_FIELD_PATTERN = re.compile(
+    r"^\s*([A-Za-z_][A-Za-z0-9_]*):\s*z\.record\(\s*z\.string\(\)\s*,\s*z\.boolean\(\)\s*\)"
 )
 
 SourceReader = Callable[[Path], str]
@@ -65,11 +71,14 @@ def _extract_backend_capability_fields(source: str, class_name: str) -> set[str]
     body = _extract_python_class_body(source, class_name)
     if body is None:
         return None
-    return {
-        match.group(1)
-        for line in body.splitlines()
-        if (match := BACKEND_BOOL_FIELD_PATTERN.match(line))
-    }
+    fields: set[str] = set()
+    for line in body.splitlines():
+        if match := BACKEND_BOOL_FIELD_PATTERN.match(line):
+            fields.add(match.group(1))
+            continue
+        if match := BACKEND_BOOL_DICT_FIELD_PATTERN.match(line):
+            fields.add(match.group(1))
+    return fields
 
 
 def _find_matching_closing_brace(source: str, open_brace_index: int) -> int | None:
@@ -102,7 +111,7 @@ def _find_matching_closing_brace(source: str, open_brace_index: int) -> int | No
 
 def _extract_typescript_schema_body(source: str, schema_name: str) -> str | None:
     schema_pattern = re.compile(
-        rf"\b(?:export\s+)?const\s+{re.escape(schema_name)}\s*=\s*passthroughObject\s*\("
+        rf"\b(?:export\s+)?const\s+{re.escape(schema_name)}\b(?:\s*:\s*[^=]+)?\s*=\s*passthroughObject\s*\("
     )
     match = schema_pattern.search(source)
     if match is None:
@@ -121,11 +130,14 @@ def _extract_frontend_capability_fields(source: str, schema_name: str) -> set[st
     body = _extract_typescript_schema_body(source, schema_name)
     if body is None:
         return None
-    return {
-        match.group(1)
-        for line in body.splitlines()
-        if (match := FRONTEND_BOOL_FIELD_PATTERN.match(line))
-    }
+    fields: set[str] = set()
+    for line in body.splitlines():
+        if match := FRONTEND_BOOL_FIELD_PATTERN.match(line):
+            fields.add(match.group(1))
+            continue
+        if match := FRONTEND_BOOL_RECORD_FIELD_PATTERN.match(line):
+            fields.add(match.group(1))
+    return fields
 
 
 def validate_capability_catalog(
@@ -156,6 +168,11 @@ def validate_capability_catalog(
             findings.append(Finding("capability_catalog_duplicate_surface", surface_id))
         else:
             seen_ids.add(surface_id)
+
+        interface = surface.get("interface")
+        if isinstance(interface, dict):
+            _validate_interface_surface(findings, str(surface_id), interface)
+            continue
 
         fields = surface.get("fields")
         if (
@@ -211,6 +228,22 @@ def validate_capability_catalog(
         )
 
     return findings
+
+
+def _validate_interface_surface(findings: list[Finding], surface_id: str, interface: dict[str, Any]) -> None:
+    path_raw = interface.get("path")
+    class_name = interface.get("class")
+    method_name = interface.get("method")
+    if not isinstance(path_raw, str) or not isinstance(class_name, str) or not isinstance(method_name, str):
+        findings.append(Finding("capability_catalog_interface_reference", surface_id))
+        return
+
+    source = _read_source(Path(path_raw))
+    if _extract_python_class_body(source, class_name) is None:
+        findings.append(Finding("capability_catalog_interface_class_missing", f"{surface_id}: {class_name}"))
+        return
+    if not re.search(rf"^\s+def\s+{re.escape(method_name)}\b", source, flags=re.MULTILINE):
+        findings.append(Finding("capability_catalog_interface_method_missing", f"{surface_id}: {method_name}"))
 
 
 def _validate_backend_fields(
@@ -271,4 +304,3 @@ def _validate_frontend_fields(
         findings.append(
             Finding("capability_catalog_frontend_field_extra", f"{surface_id}: {frontend_schema}.{field}")
         )
-

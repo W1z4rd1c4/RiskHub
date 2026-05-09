@@ -4,13 +4,13 @@ from collections.abc import Awaitable, Callable, Sequence
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models import Issue, User
+from app.schemas.issue import IssueCapabilities, IssueRead, IssueSummary
+from app.services._issue_register.linked_context import build_issue_linked_visibility
 from app.services._issue_register.serialization import (
     _serialize_issue_read,
     _serialize_issue_summary,
-    build_issue_linked_visibility,
 )
-from app.models import Issue, User
-from app.schemas.issue import IssueCapabilities, IssueRead, IssueSummary
 from app.services.authorization_capabilities import issue_capabilities
 
 IssueCapabilityLoader = Callable[..., Awaitable[IssueCapabilities]]

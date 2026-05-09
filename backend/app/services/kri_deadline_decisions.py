@@ -3,6 +3,7 @@ from datetime import date, timedelta
 
 from app.models.key_risk_indicator import KeyRiskIndicator
 from app.models.notification import NotificationType
+from app.services._monitoring_status.kris import classify_kri_breach
 
 
 @dataclass(frozen=True)
@@ -75,7 +76,11 @@ def build_kri_limit_notification_plan(
     kri: KeyRiskIndicator,
     config: dict,
 ) -> KriDeadlineNotificationPlan | None:
-    breach_status = kri.breach_status
+    breach_status = classify_kri_breach(
+        current_value=kri.current_value,
+        lower_limit=kri.lower_limit,
+        upper_limit=kri.upper_limit,
+    )
 
     if breach_status in ("above", "below"):
         return KriDeadlineNotificationPlan(

@@ -13,7 +13,7 @@ const riskCapabilitiesSchema = passthroughObject({
     can_archive_immediately: z.boolean(),
     can_request_archive_approval: z.boolean(),
     can_restore: z.boolean(),
-    can_send_questionnaire: z.boolean().optional(),
+    can_send_questionnaire: z.boolean(),
     can_create_kri: z.boolean(),
     can_create_linked_control: z.boolean(),
     can_link_controls: z.boolean(),
@@ -40,7 +40,8 @@ export const riskSummarySchema: z.ZodType<RiskSummary> = passthroughObject({
     gross_probability: z.number(),
     gross_impact: z.number(),
     net_score: z.number(),
-    status: z.enum(['active', 'emerging', 'archived']),
+    status: z.enum(['active', 'emerging']),
+    is_archived: z.boolean().default(false),
     is_priority: z.boolean(),
     department_id: z.number().nullable().optional(),
     department_name: z.string().nullable().optional(),
@@ -72,7 +73,10 @@ export const riskSchema: z.ZodType<Risk> = passthroughObject({
     net_probability: z.number(),
     net_impact: z.number(),
     net_score: z.number(),
-    status: z.enum(['active', 'emerging', 'archived']),
+    status: z.enum(['active', 'emerging']),
+    is_archived: z.boolean().default(false),
+    archived_at: z.string().nullable().optional(),
+    archived_by_id: z.number().nullable().optional(),
     is_priority: z.boolean(),
     kri_indicator: z.string().optional(),
     kri_threshold_green: z.string().optional(),
@@ -100,6 +104,7 @@ export const riskControlLinkSchema: z.ZodType<RiskControlLink> = passthroughObje
             frequency: z.string(),
             risk_level: z.number(),
             status: z.string(),
+            is_archived: z.boolean(),
         })
         .optional(),
     risk: passthroughObject({
@@ -108,6 +113,7 @@ export const riskControlLinkSchema: z.ZodType<RiskControlLink> = passthroughObje
         process: z.string(),
         gross_score: z.number(),
         net_score: z.number(),
+        is_archived: z.boolean(),
     }).optional(),
 });
 export const riskControlLinkArraySchema = z.array(riskControlLinkSchema);

@@ -27,6 +27,7 @@ async def test_auth_config_password_mode(client: AsyncClient):
         assert body["demo_login_enabled"] is False
         assert "debug" not in body
         assert "mock_auth_enabled" not in body
+        assert body["strict_capabilities"] is False
         assert body["sso"]["enabled"] is False
     finally:
         app.dependency_overrides.clear()
@@ -85,5 +86,25 @@ async def test_auth_config_microsoft_sso_missing_config_sets_sso_error(client: A
         assert "mock_auth_enabled" not in body
         assert body["sso"]["enabled"] is False
         assert body["sso_error"]
+    finally:
+        app.dependency_overrides.clear()
+
+
+@pytest.mark.asyncio
+async def test_auth_config_strict_capabilities_uses_settings_lever(client: AsyncClient):
+    def override_settings():
+        return Settings(
+            debug=True,
+            secret_key="test-secret-key-32-chars-minimum-value",
+            mock_auth_enabled=True,
+            auth_mode="password",
+            strict_capabilities_enabled=True,
+        )
+
+    app.dependency_overrides[get_settings] = override_settings
+    try:
+        res = await client.get("/api/v1/auth/config")
+        assert res.status_code == 200
+        assert res.json()["strict_capabilities"] is True
     finally:
         app.dependency_overrides.clear()

@@ -1,9 +1,10 @@
 """Schemas for orphaned items management."""
 
-from datetime import datetime
 from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict
+
+from app.core.datetime_utils import UtcAwareDatetime
 
 
 class OrphanedItemRead(BaseModel):
@@ -15,8 +16,8 @@ class OrphanedItemRead(BaseModel):
     previous_owner_id: int
     previous_owner_name: Optional[str] = None
     previous_owner_email: Optional[str] = None
-    orphaned_at: datetime
-    resolved_at: Optional[datetime] = None
+    orphaned_at: UtcAwareDatetime
+    resolved_at: Optional[UtcAwareDatetime] = None
     resolved_by_id: Optional[int] = None
     new_owner_id: Optional[int] = None
     status: str  # "pending" | "resolved"
@@ -36,7 +37,7 @@ class OrphanedItemDetail(BaseModel):
     department_name: Optional[str] = None
     previous_owner_name: str
     previous_owner_email: str
-    orphaned_at: datetime
+    orphaned_at: UtcAwareDatetime
     status: str
     capabilities: Optional[dict[str, bool]] = None
 
@@ -71,7 +72,7 @@ class OrphanedItemsOverview(BaseModel):
 
     stats: OrphanedItemStats
     items: list[OrphanedItemDetail]
-    last_scan_at: Optional[datetime] = None
+    last_scan_at: Optional[UtcAwareDatetime] = None
     scan_status: Optional[str] = None
 
 

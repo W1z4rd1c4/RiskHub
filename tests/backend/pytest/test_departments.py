@@ -4,7 +4,8 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Control, Department, KeyRiskIndicator, Risk, Role, User
+from app.models import Control, Department, GlobalConfig, KeyRiskIndicator, Risk, Role, User
+from app.models.global_config import clear_config_cache
 from app.models.risk import RiskStatus as RiskStatusEnum
 from app.models.user import AccessScope
 
@@ -72,6 +73,70 @@ async def test_list_department_risks_with_min_net_score(
     assert len(data) == 1
     assert data[0]["risk_id_code"] == "RISK-HIGH-SCORE"
     assert data[0]["net_score"] >= 10
+
+
+@pytest.mark.asyncio
+async def test_department_detail_high_risk_count_uses_config_threshold(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: User,
+):
+    config = GlobalConfig(
+        key="high_risk_min_net_score",
+        value="12",
+        value_type="int",
+        category="risk_thresholds",
+        display_name="High Risk Threshold",
+    )
+    dept = Department(name="Configured High Risk Dept", code="CFG-HIGH")
+    db_session.add_all([config, dept])
+    await db_session.commit()
+    await db_session.refresh(dept)
+    clear_config_cache()
+
+    below_configured_high = Risk(
+        risk_id_code="RISK-CONFIG-BELOW-HIGH",
+        name="Below Configured High Risk",
+        process="Configured threshold",
+        description="Default-high but below configured-high",
+        category="Test",
+        department_id=dept.id,
+        owner_id=test_user.id,
+        risk_type="operational",
+        gross_probability=4,
+        gross_impact=4,
+        gross_score=16,
+        net_probability=1,
+        net_impact=11,
+        net_score=11,
+        status=RiskStatusEnum.active.value,
+    )
+    configured_high = Risk(
+        risk_id_code="RISK-CONFIG-HIGH",
+        name="Configured High Risk",
+        process="Configured threshold",
+        description="At configured high threshold",
+        category="Test",
+        department_id=dept.id,
+        owner_id=test_user.id,
+        risk_type="operational",
+        gross_probability=4,
+        gross_impact=4,
+        gross_score=16,
+        net_probability=3,
+        net_impact=4,
+        net_score=12,
+        status=RiskStatusEnum.active.value,
+    )
+    db_session.add_all([below_configured_high, configured_high])
+    await db_session.commit()
+
+    response = await auth_client.get(f"/api/v1/departments/{dept.id}")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["high_risk_count"] == 1
+    assert payload["risk_distribution"]["high"] == 2
 
 
 @pytest.mark.asyncio
@@ -376,6 +441,53 @@ async def test_get_department_active_user_count(
 
     # user_count should only be 2 (active ones)
     assert data["user_count"] == 2
+
+
+@pytest.mark.asyncio
+async def test_department_detail_control_stats_exclude_archived_normalized_controls(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: User,
+):
+    dept = Department(name="Control Stats Archive Dept", code="CTRL-STATS-ARCH")
+    db_session.add(dept)
+    await db_session.commit()
+    await db_session.refresh(dept)
+
+    live_control = Control(
+        name="Department Live Active Control",
+        description="Live active control included in department stats",
+        department_id=dept.id,
+        control_owner_id=test_user.id,
+        control_form="manual",
+        frequency="monthly",
+        risk_level=3,
+        status="active",
+        is_archived=False,
+    )
+    archived_control = Control(
+        name="Department Archived Normalized Active Control",
+        description="Archived control normalized to active lifecycle status",
+        department_id=dept.id,
+        control_owner_id=test_user.id,
+        control_form="automatic",
+        frequency="daily",
+        risk_level=3,
+        status="active",
+        is_archived=True,
+    )
+    db_session.add_all([live_control, archived_control])
+    await db_session.commit()
+
+    response = await auth_client.get(f"/api/v1/departments/{dept.id}")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["control_count"] == 1
+    assert data["control_stats"]["total"] == 1
+    assert data["control_stats"]["active"] == 1
+    assert data["control_stats"]["by_form"] == {"manual": 1}
+    assert data["control_stats"]["by_frequency"] == {"monthly": 1}
 
 
 @pytest.mark.asyncio

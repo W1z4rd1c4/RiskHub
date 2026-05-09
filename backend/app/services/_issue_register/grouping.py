@@ -1,7 +1,6 @@
 from sqlalchemy import case, func, or_, select, union_all
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.services._collection_contracts import CollectionGroupEntry
 from app.core.permissions import risk_visibility_clause, vendor_visibility_clause
 from app.models import (
     ControlExecution,
@@ -16,6 +15,7 @@ from app.models import (
 )
 from app.models.issue import IssueSeverity, IssueStatus
 from app.schemas.collection import CollectionGroupRead
+from app.services._collection_contracts import CollectionGroupEntry
 
 ISSUE_GROUP_UNLINKED_VENDOR = "__unlinked_vendor__"
 ISSUE_GROUP_UNCATEGORIZED = "__uncategorized__"
@@ -210,16 +210,17 @@ async def load_issue_sql_groups(
             .order_by(func.lower(label_expr))
         )
 
+    rows = (await db.execute(query)).mappings().all()
     return [
         CollectionGroupRead(
-            value=str(row.value),
-            label=str(row.label),
-            count=row.count,
-            active_count=row.active_count,
-            highlighted_count=row.highlighted_count,
+            value=str(row["value"]),
+            label=str(row["label"]),
+            count=row["count"],
+            active_count=row["active_count"],
+            highlighted_count=row["highlighted_count"],
             meta={},
         )
-        for row in (await db.execute(query)).all()
+        for row in rows
     ]
 
 

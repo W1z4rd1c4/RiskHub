@@ -16,7 +16,6 @@ from app.core.pagination import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
 from app.core.security import check_permission, require_permission
 from app.db.session import get_db
 from app.models import Control, User
-from app.models.control import ControlStatus
 from app.schemas.control import ControlFormEnum, ControlStatusEnum, ControlSummary, normalize_control_frequency
 
 from ._shared import _assert_department_in_scope
@@ -48,10 +47,13 @@ async def list_department_controls(
     query = select(Control).where(Control.department_id == department_id)
 
     if status:
-        query = query.where(Control.status == status)
+        if status == "archived":
+            query = query.where(Control.archived())
+        else:
+            query = query.where(Control.status == status, Control.live())
     else:
         # Default: exclude archived
-        query = query.where(Control.status != ControlStatus.archived.value)
+        query = query.where(Control.live())
 
     # Eager load relationships for ControlSummary fields
     query = (
@@ -81,6 +83,7 @@ async def list_department_controls(
             frequency=normalize_control_frequency(c.frequency),
             risk_level=c.risk_level,
             status=ControlStatusEnum(c.status),
+            is_archived=c.is_archived,
             control_form=ControlFormEnum(c.control_form),
             control_owner_name=c.control_owner.name if c.control_owner else None,
             **build_control_monitoring_fields(c, monitoring_context),

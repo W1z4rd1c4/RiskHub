@@ -2,11 +2,11 @@
 
 from dataclasses import dataclass
 
-from fastapi import HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased, selectinload
 
+from app.core.exceptions import NotFoundError
 from app.models import Control, KeyRiskIndicator, OrphanedItem, Risk, User, Vendor
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.models.department import Department
@@ -107,7 +107,7 @@ async def load_department_for_update(db: AsyncSession, department_id: int) -> De
     )
     department = result.scalar_one_or_none()
     if not department:
-        raise HTTPException(status_code=404, detail="Department not found")
+        raise NotFoundError("Department not found")
     return department
 
 

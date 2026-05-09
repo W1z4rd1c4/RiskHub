@@ -4,6 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core._permissions.entity_visibility import ENTITY_VISIBILITY_PROJECTIONS
 from app.core.permissions import (
     can_read_kri_id,
     can_read_risk_id,
@@ -12,7 +13,6 @@ from app.core.permissions import (
     visible_risk_ids,
     visible_vendor_ids,
 )
-from app.core._permissions.entity_visibility import ENTITY_VISIBILITY_PROJECTIONS
 from app.models import Department, KeyRiskIndicator, Permission, Risk, Role, RolePermission, User, Vendor
 from app.models.risk import RiskStatus
 from app.models.user import AccessScope

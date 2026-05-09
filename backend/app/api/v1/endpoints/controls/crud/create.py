@@ -4,16 +4,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.v1.endpoints._monitoring_response import load_monitoring_response_context, serialize_control_read
-from app.core.activity_logger import log_activity
+from app.core.audit.control import control_created
 from app.core.datetime_utils import utc_now
 from app.core.owner_reference_validation import validate_active_owner_reference
 from app.core.permissions import check_department_access
 from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import Control, User
-from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas.control import ControlCreate, ControlRead
 from app.services.authorization_capabilities import control_capabilities
+from app.services.transaction_boundary import commit_service_transaction
 
 from .list import router
 
@@ -57,16 +57,8 @@ async def create_control(
     await db.flush()
 
     # Log activity within the same transaction
-    await log_activity(
-        db,
-        entity_type=ActivityEntityType.CONTROL,
-        entity_id=control.id,
-        entity_name=f"{control.name}",
-        action=ActivityAction.CREATE,
-        actor=current_user,
-        department_id=control.department_id,
-    )
-    await db.commit()
+    await control_created(db, actor=current_user, control=control)
+    await commit_service_transaction(db)
     await db.refresh(control)
 
     # Reload with relationships

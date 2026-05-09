@@ -77,7 +77,7 @@ async def execute_deadline_notification_plan(
         visibility_check=plan.visibility_check,
     )
     if created and results is not None:
-        result_keys = ("notifications_created",)
+        result_keys: tuple[str, ...] = ("notifications_created",)
         if plan.result_bucket is not None:
             result_keys = (*result_keys, plan.result_bucket)
         increment_deadline_results(results, *result_keys)

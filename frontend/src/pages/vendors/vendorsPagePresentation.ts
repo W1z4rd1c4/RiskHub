@@ -1,6 +1,6 @@
 import type { ViewMode } from '@/components/tables';
 import type { CollectionGroup } from '@/types/collection';
-import type { VendorListParams, VendorStatus, VendorType } from '@/types/vendor';
+import type { Vendor, VendorListParams, VendorStatus, VendorType } from '@/types/vendor';
 
 import { getCollectionGroupBy } from '../shared/collectionViewVocabulary';
 
@@ -19,6 +19,13 @@ const VENDOR_VIEW_MODE_GROUPS = {
     flag: 'flag',
 } as const satisfies Partial<Record<ViewMode, string>>;
 
+export type VendorListStatusFilter = VendorStatus | 'inactive' | '';
+export type VendorDisplayStatus = VendorStatus | 'inactive';
+
+export function getVendorDisplayStatus(vendor: Pick<Vendor, 'status' | 'is_archived'>): VendorDisplayStatus {
+    return vendor.is_archived ? 'inactive' : vendor.status;
+}
+
 interface BuildVendorListParamsOptions {
     currentPage: number;
     debouncedSearch: string;
@@ -26,7 +33,7 @@ interface BuildVendorListParamsOptions {
     limit: number;
     sortDirection: 'asc' | 'desc' | null;
     sortField: VendorListParams['sort_by'] | null;
-    statusFilter: VendorStatus | '';
+    statusFilter: VendorListStatusFilter;
     typeFilter: VendorType | '';
     groupBy?: string | null;
     groupValue?: string | null;
@@ -34,7 +41,7 @@ interface BuildVendorListParamsOptions {
 
 interface BuildVendorExportFiltersOptions {
     search: string;
-    statusFilter: VendorStatus | '';
+    statusFilter: VendorListStatusFilter;
     typeFilter: VendorType | '';
 }
 
@@ -85,7 +92,7 @@ export function buildVendorExportFilters({
     typeFilter,
 }: BuildVendorExportFiltersOptions): {
     search: string | null;
-    status: VendorStatus | null;
+    status: VendorListStatusFilter | null;
     vendorType: VendorType | null;
 } {
     return {

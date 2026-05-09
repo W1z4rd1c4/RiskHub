@@ -4,10 +4,10 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Literal, Protocol
 
-from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.exceptions import NotFoundError, ValidationError
 from app.core.permissions import can_resolve_approvals
 from app.models import KeyRiskIndicator, User
 from app.models.kri_history import KRIValueHistory
@@ -23,9 +23,14 @@ from app.schemas.kri import (
 
 
 class KRIValueMutationTarget(Protocol):
-    current_value: float | None
-    last_period_end: date | None
-    last_reported_at: datetime | None
+    @property
+    def current_value(self) -> float | None: ...
+
+    @property
+    def last_period_end(self) -> date | None: ...
+
+    @property
+    def last_reported_at(self) -> datetime | None: ...
 
 
 @dataclass(frozen=True)
@@ -43,7 +48,7 @@ class KriValueGovernanceOutcome:
 
 
 @dataclass(frozen=True)
-class KriCorrectionPlan:
+class KriCorrectionExecutionPlan:
     kri: KeyRiskIndicator
     entry: KRIValueHistory
     new_value: float
@@ -138,13 +143,14 @@ async def list_kri_history_projection(
     sort_by: str,
     sort_direction: str,
 ) -> KRIHistoryListResponse:
+    from app.services.kri_history_service import KRIHistoryService
+
     from .loading import _load_kri_with_risk_or_404
     from .workflow import ensure_can_read_history, history_capabilities
-    from app.services.kri_history_service import KRIHistoryService
 
     kri = await _load_kri_with_risk_or_404(db, kri_id)
     if kri.is_archived and not include_archived:
-        raise HTTPException(status_code=404, detail="KRI not found")
+        raise NotFoundError("KRI not found")
     await ensure_can_read_history(db, current_user, kri)
 
     effective_limit = size if size is not None else limit
@@ -207,10 +213,11 @@ async def correct_kri_history_governance(
     data: KRIHistoryEdit,
     current_user: User,
 ) -> KRIHistoryEntry | ApprovalQueuedResponse:
-    from .loading import _load_kri_with_risk_or_404
-    from .workflow import ensure_can_request_history_correction
     from app.services.approval_scenario_policy import load_approval_scenario_policy
     from app.services.kri_history_service import KRIHistoryService
+
+    from .loading import _load_kri_with_risk_or_404
+    from .workflow import ensure_can_request_history_correction
 
     kri = await _load_kri_with_risk_or_404(db, kri_id, for_update=True)
     await ensure_can_request_history_correction(db, current_user, kri)
@@ -221,7 +228,7 @@ async def correct_kri_history_governance(
         )
     ).scalar_one_or_none()
     if not entry:
-        raise HTTPException(status_code=404, detail="History entry not found")
+        raise NotFoundError("History entry not found")
 
     scenario_policy = await load_approval_scenario_policy(
         db,
@@ -240,7 +247,7 @@ async def correct_kri_history_governance(
             await db.refresh(updated_entry)
             return KRIHistoryEntry.model_validate(updated_entry)
         except ValueError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
+            raise ValidationError(str(exc)) from exc
 
     return await _create_kri_history_correction_approval(
         db,

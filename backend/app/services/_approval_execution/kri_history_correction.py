@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import activity_logger
+from app.core.audit.kri import kri_history_corrected, kri_updated
+from app.core.exceptions import ServiceFailure, ValidationError
 from app.models import ApprovalRequest, KeyRiskIndicator, User
-from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.models.kri_history import KRIValueHistory
 from app.services._kri_history.governance import (
     build_kri_value_mutation_changes,
@@ -41,7 +41,7 @@ async def _apply_kri_history_correction(
     period_end = changes.get("period_end")
 
     if entry_id is None or new_value is None or old_value is None or period_end is None:
-        raise HTTPException(status_code=400, detail="Invalid KRI history correction payload")
+        raise ValidationError("Invalid KRI history correction payload")
 
     entry_result = await db.execute(select(KRIValueHistory).where(KRIValueHistory.id == entry_id).with_for_update())
     entry = entry_result.scalar_one_or_none()
@@ -92,32 +92,25 @@ async def _apply_kri_history_correction(
             corrected_by_id=current_user.id,
         )
 
-        await activity_logger.log_activity(
+        await kri_history_corrected(
             db,
-            entity_type=ActivityEntityType.KRI_VALUE,
-            entity_id=entry_id,
-            entity_name=f"{kri.metric_name} ({updated_entry.period_end.isoformat()})",
-            safe_entity_label=f"{kri.metric_name} ({updated_entry.period_end.isoformat()})",
-            action=ActivityAction.UPDATE,
+            kri=kri,
+            history_entry=updated_entry,
             actor=current_user,
-            department_id=department_id,
             changes={"value": {"old": old_value, "new": new_value}},
             description=f"Corrected via approval #{approval.id}",
+            log_activity_func=activity_logger.log_activity,
         )
 
         kri_changes = build_kri_value_mutation_changes(kri, mutation_snapshot)
         if kri_changes:
-            await activity_logger.log_activity(
+            await kri_updated(
                 db,
-                entity_type=ActivityEntityType.KRI,
-                entity_id=kri.id,
-                entity_name=f"{kri.metric_name}",
-                safe_entity_label=kri.metric_name,
-                action=ActivityAction.UPDATE,
                 actor=current_user,
-                department_id=department_id,
+                kri=kri,
                 changes=kri_changes,
                 description=f"Updated via approval #{approval.id} (history correction)",
+                log_activity_func=activity_logger.log_activity,
             )
         return SideEffectResult.applied()
 
@@ -127,6 +120,6 @@ async def _apply_kri_history_correction(
             approval,
             f"KRI history correction no longer passes apply-time validation ({e}).",
         )
-    except Exception:
+    except Exception as exc:
         logger.exception("Unexpected error in KRI history correction approval flow")
-        raise HTTPException(status_code=500, detail="Internal server error during KRI approval execution")
+        raise ServiceFailure("Internal server error during KRI approval execution") from exc

@@ -53,10 +53,13 @@ async def has_recent_deadline_notification(
     not_before: datetime | None = None,
     message_contains: str | None = None,
 ) -> bool:
-    cutoff_date = coerce_utc(now) - timedelta(days=lookback_days)
+    now_utc = coerce_utc(now)
+    if now_utc is None:
+        raise ValueError("now is required")
+    cutoff_date = now_utc - timedelta(days=lookback_days)
     if not_before is not None:
         not_before_utc = coerce_utc(not_before)
-        if not_before_utc > cutoff_date:
+        if not_before_utc is not None and not_before_utc > cutoff_date:
             cutoff_date = not_before_utc
     stmt = (
         select(Notification)

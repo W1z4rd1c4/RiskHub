@@ -4,11 +4,12 @@ import { Download, Plus, RefreshCw, Search } from 'lucide-react';
 import { ExportDialog } from '@/components/reports/ExportDialog';
 import { ViewSwitcher } from '@/components/tables';
 import { useTranslation } from '@/i18n/hooks';
-import type { VendorStatus, VendorType } from '@/types/vendor';
+import type { VendorType } from '@/types/vendor';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 
 import { VendorsTableSection } from './vendors/VendorsTableSection';
 import { useVendorsPageState } from './vendors/useVendorsPageState';
+import type { VendorListStatusFilter } from './vendors/vendorsPagePresentation';
 import { ReadAccessDeniedState } from './shared/ReadAccessDeniedState';
 
 export function VendorsPage() {
@@ -110,7 +111,7 @@ export function VendorsPage() {
                 <div className="flex gap-4">
                     <ThemedSelect
                         value={statusFilter}
-                        onValueChange={(value) => updateStatusFilter(value as VendorStatus | '')}
+                        onValueChange={(value) => updateStatusFilter(value as VendorListStatusFilter)}
                         placeholder={t('filters.all_statuses')}
                         allowEmpty
                         emptyLabel={t('filters.all_statuses')}

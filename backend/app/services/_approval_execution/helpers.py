@@ -39,7 +39,7 @@ def missing_resource_auto_rejection(
 
 
 async def apply_whitelisted_pending_changes(
-    db: AsyncSession | None,
+    db: AsyncSession,
     *,
     approval: ApprovalRequest,
     target,

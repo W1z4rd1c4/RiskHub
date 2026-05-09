@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import importlib.util
 import importlib
+import importlib.util
 import json
 import sys
 from pathlib import Path
@@ -218,6 +218,42 @@ const exampleCapabilitiesSchema = passthroughObject({
     findings = validator._validate_capability_catalog(catalog, source_by_path=source_by_path)
 
     assert "capability_catalog_frontend_field_missing" in {finding.reason for finding in findings}
+
+
+def test_capability_catalog_validates_me_capabilities_resource_permissions_shape() -> None:
+    validator = _load_validator()
+    catalog = {
+        "version": "test",
+        "surfaces": [
+            {
+                "id": "me_capabilities",
+                "backend": {
+                    "path": "backend/app/schemas/user.py",
+                    "class": "MeCapabilities",
+                },
+                "frontend": {
+                    "path": "frontend/src/services/api/schemas/auth.ts",
+                    "schema": "meCapabilitiesSchema",
+                },
+                "fields": ["can_read_risks", "resource_permissions"],
+            }
+        ],
+    }
+    source_by_path = {
+        Path("backend/app/schemas/user.py"): """
+class MeCapabilities(BaseModel):
+    can_read_risks: bool = False
+    resource_permissions: dict[str, bool] = Field(default_factory=dict)
+""",
+        Path("frontend/src/services/api/schemas/auth.ts"): """
+export const meCapabilitiesSchema = passthroughObject({
+    can_read_risks: z.boolean(),
+    resource_permissions: z.record(z.string(), z.boolean()),
+});
+""",
+    }
+
+    assert validator._validate_capability_catalog(catalog, source_by_path=source_by_path) == []
 
 
 def test_markdown_matrix_field_drift_fails_validation() -> None:
@@ -623,8 +659,8 @@ def test_business_nav_validator_rejects_controls_risk_read_gate() -> None:
     validator = _load_validator()
     source = (REPO_ROOT / "frontend/src/routing/business.tsx").read_text(encoding="utf-8")
     source = source.replace(
-        "hasPermission('controls', 'read')",
-        "hasPermission('risks', 'read')",
+        "authz.can('read', 'controls')",
+        "authz.can('read', 'risks')",
         1,
     )
 
@@ -640,12 +676,12 @@ def test_business_nav_validator_rejects_kri_department_read_gate() -> None:
     source = (REPO_ROOT / "frontend/src/routing/business.tsx").read_text(encoding="utf-8")
     source = source.replace(
         (
-            "isVisible: ({ authz, hasPermission }) => !authz.isPlatformAdmin "
-            "&& hasPermission('risks', 'read'),\n      order: 60,"
+            "isVisible: ({ authz }) => !authz.isPlatformAdmin "
+            "&& authz.can('read', 'risks'),\n      order: 60,"
         ),
         (
-            "isVisible: ({ authz, hasPermission }) => !authz.isPlatformAdmin "
-            "&& hasPermission('departments', 'read'),\n      order: 60,"
+            "isVisible: ({ authz }) => !authz.isPlatformAdmin "
+            "&& authz.can('read', 'departments'),\n      order: 60,"
         ),
         1,
     )

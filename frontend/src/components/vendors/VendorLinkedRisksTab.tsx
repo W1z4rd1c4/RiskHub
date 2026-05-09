@@ -63,8 +63,8 @@ export function VendorLinkedRisksTab({
         [linkedRisks],
     );
 
-    const activeRisks = linkedRisks.filter((risk) => risk.status !== 'archived');
-    const archivedRisks = linkedRisks.filter((risk) => risk.status === 'archived');
+    const activeRisks = linkedRisks.filter((risk) => !risk.is_archived);
+    const archivedRisks = linkedRisks.filter((risk) => risk.is_archived);
 
     const handleLink = async (riskId: number) => {
         await vendorLinkApi.linkRisk(vendorId, riskId);

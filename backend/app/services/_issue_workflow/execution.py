@@ -2,16 +2,18 @@ from __future__ import annotations
 
 from fastapi import HTTPException, status
 
-from app.core.activity_logger import build_change_set, log_activity
+from app.core.activity_logger import build_change_set
+from app.core.audit.issue import issue_linked, issue_updated
 from app.models import User
-from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas.issue import (
     IssueAssignRequest,
     IssueCloseRequest,
     IssueExceptionApproveRequest,
+    IssueExceptionRead,
     IssueExceptionRequestCreate,
     IssueExceptionRevokeRequest,
     IssueProgressUpdateRequest,
+    IssueRead,
     IssueStartRemediationRequest,
     IssueUpdate,
 )
@@ -47,7 +49,13 @@ from app.services._issue_workflow.update_plans import build_issue_update_plan
 from app.services.issue_workflow_service import IssueWorkflowService
 
 
-async def update_issue_detail(*, db, issue_id: int, payload: IssueUpdate, current_user) -> IssueWorkflowOutcome:
+async def update_issue_detail(
+    *,
+    db,
+    issue_id: int,
+    payload: IssueUpdate,
+    current_user,
+) -> IssueWorkflowOutcome[IssueRead]:
     issue = await get_writable_issue_or_404(db, issue_id, current_user)
     plan = await build_issue_update_plan(db=db, issue=issue, payload=payload, current_user=current_user)
     changes = build_change_set(issue, plan.updates)
@@ -78,26 +86,13 @@ async def update_issue_detail(*, db, issue_id: int, payload: IssueUpdate, curren
                 source_link, source_link_created = source_link_result
         db.expire(issue, ["links"])
 
-    await log_activity(
-        db,
-        entity_type=ActivityEntityType.ISSUE,
-        entity_id=issue.id,
-        entity_name=issue.title,
-        action=ActivityAction.UPDATE,
-        actor=current_user,
-        department_id=issue.department_id,
-        changes=changes,
-    )
+    await issue_updated(db, actor=current_user, issue=issue, changes=changes)
     if source_link is not None and source_link_created:
-        await log_activity(
+        await issue_linked(
             db,
-            entity_type=ActivityEntityType.ISSUE,
-            entity_id=issue.id,
-            entity_name=issue.title,
-            action=ActivityAction.LINK,
             actor=current_user,
-            department_id=issue.department_id,
-            changes={"link_id": {"old": None, "new": source_link.id}},
+            issue=issue,
+            link=source_link,
             description=f"Linked issue source to issue {issue.title}",
         )
 
@@ -113,7 +108,7 @@ async def assign_issue_detail(
     issue_id: int,
     payload: IssueAssignRequest,
     current_user: User,
-) -> IssueWorkflowOutcome:
+) -> IssueWorkflowOutcome[IssueRead]:
     issue = await get_writable_issue_or_404(db, issue_id, current_user)
     await validate_user_exists(db, payload.owner_user_id)
     await ensure_owner_assignable(
@@ -143,7 +138,7 @@ async def start_remediation_detail(
     issue_id: int,
     payload: IssueStartRemediationRequest,
     current_user: User,
-) -> IssueWorkflowOutcome:
+) -> IssueWorkflowOutcome[IssueRead]:
     issue = await get_writable_issue_or_404(db, issue_id, current_user)
     await IssueWorkflowService.start_remediation(
         db,
@@ -161,7 +156,7 @@ async def update_remediation_progress_detail(
     issue_id: int,
     payload: IssueProgressUpdateRequest,
     current_user: User,
-) -> IssueWorkflowOutcome:
+) -> IssueWorkflowOutcome[IssueRead]:
     issue = await get_writable_issue_or_404(db, issue_id, current_user)
     remediation_status = payload.remediation_status.value if payload.remediation_status else None
     await IssueWorkflowService.update_progress(
@@ -183,7 +178,7 @@ async def close_issue_detail(
     issue_id: int,
     payload: IssueCloseRequest,
     current_user: User,
-) -> IssueWorkflowOutcome:
+) -> IssueWorkflowOutcome[IssueRead]:
     issue = await get_writable_issue_or_404(db, issue_id, current_user)
     await IssueWorkflowService.close_issue(
         db,
@@ -202,7 +197,7 @@ async def request_exception_detail(
     issue_id: int,
     payload: IssueExceptionRequestCreate,
     current_user: User,
-) -> IssueWorkflowOutcome:
+) -> IssueWorkflowOutcome[IssueExceptionRead]:
     issue = await get_writable_issue_or_404(db, issue_id, current_user)
     exception = await IssueWorkflowService.request_exception(
         db,
@@ -226,7 +221,7 @@ async def approve_exception_detail(
     issue_id: int,
     payload: IssueExceptionApproveRequest,
     current_user: User,
-) -> IssueWorkflowOutcome:
+) -> IssueWorkflowOutcome[IssueExceptionRead]:
     issue = await get_readable_issue_or_404(db, issue_id, current_user)
     active = active_exception(issue)
     if active is not None:
@@ -262,7 +257,7 @@ async def revoke_exception_detail(
     issue_id: int,
     payload: IssueExceptionRevokeRequest,
     current_user: User,
-) -> IssueWorkflowOutcome:
+) -> IssueWorkflowOutcome[IssueExceptionRead]:
     issue = await get_readable_issue_or_404(db, issue_id, current_user)
     selection = await select_exception_for_revocation(db, issue_id=issue.id, exception_id=payload.exception_id)
     if selection.exception is None:

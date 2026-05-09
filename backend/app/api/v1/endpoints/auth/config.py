@@ -99,6 +99,7 @@ async def get_auth_config(settings: Settings = Depends(get_settings)) -> AuthCon
         auth_mode=settings.auth_mode,
         demo_login_enabled=demo_login_enabled,
         password_login_enabled=password_login_enabled,
+        strict_capabilities=settings.strict_capabilities_enabled,
         sso=AuthSsoConfig(
             enabled=sso_enabled,
             tenant_id=tenant_id,

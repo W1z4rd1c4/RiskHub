@@ -43,9 +43,11 @@ export function useKriLookups({
     const [vendorLinkedRiskIds, setVendorLinkedRiskIds] = useState<number[]>([]);
     const [vendorLinkedRisks, setVendorLinkedRisks] = useState<RiskSummary[]>([]);
     const [vendorOptions, setVendorOptions] = useState<KRIVendorOption[]>([]);
+    const hasVendorContext = Boolean(vendorContext);
+    const vendorContextVendorId = vendorContext?.vendorId;
 
     useEffect(() => {
-        if (isEdit || (vendorContext && showOnlyVendorLinkedRisks)) {
+        if (isEdit || (hasVendorContext && showOnlyVendorLinkedRisks)) {
             setGenericRisks([]);
             return;
         }
@@ -80,7 +82,7 @@ export function useKriLookups({
         selectedDeptId,
         selectedProcess,
         showOnlyVendorLinkedRisks,
-        vendorContext,
+        hasVendorContext,
     ]);
 
     useEffect(() => {
@@ -111,6 +113,7 @@ export function useKriLookups({
                         id: vendor.id,
                         name: vendor.name,
                         status: vendor.status,
+                        is_archived: vendor.is_archived,
                     })),
                 );
             } catch {
@@ -124,7 +127,7 @@ export function useKriLookups({
     }, [debouncedVendorSearch]);
 
     useEffect(() => {
-        if (!vendorContext) {
+        if (vendorContextVendorId == null) {
             setVendorLinkedRiskIds([]);
             setVendorLinkedRisks([]);
             setIsLoadingVendorLinkedRisks(false);
@@ -134,7 +137,7 @@ export function useKriLookups({
         const loadVendorLinkedRisks = async () => {
             try {
                 setIsLoadingVendorLinkedRisks(true);
-                const linkedRisks = await vendorLinkApi.getLinkedRisks(vendorContext.vendorId);
+                const linkedRisks = await vendorLinkApi.getLinkedRisks(vendorContextVendorId);
                 setVendorLinkedRiskIds(linkedRisks.map((risk) => risk.id));
                 setVendorLinkedRisks(linkedRisks.map(mapLinkedRiskToSummary));
             } catch {
@@ -146,7 +149,7 @@ export function useKriLookups({
         };
 
         void loadVendorLinkedRisks();
-    }, [vendorContext]);
+    }, [vendorContextVendorId]);
 
     const knownRisks = useMemo(
         () => mergeRiskSummaries(genericRisks, vendorLinkedRisks),

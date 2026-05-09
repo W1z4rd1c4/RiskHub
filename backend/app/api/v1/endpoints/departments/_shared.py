@@ -9,9 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.pagination import MAX_PAGE_SIZE
 from app.core.permissions import check_department_access, get_user_department_ids
 from app.models import Control, Department, KeyRiskIndicator, Risk, User
-from app.models.control import ControlStatus
-from app.models.global_config import ConfigDefaults, build_risk_level_ranges
-from app.models.risk import RiskStatus
+from app.models.global_config import ConfigDefaults, build_risk_level_ranges, get_config_int
 
 # Risk level score ranges (uses ConfigDefaults for consistency)
 RISK_LEVEL_RANGES = build_risk_level_ranges(
@@ -69,7 +67,7 @@ async def _count_risks_by_dept(db: AsyncSession) -> dict[int, int]:
     """Non-archived risk count per department."""
     result = await db.execute(
         select(Risk.department_id, func.count(Risk.id))
-        .where(Risk.status != RiskStatus.archived.value)
+        .where(Risk.live())
         .group_by(Risk.department_id)
     )
     return _counts_by_department(result.all())
@@ -78,11 +76,17 @@ async def _count_risks_by_dept(db: AsyncSession) -> dict[int, int]:
 async def _count_high_risks_by_dept(db: AsyncSession) -> dict[int, int]:
     """Non-archived risk count with net_score >= HIGH_RISK_MIN_NET_SCORE per department.
 
-    Uses ConfigDefaults.HIGH_RISK_MIN_NET_SCORE (10) for consistency with dashboard.
+    Uses the configured high_risk_min_net_score threshold for consistency with
+    department high-risk drilldowns.
     """
+    high_risk_min_net_score = await get_config_int(
+        db,
+        "high_risk_min_net_score",
+        ConfigDefaults.HIGH_RISK_MIN_NET_SCORE,
+    )
     result = await db.execute(
         select(Risk.department_id, func.count(Risk.id))
-        .where(and_(Risk.status != RiskStatus.archived.value, Risk.net_score >= ConfigDefaults.HIGH_RISK_MIN_NET_SCORE))
+        .where(and_(Risk.live(), Risk.net_score >= high_risk_min_net_score))
         .group_by(Risk.department_id)
     )
     return _counts_by_department(result.all())
@@ -92,7 +96,7 @@ async def _count_controls_by_dept(db: AsyncSession) -> dict[int, int]:
     """Non-archived control count per department."""
     result = await db.execute(
         select(Control.department_id, func.count(Control.id))
-        .where(Control.status != ControlStatus.archived.value)
+        .where(Control.live())
         .group_by(Control.department_id)
     )
     return _counts_by_department(result.all())
@@ -103,7 +107,7 @@ async def _count_kris_by_dept(db: AsyncSession) -> dict[int, int]:
     result = await db.execute(
         select(Risk.department_id, func.count(KeyRiskIndicator.id))
         .join(Risk)
-        .where(Risk.status != RiskStatus.archived.value)
+        .where(Risk.live())
         .group_by(Risk.department_id)
     )
     return _counts_by_department(result.all())
@@ -116,7 +120,7 @@ async def _count_breaching_kris_by_dept(db: AsyncSession) -> dict[int, int]:
         .join(Risk)
         .where(
             and_(
-                Risk.status != RiskStatus.archived.value,
+                Risk.live(),
                 or_(
                     KeyRiskIndicator.current_value < KeyRiskIndicator.lower_limit,
                     KeyRiskIndicator.current_value > KeyRiskIndicator.upper_limit,
@@ -132,7 +136,7 @@ async def _sum_net_scores_by_dept(db: AsyncSession) -> dict[int, int]:
     """Total net_score for non-archived risks per department."""
     result = await db.execute(
         select(Risk.department_id, func.sum(Risk.net_score))
-        .where(Risk.status != RiskStatus.archived.value)
+        .where(Risk.live())
         .group_by(Risk.department_id)
     )
     return {dept_id: (total or 0) for dept_id, total in result.all()}

@@ -93,9 +93,9 @@ export interface DashboardOverview {
     control_trends: ControlTrend[];
     risk_trends: RiskTrendPoint[];
     kri_breach_trends: KRIBreachTrendPoint[];
-    issue_summary: IssueDashboardSummary | null;
-    issue_aging: IssueAgingResponse | null;
-    issue_severity: IssueSeverityBreakdownResponse | null;
+    issue_summary?: IssueDashboardSummary | null;
+    issue_aging?: IssueAgingResponse | null;
+    issue_severity?: IssueSeverityBreakdownResponse | null;
     generated_at: string;
     capabilities?: DashboardOverviewCapabilities | null;
 }

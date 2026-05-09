@@ -1,17 +1,16 @@
 from __future__ import annotations
 
-from datetime import datetime
 from decimal import Decimal
 from enum import Enum
 
 from pydantic import BaseModel, Field, computed_field
 
+from app.core.datetime_utils import UtcAwareDatetime
 from app.schemas.collection import CollectionGroupRead
 
 
 class VendorStatusEnum(str, Enum):
     active = "active"
-    inactive = "inactive"
 
 
 class VendorTypeEnum(str, Enum):
@@ -109,12 +108,15 @@ class VendorCapabilities(BaseModel):
 
 class VendorRead(VendorBase):
     id: int
+    is_archived: bool = False
+    archived_at: UtcAwareDatetime | None = None
+    archived_by_id: int | None = None
     department_name: str | None = None
     outsourcing_owner_name: str | None = None
     linked_risks: list[VendorLinkedRiskSummary] = Field(default_factory=list)
     capabilities: VendorCapabilities | None = None
-    created_at: datetime
-    updated_at: datetime
+    created_at: UtcAwareDatetime
+    updated_at: UtcAwareDatetime
 
     model_config = {"from_attributes": True}
 

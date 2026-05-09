@@ -12,7 +12,7 @@ from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import Control, ControlExecution, KeyRiskIndicator, Risk, User
 from app.models.control import ControlStatus
-from app.models.risk import RiskStatus
+from app.models.global_config import ConfigDefaults, get_config_int
 from app.schemas.department import ControlStats, DepartmentDetail, RecentExecution, RiskDistribution
 from app.services._monitoring_status import KRIMonitoringStatus, get_kri_monitoring_config
 from app.services._monitoring_status.queries import apply_kri_monitoring_status_filter
@@ -45,17 +45,28 @@ async def get_department(
 
     # Count risks
     risk_count_result = await db.execute(
-        select(func.count(Risk.id)).where(
-            and_(Risk.department_id == department_id, Risk.status != RiskStatus.archived.value)
-        )
+        select(func.count(Risk.id)).where(and_(Risk.department_id == department_id, Risk.live()))
     )
     risk_count = risk_count_result.scalar() or 0
+    high_risk_min_net_score = await get_config_int(
+        db,
+        "high_risk_min_net_score",
+        ConfigDefaults.HIGH_RISK_MIN_NET_SCORE,
+    )
+    high_risk_count_result = await db.execute(
+        select(func.count(Risk.id)).where(
+            and_(
+                Risk.department_id == department_id,
+                Risk.live(),
+                Risk.net_score >= high_risk_min_net_score,
+            )
+        )
+    )
+    high_risk_count = high_risk_count_result.scalar() or 0
 
     # Count controls (non-archived)
     control_count_result = await db.execute(
-        select(func.count(Control.id)).where(
-            and_(Control.department_id == department_id, Control.status != ControlStatus.archived.value)
-        )
+        select(func.count(Control.id)).where(and_(Control.department_id == department_id, Control.live()))
     )
     control_count = control_count_result.scalar() or 0
 
@@ -66,7 +77,7 @@ async def get_department(
         .where(
             and_(
                 Risk.department_id == department_id,
-                Risk.status != RiskStatus.archived.value,
+                Risk.live(),
                 KeyRiskIndicator.is_archived.is_(False),
             )
         )
@@ -107,7 +118,7 @@ async def get_department(
     risk_distribution_stmt = select(*risk_distribution_columns).where(
         and_(
             Risk.department_id == department_id,
-            Risk.status != RiskStatus.archived.value,
+            Risk.live(),
         )
     )
     risk_distribution_row = (await db.execute(risk_distribution_stmt)).one()
@@ -124,7 +135,7 @@ async def get_department(
         .where(
             and_(
                 Risk.department_id == department_id,
-                Risk.status != RiskStatus.archived.value,
+                Risk.live(),
             )
         )
         .group_by(Risk.status)
@@ -140,6 +151,7 @@ async def get_department(
         .where(
             and_(
                 Control.department_id == department_id,
+                Control.live(),
                 Control.status.in_([ControlStatus.active.value, ControlStatus.inactive.value]),
             )
         )
@@ -149,20 +161,20 @@ async def get_department(
     control_stats.active = int(status_counts.get(ControlStatus.active.value, 0))
     control_stats.inactive = int(status_counts.get(ControlStatus.inactive.value, 0))
 
-    # Controls by form (single grouped query; preserves prior behavior including archived controls)
+    # Controls by form (single grouped query, live controls only)
     control_form_stmt = (
         select(Control.control_form, func.count(Control.id))
-        .where(Control.department_id == department_id)
+        .where(and_(Control.department_id == department_id, Control.live()))
         .group_by(Control.control_form)
     )
     control_stats.by_form = {
         row[0]: row[1] for row in (await db.execute(control_form_stmt)).all() if row[0] and row[1] > 0
     }
 
-    # Controls by frequency (single grouped query; preserves prior behavior including archived controls)
+    # Controls by frequency (single grouped query, live controls only)
     control_frequency_stmt = (
         select(Control.frequency, func.count(Control.id))
-        .where(Control.department_id == department_id)
+        .where(and_(Control.department_id == department_id, Control.live()))
         .group_by(Control.frequency)
     )
     control_stats.by_frequency = {
@@ -201,6 +213,7 @@ async def get_department(
         updated_at=dept.updated_at,
         user_count=user_count,
         risk_count=risk_count,
+        high_risk_count=high_risk_count,
         control_count=control_count,
         kri_count=kri_count,
         kri_monitoring_counts=kri_monitoring_counts,

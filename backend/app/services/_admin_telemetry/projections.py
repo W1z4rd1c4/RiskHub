@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Protocol
 
 from app.schemas.admin import SchedulerJobRunSummary
@@ -9,11 +10,11 @@ class SchedulerRunProjection(Protocol):
     job_name: str
     run_id: str
     status: str
-    trigger_type: str | None
-    instance_id: str | None
-    scheduled_for: object | None
-    started_at: object
-    finished_at: object | None
+    trigger_type: str
+    instance_id: str
+    scheduled_for: datetime | None
+    started_at: datetime
+    finished_at: datetime | None
     duration_ms: int | None
     result_json: dict | None
     error_message: str | None

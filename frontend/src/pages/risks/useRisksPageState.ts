@@ -4,16 +4,18 @@ import type { ExportDialogSubmitPayload } from '@/components/reports/ExportDialo
 import type { SortDirection, ViewMode } from '@/components/tables';
 import { DEFAULT_LIST_PAGE_SIZE } from '@/constants/list';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { useRiskThresholds } from '@/hooks/useRiskHubConfig';
 import { logError } from '@/services/logger';
 import { reportApi } from '@/services/reportApi';
 import { riskApi } from '@/services/riskApi';
-import type { RiskStatus, RiskSummary } from '@/types/risk';
+import type { RiskSummary } from '@/types/risk';
 
 import {
     buildRiskExportFilters,
     buildRiskListParams,
     getRiskGroupBy,
     normalizeRiskSummaries,
+    type RiskListStatusFilter,
     type RisksPageInitialState,
 } from './risksPagePresentation';
 import {
@@ -32,7 +34,7 @@ interface UseRisksPageStateOptions {
 
 export function useRisksPageState({ initialState }: UseRisksPageStateOptions) {
     const [search, setSearch] = useState('');
-    const [statusFilter, setStatusFilter] = useState<RiskStatus | ''>('active');
+    const [statusFilter, setStatusFilter] = useState<RiskListStatusFilter>('active');
     const [typeFilter, setTypeFilter] = useState('');
     const [priorityFilter, setPriorityFilter] = useState<boolean | undefined>(undefined);
     const [currentPage, setCurrentPage] = useState(1);
@@ -47,10 +49,12 @@ export function useRisksPageState({ initialState }: UseRisksPageStateOptions) {
     const limit = DEFAULT_LIST_PAGE_SIZE;
     const debouncedSearch = useDebouncedValue(search, 300);
     const groupBy = getRiskGroupBy(viewMode);
+    const { thresholds } = useRiskThresholds();
 
     const loadRiskPage = useCallback(
         ({ currentPage, groupBy, groupValue }: CollectionWorkflowLoadRequest) => riskApi.getRisks(
             buildRiskListParams({
+                criticalMinNetScore: thresholds.critical,
                 currentPage,
                 criticalFilter,
                 hasBreachFilter,
@@ -74,6 +78,7 @@ export function useRisksPageState({ initialState }: UseRisksPageStateOptions) {
             sortDirection,
             sortField,
             statusFilter,
+            thresholds.critical,
             typeFilter,
         ]
     );
@@ -155,7 +160,7 @@ export function useRisksPageState({ initialState }: UseRisksPageStateOptions) {
         resetGroupAndPage();
     }, [resetGroupAndPage]);
 
-    const updateStatusFilter = useCallback((value: RiskStatus | '') => {
+    const updateStatusFilter = useCallback((value: RiskListStatusFilter) => {
         setStatusFilter(value);
         resetGroupAndPage();
     }, [resetGroupAndPage]);

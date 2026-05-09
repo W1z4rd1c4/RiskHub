@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.orm import selectinload
 
 from app.core.activity_logger import audit_logger
+from app.core.exceptions import DomainError
 from app.models import (
     ActivityAction,
     ActivityEntityType,
@@ -39,12 +40,13 @@ from app.models.global_config import clear_config_cache
 from app.models.key_risk_indicator import KRIFrequency
 from app.models.kri_history import KRIValueHistory
 from app.models.user import AccessScope
+from app.services._approval_execution import kri_value_submission
+from app.services._riskhub_config.approval_scenario_roles import set_approval_scenario_roles
 from app.services.approval_execution_service import (
     approve_request_workflow,
     cancel_request_workflow,
     reject_request_workflow,
 )
-from app.services._approval_execution import kri_value_submission
 from app.services.kri_history_service import KRIHistoryService
 
 
@@ -84,7 +86,7 @@ async def _upsert_approval_scenario(
         )
         db_session.add(scenario)
     scenario.requires_approval = requires_approval
-    scenario.set_approver_roles(approver_roles)
+    set_approval_scenario_roles(scenario, approver_roles)
     await db_session.commit()
     await db_session.refresh(scenario)
     return scenario
@@ -323,7 +325,7 @@ async def test_queue_created_high_threshold_risk_delete_requires_privileged_foll
     assert privileged_response.json()["status"] == "approved"
 
     risk = await _load_risk(db_session, risk.id)
-    assert risk.status == "archived"
+    assert risk.is_archived is True
 
 
 @pytest.mark.asyncio
@@ -375,7 +377,7 @@ async def test_queue_created_low_risk_delete_finalizes_after_primary_approval(
     assert approval.privileged_approver_id is None
 
     risk = await _load_risk(db_session, risk.id)
-    assert risk.status == "archived"
+    assert risk.is_archived is True
 
 
 @pytest.mark.asyncio
@@ -1361,6 +1363,7 @@ async def test_cancel_request_workflow_supports_privileged_cancel_and_enqueues_o
 async def test_cancel_own_request_preserves_requester_activity_description(
     auth_client: AsyncClient,
     db_session: AsyncSession,
+    frozen_clock,
     test_risk,
 ):
     create_response = await auth_client.post(
@@ -1381,6 +1384,7 @@ async def test_cancel_own_request_preserves_requester_activity_description(
     entry = result.scalars().first()
     assert entry is not None
     assert entry.description == "Approval request cancelled by requester"
+    assert entry.created_at.date().isoformat() == "2026-05-07"
 
 
 @pytest.mark.asyncio
@@ -2107,7 +2111,7 @@ async def test_concurrent_kri_value_approval_records_history_once(
             approver = result.scalar_one()
             try:
                 return await approve_request_workflow(session, approval.id, approver, note)
-            except HTTPException as exc:
+            except (HTTPException, DomainError) as exc:
                 return exc
 
     first_result, second_result = await asyncio.gather(
@@ -2120,7 +2124,10 @@ async def test_concurrent_kri_value_approval_records_history_once(
         sum(isinstance(result, ApprovalRequest) and result.status == ApprovalStatus.APPROVED for result in results)
         == 1
     )
-    assert sum(isinstance(result, HTTPException) and result.status_code == 400 for result in results) == 1
+    assert (
+        sum(isinstance(result, (HTTPException, DomainError)) and result.status_code == 400 for result in results)
+        == 1
+    )
 
     result = await db_session.execute(
         select(func.count())

@@ -10,7 +10,6 @@ from app.models import Control, Risk
 from app.models.activity_log import ActivityLog
 from app.models.control import ControlStatus
 from app.models.control_execution import ControlExecution, ExecutionResult
-from app.models.risk import RiskStatus
 
 
 async def get_quarter_period_metrics(
@@ -22,7 +21,7 @@ async def get_quarter_period_metrics(
     risk_conditions = [
         Risk.created_at >= start,
         Risk.created_at < end,
-        Risk.status != RiskStatus.archived.value,
+        Risk.live(),
     ]
     if dept_ids is not None:
         risk_conditions.append(Risk.department_id.in_(dept_ids))
@@ -31,7 +30,7 @@ async def get_quarter_period_metrics(
     archived_conditions = [
         Risk.updated_at >= start,
         Risk.updated_at < end,
-        Risk.status == RiskStatus.archived.value,
+        Risk.archived(),
     ]
     if dept_ids is not None:
         archived_conditions.append(Risk.department_id.in_(dept_ids))
@@ -63,6 +62,7 @@ async def get_quarter_period_metrics(
     )
     unaudited_controls_query = select(func.count(Control.id)).where(
         Control.status == ControlStatus.active.value,
+        Control.live(),
         Control.id.notin_(controls_with_executions),
     )
     if dept_ids is not None:

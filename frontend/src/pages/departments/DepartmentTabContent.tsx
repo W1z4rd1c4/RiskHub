@@ -5,6 +5,7 @@ import { Pagination, SortableTable } from '@/components/tables';
 import { formatDateValue } from '@/i18n/formatters';
 import { useTranslation } from '@/i18n/hooks';
 import { DEPARTMENT_PAGE_SIZE, type DeptUser, type TabView } from '@/hooks/useDepartmentDetail';
+import { useRiskThresholds } from '@/hooks/useRiskHubConfig';
 import { KRI_MONITORING_FILTER_VALUES } from '@/lib/monitoringStatus';
 import type { ControlSummary } from '@/types/control';
 import type { KeyRiskIndicator, KRIMonitoringStatus } from '@/types/kri';
@@ -134,6 +135,7 @@ function RecentActivityTab({ department }: { department: DepartmentDetail }) {
 export function DepartmentTabContent(props: DepartmentTabContentProps) {
     const navigate = useNavigate();
     const { t, i18n } = useTranslation(['common']);
+    const { thresholds } = useRiskThresholds();
     const {
         activeTab,
         controls,
@@ -164,7 +166,7 @@ export function DepartmentTabContent(props: DepartmentTabContentProps) {
             <div className="space-y-4">
                 <SortableTable
                     data={risks}
-                    columns={getRiskColumns(t)}
+                    columns={getRiskColumns(t, thresholds)}
                     keyExtractor={(risk) => risk.id}
                     onRowClick={(risk) => navigate(`/risks/${risk.id}`)}
                     emptyMessage={

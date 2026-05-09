@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.activity_logger import build_change_set, log_activity
+from app.core.activity_logger import build_change_set
+from app.core.audit.issue import issue_remediation_updated, issue_status_changed
 from app.core.datetime_utils import utc_now
 from app.models import Issue, User
-from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.models.issue import IssueStatus
 
 from .transitions import _completion_updates, _conflict, _get_or_init_remediation, _is_remediation_complete
@@ -46,25 +46,18 @@ async def close_issue(
     db.add(issue)
     db.add(remediation)
 
-    await log_activity(
+    await issue_status_changed(
         db,
-        entity_type=ActivityEntityType.ISSUE,
-        entity_id=issue.id,
-        entity_name=issue.title,
-        action=ActivityAction.STATUS_CHANGE,
         actor=actor,
-        department_id=issue.department_id,
+        issue=issue,
         changes=issue_changes,
         description=f"Closed issue {issue.title}",
     )
-    await log_activity(
+    await issue_remediation_updated(
         db,
-        entity_type=ActivityEntityType.ISSUE_REMEDIATION,
-        entity_id=remediation.id or issue.id,
-        entity_name=f"Remediation for {issue.title}",
-        action=ActivityAction.UPDATE,
         actor=actor,
-        department_id=issue.department_id,
+        issue=issue,
+        plan=remediation,
         changes=remediation_changes,
     )
     return issue

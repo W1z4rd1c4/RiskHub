@@ -1,0 +1,1 @@
+"""Architecture invariant-lock tests."""

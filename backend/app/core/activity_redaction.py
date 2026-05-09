@@ -59,6 +59,7 @@ SAFE_CHANGESET_FIELDS = {
     "is_archived",
     "is_priority",
     "limit",
+    "link_kind",
     "link_id",
     "lower_limit",
     "metric_name",
@@ -88,6 +89,7 @@ SAFE_CHANGESET_FIELDS = {
     "upper_limit",
     "user_id",
     "value",
+    "target_id",
     "vendor_id",
     "vendor_type",
 }
@@ -134,6 +136,7 @@ _SAFE_ENTITY_LABEL_ENTITY_TYPES = {
     "kri_value",
     "risk",
     "role",
+    "vendor_link",
 }
 
 

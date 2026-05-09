@@ -17,6 +17,7 @@ class AuthSettingsMixin:
     )
     mock_auth_enabled: bool = False
     access_token_expire_minutes: int = 60
+    strict_capabilities_enabled: bool = False
 
     # Auth mode (password vs SSO)
     auth_mode: Literal["password", "microsoft_sso", "hybrid_dev"] = "password"

@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+    ARCHIVED_CONTROL_BADGE_CLASS_NAME,
     buildControlListParams,
     formatControlGroupLabel,
+    getControlDisplayStatus,
     getControlGroupBy,
     getControlStatusColor,
 } from '@/pages/controls/controlsPagePresentation';
@@ -53,7 +55,10 @@ describe('Controls page presentation helpers', () => {
         expect(getControlGroupBy('risk')).toBe('risk');
         expect(getControlGroupBy('vendor')).toBe('vendor');
         expect(getControlGroupBy('all')).toBeNull();
-        expect(getControlStatusColor(ControlStatus.ARCHIVED)).toContain('text-yellow-400');
+        expect(ARCHIVED_CONTROL_BADGE_CLASS_NAME).toContain('text-yellow-400');
+        expect(getControlDisplayStatus({ status: 'active', is_archived: true })).toBe('archived');
+        expect(getControlDisplayStatus({ status: 'inactive', is_archived: false })).toBe('inactive');
+        expect(getControlStatusColor(ControlStatus.INACTIVE)).toContain('text-rose-400');
     });
 
     it('formats server group fallback labels', () => {

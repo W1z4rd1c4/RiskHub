@@ -12,11 +12,10 @@ export const RiskTypeCodes = {
     OPERATIONAL: 'operational',
 } as const;
 
-export type RiskStatus = 'active' | 'emerging' | 'archived';
+export type RiskStatus = 'active' | 'emerging';
 export const RiskStatus = {
     ACTIVE: 'active' as RiskStatus,
     EMERGING: 'emerging' as RiskStatus,
-    ARCHIVED: 'archived' as RiskStatus,
 };
 
 export type ControlEffectiveness = 'high' | 'medium' | 'low';
@@ -34,7 +33,7 @@ export interface RiskCapabilities {
     can_archive_immediately: boolean;
     can_request_archive_approval: boolean;
     can_restore: boolean;
-    can_send_questionnaire?: boolean;
+    can_send_questionnaire: boolean;
     can_create_kri: boolean;
     can_create_linked_control: boolean;
     can_link_controls: boolean;
@@ -71,6 +70,9 @@ export interface Risk {
     net_score: number;
 
     status: RiskStatus;
+    is_archived: boolean;
+    archived_at?: string | null;
+    archived_by_id?: number | null;
     is_priority: boolean;
 
     // KRI thresholds (legacy) - string for form input
@@ -111,6 +113,7 @@ export interface RiskSummary {
     gross_impact: number;
     net_score: number;
     status: RiskStatus;
+    is_archived: boolean;
     is_priority: boolean;
     department_id?: number | null;
     department_name?: string | null;
@@ -156,6 +159,7 @@ export interface RiskControlLink {
         frequency: string;
         risk_level: number;
         status: string;
+        is_archived: boolean;
     };
     risk?: {
         id: number;
@@ -163,6 +167,7 @@ export interface RiskControlLink {
         process: string;
         gross_score: number;
         net_score: number;
+        is_archived: boolean;
     };
 }
 

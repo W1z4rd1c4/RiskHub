@@ -9,9 +9,8 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import Settings, get_settings
+from app.core.config import Settings
 from app.core.tokens import decode_refresh_token
-from app.db.session import get_db
 from app.main import app
 from app.models import RefreshToken, User
 
@@ -62,28 +61,17 @@ def _extract_csrf_cookie(response) -> str | None:
 
 
 @pytest_asyncio.fixture
-async def demo_auth_client(db_session: AsyncSession) -> AsyncClient:
-    async def override_get_db():
-        yield db_session
-
-    def override_settings():
-        return Settings(
-            debug=True,
-            secret_key=TEST_SECRET_KEY,
-            mock_auth_enabled=True,
-            auth_mode="hybrid_dev",
-            cors_origins=[TEST_ORIGIN],
-            trusted_proxies=["127.0.0.1", "::1", "10.0.0.0/8"],
-        )
-
-    app.dependency_overrides[get_db] = override_get_db
-    app.dependency_overrides[get_settings] = override_settings
-
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+async def demo_auth_client(client_factory) -> AsyncClient:
+    settings = Settings(
+        debug=True,
+        secret_key=TEST_SECRET_KEY,
+        mock_auth_enabled=True,
+        auth_mode="hybrid_dev",
+        cors_origins=[TEST_ORIGIN],
+        trusted_proxies=["127.0.0.1", "::1", "10.0.0.0/8"],
+    )
+    async with client_factory(settings=settings) as ac:
         yield ac
-
-    app.dependency_overrides.clear()
 
 
 @pytest.mark.asyncio

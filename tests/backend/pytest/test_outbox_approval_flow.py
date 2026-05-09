@@ -4,10 +4,11 @@ from datetime import UTC, date, datetime
 
 import pytest
 from httpx import AsyncClient
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
+from app.core.approval_helpers import create_approval_request_with_audit
 from app.core.datetime_utils import coerce_utc, utc_now
 from app.models import (
     ApprovalActionType,
@@ -807,12 +808,64 @@ async def test_unclassified_outbox_handler_failure_dead_letters(
 
 @pytest.mark.asyncio
 @pytest.mark.postgres
+async def test_postgres_outbox_idempotency_conflict_is_not_pending_approval_conflict(
+    db_session: AsyncSession,
+    async_engine: AsyncEngine,
+    test_risk,
+    test_user_approval_requester: User,
+) -> None:
+    if async_engine.dialect.name != "postgresql":
+        pytest.skip("PostgreSQL-specific unique constraint classification")
+
+    approval_id = 987654
+    db_session.add(
+        OutboxEvent(
+            event_type="approval.request_created",
+            aggregate_type="approval_request",
+            aggregate_id=approval_id,
+            idempotency_key=f"approval.request_created:{approval_id}:pending",
+            payload={"approval_id": approval_id},
+            status="pending",
+            available_at=utc_now(),
+        )
+    )
+    await db_session.commit()
+
+    approval = ApprovalRequest(
+        id=approval_id,
+        resource_type=ApprovalResourceType.RISK,
+        resource_id=test_risk.id,
+        resource_name=test_risk.name,
+        requested_by_id=test_user_approval_requester.id,
+        reason="Outbox idempotency classification",
+        action_type=ApprovalActionType.EDIT,
+        pending_changes={"name": {"old": test_risk.name, "new": "Outbox idempotency name"}},
+        status=ApprovalStatus.PENDING,
+    )
+
+    with pytest.raises(IntegrityError) as exc_info:
+        await create_approval_request_with_audit(
+            db_session,
+            approval=approval,
+            actor=test_user_approval_requester,
+            department_id=test_risk.department_id,
+            on_duplicate_detail="approval already pending",
+        )
+
+    assert "approval already pending" not in str(exc_info.value).lower()
+
+
+@pytest.mark.asyncio
+@pytest.mark.postgres
 async def test_postgres_claim_batch_skips_locked_rows(async_engine: AsyncEngine) -> None:
     if async_engine.dialect.name != "postgresql":
         pytest.skip("PostgreSQL-specific lock semantics test")
 
     sessionmaker = _sessionmaker(async_engine)
     async with sessionmaker() as seed_session:
+        await seed_session.execute(delete(OutboxEvent))
+        await seed_session.commit()
+
         event = OutboxEvent(
             event_type="approval.request_created",
             aggregate_type="approval_request",

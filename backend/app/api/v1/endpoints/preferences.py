@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api import deps
 from app.db.session import get_db
 from app.models.user import User
+from app.services.transaction_boundary import commit_service_transaction
 
 router = APIRouter(prefix="/preferences", tags=["preferences"])
 
@@ -62,7 +63,7 @@ async def update_preferences(
     if data.language is not None:
         current_user.preferred_language = data.language
 
-    await db.commit()
+    await commit_service_transaction(db)
     await db.refresh(current_user)
 
     return PreferencesResponse(

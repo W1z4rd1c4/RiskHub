@@ -8,6 +8,7 @@ from app.core.config import Settings
 from app.core.datetime_utils import coerce_utc
 from app.core.tokens import refresh_token_lifetime
 from app.models import RefreshToken, User
+from app.services.sso_token_service import VerifiedIdentity
 
 SESSION_RENEWAL_MINIMUM_SECONDS = 60
 
@@ -109,7 +110,7 @@ class SsoStartResolution:
 class SsoExchangeResolution:
     outcome: SsoSessionOutcome
     user: User | None = None
-    identity: object | None = None
+    identity: VerifiedIdentity | None = None
     post_login_redirect_to: str | None = None
     failure: SsoFailure | None = None
     clear_challenge_cookie: bool = False

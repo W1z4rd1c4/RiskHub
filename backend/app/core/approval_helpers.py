@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models import Control, ControlRiskLink, Risk
+from app.models import Control, ControlRiskLink, KeyRiskIndicator, Risk
 from app.services.outbox import OutboxService
 
 if TYPE_CHECKING:
@@ -189,10 +189,35 @@ async def get_risk_delete_approval_metadata(
     requester_id: Optional[int] = None,
 ) -> tuple[Optional[int], bool]:
     """Return primary-approver routing and privileged escalation for a risk delete request."""
+    return await get_risk_edit_approval_metadata(db, risk=risk, requester_id=requester_id)
+
+
+async def get_risk_edit_approval_metadata(
+    db: AsyncSession,
+    *,
+    risk: Risk,
+    requester_id: Optional[int] = None,
+) -> tuple[Optional[int], bool]:
+    """Return primary-approver routing and privileged escalation for a risk edit request."""
     from app.core.permissions import is_high_risk_for_approval_async
 
     primary_approver_id = await get_primary_approver_for_risk(db, risk.id, requester_id=requester_id)
     requires_privileged = await is_high_risk_for_approval_async(risk, db)
+    return primary_approver_id, requires_privileged
+
+
+async def get_kri_edit_approval_metadata(
+    db: AsyncSession,
+    *,
+    kri: KeyRiskIndicator,
+    requester_id: Optional[int] = None,
+) -> tuple[Optional[int], bool]:
+    """Return primary-approver routing and privileged escalation for a KRI edit/value request."""
+    from app.core.permissions import is_high_risk_for_approval_async
+
+    primary_approver_id = await get_primary_approver_for_risk(db, kri.risk_id, requester_id=requester_id)
+    risk = await db.get(Risk, kri.risk_id)
+    requires_privileged = await is_high_risk_for_approval_async(risk, db) if risk is not None else False
     return primary_approver_id, requires_privileged
 
 
@@ -237,12 +262,12 @@ async def create_approval_request_with_audit(
         The persisted ApprovalRequest with ID populated
 
     Raises:
-        HTTPException(409): If a pending approval already exists (unique constraint violation)
+        ConflictError: If a pending approval already exists (unique constraint violation)
     """
-    from fastapi import HTTPException, status
     from sqlalchemy.exc import IntegrityError
 
     from app.core.activity_logger import log_activity
+    from app.core.exceptions import ConflictError
     from app.models.activity_log import ActivityAction, ActivityEntityType
 
     try:
@@ -270,9 +295,6 @@ async def create_approval_request_with_audit(
         return approval
     except IntegrityError as e:
         await db.rollback()
-        if "ux_approval_pending" in str(e).lower() or "unique constraint" in str(e).lower():
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=on_duplicate_detail,
-            )
+        if "ux_approval_pending" in str(e).lower():
+            raise ConflictError(on_duplicate_detail) from e
         raise

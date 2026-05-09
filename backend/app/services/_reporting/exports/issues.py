@@ -7,10 +7,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models import User
 from app.models.issue import IssueSeverity, IssueStatus
 
-from .shared import ExportFormat, _as_of_datetime
 from .fetch import _fetch_issues_for_export
 from .lifecycle import ExportRow, ReportExportDefinition, render_report_export_definition
 from .rows import _issue_to_row
+from .shared import ExportFormat, _as_of_datetime
 
 
 async def _export_issues(

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { authApi } from '@/services/authApi';
 import { controlApi } from '@/services/controlApi';
 import { __setCsrfTokenForTests, clearCsrfToken } from '@/services/csrfToken';
+import { dashboardApi } from '@/services/dashboardApi';
 import { departmentApi } from '@/services/departmentApi';
 import { executionApi } from '@/services/executionApi';
 import { kriApi } from '@/services/kriApi';
@@ -127,6 +128,42 @@ describe('response schema nullability alignment', () => {
         });
     });
 
+    it('accepts dashboard overview responses with omitted issue widgets', async () => {
+        vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+            const url = responseUrl(input);
+            if (!url.endsWith('/api/v1/dashboard/overview')) {
+                throw new Error(`Unexpected fetch call: ${url}`);
+            }
+            return Promise.resolve(jsonResponse({
+                summary: {
+                    total_controls: 0,
+                    controls_by_status: {},
+                    controls_by_form: {},
+                    controls_by_frequency: {},
+                    total_risks: 0,
+                    risks_by_status: {},
+                    critical_risks_count: 0,
+                    average_net_risk_score: 0,
+                    total_vendors: 0,
+                    high_risk_vendors_count: 0,
+                },
+                department_metrics: [],
+                gross_distribution: { distribution: [] },
+                net_distribution: { distribution: [] },
+                control_trends: [],
+                risk_trends: [],
+                kri_breach_trends: [],
+                generated_at: '2026-05-07T12:00:00Z',
+            }));
+        });
+
+        const overview = await dashboardApi.fetchOverview();
+
+        expect(overview.issue_summary).toBeUndefined();
+        expect(overview.issue_aging).toBeUndefined();
+        expect(overview.issue_severity).toBeUndefined();
+    });
+
     it('accepts current-user responses with null department ownership', async () => {
         vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
             const url = responseUrl(input);
@@ -152,6 +189,59 @@ describe('response schema nullability alignment', () => {
             department_id: null,
             department_name: null,
         });
+    });
+
+    it('rejects risk capabilities that omit questionnaire send capability', async () => {
+        vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+            const url = responseUrl(input);
+            if (!url.endsWith('/api/v1/risks/42')) {
+                throw new Error(`Unexpected fetch call: ${url}`);
+            }
+            return Promise.resolve(jsonResponse({
+                id: 42,
+                risk_id_code: 'R-CAP-001',
+                name: 'Capability Risk',
+                process: 'Risk Process',
+                risk_type: 'operational',
+                category: 'Testing',
+                description: 'desc',
+                department_id: null,
+                owner_id: null,
+                gross_probability: 3,
+                gross_impact: 3,
+                gross_score: 9,
+                net_probability: 2,
+                net_impact: 2,
+                net_score: 4,
+                status: 'active',
+                is_archived: false,
+                is_priority: false,
+                created_at: '2026-05-07T12:00:00Z',
+                updated_at: '2026-05-07T12:00:00Z',
+                capabilities: {
+                    can_read: true,
+                    can_update: false,
+                    can_update_sensitive_fields: false,
+                    can_request_update_approval: false,
+                    can_archive_immediately: false,
+                    can_request_archive_approval: false,
+                    can_restore: false,
+                    can_create_kri: false,
+                    can_create_linked_control: false,
+                    can_link_controls: false,
+                    can_unlink_controls: false,
+                    can_view_linked_controls: false,
+                    can_view_linked_vendors: false,
+                    can_create_issue: false,
+                    has_pending_delete_approval: false,
+                    has_pending_update_approval: false,
+                    requires_privileged_update_approval: false,
+                    requires_privileged_delete_approval: false,
+                },
+            }));
+        });
+
+        await expect(riskApi.getRisk(42)).rejects.toThrow();
     });
 
     it('accepts refresh responses with null department ownership', async () => {
@@ -284,6 +374,7 @@ describe('response schema nullability alignment', () => {
                 documentation_location: null,
                 department_id: null,
                 status: 'draft',
+                is_archived: true,
                 created_by_id: null,
                 updated_by_id: null,
                 created_at: '2026-04-07T10:00:00Z',
@@ -319,6 +410,7 @@ describe('response schema nullability alignment', () => {
             data_source: null,
             control_owner_id: null,
             department_id: null,
+            is_archived: true,
             control_owner: null,
             department: null,
             capabilities: {
@@ -344,6 +436,56 @@ describe('response schema nullability alignment', () => {
                 is_executable: false,
             },
         });
+    });
+
+    it('rejects control detail responses that omit archive state', async () => {
+        vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+            const url = responseUrl(input);
+            if (!url.endsWith('/api/v1/controls/42')) {
+                throw new Error(`Unexpected fetch call: ${url}`);
+            }
+            return Promise.resolve(jsonResponse({
+                id: 42,
+                name: 'Quarterly Access Review',
+                description: 'Review user access quarterly.',
+                control_form: 'manual',
+                frequency: 'quarterly',
+                risk_level: 3,
+                department_id: null,
+                status: 'active',
+                created_at: '2026-04-07T10:00:00Z',
+                updated_at: '2026-04-07T10:00:00Z',
+            }));
+        });
+
+        await expect(controlApi.getControl(42)).rejects.toThrow();
+    });
+
+    it('rejects control list responses that omit archive state', async () => {
+        vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+            const url = responseUrl(input);
+            if (!url.includes('/api/v1/controls')) {
+                throw new Error(`Unexpected fetch call: ${url}`);
+            }
+            return Promise.resolve(jsonResponse({
+                items: [
+                    {
+                        id: 42,
+                        name: 'Quarterly Access Review',
+                        description: 'Review user access quarterly.',
+                        frequency: 'quarterly',
+                        risk_level: 3,
+                        status: 'active',
+                        control_form: 'manual',
+                    },
+                ],
+                total: 1,
+                offset: 0,
+                limit: 50,
+            }));
+        });
+
+        await expect(controlApi.getControls({})).rejects.toThrow();
     });
 
     it('accepts control execution history responses with nullable execution fields', async () => {
@@ -762,6 +904,75 @@ describe('response schema nullability alignment', () => {
         ]);
     });
 
+    it('requires archive state on nested control-linked risk payloads', async () => {
+        vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+            const url = responseUrl(input);
+            if (!url.endsWith('/api/v1/controls/42/risks')) {
+                throw new Error(`Unexpected fetch call: ${url}`);
+            }
+            return Promise.resolve(jsonResponse([
+                {
+                    id: 15,
+                    control_id: 42,
+                    risk_id: 12,
+                    effectiveness: 'medium',
+                    notes: null,
+                    created_at: '2026-04-07T10:00:00Z',
+                    risk: {
+                        id: 12,
+                        risk_id_code: 'R-12',
+                        name: 'Archived linked risk',
+                        process: 'Access Management',
+                        description: 'Linked risk fixture.',
+                        status: 'active',
+                        gross_score: 6,
+                        net_score: 4,
+                    },
+                },
+            ]));
+        });
+
+        await expect(controlApi.getLinkedRisks(42)).rejects.toThrow();
+    });
+
+    it('parses archive state on nested control-linked risk payloads', async () => {
+        vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+            const url = responseUrl(input);
+            if (!url.endsWith('/api/v1/controls/42/risks')) {
+                throw new Error(`Unexpected fetch call: ${url}`);
+            }
+            return Promise.resolve(jsonResponse([
+                {
+                    id: 15,
+                    control_id: 42,
+                    risk_id: 12,
+                    effectiveness: 'medium',
+                    notes: null,
+                    created_at: '2026-04-07T10:00:00Z',
+                    risk: {
+                        id: 12,
+                        risk_id_code: 'R-12',
+                        name: 'Archived linked risk',
+                        process: 'Access Management',
+                        description: 'Linked risk fixture.',
+                        status: 'active',
+                        gross_score: 6,
+                        net_score: 4,
+                        is_archived: true,
+                    },
+                },
+            ]));
+        });
+
+        await expect(controlApi.getLinkedRisks(42)).resolves.toMatchObject([
+            {
+                risk: {
+                    is_archived: true,
+                },
+            },
+        ]);
+    });
+
     it('accepts risk-linked control responses with null link notes', async () => {
         vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
             const url = responseUrl(input);
@@ -787,6 +998,69 @@ describe('response schema nullability alignment', () => {
         ]);
     });
 
+    it('requires archive state on nested risk-linked control payloads', async () => {
+        vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+            const url = responseUrl(input);
+            if (!url.endsWith('/api/v1/risks/12/controls')) {
+                throw new Error(`Unexpected fetch call: ${url}`);
+            }
+            return Promise.resolve(jsonResponse([
+                {
+                    id: 15,
+                    control_id: 42,
+                    risk_id: 12,
+                    effectiveness: 'medium',
+                    notes: null,
+                    created_at: '2026-04-07T10:00:00Z',
+                    control: {
+                        id: 42,
+                        name: 'Archived linked control',
+                        frequency: 'monthly',
+                        risk_level: 3,
+                        status: 'active',
+                    },
+                },
+            ]));
+        });
+
+        await expect(riskApi.getLinkedControls(12)).rejects.toThrow();
+    });
+
+    it('parses archive state on nested risk-linked control payloads', async () => {
+        vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+            const url = responseUrl(input);
+            if (!url.endsWith('/api/v1/risks/12/controls')) {
+                throw new Error(`Unexpected fetch call: ${url}`);
+            }
+            return Promise.resolve(jsonResponse([
+                {
+                    id: 15,
+                    control_id: 42,
+                    risk_id: 12,
+                    effectiveness: 'medium',
+                    notes: null,
+                    created_at: '2026-04-07T10:00:00Z',
+                    control: {
+                        id: 42,
+                        name: 'Archived linked control',
+                        frequency: 'monthly',
+                        risk_level: 3,
+                        status: 'active',
+                        is_archived: true,
+                    },
+                },
+            ]));
+        });
+
+        await expect(riskApi.getLinkedControls(12)).resolves.toMatchObject([
+            {
+                control: {
+                    is_archived: true,
+                },
+            },
+        ]);
+    });
+
     it('accepts department detail responses with a null description', async () => {
         vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
             const url = responseUrl(input);
@@ -802,6 +1076,7 @@ describe('response schema nullability alignment', () => {
                 updated_at: '2026-04-07T10:00:00Z',
                 user_count: 2,
                 risk_count: 0,
+                high_risk_count: 0,
                 control_count: 1,
                 kri_count: 0,
                 kri_monitoring_counts: {},

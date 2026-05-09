@@ -1,10 +1,10 @@
 """Role configuration policy and serialization helpers."""
 
-from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.exceptions import NotFoundError, ValidationError
 from app.models.role import Permission, Role, RolePermission
 from app.schemas.riskhub import RoleHubRead
 from app.services._authorization_capabilities import role_capabilities
@@ -37,7 +37,7 @@ async def load_role_for_update(db: AsyncSession, role_id: int) -> Role:
     )
     role = result.scalar_one_or_none()
     if not role:
-        raise HTTPException(status_code=404, detail="Role not found")
+        raise NotFoundError("Role not found")
     return role
 
 
@@ -49,5 +49,5 @@ async def validate_permission_ids(db: AsyncSession, permission_ids: list[int]) -
     found_ids = {permission.id for permission in permissions}
     missing_ids = set(permission_ids) - found_ids
     if missing_ids:
-        raise HTTPException(status_code=400, detail=f"Unknown permission IDs: {sorted(missing_ids)}")
+        raise ValidationError(f"Unknown permission IDs: {sorted(missing_ids)}")
     return permissions

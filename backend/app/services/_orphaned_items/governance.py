@@ -114,8 +114,8 @@ async def load_orphan_display_projection(
 ) -> OrphanDisplayProjection:
     definition = orphan_item_definition(item_type)
     if item_type == "risk":
-        result = await db.execute(select(Risk).options(selectinload(Risk.department)).where(Risk.id == item_id))
-        risk = result.scalar_one_or_none()
+        risk_result = await db.execute(select(Risk).options(selectinload(Risk.department)).where(Risk.id == item_id))
+        risk = risk_result.scalar_one_or_none()
         if risk is None:
             return _unknown_projection(definition)
         return OrphanDisplayProjection(
@@ -126,10 +126,10 @@ async def load_orphan_display_projection(
         )
 
     if item_type == "control":
-        result = await db.execute(
+        control_result = await db.execute(
             select(Control).options(selectinload(Control.department)).where(Control.id == item_id)
         )
-        control = result.scalar_one_or_none()
+        control = control_result.scalar_one_or_none()
         if control is None:
             return _unknown_projection(definition)
         return OrphanDisplayProjection(
@@ -139,8 +139,8 @@ async def load_orphan_display_projection(
             department_name=control.department.name if control.department else None,
         )
 
-    result = await db.execute(select(KeyRiskIndicator).where(KeyRiskIndicator.id == item_id))
-    kri = result.scalar_one_or_none()
+    kri_result = await db.execute(select(KeyRiskIndicator).where(KeyRiskIndicator.id == item_id))
+    kri = kri_result.scalar_one_or_none()
     if kri is None:
         return _unknown_projection(definition)
     risk_result = await db.execute(select(Risk).options(selectinload(Risk.department)).where(Risk.id == kri.risk_id))

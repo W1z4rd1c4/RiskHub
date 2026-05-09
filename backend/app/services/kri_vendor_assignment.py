@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.exceptions import AuthorizationError, NotFoundError, ValidationError
 from app.core.permissions import can_read_vendor, is_vendor_owner
 from app.models import KeyRiskIndicator, User, Vendor, VendorKRILink, VendorRiskLink
 from app.services._authorization_capabilities import has_capability, require_capability
@@ -53,12 +53,9 @@ async def validate_assignable_vendors(
     for vendor_id in normalized_vendor_ids:
         vendor = vendors.get(vendor_id)
         if vendor is None or not can_read_vendor(vendor, current_user):
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Vendor not found")
+            raise NotFoundError("Vendor not found")
         if not has_vendor_write and not is_vendor_owner(vendor, current_user):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Permission denied: vendors:write",
-            )
+            raise AuthorizationError("Permission denied: vendors:write")
         ordered_vendors.append(vendor)
 
     return ordered_vendors
@@ -76,7 +73,7 @@ async def ensure_vendors_exist(db: AsyncSession, vendor_ids: Sequence[int] | Non
     for vendor_id in normalized_vendor_ids:
         vendor = vendors.get(vendor_id)
         if vendor is None:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Vendor not found")
+            raise ValidationError("Vendor not found")
         ordered_vendors.append(vendor)
     return ordered_vendors
 

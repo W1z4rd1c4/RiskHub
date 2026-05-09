@@ -407,7 +407,8 @@ async def test_risk_owner_can_restore_cross_department_archived_risk(
         net_probability=2,
         net_impact=2,
         net_score=4,
-        status=RiskStatus.archived.value,
+        status=RiskStatus.active.value,
+        is_archived=True,
     )
     db_session.add(risk)
     await db_session.commit()
@@ -628,7 +629,8 @@ async def test_archived_same_department_risk_cannot_manage_control_links(
         net_probability=2,
         net_impact=2,
         net_score=4,
-        status=RiskStatus.archived.value,
+        status=RiskStatus.active.value,
+        is_archived=True,
     )
     db_session.add(risk)
     await db_session.commit()

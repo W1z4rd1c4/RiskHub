@@ -12,30 +12,38 @@ class FrontendLocalGateClassification(TypedDict):
 
 FRONTEND_LOCAL_GATE_CLASSIFICATIONS: dict[str, FrontendLocalGateClassification] = {
     "frontend/src/authz/policy.ts": {
-        "reason": "Route and navigation policy projection from the session.",
+        "reason": "Route and navigation policy projection from backend me-capabilities with session fallback.",
         "allowed_patterns": (
+            r"hasPermission: PermissionChecker,",
+            r"function buildLegacyAuthz\(user: AuthUser, hasPermission: PermissionChecker\): Authz \{",
+            r"return buildLegacyAuthz\(user, hasPermission\);",
+            r"const can = \(action: string, resource: string\): boolean => hasPermission\(resource, action\);",
             r"const canViewUserDirectory = hasPermission\('users', 'read'\);",
-            r"const canViewGovernance = !isPlatformAdmin && hasGlobalScope && hasPermission\('users', 'write'\);",
-            r"const canViewActivityLog = !isPlatformAdmin && hasPermission\('activity_log', 'read'\);",
-            r"const canReadRisks = hasPermission\('risks', 'read'\);",
-            r"const canReadControls = hasPermission\('controls', 'read'\);",
-            r"const canReadVendors = hasPermission\('vendors', 'read'\);",
-            r"const canReadDepartments = hasPermission\('departments', 'read'\);",
+            r"canViewGovernance: !isPlatformAdmin && hasGlobalScope && hasPermission\('users', 'write'\),",
+            r"canViewActivityLog: !isPlatformAdmin && hasPermission\('activity_log', 'read'\),",
+            r"canReadRisks: hasPermission\('risks', 'read'\),",
+            r"canReadControls: hasPermission\('controls', 'read'\),",
+            r"canReadVendors: hasPermission\('vendors', 'read'\),",
+            r"canReadDepartments: hasPermission\('departments', 'read'\),",
+        ),
+    },
+    "frontend/src/authz/useAuthz.ts": {
+        "reason": "Authz hook passes backend me-capabilities into the route/session projection.",
+        "allowed_patterns": (
+            r"const \{ user, hasPermission \} = useAuth\(\);",
+            r"const strictCapabilities = useSyncExternalStore\(",
+            r"\(\) => buildAuthz\(user, hasPermission, user\?\.me_capabilities, strictCapabilities\),",
+            r"\[user, hasPermission, strictCapabilities\],",
         ),
     },
     "frontend/src/routing/business.tsx": {
         "reason": "Business route navigation visibility only.",
         "allowed_patterns": (
-            r"isVisible: \(\{ authz, hasPermission \}\) => !authz\.isPlatformAdmin && "
-            r"hasPermission\('controls', 'read'\),",
-            r"isVisible: \(\{ authz, hasPermission \}\) => !authz\.isPlatformAdmin && "
-            r"hasPermission\('risks', 'read'\),",
-            r"isVisible: \(\{ authz, hasPermission \}\) => !authz\.isPlatformAdmin && "
-            r"hasPermission\('issues', 'read'\),",
-            r"isVisible: \(\{ authz, hasPermission \}\) => !authz\.isPlatformAdmin && "
-            r"hasPermission\('vendors', 'read'\),",
-            r"isVisible: \(\{ authz, hasPermission \}\) => !authz\.isPlatformAdmin && "
-            r"hasPermission\('departments', 'read'\),",
+            r"isVisible: \(\{ authz \}\) => !authz\.isPlatformAdmin && authz\.can\('read', 'controls'\),",
+            r"isVisible: \(\{ authz \}\) => !authz\.isPlatformAdmin && authz\.can\('read', 'risks'\),",
+            r"isVisible: \(\{ authz \}\) => !authz\.isPlatformAdmin && authz\.can\('read', 'issues'\),",
+            r"isVisible: \(\{ authz \}\) => !authz\.isPlatformAdmin && authz\.can\('read', 'vendors'\),",
+            r"isVisible: \(\{ authz \}\) => !authz\.isPlatformAdmin && authz\.can\('read', 'departments'\),",
         ),
     },
     "frontend/src/components/layout/Sidebar.tsx": {
@@ -57,12 +65,12 @@ FRONTEND_LOCAL_GATE_CLASSIFICATIONS: dict[str, FrontendLocalGateClassification] 
 
 BUSINESS_ROUTE_NAV_EXPECTATIONS: dict[str, str] = {
     "approvals": "({ authz }) => !authz.isPlatformAdmin",
-    "controls": "({ authz, hasPermission }) => !authz.isPlatformAdmin && hasPermission('controls', 'read')",
-    "risks": "({ authz, hasPermission }) => !authz.isPlatformAdmin && hasPermission('risks', 'read')",
-    "issues": "({ authz, hasPermission }) => !authz.isPlatformAdmin && hasPermission('issues', 'read')",
-    "kris": "({ authz, hasPermission }) => !authz.isPlatformAdmin && hasPermission('risks', 'read')",
-    "vendors": "({ authz, hasPermission }) => !authz.isPlatformAdmin && hasPermission('vendors', 'read')",
-    "departments": "({ authz, hasPermission }) => !authz.isPlatformAdmin && hasPermission('departments', 'read')",
+    "controls": "({ authz }) => !authz.isPlatformAdmin && authz.can('read', 'controls')",
+    "risks": "({ authz }) => !authz.isPlatformAdmin && authz.can('read', 'risks')",
+    "issues": "({ authz }) => !authz.isPlatformAdmin && authz.can('read', 'issues')",
+    "kris": "({ authz }) => !authz.isPlatformAdmin && authz.can('read', 'risks')",
+    "vendors": "({ authz }) => !authz.isPlatformAdmin && authz.can('read', 'vendors')",
+    "departments": "({ authz }) => !authz.isPlatformAdmin && authz.can('read', 'departments')",
     "governance": "({ authz }) => authz.canViewGovernance",
     "activity-log": "({ authz }) => authz.canViewActivityLog",
     "risk-hub": "({ authz }) => authz.canViewRiskHub",

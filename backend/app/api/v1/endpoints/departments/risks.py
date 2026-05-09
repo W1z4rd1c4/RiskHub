@@ -12,7 +12,6 @@ from app.core.pagination import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
 from app.core.security import check_permission, require_permission
 from app.db.session import get_db
 from app.models import KeyRiskIndicator, Risk, User
-from app.models.risk import RiskStatus
 from app.schemas.risk import RiskSummary
 
 from ._shared import _assert_department_in_scope
@@ -54,9 +53,12 @@ async def list_department_risks(
     )
 
     if status:
-        query = query.where(Risk.status == status)
+        if status == "archived":
+            query = query.where(Risk.archived())
+        else:
+            query = query.where(Risk.status == status, Risk.live())
     else:
-        query = query.where(Risk.status != RiskStatus.archived.value)
+        query = query.where(Risk.live())
 
     # Apply min_net_score filter for high-risk filtering
     if min_net_score is not None:

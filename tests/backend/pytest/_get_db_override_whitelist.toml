@@ -1,0 +1,3 @@
+allowed_files = [
+  "tests/backend/pytest/conftest.py",
+]

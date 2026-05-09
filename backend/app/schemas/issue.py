@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 from enum import Enum
 
 from pydantic import BaseModel, Field, computed_field, model_validator
 
+from app.core.datetime_utils import UtcAwareDatetime
 from app.schemas.collection import CollectionGroupRead
 
 
@@ -72,7 +72,7 @@ class IssueLinkRead(IssueLinkBase):
     linked_entity_type: str | None = None
     linked_entity_name: str | None = None
     is_source_link: bool = False
-    created_at: datetime
+    created_at: UtcAwareDatetime
 
     model_config = {"from_attributes": True}
 
@@ -84,12 +84,12 @@ class IssueRemediationPlanRead(BaseModel):
     progress_percent: int
     owner_user_id: int | None = None
     owner_user_name: str | None = None
-    target_date: datetime | None = None
+    target_date: UtcAwareDatetime | None = None
     blocker_reason: str | None = None
     completion_notes: str | None = None
-    completed_at: datetime | None = None
-    created_at: datetime
-    updated_at: datetime
+    completed_at: UtcAwareDatetime | None = None
+    created_at: UtcAwareDatetime
+    updated_at: UtcAwareDatetime
 
     model_config = {"from_attributes": True}
 
@@ -103,11 +103,11 @@ class IssueExceptionRead(BaseModel):
     requested_by_name: str | None = None
     approved_by_id: int | None = None
     approved_by_name: str | None = None
-    requested_at: datetime | None = None
-    approved_at: datetime | None = None
-    expires_at: datetime | None = None
-    created_at: datetime
-    updated_at: datetime
+    requested_at: UtcAwareDatetime | None = None
+    approved_at: UtcAwareDatetime | None = None
+    expires_at: UtcAwareDatetime | None = None
+    created_at: UtcAwareDatetime
+    updated_at: UtcAwareDatetime
 
     model_config = {"from_attributes": True}
 
@@ -175,11 +175,11 @@ class IssueSummary(BaseModel):
     department_name: str | None = None
     owner_user_id: int | None = None
     owner_user_name: str | None = None
-    opened_at: datetime
-    due_at: datetime | None = None
-    closed_at: datetime | None = None
-    created_at: datetime
-    updated_at: datetime
+    opened_at: UtcAwareDatetime
+    due_at: UtcAwareDatetime | None = None
+    closed_at: UtcAwareDatetime | None = None
+    created_at: UtcAwareDatetime
+    updated_at: UtcAwareDatetime
     risk_contexts: list[IssueRiskContext] = Field(default_factory=list)
     vendor_contexts: list[IssueVendorContext] = Field(default_factory=list)
     capabilities: IssueCapabilities | None = None
@@ -207,7 +207,7 @@ class IssueCreate(BaseModel):
     source_id: int | None = None
     department_id: int | None = None
     owner_user_id: int | None = None
-    due_at: datetime | None = None
+    due_at: UtcAwareDatetime | None = None
 
 
 class IssueContextEntityTypeEnum(str, Enum):
@@ -224,7 +224,7 @@ class IssueContextualCreate(BaseModel):
     title: str = Field(..., max_length=255)
     description: str | None = None
     severity: IssueSeverityEnum = IssueSeverityEnum.medium
-    due_at: datetime | None = None
+    due_at: UtcAwareDatetime | None = None
     owner_user_id: int | None = None
 
 
@@ -236,7 +236,7 @@ class IssueUpdate(BaseModel):
     source_type: IssueSourceTypeEnum | None = None
     source_id: int | None = None
     owner_user_id: int | None = None
-    due_at: datetime | None = None
+    due_at: UtcAwareDatetime | None = None
     department_id: int | None = None
     validation_note: str | None = None
 
@@ -256,12 +256,12 @@ class IssueListResponse(BaseModel):
 
 class IssueAssignRequest(BaseModel):
     owner_user_id: int
-    due_at: datetime
-    target_date: datetime | None = None
+    due_at: UtcAwareDatetime
+    target_date: UtcAwareDatetime | None = None
 
 
 class IssueStartRemediationRequest(BaseModel):
-    target_date: datetime | None = None
+    target_date: UtcAwareDatetime | None = None
 
 
 class IssueProgressUpdateRequest(BaseModel):
@@ -277,7 +277,7 @@ class IssueExceptionRequestCreate(BaseModel):
 
 class IssueExceptionApproveRequest(BaseModel):
     exception_id: int | None = None
-    expires_at: datetime
+    expires_at: UtcAwareDatetime
 
 
 class IssueExceptionRevokeRequest(BaseModel):

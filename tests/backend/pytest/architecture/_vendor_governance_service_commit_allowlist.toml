@@ -1,0 +1,23 @@
+[[allowlist]]
+file = "backend/app/services/_vendor_governance/lifecycle.py"
+line = 46
+rationale = "Vendor archive lifecycle is currently a terminal service entrypoint that commits archive state and audit together."
+expires_at = "2026-09-01"
+
+[[allowlist]]
+file = "backend/app/services/_vendor_governance/lifecycle.py"
+line = 91
+rationale = "Vendor restore lifecycle is currently a terminal service entrypoint that commits restore state and audit together."
+expires_at = "2026-09-01"
+
+[[allowlist]]
+file = "backend/app/services/_vendor_governance/lifecycle.py"
+line = 117
+rationale = "Vendor status lifecycle is currently a terminal service entrypoint that commits status state and audit together."
+expires_at = "2026-09-01"
+
+[[allowlist]]
+file = "backend/app/services/_vendor_governance/lifecycle.py"
+line = 136
+rationale = "Vendor criticality lifecycle is currently a terminal service entrypoint that commits criticality state and audit together."
+expires_at = "2026-09-01"

@@ -4,8 +4,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import activity_logger
+from app.core.audit.control import control_updated
+from app.core.audit.risk import risk_updated
 from app.models import ApprovalRequest, ApprovalResourceType, Control, Risk, User
-from app.models.activity_log import ActivityAction, ActivityEntityType
 
 from .constants import EDITABLE_FIELDS
 from .helpers import apply_whitelisted_pending_changes, missing_resource_auto_rejection
@@ -71,17 +72,13 @@ async def _apply_edit_risk_control(
                     risk_applied_changes["net_score"] = {"old": old_net_score, "new": risk.net_score}
 
             if risk_applied_changes:
-                await activity_logger.log_activity(
+                await risk_updated(
                     db,
-                    entity_type=ActivityEntityType.RISK,
-                    entity_id=risk.id,
-                    entity_name=f"{risk.risk_id_code}: {risk.name}",
-                    safe_entity_label=risk.risk_id_code,
-                    action=ActivityAction.UPDATE,
                     actor=current_user,
-                    department_id=risk.department_id,
+                    risk=risk,
                     changes=risk_applied_changes,
                     description=f"Updated via approval #{approval.id}",
+                    log_activity_func=activity_logger.log_activity,
                 )
             return SideEffectResult.applied()
 
@@ -114,16 +111,13 @@ async def _apply_edit_risk_control(
             # Set audit attribution for control edits
             if control_applied_changes:
                 control.updated_by_id = current_user.id
-                await activity_logger.log_activity(
+                await control_updated(
                     db,
-                    entity_type=ActivityEntityType.CONTROL,
-                    entity_id=control.id,
-                    entity_name=f"{control.name}",
-                    action=ActivityAction.UPDATE,
                     actor=current_user,
-                    department_id=control.department_id,
+                    control=control,
                     changes=control_applied_changes,
                     description=f"Updated via approval #{approval.id}",
+                    log_activity_func=activity_logger.log_activity,
                 )
             return SideEffectResult.applied()
     return SideEffectResult.applied()

@@ -3,6 +3,7 @@ import { AlertCircle, CheckCircle, MinusCircle, XCircle } from 'lucide-react';
 import type { Column } from '@/components/tables';
 import { formatMetricNumberValue } from '@/i18n/formatters';
 import { getKriMonitoringMeta } from '@/lib/monitoringStatus';
+import { riskScoreVariantClass, type RiskScoreThresholds } from '@/lib/riskScoreTheme';
 import type { ControlSummary } from '@/types/control';
 import type { KeyRiskIndicator } from '@/types/kri';
 import type { RiskSummary } from '@/types/risk';
@@ -10,7 +11,7 @@ import type { DeptUser } from '@/hooks/useDepartmentDetail';
 
 type TranslateFn = (key: string) => string;
 
-export const getRiskColumns = (t: TranslateFn): Column<RiskSummary>[] => [
+export const getRiskColumns = (t: TranslateFn, thresholds: RiskScoreThresholds): Column<RiskSummary>[] => [
     {
         key: 'name',
         label: t('common:labels.risk_name'),
@@ -60,17 +61,7 @@ export const getRiskColumns = (t: TranslateFn): Column<RiskSummary>[] => [
         label: t('common:labels.gross'),
         sortable: true,
         render: (risk) => (
-            <span
-                className={`text-sm font-black ${
-                    risk.gross_score >= 16
-                        ? 'text-rose-400'
-                        : risk.gross_score >= 10
-                            ? 'text-orange-400'
-                            : risk.gross_score >= 5
-                                ? 'text-amber-400'
-                                : 'text-emerald-400'
-                }`}
-            >
+            <span className={`text-sm font-black ${riskScoreVariantClass('text', risk.gross_score, thresholds)}`}>
                 {risk.gross_score}
             </span>
         ),
@@ -80,17 +71,7 @@ export const getRiskColumns = (t: TranslateFn): Column<RiskSummary>[] => [
         label: t('common:labels.net'),
         sortable: true,
         render: (risk) => (
-            <span
-                className={`text-sm font-black ${
-                    risk.net_score >= 16
-                        ? 'text-rose-400'
-                        : risk.net_score >= 10
-                            ? 'text-orange-400'
-                            : risk.net_score >= 5
-                                ? 'text-amber-400'
-                                : 'text-emerald-400'
-                }`}
-            >
+            <span className={`text-sm font-black ${riskScoreVariantClass('text', risk.net_score, thresholds)}`}>
                 {risk.net_score}
             </span>
         ),

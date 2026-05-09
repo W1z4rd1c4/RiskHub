@@ -56,12 +56,13 @@ Use this document as policy truth. Use the guides below for operational workflow
 | `internal_audit` | Internal Audit | Governance | ✅ Privileged | ❌ | ❌ |
 | `actuarial` | Actuarial | Governance | ✅ Privileged | ❌ | ❌ |
 | `department_head` | Department Head | Department | ❌ Department-scoped | ❌ | ❌ |
+| `CONTROL_OWNER` | **Reserved** Control Owner | Department | Reserved for future granular control ownership workflow | ❌ | ❌ |
 | `employee` | Employee | Department | ❌ Department-scoped | ❌ | ❌ |
 | `admin` | Administrator | System | ❌ **No business data** | ✅ | ❌ |
 | `viewer` | Viewer | System | ❌ Read-only | ❌ | ❌ |
 
 > [!NOTE]
-> Some deployments do not use a separate `legal` role. For Vendor Risk Management (Phase 18), contract governance is modeled as a capability permission (`vendor_contracts:*`) and is typically granted to `compliance`.
+> Some deployments do not use a separate `legal` role. `CONTROL_OWNER` is reserved for a future granular control ownership workflow and is not seeded as an active role today. Vendor contract governance permissions are reserved for a future DORA contract-governance workflow.
 
 ### 1.2 Access Scopes
 
@@ -310,6 +311,7 @@ Rules:
 | `controls:read` | View controls | All (scoped) |
 | `controls:write` | Create/edit controls | CRO, Risk Manager, Compliance, Actuarial, Dept Head |
 | `controls:delete` | Delete controls | CRO, Risk Manager |
+| `controls:approve` | **Reserved** for future granular control approval workflow | Reserved |
 | `controls:execute` | Log control executions | CRO, Risk Manager, Compliance, Internal Audit, Actuarial, Department Head, Employee |
 | `kri:submit` | Submit KRI values | CRO, Risk Manager, Department Head, KRI Reporting Owner, Risk Owner fallback |
 | `approvals:read` | View approval queue | All |
@@ -320,8 +322,8 @@ Rules:
 | `vendors:read` | View vendors (Vendor Risk Management) | Governance + business users (scoped) |
 | `vendors:write` | Create/edit vendors | Outsourcing Owners, Risk Manager, Department Head |
 | `vendors:delete` | Archive vendors | Privileged users only |
-| `vendor_contracts:read` | View vendor contracts + DORA clauses | Compliance, CRO |
-| `vendor_contracts:write` | Create/edit vendor contracts + DORA clauses | Compliance, CRO |
+| `vendor_contracts:read` | **Reserved** for future vendor contract + DORA clause governance | Reserved |
+| `vendor_contracts:write` | **Reserved** for future vendor contract + DORA clause governance | Reserved |
 | `issues:read` | View issues/findings | CRO, Risk Manager, Compliance, Internal Audit, Dept Head (scoped) |
 | `issues:write` | Create/edit issues and remediation | CRO, Risk Manager, Dept Head (scoped) |
 | `issues:approve` | Approve issue exceptions | CRO, Risk Manager (global approvers) |
@@ -594,10 +596,10 @@ Non-privileged users can access resources **outside their department** if they a
 > - Risks: `status = 'archived'`
 > - Controls: `status = 'archived'`
 > - KRIs: `is_archived = true`, `archived_at`, `archived_by_id`
-> - Vendors: `status = 'inactive'` (inactive is the archived state)
+> - Vendors: archive truth is `is_archived=true`; `status='inactive'` is a legacy/UI alias.
 > - Vendor SLAs: `is_archived = true`, `archived_at`, `archived_by_id`
 > - Non-privileged risk deletions use the shared **high-risk** escalation rule: `is_priority = true` or `net_score >= high_risk_min_net_score` requires privileged follow-up after primary approval.
-> - Inactive vendors are archived resources. Restore is the only lifecycle mutation allowed while inactive; edit, link/unlink, and issue vendor-context/link mutations reject with conflict semantics.
+> - Vendor archive truth: is_archived=true. Restore is the only lifecycle mutation allowed while archived; edit, link/unlink, and issue vendor-context/link mutations reject with conflict semantics.
 
 ### 8.3 Archived Visibility Defaults and Restore
 
@@ -606,7 +608,7 @@ Non-privileged users can access resources **outside their department** if they a
 | Risks list/search | Archived hidden | `include_archived=true` includes archived risks |
 | Controls list/search | Archived hidden | `include_archived=true` includes archived controls |
 | KRIs list/detail/history | Archived hidden | `include_archived=true` allows archived KRIs within read scope |
-| Vendors list/search | Inactive hidden | `include_archived=true` includes inactive vendors |
+| Vendors list/search | Archived hidden | `include_archived=true` includes `is_archived` rows |
 | Vendor SLA list | Archived hidden | `include_archived=true` includes archived SLAs |
 
 | Restore Endpoint | Required Permission | Restore State |
@@ -614,7 +616,7 @@ Non-privileged users can access resources **outside their department** if they a
 | `POST /api/v1/risks/{id}/restore` | `risks:delete` | `status='active'` |
 | `POST /api/v1/controls/{id}/restore` | `controls:delete` | `status='active'` |
 | `POST /api/v1/kris/{id}/restore` | `risks:delete` | `is_archived=false`, clear archive metadata |
-| `POST /api/v1/vendors/{id}/restore` | `vendors:delete` | `status='active'` |
+| `POST /api/v1/vendors/{id}/restore` | `vendors:delete` | `is_archived=false`, clear archive metadata (`status='active'` as backward-compat alias) |
 | `POST /api/v1/vendor-slas/{id}/restore` | `vendors:delete` | `is_archived=false`, clear archive metadata |
 
 ### 8.4 Approval Action Decision Tree
@@ -711,13 +713,13 @@ All significant actions are logged to the `activity_logs` table for audit compli
 | KRI_VALUE | CREATE (value submission), UPDATE (value correction) |
 | APPROVAL | CREATE, APPROVE, REJECT, CANCEL |
 | VENDOR | CREATE, UPDATE, ARCHIVE |
-| VENDOR_ASSESSMENT | CREATE, UPDATE, STATUS_CHANGE |
-| VENDOR_INCIDENT | CREATE, UPDATE, STATUS_CHANGE |
-| VENDOR_SLA | CREATE, UPDATE, STATUS_CHANGE |
-| VENDOR_REMEDIATION | CREATE, UPDATE, STATUS_CHANGE |
+| VENDOR_ASSESSMENT | **Reserved** for future vendor extended domains |
+| VENDOR_INCIDENT | **Reserved** for future vendor extended domains |
+| VENDOR_SLA | **Reserved** for future vendor extended domains |
+| VENDOR_REMEDIATION | **Reserved** for future vendor extended domains |
 | ISSUE | CREATE, UPDATE, STATUS_CHANGE |
 | ISSUE_REMEDIATION | CREATE, UPDATE, STATUS_CHANGE |
-| ISSUE_EXCEPTION | CREATE, UPDATE, APPROVE, REJECT |
+| ISSUE_EXCEPTION | CREATE, UPDATE, APPROVE, STATUS_CHANGE |
 
 ### 9.2 Change Tracking
 
@@ -776,7 +778,8 @@ Exported data is always scoped to what the requesting user can access under RBAC
 - Department-scoped users only receive in-scope entities
 - Privileged/global users can export across departments
 - Ownership/reporting-owner exceptions follow the same logic as list/detail views
-- Unified exports apply scope after as-of replay and row rehydration. The final row state, not the row selected before replay, is authoritative.
+- Risks, Controls, KRIs, and Vendors unified exports apply scope after as-of replay and row rehydration. The final row state, not the row selected before replay, is authoritative.
+- Issues exports are fetch-time scoped and do not use as-of replay; their row scope is enforced at fetch time plus explicit issue filters.
 - When a caller supplies an explicit `department_id`, that filter is strict after replay for risks, controls, KRIs, and vendors. Ownership/reporting exceptions do not override an explicit department filter.
 - Without an explicit `department_id`, scoped exports preserve actor-visible rows, including direct risk/control/vendor ownership, KRI reporting-owner risk visibility, and linked-control owner risk visibility.
 - Legacy/peripheral report exports use the same department-validation context: summary exports count actor-visible risks and controls, issue exports reject out-of-scope explicit departments, and audit-trail exports include visible control executions while filtering linked risk labels through canonical risk visibility.
@@ -791,7 +794,7 @@ Exported data is always scoped to what the requesting user can access under RBAC
 
 - Risks/Controls: archived items included when status filter is `archived`
 - KRIs: archived items included when status filter is `archived`
-- Vendors: archived semantics use `status = inactive`
+- Vendors: archived semantics use `is_archived`
 
 ### 10.6 Monitoring Status in Exports
 
@@ -1019,7 +1022,7 @@ These values are configurable by CRO in Risk Hub:
 |-----|---------|-------------|
 | `high_risk_min_net_score` | 10 | Threshold for requiring privileged approval |
 | `medium_risk_min_net_score` | 5 | Medium risk threshold for reporting |
-| `critical_risk_min_net_score` | 20 | Critical risk threshold |
+| `critical_risk_min_net_score` | 16 | Critical risk threshold |
 
 ---
 

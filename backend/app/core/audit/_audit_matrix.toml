@@ -1,0 +1,229 @@
+# W7 audit adapter matrix.
+#
+# Derived from docs/BUSINESS_LOGIC.md §9.1 plus adapter-level restore/status
+# helpers needed by the current workflow surfaces. Reserved vendor extended
+# domains are intentionally excluded until those product domains ship.
+
+[[adapter]]
+module = "risk"
+function = "risk_created"
+entity_type = "RISK"
+action = "CREATE"
+
+[[adapter]]
+module = "risk"
+function = "risk_updated"
+entity_type = "RISK"
+action = "UPDATE"
+
+[[adapter]]
+module = "risk"
+function = "risk_archived"
+entity_type = "RISK"
+action = "ARCHIVE"
+
+[[adapter]]
+module = "risk"
+function = "risk_restored"
+entity_type = "RISK"
+action = "UPDATE"
+
+[[adapter]]
+module = "control"
+function = "control_created"
+entity_type = "CONTROL"
+action = "CREATE"
+
+[[adapter]]
+module = "control"
+function = "control_updated"
+entity_type = "CONTROL"
+action = "UPDATE"
+
+[[adapter]]
+module = "control"
+function = "control_archived"
+entity_type = "CONTROL"
+action = "ARCHIVE"
+
+[[adapter]]
+module = "control"
+function = "control_restored"
+entity_type = "CONTROL"
+action = "UPDATE"
+
+[[adapter]]
+module = "kri"
+function = "kri_created"
+entity_type = "KRI"
+action = "CREATE"
+
+[[adapter]]
+module = "kri"
+function = "kri_updated"
+entity_type = "KRI"
+action = "UPDATE"
+
+[[adapter]]
+module = "kri"
+function = "kri_archived"
+entity_type = "KRI"
+action = "ARCHIVE"
+
+[[adapter]]
+module = "kri"
+function = "kri_restored"
+entity_type = "KRI"
+action = "UPDATE"
+
+[[adapter]]
+module = "kri"
+function = "kri_value_created"
+entity_type = "KRI_VALUE"
+action = "CREATE"
+
+[[adapter]]
+module = "kri"
+function = "kri_history_corrected"
+entity_type = "KRI_VALUE"
+action = "UPDATE"
+
+[[adapter]]
+module = "kri"
+function = "kri_value_mutation_updated"
+entity_type = "KRI"
+action = "UPDATE"
+
+[[adapter]]
+module = "vendor"
+function = "vendor_created"
+entity_type = "VENDOR"
+action = "CREATE"
+
+[[adapter]]
+module = "vendor"
+function = "vendor_updated"
+entity_type = "VENDOR"
+action = "UPDATE"
+
+[[adapter]]
+module = "vendor"
+function = "vendor_archived"
+entity_type = "VENDOR"
+action = "ARCHIVE"
+
+[[adapter]]
+module = "vendor"
+function = "vendor_restored"
+entity_type = "VENDOR"
+action = "UPDATE"
+
+[[adapter]]
+module = "vendor"
+function = "vendor_link_created"
+entity_type = "VENDOR_LINK"
+action = "CREATE"
+rationale = "Vendor link mutations are auditable relationship changes, emitted at the workflow layer."
+
+[[adapter]]
+module = "vendor"
+function = "vendor_link_deleted"
+entity_type = "VENDOR_LINK"
+action = "DELETE"
+rationale = "Vendor unlink mutations are auditable relationship changes, emitted at the workflow layer."
+
+[[adapter]]
+module = "issue"
+function = "issue_created"
+entity_type = "ISSUE"
+action = "CREATE"
+
+[[adapter]]
+module = "issue"
+function = "issue_updated"
+entity_type = "ISSUE"
+action = "UPDATE"
+
+[[adapter]]
+module = "issue"
+function = "issue_status_changed"
+entity_type = "ISSUE"
+action = "STATUS_CHANGE"
+
+[[adapter]]
+module = "issue"
+function = "issue_linked"
+entity_type = "ISSUE"
+action = "LINK"
+
+[[adapter]]
+module = "issue"
+function = "issue_unlinked"
+entity_type = "ISSUE"
+action = "UNLINK"
+
+[[adapter]]
+module = "issue"
+function = "issue_remediation_created"
+entity_type = "ISSUE_REMEDIATION"
+action = "CREATE"
+
+[[adapter]]
+module = "issue"
+function = "issue_remediation_updated"
+entity_type = "ISSUE_REMEDIATION"
+action = "UPDATE"
+
+[[adapter]]
+module = "issue"
+function = "issue_remediation_status_changed"
+entity_type = "ISSUE_REMEDIATION"
+action = "STATUS_CHANGE"
+
+[[adapter]]
+module = "issue"
+function = "issue_exception_created"
+entity_type = "ISSUE_EXCEPTION"
+action = "CREATE"
+
+[[adapter]]
+module = "issue"
+function = "issue_exception_updated"
+entity_type = "ISSUE_EXCEPTION"
+action = "UPDATE"
+
+[[adapter]]
+module = "issue"
+function = "issue_exception_approved"
+entity_type = "ISSUE_EXCEPTION"
+action = "APPROVE"
+
+[[adapter]]
+module = "issue"
+function = "issue_exception_status_changed"
+entity_type = "ISSUE_EXCEPTION"
+action = "STATUS_CHANGE"
+
+[[adapter]]
+module = "approval"
+function = "approval_created"
+entity_type = "APPROVAL"
+action = "CREATE"
+
+[[adapter]]
+module = "approval"
+function = "approval_approved"
+entity_type = "APPROVAL"
+action = "APPROVE"
+
+[[adapter]]
+module = "approval"
+function = "approval_rejected"
+entity_type = "APPROVAL"
+action = "REJECT"
+
+[[adapter]]
+module = "approval"
+function = "approval_cancelled"
+entity_type = "APPROVAL"
+action = "CANCEL"

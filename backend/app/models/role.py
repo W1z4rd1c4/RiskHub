@@ -34,6 +34,7 @@ class RoleType(StrEnum):
 
     # Department
     DEPARTMENT_HEAD = "department_head"
+    # Reserved: control owner role is not seeded until granular control ownership ships.
     CONTROL_OWNER = "control_owner"
     EMPLOYEE = "employee"
 

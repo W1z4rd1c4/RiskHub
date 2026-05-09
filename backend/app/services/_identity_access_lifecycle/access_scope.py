@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.activity_logger import build_change_set
 from app.core.config import Settings
 from app.core.email import email_equals
+from app.core.exceptions import NotFoundError, ValidationError
 from app.core.user_query_options import user_selectinload_options
 from app.models import User
 from app.models.user import AccessScope
@@ -51,9 +51,9 @@ async def update_access_profile(
     )
     user = result.scalar_one_or_none()
     if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        raise NotFoundError("User not found")
     if is_platform_admin(user) and not is_platform_admin(current_user):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        raise NotFoundError("User not found")
 
     platform_update = {field: value for field, value in update_data.items() if field in PLATFORM_ADMIN_FIELDS}
     new_role = await authorize_access_update_fields(
@@ -76,7 +76,7 @@ async def update_access_profile(
             select(User.id).where(email_equals(User.email, platform_update["email"])).where(User.id != user.id).limit(1)
         )
         if email_check.scalar_one_or_none():
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
+            raise ValidationError("Email already registered")
 
     if new_role is not None:
         await ensure_role_change_keeps_privileged_access(
@@ -90,10 +90,7 @@ async def update_access_profile(
     if "access_scope" in update_data:
         normalize_access_scope_update(update_data)
         if current_user.id == user.id and update_data["access_scope"] != AccessScope.GLOBAL:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Cannot remove your own privileged access",
-            )
+            raise ValidationError("Cannot remove your own privileged access")
         if is_global_privileged_user(user) and update_data["access_scope"] != AccessScope.GLOBAL:
             await ensure_remaining_global_privileged_user(
                 db,
@@ -117,6 +114,6 @@ async def update_access_profile(
         db=db,
         user=user,
         current_user=current_user,
-        changes=changes,
+        changes=changes or {},
         include_permissions=True,
     )

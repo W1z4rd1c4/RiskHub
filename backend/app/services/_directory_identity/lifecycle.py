@@ -77,7 +77,11 @@ def directory_reenable_outcome(user: User, *, now=None) -> DirectoryReenableOutc
             user=user,
             reason="Directory-deprovisioned users require break-glass enable before reactivation.",
         )
-    if user.external_id and user.directory_sync_status == "directory_disabled" and not user.has_active_break_glass(now=now):
+    if (
+        user.external_id
+        and user.directory_sync_status == "directory_disabled"
+        and not user.has_active_break_glass(now=now)
+    ):
         return DirectoryReenableOutcome(
             status="blocked_by_directory",
             user=user,
