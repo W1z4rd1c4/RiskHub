@@ -1,77 +1,59 @@
-import { createContext, useCallback, useContext, type ReactNode } from 'react';
-import type { AuthUser } from '@/services/authApi';
-import { hasUserPermission } from '@/contexts/auth/permissions';
-import { usePreferenceHydration } from '@/contexts/auth/usePreferenceHydration';
+import type { ReactNode } from 'react';
+
+import { AuthActionsProvider, useAuthActionsContext } from '@/contexts/AuthActionsContext';
+import { PreferencesProvider, usePreferenceActions, usePreferenceState } from '@/contexts/PreferencesContext';
+import { SessionProvider, useSession } from '@/contexts/SessionContext';
 import { useAuthBootstrap } from '@/contexts/auth/useAuthBootstrap';
-import { useAuthActions } from '@/contexts/auth/useAuthActions';
-import { useSessionSnapshot } from '@/services/session';
 
-type User = AuthUser;
-
-interface AuthContextType {
-    user: User | null;
-    isLoading: boolean;
-    bootstrapStatus: 'loading' | 'authenticated' | 'anonymous' | 'error';
-    bootstrapError: 'service_unavailable' | null;
-    logoutPending: boolean;
-    logoutErrorKey: string | null;
-    isPreferencesHydrated: boolean;
-    hasPermission: (resource: string, action: string) => boolean;
-    isAuthenticated: boolean;
-    login: (email: string, password: string) => Promise<User>;
-    logout: () => Promise<void>;
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-export function AuthProvider({ children }: { children: ReactNode }) {
-    const session = useSessionSnapshot();
+function AuthBootstrapBridge({ children }: { children: ReactNode }) {
+    const { token } = useSession();
     const {
-        isPreferencesHydrated,
         hydratePreferences,
         markPreferencesReady,
-    } = usePreferenceHydration(!session.token);
-
-    const { login, logout } = useAuthActions({
-        hydratePreferences,
-        markPreferencesReady,
-    });
+    } = usePreferenceActions();
 
     useAuthBootstrap({
-        token: session.token,
+        token,
         hydratePreferences,
         markPreferencesReady,
     });
 
-    const hasPermission = useCallback((resource: string, action: string): boolean => {
-        return hasUserPermission(session.user, resource, action);
-    }, [session.user]);
-
     return (
-        <AuthContext.Provider
-            value={{
-                user: session.user,
-                isLoading: session.bootstrapStatus === 'loading',
-                bootstrapStatus: session.bootstrapStatus,
-                bootstrapError: session.bootstrapError,
-                logoutPending: session.logoutPending,
-                logoutErrorKey: session.logoutErrorKey,
-                isPreferencesHydrated,
-                hasPermission,
-                isAuthenticated: Boolean(session.token && session.user),
-                login,
-                logout,
-            }}
+        <AuthActionsProvider
+            hydratePreferences={hydratePreferences}
+            markPreferencesReady={markPreferencesReady}
         >
             {children}
-        </AuthContext.Provider>
+        </AuthActionsProvider>
+    );
+}
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+    return (
+        <SessionProvider>
+            <PreferencesProvider>
+                <AuthBootstrapBridge>{children}</AuthBootstrapBridge>
+            </PreferencesProvider>
+        </SessionProvider>
     );
 }
 
 export function useAuth() {
-    const context = useContext(AuthContext);
-    if (context === undefined) {
-        throw new Error('useAuth must be used within an AuthProvider');
-    }
-    return context;
+    const session = useSession();
+    const preferences = usePreferenceState();
+    const actions = useAuthActionsContext();
+
+    return {
+        user: session.user,
+        isLoading: session.isLoading,
+        bootstrapStatus: session.bootstrapStatus,
+        bootstrapError: session.bootstrapError,
+        logoutPending: session.logoutPending,
+        logoutErrorKey: session.logoutErrorKey,
+        isPreferencesHydrated: preferences.isPreferencesHydrated,
+        hasPermission: session.hasPermission,
+        isAuthenticated: session.isAuthenticated,
+        login: actions.login,
+        logout: actions.logout,
+    };
 }

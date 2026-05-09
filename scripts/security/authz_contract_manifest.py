@@ -36,6 +36,20 @@ FRONTEND_LOCAL_GATE_CLASSIFICATIONS: dict[str, FrontendLocalGateClassification] 
             r"\[user, hasPermission, strictCapabilities\],",
         ),
     },
+    "frontend/src/contexts/AuthContext.tsx": {
+        "reason": "Compatibility shim exposes the session provider's permission helper through useAuth.",
+        "allowed_patterns": (
+            r"hasPermission: session\.hasPermission,",
+        ),
+    },
+    "frontend/src/contexts/SessionContext.tsx": {
+        "reason": "Session provider owns the legacy permission helper used by route/session projections.",
+        "allowed_patterns": (
+            r"hasPermission: \(resource: string, action: string\) => boolean;",
+            r"const hasPermission = useCallback\(\(resource: string, action: string\): boolean => \{",
+            r"hasPermission,",
+        ),
+    },
     "frontend/src/routing/business.tsx": {
         "reason": "Business route navigation visibility only.",
         "allowed_patterns": (

@@ -7,6 +7,7 @@ Resource-specific backend capability builders used by the public authorization c
 ## Contents
 
 - `approvals.py` - approval request capabilities.
+- `admin.py` - admin console action capabilities.
 - `common.py` - shared capability helper functions.
 - `controls.py` - control capabilities.
 - `issues.py` - issue capabilities.

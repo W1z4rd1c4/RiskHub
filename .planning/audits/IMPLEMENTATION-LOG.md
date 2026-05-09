@@ -200,3 +200,31 @@
 - `cd frontend && npx tsc --noEmit`: passed
 - `npm run -w tests/frontend/unit test -- --run`: runbook command failed before tests (`ENOENT` for missing root `package.json`); equivalent repo command `cd frontend && pnpm test:run` passed (`191 files`, `855 tests passed`)
 - `npm run -w tests/frontend/unit lint`: runbook command failed before lint (`ENOENT` for missing root `package.json`); equivalent repo command `cd frontend && pnpm lint` passed
+
+## Wave 6b — Capability and Admin Cleanup
+
+- Completed: 2026-05-10 00:10:41 CEST
+- Commit SHA: recorded by the Wave 6b commit containing this entry
+- Items completed: `#39`, `#40`, `#66`
+- Items failed: none
+- Elapsed time: current session wave execution
+
+### Phase 4 Corrections Honored
+
+- `#39`: replaced the literal admin capability stub with `build_admin_capabilities`, added backend/Zod/catalog parity coverage, and registered `AdminConsoleCapabilities` in the capability catalog.
+- `#40`: split the seven verified `console.py` routes into `system_status`, `operational_logs`, and `sessions` clusters while preserving URL paths; retained `console.py` only as an empty compatibility module and registered it as reserved.
+- `#66`: split frontend auth state into `SessionContext`, `PreferencesContext`, and `AuthActionsContext`, kept `useAuth()` as the compatibility surface, and added the mandated render-counter test for preference mutations not re-rendering session consumers.
+
+### Gate Results
+
+- `make -f scripts/Makefile test-architecture-locks`: passed (`178 passed`, 1 snapshot passed)
+- `pytest -m contract`: passed under backend venv activation (`272 passed`, `1740 deselected`, 1 warning)
+- `pytest tests/backend/pytest -m "not postgres and not benchmark" -x`: passed (`1979 passed`, `3 skipped`, `30 deselected`, 17 warnings)
+- `python3 scripts/security/validate_authz_capability_contract.py`: passed
+- `ruff check backend/app`: passed
+- `cd backend && ./venv/bin/mypy app`: passed (`no issues found in 591 source files`)
+- `mypy backend/app`: baseline delta clean (`8 errors in 6 files`, unchanged from baseline)
+- `cd frontend && npx tsc --noEmit`: passed
+- `npm run -w tests/frontend/unit test -- --run`: runbook command failed before tests (`ENOENT` for missing root `package.json`); equivalent repo command `cd frontend && pnpm test:run` passed (`194 files`, `859 tests passed`)
+- `npm run -w tests/frontend/unit lint`: runbook command failed before lint (`ENOENT` for missing root `package.json`); equivalent repo command `cd frontend && pnpm lint` passed
+- Fix-forward attempts: 2; first the contract gate exposed a stale admin telemetry architecture lock still inspecting `admin.console`, then the validator required auth/session contract coverage for the new `SessionContext` local permission helper.

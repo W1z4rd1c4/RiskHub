@@ -1417,7 +1417,7 @@ def test_activity_log_routes_use_query_module() -> None:
 
 
 def test_admin_console_routes_use_telemetry_composition_module() -> None:
-    from app.api.v1.endpoints.admin import console
+    from app.api.v1.endpoints.admin import sessions, system_status
     from app.services._admin_telemetry import lifecycle
 
     assert hasattr(lifecycle, "SystemHealthSnapshot")
@@ -1426,7 +1426,12 @@ def test_admin_console_routes_use_telemetry_composition_module() -> None:
     assert hasattr(lifecycle, "SystemStatsSnapshot")
     assert hasattr(lifecycle, "AdminOperationOutcome")
 
-    route_source = inspect.getsource(console)
+    route_source = "\n".join(
+        (
+            inspect.getsource(system_status),
+            inspect.getsource(sessions),
+        )
+    )
 
     for telemetry_function in (
         "build_system_health_snapshot",

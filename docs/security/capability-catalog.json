@@ -213,6 +213,23 @@
       ]
     },
     {
+      "id": "admin_console_capabilities",
+      "backend": {
+        "path": "backend/app/schemas/admin.py",
+        "class": "AdminConsoleCapabilities"
+      },
+      "frontend": {
+        "path": "frontend/src/services/api/schemas/admin.ts",
+        "schema": "adminConsoleCapabilitiesSchema"
+      },
+      "fields": [
+        "can_revoke_sessions",
+        "can_run_directory_check_all",
+        "can_update_log_config",
+        "can_export_loaded_audit_logs"
+      ]
+    },
+    {
       "id": "access_user",
       "backend": {
         "path": "backend/app/schemas/access.py",
