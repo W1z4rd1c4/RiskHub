@@ -1,0 +1,18 @@
+Wave 8 local Postgres rehearsal for k6l7m8n9o0p1
+Captured: 2026-05-10 CEST
+Database: riskhub_test (Docker local test lane)
+
+Row counts after local upgrade rehearsal:
+
+vendors: 0
+vendor_risk_links: 0
+vendor_control_links: 0
+vendor_kri_links: 0
+
+Snapshot validation:
+
+pg_dump --schema-only riskhub_test produced 3495 lines.
+
+Notes:
+
+The mandatory `TEST_DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_dev@localhost:5432/riskhub_test make -f scripts/Makefile test-postgres-ci` lane passed after the migration. A separate optional `riskhub_test_pre` setup for the pre-migration fixtures was attempted, but an older historical migration (`514f30f4b0c9_add_orphaned_items_table.py`) fails on a fresh Postgres database before reaching `j5k6l7m8n9o0`. The partial pre database was dropped.

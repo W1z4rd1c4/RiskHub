@@ -59,8 +59,6 @@ export const vendorSchema: z.ZodType<Vendor> = passthroughObject({
     materiality_assessed_max_impact_pct_own_funds: z.number().nullable().optional(),
     replaceability: z.enum(['easy', 'medium', 'hard']).nullable().optional(),
     has_alternative_providers: z.boolean(),
-    // Pre-migration soft-tolerate (#77a); #77b removes the field after #69+#70.
-    status: z.enum(['active']).optional(),
     is_archived: z.boolean(),
     archived_at: z.string().nullable().optional(),
     archived_by_id: z.number().nullable().optional(),

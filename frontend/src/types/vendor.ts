@@ -1,4 +1,4 @@
-export type VendorStatus = 'active';
+import type { CollectionListResponse } from '@/types/collection';
 
 export type VendorType =
     | 'ict'
@@ -61,7 +61,6 @@ export interface Vendor {
     replaceability?: VendorReplaceability | null;
     has_alternative_providers: boolean;
 
-    status?: VendorStatus; // Optional during pre-migration #77a; removed entirely in #77b.
     is_archived: boolean;
     archived_at?: string | null;
     archived_by_id?: number | null;
@@ -91,7 +90,6 @@ export interface VendorListParams {
     offset?: number;
     limit?: number;
     search?: string;
-    status?: VendorStatus | 'inactive' | 'archived';
     include_archived?: boolean;
     vendor_type?: VendorType;
     dora_relevant?: boolean;
@@ -102,9 +100,8 @@ export interface VendorListParams {
     process?: string;
     subprocess?: string;
     risk_score_1_5?: number;
-    sort_by?: 'name' | 'status' | 'vendor_type' | 'risk_score_1_5' | 'process' | 'created_at';
+    sort_by?: 'name' | 'vendor_type' | 'risk_score_1_5' | 'process' | 'created_at';
     sort_order?: 'asc' | 'desc';
     group_by?: string;
     group_value?: string;
 }
-import type { CollectionListResponse } from '@/types/collection';

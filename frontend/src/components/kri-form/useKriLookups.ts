@@ -112,7 +112,6 @@ export function useKriLookups({
                     response.items.map((vendor) => ({
                         id: vendor.id,
                         name: vendor.name,
-                        status: vendor.status,
                         is_archived: vendor.is_archived,
                     })),
                 );

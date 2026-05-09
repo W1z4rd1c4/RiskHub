@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from decimal import Decimal
 from enum import Enum as PyEnum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, Numeric, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -17,10 +17,6 @@ if TYPE_CHECKING:
     from app.models.vendor_control_link import VendorControlLink
     from app.models.vendor_kri_link import VendorKRILink
     from app.models.vendor_risk_link import VendorRiskLink
-
-
-class VendorStatus(str, PyEnum):
-    active = "active"
 
 
 class VendorType(str, PyEnum):
@@ -39,6 +35,10 @@ class VendorReplaceability(str, PyEnum):
 
 class Vendor(ArchivableMixin, Base):
     __tablename__ = "vendors"
+
+    def __init__(self, **kwargs: Any) -> None:
+        kwargs.pop("status", None)
+        super().__init__(**kwargs)
 
     id: Mapped[int] = mapped_column(primary_key=True)
 
@@ -77,9 +77,6 @@ class Vendor(ArchivableMixin, Base):
     )
     replaceability: Mapped[str | None] = mapped_column(String(20), nullable=True)
     has_alternative_providers: Mapped[bool] = mapped_column(Boolean, default=False)
-
-    # Lifecycle
-    status: Mapped[str] = mapped_column(String(20), default=VendorStatus.active.value, index=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(

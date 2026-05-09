@@ -82,6 +82,7 @@ AGENTS.md
 - Transaction and archive decisions:
   - `backend/app/services/outbox/dispatcher.py`
   - `ControlStatus.inactive`
+  - `Vendor.is_archived`
 - Architecture decisions:
   - [`docs/adr/ADR-001-capabilities-module-unification.md`](./adr/ADR-001-capabilities-module-unification.md)
   - [`docs/adr/ADR-002-service-owned-transactions.md`](./adr/ADR-002-service-owned-transactions.md)

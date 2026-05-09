@@ -257,3 +257,32 @@
 - `npm run -w tests/frontend/unit test -- --run`: runbook command failed before tests (`ENOENT` for missing root `package.json`); equivalent repo command `cd frontend && pnpm test:run` passed (`201 files`, `879 tests passed`)
 - `npm run -w tests/frontend/unit lint`: runbook command failed before lint (`ENOENT` for missing root `package.json`); equivalent repo command `cd frontend && pnpm lint` passed
 - Fix-forward attempts: 1; the frontend full suite exposed a stale partial mock for `@/services/session/coordinator` in `apiClient.401-recovery.test.ts`, then passed after the mock included `clearAuthenticatedSession`.
+
+## Wave 8 — Vendor Migration and Status Cleanup
+
+- Completed: 2026-05-10 01:21:22 CEST
+- Commit SHA: recorded by the Wave 8 commit containing this entry
+- Items completed: `#69`, `#70`, `#77b`
+- Items failed: none
+- Elapsed time: current session wave execution
+
+### Phase 4 Corrections Honored
+
+- `#69/#70`: implemented the forward-only ADR-010 vendor migration, removed `Vendor.status`, added the shared vendor-link mixin, converted vendor/risk/control/KRI link foreign keys to cascade deletes, and kept `downgrade()` as `NotImplementedError`.
+- `#69/#70`: added the required migration rehearsal coverage for cascade constraints, forward-only behavior, idempotency, concurrent writes, orphan precheck, and partial-failure rollback behavior; the optional pre-migration database setup remains blocked locally by historical revision `514f30f4b0c9`.
+- `#77b`: removed `Vendor.status` from frontend types, Zod schemas, vendor-list query params, vendor form payloads, KRI vendor projections, and vendor page status display logic; frontend display now derives active/inactive from `is_archived`.
+- Authz contract mirror updated to document that vendor archive visibility and report filtering now use `is_archived` while authorization policy and capability semantics remain unchanged.
+
+### Gate Results
+
+- `make -f scripts/Makefile test-architecture-locks`: passed (`187 passed`, 1 snapshot passed)
+- `pytest -m contract`: passed under the root backend venv command (`290 passed`, `7 skipped`, `1739 deselected`, 1 warning)
+- `pytest tests/backend/pytest -m "not postgres and not benchmark" -x`: passed (`1996 passed`, `3 skipped`, `37 deselected`, 17 warnings)
+- `TEST_DATABASE_URL=postgresql+asyncpg://riskhub:riskhub_dev@localhost:5432/riskhub_test make -f scripts/Makefile test-postgres-ci`: passed (`29 passed`, `2 skipped`, then `60 passed`)
+- `python3 scripts/security/validate_authz_capability_contract.py`: passed
+- `ruff check backend/app`: passed
+- `mypy backend/app`: baseline delta clean (`8 errors in 6 files`, unchanged from baseline)
+- `cd frontend && npx tsc --noEmit`: passed
+- `cd frontend && pnpm test:run`: passed (`202 files`, `881 tests passed`)
+- `cd frontend && pnpm lint`: passed
+- Fix-forward attempts: contract async fixtures switched to `pytest_asyncio.fixture`; stale KRI linked-vendor response expectations removed; vendor as-of report status normalized after archive-state replay; authz Markdown and JSON mirror updated for the sensitive-path doc-touch requirement.

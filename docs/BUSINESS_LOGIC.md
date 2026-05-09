@@ -597,7 +597,7 @@ Non-privileged users can access resources **outside their department** if they a
 > - Risks: `status = 'archived'`
 > - Controls: `status = 'archived'`
 > - KRIs: `is_archived = true`, `archived_at`, `archived_by_id`
-> - Vendors: archive truth is `is_archived=true`; `status='inactive'` is a legacy/UI alias.
+> - Vendors: archive truth is `is_archived=true`; `Vendor.status` was removed in the forward-only migration `k6l7m8n9o0p1`.
 > - Vendor SLAs: `is_archived = true`, `archived_at`, `archived_by_id`
 > - Non-privileged risk deletions use the shared **high-risk** escalation rule: `is_priority = true` or `net_score >= high_risk_min_net_score` requires privileged follow-up after primary approval.
 > - Vendor archive truth: is_archived=true. Restore is the only lifecycle mutation allowed while archived; edit, link/unlink, and issue vendor-context/link mutations reject with conflict semantics.

@@ -25,4 +25,12 @@ ORM models and persistence entities.
 
 ## Notes
 
+Mixin inventory:
+
+- `ArchivableMixin` owns archive columns for soft-deletable registers.
+- `AbstractVendorLink` is an abstract mixin for vendor-risk, vendor-control,
+  and vendor-KRI junction tables. It provides the shared `id`, `vendor_id`
+  (`ON DELETE CASCADE`), and `created_at` shape; vendor-link tables are not
+  archivable.
+
 Keep this README updated when responsibilities or structure in this folder change.

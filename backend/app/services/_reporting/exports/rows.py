@@ -117,7 +117,7 @@ def _vendor_to_row(vendor: Vendor) -> dict[str, Any]:
         "process": vendor.process,
         "subprocess": vendor.subprocess,
         "description": vendor.description,
-        "status": vendor.status,
+        "status": "archived" if vendor.is_archived else "active",
         "is_archived": bool(vendor.is_archived),
         "department_id": vendor.department_id,
         "department_name": vendor.department.name if getattr(vendor, "department", None) else None,

@@ -109,7 +109,7 @@ Archive-state normalization is governed by ADR-005, transaction ownership by ADR
 and reserved endpoint/permission surfaces by ADR-009.
 Outbox worker transaction ownership is consolidated in
 `backend/app/services/outbox/dispatcher.py`. `ControlStatus.inactive` remains a
-non-archive lifecycle state; vendor `inactive` is not retained as a lifecycle status.
+non-archive lifecycle state; vendors archive exclusively through `is_archived`.
 
 ## client_factory
 

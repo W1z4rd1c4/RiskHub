@@ -11,7 +11,6 @@ export const vendorApi = {
                 limit: params.limit,
                 filters: {
                     search: params.search,
-                    status: params.status,
                     include_archived: params.include_archived,
                     vendor_type: params.vendor_type,
                     dora_relevant: params.dora_relevant,

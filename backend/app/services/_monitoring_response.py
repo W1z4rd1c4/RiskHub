@@ -222,7 +222,6 @@ def serialize_kri_response(
             LinkedVendorRead(
                 id=vendor.id,
                 name=vendor.name,
-                status=vendor.status,
                 is_archived=vendor.is_archived,
             )
             for link in (_loaded_attr(kri, "vendor_links", []) or [])

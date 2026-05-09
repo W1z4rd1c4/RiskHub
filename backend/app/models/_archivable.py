@@ -60,7 +60,6 @@ def archived_clause(model: Any, *, archived: bool = True):
     legacy_values = {
         "risks": ("archived",),
         "controls": ("archived",),
-        "vendors": ("inactive",),
     }.get(getattr(model, "__tablename__", ""))
 
     flag_clause = model.is_archived.is_(archived)

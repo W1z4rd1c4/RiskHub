@@ -79,7 +79,6 @@ export function buildVendorPayload(formData: VendorFormData): VendorCreate {
             formData.materiality_assessed_max_impact_pct_own_funds ?? null,
         replaceability: (formData.replaceability || null) as VendorReplaceability | null,
         has_alternative_providers: !!formData.has_alternative_providers,
-        status: 'active',
     };
 }
 

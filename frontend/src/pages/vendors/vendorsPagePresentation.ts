@@ -1,6 +1,6 @@
 import type { ViewMode } from '@/components/tables';
 import type { CollectionGroup } from '@/types/collection';
-import type { Vendor, VendorListParams, VendorStatus, VendorType } from '@/types/vendor';
+import type { Vendor, VendorListParams, VendorType } from '@/types/vendor';
 
 import { getCollectionGroupBy } from '../shared/collectionViewVocabulary';
 
@@ -19,11 +19,11 @@ const VENDOR_VIEW_MODE_GROUPS = {
     flag: 'flag',
 } as const satisfies Partial<Record<ViewMode, string>>;
 
-export type VendorListStatusFilter = VendorStatus | 'inactive' | '';
-export type VendorDisplayStatus = VendorStatus | 'inactive';
+export type VendorArchiveFilter = 'active' | 'inactive' | '';
+export type VendorDisplayStatus = 'active' | 'inactive';
 
-export function getVendorDisplayStatus(vendor: Pick<Vendor, 'status' | 'is_archived'>): VendorDisplayStatus {
-    return vendor.is_archived ? 'inactive' : vendor.status;
+export function getVendorDisplayStatus(vendor: Pick<Vendor, 'is_archived'>): VendorDisplayStatus {
+    return vendor.is_archived ? 'inactive' : 'active';
 }
 
 interface BuildVendorListParamsOptions {
@@ -33,7 +33,6 @@ interface BuildVendorListParamsOptions {
     limit: number;
     sortDirection: 'asc' | 'desc' | null;
     sortField: VendorListParams['sort_by'] | null;
-    statusFilter: VendorListStatusFilter;
     typeFilter: VendorType | '';
     groupBy?: string | null;
     groupValue?: string | null;
@@ -41,7 +40,7 @@ interface BuildVendorListParamsOptions {
 
 interface BuildVendorExportFiltersOptions {
     search: string;
-    statusFilter: VendorListStatusFilter;
+    statusFilter: VendorArchiveFilter;
     typeFilter: VendorType | '';
 }
 
@@ -52,7 +51,6 @@ export function buildVendorListParams({
     limit,
     sortDirection,
     sortField,
-    statusFilter,
     typeFilter,
     groupBy,
     groupValue,
@@ -65,9 +63,6 @@ export function buildVendorListParams({
 
     if (debouncedSearch.trim()) {
         params.search = debouncedSearch.trim();
-    }
-    if (statusFilter) {
-        params.status = statusFilter;
     }
     if (typeFilter) {
         params.vendor_type = typeFilter;
@@ -92,7 +87,7 @@ export function buildVendorExportFilters({
     typeFilter,
 }: BuildVendorExportFiltersOptions): {
     search: string | null;
-    status: VendorListStatusFilter | null;
+    status: VendorArchiveFilter | null;
     vendorType: VendorType | null;
 } {
     return {

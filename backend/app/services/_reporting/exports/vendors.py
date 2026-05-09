@@ -8,7 +8,12 @@ from app.models.activity_log import ActivityEntityType
 from app.services.export_snapshot_service import ExportSnapshotService
 
 from .fetch import _fetch_vendors_for_export
-from .filters import _filter_rows_by_final_scope, _filter_rows_by_vendor_criteria, _prefilter_department_id_for_as_of
+from .filters import (
+    _filter_rows_by_final_scope,
+    _filter_rows_by_vendor_criteria,
+    _normalize_vendor_status,
+    _prefilter_department_id_for_as_of,
+)
 from .lifecycle import ExportRow, ReportExportDefinition, render_report_export_definition
 from .rehydrate import _rehydrate_department_names, _rehydrate_user_names
 from .rows import _vendor_to_row
@@ -54,6 +59,7 @@ async def _export_vendors(
                 entity_type=ActivityEntityType.VENDOR,
                 as_of_date=as_of_date,
             ),
+            _normalize_vendor_status,
             lambda current: _rehydrate_user_names(
                 db,
                 current,

@@ -957,7 +957,7 @@ async def test_committee_critical_vendors_excludes_archived_normalized_active_ve
     test_user: User,
 ):
     """Committee vendor rollups must use archive truth, not lifecycle status alone."""
-    from app.models.vendor import VendorStatus, VendorType
+    from app.models.vendor import VendorType
     from app.services._dashboard_metrics.committee_projection import fetch_vendor_sections
 
     live_vendor = Vendor(
@@ -967,7 +967,6 @@ async def test_committee_critical_vendors_excludes_archived_normalized_active_ve
         outsourcing_owner_user_id=test_user.id,
         vendor_type=VendorType.ict.value,
         risk_score_1_5=4,
-        status=VendorStatus.active.value,
         is_archived=False,
     )
     archived_vendor = Vendor(
@@ -977,7 +976,6 @@ async def test_committee_critical_vendors_excludes_archived_normalized_active_ve
         outsourcing_owner_user_id=test_user.id,
         vendor_type=VendorType.ict.value,
         risk_score_1_5=5,
-        status=VendorStatus.active.value,
         is_archived=True,
     )
     db_session.add_all([live_vendor, archived_vendor])

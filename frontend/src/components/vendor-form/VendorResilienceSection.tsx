@@ -12,7 +12,6 @@ interface VendorResilienceSectionProps {
     formData: {
         has_alternative_providers?: boolean;
         replaceability?: string | null;
-        status?: string | null;
     };
     onChange: (field: VendorFormField, value: unknown) => void;
 }
@@ -39,16 +38,6 @@ export function VendorResilienceSection({ formData, onChange }: VendorResilience
                         }))}
                     />
                 </div>
-
-                <div className="vendor-field">
-                    <label className="vendor-label">{t('form.status')}</label>
-                    <ThemedSelect
-                        value="active"
-                        onValueChange={() => onChange('status', 'active')}
-                        options={[{ value: 'active', label: t('status.active') }]}
-                    />
-                </div>
-
                 <div className="vendor-field md:col-span-2">
                     <label className="vendor-label">{t('flags.has_alternatives')}</label>
                     <label className="vendor-checkbox">

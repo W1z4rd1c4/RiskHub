@@ -427,7 +427,6 @@ async def plan_risk_listing(
                         LinkedVendorRead(
                             id=vendor.id,
                             name=vendor.name,
-                            status=vendor.status,
                             is_archived=vendor.is_archived,
                         )
                     )

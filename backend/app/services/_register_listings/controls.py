@@ -551,7 +551,6 @@ async def build_control_listing_plan(
                         LinkedVendorRead(
                             id=link.vendor.id,
                             name=link.vendor.name,
-                            status=link.vendor.status,
                             is_archived=link.vendor.is_archived,
                         )
                         for link in getattr(control, "vendor_links", []) or []

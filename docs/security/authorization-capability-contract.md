@@ -97,6 +97,10 @@ risk-scoped KRI owner checks filter archived KRIs out. Approval endpoints now
 declare `Depends(get_privilege_context)` from
 `backend/app/services/_approval_execution/privilege_context.py`; approval
 authority semantics remain the existing `ApprovalPrivilegeTier` policy.
+On 2026-05-09, the vendor status column was removed from backend schemas,
+listing filters, report rows, and frontend vendor types after the forward-only
+Postgres migration. Vendor archive visibility and report filtering now use
+`is_archived`; authorization policy and capability semantics are unchanged.
 
 Strict capabilities rollout note: `STRICT_CAPABILITIES` is a frontend runtime
 configuration flag and remains off by default until operational telemetry

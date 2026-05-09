@@ -752,7 +752,6 @@ class TestUnifiedExportEndpoints:
             department_id=second_department.id,
             outsourcing_owner_user_id=test_user_employee.id,
             vendor_type="ict",
-            status="active",
         )
         db_session.add_all([kri, parent_owner_risk, linked_control_risk, linked_control, vendor])
         await db_session.flush()
@@ -1136,7 +1135,6 @@ class TestUnifiedExportEndpoints:
             dora_relevant=False,
             is_significant_vendor=False,
             has_alternative_providers=False,
-            status="active",
         )
         db_session.add_all([kri, vendor])
         await db_session.commit()
@@ -1171,7 +1169,6 @@ class TestUnifiedExportEndpoints:
             dora_relevant=False,
             is_significant_vendor=False,
             has_alternative_providers=True,
-            status="active",
             is_archived=True,
         )
         db_session.add(vendor)

@@ -280,7 +280,6 @@ async def _ensure_vendor_matrix(db):
             raise RuntimeError(
                 f"Archive matrix requires seeded vendor '{entry['registration_id']}'. " "Run seed_e2e_vendors first."
             )
-        vendor.status = entry["status"]
         vendor.is_archived = bool(entry["is_archived"])
         if vendor.is_archived:
             vendor.archived_at = vendor.archived_at or now

@@ -11,4 +11,4 @@ Shared vendor link workflow across risk, control, and KRI target types.
 
 ## Notes
 
-Keep public vendor link endpoints stable. Link visibility, active-vendor validation, duplicate prevention, and archive metadata should flow through this package.
+Keep public vendor link endpoints stable. Link visibility, active-vendor validation, duplicate prevention, and archive metadata should flow through this package. Vendor link cleanup is enforced at the database layer with `ON DELETE CASCADE` on `vendor_id` and the target FK.

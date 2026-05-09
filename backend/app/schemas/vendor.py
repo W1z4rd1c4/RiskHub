@@ -9,10 +9,6 @@ from app.core.datetime_utils import UtcAwareDatetime
 from app.schemas.collection import CollectionGroupRead
 
 
-class VendorStatusEnum(str, Enum):
-    active = "active"
-
-
 class VendorTypeEnum(str, Enum):
     ict = "ict"
     outsourcing = "outsourcing"
@@ -50,8 +46,6 @@ class VendorBase(BaseModel):
     replaceability: VendorReplaceabilityEnum | None = None
     has_alternative_providers: bool = False
 
-    status: VendorStatusEnum = VendorStatusEnum.active
-
 
 class VendorCreate(VendorBase):
     pass
@@ -79,8 +73,6 @@ class VendorUpdate(BaseModel):
     materiality_assessed_max_impact_pct_own_funds: Decimal | None = Field(None, ge=0)
     replaceability: VendorReplaceabilityEnum | None = None
     has_alternative_providers: bool | None = None
-
-    status: VendorStatusEnum | None = None
 
 
 class VendorLinkedRiskSummary(BaseModel):

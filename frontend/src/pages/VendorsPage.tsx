@@ -9,7 +9,7 @@ import { ThemedSelect } from '@/components/ui/ThemedSelect';
 
 import { VendorsTableSection } from './vendors/VendorsTableSection';
 import { useVendorsPageState } from './vendors/useVendorsPageState';
-import type { VendorListStatusFilter } from './vendors/vendorsPagePresentation';
+import type { VendorArchiveFilter } from './vendors/vendorsPagePresentation';
 import { ReadAccessDeniedState } from './shared/ReadAccessDeniedState';
 
 export function VendorsPage() {
@@ -111,7 +111,7 @@ export function VendorsPage() {
                 <div className="flex gap-4">
                     <ThemedSelect
                         value={statusFilter}
-                        onValueChange={(value) => updateStatusFilter(value as VendorListStatusFilter)}
+                        onValueChange={(value) => updateStatusFilter(value as VendorArchiveFilter)}
                         placeholder={t('filters.all_statuses')}
                         allowEmpty
                         emptyLabel={t('filters.all_statuses')}

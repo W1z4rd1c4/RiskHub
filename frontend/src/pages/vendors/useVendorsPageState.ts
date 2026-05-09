@@ -13,7 +13,7 @@ import {
     buildVendorExportFilters,
     buildVendorListParams,
     getVendorGroupBy,
-    type VendorListStatusFilter,
+    type VendorArchiveFilter,
 } from './vendorsPagePresentation';
 import {
     getTotalPages,
@@ -26,7 +26,7 @@ import { resetCollectionGroupAndPage } from '../shared/collectionViewVocabulary'
 
 export function useVendorsPageState() {
     const [search, setSearch] = useState('');
-    const [statusFilter, setStatusFilter] = useState<VendorListStatusFilter>('active');
+    const [statusFilter, setStatusFilter] = useState<VendorArchiveFilter>('active');
     const [typeFilter, setTypeFilter] = useState<VendorType | ''>('');
     const [currentPage, setCurrentPage] = useState(1);
     const [sortField, setSortField] = useState<VendorListParams['sort_by'] | null>(null);
@@ -34,7 +34,7 @@ export function useVendorsPageState() {
     const [viewMode, setViewMode] = useState<ViewMode>('all');
     const limit = DEFAULT_LIST_PAGE_SIZE;
     const debouncedSearch = useDebouncedValue(search, 300);
-    const includeArchived = statusFilter === 'inactive';
+    const includeArchived = statusFilter !== 'active';
     const groupBy = getVendorGroupBy(viewMode);
 
     const loadVendorPage = useCallback(
@@ -46,7 +46,6 @@ export function useVendorsPageState() {
                 limit,
                 sortDirection,
                 sortField,
-                statusFilter,
                 typeFilter,
                 groupBy,
                 groupValue,
@@ -58,7 +57,6 @@ export function useVendorsPageState() {
             limit,
             sortDirection,
             sortField,
-            statusFilter,
             typeFilter,
         ]
     );
@@ -141,7 +139,7 @@ export function useVendorsPageState() {
         resetGroupSelection();
     }, [resetGroupSelection]);
 
-    const updateStatusFilter = useCallback((value: VendorListStatusFilter) => {
+    const updateStatusFilter = useCallback((value: VendorArchiveFilter) => {
         setStatusFilter(value);
         resetGroupSelection();
     }, [resetGroupSelection]);

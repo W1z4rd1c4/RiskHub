@@ -433,7 +433,7 @@ async def test_vendor_archive_rolls_back_when_audit_logging_fails(
 
     await db_session.rollback()
     await db_session.refresh(vendor)
-    assert vendor.status == "active"
+    assert vendor.is_archived is False
 
 
 @pytest.mark.asyncio
@@ -489,24 +489,6 @@ async def test_vendors_include_archived_toggle(
     assert include_resp.status_code == 200
     include_names = {v["name"] for v in include_resp.json()["items"]}
     assert "Inactive Toggle Vendor" in include_names
-
-    active_resp = await client_employee.get("/api/v1/vendors?status=active")
-    assert active_resp.status_code == 200
-    active_names = {v["name"] for v in active_resp.json()["items"]}
-    assert "Active Toggle Vendor" in active_names
-    assert "Inactive Toggle Vendor" not in active_names
-
-    inactive_resp = await client_employee.get("/api/v1/vendors?status=inactive&include_archived=true")
-    assert inactive_resp.status_code == 200
-    inactive_names = {v["name"] for v in inactive_resp.json()["items"]}
-    assert "Inactive Toggle Vendor" in inactive_names
-    assert "Active Toggle Vendor" not in inactive_names
-
-    archived_resp = await client_employee.get("/api/v1/vendors?status=archived&include_archived=true")
-    assert archived_resp.status_code == 200
-    archived_names = {v["name"] for v in archived_resp.json()["items"]}
-    assert "Inactive Toggle Vendor" in archived_names
-    assert "Active Toggle Vendor" not in archived_names
 
 
 @pytest.mark.asyncio
@@ -837,7 +819,7 @@ async def test_vendor_restore_reactivates_inactive_vendor(
     test_role_employee: Role,
     test_user_employee: User,
 ):
-    """Restore endpoint sets vendor status from inactive to active."""
+    """Restore endpoint clears the vendor archive flag."""
     await _grant(db_session, test_role_employee, "vendors", "read")
     await _grant(db_session, test_role_employee, "vendors", "delete")
 
@@ -853,7 +835,6 @@ async def test_vendor_restore_reactivates_inactive_vendor(
         dora_relevant=False,
         is_significant_vendor=False,
         has_alternative_providers=False,
-        status="active",
         is_archived=True,
     )
     db_session.add(vendor)
@@ -862,4 +843,4 @@ async def test_vendor_restore_reactivates_inactive_vendor(
 
     restored = await client_employee.post(f"/api/v1/vendors/{vendor.id}/restore")
     assert restored.status_code == 200
-    assert restored.json()["status"] == "active"
+    assert restored.json()["is_archived"] is False

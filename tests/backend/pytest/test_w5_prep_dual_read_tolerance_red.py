@@ -16,7 +16,7 @@ def test_archived_clause_reads_new_flag_and_legacy_archive_statuses_during_cutov
     assert "controls.is_archived IS true" in _sql(archived_clause(Control, archived=True))
     assert "controls.status IN ('archived')" in _sql(archived_clause(Control, archived=True))
     assert "vendors.is_archived IS true" in _sql(archived_clause(Vendor, archived=True))
-    assert "vendors.status IN ('inactive')" in _sql(archived_clause(Vendor, archived=True))
+    assert "vendors.status" not in _sql(archived_clause(Vendor, archived=True))
 
 
 def test_live_clause_excludes_new_archive_flag_and_legacy_archive_statuses_during_cutover() -> None:
@@ -25,4 +25,4 @@ def test_live_clause_excludes_new_archive_flag_and_legacy_archive_statuses_durin
     assert "controls.is_archived IS false" in _sql(archived_clause(Control, archived=False))
     assert "(controls.status NOT IN ('archived'))" in _sql(archived_clause(Control, archived=False))
     assert "vendors.is_archived IS false" in _sql(archived_clause(Vendor, archived=False))
-    assert "(vendors.status NOT IN ('inactive'))" in _sql(archived_clause(Vendor, archived=False))
+    assert "vendors.status" not in _sql(archived_clause(Vendor, archived=False))

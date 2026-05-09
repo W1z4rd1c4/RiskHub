@@ -144,7 +144,7 @@ export function VendorsTableSection({
             {
                 key: 'status',
                 label: t('columns.status'),
-                sortable: true,
+                sortable: false,
                 render: (vendor) => {
                     const displayStatus = getVendorDisplayStatus(vendor);
                     return (

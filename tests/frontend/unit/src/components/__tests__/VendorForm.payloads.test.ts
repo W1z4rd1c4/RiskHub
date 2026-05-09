@@ -26,7 +26,6 @@ describe('VendorForm payload mapping', () => {
             materiality_assessed_max_impact_pct_own_funds: 0.25,
             replaceability: 'medium',
             has_alternative_providers: true,
-            status: 'inactive',
         });
 
         expect(payload).toEqual({
@@ -48,7 +47,6 @@ describe('VendorForm payload mapping', () => {
             materiality_assessed_max_impact_pct_own_funds: 0.25,
             replaceability: 'medium',
             has_alternative_providers: true,
-            status: 'active',
         });
     });
 

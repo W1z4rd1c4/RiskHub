@@ -58,6 +58,12 @@ def _normalize_kri_status(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return rows
 
 
+def _normalize_vendor_status(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    for row in rows:
+        row["status"] = "archived" if bool(row.get("is_archived")) else "active"
+    return rows
+
+
 def _filter_rows_by_risk_criteria(
     rows: list[dict[str, Any]],
     *,

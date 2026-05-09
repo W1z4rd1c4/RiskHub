@@ -1,7 +1,6 @@
 import type {
     Vendor,
     VendorReplaceability,
-    VendorStatus,
     VendorType,
 } from '@/types/vendor';
 
@@ -66,11 +65,6 @@ export function createInitialVendorFormData(initialData?: Vendor): VendorFormDat
         materiality_assessed_max_impact_pct_own_funds: null,
         replaceability: null,
         has_alternative_providers: false,
-        status: 'active',
         ...initialData,
     };
-}
-
-export function normalizeVendorStatus(value: VendorStatus | undefined): VendorStatus {
-    return value ?? 'active';
 }

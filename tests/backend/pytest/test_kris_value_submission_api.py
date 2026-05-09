@@ -765,7 +765,7 @@ async def test_disabled_kri_value_submit_scenario_returns_readable_linked_vendor
 
     assert response.status_code == 200
     assert response.json()["linked_vendors"] == [
-        {"id": vendor.id, "name": vendor.name, "status": "active", "is_archived": False}
+        {"id": vendor.id, "name": vendor.name, "is_archived": False}
     ]
 
 
@@ -787,7 +787,6 @@ async def test_privileged_record_value_returns_readable_linked_vendors(
         dora_relevant=False,
         is_significant_vendor=False,
         has_alternative_providers=False,
-        status="active",
     )
     db_session.add(vendor)
     await db_session.flush()
@@ -799,7 +798,7 @@ async def test_privileged_record_value_returns_readable_linked_vendors(
 
     assert response.status_code == 200
     assert response.json()["linked_vendors"] == [
-        {"id": vendor.id, "name": vendor.name, "status": "active", "is_archived": False}
+        {"id": vendor.id, "name": vendor.name, "is_archived": False}
     ]
 
 

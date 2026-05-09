@@ -12,7 +12,7 @@ from app.core.security import check_permission
 from app.models import Department, Risk, User, Vendor, VendorRiskLink
 from app.models._archivable import archived_clause
 from app.schemas.collection import CollectionGroupRead
-from app.schemas.vendor import VendorListResponse, VendorStatusEnum, VendorTypeEnum
+from app.schemas.vendor import VendorListResponse, VendorTypeEnum
 from app.services._collection_contracts import CollectionQuery
 from app.services._collection_filters import (
     coerce_optional_bool,
@@ -50,8 +50,6 @@ class VendorListCriteria:
     offset: int
     limit: int
     search: str | None
-    status_filter: VendorStatusEnum | None
-    archived_status_filter: bool
     include_archived: bool
     vendor_type: VendorTypeEnum | None
     dora_relevant: bool | None
@@ -86,7 +84,6 @@ def coerce_vendor_list_criteria(
     collection_query: CollectionQuery,
     *,
     search: str | None,
-    status_filter: VendorStatusEnum | str | None,
     include_archived: bool,
     vendor_type: VendorTypeEnum | None,
     dora_relevant: bool | None,
@@ -100,12 +97,10 @@ def coerce_vendor_list_criteria(
     sort_by: str | None,
     sort_order: str | None,
 ) -> VendorListCriteria:
-    status_filter_value = status_filter.value if isinstance(status_filter, VendorStatusEnum) else status_filter
     filter_values = merge_collection_filters(
         collection_query,
         {
             "search": search,
-            "status": status_filter_value,
             "include_archived": include_archived,
             "vendor_type": vendor_type.value if vendor_type else None,
             "dora_relevant": dora_relevant,
@@ -118,18 +113,10 @@ def coerce_vendor_list_criteria(
             "risk_score_1_5": risk_score_1_5,
         },
     )
-    status_value = filter_values.get("status")
-    archived_status_filter = (
-        str(status_value).lower() in {"archived", "inactive"} if status_value is not None else False
-    )
     return VendorListCriteria(
         offset=collection_query.offset,
         limit=collection_query.limit,
         search=coerce_optional_string("search", filter_values.get("search")),
-        status_filter=None
-        if archived_status_filter
-        else coerce_optional_enum(VendorStatusEnum, status_value, "status"),
-        archived_status_filter=archived_status_filter,
         include_archived=coerce_optional_bool("include_archived", filter_values.get("include_archived")) or False,
         vendor_type=coerce_optional_enum(VendorTypeEnum, filter_values.get("vendor_type"), "vendor_type"),
         dora_relevant=coerce_optional_bool("dora_relevant", filter_values.get("dora_relevant")),
@@ -155,12 +142,7 @@ def coerce_vendor_list_criteria(
 def apply_vendor_list_filters(query: Any, current_user: User, criteria: VendorListCriteria) -> Any:
     query = apply_vendor_visibility_scope(query, current_user, department_id=criteria.department_id)
 
-    if criteria.archived_status_filter:
-        query = query.where(archived_clause(Vendor, archived=True))
-    elif criteria.status_filter is not None:
-        query = query.where(Vendor.status == criteria.status_filter.value)
-        query = query.where(archived_clause(Vendor, archived=False))
-    elif not criteria.include_archived:
+    if not criteria.include_archived:
         query = query.where(archived_clause(Vendor, archived=False))
     if criteria.vendor_type is not None:
         query = query.where(Vendor.vendor_type == criteria.vendor_type.value)
@@ -197,7 +179,6 @@ def apply_vendor_list_filters(query: Any, current_user: User, criteria: VendorLi
 def vendor_order_column(sort_by: str | None) -> Any:
     sort_columns: dict[str, Any] = {
         "name": Vendor.name,
-        "status": Vendor.status,
         "vendor_type": Vendor.vendor_type,
         "risk_score_1_5": Vendor.risk_score_1_5,
         "process": Vendor.process,
@@ -270,7 +251,6 @@ def vendor_flag_membership_query(filtered_ids):
                 literal(value).label("value"),
                 literal(value).label("label"),
                 Vendor.id.label("vendor_id"),
-                Vendor.status.label("status"),
                 Vendor.is_archived.label("is_archived"),
                 Vendor.risk_score_1_5.label("risk_score_1_5"),
             )
@@ -479,7 +459,6 @@ async def list_vendor_governance(
     current_user: User,
     collection_query: CollectionQuery,
     search: str | None,
-    status_filter: VendorStatusEnum | str | None,
     include_archived: bool,
     vendor_type: VendorTypeEnum | None,
     dora_relevant: bool | None,
@@ -498,7 +477,6 @@ async def list_vendor_governance(
     criteria = coerce_vendor_list_criteria(
         collection_query,
         search=search,
-        status_filter=status_filter,
         include_archived=include_archived,
         vendor_type=vendor_type,
         dora_relevant=dora_relevant,

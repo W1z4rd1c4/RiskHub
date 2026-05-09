@@ -33,7 +33,6 @@ def visible_linked_vendors(current_user: User, vendor_links) -> list[LinkedVendo
         LinkedVendorRead(
             id=link.vendor.id,
             name=link.vendor.name,
-            status=link.vendor.status,
             is_archived=link.vendor.is_archived,
         )
         for link in vendor_links or []

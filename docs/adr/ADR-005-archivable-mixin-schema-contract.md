@@ -12,7 +12,9 @@ RiskHub entities represent archived/inactive state through several dialects: sta
 
 Add an `ArchivableMixin` with `is_archived`, `archived_at`, and `archived_by_id` for archive-capable entities. Existing status fields remain as compatibility aliases during migration. Query code uses the Archivable Interface for live/archive predicates.
 
-`Risk` and `Control` statuses keep non-archive lifecycle values only after cutover; `ControlStatus.inactive` is retained as a valid non-archive lifecycle state. Vendor `inactive` is treated as legacy archive state and normalized into `Vendor.is_archived`.
+`Risk` and `Control` statuses keep non-archive lifecycle values only after cutover; `ControlStatus.inactive` is retained as a valid non-archive lifecycle state. Vendor `inactive` was treated as legacy archive state during cutover and normalized into `Vendor.is_archived`.
+
+Revision `k6l7m8n9o0p1` drops `Vendor.status` and retires the legacy `("inactive",)` vendor alias. Vendors now archive solely through `is_archived`; risks and controls retain their `("archived",)` compatibility aliases.
 
 ### `ControlStatus.inactive` retention (v5.3+)
 
@@ -26,7 +28,7 @@ Add an `ArchivableMixin` with `is_archived`, `archived_at`, and `archived_by_id`
 
 ## Migration Impact
 
-Columns are added additively and backfilled from current status values. Listing snapshots must be taken before and after migration. Old status fields remain during the compatibility window.
+Columns are added additively and backfilled from current status values. Listing snapshots must be taken before and after migration. Risk and control status fields remain during their compatibility window; vendor archive state is fully cut over to `is_archived`.
 
 ## Rollback Strategy
 

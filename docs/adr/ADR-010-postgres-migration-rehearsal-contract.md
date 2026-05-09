@@ -10,7 +10,7 @@ The archive-state cutover and `approval_scenarios.approver_roles` JSONB conversi
 
 ## Decision
 
-Before applying these migrations to production-like data, rehearse them on a refreshed staging clone. Capture row-count targets for archived risks, archived controls, and inactive vendors before the run. During the run, monitor locks and statement duration. Rollback is snapshot restore only.
+Before applying these migrations to production-like data, rehearse them on a refreshed staging clone. Capture row-count targets for archived risks, archived controls, vendors, and vendor link tables before the run. During the run, monitor locks and statement duration. Rollback is snapshot restore only.
 
 ## Alternatives Rejected
 
@@ -24,6 +24,7 @@ Before applying these migrations to production-like data, rehearse them on a ref
 - `controls.status='archived'` rows become `status='active'` with `is_archived=true`.
 - `vendors.status='inactive'` rows become `status='active'` with `is_archived=true`.
 - `approval_scenarios.approver_roles` converts from JSON text to JSON/JSONB.
+- Revision `k6l7m8n9o0p1` drops `vendors.status` after the single-value enum cutover and rebuilds all vendor link FKs with `ON DELETE CASCADE`; `vendor_kri_links` already had cascade semantics and is recreated for canonical constraint names. Pre-upgrade rehearsal captures row counts for `vendors`, `vendor_risk_links`, `vendor_control_links`, and `vendor_kri_links` and reconciles them after upgrade.
 
 ## Rollback Strategy
 

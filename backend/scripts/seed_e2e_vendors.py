@@ -10,7 +10,7 @@ from sqlalchemy import func, select
 from app.core.config import get_settings
 from app.core.datetime_utils import utc_now
 from app.db.session import session_context
-from app.models import Vendor, VendorStatus
+from app.models import Vendor
 from scripts.e2e_mappings import load_mappings, require_department_id, require_user_id
 
 E2E_VENDORS = [
@@ -32,7 +32,6 @@ E2E_VENDORS = [
         "is_significant_vendor": True,
         "replaceability": "hard",
         "has_alternative_providers": False,
-        "status": VendorStatus.active.value,
         "is_archived": False,
     },
     {
@@ -53,7 +52,6 @@ E2E_VENDORS = [
         "is_significant_vendor": True,
         "replaceability": "medium",
         "has_alternative_providers": True,
-        "status": VendorStatus.active.value,
         "is_archived": False,
     },
     {
@@ -74,7 +72,6 @@ E2E_VENDORS = [
         "is_significant_vendor": False,
         "replaceability": "easy",
         "has_alternative_providers": True,
-        "status": VendorStatus.active.value,
         "is_archived": False,
     },
     {
@@ -95,7 +92,6 @@ E2E_VENDORS = [
         "is_significant_vendor": False,
         "replaceability": "medium",
         "has_alternative_providers": True,
-        "status": VendorStatus.active.value,
         "is_archived": True,
     },
     {
@@ -116,7 +112,6 @@ E2E_VENDORS = [
         "is_significant_vendor": True,
         "replaceability": "hard",
         "has_alternative_providers": False,
-        "status": VendorStatus.active.value,
         "is_archived": True,
     },
     {
@@ -137,7 +132,6 @@ E2E_VENDORS = [
         "is_significant_vendor": False,
         "replaceability": "easy",
         "has_alternative_providers": True,
-        "status": VendorStatus.active.value,
         "is_archived": False,
     },
 ]
@@ -178,7 +172,6 @@ async def seed_vendors():
                 "is_significant_vendor": entry["is_significant_vendor"],
                 "replaceability": entry["replaceability"],
                 "has_alternative_providers": entry["has_alternative_providers"],
-                "status": entry["status"],
                 "is_archived": is_archived,
                 "archived_at": now if is_archived else None,
                 "archived_by_id": owner_id if is_archived else None,
@@ -190,12 +183,12 @@ async def seed_vendors():
             if vendor is None:
                 db.add(Vendor(**payload))
                 created += 1
-                print(f"   ✓ {entry['name']} ({entry['status']})")
+                print(f"   ✓ {entry['name']} ({'archived' if is_archived else 'active'})")
             else:
                 for key, value in payload.items():
                     setattr(vendor, key, value)
                 updated += 1
-                print(f"   ↺ {entry['name']} ({entry['status']})")
+                print(f"   ↺ {entry['name']} ({'archived' if is_archived else 'active'})")
 
         await db.commit()
 

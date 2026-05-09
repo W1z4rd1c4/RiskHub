@@ -79,7 +79,6 @@ def _vendor(
         ("/api/v1/controls", {"monitoring_status": "bogus"}),
         ("/api/v1/issues", {"status": "bogus"}),
         ("/api/v1/issues", {"severity": "bogus"}),
-        ("/api/v1/vendors", {"status": "bogus"}),
         ("/api/v1/vendors", {"vendor_type": "bogus"}),
         ("/api/v1/kris", {"monitoring_status": "bogus"}),
         ("/api/v1/kris", {"timeliness_status": "bogus"}),

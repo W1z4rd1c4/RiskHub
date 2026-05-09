@@ -4,7 +4,6 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Vendor
-from app.schemas.vendor import VendorStatusEnum
 from app.services._vendor_governance.links import require_vendor_access
 from app.services._vendor_governance.policy import assert_vendor_readable
 from app.services._vendor_links.kri_assignment import ensure_vendors_exist, validate_assignable_vendors
@@ -34,7 +33,6 @@ async def test_link_write_without_vendor_permission_raises_authorization_before_
         process="Outsourced operations",
         department_id=test_department.id,
         outsourcing_owner_user_id=test_user.id,
-        status=VendorStatusEnum.active.value,
         is_archived=True,
     )
     db_session.add(vendor)

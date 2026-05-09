@@ -38,7 +38,7 @@ const vendors: Vendor[] = [
         materiality_assessed_max_impact_pct_own_funds: null,
         replaceability: null,
         has_alternative_providers: false,
-        status: 'active',
+        is_archived: false,
         created_at: '2026-03-01T00:00:00Z',
         updated_at: '2026-03-01T00:00:00Z',
     },
@@ -65,7 +65,7 @@ const vendors: Vendor[] = [
         materiality_assessed_max_impact_pct_own_funds: null,
         replaceability: null,
         has_alternative_providers: false,
-        status: 'active',
+        is_archived: false,
         created_at: '2026-03-01T00:00:00Z',
         updated_at: '2026-03-01T00:00:00Z',
     },
@@ -92,7 +92,7 @@ const vendors: Vendor[] = [
         materiality_assessed_max_impact_pct_own_funds: null,
         replaceability: null,
         has_alternative_providers: false,
-        status: 'active',
+        is_archived: false,
         created_at: '2026-03-01T00:00:00Z',
         updated_at: '2026-03-01T00:00:00Z',
     },
@@ -100,10 +100,7 @@ const vendors: Vendor[] = [
 
 function filterVendors(params: VendorListParams = {}) {
     return vendors.filter((vendor) => {
-        if (params.status && vendor.status !== params.status) {
-            return false;
-        }
-        if (!params.status && !params.include_archived && vendor.status !== 'active') {
+        if (!params.include_archived && vendor.is_archived) {
             return false;
         }
         if (params.vendor_type && vendor.vendor_type !== params.vendor_type) {
@@ -316,7 +313,6 @@ describe('VendorsPage grouped views', () => {
                     limit: 10,
                     group_by: 'risk',
                     include_archived: false,
-                    status: 'active',
                 })
             );
         });

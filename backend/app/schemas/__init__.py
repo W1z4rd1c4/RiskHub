@@ -112,7 +112,6 @@ from app.schemas.vendor import (
     VendorListResponse,
     VendorRead,
     VendorReplaceabilityEnum,
-    VendorStatusEnum,
     VendorTypeEnum,
     VendorUpdate,
 )
@@ -209,7 +208,6 @@ __all__ = [
     "IssueDepartmentLookup",
     "IssueOwnerLookup",
     # Vendor schemas
-    "VendorStatusEnum",
     "VendorTypeEnum",
     "VendorReplaceabilityEnum",
     "VendorBase",

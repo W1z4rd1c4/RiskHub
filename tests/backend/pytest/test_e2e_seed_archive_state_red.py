@@ -18,7 +18,6 @@ def test_e2e_vendor_seed_uses_archive_flag_not_inactive_status():
         if entry["registration_id"] in {"E2E-VREG-004", "E2E-VREG-005"}
     ]
     assert len(archived_entries) == 2
-    assert all(entry["status"] == seed_vendors.VendorStatus.active.value for entry in archived_entries)
     assert all(entry["is_archived"] is True for entry in archived_entries)
     assert "Vendor.is_archived.is_(True)" in source
 
@@ -37,7 +36,6 @@ def test_e2e_archive_seed_uses_archive_flags_for_matrix_rows():
     assert archived_risk["is_archived"] is True
     assert archived_control["status"] == "active"
     assert archived_control["is_archived"] is True
-    assert archived_vendor["status"] == "active"
     assert archived_vendor["is_archived"] is True
     assert 'Risk.status == "archived"' not in source
     assert 'Control.status == "archived"' not in source
