@@ -7,6 +7,7 @@ Shared vendor link workflow across risk, control, and KRI target types.
 ## Contents
 
 - `workflow.py` - target adapters plus list, link, and unlink operations.
+- `kri_assignment.py` - KRI vendor assignment reconciliation through the canonical per-row vendor link workflow.
 
 ## Notes
 

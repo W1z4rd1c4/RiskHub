@@ -16,6 +16,7 @@ import { orphanedItemsApi } from '@/services/orphanedItemsApi';
 import type { OrphanedItem } from '@/types/orphanedItem';
 import { OrphanedItemsTable, ResolveOrphanModal, OrphanQuickViewModal } from '@/components/governance';
 import { GOVERNANCE_POLL_MS } from '@/config/constants';
+import { governanceKeys } from '@/lib/queryKeys';
 import { useAuthz } from '@/authz/useAuthz';
 
 const container = {
@@ -41,7 +42,7 @@ function GovernancePageInner() {
     const [activeTab, setActiveTab] = useState<'risk' | 'control' | 'kri'>('risk');
 
     const overviewQuery = useAdaptivePollingQuery({
-        queryKey: ['governanceOverview'],
+        queryKey: governanceKeys.overview(),
         queryFn: ({ signal }) => orphanedItemsApi.getOverview({ status: 'pending' }, { signal }),
         pollMs: GOVERNANCE_POLL_MS,
     });

@@ -19,8 +19,8 @@ from app.services._entity_mutation_lifecycle.projection import (
     serialize_risk_mutation_response,
 )
 from app.services._kri_history.direct_application import visible_linked_vendors
+from app.services._vendor_links.kri_assignment import assign_vendors_to_kri
 from app.services.authorization_capabilities import control_capabilities, kri_capabilities, risk_capabilities
-from app.services.kri_vendor_assignment import assign_vendors_to_kri
 
 
 def risk_score_change_set(risk: Risk, update_data: dict[str, Any]) -> dict[str, dict[str, Any]]:
@@ -181,7 +181,12 @@ async def apply_kri_update_directly(
             setattr(kri, field, value)
 
         if normalized_vendor_ids is not None:
-            await assign_vendors_to_kri(db, kri=kri, linked_vendor_ids=normalized_vendor_ids)
+            await assign_vendors_to_kri(
+                db,
+                kri=kri,
+                current_user=current_user,
+                linked_vendor_ids=normalized_vendor_ids,
+            )
 
         await kri_updated(db, actor=current_user, kri=kri, changes=changes)
         await db.commit()

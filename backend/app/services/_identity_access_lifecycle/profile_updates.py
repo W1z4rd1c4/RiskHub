@@ -18,7 +18,7 @@ from app.services._org_chart import (
     validate_dept_manager_dept_change,
     validate_no_manager_cycle,
 )
-from app.services.orphaned_item_service import OrphanedItemService
+from app.services._orphaned_items import flag_orphaned_items
 
 from .execution import log_user_update_and_commit
 from .policy import (
@@ -32,7 +32,7 @@ from .policy import (
 
 async def flag_orphaned_items_for_deactivation(db: AsyncSession, *, user: User) -> int:
     try:
-        created_orphans = await OrphanedItemService.flag_orphaned_items(db, user.id)
+        created_orphans = await flag_orphaned_items(db, user.id)
     except Exception as exc:
         await db.rollback()
         raise ServiceFailure("Failed to flag orphaned items") from exc

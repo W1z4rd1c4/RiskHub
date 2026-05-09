@@ -17,9 +17,9 @@ from app.core.scheduler import (
     get_db_context,
     scheduler,
 )
+from app.services._orphaned_items import scan_uncategorised_items
 from app.services.issue_deadline_service import IssueDeadlineService
 from app.services.kri_deadline_service import KRIDeadlineService
-from app.services.orphaned_item_service import OrphanedItemService
 from app.services.outbox import OUTBOX_DISPATCH_INTERVAL_SECONDS, dispatch_pending_outbox_events
 from app.services.questionnaire_deadline_service import QuestionnaireDeadlineService
 
@@ -102,7 +102,7 @@ async def run_sso_jwks_refresh():
 
 async def _orphan_scan_job() -> object:
     async with get_db_context() as db:
-        flagged = await OrphanedItemService.scan_uncategorised_items(db)
+        flagged = await scan_uncategorised_items(db)
         return {"flagged": flagged}
 
 

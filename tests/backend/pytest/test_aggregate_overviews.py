@@ -558,8 +558,8 @@ async def test_orphaned_items_overview_cache_key_includes_effective_permissions(
     async def fake_items(**kwargs) -> list[dict]:
         return []
 
-    monkeypatch.setattr(orphaned_items_module.OrphanedItemService, "get_orphan_stats", fake_stats)
-    monkeypatch.setattr(orphaned_items_module.OrphanedItemService, "get_pending_orphans_with_details", fake_items)
+    monkeypatch.setattr(orphaned_items_module, "load_orphan_stats", fake_stats)
+    monkeypatch.setattr(orphaned_items_module, "get_pending_orphans_with_details", fake_items)
 
     first_resp = await client.get("/api/v1/orphaned-items/overview", headers=_headers_for(test_user_cro))
     assert first_resp.status_code == 200

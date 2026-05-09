@@ -13,7 +13,7 @@ from app.services._kri_history.governance import (
     build_kri_value_mutation_changes,
     capture_kri_value_mutation_snapshot,
 )
-from app.services.kri_vendor_assignment import assign_vendors_to_kri, ensure_vendors_exist, normalize_vendor_ids
+from app.services._vendor_links.kri_assignment import assign_vendors_to_kri, ensure_vendors_exist, normalize_vendor_ids
 
 from .constants import EDITABLE_FIELDS
 from .results import SideEffectResult
@@ -78,6 +78,7 @@ async def _apply_kri_generic_edit(
             await assign_vendors_to_kri(
                 db,
                 kri=kri,
+                current_user=current_user,
                 linked_vendor_ids=requested_vendor_ids,
             )
             if requested_vendor_ids != current_vendor_ids:

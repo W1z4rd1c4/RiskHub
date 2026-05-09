@@ -11,6 +11,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { useAdaptivePollingQuery } from '@/hooks/useAdaptivePollingQuery';
 import { useAuthz } from '@/authz/useAuthz';
+import { dashboardKeys } from '@/lib/queryKeys';
 import { getSidebarNavRoutes } from '@/routing';
 import { userApi } from '@/services/userApi';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
@@ -32,7 +33,7 @@ export function Sidebar() {
     const shouldPollShellSummary = !!user?.id && !isAdmin;
 
     const shellSummaryQuery = useAdaptivePollingQuery({
-        queryKey: ['shellSummary', user?.id, user?.department_id ?? null, user?.access_scope ?? null],
+        queryKey: dashboardKeys.shellSummary(user?.id, user?.department_id ?? null, user?.access_scope ?? null),
         queryFn: ({ signal }) => userApi.getShellSummary({ signal }),
         pollMs: SIDEBAR_POLL_MS,
         enabled: shouldPollShellSummary,

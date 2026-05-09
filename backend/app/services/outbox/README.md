@@ -9,7 +9,7 @@ Transactional outbox package split by responsibility.
 - `store.py`
   - Claiming, enqueue, retry, dead-letter, and completion state transitions.
 - `dispatcher.py`
-  - Batch dispatcher with typed fatal vs retryable handler failure policy.
+  - Batch dispatcher with typed fatal vs retryable handler failure policy and `SchedulerJobRun` visibility for each dispatch run.
 - `registry.py`
   - Central event-type to handler mapping.
 - `handlers/`

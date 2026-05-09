@@ -13,7 +13,7 @@ VENDOR_SERVICE_FILES = [
     REPO_ROOT / "backend/app/services/_vendor_governance/lifecycle.py",
     REPO_ROOT / "backend/app/services/_vendor_governance/links.py",
     REPO_ROOT / "backend/app/services/_vendor_governance/policy.py",
-    REPO_ROOT / "backend/app/services/kri_vendor_assignment.py",
+    REPO_ROOT / "backend/app/services/_vendor_links/kri_assignment.py",
 ]
 VENDOR_ENDPOINT_ROOT = REPO_ROOT / "backend/app/api/v1/endpoints/vendors"
 
@@ -52,3 +52,14 @@ def test_vendor_endpoints_do_not_own_raw_database_commits():
                 offenders.append(f"{path.relative_to(REPO_ROOT)}:{node.lineno}")
 
     assert offenders == []
+
+
+def test_kri_vendor_assignment_old_path_is_removed() -> None:
+    assert not (REPO_ROOT / "backend/app/services/kri_vendor_assignment.py").exists()
+
+
+def test_kri_assignment_uses_canonical_link_mutators() -> None:
+    path = REPO_ROOT / "backend/app/services/_vendor_links/kri_assignment.py"
+    text = path.read_text(encoding="utf-8")
+    for forbidden in ("db.add(VendorRiskLink(", "db.add(VendorKRILink(", "await db.delete(link)"):
+        assert forbidden not in text, f"direct table mutation {forbidden} in {path}"

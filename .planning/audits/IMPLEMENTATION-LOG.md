@@ -166,3 +166,37 @@
 - `ruff check backend/app`: passed
 - `mypy backend/app`: baseline delta clean (`8 errors in 6 files`, unchanged from baseline)
 - Frontend gates: not run at wave end; Wave 5 did not edit frontend files. Item `#38` frontend type sanity passed with `cd frontend && npx tsc --noEmit`.
+
+## Wave 6a — Frontend Query and Vendor Ownership Cleanup
+
+- Completed: 2026-05-09 23:45:13 CEST
+- Commit SHA: recorded by the Wave 6a commit containing this entry
+- Items completed: `#42`, `#58`, `#63`, `#46`, `#65`, `#67`, `#32/#6S`, `#62`, `#77a`, `#45a`
+- Items failed: none
+- Elapsed time: current session wave execution
+
+### Phase 4 Corrections Honored
+
+- `#42`: consolidated outbox actor payload inheritance in the canonical payload module and kept the Postgres-only outbox atomicity assertion skipped under SQLite.
+- `#58`: removed both orphaned-item service facades and repointed endpoint, scheduler, script, and test imports to `_orphaned_items`.
+- `#63`: added scheduler-run instrumentation inside the outbox dispatcher with service-owned transaction handling.
+- `#46`: replaced inline frontend query-key arrays with typed query-key factories across the touched surfaces.
+- `#65`: added the flat CRUD capability parser and reconciled authorization contract artifacts for the architecture-only capability surface.
+- `#67`: extracted `useResourcePanelQuery` and kept the RiskHub config hook as a thin compatibility wrapper.
+- `#32/#6S`: collapsed vendor linked risk/control/KRI tab behavior into the shared `useVendorLinkedEntities` and `VendorLinkedEntitiesTab` surface.
+- `#62`: moved KRI vendor assignment into `_vendor_links.kri_assignment` and routed create/delete auditing through the canonical vendor-link service.
+- `#77a`: made frontend vendor status tolerance optional ahead of the forward-only Wave 8 migration.
+- `#45a`: added ownership characterization tests with local fixtures because the recipe's named fixtures were not present in the repository.
+
+### Gate Results
+
+- `make -f scripts/Makefile test-architecture-locks`: passed (`173 passed`, 1 snapshot passed)
+- `pytest -m contract`: passed under backend venv activation (`262 passed`, `1740 deselected`, 1 warning)
+- `pytest tests/backend/pytest -m "not postgres and not benchmark" -x`: passed (`1969 passed`, `3 skipped`, `30 deselected`, 17 warnings)
+- `python3 scripts/security/validate_authz_capability_contract.py`: passed
+- `ruff check backend/app`: passed
+- `cd backend && ./venv/bin/mypy app`: passed (`no issues found in 587 source files`)
+- `mypy backend/app`: baseline delta clean (`8 errors in 6 files`, unchanged from baseline)
+- `cd frontend && npx tsc --noEmit`: passed
+- `npm run -w tests/frontend/unit test -- --run`: runbook command failed before tests (`ENOENT` for missing root `package.json`); equivalent repo command `cd frontend && pnpm test:run` passed (`191 files`, `855 tests passed`)
+- `npm run -w tests/frontend/unit lint`: runbook command failed before lint (`ENOENT` for missing root `package.json`); equivalent repo command `cd frontend && pnpm lint` passed

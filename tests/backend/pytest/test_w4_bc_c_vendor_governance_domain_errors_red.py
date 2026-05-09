@@ -7,7 +7,7 @@ from app.models import Vendor
 from app.schemas.vendor import VendorStatusEnum
 from app.services._vendor_governance.links import require_vendor_access
 from app.services._vendor_governance.policy import assert_vendor_readable
-from app.services.kri_vendor_assignment import ensure_vendors_exist, validate_assignable_vendors
+from app.services._vendor_links.kri_assignment import ensure_vendors_exist, validate_assignable_vendors
 
 
 @pytest.mark.asyncio

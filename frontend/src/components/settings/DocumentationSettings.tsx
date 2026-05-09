@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { useTranslation } from '@/i18n/hooks';
 import { useAuth } from '@/contexts/AuthContext';
+import { docsKeys } from '@/lib/queryKeys';
 import { adminApi } from '@/services/adminApi';
 import { DocumentationMarkdown } from '@/components/documentation';
 import { stripDuplicateLeadingTitle } from '@/components/documentation/contentFormatting';
@@ -26,7 +27,7 @@ export function DocumentationSettings() {
     const docScrollContainerRef = useRef<HTMLDivElement | null>(null);
 
     const { data: docsData, isLoading } = useQuery({
-        queryKey: ['settingsDocs', i18n.language],
+        queryKey: docsKeys.settingsDocs(i18n.language),
         queryFn: () => adminApi.getDocs(i18n.language),
     });
 

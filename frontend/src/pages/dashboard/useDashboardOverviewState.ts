@@ -1,5 +1,6 @@
 import { useAdaptivePollingQuery } from '@/hooks/useAdaptivePollingQuery';
 import { DASHBOARD_POLL_MS } from '@/config/constants';
+import { dashboardKeys } from '@/lib/queryKeys';
 import { dashboardApi } from '@/services/dashboardApi';
 import type { DashboardFilters, DashboardOverview } from '@/types/dashboard';
 
@@ -18,13 +19,7 @@ export function useDashboardOverviewState({
     t,
 }: UseDashboardOverviewStateOptions) {
     const overviewQuery = useAdaptivePollingQuery<DashboardOverview>({
-        queryKey: [
-            'dashboardOverview',
-            filters.departmentId,
-            filters.riskLevel,
-            filters.controlStatus,
-            filters.controlForm,
-        ],
+        queryKey: dashboardKeys.overview(filters),
         queryFn: ({ signal }) => dashboardApi.fetchOverview(filters, { signal }),
         pollMs: DASHBOARD_POLL_MS,
         enabled,

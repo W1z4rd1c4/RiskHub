@@ -12,13 +12,13 @@ from app.models import RefreshToken, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.services._directory_identity import DirectoryIdentityConflictError, apply_directory_profile
 from app.services._org_chart import acquire_org_chart_lock, clear_manager_references_for_inactive_user
+from app.services._orphaned_items import flag_orphaned_items
 from app.services.directory_provider_service import (
     DirectoryProviderError,
     DirectoryProviderService,
     DirectoryProviderUnavailableError,
     DirectoryUserNotFoundError,
 )
-from app.services.orphaned_item_service import OrphanedItemService
 
 
 class ADDeprovisionService:
@@ -278,7 +278,7 @@ class ADDeprovisionService:
         )
         revoked_sessions = int(getattr(revoked_rows, "rowcount", 0) or 0)
 
-        orphaned_items = await OrphanedItemService.flag_orphaned_items(db, user.id)
+        orphaned_items = await flag_orphaned_items(db, user.id)
         orphan_count = len(orphaned_items)
 
         await log_activity(

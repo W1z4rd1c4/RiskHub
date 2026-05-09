@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Settings2 } from 'lucide-react';
 
 import { useTranslation } from '@/i18n/hooks';
+import { adminKeys } from '@/lib/queryKeys';
 import { adminApi, type LogConfig } from '@/services/adminApi';
 import { apiClient } from '@/services/apiClient';
 
@@ -53,7 +54,7 @@ export function LogSettingsPanel({ canUpdateLogConfig }: LogSettingsPanelProps) 
     const [isDirty, setIsDirty] = useState(false);
 
     const { data: config, isLoading } = useQuery({
-        queryKey: ['logConfig'],
+        queryKey: adminKeys.logConfig(),
         queryFn: () => adminApi.getLogConfig(),
     });
 
@@ -62,10 +63,10 @@ export function LogSettingsPanel({ canUpdateLogConfig }: LogSettingsPanelProps) 
         onSuccess: (updatedConfig) => {
             setErrorMessage(null);
             lastSavedConfigRef.current = updatedConfig;
-            queryClient.setQueryData(['logConfig'], updatedConfig);
+            queryClient.setQueryData(adminKeys.logConfig(), updatedConfig);
             setForm(updatedConfig);
             setIsDirty(false);
-            void queryClient.invalidateQueries({ queryKey: ['logConfig'] });
+            void queryClient.invalidateQueries({ queryKey: adminKeys.logConfig() });
             setShowSavedNotice(true);
         },
         onError: (error) => {

@@ -13,11 +13,11 @@ from app.models import KeyRiskIndicator, Risk, User, VendorKRILink
 from app.schemas.kri import KRICreate, KRIResponse
 from app.services._kri_history.direct_application import visible_linked_vendors
 from app.services._monitoring_response import load_monitoring_response_context, serialize_kri_response
-from app.services.authorization_capabilities import kri_capabilities
-from app.services.kri_vendor_assignment import (
+from app.services._vendor_links.kri_assignment import (
     assign_vendors_to_kri,
     validate_assignable_vendors,
 )
+from app.services.authorization_capabilities import kri_capabilities
 from app.services.transaction_boundary import commit_service_transaction
 
 from .list import router
@@ -65,6 +65,7 @@ async def create_kri(
         await assign_vendors_to_kri(
             db,
             kri=kri,
+            current_user=current_user,
             linked_vendor_ids=linked_vendor_ids,
             ensure_parent_risk_vendor_ids=ensure_parent_risk_vendor_ids,
         )

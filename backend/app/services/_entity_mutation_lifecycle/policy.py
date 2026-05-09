@@ -19,7 +19,7 @@ from app.models import (
     RiskTypeConfig,
     User,
 )
-from app.services.kri_vendor_assignment import normalize_vendor_ids, validate_assignable_vendors
+from app.services._vendor_links.kri_assignment import normalize_vendor_ids, validate_assignable_vendors
 
 
 def raise_missing_permission(resource: str, action: str) -> None:

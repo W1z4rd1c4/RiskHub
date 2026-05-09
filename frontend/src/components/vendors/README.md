@@ -11,6 +11,8 @@ UI components for `vendors` area.
 - `VendorLinkedRiskCard.tsx`
 - `VendorLinkedControlsTab.tsx`
 - `VendorLinkedRisksTab.tsx`
+- `VendorLinkedEntitiesTab.tsx`
+- `useVendorLinkedEntities.ts`
 - `vendorRoute.css`
 - `vendorRouteUi.tsx`
 
@@ -46,6 +48,12 @@ to vendor detail with a partial-success warning.
 Vendor link management intentionally hides effectiveness badges in existing-link
 lists because vendor-risk and vendor-control links do not carry effectiveness
 metadata.
+
+`VendorLinkedEntitiesTab.tsx` and `useVendorLinkedEntities.ts` provide the
+shared vendor linked-entity shell. Concrete tabs supply a
+`VendorLinkedEntitiesAdapter<T>` with `fetch`, `link`, `unlink`, `isArchived`,
+and `toExistingLink` functions while keeping their domain-specific cards and
+dialog modes.
 
 `vendorRoute.css` and `vendorRouteUi.tsx` are the vendor-route-family surface
 system. They provide the shared glass-stack primitives used by the core detail

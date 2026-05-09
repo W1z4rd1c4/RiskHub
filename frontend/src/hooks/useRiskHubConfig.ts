@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { riskHubKeys } from '@/lib/queryKeys';
 import { riskScoreVariantClass } from '@/lib/riskScoreTheme';
 import { riskHubApi, type PublicRiskType } from '@/services/riskHubApi';
 
@@ -56,7 +57,7 @@ export interface RiskThresholds {
  */
 export function useRiskTypes() {
     const query = useQuery({
-        queryKey: ['riskHub', 'publicRiskTypes'],
+        queryKey: riskHubKeys.publicRiskTypes(),
         queryFn: () => riskHubApi.getPublicRiskTypes(),
         staleTime: 5 * 60 * 1000, // Cache for 5 minutes
         retry: 2,
@@ -109,7 +110,7 @@ export function useRiskTypes() {
  */
 export function useRiskThresholds() {
     const query = useQuery({
-        queryKey: ['riskHub', 'thresholds', 'public'],
+        queryKey: riskHubKeys.thresholdsPublic(),
         queryFn: async () => {
             try {
                 // Fetch all threshold values in parallel using public-config endpoint
@@ -177,7 +178,7 @@ const DEFAULT_TOTAL_ASSETS = 10_000_000_000;
  */
 export function useTotalAssetsValue() {
     const query = useQuery({
-        queryKey: ['riskHub', 'config', 'total_assets_value'],
+        queryKey: riskHubKeys.totalAssetsValue(),
         queryFn: async () => {
             try {
                 const result = await riskHubApi.getConfigValue('total_assets_value');

@@ -13,6 +13,12 @@ class OutboxPayloadModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class ActorPayloadModel(OutboxPayloadModel):
+    """Shared base for outbox payloads that carry the acting user's id."""
+
+    actor_user_id: int
+
+
 class ApprovalRequestCreatedPayload(OutboxPayloadModel):
     approval_id: int
 
@@ -27,38 +33,32 @@ class ApprovalRequestCancelledPayload(OutboxPayloadModel):
     cancelled_by_user_id: int
 
 
-class IssueAssignedPayload(OutboxPayloadModel):
+class IssueAssignedPayload(ActorPayloadModel):
     issue_id: int
     owner_user_id: int
-    actor_user_id: int
 
 
-class IssueExceptionRequestedPayload(OutboxPayloadModel):
+class IssueExceptionRequestedPayload(ActorPayloadModel):
     issue_id: int
-    actor_user_id: int
 
 
-class IssueExceptionApprovedPayload(OutboxPayloadModel):
+class IssueExceptionApprovedPayload(ActorPayloadModel):
     issue_id: int
-    actor_user_id: int
     requested_by_id: int | None = None
     owner_user_id: int | None = None
 
 
-class QuestionnaireSentPayload(OutboxPayloadModel):
+class QuestionnaireSentPayload(ActorPayloadModel):
     questionnaire_id: int
-    actor_user_id: int
 
 
-class QuestionnaireSubmittedPayload(OutboxPayloadModel):
+class QuestionnaireSubmittedPayload(ActorPayloadModel):
     questionnaire_id: int
-    actor_user_id: int
 
 
-class QuestionnaireClarificationRequestedPayload(OutboxPayloadModel):
+class QuestionnaireClarificationRequestedPayload(ActorPayloadModel):
     clarification_id: int
     questionnaire_id: int
-    actor_user_id: int
 
 
 OutboxPayload: TypeAlias = (
@@ -104,6 +104,7 @@ def validate_outbox_payload(event_type: str, payload: OutboxPayloadModel | dict)
 
 __all__ = [
     "OutboxPayload",
+    "ActorPayloadModel",
     "OutboxPayloadModel",
     "ApprovalRequestCreatedPayload",
     "ApprovalRequestResolvedPayload",

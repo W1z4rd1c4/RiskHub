@@ -326,7 +326,7 @@ def test_identity_access_routes_use_lifecycle_module() -> None:
 
     for leaked_rule in (
         "requires_break_glass_for_reenable(",
-        "OrphanedItemService.flag_orphaned_items",
+        "flag_orphaned_items(",
         "_resolve_role_for_import(",
     ):
         assert leaked_rule not in route_source
@@ -362,7 +362,7 @@ def test_identity_access_lifecycle_split_modules_own_decisions() -> None:
     lifecycle_source = _source("backend/app/services/_identity_access_lifecycle/lifecycle.py")
     for leaked_implementation_detail in (
         "await db.commit()",
-        "OrphanedItemService.flag_orphaned_items",
+        "flag_orphaned_items(",
         "def _ensure_sso_local_field_update_allowed",
         "def _resolve_role_for_directory_import",
     ):

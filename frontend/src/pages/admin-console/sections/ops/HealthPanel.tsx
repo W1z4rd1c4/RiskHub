@@ -3,6 +3,7 @@ import { Clock, Database, MemoryStick, RefreshCw, Users } from 'lucide-react';
 
 import { useAdaptivePollingQuery } from '@/hooks/useAdaptivePollingQuery';
 import { useTranslation } from '@/i18n/hooks';
+import { adminKeys } from '@/lib/queryKeys';
 import { cn } from '@/lib/utils';
 import { adminApi } from '@/services/adminApi';
 
@@ -12,23 +13,23 @@ import { SchedulerStatusSection } from './SchedulerStatusSection';
 export function HealthPanel() {
     const { t } = useTranslation('admin');
     const healthQuery = useAdaptivePollingQuery({
-        queryKey: ['adminHealth'],
+        queryKey: adminKeys.health(),
         queryFn: ({ signal }) => adminApi.getSystemHealth({ signal }),
         pollMs: 30000,
     });
     const schedulerQuery = useAdaptivePollingQuery({
-        queryKey: ['adminSchedulerStatus'],
+        queryKey: adminKeys.schedulerStatus(),
         queryFn: ({ signal }) => adminApi.getSchedulerStatus({ signal }),
         pollMs: 30000,
     });
     const outboxQuery = useAdaptivePollingQuery({
-        queryKey: ['adminOutboxStatus'],
+        queryKey: adminKeys.outboxStatus(),
         queryFn: ({ signal }) => adminApi.getOutboxStatus({ signal }),
         pollMs: 30000,
     });
 
     const { data: stats } = useQuery({
-        queryKey: ['adminStats'],
+        queryKey: adminKeys.stats(),
         queryFn: () => adminApi.getSystemStats(),
     });
 

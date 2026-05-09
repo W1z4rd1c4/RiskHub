@@ -61,7 +61,7 @@ export interface Vendor {
     replaceability?: VendorReplaceability | null;
     has_alternative_providers: boolean;
 
-    status: VendorStatus;
+    status?: VendorStatus; // Optional during pre-migration #77a; removed entirely in #77b.
     is_archived: boolean;
     archived_at?: string | null;
     archived_by_id?: number | null;

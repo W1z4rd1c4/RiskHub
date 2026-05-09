@@ -3,6 +3,7 @@ import { ShieldCheck, Check, X, ChevronDown } from 'lucide-react';
 import { riskHubApi } from '@/services/riskHubApi';
 import { apiClient } from '@/services/apiClient';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
+import { riskHubKeys } from '@/lib/queryKeys';
 import type { ApprovalScenario, ApprovalScenarioUpdate } from '@/services/riskHubApi';
 import { cn } from '@/lib/utils';
 import { useState, useMemo, useEffect } from 'react';
@@ -176,7 +177,7 @@ export function ApprovalScenariosPanel() {
     const canUpdateScenarios = riskHubCapabilityEnabled(riskHubCapabilities?.approval_scenarios, 'can_update');
 
     const scenariosResource = useRiskHubConfigResource<ApprovalScenario, ApprovalScenarioUpdate, ApprovalScenarioUpdate>({
-        queryKey: ['approvalScenarios'],
+        queryKey: riskHubKeys.approvalScenarios(),
         load: () => riskHubApi.getApprovalScenarios(),
         update: (key, data) => riskHubApi.updateApprovalScenario(String(key), data),
         itemId: (scenario) => scenario.key,
@@ -186,7 +187,7 @@ export function ApprovalScenariosPanel() {
 
     // Fetch roles from Risk Hub to populate role options dynamically
     const { data: hubRoles, isLoading: rolesLoading } = useQuery({
-        queryKey: ['roles', false], // false = active roles only
+        queryKey: riskHubKeys.roles(false), // false = active roles only
         queryFn: () => riskHubApi.getRoles(false),
     });
 

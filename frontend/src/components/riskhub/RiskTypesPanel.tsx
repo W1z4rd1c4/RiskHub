@@ -6,6 +6,7 @@ import { apiClient } from '@/services/apiClient';
 import type { RiskType, RiskTypeCreate, RiskTypeUpdate } from '@/services/riskHubApi';
 import { cn } from '@/lib/utils';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
+import { riskHubKeys } from '@/lib/queryKeys';
 import { useTranslation } from '@/i18n/hooks';
 import { RiskHubFieldError, RiskHubModalActions, RiskHubModalFrame } from './panelPrimitives';
 import { riskHubCapabilityEnabled, useRiskHubCapabilities } from './useRiskHubCapabilities';
@@ -147,7 +148,7 @@ function RiskTypeModal({ isOpen, onClose, riskType, onSave }: RiskTypeModalProps
 export function RiskTypesPanel() {
     const { t } = useTranslation(['admin', 'common']);
     const panel = useRiskHubConfigResource<RiskType, RiskTypeCreate, RiskTypeUpdate>({
-        queryKey: ['riskTypes'],
+        queryKey: riskHubKeys.riskTypes(),
         load: (showInactive) => riskHubApi.getRiskTypes(showInactive),
         create: (data) => riskHubApi.createRiskType(data),
         update: (id, data) => riskHubApi.updateRiskType(Number(id), data),

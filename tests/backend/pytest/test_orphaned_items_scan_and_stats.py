@@ -7,7 +7,7 @@ from app.models import Control, Department, OrphanedItem, Risk, Role, User
 from app.models.risk import RiskStatus
 from app.models.scheduler_job_run import SchedulerJobRun
 from app.models.user import AccessScope
-from app.services.orphaned_item_service import OrphanedItemService
+from app.services._orphaned_items import get_orphan_detail, get_pending_orphans_with_details
 
 
 @pytest.mark.asyncio
@@ -279,13 +279,13 @@ async def test_orphan_list_and_detail_are_scoped_by_current_department(
     orphan_out_id = orphan_out.id
     await db_session.commit()
 
-    items = await OrphanedItemService.get_pending_orphans_with_details(db_session, current_user=test_user_cro)
+    items = await get_pending_orphans_with_details(db_session, current_user=test_user_cro)
     names = {item["item_name"] for item in items}
     assert "Scoped Orphan Risk" in names
     assert "Hidden Orphan Risk" not in names
     assert items[0]["capabilities"]["can_resolve"] is True
 
-    hidden_detail = await OrphanedItemService.get_orphan_detail(db_session, orphan_out_id, current_user=test_user_cro)
+    hidden_detail = await get_orphan_detail(db_session, orphan_out_id, current_user=test_user_cro)
     assert hidden_detail is None
 
 

@@ -21,8 +21,20 @@ from app.schemas.orphaned_item import (
     OrphanedItemStats,
     OrphanScanResponse,
 )
+from app.services._orphaned_items import (
+    get_orphan_detail as load_orphan_detail,
+)
+from app.services._orphaned_items import (
+    get_orphan_stats as load_orphan_stats,
+)
+from app.services._orphaned_items import (
+    get_pending_orphans_with_details,
+    scan_uncategorised_items,
+)
+from app.services._orphaned_items import (
+    resolve_orphan as resolve_orphan_record,
+)
 from app.services._orphaned_items.workflow import OrphanResolutionConflict
-from app.services.orphaned_item_service import OrphanedItemService
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +54,7 @@ async def _get_latest_orphan_scan(db: AsyncSession) -> SchedulerJobRun | None:
 
 
 async def _run_manual_orphan_scan(db: AsyncSession) -> dict[str, int]:
-    return {"flagged": await OrphanedItemService.scan_uncategorised_items(db)}
+    return {"flagged": await scan_uncategorised_items(db)}
 
 
 def _require_governance_operator(current_user: User) -> None:
@@ -67,7 +79,7 @@ async def list_orphaned_items(
     """
     _require_governance_operator(current_user)
 
-    orphans = await OrphanedItemService.get_pending_orphans_with_details(
+    orphans = await get_pending_orphans_with_details(
         db=db,
         item_type=item_type,
         status=status,
@@ -116,8 +128,8 @@ async def get_orphaned_items_overview(
     if cached is not None:
         return OrphanedItemsOverview(**cached)
 
-    stats = await OrphanedItemService.get_orphan_stats(db, current_user=current_user)
-    items = await OrphanedItemService.get_pending_orphans_with_details(
+    stats = await load_orphan_stats(db, current_user=current_user)
+    items = await get_pending_orphans_with_details(
         db=db,
         item_type=item_type,
         status=status,
@@ -144,7 +156,7 @@ async def get_orphan_stats(
     Returns counts by type and status for dashboard widgets.
     """
     _require_governance_operator(current_user)
-    stats = await OrphanedItemService.get_orphan_stats(db, current_user=current_user)
+    stats = await load_orphan_stats(db, current_user=current_user)
     return OrphanedItemStats(**stats)
 
 
@@ -161,7 +173,7 @@ async def get_orphan_detail(
     """
     _require_governance_operator(current_user)
 
-    orphan = await OrphanedItemService.get_orphan_detail(db, orphan_id, current_user=current_user)
+    orphan = await load_orphan_detail(db, orphan_id, current_user=current_user)
     if not orphan:
         raise HTTPException(status_code=404, detail="Orphaned item not found")
 
@@ -184,7 +196,7 @@ async def resolve_orphan(
     _require_governance_operator(current_user)
 
     try:
-        orphan = await OrphanedItemService.resolve_orphan(
+        orphan = await resolve_orphan_record(
             db=db,
             orphan_id=orphan_id,
             new_owner_id=body.new_owner_id,

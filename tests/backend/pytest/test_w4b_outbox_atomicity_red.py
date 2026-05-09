@@ -12,10 +12,15 @@ from app.services.outbox.dispatcher import dispatch_pending_outbox_events
 from app.services.outbox.store import OutboxService
 
 
+def _require_postgres(async_engine) -> None:
+    if async_engine.dialect.name != "postgresql":
+        pytest.skip("Postgres-only outbox atomicity test")
+
+
 @pytest.mark.asyncio
 @pytest.mark.postgres
 async def test_outbox_mark_success_failure_does_not_commit_succeeded_status(async_engine, monkeypatch) -> None:
-    assert async_engine.dialect.name == "postgresql"
+    _require_postgres(async_engine)
 
     sessionmaker = async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
     aggregate_id = 987654321
@@ -59,7 +64,7 @@ async def test_outbox_mark_success_failure_does_not_commit_succeeded_status(asyn
 @pytest.mark.asyncio
 @pytest.mark.postgres
 async def test_outbox_success_commit_failure_is_not_counted_as_processed(async_engine, monkeypatch) -> None:
-    assert async_engine.dialect.name == "postgresql"
+    _require_postgres(async_engine)
 
     sessionmaker = async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
     aggregate_id = 987654322

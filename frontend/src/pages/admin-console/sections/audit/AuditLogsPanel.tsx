@@ -4,6 +4,7 @@ import { FileDown, RefreshCw } from 'lucide-react';
 
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { useTranslation } from '@/i18n/hooks';
+import { adminKeys } from '@/lib/queryKeys';
 import { cn } from '@/lib/utils';
 import { adminApi } from '@/services/adminApi';
 import { lookupApi } from '@/services/lookupApi';
@@ -24,7 +25,7 @@ export function AuditLogsPanel() {
     const [selectedLogExtra, setSelectedLogExtra] = useState<Record<string, unknown> | null>(null);
 
     const { data, isLoading, refetch } = useQuery({
-        queryKey: ['adminAuditLogs', lines, eventFilter],
+        queryKey: adminKeys.auditLogs(lines, eventFilter),
         queryFn: () => adminApi.getAuditLogs({ lines, event_type: eventFilter || undefined }),
         refetchInterval: autoRefresh ? 5000 : false,
     });
@@ -35,7 +36,7 @@ export function AuditLogsPanel() {
         [logs],
     );
     const { data: auditUsers } = useQuery({
-        queryKey: ['adminAuditLogUsers', auditUserIds],
+        queryKey: adminKeys.auditLogUsers(auditUserIds),
         queryFn: async () => {
             const chunks = [];
             for (let index = 0; index < auditUserIds.length; index += AUDIT_USER_LOOKUP_CHUNK_SIZE) {
@@ -53,7 +54,7 @@ export function AuditLogsPanel() {
         [auditUsers],
     );
     const { data: capabilities } = useQuery({
-        queryKey: ['adminCapabilities'],
+        queryKey: adminKeys.capabilities(),
         queryFn: () => adminApi.getCapabilities(),
     });
 

@@ -4,6 +4,7 @@ import { BookOpen, FileText, ChevronLeft, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import { useTranslation } from '@/i18n/hooks';
+import { docsKeys } from '@/lib/queryKeys';
 import { adminApi } from '@/services/adminApi';
 import { DocumentationMarkdown } from '@/components/documentation';
 import { stripDuplicateLeadingTitle } from '@/components/documentation/contentFormatting';
@@ -24,7 +25,7 @@ export function DocumentationPage() {
     const docScrollContainerRef = useRef<HTMLDivElement | null>(null);
 
     const { data: docsData, isLoading } = useQuery({
-        queryKey: ['adminDocs', i18n.language],
+        queryKey: docsKeys.adminDocs(i18n.language),
         queryFn: () => adminApi.getDocs(i18n.language),
     });
 

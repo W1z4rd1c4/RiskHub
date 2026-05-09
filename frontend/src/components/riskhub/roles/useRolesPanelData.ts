@@ -6,11 +6,12 @@ import {
     type RoleHubRead,
     type RoleHubUpdate,
 } from '@/services/riskHubApi';
+import { riskHubKeys } from '@/lib/queryKeys';
 import { useRiskHubConfigResource } from '../useRiskHubConfigResource';
 
 export function useRolesPanelData() {
     const rolesResource = useRiskHubConfigResource<RoleHubRead, RoleHubCreate, RoleHubUpdate>({
-        queryKey: ['roles'],
+        queryKey: riskHubKeys.roles(),
         load: (showInactive) => riskHubApi.getRoles(showInactive),
         create: (data) => riskHubApi.createRole(data),
         update: (id, data) => riskHubApi.updateRole(Number(id), data),
@@ -21,7 +22,7 @@ export function useRolesPanelData() {
     });
 
     const permissionsQuery = useQuery({
-        queryKey: ['permissions'],
+        queryKey: riskHubKeys.permissions(),
         queryFn: () => riskHubApi.getPermissions(),
     });
 

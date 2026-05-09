@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { formatDateTimeValue } from '@/i18n/formatters';
 import { useTranslation } from '@/i18n/hooks';
+import { adminKeys } from '@/lib/queryKeys';
 import { cn } from '@/lib/utils';
 import { adminApi } from '@/services/adminApi';
 
@@ -12,7 +13,7 @@ export function LogsPanel() {
     const [eventFilter, setEventFilter] = useState<string>('');
 
     const { data: logs, isLoading } = useQuery({
-        queryKey: ['adminLogs', eventFilter],
+        queryKey: adminKeys.logs(eventFilter),
         queryFn: () => adminApi.getTechnicalLogs({ event_type: eventFilter || undefined, limit: 100 }),
     });
 

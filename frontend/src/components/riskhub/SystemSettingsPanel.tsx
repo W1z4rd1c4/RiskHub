@@ -5,6 +5,7 @@ import { riskHubApi } from '@/services/riskHubApi';
 import { apiClient } from '@/services/apiClient';
 import type { GlobalConfig } from '@/services/riskHubApi';
 import { cn } from '@/lib/utils';
+import { riskHubKeys } from '@/lib/queryKeys';
 import { useTranslation } from '@/i18n/hooks';
 import { riskHubCapabilityEnabled, useRiskHubCapabilities } from './useRiskHubCapabilities';
 
@@ -168,13 +169,13 @@ export function SystemSettingsPanel() {
     const canUpdateSettings = riskHubCapabilityEnabled(riskHubCapabilities?.system_settings, 'can_update');
 
     const { data: configs, isLoading, error } = useQuery({
-        queryKey: ['globalConfig'],
+        queryKey: riskHubKeys.globalConfig(),
         queryFn: () => riskHubApi.getAllConfig(),
     });
 
     const updateMutation = useMutation({
         mutationFn: ({ key, value }: { key: string; value: string }) => riskHubApi.updateConfig(key, value),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['globalConfig'] }),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: riskHubKeys.globalConfig() }),
     });
 
     const handleSave = async (key: string, value: string) => {

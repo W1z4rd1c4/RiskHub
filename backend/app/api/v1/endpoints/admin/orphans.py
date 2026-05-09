@@ -7,9 +7,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 from app.models import Control, ControlRiskLink, KeyRiskIndicator, Risk, User
 from app.schemas.admin import OrphanFixRequest, OrphanFixResponse, OrphanFixResult, OrphanStatsResponse
+from app.services._orphaned_items import resolve_orphan as resolve_orphan_record
 from app.services._orphaned_items.resolution_plan import OrphanResolutionRequest, build_resolution_plan
 from app.services._orphaned_items.workflow import OrphanResolutionConflict
-from app.services.orphaned_item_service import OrphanedItemService
 
 from ._deps import require_platform_admin
 
@@ -113,7 +113,7 @@ async def fix_orphan_mappings(
     if not payload.dry_run:
         for plan in plans:
             try:
-                await OrphanedItemService.resolve_orphan(
+                await resolve_orphan_record(
                     db=db,
                     orphan_id=plan.request.orphan_id,
                     new_owner_id=plan.request.new_owner_id,

@@ -1,7 +1,7 @@
 {
   "version": "1.0",
     "last_reviewed": "2026-05-09",
-    "last_architecture_refactor_reviewed": "2026-05-06",
+    "last_architecture_refactor_reviewed": "2026-05-09",
   "architecture_refactor_notes": [
     "2026-05-03: Collection listing execution, tabular report export rendering, approval side-effect helper reuse, and validator static data were moved behind deeper Modules. User-visible authorization policy and capability semantics are unchanged.",
     "2026-05-03: Entity visibility projections, collection listing definitions, export pipeline definitions, approval resolution plans, and KRI value governance were moved behind deeper Modules. User-visible authorization policy and capability semantics are unchanged.",
@@ -12,7 +12,8 @@
     "2026-05-05: Corrective architecture-only split moved entity mutation approval/policy/direct/archive planning and control execution access/projection/link policy behind service-owned Modules. User-visible authorization policy and capability semantics are unchanged.",
         "2026-05-05: Nine-area corrective architecture-only pass moved identity/access lifecycle, approval queue intake/projection, vendor governance, report export definitions, activity log query, deadline execution, authz validator internals, global config lifecycle, and users access workflow behind production-owned Modules. User-visible authorization policy and capability semantics are unchanged.",
         "2026-05-06: Architecture-only authorization perimeter pass moved Risk Hub config capability builders and service-level permission checks behind the existing authorization capability Module. User-visible authorization policy and capability semantics are unchanged.",
-        "2026-05-09: Architecture-only KRI deadline cleanup moved the reporting grace-window default to the KRI period-algebra SSOT while preserving notification visibility, manual trigger authorization, and capability semantics."
+        "2026-05-09: Architecture-only KRI deadline cleanup moved the reporting grace-window default to the KRI period-algebra SSOT while preserving notification visibility, manual trigger authorization, and capability semantics.",
+        "2026-05-09: Architecture cleanup Wave 6a moved orphaned-item access behind direct package functions, added outbox SchedulerJobRun visibility, centralized frontend query-key factories, and added literal-flat capability schema contracts. User-visible authorization policy and capability semantics are unchanged."
   ],
   "owner": "RiskHub Maintainer",
   "capability_catalog": "docs/security/capability-catalog.json",

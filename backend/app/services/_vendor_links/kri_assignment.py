@@ -9,6 +9,7 @@ from app.core.exceptions import AuthorizationError, NotFoundError, ValidationErr
 from app.core.permissions import can_read_vendor, is_vendor_owner
 from app.models import KeyRiskIndicator, User, Vendor, VendorKRILink, VendorRiskLink
 from app.services._authorization_capabilities import has_capability, require_capability
+from app.services._vendor_links.workflow import link_vendor_target, unlink_vendor_target
 
 
 def normalize_vendor_ids(vendor_ids: Sequence[int] | None) -> list[int]:
@@ -82,6 +83,7 @@ async def assign_vendors_to_kri(
     db: AsyncSession,
     *,
     kri: KeyRiskIndicator,
+    current_user: User,
     linked_vendor_ids: Sequence[int] | None,
     ensure_parent_risk_vendor_ids: Sequence[int] | None = None,
 ) -> list[int]:
@@ -99,7 +101,13 @@ async def assign_vendors_to_kri(
         for vendor_id in normalized_parent_vendor_ids:
             if vendor_id in existing_risk_vendor_ids:
                 continue
-            db.add(VendorRiskLink(vendor_id=vendor_id, risk_id=kri.risk_id))
+            await link_vendor_target(
+                db,
+                vendor_id=vendor_id,
+                current_user=current_user,
+                kind="risk",
+                entity_id=kri.risk_id,
+            )
 
     current_link_result = await db.execute(select(VendorKRILink).where(VendorKRILink.kri_id == kri.id))
     current_links = current_link_result.scalars().all()
@@ -109,11 +117,23 @@ async def assign_vendors_to_kri(
     for link in current_links:
         if link.vendor_id in desired_vendor_ids:
             continue
-        await db.delete(link)
+        await unlink_vendor_target(
+            db,
+            vendor_id=link.vendor_id,
+            current_user=current_user,
+            kind="kri",
+            entity_id=kri.id,
+        )
 
     for vendor_id in normalized_linked_vendor_ids:
         if vendor_id in current_vendor_ids:
             continue
-        db.add(VendorKRILink(vendor_id=vendor_id, kri_id=kri.id))
+        await link_vendor_target(
+            db,
+            vendor_id=vendor_id,
+            current_user=current_user,
+            kind="kri",
+            entity_id=kri.id,
+        )
 
     return normalized_linked_vendor_ids

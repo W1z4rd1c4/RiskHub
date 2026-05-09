@@ -6,6 +6,7 @@ import { accessApi } from '@/services/accessApi';
 import { apiClient } from '@/services/apiClient';
 import type { DepartmentHubCreate, DepartmentHubUpdate, DepartmentHubRead } from '@/services/riskHubApi';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
+import { riskHubKeys, usersKeys } from '@/lib/queryKeys';
 import { cn } from '@/lib/utils';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { useTranslation } from '@/i18n/hooks';
@@ -39,7 +40,7 @@ function DepartmentModal({ isOpen, onClose, department, onSave }: DepartmentModa
 
     // Fetch users for manager selection
     const { data: users } = useQuery({
-        queryKey: ['users', 'access', 'department-managers', department?.id],
+        queryKey: usersKeys.accessDepartmentManagers(department?.id),
         queryFn: () => accessApi.listAccessUsers({ department_id: department!.id }),
         enabled: isOpen && Boolean(department?.id),
     });
@@ -133,7 +134,7 @@ function DepartmentModal({ isOpen, onClose, department, onSave }: DepartmentModa
 export function DepartmentsPanel() {
     const { t } = useTranslation(['admin', 'common']);
     const panel = useRiskHubConfigResource<DepartmentHubRead, DepartmentHubCreate, DepartmentHubUpdate>({
-        queryKey: ['departments'],
+        queryKey: riskHubKeys.departments(),
         load: (showInactive) => riskHubApi.getDepartments(showInactive),
         create: (data) => riskHubApi.createDepartment(data),
         update: (id, data) => riskHubApi.updateDepartment(Number(id), data),

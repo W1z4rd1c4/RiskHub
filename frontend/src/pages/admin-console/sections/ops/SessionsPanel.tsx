@@ -4,6 +4,7 @@ import { RefreshCw } from 'lucide-react';
 
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { useTranslation } from '@/i18n/hooks';
+import { adminKeys } from '@/lib/queryKeys';
 import { cn } from '@/lib/utils';
 import { adminApi, type ActiveSession } from '@/services/adminApi';
 import { ApiClientError } from '@/services/apiClient';
@@ -20,11 +21,11 @@ export function SessionsPanel() {
     const [revokeError, setRevokeError] = useState<string | null>(null);
 
     const { data: sessions, isLoading } = useQuery({
-        queryKey: ['adminSessions'],
+        queryKey: adminKeys.sessions(),
         queryFn: () => adminApi.getActiveSessions(),
     });
     const { data: capabilities } = useQuery({
-        queryKey: ['adminCapabilities'],
+        queryKey: adminKeys.capabilities(),
         queryFn: () => adminApi.getCapabilities(),
     });
     const canRevokeSessions = capabilities?.can_revoke_sessions === true;
@@ -33,13 +34,13 @@ export function SessionsPanel() {
     const revokeMutation = useMutation({
         mutationFn: (userId: number) => adminApi.revokeSession(userId),
         onMutate: () => setRevokeError(null),
-        onSuccess: () => queryClient.invalidateQueries({ queryKey: ['adminSessions'] }),
+        onSuccess: () => queryClient.invalidateQueries({ queryKey: adminKeys.sessions() }),
         onError: (error) => {
             const message = error instanceof ApiClientError
                 ? (error.rawMessage ?? error.messageKey)
                 : t('sessions.revoke_failed', { defaultValue: 'Failed to revoke session.' });
             setRevokeError(message);
-            void queryClient.invalidateQueries({ queryKey: ['adminSessions'] });
+            void queryClient.invalidateQueries({ queryKey: adminKeys.sessions() });
         },
     });
 
@@ -61,7 +62,7 @@ export function SessionsPanel() {
                     deprovisioned: result.deprovisioned,
                 }),
             );
-            void queryClient.invalidateQueries({ queryKey: ['adminSessions'] });
+            void queryClient.invalidateQueries({ queryKey: adminKeys.sessions() });
         } catch (error) {
             logError('Directory check-all failed.', error);
             setDirectorySummary(t('users.directory_check_failed', { defaultValue: 'Directory check failed.' }));
