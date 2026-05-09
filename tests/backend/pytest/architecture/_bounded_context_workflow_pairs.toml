@@ -1,0 +1,46 @@
+# ADR-007 workflow-paired contexts. Left is the package under classification;
+# right is the paired primary context that must be coordinated in sweeps.
+
+[[pairs]]
+left = "_approval_queue"
+right = "_approval_execution"
+
+[[pairs]]
+left = "_issue_register"
+right = "_issue_workflow"
+
+[[pairs]]
+left = "_vendor_links"
+right = "_vendor_governance"
+
+[[pairs]]
+left = "_access_workflow"
+right = "_identity_access_lifecycle"
+
+[[pairs]]
+left = "_control_execution"
+right = "_entity_mutation_lifecycle"
+
+[[pairs]]
+left = "_deadline_execution"
+right = "_kri_history"
+
+[[pairs]]
+left = "_auth_session_workflow"
+right = "_auth_session"
+
+[[pairs]]
+left = "_risk_questionnaires"
+right = "_vendor_governance"
+
+[[pairs]]
+left = "_vendor_workflow"
+right = "_vendor_governance"
+
+[[pairs]]
+left = "_orphaned_items"
+right = "_identity_access_lifecycle"
+
+[[pairs]]
+left = "_notification_inbox"
+right = "_identity_access_lifecycle"

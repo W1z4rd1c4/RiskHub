@@ -224,11 +224,16 @@ Canonical Source: `docs/adr/README.md`, `docs/README.md`
   - `tests/backend/pytest/architecture/_endpoint_commit_allowlist.toml`
   - `tests/backend/pytest/architecture/_archive_allowlist.toml`
   - `tests/backend/pytest/architecture/_naming_allowlist.toml`
+  - `tests/backend/pytest/architecture/_bounded_context_write_side.toml`
+  - `tests/backend/pytest/architecture/_bounded_context_read_shape.toml`
+  - `tests/backend/pytest/architecture/_bounded_context_workflow_pairs.toml`
+  - `tests/backend/pytest/architecture/_bounded_context_adapters.toml`
+  - `tests/backend/pytest/architecture/_bounded_context_cross_cutting.toml`
   - `tests/backend/pytest/_get_db_override_whitelist.toml`
   - `backend/app/core/audit/_audit_matrix.toml`
   - `backend/app/api/v1/endpoints/_reserved_modules.toml`
 - Outbox worker transaction ownership is consolidated in `backend/app/services/outbox/dispatcher.py`; `backend/app/services/outbox/store.py` flushes only.
-- Transaction-boundary changes follow ADR-002; archive-state changes follow ADR-005; forward-only Postgres migration rehearsals follow ADR-010.
+- Transaction-boundary changes follow ADR-002; auth/session scheme changes follow ADR-011; archive-state changes follow ADR-005; forward-only Postgres migration rehearsals follow ADR-010.
 
 ## client_factory
 

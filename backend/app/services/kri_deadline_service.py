@@ -22,6 +22,7 @@ from app.services._deadline_execution import (
     increment_deadline_results,
     run_deadline_items,
 )
+from app.services._kri_history.constants import REPORTING_GRACE_DAYS as DEFAULT_REPORTING_GRACE_DAYS
 from app.services.kri_deadline_decisions import (
     KriDeadlineNotificationPlan,
     build_kri_limit_notification_plan,
@@ -49,7 +50,7 @@ class KRIDeadlineService:
     # These are now sourced from ConfigDefaults for consistency
     NEAR_BREACH_THRESHOLD = ConfigDefaults.NEAR_BREACH_THRESHOLD
     DUPLICATE_LOOKBACK_DAYS = ConfigDefaults.DUPLICATE_LOOKBACK_DAYS
-    REPORTING_GRACE_DAYS = ConfigDefaults.REPORTING_GRACE_DAYS
+    REPORTING_GRACE_DAYS = DEFAULT_REPORTING_GRACE_DAYS
     ADVANCE_REMINDER_DAYS = ConfigDefaults.ADVANCE_REMINDER_DAYS
     OVERDUE_REMINDER_WEEKS = ConfigDefaults.OVERDUE_REMINDER_WEEKS
 

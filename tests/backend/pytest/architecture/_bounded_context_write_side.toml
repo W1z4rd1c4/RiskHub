@@ -1,0 +1,10 @@
+# ADR-007 primary write-side contexts.
+packages = [
+    "_riskhub_config",
+    "_identity_access_lifecycle",
+    "_vendor_governance",
+    "_register_listings", # dual-classed; also read-shape.
+    "_approval_execution",
+    "_entity_mutation_lifecycle",
+    "_kri_history",
+]

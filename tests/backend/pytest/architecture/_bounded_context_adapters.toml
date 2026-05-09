@@ -1,0 +1,9 @@
+# ADR-007 adapter contexts bridge external systems or HTTP/session adapters.
+packages = [
+    "_directory_identity",
+    "_directory_sync",
+    "_graph_directory", # planned package; created by #61.
+    "_admin_telemetry",
+    "_activity_log_query",
+    "_auth_session",
+]

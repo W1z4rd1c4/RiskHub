@@ -1,0 +1,5 @@
+# ADR-007 cross-cutting policy/config packages.
+packages = [
+    "_authorization_capabilities",
+    "_config",
+]

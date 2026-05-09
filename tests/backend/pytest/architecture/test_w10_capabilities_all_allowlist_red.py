@@ -22,7 +22,11 @@ def _module_all_names(path: Path) -> list[str]:
             continue
         if not isinstance(node.value, ast.List):
             continue
-        return [element.value for element in node.value.elts if isinstance(element, ast.Constant)]
+        names: list[str] = []
+        for element in node.value.elts:
+            if isinstance(element, ast.Constant) and isinstance(element.value, str):
+                names.append(element.value)
+        return names
     raise AssertionError("__all__ assignment not found")
 
 

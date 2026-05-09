@@ -26,6 +26,7 @@ from app.models.global_config import (
     get_config_int,
     get_config_value,
 )
+from app.services._kri_history.constants import REPORTING_GRACE_DAYS
 from app.schemas.risk import RiskBriefForLink, RiskRead, RiskStatusEnum, RiskSummary
 
 
@@ -457,7 +458,7 @@ async def test_kri_deadline_service_loads_config(
     assert config["near_breach_threshold"] == 0.90
     # Defaults for missing keys
     assert config["duplicate_lookback_days"] == ConfigDefaults.DUPLICATE_LOOKBACK_DAYS
-    assert config["reporting_grace_days"] == ConfigDefaults.REPORTING_GRACE_DAYS
+    assert config["reporting_grace_days"] == REPORTING_GRACE_DAYS
 
 
 @pytest.mark.asyncio
@@ -471,7 +472,7 @@ async def test_kri_deadline_service_uses_defaults_when_no_config(
 
     assert config["near_breach_threshold"] == ConfigDefaults.NEAR_BREACH_THRESHOLD
     assert config["duplicate_lookback_days"] == ConfigDefaults.DUPLICATE_LOOKBACK_DAYS
-    assert config["reporting_grace_days"] == ConfigDefaults.REPORTING_GRACE_DAYS
+    assert config["reporting_grace_days"] == REPORTING_GRACE_DAYS
     assert config["advance_reminder_days"] == ConfigDefaults.ADVANCE_REMINDER_DAYS
     assert config["overdue_reminder_weeks"] == ConfigDefaults.OVERDUE_REMINDER_WEEKS
 

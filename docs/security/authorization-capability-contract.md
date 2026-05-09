@@ -3,7 +3,7 @@
 Back to tree: [`docs/DOCUMENTATION_TREE.md`](../DOCUMENTATION_TREE.md)
 
 > Version: 1.0
-> Last reviewed: 2026-05-07
+> Last reviewed: 2026-05-09
 > Owner: RiskHub Maintainer
 > Machine-readable mirror: [`authorization-capability-contract.json`](./authorization-capability-contract.json)
 > Capability field catalog: [`capability-catalog.json`](./capability-catalog.json)
@@ -82,6 +82,9 @@ and per-row deny/restore/update metadata remains on the existing
 and permission surfaces are tracked in
 `backend/app/api/v1/endpoints/_reserved_modules.toml`. User-visible
 authorization policy and capability semantics are unchanged.
+On 2026-05-09, KRI deadline reporting grace-window defaults moved to the
+KRI period-algebra SSOT without changing notification visibility, manual
+trigger authorization, or capability semantics.
 
 Strict capabilities rollout note: `STRICT_CAPABILITIES` is a frontend runtime
 configuration flag and remains off by default until operational telemetry
@@ -170,6 +173,7 @@ meets the configured high-risk threshold.
 | `backend/app/services/_entity_mutation_lifecycle/approval_plans.py`, `policy.py`, `direct_apply.py`, `archive_plans.py`, `projection.py`, `backend/app/services/_control_execution/access.py`, `projection.py`, `link_policy.py`, and `link_governance.py` | 2026-05-05 corrective architecture-only split: entity mutation approval/policy/direct/archive planning and control execution access/projection/link policy moved behind service-owned Modules. User-visible authorization policy and capability semantics unchanged. |
 | `backend/app/services/_identity_access_lifecycle/`, `backend/app/services/_approval_queue/`, `backend/app/services/_vendor_governance/`, `backend/app/services/_reporting/exports/`, `backend/app/services/_activity_log_query/`, `backend/app/services/_deadline_execution/`, `backend/app/services/_riskhub_config/global_config.py`, `scripts/security/authz_contract_validator/`, and `frontend/src/components/access/useAccessUsersWorkflow.ts` | 2026-05-05 nine-area corrective architecture-only pass: identity/access, approval queue, vendor governance, report export, activity log, deadline execution, authz validator, global config, and users access workflow behavior moved behind production-owned Modules. User-visible authorization policy and capability semantics unchanged. |
 | `backend/app/services/_authorization_capabilities/riskhub_config.py`, `backend/app/services/_authorization_capabilities/perimeter.py`, `backend/app/services/_riskhub_config/roles.py`, `backend/app/services/_riskhub_config/departments.py`, `backend/app/api/v1/endpoints/riskhub/risk_types.py`, `backend/app/api/v1/endpoints/riskhub/approval_scenarios.py`, `backend/app/services/_entity_mutation_lifecycle/archive_plans.py`, `backend/app/services/kri_vendor_assignment.py`, and `backend/app/services/_vendor_governance/links.py` | 2026-05-06 architecture-only authorization perimeter pass: Risk Hub config capabilities and service-level permission checks moved behind the existing authorization capability Module. User-visible authorization policy and capability semantics unchanged. |
+| `backend/app/services/kri_deadline_service.py`, `backend/app/services/kri_deadline_support.py`, `backend/app/services/_kri_history/constants.py`, and `backend/app/services/_kri_history/periods.py` | 2026-05-09 architecture-only KRI deadline cleanup: reporting grace-window defaults moved to the KRI period-algebra SSOT. User-visible notification visibility, manual trigger authorization, and capability semantics unchanged. |
 | `frontend/src/lib/capabilities.ts` | Backend-first capability fallback resolver. |
 | `frontend/src/authz/policy.ts` | Local route/navigation policy projection that mirrors backend policy. |
 | `docs/TESTING.md` | Existing RBAC, authz, capability, report, dashboard, vendor, KRI, questionnaire, and access verification lanes. |

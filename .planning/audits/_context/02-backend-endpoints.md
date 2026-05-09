@@ -953,3 +953,15 @@ bare `db.commit()`) is not visible from this file alone.
 ---
 
 End of Phase 1 mapping. No verification, no change recommendations.
+
+## Wave 1 Implementation Note — Audit #10 REJECT
+
+`backend/app/api/v1/endpoints/riskhub_questionnaires.py` is retained as a
+load-bearing single-file endpoint. The live caller chain is
+`frontend/src/components/riskhub/RiskQuestionnairesPanel.tsx:257` →
+`frontend/src/components/riskhub/riskQuestionnairePanelState.ts:170` →
+`frontend/src/services/riskHubApi.ts:308` →
+`backend/app/api/v1/endpoints/riskhub_questionnaires.py:37`.
+
+Presence lock:
+`tests/backend/pytest/architecture/test_riskhub_questionnaires_module_present_red.py`.

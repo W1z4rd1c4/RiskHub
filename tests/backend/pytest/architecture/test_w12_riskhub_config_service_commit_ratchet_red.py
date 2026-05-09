@@ -32,8 +32,14 @@ def _allowlist_entries() -> list[dict[str, object]]:
     return list(raw["allowlist"])
 
 
+def _entry_line(entry: dict[str, object]) -> int:
+    line = entry["line"]
+    assert isinstance(line, int)
+    return line
+
+
 def test_riskhub_config_service_commits_are_limited_to_transaction_owners() -> None:
-    allowed = {(str(entry["file"]), int(entry["line"])) for entry in _allowlist_entries()}
+    allowed = {(str(entry["file"]), _entry_line(entry)) for entry in _allowlist_entries()}
     commit_sites = set(_commit_sites(SERVICE_ROOT))
 
     assert commit_sites <= allowed

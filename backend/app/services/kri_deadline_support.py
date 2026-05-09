@@ -11,6 +11,7 @@ from app.models.global_config import ConfigDefaults, get_config_float, get_confi
 from app.models.key_risk_indicator import KeyRiskIndicator
 from app.models.role import Role, RoleType
 from app.models.user import User
+from app.services._kri_history.constants import REPORTING_GRACE_DAYS as DEFAULT_REPORTING_GRACE_DAYS
 
 
 def initialize_results() -> dict[str, int]:
@@ -33,7 +34,7 @@ async def load_kri_deadline_config(db: AsyncSession) -> dict[str, float | int]:
         "duplicate_lookback_days": await get_config_int(
             db, "duplicate_lookback_days", ConfigDefaults.DUPLICATE_LOOKBACK_DAYS
         ),
-        "reporting_grace_days": await get_config_int(db, "reporting_grace_days", ConfigDefaults.REPORTING_GRACE_DAYS),
+        "reporting_grace_days": await get_config_int(db, "reporting_grace_days", DEFAULT_REPORTING_GRACE_DAYS),
         "advance_reminder_days": await get_config_int(
             db, "advance_reminder_days", ConfigDefaults.ADVANCE_REMINDER_DAYS
         ),

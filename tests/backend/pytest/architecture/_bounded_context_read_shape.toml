@@ -1,0 +1,13 @@
+# ADR-007 read-shape contexts project existing rows and must not own commits.
+packages = [
+    "_register_listings", # dual-classed; also write-side.
+    "_monitoring_status",
+    "_dashboard_metrics",
+    "_quarterly_comparison",
+    "_reporting",
+    "_org_chart",
+]
+
+files = [
+    "backend/app/services/_monitoring_response.py",
+]

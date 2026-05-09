@@ -230,6 +230,7 @@ Rules:
 - `optimal`: required-period submission exists, `breach_status == within`, and the value is outside the upper warning margin.
 - Supporting fields include `required_due_date`, `days_overdue`, `is_submitted_for_required_period`, and the configured warning margin ratio.
 - The upper warning margin is configuration-backed in Risk Hub global config and defaults to 10% of the configured range.
+- Period algebra and the reporting grace-window default are governed by [ADR-012](./adr/ADR-012-kri-time-series.md).
 
 **History and Value Governance:**
 - KRI list, detail, history, breach, export, and dashboard breach-trend surfaces delegate read access to canonical KRI visibility (`can_read_kri_id`): department access, direct risk ownership, KRI reporting ownership, and linked-control ownership are evaluated by the backend policy layer.
