@@ -10,6 +10,7 @@ Folder for `backend/app/services` implementation assets.
 - `__pycache__/`
 - `_approval_execution/`
 - `_directory_sync/`
+- `_graph_directory/`
 - `_issue_workflow/`
 - `_kri_history/`
 - `_monitoring_status/`
@@ -20,7 +21,6 @@ Folder for `backend/app/services` implementation assets.
 - `approval_execution_service.py`
 - `directory_provider_service.py`
 - `export_snapshot_service.py`
-- `graph_directory_service.py`
 - `issue_deadline_service.py`
 - `...`
 

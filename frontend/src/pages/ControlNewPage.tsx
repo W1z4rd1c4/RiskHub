@@ -3,7 +3,7 @@ import { ArrowLeft } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
-import { ControlForm } from '@/components/ControlForm';
+import { ControlForm } from '@/components/control-form/ControlFormContainer';
 import { useTranslation } from '@/i18n/hooks';
 import { controlApi } from '@/services/controlApi';
 import { logError } from '@/services/logger';

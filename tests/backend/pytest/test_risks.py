@@ -6,6 +6,7 @@ import pytest
 from httpx import AsyncClient
 
 from app.models import Control, ControlRiskLink, Department, KeyRiskIndicator, Risk, User
+from tests.backend.pytest.factories import create_test_control
 
 
 @pytest.mark.asyncio
@@ -582,6 +583,36 @@ async def test_generate_risk_id_code_r100_plus(db_session, test_department, test
     next_code = await generate_risk_id_code(db_session, process="Test")
 
     assert next_code == "TEST-R102", f"Expected TEST-R102 but got {next_code}"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "path_template",
+    (
+        "/api/v1/risks/{risk_id}/controls/{control_id}",
+        "/api/v1/controls/{control_id}/risks/{risk_id}",
+    ),
+)
+async def test_delete_missing_control_risk_link_returns_not_found(
+    client_factory,
+    db_session,
+    test_risk: Risk,
+    test_department: Department,
+    test_user: User,
+    path_template: str,
+):
+    control = await create_test_control(
+        db_session,
+        department_id=test_department.id,
+        owner_id=test_user.id,
+        name="Unlinked control",
+    )
+
+    async with client_factory(current_user=test_user) as client:
+        response = await client.delete(path_template.format(risk_id=test_risk.id, control_id=control.id))
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Link not found"
 
 
 @pytest.mark.asyncio

@@ -9,7 +9,6 @@ import {
     LogOut,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { usePermissions } from '@/hooks/usePermissions';
 import { useAdaptivePollingQuery } from '@/hooks/useAdaptivePollingQuery';
 import { useAuthz } from '@/authz/useAuthz';
 import { getSidebarNavRoutes } from '@/routing';
@@ -21,8 +20,7 @@ import './sidebar.css';
 export function Sidebar() {
     const location = useLocation();
     const navigate = useNavigate();
-    const { user, logout, logoutPending, logoutErrorKey } = useAuth();
-    const { hasPermission } = usePermissions();
+    const { user, logout, logoutPending, logoutErrorKey, hasPermission } = useAuth();
     const authz = useAuthz();
     const isAdmin = authz.isPlatformAdmin;
     const { t } = useTranslation('navigation');

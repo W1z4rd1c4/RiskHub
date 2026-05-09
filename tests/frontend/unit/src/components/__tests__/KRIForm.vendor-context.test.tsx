@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { KRIForm } from '@/components/KRIForm';
+import { KRIFormContainer as KRIForm } from '@/components/kri-form/KRIFormContainer';
 import { ApiClientError } from '@/services/apiClient';
 
 const mockNavigate = vi.fn();

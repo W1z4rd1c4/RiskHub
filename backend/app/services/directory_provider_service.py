@@ -14,8 +14,8 @@ from app.core.outbound_guard import (
     guarded_get,
 )
 from app.schemas.directory import DirectoryUserRead
-from app.services.directory_identity_service import normalize_business_role
-from app.services.graph_directory_service import (
+from app.services._directory_identity import normalize_business_role
+from app.services._graph_directory.service import (
     GraphDirectoryProviderError,
     GraphDirectoryService,
     GraphProviderUnavailableError,

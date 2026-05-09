@@ -1,13 +1,11 @@
-import { getErrorMessageKey } from '@/i18n/getErrorMessageKey';
-import { isExplicitLogoutSuppressed } from '@/services/session/logoutSuppression';
-import { clearAuthenticatedSession } from '@/services/session/manager';
-import { trySilentSessionRefresh } from '@/services/session/sso';
+import { getErrorMessageKey } from '@/i18n/errorMessageKey';
 import type { infer as ZodInfer, ZodTypeAny } from 'zod';
 
 import { ApiClientError, toApiClientError } from './apiErrors';
 import { buildPreparedRequest } from './apiRequestBuilder';
 import { fetchWithTimeout, isAbortError } from './requestRuntime';
 import { parseBodyWithSchema, parseErrorResponse, readResponseBody } from './responseParsing';
+import { applySessionRefreshPolicy } from './sessionRefreshPolicy';
 import type {
     ApiClientErrorPayload,
     RequestExecutorOptions,
@@ -18,20 +16,8 @@ import type {
 export class ApiClient {
     private readonly baseUrl: string;
 
-    constructor(baseUrl: string) {
-        this.baseUrl = baseUrl;
-    }
-
-    private shouldAttemptSilentSessionRefresh(pathname: string, attempt: number): boolean {
-        if (isExplicitLogoutSuppressed()) return false;
-        if (attempt > 0) return false;
-        if (pathname.startsWith('/api/v1/auth/')) return false;
-        return true;
-    }
-
-    private async parseJsonError(response: Response): Promise<ApiClientErrorPayload> {
-        return parseErrorResponse(response);
-    }
+    constructor(baseUrl: string) { this.baseUrl = baseUrl; }
+    private async parseJsonError(response: Response): Promise<ApiClientErrorPayload> { return parseErrorResponse(response); }
 
     private async parseBlobError(response: Response): Promise<ApiClientErrorPayload> {
         const errorPayload = await this.parseJsonError(response);
@@ -58,27 +44,11 @@ export class ApiClient {
         try {
             const response = await fetchWithTimeout(prepared.url.toString(), prepared.init, prepared.timeoutMs);
 
-            if (response.status === 401) {
-                if (this.shouldAttemptSilentSessionRefresh(prepared.pathname, attempt)) {
-                    const refreshedToken = await trySilentSessionRefresh();
-                    if (refreshedToken) {
-                        return this.executeRequest({
-                            endpoint,
-                            options,
-                            attempt: attempt + 1,
-                            parseSuccess,
-                            parseError,
-                        });
-                    }
-                }
-
-                clearAuthenticatedSession({ clearBootstrap: true });
-                throw new ApiClientError({
-                    status: 401,
-                    code: 'UNAUTHORIZED',
-                    messageKey: getErrorMessageKey('UNAUTHORIZED', 401),
-                    rawMessage: 'Unauthorized',
-                });
+            if (
+                response.status === 401
+                && (await applySessionRefreshPolicy({ pathname: prepared.pathname, attempt })).kind === 'retry'
+            ) {
+                return this.executeRequest({ endpoint, options, attempt: attempt + 1, parseSuccess, parseError });
             }
 
             if (!response.ok) {

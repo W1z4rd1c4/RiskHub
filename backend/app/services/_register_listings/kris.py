@@ -28,7 +28,7 @@ from app.services._collection_filters import (
     coerce_optional_int,
     coerce_optional_string,
 )
-from app.services._kri_history.value_application import visible_linked_vendors
+from app.services._kri_history.direct_application import visible_linked_vendors
 from app.services._monitoring_response import load_monitoring_response_context, serialize_kri_response
 from app.services._monitoring_status import (
     KRIMonitoringStatus,

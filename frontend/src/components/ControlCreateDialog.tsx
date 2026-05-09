@@ -2,7 +2,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ShieldPlus } from 'lucide-react';
 import { useTranslation } from '@/i18n/hooks';
-import { ControlForm } from './ControlForm';
+import { ControlForm } from './control-form/ControlFormContainer';
 
 interface ControlCreateDialogProps {
     isOpen: boolean;

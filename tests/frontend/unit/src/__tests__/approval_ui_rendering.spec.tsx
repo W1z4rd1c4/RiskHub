@@ -11,7 +11,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, renderWithoutProviders as render, screen, waitFor } from '@test/render';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { RiskForm } from '@/components/RiskForm';
-import { ControlForm } from '@/components/ControlForm';
+import { ControlForm } from '@/components/control-form/ControlFormContainer';
 // KRIForm import omitted - not used in current tests
 import type { Risk } from '@/types/risk';
 import type { Control } from '@/types/control';

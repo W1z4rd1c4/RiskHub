@@ -29,8 +29,8 @@ vi.mock('@/services/kriApi', () => ({
     },
 }));
 
-vi.mock('@/components/KRIForm', () => ({
-    KRIForm: ({
+vi.mock('@/components/kri-form/KRIFormContainer', () => ({
+    KRIFormContainer: ({
         firstStepBackLabel,
         onCancel,
         vendorContext,

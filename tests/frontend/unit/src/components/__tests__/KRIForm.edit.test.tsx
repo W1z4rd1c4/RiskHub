@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { KRIForm } from "@/components/KRIForm";
+import { KRIFormContainer as KRIForm } from "@/components/kri-form/KRIFormContainer";
 
 const mockNavigate = vi.fn();
 const mockGetRisk = vi.fn();

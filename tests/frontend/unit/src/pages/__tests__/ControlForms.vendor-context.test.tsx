@@ -36,7 +36,7 @@ vi.mock('@/services/vendorApi', () => ({
     },
 }));
 
-vi.mock('@/components/ControlForm', () => ({
+vi.mock('@/components/control-form/ControlFormContainer', () => ({
     ControlForm: ({
         allowRiskLinking,
         firstStepBackLabel,

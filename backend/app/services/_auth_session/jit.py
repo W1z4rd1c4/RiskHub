@@ -10,7 +10,7 @@ from app.core.email import email_equals, normalize_email
 from app.core.policy import SAFE_DIRECTORY_DEFAULT_ROLE_CANDIDATES
 from app.core.user_query_options import user_selectinload_options
 from app.models import Role, User
-from app.services.directory_identity_service import normalize_business_role
+from app.services._directory_identity import normalize_business_role
 
 from .contracts import SsoFailure
 from .sso_identity import log_failed_sso

@@ -21,11 +21,6 @@ function resolveAdminTranslation(key: string): string | undefined {
     }, adminEn) as string | undefined;
 }
 
-vi.mock('@/hooks/usePermissions', () => ({
-    usePermissions: () => ({
-        canManageUsers: true,
-    }),
-}));
 
 vi.mock('@/i18n/hooks', () => ({
     useTranslation: () => ({

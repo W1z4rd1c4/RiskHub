@@ -142,18 +142,4 @@ export default defineConfig([
       complexity: "off",
     },
   },
-  {
-    files: ["src/components/KRIForm.tsx"],
-    rules: {
-      "max-lines": [
-        "error",
-        { max: 25, skipBlankLines: true, skipComments: true },
-      ],
-      "max-lines-per-function": [
-        "error",
-        { max: 25, skipBlankLines: true, skipComments: true, IIFEs: true },
-      ],
-      complexity: ["error", 2],
-    },
-  },
 ]);

@@ -11,12 +11,12 @@ from app.core.email import email_equals
 from app.core.exceptions import ConflictError, ServiceFailure, ValidationError
 from app.models import Role, User
 from app.schemas.directory import DirectoryImportRequest, DirectoryUserRead
-from app.services.ad_deprovision_service import ADDeprovisionService
-from app.services.directory_identity_service import (
+from app.services._directory_identity import (
     DirectoryIdentityConflictError,
     apply_directory_profile,
     resolve_directory_email,
 )
+from app.services.ad_deprovision_service import ADDeprovisionService
 
 from .contracts import IdentityImportOutcome
 from .execution import commit_directory_import, load_directory_import_user

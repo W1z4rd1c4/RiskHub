@@ -9,11 +9,6 @@ vi.mock('@/contexts/AuthContext', () => ({
     useAuth: () => mockUseAuth(),
 }));
 
-const mockUsePermissions = vi.fn();
-vi.mock('@/hooks/usePermissions', () => ({
-    usePermissions: () => mockUsePermissions(),
-}));
-
 const mockUseAuthz = vi.fn();
 vi.mock('@/authz/useAuthz', () => ({
     useAuthz: () => mockUseAuthz(),
@@ -61,6 +56,7 @@ describe('Sidebar badge polling', () => {
 
         mockUseAuth.mockReturnValue({
             user: { id: 123, name: 'User', role_display_name: 'Role', department_id: 7, access_scope: 'global' },
+            hasPermission: () => true,
             logout: vi.fn(),
         });
 
@@ -74,12 +70,6 @@ describe('Sidebar badge polling', () => {
     });
 
     it('polls the aggregate shell summary for business users', async () => {
-        mockUsePermissions.mockReturnValue({
-            canManageAccess: false,
-            canViewActivityLog: false,
-            hasPermission: () => true,
-        });
-
         const { unmount } = render(
             <MemoryRouter>
                 <Sidebar />
@@ -101,12 +91,6 @@ describe('Sidebar badge polling', () => {
             canViewAdminConsole: true,
         });
 
-        mockUsePermissions.mockReturnValue({
-            canManageAccess: true,
-            canViewActivityLog: false,
-            hasPermission: () => true,
-        });
-
         const { unmount } = render(
             <MemoryRouter>
                 <Sidebar />
@@ -122,11 +106,6 @@ describe('Sidebar badge polling', () => {
     });
 
     it('still uses the aggregate shell summary when governance access is unavailable', async () => {
-        mockUsePermissions.mockReturnValue({
-            canManageAccess: false,
-            canViewActivityLog: false,
-            hasPermission: () => true,
-        });
         mockUseAuthz.mockReturnValue({
             isPlatformAdmin: false,
             can: () => true,

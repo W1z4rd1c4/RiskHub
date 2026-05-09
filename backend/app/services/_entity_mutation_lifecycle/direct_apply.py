@@ -18,7 +18,7 @@ from app.services._entity_mutation_lifecycle.projection import (
     serialize_kri_mutation_response,
     serialize_risk_mutation_response,
 )
-from app.services._kri_history.value_application import visible_linked_vendors
+from app.services._kri_history.direct_application import visible_linked_vendors
 from app.services.authorization_capabilities import control_capabilities, kri_capabilities, risk_capabilities
 from app.services.kri_vendor_assignment import assign_vendors_to_kri
 

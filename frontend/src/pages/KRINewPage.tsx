@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ArrowLeft, Plus } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
-import { KRIForm } from '@/components/KRIForm';
+import { KRIFormContainer as KRIForm } from '@/components/kri-form/KRIFormContainer';
 import { useTranslation } from '@/i18n/hooks';
 import { kriApi } from '@/services/kriApi';
 import { logError } from '@/services/logger';

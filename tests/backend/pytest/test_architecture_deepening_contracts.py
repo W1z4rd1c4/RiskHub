@@ -210,8 +210,7 @@ def test_control_execution_split_modules_own_link_governance() -> None:
         "visible_risk_control_links",
     } <= _defined_function_names("backend/app/services/_control_execution/projection.py")
     assert {
-        "load_link_for_control",
-        "load_link_for_risk",
+        "load_link",
         "reload_link_for_control_response",
         "reload_link_for_risk_response",
         "create_control_risk_link_outcome",
@@ -223,8 +222,8 @@ def test_control_execution_split_modules_own_link_governance() -> None:
     assert "_projection_for_execution" not in governance_helpers
 
 
-def test_directory_identity_facade_uses_lifecycle_module() -> None:
-    from app.services import directory_identity_service
+def test_directory_identity_package_uses_lifecycle_module() -> None:
+    from app.services import _directory_identity as directory_identity
     from app.services._directory_identity import lifecycle
 
     assert hasattr(lifecycle, "DirectoryImportOutcome")
@@ -232,18 +231,17 @@ def test_directory_identity_facade_uses_lifecycle_module() -> None:
     assert hasattr(lifecycle, "DirectoryProfileUpdateOutcome")
     assert hasattr(lifecycle, "DirectoryReenableOutcome")
 
-    assert directory_identity_service.apply_directory_profile is lifecycle.apply_directory_profile
-    assert directory_identity_service.requires_break_glass_for_reenable is lifecycle.requires_break_glass_for_reenable
+    assert directory_identity.apply_directory_profile is lifecycle.apply_directory_profile
+    assert directory_identity.requires_break_glass_for_reenable is lifecycle.requires_break_glass_for_reenable
 
-    facade_source = inspect.getsource(directory_identity_service)
-    assert "async def apply_directory_profile" not in facade_source
-    assert "async def resolve_or_create_department" not in facade_source
+    package_source = inspect.getsource(directory_identity)
+    assert "async def apply_directory_profile" not in package_source
+    assert "async def resolve_or_create_department" not in package_source
 
 
 def test_identity_access_routes_use_lifecycle_module() -> None:
     from app.api.v1.endpoints import access, directory
     from app.api.v1.endpoints.users import detail as users_detail
-    from app.services import access_user_service
     from app.services._identity_access_lifecycle import lifecycle
 
     assert hasattr(lifecycle, "IdentityImportOutcome")
@@ -254,7 +252,6 @@ def test_identity_access_routes_use_lifecycle_module() -> None:
         inspect.getsource(users_detail)
         + inspect.getsource(directory)
         + inspect.getsource(access)
-        + inspect.getsource(access_user_service)
     )
 
     for lifecycle_function in (
@@ -972,11 +969,8 @@ def test_kri_history_uses_service_owned_intake_and_projection() -> None:
 
 def test_kri_history_direct_application_and_routes_do_not_use_private_wrappers() -> None:
     direct_path = "backend/app/services/_kri_history/direct_application.py"
-    value_application_path = "backend/app/services/_kri_history/value_application.py"
     assert not _has_varargs_forwarder(direct_path)
     assert "_apply_kri_value_directly" not in _source(direct_path)
-    assert "_apply_kri_value_directly" not in _source(value_application_path)
-    assert "_run_best_effort_notification" not in _source(value_application_path)
 
 
 def test_risk_restore_passes_display_name_before_activity_redaction() -> None:
@@ -986,19 +980,6 @@ def test_risk_restore_passes_display_name_before_activity_redaction() -> None:
     assert "risk_restored(" in restore_source
     assert "entity_name=risk_display_name(risk)" in adapter_source
     assert "safe_entity_label=risk.risk_id_code" in adapter_source
-
-    route_sources = "\n".join(
-        _source(path)
-        for path in (
-            "backend/app/api/v1/endpoints/kris/history.py",
-        )
-    )
-    for private_import in (
-        "from app.services._kri_history.value_application import _apply_kri_value_directly",
-        "from app.services._kri_history.value_application import (",
-    ):
-        assert private_import not in route_sources
-
 
 def test_approval_queue_routes_use_queue_lifecycle_module() -> None:
     """S6.3: routes consume the package directly; no `lifecycle` indirection."""

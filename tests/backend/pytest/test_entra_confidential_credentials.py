@@ -9,7 +9,7 @@ from app.services.directory_provider_service import (
     DirectoryProviderService,
     DirectoryProviderUnavailableError,
 )
-from app.services.graph_directory_service import (
+from app.services._graph_directory.service import (
     GraphDirectoryService,
     GraphProviderUnavailableError,
     __reset_graph_token_cache_for_tests,
@@ -49,7 +49,7 @@ async def test_graph_directory_service_acquires_token_with_client_secret(monkeyp
             return {"access_token": "secret-token", "expires_in": 900}
 
     monkeypatch.setattr(
-        "app.services.graph_directory_auth.importlib.import_module",
+        "app.services._graph_directory.auth.importlib.import_module",
         lambda name: SimpleNamespace(ConfidentialClientApplication=FakeConfidentialClientApplication),
     )
 
@@ -74,7 +74,7 @@ async def test_graph_directory_service_prefers_certificate_credential(monkeypatc
             return {"access_token": "certificate-token", "expires_in": 900}
 
     monkeypatch.setattr(
-        "app.services.graph_directory_auth.importlib.import_module",
+        "app.services._graph_directory.auth.importlib.import_module",
         lambda name: SimpleNamespace(ConfidentialClientApplication=FakeConfidentialClientApplication),
     )
 
@@ -107,7 +107,7 @@ async def test_graph_directory_service_fails_cleanly_when_token_acquisition_retu
             return {"error": "invalid_client", "error_description": "bad credential"}
 
     monkeypatch.setattr(
-        "app.services.graph_directory_auth.importlib.import_module",
+        "app.services._graph_directory.auth.importlib.import_module",
         lambda name: SimpleNamespace(ConfidentialClientApplication=FakeConfidentialClientApplication),
     )
 
@@ -124,7 +124,7 @@ async def test_graph_directory_service_fails_cleanly_when_msal_is_missing(
     def _raise_module_not_found(name: str) -> object:
         raise ModuleNotFoundError(name)
 
-    monkeypatch.setattr("app.services.graph_directory_auth.importlib.import_module", _raise_module_not_found)
+    monkeypatch.setattr("app.services._graph_directory.auth.importlib.import_module", _raise_module_not_found)
 
     service = GraphDirectoryService(_base_settings(entra_client_secret="entra-client-secret"))
 
@@ -146,7 +146,7 @@ async def test_graph_directory_service_rejects_non_dict_token_payload(
             return ["not-a-dict"]
 
     monkeypatch.setattr(
-        "app.services.graph_directory_auth.importlib.import_module",
+        "app.services._graph_directory.auth.importlib.import_module",
         lambda name: SimpleNamespace(ConfidentialClientApplication=FakeConfidentialClientApplication),
     )
 

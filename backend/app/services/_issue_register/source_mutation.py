@@ -12,6 +12,8 @@ from app.models import Control, ControlExecution, IssueLink, KeyRiskIndicator, R
 from app.models.issue import IssueSourceType
 from app.schemas.issue import IssueContextEntityTypeEnum
 
+from .constants import source_type_value
+
 
 @dataclass(frozen=True)
 class ResolvedIssueSource:
@@ -19,10 +21,6 @@ class ResolvedIssueSource:
     source_type: IssueSourceType
     source_id: int | None
     link_values: dict[str, int]
-
-
-def _source_type_value(source_type: IssueSourceType | Enum | str) -> str:
-    return source_type.value if isinstance(source_type, Enum) else str(source_type)
 
 
 async def resolve_vendor_department_and_access(
@@ -159,20 +157,20 @@ async def resolve_issue_source_metadata(
     source_type: IssueSourceType | Enum | str,
     source_id: int | None,
 ) -> ResolvedIssueSource | None:
-    source_type_value = _source_type_value(source_type)
+    value = source_type_value(source_type)
 
-    if source_type_value in {IssueSourceType.manual.value, IssueSourceType.audit.value}:
+    if value in {IssueSourceType.manual.value, IssueSourceType.audit.value}:
         if source_id is not None:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"{source_type_value} issues cannot include source_id",
+                detail=f"{value} issues cannot include source_id",
             )
         return None
 
     if source_id is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="source_id is required")
 
-    if source_type_value == IssueSourceType.control_execution.value:
+    if value == IssueSourceType.control_execution.value:
         execution_row = (
             await db.execute(
                 select(ControlExecution.id, ControlExecution.control_id, Control.department_id)
@@ -189,7 +187,7 @@ async def resolve_issue_source_metadata(
             {"execution_id": source_id},
         )
 
-    if source_type_value == IssueSourceType.kri_breach.value:
+    if value == IssueSourceType.kri_breach.value:
         row = (
             await db.execute(
                 select(KeyRiskIndicator.id, Risk.department_id)

@@ -5,6 +5,7 @@ from fastapi import HTTPException, status
 from app.core.datetime_utils import coerce_utc
 from app.core.permissions import can_access_department_id
 from app.schemas.issue import IssueUpdate
+from app.services._issue_register.constants import source_type_value
 from app.services._issue_workflow.contracts import IssueUpdatePlan
 from app.services._issue_workflow.source_validation import (
     ensure_owner_assignable,
@@ -14,10 +15,6 @@ from app.services._issue_workflow.source_validation import (
 )
 
 CONCRETE_SOURCE_TYPES = {"control_execution", "kri_breach"}
-
-
-def source_type_value(source_type) -> str:
-    return source_type.value if hasattr(source_type, "value") else str(source_type)
 
 
 async def build_issue_update_plan(*, db, issue, payload: IssueUpdate, current_user) -> IssueUpdatePlan:

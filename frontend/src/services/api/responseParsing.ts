@@ -1,4 +1,4 @@
-import { getErrorMessageKey } from '@/i18n/getErrorMessageKey';
+import { getErrorMessageKey } from '@/i18n/errorMessageKey';
 
 import { ApiClientError, parseErrorMessage } from './apiErrors';
 import type { ApiClientErrorPayload } from './apiTypes';

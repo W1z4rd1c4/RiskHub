@@ -10,11 +10,6 @@ import { __resetSessionStoreForTests, setSessionSnapshot } from '@/services/sess
 const mockGetIssue = vi.fn();
 const mockListActivity = vi.fn();
 
-vi.mock('@/hooks/usePermissions', () => ({
-    usePermissions: () => {
-        throw new Error('IssueDetailPage should not use local permission gates');
-    },
-}));
 
 vi.mock('@/services/issuesApi', () => ({
     issuesApi: {

@@ -22,18 +22,6 @@ vi.mock('@/contexts/AuthContext', () => ({
     useAuth: () => ({ isLoading: false }),
 }));
 
-vi.mock('@/hooks/usePermissions', () => ({
-    usePermissions: () => ({
-        user: { id: 2 },
-        canRecordKRI: true,
-        hasPermission: (resource: string, action: string) => {
-            if (resource === 'issues' && action === 'write') {
-                return canIssueWrite;
-            }
-            return true;
-        },
-    }),
-}));
 
 vi.mock('@/services/kriApi', () => ({
     kriApi: {

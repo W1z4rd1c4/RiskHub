@@ -11,10 +11,9 @@ from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import KeyRiskIndicator, Risk, User, VendorKRILink
 from app.schemas.kri import KRIResponse
+from app.services._kri_history.direct_application import visible_linked_vendors
 from app.services.authorization_capabilities import kri_capabilities
 from app.services.transaction_boundary import commit_service_transaction
-
-from ..linked_vendors import visible_linked_vendors
 
 router = APIRouter()
 

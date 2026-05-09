@@ -1,4 +1,4 @@
-import { getErrorMessageKey } from '@/i18n/getErrorMessageKey';
+import { getErrorMessageKey } from '@/i18n/errorMessageKey';
 
 import { RequestRuntimeError } from './requestRuntime';
 import type { ApiClientErrorPayload } from './apiTypes';

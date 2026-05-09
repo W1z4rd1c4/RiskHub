@@ -1,8 +1,6 @@
 # Control Form Module
 
-This module contains the `ControlForm` implementation split from
-`frontend/src/components/ControlForm.tsx`
-to keep the public entrypoint stable while isolating form implementation details.
+This module contains the canonical `ControlForm` implementation and its local form helpers.
 
 ## Contents
 
@@ -10,6 +8,5 @@ to keep the public entrypoint stable while isolating form implementation details
 - `ControlFormOwnershipStep.tsx`
 - `ControlFormRiskLinkStep.tsx`
 - `controlFormFilters.ts`
-- `controlFormUtils.ts`
 - `controlFormValidation.ts`
 - `useControlFormLookups.ts`

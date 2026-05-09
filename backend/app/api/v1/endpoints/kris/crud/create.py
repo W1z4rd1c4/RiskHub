@@ -12,6 +12,7 @@ from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import KeyRiskIndicator, Risk, User, VendorKRILink
 from app.schemas.kri import KRICreate, KRIResponse
+from app.services._kri_history.direct_application import visible_linked_vendors
 from app.services.authorization_capabilities import kri_capabilities
 from app.services.kri_vendor_assignment import (
     assign_vendors_to_kri,
@@ -19,7 +20,6 @@ from app.services.kri_vendor_assignment import (
 )
 from app.services.transaction_boundary import commit_service_transaction
 
-from ..linked_vendors import visible_linked_vendors
 from .list import router
 
 

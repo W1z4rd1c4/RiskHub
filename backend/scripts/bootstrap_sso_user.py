@@ -14,7 +14,7 @@ from app.core.email import email_equals, normalize_email
 from app.db.session import session_context
 from app.models import Department, Role, User
 from app.models.user import AccessScope
-from app.services.directory_identity_service import (
+from app.services._directory_identity import (
     DirectoryIdentityConflictError,
     apply_directory_profile,
     has_auto_deprovision_reason,

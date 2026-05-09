@@ -167,19 +167,6 @@ function buildVendorGroups(items: Vendor[], groupBy: string) {
     return [...counts.entries()].map(([value, count]) => ({ value, label: vendorGroupLabel(value), count }));
 }
 
-vi.mock('@/hooks/usePermissions', () => ({
-    usePermissions: () => ({
-        hasPermission: (resource: string, action: string) => {
-            if (resource === 'vendors') {
-                return action === 'read' || action === 'write' || action === 'delete';
-            }
-            if (resource === 'risks') {
-                return hasRiskRead && action === 'read';
-            }
-            return false;
-        },
-    }),
-}));
 
 vi.mock('@/services/vendorApi', () => ({
     vendorApi: {

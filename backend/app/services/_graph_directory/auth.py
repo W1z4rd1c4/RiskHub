@@ -10,7 +10,7 @@ from typing import Any
 from app.core.config import EntraConfidentialCredential, Settings
 from app.core.datetime_utils import utc_now
 from app.core.outbound_guard import OutboundRequestError, guard_resolved_outbound_url
-from app.services.graph_directory_errors import (
+from app.services._graph_directory.errors import (
     GraphCredentialError,
     GraphDependencyError,
     GraphProviderUnavailableError,

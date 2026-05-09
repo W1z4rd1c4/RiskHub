@@ -19,25 +19,17 @@ class ControlRiskLinkPlan:
     notes: str | None = None
 
 
-async def load_link_for_control(db: AsyncSession, *, control_id: int, risk_id: int) -> ControlRiskLink:
+async def load_link(
+    db: AsyncSession,
+    *,
+    control_id: int,
+    risk_id: int,
+) -> ControlRiskLink:
     link = (
         await db.execute(
             select(ControlRiskLink)
             .where(ControlRiskLink.control_id == control_id)
             .where(ControlRiskLink.risk_id == risk_id)
-        )
-    ).scalar_one_or_none()
-    if link is None:
-        raise HTTPException(status_code=404, detail="Link not found")
-    return link
-
-
-async def load_link_for_risk(db: AsyncSession, *, risk_id: int, control_id: int) -> ControlRiskLink:
-    link = (
-        await db.execute(
-            select(ControlRiskLink)
-            .where(ControlRiskLink.risk_id == risk_id)
-            .where(ControlRiskLink.control_id == control_id)
         )
     ).scalar_one_or_none()
     if link is None:

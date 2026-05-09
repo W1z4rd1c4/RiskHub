@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getErrorMessageKey } from '@/i18n/getErrorMessageKey';
+import { getErrorMessageKey } from '@/i18n/errorMessageKey';
 
 describe('getErrorMessageKey', () => {
   it('maps known backend codes', () => {

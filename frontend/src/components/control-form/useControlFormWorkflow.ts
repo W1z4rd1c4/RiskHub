@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { parseUpdateResult } from '@/lib/approvalUi';
+import { ApiClientError } from '@/services/apiClient';
 import { controlApi } from '@/services/controlApi';
 import { logError } from '@/services/logger';
 import type { SafeTFunction } from '@/i18n/hooks';
@@ -11,7 +12,13 @@ import type { ControlEffectiveness } from '@/types/risk';
 
 import { getOwnerAutoDepartmentId } from './controlFormFilters';
 import { getControlFormSubmissionError, getControlFormStepError } from './controlFormValidation';
-import { getControlFormErrorKey } from './controlFormUtils';
+
+const getControlFormErrorKey = (error: unknown, fallback = 'errorKeys.unknown'): string => {
+    if (error instanceof ApiClientError) {
+        return error.messageKey;
+    }
+    return fallback;
+};
 
 interface SubmitLinkState {
     selectedRiskId: number | undefined;

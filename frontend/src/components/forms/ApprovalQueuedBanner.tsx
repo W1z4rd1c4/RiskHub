@@ -17,7 +17,10 @@ export function ApprovalQueuedBanner({
     viewApprovalsLabel,
 }: ApprovalQueuedBannerProps) {
     return (
-        <div className="mb-6 p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-start gap-3 animate-in fade-in slide-in-from-top-2">
+        <div
+            data-testid="approval-queued-banner"
+            className="mb-6 p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-start gap-3 animate-in fade-in slide-in-from-top-2"
+        >
             <Clock className="h-5 w-5 text-amber-400 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
                 <p className="text-amber-200 text-sm font-medium">{title}</p>

@@ -11,8 +11,8 @@ from app.core.outbound_guard import (
     guard_outbound_url,
     guarded_get,
 )
-from app.services.graph_directory_auth import GraphAccessTokenProvider
-from app.services.graph_directory_errors import (
+from app.services._graph_directory.auth import GraphAccessTokenProvider
+from app.services._graph_directory.errors import (
     GraphDirectoryProviderError,
     GraphProviderUnavailableError,
     GraphUserNotFoundError,

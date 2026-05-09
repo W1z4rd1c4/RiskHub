@@ -8,7 +8,7 @@ from app.core.datetime_utils import utc_now
 from app.models import Role, User
 from app.models.role import RoleType
 from app.schemas.access import AccessUserCapabilities
-from app.services.directory_identity_service import has_auto_deprovision_reason
+from app.services._directory_identity import has_auto_deprovision_reason
 
 ADMIN_PRIVILEGED_ROLES: set[RoleType] = {RoleType.ADMIN, RoleType.CRO}
 PLATFORM_ADMIN_FIELDS = {"name", "email"}

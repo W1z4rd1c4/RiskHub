@@ -6,6 +6,7 @@ Internal issue register helpers for list grouping, linked-context expansion, and
 
 ## Contents
 
+- `constants.py` - `UNKNOWN_*_LABEL` strings and `source_type_value` coercer (canonical).
 - `grouping.py` - issue group definitions, context subqueries, fallback labels, and group filter helpers.
 
 ## Notes

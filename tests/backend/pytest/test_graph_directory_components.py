@@ -7,14 +7,14 @@ import httpx
 import pytest
 
 from app.core.config import Settings
-from app.services.graph_directory_auth import GraphAccessTokenProvider, reset_graph_token_cache_for_tests
-from app.services.graph_directory_errors import (
+from app.services._graph_directory.auth import GraphAccessTokenProvider, reset_graph_token_cache_for_tests
+from app.services._graph_directory.errors import (
     GraphDependencyError,
     GraphProviderUnavailableError,
     GraphTokenAcquisitionError,
     GraphUserNotFoundError,
 )
-from app.services.graph_directory_transport import GraphApiTransport
+from app.services._graph_directory.transport import GraphApiTransport
 
 
 def _base_settings(**overrides: object) -> Settings:
@@ -52,9 +52,9 @@ async def test_graph_access_token_provider_reuses_cached_token(monkeypatch: pyte
             assert scopes == ["https://graph.microsoft.com/.default"]
             return {"access_token": "cached-token", "expires_in": 900}
 
-    monkeypatch.setattr("app.services.graph_directory_auth.guard_resolved_outbound_url", _allow_token_url)
+    monkeypatch.setattr("app.services._graph_directory.auth.guard_resolved_outbound_url", _allow_token_url)
     monkeypatch.setattr(
-        "app.services.graph_directory_auth.importlib.import_module",
+        "app.services._graph_directory.auth.importlib.import_module",
         lambda name: SimpleNamespace(ConfidentialClientApplication=FakeConfidentialClientApplication),
     )
 
@@ -123,7 +123,7 @@ async def test_graph_access_token_provider_classifies_missing_msal_dependency(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        "app.services.graph_directory_auth.importlib.import_module",
+        "app.services._graph_directory.auth.importlib.import_module",
         lambda name: (_ for _ in ()).throw(ModuleNotFoundError(name)),
     )
 
@@ -148,9 +148,9 @@ async def test_graph_access_token_provider_classifies_token_response_errors(
     async def _allow_token_url(*args, **kwargs) -> None:  # noqa: ANN002, ANN003
         return None
 
-    monkeypatch.setattr("app.services.graph_directory_auth.guard_resolved_outbound_url", _allow_token_url)
+    monkeypatch.setattr("app.services._graph_directory.auth.guard_resolved_outbound_url", _allow_token_url)
     monkeypatch.setattr(
-        "app.services.graph_directory_auth.importlib.import_module",
+        "app.services._graph_directory.auth.importlib.import_module",
         lambda name: SimpleNamespace(ConfidentialClientApplication=FakeConfidentialClientApplication),
     )
 
@@ -172,12 +172,12 @@ async def test_graph_api_transport_maps_access_denied_to_provider_unavailable(
         request = httpx.Request("GET", "https://graph.microsoft.com/v1.0/users")
         return httpx.Response(403, request=request, text="denied")
 
-    monkeypatch.setattr("app.services.graph_directory_transport.guard_outbound_url", lambda **kwargs: None)
+    monkeypatch.setattr("app.services._graph_directory.transport.guard_outbound_url", lambda **kwargs: None)
     monkeypatch.setattr(
-        "app.services.graph_directory_transport.build_outbound_client",
+        "app.services._graph_directory.transport.build_outbound_client",
         lambda **kwargs: _fake_client_context(),
     )
-    monkeypatch.setattr("app.services.graph_directory_transport.guarded_get", _guarded_get)
+    monkeypatch.setattr("app.services._graph_directory.transport.guarded_get", _guarded_get)
 
     transport = GraphApiTransport(
         _base_settings(),
@@ -201,12 +201,12 @@ async def test_graph_api_transport_maps_not_found_for_direct_user_lookup(
         request = httpx.Request("GET", "https://graph.microsoft.com/v1.0/users/oid-123")
         return httpx.Response(404, request=request, text="missing")
 
-    monkeypatch.setattr("app.services.graph_directory_transport.guard_outbound_url", lambda **kwargs: None)
+    monkeypatch.setattr("app.services._graph_directory.transport.guard_outbound_url", lambda **kwargs: None)
     monkeypatch.setattr(
-        "app.services.graph_directory_transport.build_outbound_client",
+        "app.services._graph_directory.transport.build_outbound_client",
         lambda **kwargs: _fake_client_context(),
     )
-    monkeypatch.setattr("app.services.graph_directory_transport.guarded_get", _guarded_get)
+    monkeypatch.setattr("app.services._graph_directory.transport.guarded_get", _guarded_get)
 
     transport = GraphApiTransport(
         _base_settings(),

@@ -5,14 +5,14 @@ from typing import Any
 from app.core.config import Settings
 from app.core.email import normalize_email
 from app.schemas.directory import DirectoryUserRead
-from app.services.directory_identity_service import normalize_business_role
-from app.services.graph_directory_auth import GraphAccessTokenProvider, reset_graph_token_cache_for_tests
-from app.services.graph_directory_errors import (
+from app.services._directory_identity import normalize_business_role
+from app.services._graph_directory.auth import GraphAccessTokenProvider, reset_graph_token_cache_for_tests
+from app.services._graph_directory.errors import (
     GraphDirectoryProviderError,
     GraphProviderUnavailableError,
     GraphUserNotFoundError,
 )
-from app.services.graph_directory_transport import GraphApiTransport
+from app.services._graph_directory.transport import GraphApiTransport
 
 __all__ = [
     "GraphDirectoryService",

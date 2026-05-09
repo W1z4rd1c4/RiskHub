@@ -2,7 +2,8 @@ import type { Control } from '@/types/control';
 import { ControlForm as ControlFormType, ControlFrequency } from '@/types/control';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 
-import { formatFrequencyLabel } from './controlFormUtils';
+const formatFrequencyLabel = (value: string): string =>
+    value.replace(/[_-]/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
 
 interface ControlFormExecutionStepProps {
     formData: Partial<Control>;

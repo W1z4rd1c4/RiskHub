@@ -8,7 +8,7 @@ from app.core.exceptions import AuthorizationError, ValidationError
 from app.models import Role, User
 from app.models.user import AccessScope
 from app.services._access_workflow import ADMIN_PRIVILEGED_ROLES
-from app.services.directory_identity_service import requires_break_glass_for_reenable
+from app.services._directory_identity import requires_break_glass_for_reenable
 
 
 def is_global_privileged_user(user: User) -> bool:

@@ -29,11 +29,6 @@ vi.mock('@/authz/useAuthz', () => ({
     }),
 }));
 
-vi.mock('@/hooks/usePermissions', () => ({
-    usePermissions: () => ({
-        hasPermission: (resource: string, action: string) => resource === 'issues' && action === 'read',
-    }),
-}));
 
 vi.mock('@/i18n/hooks', () => ({
     useTranslation: () => ({

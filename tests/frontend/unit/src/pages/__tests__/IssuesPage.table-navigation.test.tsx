@@ -5,11 +5,6 @@ import { IssuesPage } from '@/pages/IssuesPage';
 const mockList = vi.fn();
 const mockNavigate = vi.fn();
 
-vi.mock('@/hooks/usePermissions', () => ({
-    usePermissions: () => ({
-        hasPermission: (resource: string, action: string) => resource === 'issues' && (action === 'read' || action === 'write'),
-    }),
-}));
 
 vi.mock('@/services/issuesApi', () => ({
     issuesApi: {

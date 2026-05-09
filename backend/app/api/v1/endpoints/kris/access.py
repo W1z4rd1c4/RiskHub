@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import ColumnElement
@@ -15,6 +17,33 @@ from app.models import Risk, User
 async def kri_read_scope_clause(db: AsyncSession, current_user: User) -> ColumnElement[bool] | None:
     """Return a set-based KRI visibility clause matching can_read_kri_id()."""
     return await kri_visibility_clause(db, current_user)
+
+
+async def apply_kri_department_scope(
+    target: Any,
+    *,
+    current_user: User,
+    department_id: int | None,
+    db: AsyncSession | None = None,
+) -> Any:
+    """Apply KRI department scoping to a list payload or SQLAlchemy query."""
+    dept_ids = get_user_department_ids(current_user)
+    if isinstance(target, list):
+        if department_id is not None:
+            if dept_ids is not None and department_id not in dept_ids:
+                return []
+            return [item for item in target if item.get("department_id") == department_id]
+        if dept_ids is not None:
+            return [item for item in target if item.get("department_id") in dept_ids]
+        return target
+
+    if db is None:
+        raise ValueError("db is required when applying KRI department scope to a query")
+
+    visibility_clause = await kri_visibility_clause(db, current_user, department_id=department_id)
+    if visibility_clause is not None:
+        return target.where(visibility_clause)
+    return target
 
 
 async def can_create_kri_for_any_parent_risk(db: AsyncSession, current_user: User) -> bool:

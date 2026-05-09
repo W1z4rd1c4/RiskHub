@@ -1,10 +1,10 @@
 import { useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { ApprovalQueuedBanner } from '@/components/forms/ApprovalQueuedBanner';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useTranslation } from '@/i18n/hooks';
 
-import { KriApprovalQueuedBanner } from './KriApprovalQueuedBanner';
 import { KriFormErrorAlert } from './KriFormErrorAlert';
 import { KriFormNavigation } from './KriFormNavigation';
 import { KriFormStepContent } from './KriFormStepContent';
@@ -17,6 +17,36 @@ import { useKriFormState } from './useKriFormState';
 import { useKriLookups } from './useKriLookups';
 import { useKriSubmit } from './useKriSubmit';
 
+type KriFormTranslator = ReturnType<typeof useTranslation>['t'];
+
+function KriApprovalQueuedFeedback({
+    approvalQueued,
+    onClose,
+    t,
+}: {
+    approvalQueued: { message: string } | null;
+    onClose: () => void;
+    t: KriFormTranslator;
+}) {
+    if (!approvalQueued) {
+        return null;
+    }
+
+    const message = approvalQueued.message.startsWith('errorKeys.')
+        ? t(approvalQueued.message, { ns: 'errorKeys' })
+        : approvalQueued.message;
+
+    return (
+        <ApprovalQueuedBanner
+            closeLabel={t('common:actions.close')}
+            message={message}
+            onClose={onClose}
+            title={t('approval_submitted', { ns: 'errorKeys' })}
+            viewApprovalsLabel={`${t('common:actions.view')} ${t('approvals:title', { ns: 'approvals', defaultValue: 'Approvals' })}`}
+        />
+    );
+}
+
 export function KRIFormContainer({
     initialData,
     isEdit = false,
@@ -27,7 +57,7 @@ export function KRIFormContainer({
     vendorContext = null,
     initialLinkedVendorIds = [],
 }: KRIFormProps) {
-    const { t } = useTranslation(['common', 'errorKeys', 'kris']);
+    const { t } = useTranslation(['approvals', 'common', 'errorKeys', 'kris']);
     const navigate = useNavigate();
     const state = useKriFormState({ initialData, initialLinkedVendorIds, vendorContext });
     const debouncedRiskSearch = useDebouncedValue(state.riskSearch, 300);
@@ -155,12 +185,11 @@ export function KRIFormContainer({
         <>
             <form onSubmit={handleSubmit} className="mx-auto max-w-3xl space-y-8">
                 <div className="glass-card flex min-h-[560px] flex-col">
-                    {state.approvalQueued ? (
-                        <KriApprovalQueuedBanner
-                            message={state.approvalQueued.message}
-                            onClose={() => state.setApprovalQueued(null)}
-                        />
-                    ) : null}
+                    <KriApprovalQueuedFeedback
+                        approvalQueued={state.approvalQueued}
+                        onClose={() => state.setApprovalQueued(null)}
+                        t={t}
+                    />
                     {visibleError ? <KriFormErrorAlert error={visibleError} /> : null}
                     {vendorContext ? (
                         <KriVendorContextBanner vendorName={vendorContext.vendorName} />

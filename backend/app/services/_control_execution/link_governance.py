@@ -19,8 +19,7 @@ from app.services._control_execution.access import (
 from app.services._control_execution.link_policy import (
     create_control_risk_link_outcome,
     delete_control_risk_link_plan,
-    load_link_for_control,
-    load_link_for_risk,
+    load_link,
 )
 from app.services._control_execution.monitoring import load_control_execution_monitoring_context
 from app.services._control_execution.projection import (
@@ -99,7 +98,7 @@ async def delete_control_risk_link(
     risk_id: int,
     current_user: User,
 ) -> None:
-    link = await load_link_for_control(db, control_id=control_id, risk_id=risk_id)
+    link = await load_link(db, control_id=control_id, risk_id=risk_id)
 
     control = (await db.execute(select(Control).where(Control.id == control_id))).scalar_one_or_none()
     if control is not None:
@@ -178,7 +177,7 @@ async def delete_risk_control_link(
     control_id: int,
     current_user: User,
 ) -> None:
-    link = await load_link_for_risk(db, risk_id=risk_id, control_id=control_id)
+    link = await load_link(db, control_id=control_id, risk_id=risk_id)
 
     risk = (await db.execute(select(Risk).where(Risk.id == risk_id))).scalar_one_or_none()
     if risk is not None:

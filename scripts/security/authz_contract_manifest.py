@@ -49,15 +49,8 @@ FRONTEND_LOCAL_GATE_CLASSIFICATIONS: dict[str, FrontendLocalGateClassification] 
     "frontend/src/components/layout/Sidebar.tsx": {
         "reason": "Navigation visibility only.",
         "allowed_patterns": (
-            r"import \{ usePermissions \} from '@/hooks/usePermissions';",
-            r"const \{ hasPermission \} = usePermissions\(\);",
+            r"const \{ user, logout, logoutPending, logoutErrorKey, hasPermission \} = useAuth\(\);",
             r"const navigation = getSidebarNavRoutes\(\{ authz, hasPermission \}\)\.map\(\(route\) => \{",
-        ),
-    },
-    "frontend/src/hooks/usePermissions.ts": {
-        "reason": "Session permission projection helper.",
-        "allowed_patterns": (
-            r"export function usePermissions\(\) \{",
         ),
     },
 }

@@ -5,11 +5,6 @@ import { ApiClientError } from '@/services/apiClient';
 
 const mockList = vi.fn();
 
-vi.mock('@/hooks/usePermissions', () => ({
-    usePermissions: () => {
-        throw new Error('IssuesPage should not use local permission gates');
-    },
-}));
 
 vi.mock('@/services/issuesApi', () => ({
     issuesApi: {

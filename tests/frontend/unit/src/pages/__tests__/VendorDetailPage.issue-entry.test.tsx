@@ -31,16 +31,6 @@ vi.mock('@/contexts/AuthContext', () => ({
     }),
 }));
 
-vi.mock('@/hooks/usePermissions', () => ({
-    usePermissions: () => ({
-        hasPermission: (resource: string, action: string) => {
-            if (resource === 'issues' && action === 'write') {
-                return canIssueWrite;
-            }
-            return true;
-        },
-    }),
-}));
 
 vi.mock('@/services/vendorApi', () => ({
     vendorApi: {

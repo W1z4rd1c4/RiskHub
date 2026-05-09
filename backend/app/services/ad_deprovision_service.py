@@ -10,8 +10,8 @@ from app.core.config import Settings
 from app.core.datetime_utils import utc_now
 from app.models import RefreshToken, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
+from app.services._directory_identity import DirectoryIdentityConflictError, apply_directory_profile
 from app.services._org_chart import acquire_org_chart_lock, clear_manager_references_for_inactive_user
-from app.services.directory_identity_service import DirectoryIdentityConflictError, apply_directory_profile
 from app.services.directory_provider_service import (
     DirectoryProviderError,
     DirectoryProviderService,

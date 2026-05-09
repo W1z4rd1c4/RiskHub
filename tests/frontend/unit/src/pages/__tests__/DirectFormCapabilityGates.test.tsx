@@ -57,14 +57,14 @@ vi.mock('@/services/vendorApi', () => ({
     },
 }));
 
-vi.mock('@/components/ControlForm', () => ({
+vi.mock('@/components/control-form/ControlFormContainer', () => ({
     ControlForm: ({ allowRiskLinking }: { allowRiskLinking?: boolean }) => (
         <div data-allow-risk-linking={String(allowRiskLinking)} data-testid="control-form" />
     ),
 }));
 
-vi.mock('@/components/KRIForm', () => ({
-    KRIForm: () => <div data-testid="kri-form" />,
+vi.mock('@/components/kri-form/KRIFormContainer', () => ({
+    KRIFormContainer: () => <div data-testid="kri-form" />,
 }));
 
 vi.mock('@/components/RiskForm', () => ({

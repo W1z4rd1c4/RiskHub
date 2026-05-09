@@ -22,6 +22,7 @@ from .constants import (
     UNKNOWN_KRI_LABEL,
     UNKNOWN_RISK_LABEL,
     UNKNOWN_VENDOR_LABEL,
+    source_type_value,
 )
 
 
@@ -98,10 +99,6 @@ def link_display(
             return "vendor", None
         return "vendor", label_or_fallback(getattr(link.vendor, "name", None), UNKNOWN_VENDOR_LABEL)
     return None, None
-
-
-def source_type_value(source_type: IssueSourceType | str) -> str:
-    return source_type.value if isinstance(source_type, IssueSourceType) else str(source_type)
 
 
 def link_matches_issue_source(issue: Issue, link: IssueLink) -> bool:

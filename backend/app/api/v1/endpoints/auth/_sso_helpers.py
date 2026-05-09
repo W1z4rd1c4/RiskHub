@@ -14,7 +14,7 @@ from app.core.user_query_options import user_selectinload_options
 from app.models import User
 from app.schemas.auth import SsoExchangeRequest
 from app.services._auth_session_workflow import commit_failed_sso_audit
-from app.services.directory_identity_service import normalize_business_role
+from app.services._directory_identity import normalize_business_role
 from app.services.sso_token_service import SsoProviderUnavailableError, SsoTokenVerificationError
 
 from ._shared import _resolve_safe_default_role

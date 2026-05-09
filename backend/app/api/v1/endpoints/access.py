@@ -16,7 +16,7 @@ from app.models.user import AccessScope
 from app.schemas.access import AccessUserRead, AccessUserUpdate, PermissionRead, RoleWithPermissions
 from app.schemas.user import AccessScopeEnum, RoleRead
 from app.services._access_workflow import access_user_capabilities, is_cro, is_platform_admin
-from app.services.access_user_service import update_access_user_settings
+from app.services._identity_access_lifecycle import update_access_profile
 
 router = APIRouter()
 
@@ -206,11 +206,11 @@ async def update_access_user(
     _require_access_user_write(current_user)
 
     update_data = user_data.model_dump(exclude_unset=True)
-    updated_user = await update_access_user_settings(
+    updated_user = await update_access_profile(
         db=db,
         settings=settings,
         current_user=current_user,
         user_id=user_id,
-        update_data=update_data,
+        user_data=update_data,
     )
     return _build_access_user_read(updated_user, current_user=current_user)

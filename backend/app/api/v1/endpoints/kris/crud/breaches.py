@@ -1,5 +1,3 @@
-from typing import Optional
-
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,15 +5,14 @@ from sqlalchemy.orm import selectinload
 
 from app.api.v1.endpoints._monitoring_response import load_monitoring_response_context, serialize_kri_response
 from app.core.datetime_utils import utc_now
-from app.core.permissions import get_user_department_ids
 from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import KeyRiskIndicator, Risk, User, VendorKRILink
 from app.schemas.kri import KRIResponse
+from app.services._kri_history.direct_application import visible_linked_vendors
 from app.services._monitoring_status import KRIMonitoringStatus
 
-from ..access import kri_read_scope_clause
-from ..linked_vendors import visible_linked_vendors
+from ..access import apply_kri_department_scope
 
 router = APIRouter()
 
@@ -24,7 +21,7 @@ router = APIRouter()
 async def list_breaches(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_permission("risks", "read")),
-    department_id: Optional[int] = Query(None, description="Filter by department ID"),
+    department_id: int | None = Query(None, description="Filter by department ID"),
     include_archived: bool = Query(False, description="Include archived KRIs/risks"),
 ):
     """List only breached KRIs for dashboard widget. Excludes archived risks AND archived KRIs by default."""
@@ -38,17 +35,7 @@ async def list_breaches(
             KeyRiskIndicator.is_archived.is_(False),
         )
 
-    dept_ids = get_user_department_ids(current_user)
-    if department_id:
-        if dept_ids is not None and department_id not in dept_ids:
-            # User trying to access unauthorized department
-            # Just return empty, or could raise 403. Returning empty is safer for filters.
-            return []
-        query = query.filter(Risk.department_id == department_id)
-    else:
-        visibility_clause = await kri_read_scope_clause(db, current_user)
-        if visibility_clause is not None:
-            query = query.where(visibility_clause)
+    query = await apply_kri_department_scope(query, db=db, current_user=current_user, department_id=department_id)
 
     query = query.options(
         selectinload(KeyRiskIndicator.reporting_owner),

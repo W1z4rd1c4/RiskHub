@@ -6,11 +6,6 @@ import { issuesApi } from '@/services/issuesApi';
 const mockNavigate = vi.fn();
 const mockListIssues = vi.mocked(issuesApi.list);
 
-vi.mock('@/hooks/usePermissions', () => ({
-    usePermissions: () => ({
-        hasPermission: (resource: string, action: string) => resource === 'issues' && action === 'write',
-    }),
-}));
 
 vi.mock('@/components/issues/IssueCreateForm', () => ({
     IssueCreateForm: ({ onCreated }: { onCreated: (issue: { id: number }) => void; onCancel?: () => void }) => (

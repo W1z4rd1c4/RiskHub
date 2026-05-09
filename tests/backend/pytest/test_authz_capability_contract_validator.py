@@ -497,11 +497,10 @@ def test_doc_touch_gate_flags_directory_lifecycle_support_services() -> None:
     manifest = json.loads(CONTRACT_JSON_PATH.read_text(encoding="utf-8"))
 
     for path in (
-        Path("backend/app/services/directory_identity_service.py"),
+        Path("backend/app/services/_directory_identity/"),
         Path("backend/app/services/ad_deprovision_service.py"),
-        Path("backend/app/services/access_user_service.py"),
         Path("backend/app/services/directory_provider_service.py"),
-        Path("backend/app/services/graph_directory_service.py"),
+        Path("backend/app/services/_graph_directory/"),
     ):
         findings = validator._validate_doc_touch([path], manifest["sensitive_change_paths"])
 
@@ -590,7 +589,7 @@ def test_changed_frontend_route_gate_classification_passes() -> None:
                         "b/frontend/src/components/layout/Sidebar.tsx"
                     ),
                     "@@ -0,0 +1 @@",
-                    "+const { hasPermission } = usePermissions();",
+                    "+const { user, logout, logoutPending, logoutErrorKey, hasPermission } = useAuth();",
                 ]
             )
         },
@@ -637,7 +636,7 @@ def test_classified_frontend_allowed_local_gate_pattern_passes() -> None:
                             "b/frontend/src/components/layout/Sidebar.tsx"
                         ),
                         "@@ -0,0 +1 @@",
-                        "+const { hasPermission } = usePermissions();",
+                        "+const { user, logout, logoutPending, logoutErrorKey, hasPermission } = useAuth();",
                     ]
             )
         },

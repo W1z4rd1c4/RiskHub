@@ -112,3 +112,30 @@
 - `cd frontend && npx tsc --noEmit`: passed
 - `npm run -w tests/frontend/unit test -- --run`: runbook command failed before tests (`ENOENT` for missing root `package.json`); equivalent repo command `cd frontend && npm run test:run` passed (`167 passed`, `737 tests passed`)
 - `npm run -w tests/frontend/unit lint`: runbook command failed before lint (`ENOENT` for missing root `package.json`); equivalent repo command `cd frontend && npm run lint` passed
+
+## Wave 4 — Boundary Facade Cleanup
+
+- Completed: 2026-05-09 22:05:05 CEST
+- Commit SHA: recorded by the Wave 4 commit containing this entry
+- Items completed: `#21`, `#25`, `#26`, `#29`, `#33`, `#36`, `#35`, `#48`, `#64`, `#47`, `#22`, `#23`, `#55`, `#24`, `#51`, `#56`, `#61`
+- Items failed: none
+- Elapsed time: current session wave execution
+
+### Phase 4 Corrections Honored
+
+- `#55`: removed `access_user_service.py` and reconciled authorization contract validator data with the `usePermissions` deletion.
+- `#24` + `#51`: landed atomically, repointed all KRI linked-vendor/value-application imports to `_kri_history.direct_application`, and stripped deleted citations from contract artifacts.
+- `#56` + `#61`: landed atomically, used the corrected 13-name directory identity surface, moved Graph directory modules into `_graph_directory/`, and updated directory lifecycle contract paths.
+- Frontend root npm workspace commands are still invalid in this repo because there is no root `package.json`; supported `frontend/` commands were used for effective validation.
+
+### Gate Results
+
+- `make -f scripts/Makefile test-architecture-locks`: passed (`132 passed`, 1 snapshot passed)
+- `pytest -m contract`: passed under backend venv activation (`185 passed`, `1735 deselected`, 1 warning)
+- `pytest tests/backend/pytest -m "not postgres and not benchmark" -x`: passed (`1887 passed`, `3 skipped`, `30 deselected`, 17 warnings)
+- `python3 scripts/security/validate_authz_capability_contract.py`: passed
+- `ruff check backend/app`: passed
+- `mypy backend/app`: baseline delta clean (`8 errors in 6 files`, unchanged from baseline)
+- `cd frontend && npx tsc --noEmit`: passed
+- `npm run -w tests/frontend/unit test -- --run`: runbook command failed before tests (`ENOENT` for missing root `package.json`); equivalent repo command `cd frontend && pnpm vitest run ../tests/frontend/unit/src` passed (`180 files`, `775 tests passed`)
+- `npm run -w tests/frontend/unit lint`: runbook command failed before lint (`ENOENT` for missing root `package.json`); equivalent repo command `cd frontend && pnpm lint` passed

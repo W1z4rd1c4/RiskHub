@@ -5,7 +5,6 @@ import { KRIValueModal } from '@/components/kri/KRIValueModal';
 import type { KRICapabilities, KeyRiskIndicator } from '@/types/kri';
 
 const recordValueMock = vi.fn();
-let canResolveApprovals = false;
 
 vi.mock('@/services/kriApi', () => ({
     kriApi: {
@@ -13,11 +12,6 @@ vi.mock('@/services/kriApi', () => ({
     },
 }));
 
-vi.mock('@/hooks/usePermissions', () => ({
-    usePermissions: () => ({
-        canResolveApprovals,
-    }),
-}));
 
 vi.mock('@/i18n/hooks', () => ({
     useTranslation: () => ({
@@ -80,7 +74,6 @@ function makeCapabilities(overrides: Partial<KRICapabilities> = {}): KRICapabili
 describe('KRIValueModal', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        canResolveApprovals = false;
         recordValueMock.mockResolvedValue({
             status: 'approval_required',
             approval_id: 42,
@@ -130,9 +123,7 @@ describe('KRIValueModal', () => {
         expect(screen.queryByText('value_modal.backdate_optional')).not.toBeInTheDocument();
     });
 
-    it('hides the backdate input when capabilities are missing even if local approvals permission is present', () => {
-        canResolveApprovals = true;
-
+    it('hides the backdate input when capabilities are missing', () => {
         render(
             <KRIValueModal
                 kri={makeKri(null)}

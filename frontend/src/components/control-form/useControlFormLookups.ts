@@ -1,13 +1,20 @@
 import { useCallback, useEffect, useState } from 'react';
 
+import { ApiClientError } from '@/services/apiClient';
 import { lookupApi } from '@/services/lookupApi';
 import type { UserLookupItem } from '@/services/lookupApi';
 import type { DepartmentSummary } from '@/services/departmentApi';
 import { riskApi } from '@/services/riskApi';
 import type { RiskSummary } from '@/types/risk';
 
-import { getControlFormErrorKey } from './controlFormUtils';
 import { logError } from '@/services/logger';
+
+const getControlFormErrorKey = (error: unknown, fallback = 'errorKeys.unknown'): string => {
+    if (error instanceof ApiClientError) {
+        return error.messageKey;
+    }
+    return fallback;
+};
 
 export function useControlFormLookups() {
     const [users, setUsers] = useState<UserLookupItem[]>([]);

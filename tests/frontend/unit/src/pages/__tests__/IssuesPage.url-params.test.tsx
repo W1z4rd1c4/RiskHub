@@ -9,11 +9,6 @@ const mockNavigate = vi.fn();
 const setSearchParams = vi.fn();
 let mockQueryString = '';
 
-vi.mock('@/hooks/usePermissions', () => ({
-    usePermissions: () => ({
-        hasPermission: (resource: string, action: string) => resource === 'issues' && (action === 'read' || action === 'write'),
-    }),
-}));
 
 vi.mock('@/services/issuesApi', () => ({
     issuesApi: {

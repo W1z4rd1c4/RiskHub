@@ -255,8 +255,8 @@ The audit task mentions `frontend/src/components/approval/*` — this directory 
 
 ## 11. Hooks (`frontend/src/hooks/`)
 
-### Files (11 total)
-- `activityLogPageWorkflow.ts`, `useActivityLogPageState.ts`, `useAdaptivePollingQuery.ts`, `useChartTheme.ts`, `useDebouncedValue.ts`, `useDepartmentDetail.ts`, `usePendingApprovalIds.ts`, `usePermissions.ts`, `useRiskHubConfig.ts`, `useStatusTheme.ts`, `useUsersPageFilters.ts`, `README.md`.
+### Files (10 total)
+- `activityLogPageWorkflow.ts`, `useActivityLogPageState.ts`, `useAdaptivePollingQuery.ts`, `useChartTheme.ts`, `useDebouncedValue.ts`, `useDepartmentDetail.ts`, `usePendingApprovalIds.ts`, `useRiskHubConfig.ts`, `useStatusTheme.ts`, `useUsersPageFilters.ts`, `README.md`.
 - `useResourcePanelQuery` does **not** exist (FE-N7 is a hypothesised hook). The closest existing pattern is `components/riskhub/useRiskHubConfigResource.ts` (180 lines) defining `useRiskHubConfigResource` plus `RiskHubConfigResourceDefinition` shape.
 
 ### `useAuthz` (canonical capability hook)
@@ -273,12 +273,7 @@ The audit task mentions `frontend/src/components/approval/*` — this directory 
 - `authz/policy.ts:86-155` — `buildAuthz(user, hasPermission, meCapabilities, strictCapabilities)`. Falls back to legacy at line 100-102: `if (!strictCapabilities || !meCapabilities) { return buildLegacyAuthz(user, hasPermission); }`.
 
 ### `usePermissions` (S7.3)
-- `hooks/usePermissions.ts:1-20` — composes `useAuth()` + `useAuthz()` then returns 9 fields:
-  ```
-  return { hasPermission, canViewUsers, canManageAccess, canViewUsersRoute, canViewAccessUsers,
-      canViewDepartmentAccessUsers, canViewUserDirectory, canViewActivityLog, isPrivileged, user };
-  ```
-- All 8 derived booleans are passthroughs of `authz.*`.
+- Deleted in Wave 4 `#35`. `Sidebar.tsx` now reads `hasPermission` directly from `useAuth()`, and consumers should use `useAuthz()` for derived capability booleans.
 
 ### Capability flags store
 - `services/capabilityFlags.ts:1-19` — module-scope mutable `strictCapabilitiesEnabled` boolean with `setStrictCapabilitiesEnabled`/`isStrictCapabilitiesEnabled`/`subscribe` exports. Used by `useAuthz` via `useSyncExternalStore`.
@@ -359,7 +354,7 @@ The audit task mentions `frontend/src/components/approval/*` — this directory 
 - `App.tsx:11-18` is the **only** `new QueryClient(...)` in the tree (FE-N2 target); `services/api/queryClient.ts` does not exist.
 - Provider tree order (`App.tsx:59-83`): QueryClientProvider → AuthProvider → ThemeProvider → BrowserRouter → Suspense → Routes. `DashboardFilterProvider` appears only inside the protected `/` route element.
 - The session module is the bridge between AuthContext and TanStack Query; both `AuthContext.tsx:7` and `pages/ApprovalsPage.tsx:4` read `useSessionSnapshot`.
-- `useAuthz` ↔ `useAuth` cycle: `useAuthz` calls `useAuth` (`useAuthz.ts:8`) and then `usePermissions` calls both (`usePermissions.ts:5-6`), so any consumer of `usePermissions` triggers two context reads.
+- `useAuthz` calls `useAuth` (`useAuthz.ts:8`) and remains the canonical frontend capability projection; the former `usePermissions` wrapper was deleted in Wave 4 `#35`.
 - The KRI shim, Control shim, Risk shim, and Vendor shim all live as 1-2 line files at `components/` root and re-export the canonical `*Container` from the subdirectory.
 
 ---
@@ -375,7 +370,7 @@ The audit task mentions `frontend/src/components/approval/*` — this directory 
 | FE-deadcode-1 (controlFormWorkflow) | `components/control-form/controlFormWorkflow.ts` | deleted in Wave 3 `#4` | 0 | 0 |
 | FE-deadcode-2 (orphanResolutionPresentation) | `components/governance/orphanResolutionPresentation.ts` | deleted in Wave 3 `#5` | 0 | 0 |
 | FE-deadcode-3 (resourcePath) | `components/notifications/resourcePath.ts` | deleted in Wave 3 `#6` | 0 | 0 |
-| S7.3 (usePermissions) | `hooks/usePermissions.ts` | 20 lines | composed by all consumers; 9-key passthrough | (per audit) |
+| S7.3 (usePermissions) | `hooks/usePermissions.ts` | deleted in Wave 4 `#35` | 0 | 0 |
 | S7.4 (BusinessRouteGuards) | `authz/BusinessRouteGuards.tsx` | 37 lines | `routing/core.tsx:5`, `routing/business.tsx:16-19` | n/a |
 | S7.8 (session split) | `services/session/` | 8 files | `AuthContext.tsx:7`, `ApprovalsPage.tsx:4`, plus `manager.ts` named exports | n/a |
 | S7.10 (governance capability mirror) | `authz/policy.ts:117` + `backend/.../summary.py:45-50` | n/a | uses `meCapabilities.can_view_governance` (strict) and legacy fallback (`policy.ts:73`) | n/a |
