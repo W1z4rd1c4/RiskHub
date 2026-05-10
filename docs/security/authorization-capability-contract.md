@@ -50,6 +50,7 @@ External references used for this contract:
 | Backend guard | FastAPI dependency or endpoint-level authorization check, usually `require_permission`, `require_business_permission`, or a resource helper. |
 | Service policy | Shared business authorization logic under `backend/app/core/_permissions/` or `backend/app/services/_*/`. |
 | Privilege tier | Resolved per-approval boolean fivefold (`is_privileged`, `is_primary_approver`, `is_requester`, `scenario_match`, `privileged_scenario_match`) returned by `approval_scenario_policy.resolve_approval_privilege_tier`. |
+| Privilege context | Per-request privilege bundle resolved by `backend/app/services/_approval_execution/privilege_context.py` and injected via `Depends(get_privilege_context)` on approval endpoints. |
 | Response capability | Backend-computed action metadata returned to the UI, for example `can_update`, `can_archive`, or `can_request_correction`. |
 | Frontend gate | UI visibility or route guard. It is a convenience layer and never replaces backend authorization. |
 | Test evidence | Backend, frontend, or E2E tests that prove a contract row remains true. |

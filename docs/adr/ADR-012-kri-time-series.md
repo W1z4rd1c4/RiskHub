@@ -63,6 +63,7 @@ Forward-only as a source-of-truth cleanup. If a regression appears, restore beha
 
 ## ADR Cross-References
 
+- ADR-002: KRIDeadlineService is a transaction-owning service entrypoint per the service-owned-transactions decision.
 - ADR-007: classifies KRI history as the bounded context for KRI time-series period logic.
 - ADR-008: establishes the single-source-of-truth pattern used here.
 - ADR-009: governs reserved compatibility surfaces if old KRI aliases are retained temporarily.

@@ -37,6 +37,17 @@ Finding `#76` migrates the eight auth-flow commit allowlist entries to service-o
 
 SSO deployment configuration is unchanged. This ADR documents and locks the current exchange boundary: Entra identity verification resolves into a RiskHub session outcome, then RiskHub issues and rotates its own tokens.
 
+## Hard Expiration on Auth-Flow Exemption
+
+The eight auth-flow commit-allowlist entries in `tests/backend/pytest/architecture/_endpoint_commit_allowlist.toml` carry `expires_at = "2026-09-01"`. The current ratchet test in `tests/backend/pytest/architecture/test_w5_endpoint_commit_ratchet_red.py:47-49` enforces `assert len(allowed) <= 8` and `assert date.fromisoformat(str(entry["expires_at"])) >= date.today()` (line 64). Together these guarantee the cap cannot grow beyond eight and that no entry may persist past its sunset date.
+
+The `2026-09-01` sunset is a hard expiration. On that date, the cap drops from `<= 8` to `== 0` and the allowlist must be empty. Concretely, two changes land together no later than `2026-09-01`:
+
+1. The eight auth-flow commit sites in `backend/app/api/v1/endpoints/auth/` migrate to service-owned transactions per ADR-002.
+2. `tests/backend/pytest/architecture/test_w5_endpoint_commit_ratchet_red.py:47` is updated from `assert len(allowed) <= 8` to `assert len(allowed) == 0`, and the corresponding allowlist file is emptied (the `[allowlist]` array becomes `[]`).
+
+After the sunset, any new `_endpoint_commit_allowlist.toml` entry fails the ratchet immediately rather than relying on per-entry `expires_at` checks. Any extension of the sunset requires superseding both this ADR and ADR-002.
+
 ## Rollback Strategy
 
 Forward-only as documentation and lock policy. No schema or runtime behavior changes are introduced by this ADR. If a future implementation regresses refresh rotation or token-version invalidation, operators can revoke affected server-side refresh rows and bump the affected users' `token_version` values.

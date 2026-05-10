@@ -1,7 +1,7 @@
 {
   "version": "1.0",
-    "last_reviewed": "2026-05-09",
-    "last_architecture_refactor_reviewed": "2026-05-09",
+    "last_reviewed": "2026-05-10",
+    "last_architecture_refactor_reviewed": "2026-05-10",
   "architecture_refactor_notes": [
     "2026-05-03: Collection listing execution, tabular report export rendering, approval side-effect helper reuse, and validator static data were moved behind deeper Modules. User-visible authorization policy and capability semantics are unchanged.",
     "2026-05-03: Entity visibility projections, collection listing definitions, export pipeline definitions, approval resolution plans, and KRI value governance were moved behind deeper Modules. User-visible authorization policy and capability semantics are unchanged.",
@@ -16,7 +16,8 @@
         "2026-05-09: Architecture cleanup Wave 6a moved orphaned-item access behind direct package functions, added outbox SchedulerJobRun visibility, centralized frontend query-key factories, and added literal-flat capability schema contracts. User-visible authorization policy and capability semantics are unchanged.",
         "2026-05-09: Architecture cleanup Wave 6b split AuthContext into Session, Preferences, and AuthActions providers while preserving the useAuth compatibility surface and route/session authorization semantics.",
         "2026-05-09: Architecture cleanup Wave 7 moved KRI/control ownership resolvers behind a shared factory and approval endpoints behind PrivilegeContext while preserving ownership visibility, approval authority, and capability semantics.",
-        "2026-05-09: Architecture cleanup Wave 8 removed Vendor.status from backend schemas, listing filters, report rows, and frontend vendor types after the forward-only Postgres migration. Vendor archive visibility and report filtering now use is_archived; authorization policy and capability semantics are unchanged."
+        "2026-05-09: Architecture cleanup Wave 8 removed Vendor.status from backend schemas, listing filters, report rows, and frontend vendor types after the forward-only Postgres migration. Vendor archive visibility and report filtering now use is_archived; authorization policy and capability semantics are unchanged.",
+        "2026-05-10: Documentation-only sync refreshed backend/app/services/_kri_history/README.md contents listing to match the workflow/projection/governance split, added a Privilege context vocabulary entry to the contract markdown, and clarified ADR-007 Amendment 1 package counting. Authorization policy and capability semantics are unchanged."
   ],
   "owner": "RiskHub Maintainer",
   "capability_catalog": "docs/security/capability-catalog.json",

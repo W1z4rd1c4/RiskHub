@@ -10,7 +10,7 @@ RiskHub architecture work touches many workflow packages. Broad sweeps across al
 
 ## Decision
 
-Architecture sweeps use seven bounded contexts: `_riskhub_config`, `_identity_access_lifecycle`, `_vendor_governance`, `_register_listings`, `_approval_execution`, `_entity_mutation_lifecycle`, and `_kri_history`. Each context owns its exception, transaction, listing, and audit cleanup for its files before the next context begins.
+Architecture sweeps use seven bounded contexts: `_riskhub_config`, `_identity_access_lifecycle`, `_vendor_governance`, `_register_listings`, `_approval_execution`, `_entity_mutation_lifecycle`, and `_kri_history`. Each context owns its exception, transaction, listing, and audit cleanup for its files before the next context begins. See Amendment 1 (below) for secondary categories applied to remaining packages.
 
 ## Alternatives Rejected
 
@@ -40,7 +40,7 @@ Accepted
 
 ### Context
 
-ADR-007 names seven write-side bounded contexts but the codebase carries 32 underscore-prefixed packages under `backend/app/services/`. The unnamed remainder falls into four coherent shapes: read-shape projections, workflow-paired companions, adapter contexts that translate external systems, and a small set of cross-cutting modules that supply policy primitives to every other context. Without an explicit secondary taxonomy, reviewers read the seven-context list as exhaustive and misclassify new packages.
+ADR-007 names seven write-side bounded contexts but the codebase carries 31 underscore-prefixed packages plus the `_monitoring_response.py` file entry under `backend/app/services/`, totaling 32 classified entries. The unnamed remainder falls into four coherent shapes: read-shape projections, workflow-paired companions, adapter contexts that translate external systems, and a small set of cross-cutting modules that supply policy primitives to every other context. Without an explicit secondary taxonomy, reviewers read the seven-context list as exhaustive and misclassify new packages.
 
 ### Decision
 
