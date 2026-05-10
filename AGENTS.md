@@ -156,11 +156,13 @@ Canonical Source: `docs/agent/ENDPOINT_INVARIANTS.md`
 
 - These endpoints are **packages** (not single files): `controls/`, `risks/`, `kris/`, `dashboard/`, `issues/`, `reports/`, `riskhub/`, `approvals/`, `departments/`, `users/`, `vendors/`, `vendor_incidents/`, `vendor_dependencies/`, `vendor_slas/`, `admin/`, `risk_questionnaires/`.
 - Invariant: `app.api.v1.endpoints.<name>.router` must remain the exported router object (see `backend/app/api/v1/endpoints/<name>/__init__.py`).
+- Endpoint router prefixes are registered in `backend/app/api/v1/_router_registry.toml` and guarded by `tests/backend/pytest/architecture/test_router_prefix_registry_red.py`.
 - FastAPI gotcha: if any subrouter defines routes at path `""` (e.g. `@router.get("")`), that router must be the exported base router (don’t include it under an extra wrapper `APIRouter()`).
 - Required re-exports (keep stable import paths):
   - `app.api.v1.endpoints.risks.generate_risk_id_code` (tests depend on it)
   - `app.api.v1.endpoints.riskhub.get_cro_user` (used by `backend/app/api/v1/endpoints/riskhub_questionnaires.py`)
   - `app.api.v1.endpoints.users.get_password_hash` (tests depend on it)
+- Graph directory code lives under `backend/app/services/_graph_directory/`; keep the package boundary aligned with `tests/backend/pytest/architecture/test_w13_graph_directory_package_red.py`.
 
 ### SQLAlchemy FK cycles (SQLite tests)
 
@@ -231,6 +233,7 @@ Canonical Source: `docs/adr/README.md`, `docs/README.md`
   - `tests/backend/pytest/architecture/_bounded_context_cross_cutting.toml`
   - `tests/backend/pytest/_get_db_override_whitelist.toml`
   - `backend/app/core/audit/_audit_matrix.toml`
+  - `backend/app/api/v1/_router_registry.toml`
   - `backend/app/api/v1/endpoints/_reserved_modules.toml`
 - Outbox worker transaction ownership is consolidated in `backend/app/services/outbox/dispatcher.py`; `backend/app/services/outbox/store.py` flushes only.
 - Transaction-boundary changes follow ADR-002; auth/session scheme changes follow ADR-011; archive-state changes follow ADR-005; forward-only Postgres migration rehearsals follow ADR-010.

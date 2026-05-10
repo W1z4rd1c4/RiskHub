@@ -4,8 +4,9 @@ Canonical maintainability invariants for endpoint packaging and related schema c
 
 ## Endpoint Package Splits (Maintainability)
 
-- These endpoints are packages (not single files): `controls/`, `risks/`, `kris/`, `dashboard/`, `issues/`, `reports/`, `riskhub/`, `approvals/`, `departments/`, `users/`, `vendors/`, `admin/`, `risk_questionnaires/`.
+- These endpoints are packages (not single files): `controls/`, `risks/`, `kris/`, `dashboard/`, `issues/`, `reports/`, `riskhub/`, `approvals/`, `departments/`, `users/`, `vendors/`, `vendor_incidents/`, `vendor_dependencies/`, `vendor_slas/`, `admin/`, `risk_questionnaires/`.
 - Invariant: `app.api.v1.endpoints.<name>.router` must remain the exported router object (see `backend/app/api/v1/endpoints/<name>/__init__.py`).
+- Endpoint router prefixes are registered in `backend/app/api/v1/_router_registry.toml` and locked by `tests/backend/pytest/architecture/test_router_prefix_registry_red.py`.
 - FastAPI gotcha: if a subrouter defines routes at path `""` (for example `@router.get("")`), that router must be the exported base router (do not include it under an extra wrapper `APIRouter()`).
 
 Required re-exports (stable import paths):
@@ -35,10 +36,17 @@ Frontend caller chain verified on 2026-05-09:
 Presence lock:
 - `tests/backend/pytest/architecture/test_riskhub_questionnaires_module_present_red.py`
 
+## Graph Directory Adapter Package
+
+Microsoft Graph directory integration code lives under
+`backend/app/services/_graph_directory/`. Keep imports and docs aligned with
+that package boundary; `tests/backend/pytest/architecture/test_w13_graph_directory_package_red.py`
+guards against reintroducing the pre-package single-file service shape.
+
 ## SQLAlchemy FK Cycles (SQLite Tests)
 
 - SQLite `Base.metadata.drop_all()` can warn if a foreign-key cycle exists.
 - `Department.manager_id -> users.id` is marked with `use_alter=True` to break the `departments`/`users` cycle.
 
 Verification date:
-- 2026-05-09
+- 2026-05-10

@@ -17,7 +17,8 @@
         "2026-05-09: Architecture cleanup Wave 6b split AuthContext into Session, Preferences, and AuthActions providers while preserving the useAuth compatibility surface and route/session authorization semantics.",
         "2026-05-09: Architecture cleanup Wave 7 moved KRI/control ownership resolvers behind a shared factory and approval endpoints behind PrivilegeContext while preserving ownership visibility, approval authority, and capability semantics.",
         "2026-05-09: Architecture cleanup Wave 8 removed Vendor.status from backend schemas, listing filters, report rows, and frontend vendor types after the forward-only Postgres migration. Vendor archive visibility and report filtering now use is_archived; authorization policy and capability semantics are unchanged.",
-        "2026-05-10: Documentation-only sync refreshed backend/app/services/_kri_history/README.md contents listing to match the workflow/projection/governance split, added a Privilege context vocabulary entry to the contract markdown, and clarified ADR-007 Amendment 1 package counting. Authorization policy and capability semantics are unchanged."
+        "2026-05-10: Documentation-only sync refreshed backend/app/services/_kri_history/README.md contents listing to match the workflow/projection/governance split, added a Privilege context vocabulary entry to the contract markdown, and clarified ADR-007 Amendment 1 package counting. Authorization policy and capability semantics are unchanged.",
+        "2026-05-10: Documentation-only README coverage pass added service-package README files under authz-sensitive service directories and updated documentation topology links. Authorization policy and capability semantics are unchanged."
   ],
   "owner": "RiskHub Maintainer",
   "capability_catalog": "docs/security/capability-catalog.json",

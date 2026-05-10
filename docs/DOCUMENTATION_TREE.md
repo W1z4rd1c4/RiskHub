@@ -21,6 +21,7 @@ AGENTS.md
 │   ├── docs/adr/README.md
 │   ├── docs/audits/README.md
 │   ├── docs/deployment/README.md
+│   ├── docs/migrations/README.md
 │   ├── docs/reference/README.md
 │   ├── docs/quality/README.md
 │   ├── docs/assets/README.md
@@ -61,6 +62,8 @@ AGENTS.md
   - [`docs/assets/readme/README.md`](./assets/readme/README.md)
 - Deployment and operations:
   - [`docs/deployment/README.md`](./deployment/README.md)
+- Migration notes:
+  - [`docs/migrations/README.md`](./migrations/README.md)
 - Agent governance and execution:
   - [`docs/agent/README.md`](./agent/README.md)
   - [`AGENTS.md`](../AGENTS.md)

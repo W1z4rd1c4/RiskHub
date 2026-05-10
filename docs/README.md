@@ -87,6 +87,13 @@ The main registries behind those locks are:
 - `tests/backend/pytest/architecture/_archive_allowlist.toml`
 - `tests/backend/pytest/architecture/_naming_allowlist.toml`
 - `backend/app/core/audit/_audit_matrix.toml`
+- `backend/app/api/v1/_router_registry.toml`
+
+Endpoint router prefixes are locked by
+`tests/backend/pytest/architecture/test_router_prefix_registry_red.py`.
+The Microsoft Graph directory adapter package is
+`backend/app/services/_graph_directory/` and is locked by
+`tests/backend/pytest/architecture/test_w13_graph_directory_package_red.py`.
 
 ## Authorization Capability Contract
 
@@ -105,6 +112,7 @@ department-filter behavior test lives in `tests/backend/pytest/test_risks.py`.
 
 Postgres data migrations that are forward-only or lock-sensitive must follow
 [`docs/adr/ADR-010-postgres-migration-rehearsal-contract.md`](./adr/ADR-010-postgres-migration-rehearsal-contract.md).
+Migration-specific notes are indexed in [`docs/migrations/README.md`](./migrations/README.md).
 Archive-state normalization is governed by ADR-005, transaction ownership by ADR-002,
 and reserved endpoint/permission surfaces by ADR-009.
 Outbox worker transaction ownership is consolidated in

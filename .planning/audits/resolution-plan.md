@@ -2475,7 +2475,7 @@ Files to delete:
 ```
 pytest tests/backend/pytest/architecture/test_capability_catalog_includes_access_user_red.py -q
 python3 scripts/security/validate_authz_capability_contract.py
-cd frontend && npm run test:run -- tests/frontend/unit/src/authz/useAuthz.invariant.test.ts
+cd frontend && npm run test:run -- ../tests/frontend/unit/src/authz/useAuthz.invariant.test.ts
 ```
 All pass.
 
@@ -2493,7 +2493,7 @@ All pass.
 2. `python3 scripts/security/validate_authz_capability_contract.py` — exit 0.
 3. `make -f scripts/Makefile test-architecture-locks` — locks green.
 4. `npx tsc --noEmit` (in frontend) — clean.
-5. `npm run test:run -- tests/frontend/unit/src/authz/useAuthz.invariant.test.ts` (in frontend) — pass.
+5. `npm run test:run -- ../tests/frontend/unit/src/authz/useAuthz.invariant.test.ts` (in frontend) — pass.
 6. `ruff check tests/backend/pytest/architecture/test_capability_catalog_includes_access_user_red.py` — clean.
 
 **Commit Boundary**: single commit.
@@ -2765,7 +2765,7 @@ Files to create:
 **TDD Step 3 — Confirm GREEN**
 
 ```
-cd frontend && npm run test:run -- tests/frontend/unit/src/components/kri-form
+cd frontend && npm run test:run -- ../tests/frontend/unit/src/components/kri-form
 cd frontend && npx tsc --noEmit
 ```
 All pass.
@@ -2778,7 +2778,7 @@ All pass.
 - `frontend/src/components/kri-form/README.md` (if present) — drop reference.
 
 **Verification Commands** (in order):
-1. `cd frontend && npm run test:run -- tests/frontend/unit/src/components/kri-form` — must pass.
+1. `cd frontend && npm run test:run -- ../tests/frontend/unit/src/components/kri-form` — must pass.
 2. `cd frontend && npx tsc --noEmit` — clean.
 3. `cd frontend && npm run lint` — clean.
 
@@ -2838,7 +2838,7 @@ Files to create:
 **TDD Step 3 — Confirm GREEN**
 
 ```
-cd frontend && npm run test:run -- tests/frontend/unit/src/components/control-form
+cd frontend && npm run test:run -- ../tests/frontend/unit/src/components/control-form
 cd frontend && npx tsc --noEmit
 ```
 All pass.
@@ -2850,7 +2850,7 @@ All pass.
 - `frontend/src/components/control-form/README.md` (if present) — drop reference.
 
 **Verification Commands** (in order):
-1. `cd frontend && npm run test:run -- tests/frontend/unit/src/components/control-form` — must pass.
+1. `cd frontend && npm run test:run -- ../tests/frontend/unit/src/components/control-form` — must pass.
 2. `cd frontend && npx tsc --noEmit` — clean.
 3. `cd frontend && npm run lint` — clean.
 
@@ -4222,7 +4222,7 @@ def test_no_module_imports_kri_form_facade() -> None:
 
 ```
 pytest tests/backend/pytest/architecture/test_w4_bc_g_kri_history_boundaries_red.py -q -k kri_form
-cd frontend && pnpm test -- KRIForm
+cd frontend && npm run test:run -- KRIForm
 ```
 
 Both pass.
@@ -4240,8 +4240,8 @@ Both pass.
 #### Verification commands (run all in order)
 
 1. `make -f scripts/Makefile test-architecture-locks` — locks green.
-2. `cd frontend && pnpm lint` — clean.
-3. `cd frontend && pnpm test -- KRIForm` — must pass.
+2. `cd frontend && npm run lint` — clean.
+3. `cd frontend && npm run test:run -- KRIForm` — must pass.
 4. `rg "@/components/KRIForm'" frontend tests` — zero hits.
 5. `cd frontend && npx tsc --noEmit` — clean.
 
@@ -4482,7 +4482,7 @@ Plus a grep-style assertion (e.g. via `import.meta.glob`) that no `frontend/src/
 #### TDD Step 3 — Confirm GREEN
 
 ```
-cd frontend && npm run test:run -- --runInBand tests/frontend/unit/src/components/kri-form tests/frontend/unit/src/components/forms
+cd frontend && npm run test:run -- ../tests/frontend/unit/src/components/kri-form ../tests/frontend/unit/src/components/forms
 ```
 
 All pass.
@@ -4499,7 +4499,7 @@ All pass.
 
 #### Verification commands (run all in order)
 
-1. `cd frontend && npm run test:run -- --runInBand tests/frontend/unit/src/components/kri-form tests/frontend/unit/src/components/forms` — must pass.
+1. `cd frontend && npm run test:run -- ../tests/frontend/unit/src/components/kri-form ../tests/frontend/unit/src/components/forms` — must pass.
 2. `cd frontend && npx tsc --noEmit` — clean.
 3. `make -f scripts/Makefile test-architecture-locks` — locks green.
 
@@ -4595,7 +4595,7 @@ No changes to consumers (routing files import the same names).
 #### TDD Step 3 — Confirm GREEN
 
 ```
-cd frontend && pnpm vitest run tests/frontend/unit/src/authz/__tests__/BusinessRouteGuards.factory.test.tsx tests/frontend/unit/src/authz/__tests__/BusinessRouteGuards.structural.test.ts tests/frontend/unit/src/authz/__tests__/BusinessRouteGuards.test.tsx
+cd frontend && npm run test:run -- ../tests/frontend/unit/src/authz/__tests__/BusinessRouteGuards.factory.test.tsx ../tests/frontend/unit/src/authz/__tests__/BusinessRouteGuards.structural.test.ts ../tests/frontend/unit/src/authz/__tests__/BusinessRouteGuards.test.tsx
 ```
 
 All pass.
@@ -4610,10 +4610,10 @@ All pass.
 
 #### Verification commands (run all in order)
 
-1. `cd frontend && pnpm vitest run tests/frontend/unit/src/authz/__tests__/BusinessRouteGuards.factory.test.tsx` — must pass.
-2. `cd frontend && pnpm vitest run tests/frontend/unit/src/authz/__tests__/BusinessRouteGuards.structural.test.ts` — must pass.
-3. `cd frontend && pnpm vitest run tests/frontend/unit/src/authz/__tests__/BusinessRouteGuards.test.tsx` — must pass.
-4. `cd frontend && pnpm tsc --noEmit` — clean.
+1. `cd frontend && npm run test:run -- ../tests/frontend/unit/src/authz/__tests__/BusinessRouteGuards.factory.test.tsx` — must pass.
+2. `cd frontend && npm run test:run -- ../tests/frontend/unit/src/authz/__tests__/BusinessRouteGuards.structural.test.ts` — must pass.
+3. `cd frontend && npm run test:run -- ../tests/frontend/unit/src/authz/__tests__/BusinessRouteGuards.test.tsx` — must pass.
+4. `cd frontend && npx tsc --noEmit` — clean.
 5. `make -f scripts/Makefile test-architecture-locks` — locks green.
 
 #### Commit boundary
@@ -4712,8 +4712,8 @@ Single commit titled: `refactor(frontend/authz): replace 4 BusinessRouteGuards w
 #### TDD Step 3 — Confirm GREEN
 
 ```
-cd frontend && pnpm vitest run tests/frontend/unit/src/hooks/__tests__/usePermissions.deleted.structural.test.ts tests/frontend/unit/src/components/layout/__tests__/Sidebar.usePermissions.replaced.test.tsx tests/frontend/unit/src/components/layout/__tests__/SidebarPolling.test.tsx
-cd frontend && pnpm vitest run
+cd frontend && npm run test:run -- ../tests/frontend/unit/src/hooks/__tests__/usePermissions.deleted.structural.test.ts ../tests/frontend/unit/src/components/layout/__tests__/Sidebar.usePermissions.replaced.test.tsx ../tests/frontend/unit/src/components/layout/__tests__/SidebarPolling.test.tsx
+cd frontend && npm run test:run
 ```
 
 Full FE unit suite green; 18 mock-rewrites pass.
@@ -4730,10 +4730,10 @@ Full FE unit suite green; 18 mock-rewrites pass.
 
 #### Verification commands (run all in order)
 
-1. `cd frontend && pnpm vitest run tests/frontend/unit/src/hooks/__tests__/usePermissions.deleted.structural.test.ts` — must pass.
-2. `cd frontend && pnpm vitest run tests/frontend/unit/src/components/layout/__tests__/Sidebar.usePermissions.replaced.test.tsx` — must pass.
-3. `cd frontend && pnpm vitest run tests/frontend/unit/src/components/layout/__tests__/SidebarPolling.test.tsx` — regression green.
-4. `cd frontend && pnpm vitest run` — full FE unit suite, all 18 mock-rewrites pass.
+1. `cd frontend && npm run test:run -- ../tests/frontend/unit/src/hooks/__tests__/usePermissions.deleted.structural.test.ts` — must pass.
+2. `cd frontend && npm run test:run -- ../tests/frontend/unit/src/components/layout/__tests__/Sidebar.usePermissions.replaced.test.tsx` — must pass.
+3. `cd frontend && npm run test:run -- ../tests/frontend/unit/src/components/layout/__tests__/SidebarPolling.test.tsx` — regression green.
+4. `cd frontend && npm run test:run` — full FE unit suite, all 18 mock-rewrites pass.
 5. `make -f scripts/Makefile test-architecture-locks` — locks green.
 
 #### Commit boundary
@@ -4877,8 +4877,8 @@ describe('legacy split error files are deleted', () => {
 #### TDD Step 3 — Confirm GREEN
 
 ```
-cd frontend && npm run -w tests/frontend/unit test -- errorMessageKey
-cd frontend && npm run -w tests/frontend/unit lint typecheck
+cd frontend && npm run test:run -- errorMessageKey
+cd frontend && npm run lint && npx tsc --noEmit
 ```
 
 All pass.
@@ -4893,9 +4893,9 @@ All pass.
 
 #### Verification commands (run all in order)
 
-1. `npm run -w tests/frontend/unit lint typecheck` — clean.
-2. `npm run -w tests/frontend/unit test -- errorMessageKey` — must pass.
-3. `npm run -w tests/frontend/unit test` — full vitest green.
+1. `cd frontend && npm run lint && npx tsc --noEmit` — clean.
+2. `cd frontend && npm run test:run -- errorMessageKey` — must pass.
+3. `cd frontend && npm run test:run` — full vitest green.
 4. `make -f scripts/Makefile test-architecture-locks` — locks green.
 
 #### Commit boundary
@@ -5007,7 +5007,7 @@ describe('app QueryClient defaults', () => {
 #### TDD Step 3 — Confirm GREEN
 
 ```
-cd frontend && npm run -w tests/frontend/unit test -- queryClient
+cd frontend && npm run test:run -- queryClient
 ```
 
 Pass.
@@ -5022,9 +5022,9 @@ Pass.
 
 #### Verification commands (run all in order)
 
-1. `cd frontend && npm run -w tests/frontend/unit lint typecheck` — clean.
-2. `cd frontend && npm run -w tests/frontend/unit test -- queryClient` — must pass.
-3. `cd frontend && npm run -w tests/frontend/unit test` — spot check that `App` still mounts.
+1. `cd frontend && npm run lint && npx tsc --noEmit` — clean.
+2. `cd frontend && npm run test:run -- queryClient` — must pass.
+3. `cd frontend && npm run test:run` — spot check that `App` still mounts.
 4. `make -f scripts/Makefile test-architecture-locks` — locks green.
 
 #### Commit boundary
@@ -5207,8 +5207,8 @@ describe('applySessionRefreshPolicy', () => {
 #### TDD Step 3 — Confirm GREEN
 
 ```
-cd frontend && npm run -w tests/frontend/unit test -- sessionRefreshPolicy
-cd frontend && npm run -w tests/frontend/unit test -- ApiClientCore
+cd frontend && npm run test:run -- sessionRefreshPolicy
+cd frontend && npm run test:run -- ApiClientCore
 ```
 
 Both pass.
@@ -5223,9 +5223,9 @@ Both pass.
 
 #### Verification commands (run all in order)
 
-1. `cd frontend && npm run -w tests/frontend/unit lint typecheck` — clean.
-2. `cd frontend && npm run -w tests/frontend/unit test -- sessionRefreshPolicy` — must pass.
-3. `cd frontend && npm run -w tests/frontend/unit test -- ApiClientCore` — must pass.
+1. `cd frontend && npm run lint && npx tsc --noEmit` — clean.
+2. `cd frontend && npm run test:run -- sessionRefreshPolicy` — must pass.
+3. `cd frontend && npm run test:run -- ApiClientCore` — must pass.
 4. Verify `ApiClientCore.ts` shrinks by ≥30 lines.
 5. `make -f scripts/Makefile test-architecture-locks` — locks green.
 
@@ -5316,8 +5316,8 @@ describe('ControlForm.tsx 1-line shim is deleted', () => {
 #### TDD Step 3 — Confirm GREEN
 
 ```
-cd frontend && npm run -w tests/frontend/unit typecheck
-cd frontend && npm run -w tests/frontend/unit test -- ControlForm
+cd frontend && npx tsc --noEmit
+cd frontend && npm run test:run -- ControlForm
 ```
 
 Both pass.
@@ -5332,9 +5332,9 @@ Both pass.
 
 #### Verification commands (run all in order)
 
-1. `cd frontend && npm run -w tests/frontend/unit lint` — clean.
-2. `cd frontend && npm run -w tests/frontend/unit typecheck` — clean.
-3. `cd frontend && npm run -w tests/frontend/unit test -- ControlForm` — must pass.
+1. `cd frontend && npm run lint` — clean.
+2. `cd frontend && npx tsc --noEmit` — clean.
+3. `cd frontend && npm run test:run -- ControlForm` — must pass.
 4. `rg "from '@/components/ControlForm'" frontend/ tests/frontend/` — 0 matches.
 5. `make -f scripts/Makefile test-architecture-locks` — locks green.
 
@@ -5463,7 +5463,7 @@ describe('inlined getControlFormErrorKey (in useControlFormWorkflow & useControl
 #### TDD Step 3 — Confirm GREEN
 
 ```
-cd frontend && npm run -w tests/frontend/unit test -- control-form
+cd frontend && npm run test:run -- control-form
 ```
 
 Pass.
@@ -5478,9 +5478,9 @@ Pass.
 
 #### Verification commands (run all in order)
 
-1. `cd frontend && npm run -w tests/frontend/unit lint` — clean.
-2. `cd frontend && npm run -w tests/frontend/unit typecheck` — clean.
-3. `cd frontend && npm run -w tests/frontend/unit test -- control-form` — must pass.
+1. `cd frontend && npm run lint` — clean.
+2. `cd frontend && npx tsc --noEmit` — clean.
+3. `cd frontend && npm run test:run -- control-form` — must pass.
 4. Existing hook-level test at `tests/frontend/unit/src/components/control-form/__tests__/useControlFormWorkflow.test.tsx` (if present — verify before commit) must continue to pass.
 5. `make -f scripts/Makefile test-architecture-locks` — locks green.
 
@@ -9204,9 +9204,9 @@ usersKeys.accessDepartmentManagers(department?.id)
 #### TDD Step 3 — Confirm GREEN
 
 ```
-cd frontend && npm run -w tests/frontend/unit test -- queryKeys
-cd frontend && npm run -w tests/frontend/unit lint typecheck
-cd frontend && npm run -w tests/frontend/unit test
+cd frontend && npm run test:run -- queryKeys
+cd frontend && npm run lint && npx tsc --noEmit
+cd frontend && npm run test:run
 ```
 
 After Commit E: budget = 0; `factories.test.ts` asserts every factory used.
@@ -9225,10 +9225,10 @@ After Commit E: budget = 0; `factories.test.ts` asserts every factory used.
 
 #### Verification commands (per commit)
 
-1. `cd frontend && npm run -w tests/frontend/unit lint` — clean.
-2. `cd frontend && npm run -w tests/frontend/unit typecheck` — clean.
-3. `cd frontend && npm run -w tests/frontend/unit test -- queryKeys` — budget assertion holds.
-4. `cd frontend && npm run -w tests/frontend/unit test` — full sweep (Commit E).
+1. `cd frontend && npm run lint` — clean.
+2. `cd frontend && npx tsc --noEmit` — clean.
+3. `cd frontend && npm run test:run -- queryKeys` — budget assertion holds.
+4. `cd frontend && npm run test:run` — full sweep (Commit E).
 
 #### Commit boundary
 
@@ -9451,8 +9451,8 @@ flat shape; the test suite enforces the contract.
 #### TDD Step 3 — Confirm GREEN
 
 ```
-cd frontend && npm run -w tests/frontend/unit test -- crudCapabilitySchema
-cd frontend && npm run -w tests/frontend/unit test -- issuesCapabilities
+cd frontend && npm run test:run -- crudCapabilitySchema
+cd frontend && npm run test:run -- issuesCapabilities
 python scripts/security/validate_authz_capability_contract.py  # exit 0
 ```
 
@@ -9472,11 +9472,11 @@ python scripts/security/validate_authz_capability_contract.py  # exit 0
 
 #### Verification commands (run all in order)
 
-1. `cd frontend && npm run -w tests/frontend/unit test -- crudCapabilitySchema.contract` — pass.
-2. `cd frontend && npm run -w tests/frontend/unit test -- crudCapabilitySchema.parser` — pass.
-3. `cd frontend && npm run -w tests/frontend/unit test -- issuesCapabilities.distinct` — pass.
+1. `cd frontend && npm run test:run -- crudCapabilitySchema.contract` — pass.
+2. `cd frontend && npm run test:run -- crudCapabilitySchema.parser` — pass.
+3. `cd frontend && npm run test:run -- issuesCapabilities.distinct` — pass.
 4. `python scripts/security/validate_authz_capability_contract.py` — exit 0.
-5. `cd frontend && npm run -w tests/frontend/unit lint typecheck` — clean.
+5. `cd frontend && npm run lint && npx tsc --noEmit` — clean.
 6. `make -f scripts/Makefile test-architecture-locks` — locks green.
 
 #### Commit boundary
@@ -9662,8 +9662,8 @@ Pull `queryKey` from `riskHubKeys.<resource>(...)` (per #46).
 #### TDD Step 3 — Confirm GREEN
 
 ```
-cd frontend && npm run -w tests/frontend/unit test -- useResourcePanelQuery
-cd frontend && npm run -w tests/frontend/unit test -- riskhub
+cd frontend && npm run test:run -- useResourcePanelQuery
+cd frontend && npm run test:run -- riskhub
 ```
 
 #### Lock/TOML/Contract updates (same commit)
@@ -9677,10 +9677,10 @@ cd frontend && npm run -w tests/frontend/unit test -- riskhub
 
 #### Verification commands (run all in order)
 
-1. `cd frontend && npm run -w tests/frontend/unit test -- useResourcePanelQuery.contract` — pass.
-2. `cd frontend && npm run -w tests/frontend/unit test -- useResourcePanelQuery.structural` — pass.
-3. `cd frontend && npm run -w tests/frontend/unit test -- riskhub` — riskhub regression green.
-4. `cd frontend && npm run -w tests/frontend/unit lint typecheck` — clean.
+1. `cd frontend && npm run test:run -- useResourcePanelQuery.contract` — pass.
+2. `cd frontend && npm run test:run -- useResourcePanelQuery.structural` — pass.
+3. `cd frontend && npm run test:run -- riskhub` — riskhub regression green.
+4. `cd frontend && npm run lint && npx tsc --noEmit` — clean.
 
 #### Commit boundary
 
@@ -9955,9 +9955,9 @@ Apply analogous wrapper rewrites to `VendorLinkedControlsTab` and
 #### TDD Step 3 — Confirm GREEN
 
 ```
-npm run -w tests/frontend/unit lint
-npm run -w tests/frontend/unit typecheck
-npm run -w tests/frontend/unit test -- vendors
+cd frontend && npm run lint
+cd frontend && npx tsc --noEmit
+cd frontend && npm run test:run -- vendors
 ```
 
 All vendor tests stay green; the new generic + hook tests pass.
@@ -9974,10 +9974,10 @@ All vendor tests stay green; the new generic + hook tests pass.
 
 #### Verification commands (run all in order)
 
-1. `npm run -w tests/frontend/unit test -- useVendorLinkedEntities` — pass.
-2. `npm run -w tests/frontend/unit test -- VendorLinkedEntitiesTab` — pass.
-3. `npm run -w tests/frontend/unit test -- vendors` — full vendor suite green.
-4. `npm run -w tests/frontend/unit lint typecheck` — clean.
+1. `cd frontend && npm run test:run -- useVendorLinkedEntities` — pass.
+2. `cd frontend && npm run test:run -- VendorLinkedEntitiesTab` — pass.
+3. `cd frontend && npm run test:run -- vendors` — full vendor suite green.
+4. `cd frontend && npm run lint && npx tsc --noEmit` — clean.
 
 #### Commit boundary
 
@@ -10310,9 +10310,9 @@ to `:63` after Wave 6a edits land):
 #### TDD Step 3 — Confirm GREEN
 
 ```
-cd frontend && npm run -w tests/frontend/unit test -- vendors.statusOptional
-cd frontend && npm run -w tests/frontend/unit test -- schemas       # broad regression
-cd frontend && npm run -w tests/frontend/unit typecheck
+cd frontend && npm run test:run -- vendors.statusOptional
+cd frontend && npm run test:run -- schemas       # broad regression
+cd frontend && npx tsc --noEmit
 ```
 
 #### Lock/TOML/Contract updates (same commit)
@@ -10328,10 +10328,10 @@ cd frontend && npm run -w tests/frontend/unit typecheck
 
 #### Verification commands
 
-1. `cd frontend && npm run -w tests/frontend/unit test -- vendors.statusOptional` — pass.
-2. `cd frontend && npm run -w tests/frontend/unit test -- schemas` — broad regression pass.
-3. `cd frontend && npm run -w tests/frontend/unit typecheck` — clean.
-4. `cd frontend && npm run -w tests/frontend/unit lint` — clean.
+1. `cd frontend && npm run test:run -- vendors.statusOptional` — pass.
+2. `cd frontend && npm run test:run -- schemas` — broad regression pass.
+3. `cd frontend && npx tsc --noEmit` — clean.
+4. `cd frontend && npm run lint` — clean.
 
 #### Commit boundary
 
@@ -10864,7 +10864,7 @@ python scripts/security/validate_authz_capability_contract.py  # exit 0
 3. `pytest tests/backend/pytest/api/v1/admin/test_capabilities_parity.py -v` — pass.
 4. `python scripts/security/validate_authz_capability_contract.py` — exit 0.
 5. `make -f scripts/Makefile test-architecture-locks` — locks green.
-6. `cd frontend && npm run -w tests/frontend/unit test -- schemas/admin` — parity green from FE side.
+6. `cd frontend && npm run test:run -- schemas/admin` — parity green from FE side.
 7. `mypy backend/app/services/_authorization_capabilities backend/app/api/v1/endpoints/admin` — clean.
 8. `ruff check backend/app/services/_authorization_capabilities backend/app/api/v1/endpoints/admin` — clean.
 
@@ -11235,12 +11235,12 @@ Existing `useAuth` consumers (Sidebar after #35, all 18 mocks rewritten in
 #### TDD Step 3 — Confirm GREEN
 
 ```
-cd frontend && npm run -w tests/frontend/unit test -- SessionProvider.split.renderCounter
-cd frontend && npm run -w tests/frontend/unit test -- AuthActions.split
-cd frontend && npm run -w tests/frontend/unit test -- AuthContext.compatShim
-cd frontend && npm run -w tests/frontend/unit test -- AuthBootstrap   # regression
-cd frontend && npm run -w tests/frontend/unit test -- AuthLogout      # regression
-cd frontend && npm run -w tests/frontend/unit test -- AuthSession     # regression
+cd frontend && npm run test:run -- SessionProvider.split.renderCounter
+cd frontend && npm run test:run -- AuthActions.split
+cd frontend && npm run test:run -- AuthContext.compatShim
+cd frontend && npm run test:run -- AuthBootstrap   # regression
+cd frontend && npm run test:run -- AuthLogout      # regression
+cd frontend && npm run test:run -- AuthSession     # regression
 ```
 
 #### Lock/TOML/Contract updates (same commit)
@@ -11254,9 +11254,9 @@ cd frontend && npm run -w tests/frontend/unit test -- AuthSession     # regressi
 
 #### Verification commands
 
-1. `cd frontend && npm run -w tests/frontend/unit test -- contexts` — broad pass.
-2. `cd frontend && npm run -w tests/frontend/unit typecheck` — clean.
-3. `cd frontend && npm run -w tests/frontend/unit lint` — clean.
+1. `cd frontend && npm run test:run -- contexts` — broad pass.
+2. `cd frontend && npx tsc --noEmit` — clean.
+3. `cd frontend && npm run lint` — clean.
 4. `make -f scripts/Makefile test-architecture-locks` — locks green.
 
 #### Commit boundary
@@ -11792,11 +11792,11 @@ separate commit OK.
 #### TDD Step 3 — Confirm GREEN
 
 ```
-cd frontend && npm run -w tests/frontend/unit test -- WidgetShell.contract
-cd frontend && npm run -w tests/frontend/unit test -- DashboardFilterContext.scopedSelector
-cd frontend && npm run -w tests/frontend/unit test -- DashboardWidgets.shellAdoption
-cd frontend && npm run -w tests/frontend/unit test -- dashboard
-cd frontend && npm run -w tests/frontend/unit typecheck
+cd frontend && npm run test:run -- WidgetShell.contract
+cd frontend && npm run test:run -- DashboardFilterContext.scopedSelector
+cd frontend && npm run test:run -- DashboardWidgets.shellAdoption
+cd frontend && npm run test:run -- dashboard
+cd frontend && npx tsc --noEmit
 ```
 
 #### Lock/TOML/Contract updates (same commit)
@@ -11811,9 +11811,9 @@ cd frontend && npm run -w tests/frontend/unit typecheck
 #### Verification commands
 
 1. Three new test files all pass.
-2. `cd frontend && npm run -w tests/frontend/unit test -- contexts` — regression pass (DashboardFilter scope).
-3. `cd frontend && npm run -w tests/frontend/unit test -- pages/dashboard` — page-level regression pass.
-4. `cd frontend && npm run -w tests/frontend/unit lint typecheck` — clean.
+2. `cd frontend && npm run test:run -- contexts` — regression pass (DashboardFilter scope).
+3. `cd frontend && npm run test:run -- pages/dashboard` — page-level regression pass.
+4. `cd frontend && npm run lint && npx tsc --noEmit` — clean.
 
 #### Commit boundary
 
@@ -12048,13 +12048,13 @@ state); the pin locks it. Tests 1, 2, 4 fail RED today.
 #### TDD Step 3 — Confirm GREEN
 
 ```
-cd frontend && npm run -w tests/frontend/unit test -- sessionStorage.merged
-cd frontend && npm run -w tests/frontend/unit test -- coordinator.merged
-cd frontend && npm run -w tests/frontend/unit test -- coordinator.singleFlight
-cd frontend && npm run -w tests/frontend/unit test -- coordinator.structural
-cd frontend && npm run -w tests/frontend/unit test -- session
-cd frontend && npm run -w tests/frontend/unit test -- contexts   # auth context regression
-cd frontend && npm run -w tests/frontend/unit typecheck
+cd frontend && npm run test:run -- sessionStorage.merged
+cd frontend && npm run test:run -- coordinator.merged
+cd frontend && npm run test:run -- coordinator.singleFlight
+cd frontend && npm run test:run -- coordinator.structural
+cd frontend && npm run test:run -- session
+cd frontend && npm run test:run -- contexts   # auth context regression
+cd frontend && npx tsc --noEmit
 ```
 
 #### Lock/TOML/Contract updates (same commit)
@@ -12071,8 +12071,8 @@ cd frontend && npm run -w tests/frontend/unit typecheck
 #### Verification commands
 
 1. All 4 new test files pass (incl. single-flight pin).
-2. `cd frontend && npm run -w tests/frontend/unit test -- session contexts` — full session + AuthContext regression green.
-3. `cd frontend && npm run -w tests/frontend/unit lint typecheck` — clean.
+2. `cd frontend && npm run test:run -- session contexts` — full session + AuthContext regression green.
+3. `cd frontend && npm run lint && npx tsc --noEmit` — clean.
 4. `make -f scripts/Makefile test-architecture-locks` — locks green.
 
 #### Commit boundary
@@ -12605,9 +12605,9 @@ Drop the line entirely (no `status` field on the Zod schema).
 #### TDD Step 3 — Confirm GREEN
 
 ```
-cd frontend && npm run -w tests/frontend/unit test -- vendor.types
-cd frontend && npm run -w tests/frontend/unit typecheck
-cd frontend && npm run -w tests/frontend/unit lint
+cd frontend && npm run test:run -- vendor.types
+cd frontend && npx tsc --noEmit
+cd frontend && npm run lint
 ```
 
 #### Lock/TOML/Contract updates (same commit)
@@ -12620,10 +12620,10 @@ cd frontend && npm run -w tests/frontend/unit lint
 
 #### Verification commands
 
-1. `cd frontend && npm run -w tests/frontend/unit test -- vendor.types` — pass.
-2. `cd frontend && npm run -w tests/frontend/unit test -- schemas/vendors` — Zod schema regression pass.
-3. `cd frontend && npm run -w tests/frontend/unit typecheck` — clean.
-4. `cd frontend && npm run -w tests/frontend/unit lint` — clean.
+1. `cd frontend && npm run test:run -- vendor.types` — pass.
+2. `cd frontend && npm run test:run -- schemas/vendors` — Zod schema regression pass.
+3. `cd frontend && npx tsc --noEmit` — clean.
+4. `cd frontend && npm run lint` — clean.
 5. `grep -rn "VendorStatus\|vendor.status" frontend/src` — should return only e2e helpers (out of scope).
 
 #### Commit boundary
@@ -14657,11 +14657,11 @@ dependency-chain depth.
 |---:|---|---|---|---|---|
 | 1 | **#69 + #70** | MIGRATION (atomic) | Forward-only Postgres migration; only path is snapshot-restore (ADR-010). FK constraints, dropped column, `_archivable.py` legacy_values entry, 8 prod sites, 6 seed scripts, 4 lock files, 7 docs. App must be down during DB restore; "no mid-deployment skew tolerated" (per `plan-loop-2-06-migration-window.md:693`). | **4–8 hours** | See §7.3.3 |
 | 2 | **#34** | CROSS-DOMAIN | 22+ callsites across 16 files (per `plan-loop-1-03-approvals.md:14,138`). Largest authorization-pathway change. Partial revert leaves privilege-tier dataclass and legacy boolean coexisting → silent ACL divergence. Capability-validator must re-pass. Dependency chain `#9 → #34 → #60` (per `plan-loop-2-08-master-sequence.md:165`). | **90 min** | `git revert <#34-sha>`; validator; lock-test; `grep -rn "ApprovalPrivilegeTier" backend/` confirms zero post-revert. |
-| 3 | **#46** | CROSS-DOMAIN | 22 FE files holding 45 inline `queryKey:` literals (per `plan-loop-1-06-frontend.md:282`). Revert leaves test code stale across all 22 — pnpm test fails everywhere. Blocks revert of #65, #67, #68. | **75 min** | Revert downstream (#65/#67/#68) first, then `git revert <#46-sha>`; pnpm test in 22 directories; `_naming_allowlist.toml` adjust. |
+| 3 | **#46** | CROSS-DOMAIN | 22 FE files holding 45 inline `queryKey:` literals (per `plan-loop-1-06-frontend.md:282`). Revert leaves test code stale across all 22 — npm run test:run fails everywhere. Blocks revert of #65, #67, #68. | **75 min** | Revert downstream (#65/#67/#68) first, then `git revert <#46-sha>`; npm run test:run in the affected directories; `_naming_allowlist.toml` adjust. |
 | 4 | **#74a** | CROSS-DOMAIN | 4 NEW TOMLs + 1 NEW lock; package-count drift sensitive (depends on whether `>= 31` mitigation in place per `plan-loop-2-07-hidden-prereqs.md:551-553`). Cross-dep with #61. | **60 min** | Remove 4 TOMLs; revert lock body; verify `>= 31` ratchet; cross-check #61. |
 | 5 | **#66** | CROSS-DOMAIN | Splits AuthContext into 3 providers; gates #68 + #71. Validator allowlist must be re-edited; FE re-render-isolation tests; 4 README diffs; backend prereqs #37 + #39. | **75 min** | Revert downstream first; restore AuthContext; FE re-render tests; capability-contract md/json path-rewrite. |
 | 6 | **#39** | CROSS-DOMAIN | Capability-builder real implementation; validator parity-check on 4 NEW catalog fields; `_capabilities_all_allowlist.toml` order-strict; gates #40 and #66. | **60 min** | `git revert <#39-sha>`; validator; allowlist order check. |
-| 7 | **#65** | CROSS-DOMAIN | 4 entity Zod schemas re-fanned; capability-catalog snapshot pin; validator parity-check is dominant failure mode (per `plan-loop-2-05-validator-schedule.md:344-349`). | **60 min** | `git revert <#65-sha>`; capability-catalog re-pin; pnpm test all entity schemas. |
+| 7 | **#65** | CROSS-DOMAIN | 4 entity Zod schemas re-fanned; capability-catalog snapshot pin; validator parity-check is dominant failure mode (per `plan-loop-2-05-validator-schedule.md:344-349`). | **60 min** | `git revert <#65-sha>`; capability-catalog re-pin; npm run test:run for all entity schemas. |
 | 8 | **#24 + #51** | CROSS-DOMAIN (atomic bundle) | Highest doc-edit volume in any single commit — 5 contract-md cells + 5 contract-json strings + 5 deepening-contract lines + 1 W4-bc-g lock + 1 README listing. Validator must re-pass. | **45 min** | Single `git revert <bundle-sha>`; validator twice (post-deletes + post-edits). |
 | 9 | **#56 + #61** | CROSS-DOMAIN (atomic bundle) | Cross-import dependency between `directory_identity_service.py` and `graph_directory_service.py` (per `plan-loop-1-08-crosscut.md:362-368`). Deepening-contract test body rewrite + 11 callsite repoints + new package README + capability contract md/json path-rewrites. | **50 min** | Single `git revert <bundle-sha>`; validator; `_capabilities_all_allowlist.toml` order. |
 | 10 | **#62** | CROSS-DOMAIN | W4-bc-c lock at `:16` lists exact path (per `plan-loop-2-03-lock-conflict-matrix.md:356`). Lock test crashes on `ast.parse()` if path missing. Audit-event behaviour must be restored; capability-contract perimeter-pass note must be reset. | **45 min** | `git revert <#62-sha>`; W4-bc-c `:16` rename-line; `_audit_matrix.toml` rows; baseline 7-day audit-volume re-check. |
@@ -14952,6 +14952,24 @@ Per `plan-loop-3-01-precommit-gates.md` and `plan-loop-2-05-validator-schedule.m
 7. **Lint + type** (delta-only) — `ruff check <touched paths>`,
    `mypy <touched paths>`, and for FE items
    `cd frontend && npx tsc --noEmit`.
+
+Frontend command correction (post-implementation review, 2026-05-10):
+the repository has no root `package.json`, so root workspace commands that
+target `tests/frontend/unit` with `npm -w` are historical only and must not
+be used for local gates. Run frontend gates from `frontend/`:
+
+```bash
+cd frontend && npx tsc --noEmit
+cd frontend && npm run test:run
+cd frontend && npm run lint
+```
+
+For focused unit tests under `tests/frontend/unit`, pass the relative test
+path to the frontend Vitest script, for example:
+
+```bash
+cd frontend && npm run test:run -- ../tests/frontend/unit/src/lib/capabilities.test.ts
+```
 
 ##### Variants by item type
 
