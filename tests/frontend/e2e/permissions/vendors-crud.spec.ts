@@ -1,11 +1,11 @@
 import { test, expect } from '../fixtures/auth.fixture';
 import { E2E_VENDORS } from '../fixtures/e2e-data';
-import { ensureVendorStatus } from '../helpers/api-auth';
+import { ensureVendorArchived } from '../helpers/api-auth';
 import { VendorsPage } from '../pages/VendorsPage';
 
 test.describe('Vendor CRUD Permissions (Deterministic)', () => {
     test.beforeEach(async () => {
-        await ensureVendorStatus(E2E_VENDORS.INACTIVE_RESTORE_TARGET.registration_id, 'inactive');
+        await ensureVendorArchived(E2E_VENDORS.INACTIVE_RESTORE_TARGET.registration_id, true);
     });
 
     test('Privileged user can see restore action for inactive vendor', async ({ riskManagerPage }) => {

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { ensureControlStatus, ensureRiskStatus, ensureVendorStatus } from '../../../e2e/helpers/api-auth';
+import { ensureControlStatus, ensureRiskStatus, ensureVendorArchived } from '../../../e2e/helpers/api-auth';
 
 function jsonResponse(body: unknown, status = 200): Response {
     return new Response(JSON.stringify(body), {
@@ -84,7 +84,7 @@ describe('E2E API archive-state helpers', () => {
         await expect(ensureControlStatus('E2E Archive Control', 'archived')).resolves.toBe(88);
     });
 
-    it('treats archived vendors as inactive without issuing a duplicate archive request', async () => {
+    it('treats archived vendors as archived without issuing a duplicate archive request', async () => {
         vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
             const url = String(input);
             if (url.endsWith('/api/v1/auth/config')) {
@@ -99,7 +99,6 @@ describe('E2E API archive-state helpers', () => {
                         {
                             id: 99,
                             registration_id: 'V-E2E-ARCHIVED',
-                            status: 'active',
                             is_archived: true,
                         },
                     ],
@@ -111,6 +110,6 @@ describe('E2E API archive-state helpers', () => {
             throw new Error(`Unexpected fetch call: ${url}`);
         });
 
-        await expect(ensureVendorStatus('V-E2E-ARCHIVED', 'inactive')).resolves.toBe(99);
+        await expect(ensureVendorArchived('V-E2E-ARCHIVED', true)).resolves.toBe(99);
     });
 });

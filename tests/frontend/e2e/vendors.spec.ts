@@ -2,7 +2,7 @@ import { test, expect } from './fixtures/auth.fixture';
 import { E2E_KRIS, E2E_RISKS, E2E_VENDORS } from './fixtures/e2e-data';
 import {
     ensureRiskStatus,
-    ensureVendorStatus,
+    ensureVendorArchived,
     getKRIByMetricName,
     linkVendorToRisk,
     unlinkVendorFromKRI,
@@ -18,7 +18,7 @@ function todayLocalIso(): string {
 
 test.describe('Vendor Management (Deterministic)', () => {
     test('Single export button opens modal and exports selected format', async ({ riskManagerPage }) => {
-        await ensureVendorStatus(E2E_VENDORS.ACTIVE_PRIMARY.registration_id, 'active');
+        await ensureVendorArchived(E2E_VENDORS.ACTIVE_PRIMARY.registration_id, false);
         const vendorsPage = new VendorsPage(riskManagerPage);
         await vendorsPage.navigate();
 
@@ -31,7 +31,7 @@ test.describe('Vendor Management (Deterministic)', () => {
     });
 
     test('Vendor list shows active deterministic vendor by default', async ({ riskManagerPage }) => {
-        await ensureVendorStatus(E2E_VENDORS.ACTIVE_PRIMARY.registration_id, 'active');
+        await ensureVendorArchived(E2E_VENDORS.ACTIVE_PRIMARY.registration_id, false);
         const vendorsPage = new VendorsPage(riskManagerPage);
         await vendorsPage.navigate();
         await vendorsPage.search(E2E_VENDORS.ACTIVE_PRIMARY.name);
@@ -40,7 +40,7 @@ test.describe('Vendor Management (Deterministic)', () => {
     });
 
     test('Inactive vendor is hidden by default and shown when status is Inactive', async ({ riskManagerPage }) => {
-        await ensureVendorStatus(E2E_VENDORS.INACTIVE_RESTORE_TARGET.registration_id, 'inactive');
+        await ensureVendorArchived(E2E_VENDORS.INACTIVE_RESTORE_TARGET.registration_id, true);
         const vendorsPage = new VendorsPage(riskManagerPage);
         await vendorsPage.navigate();
         await vendorsPage.search(E2E_VENDORS.INACTIVE_RESTORE_TARGET.name);
@@ -53,7 +53,7 @@ test.describe('Vendor Management (Deterministic)', () => {
     });
 
     test('Clicking deterministic vendor row opens vendor detail', async ({ riskManagerPage }) => {
-        await ensureVendorStatus(E2E_VENDORS.ACTIVE_PRIMARY.registration_id, 'active');
+        await ensureVendorArchived(E2E_VENDORS.ACTIVE_PRIMARY.registration_id, false);
         const vendorsPage = new VendorsPage(riskManagerPage);
         await vendorsPage.navigate();
         await vendorsPage.search(E2E_VENDORS.ACTIVE_PRIMARY.name);
@@ -64,7 +64,7 @@ test.describe('Vendor Management (Deterministic)', () => {
     });
 
     test('Vendor detail defaults to the merged overview surface', async ({ riskManagerPage }) => {
-        const vendorId = await ensureVendorStatus(E2E_VENDORS.ACTIVE_PRIMARY.registration_id, 'active');
+        const vendorId = await ensureVendorArchived(E2E_VENDORS.ACTIVE_PRIMARY.registration_id, false);
 
         await riskManagerPage.goto(`/vendors/${vendorId}`);
         await waitForDataLoad(riskManagerPage);
@@ -78,7 +78,7 @@ test.describe('Vendor Management (Deterministic)', () => {
     });
 
     test('Legacy vendor tab links resolve to the canonical vendor detail URL', async ({ riskManagerPage }) => {
-        const vendorId = await ensureVendorStatus(E2E_VENDORS.ACTIVE_PRIMARY.registration_id, 'active');
+        const vendorId = await ensureVendorArchived(E2E_VENDORS.ACTIVE_PRIMARY.registration_id, false);
 
         await riskManagerPage.goto(`/vendors/${vendorId}?tab=sla`);
         await waitForDataLoad(riskManagerPage);
@@ -88,9 +88,9 @@ test.describe('Vendor Management (Deterministic)', () => {
     });
 
     test('Vendor register groups vendors by flag with insignificant fallback', async ({ riskManagerPage }) => {
-        await ensureVendorStatus(E2E_VENDORS.ACTIVE_PRIMARY.registration_id, 'active');
-        await ensureVendorStatus(E2E_VENDORS.ACTIVE_SECONDARY.registration_id, 'active');
-        await ensureVendorStatus(E2E_VENDORS.INACTIVE_RESTORE_TARGET.registration_id, 'active');
+        await ensureVendorArchived(E2E_VENDORS.ACTIVE_PRIMARY.registration_id, false);
+        await ensureVendorArchived(E2E_VENDORS.ACTIVE_SECONDARY.registration_id, false);
+        await ensureVendorArchived(E2E_VENDORS.INACTIVE_RESTORE_TARGET.registration_id, false);
 
         const vendorsPage = new VendorsPage(riskManagerPage);
         await vendorsPage.navigate();
@@ -108,7 +108,7 @@ test.describe('Vendor Management (Deterministic)', () => {
     });
 
     test('Vendor detail links an existing KRI and KRI register reflects the vendor grouping', async ({ riskManagerPage }) => {
-        const vendorId = await ensureVendorStatus(E2E_VENDORS.ACTIVE_SECONDARY.registration_id, 'active');
+        const vendorId = await ensureVendorArchived(E2E_VENDORS.ACTIVE_SECONDARY.registration_id, false);
         const kri = await getKRIByMetricName(E2E_KRIS.ARCHIVE_ACTIVE_PAIR.metric_name);
         expect(kri).not.toBeNull();
 
@@ -144,7 +144,7 @@ test.describe('Vendor Management (Deterministic)', () => {
     });
 
     test('Vendor detail Add KRI creates and links the new KRI back to the vendor', async ({ riskManagerPage }) => {
-        const vendorId = await ensureVendorStatus(E2E_VENDORS.ACTIVE_PRIMARY.registration_id, 'active');
+        const vendorId = await ensureVendorArchived(E2E_VENDORS.ACTIVE_PRIMARY.registration_id, false);
         const riskId = await ensureRiskStatus(E2E_RISKS.ARCHIVE_ACTIVE_PAIR.code, 'active');
         await linkVendorToRisk(vendorId, riskId);
 

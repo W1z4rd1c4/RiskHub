@@ -1,6 +1,6 @@
 import { test, expect } from './fixtures/auth.fixture';
 import { E2E_CONTROLS } from './fixtures/e2e-data';
-import { ensureControlStatus, ensureVendorStatus, getControlByName, linkVendorToControl } from './helpers/api-auth';
+import { ensureControlStatus, ensureVendorArchived, getControlByName, linkVendorToControl } from './helpers/api-auth';
 import { ControlsPage } from './pages/ControlsPage';
 import { waitForDataLoad, waitForTableRowByText } from './helpers/wait';
 
@@ -79,7 +79,7 @@ test.describe('Control Management (Deterministic)', () => {
     });
 
     test('Control register groups linked controls by vendor', async ({ riskManagerPage }) => {
-        const vendorId = await ensureVendorStatus('E2E-VREG-001', 'active');
+        const vendorId = await ensureVendorArchived('E2E-VREG-001', false);
         await ensureControlStatus(E2E_CONTROLS.ARCHIVE_ACTIVE_PAIR.name, 'active');
         const control = await getControlByName(E2E_CONTROLS.ARCHIVE_ACTIVE_PAIR.name);
         expect(control).not.toBeNull();

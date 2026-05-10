@@ -286,3 +286,26 @@
 - `cd frontend && pnpm test:run`: passed (`202 files`, `881 tests passed`)
 - `cd frontend && pnpm lint`: passed
 - Fix-forward attempts: contract async fixtures switched to `pytest_asyncio.fixture`; stale KRI linked-vendor response expectations removed; vendor as-of report status normalized after archive-state replay; authz Markdown and JSON mirror updated for the sensitive-path doc-touch requirement.
+
+## Post-Wave 8 Cleanup — Vendor E2E Archive Helper
+
+- Completed: 2026-05-10 02:45:40 CEST
+- Commit SHA: recorded by the cleanup commit containing this entry
+- Scope: Loop 6 cleanup noted by `#77b`
+- Items completed: frontend E2E `ensureVendorStatus(...)` rename to `ensureVendorArchived(...)`
+- Items failed: none
+
+### Notes
+
+- Removed the remaining E2E helper read of `vendor.status`; vendor archive setup now depends only on `is_archived`.
+- Updated vendor, risk, control, KRI, and vendor CRUD E2E specs to call `ensureVendorArchived(registrationId, archived)`.
+
+### Verification
+
+- RED: `cd frontend && pnpm exec vitest run -c vitest.config.ts ../tests/frontend/unit/src/e2e/apiAuth.archive-state.test.ts` failed because `ensureVendorArchived` was not exported.
+- GREEN: same focused Vitest command passed (`3 tests passed`).
+- `grep` for `ensureVendorStatus`, `matchesVendorStatus`, `vendor.status`, and `VendorStatus` across `tests/frontend/e2e`, `tests/frontend/unit/src/e2e`, and `frontend/src`: clean.
+- `cd frontend && npx tsc --noEmit`: passed.
+- `cd frontend && pnpm lint`: passed.
+- `cd frontend && pnpm exec playwright test -c playwright.config.ts ../tests/frontend/e2e/vendors.spec.ts ../tests/frontend/e2e/risks.spec.ts ../tests/frontend/e2e/controls.spec.ts ../tests/frontend/e2e/kris.spec.ts ../tests/frontend/e2e/permissions/vendors-crud.spec.ts --list`: passed (`116 tests` enumerated).
+- Targeted ESLint on `tests/frontend/...` reported warnings only because those files are outside the configured frontend lint base path.

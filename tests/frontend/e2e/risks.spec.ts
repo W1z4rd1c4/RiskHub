@@ -1,6 +1,6 @@
 import { test, expect } from './fixtures/auth.fixture';
 import { E2E_RISKS } from './fixtures/e2e-data';
-import { ensureRiskStatus, ensureVendorStatus, getRiskByCode, linkVendorToRisk } from './helpers/api-auth';
+import { ensureRiskStatus, ensureVendorArchived, getRiskByCode, linkVendorToRisk } from './helpers/api-auth';
 import { RisksPage } from './pages/RisksPage';
 import { waitForDataLoad, waitForTableRowByText } from './helpers/wait';
 
@@ -94,7 +94,7 @@ test.describe('Risk Management (Deterministic)', () => {
     });
 
     test('Risk register groups linked risks by vendor', async ({ riskManagerPage }) => {
-        const vendorId = await ensureVendorStatus('E2E-VREG-001', 'active');
+        const vendorId = await ensureVendorArchived('E2E-VREG-001', false);
         await ensureRiskStatus(E2E_RISKS.ARCHIVE_ACTIVE_PAIR.code, 'active');
         const risk = await getRiskByCode(E2E_RISKS.ARCHIVE_ACTIVE_PAIR.code);
         expect(risk).not.toBeNull();

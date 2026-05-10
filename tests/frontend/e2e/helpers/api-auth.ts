@@ -19,7 +19,6 @@ const DEMO_TOKEN_OPTIONS_BY_ACCOUNT_NAME: Record<string, DemoTokenOptions> = {
 
 export interface VendorLookup {
     id: number;
-    status: string;
     is_archived?: boolean;
 }
 
@@ -64,14 +63,11 @@ function matchesArchiveState(
     return item.status === 'active' && item.is_archived !== true;
 }
 
-function matchesVendorStatus(
-    item: { status: string; is_archived?: boolean },
-    desiredStatus: 'active' | 'inactive',
+function matchesVendorArchived(
+    item: { is_archived?: boolean },
+    archived: boolean,
 ): boolean {
-    if (desiredStatus === 'inactive') {
-        return item.is_archived === true;
-    }
-    return item.status === 'active' && item.is_archived !== true;
+    return archived ? item.is_archived === true : item.is_archived !== true;
 }
 
 export function getApiBaseUrl(): string {
@@ -185,25 +181,25 @@ export async function getVendorByRegistration(registrationId: string): Promise<V
         throw new Error(`Failed to load vendors for ${registrationId}: ${response.status}`);
     }
     const body = await response.json() as {
-        items: Array<{ id: number; registration_id: string; status: string; is_archived?: boolean }>;
+        items: Array<{ id: number; registration_id: string; is_archived?: boolean }>;
     };
     const vendor = body.items.find((item) => item.registration_id === registrationId);
-    return vendor ? { id: vendor.id, status: vendor.status, is_archived: vendor.is_archived } : null;
+    return vendor ? { id: vendor.id, is_archived: vendor.is_archived } : null;
 }
 
-export async function ensureVendorStatus(registrationId: string, status: 'active' | 'inactive'): Promise<number> {
+export async function ensureVendorArchived(registrationId: string, archived: boolean): Promise<number> {
     const apiBase = getApiBaseUrl();
     const vendor = await getVendorByRegistration(registrationId);
     if (!vendor) {
         throw new Error(`Vendor ${registrationId} not found`);
     }
 
-    if (matchesVendorStatus(vendor, status)) {
+    if (matchesVendorArchived(vendor, archived)) {
         return vendor.id;
     }
 
     const token = await getDemoToken({ email: 'risk.manager@riskhub.local', fallbackUserIds: [3] });
-    if (status === 'inactive') {
+    if (archived) {
         const archiveResponse = await fetch(`${apiBase}/api/v1/vendors/${vendor.id}`, {
             method: 'DELETE',
             headers: { Authorization: `Bearer ${token}` },
