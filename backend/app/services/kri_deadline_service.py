@@ -1,7 +1,7 @@
 """KRI deadline and breach checking service for generating notifications."""
 
 import logging
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from functools import partial
 
 from sqlalchemy import select
@@ -63,6 +63,11 @@ class KRIDeadlineService:
     def _due_date(period_end: date) -> date:
         """Calculate due date for a period (period_end + grace days)."""
         return KRIHistoryService.due_date(period_end)
+
+    @staticmethod
+    def _deadline_due_date(period_end: date, reporting_grace_days: int) -> date:
+        """Calculate deadline-service due date using the runtime grace-days config."""
+        return period_end + timedelta(days=reporting_grace_days)
 
     @staticmethod
     def _reporting_owner_id(kri: KeyRiskIndicator) -> int | None:
@@ -243,7 +248,7 @@ class KRIDeadlineService:
         results: dict[str, int],
     ) -> None:
         period_end = KRIDeadlineService._resolve_period_end(kri, today)
-        due = KRIDeadlineService._due_date(period_end)
+        due = KRIDeadlineService._deadline_due_date(period_end, int(config["reporting_grace_days"]))
         reporting_owner = KRIDeadlineService._reporting_owner_id(kri)
         already_reported = kri.last_period_end and kri.last_period_end >= period_end
 

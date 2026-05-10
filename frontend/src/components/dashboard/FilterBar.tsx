@@ -42,6 +42,7 @@ export function FilterBar({ canUseDepartmentFilter }: FilterBarProps) {
 
     const [departments, setDepartments] = useState<Department[]>([]);
     const [isExpanded, setIsExpanded] = useState(false);
+    const [departmentLoadError, setDepartmentLoadError] = useState<Error | null>(null);
     const { t } = useTranslation(['dashboard', 'common']);
 
     const riskLevels: { value: RiskLevel; label: string; color: string }[] = [
@@ -68,10 +69,21 @@ export function FilterBar({ canUseDepartmentFilter }: FilterBarProps) {
     ];
 
     useEffect(() => {
-        lookupApi.getDepartments().then(setDepartments).catch((error: unknown) => {
-            logError('Failed to load dashboard departments.', error);
-        });
-    }, []);
+        lookupApi.getDepartments()
+            .then((data) => {
+                setDepartments(data);
+                setDepartmentLoadError(null);
+            })
+            .catch((error: unknown) => {
+                logError('Failed to load dashboard departments.', error);
+                setDepartmentLoadError(
+                    error instanceof Error
+                        ? error
+                        : new Error(t('dashboard:filters.department_load_failed', 'Departments unavailable'))
+                );
+                setDepartments([]);
+            });
+    }, [t]);
 
     const activeFilterChips = [
         canUseDepartmentFilter && filters.departmentId && {
@@ -172,6 +184,16 @@ export function FilterBar({ canUseDepartmentFilter }: FilterBarProps) {
                                             emptyLabel={t('common:filters.all_departments')}
                                             options={departments.map(dept => ({ value: dept.id.toString(), label: dept.name }))}
                                         />
+                                        {departmentLoadError && (
+                                            <div
+                                                data-testid="department-filter-error"
+                                                role="status"
+                                                className="flex items-center gap-2 rounded-md border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-300"
+                                            >
+                                                <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                                                <span>{t('dashboard:filters.department_load_failed', 'Departments unavailable')}</span>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
 

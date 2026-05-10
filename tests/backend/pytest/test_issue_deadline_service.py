@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.datetime_utils import coerce_utc
 from app.models import (
+    ActivityLog,
     Issue,
     IssueException,
     IssueRemediationPlan,
@@ -18,6 +19,7 @@ from app.models import (
     RolePermission,
     User,
 )
+from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.models.user import AccessScope
 from app.services.issue_deadline_decisions import (
     build_issue_due_soon_notification_plan,
@@ -298,6 +300,32 @@ async def test_issue_deadline_service_expires_exception_and_reopens_issue(
     assert refreshed_exception.status == "expired"
     assert refreshed_issue.status == "in_progress"
     assert refreshed_issue.closed_at is None
+
+    exception_log = (
+        await db_session.execute(
+            select(ActivityLog).where(
+                ActivityLog.entity_type == ActivityEntityType.ISSUE_EXCEPTION.value,
+                ActivityLog.action == ActivityAction.STATUS_CHANGE.value,
+                ActivityLog.entity_id == refreshed_exception.id,
+            )
+        )
+    ).scalar_one()
+    assert exception_log.entity_name == f"ISSUE-EXC-{refreshed_exception.id}"
+    assert exception_log.description == "Changed status of Issue Exception"
+    assert exception_log.changes == {"status": {"old": "approved", "new": "expired"}}
+
+    reopen_log = (
+        await db_session.execute(
+            select(ActivityLog).where(
+                ActivityLog.entity_type == ActivityEntityType.ISSUE.value,
+                ActivityLog.action == ActivityAction.STATUS_CHANGE.value,
+                ActivityLog.entity_id == refreshed_issue.id,
+            )
+        )
+    ).scalar_one()
+    assert reopen_log.entity_name == f"ISSUE-{refreshed_issue.id}"
+    assert reopen_log.description == "Changed status of Issue"
+    assert reopen_log.changes == {"status": {"old": "closed", "new": "in_progress"}}
 
 
 @pytest.mark.asyncio

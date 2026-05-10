@@ -22,6 +22,7 @@ async def approval_created(
     department_id: int | None = None,
     log_activity_func: AuditLogActivity = log_activity,
 ) -> None:
+    description = f"Created {approval.action_type.value} approval request"
     await emit_adapter(
         db,
         entity_type=ActivityEntityType.APPROVAL,
@@ -31,7 +32,9 @@ async def approval_created(
         action=ActivityAction.CREATE,
         actor=actor,
         department_id=department_id,
-        description=f"Created {approval.action_type.value} approval request",
+        description=description,
+        safe_description=description,
+        safe_description_siem=description,
         log_activity_func=log_activity_func,
     )
 
@@ -45,6 +48,7 @@ async def approval_approved(
     changes: dict[str, dict[str, object]] | None = None,
     log_activity_func: AuditLogActivity = log_activity,
 ) -> None:
+    description = f"Approved {approval.action_type.value} approval request"
     await emit_adapter(
         db,
         entity_type=ActivityEntityType.APPROVAL,
@@ -55,7 +59,9 @@ async def approval_approved(
         actor=actor,
         department_id=department_id,
         changes=changes,
-        description=f"Approved {approval.action_type.value} approval request",
+        description=description,
+        safe_description=description,
+        safe_description_siem=description,
         log_activity_func=log_activity_func,
     )
 
@@ -66,8 +72,10 @@ async def approval_rejected(
     actor: User,
     approval: ApprovalRequest,
     department_id: int | None = None,
+    changes: dict[str, dict[str, object]] | None = None,
     log_activity_func: AuditLogActivity = log_activity,
 ) -> None:
+    description = f"Rejected {approval.action_type.value} approval request"
     await emit_adapter(
         db,
         entity_type=ActivityEntityType.APPROVAL,
@@ -77,7 +85,10 @@ async def approval_rejected(
         action=ActivityAction.REJECT,
         actor=actor,
         department_id=department_id,
-        description=f"Rejected {approval.action_type.value} approval request",
+        changes=changes,
+        description=description,
+        safe_description=description,
+        safe_description_siem=description,
         log_activity_func=log_activity_func,
     )
 
@@ -88,8 +99,11 @@ async def approval_cancelled(
     actor: User,
     approval: ApprovalRequest,
     department_id: int | None = None,
+    safe_description: str | None = None,
+    safe_description_siem: str | None = None,
     log_activity_func: AuditLogActivity = log_activity,
 ) -> None:
+    description = f"Cancelled {approval.action_type.value} approval request"
     await emit_adapter(
         db,
         entity_type=ActivityEntityType.APPROVAL,
@@ -99,6 +113,8 @@ async def approval_cancelled(
         action=ActivityAction.CANCEL,
         actor=actor,
         department_id=department_id,
-        description=f"Cancelled {approval.action_type.value} approval request",
+        description=description,
+        safe_description=safe_description or description,
+        safe_description_siem=safe_description_siem or safe_description or description,
         log_activity_func=log_activity_func,
     )

@@ -15,18 +15,26 @@ export function KRIBreachWidget() {
     const departmentId = useDashboardFilterSelector(state => state.filters.departmentId);
     const [breaches, setBreaches] = useState<KeyRiskIndicator[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<Error | null>(null);
 
     useEffect(() => {
         let cancelled = false;
         const fetchBreaches = async () => {
+            setIsLoading(true);
+            setError(null);
             try {
                 const params = departmentId ? { department_id: departmentId } : undefined;
                 const data = await kriApi.getBreaches(params);
                 if (!cancelled) {
                     setBreaches(data.slice(0, 5)); // Show top 5
+                    setError(null);
                 }
             } catch (err) {
                 logError('Failed to fetch breaches:', err);
+                if (!cancelled) {
+                    setError(err instanceof Error ? err : new Error(t('kri.breaches_load_failed', 'Unable to load KRI breaches')));
+                    setBreaches([]);
+                }
             } finally {
                 if (!cancelled) {
                     setIsLoading(false);
@@ -37,7 +45,7 @@ export function KRIBreachWidget() {
         return () => {
             cancelled = true;
         };
-    }, [departmentId]);
+    }, [departmentId, t]);
 
     const loadingFallback = (
         <div className="glass-card animate-pulse h-[300px] flex items-center justify-center">
@@ -55,13 +63,25 @@ export function KRIBreachWidget() {
         </div>
     );
 
+    const errorFallback = (
+        <div data-testid="widget-error" className="glass-card flex flex-col items-center justify-center p-8 text-center h-full">
+            <div className="w-12 h-12 bg-rose-500/10 rounded-full flex items-center justify-center mb-4">
+                <AlertTriangle className="h-6 w-6 text-rose-500" />
+            </div>
+            <h4 className="text-white font-bold mb-1">{t('kri.breaches_load_failed', 'Unable to load KRI breaches')}</h4>
+            <p className="text-xs text-slate-500">{error?.message}</p>
+        </div>
+    );
+
     return (
         <WidgetShell
             title={t('kri.active_breaches')}
             isLoading={isLoading}
+            error={error}
             isEmpty={breaches.length === 0}
             emptyLabel={t('kri.no_breaches_org')}
             loadingFallback={loadingFallback}
+            errorFallback={errorFallback}
             emptyFallback={emptyFallback}
         >
             <div className="glass-card flex flex-col h-full !p-0 overflow-hidden">

@@ -7,7 +7,8 @@ import pytest_asyncio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Department, Risk, User
+from app.models import Department, GlobalConfig, Risk, User
+from app.models.global_config import clear_config_cache
 from app.models.key_risk_indicator import KeyRiskIndicator
 from app.models.notification import Notification, NotificationType
 from app.models.user import AccessScope
@@ -16,6 +17,13 @@ from app.services.kri_deadline_decisions import (
     build_kri_reporting_notification_plan,
 )
 from app.services.kri_deadline_service import KRIDeadlineService
+
+
+@pytest.fixture(autouse=True)
+def clear_global_config_cache():
+    clear_config_cache()
+    yield
+    clear_config_cache()
 
 
 @pytest_asyncio.fixture
@@ -497,6 +505,96 @@ async def test_due_soon_dedupe_allows_new_reporting_period(
     )
     notifications = (await db_session.execute(stmt)).scalars().all()
     assert len(notifications) == 1
+
+
+@pytest.mark.asyncio
+async def test_deadline_service_uses_configured_reporting_grace_days_for_due_date(
+    db_session: AsyncSession,
+    test_risk,
+    test_user_cro,
+):
+    db_session.add(
+        GlobalConfig(
+            key="reporting_grace_days",
+            value="20",
+            value_type="int",
+            category="notifications",
+            display_name="Reporting Grace Days",
+        )
+    )
+    kri = KeyRiskIndicator(
+        risk_id=test_risk.id,
+        metric_name="Configured Grace KRI",
+        description="Test KRI for configured deadline grace window",
+        current_value=50.0,
+        lower_limit=0.0,
+        upper_limit=100.0,
+        unit="%",
+        frequency="monthly",
+        reporting_owner_id=test_user_cro.id,
+        last_period_end=date(2024, 12, 31),
+    )
+    db_session.add(kri)
+    await db_session.commit()
+    kri_id = kri.id
+
+    fixed_today = date(2025, 2, 20)
+    fixed_now = datetime(2025, 2, 20, 9, 0, tzinfo=UTC)
+
+    result = await KRIDeadlineService.check_kri_deadlines(db_session, today=fixed_today, now=fixed_now)
+
+    assert result["deadline"] >= 1
+    notification = (
+        await db_session.execute(
+            select(Notification).where(
+                Notification.resource_type == "kri",
+                Notification.resource_id == kri_id,
+                Notification.type == NotificationType.KRI_DUE_TOMORROW,
+            )
+        )
+    ).scalar_one_or_none()
+    assert notification is not None
+    assert "period ending 2025-01-31" in notification.message
+
+
+@pytest.mark.asyncio
+async def test_deadline_service_uses_default_reporting_grace_days_without_config(
+    db_session: AsyncSession,
+    test_risk,
+    test_user_cro,
+):
+    kri = KeyRiskIndicator(
+        risk_id=test_risk.id,
+        metric_name="Default Grace KRI",
+        description="Test KRI for default deadline grace window",
+        current_value=50.0,
+        lower_limit=0.0,
+        upper_limit=100.0,
+        unit="%",
+        frequency="monthly",
+        reporting_owner_id=test_user_cro.id,
+        last_period_end=date(2024, 12, 31),
+    )
+    db_session.add(kri)
+    await db_session.commit()
+    kri_id = kri.id
+
+    fixed_today = date(2025, 2, 15)
+    fixed_now = datetime(2025, 2, 15, 9, 0, tzinfo=UTC)
+
+    result = await KRIDeadlineService.check_kri_deadlines(db_session, today=fixed_today, now=fixed_now)
+
+    assert result["deadline"] >= 1
+    notification = (
+        await db_session.execute(
+            select(Notification).where(
+                Notification.resource_type == "kri",
+                Notification.resource_id == kri_id,
+                Notification.type == NotificationType.KRI_DUE_TOMORROW,
+            )
+        )
+    ).scalar_one_or_none()
+    assert notification is not None
 
 
 @pytest.mark.asyncio

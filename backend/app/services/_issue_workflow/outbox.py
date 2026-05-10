@@ -17,12 +17,18 @@ async def enqueue_issue_outbox(db: AsyncSession, plan) -> None:
     )
 
 
-def issue_assigned_outbox_plan(*, issue, owner_user_id: int, actor_id: int) -> IssueOutboxPlan:
+def issue_assigned_outbox_plan(
+    *,
+    issue,
+    owner_user_id: int,
+    actor_id: int,
+    assignment_event_id: str,
+) -> IssueOutboxPlan:
     return IssueOutboxPlan(
         event_type="issue.assigned",
         aggregate_type="issue",
         aggregate_id=issue.id,
-        idempotency_key=f"issue:{issue.id}:assigned:{owner_user_id}:{actor_id}",
+        idempotency_key=f"issue:{issue.id}:assigned:{owner_user_id}:{actor_id}:{assignment_event_id}",
         payload={
             "issue_id": issue.id,
             "owner_user_id": owner_user_id,

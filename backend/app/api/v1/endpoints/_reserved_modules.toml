@@ -64,11 +64,3 @@ surface = "Control approvals"
 reason = "Reserved until granular control approval workflow ships."
 code = "backend/app/db/rbac_seed_contract.py"
 docs = "docs/BUSINESS_LOGIC.md#41-resource-permissions"
-
-[[reserved]]
-kind = "endpoint_module"
-name = "admin.console"
-surface = "Admin console router compatibility"
-reason = "Empty compatibility module retained after the admin console route handlers moved into system_status, operational_logs, and sessions clusters."
-code = "backend/app/api/v1/endpoints/admin/console.py"
-docs = "backend/app/api/v1/endpoints/admin/README.md"

@@ -9,6 +9,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.activity_logger import log_activity
 from app.core.approval_display import approval_resource_label
+from app.core.audit.approval import approval_cancelled, approval_rejected
 from app.core.datetime_utils import utc_now
 from app.models import ApprovalRequest, ApprovalStatus, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
@@ -80,13 +81,10 @@ async def reject_request_workflow(
         approval.resolution_notes = resolution_notes
 
         department_id = await get_approval_department_id(db, approval)
-        await log_activity(
+        await approval_rejected(
             db,
-            entity_type=ActivityEntityType.APPROVAL,
-            entity_id=approval.id,
-            entity_name=approval_resource_label(approval),
-            action=ActivityAction.REJECT,
             actor=current_user,
+            approval=approval,
             department_id=department_id,
             changes={"status": {"old": previous_status.value, "new": approval.status.value}},
         )
@@ -128,13 +126,10 @@ async def cancel_request_workflow(
             if tier.is_requester
             else f"Approval request cancelled by {current_user.name} (privileged)"
         )
-        await log_activity(
+        await approval_cancelled(
             db,
-            entity_type=ActivityEntityType.APPROVAL,
-            entity_id=approval.id,
-            entity_name=approval_resource_label(approval),
-            action=ActivityAction.CANCEL,
             actor=current_user,
+            approval=approval,
             department_id=department_id,
             safe_description=cancel_description,
             safe_description_siem=(
@@ -142,7 +137,6 @@ async def cancel_request_workflow(
                 if tier.is_requester
                 else "Approval request cancelled by privileged user"
             ),
-            description=cancel_description,
         )
 
     await finalize_approval_resolution_plan(

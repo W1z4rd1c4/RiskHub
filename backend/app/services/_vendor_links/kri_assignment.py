@@ -9,7 +9,10 @@ from app.core.exceptions import AuthorizationError, NotFoundError, ValidationErr
 from app.core.permissions import can_read_vendor, is_vendor_owner
 from app.models import KeyRiskIndicator, User, Vendor, VendorKRILink, VendorRiskLink
 from app.services._authorization_capabilities import has_capability, require_capability
-from app.services._vendor_links.workflow import link_vendor_target, unlink_vendor_target
+from app.services._vendor_links.workflow import (
+    link_vendor_target_no_commit,
+    unlink_vendor_target_no_commit,
+)
 
 
 def normalize_vendor_ids(vendor_ids: Sequence[int] | None) -> list[int]:
@@ -90,6 +93,16 @@ async def assign_vendors_to_kri(
     normalized_linked_vendor_ids = normalize_vendor_ids(linked_vendor_ids)
     normalized_parent_vendor_ids = normalize_vendor_ids(ensure_parent_risk_vendor_ids)
 
+    current_link_result = await db.execute(select(VendorKRILink).where(VendorKRILink.kri_id == kri.id))
+    current_links = current_link_result.scalars().all()
+    current_vendor_ids = {link.vendor_id for link in current_links}
+    desired_vendor_ids = set(normalized_linked_vendor_ids)
+    vendor_ids_to_unlink = current_vendor_ids - desired_vendor_ids
+    vendor_ids_to_link = [
+        vendor_id for vendor_id in normalized_linked_vendor_ids if vendor_id not in current_vendor_ids
+    ]
+    parent_vendor_ids_to_link = normalized_parent_vendor_ids
+
     if normalized_parent_vendor_ids:
         risk_link_result = await db.execute(
             select(VendorRiskLink.vendor_id).where(
@@ -98,10 +111,21 @@ async def assign_vendors_to_kri(
             )
         )
         existing_risk_vendor_ids = set(risk_link_result.scalars().all())
+        parent_vendor_ids_to_link = [
+            vendor_id for vendor_id in normalized_parent_vendor_ids if vendor_id not in existing_risk_vendor_ids
+        ]
+
+    await validate_assignable_vendors(
+        db,
+        current_user=current_user,
+        vendor_ids=[*parent_vendor_ids_to_link, *vendor_ids_to_unlink, *vendor_ids_to_link],
+    )
+
+    if parent_vendor_ids_to_link:
         for vendor_id in normalized_parent_vendor_ids:
-            if vendor_id in existing_risk_vendor_ids:
+            if vendor_id not in parent_vendor_ids_to_link:
                 continue
-            await link_vendor_target(
+            await link_vendor_target_no_commit(
                 db,
                 vendor_id=vendor_id,
                 current_user=current_user,
@@ -109,15 +133,10 @@ async def assign_vendors_to_kri(
                 entity_id=kri.risk_id,
             )
 
-    current_link_result = await db.execute(select(VendorKRILink).where(VendorKRILink.kri_id == kri.id))
-    current_links = current_link_result.scalars().all()
-    current_vendor_ids = {link.vendor_id for link in current_links}
-    desired_vendor_ids = set(normalized_linked_vendor_ids)
-
     for link in current_links:
         if link.vendor_id in desired_vendor_ids:
             continue
-        await unlink_vendor_target(
+        await unlink_vendor_target_no_commit(
             db,
             vendor_id=link.vendor_id,
             current_user=current_user,
@@ -128,7 +147,7 @@ async def assign_vendors_to_kri(
     for vendor_id in normalized_linked_vendor_ids:
         if vendor_id in current_vendor_ids:
             continue
-        await link_vendor_target(
+        await link_vendor_target_no_commit(
             db,
             vendor_id=vendor_id,
             current_user=current_user,

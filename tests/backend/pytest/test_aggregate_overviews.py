@@ -367,6 +367,25 @@ async def test_shell_summary_cache_key_includes_effective_permissions(
 
 
 @pytest.mark.asyncio
+async def test_shell_summary_degrades_when_questionnaire_inbox_has_bad_data_shape(
+    client: AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+    test_user_employee: User,
+):
+    from app.api.v1.endpoints.users import summary as users_summary_module
+
+    async def raise_bad_data_shape(db, current_user):  # noqa: ANN001
+        raise ValueError("corrupt questionnaire status")
+
+    monkeypatch.setattr(users_summary_module, "_count_questionnaire_inbox", raise_bad_data_shape)
+
+    response = await client.get("/api/v1/users/me/shell-summary", headers=_headers_for(test_user_employee))
+
+    assert response.status_code == 200
+    assert response.json()["questionnaire_inbox_count"] == 0
+
+
+@pytest.mark.asyncio
 async def test_dashboard_overview_returns_expected_shape(
     client: AsyncClient,
     test_user: User,

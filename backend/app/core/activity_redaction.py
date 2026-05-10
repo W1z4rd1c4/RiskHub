@@ -130,8 +130,11 @@ SENSITIVE_FIELD_FALSE_POSITIVES_BY_ENTITY = {
 
 _SENSITIVE_PATTERNS_RE = tuple(re.compile(pattern, re.IGNORECASE) for pattern in SENSITIVE_FIELD_PATTERNS)
 _SAFE_ENTITY_LABEL_ENTITY_TYPES = {
+    "approval",
     "config",
     "department",
+    "issue",
+    "issue_exception",
     "kri",
     "kri_value",
     "risk",

@@ -9,12 +9,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.activity_logger import log_activity
+from app.core.audit.issue import issue_exception_status_changed, issue_status_changed
 from app.core.datetime_utils import coerce_utc, utc_now
 from app.core.permissions import can_read_issue_id
 from app.core.user_query_options import user_selectinload_options
 from app.models import Issue, Role, RolePermission, User
-from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.models.global_config import ConfigDefaults, get_config_int
 from app.models.issue import IssueExceptionStatus, IssueStatus
 from app.models.notification import NotificationType
@@ -139,14 +138,11 @@ class IssueDeadlineService:
             db.add(ex)
             expired_count += 1
 
-            await log_activity(
+            await issue_exception_status_changed(
                 db,
-                entity_type=ActivityEntityType.ISSUE_EXCEPTION,
-                entity_id=ex.id,
-                entity_name=f"Exception for {issue.title}",
-                action=ActivityAction.STATUS_CHANGE,
                 actor=None,
-                department_id=issue.department_id,
+                issue=issue,
+                exception=ex,
                 changes={"status": {"old": old_status, "new": ex.status}},
                 description=f"Issue exception expired for {issue.title}",
             )
@@ -159,14 +155,10 @@ class IssueDeadlineService:
                 issue.closed_at = None
                 db.add(issue)
                 reopened = True
-                await log_activity(
+                await issue_status_changed(
                     db,
-                    entity_type=ActivityEntityType.ISSUE,
-                    entity_id=issue.id,
-                    entity_name=issue.title,
-                    action=ActivityAction.STATUS_CHANGE,
                     actor=None,
-                    department_id=issue.department_id,
+                    issue=issue,
                     changes={"status": {"old": IssueStatus.closed.value, "new": IssueStatus.in_progress.value}},
                     description=f"Re-opened issue after exception expiry: {issue.title}",
                 )

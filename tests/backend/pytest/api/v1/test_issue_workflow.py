@@ -301,6 +301,52 @@ async def test_issue_assignment_validation_errors_remain_http_stable(
 
 
 @pytest.mark.asyncio
+async def test_issue_assignment_outbox_distinguishes_round_trip_reassignment(
+    db_session: AsyncSession,
+    client_cro: AsyncClient,
+    test_department: Department,
+    test_user_employee: User,
+    test_user_cro: User,
+):
+    owner_a_id = test_user_employee.id
+    owner_b_id = test_user_cro.id
+    due_at = (datetime.now(UTC) + timedelta(days=7)).isoformat()
+
+    create_resp = await client_cro.post(
+        "/api/v1/issues",
+        json={
+            "title": "Round trip reassignment issue",
+            "severity": "high",
+            "source_type": "manual",
+            "department_id": test_department.id,
+        },
+    )
+    assert create_resp.status_code == 201
+    issue_id = create_resp.json()["id"]
+
+    for owner_id in (owner_a_id, owner_b_id, owner_a_id):
+        response = await client_cro.post(
+            f"/api/v1/issues/{issue_id}/assign",
+            json={"owner_user_id": owner_id, "due_at": due_at},
+        )
+        assert response.status_code == 200
+
+    outbox_events = (
+        (
+            await db_session.execute(
+                select(OutboxEvent)
+                .where(OutboxEvent.event_type == "issue.assigned", OutboxEvent.aggregate_id == issue_id)
+                .order_by(OutboxEvent.created_at.asc())
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert [event.payload["owner_user_id"] for event in outbox_events] == [owner_a_id, owner_b_id, owner_a_id]
+    assert len({event.idempotency_key for event in outbox_events}) == 3
+
+
+@pytest.mark.asyncio
 async def test_request_exception_rejects_when_active_exception_exists(
     db_session: AsyncSession,
     auth_client: AsyncClient,

@@ -8,6 +8,10 @@ packages = [
     "_org_chart",
 ]
 
+dual_classed_packages = [
+    "_register_listings",
+]
+
 files = [
     "backend/app/services/_monitoring_response.py",
 ]

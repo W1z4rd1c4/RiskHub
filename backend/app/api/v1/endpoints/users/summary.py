@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
 from sqlalchemy.exc import SQLAlchemyError
@@ -19,8 +21,10 @@ from app.services.approval_scenario_policy import approval_privilege_tier
 from app.services.notification_visibility import count_visible_unread_notifications
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 SHELL_SUMMARY_CACHE = TTLCache[dict](ttl_seconds=15, max_entries=500)
+QUESTIONNAIRE_INBOX_DEGRADABLE_ERRORS = (SQLAlchemyError, ValueError, KeyError, TypeError)
 
 
 async def _count_pending_approvals(db: AsyncSession, current_user: User) -> int:
@@ -52,7 +56,12 @@ async def _build_shell_summary(db: AsyncSession, current_user: User) -> dict:
     questionnaire_inbox_count = 0
     try:
         questionnaire_inbox_count = await _count_questionnaire_inbox(db, current_user)
-    except SQLAlchemyError:
+    except QUESTIONNAIRE_INBOX_DEGRADABLE_ERRORS:
+        logger.warning(
+            "Shell summary questionnaire inbox count degraded for user %s",
+            current_user.id,
+            exc_info=True,
+        )
         questionnaire_inbox_count = 0
 
     orphan_total_count = 0

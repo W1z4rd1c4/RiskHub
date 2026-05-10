@@ -18,14 +18,8 @@ def _route_paths(module_name: str) -> set[str]:
     return {route.path for route in mod.router.routes}
 
 
-def test_console_emptied_after_split() -> None:
-    src = (ADMIN / "console.py").read_text()
-    assert '@router.get("/health"' not in src
-    assert '@router.get("/jobs/status"' not in src
-    assert '@router.get("/outbox/status"' not in src
-    assert '@router.get("/stats"' not in src
-    assert '@router.get("/logs"' not in src
-    assert '@router.get("/sessions"' not in src
+def test_empty_console_compatibility_module_removed_after_split() -> None:
+    assert not (ADMIN / "console.py").exists()
 
 
 def test_system_status_cluster() -> None:

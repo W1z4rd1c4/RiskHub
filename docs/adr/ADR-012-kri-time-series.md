@@ -28,7 +28,7 @@ The reporting grace window single source of truth is `backend/app/services/_kri_
 REPORTING_GRACE_DAYS = 15
 ```
 
-KRI deadline services and config fallback code import this constant rather than redefining the value.
+KRI deadline services and config fallback code import this constant rather than redefining the value. The constant is the fallback/default period-algebra value. `KRIDeadlineService` may use the runtime `global_config.reporting_grace_days` override for notification due-date evaluation and message copy, but if no override exists it falls back to this canonical 15-day value.
 
 The canonical monitoring status vocabulary is:
 
@@ -48,7 +48,7 @@ No additional KRI status vocabulary may be introduced without updating the busin
 
 ## Migration Impact
 
-`ConfigDefaults.REPORTING_GRACE_DAYS` is removed. KRI deadline defaults now import the canonical `_kri_history.constants.REPORTING_GRACE_DAYS` value, while runtime override behavior through `global_config` remains unchanged.
+`ConfigDefaults.REPORTING_GRACE_DAYS` is removed. KRI deadline defaults now import the canonical `_kri_history.constants.REPORTING_GRACE_DAYS` value. Runtime override behavior through `global_config` is deadline-service-specific; history recording and monitoring period algebra continue to use the canonical fallback unless a separate product change makes the override globally authoritative.
 
 Existing KRI history and monitoring APIs keep their wire shape. This ADR only consolidates the source of truth and locks duplicate definitions out of `backend/app`.
 

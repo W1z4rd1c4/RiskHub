@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from uuid import uuid4
+
 from fastapi import HTTPException, status
 
 from app.core.activity_logger import build_change_set
@@ -127,7 +129,12 @@ async def assign_issue_detail(
     )
     await enqueue_issue_outbox(
         db,
-        issue_assigned_outbox_plan(issue=issue, owner_user_id=payload.owner_user_id, actor_id=current_user.id),
+        issue_assigned_outbox_plan(
+            issue=issue,
+            owner_user_id=payload.owner_user_id,
+            actor_id=current_user.id,
+            assignment_event_id=str(uuid4()),
+        ),
     )
     await db.commit()
     return await serialize_refreshed_issue(db, issue_id=issue.id, current_user=current_user)

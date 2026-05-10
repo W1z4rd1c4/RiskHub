@@ -10,6 +10,7 @@ import pytest_asyncio
 from httpx import AsyncClient
 from sqlalchemy import select
 
+from app.models import ActivityLog
 from app.models import (
     ApprovalActionType,
     ApprovalRequest,
@@ -23,8 +24,10 @@ from app.models import (
     VendorKRILink,
     VendorRiskLink,
 )
+from app.models.activity_log import ActivityEntityType
 from app.models.key_risk_indicator import KRIFrequency
 from app.models.risk import RiskStatus
+from app.services._vendor_links import kri_assignment
 from app.services._riskhub_config.approval_scenario_roles import set_approval_scenario_roles
 from tests.backend.pytest.factories import create_test_kri, create_test_risk, create_test_vendor
 
@@ -215,6 +218,66 @@ async def test_create_kri_with_unauthorized_vendor_assignment_is_rejected_withou
 
 
 @pytest.mark.asyncio
+async def test_create_kri_vendor_assignment_rolls_back_when_later_link_fails(
+    auth_client: AsyncClient,
+    db_session,
+    monkeypatch: pytest.MonkeyPatch,
+    test_risk_for_kri: Risk,
+    test_vendor_for_kri: Vendor,
+    second_test_vendor_for_kri: Vendor,
+):
+    metric_name = "Atomic Vendor Assignment Failure"
+    risk_id = test_risk_for_kri.id
+    vendor_ids = [test_vendor_for_kri.id, second_test_vendor_for_kri.id]
+    original_link_vendor_target = kri_assignment.link_vendor_target_no_commit
+    calls = 0
+
+    async def fail_on_second_link(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise RuntimeError("injected second vendor-link failure")
+        return await original_link_vendor_target(*args, **kwargs)
+
+    monkeypatch.setattr(kri_assignment, "link_vendor_target_no_commit", fail_on_second_link)
+
+    with pytest.raises(RuntimeError, match="injected second vendor-link failure"):
+        await auth_client.post(
+            "/api/v1/kris",
+            json={
+                "risk_id": risk_id,
+                "metric_name": metric_name,
+                "description": "Should rollback every KRI/vendor/audit side effect.",
+                "unit": "%",
+                "current_value": 50.0,
+                "lower_limit": 0.0,
+                "upper_limit": 100.0,
+                "linked_vendor_ids": vendor_ids,
+            },
+        )
+    persisted_kri = (
+        await db_session.execute(select(KeyRiskIndicator).where(KeyRiskIndicator.metric_name == metric_name))
+    ).scalar_one_or_none()
+    assert persisted_kri is None
+
+    link_count = (
+        await db_session.execute(
+            select(VendorKRILink).where(
+                VendorKRILink.vendor_id.in_(vendor_ids)
+            )
+        )
+    ).scalars().all()
+    assert link_count == []
+
+    vendor_link_audits = (
+        await db_session.execute(
+            select(ActivityLog).where(ActivityLog.entity_type == ActivityEntityType.VENDOR_LINK.value)
+        )
+    ).scalars().all()
+    assert vendor_link_audits == []
+
+
+@pytest.mark.asyncio
 async def test_admin_update_reconciles_vendor_links_atomically(
     auth_client: AsyncClient,
     db_session,
@@ -244,6 +307,92 @@ async def test_admin_update_reconciles_vendor_links_atomically(
         .order_by(VendorKRILink.vendor_id.asc())
     )
     assert list(result.scalars().all()) == [second_test_vendor_for_kri.id]
+
+
+@pytest.mark.asyncio
+async def test_kri_vendor_unassign_prevalidates_vendor_write_before_unlink_mutation(
+    client: AsyncClient,
+    db_session,
+    monkeypatch: pytest.MonkeyPatch,
+    test_kri: KeyRiskIndicator,
+    test_vendor_for_kri: Vendor,
+):
+    vendor_id = test_vendor_for_kri.id
+    kri_id = test_kri.id
+    from sqlalchemy.orm import selectinload
+
+    from app.models import Permission, Role, RolePermission, User
+    from app.models.user import AccessScope
+
+    db_session.add(VendorKRILink(vendor_id=vendor_id, kri_id=kri_id))
+    role = Role(
+        name="risk_manager_no_vendor_write",
+        display_name="Risk Manager Without Vendor Write",
+        description="Can immediately edit KRIs but cannot mutate vendor links.",
+    )
+    db_session.add(role)
+    await db_session.commit()
+    await db_session.refresh(role)
+
+    for resource, action in [
+        ("approvals", "write"),
+        ("risks", "read"),
+        ("risks", "write"),
+        ("vendors", "read"),
+    ]:
+        permission = (
+            await db_session.execute(
+                select(Permission).where(Permission.resource == resource, Permission.action == action)
+            )
+        ).scalar_one_or_none()
+        if permission is None:
+            permission = Permission(resource=resource, action=action, description=f"{resource}:{action}")
+            db_session.add(permission)
+            await db_session.flush()
+        db_session.add(RolePermission(role_id=role.id, permission_id=permission.id))
+
+    user = User(
+        name="Risk Manager No Vendor Write",
+        email="risk-manager-no-vendor-write@test.com",
+        role_id=role.id,
+        department_id=None,
+        access_scope=AccessScope.GLOBAL,
+        is_active=True,
+    )
+    db_session.add(user)
+    await db_session.commit()
+    user = (
+        await db_session.execute(
+            select(User)
+            .options(
+                selectinload(User.role).selectinload(Role.permissions).selectinload(RolePermission.permission),
+                selectinload(User.department),
+            )
+            .where(User.id == user.id)
+        )
+    ).scalar_one()
+
+    async def fail_if_unlink_mutates(*args, **kwargs):  # noqa: ANN001
+        raise AssertionError("unlink mutation should not run before vendor-write precheck")
+
+    monkeypatch.setattr(kri_assignment, "unlink_vendor_target_no_commit", fail_if_unlink_mutates)
+
+    response = await client.put(
+        f"/api/v1/kris/{kri_id}",
+        headers={"X-Mock-User-Id": str(user.id)},
+        json={"linked_vendor_ids": []},
+    )
+
+    assert response.status_code == 403
+    preserved = (
+        await db_session.execute(
+            select(VendorKRILink).where(
+                VendorKRILink.vendor_id == vendor_id,
+                VendorKRILink.kri_id == kri_id,
+            )
+        )
+    ).scalar_one_or_none()
+    assert preserved is not None
 
 
 @pytest.mark.asyncio

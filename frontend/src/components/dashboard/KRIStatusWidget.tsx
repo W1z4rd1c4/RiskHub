@@ -19,11 +19,13 @@ export function KRIStatusWidget() {
     const [overdueKRIs, setOverdueKRIs] = useState<OverdueKRI[]>([]);
     const [dueSoonKRIs, setDueSoonKRIs] = useState<DueSoonKRI[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<Error | null>(null);
 
     useEffect(() => {
         let cancelled = false;
         const fetchData = async () => {
             setIsLoading(true);
+            setError(null);
             try {
                 const params = departmentId ? { department_id: departmentId } : undefined;
                 const [overdue, dueSoon] = await Promise.all([
@@ -33,9 +35,15 @@ export function KRIStatusWidget() {
                 if (!cancelled) {
                     setOverdueKRIs(overdue.slice(0, 5));
                     setDueSoonKRIs(dueSoon.slice(0, 5));
+                    setError(null);
                 }
             } catch (err) {
                 logError('Failed to fetch KRI status:', err);
+                if (!cancelled) {
+                    setError(err instanceof Error ? err : new Error(t('kri.status_load_failed', 'Unable to load KRI status')));
+                    setOverdueKRIs([]);
+                    setDueSoonKRIs([]);
+                }
             } finally {
                 if (!cancelled) {
                     setIsLoading(false);
@@ -46,7 +54,7 @@ export function KRIStatusWidget() {
         return () => {
             cancelled = true;
         };
-    }, [departmentId]);
+    }, [departmentId, t]);
 
     const getUrgencyColor = (days: number, isOverdue: boolean) => {
         if (isOverdue) {
@@ -76,6 +84,16 @@ export function KRIStatusWidget() {
         </div>
     );
 
+    const errorFallback = (
+        <div data-testid="widget-error" className="glass-card flex flex-col items-center justify-center p-8 text-center h-full">
+            <div className="w-12 h-12 bg-amber-500/10 rounded-full flex items-center justify-center mb-4">
+                <AlertTriangle className="h-6 w-6 text-amber-400" />
+            </div>
+            <h4 className="text-white font-bold mb-1">{t('kri.status_load_failed', 'Unable to load KRI status')}</h4>
+            <p className="text-xs text-slate-500">{error?.message}</p>
+        </div>
+    );
+
     const currentItems = activeTab === 'upcoming' ? dueSoonKRIs : overdueKRIs;
     const showUpcomingEmpty = activeTab === 'upcoming' && dueSoonKRIs.length === 0;
     const showOverdueEmpty = activeTab === 'overdue' && overdueKRIs.length === 0;
@@ -84,9 +102,11 @@ export function KRIStatusWidget() {
         <WidgetShell
             title={t('kri.status_title')}
             isLoading={isLoading}
+            error={error}
             isEmpty={hasNoItems}
             emptyLabel={t('kri.no_due_soon')}
             loadingFallback={loadingFallback}
+            errorFallback={errorFallback}
             emptyFallback={emptyFallback}
         >
             <div className="glass-card flex flex-col h-full !p-0 overflow-hidden">

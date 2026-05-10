@@ -45,7 +45,7 @@ def test_every_package_in_a_primary_allowlist_or_workflow_pair() -> None:
     unclassified = pkgs - primaries
     assert unclassified == set(), f"ADR-007 amendment: unclassified packages: {unclassified}"
 
-    documented_dual = {"_register_listings"}
+    documented_dual = set(_load_toml(READ_SHAPE)["dual_classed_packages"])
     overlaps = (write_side & read_shape) - documented_dual
     assert overlaps == set(), f"undocumented dual-class: {overlaps}"
 
@@ -62,7 +62,7 @@ def test_monitoring_response_is_file_entry_in_read_shape() -> None:
     assert "backend/app/services/_monitoring_response.py" in files
 
 
-def test_at_least_31_packages_classified() -> None:
-    """Phase 6: 31 today, 32 after #61 lands; lock asserts >= 31."""
+def test_at_least_32_packages_classified() -> None:
+    """Phase 7: #61 landed; lock asserts >= 32 underscored packages."""
     pkgs = _underscored_packages()
-    assert len(pkgs) >= 31, f"expected >= 31 underscored packages today; 32 after #61 lands; got {len(pkgs)}"
+    assert len(pkgs) >= 32, f"expected >= 32 underscored packages after #61 landed; got {len(pkgs)}"

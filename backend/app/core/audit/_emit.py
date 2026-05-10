@@ -18,7 +18,7 @@ async def emit_adapter(
     entity_name: str,
     safe_entity_label: str,
     action: ActivityAction,
-    actor: User,
+    actor: User | None,
     department_id: int | None,
     changes: dict[str, dict[str, object]] | Mapping[str, object] | None = None,
     description: str | None = None,

@@ -67,7 +67,7 @@ async def issue_updated(
 async def issue_status_changed(
     db: AsyncSession,
     *,
-    actor: User,
+    actor: User | None,
     issue: Issue,
     changes: dict[str, dict[str, object]] | None,
     before_data: Mapping[str, object] | None = None,
@@ -320,7 +320,7 @@ async def issue_exception_approved(
 async def issue_exception_status_changed(
     db: AsyncSession,
     *,
-    actor: User,
+    actor: User | None,
     issue: Issue,
     exception: IssueException,
     changes: dict[str, dict[str, object]] | None,

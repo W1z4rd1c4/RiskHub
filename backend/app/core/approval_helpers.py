@@ -266,21 +266,17 @@ async def create_approval_request_with_audit(
     """
     from sqlalchemy.exc import IntegrityError
 
-    from app.core.activity_logger import log_activity
+    from app.core.audit.approval import approval_created
     from app.core.exceptions import ConflictError
-    from app.models.activity_log import ActivityAction, ActivityEntityType
 
     try:
         db.add(approval)
         await db.flush()
 
-        await log_activity(
+        await approval_created(
             db,
-            entity_type=ActivityEntityType.APPROVAL,
-            entity_id=approval.id,
-            entity_name=approval.resource_name,
-            action=ActivityAction.CREATE,
             actor=actor,
+            approval=approval,
             department_id=department_id,
         )
         await OutboxService.enqueue(
