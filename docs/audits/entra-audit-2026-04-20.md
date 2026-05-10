@@ -494,7 +494,7 @@ rg -n 'ENTRA_CLIENT_SECRET=[^p]' .env.example docker-compose.yml .github/workflo
 cd backend && pytest tests -k "sso or refresh or auth or entra or lockout"
 
 # Frontend auth unit tests
-cd tests/frontend/unit && pnpm test -- --run entraAuth SsoCallbackPage LoginPage.auth-modes AuthLogoutFlow
+cd frontend && npm run test:run -- entraAuth SsoCallbackPage LoginPage.auth-modes AuthLogoutFlow
 
 # Local smoke in hybrid_dev — walk demo-login → refresh → logout
 ./scripts/compose.sh up --profile full

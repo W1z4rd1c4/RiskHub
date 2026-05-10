@@ -219,7 +219,7 @@
 | 24 | fix now | Security tests still permanently encode COOP/COEP absence. |
 | 25 | fix now | Several security header assertions should be semantic rather than exact-string contracts. |
 | 26 | defer | `scripts/Makefile` breadth is real, but only the touched governance entrypoints should move now. |
-| 27 | defer | `graph_directory_auth.py` still does too much, but the first-pass closure focuses on boundary typing and cache identity. |
+| 27 | defer | `_graph_directory/auth.py` still does too much, but the first-pass closure focuses on boundary typing and cache identity. |
 | 28 | drop/reword | Dropped as a top-level target; `LoginPage.tsx` is no longer a material architecture risk. |
 | 29 | fix now | Security/runtime/doc truth still needs stronger single-validator enforcement. |
 | 30 | drop/reword | Synthesis only; resolved by closing the concrete items above rather than treating it as a separate defect. |

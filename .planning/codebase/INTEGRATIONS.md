@@ -1,6 +1,6 @@
 # External Integrations
 
-**Analysis Date:** 2026-05-03
+**Analysis Date:** 2026-05-10
 
 ## Core External Services
 
@@ -19,13 +19,13 @@
 - Outbound client: `ADEmulatorClient` (`backend/app/integrations/ad_emulator_client.py`)
 - Inbound webhooks: `/api/v1/directory/webhook` (`backend/app/api/v1/endpoints/directory.py`)
 - Webhook signature verification via `WEBHOOK_SECRET` (required in production mode) (`backend/app/core/config.py`)
-- Directory search/import/deprovision flows now preserve RiskHub-local access fields after initial import; break-glass enablement remains an admin-only recovery path for eligible auto-deprovisioned external users (`backend/app/services/directory_identity_service.py`, `backend/app/services/ad_deprovision_service.py`, `frontend/src/pages/users/BreakGlassEnableDialog.tsx`)
+- Directory search/import/deprovision flows now preserve RiskHub-local access fields after initial import; break-glass enablement remains an admin-only recovery path for eligible auto-deprovisioned external users (`backend/app/services/_directory_identity/`, `backend/app/services/_identity_access_lifecycle/`, `backend/app/services/ad_deprovision_service.py`, `frontend/src/pages/users/BreakGlassEnableDialog.tsx`)
 
 ### Microsoft Entra ID (SSO)
 - Backend auth modes include Entra SSO-only production mode (`backend/app/core/config.py`, `backend/app/main.py`)
 - Token verification + OIDC discovery/JWKS refresh: `backend/app/services/sso_token_service.py`
-- Graph directory lookup is exposed through `graph_directory_service.py` and internally split across token/auth transport helpers (`backend/app/services/graph_directory_service.py`, `backend/app/services/graph_directory_auth.py`, `backend/app/services/graph_directory_transport.py`)
-- Graph token-cache identity now depends on tenant/client/mode plus thumbprint or explicit `ENTRA_CREDENTIAL_FINGERPRINT`, not raw secret/private-key bytes (`backend/app/services/graph_directory_auth.py`)
+- Graph directory lookup is exposed through `DirectoryProviderService` and internally split across Microsoft Graph adapter helpers (`backend/app/services/directory_provider_service.py`, `backend/app/services/_graph_directory/service.py`, `backend/app/services/_graph_directory/auth.py`, `backend/app/services/_graph_directory/transport.py`)
+- Graph token-cache identity now depends on tenant/client/mode plus thumbprint or explicit `ENTRA_CREDENTIAL_FINGERPRINT`, not raw secret/private-key bytes (`backend/app/services/_graph_directory/auth.py`)
 - Exchange endpoint: `POST /api/v1/auth/sso/exchange` (`backend/app/api/v1/endpoints/auth/sso.py`)
 - Frontend client flow via MSAL: `frontend/src/services/entraAuth.ts`
 - Frontend callback route: `/auth/sso/callback` (`frontend/src/pages/SsoCallbackPage.tsx`)

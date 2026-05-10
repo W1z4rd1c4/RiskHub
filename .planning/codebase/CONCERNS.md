@@ -1,6 +1,6 @@
 # Codebase Concerns
 
-**Analysis Date:** 2026-05-03
+**Analysis Date:** 2026-05-10
 
 ## High-Risk Hotspots (Require Extra Care)
 
@@ -13,7 +13,7 @@
 - Vendor governance and vendor report scoping: `backend/app/services/_vendor_workflow/`, `backend/app/api/v1/endpoints/vendors/`, `backend/app/services/vendor_reporting_service.py`
 - Committee quarterly snapshot semantics: `backend/app/services/quarterly_comparison_service.py`, `backend/app/services/_quarterly_comparison/`, `backend/app/api/v1/endpoints/dashboard/quarterly.py`
 - Cross-entity link management: shared frontend dialog/workflow helpers and backend vendor-link workflow must preserve stale-response guards, restore behavior, active-vendor mutation checks, and visibility filtering (`frontend/src/components/linking/`, `backend/app/services/_vendor_links/`, `backend/app/api/v1/endpoints/vendor_links.py`)
-- Directory identity lifecycle: provider reconciliation must not overwrite RiskHub-local access fields after user creation; break-glass remains temporary and tightly capability-gated (`backend/app/services/directory_identity_service.py`, `backend/app/services/_access_workflow/`, `frontend/src/pages/users/BreakGlassEnableDialog.tsx`)
+- Directory identity lifecycle: provider reconciliation must not overwrite RiskHub-local access fields after user creation; break-glass remains temporary and tightly capability-gated (`backend/app/services/_directory_identity/`, `backend/app/services/_identity_access_lifecycle/`, `backend/app/services/_access_workflow/`, `frontend/src/pages/users/BreakGlassEnableDialog.tsx`)
 - RBAC scope enforcement consistency between backend and frontend gating: `backend/app/core/permissions.py`, `backend/app/core/_permissions/`, `frontend/src/authz/useAuthz.ts`, and backend capability metadata consumed by frontend action surfaces
 - Time policy (UTC-aware timestamps) and coercion boundaries: `backend/app/core/datetime_utils.py`
 - SSO token verification + exchange flow: `backend/app/services/sso_token_service.py`, `backend/app/api/v1/endpoints/auth/sso.py`, `frontend/src/services/entraAuth.ts`
@@ -50,7 +50,7 @@
 ## Production Boundary Risk
 
 - Broad private-network `TRUSTED_PROXIES` values are production-fatal unless explicitly overridden; operators need to make that trust decision deliberately (`backend/app/main.py`, `backend/app/core/config.py`)
-- Graph auth now separates dependency, credential, token-response, and transient failures, but the boundary remains security-sensitive because it drives production directory lookups and token caching (`backend/app/services/graph_directory_auth.py`, `backend/app/services/graph_directory_errors.py`)
+- Graph auth now separates dependency, credential, token-response, and transient failures, but the boundary remains security-sensitive because it drives production directory lookups and token caching (`backend/app/services/_graph_directory/auth.py`, `backend/app/services/_graph_directory/errors.py`)
 
 ## Log Growth and Operational Hygiene
 
@@ -75,4 +75,4 @@
 
 ---
 
-*Concerns audit refreshed on 2026-05-03*
+*Concerns audit refreshed on 2026-05-10*
