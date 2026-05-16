@@ -26,6 +26,11 @@ const riskCapabilitiesSchema = passthroughObject({
     requires_privileged_update_approval: z.boolean(),
     requires_privileged_delete_approval: z.boolean(),
 });
+export const riskListCapabilitiesSchema = passthroughObject({
+    can_export: z.boolean(),
+    can_create: z.boolean(),
+    can_view_vendor_contexts: z.boolean(),
+});
 
 export const riskSummarySchema: z.ZodType<RiskSummary> = passthroughObject({
     id: z.number(),
@@ -54,7 +59,9 @@ export const riskSummarySchema: z.ZodType<RiskSummary> = passthroughObject({
     capabilities: riskCapabilitiesSchema.nullable().optional(),
 });
 export const riskListResponseSchema: z.ZodType<RiskListResponse> =
-    collectionPaginationSchema(riskSummarySchema);
+    collectionPaginationSchema(riskSummarySchema).extend({
+        capabilities: riskListCapabilitiesSchema.nullable().optional(),
+    });
 
 export const riskSchema: z.ZodType<Risk> = passthroughObject({
     id: z.number(),

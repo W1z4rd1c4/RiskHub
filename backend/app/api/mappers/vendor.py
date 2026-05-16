@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from app.models import User, Vendor
-from app.schemas.vendor import VendorLinkedRiskSummary, VendorListResponse, VendorRead
+from app.schemas.vendor import VendorLinkedRiskSummary, VendorListCapabilities, VendorListResponse, VendorRead
 from app.services.authorization_capabilities import vendor_capabilities
 
 
@@ -45,5 +45,5 @@ def vendor_list_response(
         total=total,
         offset=offset,
         limit=limit,
-        capabilities=capabilities,
+        capabilities=VendorListCapabilities.model_validate(capabilities) if capabilities is not None else None,
     )

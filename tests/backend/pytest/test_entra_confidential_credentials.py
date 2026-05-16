@@ -5,14 +5,14 @@ from types import SimpleNamespace
 import pytest
 
 from app.core.config import Settings
-from app.services.directory_provider_service import (
-    DirectoryProviderService,
-    DirectoryProviderUnavailableError,
-)
 from app.services._graph_directory.service import (
     GraphDirectoryService,
     GraphProviderUnavailableError,
     __reset_graph_token_cache_for_tests,
+)
+from app.services.directory_provider_service import (
+    DirectoryProviderService,
+    DirectoryProviderUnavailableError,
 )
 
 

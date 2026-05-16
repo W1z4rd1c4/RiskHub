@@ -4,7 +4,12 @@ import { riskHubApi } from '@/services/riskHubApi';
 import { apiClient } from '@/services/apiClient';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { riskHubKeys } from '@/lib/queryKeys';
-import type { ApprovalScenario, ApprovalScenarioUpdate } from '@/services/riskHubApi';
+import {
+    APPROVAL_SCENARIO_APPROVER_ROLES,
+    type ApprovalScenario,
+    type ApprovalScenarioApproverRole,
+    type ApprovalScenarioUpdate,
+} from '@/services/riskHubApi';
 import { cn } from '@/lib/utils';
 import { useState, useMemo, useEffect } from 'react';
 import { useTranslation } from '@/i18n/hooks';
@@ -14,6 +19,11 @@ import { useRiskHubConfigResource } from './useRiskHubConfigResource';
 
 // Special dynamic role entry for risk owner (not a system role in roles table)
 const SPECIAL_ROLE_VALUES = ['risk_owner'] as const;
+const APPROVER_ROLE_CODES = new Set<string>(APPROVAL_SCENARIO_APPROVER_ROLES);
+
+function isApprovalScenarioApproverRole(role: string): role is ApprovalScenarioApproverRole {
+    return APPROVER_ROLE_CODES.has(role);
+}
 
 interface RoleOption {
     value: string;
@@ -59,7 +69,10 @@ function EditScenarioModal({ isOpen, onClose, scenario, availableRoles, rolesLoa
         setErrorKey(null);
         setSaving(true);
         try {
-            await onSave({ requires_approval: requiresApproval, approver_roles: selectedRoles });
+            await onSave({
+                requires_approval: requiresApproval,
+                approver_roles: selectedRoles.filter(isApprovalScenarioApproverRole),
+            });
             onClose();
         } catch (error: unknown) {
             setErrorKey(apiClient.toUiMessageKey(error));
@@ -197,10 +210,12 @@ export function ApprovalScenariosPanel() {
             risk_owner: t('admin:approval_scenarios.special_roles.risk_owner_dynamic'),
         };
 
-        const fromHub: RoleOption[] = (hubRoles || []).map(r => ({
-            value: r.name,
-            label: r.display_name,
-        }));
+        const fromHub: RoleOption[] = (hubRoles || [])
+            .filter(r => isApprovalScenarioApproverRole(r.name))
+            .map(r => ({
+                value: r.name,
+                label: r.display_name,
+            }));
         // Merge special roles (like risk_owner) and deduplicate
         const specialEntries: RoleOption[] = SPECIAL_ROLE_VALUES.map((value) => ({
             value,

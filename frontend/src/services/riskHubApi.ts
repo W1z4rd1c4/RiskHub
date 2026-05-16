@@ -96,9 +96,12 @@ export interface ApprovalScenarioCapabilities {
     can_update: boolean;
 }
 
+export const APPROVAL_SCENARIO_APPROVER_ROLES = ['risk_owner', 'risk_manager', 'cro'] as const;
+export type ApprovalScenarioApproverRole = (typeof APPROVAL_SCENARIO_APPROVER_ROLES)[number];
+
 export interface ApprovalScenarioUpdate {
     requires_approval?: boolean;
-    approver_roles?: string[];
+    approver_roles?: ApprovalScenarioApproverRole[];
 }
 
 export interface PermissionRead {

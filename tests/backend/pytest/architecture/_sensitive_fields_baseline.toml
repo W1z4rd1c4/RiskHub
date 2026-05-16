@@ -1,0 +1,8 @@
+expected_resources = ["risk", "control", "kri"]
+
+[minimum_fields]
+risk = ["owner_id", "department_id", "category", "is_priority"]
+control = ["control_owner_id", "department_id"]
+
+[exact_fields]
+kri = []

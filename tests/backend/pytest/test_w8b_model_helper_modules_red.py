@@ -1,3 +1,6 @@
+import pytest
+
+from app.core.exceptions import ApprovalScenarioConfigurationError
 from app.models import ApprovalScenario, GlobalConfig
 
 
@@ -47,4 +50,5 @@ def test_approval_scenario_role_helpers_live_in_riskhub_config_service():
     assert scenario.approver_roles == ["risk_manager", "cro"]
 
     scenario.approver_roles = "not-json"
-    assert get_approval_scenario_roles(scenario) == ["risk_manager", "cro"]
+    with pytest.raises(ApprovalScenarioConfigurationError):
+        get_approval_scenario_roles(scenario)

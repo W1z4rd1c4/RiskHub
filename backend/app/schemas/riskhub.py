@@ -4,6 +4,8 @@ Extracted from backend/app/api/v1/endpoints/riskhub.py to reduce file complexity
 and follow project conventions (schemas in dedicated modules).
 """
 
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field
 
 # ============================================================================
@@ -132,7 +134,7 @@ class ApprovalScenarioUpdate(BaseModel):
     """Update approval scenario request schema."""
 
     requires_approval: bool | None = None
-    approver_roles: list[str] | None = None
+    approver_roles: list[Literal["risk_owner", "risk_manager", "cro"]] | None = None
 
 
 # ============================================================================

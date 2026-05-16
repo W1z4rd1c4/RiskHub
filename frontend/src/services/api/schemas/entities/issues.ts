@@ -43,6 +43,11 @@ const issueCapabilitiesSchema = passthroughObject({
     has_active_exception: z.boolean(),
     has_pending_exception_request: z.boolean(),
 });
+export const issueListCapabilitiesSchema = passthroughObject({
+    can_export: z.boolean(),
+    can_create: z.boolean(),
+    can_view_vendor_contexts: z.boolean(),
+});
 
 export const issueLinkSchema: z.ZodType<IssueLink> = passthroughObject({
     id: z.number(),
@@ -91,7 +96,9 @@ export const issueSummarySchema = passthroughObject({
     capabilities: issueCapabilitiesSchema.nullable().optional(),
 }) satisfies z.ZodType<IssueSummary>;
 export const issueListResponseSchema: z.ZodType<IssueListResponse> =
-    collectionPaginationSchema(issueSummarySchema);
+    collectionPaginationSchema(issueSummarySchema).extend({
+        capabilities: issueListCapabilitiesSchema.nullable().optional(),
+    });
 export const issueRemediationPlanSchema: z.ZodType<IssueRemediationPlan> = passthroughObject({
     id: z.number(),
     issue_id: z.number(),

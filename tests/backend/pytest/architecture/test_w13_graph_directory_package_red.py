@@ -25,11 +25,19 @@ def test_legacy_graph_directory_files_removed() -> None:
         assert not path.exists(), f"S7.7: legacy file {path.name} must be moved into the package"
 
 
+LEGACY_MODULE_STEMS = (
+    "graph_directory_auth",
+    "graph_directory_errors",
+    "graph_directory_service",
+    "graph_directory_transport",
+)
+
+
 def test_no_production_imports_legacy_modules() -> None:
     offenders: list[str] = []
     for path in (REPO_ROOT / "backend/app").rglob("*.py"):
         text = path.read_text(encoding="utf-8")
-        for stem in ("graph_directory_auth", "graph_directory_errors", "graph_directory_service", "graph_directory_transport"):
+        for stem in LEGACY_MODULE_STEMS:
             if f"from app.services.{stem}" in text:
                 offenders.append(f"{path.relative_to(REPO_ROOT)}:{stem}")
     assert offenders == []

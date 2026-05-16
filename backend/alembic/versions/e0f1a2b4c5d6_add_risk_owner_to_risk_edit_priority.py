@@ -1,5 +1,7 @@
 """Add risk_owner to the default risk_edit_priority approval scenario."""
 
+# See docs/adr/ADR-010-postgres-migration-rehearsal-contract.md for migration discipline.
+
 from __future__ import annotations
 
 import json

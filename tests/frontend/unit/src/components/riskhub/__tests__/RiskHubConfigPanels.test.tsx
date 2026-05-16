@@ -53,6 +53,7 @@ vi.mock('@/services/accessApi', () => ({
 }));
 
 vi.mock('@/services/riskHubApi', () => ({
+    APPROVAL_SCENARIO_APPROVER_ROLES: ['risk_owner', 'risk_manager', 'cro'],
     riskHubApi: {
         createDepartment: vi.fn(),
         createRiskType: vi.fn(),
@@ -248,6 +249,40 @@ describe('Risk Hub config panels', () => {
                 requires_approval: true,
             });
         });
+    });
+
+    it('only offers backend-supported approver roles in approval scenarios', async () => {
+        vi.mocked(riskHubApi.getRoles).mockResolvedValue([
+            {
+                id: 2,
+                name: 'cro',
+                display_name: 'CRO',
+                description: null,
+                is_system: true,
+                is_active: true,
+                user_count: 1,
+                permissions: [],
+            },
+            {
+                id: 3,
+                name: 'department_head',
+                display_name: 'Department Head',
+                description: null,
+                is_system: true,
+                is_active: true,
+                user_count: 1,
+                permissions: [],
+            },
+        ]);
+
+        renderWithQueryClient(<ApprovalScenariosPanel />);
+
+        await screen.findByText('Risk update');
+        fireEvent.click(screen.getByRole('button', { name: 'admin:approval_scenarios.configure' }));
+        fireEvent.click(screen.getByRole('button', { name: /admin:approval_scenarios.modal.roles_selected/ }));
+
+        expect(screen.getByRole('button', { name: 'CRO' })).toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: 'Department Head' })).not.toBeInTheDocument();
     });
 
     it('keeps risk type delete confirmation open and shows an error when delete fails', async () => {

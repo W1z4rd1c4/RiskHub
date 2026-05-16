@@ -6,6 +6,8 @@ from typing import Any
 
 import pytest
 
+from ._allowlist_expiry import assert_not_expired
+
 pytestmark = pytest.mark.contract
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
@@ -17,9 +19,22 @@ READ_SHAPE = ARCH_DIR / "_bounded_context_read_shape.toml"
 WORKFLOW_PAIRS = ARCH_DIR / "_bounded_context_workflow_pairs.toml"
 ADAPTERS = ARCH_DIR / "_bounded_context_adapters.toml"
 CROSS_CUTTING = ARCH_DIR / "_bounded_context_cross_cutting.toml"
+BASELINE_PATH = ARCH_DIR / "_w7_bounded_context_disjointness_baseline.toml"
+EXPECTED_DISJOINT_COUNT_KEY = "expected_disjoint_count"
+
+
+def _baseline_int(key: str) -> int:
+    data = tomllib.loads(BASELINE_PATH.read_text(encoding="utf-8"))
+    value = data[key]
+    assert isinstance(value, int), f"{BASELINE_PATH}::{key} must be an integer"
+    return value
+
+
+EXPECTED_DISJOINT_COUNT = _baseline_int(EXPECTED_DISJOINT_COUNT_KEY)
 
 
 def _load_toml(path: Path) -> dict[str, Any]:
+    assert_not_expired(path)
     return tomllib.loads(path.read_text())
 
 
@@ -65,4 +80,7 @@ def test_monitoring_response_is_file_entry_in_read_shape() -> None:
 def test_at_least_32_packages_classified() -> None:
     """Phase 7: #61 landed; lock asserts >= 32 underscored packages."""
     pkgs = _underscored_packages()
-    assert len(pkgs) >= 32, f"expected >= 32 underscored packages after #61 landed; got {len(pkgs)}"
+    assert len(pkgs) >= EXPECTED_DISJOINT_COUNT, (
+        f"expected >= {EXPECTED_DISJOINT_COUNT} underscored packages per "
+        f"{BASELINE_PATH}::{EXPECTED_DISJOINT_COUNT_KEY}, got {len(pkgs)}"
+    )

@@ -128,7 +128,13 @@ export interface Issue extends IssueSummary {
     exceptions: IssueException[];
 }
 
-export type IssueListResponse = CollectionListResponse<IssueSummary>;
+export interface IssueListCapabilities {
+    can_export: boolean;
+    can_create: boolean;
+    can_view_vendor_contexts: boolean;
+}
+
+export type IssueListResponse = CollectionListResponse<IssueSummary, IssueListCapabilities>;
 
 export interface IssueListFilters {
     offset?: number;

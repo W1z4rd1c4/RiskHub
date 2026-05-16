@@ -73,13 +73,14 @@ RBAC_PERMISSIONS: tuple[dict[str, str], ...] = (
     {"resource": "reports", "action": "read", "description": "View and export reports"},
     {"resource": "users", "action": "read", "description": "View users"},
     {"resource": "users", "action": "write", "description": "Manage users"},
+    {"resource": "admin", "action": "session.revoke", "description": "Revoke user sessions"},
     {"resource": "approvals", "action": "write", "description": "Resolve approval requests"},
     {"resource": "kri", "action": "submit", "description": "Submit KRI values"},
     {"resource": "activity_log", "action": "read", "description": "View activity log"},
 )
 
 RBAC_ROLE_PERMISSIONS: dict[str, tuple[str, ...]] = {
-    "admin": ("users:*", "departments:read"),
+    "admin": ("users:*", "departments:read", "admin:session.revoke"),
     "cro": ("*:*",),
     "risk_manager": (
         "controls:*",

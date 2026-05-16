@@ -241,13 +241,21 @@ class IssueUpdate(BaseModel):
     validation_note: str | None = None
 
 
+class IssueListCapabilities(BaseModel):
+    """Collection-level issue list action capabilities."""
+
+    can_export: bool
+    can_create: bool
+    can_view_vendor_contexts: bool
+
+
 class IssueListResponse(BaseModel):
     items: list[IssueSummary]
     total: int
     offset: int
     limit: int
     groups: list[CollectionGroupRead] | None = None
-    capabilities: dict[str, bool] | None = None
+    capabilities: IssueListCapabilities | None = None
 
     @computed_field
     def skip(self) -> int:

@@ -52,6 +52,11 @@ const controlCapabilitiesSchema = passthroughObject({
     is_archived: z.boolean(),
     is_executable: z.boolean(),
 });
+export const controlListCapabilitiesSchema = passthroughObject({
+    can_export: z.boolean(),
+    can_create: z.boolean(),
+    can_view_vendor_contexts: z.boolean(),
+});
 
 export const linkedRiskSchema: z.ZodType<LinkedRisk> = passthroughObject({
     id: z.number(),
@@ -149,7 +154,9 @@ export const controlSummarySchema: z.ZodType<ControlSummary> = controlMonitoring
     capabilities: controlCapabilitiesSchema.nullable().optional(),
 });
 export const controlListResponseSchema: z.ZodType<ControlListResponse> =
-    collectionPaginationSchema(controlSummarySchema);
+    collectionPaginationSchema(controlSummarySchema).extend({
+        capabilities: controlListCapabilitiesSchema.nullable().optional(),
+    });
 
 export const controlRiskLinkSchema: z.ZodType<ControlRiskLink> = passthroughObject({
     id: z.number(),

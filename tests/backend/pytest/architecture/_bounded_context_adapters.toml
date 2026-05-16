@@ -1,4 +1,5 @@
 # ADR-007 adapter contexts bridge external systems or HTTP/session adapters.
+expires_at = "2026-11-11"
 packages = [
     "_directory_identity",
     "_directory_sync",

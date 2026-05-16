@@ -1,5 +1,6 @@
 # ADR-007 workflow-paired contexts. Left is the package under classification;
 # right is the paired primary context that must be coordinated in sweeps.
+expires_at = "2026-11-11"
 
 [[pairs]]
 left = "_approval_queue"

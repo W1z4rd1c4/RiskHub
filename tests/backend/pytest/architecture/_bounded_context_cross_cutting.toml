@@ -1,4 +1,5 @@
 # ADR-007 cross-cutting policy/config packages.
+expires_at = "2026-11-11"
 packages = [
     "_authorization_capabilities",
     "_config",

@@ -1,4 +1,5 @@
 # ADR-007 primary write-side contexts.
+expires_at = "2026-11-11"
 packages = [
     "_riskhub_config",
     "_identity_access_lifecycle",

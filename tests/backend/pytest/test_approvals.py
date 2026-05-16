@@ -41,7 +41,7 @@ from app.models.key_risk_indicator import KRIFrequency
 from app.models.kri_history import KRIValueHistory
 from app.models.user import AccessScope
 from app.services._approval_execution import kri_value_submission
-from app.services._riskhub_config.approval_scenario_roles import set_approval_scenario_roles
+from app.services._riskhub_config.approval_scenario_roles import APPROVER_ROLES, set_approval_scenario_roles
 from app.services.approval_execution_service import (
     approve_request_workflow,
     cancel_request_workflow,
@@ -287,7 +287,7 @@ async def test_queue_created_high_threshold_risk_delete_requires_privileged_foll
     assert approval.requires_privileged_approval is True
     assert approval.status == ApprovalStatus.PENDING
     assert approval.scenario_key == "risk_delete"
-    assert approval.scenario_approver_roles == ["risk_owner", "risk_manager", "cro"]
+    assert approval.scenario_approver_roles == list(APPROVER_ROLES)
 
     primary_detail_response = await client_employee.get(f"/api/v1/approvals/{approval_id}")
     assert primary_detail_response.status_code == 200
@@ -404,7 +404,7 @@ async def test_queue_created_control_delete_mirrors_direct_tiering_metadata(
     assert approval.requires_privileged_approval is True
     assert approval.status == ApprovalStatus.PENDING
     assert approval.scenario_key == "control_delete"
-    assert approval.scenario_approver_roles == ["risk_owner", "risk_manager", "cro"]
+    assert approval.scenario_approver_roles == list(APPROVER_ROLES)
 
 
 @pytest.mark.asyncio
@@ -483,7 +483,7 @@ async def test_queue_created_risk_delete_respects_configured_high_risk_threshold
         below_approval = await _load_approval(db_session, below_response.json()["id"])
         assert below_approval.requires_privileged_approval is False
         assert below_approval.scenario_key == "risk_delete"
-        assert below_approval.scenario_approver_roles == ["risk_owner", "risk_manager", "cro"]
+        assert below_approval.scenario_approver_roles == list(APPROVER_ROLES)
 
         at_response = await client_approval_requester.post(
             "/api/v1/approvals",
@@ -493,7 +493,7 @@ async def test_queue_created_risk_delete_respects_configured_high_risk_threshold
         at_approval = await _load_approval(db_session, at_response.json()["id"])
         assert at_approval.requires_privileged_approval is True
         assert at_approval.scenario_key == "risk_delete"
-        assert at_approval.scenario_approver_roles == ["risk_owner", "risk_manager", "cro"]
+        assert at_approval.scenario_approver_roles == list(APPROVER_ROLES)
     finally:
         clear_config_cache()
 
@@ -593,7 +593,7 @@ async def test_queue_created_kri_delete_routes_risk_owner_scenario_to_primary_ap
     assert approval.action_type == ApprovalActionType.DELETE
     assert approval.scenario_key == "kri_delete"
     assert approval.primary_approver_id == test_user_employee.id
-    assert approval.scenario_approver_roles == ["risk_owner", "risk_manager", "cro"]
+    assert approval.scenario_approver_roles == list(APPROVER_ROLES)
 
     approve_response = await client_employee.post(
         f"/api/v1/approvals/{approval_id}/approve",

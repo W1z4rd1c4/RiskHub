@@ -113,13 +113,21 @@ class VendorRead(VendorBase):
     model_config = {"from_attributes": True}
 
 
+class VendorListCapabilities(BaseModel):
+    """Collection-level vendor list action capabilities."""
+
+    can_export: bool
+    can_create: bool
+    can_view_risk_contexts: bool
+
+
 class VendorListResponse(BaseModel):
     items: list[VendorRead]
     total: int
     offset: int
     limit: int
     groups: list[CollectionGroupRead] | None = None
-    capabilities: dict[str, bool] | None = None
+    capabilities: VendorListCapabilities | None = None
 
     @computed_field
     def skip(self) -> int:

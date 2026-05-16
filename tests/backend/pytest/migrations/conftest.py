@@ -11,10 +11,12 @@ from typing import AsyncGenerator
 
 import pytest
 import pytest_asyncio
-from alembic.migration import MigrationContext
-from alembic.operations import Operations
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
+
+from alembic.migration import MigrationContext
+from alembic.operations import Operations
+from app.core.exceptions import MigrationAlreadyAppliedError
 
 POSTGRES_URL = os.environ.get("TEST_DATABASE_URL")
 MIGRATION_MODULE_NAME = "riskhub_k6l7m8n9o0p1_vendor_link_cascade_and_status_drop"
@@ -46,7 +48,13 @@ def run_vendor_migration_upgrade(sync_connection) -> None:
 
     context = MigrationContext.configure(sync_connection)
     with Operations.context(context):
-        load_vendor_migration().upgrade()
+        try:
+            load_vendor_migration().upgrade()
+        except Exception as exc:
+            message = str(exc).lower()
+            if "already" in message or "does not exist" in message or "no such column" in message:
+                raise MigrationAlreadyAppliedError(f"Vendor status-removal migration already applied: {exc}") from exc
+            raise
 
 
 def _require_postgres() -> str:

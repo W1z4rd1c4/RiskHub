@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -14,6 +15,9 @@ pytestmark = pytest.mark.contract
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 CONTRACT_JSON = REPO_ROOT / "docs/security/authorization-capability-contract.json"
+BASELINE_PATH = REPO_ROOT / "tests/backend/pytest/architecture/_w12_resource_permissions_baseline.toml"
+EXPECTED_KEYS_KEY = "expected_keys"
+EXPECTED_KEYS = set(tomllib.loads(BASELINE_PATH.read_text(encoding="utf-8"))[EXPECTED_KEYS_KEY])
 
 
 def _user_with_all_route_permissions() -> User:
@@ -57,16 +61,10 @@ def test_runtime_resource_permission_keys_are_documented_by_capability_contract(
         for key in runtime_keys
     }
 
-    assert runtime_keys == {
-        "risks:read",
-        "controls:read",
-        "issues:read",
-        "vendors:read",
-        "departments:read",
-        "users:read",
-        "users:write",
-        "activity_log:read",
-    }
+    assert runtime_keys == EXPECTED_KEYS, (
+        f"expected resource permission keys per {BASELINE_PATH}::{EXPECTED_KEYS_KEY}; "
+        f"found {sorted(runtime_keys)}"
+    )
     assert {key: ids for key, ids in documented_action_ids.items() if not ids} == {}
     for ids in documented_action_ids.values():
         assert all(action_id.startswith("AUTHZ-") for action_id in ids)

@@ -1,5 +1,7 @@
 """Add indexes for issue link target lookups."""
 
+# See docs/adr/ADR-010-postgres-migration-rehearsal-contract.md for migration discipline.
+
 from __future__ import annotations
 
 from typing import Sequence, Union

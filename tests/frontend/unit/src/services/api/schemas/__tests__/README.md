@@ -9,8 +9,6 @@ Folder for `tests/frontend/unit/src/services/api/schemas/__tests__` implementati
 - `crudCapabilitySchema.contract.test.ts`
 - `crudCapabilitySchema.parser.test.ts`
 - `issuesCapabilities.distinct.test.ts`
-- `vendors.statusOptional.lookup.test.ts`
-- `vendors.statusOptional.test.ts`
 
 ## Notes
 

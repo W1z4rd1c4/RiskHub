@@ -8,13 +8,14 @@ from sqlalchemy.orm import selectinload
 from app.core.approval_helpers import create_approval_request_with_audit
 from app.models import ApprovalActionType, ApprovalRequest, ApprovalStatus, User
 from app.schemas.approval_request import ApprovalRequestCreate, ApprovalRequestRead
+from app.services._riskhub_config.approval_scenario_roles import APPROVER_ROLES
 from app.services.approval_scenario_policy import apply_approval_scenario_snapshot, load_approval_scenario_policy
 
 from .contracts import ApprovalRequestIntakePlan
 from .delete_intake import build_delete_intake_plan, ensure_delete_approval_not_pending
 from .projection import build_approval_read
 
-DELETE_SCENARIO_DEFAULT_ROLES = ["risk_owner", "risk_manager", "cro"]
+DELETE_SCENARIO_DEFAULT_ROLES = list(APPROVER_ROLES)
 
 
 async def create_delete_approval_request(

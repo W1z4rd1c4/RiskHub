@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import pytest
 
-pytestmark = pytest.mark.contract
-
 from app.services.outbox import payloads
+
+pytestmark = pytest.mark.contract
 
 
 def test_actor_payload_model_base_shape() -> None:

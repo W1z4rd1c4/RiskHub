@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "last_reviewed": "2026-05-09",
+  "last_reviewed": "2026-05-10",
   "owner": "RiskHub Maintainer",
   "description": "Validator catalog for backend Pydantic capability models and frontend Zod capability schemas. The authorization capability contract remains the source of protected action semantics; this catalog checks field-shape drift only.",
   "surfaces": [
@@ -210,6 +210,277 @@
         "can_view_linked_controls",
         "can_view_linked_kris",
         "can_create_issue"
+      ]
+    },
+    {
+      "id": "risk_list",
+      "backend": {
+        "path": "backend/app/schemas/risk.py",
+        "class": "RiskListCapabilities"
+      },
+      "frontend": {
+        "path": "frontend/src/services/api/schemas/entities/risks.ts",
+        "schema": "riskListCapabilitiesSchema"
+      },
+      "fields": [
+        "can_export",
+        "can_create",
+        "can_view_vendor_contexts"
+      ]
+    },
+    {
+      "id": "control_list",
+      "backend": {
+        "path": "backend/app/schemas/control.py",
+        "class": "ControlListCapabilities"
+      },
+      "frontend": {
+        "path": "frontend/src/services/api/schemas/entities/controls.ts",
+        "schema": "controlListCapabilitiesSchema"
+      },
+      "fields": [
+        "can_export",
+        "can_create",
+        "can_view_vendor_contexts"
+      ]
+    },
+    {
+      "id": "kri_list",
+      "backend": {
+        "path": "backend/app/schemas/kri.py",
+        "class": "KRIListCapabilities"
+      },
+      "frontend": {
+        "path": "frontend/src/services/api/schemas/entities/kris.ts",
+        "schema": "kriListCapabilitiesSchema"
+      },
+      "fields": [
+        "can_export",
+        "can_create",
+        "can_view_vendor_contexts"
+      ]
+    },
+    {
+      "id": "vendor_list",
+      "backend": {
+        "path": "backend/app/schemas/vendor.py",
+        "class": "VendorListCapabilities"
+      },
+      "frontend": {
+        "path": "frontend/src/services/api/schemas/entities/vendors.ts",
+        "schema": "vendorListCapabilitiesSchema"
+      },
+      "fields": [
+        "can_export",
+        "can_create",
+        "can_view_risk_contexts"
+      ]
+    },
+    {
+      "id": "issue_list",
+      "backend": {
+        "path": "backend/app/schemas/issue.py",
+        "class": "IssueListCapabilities"
+      },
+      "frontend": {
+        "path": "frontend/src/services/api/schemas/entities/issues.ts",
+        "schema": "issueListCapabilitiesSchema"
+      },
+      "fields": [
+        "can_export",
+        "can_create",
+        "can_view_vendor_contexts"
+      ]
+    },
+    {
+      "id": "role_hub",
+      "backend": {
+        "path": "backend/app/schemas/riskhub.py",
+        "class": "RoleHubCapabilities"
+      },
+      "frontend": {
+        "path": "frontend/src/services/api/schemas/entities/roleHub.ts",
+        "schema": "roleHubCapabilitiesSchema"
+      },
+      "fields": [
+        "can_update",
+        "can_delete",
+        "can_restore"
+      ]
+    },
+    {
+      "id": "department_hub",
+      "backend": {
+        "path": "backend/app/schemas/riskhub.py",
+        "class": "DepartmentHubCapabilities"
+      },
+      "frontend": {
+        "path": "frontend/src/services/api/schemas/entities/departmentHub.ts",
+        "schema": "departmentHubCapabilitiesSchema"
+      },
+      "fields": [
+        "can_update",
+        "can_delete",
+        "can_restore"
+      ]
+    },
+    {
+      "id": "risk_type",
+      "backend": {
+        "path": "backend/app/schemas/riskhub.py",
+        "class": "RiskTypeCapabilities"
+      },
+      "frontend": {
+        "path": "frontend/src/services/api/schemas/entities/riskType.ts",
+        "schema": "riskTypeCapabilitiesSchema"
+      },
+      "fields": [
+        "can_create",
+        "can_update",
+        "can_delete",
+        "can_restore"
+      ]
+    },
+    {
+      "id": "approval_scenario",
+      "backend": {
+        "path": "backend/app/schemas/riskhub.py",
+        "class": "ApprovalScenarioCapabilities"
+      },
+      "frontend": {
+        "path": "frontend/src/services/api/schemas/entities/approvalScenario.ts",
+        "schema": "approvalScenarioCapabilitiesSchema"
+      },
+      "fields": [
+        "can_update"
+      ]
+    },
+    {
+      "id": "risk_questionnaire",
+      "backend": {
+        "path": "backend/app/schemas/risk_questionnaire.py",
+        "class": "RiskQuestionnaireCapabilitiesRead"
+      },
+      "frontend": {
+        "path": "frontend/src/services/api/schemas/workflow.ts",
+        "schema": "riskQuestionnaireCapabilitiesSchema"
+      },
+      "fields": [
+        "can_open",
+        "can_save_draft",
+        "can_submit",
+        "can_request_clarification",
+        "can_respond_to_clarifications"
+      ]
+    },
+    {
+      "id": "dashboard_overview",
+      "backend": {
+        "path": "backend/app/schemas/dashboard.py",
+        "class": "DashboardOverviewCapabilities"
+      },
+      "frontend": {
+        "path": "frontend/src/services/api/schemas/entities/dashboard.ts",
+        "schema": "dashboardOverviewCapabilitiesSchema"
+      },
+      "fields": [
+        "can_read",
+        "can_view_issue_metrics",
+        "can_view_committee",
+        "can_view_vendor_metrics",
+        "can_use_department_filter",
+        "can_export_or_report"
+      ]
+    },
+    {
+      "id": "activity_log",
+      "backend": {
+        "path": "backend/app/schemas/activity_log.py",
+        "class": "ActivityLogCapabilities"
+      },
+      "frontend": {
+        "path": "frontend/src/services/api/schemas/entities/activityLog.ts",
+        "schema": "activityLogCapabilitiesSchema"
+      },
+      "fields": [
+        "can_read",
+        "can_filter_by_department",
+        "can_view_entity_filters",
+        "can_export_csv"
+      ]
+    },
+    {
+      "id": "approval_request",
+      "backend": {
+        "path": "backend/app/schemas/approval_request.py",
+        "class": "ApprovalRequestCapabilities"
+      },
+      "frontend": {
+        "path": "frontend/src/services/api/schemas/entities/approvalRequest.ts",
+        "schema": "approvalRequestCapabilitiesSchema"
+      },
+      "fields": [
+        "can_read",
+        "can_approve",
+        "can_reject",
+        "can_cancel",
+        "can_cancel_as_requester",
+        "can_cancel_as_resolver",
+        "can_view_pending_changes",
+        "can_view_resolution_notes",
+        "can_inspect_side_effects",
+        "is_requester",
+        "is_primary_approver",
+        "is_privileged_resolver",
+        "is_pending",
+        "requires_privileged_resolution",
+        "would_apply_side_effects_on_approve"
+      ]
+    },
+    {
+      "id": "user_directory",
+      "backend": {
+        "path": "backend/app/schemas/user.py",
+        "class": "UserDirectoryCapabilities"
+      },
+      "frontend": {
+        "path": "frontend/src/services/api/schemas/entities/identity.ts",
+        "schema": "userDirectoryCapabilitiesSchema"
+      },
+      "fields": [
+        "can_read_directory",
+        "can_view_access_details",
+        "can_use_role_facets",
+        "can_create_local_user",
+        "can_import_directory_user"
+      ]
+    },
+    {
+      "id": "control_execution_list",
+      "backend": {
+        "path": "backend/app/schemas/execution.py",
+        "class": "ControlExecutionListCapabilities"
+      },
+      "frontend": {
+        "path": "frontend/src/services/api/schemas/entities/executions.ts",
+        "schema": "executionListCapabilitiesSchema"
+      },
+      "fields": [
+        "can_export_csv"
+      ]
+    },
+    {
+      "id": "kri_history",
+      "backend": {
+        "path": "backend/app/schemas/kri.py",
+        "class": "KRIHistoryCapabilitiesRead"
+      },
+      "frontend": {
+        "path": "frontend/src/services/api/schemas/entities/kris.ts",
+        "schema": "kriHistoryCapabilitiesSchema"
+      },
+      "fields": [
+        "can_request_correction"
       ]
     },
     {

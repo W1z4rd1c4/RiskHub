@@ -13,6 +13,18 @@ REPO_ROOT = Path(__file__).resolve().parents[4]
 AUDIT_ROOT = REPO_ROOT / "backend" / "app" / "core" / "audit"
 MATRIX_PATH = AUDIT_ROOT / "_audit_matrix.toml"
 EMIT_PATH = AUDIT_ROOT / "_emit.py"
+BASELINE_PATH = Path(__file__).parent / "_audit_adapter_emitter_helper_baseline.toml"
+EXPECTED_ROW_COUNT_KEY = "expected_row_count"
+
+
+def _baseline_int(key: str) -> int:
+    data = tomllib.loads(BASELINE_PATH.read_text(encoding="utf-8"))
+    value = data[key]
+    assert isinstance(value, int), f"{BASELINE_PATH}::{key} must be an integer"
+    return value
+
+
+EXPECTED_ROW_COUNT = _baseline_int(EXPECTED_ROW_COUNT_KEY)
 
 
 def _load_matrix() -> list[dict[str, str]]:
@@ -54,7 +66,10 @@ def test_emit_helper_module_exists_with_expected_signature() -> None:
 
 def test_each_adapter_row_invokes_emit_helper() -> None:
     rows = _load_matrix()
-    assert len(rows) == 37, f"expected 37 adapter rows, got {len(rows)}"
+    assert len(rows) == EXPECTED_ROW_COUNT, (
+        f"expected {EXPECTED_ROW_COUNT} audit-adapter rows per "
+        f"{BASELINE_PATH}::{EXPECTED_ROW_COUNT_KEY}, found {len(rows)}"
+    )
     missing = []
     for entry in rows:
         source = _module_function_source(entry["module"], entry["function"])

@@ -1,0 +1,4 @@
+module_path = "backend/app/services/_control_execution/link_governance.py"
+function_name = "create_risk_control_link"
+required_calls = ["assert_risk_writable_for_link", "assert_control_writable_for_link"]
+forbidden_kwargs = ["allow_direct_owner=True"]

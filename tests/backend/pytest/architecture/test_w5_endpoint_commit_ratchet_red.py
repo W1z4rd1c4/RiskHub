@@ -7,6 +7,8 @@ from pathlib import Path
 
 import pytest
 
+from ._allowlist_expiry import assert_not_expired
+
 pytestmark = pytest.mark.contract
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
@@ -30,6 +32,7 @@ def _commit_sites(root: Path) -> list[tuple[str, int]]:
 
 
 def _allowlist_entries() -> list[dict[str, object]]:
+    assert_not_expired(ALLOWLIST_PATH)
     raw = tomllib.loads(ALLOWLIST_PATH.read_text(encoding="utf-8"))
     return list(raw["allowlist"])
 

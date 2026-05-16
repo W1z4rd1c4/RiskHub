@@ -19,7 +19,7 @@
 - `backend/app/db/session.py` - engine/sessionmaker lifecycle + `get_db` dependency (sessionmaker stored on `app.state`)
 
 ### Primary subdirectories
-- `backend/app/api/v1/endpoints/` - 167 Python modules/packages (measured `*.py` snapshot; extensively split into subrouters for maintainability)
+- `backend/app/api/v1/endpoints/` - 166 Python modules/packages (measured `*.py` snapshot; extensively split into subrouters for maintainability)
 - `backend/app/models/` - 28 model modules (measured `*.py` snapshot)
 - `backend/app/schemas/` - 26 schema modules (measured `*.py` snapshot)
 - `backend/app/services/` - 264 Python modules (measured workspace `*.py` snapshot; business services + internal helper packages such as `_approval_queue`, `_issue_register`, `_vendor_links`, `_admin_telemetry`, `_issue_workflow`, `_kri_history`, `_vendor_workflow`, `_control_execution`, `_access_workflow`, `_riskhub_config`, `_orphaned_items`, `_quarterly_comparison`, `_risk_questionnaires`, `_auth_session_workflow`, `_graph_directory`, and `_identity_access_lifecycle`)
@@ -29,7 +29,7 @@
 - `backend/alembic/` - migration environment and versioned migrations
 - `backend/scripts/runtime/` - component-scoped backend runtime entrypoints (`dev`, `test`, `prod`)
 - `backend/scripts/runtime/db/` - backend-owned DB runtime entrypoints (`dev`, `test`, `prod`)
-- `tests/backend/pytest/` - 335 tracked test files (312 Python)
+- `tests/backend/pytest/` - 338 tracked test files (315 Python)
 
 ## Frontend Tree (`frontend/`)
 

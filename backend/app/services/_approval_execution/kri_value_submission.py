@@ -91,7 +91,6 @@ async def _apply_kri_value_submission(
     except ValueError as e:
         logger.warning("Approval #%s: auto-rejecting stale KRI value submission: %s", approval_id, e)
         return auto_reject_kri_approval(
-            approval,
             f"KRI value submission no longer passes apply-time validation ({e}).",
         )
     except Exception as exc:

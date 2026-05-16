@@ -9,6 +9,7 @@ Point-in-time audit records that evaluate a specific subsystem, integration, or 
 ## Contents
 
 - [`entra-audit-2026-04-20.md`](./entra-audit-2026-04-20.md): Microsoft Entra ID integration audit for RiskHubOSS.
+- [`2026-05-10-audit-remediation-plan.md`](./2026-05-10-audit-remediation-plan.md): Remediation plan for the 2026-05-09 to 2026-05-10 RiskHubOSS audit.
 
 ## Notes
 

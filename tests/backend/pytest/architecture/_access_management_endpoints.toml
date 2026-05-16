@@ -1,0 +1,4 @@
+module_path = "backend/app/api/v1/endpoints/access.py"
+route_path = "/users/{user_id}"
+method = "patch"
+expected_body_guards = ["_require_privileged", "_require_access_user_write"]

@@ -1,4 +1,5 @@
 # ADR-007 read-shape contexts project existing rows and must not own commits.
+expires_at = "2026-11-11"
 packages = [
     "_register_listings", # dual-classed; also write-side.
     "_monitoring_status",

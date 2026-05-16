@@ -140,7 +140,7 @@ export const issueSeverityBreakdownResponseSchema: z.ZodType<IssueSeverityBreakd
             }),
         ),
     });
-const dashboardOverviewCapabilitiesSchema = passthroughObject({
+export const dashboardOverviewCapabilitiesSchema = passthroughObject({
     can_read: z.boolean(),
     can_view_issue_metrics: z.boolean(),
     can_view_committee: z.boolean(),

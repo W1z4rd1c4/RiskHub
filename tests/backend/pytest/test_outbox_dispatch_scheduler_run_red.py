@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
+import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
-
-import pytest
 
 from app.core.datetime_utils import utc_now
 from app.models import OutboxEvent

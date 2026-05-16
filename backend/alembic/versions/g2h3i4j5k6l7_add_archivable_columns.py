@@ -1,5 +1,7 @@
 """Add archivable columns to risk, control, and vendor entities."""
 
+# See docs/adr/ADR-010-postgres-migration-rehearsal-contract.md for migration discipline.
+
 from __future__ import annotations
 
 from typing import Sequence, Union

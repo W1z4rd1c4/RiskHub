@@ -13891,7 +13891,7 @@ End of Section 6.
 
 ## Section 7 — Registers and Supporting References
 
-Working dir: `/Users/stefanlesnak/Antigravity/RiskHubOSS`. Anchor commit: `1ee872a4`.
+Working dir: `<REPO_ROOT>`. Anchor commit: `1ee872a4`.
 Mode: PRODUCTION-WRITE. FINAL plan output (Phase 5 + Phase 6 corrections applied).
 This section is the dev's reference book — all registers (READMEs/locks, risks,
 rollback, gates, CI, validator, effort, open questions) consolidated as the single
@@ -15723,14 +15723,14 @@ Per-domain item proposals:
 
 #### 7.9.10 Memory and project context (3 files)
 
-- `/Users/stefanlesnak/.claude/projects/-Users-stefanlesnak-Antigravity-RiskHubOSS/memory/MEMORY.md`
+- `<HOME>/.claude/projects/<repo-slug>/memory/MEMORY.md`
   — auto-memory index.
-- `/Users/stefanlesnak/.claude/projects/-Users-stefanlesnak-Antigravity-RiskHubOSS/memory/feedback_audits_validate_current_code.md`
+- `<HOME>/.claude/projects/<repo-slug>/memory/feedback_audits_validate_current_code.md`
   — feedback file: re-verify every audit finding against current repo
   state; staleness from recent "Deepen architecture..." commits is the
   dominant failure mode.
-- `/Users/stefanlesnak/Antigravity/RiskHubOSS/CLAUDE.md` +
-  `/Users/stefanlesnak/Antigravity/RiskHubOSS/AGENTS.md` — project
+- `<REPO_ROOT>/CLAUDE.md` +
+  `<REPO_ROOT>/AGENTS.md` — project
   guidance and conventions.
 
 ---

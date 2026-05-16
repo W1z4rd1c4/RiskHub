@@ -27,6 +27,7 @@ from app.models import (
     User,
 )
 from app.services._entity_mutation_lifecycle.contracts import EntityMutationOutcome
+from app.services._riskhub_config.approval_scenario_roles import APPROVER_ROLES
 from app.services.approval_scenario_policy import (
     apply_approval_scenario_snapshot,
     approval_privilege_tier,
@@ -90,7 +91,7 @@ async def create_risk_edit_approval_if_required(
         scenario_policy = await load_approval_scenario_policy(
             db,
             "risk_edit_priority",
-            default_roles=["risk_owner", "risk_manager", "cro"],
+            default_roles=list(APPROVER_ROLES),
         )
         if not scenario_policy.requires_approval:
             return None
@@ -200,7 +201,7 @@ async def create_control_edit_approval_if_required(
     scenario_policy = await load_approval_scenario_policy(
         db,
         "control_edit",
-        default_roles=["risk_owner", "risk_manager", "cro"],
+        default_roles=list(APPROVER_ROLES),
     )
     if not scenario_policy.requires_approval:
         return None
@@ -266,7 +267,7 @@ async def create_kri_edit_approval_if_required(
     scenario_policy = await load_approval_scenario_policy(
         db,
         "kri_edit",
-        default_roles=["risk_owner", "risk_manager", "cro"],
+        default_roles=list(APPROVER_ROLES),
     )
     if approval_privilege_tier(current_user).is_privileged or not scenario_policy.requires_approval:
         return None

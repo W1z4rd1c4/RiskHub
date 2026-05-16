@@ -59,7 +59,7 @@ export const userDirectoryRoleFacetSchema: z.ZodType<UserDirectoryRoleFacet> = p
     display_name: z.string(),
     count: z.number(),
 });
-const userDirectoryCapabilitiesSchema = passthroughObject({
+export const userDirectoryCapabilitiesSchema = passthroughObject({
     can_read_directory: z.boolean(),
     can_view_access_details: z.boolean(),
     can_use_role_facets: z.boolean(),

@@ -28,7 +28,7 @@ from app.models.key_risk_indicator import KeyRiskIndicator, KRIFrequency
 from app.models.kri_history import KRIValueHistory
 from app.models.risk import RiskStatus
 from app.models.user import AccessScope
-from app.services._riskhub_config.approval_scenario_roles import set_approval_scenario_roles
+from app.services._riskhub_config.approval_scenario_roles import APPROVER_ROLES, set_approval_scenario_roles
 from app.services.kri_history_service import KRIHistoryService
 
 pytest_plugins = ("tests.backend.pytest.kri_history_api_support",)
@@ -48,7 +48,7 @@ async def _upsert_kri_value_submit_scenario(
         )
         db_session.add(scenario)
     scenario.requires_approval = requires_approval
-    set_approval_scenario_roles(scenario, ["risk_owner", "risk_manager", "cro"])
+    set_approval_scenario_roles(scenario, list(APPROVER_ROLES))
     await db_session.commit()
     await db_session.refresh(scenario)
     return scenario

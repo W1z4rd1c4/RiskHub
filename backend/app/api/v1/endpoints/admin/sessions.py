@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import User
 from app.schemas.admin import ActiveSessionResponse
@@ -47,12 +48,13 @@ async def get_active_sessions(
 async def revoke_user_session(
     user_id: int,
     db: AsyncSession = Depends(get_db),
-    admin_user: User = Depends(require_platform_admin),
+    current_user: User = Depends(require_permission("admin", "session.revoke")),
 ) -> dict:
     """
     Force logout a user's active sessions.
     Admin only.
     """
+    admin_user = require_platform_admin(current_user)
     try:
         result = await revoke_admin_user_sessions(db, target_user_id=user_id, admin_user=admin_user)
     except SessionWorkflowError as exc:

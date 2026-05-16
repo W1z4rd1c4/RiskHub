@@ -84,7 +84,13 @@ export type VendorCreate = Omit<
 
 export type VendorUpdate = Partial<VendorCreate>;
 
-export type VendorListResponse = CollectionListResponse<Vendor>;
+export interface VendorListCapabilities {
+    can_export: boolean;
+    can_create: boolean;
+    can_view_risk_contexts: boolean;
+}
+
+export type VendorListResponse = CollectionListResponse<Vendor, VendorListCapabilities>;
 
 export interface VendorListParams {
     offset?: number;

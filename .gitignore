@@ -145,3 +145,6 @@ repo_export/
 # Generated presentation artifacts (do not commit)
 presentation.html
 placeholder-presentation-output.pdf
+
+# Audit context artifacts (local-only working files)
+.planning/audits/_context/

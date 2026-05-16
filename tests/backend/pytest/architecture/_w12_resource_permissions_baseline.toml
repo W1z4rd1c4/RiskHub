@@ -1,0 +1,10 @@
+expected_keys = [
+    "risks:read",
+    "controls:read",
+    "issues:read",
+    "vendors:read",
+    "departments:read",
+    "users:read",
+    "users:write",
+    "activity_log:read",
+]

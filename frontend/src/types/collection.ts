@@ -7,13 +7,16 @@ export interface CollectionGroup {
     meta?: Record<string, unknown>;
 }
 
-export interface CollectionListResponse<TItem> {
+export interface CollectionListResponse<
+    TItem,
+    TCapabilities extends object = Record<string, boolean>,
+> {
     items: TItem[];
     total: number;
     offset: number;
     limit: number;
     groups?: CollectionGroup[] | null;
-    capabilities?: Record<string, boolean> | null;
+    capabilities?: TCapabilities | null;
 }
 
 export interface CollectionSort {

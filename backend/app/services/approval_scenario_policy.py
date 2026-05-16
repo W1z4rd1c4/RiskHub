@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 from sqlalchemy import select
@@ -45,7 +46,7 @@ class ApprovalPrivilegeTier:
 
 def normalize_approval_scenario_roles(
     key: str,
-    roles: list[str],
+    roles: Sequence[str],
     *,
     requires_approval: bool = True,
 ) -> list[str]:
@@ -76,7 +77,7 @@ async def load_approval_scenario_policy(
     db: AsyncSession,
     key: str,
     *,
-    default_roles: list[str] | None = None,
+    default_roles: Sequence[str] | None = None,
     default_requires_approval: bool = True,
 ) -> ApprovalScenarioPolicy:
     """Load a live approval-scenario policy, falling back for legacy/missing rows."""
@@ -125,6 +126,8 @@ def user_matches_approval_scenario_role(approval: ApprovalRequest, user: User) -
     roles = scenario_roles_for_approval(approval)
     if roles is None:
         return None
+    if approval.requested_by_id == user.id:
+        return False
     role_name = getattr(getattr(user, "role", None), "name", None)
     if role_name in roles:
         return True

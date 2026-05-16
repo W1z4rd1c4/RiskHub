@@ -3,7 +3,7 @@
 
 AUTHZ_CONTRACT_BASE_REF ?= HEAD
 
-.PHONY: help dev dev-full docker docker-lan docker-reset stop clean test test-fast test-db-contracts test-postgres-ci test-benchmarks test-architecture-locks migrate logs shell db db-shell lint lint-frontend lint-backend quality-suppression-budget quality-repo-contracts readme-coverage docs-tree-audit docs-topology-consistency verify verify-prod-install-scripts verify-startup-scripts security-contract-probe security-redis-resilience security-gap-round5 public-repo-hygiene public-leak-audit prod-readiness-audit-local release-parity-audit
+.PHONY: help dev dev-full docker docker-lan docker-reset stop clean test test-fast test-db-contracts test-postgres-ci test-benchmarks test-architecture-locks migrate logs shell db db-shell lint lint-frontend lint-backend lint-types quality-suppression-budget quality-repo-contracts readme-coverage docs-tree-audit docs-topology-consistency verify verify-prod-install-scripts verify-startup-scripts security-contract-probe security-redis-resilience security-gap-round5 public-repo-hygiene public-leak-audit prod-readiness-audit-local release-parity-audit
 
 # Default target
 help:
@@ -38,6 +38,7 @@ help:
 	@echo "  make lint         - Run frontend + backend lint"
 	@echo "  make lint-frontend - Run frontend lint + typecheck + deadcode + build + debt budget"
 	@echo "  make lint-backend - Run backend Ruff lint (app + tests/backend/pytest + backend/scripts) + suppression budget"
+	@echo "  make lint-types   - Run backend mypy type checks"
 	@echo "  make quality-suppression-budget - Enforce backend/app suppression allowlist budget"
 	@echo "  make quality-repo-contracts - Enforce repo artifact hygiene + script syntax contracts"
 	@echo ""
@@ -151,6 +152,9 @@ lint-backend:
 	cd backend && ./venv/bin/python -m ruff check app ../tests/backend/pytest scripts
 	python3 scripts/tools/suppression_budget.py
 
+lint-types:
+	cd backend && ./venv/bin/python -m mypy --config-file mypy.ini app
+
 quality-suppression-budget:
 	python3 scripts/tools/suppression_budget.py
 
@@ -158,7 +162,7 @@ quality-repo-contracts:
 	bash -n scripts/install.sh scripts/compose.sh scripts/dev.sh scripts/deploy.sh
 	python3 -m py_compile backend/scripts/migrate_controls.py backend/scripts/migrate_kris.py backend/scripts/migrate_risks.py backend/scripts/seed_users.py backend/scripts/seed_demo.py
 	python3 scripts/security/validate_authz_capability_contract.py --base-ref "$(AUTHZ_CONTRACT_BASE_REF)"
-	cd backend && pytest -q ../tests/backend/pytest/test_repo_hygiene_contracts.py
+	cd backend && ./venv/bin/pytest -q ../tests/backend/pytest/test_repo_hygiene_contracts.py
 
 # Run full lint suite
 lint: lint-frontend lint-backend

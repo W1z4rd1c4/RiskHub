@@ -1,0 +1,4 @@
+module_dir = "backend/app/api/v1/endpoints/reports/unified_exports"
+expected_dependency = "require_permission"
+expected_resource = "reports"
+expected_action = "read"

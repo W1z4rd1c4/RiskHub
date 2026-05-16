@@ -1061,6 +1061,7 @@ def test_approval_queue_routes_use_queue_lifecycle_module() -> None:
 def test_approval_queue_lifecycle_uses_service_owned_helpers() -> None:
     """S6.3: package __init__ imports leaf submodules; no lifecycle aggregator."""
     import inspect
+
     from app.services import _approval_queue as queue_pkg
 
     package_source = inspect.getsource(queue_pkg)

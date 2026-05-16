@@ -111,7 +111,13 @@ export interface KRIUpdate {
     linked_vendor_ids?: number[];
 }
 
-export type KRIListResponse = CollectionListResponse<KeyRiskIndicator>;
+export interface KRIListCapabilities {
+    can_export: boolean;
+    can_create: boolean;
+    can_view_vendor_contexts: boolean;
+}
+
+export type KRIListResponse = CollectionListResponse<KeyRiskIndicator, KRIListCapabilities>;
 
 // History types
 export interface KRIHistoryEntry {

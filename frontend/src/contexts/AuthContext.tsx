@@ -38,6 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     );
 }
 
+// Keep the combined auth surface while call-site density is low; migrate only a future high-frequency consumer that needs render isolation.
 export function useAuth() {
     const session = useSession();
     const preferences = usePreferenceState();

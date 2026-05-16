@@ -39,6 +39,7 @@ async def resolve_vendor_department_and_access(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Linked vendor not found")
 
     _, vendor_department_id, owner_department_id, vendor_is_archived = row
+    # BL §11.5 treats inactive linked vendors as archived after vendor status removal.
     if vendor_is_archived:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Cannot link archived vendor")
 

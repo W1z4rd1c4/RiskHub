@@ -34,7 +34,7 @@ async def _apply_delete_side_effects(
     as REJECTED with an explanatory note for audit purposes.
     """
     if approval.resource_type == ApprovalResourceType.RISK:
-        risk_result = await db.execute(select(Risk).where(Risk.id == approval.resource_id))
+        risk_result = await db.execute(select(Risk).where(Risk.id == approval.resource_id).with_for_update())
         risk = risk_result.scalar_one_or_none()
         if not risk:
             return missing_resource_auto_rejection(approval, resource_label="Risk", logger=logger)
@@ -54,7 +54,7 @@ async def _apply_delete_side_effects(
         return SideEffectResult.applied()
 
     elif approval.resource_type == ApprovalResourceType.CONTROL:
-        control_result = await db.execute(select(Control).where(Control.id == approval.resource_id))
+        control_result = await db.execute(select(Control).where(Control.id == approval.resource_id).with_for_update())
         control = control_result.scalar_one_or_none()
         if not control:
             return missing_resource_auto_rejection(approval, resource_label="Control", logger=logger)
@@ -79,6 +79,7 @@ async def _apply_delete_side_effects(
             select(KeyRiskIndicator)
             .options(joinedload(KeyRiskIndicator.risk))
             .where(KeyRiskIndicator.id == approval.resource_id)
+            .with_for_update()
         )
         kri = kri_result.scalar_one_or_none()
         if not kri:

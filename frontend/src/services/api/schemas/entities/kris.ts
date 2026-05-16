@@ -37,6 +37,11 @@ const kriCapabilitiesSchema = passthroughObject({
     requires_privileged_update_approval: z.boolean(),
     requires_privileged_delete_approval: z.boolean(),
 });
+export const kriListCapabilitiesSchema = passthroughObject({
+    can_export: z.boolean(),
+    can_create: z.boolean(),
+    can_view_vendor_contexts: z.boolean(),
+});
 
 export const kriMonitoringFieldsSchema = passthroughObject({
     monitoring_status: z.enum(['new', 'not_submitted', 'breach', 'warning', 'optimal']).optional(),
@@ -107,7 +112,9 @@ export const keyRiskIndicatorSchema: z.ZodType<KeyRiskIndicator> = kriMonitoring
 });
 export const keyRiskIndicatorArraySchema = z.array(keyRiskIndicatorSchema);
 export const kriListResponseSchema: z.ZodType<KRIListResponse> =
-    collectionPaginationSchema(keyRiskIndicatorSchema);
+    collectionPaginationSchema(keyRiskIndicatorSchema).extend({
+        capabilities: kriListCapabilitiesSchema.nullable().optional(),
+    });
 
 export const kriHistoryEntrySchema: z.ZodType<KRIHistoryEntry> = passthroughObject({
     id: z.number(),
@@ -123,7 +130,7 @@ export const kriHistoryEntrySchema: z.ZodType<KRIHistoryEntry> = passthroughObje
     recorded_by_id: z.number().nullable().optional(),
     recorded_by_name: z.string().nullable().optional(),
 });
-const kriHistoryCapabilitiesSchema = passthroughObject({
+export const kriHistoryCapabilitiesSchema = passthroughObject({
     can_request_correction: z.boolean(),
 });
 export const kriHistoryListResponseSchema: z.ZodType<KRIHistoryListResponse> =

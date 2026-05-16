@@ -145,6 +145,14 @@ class KRIResponse(KRIBase, KRIMonitoringBundle):
     model_config = {"from_attributes": True}
 
 
+class KRIListCapabilities(BaseModel):
+    """Collection-level KRI list action capabilities."""
+
+    can_export: bool
+    can_create: bool
+    can_view_vendor_contexts: bool
+
+
 class KRIListResponse(BaseModel):
     """Paginated list of KRIs."""
 
@@ -153,7 +161,7 @@ class KRIListResponse(BaseModel):
     offset: int
     limit: int
     groups: list[CollectionGroupRead] | None = None
-    capabilities: dict[str, bool] | None = None
+    capabilities: KRIListCapabilities | None = None
 
     @computed_field
     def page(self) -> int:

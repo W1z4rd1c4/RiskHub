@@ -3,6 +3,8 @@ from pathlib import Path
 
 import pytest
 
+from ._allowlist_expiry import assert_not_expired
+
 pytestmark = pytest.mark.contract
 
 
@@ -11,6 +13,7 @@ ARCHIVE_ALLOWLIST = ROOT / "tests/backend/pytest/architecture/_archive_allowlist
 
 
 def _archive_allowlist_paths() -> set[str]:
+    assert_not_expired(ARCHIVE_ALLOWLIST)
     data = tomllib.loads(ARCHIVE_ALLOWLIST.read_text())
     return {entry["path"] for entry in data.get("paths", [])}
 

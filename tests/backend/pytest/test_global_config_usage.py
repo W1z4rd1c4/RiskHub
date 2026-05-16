@@ -26,8 +26,8 @@ from app.models.global_config import (
     get_config_int,
     get_config_value,
 )
-from app.services._kri_history.constants import REPORTING_GRACE_DAYS
 from app.schemas.risk import RiskBriefForLink, RiskRead, RiskStatusEnum, RiskSummary
+from app.services._kri_history.constants import REPORTING_GRACE_DAYS
 
 
 @pytest.fixture(autouse=True)

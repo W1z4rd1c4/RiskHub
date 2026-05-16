@@ -6,7 +6,6 @@ import { collectionPaginationSchema, passthroughObject, z } from '../common';
 export const linkedVendorSummarySchema: z.ZodType<LinkedVendorSummary> = passthroughObject({
     id: z.number(),
     name: z.string(),
-    status: z.string().nullable().optional(),
     is_archived: z.boolean().optional(),
 });
 export const linkedVendorSummaryArraySchema = z.array(linkedVendorSummarySchema);
@@ -33,6 +32,11 @@ const vendorCapabilitiesSchema = passthroughObject({
     can_view_linked_controls: z.boolean(),
     can_view_linked_kris: z.boolean(),
     can_create_issue: z.boolean(),
+});
+export const vendorListCapabilitiesSchema = passthroughObject({
+    can_export: z.boolean(),
+    can_create: z.boolean(),
+    can_view_risk_contexts: z.boolean(),
 });
 
 export const vendorSchema: z.ZodType<Vendor> = passthroughObject({
@@ -67,7 +71,9 @@ export const vendorSchema: z.ZodType<Vendor> = passthroughObject({
 });
 export const vendorArraySchema = z.array(vendorSchema);
 export const vendorListResponseSchema: z.ZodType<VendorListResponse> =
-    collectionPaginationSchema(vendorSchema);
+    collectionPaginationSchema(vendorSchema).extend({
+        capabilities: vendorListCapabilitiesSchema.nullable().optional(),
+    });
 export const vendorReportCapabilitiesSchema = passthroughObject({
     can_read: z.boolean(),
     can_download_annual_report: z.boolean(),

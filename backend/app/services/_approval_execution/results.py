@@ -25,7 +25,7 @@ class SideEffectResult:
         return cls(outcome=SideEffectOutcome.AUTO_REJECTED, reason=reason)
 
 
-def auto_reject_kri_approval(approval: ApprovalRequest, reason: str) -> SideEffectResult:
+def auto_reject_kri_approval(reason: str) -> SideEffectResult:
     return SideEffectResult.auto_rejected(reason)
 
 

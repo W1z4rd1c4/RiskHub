@@ -8,7 +8,6 @@ import type { KRIFrequency, KRIMonitoringFields } from '@/types/kri';
 export interface LinkedVendorSummary {
     id: number;
     name: string;
-    status?: string | null;
     is_archived?: boolean;
 }
 

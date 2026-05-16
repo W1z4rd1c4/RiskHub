@@ -74,14 +74,14 @@ def _drop_fk_for_column(connection, *, table: str, column: str, ref_table: str) 
 
 
 def upgrade() -> None:
-    if op.get_context().dialect.name == "sqlite":
+    bind = op.get_bind()
+    check_no_link_orphans(bind)
+
+    if bind.dialect.name == "sqlite":
         op.drop_index("ix_vendors_status", table_name="vendors", if_exists=True)
         with op.batch_alter_table("vendors") as batch:
             batch.drop_column("status")
         return
-
-    bind = op.get_bind()
-    check_no_link_orphans(bind)
 
     _drop_fk_for_column(bind, table="vendor_risk_links", column="vendor_id", ref_table="vendors")
     op.create_foreign_key(

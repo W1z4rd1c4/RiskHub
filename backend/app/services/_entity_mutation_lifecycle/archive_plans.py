@@ -32,6 +32,7 @@ from app.models import (
 from app.services._authorization_capabilities import require_capability
 from app.services._entity_mutation_lifecycle.contracts import EntityMutationOutcome
 from app.services._entity_mutation_lifecycle.policy import assert_no_existing_pending_delete_request
+from app.services._riskhub_config.approval_scenario_roles import APPROVER_ROLES
 from app.services.approval_scenario_policy import (
     apply_approval_scenario_snapshot,
     approval_privilege_tier,
@@ -108,7 +109,7 @@ async def archive_risk_detail(
     scenario_policy = await load_approval_scenario_policy(
         db,
         "risk_delete",
-        default_roles=["risk_owner", "risk_manager", "cro"],
+        default_roles=list(APPROVER_ROLES),
     )
 
     if approval_privilege_tier(current_user).is_privileged or not scenario_policy.requires_approval:
@@ -184,7 +185,7 @@ async def archive_control_detail(
     scenario_policy = await load_approval_scenario_policy(
         db,
         "control_delete",
-        default_roles=["risk_owner", "risk_manager", "cro"],
+        default_roles=list(APPROVER_ROLES),
     )
 
     if approval_privilege_tier(current_user).is_privileged or not scenario_policy.requires_approval:
@@ -253,7 +254,7 @@ async def archive_kri_detail(
     scenario_policy = await load_approval_scenario_policy(
         db,
         "kri_delete",
-        default_roles=["risk_owner", "risk_manager", "cro"],
+        default_roles=list(APPROVER_ROLES),
     )
 
     if approval_privilege_tier(current_user).is_privileged or not scenario_policy.requires_approval:

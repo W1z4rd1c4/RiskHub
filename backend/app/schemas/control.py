@@ -241,6 +241,14 @@ class ControlSummary(ControlMonitoringBundle):
         return normalize_control_frequency(v)
 
 
+class ControlListCapabilities(BaseModel):
+    """Collection-level control list action capabilities."""
+
+    can_export: bool
+    can_create: bool
+    can_view_vendor_contexts: bool
+
+
 class ControlListResponse(BaseModel):
     """Paginated list of controls."""
 
@@ -249,7 +257,7 @@ class ControlListResponse(BaseModel):
     offset: int
     limit: int
     groups: list[CollectionGroupRead] | None = None
-    capabilities: dict[str, bool] | None = None
+    capabilities: ControlListCapabilities | None = None
 
     @computed_field
     def skip(self) -> int:

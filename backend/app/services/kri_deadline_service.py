@@ -204,6 +204,8 @@ class KRIDeadlineService:
                     results=results,
                     visibility_check=partial(KRIDeadlineService._can_read, db, user_id=breach_owner_id, kri_id=kri.id),
                 )
+            else:
+                logger.info("Skipping deadline duplicate guard for KRI %s — no owner assigned", kri.id)
 
             for rm in risk_managers:
                 if rm.id == owner_id:
@@ -235,6 +237,8 @@ class KRIDeadlineService:
                 lookback_days=config["duplicate_lookback_days"],
                 visibility_check=partial(KRIDeadlineService._can_read, db, user_id=owner_id, kri_id=kri.id),
             )
+        else:
+            logger.info("Skipping deadline notification for KRI %s — no owner assigned", kri.id)
 
     @staticmethod
     async def _process_single_kri(
@@ -343,12 +347,7 @@ class KRIDeadlineService:
         now: datetime | None = None,
         message_contains: str | None = None,
     ) -> bool:
-        """
-        Check if a notification of the same type was sent for this KRI recently.
-        Prevents spamming users with the same notification.
-
-        Returns True if duplicate exists (should skip), False if OK to send.
-        """
+        """Return whether a matching KRI notification was sent recently."""
         return await has_recent_deadline_notification(
             db,
             resource_type="kri",

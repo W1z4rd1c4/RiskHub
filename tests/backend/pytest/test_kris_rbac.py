@@ -10,8 +10,8 @@ import pytest_asyncio
 from httpx import AsyncClient
 from sqlalchemy import select
 
-from app.models import ActivityLog
 from app.models import (
+    ActivityLog,
     ApprovalActionType,
     ApprovalRequest,
     ApprovalResourceType,
@@ -27,8 +27,8 @@ from app.models import (
 from app.models.activity_log import ActivityEntityType
 from app.models.key_risk_indicator import KRIFrequency
 from app.models.risk import RiskStatus
+from app.services._riskhub_config.approval_scenario_roles import APPROVER_ROLES, set_approval_scenario_roles
 from app.services._vendor_links import kri_assignment
-from app.services._riskhub_config.approval_scenario_roles import set_approval_scenario_roles
 from tests.backend.pytest.factories import create_test_kri, create_test_risk, create_test_vendor
 
 
@@ -886,7 +886,7 @@ async def test_non_privileged_kri_edit_risk_owner_scenario_snapshots_parent_owne
     assert approval is not None
     assert approval.resource_id == test_kri.id
     assert approval.primary_approver_id == test_user.id
-    assert approval.scenario_approver_roles == ["risk_owner", "risk_manager", "cro"]
+    assert approval.scenario_approver_roles == list(APPROVER_ROLES)
 
 
 @pytest.mark.asyncio
@@ -1063,7 +1063,7 @@ async def test_non_privileged_delete_requires_approval_and_prevents_duplicates(
     assert approval is not None
     assert approval.resource_id == test_kri.id
     assert approval.primary_approver_id == test_user.id
-    assert approval.scenario_approver_roles == ["risk_owner", "risk_manager", "cro"]
+    assert approval.scenario_approver_roles == list(APPROVER_ROLES)
 
     duplicate = await client_dept_head_delete.delete(
         f"/api/v1/kris/{test_kri.id}?reason=Delete+request",
@@ -1458,7 +1458,7 @@ async def test_cross_department_risk_owner_can_read_kri_surfaces(
         upper_limit=100.0,
         unit="%",
         frequency=KRIFrequency.monthly.value,
-        last_period_end=date(2026, 3, 31),
+        last_period_end=date(2026, 4, 30),
     )
     db_session.add(kri)
     await db_session.commit()
@@ -1467,9 +1467,9 @@ async def test_cross_department_risk_owner_can_read_kri_surfaces(
     db_session.add(
         KRIValueHistory(
             kri_id=kri.id,
-            period_start=date(2026, 3, 1),
-            period_end=date(2026, 3, 31),
-            recorded_at=datetime(2026, 4, 1, 12, 0, tzinfo=UTC),
+            period_start=date(2026, 4, 1),
+            period_end=date(2026, 4, 30),
+            recorded_at=datetime(2026, 5, 1, 12, 0, tzinfo=UTC),
             recorded_by_id=test_user_approval_requester.id,
             value=150.0,
             lower_limit=0.0,

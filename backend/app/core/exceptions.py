@@ -48,11 +48,21 @@ class ConflictError(DomainError):
     status_code = 409
 
 
+class MigrationAlreadyAppliedError(ConflictError):
+    """Raised when an alembic migration is re-applied. See ADR-010."""
+
+
 class PreconditionFailed(DomainError):
     status_code = 412
 
 
 class ServiceFailure(DomainError):
+    status_code = 500
+
+
+class ApprovalScenarioConfigurationError(DomainError):
+    """Raised when approver_roles JSON is malformed for a scenario."""
+
     status_code = 500
 
 
@@ -69,8 +79,18 @@ EXCEPTION_REGISTRY: dict[type[DomainError], ExceptionProjection] = {
     AuthenticationError: ExceptionProjection(status_code=401, retryable=False, audit_code="authentication_required"),
     NotFoundError: ExceptionProjection(status_code=404, retryable=False, audit_code="not_found"),
     ConflictError: ExceptionProjection(status_code=409, retryable=False, audit_code="conflict"),
+    MigrationAlreadyAppliedError: ExceptionProjection(
+        status_code=409,
+        retryable=False,
+        audit_code="migration_already_applied",
+    ),
     PreconditionFailed: ExceptionProjection(status_code=412, retryable=False, audit_code="precondition_failed"),
     ServiceFailure: ExceptionProjection(status_code=500, retryable=True, audit_code="service_failure"),
+    ApprovalScenarioConfigurationError: ExceptionProjection(
+        status_code=500,
+        retryable=False,
+        audit_code="approval_scenario_misconfigured",
+    ),
 }
 
 

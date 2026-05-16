@@ -202,6 +202,14 @@ class RiskSummary(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class RiskListCapabilities(BaseModel):
+    """Collection-level risk list action capabilities."""
+
+    can_export: bool
+    can_create: bool
+    can_view_vendor_contexts: bool
+
+
 class RiskListResponse(BaseModel):
     """Paginated list of risks."""
 
@@ -210,7 +218,7 @@ class RiskListResponse(BaseModel):
     offset: int
     limit: int
     groups: list[CollectionGroupRead] | None = None
-    capabilities: dict[str, bool] | None = None
+    capabilities: RiskListCapabilities | None = None
 
     @computed_field
     def skip(self) -> int:

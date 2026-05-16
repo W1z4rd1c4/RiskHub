@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -8,12 +9,17 @@ import pytest
 pytestmark = pytest.mark.contract
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
+BASELINE_PATH = Path(__file__).parent / "_audit_adapter_usage_baseline.toml"
+EXPECTED_ROUTES_KEY = "expected_routes"
 
-REQUIRED_ADAPTER_CALLS = {
-    "backend/app/core/approval_helpers.py": {"approval_created"},
-    "backend/app/services/approval_execution_service.py": {"approval_rejected", "approval_cancelled"},
-    "backend/app/services/issue_deadline_service.py": {"issue_exception_status_changed", "issue_status_changed"},
-}
+
+def _required_adapter_calls() -> dict[str, set[str]]:
+    data = tomllib.loads(BASELINE_PATH.read_text(encoding="utf-8"))
+    routes = data[EXPECTED_ROUTES_KEY]
+    return {route: set(calls) for route, calls in routes.items()}
+
+
+REQUIRED_ADAPTER_CALLS = _required_adapter_calls()
 
 
 def _called_name(node: ast.AST) -> str | None:
@@ -37,4 +43,4 @@ def test_audit_adapter_declarations_are_used_by_workflows() -> None:
             if required_call not in calls:
                 missing.append(f"{rel_path}: missing {required_call}()")
 
-    assert missing == []
+    assert missing == [], f"expected adapter calls per {BASELINE_PATH}::{EXPECTED_ROUTES_KEY}; missing {missing}"

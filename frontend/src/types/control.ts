@@ -133,6 +133,12 @@ export interface ControlSummary extends ControlMonitoringFields {
     capabilities?: ControlCapabilities | null;
 }
 
+export interface ControlListCapabilities {
+    can_export: boolean;
+    can_create: boolean;
+    can_view_vendor_contexts: boolean;
+}
+
 export type ControlCreate = Omit<
     Control,
     'id' | 'is_archived' | 'created_at' | 'updated_at' | 'control_owner' | 'department'
@@ -173,4 +179,4 @@ export interface ControlRiskLink {
     };
 }
 
-export type ControlListResponse = CollectionListResponse<ControlSummary>;
+export type ControlListResponse = CollectionListResponse<ControlSummary, ControlListCapabilities>;

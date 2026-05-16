@@ -1,5 +1,6 @@
 # Temporary exceptions for the Archivable invariant lock.
 # Keep this list shrinking; each entry must name why direct archive-state access is still unavoidable.
+expires_at = "2026-11-11"
 
 [[paths]]
 path = "backend/app/models/_archivable.py"

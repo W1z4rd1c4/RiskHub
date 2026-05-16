@@ -395,6 +395,7 @@ async def test_role_platform_admin(db_session: AsyncSession) -> Role:
         ("users", "write", "Manage users"),
         ("activity_log", "read", "View activity log"),
         ("departments", "read", "View departments"),
+        ("admin", "session.revoke", "Revoke user sessions"),
     ]
     permissions: list[Permission] = []
     for resource, action, description in permission_specs:

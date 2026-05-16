@@ -1,0 +1,3 @@
+module_path = "backend/app/services/_issue_workflow/update_plans.py"
+function_name = "build_issue_update_plan"
+expected_substring = "Use workflow endpoints to change issue status"

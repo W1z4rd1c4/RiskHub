@@ -113,7 +113,7 @@ Access-management read/list behavior and write behavior are intentionally differ
 | `GET /api/v1/access/roles` | GLOBAL-scope users | Role option endpoint. The `admin` role is returned only to platform Admin callers. |
 | `PATCH /api/v1/access/users/{id}` | **Admin or CRO only** | Single transactional save for `/users` access modal. CRO owns business-access fields (`department_id`, `manager_id`, `access_scope`) and non-admin `role_id` assignment for non-Admin users, including department assignment. Admin owns platform identity/lifecycle fields (`name`, `email`, authentication/local-account lifecycle) and Admin-role assignment only. Non-Admin callers cannot target platform Admin users; unavailable Admin targets are concealed with not-found behavior. Validation failures reject the whole patch. |
 
-Access-user responses may include additive `capabilities` metadata (`can_edit_identity`, `can_edit_business_access`, `can_edit_role`, `can_deactivate`, `can_revoke_sessions`). The frontend should prefer those backend flags over local role guesses; when a flag is absent, older local fallback behavior remains acceptable.
+Access-user responses may include additive `capabilities` metadata (`can_edit_identity`, `can_edit_business_access`, `can_edit_role`, `can_deactivate`, `can_change_active_status`, `can_break_glass_enable`, `can_revoke_sessions`). The frontend should prefer those 7 backend-authoritative flags over local role guesses per ADR-001; when a flag is absent, older local fallback behavior remains acceptable.
 
 Admin session operations use the shared auth-session workflow. `/api/v1/admin/sessions` lists only active users with unrevoked, unexpired refresh-token sessions; inactive or deleted users are excluded from the active-session projection. `/api/v1/admin/sessions/{user_id}/revoke` rejects self-revocation, locks the target user row, revokes active refresh-token rows, bumps the target `token_version` exactly once, and writes the admin activity entry in the same transaction.
 
@@ -249,7 +249,7 @@ Rules:
 | Field | Type | Description |
 |-------|------|-------------|
 | `manager_id` | FK → User | Department Manager/Head |
-| `is_active` | Boolean | Soft delete flag |
+| `is_active` | Boolean | Active flag (Departments use `is_active` for deactivation; not the Archivable mixin) |
 | `is_system` | Boolean | System departments cannot be deleted |
 
 **Who Can Manage Departments:**
@@ -593,7 +593,7 @@ Non-privileged users can access resources **outside their department** if they a
 | Vendor SLA | `vendors:delete` | Immediate | No |
 
 > [!NOTE]
-> Deletion is implemented as **soft-delete (archival)** to preserve audit trails.
+> Deletion is implemented as **archive** semantics to preserve audit trails per ADR-005.
 > - Risks: `status = 'archived'`
 > - Controls: `status = 'archived'`
 > - KRIs: `is_archived = true`, `archived_at`, `archived_by_id`
@@ -617,7 +617,7 @@ Non-privileged users can access resources **outside their department** if they a
 | `POST /api/v1/risks/{id}/restore` | `risks:delete` | `status='active'` |
 | `POST /api/v1/controls/{id}/restore` | `controls:delete` | `status='active'` |
 | `POST /api/v1/kris/{id}/restore` | `risks:delete` | `is_archived=false`, clear archive metadata |
-| `POST /api/v1/vendors/{id}/restore` | `vendors:delete` | `is_archived=false`, clear archive metadata (`status='active'` as backward-compat alias) |
+| `POST /api/v1/vendors/{id}/restore` | `vendors:delete` | `is_archived=false`, clear archive metadata (`status='active'` alias appears only in tabular CSV exports synthesized at `backend/app/services/_reporting/exports/`, not in REST responses) |
 | `POST /api/v1/vendor-slas/{id}/restore` | `vendors:delete` | `is_archived=false`, clear archive metadata |
 
 ### 8.4 Approval Action Decision Tree
@@ -912,7 +912,7 @@ Contextual behavior:
 - The current source link cannot be deleted until source metadata is changed or cleared; older source links and ordinary manual links remain contextual traceability and can be unlinked.
 - Linked risk/control filters include derived contexts. A risk filter matches direct risk links, KRI parent risks, control-linked risks, and execution parent control risks. A control filter matches direct control links and execution parent controls. Unreadable linked filter targets return an empty result set rather than leaking existence.
 - Vendor links support direct `vendor_id` in `IssueLink`.
-- Inactive vendors cannot be used as contextual issue sources or added as issue vendor links; callers must restore the vendor first.
+- Inactive vendors cannot be used as contextual issue sources or added as issue vendor links (inactive ≡ archived per §10.5; status column is dropped); callers must restore the vendor first.
 - Vendor department fallback:
   - if `vendor.department_id` is null, fallback uses vendor owner department.
   - if both are unresolved, contextual create fails with `409` and explicit validation detail.

@@ -21,6 +21,7 @@ from app.models import (
 )
 from app.models.kri_history import KRIValueHistory
 from app.schemas.kri import KRIHistoryEdit, KRIRecordValue
+from app.services._riskhub_config.approval_scenario_roles import APPROVER_ROLES
 from app.services.approval_scenario_policy import apply_approval_scenario_snapshot, load_approval_scenario_policy
 
 from .recording import DuplicateKRIPeriodError
@@ -66,7 +67,7 @@ async def create_kri_submission_approval(
     scenario_policy = await load_approval_scenario_policy(
         db,
         "kri_value_submit",
-        default_roles=["risk_owner", "risk_manager", "cro"],
+        default_roles=list(APPROVER_ROLES),
     )
     if not scenario_policy.requires_approval:
         return await apply_kri_value_directly(

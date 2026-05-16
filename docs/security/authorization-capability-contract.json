@@ -435,7 +435,7 @@
       "actor_scope": "Submit uses ensure_can_submit_value; KRI value submissions require privileged approval when the parent risk is priority or meets the configured high-risk threshold; correction requires risks:write and readable KRI unless privileged approver executes immediately",
       "backend_authority": "backend/app/api/v1/endpoints/kris/history.py",
       "service_policy": "backend/app/services/_kri_history/workflow.py, backend/app/services/_kri_history/recording.py, backend/app/services/_kri_history/queries.py, backend/app/services/_kri_history/loading.py, backend/app/services/_kri_history/approval_intake.py, backend/app/services/_kri_history/direct_application.py, backend/app/services/_kri_history/projection.py, backend/app/services/_approval_execution/kri_value_submission.py, backend/app/core/approval_helpers.py, backend/app/services/authorization_capabilities.py, backend/app/services/_authorization_capabilities/; backend/app/services/_kri_history/governance.py centralizes value and correction governance without changing capabilities",
-      "response_capability": "backend/app/schemas/kri.py KRICapabilities and KRIHistoryCapabilities.can_request_correction",
+      "response_capability": "backend/app/schemas/kri.py KRICapabilities and KRIHistoryCapabilitiesRead.can_request_correction",
       "frontend_gate": "frontend/src/pages/KRIDetailPage.tsx, frontend/src/components/kris/, and frontend/src/pages/detail/useKriDetailState.ts use backend capabilities",
       "tests": [
         "tests/backend/pytest/test_approvals.py",
@@ -713,7 +713,7 @@
       "id": "AUTHZ-AUTH-SESSION",
       "surface": "Auth and sessions",
       "action": "Authenticate, refresh, bootstrap session, read auth config, read platform admin capabilities/logs, and revoke sessions",
-      "actor_scope": "Session authority is backend JWT/refresh/session version; cookie-issuing password login requires an allowed Origin/Referer; refresh replay of a rotated token revokes the rotated child refresh-token chain; admin session revocation and structured log reads are platform-admin-only",
+      "actor_scope": "Session authority is backend JWT/refresh/session version; cookie-issuing password login requires an allowed Origin/Referer; refresh replay of a rotated token revokes the rotated child refresh-token chain; admin session revocation requires `admin:session.revoke` and admin role only; CRO wildcard does NOT apply. Structured log reads are platform-admin-only",
       "backend_authority": "backend/app/api/v1/endpoints/auth/ and backend/app/api/v1/endpoints/admin/",
       "service_policy": "backend/app/core/security.py, backend/app/api/v1/endpoints/auth/_request_protection.py, backend/app/api/v1/endpoints/auth/sso.py as the SSO HTTP Adapter, backend/app/services/_auth_session/ owns transport-neutral SSO/refresh outcomes, and backend/app/services/sso_token_service.py",
       "response_capability": "GET /api/v1/admin/capabilities exposes admin-console action metadata; session/user permissions are returned through auth/bootstrap responses, not per-business-action capabilities",

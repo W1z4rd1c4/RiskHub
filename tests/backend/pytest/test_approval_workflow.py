@@ -20,8 +20,8 @@ from app.models.kri_history import KRIValueHistory
 from app.models.notification import Notification, NotificationType
 from app.models.risk import RiskStatus
 from app.models.user import AccessScope
-from app.services._riskhub_config.approval_scenario_roles import set_approval_scenario_roles
 from app.services import _notification_approval_helpers as notification_approval_helpers
+from app.services._riskhub_config.approval_scenario_roles import APPROVER_ROLES, set_approval_scenario_roles
 from app.services.approval_execution_service import approve_request_workflow
 from app.services.approval_scenario_policy import can_view_approval_resource
 from app.services.outbox import dispatch_pending_outbox_events
@@ -382,7 +382,7 @@ class TestApprovalWorkflow:
             db_session,
             key="risk_delete",
             requires_approval=False,
-            approver_roles=["risk_owner", "risk_manager", "cro"],
+            approver_roles=list(APPROVER_ROLES),
         )
         risk = await _create_risk_for_delete_workflow(
             db_session,
@@ -629,7 +629,10 @@ class TestApprovalWorkflow:
 
             assert await can_view_approval_resource(db_session, test_user_employee, approval) is True
 
-    @pytest.mark.parametrize("resource_type", [ApprovalResourceType.RISK, ApprovalResourceType.CONTROL, ApprovalResourceType.KRI])
+    @pytest.mark.parametrize(
+        "resource_type",
+        [ApprovalResourceType.RISK, ApprovalResourceType.CONTROL, ApprovalResourceType.KRI],
+    )
     async def test_notification_recipients_skip_hidden_approval_resource(
         self,
         db_session: AsyncSession,
@@ -669,7 +672,11 @@ class TestApprovalWorkflow:
         async def _candidates(_db: AsyncSession, _approval: ApprovalRequest) -> list[User]:
             return [test_user_employee]
 
-        monkeypatch.setattr(notification_approval_helpers, "load_scenario_approval_notification_candidates", _candidates)
+        monkeypatch.setattr(
+            notification_approval_helpers,
+            "load_scenario_approval_notification_candidates",
+            _candidates,
+        )
         approval = ApprovalRequest(
             resource_type=resource_type,
             resource_id=resource_id,
@@ -809,6 +816,7 @@ class TestApprovalWorkflow:
         client_cro: AsyncClient,
         db_session: AsyncSession,
         test_department,
+        test_user_employee: User,
         test_user_risk_manager: User,
     ):
         """Saving only non-privileged roles still snapshots privileged finishers for tiered approvals."""
@@ -820,17 +828,17 @@ class TestApprovalWorkflow:
         )
         save_response = await client_cro.patch(
             "/api/v1/riskhub/approval-scenarios/risk_delete",
-            json={"approver_roles": ["employee"], "requires_approval": True},
+            json={"approver_roles": ["risk_owner"], "requires_approval": True},
         )
         assert save_response.status_code == 200
-        assert save_response.json()["approver_roles"] == ["employee", "risk_manager", "cro"]
+        assert save_response.json()["approver_roles"] == list(APPROVER_ROLES)
 
         risk = await _create_risk_for_delete_workflow(
             db_session,
             risk_id_code="R-DEL-LIVE-SCENARIO-TIER",
             name="Live Scenario Tiered Approval",
             department_id=test_department.id,
-            owner_id=test_user_risk_manager.id,
+            owner_id=test_user_employee.id,
             net_score=10,
         )
 
@@ -841,11 +849,11 @@ class TestApprovalWorkflow:
         approval_id = delete_response.json()["approval_id"]
 
         approval = await _load_approval(db_session, approval_id)
-        assert approval.scenario_approver_roles == ["employee", "risk_manager", "cro"]
+        assert approval.scenario_approver_roles == list(APPROVER_ROLES)
 
         first_stage_response = await client_employee.post(
             f"/api/v1/approvals/{approval_id}/approve",
-            json={"resolution_notes": "Employee scenario first-stage approval"},
+            json={"resolution_notes": "Risk owner scenario first-stage approval"},
         )
         assert first_stage_response.status_code == 200
         assert first_stage_response.json()["status"] == "pending_privileged"
@@ -1148,7 +1156,7 @@ class TestApprovalWorkflow:
         approval_id = response.json()["approval_id"]
         approval = await _load_approval(db_session, approval_id)
         assert approval.primary_approver_id == test_user_employee.id
-        assert approval.scenario_approver_roles == ["risk_owner", "risk_manager", "cro"]
+        assert approval.scenario_approver_roles == list(APPROVER_ROLES)
 
         pending_response = await client_employee.get("/api/v1/approvals?status=pending")
         assert pending_response.status_code == 200
