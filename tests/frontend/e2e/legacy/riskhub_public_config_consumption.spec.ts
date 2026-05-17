@@ -1,6 +1,8 @@
 import { test, expect, Page, Request } from '@playwright/test';
 import { DEMO_ACCOUNTS, loginAsDemoUser } from '../helpers/login';
 import { waitForDataLoad } from '../helpers/wait';
+import { E2E_RISKS } from '../fixtures/e2e-data';
+import { RisksPage } from '../pages/RisksPage';
 
 /**
  * Tests to verify the frontend consumes public Risk Hub endpoints
@@ -39,17 +41,12 @@ async function navigateRisksWithRecovery(page: Page): Promise<void> {
     }
 }
 
-async function ensureRiskRowsVisible(page: Page): Promise<boolean> {
-    for (let attempt = 1; attempt <= 3; attempt++) {
-        await navigateRisksWithRecovery(page);
-        const firstRow = page.locator('table tbody tr').first();
-        const hasRow = await firstRow.isVisible({ timeout: 3000 }).catch(() => false);
-        if (hasRow) {
-            return true;
-        }
-    }
-
-    return false;
+async function showDeterministicRiskRows(page: Page): Promise<RisksPage> {
+    const risksPage = new RisksPage(page);
+    await risksPage.navigate();
+    await risksPage.search(E2E_RISKS.PENDING_DELETE_APPROVAL.name);
+    await expect(risksPage.rowByText(E2E_RISKS.PENDING_DELETE_APPROVAL.name)).toBeVisible();
+    return risksPage;
 }
 
 test.describe('Risk Hub Public Config Consumption', () => {
@@ -123,10 +120,7 @@ test.describe('Risk Hub Public Config Consumption', () => {
     });
 
     test('risk type badges should use config-driven display (not single letters)', async ({ page }) => {
-        const hasRows = await ensureRiskRowsVisible(page);
-        if (!hasRows) {
-            test.skip(true, 'Risk rows unavailable for legacy badge assertion in current runtime profile.');
-        }
+        await showDeterministicRiskRows(page);
 
         // Get all type badge texts
         const typeBadges = await page.locator('table tbody tr span.uppercase').allTextContents();
@@ -153,27 +147,11 @@ test.describe('Risk Hub Public Config Consumption', () => {
     });
 
     test('risk detail page should use config-driven type display', async ({ page }) => {
-        const hasRows = await ensureRiskRowsVisible(page);
-        if (!hasRows) {
-            test.skip(true, 'Risk rows unavailable for legacy detail assertion in current runtime profile.');
-        }
-
-        // Click on the first risk to go to detail page
-        const firstRiskRow = page.locator('table tbody tr').first();
-        await expect(firstRiskRow).toBeVisible({ timeout: 10000 });
-        await firstRiskRow.scrollIntoViewIfNeeded();
-        await firstRiskRow.click({ force: true });
-
-        // Wait for detail page to load
-        await page.waitForURL(/.*\/risks\/\d+/, { timeout: 15000 });
-        await waitForDataLoad(page, 15000);
-
-        // Find the Type label and its value
-        const typeRow = page.locator('text=Type >> xpath=ancestor::div[contains(@class, "flex")]');
-        await expect(typeRow).toBeVisible();
+        const risksPage = await showDeterministicRiskRows(page);
+        await risksPage.openRowByText(E2E_RISKS.PENDING_DELETE_APPROVAL.name);
 
         // The type value should not be just "S" or "O" - should be full display name
-        const typeValue = await typeRow.locator('span.uppercase').textContent();
+        const typeValue = await page.getByTestId('risk-type-badge').textContent();
         expect(typeValue).toBeTruthy();
         expect(typeValue!.trim().length).toBeGreaterThan(1);
     });

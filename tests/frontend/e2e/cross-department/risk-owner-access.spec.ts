@@ -5,11 +5,8 @@
  * - Risk owner can edit own risk (subject to approval rules)
  * - Non-owner cannot access other department's risk
  */
-import {
-    test, expect
-
-    , DEMO_ACCOUNTS
-} from '../fixtures/auth.fixture';
+import { test, expect, DEMO_ACCOUNTS } from '../fixtures/auth.fixture';
+import { E2E_RISKS } from '../fixtures/e2e-data';
 import { RisksPage } from '../pages/RisksPage';
 import { waitForDataLoad } from '../helpers/wait';
 import { loginAsDemoUser } from '../helpers/login';
@@ -86,34 +83,16 @@ test.describe('Risk Owner Cross-Department Access', () => {
              */
             const risksPage = new RisksPage(deptHeadPage);
             await risksPage.navigate();
+            await risksPage.search(E2E_RISKS.OPS_HEAD_CROSS_DEPT_EDITABLE.name);
+            await risksPage.openRowByText(E2E_RISKS.OPS_HEAD_CROSS_DEPT_EDITABLE.name);
+
+            const editButton = deptHeadPage.getByRole('button', { name: /edit|upravit/i });
+            await expect(editButton).toBeVisible();
+
+            await editButton.click();
             await waitForDataLoad(deptHeadPage);
 
-            const rowCount = await risksPage.getRowCount();
-            if (rowCount > 0) {
-                // Navigate to risk detail
-                await risksPage.clickFirstRow();
-                await waitForDataLoad(deptHeadPage);
-
-                // Look for edit button - should be visible if user is owner
-                const editButton = deptHeadPage.locator('button:has-text("Edit"), a:has-text("Edit"), [aria-label*="edit" i]');
-                const editButtonVisible = await editButton.first().isVisible({ timeout: 5000 }).catch(() => false);
-
-                if (editButtonVisible) {
-                    // Click edit to verify access
-                    await editButton.first().click();
-                    await waitForDataLoad(deptHeadPage);
-
-                    // Should see edit form (may be modal or full page)
-                    const formVisible = await deptHeadPage.locator('form, [role="dialog"], [data-testid="edit-form"]').first().isVisible({ timeout: 5000 }).catch(() => false);
-                    expect(formVisible).toBe(true);
-                } else {
-                    // Edit button not visible - user may not be owner of this specific risk
-                    // This is valid behavior per RBAC rules
-                    test.skip(true, 'Edit button not visible - user may not be owner of this risk');
-                }
-            } else {
-                test.skip(true, 'No risks available for this user');
-            }
+            await expect(deptHeadPage.locator('form, [role="dialog"], [data-testid="edit-form"]').first()).toBeVisible();
         });
 
         test('Risk owner edit of non-sensitive field subject to approval if required', async ({ deptHeadPage }) => {
@@ -124,46 +103,26 @@ test.describe('Risk Owner Cross-Department Access', () => {
              */
             const risksPage = new RisksPage(deptHeadPage);
             await risksPage.navigate();
+            await risksPage.search(E2E_RISKS.OPS_HEAD_CROSS_DEPT_EDITABLE.name);
+            await risksPage.openRowByText(E2E_RISKS.OPS_HEAD_CROSS_DEPT_EDITABLE.name);
+
+            const editButton = deptHeadPage.getByRole('button', { name: /edit|upravit/i });
+            await expect(editButton).toBeVisible();
+            await editButton.click();
             await waitForDataLoad(deptHeadPage);
 
-            const rowCount = await risksPage.getRowCount();
-            if (rowCount > 0) {
-                await risksPage.clickFirstRow();
-                await waitForDataLoad(deptHeadPage);
+            const descField = deptHeadPage.getByTestId('risk-description-input');
+            await expect(descField).toBeVisible();
+            await descField.fill('Updated description for E2E test');
 
-                // Check if we have edit access
-                const editButton = deptHeadPage.locator('button:has-text("Edit"), a:has-text("Edit")');
-                const hasEditButton = await editButton.first().isVisible({ timeout: 3000 }).catch(() => false);
+            await deptHeadPage.getByTestId('risk-form-next-button').click();
+            await deptHeadPage.getByTestId('risk-form-next-button').click();
 
-                if (hasEditButton) {
-                    await editButton.first().click();
-                    await waitForDataLoad(deptHeadPage);
-
-                    // Try to find a non-sensitive field like description
-                    const descField = deptHeadPage.locator('textarea[name*="description" i], input[name*="description" i], [data-testid="description"]');
-                    if (await descField.first().isVisible({ timeout: 3000 }).catch(() => false)) {
-                        // Modify description
-                        await descField.first().fill('Updated description for E2E test');
-
-                        // Look for save/submit button
-                        const saveButton = deptHeadPage.locator('button:has-text("Save"), button:has-text("Submit"), button[type="submit"]');
-                        if (await saveButton.first().isVisible({ timeout: 3000 }).catch(() => false)) {
-                            await saveButton.first().click();
-                            await waitForDataLoad(deptHeadPage);
-
-                            // Result varies based on risk priority:
-                            // - May get success toast (immediate)
-                            // - May get "approval request created" notification
-                            // Either is valid behavior
-                            await deptHeadPage.waitForTimeout(1000);
-                        }
-                    }
-                } else {
-                    test.skip(true, 'Edit not available for this risk');
-                }
-            } else {
-                test.skip(true, 'No risks available');
-            }
+            const saveButton = deptHeadPage.getByTestId('risk-form-submit-button');
+            await expect(saveButton).toBeVisible();
+            await saveButton.click();
+            await waitForDataLoad(deptHeadPage);
+            await deptHeadPage.waitForTimeout(1000);
         });
     });
 

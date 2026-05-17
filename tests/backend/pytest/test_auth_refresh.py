@@ -12,6 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api import deps as api_deps
+from app.api.v1.endpoints.auth._request_protection import validate_request_origin
 from app.core.config import Settings
 from app.core.datetime_utils import utc_now
 from app.core.security import create_access_token
@@ -30,6 +31,20 @@ from app.services.sso_token_service import VerifiedIdentity
 
 TEST_SECRET_KEY = "test-secret-key-32-chars-minimum-value"
 TEST_ORIGIN = "http://test"
+
+
+def _origin_request(origin: str):
+    return type(
+        "OriginRequest",
+        (),
+        {"headers": {"origin": origin}},
+    )()
+
+
+def test_origin_validation_treats_default_http_port_as_equivalent() -> None:
+    settings = Settings(cors_origins=["http://localhost:80"])
+
+    assert validate_request_origin(_origin_request("http://localhost"), settings) is None
 
 
 def _refresh_test_settings() -> Settings:

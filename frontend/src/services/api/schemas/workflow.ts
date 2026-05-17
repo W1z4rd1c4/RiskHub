@@ -24,7 +24,6 @@ import type {
 
 import {
     approvalIdMessageSchema,
-    changeMapSchema,
     countSchema,
     numberArraySchema,
     offsetPaginationSchema,
@@ -57,7 +56,7 @@ export const activityLogEntrySchema: z.ZodType<ActivityLogEntry> = passthroughOb
     actor_id: z.number().nullable(),
     actor_name: z.string(),
     department_id: z.number().nullable(),
-    changes: changeMapSchema.nullable(),
+    changes: unknownRecordSchema.nullable(),
     description: z.string(),
     created_at: z.string(),
 });

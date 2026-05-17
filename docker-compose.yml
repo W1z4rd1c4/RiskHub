@@ -105,6 +105,28 @@ services:
     networks:
       - riskhub-network
 
+  scheduler:
+    profiles: ["full"]
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: riskhub-backend-scheduler-dev
+    environment:
+      <<: *backend-environment
+      ENABLE_SCHEDULER: "true"
+      SCHEDULER_JOB_PROFILE: outbox_only
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+    volumes:
+      - ./backend:/app
+      - ./backend/logs:/app/logs
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - riskhub-network
+
   frontend:
     profiles: ["full"]
     build:

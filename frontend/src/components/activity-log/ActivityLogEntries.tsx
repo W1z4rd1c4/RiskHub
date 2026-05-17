@@ -117,6 +117,9 @@ export function ActivityLogEntries({ entries, isLoading, errorType, needsRiskSel
                 {entries.map((entry) => (
                     <motion.div
                         key={entry.id}
+                        data-testid="activity-entry"
+                        data-entity-type={entry.entity_type}
+                        data-action={entry.action}
                         layout
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}

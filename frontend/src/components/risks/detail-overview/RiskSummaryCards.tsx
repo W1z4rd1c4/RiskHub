@@ -57,7 +57,7 @@ export function RiskSummaryCards({
                 <div className="space-y-4">
                     <div className="flex justify-between items-center">
                         <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">{t('common:labels.type')}</span>
-                        <RiskTypeBadge label={getDisplayName(risk.risk_type)} color={typeColor} />
+                        <RiskTypeBadge testId="risk-type-badge" label={getDisplayName(risk.risk_type)} color={typeColor} />
                     </div>
                     <div className="flex justify-between items-center">
                         <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">{t('common:labels.category')}</span>

@@ -3,6 +3,7 @@ import type { Location, NavigateFunction } from 'react-router-dom';
 
 import {
     getVendorDetailScrollTargetId,
+    shouldNormalizeVendorDetailSearch,
     type VendorDetailFlash,
 } from './vendorDetailPresentation';
 
@@ -55,4 +56,14 @@ export function useVendorDeepLinkScroll(location: Location) {
             window.cancelAnimationFrame(frameId);
         };
     }, [location.pathname, location.search]);
+}
+
+export function useNormalizeLegacyVendorDetailSearch(location: Location, navigate: NavigateFunction) {
+    useEffect(() => {
+        if (!shouldNormalizeVendorDetailSearch(location.search)) {
+            return;
+        }
+
+        void navigate(location.pathname, { replace: true });
+    }, [location.pathname, location.search, navigate]);
 }

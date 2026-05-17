@@ -7,7 +7,7 @@ export interface ActivityLogEntry {
     actor_id: number | null;
     actor_name: string;
     department_id: number | null;
-    changes: Record<string, { old: unknown; new: unknown }> | null;
+    changes: Record<string, unknown> | null;
     description: string;
     created_at: string;
 }
@@ -59,6 +59,7 @@ export const ACTION_LABELS: Record<string, string> = {
     archive: 'Archived',
     approve: 'Approved',
     reject: 'Rejected',
+    cancel: 'Cancelled',
     status_change: 'Status Changed',
     link: 'Linked',
     unlink: 'Unlinked',

@@ -1,4 +1,9 @@
-import type { CollectionGroup, CollectionListResponse, CollectionSort } from '@/types/collection';
+import type {
+    CollectionCapabilities,
+    CollectionGroup,
+    CollectionListResponse,
+    CollectionSort,
+} from '@/types/collection';
 
 type CollectionFilterValue = string | number | boolean | null | undefined;
 type CollectionFilters = Record<string, CollectionFilterValue>;
@@ -18,19 +23,19 @@ interface LoadCollectionPageRequest {
     groupValue?: string | null;
 }
 
-interface LoadCollectionPageOptions<TItem> {
+interface LoadCollectionPageOptions<TItem, TCapabilities extends object> {
     currentPage: number;
     groupBy?: string | null;
     selectedGroupValue?: string | null;
-    loadPage: (request: LoadCollectionPageRequest) => Promise<CollectionListResponse<TItem>>;
+    loadPage: (request: LoadCollectionPageRequest) => Promise<CollectionListResponse<TItem, TCapabilities>>;
     normalizeItems?: (items: TItem[]) => TItem[];
 }
 
-interface LoadedCollectionPage<TItem> {
+interface LoadedCollectionPage<TItem, TCapabilities extends object> {
     items: TItem[];
     groups: CollectionGroup[];
     total: number;
-    capabilities: Record<string, boolean> | null;
+    capabilities: TCapabilities | null;
 }
 
 interface LegacyPaginationFields {
@@ -76,9 +81,9 @@ export function buildCollectionParams({
     return params;
 }
 
-export function normalizeCollectionResponse<TItem>(
-    response: CollectionListResponse<TItem> & LegacyPaginationFields
-): CollectionListResponse<TItem> {
+export function normalizeCollectionResponse<TItem, TCapabilities extends object = CollectionCapabilities>(
+    response: CollectionListResponse<TItem, TCapabilities> & LegacyPaginationFields
+): CollectionListResponse<TItem, TCapabilities> {
     return {
         items: response.items,
         total: response.total,
@@ -89,7 +94,7 @@ export function normalizeCollectionResponse<TItem>(
     };
 }
 
-function normalizeCollectionOffset(response: CollectionListResponse<unknown> & LegacyPaginationFields): number {
+function normalizeCollectionOffset(response: CollectionListResponse<unknown, object> & LegacyPaginationFields): number {
     if (typeof response.offset === 'number') {
         return response.offset;
     }
@@ -102,7 +107,7 @@ function normalizeCollectionOffset(response: CollectionListResponse<unknown> & L
     return 0;
 }
 
-function normalizeCollectionLimit(response: CollectionListResponse<unknown> & LegacyPaginationFields): number {
+function normalizeCollectionLimit(response: CollectionListResponse<unknown, object> & LegacyPaginationFields): number {
     if (typeof response.limit === 'number') {
         return response.limit;
     }
@@ -112,13 +117,13 @@ function normalizeCollectionLimit(response: CollectionListResponse<unknown> & Le
     return 0;
 }
 
-export async function loadCollectionPage<TItem>({
+export async function loadCollectionPage<TItem, TCapabilities extends object = CollectionCapabilities>({
     currentPage,
     groupBy,
     selectedGroupValue,
     loadPage,
     normalizeItems = (items) => items,
-}: LoadCollectionPageOptions<TItem>): Promise<LoadedCollectionPage<TItem>> {
+}: LoadCollectionPageOptions<TItem, TCapabilities>): Promise<LoadedCollectionPage<TItem, TCapabilities>> {
     if (!groupBy) {
         const response = await loadPage({ currentPage });
         return {

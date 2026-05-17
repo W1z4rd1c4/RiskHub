@@ -5,6 +5,7 @@ import {
     canEditVendorByOwnership,
     coerceVendorContext,
     getVendorDetailScrollTargetId,
+    shouldNormalizeVendorDetailSearch,
 } from '@/pages/vendors/vendorDetailPresentation';
 
 describe('Vendor detail presentation helpers', () => {
@@ -43,5 +44,13 @@ describe('Vendor detail presentation helpers', () => {
         expect(getVendorDetailScrollTargetId('connections', 'risks')).toBe('vendor-linked-risks');
         expect(getVendorDetailScrollTargetId('connections', 'controls')).toBe('vendor-linked-controls');
         expect(getVendorDetailScrollTargetId('connections', 'unknown')).toBeNull();
+    });
+
+    it('normalizes legacy vendor detail tab searches while preserving supported deep links', () => {
+        expect(shouldNormalizeVendorDetailSearch('?tab=sla')).toBe(true);
+        expect(shouldNormalizeVendorDetailSearch('?tab=operations&section=sla')).toBe(true);
+        expect(shouldNormalizeVendorDetailSearch('?tab=assessments&section=schedule')).toBe(false);
+        expect(shouldNormalizeVendorDetailSearch('?filter=active')).toBe(false);
+        expect(shouldNormalizeVendorDetailSearch('')).toBe(false);
     });
 });

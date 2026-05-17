@@ -201,6 +201,7 @@ export function RiskForm({
                         <button
                             type="button"
                             onClick={nextStep}
+                            data-testid="risk-form-next-button"
                             className="btn-primary"
                         >
                             {t('common:actions.next')} <ChevronRight className="h-4 w-4" />
@@ -209,6 +210,7 @@ export function RiskForm({
                         <button
                             type="submit"
                             disabled={isSubmitting}
+                            data-testid="risk-form-submit-button"
                             className="btn-primary px-8"
                         >
                             {isSubmitting ? t('common:loading.generic') : (isEdit ? t('risks:edit_risk') : t('risks:create_risk'))}

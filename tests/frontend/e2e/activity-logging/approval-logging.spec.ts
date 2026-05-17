@@ -1,123 +1,74 @@
 /**
  * E2E Tests for Approval Execution Logging (BUSINESS_LOGIC.md §9.3)
- * 
- * Verifies that approval workflow actions are logged:
- * - APPROVAL entity logs: CREATE, APPROVE, REJECT, CANCEL
- * - Underlying entity logs: ARCHIVE or UPDATE when approved
- * 
- * These tests verify existing activity log entries to confirm the logging
- * infrastructure is working correctly.
+ *
+ * The deterministic E2E seed includes approval lifecycle activity records with
+ * `E2E-SEED` descriptions. These tests verify those seeded audit records
+ * through the Activity Log UI instead of depending on previous test order.
  */
-import { test, expect } from '../fixtures/auth.fixture';
+import { expect, test } from '../fixtures/auth.fixture';
 import { ActivityLogPage } from '../pages/ActivityLogPage';
 
 test.describe('Approval Execution Logging', () => {
     test.describe('APPROVAL Entity Logging', () => {
         test('Activity log contains APPROVAL CREATE entries', async ({ croPage }) => {
             const activityLogPage = new ActivityLogPage(croPage);
-
-            await activityLogPage.navigate();
+            await activityLogPage.navigateToSeededEntries('user');
 
             const approvalCreateIndex = await activityLogPage.findEntry('APPROVAL', 'CREATE');
-
-            if (approvalCreateIndex < 0) {
-                // No approval requests have been created yet
-                test.skip();
-            } else {
-                const entryText = await activityLogPage.getEntryText(approvalCreateIndex);
-                expect(entryText).toContain('APPROVAL');
-            }
+            expect(approvalCreateIndex).toBeGreaterThanOrEqual(0);
+            await expect(activityLogPage.entryCards.nth(approvalCreateIndex)).toContainText(/approval/i);
         });
 
         test('Activity log contains APPROVAL APPROVE entries', async ({ croPage }) => {
             const activityLogPage = new ActivityLogPage(croPage);
-
-            await activityLogPage.navigate();
+            await activityLogPage.navigateToSeededEntries('user');
 
             const approvalApproveIndex = await activityLogPage.findEntry('APPROVAL', 'APPROVE');
-
-            if (approvalApproveIndex < 0) {
-                // No approvals have been executed yet
-                test.skip();
-            } else {
-                const entryText = await activityLogPage.getEntryText(approvalApproveIndex);
-                expect(entryText).toContain('APPROVE');
-            }
+            expect(approvalApproveIndex).toBeGreaterThanOrEqual(0);
+            await expect(activityLogPage.entryCards.nth(approvalApproveIndex)).toContainText(/approved/i);
         });
 
         test('Activity log contains APPROVAL REJECT entries', async ({ croPage }) => {
             const activityLogPage = new ActivityLogPage(croPage);
-
-            await activityLogPage.navigate();
+            await activityLogPage.navigateToSeededEntries('user');
 
             const approvalRejectIndex = await activityLogPage.findEntry('APPROVAL', 'REJECT');
-
-            if (approvalRejectIndex < 0) {
-                // No rejections have been made yet
-                test.skip();
-            } else {
-                const entryText = await activityLogPage.getEntryText(approvalRejectIndex);
-                expect(entryText).toContain('REJECT');
-            }
+            expect(approvalRejectIndex).toBeGreaterThanOrEqual(0);
+            await expect(activityLogPage.entryCards.nth(approvalRejectIndex)).toContainText(/rejected/i);
         });
 
         test('Activity log contains APPROVAL CANCEL entries', async ({ croPage }) => {
             const activityLogPage = new ActivityLogPage(croPage);
-
-            await activityLogPage.navigate();
+            await activityLogPage.navigateToSeededEntries('user');
 
             const approvalCancelIndex = await activityLogPage.findEntry('APPROVAL', 'CANCEL');
-
-            if (approvalCancelIndex < 0) {
-                // No cancellations have been made yet
-                test.skip();
-            } else {
-                const entryText = await activityLogPage.getEntryText(approvalCancelIndex);
-                expect(entryText).toContain('CANCEL');
-            }
+            expect(approvalCancelIndex).toBeGreaterThanOrEqual(0);
+            await expect(activityLogPage.entryCards.nth(approvalCancelIndex)).toContainText(/cancelled/i);
         });
     });
 
     test.describe('Underlying Entity Logging', () => {
         test('ARCHIVE entries exist in activity log', async ({ croPage }) => {
             const activityLogPage = new ActivityLogPage(croPage);
+            await activityLogPage.navigateToSeededEntries('risk');
 
-            await activityLogPage.navigate();
+            await activityLogPage.expectEntryExists('RISK', 'ARCHIVE');
 
-            const riskArchiveIndex = await activityLogPage.findEntry('RISK', 'ARCHIVE');
-            const controlArchiveIndex = await activityLogPage.findEntry('CONTROL', 'ARCHIVE');
-            const kriArchiveIndex = await activityLogPage.findEntry('KRI', 'ARCHIVE');
-
-            const hasArchiveEntry = riskArchiveIndex >= 0 || controlArchiveIndex >= 0 || kriArchiveIndex >= 0;
-
-            if (!hasArchiveEntry) {
-                // No archives have been executed yet
-                test.skip();
-            }
+            await activityLogPage.selectTab('control');
+            await activityLogPage.searchEntries('E2E-SEED');
+            await activityLogPage.expectEntryExists('CONTROL', 'ARCHIVE');
         });
 
         test('ARCHIVE entries contain resource information', async ({ croPage }) => {
             const activityLogPage = new ActivityLogPage(croPage);
-
-            await activityLogPage.navigate();
+            await activityLogPage.navigateToSeededEntries('risk');
 
             const archiveIndex = await activityLogPage.findEntry('RISK', 'ARCHIVE');
-
-            if (archiveIndex < 0) {
-                // Try CONTROL archives
-                const controlArchiveIndex = await activityLogPage.findEntry('CONTROL', 'ARCHIVE');
-                if (controlArchiveIndex < 0) {
-                    test.skip();
-                    return;
-                }
-                const entryText = await activityLogPage.getEntryText(controlArchiveIndex);
-                expect(entryText.length).toBeGreaterThan(10);
-                return;
-            }
+            expect(archiveIndex).toBeGreaterThanOrEqual(0);
 
             const entryText = await activityLogPage.getEntryText(archiveIndex);
+            expect(entryText).toMatch(/archived/i);
             expect(entryText.length).toBeGreaterThan(10);
         });
     });
-
 });

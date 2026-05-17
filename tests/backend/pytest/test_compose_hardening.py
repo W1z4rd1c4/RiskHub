@@ -86,6 +86,30 @@ def test_base_compose_pins_network_subnet_and_backend_trusted_proxies():
     assert "- subnet: ${RISKHUB_DOCKER_SUBNET:-172.31.254.0/24}" in compose_text
 
 
+def test_base_compose_runs_outbox_scheduler_for_demo_e2e_parity():
+    compose_text = (REPO_ROOT / "docker-compose.yml").read_text(encoding="utf-8")
+    scheduler_block = "\n".join(_extract_service_block(compose_text, "scheduler"))
+
+    assert 'container_name: riskhub-backend-scheduler-dev' in scheduler_block
+    assert 'ENABLE_SCHEDULER: "true"' in scheduler_block
+    assert "SCHEDULER_JOB_PROFILE: outbox_only" in scheduler_block
+    assert '"--workers", "1"' in scheduler_block
+    assert "ports:" not in scheduler_block
+
+
+def test_compose_full_stack_starts_outbox_scheduler_service():
+    compose_script = (REPO_ROOT / "scripts" / "compose.sh").read_text(encoding="utf-8")
+
+    assert "up_args+=(backend scheduler frontend)" in compose_script
+
+
+def test_frontend_nginx_does_not_upgrade_docker_demo_http_assets():
+    nginx_config = (REPO_ROOT / "frontend" / "nginx.conf").read_text(encoding="utf-8")
+
+    assert "Content-Security-Policy" in nginx_config
+    assert "upgrade-insecure-requests" not in nginx_config
+
+
 def test_prod_compose_artifact_is_absent():
     compose_path = REPO_ROOT / "docker-compose.prod.yml"
     assert not compose_path.exists()

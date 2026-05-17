@@ -32,6 +32,13 @@ export const E2E_RISKS = {
         department: 'Operations',
         status: 'active',
     },
+    OPS_HEAD_CROSS_DEPT_EDITABLE: {
+        code: 'E2E-RISK-002',
+        name: 'Pricing Model Calibration Error',
+        owner_email: 'ops.head@riskhub.local',
+        department: 'Risk Management',
+        status: 'active',
+    },
     ARCHIVE_ACTIVE_PAIR: {
         code: 'E2E-ARCH-RISK-ACTIVE',
         name: 'E2E-ARCH-RISK Active Risk Pair',
@@ -150,9 +157,76 @@ export const E2E_APPROVALS = {
     },
 } as const;
 
+export const E2E_SENSITIVE_APPROVALS = {
+    RISK_OWNER_CHANGE: {
+        reason: 'E2E-SENSITIVE: Change risk owner from Ops Head to Finance Head',
+        resourceType: 'risk',
+        action: 'edit',
+        status: 'pending',
+        field: 'owner_id',
+        oldValue: 4,
+        newValue: 5,
+    },
+    RISK_DEPARTMENT_CHANGE: {
+        reason: 'E2E-SENSITIVE: Move risk from Operations to Finance department',
+        resourceType: 'risk',
+        action: 'edit',
+        status: 'pending',
+        field: 'department_id',
+        oldValue: 1,
+        newValue: 2,
+    },
+    RISK_CATEGORY_CHANGE: {
+        reason: 'E2E-SENSITIVE: Change risk category from Operational to Strategic',
+        resourceType: 'risk',
+        action: 'edit',
+        status: 'pending',
+        field: 'category',
+        oldValue: 'Operational',
+        newValue: 'Strategic',
+    },
+    RISK_PRIORITY_DOWNGRADE: {
+        reason: 'E2E-SENSITIVE: Downgrade priority risk to non-priority',
+        resourceType: 'risk',
+        action: 'edit',
+        status: 'pending',
+        field: 'is_priority',
+        oldValue: true,
+        newValue: false,
+    },
+    CONTROL_OWNER_CHANGE: {
+        reason: 'E2E-SENSITIVE: Change control owner to different department',
+        resourceType: 'control',
+        action: 'edit',
+        status: 'pending',
+        field: 'control_owner_id',
+        oldValue: 6,
+        newValue: 7,
+    },
+    CONTROL_DEPARTMENT_CHANGE: {
+        reason: 'E2E-SENSITIVE: Move control from IT to Operations department',
+        resourceType: 'control',
+        action: 'edit',
+        status: 'pending',
+        field: 'department_id',
+        oldValue: 3,
+        newValue: 1,
+    },
+    RISK_OWNER_CLEAR: {
+        reason: 'E2E-SENSITIVE: Clear owner (set to NULL)',
+        resourceType: 'risk',
+        action: 'edit',
+        status: 'pending',
+        field: 'owner_id',
+        oldValue: 4,
+        newValue: null,
+    },
+} as const;
+
 export const E2E_REQUIRED_FIXTURES = {
     risks: [
         E2E_RISKS.CROSS_DEPT_FIN_OWNS_OPS.code,
+        E2E_RISKS.OPS_HEAD_CROSS_DEPT_EDITABLE.code,
         E2E_RISKS.ARCHIVE_RESTORE_TARGET.code,
     ],
     controls: [

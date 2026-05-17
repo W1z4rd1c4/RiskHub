@@ -1,7 +1,19 @@
+import type { Response } from '@playwright/test';
+
 import { test, expect } from '../fixtures/auth.fixture';
 import { E2E_CONTROLS, E2E_RISKS } from '../fixtures/e2e-data';
 import { RisksPage } from '../pages/RisksPage';
+import { collectionQueryValue, matchesCollectionResponse } from '../pages/collectionResponse';
 import { waitForDataLoad } from '../helpers/wait';
+
+function matchesControlCandidateSearch(response: Response, includeArchived: boolean): boolean {
+    if (!matchesCollectionResponse(response, '/api/v1/controls', { search: 'E2E-ARCH-CTRL' })) {
+        return false;
+    }
+
+    const includeArchivedValue = collectionQueryValue(new URL(response.url()), 'include_archived').toLowerCase();
+    return includeArchived ? includeArchivedValue === 'true' : includeArchivedValue !== 'true';
+}
 
 test.describe('Risk-Control Linking Access (Deterministic)', () => {
     test('Risk Manager link dialog defaults include-archived off', async ({ riskManagerPage }) => {
@@ -34,13 +46,9 @@ test.describe('Risk-Control Linking Access (Deterministic)', () => {
         await expect(dialog).toBeVisible();
 
         const searchInput = dialog.locator('input[placeholder*="Search"], input[type="text"]').first();
-        const initialSearchResponse = riskManagerPage.waitForResponse((response) => {
-            const url = response.url();
-            return url.includes('/api/v1/controls')
-                && url.includes('search=')
-                && url.includes('E2E-ARCH-CTRL')
-                && !url.includes('include_archived=true');
-        });
+        const initialSearchResponse = riskManagerPage.waitForResponse((response) =>
+            matchesControlCandidateSearch(response, false),
+        );
         await searchInput.fill(E2E_CONTROLS.ARCHIVE_RESTORE_TARGET.name);
         await initialSearchResponse;
         await waitForDataLoad(riskManagerPage);
@@ -49,13 +57,9 @@ test.describe('Risk-Control Linking Access (Deterministic)', () => {
         await expect(archivedCandidate).toHaveCount(0);
 
         const includeArchivedCheckbox = dialog.locator('label:has(input[type="checkbox"]) input[type="checkbox"]').first();
-        const includeArchivedSearchResponse = riskManagerPage.waitForResponse((response) => {
-            const url = response.url();
-            return url.includes('/api/v1/controls')
-                && url.includes('search=')
-                && url.includes('E2E-ARCH-CTRL')
-                && url.includes('include_archived=true');
-        });
+        const includeArchivedSearchResponse = riskManagerPage.waitForResponse((response) =>
+            matchesControlCandidateSearch(response, true),
+        );
         await includeArchivedCheckbox.click();
         await expect(includeArchivedCheckbox).toBeChecked();
         await includeArchivedSearchResponse;

@@ -4,6 +4,7 @@
  */
 import { expect, Locator, Page } from '@playwright/test';
 import { waitForDataLoad } from '../helpers/wait';
+import { matchesCollectionResponse } from './collectionResponse';
 
 export class KRIsPage {
     readonly page: Page;
@@ -63,19 +64,10 @@ export class KRIsPage {
     }
 
     private async waitForKrisResponse(expected: { search?: string } = {}): Promise<void> {
-        await this.page.waitForResponse((response) => {
-            if (response.request().method() !== 'GET') return false;
-            if (!response.url().includes('/api/v1/kris')) return false;
-            if (expected.search === undefined) return true;
-
-            try {
-                const url = new URL(response.url());
-                const actualSearch = (url.searchParams.get('search') || '').trim().toLowerCase();
-                return actualSearch.includes(expected.search.trim().toLowerCase());
-            } catch {
-                return false;
-            }
-        }, { timeout: 15000 });
+        await this.page.waitForResponse(
+            (response) => matchesCollectionResponse(response, '/api/v1/kris', expected),
+            { timeout: 15000 },
+        );
     }
 
     // Actions

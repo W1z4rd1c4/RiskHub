@@ -4,13 +4,15 @@ import { logError } from '@/services/logger';
 
 type CapabilityState = 'loading' | 'allowed' | 'denied';
 
-interface CollectionCapabilityResponse {
-    capabilities?: Record<string, boolean> | null;
+interface CreateCapabilityResponse {
+    capabilities?: {
+        can_create?: boolean;
+    } | null;
 }
 
 interface UseCreateCapabilityGateOptions {
     enabled?: boolean;
-    load: () => Promise<CollectionCapabilityResponse>;
+    load: () => Promise<CreateCapabilityResponse>;
     logMessage: string;
 }
 

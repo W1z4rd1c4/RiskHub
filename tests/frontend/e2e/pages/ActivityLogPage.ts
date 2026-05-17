@@ -5,6 +5,12 @@
 import { Page, Locator, expect } from '@playwright/test';
 import { waitForDataLoad } from '../helpers/wait';
 
+const normalizeActivityToken = (value: string): string => value.trim().toLowerCase().replace(/\s+/g, '_');
+
+const matchesActivityToken = (actual: string | null, expected: string): boolean => {
+    return actual !== null && normalizeActivityToken(actual) === normalizeActivityToken(expected);
+};
+
 export class ActivityLogPage {
     readonly page: Page;
 
@@ -27,7 +33,7 @@ export class ActivityLogPage {
     }
 
     get entryCards(): Locator {
-        return this.page.locator('.backdrop-blur-md, [class*="bg-white/5"]').filter({ hasText: /CREATE|UPDATE|ARCHIVE|APPROVE|REJECT|CANCEL|LINK|UNLINK/ });
+        return this.page.locator('[data-testid="activity-entry"]');
     }
 
     get loadingSpinner(): Locator {
@@ -40,7 +46,9 @@ export class ActivityLogPage {
 
     // Filter controls
     get searchInput(): Locator {
-        return this.page.locator('input[type="search"], input[placeholder*="Search"], input[placeholder*="Hledat"]');
+        return this.page.locator(
+            '[data-testid="activity-log-search-input"], input[type="search"], input[placeholder*="Search"], input[placeholder*="Hledat"]',
+        );
     }
 
     get entityTypeFilter(): Locator {
@@ -119,6 +127,19 @@ export class ActivityLogPage {
         await waitForDataLoad(this.page);
     }
 
+    async selectTab(tab: 'kri' | 'risk' | 'control' | 'user'): Promise<void> {
+        await this.page.locator(`[data-testid="activity-log-tab-${tab}"]`).click();
+        await waitForDataLoad(this.page);
+    }
+
+    async navigateToSeededEntries(tab: 'kri' | 'risk' | 'control' | 'user'): Promise<void> {
+        await this.navigate();
+        await this.selectTab(tab);
+        await this.searchEntries('E2E-SEED');
+        await expect(this.entryCards.first()).toContainText('E2E-SEED', { timeout: 15000 });
+        await this.expectEntriesLoaded();
+    }
+
     async navigateViaSettings(): Promise<void> {
         await this.page.goto('/settings');
         await waitForDataLoad(this.page);
@@ -153,8 +174,19 @@ export class ActivityLogPage {
     }
 
     async searchEntries(query: string): Promise<void> {
+        const responsePromise = this.page.waitForResponse((response) => {
+            if (response.request().method() !== 'GET') return false;
+            if (!response.url().includes('/api/v1/activity-log')) return false;
+            try {
+                const url = new URL(response.url());
+                return url.searchParams.get('search') === query;
+            } catch {
+                return false;
+            }
+        }, { timeout: 15000 }).catch(() => null);
+
         await this.searchInput.fill(query);
-        await this.page.waitForTimeout(500); // Debounce
+        await responsePromise;
         await waitForDataLoad(this.page);
     }
 
@@ -202,19 +234,25 @@ export class ActivityLogPage {
     }
 
     async getEntryEntityType(index: number): Promise<string> {
+        const entityType = await this.entryCards.nth(index).getAttribute('data-entity-type');
+        if (entityType) return normalizeActivityToken(entityType).toUpperCase();
+
         const text = await this.getEntryText(index);
-        const entityTypes = ['RISK', 'CONTROL', 'KRI_VALUE', 'KRI', 'APPROVAL'];
+        const entityTypes = ['RISK', 'CONTROL', 'KRI VALUE', 'KRI_VALUE', 'KRI', 'APPROVAL'];
         for (const type of entityTypes) {
-            if (text.includes(type)) return type;
+            if (text.toLowerCase().includes(type.toLowerCase())) return normalizeActivityToken(type).toUpperCase();
         }
         return 'UNKNOWN';
     }
 
     async getEntryAction(index: number): Promise<string> {
+        const action = await this.entryCards.nth(index).getAttribute('data-action');
+        if (action) return normalizeActivityToken(action).toUpperCase();
+
         const text = await this.getEntryText(index);
         const actions = ['CREATE', 'UPDATE', 'ARCHIVE', 'APPROVE', 'REJECT', 'CANCEL', 'LINK', 'UNLINK'];
         for (const action of actions) {
-            if (text.includes(action)) return action;
+            if (text.toLowerCase().includes(action.toLowerCase())) return action;
         }
         return 'UNKNOWN';
     }
@@ -225,9 +263,12 @@ export class ActivityLogPage {
     async findEntry(entityType: string, action: string, resourceName?: string): Promise<number> {
         const count = await this.getEntryCount();
         for (let i = 0; i < count; i++) {
+            const entry = this.entryCards.nth(i);
             const text = await this.getEntryText(i);
-            const matchesType = text.includes(entityType);
-            const matchesAction = text.includes(action);
+            const matchesType = matchesActivityToken(await entry.getAttribute('data-entity-type'), entityType)
+                || text.toLowerCase().includes(entityType.toLowerCase().replace('_', ' '));
+            const matchesAction = matchesActivityToken(await entry.getAttribute('data-action'), action)
+                || text.toLowerCase().includes(action.toLowerCase());
             const matchesResource = resourceName ? text.includes(resourceName) : true;
             if (matchesType && matchesAction && matchesResource) {
                 return i;

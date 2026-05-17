@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { approvalRequestSchema } from '@/services/api/schemas/workflow';
+import { activityLogListResponseSchema, approvalRequestSchema } from '@/services/api/schemas/workflow';
 
 const baseApproval = {
     id: 1,
@@ -45,5 +45,38 @@ describe('workflow approval schemas', () => {
         for (const pending_changes of producerPendingChanges) {
             expect(() => approvalRequestSchema.parse({ ...baseApproval, pending_changes })).not.toThrow();
         }
+    });
+
+    it('accepts non-diff activity log metadata changes', () => {
+        expect(() => activityLogListResponseSchema.parse({
+            items: [
+                {
+                    id: 1,
+                    entity_type: 'user',
+                    entity_id: 2,
+                    entity_name: 'User',
+                    action: 'refresh',
+                    actor_id: 2,
+                    actor_name: 'Anna Kowalski',
+                    department_id: null,
+                    changes: {
+                        result: 'rotated',
+                        revoke_count: 1,
+                        context_changed: false,
+                    },
+                    description: 'User refreshed session',
+                    created_at: '2026-05-16T23:35:12.374125+00:00',
+                },
+            ],
+            total: 1,
+            skip: 0,
+            limit: 50,
+            capabilities: {
+                can_read: true,
+                can_filter_by_department: true,
+                can_view_entity_filters: true,
+                can_export_csv: true,
+            },
+        })).not.toThrow();
     });
 });

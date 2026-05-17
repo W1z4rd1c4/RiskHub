@@ -19,7 +19,11 @@ import {
     type VendorDetailMode,
 } from './vendors/vendorDetailPresentation';
 import { VendorDetailErrorState, VendorDetailLoadingState } from './vendors/VendorDetailStates';
-import { useVendorDeepLinkScroll, useVendorFlashMessage } from './vendors/useVendorDetailPageEffects';
+import {
+    useNormalizeLegacyVendorDetailSearch,
+    useVendorDeepLinkScroll,
+    useVendorFlashMessage,
+} from './vendors/useVendorDetailPageEffects';
 
 interface VendorDetailPageProps {
     mode?: VendorDetailMode;
@@ -57,6 +61,7 @@ export function VendorDetailPage({ mode = 'view' }: VendorDetailPageProps) {
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const { actionMessage, dismissActionMessage, setActionMessage } = useVendorFlashMessage(location, navigate);
+    useNormalizeLegacyVendorDetailSearch(location, navigate);
     useVendorDeepLinkScroll(location);
     const createGateState = useCreateCapabilityGate({
         enabled: mode === 'new',

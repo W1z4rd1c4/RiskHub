@@ -7,9 +7,16 @@ export interface CollectionGroup {
     meta?: Record<string, unknown>;
 }
 
+export interface CollectionCapabilities {
+    can_create?: boolean;
+    can_export?: boolean;
+    can_view_risk_contexts?: boolean;
+    can_view_vendor_contexts?: boolean;
+}
+
 export interface CollectionListResponse<
     TItem,
-    TCapabilities extends object = Record<string, boolean>,
+    TCapabilities extends object = CollectionCapabilities,
 > {
     items: TItem[];
     total: number;

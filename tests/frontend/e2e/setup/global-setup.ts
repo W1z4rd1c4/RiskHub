@@ -56,7 +56,7 @@ async function globalSetup(config: FullConfig): Promise<void> {
         throw new Error('Required deterministic E2E fixtures are missing.');
     }
     console.log(
-        `✅ Deterministic fixtures verified (risks=${preflight.counts.risks}, controls=${preflight.counts.controls}, KRIs=${preflight.counts.kris}, vendors=${preflight.counts.vendors}, approvals_pending=${preflight.counts.approvals_pending}, approvals_my_requests=${preflight.counts.approvals_my_requests})`,
+        `✅ Deterministic fixtures verified (risks=${preflight.counts.risks}, controls=${preflight.counts.controls}, KRIs=${preflight.counts.kris}, vendors=${preflight.counts.vendors}, approvals_pending=${preflight.counts.approvals_pending}, approvals_my_requests=${preflight.counts.approvals_my_requests}, activity_seeded=${preflight.counts.activity_seeded})`,
     );
 
     console.log('✅ E2E Global Setup complete');

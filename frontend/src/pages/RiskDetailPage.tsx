@@ -182,6 +182,8 @@ export function RiskDetailPage() {
                     {canUpdateRisk && (
                         <button
                             onClick={() => navigate(`/risks/${risk.id}/edit`)}
+                            title={t('risks:edit_risk')}
+                            aria-label={t('risks:edit_risk')}
                             className="p-3 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-white hover:border-accent/50 transition-all hover:shadow-lg hover:shadow-accent/20"
                         >
                             <Edit className="h-5 w-5" />
@@ -201,6 +203,8 @@ export function RiskDetailPage() {
                         canArchiveRisk && (
                             <button
                                 onClick={() => setIsDeleteDialogOpen(true)}
+                                title={t('actions.archive')}
+                                aria-label={t('actions.archive')}
                                 className="p-3 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-rose-400 hover:border-rose-400/50 transition-all"
                             >
                                 <Trash2 className="h-5 w-5" />

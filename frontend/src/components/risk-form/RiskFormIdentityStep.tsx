@@ -233,13 +233,17 @@ export function RiskFormIdentityStep({
         </div>
       </div>
       <div>
-        <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
+        <label htmlFor="risk-description" className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
           {t('risks:form.labels.risk_description')} <span className="text-rose-400">*</span>
         </label>
         <textarea
+          id="risk-description"
+          name="description"
+          data-testid="risk-description-input"
           rows={3}
           value={formData.description}
           onChange={(e) => handleInputChange('description', e.target.value)}
+          aria-invalid={fieldErrors.description ? 'true' : 'false'}
           className={`w-full bg-white/5 border rounded-xl px-4 py-3 text-white outline-none focus:border-accent/50 transition-all resize-none ${fieldErrors.description ? 'border-rose-500' : 'border-white/10'
             }`}
           placeholder={t('form.placeholders.description')}

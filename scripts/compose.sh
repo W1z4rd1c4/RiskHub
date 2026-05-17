@@ -249,9 +249,9 @@ start_full_stack() {
   if [[ "$NO_BUILD" != "true" ]]; then
     up_args+=(--build)
   fi
-  up_args+=(backend frontend)
+  up_args+=(backend scheduler frontend)
 
-  log "Starting frontend and backend containers"
+  log "Starting frontend, backend, and outbox scheduler containers"
   compose_run "full" "${up_args[@]}"
 
   if [[ "$DRY_RUN" == "true" ]]; then

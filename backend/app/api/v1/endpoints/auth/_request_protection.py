@@ -20,9 +20,22 @@ def _normalize_origin(value: str | None) -> str | None:
     if not value:
         return None
     parsed = urlsplit(value)
-    if not parsed.scheme or not parsed.netloc:
+    if not parsed.scheme or not parsed.netloc or not parsed.hostname:
         return None
-    return f"{parsed.scheme}://{parsed.netloc}".rstrip("/")
+
+    scheme = parsed.scheme.lower()
+    hostname = parsed.hostname.lower()
+    if ":" in hostname and not hostname.startswith("["):
+        hostname = f"[{hostname}]"
+
+    try:
+        port = parsed.port
+    except ValueError:
+        return None
+
+    default_port = (scheme == "http" and port in (None, 80)) or (scheme == "https" and port in (None, 443))
+    netloc = hostname if default_port or port is None else f"{hostname}:{port}"
+    return f"{scheme}://{netloc}"
 
 
 def _allowed_origins(settings: Settings) -> set[str]:

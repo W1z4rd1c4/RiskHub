@@ -39,6 +39,19 @@ export function getVendorDetailScrollTargetId(tab: string | null, section: strin
     return null;
 }
 
+export function shouldNormalizeVendorDetailSearch(search: string): boolean {
+    if (!search) {
+        return false;
+    }
+
+    const params = new URLSearchParams(search);
+    if (!params.has('tab') && !params.has('section')) {
+        return false;
+    }
+
+    return getVendorDetailScrollTargetId(params.get('tab'), params.get('section')) === null;
+}
+
 export function coerceVendorContext(vendorIdRaw: string | null, returnToRaw: string | null): {
     vendorId: number | null;
     returnTo: string | null;

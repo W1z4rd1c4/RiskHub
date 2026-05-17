@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 
 import { isForbiddenApiError } from '@/services/apiClient';
-import type { CollectionGroup } from '@/types/collection';
+import type { CollectionCapabilities, CollectionGroup } from '@/types/collection';
 
 export interface CollectionLoadFailureOptions {
     clearOnNonForbidden?: boolean;
@@ -16,34 +16,37 @@ interface CollectionLoadFailureResolution {
     shouldMarkUnloaded: boolean;
 }
 
-interface CollectionSuccessPayload<TItem> {
+interface CollectionSuccessPayload<TItem, TCapabilities extends object> {
     items: TItem[];
     groups: CollectionGroup[];
-    capabilities: Record<string, boolean> | null;
+    capabilities: TCapabilities | null;
     total: number;
 }
 
-export interface CollectionStatePatch<TItem> {
+export interface CollectionStatePatch<TItem, TCapabilities extends object = CollectionCapabilities> {
     items?: TItem[];
     groups?: CollectionGroup[];
-    capabilities?: Record<string, boolean> | null;
+    capabilities?: TCapabilities | null;
     totalCount?: number;
     errorKey: string | null;
     isAccessDenied: boolean;
     hasLoadedOnce?: boolean;
 }
 
-export interface CollectionStateSnapshot<TItem> {
+export interface CollectionStateSnapshot<TItem, TCapabilities extends object = CollectionCapabilities> {
     items: TItem[];
     groups: CollectionGroup[];
-    capabilities: Record<string, boolean> | null;
+    capabilities: TCapabilities | null;
     totalCount: number;
     errorKey: string | null;
     isAccessDenied: boolean;
     hasLoadedOnce: boolean;
 }
 
-export function createCollectionInitialState<TItem>(): CollectionStateSnapshot<TItem> {
+export function createCollectionInitialState<
+    TItem,
+    TCapabilities extends object = CollectionCapabilities,
+>(): CollectionStateSnapshot<TItem, TCapabilities> {
     return {
         items: [],
         groups: [],
@@ -58,7 +61,15 @@ export function createCollectionInitialState<TItem>(): CollectionStateSnapshot<T
 export function applyCollectionStatePatch<TItem>(
     state: CollectionStateSnapshot<TItem>,
     patch: CollectionStatePatch<TItem>
-): CollectionStateSnapshot<TItem> {
+): CollectionStateSnapshot<TItem>;
+export function applyCollectionStatePatch<TItem, TCapabilities extends object>(
+    state: CollectionStateSnapshot<TItem, TCapabilities>,
+    patch: CollectionStatePatch<TItem, TCapabilities>
+): CollectionStateSnapshot<TItem, TCapabilities>;
+export function applyCollectionStatePatch<TItem, TCapabilities extends object = CollectionCapabilities>(
+    state: CollectionStateSnapshot<TItem, TCapabilities>,
+    patch: CollectionStatePatch<TItem, TCapabilities>
+): CollectionStateSnapshot<TItem, TCapabilities> {
     return {
         items: patch.items ?? state.items,
         groups: patch.groups ?? state.groups,
@@ -85,9 +96,9 @@ export function resolveCollectionLoadFailure(
     };
 }
 
-export function createCollectionSuccessPatch<TItem>(
-    payload: CollectionSuccessPayload<TItem>
-): CollectionStatePatch<TItem> {
+export function createCollectionSuccessPatch<TItem, TCapabilities extends object = CollectionCapabilities>(
+    payload: CollectionSuccessPayload<TItem, TCapabilities>
+): CollectionStatePatch<TItem, TCapabilities> {
     return {
         items: payload.items,
         groups: payload.groups,
@@ -99,12 +110,15 @@ export function createCollectionSuccessPatch<TItem>(
     };
 }
 
-export function createCollectionFailurePatch<TItem = unknown>(
+export function createCollectionFailurePatch<
+    TItem = unknown,
+    TCapabilities extends object = CollectionCapabilities,
+>(
     error: unknown,
     options: CollectionLoadFailureOptions = {}
-): CollectionStatePatch<TItem> {
+): CollectionStatePatch<TItem, TCapabilities> {
     const failure = resolveCollectionLoadFailure(error, options);
-    const patch: CollectionStatePatch<TItem> = {
+    const patch: CollectionStatePatch<TItem, TCapabilities> = {
         errorKey: failure.errorKey,
         isAccessDenied: failure.isAccessDenied,
     };
@@ -172,17 +186,20 @@ export function useExportDialogState() {
     };
 }
 
-export function useCollectionDataState<TItem>() {
-    const [state, setState] = useState<CollectionStateSnapshot<TItem>>(
-        createCollectionInitialState<TItem>
+export function useCollectionDataState<
+    TItem,
+    TCapabilities extends object = CollectionCapabilities,
+>() {
+    const [state, setState] = useState<CollectionStateSnapshot<TItem, TCapabilities>>(
+        createCollectionInitialState<TItem, TCapabilities>
     );
     const [isLoading, setIsLoading] = useState(true);
 
-    const applyPatch = useCallback((patch: CollectionStatePatch<TItem>) => {
+    const applyPatch = useCallback((patch: CollectionStatePatch<TItem, TCapabilities>) => {
         setState((currentState) => applyCollectionStatePatch(currentState, patch));
     }, []);
 
-    const applySuccess = useCallback((payload: CollectionSuccessPayload<TItem>) => {
+    const applySuccess = useCallback((payload: CollectionSuccessPayload<TItem, TCapabilities>) => {
         applyPatch(createCollectionSuccessPatch(payload));
     }, [applyPatch]);
 
@@ -190,7 +207,7 @@ export function useCollectionDataState<TItem>() {
         error: unknown,
         options: CollectionLoadFailureOptions = {}
     ) => {
-        const patch = createCollectionFailurePatch<TItem>(error, options);
+        const patch = createCollectionFailurePatch<TItem, TCapabilities>(error, options);
         applyPatch(patch);
         return patch;
     }, [applyPatch]);

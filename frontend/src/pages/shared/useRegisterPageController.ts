@@ -4,7 +4,7 @@ import type { ExportDialogSubmitPayload } from '@/components/reports/ExportDialo
 import type { ViewMode } from '@/components/tables';
 import { DEFAULT_LIST_PAGE_SIZE } from '@/constants/list';
 import { useDebouncedValue } from '@/hooks/useDebouncedValue';
-import type { CollectionListResponse } from '@/types/collection';
+import type { CollectionCapabilities, CollectionListResponse } from '@/types/collection';
 
 import { getTotalPages } from './collectionPageState';
 import {
@@ -57,12 +57,19 @@ export function resolveRegisterFilterPatch<TFilters extends Record<string, unkno
     } as Partial<TFilters>;
 }
 
-interface UseRegisterPageControllerOptions<TItem, TFilters extends Record<string, unknown>, TViewMode> {
+interface UseRegisterPageControllerOptions<
+    TItem,
+    TFilters extends Record<string, unknown>,
+    TViewMode,
+    TCapabilities extends object,
+> {
     fallbackErrorKey: string;
     getGroupBy: (viewMode: TViewMode) => string | null;
     initialFilters: TFilters;
     initialViewMode: TViewMode;
-    loadPage: (request: RegisterPageLoadRequest<TFilters, TViewMode>) => Promise<CollectionListResponse<TItem>>;
+    loadPage: (
+        request: RegisterPageLoadRequest<TFilters, TViewMode>
+    ) => Promise<CollectionListResponse<TItem, TCapabilities>>;
     onExportError?: (error: unknown) => void;
     onLoadError?: (error: unknown) => void;
     pageSize?: number;
@@ -74,6 +81,7 @@ export function useRegisterPageController<
     TItem,
     TFilters extends Record<string, unknown>,
     TViewMode extends ViewMode = ViewMode,
+    TCapabilities extends object = CollectionCapabilities,
 >({
     fallbackErrorKey,
     getGroupBy,
@@ -85,7 +93,7 @@ export function useRegisterPageController<
     pageSize = DEFAULT_LIST_PAGE_SIZE,
     resolveFilterPatch,
     submitExport,
-}: UseRegisterPageControllerOptions<TItem, TFilters, TViewMode>) {
+}: UseRegisterPageControllerOptions<TItem, TFilters, TViewMode, TCapabilities>) {
     const [search, setSearch] = useState('');
     const [filters, setFilters] = useState<TFilters>(initialFilters);
     const [currentPage, setCurrentPage] = useState(1);
@@ -107,7 +115,7 @@ export function useRegisterPageController<
         [debouncedSearch, filters, limit, loadPage, viewMode]
     );
 
-    const collectionWorkflow = useCollectionPageWorkflow<TItem>({
+    const collectionWorkflow = useCollectionPageWorkflow<TItem, TCapabilities>({
         currentPage,
         fallbackErrorKey,
         groupBy,

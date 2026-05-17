@@ -67,6 +67,7 @@ export function ActivityLogPage() {
                 {TABS.map(tab => (
                     <button
                         key={tab.id}
+                        data-testid={`activity-log-tab-${tab.id}`}
                         onClick={() => state.setActiveTab(tab.id)}
                         className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${state.activeTab === tab.id
                             ? 'bg-accent text-white shadow-lg shadow-accent/25'

@@ -1,5 +1,6 @@
 import { expect, Locator, Page } from '@playwright/test';
 import { waitForDataLoad } from '../helpers/wait';
+import { matchesCollectionResponse } from './collectionResponse';
 
 export class VendorsPage {
     readonly page: Page;
@@ -40,26 +41,11 @@ export class VendorsPage {
         return this.page.getByTestId('export-date-input');
     }
 
-    private async waitForVendorsResponse(expected: { search?: string; status?: string } = {}): Promise<void> {
-        await this.page.waitForResponse((response) => {
-            if (response.request().method() !== 'GET') return false;
-            if (!response.url().includes('/api/v1/vendors')) return false;
-
-            try {
-                const url = new URL(response.url());
-                if (expected.search !== undefined) {
-                    const actualSearch = (url.searchParams.get('search') || '').trim().toLowerCase();
-                    if (!actualSearch.includes(expected.search.trim().toLowerCase())) return false;
-                }
-                if (expected.status !== undefined) {
-                    const actualStatus = (url.searchParams.get('status') || '').trim().toLowerCase();
-                    if (!actualStatus.includes(expected.status.trim().toLowerCase())) return false;
-                }
-                return true;
-            } catch {
-                return false;
-            }
-        }, { timeout: 15000 });
+    private async waitForVendorsResponse(expected: { search?: string; include_archived?: boolean } = {}): Promise<void> {
+        await this.page.waitForResponse(
+            (response) => matchesCollectionResponse(response, '/api/v1/vendors', expected),
+            { timeout: 15000 },
+        );
     }
 
     async navigate(): Promise<void> {
@@ -129,7 +115,7 @@ export class VendorsPage {
     async setStatusFilterInactive(): Promise<void> {
         await this.statusSelectTrigger.click();
         await Promise.all([
-            this.waitForVendorsResponse({ status: 'inactive' }),
+            this.waitForVendorsResponse({ include_archived: true }),
             this.page.getByTestId('vendors-status-filter-option-inactive').click(),
         ]);
         await waitForDataLoad(this.page);

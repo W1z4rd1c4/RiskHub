@@ -6,7 +6,7 @@
  * helper-driven demo-login token acquisition for API setup work.
  */
 
-import { E2E_APPROVALS, E2E_REQUIRED_FIXTURES } from '../fixtures/e2e-data';
+import { E2E_APPROVALS, E2E_REQUIRED_FIXTURES, E2E_SENSITIVE_APPROVALS } from '../fixtures/e2e-data';
 import { getApiBaseUrl, getDemoToken } from '../helpers/api-auth';
 
 const API_BASE = getApiBaseUrl();
@@ -215,6 +215,7 @@ interface DeterministicPreflightResult {
         vendors: number;
         approvals_pending: number;
         approvals_my_requests: number;
+        activity_seeded: number;
     };
 }
 
@@ -228,13 +229,14 @@ export async function verifyDeterministicE2EData(): Promise<DeterministicPreflig
     const riskManagerHeaders = { Authorization: `Bearer ${riskManagerToken}` };
     const employeeHeaders = { Authorization: `Bearer ${employeeToken}` };
 
-    const [risksRes, controlsRes, krisRes, vendorsRes, approvalsPendingRes, approvalsMineRes] = await Promise.all([
+    const [risksRes, controlsRes, krisRes, vendorsRes, approvalsPendingRes, approvalsMineRes, activitySeedRes] = await Promise.all([
         fetch(`${API_BASE}/api/v1/risks?include_archived=true&limit=100&search=E2E-`, { headers: riskManagerHeaders }),
         fetch(`${API_BASE}/api/v1/controls?include_archived=true&limit=100&search=E2E-`, { headers: riskManagerHeaders }),
         fetch(`${API_BASE}/api/v1/kris?include_archived=true&page=1&size=200&search=E2E-`, { headers: riskManagerHeaders }),
         fetch(`${API_BASE}/api/v1/vendors?include_archived=true&limit=100&search=E2E-VREG`, { headers: riskManagerHeaders }),
         fetch(`${API_BASE}/api/v1/approvals?status=pending&limit=100`, { headers: riskManagerHeaders }),
         fetch(`${API_BASE}/api/v1/approvals?status=pending&limit=100&my_requests=true`, { headers: employeeHeaders }),
+        fetch(`${API_BASE}/api/v1/activity-log?limit=100&search=E2E-SEED`, { headers: riskManagerHeaders }),
     ]);
 
     const failures: string[] = [];
@@ -244,12 +246,13 @@ export async function verifyDeterministicE2EData(): Promise<DeterministicPreflig
     if (!vendorsRes.ok) failures.push(`Failed to fetch vendors: HTTP ${vendorsRes.status}`);
     if (!approvalsPendingRes.ok) failures.push(`Failed to fetch pending approvals queue: HTTP ${approvalsPendingRes.status}`);
     if (!approvalsMineRes.ok) failures.push(`Failed to fetch employee pending approvals: HTTP ${approvalsMineRes.status}`);
+    if (!activitySeedRes.ok) failures.push(`Failed to fetch seeded activity log entries: HTTP ${activitySeedRes.status}`);
 
     if (failures.length > 0) {
         return {
             ok: false,
             missing: failures,
-            counts: { risks: 0, controls: 0, kris: 0, vendors: 0, approvals_pending: 0, approvals_my_requests: 0 },
+            counts: { risks: 0, controls: 0, kris: 0, vendors: 0, approvals_pending: 0, approvals_my_requests: 0, activity_seeded: 0 },
         };
     }
 
@@ -259,6 +262,7 @@ export async function verifyDeterministicE2EData(): Promise<DeterministicPreflig
     const vendorsBody = await vendorsRes.json() as { items: Array<{ registration_id?: string }> };
     const approvalsPendingBody = await approvalsPendingRes.json() as { items: Array<{ reason?: string; status?: string }> };
     const approvalsMineBody = await approvalsMineRes.json() as { items: Array<{ reason?: string; status?: string }> };
+    const activitySeedBody = await activitySeedRes.json() as { items: Array<{ entity_type?: string; action?: string; description?: string }> };
 
     const riskCodes = new Set(risksBody.items.map((item) => item.risk_id_code).filter(Boolean));
     const controlNames = new Set(controlsBody.items.map((item) => item.name).filter(Boolean));
@@ -299,6 +303,41 @@ export async function verifyDeterministicE2EData(): Promise<DeterministicPreflig
         }
     }
 
+    for (const expectedApproval of Object.values(E2E_SENSITIVE_APPROVALS)) {
+        const found = queueApprovals.some(
+            (item) =>
+                item.reason === expectedApproval.reason &&
+                String(item.status || '').toLowerCase() === expectedApproval.status,
+        );
+        if (!found) {
+            missing.push(`approval_sensitive:${expectedApproval.reason}`);
+        }
+    }
+
+    const expectedActivityPairs = [
+        ['risk', 'create'],
+        ['risk', 'update'],
+        ['risk', 'archive'],
+        ['control', 'create'],
+        ['control', 'update'],
+        ['control', 'archive'],
+        ['kri', 'create'],
+        ['kri', 'update'],
+        ['kri_value', 'create'],
+        ['approval', 'create'],
+        ['approval', 'approve'],
+        ['approval', 'reject'],
+        ['approval', 'cancel'],
+    ];
+    for (const [entityType, action] of expectedActivityPairs) {
+        const found = activitySeedBody.items.some(
+            (item) => item.entity_type === entityType && item.action === action && item.description?.includes('E2E-SEED'),
+        );
+        if (!found) {
+            missing.push(`activity:${entityType}/${action}`);
+        }
+    }
+
     const employeeRequestFound = myApprovals.some(
         (item) =>
             item.reason === E2E_APPROVALS.PENDING_RISK_DELETE.reason &&
@@ -318,6 +357,7 @@ export async function verifyDeterministicE2EData(): Promise<DeterministicPreflig
             vendors: vendorsBody.items.length,
             approvals_pending: queueApprovals.length,
             approvals_my_requests: myApprovals.length,
+            activity_seeded: activitySeedBody.items.length,
         },
     };
 }

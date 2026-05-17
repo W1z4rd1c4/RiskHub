@@ -40,10 +40,19 @@ def upgrade() -> None:
     op.create_index(op.f('ix_orphaned_items_item_type'), 'orphaned_items', ['item_type'], unique=False)
     op.create_index(op.f('ix_orphaned_items_previous_owner_id'), 'orphaned_items', ['previous_owner_id'], unique=False)
     op.create_index(op.f('ix_orphaned_items_status'), 'orphaned_items', ['status'], unique=False)
-    op.drop_constraint(op.f('directory_users_external_id_key'), 'directory_users', type_='unique')
+    _drop_directory_users_external_id_unique_constraint()
     op.drop_index(op.f('ix_directory_users_external_id'), table_name='directory_users')
     op.create_index(op.f('ix_directory_users_external_id'), 'directory_users', ['external_id'], unique=True)
     # ### end Alembic commands ###
+
+
+def _drop_directory_users_external_id_unique_constraint() -> None:
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    for constraint in inspector.get_unique_constraints('directory_users'):
+        if constraint.get('column_names') == ['external_id'] and constraint.get('name'):
+            op.drop_constraint(constraint['name'], 'directory_users', type_='unique')
+            return
 
 
 def downgrade() -> None:

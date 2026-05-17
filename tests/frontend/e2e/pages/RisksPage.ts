@@ -4,6 +4,7 @@
  */
 import { expect, Locator, Page } from '@playwright/test';
 import { waitForDataLoad, waitForTableRows } from '../helpers/wait';
+import { matchesCollectionResponse } from './collectionResponse';
 
 export class RisksPage {
     readonly page: Page;
@@ -58,25 +59,10 @@ export class RisksPage {
     }
 
     private async waitForRisksResponse(expected: { search?: string; status?: string } = {}): Promise<void> {
-        await this.page.waitForResponse((response) => {
-            if (response.request().method() !== 'GET') return false;
-            if (!response.url().includes('/api/v1/risks')) return false;
-
-            try {
-                const url = new URL(response.url());
-                if (expected.search !== undefined) {
-                    const actualSearch = (url.searchParams.get('search') || '').trim().toLowerCase();
-                    if (!actualSearch.includes(expected.search.trim().toLowerCase())) return false;
-                }
-                if (expected.status !== undefined) {
-                    const actualStatus = (url.searchParams.get('status') || '').trim().toLowerCase();
-                    if (!actualStatus.includes(expected.status.trim().toLowerCase())) return false;
-                }
-                return true;
-            } catch {
-                return false;
-            }
-        }, { timeout: 15000 });
+        await this.page.waitForResponse(
+            (response) => matchesCollectionResponse(response, '/api/v1/risks', expected),
+            { timeout: 15000 },
+        );
     }
 
     // Actions

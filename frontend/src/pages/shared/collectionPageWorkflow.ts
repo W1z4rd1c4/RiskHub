@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 
 import { loadCollectionPage } from '@/services/collectionApi';
-import type { CollectionListResponse } from '@/types/collection';
+import type { CollectionCapabilities, CollectionListResponse } from '@/types/collection';
 
 import {
     type CollectionLoadFailureOptions,
@@ -15,15 +15,18 @@ export interface CollectionWorkflowLoadRequest {
     groupValue?: string | null;
 }
 
-interface UseCollectionPageWorkflowOptions<TItem> extends CollectionLoadFailureOptions {
+interface UseCollectionPageWorkflowOptions<TItem, TCapabilities extends object> extends CollectionLoadFailureOptions {
     currentPage: number;
     groupBy?: string | null;
-    loadPage: (request: CollectionWorkflowLoadRequest) => Promise<CollectionListResponse<TItem>>;
+    loadPage: (request: CollectionWorkflowLoadRequest) => Promise<CollectionListResponse<TItem, TCapabilities>>;
     normalizeItems?: (items: TItem[]) => TItem[];
     onLoadError?: (error: unknown) => void;
 }
 
-export function useCollectionPageWorkflow<TItem>({
+export function useCollectionPageWorkflow<
+    TItem,
+    TCapabilities extends object = CollectionCapabilities,
+>({
     clearOnNonForbidden,
     currentPage,
     fallbackErrorKey,
@@ -32,8 +35,8 @@ export function useCollectionPageWorkflow<TItem>({
     normalizeItems,
     onLoadError,
     toErrorKey,
-}: UseCollectionPageWorkflowOptions<TItem>) {
-    const collectionData = useCollectionDataState<TItem>();
+}: UseCollectionPageWorkflowOptions<TItem, TCapabilities>) {
+    const collectionData = useCollectionDataState<TItem, TCapabilities>();
     const controller = useCollectionPageController();
     const {
         applyFailure,
