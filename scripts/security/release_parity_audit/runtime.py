@@ -2,8 +2,14 @@
 
 from __future__ import annotations
 
-import shlex
 from typing import Any, Protocol
+
+from release_parity_audit.runtime_commands import (
+    backend_db_runtime_prod_dry_run_command,
+    backend_runtime_prod_dry_run_command,
+    deploy_cli_prod_docker_dry_run_command,
+    frontend_runtime_prod_dry_run_command,
+)
 
 
 class RuntimeAuditFacade(Protocol):
@@ -201,16 +207,10 @@ def run_dynamic_paths(audit: RuntimeAuditFacade) -> None:
         _dry_run_fingerprint(audit, "compose_sh_reset_test", "compose_sh_reset_test_dryrun")
     )
 
-    prod_deploy_cmd = (
-        f"RISKHUB_RUNTIME_DIR={shlex.quote(str(deploy_runtime_dir))} "
-        "./scripts/deploy.sh deploy --target docker "
-        f"--config {shlex.quote(str(deploy_config))} "
-        f"--secret-dir {shlex.quote(str(deploy_secret_dir))} "
-        "--backend-image ghcr.io/example/riskhub-backend:release-parity "
-        "--backend-db-image ghcr.io/example/riskhub-backend-db:release-parity "
-        "--frontend-image ghcr.io/example/riskhub-frontend:release-parity "
-        "--redis-image ghcr.io/example/riskhub-redis:release-parity "
-        "--dry-run --yes"
+    prod_deploy_cmd = deploy_cli_prod_docker_dry_run_command(
+        runtime_dir=deploy_runtime_dir,
+        config=deploy_config,
+        secret_dir=deploy_secret_dir,
     )
     audit._run("path_deploy_cli_prod_docker_dryrun", prod_deploy_cmd, required=False, timeout_sec=1200)
     audit.runtime_fingerprints.append(
@@ -245,8 +245,7 @@ def run_dynamic_paths(audit: RuntimeAuditFacade) -> None:
     )
     db_prod_result = audit._run(
         "path_backend_db_runtime_prod_dryrun",
-        f"backend/scripts/runtime/db/prod.sh --backend-env {shlex.quote(str(backend_env))} "
-        f"--tag release-parity-{audit.run_id} --dry-run --yes",
+        backend_db_runtime_prod_dry_run_command(backend_env=backend_env, run_id=audit.run_id),
         required=False,
         timeout_sec=1200,
     )
@@ -264,15 +263,13 @@ def run_dynamic_paths(audit: RuntimeAuditFacade) -> None:
 
     audit._run(
         "path_backend_runtime_prod_dryrun",
-        f"backend/scripts/runtime/prod.sh --backend-env {shlex.quote(str(backend_env))} "
-        f"--tag release-parity-{audit.run_id} --dry-run --yes",
+        backend_runtime_prod_dry_run_command(backend_env=backend_env, run_id=audit.run_id),
         required=False,
         timeout_sec=1800,
     )
     audit._run(
         "path_frontend_runtime_prod_dryrun",
-        f"frontend/scripts/runtime/prod.sh --frontend-env {shlex.quote(str(frontend_env))} "
-        f"--tag release-parity-{audit.run_id} --dry-run --yes",
+        frontend_runtime_prod_dry_run_command(frontend_env=frontend_env, run_id=audit.run_id),
         required=False,
         timeout_sec=1800,
     )

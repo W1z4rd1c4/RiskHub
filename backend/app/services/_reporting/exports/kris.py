@@ -7,6 +7,7 @@ from app.core.permissions import get_risk_ids_where_control_owner, get_risk_ids_
 from app.models import User
 from app.models.activity_log import ActivityEntityType
 from app.services._monitoring_status import get_kri_monitoring_config
+from app.services._monitoring_status.export_rows import apply_kri_monitoring_rows
 from app.services.export_snapshot_service import ExportSnapshotService
 
 from .fetch import _apply_kri_history_as_of, _fetch_kris_for_export
@@ -17,7 +18,6 @@ from .filters import (
     _prefilter_department_id_for_as_of,
 )
 from .lifecycle import ExportRow, ReportExportDefinition, render_report_export_definition
-from .monitoring import _apply_kri_monitoring_rows
 from .rehydrate import _rehydrate_department_names, _rehydrate_user_names
 from .rows import _kri_to_row
 from .shared import ExportFormat, KRIExportStatus, KRIMonitoringExportStatus
@@ -41,7 +41,7 @@ async def _export_kris(
 
     async def apply_monitoring(current_rows: list[ExportRow]) -> list[ExportRow]:
         kri_monitoring_config = await get_kri_monitoring_config(db)
-        return _apply_kri_monitoring_rows(current_rows, config=kri_monitoring_config, as_of_date=as_of_date)
+        return apply_kri_monitoring_rows(current_rows, config=kri_monitoring_config, as_of_date=as_of_date)
 
     async def apply_final_scope(current_rows: list[ExportRow]) -> list[ExportRow]:
         extra_visible_risk_ids: set[int] = set()

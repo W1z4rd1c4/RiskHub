@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models import User
 from app.models.activity_log import ActivityEntityType
 from app.services._monitoring_status import get_control_monitoring_config
+from app.services._monitoring_status.export_rows import apply_control_monitoring_rows
 from app.services.export_snapshot_service import ExportSnapshotService
 
 from .fetch import _fetch_controls_for_export
@@ -15,7 +16,6 @@ from .filters import (
     _prefilter_department_id_for_as_of,
 )
 from .lifecycle import ExportRow, ReportExportDefinition, render_report_export_definition
-from .monitoring import _apply_control_monitoring_rows
 from .rehydrate import _rehydrate_department_names, _rehydrate_user_names
 from .rows import _control_to_row
 from .shared import ControlMonitoringExportStatus, ExportFormat
@@ -38,7 +38,7 @@ async def _export_controls(
 
     async def apply_monitoring(current_rows: list[ExportRow]) -> list[ExportRow]:
         control_monitoring_config = await get_control_monitoring_config(db)
-        return _apply_control_monitoring_rows(current_rows, config=control_monitoring_config, as_of_date=as_of_date)
+        return apply_control_monitoring_rows(current_rows, config=control_monitoring_config, as_of_date=as_of_date)
 
     definition = ReportExportDefinition(
         title=f"Control Export (as of {as_of_date.isoformat()})",

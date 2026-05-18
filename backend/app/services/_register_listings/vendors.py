@@ -27,7 +27,7 @@ from app.services._vendor_governance.projection import (
 )
 from app.services._vendor_workflow import apply_vendor_visibility_scope
 
-from .lifecycle import RegisterListingPlan, SerializeItems, _plan_register_listing, execute_register_listing_plan
+from .lifecycle import RegisterListingPlan, SerializeItems, build_register_listing_plan, execute_register_listing_plan
 
 VENDOR_GROUP_UNASSIGNED = "__unassigned__"
 VENDOR_GROUP_NO_PROCESS = "__no_process__"
@@ -441,7 +441,7 @@ def plan_vendor_listing(
         )
         return vendor_group_value_filter(group_by, group_value or "", risk_context=risk_context)
 
-    return _plan_register_listing(
+    return build_register_listing_plan(
         ordered_query=ordered_query,
         capabilities=capabilities,
         serialize_items=serialize_items,

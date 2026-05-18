@@ -314,9 +314,9 @@ def test_component_prod_wrappers_help_honors_runtime_dir_override(path: Path, ex
 
 def test_release_parity_audit_uses_deploy_cli_for_prod_runtime_path() -> None:
     runtime_text = _read(RELEASE_PARITY_AUDIT_RUNTIME)
-    assert "./scripts/deploy.sh deploy --target docker" in runtime_text
     assert "deploy_cli_prod_docker" in runtime_text
     text = _read_release_parity_package()
+    assert "./scripts/deploy.sh deploy --target docker" in text
     legacy_setup_mode_prod = "./scripts/" + "setup.sh --mode prod"
     forbidden = (
         legacy_setup_mode_prod,

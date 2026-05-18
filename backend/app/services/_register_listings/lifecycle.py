@@ -42,7 +42,7 @@ class RegisterListingPlan(Generic[TModel, TItem]):
     listing_definition: CollectionListingDefinition[TModel, TItem]
 
 
-def _plan_register_listing(
+def build_register_listing_plan(
     *,
     ordered_query: Any,
     capabilities: dict[str, bool] | None,

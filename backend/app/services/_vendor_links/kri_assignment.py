@@ -156,3 +156,33 @@ async def assign_vendors_to_kri(
         )
 
     return normalized_linked_vendor_ids
+
+
+async def apply_kri_vendor_assignment_change(
+    db: AsyncSession,
+    *,
+    kri: KeyRiskIndicator,
+    current_user: User,
+    requested_vendor_ids: Sequence[int] | None,
+    current_vendor_ids: Sequence[int],
+) -> tuple[list[int], dict[str, dict[str, object]]]:
+    normalized_vendor_ids = normalize_vendor_ids(requested_vendor_ids)
+    existing_vendor_ids = list(current_vendor_ids)
+
+    await ensure_vendors_exist(db, normalized_vendor_ids)
+    await assign_vendors_to_kri(
+        db,
+        kri=kri,
+        current_user=current_user,
+        linked_vendor_ids=normalized_vendor_ids,
+    )
+
+    if normalized_vendor_ids == existing_vendor_ids:
+        return normalized_vendor_ids, {}
+
+    return normalized_vendor_ids, {
+        "linked_vendor_ids": {
+            "old": existing_vendor_ids,
+            "new": normalized_vendor_ids,
+        }
+    }

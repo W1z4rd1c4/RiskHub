@@ -171,4 +171,47 @@ describe('ApprovalList action gating', () => {
         expect(screen.queryByTitle('common:actions.reject')).not.toBeInTheDocument();
         expect(screen.getByTitle('common:tooltips.cancel_request')).toBeInTheDocument();
     });
+
+    it('hides pending-change details when backend capabilities deny visibility', () => {
+        render(
+            <ApprovalList
+                approvals={[makeApproval({
+                    pending_changes: {
+                        owner_id: { old: 'Alice', new: 'Bob' },
+                    },
+                    capabilities: {
+                        can_read: true,
+                        can_approve: false,
+                        can_reject: false,
+                        can_cancel: false,
+                        can_cancel_as_requester: false,
+                        can_cancel_as_resolver: false,
+                        can_view_pending_changes: false,
+                        can_view_resolution_notes: false,
+                        can_inspect_side_effects: false,
+                        is_requester: false,
+                        is_primary_approver: false,
+                        is_privileged_resolver: false,
+                        is_pending: true,
+                        requires_privileged_resolution: false,
+                        would_apply_side_effects_on_approve: false,
+                    },
+                })]}
+                loading={false}
+                expandedRows={new Set([1])}
+                currentUserId={5}
+                onToggleRow={onToggleRow}
+                onApprove={onApprove}
+                onReject={onReject}
+                onCancel={onCancel}
+                t={t as never}
+            />,
+        );
+
+        expect(screen.queryByTitle('common:tooltips.view_changes')).not.toBeInTheDocument();
+        expect(screen.queryByText('labels.proposed_changes')).not.toBeInTheDocument();
+        expect(screen.queryByText('owner_id')).not.toBeInTheDocument();
+        expect(screen.queryByText('Alice')).not.toBeInTheDocument();
+        expect(screen.queryByText('Bob')).not.toBeInTheDocument();
+    });
 });

@@ -1,3 +1,4 @@
+from . import issues as issues
 from .lifecycle import (
     DashboardMetricOutcome,
     DashboardMetricPlan,
@@ -14,4 +15,5 @@ __all__ = [
     "build_available_periods",
     "build_committee_summary_metrics",
     "build_dashboard_summary_metrics",
+    "issues",
 ]

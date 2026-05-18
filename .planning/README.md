@@ -18,6 +18,10 @@ Planning root for active state, roadmap intent, codebase maps, and historical ph
 - [`.planning/codebase/STRUCTURE.md`](./codebase/STRUCTURE.md)
 - [`.planning/codebase/TESTING.md`](./codebase/TESTING.md)
 
+## Audits
+
+- [`.planning/audits/2026-05-17-architecture-improvement-plan.md`](./audits/2026-05-17-architecture-improvement-plan.md)
+
 ## Phase Archives
 
 - [`.planning/phases/README.md`](./phases/README.md)

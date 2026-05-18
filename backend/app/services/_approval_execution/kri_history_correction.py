@@ -5,15 +5,10 @@ import logging
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core import activity_logger
-from app.core.audit.kri import kri_history_corrected, kri_updated
 from app.core.exceptions import ServiceFailure, ValidationError
 from app.models import ApprovalRequest, KeyRiskIndicator, User
 from app.models.kri_history import KRIValueHistory
-from app.services._kri_history.governance import (
-    build_kri_value_mutation_changes,
-    capture_kri_value_mutation_snapshot,
-)
+from app.services._kri_history.approval_execution import apply_approved_kri_history_correction
 
 from .results import SideEffectResult, auto_reject_kri_approval
 
@@ -29,8 +24,6 @@ async def _apply_kri_history_correction(
     department_id: int | None,
 ) -> SideEffectResult:
     """Apply history correction to a KRI history entry."""
-    from app.services.kri_history_service import KRIHistoryService
-
     entry_id = changes.get("history_entry_id")
     new_value = changes.get("new_value")
     old_value = changes.get("old_value")
@@ -72,38 +65,18 @@ async def _apply_kri_history_correction(
             "KRI history correction no longer passes apply-time validation (history entry period changed).",
         )
 
-    mutation_snapshot = capture_kri_value_mutation_snapshot(kri)
-
-    logger.info(f"Applying KRI history correction: entry {entry_id}, val {new_value}")
+    logger.info("Applying KRI history correction: entry %s, val %s", entry_id, new_value)
 
     try:
-        updated_entry = await KRIHistoryService.apply_history_correction(
+        await apply_approved_kri_history_correction(
             db=db,
-            entry_id=entry_id,
-            new_value=new_value,
-            corrected_by_id=current_user.id,
-        )
-
-        await kri_history_corrected(
-            db,
             kri=kri,
-            history_entry=updated_entry,
-            actor=current_user,
-            changes={"value": {"old": old_value, "new": new_value}},
-            description=f"Corrected via approval #{approval.id}",
-            log_activity_func=activity_logger.log_activity,
+            entry=entry,
+            new_value=new_value,
+            old_value=old_value,
+            corrected_by=current_user,
+            approval_id=approval.id,
         )
-
-        kri_changes = build_kri_value_mutation_changes(kri, mutation_snapshot)
-        if kri_changes:
-            await kri_updated(
-                db,
-                actor=current_user,
-                kri=kri,
-                changes=kri_changes,
-                description=f"Updated via approval #{approval.id} (history correction)",
-                log_activity_func=activity_logger.log_activity,
-            )
         return SideEffectResult.applied()
 
     except ValueError as e:

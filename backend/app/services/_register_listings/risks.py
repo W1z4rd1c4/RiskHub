@@ -34,7 +34,7 @@ from app.services._collection_filters import (
     coerce_optional_string,
 )
 
-from .lifecycle import RegisterListingPlan, SerializeItems, _plan_register_listing
+from .lifecycle import RegisterListingPlan, SerializeItems, build_register_listing_plan
 
 RISK_GROUP_UNLINKED_VENDOR = "__unlinked_vendor__"
 RISK_GROUP_UNCATEGORIZED = "__uncategorized__"
@@ -239,7 +239,7 @@ def _plan_risk_listing(
         group_vendor_context = get_vendor_context() if group_by == "vendor" else None
         return risk_group_value_filter(group_by, group_value or "", vendor_context=group_vendor_context)
 
-    return _plan_register_listing(
+    return build_register_listing_plan(
         ordered_query=ordered_query,
         capabilities=capabilities,
         serialize_items=serialize_items,

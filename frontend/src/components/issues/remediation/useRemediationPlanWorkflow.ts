@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { issueDetailQueryKey, issueHistoryQueryKey } from '@/lib/issueQueryKeys';
+import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { apiClient } from '@/services/apiClient';
 import { issuesApi } from '@/services/issuesApi';
 import { useSessionSnapshot } from '@/services/session';
@@ -9,13 +10,12 @@ import type { Issue, IssueOwnerLookup, IssueRemediationStatus } from '@/types/is
 import { fromDateTimeLocalInputValue, toDateTimeLocalInputValue } from '@/utils/dateTimeLocal';
 
 interface UseRemediationPlanWorkflowOptions {
-    canWrite: boolean;
     issue: Issue;
 }
 
 export const REMEDIATION_STATUSES: IssueRemediationStatus[] = ['draft', 'active', 'blocked', 'completed'];
 
-export function useRemediationPlanWorkflow({ canWrite, issue }: UseRemediationPlanWorkflowOptions) {
+export function useRemediationPlanWorkflow({ issue }: UseRemediationPlanWorkflowOptions) {
     const queryClient = useQueryClient();
     const session = useSessionSnapshot();
     const [assignOwnerId, setAssignOwnerId] = useState<string>(issue.owner_user_id ? String(issue.owner_user_id) : '');
@@ -35,7 +35,16 @@ export function useRemediationPlanWorkflow({ canWrite, issue }: UseRemediationPl
     const [errorKey, setErrorKey] = useState<string | null>(null);
 
     const isClosed = issue.status === 'closed';
-    const canStartRemediation = issue.status === 'open' || issue.status === 'triaged';
+    const canUseOwnerLookup = resolveCapabilityFlag(issue.capabilities, 'can_use_owner_lookup');
+    const canAssignOwner = resolveCapabilityFlag(issue.capabilities, 'can_assign_owner');
+    const canStartRemediation = (
+        (issue.status === 'open' || issue.status === 'triaged')
+        && resolveCapabilityFlag(issue.capabilities, 'can_start_remediation')
+    );
+    const canUpdateProgress = resolveCapabilityFlag(issue.capabilities, 'can_update_remediation_progress');
+    const canRequestException = resolveCapabilityFlag(issue.capabilities, 'can_request_exception');
+    const canApproveException = resolveCapabilityFlag(issue.capabilities, 'can_approve_exception');
+    const canClose = resolveCapabilityFlag(issue.capabilities, 'can_close');
     const isInProgress = issue.status === 'in_progress';
     const isReadyForValidation = issue.status === 'ready_for_validation';
     const requestedExceptionId = useMemo(() => {
@@ -60,7 +69,7 @@ export function useRemediationPlanWorkflow({ canWrite, issue }: UseRemediationPl
     }, [issue.id, issue.updated_at, issue.owner_user_id, issue.due_at, issue.remediation_plan, issue.validation_note]);
 
     useEffect(() => {
-        if (!canWrite || isClosed) {
+        if (!canUseOwnerLookup || isClosed) {
             setOwnerOptions([]);
             setIsOwnersLoading(false);
             return;
@@ -83,7 +92,7 @@ export function useRemediationPlanWorkflow({ canWrite, issue }: UseRemediationPl
             .finally(() => {
                 setIsOwnersLoading(false);
             });
-    }, [canWrite, isClosed, issue.department_id]);
+    }, [canUseOwnerLookup, isClosed, issue.department_id]);
 
     async function syncIssue(updatedIssue: Issue): Promise<void> {
         queryClient.setQueryData(issueDetailQueryKey(session.user?.id, issue.id), updatedIssue);
@@ -213,7 +222,12 @@ export function useRemediationPlanWorkflow({ canWrite, issue }: UseRemediationPl
         assignDueAt,
         assignOwnerId,
         blockerReason,
+        canApproveException,
+        canAssignOwner,
+        canClose,
+        canRequestException,
         canStartRemediation,
+        canUpdateProgress,
         completionNotes,
         errorKey,
         exceptionExpiresAt,

@@ -97,6 +97,70 @@ async def assert_can_request_delete_kri(
     return kri
 
 
+def _archive_state_change(old_is_archived: bool, new_is_archived: bool) -> dict[str, dict[str, object]] | None:
+    if old_is_archived == new_is_archived:
+        return None
+    return {"is_archived": {"old": old_is_archived, "new": new_is_archived}}
+
+
+async def archive_risk_no_commit(
+    db: AsyncSession,
+    *,
+    risk: Risk,
+    current_user: User,
+    include_changes: bool = False,
+    description: str | None = None,
+) -> None:
+    old_is_archived = risk.is_archived
+    risk.mark_archived(current_user)
+    await risk_archived(
+        db,
+        actor=current_user,
+        risk=risk,
+        changes=_archive_state_change(old_is_archived, risk.is_archived) if include_changes else None,
+        description=description,
+    )
+
+
+async def archive_control_no_commit(
+    db: AsyncSession,
+    *,
+    control: Control,
+    current_user: User,
+    include_changes: bool = False,
+    description: str | None = None,
+) -> None:
+    old_is_archived = control.is_archived
+    control.mark_archived(current_user)
+    control.updated_by_id = current_user.id
+    await control_archived(
+        db,
+        actor=current_user,
+        control=control,
+        changes=_archive_state_change(old_is_archived, control.is_archived) if include_changes else None,
+        description=description,
+    )
+
+
+async def archive_kri_no_commit(
+    db: AsyncSession,
+    *,
+    kri: KeyRiskIndicator,
+    current_user: User,
+    include_changes: bool = False,
+    description: str | None = None,
+) -> None:
+    old_is_archived = kri.is_archived
+    kri.mark_archived(current_user, when=utc_now())
+    await kri_archived(
+        db,
+        actor=current_user,
+        kri=kri,
+        changes=_archive_state_change(old_is_archived, kri.is_archived) if include_changes else None,
+        description=description,
+    )
+
+
 async def archive_risk_detail(
     *,
     db: AsyncSession,
@@ -114,12 +178,7 @@ async def archive_risk_detail(
 
     if approval_privilege_tier(current_user).is_privileged or not scenario_policy.requires_approval:
         try:
-            risk.mark_archived(current_user)
-            await risk_archived(
-                db,
-                actor=current_user,
-                risk=risk,
-            )
+            await archive_risk_no_commit(db, risk=risk, current_user=current_user)
             await db.commit()
         except Exception:
             # Deliberately broad: audit hooks can fail before commit; rollback keeps this request session reusable.
@@ -190,9 +249,7 @@ async def archive_control_detail(
 
     if approval_privilege_tier(current_user).is_privileged or not scenario_policy.requires_approval:
         try:
-            control.mark_archived(current_user)
-            control.updated_by_id = current_user.id
-            await control_archived(db, actor=current_user, control=control)
+            await archive_control_no_commit(db, control=control, current_user=current_user)
             await db.commit()
         except Exception:
             # Deliberately broad: audit hooks can fail before commit; rollback keeps this request session reusable.
@@ -259,9 +316,7 @@ async def archive_kri_detail(
 
     if approval_privilege_tier(current_user).is_privileged or not scenario_policy.requires_approval:
         try:
-            now = utc_now()
-            kri.mark_archived(current_user, when=now)
-            await kri_archived(db, actor=current_user, kri=kri)
+            await archive_kri_no_commit(db, kri=kri, current_user=current_user)
             await db.commit()
         except Exception:
             # Deliberately broad: audit hooks can fail before commit; rollback keeps this request session reusable.

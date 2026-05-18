@@ -3,7 +3,7 @@
 Back to tree: [`docs/DOCUMENTATION_TREE.md`](../DOCUMENTATION_TREE.md)
 
 > Version: 1.0
-> Last reviewed: 2026-05-10
+> Last reviewed: 2026-05-17
 > Owner: RiskHub Maintainer
 > Machine-readable mirror: [`authorization-capability-contract.json`](./authorization-capability-contract.json)
 > Capability field catalog: [`capability-catalog.json`](./capability-catalog.json)
@@ -102,6 +102,13 @@ On 2026-05-09, the vendor status column was removed from backend schemas,
 listing filters, report rows, and frontend vendor types after the forward-only
 Postgres migration. Vendor archive visibility and report filtering now use
 `is_archived`; authorization policy and capability semantics are unchanged.
+On 2026-05-17, architecture-only deepening moved approved KRI value/history
+execution, KRI vendor assignment reconciliation, archive side effects, register
+listing planning, report export definitions, monitoring export-row projection,
+dashboard issue metrics, access-user row projections, approval pending-change
+presentation, and issue remediation capability projection behind their owning
+Modules. User-visible authorization policy and capability semantics are
+unchanged.
 
 Strict capabilities rollout note: `STRICT_CAPABILITIES` is a frontend runtime
 configuration flag and remains off by default until operational telemetry

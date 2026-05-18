@@ -5,15 +5,12 @@ import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import activity_logger
-from app.core.audit.kri import kri_updated, kri_value_created
+from app.core.audit.kri import kri_updated
 from app.core.exceptions import ValidationError
 from app.core.owner_reference_validation import validate_active_owner_reference
 from app.models import ApprovalRequest, KeyRiskIndicator, User
-from app.services._kri_history.governance import (
-    build_kri_value_mutation_changes,
-    capture_kri_value_mutation_snapshot,
-)
-from app.services._vendor_links.kri_assignment import assign_vendors_to_kri, ensure_vendors_exist, normalize_vendor_ids
+from app.services._kri_history.approval_execution import record_approved_kri_current_value_edit
+from app.services._vendor_links.kri_assignment import apply_kri_vendor_assignment_change, normalize_vendor_ids
 
 from .constants import EDITABLE_FIELDS
 from .results import SideEffectResult
@@ -32,8 +29,6 @@ async def _apply_kri_generic_edit(
     department_id: int | None,
 ) -> SideEffectResult:
     """Apply generic field edits to a KRI, with optional value recording."""
-    from app.services.kri_history_service import KRIHistoryService
-
     value_change = changes.get("current_value")
     allowed_fields = EDITABLE_FIELDS.get("kri", set())
     applied_changes: dict = {}
@@ -73,19 +68,14 @@ async def _apply_kri_generic_edit(
         if mapped_field == "current_value":
             continue
         if mapped_field == "linked_vendor_ids":
-            requested_vendor_ids = normalize_vendor_ids((vals or {}).get("new"))
-            await ensure_vendors_exist(db, requested_vendor_ids)
-            await assign_vendors_to_kri(
+            requested_vendor_ids, vendor_changes = await apply_kri_vendor_assignment_change(
                 db,
                 kri=kri,
                 current_user=current_user,
-                linked_vendor_ids=requested_vendor_ids,
+                requested_vendor_ids=(vals or {}).get("new"),
+                current_vendor_ids=current_vendor_ids,
             )
-            if requested_vendor_ids != current_vendor_ids:
-                applied_changes["linked_vendor_ids"] = {
-                    "old": current_vendor_ids,
-                    "new": requested_vendor_ids,
-                }
+            applied_changes.update(vendor_changes)
             current_vendor_ids = requested_vendor_ids
             continue
         if mapped_field not in allowed_fields:
@@ -105,35 +95,22 @@ async def _apply_kri_generic_edit(
             }
 
     if rejected_fields:
-        logger.warning(f"Approval #{approval_id}: Rejected non-whitelisted fields for KRI: {rejected_fields}")
+        logger.warning("Approval #%s: Rejected non-whitelisted fields for KRI: %s", approval_id, rejected_fields)
 
     if value_change is not None:
-        mutation_snapshot = capture_kri_value_mutation_snapshot(kri)
-
         try:
-            history_entry = await KRIHistoryService.record_value(
-                db=db,
-                kri=kri,
-                value=value_change.get("new"),
-                recorded_by_id=current_user.id,
-                is_privileged=True,
+            applied_changes.update(
+                await record_approved_kri_current_value_edit(
+                    db=db,
+                    kri=kri,
+                    value=value_change.get("new"),
+                    old_value=value_change.get("old"),
+                    recorded_by=current_user,
+                    approval_id=approval_id,
+                )
             )
-
-            await kri_value_created(
-                db,
-                kri=kri,
-                history_entry=history_entry,
-                value=value_change.get("new"),
-                old_value=value_change.get("old"),
-                actor=current_user,
-                description=f"Recorded via approval #{approval_id}",
-                log_activity_func=activity_logger.log_activity,
-            )
-
-            applied_changes.update(build_kri_value_mutation_changes(kri, mutation_snapshot))
-
         except ValueError as e:
-            logger.error(f"Failed to record value during approval: {str(e)}")
+            logger.error("Failed to record value during approval: %s", str(e))
             raise ValidationError(f"KRI value recording failed: {str(e)}")
 
     if applied_changes:

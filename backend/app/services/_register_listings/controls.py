@@ -42,7 +42,7 @@ from app.services._monitoring_response import build_control_monitoring_fields, l
 from app.services._monitoring_status import ControlMonitoringStatus, apply_control_monitoring_status_filter
 from app.services.authorization_capabilities import control_capabilities
 
-from .lifecycle import CollectionQuery, RegisterListingPlan, SerializeItems, _plan_register_listing
+from .lifecycle import CollectionQuery, RegisterListingPlan, SerializeItems, build_register_listing_plan
 
 CONTROL_GROUP_UNLINKED_VENDOR = "__unlinked_vendor__"
 CONTROL_GROUP_UNCATEGORIZED = "__uncategorized__"
@@ -367,7 +367,7 @@ def plan_control_listing(
             is_highlighted=lambda control: control.risk_level >= 4,
         )
 
-    return _plan_register_listing(
+    return build_register_listing_plan(
         ordered_query=ordered_query,
         capabilities=capabilities,
         serialize_items=serialize_items,

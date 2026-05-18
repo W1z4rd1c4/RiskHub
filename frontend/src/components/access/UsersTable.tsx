@@ -4,8 +4,10 @@ import type { UserDirectoryEntry } from '@/types/user';
 
 import { AccessUserRow } from './AccessUserRow';
 import { DirectoryUserRow } from './DirectoryUserRow';
+import type { AccessUserActionModel, AccessUserPresentationModel } from './useAccessUsersWorkflow';
 
 interface UsersTableProps {
+    actionModelsByUserId: Map<number, AccessUserActionModel>;
     isAccessMode: boolean;
     isLoading: boolean;
     accessUsers: AccessUserRead[];
@@ -18,6 +20,7 @@ interface UsersTableProps {
     canRunDirectoryChecks?: boolean;
     checkingDirectoryUserId?: number | null;
     onCheckDirectory?: (user: AccessUserRead) => void;
+    presentationModelsByUserId: Map<number, AccessUserPresentationModel>;
 }
 
 function LoadingRows({ isAccessMode }: { isAccessMode: boolean }) {
@@ -29,6 +32,7 @@ function LoadingRows({ isAccessMode }: { isAccessMode: boolean }) {
 }
 
 export function UsersTable({
+    actionModelsByUserId,
     isAccessMode,
     isLoading,
     accessUsers,
@@ -41,6 +45,7 @@ export function UsersTable({
     canRunDirectoryChecks = false,
     checkingDirectoryUserId = null,
     onCheckDirectory,
+    presentationModelsByUserId,
 }: UsersTableProps) {
     const { t } = useTranslation('admin');
     const columnCount = isAccessMode ? 6 : 4;
@@ -66,20 +71,30 @@ export function UsersTable({
                     {isLoading ? (
                         <LoadingRows isAccessMode={isAccessMode} />
                     ) : isAccessMode && accessUsers.length > 0 ? (
-                        accessUsers.map((user) => (
-                            <AccessUserRow
-                                key={user.id}
-                                canRunDirectoryChecks={canRunDirectoryChecks}
-                                checkingDirectoryUserId={checkingDirectoryUserId}
-                                expandedUserId={expandedUserId}
-                                onBreakGlassEnable={onBreakGlassEnable}
-                                onCheckDirectory={onCheckDirectory}
-                                onEditAccess={onEditAccess}
-                                onToggleExpand={onToggleExpand}
-                                onToggleStatus={onToggleStatus}
-                                user={user}
-                            />
-                        ))
+                        accessUsers.map((user) => {
+                            const actionModel = actionModelsByUserId.get(user.id);
+                            const presentationModel = presentationModelsByUserId.get(user.id);
+                            if (!actionModel || !presentationModel) {
+                                return null;
+                            }
+
+                            return (
+                                <AccessUserRow
+                                    key={user.id}
+                                    actionModel={actionModel}
+                                    canRunDirectoryChecks={canRunDirectoryChecks}
+                                    checkingDirectoryUserId={checkingDirectoryUserId}
+                                    expandedUserId={expandedUserId}
+                                    onBreakGlassEnable={onBreakGlassEnable}
+                                    onCheckDirectory={onCheckDirectory}
+                                    onEditAccess={onEditAccess}
+                                    onToggleExpand={onToggleExpand}
+                                    onToggleStatus={onToggleStatus}
+                                    presentationModel={presentationModel}
+                                    user={user}
+                                />
+                            );
+                        })
                     ) : !isAccessMode && directoryUsers.length > 0 ? (
                         directoryUsers.map((user) => <DirectoryUserRow key={user.id} user={user} />)
                     ) : (

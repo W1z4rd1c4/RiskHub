@@ -1,3 +1,4 @@
+from . import export_rows as export_rows
 from .config import (
     CONTROL_EXECUTION_STALE_DAYS_KEY,
     KRI_WARNING_UPPER_MARGIN_RATIO_KEY,
@@ -34,6 +35,7 @@ __all__ = [
     "apply_kri_monitoring_status_filter",
     "apply_kri_timeliness_status_filter",
     "CONTROL_EXECUTION_STALE_DAYS_KEY",
+    "export_rows",
     "KRI_WARNING_UPPER_MARGIN_RATIO_KEY",
     "ControlMonitoringConfig",
     "ControlMonitoringFacts",

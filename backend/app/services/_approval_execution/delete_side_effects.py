@@ -4,10 +4,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
-from app.core.audit.control import control_archived
-from app.core.audit.kri import kri_archived
-from app.core.audit.risk import risk_archived
-from app.core.datetime_utils import utc_now
 from app.models import (
     ApprovalRequest,
     ApprovalResourceType,
@@ -15,6 +11,11 @@ from app.models import (
     KeyRiskIndicator,
     Risk,
     User,
+)
+from app.services._entity_mutation_lifecycle.archive_plans import (
+    archive_control_no_commit,
+    archive_kri_no_commit,
+    archive_risk_no_commit,
 )
 
 from .helpers import missing_resource_auto_rejection
@@ -39,16 +40,11 @@ async def _apply_delete_side_effects(
         if not risk:
             return missing_resource_auto_rejection(approval, resource_label="Risk", logger=logger)
 
-        old_is_archived = risk.is_archived
-        risk.mark_archived(current_user)
-        risk_changes: dict[str, dict[str, object]] = {}
-        if old_is_archived != risk.is_archived:
-            risk_changes["is_archived"] = {"old": old_is_archived, "new": risk.is_archived}
-        await risk_archived(
+        await archive_risk_no_commit(
             db,
-            actor=current_user,
             risk=risk,
-            changes=risk_changes or None,
+            current_user=current_user,
+            include_changes=True,
             description=f"Archived via approval #{approval.id}",
         )
         return SideEffectResult.applied()
@@ -59,17 +55,11 @@ async def _apply_delete_side_effects(
         if not control:
             return missing_resource_auto_rejection(approval, resource_label="Control", logger=logger)
 
-        old_is_archived = control.is_archived
-        control.mark_archived(current_user)
-        control.updated_by_id = current_user.id
-        control_changes: dict[str, dict[str, object]] = {}
-        if old_is_archived != control.is_archived:
-            control_changes["is_archived"] = {"old": old_is_archived, "new": control.is_archived}
-        await control_archived(
+        await archive_control_no_commit(
             db,
-            actor=current_user,
             control=control,
-            changes=control_changes or None,
+            current_user=current_user,
+            include_changes=True,
             description=f"Archived via approval #{approval.id}",
         )
         return SideEffectResult.applied()
@@ -85,16 +75,11 @@ async def _apply_delete_side_effects(
         if not kri:
             return missing_resource_auto_rejection(approval, resource_label="KRI", logger=logger)
 
-        old_is_archived = kri.is_archived
-        now = utc_now()
-        kri.mark_archived(current_user, when=now)
-        await kri_archived(
+        await archive_kri_no_commit(
             db,
-            actor=current_user,
             kri=kri,
-            changes={"is_archived": {"old": old_is_archived, "new": kri.is_archived}}
-            if old_is_archived != kri.is_archived
-            else None,
+            current_user=current_user,
+            include_changes=True,
             description=f"Archived via approval #{approval.id}",
         )
         return SideEffectResult.applied()

@@ -18,6 +18,7 @@ import { cn } from '@/lib/utils';
 import type { ApprovalRequest } from '@/types/approval';
 
 import { getApprovalActionBadge, getApprovalStatusBadge } from './approvalsPresentation';
+import { approvalPendingChangeEntries, canViewApprovalPendingChanges } from './approvalPendingChanges';
 
 interface ApprovalListProps {
     approvals: ApprovalRequest[];
@@ -64,13 +65,17 @@ export function ApprovalList({
 
     return (
         <div className="space-y-4">
-            {approvals.map((approval) => (
-                <motion.div
-                    key={approval.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="glass-card p-0 overflow-hidden"
-                >
+            {approvals.map((approval) => {
+                const canViewPendingChanges = canViewApprovalPendingChanges(approval);
+                const pendingChangeEntries = approvalPendingChangeEntries(approval);
+
+                return (
+                    <motion.div
+                        key={approval.id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="glass-card p-0 overflow-hidden"
+                    >
                     <div className="p-6 flex flex-col lg:flex-row lg:items-center gap-6">
                         <div className="flex flex-col gap-2 min-w-[120px]">
                             <div className="flex items-center gap-2">
@@ -154,7 +159,7 @@ export function ApprovalList({
                             </span>
 
                             <div className="flex items-center gap-2">
-                                {approval.action_type === 'edit' && approval.pending_changes && (
+                                {canViewPendingChanges && (
                                     <button
                                         onClick={() => onToggleRow(approval.id)}
                                         className="p-2 hover:bg-white/5 rounded-lg text-slate-400 hover:text-white transition-colors"
@@ -214,7 +219,7 @@ export function ApprovalList({
                     <AnimatePresence>
                         {approval.action_type === 'edit' &&
                             expandedRows.has(approval.id) &&
-                            approval.pending_changes && (
+                            canViewPendingChanges && (
                                 <motion.div
                                     initial={{ height: 0, opacity: 0 }}
                                     animate={{ height: 'auto', opacity: 1 }}
@@ -225,7 +230,7 @@ export function ApprovalList({
                                         {t('labels.proposed_changes')}
                                     </h4>
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                        {Object.entries(approval.pending_changes).map(([field, change]) => (
+                                        {pendingChangeEntries.map(([field, change]) => (
                                             <div
                                                 key={field}
                                                 className="bg-black/20 rounded-lg p-3 border border-white/5"
@@ -248,8 +253,9 @@ export function ApprovalList({
                                 </motion.div>
                             )}
                     </AnimatePresence>
-                </motion.div>
-            ))}
+                    </motion.div>
+                );
+            })}
         </div>
     );
 }

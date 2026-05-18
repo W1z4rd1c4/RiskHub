@@ -107,7 +107,7 @@ export function useAccessUsersWorkflow(options: AccessUsersWorkflowOptions): Acc
         [importedUserId, importedUserName, isAccessMode, users],
     );
     const actionModelsByUserId = useMemo(
-        () => new Map(users.map((user) => [user.id, buildAccessUserActionModel(user)])),
+        () => new Map(users.map((user) => [user.id, buildAccessUserActionModel(user, { defaultAllowed: false })])),
         [users],
     );
     const presentationModelsByUserId = useMemo(

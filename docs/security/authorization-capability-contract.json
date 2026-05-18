@@ -1,7 +1,7 @@
 {
   "version": "1.0",
-    "last_reviewed": "2026-05-10",
-    "last_architecture_refactor_reviewed": "2026-05-10",
+    "last_reviewed": "2026-05-17",
+    "last_architecture_refactor_reviewed": "2026-05-17",
   "architecture_refactor_notes": [
     "2026-05-03: Collection listing execution, tabular report export rendering, approval side-effect helper reuse, and validator static data were moved behind deeper Modules. User-visible authorization policy and capability semantics are unchanged.",
     "2026-05-03: Entity visibility projections, collection listing definitions, export pipeline definitions, approval resolution plans, and KRI value governance were moved behind deeper Modules. User-visible authorization policy and capability semantics are unchanged.",
@@ -19,8 +19,9 @@
         "2026-05-09: Architecture cleanup Wave 8 removed Vendor.status from backend schemas, listing filters, report rows, and frontend vendor types after the forward-only Postgres migration. Vendor archive visibility and report filtering now use is_archived; authorization policy and capability semantics are unchanged.",
         "2026-05-10: Documentation-only sync refreshed backend/app/services/_kri_history/README.md contents listing to match the workflow/projection/governance split, added a Privilege context vocabulary entry to the contract markdown, and clarified ADR-007 Amendment 1 package counting. Authorization policy and capability semantics are unchanged.",
         "2026-05-10: Documentation-only README coverage pass added service-package README files under authz-sensitive service directories and updated documentation topology links. Authorization policy and capability semantics are unchanged.",
-        "2026-05-10: Shell summary resilience pass keeps /me/shell-summary available when the questionnaire inbox count hits non-fatal data-shape errors, degrading that badge count to zero while preserving backend authorization policy, permission-sensitive cache keys, and capability semantics."
-  ],
+        "2026-05-10: Shell summary resilience pass keeps /me/shell-summary available when the questionnaire inbox count hits non-fatal data-shape errors, degrading that badge count to zero while preserving backend authorization policy, permission-sensitive cache keys, and capability semantics.",
+        "2026-05-17: Architecture-only deepening moved approved KRI value/history execution, KRI vendor assignment reconciliation, archive side effects, register listing planning, report export definitions, monitoring export-row projection, dashboard issue metrics, access-user row projections, approval pending-change presentation, and issue remediation capability projection behind their owning Modules. User-visible authorization policy and capability semantics are unchanged."
+    ],
   "owner": "RiskHub Maintainer",
   "capability_catalog": "docs/security/capability-catalog.json",
   "status_values": [

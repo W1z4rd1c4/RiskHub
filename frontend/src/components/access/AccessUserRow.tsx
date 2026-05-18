@@ -20,10 +20,11 @@ import type { AccessUserRead } from '@/types/access';
 
 import { PermissionChips } from './PermissionMatrix';
 import { ExpandedAccessDetailsRow } from './ExpandedAccessDetailsRow';
-import { buildAccessUserActionModel, buildAccessUserPresentationModel } from './useAccessUsersWorkflow';
+import type { AccessUserActionModel, AccessUserPresentationModel } from './useAccessUsersWorkflow';
 import { userScopeBadgeClassName } from './usersTablePresentation';
 
 interface AccessUserRowProps {
+    actionModel: AccessUserActionModel;
     canRunDirectoryChecks: boolean;
     checkingDirectoryUserId: number | null;
     expandedUserId: number | null;
@@ -32,6 +33,7 @@ interface AccessUserRowProps {
     onEditAccess: (user: AccessUserRead) => void;
     onToggleExpand: (userId: number) => void;
     onToggleStatus: (user: AccessUserRead) => void;
+    presentationModel: AccessUserPresentationModel;
     user: AccessUserRead;
 }
 
@@ -96,6 +98,7 @@ function UserCapabilitySummary({ expandedUserId, onToggleExpand, user }: Pick<Ac
 }
 
 export function AccessUserRow({
+    actionModel,
     canRunDirectoryChecks,
     checkingDirectoryUserId,
     expandedUserId,
@@ -104,11 +107,10 @@ export function AccessUserRow({
     onEditAccess,
     onToggleExpand,
     onToggleStatus,
+    presentationModel,
     user,
 }: AccessUserRowProps) {
     const { t, i18n } = useTranslation('admin');
-    const actionModel = buildAccessUserActionModel(user, { defaultAllowed: false });
-    const presentationModel = buildAccessUserPresentationModel(user);
     const canChangeActiveStatus = actionModel.canDeactivate || actionModel.canReactivate;
 
     return (

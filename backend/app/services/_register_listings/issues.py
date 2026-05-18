@@ -48,7 +48,7 @@ from app.services._issue_register import (
 from app.services.authorization_capabilities import issue_capabilities
 from app.services.issue_visibility_service import unsuppressed_issue_clause
 
-from .lifecycle import RegisterListingPlan, SerializeItems, _plan_register_listing
+from .lifecycle import RegisterListingPlan, SerializeItems, build_register_listing_plan
 
 
 @dataclass(frozen=True)
@@ -247,7 +247,7 @@ async def plan_issue_listing(
             is_highlighted=lambda issue: issue.severity in {IssueSeverity.high.value, IssueSeverity.critical.value},
         )
 
-    return _plan_register_listing(
+    return build_register_listing_plan(
         ordered_query=ordered_query,
         capabilities=collection_capabilities,
         serialize_items=serialize_issues,

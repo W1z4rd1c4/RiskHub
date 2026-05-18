@@ -292,6 +292,7 @@ export function UsersPage() {
                     </div>
                 ) : (
                     <UsersTable
+                        actionModelsByUserId={accessWorkflow.actionModelsByUserId}
                         isAccessMode={isAccessMode}
                         isLoading={isLoading}
                         accessUsers={displayUsers}
@@ -304,6 +305,7 @@ export function UsersPage() {
                         canRunDirectoryChecks={directoryCapabilities?.can_import_directory_user === true}
                         checkingDirectoryUserId={checkingDirectoryUserId}
                         onCheckDirectory={handleCheckSingleDirectory}
+                        presentationModelsByUserId={accessWorkflow.presentationModelsByUserId}
                     />
                 )}
 

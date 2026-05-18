@@ -38,7 +38,7 @@ from app.services._monitoring_status import (
 )
 from app.services.authorization_capabilities import kri_capabilities
 
-from .lifecycle import CollectionQuery, RegisterListingPlan, SerializeItems, _plan_register_listing
+from .lifecycle import CollectionQuery, RegisterListingPlan, SerializeItems, build_register_listing_plan
 
 KRI_GROUP_UNLINKED_VENDOR = "__unlinked_vendor__"
 KRI_GROUP_UNCATEGORIZED = "__uncategorized__"
@@ -275,7 +275,7 @@ def plan_kri_listing(
         )
         return kri_group_filter(group_by, group_value or "", vendor_context=vendor_context)
 
-    return _plan_register_listing(
+    return build_register_listing_plan(
         ordered_query=ordered_query,
         capabilities=capabilities,
         serialize_items=serialize_items,

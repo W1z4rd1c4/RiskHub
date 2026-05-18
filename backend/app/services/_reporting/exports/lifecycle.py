@@ -12,7 +12,10 @@ from app.services._reporting.exports.pipeline import (
     render_export_pipeline,
 )
 
-ReportExportDefinition = ExportPipelineDefinition
+
+@dataclass(frozen=True)
+class ReportExportDefinition(ExportPipelineDefinition):
+    pass
 
 
 @dataclass(frozen=True)

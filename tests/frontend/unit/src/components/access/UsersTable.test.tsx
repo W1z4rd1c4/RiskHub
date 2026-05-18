@@ -3,6 +3,10 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { UsersTable } from '@/components/access/UsersTable';
+import {
+    buildAccessUserActionModel,
+    buildAccessUserPresentationModel,
+} from '@/components/access/useAccessUsersWorkflow';
 import type { AccessUserRead } from '@/types/access';
 import type { UserDirectoryEntry } from '@/types/user';
 
@@ -63,15 +67,24 @@ function makeDirectoryUser(overrides: Partial<UserDirectoryEntry> = {}): UserDir
 }
 
 function renderUsersTable(overrides: Partial<Parameters<typeof UsersTable>[0]> = {}) {
+    const accessUsers = overrides.accessUsers ?? [makeAccessUser()];
     const props: Parameters<typeof UsersTable>[0] = {
+        actionModelsByUserId: new Map(accessUsers.map((user) => [
+            user.id,
+            buildAccessUserActionModel(user, { defaultAllowed: false }),
+        ])),
         isAccessMode: true,
         isLoading: false,
-        accessUsers: [makeAccessUser()],
+        accessUsers,
         directoryUsers: [],
         expandedUserId: null,
         onToggleExpand: vi.fn(),
         onEditAccess: vi.fn(),
         onToggleStatus: vi.fn(),
+        presentationModelsByUserId: new Map(accessUsers.map((user) => [
+            user.id,
+            buildAccessUserPresentationModel(user),
+        ])),
         ...overrides,
     };
 

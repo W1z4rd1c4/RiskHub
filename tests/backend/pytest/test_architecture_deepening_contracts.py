@@ -883,12 +883,35 @@ def test_register_listing_entity_modules_own_planners() -> None:
         assert leaked_detail not in route_sources
 
 
+def test_register_listing_entity_modules_use_public_plan_builder() -> None:
+    from app.services._register_listings import lifecycle
+
+    assert hasattr(lifecycle, "build_register_listing_plan")
+    assert "_plan_register_listing" not in _defined_function_names(
+        "backend/app/services/_register_listings/lifecycle.py"
+    )
+
+    for relative_path in (
+        "backend/app/services/_register_listings/risks.py",
+        "backend/app/services/_register_listings/controls.py",
+        "backend/app/services/_register_listings/kris.py",
+        "backend/app/services/_register_listings/issues.py",
+        "backend/app/services/_register_listings/vendors.py",
+    ):
+        source = _source(relative_path)
+        assert "_plan_register_listing" not in source
+        assert "build_register_listing_plan(" in source
+
+
 def test_report_exporters_use_reporting_export_definitions() -> None:
     from app.services._reporting.exports import lifecycle
+    from app.services._reporting.exports.pipeline import ExportPipelineDefinition
 
     assert hasattr(lifecycle, "ReportExportDefinition")
     assert hasattr(lifecycle, "ReportExportExecutionPlan")
     assert hasattr(lifecycle, "ReportExportOutcome")
+    assert "ReportExportDefinition" in _defined_class_names("backend/app/services/_reporting/exports/lifecycle.py")
+    assert lifecycle.ReportExportDefinition is not ExportPipelineDefinition
 
     exporter_source = "\n".join(
         _source(path)
@@ -938,6 +961,28 @@ def test_report_export_routes_use_service_export_definitions() -> None:
         assert leaked_export_detail not in endpoint_source
 
 
+def test_monitoring_export_rows_are_owned_by_monitoring_status_module() -> None:
+    from app.services._monitoring_status import export_rows
+
+    assert hasattr(export_rows, "apply_control_monitoring_rows")
+    assert hasattr(export_rows, "apply_kri_monitoring_rows")
+
+    reporting_adapter_source = _source("backend/app/services/_reporting/exports/monitoring.py")
+    assert "from app.services._monitoring_status.export_rows import" in reporting_adapter_source
+    for leaked_monitoring_detail in (
+        "derive_control_monitoring_snapshot",
+        "derive_kri_monitoring_snapshot",
+        "ControlMonitoringFacts",
+        "KRIMonitoringFacts",
+        "def _datetime_or_none",
+        "def _date_or_none",
+        "def _str_or_none",
+        "def _int_value",
+        "def _float_value",
+    ):
+        assert leaked_monitoring_detail not in reporting_adapter_source
+
+
 def test_backend_service_modules_do_not_import_endpoint_adapters() -> None:
     services_root = Path(__file__).resolve().parents[3] / "backend" / "app" / "services"
     offenders: list[str] = []
@@ -969,6 +1014,102 @@ def test_dashboard_routes_use_metric_composition_module() -> None:
 
     assert "select(func.count(Control.id))" not in inspect.getsource(summary)
     assert "QuarterlyMetricSnapshot" not in inspect.getsource(quarterly)
+
+
+def test_dashboard_issue_metric_routes_delegate_to_metric_module() -> None:
+    from app.api.v1.endpoints.dashboard import issues_metrics
+    from app.services._dashboard_metrics import issues as issue_metrics_module
+
+    for metric_function in (
+        "build_issue_summary_metrics",
+        "build_issue_aging_metrics",
+        "build_issue_severity_metrics",
+    ):
+        assert hasattr(issue_metrics_module, metric_function)
+        assert metric_function in inspect.getsource(issues_metrics)
+
+    route_source = inspect.getsource(issues_metrics)
+    for route_owned_metric_detail in (
+        "select(Issue)",
+        "get_issue_scope_clause",
+        "issue_has_active_approved_exception",
+        "def _load_scoped_issues",
+        "def _open_unsuppressed_issues",
+        "def _issue_age_days",
+    ):
+        assert route_owned_metric_detail not in route_source
+
+
+def test_access_user_rows_consume_workflow_projection_models() -> None:
+    row_source = _source("frontend/src/components/access/AccessUserRow.tsx")
+    table_source = _source("frontend/src/components/access/UsersTable.tsx")
+    page_source = _source("frontend/src/pages/UsersPage.tsx")
+
+    assert "actionModel: AccessUserActionModel" in row_source
+    assert "presentationModel: AccessUserPresentationModel" in row_source
+    assert "buildAccessUserActionModel(" not in row_source
+    assert "buildAccessUserPresentationModel(" not in row_source
+
+    assert "actionModelsByUserId" in table_source
+    assert "presentationModelsByUserId" in table_source
+    assert "accessWorkflow.actionModelsByUserId" in page_source
+    assert "accessWorkflow.presentationModelsByUserId" in page_source
+
+
+def test_issue_remediation_card_consumes_workflow_capability_projection() -> None:
+    card_source = _source("frontend/src/components/issues/RemediationPlanCard.tsx")
+    workflow_source = _source("frontend/src/components/issues/remediation/useRemediationPlanWorkflow.ts")
+
+    assert "resolveCapabilityFlag" not in card_source
+    for projected_capability in (
+        "workflow.canAssignOwner",
+        "workflow.canUpdateProgress",
+        "workflow.canRequestException",
+        "workflow.canApproveException",
+        "workflow.canClose",
+    ):
+        assert projected_capability in card_source
+
+    for backend_capability in (
+        "can_assign_owner",
+        "can_start_remediation",
+        "can_update_remediation_progress",
+        "can_request_exception",
+        "can_approve_exception",
+        "can_close",
+        "can_use_owner_lookup",
+    ):
+        assert backend_capability in workflow_source
+
+
+def test_approval_row_lock_contract_uses_ast_instead_of_source_strings() -> None:
+    contract_source = _source("tests/backend/pytest/test_edit_risk_control_concurrency.py")
+
+    assert "ast.parse" in contract_source
+    assert "_compact_source" not in contract_source
+    assert "re.sub" not in contract_source
+
+
+def test_release_parity_runtime_commands_are_owned_by_command_module() -> None:
+    runtime_source = _source("scripts/security/release_parity_audit/runtime.py")
+    command_source = _source("scripts/security/release_parity_audit/runtime_commands.py")
+
+    assert {
+        "deploy_cli_prod_docker_dry_run_command",
+        "backend_db_runtime_prod_dry_run_command",
+        "backend_runtime_prod_dry_run_command",
+        "frontend_runtime_prod_dry_run_command",
+    } <= _defined_function_names("scripts/security/release_parity_audit/runtime_commands.py")
+    assert "from release_parity_audit.runtime_commands import" in runtime_source
+
+    for runtime_command_literal in (
+        "./scripts/deploy.sh deploy --target docker",
+        "backend/scripts/runtime/db/prod.sh",
+        "backend/scripts/runtime/prod.sh",
+        "frontend/scripts/runtime/prod.sh",
+    ):
+        assert runtime_command_literal not in runtime_source
+        assert runtime_command_literal in command_source
 
 
 def test_issue_routes_use_issue_register_linked_context_contracts() -> None:
@@ -1034,6 +1175,78 @@ def test_kri_history_direct_application_and_routes_do_not_use_private_wrappers()
     direct_path = "backend/app/services/_kri_history/direct_application.py"
     assert not _has_varargs_forwarder(direct_path)
     assert "_apply_kri_value_directly" not in _source(direct_path)
+
+
+def test_approval_kri_history_execution_delegates_to_kri_history_module() -> None:
+    from app.services._kri_history import approval_execution
+
+    assert hasattr(approval_execution, "apply_approved_kri_value_submission")
+    assert hasattr(approval_execution, "apply_approved_kri_history_correction")
+    assert hasattr(approval_execution, "record_approved_kri_current_value_edit")
+
+    submission_correction_sources = (
+        _source("backend/app/services/_approval_execution/kri_value_submission.py")
+        + _source("backend/app/services/_approval_execution/kri_history_correction.py")
+    )
+    generic_edit_source = _source("backend/app/services/_approval_execution/kri_generic_edit.py")
+    approval_sources = submission_correction_sources + generic_edit_source
+    for leaked_kri_history_detail in (
+        "KRIHistoryService",
+        "capture_kri_value_mutation_snapshot",
+        "build_kri_value_mutation_changes",
+        "kri_value_created",
+        "kri_history_corrected",
+    ):
+        assert leaked_kri_history_detail not in approval_sources
+    assert "kri_updated" not in submission_correction_sources
+
+    assert "apply_approved_kri_value_submission(" in approval_sources
+    assert "apply_approved_kri_history_correction(" in approval_sources
+    assert "record_approved_kri_current_value_edit(" in approval_sources
+
+
+def test_approval_kri_vendor_assignment_delegates_to_vendor_link_module() -> None:
+    from app.services._vendor_links import kri_assignment
+
+    assert hasattr(kri_assignment, "apply_kri_vendor_assignment_change")
+
+    approval_source = _source("backend/app/services/_approval_execution/kri_generic_edit.py")
+
+    assert "apply_kri_vendor_assignment_change(" in approval_source
+    for low_level_vendor_behavior in (
+        "ensure_vendors_exist",
+        "assign_vendors_to_kri",
+    ):
+        assert low_level_vendor_behavior not in approval_source
+
+
+def test_approval_archive_side_effects_delegate_to_entity_lifecycle_module() -> None:
+    from app.services._entity_mutation_lifecycle import archive_plans
+
+    for lifecycle_function in (
+        "archive_risk_no_commit",
+        "archive_control_no_commit",
+        "archive_kri_no_commit",
+    ):
+        assert hasattr(archive_plans, lifecycle_function)
+
+    delete_source = _source("backend/app/services/_approval_execution/delete_side_effects.py")
+
+    for lifecycle_function in (
+        "archive_risk_no_commit(",
+        "archive_control_no_commit(",
+        "archive_kri_no_commit(",
+    ):
+        assert lifecycle_function in delete_source
+
+    for low_level_archive_behavior in (
+        ".mark_archived(",
+        "risk_archived",
+        "control_archived",
+        "kri_archived",
+        "utc_now",
+    ):
+        assert low_level_archive_behavior not in delete_source
 
 
 def test_risk_restore_passes_display_name_before_activity_redaction() -> None:
