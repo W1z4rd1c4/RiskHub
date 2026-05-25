@@ -6,11 +6,15 @@ RiskHub takes vulnerability reports seriously.
 
 Please do **not** open a public GitHub issue for security vulnerabilities.
 
-Instead:
+Use GitHub private vulnerability reporting when available:
+
+- https://github.com/W1z4rd1c4/RiskHub/security/advisories/new
+
+If private reporting is unavailable:
 
 1. Contact the maintainers through an existing private channel if you already have one.
 2. If you do not have a private channel, open a minimal public issue that requests a secure contact path and do **not** include exploit details.
-3. Include the affected version or commit, reproduction steps, impact, and any suggested fix if you have one.
+3. Include details only after a private disclosure path is available.
 
 ## What to Include
 
@@ -19,6 +23,8 @@ Instead:
 - expected and observed behavior
 - impact assessment
 - affected environment or commit
+- affected version, release, or commit when known
+- any suggested fix or mitigation if you have one
 
 ## Response Expectations
 

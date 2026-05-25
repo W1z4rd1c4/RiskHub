@@ -10,6 +10,8 @@ assignees: ""
 
 What user or operator problem are you trying to solve?
 
+For setup questions or self-hosting help, use GitHub Discussions instead of a feature request.
+
 ## Proposed Change
 
 Describe the behavior you want.

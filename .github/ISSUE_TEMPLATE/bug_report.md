@@ -10,6 +10,8 @@ assignees: ""
 
 Describe the bug clearly.
 
+Do not report exploitable security vulnerabilities in public issues. Use the process in `SECURITY.md`.
+
 ## Steps to Reproduce
 
 1.

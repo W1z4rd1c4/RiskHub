@@ -1,6 +1,14 @@
 # RiskHub
 
 <p align="center">
+  <a href="https://github.com/W1z4rd1c4/RiskHub/releases"><img alt="Release" src="https://img.shields.io/github/v/release/W1z4rd1c4/RiskHub?include_prereleases&sort=semver"></a>
+  <a href="./LICENSE"><img alt="License" src="https://img.shields.io/github/license/W1z4rd1c4/RiskHub"></a>
+  <a href="https://github.com/W1z4rd1c4/RiskHub/actions/workflows/lint.yml"><img alt="Lint" src="https://github.com/W1z4rd1c4/RiskHub/actions/workflows/lint.yml/badge.svg"></a>
+  <a href="https://github.com/W1z4rd1c4/RiskHub/actions/workflows/e2e.yml"><img alt="E2E" src="https://github.com/W1z4rd1c4/RiskHub/actions/workflows/e2e.yml/badge.svg"></a>
+  <a href="https://github.com/W1z4rd1c4/RiskHub/actions/workflows/security.yml"><img alt="Security" src="https://github.com/W1z4rd1c4/RiskHub/actions/workflows/security.yml/badge.svg"></a>
+</p>
+
+<p align="center">
   <strong>Open-source risk operations for teams that need ownership, approvals, evidence, and operating clarity in one place.</strong>
 </p>
 
@@ -18,6 +26,12 @@
   <a href="#documentation"><strong>Documentation</strong></a>
   ·
   <a href="./CONTRIBUTING.md"><strong>Contribute</strong></a>
+  ·
+  <a href="./SUPPORT.md"><strong>Support</strong></a>
+</p>
+
+<p align="center">
+  <img src="./docs/assets/readme/hero-dashboard.png" alt="RiskHub operational insight dashboard with risk, control, vendor, and issue metrics." width="100%">
 </p>
 
 ## Why RiskHub
@@ -32,9 +46,22 @@ RiskHub is built for teams that need:
 - activity history, audit logs, exports, and dashboard evidence for reviews
 - separate user manuals and admin runbooks for business users and platform operators
 
+## Evaluate RiskHub
+
+RiskHub is a self-hosted, Docker-first application for evaluating a governed risk operations workflow with local data and deterministic demo fixtures. There is no hosted demo URL at this time; the supported evaluation path is the local Docker demo below.
+
+RiskHub is a good fit to evaluate when your team wants:
+
+- a risk and control workspace that includes vendors, KRIs, issues, approvals, evidence, and governance review
+- local control of the application, database, demo data, and deployment path during evaluation
+- an open-source codebase with visible CI, security scanning, release checks, and operating documentation
+- a product surface that risk, compliance, audit, vendor, and platform operators can inspect together
+
+It is not positioned as a hosted SaaS trial. If you need support routing before opening an issue, start with [SUPPORT.md](./SUPPORT.md).
+
 ## Quick Start
 
-Use the Docker onboarding path for the fastest local demo.
+Use the Docker onboarding path for the fastest local demo. This is the primary public evaluation path until a hosted demo exists.
 
 ```bash
 ./scripts/install.sh demo
@@ -132,6 +159,15 @@ Repository layout:
 | `scripts/` | Local development, Docker onboarding, deployment, and quality entrypoints |
 | `tests/` | Centralized backend, frontend, E2E, and test artifact structure |
 
+## Operational Confidence
+
+RiskHub keeps public evaluation signals close to the repository:
+
+- MIT licensing and public contribution guidance live at the root of the repository.
+- Security reporting, leak-audit guidance, dependency scanning, and CI security workflows are documented and versioned.
+- Deterministic screenshot assets are generated from the demo app, not hand-made mockups.
+- Release publication is gated by the release workflow and release parity checks before a public tag is published.
+
 ## Verification
 
 Use the smallest check that matches the work you changed:
@@ -170,15 +206,8 @@ RiskHub is published under the [MIT License](./LICENSE).
 - Contributions are handled through forks, issues, and pull requests.
 - Security issues should follow [SECURITY.md](./SECURITY.md), not public issue threads.
 - Contribution expectations and verification notes live in [CONTRIBUTING.md](./CONTRIBUTING.md).
+- Support routing for Q&A, bugs, features, and operations lives in [SUPPORT.md](./SUPPORT.md).
 - Public PRs are welcome; merges to `main` remain maintainer-controlled.
-
-## GitHub Repository Setup
-
-Maintainers can use these settings to keep the public repository presentation aligned with this README:
-
-- Description: `Open-source risk operations for governed risks, controls, KRIs, vendors, approvals, and evidence.`
-- Topics: `risk-management`, `grc`, `compliance`, `fastapi`, `react`, `postgresql`, `open-source`
-- Social preview: upload `docs/assets/readme/social-preview.png` in GitHub repository settings.
 
 ## Source Of Truth
 

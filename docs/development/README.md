@@ -1,7 +1,7 @@
 # RiskHub Development Startup
 
-> **Version**: 1.1
-> **Last Updated**: 2026-04-05
+> **Version**: 1.2
+> **Last Updated**: 2026-05-25
 > **Audience**: Engineering, QA
 
 Back to tree: [`docs/DOCUMENTATION_TREE.md`](../DOCUMENTATION_TREE.md)
@@ -134,3 +134,15 @@ FRONTEND_URL=http://localhost POLISH_AUDIT_DEEP=1 npx playwright test -c playwri
 - internal implementation note: `./scripts/install.sh` is a stable shell wrapper over `./scripts/install_cli.py`; do not bypass it in runbooks
 - `./scripts/compose.sh` and `./scripts/dev.sh` remain supported advanced/manual entrypoints
 - Production deployment remains separate and should use `./scripts/install.sh production --target docker|linux`
+
+## Repository Presentation Maintenance
+
+Maintainers should keep the public GitHub repository settings aligned with the root README:
+
+- Repository name: `RiskHub`
+- Description: `Open-source risk operations for governed risks, controls, KRIs, vendors, approvals, and evidence.`
+- Topics: `risk-management`, `grc`, `compliance`, `fastapi`, `react`, `postgresql`, `open-source`
+- Homepage: leave empty until a hosted demo or public docs site exists
+- Discussions: enabled for Q&A and self-hosting help
+- Wiki: disabled while documentation remains in `docs/`
+- Social preview: upload `docs/assets/readme/social-preview.png` in GitHub repository settings after README screenshot recapture
