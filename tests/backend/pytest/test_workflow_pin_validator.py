@@ -159,7 +159,7 @@ def test_lint_workflow_installs_repo_contract_python_dependencies_before_contrac
     install_step = "Install repo contract Python dependencies"
     contract_step = "Repo artifact + script syntax contracts"
     assert install_step in text
-    assert "python -m pip install 'pytest>=8.0.0'" in text
+    assert "python -m pip install -r backend/requirements-dev.txt" in text
     assert text.index(install_step) < text.index(contract_step)
 
 

@@ -140,7 +140,7 @@ jobs:
             backend/requirements-dev.txt
 
       - name: Install repo contract Python dependencies
-        run: python -m pip install 'pytest>=8.0.0'
+        run: python -m pip install -r backend/requirements-dev.txt
 
       - name: Repo artifact + script syntax contracts
         run: |
