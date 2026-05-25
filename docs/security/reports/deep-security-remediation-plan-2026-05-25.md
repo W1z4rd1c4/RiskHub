@@ -20,8 +20,11 @@ red-green-refactor loop.
 
 ## Current Checkout Reconciliation
 
-The working tree already contains uncommitted changes. Treat those changes as
-user work and build on them; do not revert them while implementing this plan.
+The original scan was produced from commit
+`70023fac307086d3aee1ef5a01546e0f7aa344b3`; the implementation pass was
+replanned on `main` at `748c55e196c32b7b70d71f5593650622c0d464f8`. Treat any
+uncommitted changes present during implementation as user work and build on
+them; do not revert them while implementing this plan.
 
 Partially addressed by current dirty changes:
 
@@ -55,6 +58,28 @@ Still not addressed in the dirty checkout:
   separate history-rewrite decision or an explicit baseline policy. Do not mark
   `make -f scripts/Makefile public-leak-audit` as fully resolved until this is
   fixed.
+
+Second subagent run corrections for implementation:
+
+- `ALLOWED_HOSTS` rejection must cover any host entry containing `*`, including
+  `*` and broad forms such as `*.example.com`.
+- Deploy preflight must validate the concrete host derived from `PUBLIC_URL`;
+  it should not invent a separate managed `ALLOWED_HOSTS` input.
+- Existing `runtime/backups/**/metadata.env` files containing raw Redis URLs
+  must be treated as secret-bearing legacy artifacts until sanitized or
+  operator-classified; recommend Redis password rotation if exposure is
+  plausible.
+- Remaining High/Critical CVE suppressions need per-CVE scanner evidence:
+  scanner, package, installed version, fixed version or no-fix proof, owner,
+  expiration, and decision.
+- Production deploy immutability tests must cover backend, backend-db,
+  frontend, and redis image refs, including explicit CLI inputs and
+  version-derived defaults.
+- The protocol source of truth is that removed legacy `/excel` routes are
+  intentionally absent/404; live `/export?format=xlsx` routes remain
+  `410 excel_export_removed`.
+- Historical public-leak history rewriting is a separate decision track and
+  must not block validated finding closure.
 
 Deferred follow-up:
 
@@ -241,7 +266,7 @@ Refactor checkpoint:
 ### 3. Production Host Hardening (F-06)
 
 Goal: production `ALLOWED_HOSTS` must be a concrete non-empty allowlist and must
-not contain `*`.
+not contain `*` anywhere in any host entry.
 
 RED tests:
 
@@ -251,11 +276,16 @@ RED tests:
   - Expected RED failure today: app creation succeeds.
   - Desired GREEN assertion: `RuntimeError` mentions `ALLOWED_HOSTS`.
 
+- Add `test_allowed_hosts_rejects_broad_wildcard_in_production_mode` to
+  `tests/backend/pytest/test_production_hardening.py`.
+  - Use `_production_settings(allowed_hosts=["*.example.com"])`.
+  - Desired GREEN assertion: `RuntimeError` mentions `ALLOWED_HOSTS`.
+
 - Add or extend deploy/preflight contract coverage in
-  `tests/backend/pytest/test_phase500_script_contracts.py` or the existing
-  production script contract file.
-  - Assert shell preflight rejects wildcard `ALLOWED_HOSTS`, mirroring CORS
-    wildcard rejection.
+  `tests/backend/pytest/test_deploy_cli_contracts.py` and renderer/preflight
+  contract tests.
+  - Assert `DeployConfig.from_env_file` rejects wildcard hosts derived from
+    `PUBLIC_URL`, before rendering managed `ALLOWED_HOSTS`.
 
 RED command:
 
@@ -266,10 +296,11 @@ cd backend && pytest ../tests/backend/pytest/test_production_hardening.py ../tes
 Minimal GREEN implementation:
 
 - In `backend/app/main.py`, extend production validation to reject any
-  `settings.allowed_hosts` entry equal to `*`.
-- In deploy preflight, reject wildcard `ALLOWED_HOSTS` before deploy/upgrade.
-- Keep managed renderer behavior unchanged because it derives exact hostnames
-  from `PUBLIC_URL`.
+  `settings.allowed_hosts` entry containing `*`.
+- In deploy config/preflight, reject wildcard `PUBLIC_URL` hostnames before
+  deploy/upgrade.
+- Keep managed renderer behavior unchanged for valid exact hostnames because it
+  derives `ALLOWED_HOSTS` from `PUBLIC_URL`.
 
 ### 4. Non-Secret Deployment Metadata (F-09)
 
@@ -288,8 +319,10 @@ RED tests:
 - Update `tests/backend/pytest/test_install_script_contracts.py`.
   - Rename the backup test expectation from "non-secret runtime backup" to
     "runtime metadata backup excludes secrets".
-  - Assert metadata backup exists only after the renderer no longer embeds
-    `REDIS_URL`.
+  - Seed a legacy `metadata.env` containing
+    `REDIS_URL=redis://:redis-secret@...`.
+  - Assert `backup_non_secret_production_state` omits or redacts `REDIS_URL`
+    and the password from copied metadata.
 
 RED command:
 
@@ -303,8 +336,12 @@ Minimal GREEN implementation:
 - Leave `REDIS_URL_FILE` and `REDIS_PASSWORD_FILE`.
 - Ensure scripts that source metadata use `REDIS_URL_FILE` and do not depend on
   raw `REDIS_URL`.
+- Sanitize legacy `metadata.env` during production-state backup by copying only
+  an allowlisted non-secret projection.
 - Update deployment docs to state `metadata.env` is non-secret and Redis URL
   material is only in `runtime/redis_url`.
+- Document operator handling for existing secret-bearing backup metadata and
+  recommend Redis password rotation if a raw Redis URL may have been exposed.
 
 ### 5. Scanner Image Pinning (F-10)
 
@@ -324,7 +361,7 @@ RED tests:
     rejected.
   - A temp workflow containing
     `docker run aquasec/trivy:0.57.1@sha256:<64 hex> ...` passes.
-  - Current `.github/workflows/security.yml`,
+- Current `.github/workflows/security.yml`,
     `scripts/security/prod_readiness_audit/phases.py`,
     `scripts/security/run_public_repo_leak_audit.sh`, and Makefile shell
     scanner refs contain only digest-pinned scanner images.
@@ -340,8 +377,8 @@ cd backend && pytest ../tests/backend/pytest/test_workflow_pin_validator.py -q
 
 Minimal GREEN implementation:
 
-- Parse generic `docker run` image tokens robustly enough for existing workflow
-  and script shapes.
+- Parse generic `docker run` image tokens robustly enough for existing workflow,
+  Python command string, shell script, and Makefile shapes.
 - Require `tag@sha256:<digest>` for scanner images:
   `aquasec/trivy`, `zricethezav/gitleaks`, `gitleaks/gitleaks`,
   `koalaman/shellcheck`, `anchore/syft`, and `anchore/grype`.
@@ -356,11 +393,14 @@ RED tests:
 
 - Add deploy image-ref validation tests in the existing deploy CLI contract
   suite.
+  - Table-cover backend, backend-db, frontend, and redis refs.
   - Tag-only `ghcr.io/owner/riskhub-backend:v1.2.3` is rejected for production
     deploy/upgrade.
   - Digest ref `ghcr.io/owner/riskhub-backend@sha256:<64 hex>` is accepted.
   - Optional combined tag+digest
     `ghcr.io/owner/riskhub-backend:v1.2.3@sha256:<64 hex>` is accepted.
+  - `--version` without a digest manifest is rejected or resolves to digest
+    refs before deploy execution.
 
 Expected RED failure today: tag-only refs are accepted.
 
@@ -368,6 +408,8 @@ Minimal GREEN implementation:
 
 - Add one image-ref validation function in deploy tooling.
 - Apply it before `docker pull` in production docker deploy/upgrade.
+- Use one immutable image-ref Interface for explicit image args and
+  version-derived defaults.
 - Update release workflow to publish or record digest refs.
 - Update prod-readiness audit to resolve pushed local-registry image digests and
   deploy digest refs.
@@ -379,9 +421,14 @@ Goal: rebuild backend and frontend runtime images so Trivy and Grype do not
 report unresolved High/Critical findings, except explicitly time-bound
 no-fixed-version Python suppressions.
 
-RED checks:
+RED tests and checks:
 
-- Rebuild current images and rerun Trivy/Grype with current DBs.
+- Add deterministic contract coverage for Dockerfile base-image digest pinning.
+- Add deterministic contract coverage that `grype-ignore.yaml` suppressions
+  include scanner evidence, package, installed version, fixed version or
+  no-fix proof, owner, expiration, and decision.
+- Rebuild current images and rerun Trivy/Grype with current DBs as verification,
+  not as the only RED unit test.
 - Expected RED state from scan artifacts: backend Trivy High/Critical count,
   frontend Trivy High/Critical count, and backend Grype High/Critical count are
   nonzero.
@@ -393,6 +440,8 @@ Minimal GREEN implementation:
 - Keep `backend/security/grype-ignore.yaml` limited to no-fixed-version Python
   CVEs with owner, reason, package version, and expiration.
 - Ensure ignore package versions match rebuilt image package versions.
+- Do not keep a suppression without current scanner evidence proving no fixed
+  version exists.
 
 GREEN commands:
 
@@ -411,6 +460,11 @@ Goal: `security-contract-probe` should no longer count absent legacy `/excel`
 tombstones as security defects. Current product direction is: legacy `/excel`
 routes are absent/404; live `/export?format=xlsx` routes remain
 `410 excel_export_removed`.
+
+Source-of-truth note: do not reintroduce legacy `/excel` tombstone endpoints.
+The compatibility contract lives on the active export endpoints, where
+`format=xlsx` returns `410 excel_export_removed`; direct legacy `/excel` paths
+are intentionally absent and may return 404.
 
 RED test:
 
@@ -472,10 +526,12 @@ scanner evidence.
 - F-03, F-04, and F-05: stale delete approvals auto-reject before archive side
   effects, including outbox `approved: false` parity.
 - F-06: production app startup and deploy preflight reject wildcard
-  `ALLOWED_HOSTS`.
+  `ALLOWED_HOSTS`/derived hosts, including `*` and broad wildcard hosts.
 - F-07 and F-08: fresh scanner outputs show no unresolved High/Critical runtime
   findings except documented time-bound no-fixed-version suppressions.
 - F-09: rendered `metadata.env` contains no raw Redis URL or password.
+- F-09: backup handling for legacy metadata omits or redacts raw Redis URLs and
+  documents operator handling for any existing secret-bearing artifacts.
 - F-10: workflow pin validator fails on mutable scanner `docker run` images and
   passes on digest-pinned scanner refs.
 - F-11: production deploy rejects tag-only image refs and accepts digest refs.

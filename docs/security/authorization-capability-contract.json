@@ -21,8 +21,9 @@
         "2026-05-10: Documentation-only README coverage pass added service-package README files under authz-sensitive service directories and updated documentation topology links. Authorization policy and capability semantics are unchanged.",
         "2026-05-10: Shell summary resilience pass keeps /me/shell-summary available when the questionnaire inbox count hits non-fatal data-shape errors, degrading that badge count to zero while preserving backend authorization policy, permission-sensitive cache keys, and capability semantics.",
         "2026-05-17: Architecture-only deepening moved approved KRI value/history execution, KRI vendor assignment reconciliation, archive side effects, register listing planning, report export definitions, monitoring export-row projection, dashboard issue metrics, access-user row projections, approval pending-change presentation, and issue remediation capability projection behind their owning Modules. User-visible authorization policy and capability semantics are unchanged.",
-        "2026-05-24: Architecture-only remediation moved shell-summary and risk-listing capability callers to the public authorization capabilities facade, deleted dead issue endpoint shared shims in favor of service-owned issue register/workflow Modules, and renamed the KRI vendor-link bridge to `_vendor_links/kri_bridge.py`. User-visible authorization policy and capability semantics are unchanged."
-    ],
+    "2026-05-24: Architecture-only remediation moved shell-summary and risk-listing capability callers to the public authorization capabilities facade, deleted dead issue endpoint shared shims in favor of service-owned issue register/workflow Modules, and renamed the KRI vendor-link bridge to `_vendor_links/kri_bridge.py`. User-visible authorization policy and capability semantics are unchanged.",
+    "2026-05-25: Postgres compatibility fix changed backend/app/services/_approval_execution/delete_side_effects.py KRI delete side-effect loading from joined eager loading to select-in loading so row locking does not target nullable outer-join relations. User-visible authorization policy and capability semantics are unchanged."
+  ],
   "owner": "RiskHub Maintainer",
   "capability_catalog": "docs/security/capability-catalog.json",
   "status_values": [
