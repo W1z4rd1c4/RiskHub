@@ -177,6 +177,14 @@ def test_backend_dockerfile_copies_only_bootstrap_scripts_and_uses_python_health
     assert "http://localhost:8000/api/v1/readyz" not in text
 
 
+def test_backend_docker_runtime_owns_log_directory_after_source_mount() -> None:
+    text = _read(BACKEND_DOCKERFILE)
+
+    assert "docker-entrypoint.sh" in text
+    assert "chown -R riskhub:riskhub /app/logs" in text
+    assert 'ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]' in text
+
+
 def test_dev_compose_bootstrap_uses_dbtasks_target_and_backend_inherits_image_healthcheck() -> None:
     text = _read(DEV_COMPOSE)
 

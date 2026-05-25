@@ -87,6 +87,10 @@ function directCapabilityReads(source: string, relativePath: string, ast: any): 
     return violations;
 }
 
+function shouldParseForCapabilityReads(source: string): boolean {
+    return source.includes('can_') && (source.includes('capabilities') || /\b\w+Capabilities\b/.test(source));
+}
+
 describe('capability flag usage', () => {
     it('detects direct capability reads through aliases', () => {
         const source = 'const caps = row.capabilities;\nconst allowed = caps.can_update === true;\n';
@@ -123,6 +127,9 @@ describe('capability flag usage', () => {
                 continue;
             }
             const source = readFileSync(filePath, 'utf8');
+            if (!shouldParseForCapabilityReads(source)) {
+                continue;
+            }
             const parsed = parseForESLint(source, {
                 ecmaFeatures: { jsx: filePath.endsWith('.tsx') },
                 loc: true,

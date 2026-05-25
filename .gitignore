@@ -137,6 +137,7 @@ frontend/ts-trace-*/
 scripts/runtime-artifacts/
 backend/bandit-report.json
 backend/pip-audit-report.json
+backend/pip-audit-runtime-report.json
 
 # NotebookLM export files
 REPO.TXT

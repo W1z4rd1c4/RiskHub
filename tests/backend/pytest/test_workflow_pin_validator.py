@@ -2,11 +2,15 @@ from __future__ import annotations
 
 import importlib.util
 import re
+import tomllib
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 VALIDATOR_PATH = REPO_ROOT / "scripts" / "security" / "validate_workflow_pins.py"
+CI_HEALTH_PATH = REPO_ROOT / "scripts" / "security" / "ci_health.py"
 SECURITY_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "security.yml"
+GRYPE_IGNORE = REPO_ROOT / "backend" / "security" / "grype-ignore.yaml"
+GITLEAKS_CONFIG = REPO_ROOT / ".gitleaks.toml"
 RELEASE_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "release.yml"
 RELEASE_PARITY_PR_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "release-parity-pr.yml"
 MAINTENANCE_GOVERNANCE_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "maintenance-governance.yml"
@@ -19,6 +23,14 @@ LOCAL_PROD_AUDIT = REPO_ROOT / "scripts" / "security" / "run_prod_readiness_audi
 
 def _load_validator_module():
     spec = importlib.util.spec_from_file_location("validate_workflow_pins", VALIDATOR_PATH)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _load_ci_health_module():
+    spec = importlib.util.spec_from_file_location("ci_health", CI_HEALTH_PATH)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -224,6 +236,60 @@ def test_security_workflow_runs_container_scan_in_pull_requests() -> None:
     assert "pull_request:" in text
     assert "container-security:" in text
     assert "if: github.event_name == 'push' || github.event_name == 'schedule'" not in text
+
+
+def test_grype_python_runtime_suppressions_are_time_bound() -> None:
+    text = GRYPE_IGNORE.read_text(encoding="utf-8")
+
+    for cve in ("CVE-2026-6100", "CVE-2026-3298", "CVE-2026-7210", "CVE-2026-4786"):
+        assert f"vulnerability: {cve}" in text
+    assert text.count("\n    expires-on: 2026-06-30") == 4
+    assert text.count("\n      name: python") == 4
+    assert text.count("\n      version: 3.13.12") == 4
+    assert "\n    fix-state:" not in text
+
+
+def test_security_workflow_audits_runtime_python_requirements() -> None:
+    text = SECURITY_WORKFLOW.read_text(encoding="utf-8")
+
+    assert "requirements-runtime.txt" in text
+    assert "../scripts/security/ci_health.py run-python-audit --workdir ." in text
+    assert "pip-audit -r requirements-runtime.txt" not in text
+
+
+def test_ci_health_python_audit_manifest_interface_covers_runtime_requirements() -> None:
+    module = _load_ci_health_module()
+
+    manifests = module.python_audit_manifests()
+
+    assert [manifest.path.as_posix() for manifest in manifests] == [
+        "backend/requirements.txt",
+        "backend/requirements-runtime.txt",
+    ]
+    assert [manifest.report_name for manifest in manifests] == [
+        "pip-audit-report.json",
+        "pip-audit-runtime-report.json",
+    ]
+
+
+def test_security_workflow_gitleaks_parse_gate_invokes_shell_once() -> None:
+    text = SECURITY_WORKFLOW.read_text(encoding="utf-8")
+
+    assert "--entrypoint /bin/sh" in text
+    assert "\\\n            -lc 'mkdir -p /tmp/gitleaks-empty" in text
+    assert "\\\n            sh -lc 'mkdir -p /tmp/gitleaks-empty" not in text
+
+
+def test_gitleaks_allowlist_excludes_local_generated_public_audit_noise() -> None:
+    config = tomllib.loads(GITLEAKS_CONFIG.read_text(encoding="utf-8"))
+    allowed_paths = "\n".join(config["allowlist"]["paths"])
+
+    for expected_pattern in (
+        r"(^|/)\.pytest_cache/",
+        r"(^|/repo/)frontend/dist/",
+        r"(^|/repo/)tests/backend/pytest/test_outbox_approval_flow\.py$",
+    ):
+        assert expected_pattern in allowed_paths
 
 
 def test_maintenance_governance_workflow_owns_docs_and_maintenance_only_gates() -> None:

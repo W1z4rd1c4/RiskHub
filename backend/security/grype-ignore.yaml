@@ -7,7 +7,7 @@
 # - expires-on: YYYY-MM-DD
 # - package.name: affected package
 # - package.version: affected version (or range rationale in reason)
-# - fix-state: optional, e.g. "not-fixed"
+# - fix-state: optional, e.g. "not-fixed"; omit for CPE matches with an empty scanner fix state.
 #
 # Example:
 # ignore:
@@ -17,6 +17,29 @@
 #     package:
 #       name: python
 #       version: 3.13.0
-#     fix-state: not-fixed
 
-ignore: []
+ignore:
+  - vulnerability: CVE-2026-6100
+    reason: "No fixed Python 3.13 Docker base image is available yet; re-evaluate when upstream publishes a fixed 3.13 runtime. Owner: Platform."
+    expires-on: 2026-06-30
+    package:
+      name: python
+      version: 3.13.12
+  - vulnerability: CVE-2026-3298
+    reason: "No fixed Python 3.13 Docker base image is available yet; re-evaluate when upstream publishes a fixed 3.13 runtime. Owner: Platform."
+    expires-on: 2026-06-30
+    package:
+      name: python
+      version: 3.13.12
+  - vulnerability: CVE-2026-7210
+    reason: "No fixed Python 3.13 Docker base image is available yet; re-evaluate when upstream publishes a fixed 3.13 runtime. Owner: Platform."
+    expires-on: 2026-06-30
+    package:
+      name: python
+      version: 3.13.12
+  - vulnerability: CVE-2026-4786
+    reason: "No fixed Python 3.13 Docker base image is available yet; re-evaluate when upstream publishes a fixed 3.13 runtime. Owner: Platform."
+    expires-on: 2026-06-30
+    package:
+      name: python
+      version: 3.13.12

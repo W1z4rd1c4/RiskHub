@@ -2,6 +2,7 @@
 # Usage: make -f scripts/Makefile <target>
 
 AUTHZ_CONTRACT_BASE_REF ?= HEAD
+BACKEND_PYTHON ?= $(shell if [ -x backend/venv/bin/python ]; then printf './venv/bin/python'; elif command -v python3 >/dev/null 2>&1; then command -v python3; else command -v python; fi)
 
 .PHONY: help dev dev-full docker docker-lan docker-reset stop clean test test-fast test-db-contracts test-postgres-ci test-benchmarks test-architecture-locks migrate logs shell db db-shell lint lint-frontend lint-backend lint-types quality-suppression-budget quality-repo-contracts readme-coverage docs-tree-audit docs-topology-consistency verify verify-prod-install-scripts verify-startup-scripts security-contract-probe security-redis-resilience security-gap-round5 public-repo-hygiene public-leak-audit prod-readiness-audit-local release-parity-audit
 
@@ -109,22 +110,23 @@ db-shell:
 
 # Run backend tests
 test:
-	cd backend && ./venv/bin/python -m pytest -v -m "not postgres and not benchmark"
+	cd backend && $(BACKEND_PYTHON) -m pytest -v -m "not postgres and not benchmark"
 
 test-fast:
-	cd backend && ./venv/bin/python -m pytest -q -m "not postgres and not benchmark"
+	cd backend && $(BACKEND_PYTHON) -m pytest -q -m "not postgres and not benchmark"
 
 test-db-contracts: test-postgres-ci
 
 test-benchmarks:
-	cd backend && ./venv/bin/python -m pytest -q -m benchmark --no-cov
+	cd backend && $(BACKEND_PYTHON) -m pytest -q -m benchmark --no-cov
 
 test-postgres-ci:
 	@test -n "$$TEST_DATABASE_URL" || (echo "TEST_DATABASE_URL is required for make test-postgres-ci" >&2; exit 1)
-	@count=$$(cd backend && TEST_DATABASE_URL="$$TEST_DATABASE_URL" ./venv/bin/python -m pytest --collect-only -q -m postgres --strict-markers --no-cov | grep -c "test_"); \
+	@BACKEND_PYTHON="$(BACKEND_PYTHON)"; \
+	count=$$(cd backend && TEST_DATABASE_URL="$$TEST_DATABASE_URL" $$BACKEND_PYTHON -m pytest --collect-only -q -m postgres --strict-markers --no-cov | grep -c "test_"); \
 		if [ "$$count" -lt 1 ]; then echo "Expected at least one postgres-marked test, collected $$count" >&2; exit 1; fi
-	cd backend && TEST_DATABASE_URL="$$TEST_DATABASE_URL" ./venv/bin/python -m pytest -m postgres -q --strict-markers --no-cov
-	cd backend && TEST_DATABASE_URL="$$TEST_DATABASE_URL" ./venv/bin/python -m pytest -q \
+	BACKEND_PYTHON="$(BACKEND_PYTHON)"; cd backend && TEST_DATABASE_URL="$$TEST_DATABASE_URL" $$BACKEND_PYTHON -m pytest -m postgres -q --strict-markers --no-cov
+	BACKEND_PYTHON="$(BACKEND_PYTHON)"; cd backend && TEST_DATABASE_URL="$$TEST_DATABASE_URL" $$BACKEND_PYTHON -m pytest -q \
 		--strict-markers \
 		--no-cov \
 		../tests/backend/pytest/test_postgres_schema_contracts.py \
@@ -133,7 +135,7 @@ test-postgres-ci:
 		../tests/backend/pytest/test_health.py
 
 test-architecture-locks:
-	cd backend && ./venv/bin/python -m pytest -q ../tests/backend/pytest/architecture ../tests/backend/pytest/test_w0_harness_contract_red.py --no-cov
+	cd backend && $(BACKEND_PYTHON) -m pytest -q ../tests/backend/pytest/architecture ../tests/backend/pytest/test_w0_harness_contract_red.py --no-cov
 
 # Run backend tests with coverage
 test-cov:
@@ -149,11 +151,11 @@ lint-frontend:
 
 # Run backend lint
 lint-backend:
-	cd backend && ./venv/bin/python -m ruff check app ../tests/backend/pytest scripts
+	cd backend && $(BACKEND_PYTHON) -m ruff check app ../tests/backend/pytest scripts
 	python3 scripts/tools/suppression_budget.py
 
 lint-types:
-	cd backend && ./venv/bin/python -m mypy --config-file mypy.ini app
+	cd backend && $(BACKEND_PYTHON) -m mypy --config-file mypy.ini app
 
 quality-suppression-budget:
 	python3 scripts/tools/suppression_budget.py

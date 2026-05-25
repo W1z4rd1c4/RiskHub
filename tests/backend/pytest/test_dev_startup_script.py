@@ -52,3 +52,12 @@ def test_makefile_e2e_gate_uses_single_worker_for_shared_seed_data() -> None:
     text = MAKEFILE.read_text(encoding="utf-8")
 
     assert "npx playwright test --workers=1" in text
+
+
+def test_makefile_postgres_ci_uses_resolved_python_runner() -> None:
+    text = MAKEFILE.read_text(encoding="utf-8")
+
+    assert "BACKEND_PYTHON" in text
+    assert "backend/venv/bin/python" in text
+    assert "command -v python3" in text
+    assert "$$BACKEND_PYTHON -m pytest" in text

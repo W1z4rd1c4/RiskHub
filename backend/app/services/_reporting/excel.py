@@ -20,9 +20,14 @@ from app.services.report_service import generate_tabular_csv
 
 
 class ReportExportContextLike(Protocol):
-    current_user: User
-    department_id: int | None
-    export_date: date
+    @property
+    def current_user(self) -> User: ...
+
+    @property
+    def department_id(self) -> int | None: ...
+
+    @property
+    def export_date(self) -> date: ...
 
     @property
     def empty_scope(self) -> bool: ...

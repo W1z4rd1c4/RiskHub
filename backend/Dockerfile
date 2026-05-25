@@ -35,11 +35,14 @@ FROM python:3.13-alpine AS runtime
 
 WORKDIR /app
 
+RUN apk upgrade --no-cache && apk add --no-cache su-exec
+
 # Create non-root user with a stable uid/gid for host-mounted secret readability.
 RUN addgroup -S -g 10001 riskhub && adduser -S -D -u 10001 -G riskhub riskhub
 
 # Copy Python packages from builder
 COPY --from=builder-runtime /root/.local /home/riskhub/.local
+COPY --chmod=755 docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
 # Copy runtime application files and schema-guard assets.
 COPY --chown=riskhub:riskhub app ./app
@@ -49,8 +52,8 @@ COPY --chown=riskhub:riskhub alembic.ini ./alembic.ini
 # Create logs directory
 RUN find /app -name '.DS_Store' -delete && mkdir -p /app/logs && chown -R riskhub:riskhub /app/logs
 
-# Switch to non-root user
-USER riskhub
+# Repair bind-mounted log permissions before dropping to the non-root user.
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 
 # Add local bin to PATH
 ENV PATH=/home/riskhub/.local/bin:$PATH
@@ -77,12 +80,14 @@ FROM python:3.13-alpine AS dbtasks
 
 WORKDIR /app
 
-RUN apk add --no-cache \
-    libpq
+RUN apk upgrade --no-cache && apk add --no-cache \
+    libpq \
+    su-exec
 
 RUN addgroup -S -g 10001 riskhub && adduser -S -D -u 10001 -G riskhub riskhub
 
 COPY --from=builder-dbtasks /root/.local /home/riskhub/.local
+COPY --chmod=755 docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
 COPY --chown=riskhub:riskhub app ./app
 COPY --chown=riskhub:riskhub alembic ./alembic
@@ -95,7 +100,7 @@ COPY --chown=riskhub:riskhub scripts/revoke_refresh_sessions.py ./scripts/revoke
 
 RUN find /app -name '.DS_Store' -delete && mkdir -p /app/logs && chown -R riskhub:riskhub /app/logs
 
-USER riskhub
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 
 ENV PATH=/home/riskhub/.local/bin:$PATH
 

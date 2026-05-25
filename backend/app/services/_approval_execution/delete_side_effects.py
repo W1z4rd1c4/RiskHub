@@ -2,7 +2,7 @@ import logging
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import selectinload
 
 from app.models import (
     ApprovalRequest,
@@ -67,7 +67,7 @@ async def _apply_delete_side_effects(
     elif approval.resource_type == ApprovalResourceType.KRI:
         kri_result = await db.execute(
             select(KeyRiskIndicator)
-            .options(joinedload(KeyRiskIndicator.risk))
+            .options(selectinload(KeyRiskIndicator.risk))
             .where(KeyRiskIndicator.id == approval.resource_id)
             .with_for_update()
         )
