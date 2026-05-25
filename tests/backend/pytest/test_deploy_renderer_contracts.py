@@ -172,6 +172,9 @@ def test_renderer_derives_public_url_hosts_and_target_specific_redis_urls_withou
         assert "ENTRA_CLIENT_SECRET" not in docker_backend
         assert "ENTRA_CLIENT_CERTIFICATE_PRIVATE_KEY" not in docker_backend
         assert "REDIS_PASSWORD" not in docker_backend
+        metadata_text = (docker_out / "metadata.env").read_text(encoding="utf-8")
+        assert "REDIS_URL=" not in metadata_text
+        assert "redis-secret" not in metadata_text
         assert (docker_out / "redis_url").read_text(encoding="utf-8") == "redis://:redis-secret@redis:6379/0\n"
         assert (linux_out / "redis_url").read_text(encoding="utf-8") == "redis://:redis-secret@127.0.0.1:6379/0\n"
         assert docker_meta["SERVER_NAME"] == "riskhub.example.com"
@@ -179,6 +182,40 @@ def test_renderer_derives_public_url_hosts_and_target_specific_redis_urls_withou
         assert docker_meta["DOCKER_NETWORK_SUBNET"] == DEFAULT_DOCKER_NETWORK_SUBNET
         assert linux_meta["BACKEND_BIND_PORT"] == "8000"
         assert docker_meta["ENTRA_GRAPH_CREDENTIAL_MODE"] == "secret"
+
+
+def test_renderer_rejects_wildcard_public_url_before_rendering_allowed_hosts() -> None:
+    with tempfile.TemporaryDirectory(prefix="riskhub-deploy-render-wildcard-host-") as td:
+        tmp = Path(td)
+        config_path = tmp / "riskhub.env"
+        secret_dir = tmp / "secrets"
+        runtime_dir = tmp / "runtime"
+        _write_config(config_path, PUBLIC_URL="https://*.example.com")
+        _write_secrets(secret_dir)
+
+        result = subprocess.run(
+            [
+                "python3",
+                str(RENDERER),
+                "show-json",
+                "--config",
+                str(config_path),
+                "--target",
+                "docker",
+                "--secret-dir",
+                str(secret_dir),
+                "--runtime-dir",
+                str(runtime_dir),
+            ],
+            cwd=REPO_ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
+        output = f"{result.stdout}\n{result.stderr}"
+        assert result.returncode != 0
+        assert "PUBLIC_URL host must not contain wildcard" in output
 
 
 def test_renderer_passes_through_observability_settings() -> None:
@@ -524,7 +561,6 @@ def test_renderer_metadata_env_round_trips_shell_safe_values_for_paths_with_spac
             "DOCKER_NETWORK_SUBNET",
             "REDIS_URL_FILE",
             "REDIS_PASSWORD_FILE",
-            "REDIS_URL",
         )
 
         assert metadata["SECRET_DIR"] == str(secret_dir)
@@ -535,4 +571,6 @@ def test_renderer_metadata_env_round_trips_shell_safe_values_for_paths_with_spac
         assert metadata["DOCKER_NETWORK_SUBNET"] == DEFAULT_DOCKER_NETWORK_SUBNET
         assert metadata["REDIS_URL_FILE"] == str(runtime_dir / "redis_url")
         assert metadata["REDIS_PASSWORD_FILE"] == str(secret_dir / "redis_password")
-        assert metadata["REDIS_URL"] == "redis://:redis-secret@redis:6379/0"
+        metadata_text = (out_dir / "metadata.env").read_text(encoding="utf-8")
+        assert "REDIS_URL=" not in metadata_text
+        assert "redis-secret" not in metadata_text

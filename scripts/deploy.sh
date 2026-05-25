@@ -54,11 +54,11 @@ Common options:
   --verbose
 
 Release options:
-  --version VERSION           Docker release version (used to derive default GHCR image refs)
-  --backend-image IMAGE       Explicit backend image ref for docker deploy/upgrade
-  --backend-db-image IMAGE    Explicit backend DB-task image ref for docker deploy/upgrade
-  --frontend-image IMAGE      Explicit frontend image ref for docker deploy/upgrade
-  --redis-image IMAGE         Explicit redis image ref for docker deploy/upgrade
+  --version VERSION           Reserved for digest-manifest based Docker releases
+  --backend-image IMAGE       Immutable backend image ref for docker deploy/upgrade
+  --backend-db-image IMAGE    Immutable backend DB-task image ref for docker deploy/upgrade
+  --frontend-image IMAGE      Immutable frontend image ref for docker deploy/upgrade
+  --redis-image IMAGE         Immutable redis image ref for docker deploy/upgrade
   --bundle PATH               Linux release bundle path for linux deploy/upgrade
 
 Command-specific options:

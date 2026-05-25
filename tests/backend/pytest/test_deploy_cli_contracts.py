@@ -14,6 +14,7 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DEPLOY_SCRIPT = REPO_ROOT / "scripts" / "deploy.sh"
+DIGEST = "a" * 64
 
 
 def _write_config(path: Path, **overrides: str) -> None:
@@ -212,6 +213,10 @@ def _make_linux_bundle(root: Path, version: str) -> Path:
     return archive_path
 
 
+def _image(name: str, tag: str = "test") -> str:
+    return f"ghcr.io/example/{name}:{tag}@sha256:{DIGEST}"
+
+
 def _run_cli(args: list[str], env: dict[str, str]) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [str(DEPLOY_SCRIPT), *args],
@@ -408,13 +413,13 @@ def test_docker_cli_supports_preflight_deploy_upgrade_and_rollback_dry_run() -> 
                 "--secret-dir",
                 str(secret_dir),
                 "--backend-image",
-                "ghcr.io/example/riskhub-backend:test",
+                _image("riskhub-backend"),
                 "--backend-db-image",
-                "ghcr.io/example/riskhub-backend-db:test",
+                _image("riskhub-backend-db"),
                 "--frontend-image",
-                "ghcr.io/example/riskhub-frontend:test",
+                _image("riskhub-frontend"),
                 "--redis-image",
-                "ghcr.io/example/riskhub-redis:test",
+                _image("riskhub-redis"),
                 "--dry-run",
                 "--yes",
             ],
@@ -422,12 +427,12 @@ def test_docker_cli_supports_preflight_deploy_upgrade_and_rollback_dry_run() -> 
         )
         assert deploy.returncode == 0, f"{deploy.stdout}\n{deploy.stderr}"
         deploy_output = f"{deploy.stdout}\n{deploy.stderr}"
-        assert "docker pull ghcr.io/example/riskhub-backend:test" in deploy_output
-        assert "docker pull ghcr.io/example/riskhub-backend-db:test" in deploy_output
-        assert "docker pull ghcr.io/example/riskhub-redis:test" in deploy_output
+        assert f"docker pull {_image('riskhub-backend')}" in deploy_output
+        assert f"docker pull {_image('riskhub-backend-db')}" in deploy_output
+        assert f"docker pull {_image('riskhub-redis')}" in deploy_output
         assert "scripts/prod/install_backend.sh" in deploy_output
         assert "scripts/prod/install_redis.sh" in deploy_output
-        assert "--backend-db-image ghcr.io/example/riskhub-backend-db:test" in deploy_output
+        assert f"--backend-db-image {_image('riskhub-backend-db')}" in deploy_output
         assert f"RISKHUB_DEFAULT_SECRET_DIR={secret_dir}" in deploy_output
 
         upgrade_env = env | {
@@ -445,13 +450,13 @@ def test_docker_cli_supports_preflight_deploy_upgrade_and_rollback_dry_run() -> 
                 "--secret-dir",
                 str(secret_dir),
                 "--backend-image",
-                "ghcr.io/example/riskhub-backend:test2",
+                _image("riskhub-backend", "test2"),
                 "--backend-db-image",
-                "ghcr.io/example/riskhub-backend-db:test2",
+                _image("riskhub-backend-db", "test2"),
                 "--frontend-image",
-                "ghcr.io/example/riskhub-frontend:test2",
+                _image("riskhub-frontend", "test2"),
                 "--redis-image",
-                "ghcr.io/example/riskhub-redis:test2",
+                _image("riskhub-redis", "test2"),
                 "--dry-run",
                 "--yes",
             ],
@@ -507,13 +512,13 @@ def test_docker_deploy_dry_run_keeps_env_arguments_and_rendered_env_files_clean(
                 "--secret-dir",
                 str(secret_dir),
                 "--backend-image",
-                "ghcr.io/example/riskhub-backend:test",
+                _image("riskhub-backend"),
                 "--backend-db-image",
-                "ghcr.io/example/riskhub-backend-db:test",
+                _image("riskhub-backend-db"),
                 "--frontend-image",
-                "ghcr.io/example/riskhub-frontend:test",
+                _image("riskhub-frontend"),
                 "--redis-image",
-                "ghcr.io/example/riskhub-redis:test",
+                _image("riskhub-redis"),
                 "--dry-run",
                 "--yes",
             ],
@@ -564,11 +569,11 @@ def test_docker_deploy_requires_backend_db_image_when_version_is_omitted() -> No
                 "--secret-dir",
                 str(secret_dir),
                 "--backend-image",
-                "ghcr.io/example/riskhub-backend:test",
+                _image("riskhub-backend"),
                 "--frontend-image",
-                "ghcr.io/example/riskhub-frontend:test",
+                _image("riskhub-frontend"),
                 "--redis-image",
-                "ghcr.io/example/riskhub-redis:test",
+                _image("riskhub-redis"),
                 "--dry-run",
                 "--yes",
             ],
@@ -612,13 +617,13 @@ def test_docker_cli_dry_run_supports_paths_with_spaces(command: str) -> None:
                 "--secret-dir",
                 str(secret_dir),
                 "--backend-image",
-                "ghcr.io/example/riskhub-backend:test",
+                _image("riskhub-backend"),
                 "--backend-db-image",
-                "ghcr.io/example/riskhub-backend-db:test",
+                _image("riskhub-backend-db"),
                 "--frontend-image",
-                "ghcr.io/example/riskhub-frontend:test",
+                _image("riskhub-frontend"),
                 "--redis-image",
-                "ghcr.io/example/riskhub-redis:test",
+                _image("riskhub-redis"),
                 "--dry-run",
                 "--yes",
             ],
@@ -628,7 +633,7 @@ def test_docker_cli_dry_run_supports_paths_with_spaces(command: str) -> None:
         output = f"{result.stdout}\n{result.stderr}"
         assert result.returncode == 0, output
         assert "command not found" not in output
-        assert "--backend-db-image ghcr.io/example/riskhub-backend-db:test" in output
+        assert f"--backend-db-image {_image('riskhub-backend-db')}" in output
         if command == "deploy":
             assert "scripts/prod/install_backend.sh" in output
         else:
@@ -745,17 +750,29 @@ def test_preflight_reports_missing_docker_prerequisite() -> None:
         secret_dir = tmp / "secrets"
         fake_bin = tmp / "bin"
         fake_bin.mkdir()
+        real_bash = shutil.which("bash")
+        real_cat = shutil.which("cat")
+        real_date = shutil.which("date")
+        real_dirname = shutil.which("dirname")
         real_python3 = shutil.which("python3")
         real_python313 = shutil.which("python3.13") or real_python3
+        assert real_bash is not None
+        assert real_cat is not None
+        assert real_date is not None
+        assert real_dirname is not None
         assert real_python3 is not None
         assert real_python313 is not None
-        _write_exec(fake_bin / "python3", f'#!/usr/bin/env bash\nexec {real_python3!s} "$@"\n')
-        _write_exec(fake_bin / "python3.13", f'#!/usr/bin/env bash\nexec {real_python313!s} "$@"\n')
+        _write_exec(fake_bin / "bash", f'#!/bin/sh\nexec {real_bash!s} "$@"\n')
+        _write_exec(fake_bin / "cat", f'#!/bin/sh\nexec {real_cat!s} "$@"\n')
+        _write_exec(fake_bin / "date", f'#!/bin/sh\nexec {real_date!s} "$@"\n')
+        _write_exec(fake_bin / "dirname", f'#!/bin/sh\nexec {real_dirname!s} "$@"\n')
+        _write_exec(fake_bin / "python3", f'#!/bin/sh\nexec {real_python3!s} "$@"\n')
+        _write_exec(fake_bin / "python3.13", f'#!/bin/sh\nexec {real_python313!s} "$@"\n')
         _write_config(config_path)
         _write_secrets(secret_dir)
 
         env = os.environ.copy()
-        env["PATH"] = f"{fake_bin}:/usr/bin:/bin:/usr/sbin:/sbin"
+        env["PATH"] = str(fake_bin)
 
         result = _run_cli(
             [
@@ -775,6 +792,133 @@ def test_preflight_reports_missing_docker_prerequisite() -> None:
         output = f"{result.stdout}\n{result.stderr}"
         assert result.returncode != 0
         assert "Missing required command: docker" in output
+
+
+def test_docker_preflight_rejects_wildcard_public_url_before_rendering_allowed_hosts() -> None:
+    with tempfile.TemporaryDirectory(prefix="riskhub-deploy-preflight-wildcard-host-") as td:
+        tmp = Path(td)
+        config_path = tmp / "riskhub.env"
+        secret_dir = tmp / "secrets"
+        runtime_dir = tmp / "runtime"
+        _write_config(config_path, PUBLIC_URL="https://*.example.com")
+        _write_secrets(secret_dir)
+        fake_bin = _make_fake_bin(tmp)
+
+        env = os.environ.copy()
+        env["PATH"] = f"{fake_bin}:{env['PATH']}"
+        env["RISKHUB_RUNTIME_DIR"] = str(runtime_dir)
+
+        result = _run_cli(
+            [
+                "preflight",
+                "--target",
+                "docker",
+                "--config",
+                str(config_path),
+                "--secret-dir",
+                str(secret_dir),
+                "--yes",
+            ],
+            env,
+        )
+
+        output = f"{result.stdout}\n{result.stderr}"
+        assert result.returncode != 0
+        assert "PUBLIC_URL host must not contain wildcard" in output
+        assert "scripts/prod/preflight.sh" not in output
+
+
+@pytest.mark.parametrize(
+    ("flag", "value"),
+    [
+        ("--backend-image", "ghcr.io/example/riskhub-backend:test"),
+        ("--backend-db-image", "ghcr.io/example/riskhub-backend-db:test"),
+        ("--frontend-image", "ghcr.io/example/riskhub-frontend:test"),
+        ("--redis-image", "ghcr.io/example/riskhub-redis:test"),
+    ],
+)
+def test_docker_deploy_rejects_mutable_explicit_image_refs(flag: str, value: str) -> None:
+    with tempfile.TemporaryDirectory(prefix="riskhub-deploy-mutable-image-") as td:
+        tmp = Path(td)
+        config_path = tmp / "riskhub.env"
+        secret_dir = tmp / "secrets"
+        runtime_dir = tmp / "runtime"
+        _write_config(config_path)
+        _write_secrets(secret_dir)
+        fake_bin = _make_fake_bin(tmp)
+
+        images = {
+            "--backend-image": _image("riskhub-backend"),
+            "--backend-db-image": _image("riskhub-backend-db"),
+            "--frontend-image": _image("riskhub-frontend"),
+            "--redis-image": _image("riskhub-redis"),
+        }
+        images[flag] = value
+        image_args = [item for pair in images.items() for item in pair]
+
+        env = os.environ.copy()
+        env["PATH"] = f"{fake_bin}:{env['PATH']}"
+        env["RISKHUB_RUNTIME_DIR"] = str(runtime_dir)
+
+        result = _run_cli(
+            [
+                "deploy",
+                "--target",
+                "docker",
+                "--config",
+                str(config_path),
+                "--secret-dir",
+                str(secret_dir),
+                *image_args,
+                "--dry-run",
+                "--yes",
+            ],
+            env,
+        )
+
+        output = f"{result.stdout}\n{result.stderr}"
+        assert result.returncode != 0
+        assert "must be immutable image refs with @sha256:<64 hex>" in output
+
+
+def test_docker_deploy_accepts_digest_only_image_refs() -> None:
+    with tempfile.TemporaryDirectory(prefix="riskhub-deploy-digest-only-image-") as td:
+        tmp = Path(td)
+        config_path = tmp / "riskhub.env"
+        secret_dir = tmp / "secrets"
+        runtime_dir = tmp / "runtime"
+        _write_config(config_path)
+        _write_secrets(secret_dir)
+        fake_bin = _make_fake_bin(tmp)
+
+        env = os.environ.copy()
+        env["PATH"] = f"{fake_bin}:{env['PATH']}"
+        env["RISKHUB_RUNTIME_DIR"] = str(runtime_dir)
+
+        result = _run_cli(
+            [
+                "deploy",
+                "--target",
+                "docker",
+                "--config",
+                str(config_path),
+                "--secret-dir",
+                str(secret_dir),
+                "--backend-image",
+                f"ghcr.io/example/riskhub-backend@sha256:{DIGEST}",
+                "--backend-db-image",
+                f"ghcr.io/example/riskhub-backend-db@sha256:{DIGEST}",
+                "--frontend-image",
+                f"ghcr.io/example/riskhub-frontend@sha256:{DIGEST}",
+                "--redis-image",
+                f"ghcr.io/example/riskhub-redis@sha256:{DIGEST}",
+                "--dry-run",
+                "--yes",
+            ],
+            env,
+        )
+
+        assert result.returncode == 0, f"{result.stdout}\n{result.stderr}"
 
 
 @pytest.mark.parametrize(

@@ -201,7 +201,7 @@ clean:
 
 verify-prod-install-scripts:
 	bash -n scripts/deploy.sh scripts/deploy/lib/*.sh scripts/prod/*.sh scripts/prod/lib/*.sh scripts/release/build_linux_bundle.sh docker/redis/entrypoint.sh
-	docker run --rm -v "$$(pwd)":/work -w /work koalaman/shellcheck:stable -x scripts/deploy.sh scripts/deploy/lib/*.sh scripts/prod/*.sh scripts/prod/lib/*.sh scripts/release/build_linux_bundle.sh docker/redis/entrypoint.sh
+	docker run --rm -v "$$(pwd)":/work -w /work koalaman/shellcheck:stable@sha256:bb596a0d169b85ddd81d8b6d3a2ff6d5baf5fca10b97f575ebc647c3dff62b3d -x scripts/deploy.sh scripts/deploy/lib/*.sh scripts/prod/*.sh scripts/prod/lib/*.sh scripts/release/build_linux_bundle.sh docker/redis/entrypoint.sh
 	python3 -m py_compile scripts/deploy/lib/render.py
 	docker build --target runtime -t riskhub-backend:verify-prod-install-scripts backend
 	docker run --rm riskhub-backend:verify-prod-install-scripts sh -lc 'python -c "from pathlib import Path; assert not Path(\"/app/scripts\").exists()"'
@@ -220,7 +220,7 @@ verify-prod-install-scripts:
 
 verify-startup-scripts:
 	bash -n scripts/install.sh scripts/compose.sh scripts/dev.sh scripts/deploy.sh
-	docker run --rm -v "$$(pwd)":/work -w /work koalaman/shellcheck:stable -x scripts/install.sh scripts/compose.sh scripts/dev.sh scripts/deploy.sh
+	docker run --rm -v "$$(pwd)":/work -w /work koalaman/shellcheck:stable@sha256:bb596a0d169b85ddd81d8b6d3a2ff6d5baf5fca10b97f575ebc647c3dff62b3d -x scripts/install.sh scripts/compose.sh scripts/dev.sh scripts/deploy.sh
 
 readme-coverage:
 	python3 scripts/tools/readme_coverage.py audit

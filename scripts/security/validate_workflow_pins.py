@@ -10,12 +10,52 @@ from pathlib import Path
 USES_RE = re.compile(r"^\s*-\s+uses:\s+([^\s]+)")
 IMAGE_RE = re.compile(r"^\s*image:\s+([^\s]+)")
 FULL_SHA_RE = re.compile(r"^[0-9a-f]{40}$")
-PINNED_IMAGE_RE = re.compile(r"anchore/(?:syft|grype):[^\s'\"]+@sha256:[0-9a-f]{64}")
 EXTERNAL_IMAGE_RE = re.compile(r"^[a-z0-9./_-]+:[^@\s'\"]+@sha256:[0-9a-f]{64}$")
+SCANNER_IMAGE_NAMES = (
+    "aquasec/trivy",
+    "zricethezav/gitleaks",
+    "gitleaks/gitleaks",
+    "koalaman/shellcheck",
+    "anchore/syft",
+    "anchore/grype",
+)
+SCANNER_IMAGE_RE = re.compile(
+    r"(?P<image>(?:docker\.io/)?(?:"
+    + "|".join(re.escape(name) for name in SCANNER_IMAGE_NAMES)
+    + r"):[A-Za-z0-9._-]+(?:@sha256:[0-9a-fA-F]{64})?)"
+)
+PINNED_SCANNER_IMAGE_RE = re.compile(
+    r"^(?:docker\.io/)?(?:"
+    + "|".join(re.escape(name) for name in SCANNER_IMAGE_NAMES)
+    + r"):[^@\s'\"]+@sha256:[0-9a-f]{64}$"
+)
+DEFAULT_SECURITY_SCAN_PATHS = (
+    Path("scripts/security/prod_readiness_audit/phases.py"),
+    Path("scripts/security/run_public_repo_leak_audit.sh"),
+    Path("scripts/Makefile"),
+)
 
 
 def _strip_quotes(value: str) -> str:
     return value.strip().strip("'").strip('"')
+
+
+def _default_paths() -> list[Path]:
+    paths = sorted(Path(".github/workflows").glob("*.yml"))
+    paths.extend(sorted(Path(".github/workflows").glob("*.yaml")))
+    paths.extend(path for path in DEFAULT_SECURITY_SCAN_PATHS if path.exists())
+    return paths
+
+
+def _validate_scanner_images(path: Path, lineno: int, line: str) -> list[str]:
+    errors: list[str] = []
+    for match in SCANNER_IMAGE_RE.finditer(line):
+        image = match.group("image")
+        if not PINNED_SCANNER_IMAGE_RE.fullmatch(image):
+            errors.append(
+                f"{path}:{lineno}: scanner image must include an explicit version tag and digest, found {image}",
+            )
+    return errors
 
 
 def validate_workflow(path: Path) -> list[str]:
@@ -47,10 +87,7 @@ def validate_workflow(path: Path) -> list[str]:
         if "docker://" in line and "@sha256:" not in line:
             errors.append(f"{path}:{lineno}: docker:// action image must be pinned by digest")
 
-        if ("anchore/syft:" in line or "anchore/grype:" in line) and not PINNED_IMAGE_RE.search(line):
-            errors.append(
-                f"{path}:{lineno}: scanner image must include an explicit version tag and digest",
-            )
+        errors.extend(_validate_scanner_images(path, lineno, line))
 
         image_match = IMAGE_RE.match(line)
         if image_match:
@@ -68,7 +105,7 @@ def validate_workflow(path: Path) -> list[str]:
 
 
 def main(argv: list[str]) -> int:
-    paths = [Path(arg) for arg in argv] or sorted(Path(".github/workflows").glob("*.yml"))
+    paths = [Path(arg) for arg in argv] or _default_paths()
 
     errors: list[str] = []
     for path in paths:

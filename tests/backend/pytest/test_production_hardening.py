@@ -104,6 +104,12 @@ def test_allowed_hosts_are_required_in_production_mode() -> None:
         create_app(_production_settings(allowed_hosts=[]))
 
 
+@pytest.mark.parametrize("allowed_hosts", [["*"], ["testserver", "*.example.com"]])
+def test_allowed_hosts_reject_wildcards_in_production_mode(allowed_hosts: list[str]) -> None:
+    with pytest.raises(RuntimeError, match="ALLOWED_HOSTS cannot include wildcard entries"):
+        create_app(_production_settings(allowed_hosts=allowed_hosts))
+
+
 def test_auth_mode_guard_requires_microsoft_sso_in_production():
     with pytest.raises(RuntimeError, match="AUTH_MODE must be 'microsoft_sso'"):
         create_app(_production_settings(auth_mode="password"))

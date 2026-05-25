@@ -75,6 +75,9 @@ class ApprovalRequest(Base):
     # For edits: JSON storing pending changes {"field": {"old": v1, "new": v2}}
     pending_changes: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
+    # For deletes: versioned governance-context snapshot captured at request time.
+    delete_context_snapshot: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+
     # Risk Hub approval scenario snapshot. Existing/legacy approvals may be null
     # and keep the historical approval-resolution fallback.
     scenario_key: Mapped[str | None] = mapped_column(String(50), nullable=True, index=True)

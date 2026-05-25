@@ -51,21 +51,22 @@ docker_require_release_images() {
   local frontend_image_in="$4"
   local redis_image_in="$5"
 
-  if [[ -z "$version" ]]; then
-    if [[ -z "$backend_image_in" || -z "$backend_db_image_in" || -z "$frontend_image_in" || -z "$redis_image_in" ]]; then
-      die "Pass --version or all of --backend-image, --backend-db-image, --frontend-image, and --redis-image for docker deploy/upgrade."
-    fi
-    DOCKER_BACKEND_IMAGE="$backend_image_in"
-    DOCKER_BACKEND_DB_IMAGE="$backend_db_image_in"
-    DOCKER_FRONTEND_IMAGE="$frontend_image_in"
-    DOCKER_REDIS_IMAGE="$redis_image_in"
-    return 0
+  if [[ -n "$version" && ( -z "$backend_image_in" || -z "$backend_db_image_in" || -z "$frontend_image_in" || -z "$redis_image_in" ) ]]; then
+    die "Docker --version defaults require immutable image digests from a digest manifest; pass all four explicit digest image refs for now."
+  fi
+  if [[ -z "$version" && ( -z "$backend_image_in" || -z "$backend_db_image_in" || -z "$frontend_image_in" || -z "$redis_image_in" ) ]]; then
+    die "Pass all of --backend-image, --backend-db-image, --frontend-image, and --redis-image as immutable digest refs for docker deploy/upgrade."
   fi
 
-  DOCKER_BACKEND_IMAGE="${backend_image_in:-$(resolve_default_image "backend" "$version")}"
-  DOCKER_BACKEND_DB_IMAGE="${backend_db_image_in:-$(resolve_default_image "backend-db" "$version")}"
-  DOCKER_FRONTEND_IMAGE="${frontend_image_in:-$(resolve_default_image "frontend" "$version")}"
-  DOCKER_REDIS_IMAGE="${redis_image_in:-$(resolve_default_image "redis" "$version")}"
+  require_immutable_image_ref "--backend-image" "$backend_image_in"
+  require_immutable_image_ref "--backend-db-image" "$backend_db_image_in"
+  require_immutable_image_ref "--frontend-image" "$frontend_image_in"
+  require_immutable_image_ref "--redis-image" "$redis_image_in"
+
+  DOCKER_BACKEND_IMAGE="$backend_image_in"
+  DOCKER_BACKEND_DB_IMAGE="$backend_db_image_in"
+  DOCKER_FRONTEND_IMAGE="$frontend_image_in"
+  DOCKER_REDIS_IMAGE="$redis_image_in"
 }
 
 docker_container_exists() {

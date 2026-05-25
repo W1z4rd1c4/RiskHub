@@ -261,6 +261,8 @@ class DeployConfig:
         parsed = urlparse(public_url)
         if parsed.scheme not in {"http", "https"} or not parsed.hostname or parsed.path not in {"", "/"}:
             raise RenderError("PUBLIC_URL must be an origin only, for example https://riskhub.example.com")
+        if "*" in parsed.hostname:
+            raise RenderError("PUBLIC_URL host must not contain wildcard entries")
 
         api_workers = _validate_positive_int("API_WORKERS", values.get("API_WORKERS", "4"))
         frontend_bind_port = _validate_port("FRONTEND_BIND_PORT", values.get("FRONTEND_BIND_PORT", "80"))
@@ -390,7 +392,6 @@ class DeployConfig:
             "RUNTIME_DIR": str(runtime_dir),
             "REDIS_URL_FILE": str(runtime_dir / "redis_url"),
             "REDIS_PASSWORD_FILE": str(secret_dir / "redis_password"),
-            "REDIS_URL": self.redis_url(target, secrets),
             "ENTRA_GRAPH_CREDENTIAL_MODE": credential_mode,
             "API_WORKERS": str(self.api_workers),
             "FRONTEND_BIND_PORT": str(self.frontend_bind_port),

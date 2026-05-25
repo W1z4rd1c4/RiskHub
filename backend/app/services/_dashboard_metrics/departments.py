@@ -3,7 +3,7 @@ from __future__ import annotations
 from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.permissions import get_user_department_ids
+from app.core.permissions import get_user_department_ids, has_permission
 from app.models import Control, ControlExecution, Department, KeyRiskIndicator, Risk, User
 from app.models.control import ControlStatus
 from app.models.global_config import ConfigDefaults, get_config_int
@@ -22,6 +22,7 @@ async def load_department_dashboard_metrics(
     include_archived: bool,
 ) -> list[DepartmentMetrics]:
     dept_ids = get_user_department_ids(current_user)
+    can_read_controls = has_permission(current_user, "controls", "read")
 
     active_dept_ids = (
         select(User.department_id).where(and_(User.department_id.isnot(None), User.is_active.is_(True))).distinct()
@@ -44,32 +45,35 @@ async def load_department_dashboard_metrics(
         ConfigDefaults.HIGH_RISK_MIN_NET_SCORE,
     )
 
-    control_conditions = [Control.department_id.in_(department_ids)]
-    if not include_archived:
-        control_conditions.append(Control.live())
-    control_counts = _count_map(
-        (
-            await db.execute(
-                select(Control.department_id, func.count(Control.id).label("item_count"))
-                .where(and_(*control_conditions))
-                .group_by(Control.department_id)
-            )
-        ).all()
-    )
-
-    active_control_counts = _count_map(
-        (
-            await db.execute(
-                select(Control.department_id, func.count(Control.id).label("item_count"))
-                .where(
-                    Control.department_id.in_(department_ids),
-                    Control.status == ControlStatus.active.value,
-                    Control.live(),
+    control_counts: dict[int, int] = {}
+    active_control_counts: dict[int, int] = {}
+    if can_read_controls:
+        control_conditions = [Control.department_id.in_(department_ids)]
+        if not include_archived:
+            control_conditions.append(Control.live())
+        control_counts = _count_map(
+            (
+                await db.execute(
+                    select(Control.department_id, func.count(Control.id).label("item_count"))
+                    .where(and_(*control_conditions))
+                    .group_by(Control.department_id)
                 )
-                .group_by(Control.department_id)
-            )
-        ).all()
-    )
+            ).all()
+        )
+
+        active_control_counts = _count_map(
+            (
+                await db.execute(
+                    select(Control.department_id, func.count(Control.id).label("item_count"))
+                    .where(
+                        Control.department_id.in_(department_ids),
+                        Control.status == ControlStatus.active.value,
+                        Control.live(),
+                    )
+                    .group_by(Control.department_id)
+                )
+            ).all()
+        )
 
     risk_conditions = [Risk.department_id.in_(department_ids)]
     if not include_archived:
@@ -90,19 +94,21 @@ async def load_department_dashboard_metrics(
         row.department_id: int(row.high_risk_count or 0) for row in risk_rows if row.department_id is not None
     }
 
-    audited_control_conditions = [Control.department_id.in_(department_ids)]
-    if not include_archived:
-        audited_control_conditions.append(Control.live())
-    audited_control_counts = _count_map(
-        (
-            await db.execute(
-                select(Control.department_id, func.count(Control.id.distinct()).label("item_count"))
-                .join(ControlExecution)
-                .where(and_(*audited_control_conditions))
-                .group_by(Control.department_id)
-            )
-        ).all()
-    )
+    audited_control_counts: dict[int, int] = {}
+    if can_read_controls:
+        audited_control_conditions = [Control.department_id.in_(department_ids)]
+        if not include_archived:
+            audited_control_conditions.append(Control.live())
+        audited_control_counts = _count_map(
+            (
+                await db.execute(
+                    select(Control.department_id, func.count(Control.id.distinct()).label("item_count"))
+                    .join(ControlExecution)
+                    .where(and_(*audited_control_conditions))
+                    .group_by(Control.department_id)
+                )
+            ).all()
+        )
 
     breach_condition = or_(
         KeyRiskIndicator.current_value < KeyRiskIndicator.lower_limit,

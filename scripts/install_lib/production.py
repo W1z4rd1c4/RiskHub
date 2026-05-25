@@ -132,6 +132,16 @@ def run_upgrade(
         raise RuntimeError(f"Upgrade requires an existing production config at {config_path}.")
     if not secret_dir.exists():
         raise RuntimeError(f"Upgrade requires an existing secret directory at {secret_dir}.")
+    version, bundle = ensure_production_release_input(
+        target=target,
+        version=version,
+        bundle=bundle,
+        backend_image=backend_image,
+        backend_db_image=backend_db_image,
+        frontend_image=frontend_image,
+        redis_image=redis_image,
+        options=options,
+    )
 
     if not options.dry_run and runtime_dir.exists():
         backup_non_secret_production_state(config_path, runtime_dir, timestamp_utc().replace(":", ""))

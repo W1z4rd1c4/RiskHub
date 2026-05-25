@@ -38,7 +38,12 @@ TLS termination is expected to be pre-provisioned on the host or upstream.
 ## 2. Create The Operator Config
 
 ```bash
-./scripts/install.sh production --target docker --version v1.2.3
+./scripts/install.sh production \
+  --target docker \
+  --backend-image ghcr.io/<owner>/riskhub-backend:v1.2.3@sha256:<64-hex-digest> \
+  --backend-db-image ghcr.io/<owner>/riskhub-backend-db:v1.2.3@sha256:<64-hex-digest> \
+  --frontend-image ghcr.io/<owner>/riskhub-frontend:v1.2.3@sha256:<64-hex-digest> \
+  --redis-image ghcr.io/<owner>/riskhub-redis:v1.2.3@sha256:<64-hex-digest>
 ```
 
 or
@@ -104,21 +109,17 @@ Preflight validates the config, target prerequisites, explicit production `ALLOW
 Docker target:
 
 ```bash
-./scripts/deploy.sh deploy --target docker --config /etc/riskhub/riskhub.env --secret-dir /etc/riskhub/secrets --version v1.2.3
-```
-
-If you need explicit image refs instead of version-derived GHCR refs:
-
-```bash
 ./scripts/deploy.sh deploy \
   --target docker \
   --config /etc/riskhub/riskhub.env \
   --secret-dir /etc/riskhub/secrets \
-  --backend-image ghcr.io/<owner>/riskhub-backend:v1.2.3 \
-  --backend-db-image ghcr.io/<owner>/riskhub-backend-db:v1.2.3 \
-  --frontend-image ghcr.io/<owner>/riskhub-frontend:v1.2.3 \
-  --redis-image ghcr.io/<owner>/riskhub-redis:v1.2.3
+  --backend-image ghcr.io/<owner>/riskhub-backend:v1.2.3@sha256:<64-hex-digest> \
+  --backend-db-image ghcr.io/<owner>/riskhub-backend-db:v1.2.3@sha256:<64-hex-digest> \
+  --frontend-image ghcr.io/<owner>/riskhub-frontend:v1.2.3@sha256:<64-hex-digest> \
+  --redis-image ghcr.io/<owner>/riskhub-redis:v1.2.3@sha256:<64-hex-digest>
 ```
+
+Docker deploy and upgrade require immutable image references for backend, backend DB, frontend, and redis. Tag-only refs and `--version` defaults are refused unless a future digest manifest resolves them to `@sha256:<64-hex-digest>` refs.
 
 Docker uses the runtime image for the API and scheduler containers, and the DB image for DB preflight, migrations, and bootstrap seeding.
 
@@ -195,7 +196,14 @@ scripts/prod/verify_runtime.sh
 Docker target:
 
 ```bash
-./scripts/install.sh upgrade --target docker --config /etc/riskhub/riskhub.env --secret-dir /etc/riskhub/secrets --version v1.2.4
+./scripts/install.sh upgrade \
+  --target docker \
+  --config /etc/riskhub/riskhub.env \
+  --secret-dir /etc/riskhub/secrets \
+  --backend-image ghcr.io/<owner>/riskhub-backend:v1.2.4@sha256:<64-hex-digest> \
+  --backend-db-image ghcr.io/<owner>/riskhub-backend-db:v1.2.4@sha256:<64-hex-digest> \
+  --frontend-image ghcr.io/<owner>/riskhub-frontend:v1.2.4@sha256:<64-hex-digest> \
+  --redis-image ghcr.io/<owner>/riskhub-redis:v1.2.4@sha256:<64-hex-digest>
 ```
 
 Linux target:

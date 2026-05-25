@@ -301,6 +301,16 @@ async def _archive_detail(
     )
 
     primary_approver_id, requires_privileged = await descriptor.approval_metadata(db, entity, current_user.id)
+    from app.services._approval_queue.delete_context import (
+        capture_delete_approval_context,
+        serialize_delete_approval_context,
+    )
+
+    delete_context = await capture_delete_approval_context(
+        db,
+        resource_type=descriptor.resource_type,
+        resource_id=entity_id,
+    )
     approval = ApprovalRequest(
         resource_type=descriptor.resource_type,
         resource_id=entity_id,
@@ -311,6 +321,7 @@ async def _archive_detail(
         action_type=ApprovalActionType.DELETE,
         primary_approver_id=primary_approver_id,
         requires_privileged_approval=requires_privileged,
+        delete_context_snapshot=serialize_delete_approval_context(delete_context) if delete_context else None,
     )
     apply_approval_scenario_snapshot(approval, scenario_policy)
 

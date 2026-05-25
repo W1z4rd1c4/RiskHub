@@ -331,7 +331,7 @@ jobs:
             -v "${{ github.workspace }}:/repo" \
             -w /repo \
             --entrypoint /bin/sh \
-            zricethezav/gitleaks:v8.18.2 \
+            zricethezav/gitleaks:v8.18.2@sha256:eadfe256fa18d6a78a717abc9ed454c8e03865d1c46d627bca83977f4424901a \
             -lc 'mkdir -p /tmp/gitleaks-empty && gitleaks detect --source /tmp/gitleaks-empty --no-git --config .gitleaks.toml --report-format json --report-path /tmp/gitleaks-parse.json --exit-code 0'
 
       - name: Run Gitleaks

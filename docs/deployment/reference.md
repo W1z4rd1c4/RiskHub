@@ -66,7 +66,6 @@ These are rendered by the managed deploy tooling and are not operator-edited in 
 - `CORS_ORIGINS`
 - `TRUSTED_PROXIES`
 - `SERVER_NAME`
-- `REDIS_URL`
 - `DATABASE_URL_FILE`
 - `SECRET_KEY_FILE`
 - `ENTRA_CLIENT_SECRET_FILE` or
@@ -110,8 +109,7 @@ Docker network notes:
 Recommended public production commands:
 
 ```bash
-./scripts/install.sh production --target docker --version VERSION
-./scripts/install.sh production --target docker --backend-image IMAGE --backend-db-image IMAGE --frontend-image IMAGE --redis-image IMAGE
+./scripts/install.sh production --target docker --backend-image IMAGE@sha256:DIGEST --backend-db-image IMAGE@sha256:DIGEST --frontend-image IMAGE@sha256:DIGEST --redis-image IMAGE@sha256:DIGEST
 ./scripts/install.sh production --target linux --bundle PATH
 ./scripts/install.sh upgrade --target docker|linux ...
 ./scripts/install.sh verify --mode production --target docker|linux --config PATH --secret-dir PATH
@@ -140,8 +138,7 @@ Lower-level admin interface:
 ./scripts/deploy.sh secrets-edit --target docker|linux [--secret-dir PATH]
 ./scripts/deploy.sh secrets-check --target docker|linux [--secret-dir PATH]
 ./scripts/deploy.sh preflight --target docker|linux --config PATH
-./scripts/deploy.sh deploy --target docker --config PATH --secret-dir PATH --version VERSION
-./scripts/deploy.sh deploy --target docker --config PATH --secret-dir PATH --backend-image IMAGE --backend-db-image IMAGE --frontend-image IMAGE --redis-image IMAGE
+./scripts/deploy.sh deploy --target docker --config PATH --secret-dir PATH --backend-image IMAGE@sha256:DIGEST --backend-db-image IMAGE@sha256:DIGEST --frontend-image IMAGE@sha256:DIGEST --redis-image IMAGE@sha256:DIGEST
 ./scripts/deploy.sh deploy --target linux --config PATH --secret-dir PATH --bundle PATH
 ./scripts/deploy.sh upgrade --target docker|linux ...
 ./scripts/deploy.sh status --target docker|linux
@@ -163,8 +160,8 @@ Operational notes:
 - `./scripts/deploy.sh init ...` scaffolds the non-secret config, the secret-file placeholders, and the persistent runtime directory.
 - `./scripts/deploy.sh secrets-edit ...` keeps its temporary edit workspace under the parent of `--secret-dir` so secret edits stay on the same host-managed mount, not under `/tmp`.
 - `./scripts/install.sh production ...` is the recommended first-run operator workflow; keep `./scripts/deploy.sh` for advanced/manual administration, debugging, and partial lifecycle commands.
-- Docker explicit-image mode requires all four images unless `--version` is supplied: runtime backend, backend DB, frontend, and redis.
-- `metadata.env` is an internal shell-sourced runtime artifact. Operators should not edit it directly; maintainers must keep its assignments safe to `source`, including when runtime or secret paths contain spaces.
+- Docker deploy and upgrade require immutable `@sha256:<64-hex-digest>` image refs for all four images: runtime backend, backend DB, frontend, and redis. Tag-only refs and `--version` defaults are refused unless a digest manifest resolves them.
+- `metadata.env` is a non-secret internal shell-sourced runtime artifact. It may contain secret-file paths such as `REDIS_URL_FILE` and `REDIS_PASSWORD_FILE`, but it must not contain raw `REDIS_URL` values or Redis passwords. Operators should not edit it directly; maintainers must keep its assignments safe to `source`, including when runtime or secret paths contain spaces.
 
 ## Install State
 

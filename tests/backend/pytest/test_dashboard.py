@@ -41,6 +41,57 @@ def _quarter_label(start: datetime) -> str:
     return f"{start.year}-Q{((start.month - 1) // 3) + 1}"
 
 
+async def _create_department_metric_records(
+    db_session,
+    *,
+    department_id: int,
+    user_id: int,
+    suffix: str,
+) -> None:
+    control = Control(
+        name=f"Dashboard Authz Control {suffix}",
+        description="Live active control for dashboard authz aggregate coverage",
+        department_id=department_id,
+        control_owner_id=user_id,
+        status="active",
+        is_archived=False,
+    )
+    risk = Risk(
+        risk_id_code=f"DASH-AUTHZ-RISK-{suffix}",
+        name=f"Dashboard Authz Risk {suffix}",
+        process="Dashboard authz",
+        description="Risk metric that remains visible on mixed dashboard surfaces",
+        category="Test",
+        department_id=department_id,
+        owner_id=user_id,
+        status="active",
+    )
+    db_session.add_all([control, risk])
+    await db_session.flush()
+    db_session.add_all(
+        [
+            ControlExecution(
+                control_id=control.id,
+                executed_by_id=user_id,
+                result="passed",
+                executed_at=datetime(2026, 5, 20, 12, 0, tzinfo=UTC),
+            ),
+            KeyRiskIndicator(
+                risk_id=risk.id,
+                metric_name=f"Dashboard Authz KRI {suffix}",
+                description="KRI metric that remains visible on mixed dashboard surfaces",
+                unit="%",
+                current_value=120.0,
+                lower_limit=0.0,
+                upper_limit=100.0,
+                frequency="quarterly",
+                is_archived=False,
+            ),
+        ]
+    )
+    await db_session.commit()
+
+
 @pytest.mark.asyncio
 async def test_dashboard_summary(auth_client: AsyncClient):
     """Test the dashboard summary endpoint."""
@@ -1027,6 +1078,85 @@ async def test_department_active_control_count_excludes_archived_normalized_cont
     metrics = next(item for item in response.json() if item["department_id"] == test_department.id)
     assert metrics["control_count"] == 1
     assert metrics["compliance_rate"] == 1.0
+
+
+@pytest.mark.asyncio
+async def test_department_dashboard_metrics_zero_control_aggregates_without_controls_read(
+    client_department_head: AsyncClient,
+    client_factory,
+    db_session,
+    test_department: Department,
+    test_user: User,
+    test_user_department_head: User,
+):
+    await _create_department_metric_records(
+        db_session,
+        department_id=test_department.id,
+        user_id=test_user_department_head.id,
+        suffix="DEPT",
+    )
+
+    response = await client_department_head.get(
+        f"/api/v1/dashboard/departments?department_id={test_department.id}"
+    )
+
+    assert response.status_code == 200
+    metrics = next(item for item in response.json() if item["department_id"] == test_department.id)
+    assert metrics["risk_count"] == 1
+    assert metrics["total_kri_count"] == 1
+    assert metrics["breaching_kri_count"] == 1
+    assert metrics["control_count"] == 0
+    assert metrics["audited_control_count"] == 0
+    assert metrics["compliance_rate"] == 0.0
+
+    async with client_factory(current_user=test_user) as controls_readable_client:
+        controls_readable_response = await controls_readable_client.get(
+            f"/api/v1/dashboard/departments?department_id={test_department.id}"
+        )
+
+    assert controls_readable_response.status_code == 200
+    controls_readable_metrics = next(
+        item for item in controls_readable_response.json() if item["department_id"] == test_department.id
+    )
+    assert controls_readable_metrics["control_count"] == 1
+    assert controls_readable_metrics["audited_control_count"] == 1
+    assert controls_readable_metrics["compliance_rate"] == 1.0
+
+
+@pytest.mark.asyncio
+async def test_overview_department_metrics_zero_control_aggregates_without_controls_read(
+    client_department_head: AsyncClient,
+    db_session,
+    test_department: Department,
+    test_user_department_head: User,
+):
+    from app.api.v1.endpoints.dashboard.overview import DASHBOARD_OVERVIEW_CACHE
+
+    DASHBOARD_OVERVIEW_CACHE.clear()
+    await _create_department_metric_records(
+        db_session,
+        department_id=test_department.id,
+        user_id=test_user_department_head.id,
+        suffix="OVERVIEW",
+    )
+
+    try:
+        response = await client_department_head.get(
+            f"/api/v1/dashboard/overview?department_id={test_department.id}"
+        )
+
+        assert response.status_code == 200
+        metrics = next(
+            item for item in response.json()["department_metrics"] if item["department_id"] == test_department.id
+        )
+        assert metrics["risk_count"] == 1
+        assert metrics["total_kri_count"] == 1
+        assert metrics["breaching_kri_count"] == 1
+        assert metrics["control_count"] == 0
+        assert metrics["audited_control_count"] == 0
+        assert metrics["compliance_rate"] == 0.0
+    finally:
+        DASHBOARD_OVERVIEW_CACHE.clear()
 
 
 @pytest.mark.asyncio

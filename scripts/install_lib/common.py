@@ -240,9 +240,9 @@ Examples:
   ./scripts/install.sh demo --reset test
   ./scripts/install.sh dev
   ./scripts/install.sh dev --backend
-  ./scripts/install.sh production --target docker --version v1.2.3
+  ./scripts/install.sh production --target docker --backend-image ghcr.io/owner/riskhub-backend:v1.2.3@sha256:<digest> --backend-db-image ghcr.io/owner/riskhub-backend-db:v1.2.3@sha256:<digest> --frontend-image ghcr.io/owner/riskhub-frontend:v1.2.3@sha256:<digest> --redis-image ghcr.io/owner/riskhub-redis:v1.2.3@sha256:<digest>
   ./scripts/install.sh production --target linux --bundle ./riskhub-linux-v1.2.3.tar.gz
-  ./scripts/install.sh upgrade --target docker --version v1.2.4
+  ./scripts/install.sh upgrade --target docker --backend-image ghcr.io/owner/riskhub-backend:v1.2.4@sha256:<digest> --backend-db-image ghcr.io/owner/riskhub-backend-db:v1.2.4@sha256:<digest> --frontend-image ghcr.io/owner/riskhub-frontend:v1.2.4@sha256:<digest> --redis-image ghcr.io/owner/riskhub-redis:v1.2.4@sha256:<digest>
   ./scripts/install.sh status --mode production --target docker --json
   ./scripts/install.sh logs --mode dev --tail 200 --follow
   ./scripts/install.sh doctor --mode production --target linux --repair

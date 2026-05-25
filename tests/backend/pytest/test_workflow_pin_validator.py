@@ -20,6 +20,18 @@ BACKEND_POSTGRES_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "backend-postg
 E2E_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "e2e.yml"
 STARTUP_SMOKE_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "startup-smoke.yml"
 LOCAL_PROD_AUDIT = REPO_ROOT / "scripts" / "security" / "run_prod_readiness_audit_local.sh"
+PROD_READINESS_PHASES = REPO_ROOT / "scripts" / "security" / "prod_readiness_audit" / "phases.py"
+PUBLIC_LEAK_AUDIT = REPO_ROOT / "scripts" / "security" / "run_public_repo_leak_audit.sh"
+MAKEFILE = REPO_ROOT / "scripts" / "Makefile"
+
+
+def _grype_ignore_entry(text: str, vulnerability: str) -> str:
+    marker = f"  - vulnerability: {vulnerability}"
+    start = text.index(marker)
+    next_entry = text.find("\n  - vulnerability:", start + len(marker))
+    if next_entry == -1:
+        return text[start:]
+    return text[start:next_entry]
 
 
 def _load_validator_module():
@@ -81,6 +93,74 @@ def test_validator_rejects_unpinned_service_image(tmp_path: Path) -> None:
     assert any("service image" in error for error in errors)
 
 
+def test_validator_rejects_mutable_scanner_docker_run_refs(tmp_path: Path) -> None:
+    workflow = tmp_path / "security.yml"
+    workflow.write_text(
+        "\n".join(
+            [
+                "jobs:",
+                "  scan:",
+                "    steps:",
+                "      - run: docker run --rm aquasec/trivy:0.57.1 image riskhub-backend:scan",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    validator = _load_validator_module()
+    errors = validator.validate_workflow(workflow)
+
+    assert any("scanner image" in error and "aquasec/trivy:0.57.1" in error for error in errors)
+
+
+def test_validator_accepts_digest_pinned_scanner_docker_run_refs(tmp_path: Path) -> None:
+    workflow = tmp_path / "security.yml"
+    workflow.write_text(
+        "\n".join(
+            [
+                "jobs:",
+                "  scan:",
+                "    steps:",
+                "      - run: docker run --rm aquasec/trivy:0.57.1@sha256:"
+                + ("a" * 64)
+                + " image riskhub-backend:scan",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    validator = _load_validator_module()
+    errors = validator.validate_workflow(workflow)
+
+    assert not errors
+
+
+def test_validator_scans_python_shell_makefile_and_workflow_scanner_refs(tmp_path: Path) -> None:
+    files = {
+        "security.yml": "run: docker run --rm aquasec/trivy:0.57.1 image riskhub-backend:scan\n",
+        "phases.py": '"docker run --rm zricethezav/gitleaks:v8.18.2 detect"\n',
+        "audit.sh": 'GITLEAKS_IMAGE="${GITLEAKS_IMAGE:-gitleaks/gitleaks:v8.18.2}"\n',
+        "Makefile": "\tdocker run --rm koalaman/shellcheck:stable -x scripts/deploy.sh\n",
+    }
+    validator = _load_validator_module()
+
+    errors: list[str] = []
+    for filename, content in files.items():
+        path = tmp_path / filename
+        path.write_text(content, encoding="utf-8")
+        errors.extend(validator.validate_workflow(path))
+
+    for image in (
+        "aquasec/trivy:0.57.1",
+        "zricethezav/gitleaks:v8.18.2",
+        "gitleaks/gitleaks:v8.18.2",
+        "koalaman/shellcheck:stable",
+    ):
+        assert any(image in error for error in errors), image
+
+
 def test_validator_scans_all_workflows_by_default(tmp_path: Path, monkeypatch) -> None:
     workflows_dir = tmp_path / ".github" / "workflows"
     workflows_dir.mkdir(parents=True)
@@ -119,6 +199,15 @@ def test_local_prod_readiness_audit_pins_syft_and_grype_images() -> None:
     assert "anchore/grype:latest" not in package_text
     assert "anchore/syft:v1.42.3@sha256:" in package_text
     assert "anchore/grype:v0.110.0@sha256:" in package_text
+
+
+def test_scanner_docker_run_refs_are_digest_pinned_in_security_adapters() -> None:
+    validator = _load_validator_module()
+    errors: list[str] = []
+    for path in (SECURITY_WORKFLOW, PROD_READINESS_PHASES, PUBLIC_LEAK_AUDIT, MAKEFILE):
+        errors.extend(validator.validate_workflow(path))
+
+    assert not [error for error in errors if "scanner image" in error]
 
 
 def test_lint_workflow_runs_blocking_frontend_vitest_job() -> None:
@@ -258,6 +347,20 @@ def test_grype_python_runtime_suppressions_are_time_bound() -> None:
     assert text.count("\n      name: python") == 4
     assert text.count("\n      version: 3.13.13") == 4
     assert "\n    fix-state:" not in text
+
+
+def test_grype_python_runtime_suppressions_include_policy_evidence() -> None:
+    text = GRYPE_IGNORE.read_text(encoding="utf-8")
+
+    for cve in ("CVE-2026-6100", "CVE-2026-3298", "CVE-2026-7210", "CVE-2026-4786"):
+        entry = _grype_ignore_entry(text, cve)
+        assert "Owner:" in entry
+        assert "Decision:" in entry
+        assert "Scanner evidence:" in entry
+        assert "No-fix proof:" in entry
+        assert "\n    expires-on: 2026-06-30" in entry
+        assert "\n      name: python" in entry
+        assert "\n      version: 3.13.13" in entry
 
 
 def test_backend_dockerfile_pins_python_alpine_base_digest() -> None:

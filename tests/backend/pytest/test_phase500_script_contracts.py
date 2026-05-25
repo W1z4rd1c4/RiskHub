@@ -162,10 +162,18 @@ def test_backend_dockerfile_copies_only_bootstrap_scripts_and_uses_python_health
     text = _read(BACKEND_DOCKERFILE)
 
     assert "COPY --chown=riskhub:riskhub scripts ./scripts" not in text
-    assert "FROM python:3.13-alpine AS runtime" in text
-    assert "FROM python:3.13-alpine AS dbtasks" in text
+    dockerfile_lines = text.splitlines()
+    assert any(
+        line.startswith("FROM python:3.13-alpine@sha256:") and line.endswith(" AS runtime")
+        for line in dockerfile_lines
+    )
+    assert any(
+        line.startswith("FROM python:3.13-alpine@sha256:") and line.endswith(" AS dbtasks")
+        for line in dockerfile_lines
+    )
     assert "COPY --from=builder-runtime" in text
     assert "COPY --from=builder-dbtasks" in text
+    assert text.count("pip install --no-cache-dir --upgrade pip==26.1.1") == 4
     assert "FROM runtime AS final" in text
     for script_name in EXPECTED_PROD_BOOTSTRAP_SCRIPTS:
         assert f"COPY --chown=riskhub:riskhub scripts/{script_name} ./scripts/{script_name}" in text
@@ -243,6 +251,19 @@ def test_install_frontend_applies_capability_hardening() -> None:
 def test_frontend_dockerfile_uses_legacy_peer_resolution_for_container_builds() -> None:
     text = _read(FRONTEND_DOCKERFILE)
     assert "npm ci --include=dev --legacy-peer-deps" in text
+
+
+def test_frontend_dockerfile_pins_runtime_base_digests() -> None:
+    text = _read(FRONTEND_DOCKERFILE)
+
+    assert "FROM node:24-alpine@sha256:" in text
+    assert "FROM nginx:alpine@sha256:" in text
+    assert "FROM node:24-alpine AS" not in text
+    assert "FROM nginx:alpine AS" not in text
+    assert "apk del --no-cache" in text
+    assert "nginx-module-image-filter" in text
+    assert "nginx-module-xslt" in text
+    assert "\n    curl \\" in text
 
 
 def test_install_redis_passes_password_file_override_for_custom_secret_dir() -> None:

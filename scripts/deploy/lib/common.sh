@@ -558,6 +558,19 @@ resolve_default_image() {
   printf 'ghcr.io/%s/riskhub-%s:%s\n' "$owner" "$kind" "$version"
 }
 
+image_ref_is_immutable() {
+  local image_ref="$1"
+  [[ "$image_ref" =~ @sha256:[0-9A-Fa-f]{64}$ ]]
+}
+
+require_immutable_image_ref() {
+  local label="$1"
+  local image_ref="$2"
+  if ! image_ref_is_immutable "$image_ref"; then
+    die "${label} must be immutable image refs with @sha256:<64 hex>."
+  fi
+}
+
 ensure_linux_user() {
   if id -u "$LINUX_USER" >/dev/null 2>&1; then
     return 0

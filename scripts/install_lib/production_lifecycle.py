@@ -42,15 +42,14 @@ def run_production_action(
     if target == "docker":
         if version:
             release_args.extend(["--version", version])
-        else:
-            if backend_image:
-                release_args.extend(["--backend-image", backend_image])
-            if backend_db_image:
-                release_args.extend(["--backend-db-image", backend_db_image])
-            if frontend_image:
-                release_args.extend(["--frontend-image", frontend_image])
-            if redis_image:
-                release_args.extend(["--redis-image", redis_image])
+        if backend_image:
+            release_args.extend(["--backend-image", backend_image])
+        if backend_db_image:
+            release_args.extend(["--backend-db-image", backend_db_image])
+        if frontend_image:
+            release_args.extend(["--frontend-image", frontend_image])
+        if redis_image:
+            release_args.extend(["--redis-image", redis_image])
     elif bundle:
         release_args.extend(["--bundle", bundle])
 

@@ -64,6 +64,7 @@ def build_delete_approval_request(
         status=ApprovalStatus.PENDING,
         primary_approver_id=plan.primary_approver_id,
         requires_privileged_approval=plan.requires_privileged_approval,
+        delete_context_snapshot=plan.delete_context_snapshot,
     )
 
 

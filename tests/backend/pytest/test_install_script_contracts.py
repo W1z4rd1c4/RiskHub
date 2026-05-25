@@ -8,6 +8,7 @@ import tempfile
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
+DIGEST = "a" * 64
 
 
 def test_install_and_deploy_runtime_plan_modules_are_importable() -> None:
@@ -215,6 +216,19 @@ def _write_install_state(runtime_dir: Path, payload: dict[str, object]) -> None:
     )
 
 
+def _digest_image_args(tag: str = "v1.2.3") -> list[str]:
+    return [
+        "--backend-image",
+        f"ghcr.io/example/riskhub-backend:{tag}@sha256:{DIGEST}",
+        "--backend-db-image",
+        f"ghcr.io/example/riskhub-backend-db:{tag}@sha256:{DIGEST}",
+        "--frontend-image",
+        f"ghcr.io/example/riskhub-frontend:{tag}@sha256:{DIGEST}",
+        "--redis-image",
+        f"ghcr.io/example/riskhub-redis:{tag}@sha256:{DIGEST}",
+    ]
+
+
 def _make_fake_deploy_script(tmp: Path) -> Path:
     script_path = tmp / "fake-deploy.sh"
     script_path.write_text(
@@ -360,8 +374,7 @@ def test_install_production_docker_dry_run_dispatches_full_sequence() -> None:
             str(config_path),
             "--secret-dir",
             str(secret_dir),
-            "--version",
-            "v1.2.3",
+            *_digest_image_args("v1.2.3"),
         )
         output = f"{result.stdout}\n{result.stderr}"
 
@@ -369,7 +382,7 @@ def test_install_production_docker_dry_run_dispatches_full_sequence() -> None:
         assert "scripts/deploy.sh" in output
         assert "preflight --target docker" in output
         assert "deploy --target docker" in output
-        assert "--version v1.2.3" in output
+        assert f"riskhub-backend:v1.2.3@sha256:{DIGEST}" in output
         assert "status --target docker" in output
         assert "smoke --target docker" in output
         assert "Mode: production" in output
@@ -422,8 +435,7 @@ def test_install_production_dry_run_initializes_missing_scaffold_before_lifecycl
             str(config_path),
             "--secret-dir",
             str(secret_dir),
-            "--version",
-            "v1.2.3",
+            *_digest_image_args("v1.2.3"),
         )
         output = f"{result.stdout}\n{result.stderr}"
 
@@ -451,8 +463,7 @@ def test_install_production_dry_run_initializes_missing_secret_scaffold_before_l
             str(config_path),
             "--secret-dir",
             str(secret_dir),
-            "--version",
-            "v1.2.3",
+            *_digest_image_args("v1.2.3"),
         )
         output = f"{result.stdout}\n{result.stderr}"
 
@@ -591,8 +602,7 @@ def test_install_upgrade_docker_dry_run_dispatches_full_sequence() -> None:
             str(config_path),
             "--secret-dir",
             str(secret_dir),
-            "--version",
-            "v1.2.4",
+            *_digest_image_args("v1.2.4"),
             env=env,
         )
         output = f"{result.stdout}\n{result.stderr}"
@@ -679,8 +689,7 @@ def test_install_production_writes_install_state_after_successful_run() -> None:
             str(config_path),
             "--secret-dir",
             str(secret_dir),
-            "--version",
-            "v1.2.3",
+            *_digest_image_args("v1.2.3"),
             env=env,
         )
         output = f"{result.stdout}\n{result.stderr}"
@@ -693,8 +702,10 @@ def test_install_production_writes_install_state_after_successful_run() -> None:
         assert payload["config_path"] == str(config_path)
         assert payload["secret_dir"] == str(secret_dir)
         assert payload["runtime_dir"] == str(runtime_dir)
-        assert payload["current_release_source"]["kind"] == "docker_version"
-        assert payload["current_release_source"]["version"] == "v1.2.3"
+        assert payload["current_release_source"]["kind"] == "docker_images"
+        assert payload["current_release_source"]["backend_image"] == (
+            f"ghcr.io/example/riskhub-backend:v1.2.3@sha256:{DIGEST}"
+        )
         assert payload["last_successful_command"] == "production"
         assert payload["last_successful_deploy_timestamp"] is not None
         assert payload["last_successful_smoke_timestamp"] is not None
@@ -734,8 +745,7 @@ def test_install_production_refuses_unresolved_secret_placeholders_before_deploy
             str(config_path),
             "--secret-dir",
             str(secret_dir),
-            "--version",
-            "v1.2.3",
+            *_digest_image_args("v1.2.3"),
             env=env,
         )
         output = f"{result.stdout}\n{result.stderr}"
@@ -756,7 +766,19 @@ def test_install_upgrade_writes_non_secret_runtime_backup() -> None:
         _write_secrets(secret_dir)
         runtime_dir.mkdir(parents=True, exist_ok=True)
         (runtime_dir / "backend.env").write_text("backend=1\n", encoding="utf-8")
-        (runtime_dir / "metadata.env").write_text("metadata=1\n", encoding="utf-8")
+        (runtime_dir / "metadata.env").write_text(
+            "\n".join(
+                [
+                    "TARGET=docker",
+                    "PUBLIC_URL=https://riskhub.example.com.internal",
+                    "REDIS_URL_FILE=/etc/riskhub/runtime/redis_url",
+                    "REDIS_PASSWORD_FILE=/etc/riskhub/secrets/redis_password",
+                    "REDIS_URL=redis://:redis-secret@redis:6379/0",
+                ]
+            )
+            + "\n",
+            encoding="utf-8",
+        )
         _write_install_state(
             runtime_dir,
             {
@@ -787,8 +809,7 @@ def test_install_upgrade_writes_non_secret_runtime_backup() -> None:
             str(config_path),
             "--secret-dir",
             str(secret_dir),
-            "--version",
-            "v1.2.4",
+            *_digest_image_args("v1.2.4"),
             env=env,
         )
         output = f"{result.stdout}\n{result.stderr}"
@@ -801,6 +822,71 @@ def test_install_upgrade_writes_non_secret_runtime_backup() -> None:
         assert (latest_backup / "runtime" / "backend.env").exists()
         assert (latest_backup / "runtime" / "metadata.env").exists()
         assert (latest_backup / "runtime" / "install-state.json").exists()
+        backed_up_metadata = (latest_backup / "runtime" / "metadata.env").read_text(encoding="utf-8")
+        assert "REDIS_URL_FILE=/etc/riskhub/runtime/redis_url" in backed_up_metadata
+        assert "REDIS_PASSWORD_FILE=/etc/riskhub/secrets/redis_password" in backed_up_metadata
+        assert "REDIS_URL=" not in backed_up_metadata
+        assert "redis-secret" not in backed_up_metadata
+
+
+def test_install_production_docker_dry_run_rejects_version_without_digest_manifest() -> None:
+    with tempfile.TemporaryDirectory(prefix="riskhub-install-version-digest-") as td:
+        tmp = Path(td)
+        config_path = tmp / "riskhub.env"
+        secret_dir = tmp / "secrets"
+        _write_config(config_path)
+        _write_secrets(secret_dir)
+
+        result = _run_install(
+            "production",
+            "--dry-run",
+            "--yes",
+            "--target",
+            "docker",
+            "--config",
+            str(config_path),
+            "--secret-dir",
+            str(secret_dir),
+            "--version",
+            "v1.2.3",
+        )
+        output = f"{result.stdout}\n{result.stderr}"
+
+        assert result.returncode != 0
+        assert "requires immutable image digests" in output
+
+
+def test_install_production_docker_dry_run_accepts_explicit_digest_image_refs() -> None:
+    with tempfile.TemporaryDirectory(prefix="riskhub-install-digest-images-") as td:
+        tmp = Path(td)
+        config_path = tmp / "riskhub.env"
+        secret_dir = tmp / "secrets"
+        _write_config(config_path)
+        _write_secrets(secret_dir)
+
+        result = _run_install(
+            "production",
+            "--dry-run",
+            "--yes",
+            "--target",
+            "docker",
+            "--config",
+            str(config_path),
+            "--secret-dir",
+            str(secret_dir),
+            "--backend-image",
+            f"ghcr.io/example/riskhub-backend:v1.2.3@sha256:{DIGEST}",
+            "--backend-db-image",
+            f"ghcr.io/example/riskhub-backend-db:v1.2.3@sha256:{DIGEST}",
+            "--frontend-image",
+            f"ghcr.io/example/riskhub-frontend:v1.2.3@sha256:{DIGEST}",
+            "--redis-image",
+            f"ghcr.io/example/riskhub-redis:v1.2.3@sha256:{DIGEST}",
+        )
+        output = f"{result.stdout}\n{result.stderr}"
+
+        assert result.returncode == 0, output
+        assert f"riskhub-backend:v1.2.3@sha256:{DIGEST}" in output
 
 
 def test_install_status_json_reconstructs_production_state_when_metadata_missing() -> None:

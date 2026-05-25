@@ -18,6 +18,13 @@ from app.services._entity_mutation_lifecycle.archive_plans import (
 )
 
 from .contracts import ApprovalRequestIntakePlan
+from .delete_context import DeleteApprovalContext, capture_delete_approval_context, serialize_delete_approval_context
+
+
+def _serialize_delete_context(context: DeleteApprovalContext | None) -> dict | None:
+    if context is None:
+        return None
+    return serialize_delete_approval_context(context)
 
 
 async def assert_delete_request_allowed(
@@ -55,6 +62,13 @@ async def build_delete_intake_plan(
             department_id=risk.department_id,
             primary_approver_id=primary_approver_id,
             requires_privileged_approval=requires_privileged,
+            delete_context_snapshot=_serialize_delete_context(
+                await capture_delete_approval_context(
+                    db,
+                    resource_type=ApprovalResourceType.RISK,
+                    resource_id=request_data.resource_id,
+                )
+            ),
         )
 
     if request_data.resource_type == ApprovalResourceTypeEnum.control:
@@ -77,6 +91,13 @@ async def build_delete_intake_plan(
             department_id=control.department_id,
             primary_approver_id=primary_approver_id,
             requires_privileged_approval=requires_privileged,
+            delete_context_snapshot=_serialize_delete_context(
+                await capture_delete_approval_context(
+                    db,
+                    resource_type=ApprovalResourceType.CONTROL,
+                    resource_id=request_data.resource_id,
+                )
+            ),
         )
 
     kri = await assert_can_request_delete_kri(db, kri_id=request_data.resource_id, current_user=current_user)
@@ -89,6 +110,13 @@ async def build_delete_intake_plan(
         department_id=kri.risk.department_id,
         primary_approver_id=await get_primary_approver_for_risk(db, kri.risk_id, requester_id=current_user.id),
         requires_privileged_approval=False,
+        delete_context_snapshot=_serialize_delete_context(
+            await capture_delete_approval_context(
+                db,
+                resource_type=ApprovalResourceType.KRI,
+                resource_id=request_data.resource_id,
+            )
+        ),
     )
 
 

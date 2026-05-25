@@ -90,6 +90,12 @@ def validate_settings_for_runtime(settings: Settings) -> None:
         raise RuntimeError(
             f"FATAL: {invariant_map['ALLOWED_HOSTS'].key} must be set to an explicit allowlist when DEBUG=false."
         )
+    wildcard_allowed_hosts = [host for host in settings.allowed_hosts if "*" in host]
+    if wildcard_allowed_hosts:
+        raise RuntimeError(
+            "FATAL: ALLOWED_HOSTS cannot include wildcard entries when DEBUG=false. "
+            "Set explicit production hostnames."
+        )
     if settings.auth_mode != invariant_map["AUTH_MODE"].required_value:
         raise RuntimeError(f"FATAL: AUTH_MODE must be '{invariant_map['AUTH_MODE'].required_value}' when DEBUG=false.")
     if not settings.entra_tenant_id or not settings.entra_client_id:

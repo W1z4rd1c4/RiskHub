@@ -84,6 +84,21 @@ def test_protocol_contract_probe_classification_rules() -> None:
     assert "auth/sanitization precondition accepted" in reason
 
 
+def test_protocol_contract_probe_cases_exclude_legacy_excel_and_keep_xlsx_rejection() -> None:
+    probe = _load_probe_module()
+
+    paths_by_case = {case.case_id: case.path for case in probe.PROBE_CASES}
+    assert not [path for path in paths_by_case.values() if path.endswith("/excel")]
+
+    xlsx_cases = [
+        case
+        for case in probe.PROBE_CASES
+        if case.path.startswith("/api/v1/reports/") and case.path.endswith("/export?format=xlsx")
+    ]
+    assert xlsx_cases
+    assert all(case.expected_statuses == (410,) for case in xlsx_cases)
+
+
 def test_protocol_contract_probe_output_schema(tmp_path: Path) -> None:
     probe = _load_probe_module()
     results = [

@@ -108,6 +108,15 @@ def release_source_from_args(
     redis_image: str | None,
 ) -> dict:
     if target == "docker":
+        if backend_image or backend_db_image or frontend_image or redis_image:
+            return {
+                "kind": "docker_images",
+                "backend_image": backend_image,
+                "backend_db_image": backend_db_image,
+                "frontend_image": frontend_image,
+                "redis_image": redis_image,
+                "version": version,
+            }
         if version:
             return {"kind": "docker_version", "version": version}
         return {

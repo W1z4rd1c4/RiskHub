@@ -12,7 +12,7 @@ pytestmark = pytest.mark.contract
 REPO_ROOT = Path(__file__).resolve().parents[4]
 MODULE_PATH = REPO_ROOT / "backend/app/api/v1/endpoints/riskhub_questionnaires.py"
 ENDPOINT_INVARIANTS = REPO_ROOT / "docs/agent/ENDPOINT_INVARIANTS.md"
-AUDIT_CONTEXT = REPO_ROOT / ".planning/audits/_context/02-backend-endpoints.md"
+AUDIT_RESOLUTION_PLAN = REPO_ROOT / ".planning/audits/resolution-plan.md"
 
 
 def test_module_file_exists() -> None:
@@ -28,7 +28,7 @@ def test_module_exposes_router_with_batch_send_route() -> None:
 
 def test_module_presence_is_documented_with_frontend_call_chain() -> None:
     endpoint_text = ENDPOINT_INVARIANTS.read_text()
-    audit_text = AUDIT_CONTEXT.read_text()
+    audit_text = AUDIT_RESOLUTION_PLAN.read_text()
 
     assert "backend/app/api/v1/endpoints/riskhub_questionnaires.py" in endpoint_text
     assert "frontend/src/components/riskhub/RiskQuestionnairesPanel.tsx:257" in endpoint_text
@@ -36,5 +36,6 @@ def test_module_presence_is_documented_with_frontend_call_chain() -> None:
     assert "frontend/src/services/riskHubApi.ts:308" in endpoint_text
     assert "test_riskhub_questionnaires_module_present_red.py" in endpoint_text
 
-    assert "Audit #10 REJECT" in audit_text
+    assert "#10" in audit_text
+    assert "riskhub_questionnaires.py" in audit_text
     assert "test_riskhub_questionnaires_module_present_red.py" in audit_text

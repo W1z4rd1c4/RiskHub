@@ -7,6 +7,12 @@ from prod_readiness_audit.commands import ProdReadinessCommand
 from prod_readiness_audit.run_state import ProdReadinessRunState
 
 
+TRIVY_IMAGE = "aquasec/trivy:0.57.1@sha256:5c59e08f980b5d4d503329773480fcea2c9bdad7e381d846fbf9f2ecb8050f6b"
+SYFT_IMAGE = "anchore/syft:v1.42.3@sha256:5999d209a342e55e9edf70bf8930fb5b86d8f2a783fa401178372c50e21b1d36"
+GRYPE_IMAGE = "anchore/grype:v0.110.0@sha256:af65fbc0c664691067788fe95ff88760b435543e45595eb2ca6f102fc476fbe1"
+GITLEAKS_IMAGE = "zricethezav/gitleaks:v8.18.2@sha256:eadfe256fa18d6a78a717abc9ed454c8e03865d1c46d627bca83977f4424901a"
+
+
 @dataclass(frozen=True)
 class ProdReadinessPhase:
     name: str
@@ -337,7 +343,7 @@ def build_prod_readiness_phases(state: ProdReadinessRunState) -> list[ProdReadin
                     "p4_trivy_backend",
                     (
                         "docker run --rm -v /var/run/docker.sock:/var/run/docker.sock "
-                        f"-v {reports_dir}:/out aquasec/trivy:0.57.1 image --severity HIGH,CRITICAL "
+                        f"-v {reports_dir}:/out {TRIVY_IMAGE} image --severity HIGH,CRITICAL "
                         f"--format json -o /out/trivy-backend.json {backend_image_upgrade}"
                     ),
                     timeout_sec=1800,
@@ -346,7 +352,7 @@ def build_prod_readiness_phases(state: ProdReadinessRunState) -> list[ProdReadin
                     "p4_trivy_frontend",
                     (
                         "docker run --rm -v /var/run/docker.sock:/var/run/docker.sock "
-                        f"-v {reports_dir}:/out aquasec/trivy:0.57.1 image --severity HIGH,CRITICAL "
+                        f"-v {reports_dir}:/out {TRIVY_IMAGE} image --severity HIGH,CRITICAL "
                         f"--format json -o /out/trivy-frontend.json {frontend_image_upgrade}"
                     ),
                     timeout_sec=1800,
@@ -355,9 +361,8 @@ def build_prod_readiness_phases(state: ProdReadinessRunState) -> list[ProdReadin
                     "p4_syft_backend",
                     (
                         "docker run --rm -v /var/run/docker.sock:/var/run/docker.sock "
-                        f"-v {reports_dir}:/out anchore/syft:v1.42.3@sha256:"
-                        "5999d209a342e55e9edf70bf8930fb5b86d8f2a783fa401178372c50e21b1d36 "
-                        f"{backend_image_upgrade} -o json=/out/sbom-backend.json"
+                        f"-v {reports_dir}:/out {SYFT_IMAGE} {backend_image_upgrade} "
+                        "-o json=/out/sbom-backend.json"
                     ),
                     timeout_sec=1800,
                 ),
@@ -365,9 +370,7 @@ def build_prod_readiness_phases(state: ProdReadinessRunState) -> list[ProdReadin
                     "p4_grype_backend",
                     (
                         f"docker run --rm -v {root_dir}:/repo -v {reports_dir}:/out -w /repo "
-                        "anchore/grype:v0.110.0@sha256:"
-                        "af65fbc0c664691067788fe95ff88760b435543e45595eb2ca6f102fc476fbe1 "
-                        "sbom:/out/sbom-backend.json "
+                        f"{GRYPE_IMAGE} sbom:/out/sbom-backend.json "
                         "--config /repo/backend/security/grype-ignore.yaml "
                         "-o json=/out/grype-backend.json"
                     ),
@@ -377,7 +380,7 @@ def build_prod_readiness_phases(state: ProdReadinessRunState) -> list[ProdReadin
                     "p4_gitleaks_parse_gate",
                     (
                         f"docker run --rm -v {root_dir}:/repo -w /repo --entrypoint /bin/sh "
-                        "zricethezav/gitleaks:v8.18.2 -lc "
+                        f"{GITLEAKS_IMAGE} -lc "
                         + shlex.quote(
                             "mkdir -p /tmp/gitleaks-empty && "
                             "gitleaks detect --source /tmp/gitleaks-empty --no-git --config .gitleaks.toml "
@@ -390,7 +393,7 @@ def build_prod_readiness_phases(state: ProdReadinessRunState) -> list[ProdReadin
                     "p4_gitleaks_scan",
                     (
                         f"docker run --rm -v {root_dir}:/repo -v {reports_dir}:/out -w /repo --entrypoint /bin/sh "
-                        "zricethezav/gitleaks:v8.18.2 -lc "
+                        f"{GITLEAKS_IMAGE} -lc "
                         + shlex.quote(
                             "gitleaks detect --source /repo --config .gitleaks.toml "
                             "--report-format json --report-path /out/gitleaks-report.json --exit-code 1"

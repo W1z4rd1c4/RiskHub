@@ -15,6 +15,7 @@ class ApprovalRequestIntakePlan:
     department_id: int | None
     primary_approver_id: int | None
     requires_privileged_approval: bool
+    delete_context_snapshot: dict | None = None
 
 
 @dataclass(frozen=True)
