@@ -153,6 +153,16 @@ def test_lint_workflow_restores_blocking_backend_quality_gate() -> None:
         assert forbidden not in text
 
 
+def test_lint_workflow_installs_repo_contract_python_dependencies_before_contract_gate() -> None:
+    text = LINT_WORKFLOW.read_text(encoding="utf-8")
+
+    install_step = "Install repo contract Python dependencies"
+    contract_step = "Repo artifact + script syntax contracts"
+    assert install_step in text
+    assert "python -m pip install 'pytest>=8.0.0'" in text
+    assert text.index(install_step) < text.index(contract_step)
+
+
 def test_lint_workflow_fetches_full_history_for_checkout() -> None:
     text = LINT_WORKFLOW.read_text(encoding="utf-8")
 
