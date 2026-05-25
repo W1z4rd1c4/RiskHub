@@ -1,6 +1,6 @@
 # Technology Stack
 
-**Analysis Date:** 2026-05-03
+**Analysis Date:** 2026-05-25
 
 ## Languages
 
@@ -43,12 +43,12 @@
 **Backend highlights (`backend/requirements.txt`):**
 - `fastapi`, `uvicorn[standard]`, `sqlalchemy[asyncio]`, `asyncpg`, `alembic`
 - `PyJWT[crypto]`, `passlib[bcrypt]`, `bcrypt==4.1.3`
-- `redis`, `APScheduler`, `structlog`, `python-json-logger`
+- `redis`, `APScheduler`, `structlog`, `prometheus-fastapi-instrumentator`, `opentelemetry-sdk`
 - Runtime dependency set is pinned to exact versions in `backend/requirements.txt` for release reproducibility
 
 **Frontend highlights (`frontend/package.json`):**
 - `react`, `react-dom`, `react-router-dom`, `@tanstack/react-query`
-- `axios`, `framer-motion`, `recharts`, `i18next`
+- `framer-motion`, `recharts`, `i18next`
 - `@azure/msal-browser` (Entra ID SSO)
 - `vitest`, `@playwright/test`, Testing Library, MSW
 
@@ -67,19 +67,12 @@
 - Vite dev proxy forwards `/api` to backend (`frontend/vite.config.ts`)
 - Production hardening checks enforced at startup (`backend/app/main.py`)
 
-## Current Scale Snapshot
+## Scale Metrics Source
 
-- Backend app Python: 459 files (`backend/app/`)
-- Backend endpoints: 180 Python modules/packages (`backend/app/api/v1/endpoints/`)
-- Backend models: 26 Python modules (`backend/app/models/`)
-- Backend schemas: 24 Python modules (`backend/app/schemas/`)
-- Backend services: 140 Python files (includes internal workflow packages) (`backend/app/services/`)
-- Backend test tree: 175 Python files (`tests/backend/pytest/`)
-- Frontend source: 518 TypeScript/TSX files (`frontend/src/`)
-- Frontend pages: 165 tracked files (`frontend/src/pages/`)
-- Frontend components: 281 tracked files (`frontend/src/components/`)
-- Frontend E2E tree: 74 files (`tests/frontend/e2e/`)
+- Current repository-size metrics live in `.planning/codebase/STRUCTURE.md`.
+- Use git-tracked file counts for those metrics and validate them with `python3 scripts/tools/structure_metrics_guard.py`.
+- Do not duplicate numeric scale snapshots here; this file documents runtime and dependency choices.
 
 ---
 
-*Stack analysis refreshed on 2026-05-03*
+*Stack analysis refreshed on 2026-05-25*

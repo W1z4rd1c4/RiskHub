@@ -1,6 +1,6 @@
 # Coding Conventions
 
-**Analysis Date:** 2026-05-03
+**Analysis Date:** 2026-05-25
 
 ## Backend Conventions
 
@@ -22,6 +22,7 @@
 - Large services may be split into internal packages under `backend/app/services/_*/` with a public facade module that re-exports stable symbols (`backend/app/services/approval_execution_service.py`, `backend/app/services/risk_questionnaire_service.py`, `backend/app/services/quarterly_comparison_service.py`, `backend/app/services/_approval_execution/`, `backend/app/services/_issue_register/`, `backend/app/services/_vendor_links/`, `backend/app/services/_admin_telemetry/`, `backend/app/services/_issue_workflow/`, `backend/app/services/_kri_history/`, `backend/app/services/_risk_questionnaires/`, `backend/app/services/_quarterly_comparison/`)
 - Workflow endpoints should delegate lifecycle/status/authorization invariants to shared service helpers instead of reimplementing them per route.
 - Where a frontend action depends on server-side workflow authority, expose additive backend capability metadata and resolve the action through `frontend/src/lib/capabilities.ts`: backend booleans win, local permission checks are fallback only when metadata is absent.
+- Authz-sensitive changes must keep the Markdown/JSON authorization contract in sync; update `docs/security/capability-catalog.json` when capability field shapes change, update `docs/BUSINESS_LOGIC.md` when business policy changes, and update `docs/TESTING.md` when verification paths change.
 - User-facing components must not render raw numeric IDs as fallback labels; show names/codes/business identifiers or `Unknown <entity>` copy and keep raw IDs limited to payloads, telemetry, tests, and developer-only diagnostics.
 - Documentation shown inside the app must use user-manual language for user audiences; keep source paths, maintainer references, and raw versions out of user manual reader chrome.
 
@@ -40,8 +41,8 @@
 ### Data access and auth
 - Centralized fetch wrapper in `frontend/src/services/apiClient.ts`
 - Runtime response schemas are domain-split under `frontend/src/services/api/schemas/entities/`; keep public aggregate exports stable from the schema index.
-- Auth state and permissions sourced from `AuthContext` (`frontend/src/contexts/AuthContext.tsx`)
-- UI authorization gates use `useAuthz` for route/read projections, `usePermissions` only as compatibility session hints, and backend capability metadata for protected actions (`frontend/src/authz/useAuthz.ts`, `frontend/src/hooks/usePermissions.ts`)
+- Auth state is exposed through `AuthContext`, with session snapshots and transitions owned by `frontend/src/services/session/` (`frontend/src/contexts/AuthContext.tsx`, `frontend/src/services/session/`)
+- UI authorization gates use `useAuthz` for route/read projections and backend capability metadata for protected actions; action surfaces should read capability booleans through `frontend/src/lib/capabilities.ts` rather than direct ad hoc `can_*` checks (`frontend/src/authz/useAuthz.ts`, `frontend/src/authz/policy.ts`)
 - User-facing UI must not render raw numeric database IDs as fallback labels; prefer names, codes, titles, or `Unknown <entity>` text.
 - Public component imports may stay as compatibility facades while large pages are split into workflow hooks and focused sections; new work should import the focused modules when it owns the area.
 - Register pages should reuse `frontend/src/pages/shared/collectionPageState.ts` for collection data state instead of duplicating item/group/capability/error setter blocks.
@@ -71,9 +72,10 @@
 ## Source-of-Truth Conventions
 
 - Business behavior and RBAC: `docs/BUSINESS_LOGIC.md`
+- Authorization capability contract and mirrors: `docs/security/authorization-capability-contract.md`, `docs/security/authorization-capability-contract.json`, and `docs/security/capability-catalog.json`
 - Testing strategy and commands: `docs/TESTING.md`
 - Current execution context for planning: `.planning/STATE.md` and `.planning/ROADMAP.md`
 
 ---
 
-*Conventions audit refreshed on 2026-05-03*
+*Conventions audit refreshed on 2026-05-25*

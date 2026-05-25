@@ -1,6 +1,6 @@
 # Architecture
 
-**Analysis Date:** 2026-05-03
+**Analysis Date:** 2026-05-25
 
 ## System Shape
 
@@ -19,7 +19,7 @@ RiskHub is a containerized full-stack application:
 - `backend/app/core/config.py` is now the import-stable facade over the physically segmented `backend/app/core/settings/` package, preserving the flat env contract while moving field groups by concern
 
 ### API Layer
-- Router composition in `backend/app/api/v1/router.py`
+- Router composition is manually registered in `backend/app/api/v1/router.py`; `backend/app/api/v1/_router_registry.toml` is the registry/lock metadata source, not the production include loop
 - Endpoint modules/packages grouped by domain (risks, controls, approvals, vendors, admin, directory, etc.) (`backend/app/api/v1/endpoints/`)
 - Authentication and user resolution via dependency injection (`backend/app/api/deps.py`)
 - Route ordering is treated as a correctness constraint (static routes must not be shadowed by `{param}` routes) and is guarded by tests (`tests/backend/pytest/test_route_shadowing.py`, `tests/backend/pytest/api/v1/test_route_ordering_regressions.py`)
@@ -40,7 +40,8 @@ RiskHub is a containerized full-stack application:
   - orphan resolution planning (`backend/app/services/_orphaned_items/resolution_plan.py`)
   - admin operations telemetry projections (`backend/app/services/_admin_telemetry/`)
   - quarterly comparison period/snapshot/change helpers (`backend/app/services/_quarterly_comparison/`)
-- Unified report exports run through a shared fetch/replay/filter/render facade with split issue/risk/control/KRI builders (`backend/app/api/v1/endpoints/reports/unified_exports/`)
+  - authorization capability builders and catalog-aligned shapes (`backend/app/services/authorization_capabilities.py`, `backend/app/services/_authorization_capabilities/`, `docs/security/capability-catalog.json`)
+- Unified report export endpoints are HTTP adapters (`backend/app/api/v1/endpoints/reports/unified_exports/routes.py`); export assembly lives under service-owned fetch/replay/filter/render helpers (`backend/app/services/_reporting/exports/`)
 - Transactional outbox responsibilities are split across store/dispatcher/registry/domain-handler modules (`backend/app/services/outbox/`)
 - Async DB session boundary in `backend/app/db/session.py` (`get_db(request)` yields `AsyncSession`; no implicit commit)
 
@@ -61,8 +62,8 @@ RiskHub is a containerized full-stack application:
 - Detail-page primitives and shared form lookup hooks reduce duplicated route-page logic (`frontend/src/pages/detail/`, `frontend/src/components/risk-form/useRiskLookups.ts`)
 - Large route components have been decomposed into workflow hooks plus focused sections for users, remediation plans, admin console ops/audit panels, risk questionnaires, KRI modal, roles, orphan resolution, and link management (`frontend/src/pages/users/`, `frontend/src/components/issues/remediation/`, `frontend/src/pages/admin-console/sections/{ops,audit}/`, `frontend/src/components/risks/risk-questionnaire-detail/`, `frontend/src/components/linking/`)
 - Shared register pages use `frontend/src/pages/shared/collectionPageState.ts` for collection data state, stale-row clearing, request guards, group selection, and export dialog state.
-- Auth/session coordination: `AuthProvider` now projects a canonical in-memory session snapshot from `sessionStore`, while `useAuthBootstrap`, `useAuthActions`, and `sessionManager` perform the allowed state transitions (`frontend/src/contexts/AuthContext.tsx`, `frontend/src/contexts/auth/`, `frontend/src/services/sessionStore.ts`, `frontend/src/services/sessionManager.ts`)
-- Authorization UX: `useAuthz` route/read projections, `usePermissions` compatibility hooks, and backend-provided capability metadata (`frontend/src/authz/useAuthz.ts`, `frontend/src/hooks/usePermissions.ts`)
+- Auth/session coordination: `AuthProvider` composes focused providers while the canonical session package owns the in-memory snapshot, storage hints, bootstrap hydration, silent refresh, and logout transitions (`frontend/src/contexts/AuthContext.tsx`, `frontend/src/contexts/auth/`, `frontend/src/services/session/`)
+- Authorization UX: `useAuthz` route/read projections use backend `me_capabilities` when strict capabilities are enabled, with legacy permission fallback only when capability metadata is absent (`frontend/src/authz/useAuthz.ts`, `frontend/src/authz/policy.ts`, `frontend/src/services/capabilityFlags.ts`, `frontend/src/lib/capabilities.ts`)
 - Workflow UIs prefer backend-provided capability metadata when available; protected actions hide when metadata is missing.
 - Entra SSO support via MSAL (`frontend/src/services/entraAuth.ts`, `frontend/src/pages/SsoCallbackPage.tsx`)
 - Preference hydration readiness now stays inside the auth provider/hook graph; the earlier module-level readiness singleton is gone (`frontend/src/contexts/auth/usePreferenceHydration.ts`, `frontend/src/contexts/AuthContext.tsx`)
@@ -72,8 +73,8 @@ RiskHub is a containerized full-stack application:
 
 ### Authenticated API request
 1. User logs in via password (`POST /api/v1/auth/login`) or SSO exchange (`POST /api/v1/auth/sso/exchange`) (`backend/app/api/v1/endpoints/auth/password.py`, `backend/app/api/v1/endpoints/auth/sso.py`)
-2. Frontend applies authenticated/bootstrap session state through `sessionManager`, which updates the canonical `sessionStore`; `bootstrapSessionCache` remains the only compatibility adapter over that same snapshot (`frontend/src/services/sessionManager.ts`, `frontend/src/services/sessionStore.ts`, `frontend/src/services/bootstrapSessionCache.ts`)
-3. `apiClient` injects bearer token (`frontend/src/services/apiClient.ts`)
+2. Frontend applies authenticated/bootstrap session state through the session package coordinator/store (`frontend/src/services/session/coordinator.ts`, `frontend/src/services/session/store.ts`, `frontend/src/services/session/sessionStorage.ts`)
+3. `apiClient` injects bearer token from the session snapshot, includes credentials, validates responses through runtime schemas, and retries eligible `401` responses through the refresh policy (`frontend/src/services/apiClient.ts`, `frontend/src/services/api/apiRequestBuilder.ts`, `frontend/src/services/api/ApiClientCore.ts`, `frontend/src/services/api/sessionRefreshPolicy.ts`)
 4. Backend resolves user/permissions in dependency layer (`backend/app/api/deps.py`)
 5. Endpoint/service executes and may write audit events (`backend/app/core/activity_logger.py`)
 
@@ -109,4 +110,4 @@ RiskHub is a containerized full-stack application:
 
 ---
 
-*Architecture analysis refreshed on 2026-05-03*
+*Architecture analysis refreshed on 2026-05-25*

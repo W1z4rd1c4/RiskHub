@@ -1,6 +1,6 @@
 # External Integrations
 
-**Analysis Date:** 2026-05-10
+**Analysis Date:** 2026-05-25
 
 ## Core External Services
 
@@ -16,7 +16,7 @@
 ## Directory/Identity Integrations
 
 ### AD Emulator (development/test integration)
-- Outbound client: `ADEmulatorClient` (`backend/app/integrations/ad_emulator_client.py`)
+- Directory provider and reconciliation flows are service-layer integrations (`backend/app/services/directory_provider_service.py`, `backend/app/services/_directory_identity/`, `backend/app/services/_identity_access_lifecycle/`)
 - Inbound webhooks: `/api/v1/directory/webhook` (`backend/app/api/v1/endpoints/directory.py`)
 - Webhook signature verification via `WEBHOOK_SECRET` (required in production mode) (`backend/app/core/config.py`)
 - Directory search/import/deprovision flows now preserve RiskHub-local access fields after initial import; break-glass enablement remains an admin-only recovery path for eligible auto-deprovisioned external users (`backend/app/services/_directory_identity/`, `backend/app/services/_identity_access_lifecycle/`, `backend/app/services/ad_deprovision_service.py`, `frontend/src/pages/users/BreakGlassEnableDialog.tsx`)
@@ -32,14 +32,14 @@
 
 ### JWT Authentication
 - Backend issues HS256 JWTs (`backend/app/core/security.py`, `backend/app/api/v1/endpoints/auth/password.py`, `backend/app/api/v1/endpoints/auth/sso.py`)
-- Frontend session state is now canonicalized in `sessionStore`; `sessionManager` owns state transitions, `bootstrapSessionCache` is the remaining compatibility projection, and `apiClient` attaches `Authorization: Bearer` from that single snapshot (`frontend/src/services/sessionStore.ts`, `frontend/src/services/sessionManager.ts`, `frontend/src/services/bootstrapSessionCache.ts`, `frontend/src/services/apiClient.ts`)
+- `/api/v1/auth/config` exposes auth-mode features including `strict_capabilities`; frontend config hydration stores that switch in `frontend/src/services/capabilityFlags.ts` (`backend/app/api/v1/endpoints/auth/config.py`, `frontend/src/services/authConfig.ts`)
+- Frontend session state is canonicalized in `frontend/src/services/session/`; `apiClient` attaches `Authorization: Bearer` from that session snapshot and uses the API refresh policy for eligible `401` retries (`frontend/src/services/session/store.ts`, `frontend/src/services/session/coordinator.ts`, `frontend/src/services/apiClient.ts`, `frontend/src/services/api/sessionRefreshPolicy.ts`)
 
 ## Vendor Signal Integrations
 
 ### Public registry connector (optional)
-- Connector implementation: `PublicRegistryConnector` (`backend/app/integrations/vendor_signals/public_registry.py`)
-- Activated when `vendor_signals_public_registry_base_url` is configured (`backend/app/core/config.py`)
-- Scheduled refresh path exists in the scheduler facade and runtime helpers (`backend/app/core/scheduler.py`, `backend/app/core/scheduler_runtime.py`)
+- `backend/app/integrations/vendor_signals/` is currently reserved for future vendor signal connectors; no concrete public-registry connector module is tracked in the current codebase.
+- Scheduler/runtime integration should only be documented here when a concrete connector module and configuration surface are reintroduced.
 
 ## Deployment/Runtime Integration Points
 
@@ -65,6 +65,8 @@
 - Log files written under `backend/logs/`
 - Admin log/health endpoints exist under admin API (`backend/app/api/v1/endpoints/admin/`); reusable admin operations projections live under `backend/app/services/_admin_telemetry/`.
 - In-app documentation is served from `docs/admin*` and `docs/user*` through `/api/v1/admin/docs`; frontend readers intentionally hide maintainer metadata for user manuals while preserving admin runbook references (`backend/app/api/v1/endpoints/admin/docs.py`, `frontend/src/components/documentation/documentationPresentation.ts`)
+- Prometheus scraping is opt-in via `METRICS_ENABLED=true`, which exposes `/metrics` on the API runtime (`backend/app/main.py`, `backend/app/core/settings/metrics.py`, `docs/deployment/README.md`)
+- OpenTelemetry OTLP HTTP trace export is disabled by default and enabled by `OTEL_EXPORTER_OTLP_ENDPOINT` plus optional `OTEL_SERVICE_NAME` (`backend/app/core/otel.py`, `backend/app/core/settings/metrics.py`, `docs/deployment/reference.md`)
 
 ## Not Present in Repository
 
@@ -80,4 +82,4 @@
 
 ---
 
-*Integration audit refreshed on 2026-05-03*
+*Integration audit refreshed on 2026-05-25*

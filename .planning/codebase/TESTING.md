@@ -1,6 +1,6 @@
 # Testing
 
-**Analysis Date:** 2026-05-03
+**Analysis Date:** 2026-05-25
 
 ## Test Stack Overview
 
@@ -14,6 +14,8 @@
 - `backend/pytest.ini` sets discovery and coverage defaults
 - Markers include:
   - `postgres` for PostgreSQL-required behavior
+  - `benchmark` for environment-sensitive performance benchmarks
+  - `contract` for architecture, documentation, and repository invariant-lock tests
   - `slow` for longer-running suites
   - `redis_integration` for Docker-backed Redis fault-injection resilience checks
 
@@ -26,7 +28,7 @@
 - Session-scoped engine disposal prevents pytest interpreter-exit hangs caused by leaked `aiosqlite` worker threads (`tests/backend/pytest/conftest.py`)
 
 ### Scale snapshot
-- Backend test tree: 175 Python files
+- Backend test tree: 410 tracked files (374 Python)
 - API-focused backend tests live under `tests/backend/pytest/api/` and domain-specific root test modules under `tests/backend/pytest/`
 
 ## Frontend Unit/Integration Patterns
@@ -56,6 +58,7 @@
 - Lint workflow enforces frontend debt/dead-code/no-inline-style gates with machine-readable validators, backend Ruff hard gate, backend suppression budget, docs topology consistency, and production contract doc parity (`.github/workflows/lint.yml`)
 - Security workflow runs Bandit, pip-audit, npm audit, Trivy, Syft+Grype correlation, and gitleaks parse+scan (`.github/workflows/security.yml`)
 - Security workflow also runs nightly non-blocking Redis resilience integration checks (`redis_integration`) (`.github/workflows/security.yml`)
+- Authz/capability contract drift is checked by `python3 scripts/security/validate_authz_capability_contract.py` and the broader `make -f scripts/Makefile quality-repo-contracts` lane (`docs/security/authorization-capability-contract.md`, `docs/security/capability-catalog.json`)
 - Startup/install contract coverage includes the public `scripts/install.sh` first-run and lifecycle surface even though the implementation now routes through `scripts/install_cli.py` and `scripts/install_lib/`; covered commands include `verify`, `status`, `logs`, `doctor`, and `upgrade` (`tests/backend/pytest/test_install_script_contracts.py`, `tests/backend/pytest/test_startup_script_contracts.py`)
 
 ## Canonical Commands
@@ -92,7 +95,7 @@
 - Frontend questionnaire workflow state regression: `cd frontend && npm run test:run -- ../tests/frontend/unit/src/components/risks/questionnaireWorkflowState.test.ts ../tests/frontend/unit/src/components/risks/__tests__/riskQuestionnaireOpenFlow.test.tsx`
 - Frontend vendor governance/report regressions: `cd frontend && npm run test:run -- ../tests/frontend/unit/src/components/__tests__/VendorForm.test.tsx ../tests/frontend/unit/src/components/__tests__/VendorForm.payloads.test.ts ../tests/frontend/unit/src/pages/__tests__/VendorsPage.grouped-views.test.tsx ../tests/frontend/unit/src/pages/__tests__/VendorDetailPage.presentation.test.ts ../tests/frontend/unit/src/services/__tests__/vendorReportApi.test.ts`
 - Frontend control execution/detail regressions: `cd frontend && npm run test:run -- ../tests/frontend/unit/src/components/__tests__/ExecutionHistory.test.tsx ../tests/frontend/unit/src/pages/__tests__/ControlDetailPage.execution-status.test.tsx ../tests/frontend/unit/src/pages/__tests__/ControlsPage.presentation.test.ts`
-- Frontend capability/display guardrails: `cd frontend && npm run test:run -- ../tests/frontend/unit/src/lib/capabilities.test.ts ../tests/frontend/unit/src/quality/noRawIdDisplay.test.ts`
+- Frontend capability/display guardrails: `cd frontend && npm run test:run -- ../tests/frontend/unit/src/lib/capabilities.test.ts ../tests/frontend/unit/src/architecture/capabilityFlagAccess.test.ts ../tests/frontend/unit/src/authz/capabilityFlagUsage.test.ts ../tests/frontend/unit/src/quality/noRawIdDisplay.test.ts`
 - Frontend in-app documentation reader/manual regressions: `cd frontend && npm run test:run -- src/components/settings/__tests__/DocumentationSettings.test.tsx src/pages/__tests__/DocumentationPage.test.tsx src/components/documentation`
 - Frontend type checks: `cd frontend && npx tsc --noEmit`
 - Frontend quality gate chain: `cd frontend && npm run lint && npx tsc --noEmit && npm run quality:debt -- --report-json && node scripts/quality/validate-debt-budget-report.mjs && npm run cleanup:deadcode && node scripts/cleanup/validate-unreachable-report.mjs && node scripts/quality/validate-no-inline-styles.mjs`
@@ -103,6 +106,8 @@
 - Docs topology consistency: `make -f scripts/Makefile docs-topology-consistency`
 - In-app documentation contract: `python3 scripts/check_docs_contract.py`
 - Production contract doc parity: `python3 scripts/security/validate_production_contract_docs.py`
+- Authorization capability contract: `python3 scripts/security/validate_authz_capability_contract.py`
+- Repo artifact + script syntax contracts: `make -f scripts/Makefile quality-repo-contracts`
 - Release parity (fast loop): `python3 scripts/security/run_release_parity_audit.py --run-id <utc-ts> --skip-prod-readiness`
 - Release parity (full gate): `python3 scripts/security/run_release_parity_audit.py --run-id <utc-ts>`
 
@@ -125,6 +130,7 @@
 - Public first-run and lifecycle wrapper flows rely on the `scripts/install.sh` contract staying stable while the internal implementation lives in `scripts/install_cli.py` and `scripts/install_lib/` on top of `scripts/dev.sh`, `scripts/compose.sh`, and `scripts/deploy.sh`
 - Docker-origin Playwright runs still require `FRONTEND_URL=http://localhost`
 - Authorization changes should be validated in both backend API tests and frontend gating tests
+- Capability field-shape changes should update `docs/security/capability-catalog.json` and include backend/frontend schema parity coverage.
 - Approval-execution changes should include high-confidence regression tests around side effects, stale auto-rejection, and single-apply locking
 - KRI history/value changes should verify duplicate-period protection, deterministic latest selection, correction authorization, and approval stale handling
 - Questionnaire changes should verify canonical risk visibility, action capability metadata, one-open-questionnaire protection, and per-questionnaire reminder dedupe
@@ -137,4 +143,4 @@
 
 ---
 
-*Testing audit refreshed on 2026-05-03*
+*Testing audit refreshed on 2026-05-25*

@@ -1,6 +1,6 @@
 # Codebase Concerns
 
-**Analysis Date:** 2026-05-10
+**Analysis Date:** 2026-05-25
 
 ## High-Risk Hotspots (Require Extra Care)
 
@@ -14,10 +14,10 @@
 - Committee quarterly snapshot semantics: `backend/app/services/quarterly_comparison_service.py`, `backend/app/services/_quarterly_comparison/`, `backend/app/api/v1/endpoints/dashboard/quarterly.py`
 - Cross-entity link management: shared frontend dialog/workflow helpers and backend vendor-link workflow must preserve stale-response guards, restore behavior, active-vendor mutation checks, and visibility filtering (`frontend/src/components/linking/`, `backend/app/services/_vendor_links/`, `backend/app/api/v1/endpoints/vendor_links.py`)
 - Directory identity lifecycle: provider reconciliation must not overwrite RiskHub-local access fields after user creation; break-glass remains temporary and tightly capability-gated (`backend/app/services/_directory_identity/`, `backend/app/services/_identity_access_lifecycle/`, `backend/app/services/_access_workflow/`, `frontend/src/pages/users/BreakGlassEnableDialog.tsx`)
-- RBAC scope enforcement consistency between backend and frontend gating: `backend/app/core/permissions.py`, `backend/app/core/_permissions/`, `frontend/src/authz/useAuthz.ts`, and backend capability metadata consumed by frontend action surfaces
+- RBAC scope enforcement consistency between backend and frontend gating: `backend/app/core/permissions.py`, `backend/app/core/_permissions/`, `backend/app/services/_authorization_capabilities/`, `docs/security/authorization-capability-contract.md`, `docs/security/capability-catalog.json`, `frontend/src/authz/useAuthz.ts`, and backend capability metadata consumed by frontend action surfaces
 - Time policy (UTC-aware timestamps) and coercion boundaries: `backend/app/core/datetime_utils.py`
 - SSO token verification + exchange flow: `backend/app/services/sso_token_service.py`, `backend/app/api/v1/endpoints/auth/sso.py`, `frontend/src/services/entraAuth.ts`
-- Admin auth/session workflow and telemetry: `backend/app/services/_auth_session_workflow/`, `backend/app/services/_admin_telemetry/`, `backend/app/api/v1/endpoints/admin/console.py`, `frontend/src/pages/admin-console/sections/AdminConsoleOpsPanels.tsx`
+- Admin auth/session workflow and telemetry: `backend/app/services/_auth_session_workflow/`, `backend/app/services/_admin_telemetry/`, `backend/app/api/v1/endpoints/admin/`, `backend/app/api/v1/endpoints/admin/capabilities.py`, `frontend/src/pages/admin-console/sections/`
 - Role/permission seed consistency across seed scripts: `backend/app/db/seed.py`, `backend/scripts/seed_*.py`
 - Mock auth and demo-login boundaries: `backend/app/main.py`, `backend/app/api/v1/endpoints/auth/demo.py`
 
@@ -30,14 +30,15 @@
 ## Large, Dense Modules
 
 - Many “giant endpoints” have been split into packages with subrouters, but a few modules remain relatively dense and should be refactored carefully:
-  - Unified exports logic: `backend/app/api/v1/endpoints/reports/unified_exports/exports.py`
+  - Unified export route adapter and service export pipeline: `backend/app/api/v1/endpoints/reports/unified_exports/routes.py`, `backend/app/services/_reporting/exports/`
   - KRI history endpoints: `backend/app/api/v1/endpoints/kris/history.py`
   - Dashboard committee endpoints: `backend/app/api/v1/endpoints/dashboard/committee.py`
   - Approvals resolution endpoints: `backend/app/api/v1/endpoints/approvals/resolve.py`
 
 ## Authentication and Session Risks
 
-- Client auth/session state is centralized in the in-memory `sessionStore`; keep `frontend/src/services/bootstrapSessionCache.ts` as a compatibility layer only and prevent new duplicate auth-state adapters from reappearing
+- Client auth/session state is centralized in `frontend/src/services/session/`; prevent duplicate auth-state adapters or alternate token stores from reappearing
+- Strict-capabilities rollout is feature-flagged by `/api/v1/auth/config`; frontend fallback behavior should stay compatibility-only and capability field-shape changes must update `docs/security/capability-catalog.json`
 - Dev/demo auth paths are intentionally present and must remain production-disabled (`backend/app/main.py`, `backend/app/api/v1/endpoints/auth/demo.py`)
 - SSO token verification is monkeypatched in tests via `app.api.v1.endpoints.auth.verify_entra_id_token` and requires facade-style attribute lookup to keep patching working through refactors (`backend/app/api/v1/endpoints/auth/__init__.py`, `backend/app/api/v1/endpoints/auth/sso.py`)
 
@@ -66,6 +67,7 @@
 
 - Keep explicit regression tests on approval execution and timezone-sensitive writes
 - Validate RBAC/workflow changes with both API and UI-gating/capability tests
+- For authz-sensitive changes, run `python3 scripts/security/validate_authz_capability_contract.py` and keep `docs/security/authorization-capability-contract.md`, its JSON mirror, and `docs/security/capability-catalog.json` aligned with the changed policy or field shape.
 - Access-management and Risk Hub config changes need extra care: access-user responses carry backend capability flags, role permission replacement must validate all new permission IDs before deleting existing mappings, and department delete checks must include users, risks, controls, KRIs, vendors, and pending orphans.
 - Orphan governance resolution is a structural mutation: stale target rows must reject before owner/department/link changes, list/detail scope must use the final target entity department, and admin batch fixes must call the same resolver as `/orphaned-items/{id}/resolve`.
 - Issue register and vendor-link refactors should keep route files as adapters over internal workflow Modules and verify source display, linked-context redaction, grouped counts, and visibility filters before changes ship.
@@ -75,4 +77,4 @@
 
 ---
 
-*Concerns audit refreshed on 2026-05-10*
+*Concerns audit refreshed on 2026-05-25*
