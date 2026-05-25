@@ -61,3 +61,10 @@ def test_makefile_postgres_ci_uses_resolved_python_runner() -> None:
     assert "backend/venv/bin/python" in text
     assert "command -v python3" in text
     assert "$$BACKEND_PYTHON -m pytest" in text
+
+
+def test_makefile_repo_contract_gate_uses_resolved_python_runner() -> None:
+    text = MAKEFILE.read_text(encoding="utf-8")
+
+    assert "cd backend && $(BACKEND_PYTHON) -m pytest -q ../tests/backend/pytest/test_repo_hygiene_contracts.py" in text
+    assert "cd backend && ./venv/bin/pytest" not in text

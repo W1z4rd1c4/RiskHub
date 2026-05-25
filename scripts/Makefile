@@ -139,7 +139,7 @@ test-architecture-locks:
 
 # Run backend tests with coverage
 test-cov:
-	cd backend && pytest --cov=app --cov-report=html:../tests/results/backend/coverage_html -v
+	cd backend && $(BACKEND_PYTHON) -m pytest --cov=app --cov-report=html:../tests/results/backend/coverage_html -v
 
 # Run E2E tests
 test-e2e:
@@ -164,7 +164,7 @@ quality-repo-contracts:
 	bash -n scripts/install.sh scripts/compose.sh scripts/dev.sh scripts/deploy.sh
 	python3 -m py_compile backend/scripts/migrate_controls.py backend/scripts/migrate_kris.py backend/scripts/migrate_risks.py backend/scripts/seed_users.py backend/scripts/seed_demo.py
 	python3 scripts/security/validate_authz_capability_contract.py --base-ref "$(AUTHZ_CONTRACT_BASE_REF)"
-	cd backend && ./venv/bin/pytest -q ../tests/backend/pytest/test_repo_hygiene_contracts.py
+	cd backend && $(BACKEND_PYTHON) -m pytest -q ../tests/backend/pytest/test_repo_hygiene_contracts.py
 
 # Run full lint suite
 lint: lint-frontend lint-backend
@@ -240,10 +240,10 @@ security-contract-probe:
 	bash scripts/security/run_protocol_contract_probe.sh
 
 security-redis-resilience:
-	cd backend && ./venv/bin/pytest ../tests/backend/pytest/test_rate_limit_redis_resilience.py ../tests/backend/pytest/test_auth_lockout_redis_resilience.py -q
+	cd backend && $(BACKEND_PYTHON) -m pytest ../tests/backend/pytest/test_rate_limit_redis_resilience.py ../tests/backend/pytest/test_auth_lockout_redis_resilience.py -q
 
 security-gap-round5:
-	cd backend && ./venv/bin/pytest \
+	cd backend && $(BACKEND_PYTHON) -m pytest \
 		../tests/backend/pytest/test_rate_limit_redis_resilience.py \
 		../tests/backend/pytest/test_auth_lockout_redis_resilience.py \
 		../tests/backend/pytest/test_protocol_parser_security.py \
