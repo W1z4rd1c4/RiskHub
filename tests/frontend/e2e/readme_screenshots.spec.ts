@@ -7,6 +7,7 @@ import { waitForDataLoad } from './helpers/wait';
 
 const OUTPUT_DIR = path.resolve(__dirname, '../../../docs/assets/readme');
 const STANDARD_VIEWPORT = { width: 1600, height: 1000 };
+const HERO_VIEWPORT = { width: 1600, height: 1100 };
 const SOCIAL_VIEWPORT = { width: 1280, height: 640 };
 
 test.skip(
@@ -37,6 +38,20 @@ async function capturePage(page: Page, url: string, fileName: string) {
     await stabilizeForScreenshot(page);
     await page.screenshot({
         path: path.join(OUTPUT_DIR, fileName),
+        fullPage: false,
+    });
+}
+
+async function captureDashboardHero(page: Page) {
+    await page.goto('/', { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await stabilizeForScreenshot(page);
+    await expect(page.locator('.recharts-wrapper').first()).toBeVisible({ timeout: 30000 });
+    await page.locator('main').evaluate((main) => {
+        main.scrollTop = 120;
+    });
+    await page.waitForTimeout(750);
+    await page.screenshot({
+        path: path.join(OUTPUT_DIR, 'hero-dashboard.png'),
         fullPage: false,
     });
 }
@@ -75,7 +90,10 @@ test('capture business workflow screenshots', async ({ page }) => {
     await page.setViewportSize(STANDARD_VIEWPORT);
     await loginAsDemoUser(page, DEMO_ACCOUNTS.RISK_MANAGER, { retries: 4, timeout: 20000 });
 
-    await capturePage(page, '/', 'hero-dashboard.png');
+    await page.setViewportSize(HERO_VIEWPORT);
+    await captureDashboardHero(page);
+
+    await page.setViewportSize(STANDARD_VIEWPORT);
     await capturePage(page, '/risks', 'risk-register.png');
 
     await page.goto('/risks', { waitUntil: 'domcontentloaded', timeout: 30000 });
