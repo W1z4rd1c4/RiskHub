@@ -204,6 +204,8 @@
     "unknown_link": "Unknown link",
     "unlinked_vendor": "Unlinked Vendor",
     "unassigned": "Unassigned",
-    "no_description": "No description."
+    "no_description": "No description.",
+    "uncategorized": "Uncategorized",
+    "no_process": "No Process"
   }
 }

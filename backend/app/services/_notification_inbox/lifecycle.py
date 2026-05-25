@@ -15,6 +15,7 @@ from app.schemas.notification import (
     NotificationTypeEnum,
 )
 from app.services.notification_visibility import count_visible_unread_notifications, paginate_visible_notifications
+from app.services.transaction_boundary import commit_service_boundary
 
 
 @dataclass(frozen=True)
@@ -102,7 +103,7 @@ async def update_notification_preferences(
     new_prefs = {**existing, **updates}
 
     actor.notification_preferences = new_prefs
-    await db.commit()
+    await commit_service_boundary(db, boundary="notification_preferences.update")
 
     defaults = NotificationPreferences()
     return NotificationPreferenceOutcome(
@@ -123,7 +124,7 @@ async def mark_notification_read(
         raise HTTPException(status_code=404, detail="Notification not found")
 
     notification.is_read = True
-    await db.commit()
+    await commit_service_boundary(db, boundary="notification_inbox.mark_read")
     unread_count = await count_visible_unread_notifications(db, actor)
     return NotificationReadOutcome(notification_id=notification.id, unread_count=unread_count)
 
@@ -134,5 +135,5 @@ async def mark_all_notifications_read(db: AsyncSession, actor: User) -> Notifica
         .where(Notification.user_id == actor.id, Notification.is_read.is_(False))
         .values(is_read=True)
     )
-    await db.commit()
+    await commit_service_boundary(db, boundary="notification_inbox.mark_all_read")
     return NotificationReadOutcome(notification_id=None)

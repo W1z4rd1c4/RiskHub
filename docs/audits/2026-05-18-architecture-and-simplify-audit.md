@@ -659,7 +659,7 @@ Distilled from the 10 R1 reports. Each domain lists 🔴/🟡 highlights; ✅ ve
 
 ### 11.6 services-issues-kris-vendors (R1.6)
 
-🔴 KRI breach outbox bypass at `_kri_history/direct_application.py:207` (cross-confirmed). 🟡 `_vendor_links/kri_assignment.py` bridges KRI domain inside vendor package — rename to `kri_bridge.py`. 🟡 `_issue_workflow/serialization.py:8-10` imports underscored private from `_issue_register` (Theme 10). 🟡 3 `IssueLinkedContextDefinition` siblings dead (Theme 1). 🟡 `_vendor_links/workflow.py:286-453` with-commit + no-commit variants duplicate prep (defensible per R2.4 — kept for multi-mutation transactions). 🟡 `_kri_history/queries.py:91-214` `get_overdue_kris` vs `get_due_soon_kris` 80% identical.
+🔴 KRI breach outbox bypass at `_kri_history/direct_application.py:207` (cross-confirmed). 🟡 The KRI vendor-link bridge is now `_vendor_links/kri_bridge.py` after the 2026-05-24 remediation rename, with vendor-link rules still owned by `_vendor_links`. 🟡 `_issue_workflow/serialization.py:8-10` imports underscored private from `_issue_register` (Theme 10). 🟡 3 `IssueLinkedContextDefinition` siblings dead (Theme 1). 🟡 `_vendor_links/workflow.py:286-453` with-commit + no-commit variants duplicate prep (defensible per R2.4 — kept for multi-mutation transactions). 🟡 `_kri_history/queries.py:91-214` `get_overdue_kris` vs `get_due_soon_kris` 80% identical.
 
 ### 11.7 services-config-notification (R1.7)
 

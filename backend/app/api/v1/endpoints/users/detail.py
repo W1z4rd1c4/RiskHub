@@ -12,7 +12,7 @@ from app.models import User
 from app.schemas import UserRead, UserUpdate
 from app.services._identity_access_lifecycle import update_user_profile
 
-from ._lifecycle import require_admin_user_lifecycle
+from ._lifecycle import ensure_admin_user_lifecycle
 
 router = APIRouter()
 
@@ -37,7 +37,7 @@ async def get_user(
     Raises:
         HTTPException: If user doesn't have permission or user not found
     """
-    require_admin_user_lifecycle(current_user)
+    ensure_admin_user_lifecycle(current_user)
 
     result = await db.execute(select(User).options(*user_selectinload_options()).where(User.id == user_id))
     user = result.scalar_one_or_none()
@@ -71,7 +71,7 @@ async def update_user(
     Raises:
         HTTPException: If user doesn't have permission or user not found
     """
-    require_admin_user_lifecycle(current_user)
+    ensure_admin_user_lifecycle(current_user)
 
     return await update_user_profile(
         db=db,

@@ -61,13 +61,13 @@ ADR-007's taxonomy is extended with three secondary categories (read-shape, work
    - `_orphaned_items` ↔ `_identity_access_lifecycle`
    - `_notification_inbox` ↔ `_identity_access_lifecycle`
 
-3. **Adapter contexts** are exempt from the per-context `HTTPException` ban only at the adapter boundary. Translation from external-system exceptions to RiskHub `DomainError` subclasses is the adapter's job per ADR-003. Adapters: `_directory_identity`, `_directory_sync`, `_graph_directory` (after the package move planned under finding 61), `_admin_telemetry`, `_activity_log_query`, `_auth_session`.
+3. **Adapter contexts** are exempt from the per-context `HTTPException` ban only at the adapter boundary. Translation from external-system exceptions to RiskHub `DomainError` subclasses is the adapter's job per ADR-003. Adapters: `_directory_identity`, `_graph_directory` (after the package move planned under finding 61), `_admin_telemetry`, `_activity_log_query`, `_auth_session`.
 
 4. **Cross-cutting contexts** are policy modules reached by every other context. They own canonical primitives (capability builders, configuration defaults) and are subject to ADR-001 and ADR-008 SSOT discipline rather than the per-context atomicity sweeps. Cross-cutting contexts: `_authorization_capabilities`, `_config`.
 
 ### Classification Table
 
-The full classification covers the 32 underscore-prefixed packages plus the `_monitoring_response.py` file entry. Workflow-pair right-halves carry their PRIMARY classification where applicable; their workflow-pair membership is recorded separately in `_bounded_context_workflow_pairs.toml`.
+The full classification covers the 31 underscore-prefixed packages plus the `_monitoring_response.py` file entry. Workflow-pair right-halves carry their PRIMARY classification where applicable; their workflow-pair membership is recorded separately in `_bounded_context_workflow_pairs.toml`.
 
 | Package | Category | Rationale | Enforcement TOML |
 |---|---|---|---|
@@ -97,7 +97,6 @@ The full classification covers the 32 underscore-prefixed packages plus the `_mo
 | `_orphaned_items` | Workflow-paired (`_identity_access_lifecycle`) | Orphan detection during deactivation | `_bounded_context_workflow_pairs.toml` |
 | `_notification_inbox` | Workflow-paired (`_identity_access_lifecycle`) | Notification dispatch on identity events | `_bounded_context_workflow_pairs.toml` |
 | `_directory_identity` | Adapter | External directory identity | `_bounded_context_adapters.toml` |
-| `_directory_sync` | Adapter | Directory sync sweep | `_bounded_context_adapters.toml` |
 | `_graph_directory` | Adapter | Microsoft Graph adapter | `_bounded_context_adapters.toml` |
 | `_admin_telemetry` | Adapter | Admin telemetry projection | `_bounded_context_adapters.toml` |
 | `_activity_log_query` | Adapter | Activity-log query adapter | `_bounded_context_adapters.toml` |

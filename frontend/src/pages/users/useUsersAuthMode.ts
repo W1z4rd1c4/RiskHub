@@ -31,12 +31,8 @@ export function useUsersAuthMode() {
                 setAuthModeStatus('error');
                 setAuthModeError(
                     isAuthUnavailableError(error)
-                        ? t('users.auth_mode_service_unavailable', {
-                            defaultValue: 'Authentication mode is temporarily unavailable. User data remains visible, but create and directory actions are disabled until configuration is available again.',
-                        })
-                        : t('users.auth_mode_load_failed', {
-                            defaultValue: 'Unable to load authentication mode. User data remains visible, but create and directory actions are disabled until the page can load configuration.',
-                        }),
+                        ? t('users.auth_mode_service_unavailable')
+                        : t('users.auth_mode_load_failed'),
                 );
             }
         }

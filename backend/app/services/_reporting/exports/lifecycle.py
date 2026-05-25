@@ -18,19 +18,6 @@ class ReportExportDefinition(ExportPipelineDefinition):
     pass
 
 
-@dataclass(frozen=True)
-class ReportExportExecutionPlan:
-    definition: ReportExportDefinition
-    export_format: ExportFormat
-    as_of_date: date
-    rows: list[ExportRow]
-
-
-@dataclass(frozen=True)
-class ReportExportOutcome:
-    response: StreamingResponse
-
-
 async def render_report_export_definition(
     *,
     definition: ReportExportDefinition,

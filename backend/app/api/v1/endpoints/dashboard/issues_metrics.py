@@ -13,6 +13,7 @@ from app.schemas.dashboard import (
 )
 from app.services._dashboard_metrics.issues import (
     build_issue_aging_metrics,
+    build_issue_dashboard_metrics_bundle,
     build_issue_severity_metrics,
     build_issue_summary_metrics,
 )
@@ -45,3 +46,12 @@ async def get_issues_by_severity(
     department_id: Optional[int] = Query(None, description="Filter by department"),
 ) -> IssueSeverityBreakdownResponse:
     return await build_issue_severity_metrics(db=db, current_user=current_user, department_id=department_id)
+
+
+__all__ = [
+    "build_issue_dashboard_metrics_bundle",
+    "get_issue_aging",
+    "get_issue_summary",
+    "get_issues_by_severity",
+    "router",
+]

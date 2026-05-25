@@ -24,6 +24,36 @@ def _int_sort_value(row: dict[str, object], key: str) -> int:
     return value if isinstance(value, int) else 0
 
 
+def _reporting_owner_name(kri: KeyRiskIndicator) -> str | None:
+    if kri.reporting_owner:
+        return kri.reporting_owner.name
+    if kri.risk and hasattr(kri.risk, "owner") and kri.risk.owner:
+        return kri.risk.owner.name
+    return None
+
+
+def _build_kri_period_due_row(
+    kri: KeyRiskIndicator,
+    *,
+    period_end: clock.date,
+    due: clock.date,
+    metric_key: str,
+    metric_value: int,
+) -> dict[str, object]:
+    return {
+        "kri_id": kri.id,
+        "metric_name": kri.metric_name,
+        "frequency": kri.frequency,
+        "period_end": period_end.isoformat(),
+        "due_date": due.isoformat(),
+        metric_key: metric_value,
+        "reporting_owner_id": reporting_owner_id(kri),
+        "reporting_owner_name": _reporting_owner_name(kri),
+        "risk_id": kri.risk_id,
+        "department_id": kri.risk.department_id if kri.risk else None,
+    }
+
+
 async def get_history(
     db: AsyncSession,
     kri_id: int,
@@ -121,27 +151,14 @@ async def get_overdue_kris(
                 continue  # Already reported for this period
 
             days_overdue = (today - due).days
-            reporting_owner = reporting_owner_id(kri)
-
             overdue.append(
-                {
-                    "kri_id": kri.id,
-                    "metric_name": kri.metric_name,
-                    "frequency": kri.frequency,
-                    "period_end": period_end.isoformat(),
-                    "due_date": due.isoformat(),
-                    "days_overdue": days_overdue,
-                    "reporting_owner_id": reporting_owner,
-                    "reporting_owner_name": (
-                        kri.reporting_owner.name
-                        if kri.reporting_owner
-                        else (
-                            kri.risk.owner.name if kri.risk and hasattr(kri.risk, "owner") and kri.risk.owner else None
-                        )
-                    ),
-                    "risk_id": kri.risk_id,
-                    "department_id": kri.risk.department_id if kri.risk else None,
-                }
+                _build_kri_period_due_row(
+                    kri,
+                    period_end=period_end,
+                    due=due,
+                    metric_key="days_overdue",
+                    metric_value=days_overdue,
+                )
             )
 
     # Sort by days overdue descending
@@ -186,27 +203,14 @@ async def get_due_soon_kris(
         if today >= advance_date and today < period_end:
             days_until_due = (period_end - today).days
             due = due_date(period_end)
-            reporting_owner = reporting_owner_id(kri)
-
             due_soon.append(
-                {
-                    "kri_id": kri.id,
-                    "metric_name": kri.metric_name,
-                    "frequency": kri.frequency,
-                    "period_end": period_end.isoformat(),
-                    "due_date": due.isoformat(),
-                    "days_until_due": days_until_due,
-                    "reporting_owner_id": reporting_owner,
-                    "reporting_owner_name": (
-                        kri.reporting_owner.name
-                        if kri.reporting_owner
-                        else (
-                            kri.risk.owner.name if kri.risk and hasattr(kri.risk, "owner") and kri.risk.owner else None
-                        )
-                    ),
-                    "risk_id": kri.risk_id,
-                    "department_id": kri.risk.department_id if kri.risk else None,
-                }
+                _build_kri_period_due_row(
+                    kri,
+                    period_end=period_end,
+                    due=due,
+                    metric_key="days_until_due",
+                    metric_value=days_until_due,
+                )
             )
 
     # Sort by days until due ascending (most urgent first)

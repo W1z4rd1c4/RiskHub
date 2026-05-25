@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ExportDialog } from '@/components/reports/ExportDialog';
 import { ViewSwitcher } from '@/components/tables';
 import { useTranslation } from '@/i18n/hooks';
+import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { KRI_MONITORING_FILTER_VALUES } from '@/lib/monitoringStatus';
 
 import { KRIsTableSection } from '@/pages/kris/KRIsTableSection';
@@ -63,7 +64,7 @@ export function KRIsPage() {
                     <p className="text-slate-500 font-medium tracking-tight">{t('page_subtitle')}</p>
                 </div>
                 <div className="flex items-center gap-2">
-                    {capabilities?.can_export === true && (
+                    {resolveCapabilityFlag(capabilities, 'can_export') && (
                         <button
                             onClick={openExportDialog}
                             data-testid="kris-export-button"
@@ -83,7 +84,7 @@ export function KRIsPage() {
                     >
                         <RefreshCw className={`h-5 w-5 ${isLoading ? 'animate-spin text-accent' : ''}`} aria-hidden="true" />
                     </button>
-                    {capabilities?.can_create === true && (
+                    {resolveCapabilityFlag(capabilities, 'can_create') && (
                         <button onClick={() => navigate('/kris/new')} data-testid="kris-create-button" className="btn-primary">
                             <Plus className="h-5 w-5" /> {t('new_kri')}
                         </button>
@@ -94,7 +95,7 @@ export function KRIsPage() {
             <ViewSwitcher
                 value={viewMode}
                 onChange={updateViewMode}
-                exclude={['flag', ...(capabilities?.can_view_vendor_contexts === true ? [] : ['vendor' as const])]}
+                exclude={['flag', ...(resolveCapabilityFlag(capabilities, 'can_view_vendor_contexts') ? [] : ['vendor' as const])]}
             />
 
             <div className="glass-card flex flex-col md:flex-row gap-4">

@@ -72,13 +72,13 @@ async def test_whitelisted_change_helper_rejects_stale_change_before_mutating() 
 
 
 async def _run_stale_history_correction_case(monkeypatch: pytest.MonkeyPatch):
+    from app.services._approval_execution import kri_history_correction
     from app.services._approval_execution.kri_history_correction import _apply_kri_history_correction
-    from app.services.kri_history_service import KRIHistoryService
 
     async def reject_stale_correction(**kwargs):
         raise ValueError("stale correction")
 
-    monkeypatch.setattr(KRIHistoryService, "apply_history_correction", reject_stale_correction)
+    monkeypatch.setattr(kri_history_correction, "apply_approved_kri_history_correction", reject_stale_correction)
     approval = SimpleNamespace(id=301, status=None, resolution_notes="Reviewer note")
     kri = SimpleNamespace(
         id=401,
@@ -99,20 +99,19 @@ async def _run_stale_history_correction_case(monkeypatch: pytest.MonkeyPatch):
             "period_end": entry.period_end.isoformat(),
         },
         current_user=SimpleNamespace(id=601),
-        department_id=None,
     )
 
     return approval, result
 
 
 async def _run_stale_value_submission_case(monkeypatch: pytest.MonkeyPatch):
+    from app.services._approval_execution import kri_value_submission
     from app.services._approval_execution.kri_value_submission import _apply_kri_value_submission
-    from app.services.kri_history_service import KRIHistoryService
 
     async def reject_stale_submission(**kwargs):
         raise ValueError("stale submission")
 
-    monkeypatch.setattr(KRIHistoryService, "record_value", reject_stale_submission)
+    monkeypatch.setattr(kri_value_submission, "apply_approved_kri_value_submission", reject_stale_submission)
     approval = SimpleNamespace(id=302, status=None, resolution_notes="Reviewer note")
     kri = SimpleNamespace(
         id=402,
@@ -132,7 +131,6 @@ async def _run_stale_value_submission_case(monkeypatch: pytest.MonkeyPatch):
         },
         current_user=SimpleNamespace(id=602),
         approval_id=approval.id,
-        department_id=None,
     )
 
     return approval, result

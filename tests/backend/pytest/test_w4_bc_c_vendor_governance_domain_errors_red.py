@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models import Vendor
 from app.services._vendor_governance.links import require_vendor_access
 from app.services._vendor_governance.policy import assert_vendor_readable
-from app.services._vendor_links.kri_assignment import ensure_vendors_exist, validate_assignable_vendors
+from app.services._vendor_links.kri_bridge import ensure_vendors_exist, validate_assignable_vendors
 
 
 @pytest.mark.asyncio

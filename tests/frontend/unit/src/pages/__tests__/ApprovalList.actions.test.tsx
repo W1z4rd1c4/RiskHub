@@ -78,7 +78,6 @@ describe('ApprovalList action gating', () => {
                 })]}
                 loading={false}
                 expandedRows={new Set()}
-                currentUserId={5}
                 onToggleRow={onToggleRow}
                 onApprove={onApprove}
                 onReject={onReject}
@@ -117,7 +116,6 @@ describe('ApprovalList action gating', () => {
                 })]}
                 loading={false}
                 expandedRows={new Set()}
-                currentUserId={5}
                 onToggleRow={onToggleRow}
                 onApprove={onApprove}
                 onReject={onReject}
@@ -158,7 +156,6 @@ describe('ApprovalList action gating', () => {
                 })]}
                 loading={false}
                 expandedRows={new Set()}
-                currentUserId={5}
                 onToggleRow={onToggleRow}
                 onApprove={onApprove}
                 onReject={onReject}
@@ -199,7 +196,6 @@ describe('ApprovalList action gating', () => {
                 })]}
                 loading={false}
                 expandedRows={new Set([1])}
-                currentUserId={5}
                 onToggleRow={onToggleRow}
                 onApprove={onApprove}
                 onReject={onReject}

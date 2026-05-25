@@ -8,39 +8,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.datetime_utils import coerce_utc
 from app.models.notification import Notification, NotificationType
 
-from .contracts import DeadlineNotificationPlan, VisibilityCheck
-
-
-def build_deadline_notification_plan(
-    *,
-    user_id: int,
-    notification_type: NotificationType,
-    title: str,
-    message: str,
-    resource_type: str,
-    resource_id: int,
-    now: datetime,
-    lookback_days: int | None = None,
-    not_before: datetime | None = None,
-    message_contains: str | None = None,
-    visibility_check: VisibilityCheck | None = None,
-    result_bucket: str | None = None,
-) -> DeadlineNotificationPlan:
-    return DeadlineNotificationPlan(
-        user_id=user_id,
-        notification_type=notification_type,
-        title=title,
-        message=message,
-        resource_type=resource_type,
-        resource_id=resource_id,
-        now=now,
-        lookback_days=lookback_days,
-        not_before=not_before,
-        message_contains=message_contains,
-        visibility_check=visibility_check,
-        result_bucket=result_bucket,
-    )
-
 
 async def has_recent_deadline_notification(
     db: AsyncSession,

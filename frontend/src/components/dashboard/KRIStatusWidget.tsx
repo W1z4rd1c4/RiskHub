@@ -40,7 +40,7 @@ export function KRIStatusWidget() {
             } catch (err) {
                 logError('Failed to fetch KRI status:', err);
                 if (!cancelled) {
-                    setError(err instanceof Error ? err : new Error(t('kri.status_load_failed', 'Unable to load KRI status')));
+                    setError(err instanceof Error ? err : new Error(t('kri.status_load_failed')));
                     setOverdueKRIs([]);
                     setDueSoonKRIs([]);
                 }
@@ -89,7 +89,7 @@ export function KRIStatusWidget() {
             <div className="w-12 h-12 bg-amber-500/10 rounded-full flex items-center justify-center mb-4">
                 <AlertTriangle className="h-6 w-6 text-amber-400" />
             </div>
-            <h4 className="text-white font-bold mb-1">{t('kri.status_load_failed', 'Unable to load KRI status')}</h4>
+            <h4 className="text-white font-bold mb-1">{t('kri.status_load_failed')}</h4>
             <p className="text-xs text-slate-500">{error?.message}</p>
         </div>
     );

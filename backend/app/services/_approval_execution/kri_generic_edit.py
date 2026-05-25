@@ -10,7 +10,7 @@ from app.core.exceptions import ValidationError
 from app.core.owner_reference_validation import validate_active_owner_reference
 from app.models import ApprovalRequest, KeyRiskIndicator, User
 from app.services._kri_history.approval_execution import record_approved_kri_current_value_edit
-from app.services._vendor_links.kri_assignment import apply_kri_vendor_assignment_change, normalize_vendor_ids
+from app.services._vendor_links.kri_bridge import apply_kri_vendor_assignment_change, normalize_vendor_ids
 
 from .constants import EDITABLE_FIELDS
 from .results import SideEffectResult
@@ -26,7 +26,6 @@ async def _apply_kri_generic_edit(
     changes: dict,
     current_user: User,
     approval_id: int,
-    department_id: int | None,
 ) -> SideEffectResult:
     """Apply generic field edits to a KRI, with optional value recording."""
     value_change = changes.get("current_value")

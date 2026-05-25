@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 
-import { issueHistoryQueryKey } from '@/lib/issueQueryKeys';
+import { issueHistoryQueryKey } from '@/lib/queryKeys/issues';
 import { activityLogApi } from '@/services/activityLogApi';
 import { useSessionSnapshot } from '@/services/session';
 import type { Issue } from '@/types/issue';

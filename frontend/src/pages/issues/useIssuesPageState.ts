@@ -1,12 +1,9 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback } from 'react';
 
-import { DEFAULT_LIST_PAGE_SIZE } from '@/constants/list';
-import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import type { SortDirection, ViewMode } from '@/components/tables';
 import { apiClient } from '@/services/apiClient';
 import { issuesApi } from '@/services/issuesApi';
 import { reportApi } from '@/services/reportApi';
-import type { ExportDialogSubmitPayload } from '@/components/reports/ExportDialog';
-import type { SortDirection, ViewMode } from '@/components/tables';
 import type {
     IssueListFilters,
     IssueSeverityFilter,
@@ -21,76 +18,107 @@ import {
     type IssuesPageInitialState,
 } from './issuesPagePresentation';
 import {
-    getTotalPages,
-} from '../shared/collectionPageState';
-import {
-    type CollectionWorkflowLoadRequest,
-    useCollectionPageWorkflow,
-} from '../shared/collectionPageWorkflow';
-import { resetCollectionGroupAndPage } from '../shared/collectionViewVocabulary';
-import { applyRegisterViewModeChange } from '../shared/useRegisterPageWorkflow';
+    type RegisterFilterPatchResolver,
+    type RegisterPageExportRequest,
+    type RegisterPageLoadRequest,
+    useRegisterPageController,
+} from '../shared/useRegisterPageController';
 
 interface UseIssuesPageStateOptions {
     initialState: IssuesPageInitialState;
 }
 
-export function useIssuesPageState({ initialState }: UseIssuesPageStateOptions) {
-    const [search, setSearch] = useState('');
-    const [statusFilter, setStatusFilter] = useState<IssueStatus | ''>(initialState.statusFilter);
-    const [severityFilter, setSeverityFilter] = useState<IssueSeverityFilter | ''>(
-        initialState.severityFilter
-    );
-    const [overdueOnly, setOverdueOnly] = useState(initialState.overdueOnly);
-    const [excludeActiveExceptions, setExcludeActiveExceptions] = useState(
-        initialState.excludeActiveExceptions
-    );
-    const [includeClosed, setIncludeClosed] = useState(initialState.includeClosed);
-    const [currentPage, setCurrentPage] = useState(1);
-    const [viewMode, setViewMode] = useState<ViewMode>('all');
-    const [sortField, setSortField] = useState<IssueListFilters['sort_by'] | null>(
-        initialState.sortField
-    );
-    const [sortDirection, setSortDirection] = useState<SortDirection>(initialState.sortDirection);
-    const limit = DEFAULT_LIST_PAGE_SIZE;
-    const debouncedSearch = useDebouncedValue(search, 300);
-    const groupBy = getIssueGroupBy(viewMode);
+type IssueRegisterFilters = {
+    excludeActiveExceptions: boolean;
+    includeClosed: boolean;
+    overdueOnly: boolean;
+    severityFilter: IssueSeverityFilter | '';
+    sortDirection: SortDirection;
+    sortField: IssueListFilters['sort_by'] | null;
+    statusFilter: IssueStatus | '';
+};
 
+const resolveIssueFilterPatch: RegisterFilterPatchResolver<IssueRegisterFilters> = ({
+    currentFilters,
+    key,
+    value,
+}) => {
+    if (key === 'statusFilter' && value === 'closed') {
+        return { includeClosed: true };
+    }
+    if (key === 'includeClosed' && value === false && currentFilters.statusFilter === 'closed') {
+        return { statusFilter: '' };
+    }
+    return {};
+};
+
+export function useIssuesPageState({ initialState }: UseIssuesPageStateOptions) {
     const loadIssuePage = useCallback(
-        ({ currentPage, groupBy, groupValue }: CollectionWorkflowLoadRequest) => issuesApi.list(
+        ({
+            currentPage,
+            debouncedSearch,
+            filters,
+            groupBy,
+            groupValue,
+            limit,
+        }: RegisterPageLoadRequest<IssueRegisterFilters, ViewMode>) => issuesApi.list(
             buildIssueListFilters({
                 currentPage,
                 debouncedSearch,
-                excludeActiveExceptions,
-                includeClosed,
+                excludeActiveExceptions: filters.excludeActiveExceptions,
+                includeClosed: filters.includeClosed,
                 limit,
-                overdueOnly,
-                severityFilter,
-                sortDirection,
-                sortField,
-                statusFilter,
+                overdueOnly: filters.overdueOnly,
+                severityFilter: filters.severityFilter,
+                sortDirection: filters.sortDirection,
+                sortField: filters.sortField,
+                statusFilter: filters.statusFilter,
                 groupBy,
                 groupValue,
             })
         ),
-        [
-            debouncedSearch,
-            excludeActiveExceptions,
-            includeClosed,
-            limit,
-            overdueOnly,
-            severityFilter,
-            sortDirection,
-            sortField,
-            statusFilter,
-        ]
+        []
     );
     const toUiErrorKey = useCallback((error: unknown) => apiClient.toUiMessageKey(error), []);
 
-    const collectionWorkflow = useCollectionPageWorkflow<IssueSummary>({
+    const submitExport = useCallback(
+        async ({
+            format,
+            asOfDate,
+            filters,
+        }: RegisterPageExportRequest<IssueRegisterFilters, ViewMode>) => {
+            await reportApi.exportIssues({
+                format,
+                asOfDate,
+                filters: buildIssueExportFilters({
+                    statusFilter: filters.statusFilter,
+                    severityFilter: filters.severityFilter,
+                    overdueOnly: filters.overdueOnly,
+                    excludeActiveExceptions: filters.excludeActiveExceptions,
+                }),
+            });
+        },
+        []
+    );
+
+    const registerController = useRegisterPageController<IssueSummary, IssueRegisterFilters, ViewMode>({
         clearOnNonForbidden: true,
-        currentPage,
-        groupBy,
+        fallbackErrorKey: 'errors.load_failed',
+        getGroupBy: getIssueGroupBy,
+        initialFilters: {
+            excludeActiveExceptions: initialState.excludeActiveExceptions,
+            includeClosed: initialState.includeClosed,
+            overdueOnly: initialState.overdueOnly,
+            severityFilter: initialState.severityFilter,
+            sortDirection: initialState.sortDirection,
+            sortField: initialState.sortField,
+            statusFilter: initialState.statusFilter,
+        },
+        initialViewMode: 'all',
         loadPage: loadIssuePage,
+        resolveFilterPatch: resolveIssueFilterPatch,
+        submitExport,
+        toExportErrorKey: toUiErrorKey,
         toErrorKey: toUiErrorKey,
     });
     const {
@@ -99,154 +127,79 @@ export function useIssuesPageState({ initialState }: UseIssuesPageStateOptions) 
         isExportDialogOpen,
         isExporting,
         openExportDialog,
-        resetGroupSelection,
-        selectGroup: setSelectedGroup,
+        clearSelectedGroup,
         selectedGroupLabel,
         selectedGroupValue,
-        setErrorKey,
-        setIsExporting,
-    } = collectionWorkflow;
-
-    const resetGroupAndPage = useCallback(() => {
-        resetCollectionGroupAndPage(resetGroupSelection, setCurrentPage);
-    }, [resetGroupSelection]);
-
-    useEffect(() => {
-        void fetchIssues();
-    }, [fetchIssues]);
-
-    const handleExport = useCallback(
-        async ({ format, asOfDate }: ExportDialogSubmitPayload) => {
-            setIsExporting(true);
-            try {
-                await reportApi.exportIssues({
-                    format,
-                    asOfDate,
-                    filters: buildIssueExportFilters({
-                        statusFilter,
-                        severityFilter,
-                        overdueOnly,
-                        excludeActiveExceptions,
-                    }),
-                });
-                closeExportDialog();
-            } catch (exportError) {
-                setErrorKey(apiClient.toUiMessageKey(exportError));
-            } finally {
-                setIsExporting(false);
-            }
-        },
-        [
-            closeExportDialog,
-            excludeActiveExceptions,
-            overdueOnly,
-            setErrorKey,
-            setIsExporting,
-            severityFilter,
-            statusFilter,
-        ]
-    );
-
-    const updateSearch = useCallback((value: string) => {
-        setSearch(value);
-        resetGroupAndPage();
-    }, [resetGroupAndPage]);
+        selectGroup,
+        updateFilter,
+        updateFilters,
+    } = registerController;
 
     const updateStatusFilter = useCallback((value: IssueStatus | '') => {
-        setStatusFilter(value);
-        if (value === 'closed') {
-            setIncludeClosed(true);
-        }
-        resetGroupAndPage();
-    }, [resetGroupAndPage]);
+        updateFilter('statusFilter', value);
+    }, [updateFilter]);
 
     const updateSeverityFilter = useCallback((value: IssueSeverityFilter | '') => {
-        setSeverityFilter(value);
-        resetGroupAndPage();
-    }, [resetGroupAndPage]);
+        updateFilter('severityFilter', value);
+    }, [updateFilter]);
 
     const updateOverdueOnly = useCallback((value: boolean) => {
-        setOverdueOnly(value);
-        resetGroupAndPage();
-    }, [resetGroupAndPage]);
+        updateFilter('overdueOnly', value);
+    }, [updateFilter]);
 
     const updateExcludeActiveExceptions = useCallback((value: boolean) => {
-        setExcludeActiveExceptions(value);
-        resetGroupAndPage();
-    }, [resetGroupAndPage]);
+        updateFilter('excludeActiveExceptions', value);
+    }, [updateFilter]);
 
-    const updateIncludeClosed = useCallback(
-        (value: boolean) => {
-            setIncludeClosed(value);
-            if (!value && statusFilter === 'closed') {
-                setStatusFilter('');
-            }
-            resetGroupAndPage();
-        },
-        [resetGroupAndPage, statusFilter]
-    );
+    const updateIncludeClosed = useCallback((value: boolean) => {
+        updateFilter('includeClosed', value);
+    }, [updateFilter]);
 
     const updateSort = useCallback(
-        (nextSortField: IssueListFilters['sort_by'] | null, nextSortDirection: SortDirection) => {
-            setSortField(nextSortField);
-            setSortDirection(nextSortDirection);
-            resetGroupAndPage();
+        (sortField: IssueListFilters['sort_by'] | null, sortDirection: SortDirection) => {
+            updateFilters({ sortDirection, sortField });
         },
-        [resetGroupAndPage]
+        [updateFilters]
     );
 
-    const updateViewMode = useCallback((value: ViewMode) => {
-        applyRegisterViewModeChange(value, setViewMode, resetGroupAndPage);
-    }, [resetGroupAndPage]);
-
-    const selectGroup = useCallback((groupValue: string, groupLabel: string) => {
-        setSelectedGroup(groupValue, groupLabel);
-        setCurrentPage(1);
-    }, [setSelectedGroup]);
-
-    const clearSelectedGroup = useCallback(() => {
-        resetGroupSelection();
-        setCurrentPage(1);
-    }, [resetGroupSelection]);
-
     return {
-        currentPage,
-        capabilities: collectionWorkflow.capabilities,
-        errorKey: collectionWorkflow.errorKey,
-        excludeActiveExceptions,
+        currentPage: registerController.currentPage,
+        capabilities: registerController.capabilities,
+        errorKey: registerController.errorKey,
+        excludeActiveExceptions: registerController.filters.excludeActiveExceptions,
         fetchIssues,
-        groups: collectionWorkflow.groups,
-        handleExport,
-        hasLoadedOnce: collectionWorkflow.hasLoadedOnce,
-        includeClosed,
+        groups: registerController.groups,
+        handleExport: registerController.handleExport,
+        hasLoadedOnce: registerController.hasLoadedOnce,
+        includeClosed: registerController.filters.includeClosed,
         isExportDialogOpen,
         isExporting,
-        isAccessDenied: collectionWorkflow.isAccessDenied,
-        isLoading: collectionWorkflow.isLoading,
-        items: collectionWorkflow.items,
-        limit,
+        isAccessDenied: registerController.isAccessDenied,
+        isLoading: registerController.isLoading,
+        items: registerController.items,
+        limit: registerController.limit,
         openExportDialog,
         closeExportDialog,
-        overdueOnly,
-        search,
+        overdueOnly: registerController.filters.overdueOnly,
+        search: registerController.search,
         selectedGroupLabel,
         selectedGroupValue,
-        setCurrentPage,
-        severityFilter,
-        sortDirection,
-        sortField,
-        statusFilter,
-        totalCount: collectionWorkflow.totalCount,
-        totalPages: getTotalPages(collectionWorkflow.totalCount, limit),
+        setCurrentPage: registerController.setCurrentPage,
+        severityFilter: registerController.filters.severityFilter,
+        sortDirection: registerController.filters.sortDirection,
+        sortField: registerController.filters.sortField,
+        statusFilter: registerController.filters.statusFilter,
+        totalCount: registerController.totalCount,
+        totalPages: registerController.totalPages,
         updateExcludeActiveExceptions,
         updateIncludeClosed,
         updateOverdueOnly,
-        updateSearch,
+        updateSearch: registerController.updateSearch,
         updateSeverityFilter,
         updateSort,
         updateStatusFilter,
-        updateViewMode,
-        viewMode,
+        updateViewMode: registerController.updateViewMode,
+        viewMode: registerController.viewMode,
         selectGroup,
         clearSelectedGroup,
     };

@@ -49,7 +49,7 @@ export function useUserLifecycleActions({
             logError('Failed to update user status.', error);
             setDirectoryMessage(
                 apiClient.getRawErrorMessage(error)
-                ?? t('users.user_status_update_failed', { defaultValue: 'Failed to update user status.' })
+                ?? t('users.user_status_update_failed', { ns: 'admin' })
             );
         } finally {
             setIsToggling(false);
@@ -82,7 +82,7 @@ export function useUserLifecycleActions({
             });
             setDirectoryMessage(
                 t('users.break_glass_success', {
-                    defaultValue: `${breakGlassUser.name} enabled through break-glass access.`,
+                    ns: 'admin',
                     name: breakGlassUser.name,
                 })
             );
@@ -94,7 +94,7 @@ export function useUserLifecycleActions({
             logError('Break-glass enable failed.', error);
             setDirectoryMessage(
                 apiClient.getRawErrorMessage(error)
-                ?? t('users.break_glass_failed', { defaultValue: 'Break-glass enable failed.' })
+                ?? t('users.break_glass_failed', { ns: 'admin' })
             );
         } finally {
             setIsBreakGlassSubmitting(false);

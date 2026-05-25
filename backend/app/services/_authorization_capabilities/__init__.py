@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from app.services._authorization_capabilities.approvals import approval_capabilities
 from app.services._authorization_capabilities.controls import control_capabilities
-from app.services._authorization_capabilities.issues import issue_capabilities
+from app.services._authorization_capabilities.issues import issue_capabilities, preload_issue_capabilities
 from app.services._authorization_capabilities.kris import kri_capabilities
 from app.services._authorization_capabilities.me import build_me_capabilities
 from app.services._authorization_capabilities.perimeter import Capabilities, has_capability, require_capability
@@ -31,6 +31,7 @@ __all__ = [
     "has_capability",
     "issue_capabilities",
     "kri_capabilities",
+    "preload_issue_capabilities",
     "risk_capabilities",
     "risk_type_capabilities",
     "require_capability",

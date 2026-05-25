@@ -3,7 +3,6 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
 
 from app.models.notification import NotificationType
 
@@ -27,15 +26,3 @@ class DeadlineNotificationPlan:
 
 
 DeadlineNotificationExecutionPlan = DeadlineNotificationPlan
-
-
-@dataclass(frozen=True)
-class DeadlineRunPlan:
-    items: list[Any]
-    total_key: str | None = None
-    item_label: str = "deadline item"
-
-
-@dataclass(frozen=True)
-class DeadlineRunOutcome:
-    results: dict[str, int]

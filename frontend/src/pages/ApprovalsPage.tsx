@@ -1,7 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from '@/i18n/hooks';
 import { X } from 'lucide-react';
-import { useSessionSnapshot } from '@/services/session';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { ApprovalList } from './approvals/ApprovalList';
 import { ApprovalResolutionDialog } from './approvals/ApprovalResolutionDialog';
@@ -10,7 +9,6 @@ import { QuestionnaireInboxList } from './approvals/QuestionnaireInboxList';
 import { useApprovalsPageState } from './approvals/useApprovalsPageState';
 
 export default function ApprovalsPage() {
-    const { user } = useSessionSnapshot();
     const { t, i18n } = useTranslation('approvals');
     const navigate = useNavigate();
     const {
@@ -74,7 +72,6 @@ export default function ApprovalsPage() {
                     approvals={approvals}
                     loading={loading}
                     expandedRows={expandedRows}
-                    currentUserId={user?.id}
                     locale={i18n.language}
                     onToggleRow={toggleRow}
                     onApprove={openApproveDialog}

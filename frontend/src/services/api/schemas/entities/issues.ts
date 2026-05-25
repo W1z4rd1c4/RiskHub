@@ -44,9 +44,9 @@ const issueCapabilitiesSchema = passthroughObject({
     has_pending_exception_request: z.boolean(),
 });
 export const issueListCapabilitiesSchema = passthroughObject({
-    can_export: z.boolean(),
-    can_create: z.boolean(),
-    can_view_vendor_contexts: z.boolean(),
+    can_export: z.boolean().optional(),
+    can_create: z.boolean().optional(),
+    can_view_vendor_contexts: z.boolean().optional(),
 });
 
 export const issueLinkSchema: z.ZodType<IssueLink> = passthroughObject({

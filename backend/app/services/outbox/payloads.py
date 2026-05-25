@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import TypeAlias
+from datetime import date
+from typing import Literal, TypeAlias
 
 from pydantic import BaseModel, ConfigDict, ValidationError
 
@@ -61,6 +62,15 @@ class QuestionnaireClarificationRequestedPayload(ActorPayloadModel):
     questionnaire_id: int
 
 
+class KriBreachDetectedPayload(OutboxPayloadModel):
+    kri_id: int
+    recipient_user_id: int
+    period_end: date
+    breach_transition: Literal["lower", "upper"]
+    title: str
+    message: str
+
+
 OutboxPayload: TypeAlias = (
     ApprovalRequestCreatedPayload
     | ApprovalRequestResolvedPayload
@@ -71,6 +81,7 @@ OutboxPayload: TypeAlias = (
     | QuestionnaireSentPayload
     | QuestionnaireSubmittedPayload
     | QuestionnaireClarificationRequestedPayload
+    | KriBreachDetectedPayload
 )
 
 
@@ -84,6 +95,7 @@ OUTBOX_PAYLOAD_MODELS: dict[str, type[OutboxPayloadModel]] = {
     "questionnaire.sent": QuestionnaireSentPayload,
     "questionnaire.submitted": QuestionnaireSubmittedPayload,
     "questionnaire.clarification_requested": QuestionnaireClarificationRequestedPayload,
+    "kri.breach_detected": KriBreachDetectedPayload,
 }
 
 
@@ -115,6 +127,7 @@ __all__ = [
     "QuestionnaireSentPayload",
     "QuestionnaireSubmittedPayload",
     "QuestionnaireClarificationRequestedPayload",
+    "KriBreachDetectedPayload",
     "OUTBOX_PAYLOAD_MODELS",
     "ValidationError",
     "get_outbox_payload_model",

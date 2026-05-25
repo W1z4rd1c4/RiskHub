@@ -39,7 +39,7 @@ export function DepartmentTable({ canUseDepartmentFilter, metrics }: DepartmentT
     const sortedMetrics = sortDepartmentMetrics(metrics, sortKey, sortDirection);
 
     return (
-        <WidgetShell title={t('department_table.title', 'Department metrics')}>
+        <WidgetShell title={t('department_table.title')}>
             <div className="w-full overflow-hidden">
                 <table className="w-full text-left">
                     <thead>

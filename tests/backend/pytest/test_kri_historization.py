@@ -4,7 +4,7 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import KeyRiskIndicator, Risk, User
+from app.models import KeyRiskIndicator, OutboxEvent, Risk, User
 from app.models.notification import NotificationType
 
 
@@ -34,7 +34,7 @@ async def test_kri_value_recording_breach(
     test_user: User,
     test_kri: KeyRiskIndicator,
 ):
-    """Test recording a KRI value that triggers a breach notification."""
+    """Test recording a KRI value that triggers a breach outbox event."""
     # Ensure test user is the responsible person
     test_kri.reporting_owner_id = test_user.id
     db_session.add(test_kri)
@@ -52,17 +52,18 @@ async def test_kri_value_recording_breach(
     data = response.json()
     assert data["current_value"] == breach_value
 
-    # Verify notification created
-    from app.models.notification import Notification
-
+    # Verify breach delivery is queued for the outbox worker.
     result = await db_session.execute(
-        select(Notification).where(
-            Notification.user_id == test_user.id, Notification.type == NotificationType.KRI_BREACH_DETECTED
+        select(OutboxEvent).where(
+            OutboxEvent.aggregate_type == "kri",
+            OutboxEvent.aggregate_id == test_kri.id,
+            OutboxEvent.event_type == "kri.breach_detected",
         )
     )
-    notifications = result.scalars().all()
-    assert len(notifications) > 0
-    assert "breached limits" in notifications[0].message
+    outbox_events = result.scalars().all()
+    assert len(outbox_events) > 0
+    assert outbox_events[0].payload["recipient_user_id"] == test_user.id
+    assert "breached limits" in outbox_events[0].payload["message"]
 
 
 @pytest.mark.asyncio

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Literal
 
@@ -8,28 +9,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.datetime_utils import utc_now
 from app.core.email import email_equals, normalize_email
-from app.models import Department, User
+from app.core.policy import SAFE_DIRECTORY_DEFAULT_ROLE_CANDIDATES
+from app.models import Department, Role, User
 from app.schemas.directory import DirectoryUserRead
 
 
 class DirectoryIdentityConflictError(ValueError):
     pass
-
-
-@dataclass(frozen=True)
-class DirectoryImportOutcome:
-    status: Literal["created", "updated", "conflict", "skipped"]
-    user: User | None
-    reason: str | None = None
-
-
-@dataclass(frozen=True)
-class DirectorySyncOutcome:
-    status: Literal["active", "directory_disabled", "missing", "orphan_flagged", "error", "skipped"]
-    user: User
-    reason: str | None = None
-    orphaned_items_flagged: int = 0
-    revoked_sessions: int = 0
 
 
 @dataclass(frozen=True)
@@ -46,6 +32,28 @@ class DirectoryReenableOutcome:
     reason: str | None = None
 
 
+def _safe_default_role_missing_message() -> str:
+    candidates = ", ".join(str(name) for name in SAFE_DIRECTORY_DEFAULT_ROLE_CANDIDATES)
+    return f"No safe default role found ({candidates}). Seed roles first."
+
+
+async def resolve_safe_default_role(
+    db: AsyncSession,
+    *,
+    exception_factory: Callable[[str], Exception] | None = None,
+) -> Role:
+    for name in SAFE_DIRECTORY_DEFAULT_ROLE_CANDIDATES:
+        result = await db.execute(select(Role).where(Role.name == name))
+        role = result.scalar_one_or_none()
+        if role:
+            return role
+
+    message = _safe_default_role_missing_message()
+    if exception_factory is not None:
+        raise exception_factory(message)
+    raise RuntimeError(message)
+
+
 def resolve_directory_email(directory_user: DirectoryUserRead) -> str | None:
     return normalize_email(directory_user.email or directory_user.user_principal_name)
 
@@ -55,6 +63,50 @@ def normalize_business_role(value: str | None) -> str | None:
         return None
     normalized = value.strip()
     return normalized or None
+
+
+def _normalize_optional_directory_text(value: object) -> str | None:
+    if not isinstance(value, str):
+        return None
+    normalized = value.strip()
+    return normalized or None
+
+
+def _normalize_optional_directory_email(value: object) -> str | None:
+    normalized = _normalize_optional_directory_text(value)
+    return normalized.lower() if normalized else None
+
+
+def normalize_directory_user_read(
+    *,
+    external_id: str,
+    display_name: object,
+    email: object,
+    user_principal_name: object,
+    department: object,
+    job_title: object,
+    business_role: object,
+    account_enabled: object,
+    source: Literal["graph", "ad_emulator"],
+) -> DirectoryUserRead:
+    normalized_external_id = external_id.strip()
+    normalized_display_name = _normalize_optional_directory_text(display_name) or normalized_external_id
+    normalized_business_role = normalize_business_role(business_role if isinstance(business_role, str) else None)
+
+    return DirectoryUserRead(
+        external_id=normalized_external_id,
+        display_name=normalized_display_name,
+        email=_normalize_optional_directory_email(email),
+        user_principal_name=_normalize_optional_directory_email(user_principal_name),
+        department=_normalize_optional_directory_text(department),
+        job_title=_normalize_optional_directory_text(job_title),
+        business_role=normalized_business_role,
+        account_enabled=account_enabled if isinstance(account_enabled, bool) else True,
+        source=source,
+    )
+
+
+normalize_directory_user_record = normalize_directory_user_read
 
 
 def has_auto_deprovision_reason(user: User) -> bool:

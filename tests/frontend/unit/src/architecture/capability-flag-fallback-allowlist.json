@@ -1,0 +1,20 @@
+[
+  {
+    "file": "frontend/src/components/access/useAccessUsersWorkflow.ts",
+    "expression": "if (!capabilities) {\n        return defaultAllowed;\n    }",
+    "owner": "AUTHZ-ACCESS-USERS",
+    "reason": "Legacy access-user responses may omit row capabilities; production callers pass defaultAllowed=false so missing metadata fails closed while tests and compatibility helpers can request the historical default."
+  },
+  {
+    "file": "frontend/src/components/access/useAccessUsersWorkflow.ts",
+    "expression": "return defaultAllowed;",
+    "owner": "AUTHZ-ACCESS-USERS",
+    "reason": "Legacy access-user rows may omit both can_change_active_status and can_deactivate; production callers pass defaultAllowed=false so absence is denied unless a compatibility caller opts in."
+  },
+  {
+    "file": "frontend/src/components/access/useAccessUsersWorkflow.ts",
+    "expression": ": defaultAllowed;",
+    "owner": "AUTHZ-ACCESS-USERS",
+    "reason": "Edit-action compatibility fallback is retained only for rows without capabilities; production Access users table passes defaultAllowed=false."
+  }
+]

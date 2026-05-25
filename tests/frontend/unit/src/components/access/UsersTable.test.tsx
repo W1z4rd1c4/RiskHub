@@ -13,6 +13,13 @@ import type { UserDirectoryEntry } from '@/types/user';
 vi.mock('@/i18n/hooks', () => ({
     useTranslation: () => ({
         t: (key: string, fallbackOrOptions?: string | { defaultValue?: string }) => {
+            const translations: Record<string, string> = {
+                'users.break_glass': 'Break-glass',
+                'users.break_glass_enable': 'Break-glass enable',
+                'users.check_directory': 'Check AD',
+                'users.check_directory_status': 'Check directory status',
+            };
+            if (translations[key]) return translations[key];
             if (typeof fallbackOrOptions === 'string') return fallbackOrOptions;
             return fallbackOrOptions?.defaultValue ?? key;
         },

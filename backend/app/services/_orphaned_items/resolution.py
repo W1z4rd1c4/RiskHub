@@ -13,8 +13,9 @@ from app.models.key_risk_indicator import KeyRiskIndicator
 from app.models.orphaned_item import OrphanedItem
 from app.models.risk import Risk
 from app.models.user import User
+from app.services.transaction_boundary import commit_service_boundary
 
-from .governance import orphan_item_definition, orphan_resolution_plan
+from .governance import orphan_item_definition, orphan_resolution_requirements_projection
 from .logging import logger
 from .workflow import OrphanResolutionConflict, assert_orphan_still_matches_target_state
 
@@ -72,7 +73,7 @@ async def validate_resolution_context(
         if not target_risk:
             raise ValueError(f"Target risk {target_risk_id} not found")
 
-    resolution_plan = orphan_resolution_plan(orphan.item_type)
+    requirements = orphan_resolution_requirements_projection(orphan.item_type)
 
     if orphan.item_type == "risk":
         if new_owner is None:
@@ -106,7 +107,7 @@ async def validate_resolution_context(
             raise ValueError("KRI reassignment must stay within the target risk department")
         return OrphanResolutionContext(orphan, new_owner, target_risk, target_department_id)
 
-    raise ValueError(f"Unsupported orphaned item type: {resolution_plan.item_type}")
+    raise ValueError(f"Unsupported orphaned item type: {requirements.item_type}")
 
 
 async def resolve_orphan(
@@ -257,6 +258,6 @@ async def resolve_orphan(
     orphan.resolved_by_id = resolved_by_id
     orphan.new_owner_id = new_owner_id
 
-    await db.commit()
+    await commit_service_boundary(db, boundary="orphaned_items.resolve")
 
     return orphan

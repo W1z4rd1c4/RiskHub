@@ -12,6 +12,7 @@ import { Pagination } from '@/components/tables/Pagination';
 import { ADUserPicker } from '@/components/users/ADUserPicker';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTranslation } from '@/i18n/hooks';
+import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { adminApi } from '@/services/adminApi';
 import { logError } from '@/services/logger';
 import type { AccessUserRead } from '@/types/access';
@@ -113,7 +114,6 @@ export function UsersPage() {
     const handleDirectoryImported = async (result: DirectoryImportResponse) => {
         setDirectoryMessage(
             t('users.directory_import_success', {
-                defaultValue: `${result.name} imported from directory`,
                 name: result.name,
             }),
         );
@@ -127,7 +127,6 @@ export function UsersPage() {
             const response = await adminApi.checkAllDirectoryUsers();
             setDirectoryMessage(
                 t('users.directory_check_all_success', {
-                    defaultValue: `Checked ${response.checked} users (${response.deprovisioned} deprovisioned).`,
                     checked: response.checked,
                     deprovisioned: response.deprovisioned,
                 }),
@@ -135,7 +134,7 @@ export function UsersPage() {
             await fetchUsers();
         } catch (error) {
             logError('Directory check-all failed.', error);
-            setDirectoryMessage(t('users.directory_check_failed', { defaultValue: 'Directory check failed.' }));
+            setDirectoryMessage(t('users.directory_check_failed'));
         } finally {
             setIsCheckingAllDirectory(false);
         }
@@ -147,7 +146,6 @@ export function UsersPage() {
             const response = await adminApi.checkDirectoryUser(user.id);
             setDirectoryMessage(
                 t('users.directory_check_single_success', {
-                    defaultValue: `${user.name}: ${response.status}`,
                     name: user.name,
                     status: response.status,
                 }),
@@ -155,7 +153,7 @@ export function UsersPage() {
             await fetchUsers();
         } catch (error) {
             logError('Directory single-user check failed.', error);
-            setDirectoryMessage(t('users.directory_check_failed', { defaultValue: 'Directory check failed.' }));
+            setDirectoryMessage(t('users.directory_check_failed'));
         } finally {
             setCheckingDirectoryUserId(null);
         }
@@ -169,7 +167,6 @@ export function UsersPage() {
         setEditModalOpen(true);
         setDirectoryMessage(
             t('users.directory_import_success', {
-                defaultValue: `${transition.messageName} imported from directory`,
                 name: transition.messageName,
             }),
         );
@@ -193,7 +190,7 @@ export function UsersPage() {
     ];
     const roleOptions = isAccessMode
         ? accessRoleOptions
-        : (directoryCapabilities?.can_use_role_facets === true ? directoryAvailableRoles : []).map((role) => ({
+        : (resolveCapabilityFlag(directoryCapabilities, 'can_use_role_facets') ? directoryAvailableRoles : []).map((role) => ({
             value: role.name,
             label: role.display_name,
         }));
@@ -205,8 +202,8 @@ export function UsersPage() {
         ? users.filter((user) => user.access_scope === 'global' && user.role.name !== 'admin').length
         : 0;
     const isDirectoryFirstMode = isAuthModeReady && authMode !== null && authMode !== 'password';
-    const canCreateLocalUser = directoryCapabilities?.can_create_local_user === true;
-    const canImportDirectoryUser = directoryCapabilities?.can_import_directory_user === true;
+    const canCreateLocalUser = resolveCapabilityFlag(directoryCapabilities, 'can_create_local_user');
+    const canImportDirectoryUser = resolveCapabilityFlag(directoryCapabilities, 'can_import_directory_user');
     const allowAuthModeActions = isAuthModeReady
         && (isDirectoryFirstMode ? canImportDirectoryUser : canCreateLocalUser);
     const directoryTotalPages = Math.max(1, Math.ceil(directoryTotal / DIRECTORY_PAGE_SIZE));
@@ -267,19 +264,10 @@ export function UsersPage() {
                 {loadErrorKey && !isLoading ? (
                     <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-5 py-6 text-sm text-rose-100">
                         <p className="font-medium">
-                            {t(loadErrorKey, {
-                                ns: 'errorKeys',
-                                defaultValue: t('users.load_failed', {
-                                    ns: 'admin',
-                                    defaultValue: 'Unable to load users right now.',
-                                }),
-                            })}
+                            {t(loadErrorKey, { ns: 'errorKeys' })}
                         </p>
                         <p className="mt-2 text-rose-100/80">
-                            {t('users.load_failed_help', {
-                                ns: 'admin',
-                                defaultValue: 'Refresh the page data before treating this as an empty result.',
-                            })}
+                            {t('users.load_failed_help', { ns: 'admin' })}
                         </p>
                         <button
                             type="button"
@@ -287,7 +275,7 @@ export function UsersPage() {
                             className="mt-4 inline-flex items-center gap-2 rounded-xl border border-rose-400/30 bg-rose-500/10 px-4 py-2 text-sm font-medium text-rose-50 transition hover:bg-rose-500/20"
                         >
                             <RefreshCw className="h-4 w-4" />
-                            {t('actions.retry', { ns: 'common', defaultValue: 'Retry' })}
+                            {t('actions.retry', { ns: 'common' })}
                         </button>
                     </div>
                 ) : (
@@ -302,7 +290,7 @@ export function UsersPage() {
                         onEditAccess={handleEditAccess}
                         onToggleStatus={handleToggleClick}
                         onBreakGlassEnable={handleBreakGlassOpen}
-                        canRunDirectoryChecks={directoryCapabilities?.can_import_directory_user === true}
+                        canRunDirectoryChecks={canImportDirectoryUser}
                         checkingDirectoryUserId={checkingDirectoryUserId}
                         onCheckDirectory={handleCheckSingleDirectory}
                         presentationModelsByUserId={accessWorkflow.presentationModelsByUserId}

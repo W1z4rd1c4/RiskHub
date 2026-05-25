@@ -7,6 +7,7 @@ import { kriApi } from "@/services/kriApi";
 import type { KRICreate } from "@/types/kri";
 
 import type { KRIFormVendorContext } from "./kriForm.types";
+import type { KriFormStatePatch } from "./useKriFormState";
 
 type TranslateFn = (key: string, options?: Record<string, unknown>) => string;
 
@@ -18,10 +19,7 @@ interface UseKriSubmitArgs {
   kriId?: number;
   navigate: NavigateFunction;
   onSuccess?: (kriId: number) => void | Promise<void>;
-  setApprovalQueued: (approvalQueued: { message: string } | null) => void;
-  setError: (error: string | null) => void;
-  setIsMismatchDialogOpen: (isOpen: boolean) => void;
-  setIsSubmitting: (isSubmitting: boolean) => void;
+  setStatePatch: (patch: KriFormStatePatch) => void;
   t: TranslateFn;
   validateStep1: () => boolean;
   validateStep2: () => boolean;
@@ -36,10 +34,7 @@ export function useKriSubmit({
   kriId,
   navigate,
   onSuccess,
-  setApprovalQueued,
-  setError,
-  setIsMismatchDialogOpen,
-  setIsSubmitting,
+  setStatePatch,
   t,
   validateStep1,
   validateStep2,
@@ -52,9 +47,7 @@ export function useKriSubmit({
       }
 
       try {
-        setIsSubmitting(true);
-        setError(null);
-        setApprovalQueued(null);
+        setStatePatch({ approvalQueued: null, error: null, isSubmitting: true });
         const newKRI = await kriApi.createKRI({
           ...(formData as KRICreate),
           linked_vendor_ids: effectiveVendorIds,
@@ -86,13 +79,12 @@ export function useKriSubmit({
         void navigate(`/kris/${newKRI.id}`);
       } catch (error: unknown) {
         if (error instanceof ApiClientError) {
-          setError(error.rawMessage ?? error.messageKey);
+          setStatePatch({ error: error.rawMessage ?? error.messageKey });
         } else {
-          setError("errorKeys.save_kri_failed");
+          setStatePatch({ error: "errorKeys.save_kri_failed" });
         }
       } finally {
-        setIsSubmitting(false);
-        setIsMismatchDialogOpen(false);
+        setStatePatch({ isMismatchDialogOpen: false, isSubmitting: false });
       }
     },
     [
@@ -100,10 +92,7 @@ export function useKriSubmit({
       formData,
       navigate,
       onSuccess,
-      setApprovalQueued,
-      setError,
-      setIsMismatchDialogOpen,
-      setIsSubmitting,
+      setStatePatch,
       t,
       validateStep1,
       validateStep2,
@@ -125,7 +114,7 @@ export function useKriSubmit({
           formData.risk_id &&
           !isSelectedRiskLinkedToVendor
         ) {
-          setIsMismatchDialogOpen(true);
+          setStatePatch({ isMismatchDialogOpen: true });
           return;
         }
         await finalizeCreate();
@@ -133,9 +122,7 @@ export function useKriSubmit({
       }
 
       try {
-        setIsSubmitting(true);
-        setError(null);
-        setApprovalQueued(null);
+        setStatePatch({ approvalQueued: null, error: null, isSubmitting: true });
 
         if (kriId) {
           const { current_value: _currentValue, ...updatePayload } = formData;
@@ -145,10 +132,12 @@ export function useKriSubmit({
           });
           const parsed = parseUpdateResult(result);
           if (parsed.kind === "approval") {
-            setApprovalQueued({
-              message: parsed.message,
+            setStatePatch({
+              approvalQueued: {
+                message: parsed.message,
+              },
+              isSubmitting: false,
             });
-            setIsSubmitting(false);
             return;
           }
         }
@@ -158,12 +147,12 @@ export function useKriSubmit({
         }
       } catch (error: unknown) {
         if (error instanceof ApiClientError) {
-          setError(error.rawMessage ?? error.messageKey);
+          setStatePatch({ error: error.rawMessage ?? error.messageKey });
         } else {
-          setError("errorKeys.save_kri_failed");
+          setStatePatch({ error: "errorKeys.save_kri_failed" });
         }
       } finally {
-        setIsSubmitting(false);
+        setStatePatch({ isSubmitting: false });
       }
     },
     [
@@ -174,10 +163,7 @@ export function useKriSubmit({
       isSelectedRiskLinkedToVendor,
       kriId,
       navigate,
-      setApprovalQueued,
-      setError,
-      setIsMismatchDialogOpen,
-      setIsSubmitting,
+      setStatePatch,
       validateStep1,
       validateStep2,
       vendorContext,

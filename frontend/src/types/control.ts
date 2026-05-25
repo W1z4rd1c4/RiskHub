@@ -134,9 +134,9 @@ export interface ControlSummary extends ControlMonitoringFields {
 }
 
 export interface ControlListCapabilities {
-    can_export: boolean;
-    can_create: boolean;
-    can_view_vendor_contexts: boolean;
+    can_export?: boolean;
+    can_create?: boolean;
+    can_view_vendor_contexts?: boolean;
 }
 
 export type ControlCreate = Omit<

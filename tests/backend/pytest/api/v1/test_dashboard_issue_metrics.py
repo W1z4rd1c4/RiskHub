@@ -8,6 +8,7 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.v1.endpoints.dashboard.overview import DASHBOARD_OVERVIEW_CACHE
 from app.models import Department, Issue, IssueException, Permission, Role, RolePermission
 
 
@@ -240,3 +241,27 @@ async def test_issue_dashboard_metrics_require_issues_read(
 ):
     response = await client_employee.get("/api/v1/dashboard/issues-summary")
     assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_dashboard_overview_issue_metrics_reuse_one_scoped_aggregate(
+    auth_client: AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    from app.services._dashboard_metrics import issues as issue_metrics
+
+    DASHBOARD_OVERVIEW_CACHE.clear()
+    load_count = 0
+
+    async def fake_load_scoped_issues(*args, **kwargs):
+        nonlocal load_count
+        load_count += 1
+        return []
+
+    monkeypatch.setattr(issue_metrics, "_load_scoped_issues", fake_load_scoped_issues)
+
+    response = await auth_client.get("/api/v1/dashboard/overview")
+
+    assert response.status_code == 200
+    assert response.json()["issue_summary"]["open_issues"] == 0
+    assert load_count == 1

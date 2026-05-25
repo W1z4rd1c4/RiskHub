@@ -6,6 +6,7 @@ from app.core.datetime_utils import utc_now
 from app.core.exceptions import AuthorizationError, ValidationError
 from app.models import ApprovalRequest, ApprovalStatus, User
 from app.services.approval_scenario_policy import (
+    ApprovalPrivilegeTier,
     can_view_approval_resource,
     resolve_approval_privilege_tier,
 )
@@ -49,6 +50,40 @@ async def assert_can_approve(
         raise ValidationError(f"Cannot approve request with status: {approval.status.value}")
 
     return tier.is_privileged, tier.is_primary_approver, tier.scenario_match is True
+
+
+async def assert_can_reject(db: AsyncSession, approval: ApprovalRequest, current_user: User) -> None:
+    if approval.status not in (ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED):
+        raise ValidationError(f"Cannot reject request with status: {approval.status.value}")
+
+    tier = await resolve_approval_privilege_tier(db, current_user, approval)
+    if tier.scenario_match is None:
+        if not tier.is_privileged:
+            raise AuthorizationError("Only authorized approval resolvers can reject requests")
+    elif tier.is_requester:
+        raise AuthorizationError("Requesters must cancel their own approval requests instead of rejecting them")
+    elif approval.status == ApprovalStatus.PENDING:
+        if not tier.scenario_match:
+            raise AuthorizationError("This approval scenario does not allow your role to reject this request")
+        if not tier.is_privileged and not await can_view_approval_resource(db, current_user, approval):
+            raise AuthorizationError("Access denied")
+    elif not tier.is_privileged or tier.privileged_scenario_match is not True:
+        raise AuthorizationError("This request requires approval-resolution authority")
+
+
+async def assert_can_cancel(
+    db: AsyncSession,
+    approval: ApprovalRequest,
+    current_user: User,
+) -> ApprovalPrivilegeTier:
+    tier = await resolve_approval_privilege_tier(db, current_user, approval)
+    if not tier.is_requester and not tier.is_privileged:
+        raise AuthorizationError("Only the requester or approval resolvers can cancel requests")
+
+    if approval.status not in (ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED):
+        raise ValidationError(f"Cannot cancel request with status: {approval.status.value}")
+
+    return tier
 
 
 def apply_status_transition(

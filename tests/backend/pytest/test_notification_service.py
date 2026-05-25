@@ -1,5 +1,7 @@
 """Tests for NotificationService."""
 
+import logging
+
 import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,7 +22,7 @@ from app.models.risk import RiskStatus
 from app.models.role import Permission, Role, RolePermission
 from app.models.user import AccessScope
 from app.services.notification_creation_helpers import find_existing_notification, notification_type_is_enabled
-from app.services.notification_service import NotificationService
+from app.services.notification_service import ExpectedNotificationDeliveryError, NotificationService
 
 
 def test_notification_type_is_enabled_defaults_and_respects_preferences(test_user: User):
@@ -378,6 +380,80 @@ async def test_notify_requester_resolved_rejected(
     assert "rejected" in notification.title.lower()
     assert "rejected" in notification.message.lower()
     assert "Cannot delete this KRI" in notification.message
+
+
+@pytest.mark.asyncio
+async def test_best_effort_notification_logs_unexpected_failure_with_traceback(
+    db_session: AsyncSession,
+    test_user_employee: User,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+):
+    approval = ApprovalRequest(
+        resource_type=ApprovalResourceType.CONTROL,
+        resource_id=4,
+        resource_name="C-004: Test Control",
+        action_type=ApprovalActionType.EDIT,
+        requested_by_id=test_user_employee.id,
+        reason="Edit request",
+        status=ApprovalStatus.APPROVED,
+    )
+
+    async def raise_unexpected(*args, **kwargs):
+        raise RuntimeError("notification storage unavailable")
+
+    monkeypatch.setattr(NotificationService, "create_notification_once", raise_unexpected)
+
+    with (
+        caplog.at_level(logging.ERROR, logger="app.services.notification_service"),
+        pytest.raises(RuntimeError, match="notification storage unavailable"),
+    ):
+        await NotificationService.notify_requester_resolved(db=db_session, approval=approval, approved=True)
+
+    records = [record for record in caplog.records if record.message == "notification_delivery_unexpected_failure"]
+    assert len(records) == 1
+    assert records[0].exc_info is not None
+    assert records[0].user_id == test_user_employee.id
+    assert records[0].notification_type == NotificationType.APPROVAL_RESOLVED.value
+    assert records[0].operation == "notify_requester_resolved"
+
+
+@pytest.mark.asyncio
+async def test_expected_notification_failure_path_remains_tolerant(
+    db_session: AsyncSession,
+    test_user_employee: User,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+):
+    approval = ApprovalRequest(
+        resource_type=ApprovalResourceType.CONTROL,
+        resource_id=5,
+        resource_name="C-005: Test Control",
+        action_type=ApprovalActionType.EDIT,
+        requested_by_id=test_user_employee.id,
+        reason="Edit request",
+        status=ApprovalStatus.REJECTED,
+    )
+
+    async def raise_expected(*args, **kwargs):
+        raise ExpectedNotificationDeliveryError("recipient opted out during delivery")
+
+    monkeypatch.setattr(NotificationService, "create_notification_once", raise_expected)
+
+    with caplog.at_level(logging.WARNING, logger="app.services.notification_service"):
+        notification = await NotificationService.notify_requester_resolved(
+            db=db_session,
+            approval=approval,
+            approved=False,
+        )
+
+    assert notification is None
+    records = [record for record in caplog.records if record.message == "notification_delivery_expected_failure"]
+    assert len(records) == 1
+    assert records[0].exc_info is None
+    assert records[0].user_id == test_user_employee.id
+    assert records[0].notification_type == NotificationType.APPROVAL_RESOLVED.value
+    assert records[0].operation == "notify_requester_resolved"
 
 
 @pytest.mark.asyncio

@@ -103,9 +103,9 @@ export function ActivityLogEntries({ entries, isLoading, errorType, needsRiskSel
         return (
             <div className="flex flex-col items-center justify-center rounded-3xl border border-white/5 bg-white/5 py-20 text-slate-400">
                 <Activity className="mb-4 h-12 w-12 opacity-20" />
-                <p>{needsRiskSelection ? 'Select a risk to view activity.' : t('empty.no_activity_logs')}</p>
+                <p>{needsRiskSelection ? t('activity_log.select_risk') : t('empty.no_activity_logs')}</p>
                 <p className="mt-1 text-sm text-slate-500">
-                    {needsRiskSelection ? 'Choose a risk in the filter above to load entries.' : t('activity_log.try_adjusting_filters')}
+                    {needsRiskSelection ? t('activity_log.select_risk_hint') : t('activity_log.try_adjusting_filters')}
                 </p>
             </div>
         );

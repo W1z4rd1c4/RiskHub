@@ -25,26 +25,18 @@ export function UserNewDirectoryImportSection({
         <div className="glass-card p-6 space-y-4">
             <h2 className="text-lg font-semibold text-white flex items-center gap-2">
                 <Building2 className="h-5 w-5 text-accent" />
-                {t('users.add_from_ad', { defaultValue: 'Add from AD' })}
+                {t('users.add_from_ad')}
             </h2>
             <p className="text-sm text-slate-400">
-                {t('user_new.sso_import_help', {
-                    defaultValue:
-                        'Import a user from directory, then configure role, department, and active status before first login.',
-                })}
+                {t('user_new.sso_import_help')}
             </p>
             {showDirectorySetupHint && (
                 <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
                     <p className="font-medium">
-                        {t('user_new.directory_setup_hint_title', {
-                            defaultValue: 'Directory provider setup required',
-                        })}
+                        {t('user_new.directory_setup_hint_title')}
                     </p>
                     <p className="mt-1 text-amber-100/90">
-                        {t('user_new.directory_setup_hint_body', {
-                            defaultValue:
-                                'Configure Entra credentials (ENTRA_TENANT_ID, ENTRA_CLIENT_ID, plus client secret or certificate credential) or AD emulator (AD_EMULATOR_BASE_URL), then reload.',
-                        })}
+                        {t('user_new.directory_setup_hint_body')}
                     </p>
                     {authConfig?.sso_error && (
                         <p className="mt-2 text-xs text-amber-100/80">{authConfig.sso_error}</p>

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from datetime import timedelta
 from typing import cast
@@ -21,6 +22,8 @@ from app.schemas.admin import (
 )
 from app.services._admin_telemetry.projections import serialize_scheduler_run
 from app.services._auth_session_workflow import revoke_user_sessions
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -59,6 +62,13 @@ async def build_system_health_snapshot(request: Request, db: AsyncSession) -> Sy
         await db.execute(select(func.count()).select_from(User))
         db_status = "connected"
     except Exception:
+        logger.exception(
+            "admin_telemetry.db_probe_failed",
+            extra={
+                "operation": "system_health_database_probe",
+                "probe": "database_connectivity",
+            },
+        )
         db_status = "error"
     latency_ms = (time.perf_counter() - start) * 1000
 

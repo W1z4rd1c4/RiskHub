@@ -4,6 +4,7 @@ import { AlertTriangle } from 'lucide-react';
 import { useTranslation } from '@/i18n/hooks';
 import { ExportDialog } from '@/components/reports/ExportDialog';
 import { ViewSwitcher } from '@/components/tables';
+import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { IssuesFilterBar } from './issues/IssuesFilterBar';
 import { IssuesPageHeader } from './issues/IssuesPageHeader';
 import { IssuesTableSection } from './issues/IssuesTableSection';
@@ -72,8 +73,8 @@ export function IssuesPage() {
     return (
         <div className="space-y-8">
             <IssuesPageHeader
-                canCreateIssue={capabilities?.can_create === true}
-                canExport={capabilities?.can_export === true}
+                canCreateIssue={resolveCapabilityFlag(capabilities, 'can_create')}
+                canExport={resolveCapabilityFlag(capabilities, 'can_export')}
                 isExporting={isExporting}
                 onCreateIssue={() => navigate('/issues/new')}
                 onOpenExport={openExportDialog}
@@ -82,7 +83,7 @@ export function IssuesPage() {
             <ViewSwitcher
                 value={viewMode}
                 onChange={updateViewMode}
-                exclude={capabilities?.can_view_vendor_contexts === true ? ['risk', 'flag'] : ['risk', 'flag', 'vendor']}
+                exclude={resolveCapabilityFlag(capabilities, 'can_view_vendor_contexts') ? ['risk', 'flag'] : ['risk', 'flag', 'vendor']}
             />
 
             <IssuesFilterBar

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, Plus } from 'lucide-react';
 import { useTranslation } from '@/i18n/hooks';
 import { IssueCreateForm } from '@/components/issues/IssueCreateForm';
+import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { issuesApi } from '@/services/issuesApi';
 import type { Issue } from '@/types/issue';
 
@@ -19,7 +20,7 @@ export function IssueNewPage() {
             try {
                 const response = await issuesApi.list({ offset: 0, limit: 1 });
                 if (isCurrent) {
-                    setCanCreate(response.capabilities?.can_create === true);
+                    setCanCreate(resolveCapabilityFlag(response.capabilities, 'can_create'));
                 }
             } catch {
                 if (isCurrent) {

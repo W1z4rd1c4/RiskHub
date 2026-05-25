@@ -5,11 +5,16 @@ from uuid import uuid4
 from fastapi import HTTPException, status
 
 from app.core.activity_logger import build_change_set
-from app.core.audit.issue import issue_linked, issue_updated
-from app.models import User
+from app.core.audit.issue import issue_created, issue_linked, issue_updated
+from app.core.datetime_utils import coerce_utc, utc_now
+from app.core.permissions import can_access_department_id
+from app.models import Issue, IssueRemediationPlan, User
+from app.models.issue import IssueRemediationStatus, IssueStatus
 from app.schemas.issue import (
     IssueAssignRequest,
     IssueCloseRequest,
+    IssueContextualCreate,
+    IssueCreate,
     IssueExceptionApproveRequest,
     IssueExceptionRead,
     IssueExceptionRequestCreate,
@@ -19,6 +24,7 @@ from app.schemas.issue import (
     IssueStartRemediationRequest,
     IssueUpdate,
 )
+from app.services._issue_register import resolve_contextual_issue_source, serialize_issue_read_for_actor
 from app.services._issue_workflow.assignment import assign_issue, ensure_owner_assignable, validate_user_exists
 from app.services._issue_workflow.closure import close_issue
 from app.services._issue_workflow.contracts import IssueWorkflowOutcome
@@ -50,6 +56,166 @@ from app.services._issue_workflow.source_validation import (
     resolve_issue_source_metadata,
 )
 from app.services._issue_workflow.update_plans import build_issue_update_plan
+from app.services.transaction_boundary import commit_service_boundary
+
+
+async def create_issue_detail(
+    *,
+    db,
+    payload: IssueCreate,
+    current_user: User,
+) -> IssueRead:
+    if payload.department_id is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="department_id is required")
+    if not can_access_department_id(current_user, payload.department_id):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied to this department")
+
+    resolved_source = await resolve_issue_source_metadata(
+        db,
+        current_user,
+        source_type=payload.source_type,
+        source_id=payload.source_id,
+    )
+    if resolved_source is not None and resolved_source.department_id != payload.department_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Source entity department must match issue department",
+        )
+
+    await validate_user_exists(db, payload.owner_user_id)
+    await ensure_owner_assignable(db, owner_user_id=payload.owner_user_id, department_id=payload.department_id)
+
+    due_at = coerce_utc(payload.due_at)
+    now = utc_now()
+    issue = Issue(
+        title=payload.title,
+        description=payload.description,
+        severity=payload.severity.value,
+        status=IssueStatus.open.value,
+        source_type=(resolved_source.source_type.value if resolved_source is not None else payload.source_type.value),
+        source_id=(resolved_source.source_id if resolved_source is not None else None),
+        department_id=payload.department_id,
+        owner_user_id=payload.owner_user_id,
+        created_by_id=current_user.id,
+        opened_at=now,
+        due_at=due_at,
+    )
+    db.add(issue)
+    await db.flush()
+
+    db.add(
+        IssueRemediationPlan(
+            issue_id=issue.id,
+            status=IssueRemediationStatus.draft.value,
+            progress_percent=0,
+            owner_user_id=payload.owner_user_id,
+            target_date=due_at,
+        )
+    )
+    await db.flush()
+
+    source_link = None
+    source_link_created = False
+    if resolved_source is not None:
+        source_link_result = await ensure_issue_source_link(
+            db,
+            issue_id=issue.id,
+            link_values=resolved_source.link_values,
+            is_source_link=True,
+        )
+        if source_link_result is not None:
+            source_link, source_link_created = source_link_result
+
+    await issue_created(db, actor=current_user, issue=issue)
+    if source_link is not None and source_link_created:
+        await issue_linked(
+            db,
+            actor=current_user,
+            issue=issue,
+            link=source_link,
+            description=f"Linked issue source to issue {issue.title}",
+        )
+
+    await commit_service_boundary(db, boundary="issue_workflow.create_issue")
+    refreshed = await get_issue_with_relations(db, issue.id)
+    if refreshed is None:
+        raise HTTPException(status_code=404, detail="Issue not found")
+    return await serialize_issue_read_for_actor(db, current_user=current_user, issue=refreshed)
+
+
+async def create_contextual_issue_detail(
+    *,
+    db,
+    payload: IssueContextualCreate,
+    current_user: User,
+) -> IssueRead:
+    resolved_source = await resolve_contextual_issue_source(
+        db,
+        current_user,
+        entity_type=payload.entity_type,
+        entity_id=payload.entity_id,
+    )
+
+    await validate_user_exists(db, payload.owner_user_id)
+    await ensure_owner_assignable(
+        db,
+        owner_user_id=payload.owner_user_id,
+        department_id=resolved_source.department_id,
+    )
+
+    due_at = coerce_utc(payload.due_at)
+    now = utc_now()
+    issue = Issue(
+        title=payload.title,
+        description=payload.description,
+        severity=payload.severity.value,
+        status=IssueStatus.open.value,
+        source_type=resolved_source.source_type.value,
+        source_id=resolved_source.source_id,
+        department_id=resolved_source.department_id,
+        owner_user_id=payload.owner_user_id,
+        created_by_id=current_user.id,
+        opened_at=now,
+        due_at=due_at,
+    )
+    db.add(issue)
+    await db.flush()
+
+    db.add(
+        IssueRemediationPlan(
+            issue_id=issue.id,
+            status=IssueRemediationStatus.draft.value,
+            progress_percent=0,
+            owner_user_id=payload.owner_user_id,
+            target_date=due_at,
+        )
+    )
+    await db.flush()
+
+    link_result = await ensure_issue_source_link(
+        db,
+        issue_id=issue.id,
+        link_values=resolved_source.link_values,
+        is_source_link=True,
+    )
+    if link_result is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Contextual source link is required")
+    link, _link_created = link_result
+
+    await issue_created(db, actor=current_user, issue=issue)
+    await issue_linked(
+        db,
+        actor=current_user,
+        issue=issue,
+        link=link,
+        description=f"Linked contextual source to issue {issue.title}",
+    )
+
+    await commit_service_boundary(db, boundary="issue_workflow.create_contextual_issue")
+    refreshed = await get_issue_with_relations(db, issue.id)
+    if refreshed is None:
+        raise HTTPException(status_code=404, detail="Issue not found")
+    return await serialize_issue_read_for_actor(db, current_user=current_user, issue=refreshed)
 
 
 async def update_issue_detail(

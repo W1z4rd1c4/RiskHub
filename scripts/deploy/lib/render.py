@@ -11,7 +11,6 @@ from pathlib import Path
 from typing import Iterable
 from urllib.parse import urlparse
 
-
 TEMPLATES_DIR = Path(__file__).resolve().parents[1] / "templates"
 DEFAULT_DATABASE_URL = "postgresql+asyncpg://riskhub:riskhub@db:5432/riskhub"
 DEFAULT_SECRET_DIR = Path("/etc/riskhub/secrets")
@@ -79,6 +78,13 @@ def _validate_positive_int(name: str, value: str | int) -> int:
     if parsed < 1:
         raise RenderError(f"{name} must be at least 1")
     return parsed
+
+
+def _validate_bool_string(name: str, value: str) -> str:
+    normalized = value.strip().lower()
+    if normalized not in {"true", "false"}:
+        raise RenderError(f"{name} must be true or false")
+    return normalized
 
 
 def _validate_cidr(name: str, value: str) -> str:
@@ -201,7 +207,8 @@ class DeploySecrets:
 
         if thumbprint_ready and not certificate_key_ready:
             raise RenderError(
-                "ENTRA_CLIENT_CERTIFICATE_THUMBPRINT is set but no valid entra_client_certificate_private_key secret file was found"
+                "ENTRA_CLIENT_CERTIFICATE_THUMBPRINT is set but no valid "
+                "entra_client_certificate_private_key secret file was found"
             )
         if certificate_key_ready and not thumbprint_ready:
             raise RenderError(
@@ -209,7 +216,8 @@ class DeploySecrets:
             )
         if certificate_key is not None and certificate_key == "":
             raise RenderError(
-                f"entra_client_certificate_private_key must not be empty ({self.entra_client_certificate_private_key_path})"
+                "entra_client_certificate_private_key must not be empty "
+                f"({self.entra_client_certificate_private_key_path})"
             )
 
         if certificate_key_ready:
@@ -217,7 +225,8 @@ class DeploySecrets:
         if secret_ready:
             return "secret"
         raise RenderError(
-            "No Entra Graph credential is configured. Configure either entra_client_secret or certificate credential inputs."
+            "No Entra Graph credential is configured. Configure either entra_client_secret "
+            "or certificate credential inputs."
         )
 
 
@@ -232,6 +241,9 @@ class DeployConfig:
     bootstrap_cro_email: str
     api_workers: int
     frontend_bind_port: int
+    metrics_enabled: str
+    otel_exporter_otlp_endpoint: str | None
+    otel_service_name: str
     trusted_proxies: tuple[str, ...] | None
     docker_network_subnet: str
 
@@ -252,6 +264,9 @@ class DeployConfig:
 
         api_workers = _validate_positive_int("API_WORKERS", values.get("API_WORKERS", "4"))
         frontend_bind_port = _validate_port("FRONTEND_BIND_PORT", values.get("FRONTEND_BIND_PORT", "80"))
+        metrics_enabled = _validate_bool_string("METRICS_ENABLED", values.get("METRICS_ENABLED", "false"))
+        otel_exporter_otlp_endpoint = values.get("OTEL_EXPORTER_OTLP_ENDPOINT", "").strip() or None
+        otel_service_name = values.get("OTEL_SERVICE_NAME", "riskhub-api").strip() or "riskhub-api"
 
         admin_email = _validate_email("BOOTSTRAP_ADMIN_EMAIL", require("BOOTSTRAP_ADMIN_EMAIL"))
         cro_email = _validate_email("BOOTSTRAP_CRO_EMAIL", require("BOOTSTRAP_CRO_EMAIL"))
@@ -259,7 +274,11 @@ class DeployConfig:
             raise RenderError("BOOTSTRAP_ADMIN_EMAIL and BOOTSTRAP_CRO_EMAIL must be different")
 
         trusted_proxies_raw = values.get("TRUSTED_PROXIES", "").strip()
-        trusted_proxies = _parse_json_string_list("TRUSTED_PROXIES", trusted_proxies_raw) if trusted_proxies_raw else None
+        trusted_proxies = (
+            _parse_json_string_list("TRUSTED_PROXIES", trusted_proxies_raw)
+            if trusted_proxies_raw
+            else None
+        )
         docker_network_subnet = _validate_cidr(
             "DOCKER_NETWORK_SUBNET",
             values.get("DOCKER_NETWORK_SUBNET", DEFAULT_DOCKER_NETWORK_SUBNET),
@@ -275,6 +294,9 @@ class DeployConfig:
             bootstrap_cro_email=cro_email,
             api_workers=api_workers,
             frontend_bind_port=frontend_bind_port,
+            metrics_enabled=metrics_enabled,
+            otel_exporter_otlp_endpoint=otel_exporter_otlp_endpoint,
+            otel_service_name=otel_service_name,
             trusted_proxies=trusted_proxies,
             docker_network_subnet=docker_network_subnet,
         )
@@ -309,6 +331,8 @@ class DeployConfig:
             "ALLOWED_HOSTS": json.dumps([self.hostname]),
             "TRUSTED_PROXIES": json.dumps(self.effective_trusted_proxies(target)),
             "REDIS_URL_FILE": str(runtime_dir / "redis_url"),
+            "METRICS_ENABLED": self.metrics_enabled,
+            "OTEL_SERVICE_NAME": self.otel_service_name,
             "ENTRA_TENANT_ID": self.entra_tenant_id,
             "ENTRA_CLIENT_ID": self.entra_client_id,
             "ENTRA_JIT_PROVISIONING_ENABLED": "false",
@@ -323,6 +347,8 @@ class DeployConfig:
         }
         if target == "docker":
             values["DOCKER_NETWORK_SUBNET"] = self.docker_network_subnet
+        if self.otel_exporter_otlp_endpoint:
+            values["OTEL_EXPORTER_OTLP_ENDPOINT"] = self.otel_exporter_otlp_endpoint
         if self.entra_business_role_attribute_name:
             values["ENTRA_BUSINESS_ROLE_ATTRIBUTE_NAME"] = self.entra_business_role_attribute_name
         if credential_mode == "certificate":
@@ -552,7 +578,12 @@ def main(argv: Iterable[str] | None = None) -> int:
                     "runtime_dir": args.runtime_dir,
                     "entra_graph_credential_mode": credential_mode,
                     "redis_url": config.redis_url(args.target, secrets),
-                    "backend_env": config.backend_env(args.target, Path(args.secret_dir), Path(args.runtime_dir), credential_mode),
+                    "backend_env": config.backend_env(
+                        args.target,
+                        Path(args.secret_dir),
+                        Path(args.runtime_dir),
+                        credential_mode,
+                    ),
                     "frontend_env": config.frontend_env(args.target),
                 }
             )

@@ -19,6 +19,7 @@ from app.services._collection_filters import (
     coerce_optional_enum,
     coerce_optional_int,
     coerce_optional_string,
+    merge_collection_filters,
 )
 
 __all__ = [
@@ -133,13 +134,6 @@ def build_list_context(
         query=query,
         filters=merge_collection_filters(query, legacy_filters or {}),
     )
-
-
-def merge_collection_filters(
-    query: CollectionQuery,
-    defaults: dict[str, Any],
-) -> dict[str, Any]:
-    return defaults | query.filters
 
 
 def build_empty_collection_page(

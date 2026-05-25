@@ -15,11 +15,10 @@ from app.core.permissions import (
     get_control_ids_where_owner,
     get_user_department_ids,
     risk_visibility_clause,
-    vendor_visibility_clause,
     visible_risk_ids,
 )
 from app.core.security import check_permission
-from app.models import ApprovalResourceType, Control, ControlRiskLink, Risk, User, Vendor, VendorControlLink
+from app.models import ApprovalResourceType, Control, ControlRiskLink, Risk, User, VendorControlLink
 from app.models._archivable import archived_clause
 from app.models.department import Department
 from app.schemas.collection import CollectionGroupRead
@@ -43,9 +42,10 @@ from app.services._monitoring_status import ControlMonitoringStatus, apply_contr
 from app.services.authorization_capabilities import control_capabilities
 
 from .lifecycle import CollectionQuery, RegisterListingPlan, SerializeItems, build_register_listing_plan
+from .shared import GROUP_UNCATEGORIZED, GROUP_UNLINKED_VENDOR, parse_prefixed_group_value, visible_vendor_link_context
 
-CONTROL_GROUP_UNLINKED_VENDOR = "__unlinked_vendor__"
-CONTROL_GROUP_UNCATEGORIZED = "__uncategorized__"
+CONTROL_GROUP_UNLINKED_VENDOR = GROUP_UNLINKED_VENDOR
+CONTROL_GROUP_UNCATEGORIZED = GROUP_UNCATEGORIZED
 CONTROL_GROUP_UNKNOWN_DEPARTMENT = "__unknown_department__"
 CONTROL_GROUP_NO_PROCESS = "__no_process__"
 CONTROL_GROUP_UNKNOWN_RISK_TYPE = "__unknown_risk_type__"
@@ -157,20 +157,15 @@ async def visible_control_risk_context(db: AsyncSession, filtered_ids, current_u
 
 
 def visible_control_vendor_context(filtered_ids, current_user: User, *, can_read_vendors: bool):
-    query = (
-        select(
-            VendorControlLink.control_id.label("control_id"),
-            Vendor.id.label("vendor_id"),
-            Vendor.name.label("vendor_name"),
-        )
-        .select_from(VendorControlLink)
-        .join(filtered_ids, filtered_ids.c.id == VendorControlLink.control_id)
-        .join(Vendor, Vendor.id == VendorControlLink.vendor_id)
+    return visible_vendor_link_context(
+        filtered_ids=filtered_ids,
+        current_user=current_user,
+        can_read_vendors=can_read_vendors,
+        link_model=VendorControlLink,
+        entity_id_column=VendorControlLink.control_id,
+        entity_id_label="control_id",
+        vendor_id_column=VendorControlLink.vendor_id,
     )
-    vendor_visibility = vendor_visibility_clause(current_user) if can_read_vendors else false()
-    if vendor_visibility is not None:
-        query = query.where(vendor_visibility)
-    return query.subquery()
 
 
 async def load_control_sql_groups(
@@ -307,12 +302,11 @@ def control_group_filter(group_by: str, group_value: str, *, risk_context=None, 
             return or_(Control.id.in_(matching), ~Control.id.in_(visible_values))
         return Control.id.in_(matching)
     if group_by == "vendor" and group_value.startswith("vendor:"):
-        try:
-            vendor_id = int(group_value.removeprefix("vendor:"))
-        except ValueError:
-            return Control.id.is_(None)
+        vendor_id = parse_prefixed_group_value(group_value, prefix="vendor")
+        if vendor_id is None:
+            return false()
         if vendor_context is None:
-            return Control.id.is_(None)
+            return false()
         return Control.id.in_(select(vendor_context.c.control_id).where(vendor_context.c.vendor_id == vendor_id))
     if group_by == "vendor" and group_value == CONTROL_GROUP_UNLINKED_VENDOR and vendor_context is not None:
         return ~Control.id.in_(select(vendor_context.c.control_id))

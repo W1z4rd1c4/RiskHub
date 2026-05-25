@@ -1,9 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback } from 'react';
 
-import type { ExportDialogSubmitPayload } from '@/components/reports/ExportDialog';
 import type { SortDirection, ViewMode } from '@/components/tables';
-import { DEFAULT_LIST_PAGE_SIZE } from '@/constants/list';
-import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { useRiskThresholds } from '@/hooks/useRiskHubConfig';
 import { logError } from '@/services/logger';
 import { reportApi } from '@/services/reportApi';
@@ -19,104 +16,118 @@ import {
     type RisksPageInitialState,
 } from './risksPagePresentation';
 import {
-    getTotalPages,
-} from '../shared/collectionPageState';
-import {
-    type CollectionWorkflowLoadRequest,
-    useCollectionPageWorkflow,
-} from '../shared/collectionPageWorkflow';
-import { resetCollectionGroupAndPage } from '../shared/collectionViewVocabulary';
-import { applyRegisterViewModeChange } from '../shared/useRegisterPageWorkflow';
+    type RegisterPageExportRequest,
+    type RegisterPageLoadRequest,
+    useRegisterPageController,
+} from '../shared/useRegisterPageController';
 
 interface UseRisksPageStateOptions {
     initialState: RisksPageInitialState;
 }
 
-export function useRisksPageState({ initialState }: UseRisksPageStateOptions) {
-    const [search, setSearch] = useState('');
-    const [statusFilter, setStatusFilter] = useState<RiskListStatusFilter>('active');
-    const [typeFilter, setTypeFilter] = useState('');
-    const [priorityFilter, setPriorityFilter] = useState<boolean | undefined>(undefined);
-    const [currentPage, setCurrentPage] = useState(1);
-    const [viewMode, setViewMode] = useState<ViewMode>('all');
-    const [hasBreachFilter, setHasBreachFilter] = useState<boolean | undefined>(
-        initialState.hasBreachFilter
-    );
-    const [criticalFilter, setCriticalFilter] = useState(initialState.criticalFilter);
-    const [sortField, setSortField] = useState<string | null>(null);
-    const [sortDirection, setSortDirection] = useState<SortDirection>(null);
+type RiskRegisterFilters = {
+    criticalFilter: boolean;
+    hasBreachFilter: boolean | undefined;
+    priorityFilter: boolean | undefined;
+    sortDirection: SortDirection;
+    sortField: string | null;
+    statusFilter: RiskListStatusFilter;
+    typeFilter: string;
+};
 
-    const limit = DEFAULT_LIST_PAGE_SIZE;
-    const debouncedSearch = useDebouncedValue(search, 300);
-    const groupBy = getRiskGroupBy(viewMode);
+export function useRisksPageState({ initialState }: UseRisksPageStateOptions) {
     const { thresholds } = useRiskThresholds();
 
     const loadRiskPage = useCallback(
-        ({ currentPage, groupBy, groupValue }: CollectionWorkflowLoadRequest) => riskApi.getRisks(
+        ({
+            currentPage,
+            debouncedSearch,
+            filters,
+            groupBy,
+            groupValue,
+            limit,
+        }: RegisterPageLoadRequest<RiskRegisterFilters, ViewMode>) => riskApi.getRisks(
             buildRiskListParams({
                 criticalMinNetScore: thresholds.critical,
                 currentPage,
-                criticalFilter,
-                hasBreachFilter,
+                criticalFilter: filters.criticalFilter,
+                hasBreachFilter: filters.hasBreachFilter,
                 limit,
-                priorityFilter,
+                priorityFilter: filters.priorityFilter,
                 search: debouncedSearch,
-                sortDirection,
-                sortField,
-                statusFilter,
-                typeFilter,
+                sortDirection: filters.sortDirection,
+                sortField: filters.sortField,
+                statusFilter: filters.statusFilter,
+                typeFilter: filters.typeFilter,
                 groupBy,
                 groupValue,
             })
         ),
-        [
-            criticalFilter,
-            debouncedSearch,
-            hasBreachFilter,
-            limit,
-            priorityFilter,
-            sortDirection,
-            sortField,
-            statusFilter,
-            thresholds.critical,
-            typeFilter,
-        ]
+        [thresholds.critical]
     );
 
     const logLoadError = useCallback((error: unknown) => {
         logError('[RisksPage] Error fetching risks:', error);
     }, []);
 
-    const collectionWorkflow = useCollectionPageWorkflow<RiskSummary>({
-        currentPage,
+    const submitExport = useCallback(
+        async ({
+            format,
+            asOfDate,
+            filters,
+            search,
+        }: RegisterPageExportRequest<RiskRegisterFilters, ViewMode>) => {
+            await reportApi.exportRisks({
+                format,
+                asOfDate,
+                filters: buildRiskExportFilters({
+                    priorityFilter: filters.priorityFilter,
+                    search,
+                    statusFilter: filters.statusFilter,
+                    typeFilter: filters.typeFilter,
+                }),
+            });
+        },
+        []
+    );
+
+    const logExportError = useCallback((error: unknown) => {
+        logError('Export failed:', error);
+    }, []);
+
+    const registerController = useRegisterPageController<RiskSummary, RiskRegisterFilters, ViewMode>({
         fallbackErrorKey: 'errors.load_failed',
-        groupBy,
+        getGroupBy: getRiskGroupBy,
+        initialFilters: {
+            criticalFilter: initialState.criticalFilter,
+            hasBreachFilter: initialState.hasBreachFilter,
+            priorityFilter: undefined,
+            sortDirection: null,
+            sortField: null,
+            statusFilter: 'active',
+            typeFilter: '',
+        },
+        initialViewMode: 'all',
         loadPage: loadRiskPage,
         normalizeItems: normalizeRiskSummaries,
+        onExportError: logExportError,
         onLoadError: logLoadError,
+        submitExport,
     });
-
     const {
         closeExportDialog,
         fetchCollection: fetchRisks,
         isExportDialogOpen,
         isExporting,
         openExportDialog,
-        resetGroupSelection,
-        selectGroup: setSelectedGroup,
+        clearSelectedGroup,
         selectedGroupLabel,
         selectedGroupValue,
         setErrorKey,
-        setIsExporting,
-    } = collectionWorkflow;
-
-    const resetGroupAndPage = useCallback(() => {
-        resetCollectionGroupAndPage(resetGroupSelection, setCurrentPage);
-    }, [resetGroupSelection]);
-
-    useEffect(() => {
-        void fetchRisks();
-    }, [fetchRisks]);
+        selectGroup,
+        updateFilter,
+        updateFilters,
+    } = registerController;
 
     const restoreRisk = useCallback(
         async (riskId: number) => {
@@ -131,118 +142,68 @@ export function useRisksPageState({ initialState }: UseRisksPageStateOptions) {
         [fetchRisks, setErrorKey]
     );
 
-    const handleExport = useCallback(
-        async ({ format, asOfDate }: ExportDialogSubmitPayload) => {
-            setIsExporting(true);
-            try {
-                await reportApi.exportRisks({
-                    format,
-                    asOfDate,
-                    filters: buildRiskExportFilters({
-                        priorityFilter,
-                        search,
-                        statusFilter,
-                        typeFilter,
-                    }),
-                });
-                closeExportDialog();
-            } catch (error) {
-                logError('Export failed:', error);
-            } finally {
-                setIsExporting(false);
-            }
-        },
-        [closeExportDialog, priorityFilter, search, setIsExporting, statusFilter, typeFilter]
-    );
-
-    const updateSearch = useCallback((value: string) => {
-        setSearch(value);
-        resetGroupAndPage();
-    }, [resetGroupAndPage]);
-
     const updateStatusFilter = useCallback((value: RiskListStatusFilter) => {
-        setStatusFilter(value);
-        resetGroupAndPage();
-    }, [resetGroupAndPage]);
+        updateFilter('statusFilter', value);
+    }, [updateFilter]);
 
     const updateTypeFilter = useCallback((value: string) => {
-        setTypeFilter(value);
-        resetGroupAndPage();
-    }, [resetGroupAndPage]);
+        updateFilter('typeFilter', value);
+    }, [updateFilter]);
 
     const togglePriorityFilter = useCallback(() => {
-        setPriorityFilter((current) => (current === true ? undefined : true));
-        resetGroupAndPage();
-    }, [resetGroupAndPage]);
+        updateFilter('priorityFilter', registerController.filters.priorityFilter === true ? undefined : true);
+    }, [registerController.filters.priorityFilter, updateFilter]);
 
     const updateCriticalFilter = useCallback((value: boolean) => {
-        setCriticalFilter(value);
-        resetGroupAndPage();
-    }, [resetGroupAndPage]);
+        updateFilter('criticalFilter', value);
+    }, [updateFilter]);
 
     const updateHasBreachFilter = useCallback((value: boolean | undefined) => {
-        setHasBreachFilter(value);
-        resetGroupAndPage();
-    }, [resetGroupAndPage]);
+        updateFilter('hasBreachFilter', value);
+    }, [updateFilter]);
 
-    const updateSort = useCallback((nextSortField: string | null, nextSortDirection: SortDirection) => {
-        setSortField(nextSortField);
-        setSortDirection(nextSortDirection);
-        resetGroupAndPage();
-    }, [resetGroupAndPage]);
-
-    const updateViewMode = useCallback((value: ViewMode) => {
-        applyRegisterViewModeChange(value, setViewMode, resetGroupAndPage);
-    }, [resetGroupAndPage]);
-
-    const selectGroup = useCallback((groupValue: string, groupLabel: string) => {
-        setSelectedGroup(groupValue, groupLabel);
-        setCurrentPage(1);
-    }, [setSelectedGroup]);
-
-    const clearSelectedGroup = useCallback(() => {
-        resetGroupSelection();
-        setCurrentPage(1);
-    }, [resetGroupSelection]);
+    const updateSort = useCallback((sortField: string | null, sortDirection: SortDirection) => {
+        updateFilters({ sortDirection, sortField });
+    }, [updateFilters]);
 
     return {
-        criticalFilter,
-        capabilities: collectionWorkflow.capabilities,
-        currentPage,
-        errorKey: collectionWorkflow.errorKey,
+        criticalFilter: registerController.filters.criticalFilter,
+        capabilities: registerController.capabilities,
+        currentPage: registerController.currentPage,
+        errorKey: registerController.errorKey,
         fetchRisks,
-        groups: collectionWorkflow.groups,
-        handleExport,
-        hasBreachFilter,
-        hasLoadedOnce: collectionWorkflow.hasLoadedOnce,
+        groups: registerController.groups,
+        handleExport: registerController.handleExport,
+        hasBreachFilter: registerController.filters.hasBreachFilter,
+        hasLoadedOnce: registerController.hasLoadedOnce,
         isExportDialogOpen,
         isExporting,
-        isAccessDenied: collectionWorkflow.isAccessDenied,
-        isLoading: collectionWorkflow.isLoading,
-        items: collectionWorkflow.items,
-        limit,
+        isAccessDenied: registerController.isAccessDenied,
+        isLoading: registerController.isLoading,
+        items: registerController.items,
+        limit: registerController.limit,
         openExportDialog,
         closeExportDialog,
-        priorityFilter,
+        priorityFilter: registerController.filters.priorityFilter,
         restoreRisk,
-        search,
+        search: registerController.search,
         selectedGroupLabel,
         selectedGroupValue,
-        setCurrentPage,
-        sortDirection,
-        sortField,
-        statusFilter,
-        totalCount: collectionWorkflow.totalCount,
-        totalPages: getTotalPages(collectionWorkflow.totalCount, limit),
-        typeFilter,
+        setCurrentPage: registerController.setCurrentPage,
+        sortDirection: registerController.filters.sortDirection,
+        sortField: registerController.filters.sortField,
+        statusFilter: registerController.filters.statusFilter,
+        totalCount: registerController.totalCount,
+        totalPages: registerController.totalPages,
+        typeFilter: registerController.filters.typeFilter,
         updateCriticalFilter,
         updateHasBreachFilter,
-        updateSearch,
+        updateSearch: registerController.updateSearch,
         updateSort,
         updateStatusFilter,
         updateTypeFilter,
-        updateViewMode,
-        viewMode,
+        updateViewMode: registerController.updateViewMode,
+        viewMode: registerController.viewMode,
         selectGroup,
         clearSelectedGroup,
         togglePriorityFilter,

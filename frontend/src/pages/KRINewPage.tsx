@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { KRIFormContainer as KRIForm } from '@/components/kri-form/KRIFormContainer';
 import { useTranslation } from '@/i18n/hooks';
+import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { kriApi } from '@/services/kriApi';
 import { logError } from '@/services/logger';
 import { vendorApi } from '@/services/vendorApi';
@@ -50,7 +51,7 @@ export function KRINewPage() {
                 if (!isMounted) return;
                 setVendorName(vendor.name);
                 setVendorContextState(
-                    vendor.capabilities?.can_create_linked_kri === true ? 'allowed' : 'denied',
+                    resolveCapabilityFlag(vendor.capabilities, 'can_create_linked_kri') ? 'allowed' : 'denied',
                 );
             } catch (error) {
                 logError('Failed to load vendor context for KRI create.', error);

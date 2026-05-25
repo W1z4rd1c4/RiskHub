@@ -1,7 +1,8 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { VendorDetailPage } from '@/pages/VendorDetailPage';
 import { ApiClientError } from '@/services/apiClient';
+import { renderWithQueryClient as render } from '@test/render';
 
 const mockNavigate = vi.fn();
 const mockGetVendor = vi.fn();

@@ -14,14 +14,16 @@ describe('BusinessRouteGuards structure', () => {
         expect(source.match(/function\s+\w+RouteGuard\s*\(/g) ?? []).toHaveLength(0);
     });
 
-    it('exports the four named route guards from the factory', () => {
+    it('exports the six named route guards from the factory', () => {
         const source = readFileSync(sourcePath, 'utf8');
         const factoryExports = source.match(/export const \w+RouteGuard\s*=\s*createBusinessRouteGuard\(/g) ?? [];
 
-        expect(factoryExports).toHaveLength(4);
+        expect(factoryExports).toHaveLength(6);
         expect(source).toContain("export const GovernanceRouteGuard = createBusinessRouteGuard('canViewGovernance')");
         expect(source).toContain("export const ActivityLogRouteGuard = createBusinessRouteGuard('canViewActivityLog')");
         expect(source).toContain("export const UsersRouteGuard = createBusinessRouteGuard('canViewUsersRoute')");
         expect(source).toContain("export const UserLifecycleRouteGuard = createBusinessRouteGuard('isPlatformAdmin')");
+        expect(source).toContain("export const AdminConsoleRouteGuard = createBusinessRouteGuard('canViewAdminConsole')");
+        expect(source).toContain("export const AuditTrailRouteGuard = createBusinessRouteGuard('canReadControls')");
     });
 });

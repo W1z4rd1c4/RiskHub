@@ -38,9 +38,10 @@ def _filter_rows_by_final_scope(
     visible_ids = extra_visible_ids or set()
     filtered: list[dict[str, Any]] = []
     for row in rows:
-        row_dept_id = _safe_int(row.get("department_id"))
-        if exclude_unassigned_for_scoped and row_dept_id is None:
+        raw_department_id = row.get("department_id")
+        if exclude_unassigned_for_scoped and raw_department_id is None:
             continue
+        row_dept_id = _safe_int(raw_department_id)
         if row_dept_id in scoped_dept_ids:
             filtered.append(row)
             continue

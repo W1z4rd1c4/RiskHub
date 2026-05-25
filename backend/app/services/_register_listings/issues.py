@@ -45,7 +45,7 @@ from app.services._issue_register import (
     load_issue_sql_groups,
     serialize_issue_summaries_for_actor,
 )
-from app.services.authorization_capabilities import issue_capabilities
+from app.services.authorization_capabilities import preload_issue_capabilities
 from app.services.issue_visibility_service import unsuppressed_issue_clause
 
 from .lifecycle import RegisterListingPlan, SerializeItems, build_register_listing_plan
@@ -57,7 +57,8 @@ class IssueListingCriteria:
     filters: dict[str, Any]
     sort_by: str | None
     sort_order: str | None
-    capability_loader: Any = issue_capabilities
+    capability_loader: Any | None = None
+    capability_preloader: Any = preload_issue_capabilities
 
 
 async def plan_issue_listing(
@@ -235,6 +236,7 @@ async def plan_issue_listing(
             current_user=current_user,
             issues=issues,
             capability_loader=criteria.capability_loader,
+            capability_preloader=criteria.capability_preloader,
         )
     serialize_issues: SerializeItems[Issue, IssueSummary] = _serialize_issues
 

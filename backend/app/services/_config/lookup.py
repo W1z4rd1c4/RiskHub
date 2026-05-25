@@ -120,22 +120,5 @@ async def get_config_float(db: "AsyncSession", key: str, default: float) -> floa
         return default
 
 
-@overload
-def get_config_sync(key: str) -> Any | None: ...
-
-
-@overload
-def get_config_sync(key: str, default: T) -> T: ...
-
-
-def get_config_sync(key: str, default: T | None = None) -> T | Any | None:
-    now = time.time()
-    if key in _config_cache:
-        value, cached_at = _config_cache[key]
-        if now - cached_at < _CACHE_TTL_SECONDS:
-            return value
-    return default
-
-
 def clear_config_cache() -> None:
     _config_cache.clear()

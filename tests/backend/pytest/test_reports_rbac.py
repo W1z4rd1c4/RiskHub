@@ -940,18 +940,16 @@ class TestUnifiedExportEndpoints:
         assert "Audit Hidden Risk" not in payload
 
     @pytest.mark.asyncio
-    async def test_kri_as_of_export_uses_id_tiebreaker_for_latest_history(
+    async def test_kri_as_of_export_uses_latest_period_history(
         self,
         auth_client: AsyncClient,
         db_session: AsyncSession,
         test_risk: Risk,
     ):
-        period_end = date(2026, 3, 31)
-        recorded_at = datetime(2026, 4, 2, 12, 0, tzinfo=UTC)
         kri = KeyRiskIndicator(
             risk_id=test_risk.id,
-            metric_name="Tie Breaker Export KRI",
-            description="Export should choose newest inserted same-timestamp history row",
+            metric_name="Latest Period Export KRI",
+            description="Export should choose latest period history row",
             unit="%",
             current_value=10.0,
             lower_limit=0.0,
@@ -970,9 +968,9 @@ class TestUnifiedExportEndpoints:
                     upper_limit=100.0,
                     unit="%",
                     breach_status="within",
-                    period_start=date(2026, 1, 1),
-                    period_end=period_end,
-                    recorded_at=recorded_at,
+                    period_start=date(2025, 10, 1),
+                    period_end=date(2025, 12, 31),
+                    recorded_at=datetime(2026, 1, 2, 12, 0, tzinfo=UTC),
                 ),
                 KRIValueHistory(
                     kri_id=kri.id,
@@ -982,8 +980,8 @@ class TestUnifiedExportEndpoints:
                     unit="%",
                     breach_status="within",
                     period_start=date(2026, 1, 1),
-                    period_end=period_end,
-                    recorded_at=recorded_at,
+                    period_end=date(2026, 3, 31),
+                    recorded_at=datetime(2026, 4, 2, 12, 0, tzinfo=UTC),
                 ),
             ]
         )
@@ -993,7 +991,7 @@ class TestUnifiedExportEndpoints:
 
         assert response.status_code == 200
         rows = list(csv.DictReader(StringIO(response.content.decode("utf-8"))))
-        row = next(item for item in rows if item["Metric"] == "Tie Breaker Export KRI")
+        row = next(item for item in rows if item["Metric"] == "Latest Period Export KRI")
         assert row["Current Value"] == "22.0"
 
     @pytest.mark.asyncio

@@ -27,6 +27,9 @@ Optional keys:
 
 - `API_WORKERS` default `4`
 - `FRONTEND_BIND_PORT` default `80`
+- `METRICS_ENABLED` default `false`; set `true` to expose API Prometheus metrics at `/metrics`
+- `OTEL_EXPORTER_OTLP_ENDPOINT` unset by default; accepts an OTLP HTTP collector base URL or `/v1/traces` endpoint and normalizes base URLs for emitted spans
+- `OTEL_SERVICE_NAME` default `riskhub-api`
 - `CORS_ORIGINS` when you need an explicit override instead of the managed same-origin default
 - `ENTRA_CLIENT_CERTIFICATE_THUMBPRINT` when using certificate credential mode
 - `DOCKER_NETWORK_SUBNET` default `172.31.255.0/24` for managed docker installs
@@ -77,6 +80,8 @@ These are rendered by the managed deploy tooling and are not operator-edited in 
 Production runtime note:
 
 - `ALLOWED_HOSTS` is a required production setting. Managed `docker`/`linux` install flows derive and render it from the configured public hostname, but manual operators must treat it as an explicit allowlist requirement rather than assuming it is optional or inferred from CORS settings.
+- `METRICS_ENABLED=true` exposes `/metrics` for Prometheus scraping. Keep it disabled unless the endpoint is reachable only from trusted monitoring networks.
+- `OTEL_EXPORTER_OTLP_ENDPOINT` configures OpenTelemetry export for emitted spans when an OTLP HTTP collector is available. It accepts either the collector base URL or `/v1/traces` endpoint; RiskHub normalizes base URLs to `/v1/traces`. Leaving it unset keeps OpenTelemetry disabled and does not change startup behavior.
 - `DIRECTORY_PROVIDER` must be set to `graph` in production.
 - `ENTRA_JIT_PROVISIONING_ENABLED` must be set to `false` in production.
 - `AUTH_SSO_ALLOW_EMAIL_LINK` must be set to `false` in production.

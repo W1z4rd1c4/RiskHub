@@ -21,7 +21,7 @@ export function VendorResilienceSection({ formData, onChange }: VendorResilience
 
     return (
         <VendorSurface className="space-y-5">
-            <VendorSectionHeader title={t('form.sections.resilience', 'Resilience & Monitoring')} />
+            <VendorSectionHeader title={t('form.sections.resilience')} />
 
             <div className="vendor-form-grid">
                 <div className="vendor-field">

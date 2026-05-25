@@ -84,7 +84,7 @@ export function RiskDrilldownModal({ isOpen, onClose, probability, impact, riskT
         void navigate(`/risks/${riskId}`);
         onClose();
     };
-    const contentTitle = t('risk_drilldown.results', 'Risk drilldown results');
+    const contentTitle = t('risk_drilldown.results');
 
     if (typeof document === 'undefined') return null;
 

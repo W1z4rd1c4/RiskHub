@@ -63,7 +63,7 @@ export function KRIDetailPage() {
 
     if (isLoading) {
         return (
-            <div className="p-8 animate-pulse">
+            <div className="p-8 animate-pulse" aria-busy="true" data-loading="true">
                 <div className="h-8 w-64 bg-white/5 rounded-lg mb-8" />
                 <div className="h-64 bg-white/5 rounded-2xl" />
             </div>

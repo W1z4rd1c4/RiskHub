@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 
+import { resolveCapabilityFlag } from '@/lib/capabilities';
 import type { AccessUserRead } from '@/types/access';
 
 export type AccessUsersWorkflowState = {
@@ -45,25 +46,41 @@ function unknownText(label: string): string {
     return `Unknown ${label}`;
 }
 
+function resolveStatusChangeCapability(
+    capabilities: AccessUserRead['capabilities'],
+    defaultAllowed: boolean,
+): boolean {
+    if (!capabilities) {
+        return defaultAllowed;
+    }
+    if (Object.prototype.hasOwnProperty.call(capabilities, 'can_change_active_status')) {
+        return resolveCapabilityFlag(capabilities, 'can_change_active_status');
+    }
+    if (Object.prototype.hasOwnProperty.call(capabilities, 'can_deactivate')) {
+        return resolveCapabilityFlag(capabilities, 'can_deactivate');
+    }
+    return defaultAllowed;
+}
+
 export function buildAccessUserActionModel(
     user: AccessUserRead,
     options: AccessUserActionModelOptions = {},
 ): AccessUserActionModel {
     const capabilities = user.capabilities;
     const defaultAllowed = options.defaultAllowed ?? true;
-    const canChangeStatus = capabilities?.can_change_active_status ?? capabilities?.can_deactivate ?? defaultAllowed;
+    const canChangeStatus = resolveStatusChangeCapability(capabilities, defaultAllowed);
 
     const canEdit = capabilities
-        ? capabilities.can_edit_business_access === true
-            || capabilities.can_edit_identity === true
-            || capabilities.can_edit_role === true
+        ? resolveCapabilityFlag(capabilities, 'can_edit_business_access')
+            || resolveCapabilityFlag(capabilities, 'can_edit_identity')
+            || resolveCapabilityFlag(capabilities, 'can_edit_role')
         : defaultAllowed;
 
     return {
         canEdit,
         canDeactivate: Boolean(user.is_active && canChangeStatus),
         canReactivate: Boolean(!user.is_active && canChangeStatus),
-        canBreakGlassEnable: Boolean(capabilities?.can_break_glass_enable ?? false),
+        canBreakGlassEnable: resolveCapabilityFlag(capabilities, 'can_break_glass_enable'),
         canRunDirectoryCheck: Boolean(user.external_id),
     };
 }

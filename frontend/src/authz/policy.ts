@@ -1,5 +1,6 @@
 import type { MeCapabilities } from '@/services/authApi';
 import { isStrictCapabilitiesEnabled } from '@/services/capabilityFlags';
+import { resolveCapabilityFlag } from '@/lib/capabilities';
 
 export type PermissionChecker = (resource: string, action: string) => boolean;
 export type CapabilityChecker = (action: string, resource: string) => boolean;
@@ -103,27 +104,27 @@ export function buildAuthz(
 
     const can = (action: string, resource: string): boolean => {
         const key = `${resource}:${action}`;
-        return meCapabilities.resource_permissions[key] === true;
+        return resolveCapabilityFlag(meCapabilities.resource_permissions, key);
     };
 
-    const canViewUserDirectory = meCapabilities.can_view_user_directory;
-    const canViewAccessUsers = meCapabilities.can_view_access_users;
-    const canViewDepartmentAccessUsers = meCapabilities.can_view_department_access_users;
+    const canViewUserDirectory = resolveCapabilityFlag(meCapabilities, 'can_view_user_directory');
+    const canViewAccessUsers = resolveCapabilityFlag(meCapabilities, 'can_view_access_users');
+    const canViewDepartmentAccessUsers = resolveCapabilityFlag(meCapabilities, 'can_view_department_access_users');
     const canViewUsersRoute = canViewAccessUsers || canViewDepartmentAccessUsers || canViewUserDirectory;
-    const canManageAccess = meCapabilities.can_manage_access;
-    const canViewDepartmentAccess = meCapabilities.can_view_department_access;
-    const canViewAdminConsole = meCapabilities.can_view_admin_console;
-    const canViewRiskHub = meCapabilities.can_view_riskhub;
-    const canViewGovernance = meCapabilities.can_view_governance;
-    const canViewActivityLog = meCapabilities.can_view_activity_log;
-    const canViewCommittee = meCapabilities.can_view_committee;
-    const canViewUsersPage = meCapabilities.can_view_users_page;
-    const isSecondLine = meCapabilities.is_second_line;
+    const canManageAccess = resolveCapabilityFlag(meCapabilities, 'can_manage_access');
+    const canViewDepartmentAccess = resolveCapabilityFlag(meCapabilities, 'can_view_department_access');
+    const canViewAdminConsole = resolveCapabilityFlag(meCapabilities, 'can_view_admin_console');
+    const canViewRiskHub = resolveCapabilityFlag(meCapabilities, 'can_view_riskhub');
+    const canViewGovernance = resolveCapabilityFlag(meCapabilities, 'can_view_governance');
+    const canViewActivityLog = resolveCapabilityFlag(meCapabilities, 'can_view_activity_log');
+    const canViewCommittee = resolveCapabilityFlag(meCapabilities, 'can_view_committee');
+    const canViewUsersPage = resolveCapabilityFlag(meCapabilities, 'can_view_users_page');
+    const isSecondLine = resolveCapabilityFlag(meCapabilities, 'is_second_line');
 
-    const canReadRisks = meCapabilities.can_read_risks;
-    const canReadControls = meCapabilities.can_read_controls;
-    const canReadVendors = meCapabilities.can_read_vendors;
-    const canReadDepartments = meCapabilities.can_read_departments;
+    const canReadRisks = resolveCapabilityFlag(meCapabilities, 'can_read_risks');
+    const canReadControls = resolveCapabilityFlag(meCapabilities, 'can_read_controls');
+    const canReadVendors = resolveCapabilityFlag(meCapabilities, 'can_read_vendors');
+    const canReadDepartments = resolveCapabilityFlag(meCapabilities, 'can_read_departments');
 
     return {
         isAuthenticated,

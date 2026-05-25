@@ -90,3 +90,7 @@ def coerce_optional_literal(field_name: str, value: Any, allowed_values: set[str
     if coerced not in allowed_values:
         raise _invalid_filter(field_name)
     return coerced
+
+
+def merge_collection_filters(query: Any, defaults: dict[str, Any]) -> dict[str, Any]:
+    return defaults | getattr(query, "filters", {})

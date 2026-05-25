@@ -47,14 +47,6 @@ class SnapshotSourceDecision:
 
 
 @dataclass(frozen=True)
-class MetricAvailability:
-    period_metrics: list[str]
-    snapshot_metrics: list[str]
-    missing_current_snapshot_metrics: list[str]
-    missing_compare_snapshot_metrics: list[str]
-
-
-@dataclass(frozen=True)
 class QuarterMetricComposition:
     this_quarter: dict
     last_quarter: dict

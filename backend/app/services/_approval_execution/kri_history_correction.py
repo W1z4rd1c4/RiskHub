@@ -21,7 +21,6 @@ async def _apply_kri_history_correction(
     kri: KeyRiskIndicator,
     changes: dict,
     current_user: User,
-    department_id: int | None,
 ) -> SideEffectResult:
     """Apply history correction to a KRI history entry."""
     entry_id = changes.get("history_entry_id")

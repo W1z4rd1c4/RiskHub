@@ -8,6 +8,7 @@ import type { KeyRiskIndicator, KRIRecordValue } from '@/types/kri';
 import { isApprovalCreatedResponse } from '@/types/approval';
 import { useTranslation } from '@/i18n/hooks';
 import { formatDateValue } from '@/i18n/formatters';
+import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { logError } from '@/services/logger';
 
 interface KRIValueModalProps {
@@ -27,8 +28,11 @@ export function KRIValueModal({ kri, isOpen, onClose, onSuccess }: KRIValueModal
         value: kri.current_value,
     });
 
-    const canSubmitBackdatedValue = kri.capabilities?.can_submit_backdated_value === true;
-    const canRequestValueSubmissionApproval = kri.capabilities?.can_request_value_submission_approval === true;
+    const canSubmitBackdatedValue = resolveCapabilityFlag(kri.capabilities, 'can_submit_backdated_value');
+    const canRequestValueSubmissionApproval = resolveCapabilityFlag(
+        kri.capabilities,
+        'can_request_value_submission_approval',
+    );
 
     if (!isOpen) return null;
 

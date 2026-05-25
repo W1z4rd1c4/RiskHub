@@ -223,5 +223,9 @@
     "evidence_reference": "Reference důkazu",
     "next_scheduled_optional": "Další plánovaný termín (volitelné)",
     "logging": "Ukládání..."
+  },
+  "access": {
+    "denied": "Přístup odepřen",
+    "denied_activity_log": "Nemáte oprávnění zobrazit protokol aktivit."
   }
 }

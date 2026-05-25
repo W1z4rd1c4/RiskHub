@@ -61,7 +61,8 @@ describe('NotificationBell', () => {
             </MemoryRouter>
         );
 
-        expect(screen.getByText('2')).toBeInTheDocument();
+        expect(screen.getByText('2')).toHaveClass('notification-count-badge');
+        expect(screen.getByText('2')).toHaveClass('bg-rose-700');
         fireEvent.click(screen.getByTestId('notification-bell-button'));
 
         const panel = await screen.findByTestId('notification-dropdown-panel');

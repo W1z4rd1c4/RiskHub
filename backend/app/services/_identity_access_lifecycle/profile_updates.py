@@ -19,6 +19,7 @@ from app.services._org_chart import (
     validate_no_manager_cycle,
 )
 from app.services._orphaned_items import flag_orphaned_items
+from app.services.transaction_boundary import commit_service_boundary
 
 from .execution import log_user_update_and_commit
 from .policy import (
@@ -82,7 +83,7 @@ async def create_user_profile(
         actor=current_user,
         department_id=new_user.department_id,
     )
-    await db.commit()
+    await commit_service_boundary(db, boundary="identity_access.create_user_profile")
     await db.refresh(new_user)
 
     result = await db.execute(select(User).options(*user_selectinload_options()).where(User.id == new_user.id))

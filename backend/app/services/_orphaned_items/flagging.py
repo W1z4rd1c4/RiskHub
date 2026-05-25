@@ -8,6 +8,7 @@ from app.models.control import Control
 from app.models.department import Department
 from app.models.orphaned_item import OrphanedItem
 from app.models.risk import Risk
+from app.services.transaction_boundary import commit_service_boundary
 
 from .core import _already_flagged, _create_orphan
 from .logging import logger
@@ -223,7 +224,7 @@ async def scan_uncategorised_items(db: AsyncSession) -> int:
         new_orphans_count += 1
 
     if new_orphans_count > 0:
-        await db.commit()
+        await commit_service_boundary(db, boundary="orphaned_items.flag")
         logger.info(f"Uncategorised/Orphan Sweep: Flagged {new_orphans_count} new orphaned items")
 
     return new_orphans_count

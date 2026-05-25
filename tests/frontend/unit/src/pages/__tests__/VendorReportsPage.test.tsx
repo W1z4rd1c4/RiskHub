@@ -69,6 +69,20 @@ describe('VendorReportsPage', () => {
         render(<VendorReportsPage />);
 
         expect(await screen.findByText('reports.not_authorized')).toBeInTheDocument();
+        expect(screen.queryByText('reports.annual.title')).not.toBeInTheDocument();
+        expect(screen.queryByText('reports.dora.title')).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /reports\.annual\.download_csv/ })).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /reports\.dora\.download/ })).not.toBeInTheDocument();
+    });
+
+    it('hides report content and actions when backend denies read access', async () => {
+        getCapabilitiesMock.mockResolvedValue(allowReports({ can_read: false }));
+
+        render(<VendorReportsPage />);
+
+        expect(await screen.findByText('reports.not_authorized')).toBeInTheDocument();
+        expect(screen.queryByText('reports.annual.title')).not.toBeInTheDocument();
+        expect(screen.queryByText('reports.dora.title')).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: /reports\.annual\.download_csv/ })).not.toBeInTheDocument();
         expect(screen.queryByRole('button', { name: /reports\.dora\.download/ })).not.toBeInTheDocument();
     });

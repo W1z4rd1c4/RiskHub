@@ -84,6 +84,8 @@ Primary evidence:
 - `docs/adr/ADR-001-capabilities-module-unification.md`
 - `docs/adr/ADR-002-service-owned-transactions.md`
 - `docs/adr/ADR-007-bounded-context-taxonomy.md`
+- `docs/adr/ADR-011-auth-scheme-and-session-model.md`
+- `docs/security/authorization-capability-contract.md`
 - `tests/backend/pytest/test_architecture_deepening_contracts.py`
 - `tests/backend/pytest/architecture/`
 - `tests/frontend/unit/src/authz/__tests__/BusinessRouteGuards*`
@@ -154,40 +156,40 @@ Use this matrix as the execution ledger. Every repo-verifiable audit finding mus
 
 | Rank | Audit target | Exact anchor | Disposition | Target plan slice | Required test or lock |
 |---|---|---|---|---|---|
-| 1 | Adopt `commit_service_boundary` canonical primitive | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:350`, `:571` | Concrete slice | W5.1-W5.3 | Transaction boundary behavior tests and commit ratchet |
-| 2 | Promote outbox-only invariant to global architecture lock | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:351`, `:317` | Concrete slice | W1.2, W9.1 verification | Global AST outbox lock |
-| 3 | Redesign `hasattr` architecture pins into behavior pins | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:352`, `:678` | Concrete slice | W3.2 | Behavior tests plus dead-pin ratchet |
+| 1 | Adopt `commit_service_boundary` canonical primitive | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:351`, `:571` | Concrete slice | W5.1-W5.3 | Transaction boundary behavior tests and commit ratchet |
+| 2 | Promote outbox-only invariant to global architecture lock | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:352`, `:318` | Concrete slice | W1.2, W9.1 verification | Global AST outbox lock |
+| 3 | Redesign `hasattr` architecture pins into behavior pins | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:353`, `:678` | Concrete slice | W3.2 | Behavior tests plus dead-pin ratchet |
 | 4 | `_register_listings/*` declarative `ListingDescriptor` registry | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:354` | Explicit deferral | W7 verifies no partial registry work is required | Deferred until sentinel, vendor-context, and prefix helpers land |
-| 5 | Dashboard endpoints into `_dashboard_metrics` builders | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:355`, `:652` | Concrete slice | W4.1, W4.4 | Dashboard parity and query-budget tests |
+| 5 | Dashboard endpoints into `_dashboard_metrics` builders | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:355`, `:654` | Concrete slice | W4.1, W4.4 | Dashboard parity and query-budget tests |
 | 6 | Endpoint/private-service import discipline lock | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:356`, `:295` | Concrete slice | W6.3, W9.2 roll-up | Private import architecture lock |
 | 7 | Restore endpoints into mutation lifecycle orchestrators | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:357`, `:670` | Concrete slice | W6.1 | Restore endpoint parity tests and adapter lock |
-| 8 | Frontend register page-state migration | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:358`, `:263` | Concrete slice | W8.1 | Register page-state tests |
-| 9 | Frontend detail-fetch consolidation on React Query | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:359`, `:264` | Concrete slice | W8.2 | Detail-fetch behavior tests and query-key policy |
+| 8 | Frontend register page-state migration | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:358`, `:264` | Concrete slice | W8.1 | Register page-state tests |
+| 9 | Frontend detail-fetch consolidation on React Query | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:359`, `:265` | Concrete slice | W8.2 | Detail-fetch behavior tests and query-key policy |
 | 10 | Deadline orchestrators templating via `DeadlineRun` driver | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:360`, `:650` | Explicit deferral | W3.1C only removes compatibility shims | 300-LOC templating consolidation deferred |
 
 ### 6.3 Top 15 Simplification Targets And Quick Wins
 
 | Rank/item | Audit target | Exact anchor | Disposition | Target plan slice | Required test or lock |
 |---|---|---|---|---|---|
-| Top 15 #1 | 4 frontend `useXPageState.ts` hooks to `useRegisterPageController` | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:380`, `:263` | Concrete slice | W8.1 | Page-state preservation tests |
+| Top 15 #1 | 4 frontend `useXPageState.ts` hooks to `useRegisterPageController` | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:380`, `:264` | Concrete slice | W8.1 | Page-state preservation tests |
 | Top 15 #2 | Dead contracts and `hasattr` pins | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:381`, `:414` | Concrete slice | W3.2 | Dead-symbol behavior tests and ratchet |
-| Top 15 #3 | `archive_X_no_commit` and `archive_X_detail` consolidation | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:382`, `:285` | Concrete slice | W7.3 | Archive behavior tests |
+| Top 15 #3 | `archive_X_no_commit` and `archive_X_detail` consolidation | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:382`, `:283`, `:284` | Concrete slice | W7.3 | Archive behavior tests |
 | Top 15 #4 | Register listing shared sentinels | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:383`, `:280`, `:642` | Concrete slice | W7.1 | Register listing characterization tests |
 | Top 15 #5 | 4 export builders to registry | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:384`, `:654` | Concrete slice | W6.5 | Export parity plus registry-selection tests |
 | Top 15 #6 | `ArchiveConfirmDialog` simplification | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:385`, `:674` | Concrete slice | W2.4, W8.3 | Dialog a11y and adapter tests |
-| Top 15 #7 | `endpoints/auth/_sso_helpers.py` deletion | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:386`, `:235`, `:656` | Concrete slice | W3.1A | Negative-existence ratchet |
-| Top 15 #8 | `scripts/security/authz_validator/` shim deletion | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:387`, `:238`, `:678` | Concrete slice | W3.1B | Validator parity and negative-existence ratchet |
+| Top 15 #7 | `endpoints/auth/_sso_helpers.py` deletion | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:386`, `:235`, `:658` | Concrete slice | W3.1A | Negative-existence ratchet |
+| Top 15 #8 | `scripts/security/authz_validator/` shim deletion | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:387`, `:239`, `:678` | Concrete slice | W3.1B | Validator parity and negative-existence ratchet |
 | Top 15 #9 | Vendor-context subqueries to helper | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:388`, `:281` | Concrete slice | W7.2 | Vendor-context filter parity tests |
 | Top 15 #10 | `_kri_history/queries.py` period-row builder | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:389`, `:662` | Concrete slice | W7.4c | KRI history query characterization tests |
 | Top 15 #11 | Group-filter prefix parser | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:390`, `:282` | Concrete slice | W7.1 | Prefix parser tests |
-| Top 15 #12 | `_to_directory_user` duplicate normalization | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:391`, `:287` | Concrete slice | W7.4b | Directory normalization tests |
+| Top 15 #12 | `_to_directory_user` duplicate normalization | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:391`, `:288` | Concrete slice | W7.4b | Directory normalization tests |
 | Top 15 #13 | `endpoints/controls/_helpers.py` deletion | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:392`, `:236`, `:670` | Concrete slice | W3.1A | Negative-existence ratchet |
-| Top 15 #14 | `resolve_safe_default_role` consolidation | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:393`, `:288`, `:656` | Concrete slice | W7.4a | Safe-default-role behavior tests |
-| Top 15 #15 | `_approval_execution/kri_changes.py` deletion | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:394`, `:238`, `:644` | Concrete slice | W3.1A | Negative-existence ratchet |
-| Quick win | `_reporting/exports/monitoring.py` alias deletion | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:402` | Concrete slice | W3.1C, W6.5 | Export route parity tests |
-| Quick win | `_register_listings/__init__.py` re-export deletion | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:403` | Concrete slice | W3.1B | Import-contract migration and ratchet |
-| Quick win | `Header.tsx`, `usersTablePresentation`, `ApprovalList.currentUserId` deletion | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:405`, `:672` | Concrete slice | W3.1A | Frontend negative-existence and behavior tests |
-| Retain | `get_password_hash` re-export | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:409`, `:241` | Retain by contract | W3.1 guardrail | Keep invariant unless docs/tests are changed in same slice |
+| Top 15 #14 | `resolve_safe_default_role` consolidation | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:393`, `:287`, `:658` | Concrete slice | W7.4a | Safe-default-role behavior tests |
+| Top 15 #15 | `_approval_execution/kri_changes.py` deletion | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:394`, `:238`, `:646` | Concrete slice | W3.1A | Negative-existence ratchet |
+| Quick win | `_reporting/exports/monitoring.py` alias deletion | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:401` | Concrete slice | W3.1C, W6.5 | Export route parity tests |
+| Quick win | `_register_listings/__init__.py` re-export deletion | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:402` | Concrete slice | W3.1B | Import-contract migration and ratchet |
+| Quick win | `Header.tsx`, `usersTablePresentation`, `ApprovalList.currentUserId` deletion | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:405`, `:406`, `:674` | Concrete slice | W3.1A | Frontend negative-existence and behavior tests |
+| Retain | `get_password_hash` re-export | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:410`, `:241` | Retain by contract | W3.1 guardrail | Keep invariant unless docs/tests are changed in same slice |
 
 ### 6.4 Dead Symbols And Live Retain Items
 
@@ -203,7 +205,7 @@ Use this matrix as the execution ledger. Every repo-verifiable audit finding mus
 
 | Audit finding | Exact anchor | Disposition | Target plan slice | Required test or lock |
 |---|---|---|---|---|
-| `_get_vendor_with_deps` unused helper | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:241` | Concrete slice | W3.1A | Verified-dead ratchet and vendor tests |
+| `_get_vendor_with_deps` unused helper | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:240` | Concrete slice | W3.1A | Verified-dead ratchet and vendor tests |
 | `trigger_kri_deadline_check` no frontend caller | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:242` | Retain by contract | W3.4 | Admin/debug route tests |
 | `count_high_risks` unused outside tests/facade | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:243` | Concrete slice | W3.1A | Threshold/report tests |
 | `get_config_sync` no production callers | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:244`, `:666` | Concrete slice | W3.1A | Negative-existence ratchet |
@@ -219,14 +221,14 @@ Use this matrix as the execution ledger. Every repo-verifiable audit finding mus
 | Unused KRI side-effect `department_id` | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:644` | Concrete slice | W7.6 | Side-effect tests and type check |
 | Approval queue/execution paired context | `docs/adr/ADR-007-bounded-context-taxonomy.md:51` | Concrete slice | W1.5, W4.3, W7.5, W7.6 | Paired verification and rollback notes |
 | `notification_service.py` broad catches | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:666` | Concrete slice | W1.7 | Notification failure logging tests |
-| `_vendor_links/kri_assignment.py` naming | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:662` | Concrete slice | W6.6 | One-step import migration tests |
+| Legacy `_vendor_links/kri_assignment.py` naming, now canonical `_vendor_links/kri_bridge.py` | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:662` | Concrete slice | W6.6 | One-step import migration tests |
 | `_issue_workflow/serialization.py` private import | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:662` | Concrete slice | W6.3 | Private import discipline lock |
 | `_config/` vs `_riskhub_config/` naming | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:666` | Explicit deferral | None | Low-value naming cleanup outside this remediation |
 | Reporting export duplication: pipeline, shared module, 10 shims | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:654` | Concrete slice | W6.5 | Export parity and adapter locks |
 | Dashboard inline ORM and dashboard N+1 | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:654` | Concrete slice | W4.1, W4.4 | Dashboard query-budget tests |
 | Restore endpoints, create endpoints, route-calling-route imports, `require_*` factories, private capability imports | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:670`, `:295` through `:307` | Concrete slice | W6.1-W6.8 | Endpoint adapter locks and authz contract validator |
 | `_identity_access_lifecycle` direct commits and service commit dispersion | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:157` through `:183`, `:656` | Concrete slice | W5.1-W5.3 | Service commit boundary ratchet |
-| ADR-001/ADR-002/ADR-007/ADR-011 drift and allowlist hygiene | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:315` through `:327`, `:484` through `:508`, `:678` | Concrete slice | W5.3, W9.3, W9.4 | Docs consistency tests and architecture locks |
+| ADR-001/ADR-002/ADR-007/ADR-011 drift and allowlist hygiene | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:315` through `:327`, `:484` through `:508`, `:678`; `docs/adr/ADR-011-auth-scheme-and-session-model.md:13`, `:42` | Concrete slice | W5.3, W9.3, W9.4 | Docs consistency tests and architecture locks |
 | `buildLegacyAuthz` fallback | `docs/audits/2026-05-18-architecture-and-simplify-audit.md:755`, `docs/security/authorization-capability-contract.md:238` | Retain by contract | W8.4 | Authz invariant tests document fallback behavior |
 
 ## 7. Wave 0 - Baseline And Drift Inventory
@@ -997,8 +999,8 @@ make -f scripts/Makefile test-architecture-locks
 
 Steps:
 
-- [ ] RED: add one-step migration coverage for callers of `backend/app/services/_vendor_links/kri_assignment.py`.
-- [ ] GREEN: rename `_vendor_links/kri_assignment.py` to a bridge name that reflects vendor-link assignment behavior rather than KRI ownership.
+- [ ] RED: add one-step migration coverage for callers of the legacy `backend/app/services/_vendor_links/kri_assignment.py` path.
+- [ ] GREEN: rename `_vendor_links/kri_assignment.py` to `_vendor_links/kri_bridge.py`, reflecting vendor-link assignment behavior rather than KRI ownership.
 - [ ] GREEN: migrate all callers in one slice; do not keep a compatibility shim.
 - [ ] REFACTOR: keep vendor-link business rules in `_vendor_links`; do not move KRI side effects into the bridge.
 - [ ] VERIFY:

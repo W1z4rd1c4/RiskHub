@@ -28,7 +28,7 @@ from app.models.activity_log import ActivityEntityType
 from app.models.key_risk_indicator import KRIFrequency
 from app.models.risk import RiskStatus
 from app.services._riskhub_config.approval_scenario_roles import APPROVER_ROLES, set_approval_scenario_roles
-from app.services._vendor_links import kri_assignment
+from app.services._vendor_links import kri_bridge
 from tests.backend.pytest.factories import create_test_kri, create_test_risk, create_test_vendor
 
 
@@ -229,7 +229,7 @@ async def test_create_kri_vendor_assignment_rolls_back_when_later_link_fails(
     metric_name = "Atomic Vendor Assignment Failure"
     risk_id = test_risk_for_kri.id
     vendor_ids = [test_vendor_for_kri.id, second_test_vendor_for_kri.id]
-    original_link_vendor_target = kri_assignment.link_vendor_target_no_commit
+    original_link_vendor_target = kri_bridge.link_vendor_target_no_commit
     calls = 0
 
     async def fail_on_second_link(*args, **kwargs):
@@ -239,7 +239,7 @@ async def test_create_kri_vendor_assignment_rolls_back_when_later_link_fails(
             raise RuntimeError("injected second vendor-link failure")
         return await original_link_vendor_target(*args, **kwargs)
 
-    monkeypatch.setattr(kri_assignment, "link_vendor_target_no_commit", fail_on_second_link)
+    monkeypatch.setattr(kri_bridge, "link_vendor_target_no_commit", fail_on_second_link)
 
     with pytest.raises(RuntimeError, match="injected second vendor-link failure"):
         await auth_client.post(
@@ -375,7 +375,7 @@ async def test_kri_vendor_unassign_prevalidates_vendor_write_before_unlink_mutat
     async def fail_if_unlink_mutates(*args, **kwargs):  # noqa: ANN001
         raise AssertionError("unlink mutation should not run before vendor-write precheck")
 
-    monkeypatch.setattr(kri_assignment, "unlink_vendor_target_no_commit", fail_if_unlink_mutates)
+    monkeypatch.setattr(kri_bridge, "unlink_vendor_target_no_commit", fail_if_unlink_mutates)
 
     response = await client.put(
         f"/api/v1/kris/{kri_id}",

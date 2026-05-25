@@ -28,3 +28,5 @@ export const GovernanceRouteGuard = createBusinessRouteGuard('canViewGovernance'
 export const ActivityLogRouteGuard = createBusinessRouteGuard('canViewActivityLog');
 export const UsersRouteGuard = createBusinessRouteGuard('canViewUsersRoute');
 export const UserLifecycleRouteGuard = createBusinessRouteGuard('isPlatformAdmin');
+export const AdminConsoleRouteGuard = createBusinessRouteGuard('canViewAdminConsole');
+export const AuditTrailRouteGuard = createBusinessRouteGuard('canReadControls');

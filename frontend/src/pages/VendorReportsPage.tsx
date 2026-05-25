@@ -4,6 +4,7 @@ import { Download, FileSpreadsheet } from 'lucide-react';
 import { vendorReportApi } from '@/services/vendorReportApi';
 import { departmentApi, type DepartmentSummary } from '@/services/departmentApi';
 import type { VendorReportCapabilities } from '@/types/vendorReport';
+import { resolveCapabilityFlag } from '@/lib/capabilities';
 
 export function VendorReportsPage() {
     const { t } = useTranslation('vendors');
@@ -15,10 +16,10 @@ export function VendorReportsPage() {
     const [isCapabilitiesLoading, setIsCapabilitiesLoading] = useState(true);
     const [isDownloading, setIsDownloading] = useState(false);
 
-    const canReadReports = capabilities?.can_read === true;
-    const canDownloadAnnual = capabilities?.can_download_annual_report === true;
-    const canDownloadDora = capabilities?.can_download_dora_register === true;
-    const canUseDepartmentFilter = capabilities?.can_use_department_filter === true;
+    const canReadReports = resolveCapabilityFlag(capabilities, 'can_read');
+    const canDownloadAnnual = resolveCapabilityFlag(capabilities, 'can_download_annual_report');
+    const canDownloadDora = resolveCapabilityFlag(capabilities, 'can_download_dora_register');
+    const canUseDepartmentFilter = resolveCapabilityFlag(capabilities, 'can_use_department_filter');
 
     const download = async (fn: () => Promise<void>) => {
         try {

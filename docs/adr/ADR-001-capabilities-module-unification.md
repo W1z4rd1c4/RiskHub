@@ -20,7 +20,7 @@ Create one public Capabilities Module Interface. Backend callers use `Capabiliti
 
 ## Migration Impact
 
-The `_authorization_capabilities` package will be promoted to a public import path. In-repo imports must migrate atomically, and an external-consumer scan must run before the rename. Frontend schema validation must be generated or checked from the authorization capability contract.
+The stable public import path is `app.services.authorization_capabilities`. The private `_authorization_capabilities` package remains the implementation home. In-repo endpoint and service callers must use the public facade when the requested symbol is exported there; private imports are reserved for forced bypasses whose symbols are intentionally not on the facade, such as riskhub config helpers, admin-only builders, and shared internal query helpers. Frontend schema validation must be generated or checked from the authorization capability contract.
 
 ## Rollback Strategy
 
@@ -29,6 +29,6 @@ Keep the rename in one local checkpoint. If validation fails, revert the capabil
 ## Invariant Tests
 
 - Route capability snapshot: `(method, path) -> required_capability` must not silently weaken.
-- No direct per-resource capability imports outside the Module internals.
+- No direct private capability imports outside the Module internals when the imported symbol exists on `app.services.authorization_capabilities`.
 - `validate_authz_capability_contract.py` verifies backend builder, Pydantic schema, frontend schema, and docs alignment.
 - Frontend route gates use `useAuthz().can(...)` rather than role-string booleans.

@@ -62,7 +62,7 @@ export function KRIFormContainer({
     const state = useKriFormState({ initialData, initialLinkedVendorIds, vendorContext });
     const debouncedRiskSearch = useDebouncedValue(state.riskSearch, 300);
     const debouncedVendorSearch = useDebouncedValue(state.vendorSearch, 300);
-    const { selectedVendorOptions, setSelectedVendorOptions } = state;
+    const { selectedVendorOptions, setStatePatch } = state;
 
     const lookups = useKriLookups({
         debouncedRiskSearch,
@@ -86,9 +86,9 @@ export function KRIFormContainer({
             || mergedVendorOptions.some((vendor, index) => vendor.id !== selectedVendorOptions[index]?.id);
 
         if (optionsChanged) {
-            setSelectedVendorOptions(mergedVendorOptions);
+            setStatePatch({ selectedVendorOptions: mergedVendorOptions });
         }
-    }, [lookups.vendorOptions, selectedVendorOptions, setSelectedVendorOptions]);
+    }, [lookups.vendorOptions, selectedVendorOptions, setStatePatch]);
 
     const effectiveVendorIds = useMemo(
         () => getEffectiveVendorIds(state.selectedVendorIds, vendorContext),
@@ -153,14 +153,15 @@ export function KRIFormContainer({
             ? lookups.isLoadingVendorLinkedRisks
             : lookups.isLoadingGenericRisks;
 
-    const validateStep1 = () => validateRiskSelection(state.formData.risk_id, state.setError, t);
-    const validateStep2 = () => validateKriDetails(state.formData, state.setError, t);
+    const setFormError = (error: string | null) => setStatePatch({ error });
+    const validateStep1 = () => validateRiskSelection(state.formData.risk_id, setFormError, t);
+    const validateStep2 = () => validateKriDetails(state.formData, setFormError, t);
     const handleSelectedVendorIdsChange = (vendorIds: number[]) => {
-        state.setSelectedVendorIds(vendorIds);
-        state.setSelectedVendorOptions(
-            syncSelectedVendorOptions(vendorIds, selectedVendorOptions, lookups.vendorOptions),
-        );
-        state.setError(null);
+        setStatePatch({
+            error: null,
+            selectedVendorIds: vendorIds,
+            selectedVendorOptions: syncSelectedVendorOptions(vendorIds, selectedVendorOptions, lookups.vendorOptions),
+        });
     };
 
     const { finalizeCreate, handleSubmit } = useKriSubmit({
@@ -171,10 +172,7 @@ export function KRIFormContainer({
         kriId,
         navigate,
         onSuccess,
-        setApprovalQueued: state.setApprovalQueued,
-        setError: state.setError,
-        setIsMismatchDialogOpen: state.setIsMismatchDialogOpen,
-        setIsSubmitting: state.setIsSubmitting,
+        setStatePatch,
         t,
         validateStep1,
         validateStep2,
@@ -187,7 +185,7 @@ export function KRIFormContainer({
                 <div className="glass-card flex min-h-[560px] flex-col">
                     <KriApprovalQueuedFeedback
                         approvalQueued={state.approvalQueued}
-                        onClose={() => state.setApprovalQueued(null)}
+                        onClose={() => setStatePatch({ approvalQueued: null })}
                         t={t}
                     />
                     {visibleError ? <KriFormErrorAlert error={visibleError} /> : null}
@@ -205,14 +203,16 @@ export function KRIFormContainer({
                             isSelectedRiskLinkedToVendor={isSelectedRiskLinkedToVendor}
                             onClearSelectedRisk={() => state.setFormField('risk_id', undefined)}
                             onInputChange={state.setFormField}
-                            onRiskSearchChange={state.setRiskSearch}
+                            onRiskSearchChange={(riskSearch) => setStatePatch({ riskSearch })}
                             onRiskSelect={(riskId) => state.setFormField('risk_id', riskId)}
-                            onSelectedCategoryChange={state.setSelectedCategory}
-                            onSelectedDeptIdChange={state.setSelectedDeptId}
-                            onSelectedProcessChange={state.setSelectedProcess}
+                            onSelectedCategoryChange={(selectedCategory) => setStatePatch({ selectedCategory })}
+                            onSelectedDeptIdChange={(selectedDeptId) => setStatePatch({ selectedDeptId })}
+                            onSelectedProcessChange={(selectedProcess) => setStatePatch({ selectedProcess })}
                             onSelectedVendorIdsChange={handleSelectedVendorIdsChange}
-                            onShowOnlyVendorLinkedRisksChange={state.setShowOnlyVendorLinkedRisks}
-                            onVendorSearchChange={state.setVendorSearch}
+                            onShowOnlyVendorLinkedRisksChange={(showOnlyVendorLinkedRisks) =>
+                                setStatePatch({ showOnlyVendorLinkedRisks })
+                            }
+                            onVendorSearchChange={(vendorSearch) => setStatePatch({ vendorSearch })}
                             riskSearch={state.riskSearch}
                             selectedCategory={state.selectedCategory}
                             selectedDeptId={state.selectedDeptId}
@@ -238,8 +238,7 @@ export function KRIFormContainer({
                         isSubmitting={state.isSubmitting}
                         navigate={navigate}
                         onCancel={onCancel}
-                        setCurrentStep={state.setCurrentStep}
-                        setError={state.setError}
+                        setStatePatch={setStatePatch}
                         validateStep1={validateStep1}
                     />
                 </div>
@@ -248,7 +247,7 @@ export function KRIFormContainer({
             {state.isMismatchDialogOpen ? (
                 <KriMismatchDialog
                     isSubmitting={state.isSubmitting}
-                    onCancel={() => state.setIsMismatchDialogOpen(false)}
+                    onCancel={() => setStatePatch({ isMismatchDialogOpen: false })}
                     onContinueWithoutLinking={() => void finalizeCreate({ linkRiskFirst: false })}
                     onLinkRiskAndContinue={() => void finalizeCreate({ linkRiskFirst: true })}
                 />

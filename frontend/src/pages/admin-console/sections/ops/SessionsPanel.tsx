@@ -4,6 +4,7 @@ import { RefreshCw } from 'lucide-react';
 
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { useTranslation } from '@/i18n/hooks';
+import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { adminKeys } from '@/lib/queryKeys';
 import { cn } from '@/lib/utils';
 import { adminApi, type ActiveSession } from '@/services/adminApi';
@@ -28,8 +29,8 @@ export function SessionsPanel() {
         queryKey: adminKeys.capabilities(),
         queryFn: () => adminApi.getCapabilities(),
     });
-    const canRevokeSessions = capabilities?.can_revoke_sessions === true;
-    const canRunDirectoryCheckAll = capabilities?.can_run_directory_check_all === true;
+    const canRevokeSessions = resolveCapabilityFlag(capabilities, 'can_revoke_sessions');
+    const canRunDirectoryCheckAll = resolveCapabilityFlag(capabilities, 'can_run_directory_check_all');
 
     const revokeMutation = useMutation({
         mutationFn: (userId: number) => adminApi.revokeSession(userId),
@@ -38,7 +39,7 @@ export function SessionsPanel() {
         onError: (error) => {
             const message = error instanceof ApiClientError
                 ? (error.rawMessage ?? error.messageKey)
-                : t('sessions.revoke_failed', { defaultValue: 'Failed to revoke session.' });
+                : t('sessions.revoke_failed');
             setRevokeError(message);
             void queryClient.invalidateQueries({ queryKey: adminKeys.sessions() });
         },
@@ -57,7 +58,6 @@ export function SessionsPanel() {
             const result = await adminApi.checkAllDirectoryUsers();
             setDirectorySummary(
                 t('users.directory_check_all_success', {
-                    defaultValue: `Checked ${result.checked} users (${result.deprovisioned} deprovisioned).`,
                     checked: result.checked,
                     deprovisioned: result.deprovisioned,
                 }),
@@ -65,7 +65,7 @@ export function SessionsPanel() {
             void queryClient.invalidateQueries({ queryKey: adminKeys.sessions() });
         } catch (error) {
             logError('Directory check-all failed.', error);
-            setDirectorySummary(t('users.directory_check_failed', { defaultValue: 'Directory check failed.' }));
+            setDirectorySummary(t('users.directory_check_failed'));
         } finally {
             setDirectorySyncing(false);
         }
@@ -91,8 +91,8 @@ export function SessionsPanel() {
                         >
                             <RefreshCw className={cn('h-3.5 w-3.5', directorySyncing && 'animate-spin')} />
                             {directorySyncing
-                                ? t('users.checking_directory', { defaultValue: 'Checking...' })
-                                : t('users.check_directory', { defaultValue: 'Check AD' })}
+                                ? t('users.checking_directory')
+                                : t('users.check_directory')}
                         </button>
                     )}
                 </div>

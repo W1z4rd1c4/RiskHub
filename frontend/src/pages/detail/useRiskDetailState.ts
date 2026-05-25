@@ -8,7 +8,7 @@ import { logError } from '@/services/logger';
 import { riskApi } from '@/services/riskApi';
 import type { DetailActionMessage } from '@/pages/detail/DetailActionBanner';
 import { useArchiveRestoreAction } from '@/pages/detail/useArchiveRestoreAction';
-import { useDetailResource } from '@/pages/detail/useDetailResource';
+import { useDetailQuery } from '@/pages/detail/useDetailQuery';
 import type { HistoryTimelineItem } from '@/types/history';
 import type { OverdueKRI } from '@/types/kri';
 import type { ControlEffectiveness, Risk, RiskControlLink } from '@/types/risk';
@@ -62,7 +62,8 @@ export function useRiskDetailState({ rawId }: UseRiskDetailStateArgs) {
         resource,
         resourceId,
         setResource,
-    } = useDetailResource<RiskDetailData>({
+    } = useDetailQuery<RiskDetailData>({
+        entity: 'risk',
         rawId,
         load: loadRiskDetail,
         toErrorKey: (error) => apiClient.toUiMessageKey(error),

@@ -18,7 +18,7 @@ def _tree() -> ast.Module:
 
 def _imports_canonical_builder(tree: ast.Module) -> bool:
     for node in ast.walk(tree):
-        if isinstance(node, ast.ImportFrom) and node.module == "app.services._authorization_capabilities":
+        if isinstance(node, ast.ImportFrom) and node.module == "app.services.authorization_capabilities":
             return any(alias.name == "build_me_capabilities" for alias in node.names)
     return False
 

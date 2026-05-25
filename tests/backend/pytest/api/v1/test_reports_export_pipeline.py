@@ -3,24 +3,27 @@
 import ast
 from datetime import date
 from inspect import getsource
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
 from fastapi.responses import StreamingResponse
 
-from app.api.v1.endpoints.reports.unified_exports import (
-    export_controls,
-    export_issues,
-    export_kris,
-    export_risks,
-    export_vendors,
-)
-from app.api.v1.endpoints.reports.unified_exports.pipeline import (
+from app.models.user import AccessScope
+from app.services._reporting import exports as export_registry
+from app.services._reporting.exports import controls as export_controls
+from app.services._reporting.exports import issues as export_issues
+from app.services._reporting.exports import kris as export_kris
+from app.services._reporting.exports import risks as export_risks
+from app.services._reporting.exports import vendors as export_vendors
+from app.services._reporting.exports.filters import _filter_rows_by_final_scope, _filter_rows_by_vendor_criteria
+from app.services._reporting.exports.pipeline import (
     ExportPipelineDefinition,
     apply_export_stages,
     render_export_pipeline,
 )
-from app.services._reporting.exports.filters import _filter_rows_by_vendor_criteria
+
+REPORT_ROUTES = "backend/app/api/v1/endpoints/reports/unified_exports/routes.py"
 
 
 @pytest.mark.asyncio
@@ -140,6 +143,41 @@ def test_tabular_exporters_delegate_rendering_to_shared_pipeline():
         assert "row_values" not in render_keywords
 
 
+def test_unified_export_routes_select_builders_from_canonical_exports_interface():
+    routes = getsource(__import__("app.api.v1.endpoints.reports.unified_exports.routes", fromlist=["router"]))
+
+    assert "from app.services._reporting.exports import get_export_builder" in routes
+    assert "get_export_builder(" in routes
+
+    assert "app.api.v1.endpoints.reports.unified_exports.export_" not in routes
+    assert "from .exports import" not in routes
+
+
+def test_unified_export_routes_select_builders_from_canonical_registry():
+    expected_builders = {
+        "controls": export_controls._export_controls,
+        "issues": export_issues._export_issues,
+        "kris": export_kris._export_kris,
+        "risks": export_risks._export_risks,
+        "vendors": export_vendors._export_vendors,
+    }
+
+    assert dict(export_registry.EXPORT_BUILDERS) == expected_builders
+    for resource, builder in expected_builders.items():
+        assert export_registry.get_export_builder(resource) is builder
+
+    routes = getsource(__import__("app.api.v1.endpoints.reports.unified_exports.routes", fromlist=["router"]))
+    assert "get_export_builder(" in routes
+    for builder_name in (
+        "_export_controls",
+        "_export_issues",
+        "_export_kris",
+        "_export_risks",
+        "_export_vendors",
+    ):
+        assert builder_name not in routes
+
+
 def test_vendor_export_inactive_status_filter_is_archived_alias():
     rows = [
         {
@@ -162,3 +200,21 @@ def test_vendor_export_inactive_status_filter_is_archived_alias():
     )
 
     assert [row["name"] for row in filtered] == ["Archived Vendor"]
+
+
+def test_vendor_export_final_scope_excludes_unassigned_rows_for_scoped_owner():
+    current_user = SimpleNamespace(id=42, access_scope=AccessScope.DEPARTMENT, department_id=7, manager=None)
+    rows = [
+        {"name": "Owned unassigned replay", "department_id": None, "outsourcing_owner_user_id": 42},
+        {"name": "Owned visible department", "department_id": 7, "outsourcing_owner_user_id": 42},
+    ]
+
+    filtered = _filter_rows_by_final_scope(
+        rows,
+        current_user=current_user,
+        department_id=None,
+        owner_field="outsourcing_owner_user_id",
+        exclude_unassigned_for_scoped=True,
+    )
+
+    assert [row["name"] for row in filtered] == ["Owned visible department"]

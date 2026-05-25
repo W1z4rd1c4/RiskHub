@@ -9,7 +9,12 @@ Business/service-layer logic for `_dashboard_metrics`.
 - `__init__.py`
 - `__pycache__/`
 - `committee_projection.py`
+- `controls.py`
+- `departments.py`
+- `kris.py`
 - `lifecycle.py`
+- `periods.py`
+- `risks.py`
 - `risk_levels.py`
 
 ## Notes

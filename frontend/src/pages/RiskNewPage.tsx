@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { RiskForm } from '@/components/RiskForm';
 import { useTranslation } from '@/i18n/hooks';
+import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { logError } from '@/services/logger';
 import { riskApi } from '@/services/riskApi';
 import { vendorApi } from '@/services/vendorApi';
@@ -46,7 +47,7 @@ export function RiskNewPage() {
                 const vendor = await vendorApi.getVendor(vendorId);
                 if (!isMounted) return;
                 setVendorContextState(
-                    vendor.capabilities?.can_create_linked_risk === true ? 'allowed' : 'denied',
+                    resolveCapabilityFlag(vendor.capabilities, 'can_create_linked_risk') ? 'allowed' : 'denied',
                 );
             } catch (error) {
                 logError('Failed to load vendor risk-create capabilities.', error);

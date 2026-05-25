@@ -58,6 +58,7 @@ show_help() {
     echo ""
     echo "Demo/dev auth defaults:"
     echo "  Local modes default to AUTH_MODE=hybrid_dev with MOCK_AUTH_ENABLED=true (demo login picker)."
+    echo "  Local modes also run the outbox-only scheduler for E2E notification parity."
     echo "  Node.js major ${NODE_MAJOR_REQUIRED} is required for CI/Docker parity."
     echo "  This script auto-prefers Homebrew/NVM Node ${NODE_MAJOR_REQUIRED} when available."
     echo "  Override example:"
@@ -289,6 +290,12 @@ export_local_dev_env_defaults() {
     fi
     if [ -z "${CORS_ORIGINS:-}" ]; then
         export CORS_ORIGINS='["http://localhost:5173","http://localhost:80","http://localhost:3000"]'
+    fi
+    if [ -z "${ENABLE_SCHEDULER:-}" ]; then
+        export ENABLE_SCHEDULER=true
+    fi
+    if [ -z "${SCHEDULER_JOB_PROFILE:-}" ]; then
+        export SCHEDULER_JOB_PROFILE=outbox_only
     fi
 }
 

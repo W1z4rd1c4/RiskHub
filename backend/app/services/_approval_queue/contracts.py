@@ -33,4 +33,10 @@ class ApprovalQueuePage:
     skipped_corrupt_payloads: int = 0
 
     def to_response(self) -> ApprovalRequestListResponse:
-        return ApprovalRequestListResponse(items=self.items, total=self.total, skip=self.skip, limit=self.limit)
+        return ApprovalRequestListResponse(
+            items=self.items,
+            total=self.total,
+            skip=self.skip,
+            limit=self.limit,
+            skipped_corrupt_payloads=self.skipped_corrupt_payloads,
+        )

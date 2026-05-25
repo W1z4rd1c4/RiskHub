@@ -13,6 +13,7 @@ from app.services.outbox.handlers.issues import (
     handle_issue_exception_approved,
     handle_issue_exception_requested,
 )
+from app.services.outbox.handlers.kri_notifications import handle_kri_breach_detected
 from app.services.outbox.handlers.questionnaires import (
     handle_questionnaire_clarification_requested,
     handle_questionnaire_sent,
@@ -29,6 +30,7 @@ OUTBOX_EVENT_HANDLERS: dict[str, OutboxHandler] = {
     "questionnaire.sent": handle_questionnaire_sent,
     "questionnaire.submitted": handle_questionnaire_submitted,
     "questionnaire.clarification_requested": handle_questionnaire_clarification_requested,
+    "kri.breach_detected": handle_kri_breach_detected,
 }
 
 __all__ = ["OUTBOX_EVENT_HANDLERS"]

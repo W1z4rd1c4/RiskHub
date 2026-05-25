@@ -1,3 +1,6 @@
+import type { ReactElement } from 'react';
+
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -76,6 +79,7 @@ vi.mock('@/pages/vendors/VendorFormView', () => ({
 }));
 
 vi.mock('@/pages/vendors/useVendorDetailPageEffects', () => ({
+    useNormalizeLegacyVendorDetailSearch: vi.fn(),
     useVendorDeepLinkScroll: vi.fn(),
     useVendorFlashMessage: () => ({
         actionMessage: null,
@@ -119,6 +123,16 @@ function vendorDetail(capabilities: Record<string, boolean> | null) {
     };
 }
 
+function renderWithQueryClient(ui: ReactElement) {
+    const queryClient = new QueryClient({
+        defaultOptions: {
+            queries: { retry: false },
+            mutations: { retry: false },
+        },
+    });
+    return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+}
+
 describe('direct create/edit form capability gates', () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -136,14 +150,14 @@ describe('direct create/edit form capability gates', () => {
     it('hides direct risk create when collection can_create is missing or false', async () => {
         mockGetRisks.mockResolvedValueOnce(listResponse(false));
 
-        render(<RiskNewPage />);
+        renderWithQueryClient(<RiskNewPage />);
 
         await waitFor(() => expect(mockGetRisks).toHaveBeenCalled());
         expect(screen.queryByTestId('risk-form')).not.toBeInTheDocument();
     });
 
     it('shows direct risk create when collection can_create is true', async () => {
-        render(<RiskNewPage />);
+        renderWithQueryClient(<RiskNewPage />);
 
         expect(await screen.findByTestId('risk-form')).toBeInTheDocument();
     });
@@ -152,7 +166,7 @@ describe('direct create/edit form capability gates', () => {
         mockParams = { id: '10' };
         mockGetRisk.mockResolvedValueOnce(riskDetail(false));
 
-        render(<RiskEditPage />);
+        renderWithQueryClient(<RiskEditPage />);
 
         await waitFor(() => expect(mockGetRisk).toHaveBeenCalledWith(10));
         expect(screen.queryByTestId('risk-form')).not.toBeInTheDocument();
@@ -161,14 +175,14 @@ describe('direct create/edit form capability gates', () => {
     it('hides direct control create when collection can_create is missing or false', async () => {
         mockGetControls.mockResolvedValueOnce(listResponse(undefined));
 
-        render(<ControlNewPage />);
+        renderWithQueryClient(<ControlNewPage />);
 
         await waitFor(() => expect(mockGetControls).toHaveBeenCalled());
         expect(screen.queryByTestId('control-form')).not.toBeInTheDocument();
     });
 
     it('keeps risk linking enabled for normal direct control create', async () => {
-        render(<ControlNewPage />);
+        renderWithQueryClient(<ControlNewPage />);
 
         const form = await screen.findByTestId('control-form');
         expect(form).toHaveAttribute('data-allow-risk-linking', 'true');
@@ -178,7 +192,7 @@ describe('direct create/edit form capability gates', () => {
         mockParams = { id: '20' };
         mockGetControl.mockResolvedValueOnce(controlDetail({ can_update: true, can_link_risk: false }));
 
-        render(<ControlEditPage />);
+        renderWithQueryClient(<ControlEditPage />);
 
         const form = await screen.findByTestId('control-form');
         expect(form).toHaveAttribute('data-allow-risk-linking', 'false');
@@ -187,7 +201,7 @@ describe('direct create/edit form capability gates', () => {
     it('hides KRI create when collection can_create is false', async () => {
         mockGetKRIs.mockResolvedValueOnce(listResponse(false));
 
-        render(<KRINewPage />);
+        renderWithQueryClient(<KRINewPage />);
 
         await waitFor(() => expect(mockGetKRIs).toHaveBeenCalled());
         expect(screen.queryByTestId('kri-form')).not.toBeInTheDocument();
@@ -196,7 +210,7 @@ describe('direct create/edit form capability gates', () => {
     it('hides vendor create when collection can_create is false', async () => {
         mockGetVendors.mockResolvedValueOnce(listResponse(false));
 
-        render(<VendorDetailPage mode="new" />);
+        renderWithQueryClient(<VendorDetailPage mode="new" />);
 
         await waitFor(() => expect(mockGetVendors).toHaveBeenCalled());
         expect(screen.queryByTestId('vendor-form-new')).not.toBeInTheDocument();
@@ -206,7 +220,7 @@ describe('direct create/edit form capability gates', () => {
         mockParams = { id: '30' };
         mockGetVendor.mockResolvedValueOnce(vendorDetail({ can_update: false }));
 
-        render(<VendorDetailPage mode="edit" />);
+        renderWithQueryClient(<VendorDetailPage mode="edit" />);
 
         await waitFor(() => expect(mockGetVendor).toHaveBeenCalled());
         expect(screen.queryByTestId('vendor-form-edit')).not.toBeInTheDocument();

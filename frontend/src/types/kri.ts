@@ -112,9 +112,9 @@ export interface KRIUpdate {
 }
 
 export interface KRIListCapabilities {
-    can_export: boolean;
-    can_create: boolean;
-    can_view_vendor_contexts: boolean;
+    can_export?: boolean;
+    can_create?: boolean;
+    can_view_vendor_contexts?: boolean;
 }
 
 export type KRIListResponse = CollectionListResponse<KeyRiskIndicator, KRIListCapabilities>;

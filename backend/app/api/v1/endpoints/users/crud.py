@@ -12,7 +12,7 @@ from app.models import User
 from app.schemas import UserCreate, UserRead
 from app.services._identity_access_lifecycle import create_user_profile
 
-from ._lifecycle import require_admin_user_lifecycle
+from ._lifecycle import ensure_admin_user_lifecycle
 
 router = APIRouter()
 
@@ -43,7 +43,7 @@ async def list_users(
     Raises:
         HTTPException: If user doesn't have permission
     """
-    require_admin_user_lifecycle(current_user)
+    ensure_admin_user_lifecycle(current_user)
 
     query = select(User).options(*user_selectinload_options())
 
@@ -77,7 +77,7 @@ async def create_user(
     Raises:
         HTTPException: If user doesn't have permission or email exists
     """
-    require_admin_user_lifecycle(current_user)
+    ensure_admin_user_lifecycle(current_user)
     return await create_user_profile(
         db=db,
         settings=settings,

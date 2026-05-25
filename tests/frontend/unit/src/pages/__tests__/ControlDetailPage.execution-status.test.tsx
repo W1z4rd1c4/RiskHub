@@ -1,8 +1,9 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 
 import { ControlDetailPage } from '@/pages/ControlDetailPage';
+import { renderWithQueryClient as render } from '@test/render';
 
 const mockNavigate = vi.fn();
 const mockGetControl = vi.fn();

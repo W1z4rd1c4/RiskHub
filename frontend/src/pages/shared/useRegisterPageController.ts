@@ -14,14 +14,14 @@ import {
 import { resetCollectionGroupAndPage } from './collectionViewVocabulary';
 import { applyRegisterViewModeChange } from './useRegisterPageWorkflow';
 
-interface RegisterPageLoadRequest<TFilters, TViewMode> extends CollectionWorkflowLoadRequest {
+export interface RegisterPageLoadRequest<TFilters, TViewMode> extends CollectionWorkflowLoadRequest {
     debouncedSearch: string;
     filters: TFilters;
     limit: number;
     viewMode: TViewMode;
 }
 
-interface RegisterPageExportRequest<TFilters, TViewMode> extends ExportDialogSubmitPayload {
+export interface RegisterPageExportRequest<TFilters, TViewMode> extends ExportDialogSubmitPayload {
     debouncedSearch: string;
     filters: TFilters;
     groupBy: string | null;
@@ -64,6 +64,7 @@ interface UseRegisterPageControllerOptions<
     TCapabilities extends object,
 > {
     fallbackErrorKey: string;
+    clearOnNonForbidden?: boolean;
     getGroupBy: (viewMode: TViewMode) => string | null;
     initialFilters: TFilters;
     initialViewMode: TViewMode;
@@ -73,8 +74,12 @@ interface UseRegisterPageControllerOptions<
     onExportError?: (error: unknown) => void;
     onLoadError?: (error: unknown) => void;
     pageSize?: number;
+    searchDebounceMs?: number;
+    normalizeItems?: (items: TItem[]) => TItem[];
     resolveFilterPatch?: RegisterFilterPatchResolver<TFilters>;
     submitExport: (request: RegisterPageExportRequest<TFilters, TViewMode>) => Promise<void>;
+    toErrorKey?: (error: unknown) => string;
+    toExportErrorKey?: (error: unknown) => string;
 }
 
 export function useRegisterPageController<
@@ -84,6 +89,7 @@ export function useRegisterPageController<
     TCapabilities extends object = CollectionCapabilities,
 >({
     fallbackErrorKey,
+    clearOnNonForbidden,
     getGroupBy,
     initialFilters,
     initialViewMode,
@@ -91,14 +97,18 @@ export function useRegisterPageController<
     onExportError,
     onLoadError,
     pageSize = DEFAULT_LIST_PAGE_SIZE,
+    searchDebounceMs = 300,
+    normalizeItems,
     resolveFilterPatch,
     submitExport,
+    toErrorKey,
+    toExportErrorKey,
 }: UseRegisterPageControllerOptions<TItem, TFilters, TViewMode, TCapabilities>) {
     const [search, setSearch] = useState('');
     const [filters, setFilters] = useState<TFilters>(initialFilters);
     const [currentPage, setCurrentPage] = useState(1);
     const [viewMode, setViewMode] = useState<TViewMode>(initialViewMode);
-    const debouncedSearch = useDebouncedValue(search, 300);
+    const debouncedSearch = useDebouncedValue(search, searchDebounceMs);
     const groupBy = getGroupBy(viewMode);
     const limit = pageSize;
 
@@ -116,11 +126,14 @@ export function useRegisterPageController<
     );
 
     const collectionWorkflow = useCollectionPageWorkflow<TItem, TCapabilities>({
+        clearOnNonForbidden,
         currentPage,
         fallbackErrorKey,
         groupBy,
         loadPage: loadRegisterPage,
+        normalizeItems,
         onLoadError,
+        toErrorKey,
     });
     const {
         closeExportDialog,
@@ -128,6 +141,7 @@ export function useRegisterPageController<
         resetGroupSelection,
         selectGroup: selectCollectionGroup,
         selectedGroupValue,
+        setErrorKey,
         setIsExporting,
     } = collectionWorkflow;
 
@@ -160,6 +174,14 @@ export function useRegisterPageController<
         resetGroupAndPage();
     }, [resetGroupAndPage, resolveFilterPatch]);
 
+    const updateFilters = useCallback((patch: Partial<TFilters>) => {
+        setFilters((currentFilters) => ({
+            ...currentFilters,
+            ...patch,
+        }));
+        resetGroupAndPage();
+    }, [resetGroupAndPage]);
+
     const updateViewMode = useCallback((value: TViewMode) => {
         applyRegisterViewModeChange(value, setViewMode, resetGroupAndPage);
     }, [resetGroupAndPage]);
@@ -189,6 +211,9 @@ export function useRegisterPageController<
                 });
                 closeExportDialog();
             } catch (error) {
+                if (toExportErrorKey) {
+                    setErrorKey(toExportErrorKey(error));
+                }
                 onExportError?.(error);
             } finally {
                 setIsExporting(false);
@@ -202,8 +227,10 @@ export function useRegisterPageController<
             onExportError,
             search,
             selectedGroupValue,
+            setErrorKey,
             setIsExporting,
             submitExport,
+            toExportErrorKey,
             viewMode,
         ]
     );
@@ -222,6 +249,7 @@ export function useRegisterPageController<
         setCurrentPage,
         totalPages: getTotalPages(collectionWorkflow.totalCount, limit),
         updateFilter,
+        updateFilters,
         updateSearch,
         updateViewMode,
         viewMode,

@@ -351,6 +351,12 @@
   color: #0f172a !important;
 }
 
+.notification-count-badge,
+.theme-light .notification-count-badge {
+  background-color: #be123c !important;
+  color: #f8fafc !important;
+}
+
 .theme-light .text-slate-300 {
   color: #334155 !important;
 }

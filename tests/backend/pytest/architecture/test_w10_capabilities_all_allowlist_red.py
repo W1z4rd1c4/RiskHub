@@ -35,3 +35,9 @@ def test_capabilities_public_exports_match_allowlist() -> None:
     public_names = [entry["name"] for entry in allowlist["public_names"]]
 
     assert _module_all_names(CAPABILITIES_INIT) == public_names
+
+
+def test_capabilities_public_exports_allowlist_has_minimal_schema() -> None:
+    allowlist = tomllib.loads(ALLOWLIST_PATH.read_text(encoding="utf-8"))
+    for entry in allowlist["public_names"]:
+        assert set(entry) == {"name", "expires_at"}, entry

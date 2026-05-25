@@ -4,8 +4,13 @@ from datetime import date, timedelta
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models import KeyRiskIndicator, Risk, User
 from app.models.key_risk_indicator import KRIFrequency
+from app.models.kri_history import KRIValueHistory
+from app.services._kri_history.recording import DuplicateKRIPeriodError
 from app.services.kri_history_service import KRIHistoryService
 
 
@@ -40,6 +45,94 @@ class TestKRIPeriodProtection:
                 period_end=future_date,
                 is_privileged=False,
             )
+
+    @pytest.mark.asyncio
+    async def test_duplicate_kri_value_history_period_rejected_by_database(
+        self,
+        db_session: AsyncSession,
+        test_risk: Risk,
+        test_user_cro: User,
+    ):
+        """The database rejects parallel history rows for the same KRI period."""
+        kri = KeyRiskIndicator(
+            risk_id=test_risk.id,
+            metric_name="Duplicate-period KRI",
+            description="Checks database-level uniqueness",
+            current_value=10.0,
+            lower_limit=0.0,
+            upper_limit=100.0,
+            unit="%",
+            frequency=KRIFrequency.quarterly.value,
+        )
+        db_session.add(kri)
+        await db_session.flush()
+
+        period_end = date(2026, 3, 31)
+        db_session.add_all(
+            [
+                KRIValueHistory(
+                    kri_id=kri.id,
+                    period_start=date(2026, 1, 1),
+                    period_end=period_end,
+                    recorded_by_id=test_user_cro.id,
+                    value=10.0,
+                    lower_limit=0.0,
+                    upper_limit=100.0,
+                    unit="%",
+                    breach_status="within",
+                ),
+                KRIValueHistory(
+                    kri_id=kri.id,
+                    period_start=date(2026, 1, 1),
+                    period_end=period_end,
+                    recorded_by_id=test_user_cro.id,
+                    value=11.0,
+                    lower_limit=0.0,
+                    upper_limit=100.0,
+                    unit="%",
+                    breach_status="within",
+                ),
+            ]
+        )
+
+        with pytest.raises(IntegrityError):
+            await db_session.flush()
+
+    @pytest.mark.asyncio
+    async def test_duplicate_period_integrity_error_maps_to_domain_conflict(self):
+        """A race that beats the service pre-check maps to DuplicateKRIPeriodError."""
+        mock_kri = MagicMock()
+        mock_kri.id = 42
+        mock_kri.frequency = KRIFrequency.quarterly.value
+        mock_kri.current_value = 50.0
+        mock_kri.last_period_end = None
+        mock_kri.lower_limit = 0.0
+        mock_kri.upper_limit = 100.0
+        mock_kri.unit = "%"
+
+        db = AsyncMock()
+        db.add = MagicMock()
+        db.begin_nested = MagicMock()
+        db.begin_nested.return_value.__aenter__ = AsyncMock(return_value=None)
+        db.begin_nested.return_value.__aexit__ = AsyncMock(return_value=None)
+        db.scalar.return_value = None
+        db.flush.side_effect = IntegrityError(
+            "INSERT INTO kri_value_history",
+            {},
+            Exception("uq_kri_value_history_kri_period_end"),
+        )
+
+        with pytest.raises(DuplicateKRIPeriodError, match="already recorded"):
+            await KRIHistoryService.record_value(
+                db=db,
+                kri=mock_kri,
+                value=75.0,
+                period_end=date(2026, 3, 31),
+                is_privileged=True,
+            )
+
+        db.begin_nested.assert_called_once()
+        db.rollback.assert_not_called()
 
     def test_latest_closed_period_excludes_future(self):
         """latest_closed_period_for_date never returns future dates."""

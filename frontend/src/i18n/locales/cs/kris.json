@@ -77,7 +77,8 @@
     "archived": "Archivované",
     "overdue_only": "Pouze opožděné",
     "include_archived": "Zobrazit archivované",
-    "search_placeholder": "Hledat podle názvu metriky..."
+    "search_placeholder": "Hledat podle názvu metriky...",
+    "clear": "Vymazat filtry"
   },
   "empty_state": {
     "no_kris": "Nebyly nalezeny žádné KRI odpovídající kritériím.",

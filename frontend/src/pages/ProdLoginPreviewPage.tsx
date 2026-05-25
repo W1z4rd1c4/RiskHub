@@ -1,65 +1,9 @@
 import { useEffect, useState } from 'react';
 import { ArrowRight, Shield, Sparkles } from 'lucide-react';
 
+import { resources } from '@/i18n';
+
 type PreviewLanguage = 'cs' | 'en';
-
-type PreviewCopy = {
-  htmlTitle: string;
-  switchLabel: string;
-  eyebrow: string;
-  title: string;
-  description: string;
-  detail: string;
-  signInLabel: string;
-  cardTitle: string;
-  cardBody: string;
-  providerLabel: string;
-  securityNote: string;
-  buttonLabel: string;
-  buttonHint: string;
-  previewNote: string;
-};
-
-const copy: Record<PreviewLanguage, PreviewCopy> = {
-  cs: {
-    htmlTitle: 'RiskHub Produkční Přihlášení',
-    switchLabel: 'Jazyk',
-    eyebrow: 'Platforma pro řízení rizik a governance',
-    title: 'RiskHub spojuje rizika, kontroly a schvalování do jednoho pracovního toku.',
-    description:
-      'RiskHub pomáhá týmům řídit rizika, kontroly, schvalování a governance workflow na jednom místě.',
-    detail:
-      'Produkční přístup vede přes firemní Microsoft účet a po ověření identity naváže oprávnění podle role v RiskHubu.',
-    signInLabel: 'Přihlášení',
-    cardTitle: 'Pokračovat přes Microsoft',
-    cardBody:
-      'Bezpečné jednotné přihlášení pro interní uživatele RiskHubu v produkčním prostředí.',
-    providerLabel: 'Microsoft Entra ID',
-    securityNote: 'SSO pro firemní účty s mapováním oprávnění podle role.',
-    buttonLabel: 'Pokračovat s Microsoft',
-    buttonHint: 'Náhled pouze. Spuštění SSO je na této stránce vypnuté.',
-    previewNote: 'Samostatný produkční náhled přihlášení bez aktivní autentizace.',
-  },
-  en: {
-    htmlTitle: 'RiskHub Production Sign In',
-    switchLabel: 'Language',
-    eyebrow: 'Risk and governance operating system',
-    title: 'RiskHub brings risks, controls, and approvals into one operating flow.',
-    description:
-      'RiskHub helps teams manage risks, controls, approvals, and governance workflows in one place.',
-    detail:
-      'Production access runs through your corporate Microsoft account and then maps permissions from your RiskHub role.',
-    signInLabel: 'Sign in',
-    cardTitle: 'Continue with Microsoft',
-    cardBody:
-      'Secure single sign-on for internal RiskHub users in the production environment.',
-    providerLabel: 'Microsoft Entra ID',
-    securityNote: 'SSO for corporate accounts with role-based permission mapping.',
-    buttonLabel: 'Continue with Microsoft',
-    buttonHint: 'Preview only. Live SSO is disabled on this page.',
-    previewNote: 'Standalone production login preview with no active authentication.',
-  },
-};
 
 const languageLabels: Record<PreviewLanguage, string> = {
   cs: 'CZ',
@@ -68,12 +12,12 @@ const languageLabels: Record<PreviewLanguage, string> = {
 
 export default function ProdLoginPreviewPage() {
   const [language, setLanguage] = useState<PreviewLanguage>('cs');
-  const content = copy[language];
+  const content = resources[language].auth.login_sso_prod;
 
   useEffect(() => {
     document.documentElement.lang = language;
-    document.title = content.htmlTitle;
-  }, [content.htmlTitle, language]);
+    document.title = content.html_title;
+  }, [content.html_title, language]);
 
   return (
     <main className="h-screen overflow-hidden bg-[#07111b] text-slate-100">
@@ -95,7 +39,7 @@ export default function ProdLoginPreviewPage() {
 
           <div className="flex items-center gap-3">
             <span className="hidden text-[11px] font-medium uppercase tracking-[0.22em] text-slate-500 sm:inline">
-              {content.switchLabel}
+              {content.switch_label}
             </span>
             <div className="inline-flex rounded-full border border-white/10 bg-slate-950/60 p-1">
               {(['cs', 'en'] as const).map((lang) => {
@@ -141,7 +85,7 @@ export default function ProdLoginPreviewPage() {
             <div className="flex items-center justify-end">
               <section className="w-full max-w-[500px] rounded-[32px] border border-white/10 bg-[linear-gradient(180deg,rgba(13,21,31,0.98),rgba(8,16,26,0.96))] p-8 shadow-[0_36px_120px_rgba(0,0,0,0.42)] backdrop-blur sm:p-10">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-slate-500">
-                  {content.signInLabel}
+                  {content.sign_in_label}
                 </p>
 
                 <div className="mt-6 rounded-[26px] border border-white/8 bg-[linear-gradient(180deg,rgba(9,21,34,0.96),rgba(8,17,27,0.98))] p-6">
@@ -151,32 +95,32 @@ export default function ProdLoginPreviewPage() {
                     </div>
                     <div className="min-w-0">
                       <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-sky-300/70">
-                        {content.providerLabel}
+                        {content.provider_label}
                       </p>
-                      <h2 className="mt-2 text-[1.45rem] font-semibold text-white">{content.cardTitle}</h2>
+                      <h2 className="mt-2 text-[1.45rem] font-semibold text-white">{content.card_title}</h2>
                     </div>
                   </div>
 
-                  <p className="mt-5 text-base leading-7 text-slate-300">{content.cardBody}</p>
+                  <p className="mt-5 text-base leading-7 text-slate-300">{content.card_body}</p>
                   <div className="mt-5 rounded-2xl border border-white/6 bg-white/[0.025] px-4 py-3 text-sm leading-6 text-slate-400">
-                    {content.securityNote}
+                    {content.security_note}
                   </div>
 
                   <button
                     type="button"
                     className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-100 px-5 py-4 text-base font-semibold text-slate-950 transition-colors hover:bg-white"
                   >
-                    {content.buttonLabel}
+                    {content.button_label}
                     <ArrowRight className="h-4 w-4" />
                   </button>
 
                   <p className="mt-4 text-center text-sm leading-6 text-slate-500">
-                    {content.buttonHint}
+                    {content.button_hint}
                   </p>
                 </div>
 
                 <p className="mt-5 text-xs uppercase tracking-[0.28em] text-slate-600">
-                  {content.previewNote}
+                  {content.preview_note}
                 </p>
               </section>
             </div>

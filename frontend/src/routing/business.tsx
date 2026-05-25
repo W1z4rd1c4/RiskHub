@@ -14,6 +14,7 @@ import {
 
 import {
   ActivityLogRouteGuard,
+  AuditTrailRouteGuard,
   GovernanceRouteGuard,
 } from '@/authz/BusinessRouteGuards';
 import type { AppRouteDef } from './types';
@@ -198,7 +199,11 @@ export const businessRoutes: AppRouteDef[] = [
   {
     key: 'audit-trail',
     path: 'audit-trail',
-    element: <AuditTrailPage />,
+    element: (
+      <AuditTrailRouteGuard>
+        <AuditTrailPage />
+      </AuditTrailRouteGuard>
+    ),
   },
   {
     key: 'risk-hub',

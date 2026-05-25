@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.api.mappers.risk import risk_to_summary
-from app.core.permissions import can_read_vendor, risk_visibility_clause, vendor_visibility_clause
+from app.core.permissions import can_read_vendor, risk_visibility_clause
 from app.core.security import check_permission
 from app.models import (
     ApprovalResourceType,
@@ -17,14 +17,12 @@ from app.models import (
     KeyRiskIndicator,
     Risk,
     User,
-    Vendor,
     VendorRiskLink,
 )
 from app.models._archivable import archived_clause
 from app.models.global_config import ConfigDefaults, get_config_int
 from app.schemas.risk import RiskStatusEnum
 from app.schemas.vendor_shared import LinkedVendorRead
-from app.services._authorization_capabilities import risk_capabilities
 from app.services._authorization_capabilities.common import pending_approvals_for_resources
 from app.services._collection_contracts import CollectionGroupEntry, CollectionQuery, build_grouped_collection_page
 from app.services._collection_filters import (
@@ -33,11 +31,13 @@ from app.services._collection_filters import (
     coerce_optional_int,
     coerce_optional_string,
 )
+from app.services.authorization_capabilities import risk_capabilities
 
 from .lifecycle import RegisterListingPlan, SerializeItems, build_register_listing_plan
+from .shared import GROUP_UNCATEGORIZED, GROUP_UNLINKED_VENDOR, parse_prefixed_group_value, visible_vendor_link_context
 
-RISK_GROUP_UNLINKED_VENDOR = "__unlinked_vendor__"
-RISK_GROUP_UNCATEGORIZED = "__uncategorized__"
+RISK_GROUP_UNLINKED_VENDOR = GROUP_UNLINKED_VENDOR
+RISK_GROUP_UNCATEGORIZED = GROUP_UNCATEGORIZED
 RISK_GROUP_UNKNOWN_DEPARTMENT = "__unknown_department__"
 RISK_GROUP_NO_PROCESS = "__no_process__"
 RISK_GROUP_UNKNOWN_RISK_TYPE = "__unknown_risk_type__"
@@ -74,20 +74,15 @@ def risk_group_entries(risk, group_by: str) -> list[CollectionGroupEntry]:
 
 
 def visible_risk_vendor_context(filtered_ids, current_user: User, *, can_read_vendors: bool):
-    query = (
-        select(
-            VendorRiskLink.risk_id.label("risk_id"),
-            Vendor.id.label("vendor_id"),
-            Vendor.name.label("vendor_name"),
-        )
-        .select_from(VendorRiskLink)
-        .join(filtered_ids, filtered_ids.c.id == VendorRiskLink.risk_id)
-        .join(Vendor, Vendor.id == VendorRiskLink.vendor_id)
+    return visible_vendor_link_context(
+        filtered_ids=filtered_ids,
+        current_user=current_user,
+        can_read_vendors=can_read_vendors,
+        link_model=VendorRiskLink,
+        entity_id_column=VendorRiskLink.risk_id,
+        entity_id_label="risk_id",
+        vendor_id_column=VendorRiskLink.vendor_id,
     )
-    vendor_visibility = vendor_visibility_clause(current_user) if can_read_vendors else false()
-    if vendor_visibility is not None:
-        query = query.where(vendor_visibility)
-    return query.subquery()
 
 
 async def load_risk_sql_groups(
@@ -183,12 +178,11 @@ def risk_group_value_filter(group_by: str, group_value: str, *, vendor_context=N
             return or_(Risk.risk_type.is_(None), Risk.risk_type == "")
         return Risk.risk_type == group_value
     if group_by == "vendor" and group_value.startswith("vendor:"):
-        try:
-            vendor_id = int(group_value.removeprefix("vendor:"))
-        except ValueError:
-            return Risk.id.is_(None)
+        vendor_id = parse_prefixed_group_value(group_value, prefix="vendor")
+        if vendor_id is None:
+            return false()
         if vendor_context is None:
-            return Risk.id.is_(None)
+            return false()
         return Risk.id.in_(select(vendor_context.c.risk_id).where(vendor_context.c.vendor_id == vendor_id))
     if group_by == "vendor" and group_value == RISK_GROUP_UNLINKED_VENDOR and vendor_context is not None:
         return ~Risk.id.in_(select(vendor_context.c.risk_id))

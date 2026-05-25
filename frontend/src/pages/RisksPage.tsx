@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ExportDialog } from '@/components/reports/ExportDialog';
 import { ViewSwitcher } from '@/components/tables';
+import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { RisksFilterBar } from './risks/RisksFilterBar';
 import { RisksPageHeader } from './risks/RisksPageHeader';
 import { RisksTableSection } from './risks/RisksTableSection';
@@ -78,8 +79,8 @@ export function RisksPage() {
     return (
         <div className="space-y-8">
             <RisksPageHeader
-                canCreateRisk={capabilities?.can_create === true}
-                canExport={capabilities?.can_export === true}
+                canCreateRisk={resolveCapabilityFlag(capabilities, 'can_create')}
+                canExport={resolveCapabilityFlag(capabilities, 'can_export')}
                 isExporting={isExporting}
                 onCreateRisk={() => navigate('/risks/new')}
                 onOpenExport={openExportDialog}
@@ -88,7 +89,7 @@ export function RisksPage() {
             <ViewSwitcher
                 value={viewMode}
                 onChange={updateViewMode}
-                exclude={capabilities?.can_view_vendor_contexts === true ? ['risk', 'flag', 'type'] : ['risk', 'flag', 'vendor', 'type']}
+                exclude={resolveCapabilityFlag(capabilities, 'can_view_vendor_contexts') ? ['risk', 'flag', 'type'] : ['risk', 'flag', 'vendor', 'type']}
             />
 
             <RisksFilterBar

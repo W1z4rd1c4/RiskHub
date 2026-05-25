@@ -444,24 +444,27 @@ async def test_dashboard_overview_cache_returns_stale_data_until_expiry(
     async def fake_kri_trends(**kwargs):
         return [KRIBreachTrendPoint(period="2026-03", total_entries=1, breached_entries=0)]
 
-    async def fake_issue_summary(**kwargs):
-        return IssueDashboardSummaryResponse(open_issues=1, overdue_issues=0, high_severity_open=0, median_days_open=1)
+    async def fake_issue_metrics(**kwargs):
+        from app.services._dashboard_metrics.issues import IssueDashboardMetricsBundle
 
-    async def fake_issue_aging(**kwargs):
-        return IssueAgingResponse(buckets=[IssueAgingBucket(bucket="0-7", count=1)])
+        return IssueDashboardMetricsBundle(
+            summary=IssueDashboardSummaryResponse(
+                open_issues=1,
+                overdue_issues=0,
+                high_severity_open=0,
+                median_days_open=1,
+            ),
+            aging=IssueAgingResponse(buckets=[IssueAgingBucket(bucket="0-7", count=1)]),
+            severity=IssueSeverityBreakdownResponse(items=[IssueSeverityBreakdownItem(severity="low", count=1)]),
+        )
 
-    async def fake_issue_severity(**kwargs):
-        return IssueSeverityBreakdownResponse(items=[IssueSeverityBreakdownItem(severity="low", count=1)])
-
-    monkeypatch.setattr(overview_module, "get_dashboard_summary", fake_summary)
-    monkeypatch.setattr(overview_module, "get_department_metrics", fake_department_metrics)
-    monkeypatch.setattr(overview_module, "get_risk_distribution", fake_distribution)
-    monkeypatch.setattr(overview_module, "build_control_trends", fake_control_trends)
-    monkeypatch.setattr(overview_module, "get_risk_trends", fake_risk_trends)
-    monkeypatch.setattr(overview_module, "get_kri_breach_trends", fake_kri_trends)
-    monkeypatch.setattr(overview_module, "get_issue_summary", fake_issue_summary)
-    monkeypatch.setattr(overview_module, "get_issue_aging", fake_issue_aging)
-    monkeypatch.setattr(overview_module, "get_issues_by_severity", fake_issue_severity)
+    monkeypatch.setattr(overview_module, "build_dashboard_summary_metrics", fake_summary)
+    monkeypatch.setattr(overview_module, "load_department_dashboard_metrics", fake_department_metrics)
+    monkeypatch.setattr(overview_module, "load_risk_distribution", fake_distribution)
+    monkeypatch.setattr(overview_module, "load_control_trends", fake_control_trends)
+    monkeypatch.setattr(overview_module, "load_risk_trends", fake_risk_trends)
+    monkeypatch.setattr(overview_module, "load_kri_breach_trends", fake_kri_trends)
+    monkeypatch.setattr(overview_module, "build_issue_dashboard_metrics_bundle", fake_issue_metrics)
 
     first_resp = await client.get("/api/v1/dashboard/overview", headers=_headers_for(test_user))
     assert first_resp.status_code == 200

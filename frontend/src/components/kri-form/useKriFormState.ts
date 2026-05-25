@@ -22,8 +22,10 @@ interface KriFormState {
     vendorSearch: string;
 }
 
+export type KriFormStatePatch = Partial<Omit<KriFormState, 'formData'>>;
+
 type KriFormAction =
-    | { type: 'patch'; patch: Partial<Omit<KriFormState, 'formData'>> }
+    | { type: 'patch'; patch: KriFormStatePatch }
     | { type: 'setFormField'; field: keyof KRICreate; value: KRICreate[keyof KRICreate] | undefined };
 
 const defaultFormData: Partial<KRICreate> = {
@@ -95,78 +97,16 @@ export function useKriFormState(args: {
         createInitialState(args.initialData, args.initialLinkedVendorIds, args.vendorContext),
     );
 
-    const setApprovalQueued = useCallback(
-        (approvalQueued: { message: string } | null) => dispatch({ type: 'patch', patch: { approvalQueued } }),
-        [],
-    );
-    const setCurrentStep = useCallback(
-        (currentStep: number) => dispatch({ type: 'patch', patch: { currentStep } }),
-        [],
-    );
-    const setError = useCallback((error: string | null) => dispatch({ type: 'patch', patch: { error } }), []);
+    const setStatePatch = useCallback((patch: KriFormStatePatch) => dispatch({ type: 'patch', patch }), []);
     const setFormField = useCallback(
         <K extends keyof KRICreate>(field: K, value: KRICreate[K] | undefined) =>
             dispatch({ type: 'setFormField', field, value }),
         [],
     );
-    const setIsMismatchDialogOpen = useCallback(
-        (isMismatchDialogOpen: boolean) => dispatch({ type: 'patch', patch: { isMismatchDialogOpen } }),
-        [],
-    );
-    const setIsSubmitting = useCallback(
-        (isSubmitting: boolean) => dispatch({ type: 'patch', patch: { isSubmitting } }),
-        [],
-    );
-    const setRiskSearch = useCallback(
-        (riskSearch: string) => dispatch({ type: 'patch', patch: { riskSearch } }),
-        [],
-    );
-    const setSelectedCategory = useCallback(
-        (selectedCategory: string) => dispatch({ type: 'patch', patch: { selectedCategory } }),
-        [],
-    );
-    const setSelectedDeptId = useCallback(
-        (selectedDeptId: string) => dispatch({ type: 'patch', patch: { selectedDeptId } }),
-        [],
-    );
-    const setSelectedProcess = useCallback(
-        (selectedProcess: string) => dispatch({ type: 'patch', patch: { selectedProcess } }),
-        [],
-    );
-    const setSelectedVendorIds = useCallback(
-        (selectedVendorIds: number[]) => dispatch({ type: 'patch', patch: { selectedVendorIds } }),
-        [],
-    );
-    const setSelectedVendorOptions = useCallback(
-        (selectedVendorOptions: KRIVendorOption[]) =>
-            dispatch({ type: 'patch', patch: { selectedVendorOptions } }),
-        [],
-    );
-    const setShowOnlyVendorLinkedRisks = useCallback(
-        (showOnlyVendorLinkedRisks: boolean) =>
-            dispatch({ type: 'patch', patch: { showOnlyVendorLinkedRisks } }),
-        [],
-    );
-    const setVendorSearch = useCallback(
-        (vendorSearch: string) => dispatch({ type: 'patch', patch: { vendorSearch } }),
-        [],
-    );
 
     return {
         ...state,
-        setApprovalQueued,
-        setCurrentStep,
-        setError,
         setFormField,
-        setIsMismatchDialogOpen,
-        setIsSubmitting,
-        setRiskSearch,
-        setSelectedCategory,
-        setSelectedDeptId,
-        setSelectedProcess,
-        setSelectedVendorIds,
-        setSelectedVendorOptions,
-        setShowOnlyVendorLinkedRisks,
-        setVendorSearch,
+        setStatePatch,
     };
 }

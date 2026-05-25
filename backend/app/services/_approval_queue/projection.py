@@ -3,16 +3,43 @@ from __future__ import annotations
 from app.core.approval_display import approval_resource_label
 from app.models import ApprovalRequest
 from app.models.user import User
-from app.schemas.approval_request import ApprovalRequestRead
+from app.schemas.approval_request import ApprovalRequestCapabilities, ApprovalRequestRead
 from app.services.authorization_capabilities import approval_capabilities
 
 from .contracts import ApprovalQueuePage, ApprovalQueueProjection
 from .logging import queue_logger
 
+try:
+    from prometheus_client import Counter
+except ModuleNotFoundError:  # pragma: no cover - metrics dependency is optional in tests
+    Counter = None
 
-def build_approval_read(approval: ApprovalRequest, current_user: User) -> ApprovalRequestRead:
+
+class _NoopCounter:
+    def inc(self, _amount: int = 1) -> None:
+        return None
+
+    def collect(self):
+        return ()
+
+
+APPROVAL_QUEUE_PROJECTION_SKIPPED_TOTAL = (
+    Counter(
+        "riskhub_approval_queue_projection_skipped_total",
+        "Number of approval queue rows skipped because their stored payload could not be projected.",
+    )
+    if Counter is not None
+    else _NoopCounter()
+)
+
+
+def build_approval_read(
+    approval: ApprovalRequest,
+    current_user: User,
+    capabilities: ApprovalRequestCapabilities | None = None,
+) -> ApprovalRequestRead:
     pending_changes = approval.pending_changes
-    capabilities = approval_capabilities(approval=approval, current_user=current_user)
+    capabilities = capabilities or approval_capabilities(approval=approval, current_user=current_user)
 
     return ApprovalRequestRead.model_validate(
         {
@@ -40,10 +67,18 @@ def build_approval_read(approval: ApprovalRequest, current_user: User) -> Approv
 
 
 def project_approval_read(approval: ApprovalRequest, current_user: User):
+    capabilities = approval_capabilities(approval=approval, current_user=current_user)
     try:
-        return build_approval_read(approval, current_user), None
+        return build_approval_read(approval, current_user, capabilities), None
     except Exception as exc:
-        queue_logger.error(f"Skipping corrupted approval request {approval.id}: {exc}")
+        APPROVAL_QUEUE_PROJECTION_SKIPPED_TOTAL.inc()
+        queue_logger.exception(
+            "approval_queue_projection_skipped",
+            extra={
+                "approval_request_id": approval.id,
+                "operation": "approval_queue_projection",
+            },
+        )
         return None, str(exc)
 
 

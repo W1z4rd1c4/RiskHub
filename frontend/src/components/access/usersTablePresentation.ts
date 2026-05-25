@@ -7,24 +7,6 @@ export const userScopeBadgeColors: Record<string, string> = {
     manager: 'bg-slate-500/20 text-slate-400 border-slate-500/30',
 };
 
-export function canChangeUserActiveStatus(user: AccessUserRead): boolean {
-    return user.capabilities?.can_change_active_status
-        ?? user.capabilities?.can_deactivate
-        ?? false;
-}
-
-export function canBreakGlassEnableUser(user: AccessUserRead): boolean {
-    return user.capabilities?.can_break_glass_enable ?? false;
-}
-
-export function canEditAccessUser(user: AccessUserRead): boolean {
-    return (
-        user.capabilities?.can_edit_identity === true
-        || user.capabilities?.can_edit_business_access === true
-        || user.capabilities?.can_edit_role === true
-    );
-}
-
 export function userScopeBadgeClassName(user: AccessUserRead): string {
     if (user.role.name === 'admin') {
         return userScopeBadgeColors.platform;

@@ -7,7 +7,6 @@ UI components for `layout` area.
 ## Contents
 
 - `__tests__/`
-- `Header.tsx`
 - `index.ts`
 - `MainLayout.tsx`
 - `Sidebar.tsx`

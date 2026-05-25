@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable, Collection
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Generic, TypeVar
 
 from app.services._collection_contracts import (
@@ -19,21 +19,6 @@ TModel = TypeVar("TModel")
 TItem = TypeVar("TItem")
 
 SerializeItems = Callable[[list[TModel]], Awaitable[list[TItem]]]
-RegisterListingDefinition = CollectionListingDefinition
-
-
-@dataclass(frozen=True)
-class RegisterListingCriteria:
-    query: CollectionQuery
-
-
-@dataclass(frozen=True)
-class RegisterSerializerContext:
-    current_actor: Any
-    pending_approvals: Any = None
-    monitoring_context: Any = None
-    vendor_visibility: Any = None
-    capability_preload_data: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)

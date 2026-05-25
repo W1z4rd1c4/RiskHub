@@ -13,7 +13,6 @@ from app.services._config.lookup import (
     clear_config_cache,
     get_config_float,
     get_config_int,
-    get_config_sync,
     get_config_value,
     get_risk_thresholds,
     parse_global_config_value,
@@ -89,7 +88,6 @@ __all__ = [
     "clear_config_cache",
     "get_config_float",
     "get_config_int",
-    "get_config_sync",
     "get_config_value",
     "get_risk_thresholds",
 ]

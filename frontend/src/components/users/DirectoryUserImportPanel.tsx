@@ -58,10 +58,8 @@ export function DirectoryUserImportPanel({
                 onProviderUnavailableChange?.(providerUnavailable);
                 setError(
                     providerUnavailable
-                        ? t('users.directory_setup_required', {
-                              defaultValue: 'Directory provider is not configured.',
-                          })
-                        : t('users.directory_search_failed', { defaultValue: 'Directory search failed.' })
+                        ? t('users.directory_setup_required')
+                        : t('users.directory_search_failed')
                 );
             } finally {
                 setIsSearching(false);
@@ -88,10 +86,8 @@ export function DirectoryUserImportPanel({
             onProviderUnavailableChange?.(providerUnavailable);
             setError(
                 providerUnavailable
-                    ? t('users.directory_setup_required', {
-                          defaultValue: 'Directory provider is not configured.',
-                      })
-                    : t('users.directory_import_failed', { defaultValue: 'Directory import failed.' })
+                    ? t('users.directory_setup_required')
+                    : t('users.directory_import_failed')
             );
         } finally {
             setIsImportingOid(null);
@@ -106,7 +102,7 @@ export function DirectoryUserImportPanel({
                     value={query}
                     onChange={(event) => setQuery(event.target.value)}
                     className="w-full rounded-xl border border-white/10 bg-slate-950 py-2 pl-10 pr-3 text-sm text-white outline-none transition focus:border-accent/70"
-                    placeholder={t('users.directory_search_placeholder', { defaultValue: 'Search by name or email' })}
+                    placeholder={t('users.directory_search_placeholder')}
                 />
             </div>
 
@@ -117,17 +113,14 @@ export function DirectoryUserImportPanel({
             )}
             {showProviderSetupHint && (
                 <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
-                    {t('users.directory_setup_help', {
-                        defaultValue:
-                            'Configure ENTRA_TENANT_ID, ENTRA_CLIENT_ID, and a client secret or certificate credential, or set AD_EMULATOR_BASE_URL, then retry.',
-                    })}
+                    {t('users.directory_setup_help')}
                 </div>
             )}
 
             <div className="max-h-96 overflow-y-auto rounded-xl border border-white/10">
                 {isSearching ? (
                     <div className="px-4 py-8 text-center text-sm text-slate-400">
-                        {t('users.directory_searching', { defaultValue: 'Searching directory...' })}
+                        {t('users.directory_searching')}
                     </div>
                 ) : hasResults ? (
                     <ul className="divide-y divide-white/10">
@@ -151,8 +144,8 @@ export function DirectoryUserImportPanel({
                                 >
                                     <UserPlus className="h-3.5 w-3.5" />
                                     {isImportingOid === entry.external_id
-                                        ? t('users.importing', { defaultValue: 'Importing...' })
-                                        : t('users.import', { defaultValue: 'Import' })}
+                                        ? t('users.importing')
+                                        : t('users.import')}
                                 </button>
                             </li>
                         ))}
@@ -160,8 +153,8 @@ export function DirectoryUserImportPanel({
                 ) : (
                     <div className="px-4 py-8 text-center text-sm text-slate-500">
                         {query.trim()
-                            ? t('users.directory_no_results', { defaultValue: 'No directory users found.' })
-                            : t('users.directory_search_hint', { defaultValue: 'Type to search your directory.' })}
+                            ? t('users.directory_no_results')
+                            : t('users.directory_search_hint')}
                     </div>
                 )}
             </div>

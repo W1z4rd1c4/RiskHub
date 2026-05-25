@@ -13,10 +13,9 @@ from app.core.permissions import (
     get_kri_ids_where_reporting_owner,
     get_user_department_ids,
     kri_visibility_clause,
-    vendor_visibility_clause,
 )
 from app.core.security import check_permission
-from app.models import ApprovalResourceType, Department, KeyRiskIndicator, Risk, User, Vendor, VendorKRILink
+from app.models import ApprovalResourceType, Department, KeyRiskIndicator, Risk, User, VendorKRILink
 from app.models._archivable import archived_clause
 from app.models.global_config import ConfigDefaults, get_config_int
 from app.schemas.collection import CollectionGroupRead
@@ -39,9 +38,10 @@ from app.services._monitoring_status import (
 from app.services.authorization_capabilities import kri_capabilities
 
 from .lifecycle import CollectionQuery, RegisterListingPlan, SerializeItems, build_register_listing_plan
+from .shared import GROUP_UNCATEGORIZED, GROUP_UNLINKED_VENDOR, parse_prefixed_group_value, visible_vendor_link_context
 
-KRI_GROUP_UNLINKED_VENDOR = "__unlinked_vendor__"
-KRI_GROUP_UNCATEGORIZED = "__uncategorized__"
+KRI_GROUP_UNLINKED_VENDOR = GROUP_UNLINKED_VENDOR
+KRI_GROUP_UNCATEGORIZED = GROUP_UNCATEGORIZED
 KRI_GROUP_UNKNOWN_DEPARTMENT = "__unknown_department__"
 KRI_GROUP_NO_PROCESS = "__no_process__"
 KRI_GROUP_UNKNOWN_RISK_TYPE = "__unknown_risk_type__"
@@ -108,20 +108,15 @@ def count_distinct_kri_if(condition):
 
 
 def visible_kri_vendor_context(filtered_ids, current_user: User, *, can_read_vendors: bool):
-    query = (
-        select(
-            VendorKRILink.kri_id.label("kri_id"),
-            Vendor.id.label("vendor_id"),
-            Vendor.name.label("vendor_name"),
-        )
-        .select_from(VendorKRILink)
-        .join(filtered_ids, filtered_ids.c.id == VendorKRILink.kri_id)
-        .join(Vendor, Vendor.id == VendorKRILink.vendor_id)
+    return visible_vendor_link_context(
+        filtered_ids=filtered_ids,
+        current_user=current_user,
+        can_read_vendors=can_read_vendors,
+        link_model=VendorKRILink,
+        entity_id_column=VendorKRILink.kri_id,
+        entity_id_label="kri_id",
+        vendor_id_column=VendorKRILink.vendor_id,
     )
-    vendor_visibility = vendor_visibility_clause(current_user) if can_read_vendors else false()
-    if vendor_visibility is not None:
-        query = query.where(vendor_visibility)
-    return query.subquery()
 
 
 async def load_kri_sql_groups(
@@ -226,12 +221,11 @@ def kri_group_filter(group_by: str, group_value: str, *, vendor_context=None):
     if group_by == "risk":
         return func.coalesce(Risk.name, KRI_GROUP_UNKNOWN_RISK) == group_value
     if group_by == "vendor" and group_value.startswith("vendor:"):
-        try:
-            vendor_id = int(group_value.removeprefix("vendor:"))
-        except ValueError:
-            return KeyRiskIndicator.id.is_(None)
+        vendor_id = parse_prefixed_group_value(group_value, prefix="vendor")
+        if vendor_id is None:
+            return false()
         if vendor_context is None:
-            return KeyRiskIndicator.id.is_(None)
+            return false()
         return KeyRiskIndicator.id.in_(select(vendor_context.c.kri_id).where(vendor_context.c.vendor_id == vendor_id))
     if group_by == "vendor" and group_value == KRI_GROUP_UNLINKED_VENDOR and vendor_context is not None:
         return ~KeyRiskIndicator.id.in_(select(vendor_context.c.kri_id))

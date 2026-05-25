@@ -4,6 +4,7 @@ import { FileDown, RefreshCw } from 'lucide-react';
 
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { useTranslation } from '@/i18n/hooks';
+import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { adminKeys } from '@/lib/queryKeys';
 import { cn } from '@/lib/utils';
 import { adminApi } from '@/services/adminApi';
@@ -63,8 +64,8 @@ export function AuditLogsPanel() {
     }
 
     const eventTypes = getAuditEventTypes(logs);
-    const canExportLoadedAuditLogs = capabilities?.can_export_loaded_audit_logs === true;
-    const canUpdateLogConfig = capabilities?.can_update_log_config === true;
+    const canExportLoadedAuditLogs = resolveCapabilityFlag(capabilities, 'can_export_loaded_audit_logs');
+    const canUpdateLogConfig = resolveCapabilityFlag(capabilities, 'can_update_log_config');
 
     return (
         <div className="space-y-4">

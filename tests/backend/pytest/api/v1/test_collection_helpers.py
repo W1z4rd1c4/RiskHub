@@ -13,6 +13,7 @@ from app.api.v1.endpoints._collection import (
 )
 from app.api.v1.endpoints._collection_execution import build_collection_page_kwargs
 from app.schemas.collection import CollectionGroupRead
+from app.services._collection_filters import merge_collection_filters as service_merge_collection_filters
 
 REPO_ROOT = Path(__file__).resolve().parents[5]
 
@@ -44,6 +45,10 @@ def test_merge_collection_filters_prefers_json_filters_over_defaults():
         "department_id": 10,
         "include_archived": True,
     }
+
+
+def test_collection_endpoint_reexports_canonical_merge_collection_filters():
+    assert merge_collection_filters is service_merge_collection_filters
 
 
 def test_build_grouped_collection_page_returns_summary_without_items():

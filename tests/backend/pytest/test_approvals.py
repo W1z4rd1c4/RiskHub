@@ -170,6 +170,7 @@ async def test_list_approvals_empty(auth_client: AsyncClient):
     assert "total" in data
     assert "skip" in data
     assert "limit" in data
+    assert data["skipped_corrupt_payloads"] == 0
 
 
 @pytest.mark.asyncio
@@ -628,7 +629,10 @@ async def test_kri_value_approval_coerces_recorded_at_to_utc(monkeypatch: pytest
         return None
 
     monkeypatch.setattr(KRIHistoryService, "record_value", fake_record_value)
-    monkeypatch.setattr(kri_value_submission.activity_logger, "log_activity", noop_log_activity)
+    monkeypatch.setattr(
+        "app.services._kri_history.approval_execution.activity_logger.log_activity",
+        noop_log_activity,
+    )
 
     await kri_value_submission._apply_kri_value_submission(
         db=SimpleNamespace(),
@@ -641,7 +645,6 @@ async def test_kri_value_approval_coerces_recorded_at_to_utc(monkeypatch: pytest
         },
         current_user=actor,
         approval_id=55,
-        department_id=None,
     )
 
     assert captured["recorded_at"] == datetime(2026, 4, 30, 22, 30, tzinfo=UTC)
@@ -2330,6 +2333,7 @@ async def test_stale_kri_value_submission_auto_rejects_when_period_already_recor
     await db_session.refresh(approval)
     await db_session.refresh(kri)
     assert approval.status == ApprovalStatus.REJECTED
+    assert "Approve duplicate period value submission" in (approval.resolution_notes or "")
     assert "already recorded" in (approval.resolution_notes or "")
     assert kri.current_value == 30.0
     count = await db_session.scalar(

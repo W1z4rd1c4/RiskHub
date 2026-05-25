@@ -129,7 +129,7 @@ export function CategoryBreakdownCharts({
     const { setControlStatus, setControlForm } = useDashboardFilterMutators();
 
     return (
-        <WidgetShell title={t('charts.breakdown', 'Control breakdown')}>
+        <WidgetShell title={t('charts.breakdown')}>
             <div className="grid grid-cols-3 gap-8">
                 <MiniPieChart
                     title={t('charts.by_status')}

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime
 
 from sqlalchemy import select
@@ -18,6 +19,13 @@ from app.schemas.dashboard import (
     IssueSeverityBreakdownResponse,
 )
 from app.services.issue_visibility_service import issue_has_active_approved_exception
+
+
+@dataclass(frozen=True)
+class IssueDashboardMetricsBundle:
+    summary: IssueDashboardSummaryResponse
+    aging: IssueAgingResponse
+    severity: IssueSeverityBreakdownResponse
 
 
 def _issue_age_days(issue: Issue, now: datetime) -> int:
@@ -62,30 +70,90 @@ def _median_issue_age(open_issues: list[Issue], now: datetime) -> int:
     return (ages[mid - 1] + ages[mid]) // 2
 
 
+def _build_issue_metrics_bundle(issues: list[Issue], now: datetime) -> IssueDashboardMetricsBundle:
+    open_issues = _open_unsuppressed_issues(issues, now)
+    overdue_count = sum(
+        1
+        for issue in open_issues
+        if (due_at := coerce_utc(issue.due_at)) is not None and due_at < now
+    )
+    high_severity_count = sum(
+        1 for issue in open_issues if issue.severity in (IssueSeverity.high.value, IssueSeverity.critical.value)
+    )
+
+    aging_buckets: dict[str, int] = {"0-7": 0, "8-30": 0, "31-60": 0, "61+": 0}
+    severity_counts = {severity.value: 0 for severity in IssueSeverity}
+    for issue in open_issues:
+        age_days = _issue_age_days(issue, now)
+        if age_days <= 7:
+            aging_buckets["0-7"] += 1
+        elif age_days <= 30:
+            aging_buckets["8-30"] += 1
+        elif age_days <= 60:
+            aging_buckets["31-60"] += 1
+        else:
+            aging_buckets["61+"] += 1
+
+        if issue.severity in severity_counts:
+            severity_counts[issue.severity] += 1
+
+    return IssueDashboardMetricsBundle(
+        summary=IssueDashboardSummaryResponse(
+            open_issues=len(open_issues),
+            overdue_issues=overdue_count,
+            high_severity_open=high_severity_count,
+            median_days_open=_median_issue_age(open_issues, now),
+        ),
+        aging=IssueAgingResponse(
+            buckets=[
+                IssueAgingBucket(bucket="0-7", count=aging_buckets["0-7"]),
+                IssueAgingBucket(bucket="8-30", count=aging_buckets["8-30"]),
+                IssueAgingBucket(bucket="31-60", count=aging_buckets["31-60"]),
+                IssueAgingBucket(bucket="61+", count=aging_buckets["61+"]),
+            ]
+        ),
+        severity=IssueSeverityBreakdownResponse(
+            items=[
+                IssueSeverityBreakdownItem(
+                    severity=IssueSeverity.low.value,
+                    count=severity_counts[IssueSeverity.low.value],
+                ),
+                IssueSeverityBreakdownItem(
+                    severity=IssueSeverity.medium.value,
+                    count=severity_counts[IssueSeverity.medium.value],
+                ),
+                IssueSeverityBreakdownItem(
+                    severity=IssueSeverity.high.value,
+                    count=severity_counts[IssueSeverity.high.value],
+                ),
+                IssueSeverityBreakdownItem(
+                    severity=IssueSeverity.critical.value,
+                    count=severity_counts[IssueSeverity.critical.value],
+                ),
+            ]
+        ),
+    )
+
+
+async def build_issue_dashboard_metrics_bundle(
+    *,
+    db: AsyncSession,
+    current_user: User,
+    department_id: int | None,
+) -> IssueDashboardMetricsBundle:
+    now = utc_now()
+    issues = await _load_scoped_issues(db, current_user, department_id=department_id)
+    return _build_issue_metrics_bundle(issues, now)
+
+
 async def build_issue_summary_metrics(
     *,
     db: AsyncSession,
     current_user: User,
     department_id: int | None,
 ) -> IssueDashboardSummaryResponse:
-    now = utc_now()
-    issues = await _load_scoped_issues(db, current_user, department_id=department_id)
-    open_issues = _open_unsuppressed_issues(issues, now)
-    overdue = [
-        issue
-        for issue in open_issues
-        if (due_at := coerce_utc(issue.due_at)) is not None and due_at < now
-    ]
-    high_severity = [
-        issue for issue in open_issues if issue.severity in (IssueSeverity.high.value, IssueSeverity.critical.value)
-    ]
-
-    return IssueDashboardSummaryResponse(
-        open_issues=len(open_issues),
-        overdue_issues=len(overdue),
-        high_severity_open=len(high_severity),
-        median_days_open=_median_issue_age(open_issues, now),
-    )
+    bundle = await build_issue_dashboard_metrics_bundle(db=db, current_user=current_user, department_id=department_id)
+    return bundle.summary
 
 
 async def build_issue_aging_metrics(
@@ -94,30 +162,8 @@ async def build_issue_aging_metrics(
     current_user: User,
     department_id: int | None,
 ) -> IssueAgingResponse:
-    now = utc_now()
-    issues = await _load_scoped_issues(db, current_user, department_id=department_id)
-    open_issues = _open_unsuppressed_issues(issues, now)
-
-    buckets: dict[str, int] = {"0-7": 0, "8-30": 0, "31-60": 0, "61+": 0}
-    for issue in open_issues:
-        age_days = _issue_age_days(issue, now)
-        if age_days <= 7:
-            buckets["0-7"] += 1
-        elif age_days <= 30:
-            buckets["8-30"] += 1
-        elif age_days <= 60:
-            buckets["31-60"] += 1
-        else:
-            buckets["61+"] += 1
-
-    return IssueAgingResponse(
-        buckets=[
-            IssueAgingBucket(bucket="0-7", count=buckets["0-7"]),
-            IssueAgingBucket(bucket="8-30", count=buckets["8-30"]),
-            IssueAgingBucket(bucket="31-60", count=buckets["31-60"]),
-            IssueAgingBucket(bucket="61+", count=buckets["61+"]),
-        ]
-    )
+    bundle = await build_issue_dashboard_metrics_bundle(db=db, current_user=current_user, department_id=department_id)
+    return bundle.aging
 
 
 async def build_issue_severity_metrics(
@@ -126,23 +172,5 @@ async def build_issue_severity_metrics(
     current_user: User,
     department_id: int | None,
 ) -> IssueSeverityBreakdownResponse:
-    now = utc_now()
-    issues = await _load_scoped_issues(db, current_user, department_id=department_id)
-    open_issues = _open_unsuppressed_issues(issues, now)
-
-    counts = {severity.value: 0 for severity in IssueSeverity}
-    for issue in open_issues:
-        if issue.severity in counts:
-            counts[issue.severity] += 1
-
-    return IssueSeverityBreakdownResponse(
-        items=[
-            IssueSeverityBreakdownItem(severity=IssueSeverity.low.value, count=counts[IssueSeverity.low.value]),
-            IssueSeverityBreakdownItem(severity=IssueSeverity.medium.value, count=counts[IssueSeverity.medium.value]),
-            IssueSeverityBreakdownItem(severity=IssueSeverity.high.value, count=counts[IssueSeverity.high.value]),
-            IssueSeverityBreakdownItem(
-                severity=IssueSeverity.critical.value,
-                count=counts[IssueSeverity.critical.value],
-            ),
-        ]
-    )
+    bundle = await build_issue_dashboard_metrics_bundle(db=db, current_user=current_user, department_id=department_id)
+    return bundle.severity

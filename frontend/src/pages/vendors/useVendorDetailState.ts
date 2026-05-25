@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useParams } from 'react-router-dom';
 
-import { logError } from '@/services/logger';
-import { isForbiddenApiError } from '@/services/apiClient';
-import { vendorApi } from '@/services/vendorApi';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
+import { useDetailQuery } from '@/pages/detail/useDetailQuery';
+import { logError } from '@/services/logger';
+import { vendorApi } from '@/services/vendorApi';
 import type { Vendor } from '@/types/vendor';
 
 import type { VendorDetailMode } from './vendorDetailPresentation';
@@ -19,46 +19,23 @@ export function useVendorDetailState({
     notFoundMessage,
 }: UseVendorDetailStateOptions) {
     const { id } = useParams<{ id: string }>();
-    const [vendor, setVendor] = useState<Vendor | null>(null);
-    const [isLoading, setIsLoading] = useState(mode !== 'new');
-    const [error, setError] = useState<string | null>(null);
-    const [isAccessDenied, setIsAccessDenied] = useState(false);
     const [isIssueModalOpen, setIsIssueModalOpen] = useState(false);
 
-    const vendorId = Number(id);
-
-    const fetchVendor = useCallback(async () => {
-        if (!vendorId) {
-            setVendor(null);
-            setError(notFoundMessage);
-            setIsAccessDenied(false);
-            setIsLoading(false);
-            return;
-        }
-
-        try {
-            setIsLoading(true);
-            const data = await vendorApi.getVendor(vendorId);
-            setVendor(data);
-            setError(null);
-            setIsAccessDenied(false);
-        } catch (loadError) {
-            logError('Error fetching vendor:', loadError);
-            const accessDenied = isForbiddenApiError(loadError);
-            setIsAccessDenied(accessDenied);
-            setVendor(null);
-            setError(accessDenied ? null : notFoundMessage);
-        } finally {
-            setIsLoading(false);
-        }
-    }, [notFoundMessage, vendorId]);
-
-    useEffect(() => {
-        if (mode === 'new') {
-            return;
-        }
-        void fetchVendor();
-    }, [fetchVendor, mode]);
+    const {
+        errorKey,
+        isAccessDenied,
+        isLoading,
+        refetch: fetchVendor,
+        resource: vendor,
+        resourceId: vendorId,
+    } = useDetailQuery<Vendor>({
+        enabled: mode !== 'new',
+        entity: 'vendor',
+        invalidIdErrorKey: notFoundMessage,
+        rawId: id,
+        load: (vendorId) => vendorApi.getVendor(vendorId),
+        toErrorKey: () => notFoundMessage,
+    });
 
     const restoreVendor = useCallback(async () => {
         if (!vendor) {
@@ -95,7 +72,7 @@ export function useVendorDetailState({
         canLinkKri,
         canLinkRisk,
         canRestore,
-        error,
+        error: errorKey,
         fetchVendor,
         isAccessDenied,
         isIssueModalOpen,

@@ -19,6 +19,7 @@ import type { ExecutionAuditItem, ExecutionListCapabilities, ExecutionResult } f
 import { Pagination } from '@/components/tables';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 import { formatDateValue, formatTimeValue } from '@/i18n/formatters';
+import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { getExecutionResultMeta } from '@/lib/executionResult';
 import { logError } from '@/services/logger';
 
@@ -93,7 +94,7 @@ export function AuditTrailPage() {
                 </div>
 
                 <div className="flex items-center gap-3">
-                    {capabilities?.can_export_csv === true ? (
+                    {resolveCapabilityFlag(capabilities, 'can_export_csv') ? (
                         <button
                             onClick={() => reportApi.downloadAuditTrailCsv({ result: resultFilter || undefined }).catch((error: unknown) => {
                                 logError('Failed to download audit trail CSV.', error);

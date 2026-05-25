@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 
 import type { DirectoryImportResponse } from '@/types/directory';
 import { useTranslation } from '@/i18n/hooks';
+import { resolveCapabilityFlag } from '@/lib/capabilities';
 
 import { UserNewDirectoryImportSection } from './users/UserNewDirectoryImportSection';
 import { UserNewLocalForm } from './users/UserNewLocalForm';
@@ -33,8 +34,8 @@ export function UserNewPage() {
     const isDirectoryFirstMode = authConfig?.auth_mode
         ? authConfig.auth_mode !== 'password'
         : false;
-    const canCreateLocalUser = directoryCapabilities?.can_create_local_user === true;
-    const canImportDirectoryUser = directoryCapabilities?.can_import_directory_user === true;
+    const canCreateLocalUser = resolveCapabilityFlag(directoryCapabilities, 'can_create_local_user');
+    const canImportDirectoryUser = resolveCapabilityFlag(directoryCapabilities, 'can_import_directory_user');
     const localUserWorkflow = useLocalUserCreateWorkflow({
         enabled: !isDirectoryFirstMode && canCreateLocalUser,
         onCreated: () => {
@@ -75,19 +76,13 @@ export function UserNewPage() {
 
             {isAuthConfigLoading ? (
                 <div className="glass-card p-6 text-slate-300">
-                    {t('user_new.loading_auth_mode', {
-                        ns: 'admin',
-                        defaultValue: 'Loading authentication mode...',
-                    })}
+                    {t('user_new.loading_auth_mode', { ns: 'admin' })}
                 </div>
             ) : authConfigError ? (
                 <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 p-4 rounded-xl flex items-center gap-3">
                     <Shield className="h-5 w-5 shrink-0" />
                     <p>
-                        {t('user_new.auth_mode_load_failed', {
-                            ns: 'admin',
-                            defaultValue: 'Unable to load authentication mode. Please refresh and try again.',
-                        })}
+                        {t('user_new.auth_mode_load_failed', { ns: 'admin' })}
                     </p>
                 </div>
             ) : isDirectoryFirstMode && canImportDirectoryUser ? (

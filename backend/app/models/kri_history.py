@@ -8,7 +8,7 @@ time-series analysis and historical reporting.
 from datetime import date, datetime
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import Date, DateTime, Float, ForeignKey, Index, String, func
+from sqlalchemy import Date, DateTime, Float, ForeignKey, Index, String, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -58,6 +58,7 @@ class KRIValueHistory(Base):
 
     # Indexes for efficient time-series queries
     __table_args__ = (
+        UniqueConstraint("kri_id", "period_end", name="uq_kri_value_history_kri_period_end"),
         Index("ix_kri_value_history_kri_period_end", "kri_id", "period_end"),
         Index("ix_kri_value_history_kri_recorded_at", "kri_id", "recorded_at"),
     )

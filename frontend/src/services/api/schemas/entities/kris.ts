@@ -38,9 +38,9 @@ const kriCapabilitiesSchema = passthroughObject({
     requires_privileged_delete_approval: z.boolean(),
 });
 export const kriListCapabilitiesSchema = passthroughObject({
-    can_export: z.boolean(),
-    can_create: z.boolean(),
-    can_view_vendor_contexts: z.boolean(),
+    can_export: z.boolean().optional(),
+    can_create: z.boolean().optional(),
+    can_view_vendor_contexts: z.boolean().optional(),
 });
 
 export const kriMonitoringFieldsSchema = passthroughObject({

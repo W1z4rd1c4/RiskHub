@@ -1,10 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 
-import type { ExportDialogSubmitPayload } from '@/components/reports/ExportDialog';
 import type { ViewMode } from '@/components/tables';
-import { DEFAULT_LIST_PAGE_SIZE, LIST_SEARCH_DEBOUNCE_MS } from '@/constants/list';
+import { LIST_SEARCH_DEBOUNCE_MS } from '@/constants/list';
 import { KRI_MONITORING_FILTER_VALUES } from '@/lib/monitoringStatus';
-import { useDebouncedValue } from '@/hooks/useDebouncedValue';
 import { apiClient } from '@/services/apiClient';
 import { kriApi } from '@/services/kriApi';
 import { reportApi } from '@/services/reportApi';
@@ -21,13 +19,10 @@ import {
     type KriTimelinessFilter,
 } from './kriPagePresentation';
 import {
-    getTotalPages,
-} from '../shared/collectionPageState';
-import {
-    type CollectionWorkflowLoadRequest,
-    useCollectionPageWorkflow,
-} from '../shared/collectionPageWorkflow';
-import { resetCollectionGroupAndPage } from '../shared/collectionViewVocabulary';
+    type RegisterPageExportRequest,
+    type RegisterPageLoadRequest,
+    useRegisterPageController,
+} from '../shared/useRegisterPageController';
 
 const TIMELINESS_FILTER_VALUES = ['due_soon'] as const;
 
@@ -36,43 +31,76 @@ interface UseKrisPageStateOptions {
     setSearchParams: (nextParams: URLSearchParams, options?: { replace?: boolean }) => void;
 }
 
-export function useKrisPageState({ searchParams, setSearchParams }: UseKrisPageStateOptions) {
-    const [search, setSearch] = useState('');
-    const [viewMode, setViewMode] = useState<ViewMode>('all');
-    const [currentPage, setCurrentPage] = useState(1);
+type KriRegisterFilters = {
+    statusFilter: KriStatusFilter;
+    timelinessFilter: KriTimelinessFilter;
+};
 
-    const { statusFilter, timelinessFilter } = readKriRouteFilters(
-        searchParams,
-        KRI_MONITORING_FILTER_VALUES,
-        TIMELINESS_FILTER_VALUES
+export function useKrisPageState({ searchParams, setSearchParams }: UseKrisPageStateOptions) {
+    const routeFilters = useMemo(
+        () => readKriRouteFilters(
+            searchParams,
+            KRI_MONITORING_FILTER_VALUES,
+            TIMELINESS_FILTER_VALUES
+        ),
+        [searchParams]
     );
-    const debouncedSearch = useDebouncedValue(search, LIST_SEARCH_DEBOUNCE_MS);
-    const limit = DEFAULT_LIST_PAGE_SIZE;
-    const groupBy = getKriGroupBy(viewMode);
 
     const loadKriPage = useCallback(
-        ({ currentPage, groupBy, groupValue }: CollectionWorkflowLoadRequest) => kriApi.getKRIs(
+        ({
+            currentPage,
+            debouncedSearch,
+            filters,
+            groupBy,
+            groupValue,
+            limit,
+        }: RegisterPageLoadRequest<KriRegisterFilters, ViewMode>) => kriApi.getKRIs(
             buildKriListParams({
                 currentPage,
                 limit,
                 search: debouncedSearch,
-                statusFilter,
-                timelinessFilter,
+                statusFilter: filters.statusFilter,
+                timelinessFilter: filters.timelinessFilter,
                 groupBy,
                 groupValue,
             })
         ),
-        [debouncedSearch, limit, statusFilter, timelinessFilter]
+        []
     );
 
     const toUiErrorKey = useCallback((error: unknown) => apiClient.toUiMessageKey(error), []);
 
-    const collectionWorkflow = useCollectionPageWorkflow<KeyRiskIndicator>({
+    const submitExport = useCallback(
+        async ({
+            format,
+            asOfDate,
+            filters,
+            search,
+        }: RegisterPageExportRequest<KriRegisterFilters, ViewMode>) => {
+            await reportApi.exportKRIs({
+                format,
+                asOfDate,
+                filters: buildKriExportFilters({
+                    search,
+                    statusFilter: filters.statusFilter,
+                    timelinessFilter: filters.timelinessFilter,
+                }),
+            });
+        },
+        []
+    );
+
+    const registerController = useRegisterPageController<KeyRiskIndicator, KriRegisterFilters, ViewMode>({
         clearOnNonForbidden: true,
-        currentPage,
-        groupBy,
+        fallbackErrorKey: 'errors.load_failed',
+        getGroupBy: getKriGroupBy,
+        initialFilters: routeFilters,
+        initialViewMode: 'all',
         loadPage: loadKriPage,
+        searchDebounceMs: LIST_SEARCH_DEBOUNCE_MS,
+        submitExport,
         toErrorKey: toUiErrorKey,
+        toExportErrorKey: toUiErrorKey,
     });
     const {
         closeExportDialog,
@@ -80,20 +108,37 @@ export function useKrisPageState({ searchParams, setSearchParams }: UseKrisPageS
         isExportDialogOpen,
         isExporting,
         openExportDialog,
-        resetGroupSelection,
-        selectGroup: selectCollectionGroup,
+        clearSelectedGroup,
         selectedGroupLabel,
         selectedGroupValue,
         setErrorKey,
-        setIsExporting,
-    } = collectionWorkflow;
+        selectGroup,
+        updateFilters,
+        updateViewMode,
+    } = registerController;
 
     useEffect(() => {
-        void fetchKris();
-    }, [fetchKris]);
+        if (
+            registerController.filters.statusFilter !== routeFilters.statusFilter ||
+            registerController.filters.timelinessFilter !== routeFilters.timelinessFilter
+        ) {
+            updateFilters(routeFilters);
+        }
+    }, [
+        registerController.filters.statusFilter,
+        registerController.filters.timelinessFilter,
+        routeFilters,
+        updateFilters,
+    ]);
 
-    const updateRouteFilters = useCallback((nextStatusFilter: KriStatusFilter, nextTimelinessFilter: KriTimelinessFilter) => {
-        resetCollectionGroupAndPage(resetGroupSelection, setCurrentPage);
+    const updateRouteFilters = useCallback((
+        nextStatusFilter: KriStatusFilter,
+        nextTimelinessFilter: KriTimelinessFilter,
+    ) => {
+        updateFilters({
+            statusFilter: nextStatusFilter,
+            timelinessFilter: nextTimelinessFilter,
+        });
 
         const nextParams = new URLSearchParams(searchParams);
         nextParams.delete('monitoring_status');
@@ -109,26 +154,7 @@ export function useKrisPageState({ searchParams, setSearchParams }: UseKrisPageS
         }
 
         setSearchParams(nextParams, { replace: true });
-    }, [resetGroupSelection, searchParams, setSearchParams]);
-
-    const updateViewMode = useCallback((nextViewMode: ViewMode) => {
-        setViewMode(nextViewMode);
-        resetCollectionGroupAndPage(resetGroupSelection, setCurrentPage);
-    }, [resetGroupSelection]);
-
-    const updateSearch = useCallback((value: string) => {
-        setSearch(value);
-        resetCollectionGroupAndPage(resetGroupSelection, setCurrentPage);
-    }, [resetGroupSelection]);
-
-    const selectGroup = useCallback((groupValue: string, groupLabel: string) => {
-        selectCollectionGroup(groupValue, groupLabel);
-        setCurrentPage(1);
-    }, [selectCollectionGroup]);
-
-    const clearSelectedGroup = useCallback(() => {
-        resetCollectionGroupAndPage(resetGroupSelection, setCurrentPage);
-    }, [resetGroupSelection]);
+    }, [searchParams, setSearchParams, updateFilters]);
 
     const restoreKri = useCallback(async (kriId: number) => {
         try {
@@ -139,55 +165,35 @@ export function useKrisPageState({ searchParams, setSearchParams }: UseKrisPageS
         }
     }, [fetchKris, setErrorKey]);
 
-    const handleExport = useCallback(async ({ format, asOfDate }: ExportDialogSubmitPayload) => {
-        setIsExporting(true);
-        try {
-            await reportApi.exportKRIs({
-                format,
-                asOfDate,
-                filters: buildKriExportFilters({
-                    search,
-                    statusFilter,
-                    timelinessFilter,
-                }),
-            });
-            closeExportDialog();
-        } catch (error) {
-            setErrorKey(apiClient.toUiMessageKey(error));
-        } finally {
-            setIsExporting(false);
-        }
-    }, [closeExportDialog, search, setErrorKey, setIsExporting, statusFilter, timelinessFilter]);
-
     return {
-        currentPage,
-        capabilities: collectionWorkflow.capabilities,
-        errorKey: collectionWorkflow.errorKey,
+        currentPage: registerController.currentPage,
+        capabilities: registerController.capabilities,
+        errorKey: registerController.errorKey,
         fetchKris,
-        groups: collectionWorkflow.groups,
-        handleExport,
-        hasLoadedOnce: collectionWorkflow.hasLoadedOnce,
+        groups: registerController.groups,
+        handleExport: registerController.handleExport,
+        hasLoadedOnce: registerController.hasLoadedOnce,
         isExportDialogOpen,
         isExporting,
-        isAccessDenied: collectionWorkflow.isAccessDenied,
-        isLoading: collectionWorkflow.isLoading,
-        items: collectionWorkflow.items,
-        limit,
+        isAccessDenied: registerController.isAccessDenied,
+        isLoading: registerController.isLoading,
+        items: registerController.items,
+        limit: registerController.limit,
         openExportDialog,
         closeExportDialog,
         restoreKri,
-        search,
+        search: registerController.search,
         selectedGroupLabel,
         selectedGroupValue,
-        setCurrentPage,
-        statusFilter,
-        timelinessFilter,
-        totalCount: collectionWorkflow.totalCount,
-        totalPages: getTotalPages(collectionWorkflow.totalCount, limit),
+        setCurrentPage: registerController.setCurrentPage,
+        statusFilter: registerController.filters.statusFilter,
+        timelinessFilter: registerController.filters.timelinessFilter,
+        totalCount: registerController.totalCount,
+        totalPages: registerController.totalPages,
         updateRouteFilters,
-        updateSearch,
+        updateSearch: registerController.updateSearch,
         updateViewMode,
-        viewMode,
+        viewMode: registerController.viewMode,
         selectGroup,
         clearSelectedGroup,
     };

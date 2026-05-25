@@ -162,7 +162,7 @@ async def test_get_history_period_sort_orders_by_business_period_desc(
     test_kri_for_api,
     test_user_cro,
 ):
-    """Period sort uses period_end, recorded_at, and id as deterministic tie breakers."""
+    """Period sort uses business period before recorded_at for deterministic listing."""
     same_recorded_at = datetime(2026, 4, 2, 12, 0, tzinfo=UTC)
     db_session.add_all(
         [
@@ -192,8 +192,8 @@ async def test_get_history_period_sort_orders_by_business_period_desc(
             ),
             KRIValueHistory(
                 kri_id=test_kri_for_api.id,
-                period_start=date(2026, 1, 1),
-                period_end=date(2026, 1, 31),
+                period_start=date(2026, 2, 1),
+                period_end=date(2026, 2, 28),
                 recorded_at=same_recorded_at,
                 recorded_by_id=test_user_cro.id,
                 value=11.0,

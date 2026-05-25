@@ -141,7 +141,7 @@ test-cov:
 
 # Run E2E tests
 test-e2e:
-	cd frontend && npx playwright test
+	cd frontend && npx playwright test --workers=1
 
 # Run frontend lint and debt budget
 lint-frontend:

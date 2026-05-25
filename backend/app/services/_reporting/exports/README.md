@@ -7,14 +7,12 @@ Business/service-layer logic for `_reporting`.
 ## Contents
 
 - `__init__.py`
-- `__pycache__/`
 - `controls.py`
 - `fetch.py`
 - `filters.py`
 - `issues.py`
 - `kris.py`
 - `lifecycle.py`
-- `monitoring.py`
 - `pipeline.py`
 - `rehydrate.py`
 - `risks.py`

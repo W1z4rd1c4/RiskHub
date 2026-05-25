@@ -1,7 +1,8 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RiskDetailPage } from '@/pages/RiskDetailPage';
 import { ApiClientError } from '@/services/apiClient';
+import { renderWithQueryClient as render } from '@test/render';
 
 const mockNavigate = vi.fn();
 const mockGetRisk = vi.fn();

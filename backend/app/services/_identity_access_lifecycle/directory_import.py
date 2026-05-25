@@ -16,6 +16,9 @@ from app.services._directory_identity import (
     apply_directory_profile,
     resolve_directory_email,
 )
+from app.services._directory_identity import (
+    resolve_safe_default_role as resolve_directory_safe_default_role,
+)
 from app.services.ad_deprovision_service import ADDeprovisionService
 
 from .contracts import IdentityImportOutcome
@@ -29,16 +32,7 @@ def _is_external_id_integrity_error(exc: IntegrityError) -> bool:
 
 
 async def resolve_safe_default_role(db: AsyncSession) -> Role:
-    from app.core.policy import SAFE_DIRECTORY_DEFAULT_ROLE_CANDIDATES
-
-    for name in SAFE_DIRECTORY_DEFAULT_ROLE_CANDIDATES:
-        result = await db.execute(select(Role).where(Role.name == name))
-        role = result.scalar_one_or_none()
-        if role:
-            return role
-
-    candidates = ", ".join(str(name) for name in SAFE_DIRECTORY_DEFAULT_ROLE_CANDIDATES)
-    raise ServiceFailure(f"No safe default role found ({candidates}). Seed roles first.")
+    return await resolve_directory_safe_default_role(db, exception_factory=ServiceFailure)
 
 
 async def resolve_role_for_directory_import(

@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import { RiskForm } from '@/components/RiskForm';
 import { useTranslation } from '@/i18n/hooks';
+import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { logError } from '@/services/logger';
 import { riskApi } from '@/services/riskApi';
 import type { Risk } from '@/types/risk';
@@ -52,7 +53,7 @@ export function RiskEditPage() {
                 </div>
             </div>
 
-            {risk?.capabilities?.can_update === true ? (
+            {risk !== null && resolveCapabilityFlag(risk.capabilities, 'can_update') ? (
                 <RiskForm initialData={risk} isEdit={true} />
             ) : (
                 <FormCapabilityGateState state="denied" />

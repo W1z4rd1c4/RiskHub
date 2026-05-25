@@ -1,8 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
+import {
+  AdminConsoleRouteGuard,
+  AuditTrailRouteGuard,
+} from '@/authz/BusinessRouteGuards';
 import { buildAuthz, type AuthUser, type PermissionChecker } from '@/authz/policy';
+import { adminRoutes } from '@/routing/admin';
+import { businessRoutes } from '@/routing/business';
 import { getSidebarNavRoutes, protectedAppRoutes } from '@/routing';
 import type { MeCapabilities } from '@/services/authApi';
+import type { AppRouteDef } from '@/routing/types';
 
 function createPermissionChecker(permissions: string[]): PermissionChecker {
   const allowed = new Set(permissions);
@@ -39,6 +46,17 @@ function meCapabilities(overrides: Partial<MeCapabilities> = {}): MeCapabilities
   };
 }
 
+function expectRouteElementGuard(
+  routes: AppRouteDef[],
+  key: string,
+  guard: unknown,
+) {
+  const route = routes.find((candidate) => candidate.key === key);
+
+  expect(route).toBeDefined();
+  expect(route?.element.type).toBe(guard);
+}
+
 describe('routing manifest parity', () => {
   it('maps every sidebar href to a concrete protected route', () => {
     const protectedHrefs = new Set(
@@ -58,6 +76,12 @@ describe('routing manifest parity', () => {
   it('has no duplicate sidebar hrefs', () => {
     const hrefs = protectedAppRoutes.flatMap((route) => (route.nav ? [route.nav.href] : []));
     expect(new Set(hrefs).size).toBe(hrefs.length);
+  });
+
+  it('guards direct navigation for audit and admin route entries', () => {
+    expectRouteElementGuard(businessRoutes, 'audit-trail', AuditTrailRouteGuard);
+    expectRouteElementGuard(adminRoutes, 'admin', AdminConsoleRouteGuard);
+    expectRouteElementGuard(adminRoutes, 'admin-docs', AdminConsoleRouteGuard);
   });
 
   it('matches admin sidebar visibility contract', () => {

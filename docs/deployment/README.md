@@ -70,6 +70,8 @@ Release inputs:
 ## Runtime Notes
 
 - Redis is required in production.
+- Prometheus scraping is opt-in: set `METRICS_ENABLED=true` to expose `/metrics` on the API runtime.
+- OpenTelemetry export is disabled by default. Set `OTEL_EXPORTER_OTLP_ENDPOINT` to an OTLP HTTP collector base URL or `/v1/traces` endpoint, and optionally set `OTEL_SERVICE_NAME`, to export emitted spans. RiskHub normalizes collector base URLs to `/v1/traces`; automatic request tracing requires explicit instrumentation.
 - Production rate-limited API paths fail closed with `503` when Redis is unavailable unless operators explicitly disable `RATE_LIMIT_FAIL_CLOSED_ON_BACKEND_ERROR` as an emergency rollback.
 - Production runtime requires an explicit `ALLOWED_HOSTS` value. Managed deploy/install tooling renders it from the configured public hostname for supported `docker` and `linux` targets, but operators must still verify it matches the real public host allowlist.
 - `/docs` and `/openapi.json` must stay disabled in production.

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Any, Literal
 
 from sqlalchemy import and_, false, func, select
@@ -25,27 +24,6 @@ from app.services._dashboard_metrics.risk_levels import (
     build_risk_level_condition_from_ranges,
     get_configured_risk_level_ranges,
 )
-
-
-@dataclass(frozen=True)
-class DashboardMetricPlan:
-    actor: User
-    department_id: int | None = None
-    period: str | None = None
-    filters: dict[str, Any] | None = None
-
-
-@dataclass(frozen=True)
-class DashboardMetricOutcome:
-    value: Any
-    availability: str = "available"
-    source: str = "live"
-
-
-@dataclass(frozen=True)
-class DashboardSnapshotDecision:
-    source: str
-    available: bool
 
 
 async def build_dashboard_summary_metrics(

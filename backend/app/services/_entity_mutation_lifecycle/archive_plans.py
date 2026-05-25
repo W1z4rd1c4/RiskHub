@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
+from typing import Any
+
 from fastapi import status
 from fastapi.responses import Response
 from sqlalchemy import select
@@ -38,6 +42,20 @@ from app.services.approval_scenario_policy import (
     approval_privilege_tier,
     load_approval_scenario_policy,
 )
+
+
+@dataclass(frozen=True)
+class _ArchiveDetailDescriptor:
+    resource_type: ApprovalResourceType
+    scenario_key: str
+    load_entity: Callable[[AsyncSession, int, User], Awaitable[Any]]
+    archive_entity: Callable[[AsyncSession, Any, User], Awaitable[None]]
+    resource_id: Callable[[Any], int]
+    resource_name: Callable[[Any], str]
+    request_reason: Callable[[Any, str], str]
+    department_id: Callable[[Any], int | None]
+    approval_metadata: Callable[[AsyncSession, Any, int], Awaitable[tuple[int | None, bool]]]
+    on_duplicate_detail: str = "Deletion request already pending"
 
 
 async def assert_can_request_delete_risk(
@@ -161,24 +179,113 @@ async def archive_kri_no_commit(
     )
 
 
-async def archive_risk_detail(
+async def _archive_risk_entity(db: AsyncSession, entity: Any, current_user: User) -> None:
+    await archive_risk_no_commit(db, risk=entity, current_user=current_user)
+
+
+async def _archive_control_entity(db: AsyncSession, entity: Any, current_user: User) -> None:
+    await archive_control_no_commit(db, control=entity, current_user=current_user)
+
+
+async def _archive_kri_entity(db: AsyncSession, entity: Any, current_user: User) -> None:
+    await archive_kri_no_commit(db, kri=entity, current_user=current_user)
+
+
+async def _load_risk_for_archive(db: AsyncSession, resource_id: int, current_user: User) -> Risk:
+    return await assert_can_request_delete_risk(db, risk_id=resource_id, current_user=current_user)
+
+
+async def _load_control_for_archive(db: AsyncSession, resource_id: int, current_user: User) -> Control:
+    return await assert_can_request_delete_control(db, control_id=resource_id, current_user=current_user)
+
+
+async def _load_kri_for_archive(db: AsyncSession, resource_id: int, current_user: User) -> KeyRiskIndicator:
+    return await assert_can_request_delete_kri(db, kri_id=resource_id, current_user=current_user)
+
+
+async def _risk_delete_metadata(db: AsyncSession, entity: Any, requester_id: int) -> tuple[int | None, bool]:
+    return await get_risk_delete_approval_metadata(db, risk=entity, requester_id=requester_id)
+
+
+async def _control_delete_metadata(db: AsyncSession, entity: Any, requester_id: int) -> tuple[int | None, bool]:
+    return await get_control_delete_approval_metadata(db, control=entity, requester_id=requester_id)
+
+
+async def _kri_delete_metadata(db: AsyncSession, entity: Any, requester_id: int) -> tuple[int | None, bool]:
+    primary_approver_id = await get_primary_approver_for_risk(db, entity.risk_id, requester_id=requester_id)
+    return primary_approver_id, False
+
+
+def _risk_delete_reason(entity: Any, reason: str) -> str:
+    desc_snippet = (
+        (entity.description[:100] + "...")
+        if entity.description and len(entity.description) > 100
+        else (entity.description or "")
+    )
+    return f"{reason}\n\nDescription: {desc_snippet}" if desc_snippet else reason
+
+
+def _name_snippet(value: str | None, fallback: str) -> str:
+    return (value or "").strip()[:50] or fallback
+
+
+_RISK_ARCHIVE_DESCRIPTOR = _ArchiveDetailDescriptor(
+    resource_type=ApprovalResourceType.RISK,
+    scenario_key="risk_delete",
+    load_entity=_load_risk_for_archive,
+    archive_entity=_archive_risk_entity,
+    resource_id=lambda entity: entity.id,
+    resource_name=lambda entity: entity.name,
+    request_reason=_risk_delete_reason,
+    department_id=lambda entity: entity.department_id,
+    approval_metadata=_risk_delete_metadata,
+)
+
+_CONTROL_ARCHIVE_DESCRIPTOR = _ArchiveDetailDescriptor(
+    resource_type=ApprovalResourceType.CONTROL,
+    scenario_key="control_delete",
+    load_entity=_load_control_for_archive,
+    archive_entity=_archive_control_entity,
+    resource_id=lambda entity: entity.id,
+    resource_name=lambda entity: _name_snippet(entity.name, "Unknown control"),
+    request_reason=lambda _entity, reason: reason,
+    department_id=lambda entity: entity.department_id,
+    approval_metadata=_control_delete_metadata,
+)
+
+_KRI_ARCHIVE_DESCRIPTOR = _ArchiveDetailDescriptor(
+    resource_type=ApprovalResourceType.KRI,
+    scenario_key="kri_delete",
+    load_entity=_load_kri_for_archive,
+    archive_entity=_archive_kri_entity,
+    resource_id=lambda entity: entity.id,
+    resource_name=lambda entity: _name_snippet(entity.metric_name, "Unknown KRI"),
+    request_reason=lambda _entity, reason: reason,
+    department_id=lambda entity: entity.risk.department_id,
+    approval_metadata=_kri_delete_metadata,
+    on_duplicate_detail="Deletion request already pending",
+)
+
+
+async def _archive_detail(
     *,
     db: AsyncSession,
-    risk_id: int,
+    resource_id: int,
     reason: str,
     current_user: User,
+    descriptor: _ArchiveDetailDescriptor,
 ) -> EntityMutationOutcome:
-    risk = await assert_can_request_delete_risk(db, risk_id=risk_id, current_user=current_user)
+    entity = await descriptor.load_entity(db, resource_id, current_user)
 
     scenario_policy = await load_approval_scenario_policy(
         db,
-        "risk_delete",
+        descriptor.scenario_key,
         default_roles=list(APPROVER_ROLES),
     )
 
     if approval_privilege_tier(current_user).is_privileged or not scenario_policy.requires_approval:
         try:
-            await archive_risk_no_commit(db, risk=risk, current_user=current_user)
+            await descriptor.archive_entity(db, entity, current_user)
             await db.commit()
         except Exception:
             # Deliberately broad: audit hooks can fail before commit; rollback keeps this request session reusable.
@@ -186,28 +293,20 @@ async def archive_risk_detail(
             raise
         return EntityMutationOutcome(kind="applied", response=Response(status_code=status.HTTP_204_NO_CONTENT))
 
+    entity_id = descriptor.resource_id(entity)
     await assert_no_existing_pending_delete_request(
         db,
-        resource_type=ApprovalResourceType.RISK,
-        resource_id=risk.id,
+        resource_type=descriptor.resource_type,
+        resource_id=entity_id,
     )
 
-    desc_snippet = (
-        (risk.description[:100] + "...")
-        if risk.description and len(risk.description) > 100
-        else (risk.description or "")
-    )
-    primary_approver_id, requires_privileged = await get_risk_delete_approval_metadata(
-        db,
-        risk=risk,
-        requester_id=current_user.id,
-    )
+    primary_approver_id, requires_privileged = await descriptor.approval_metadata(db, entity, current_user.id)
     approval = ApprovalRequest(
-        resource_type=ApprovalResourceType.RISK,
-        resource_id=risk.id,
-        resource_name=risk.name,
+        resource_type=descriptor.resource_type,
+        resource_id=entity_id,
+        resource_name=descriptor.resource_name(entity),
         requested_by_id=current_user.id,
-        reason=f"{reason}\n\nDescription: {desc_snippet}" if desc_snippet else reason,
+        reason=descriptor.request_reason(entity, reason),
         status=ApprovalStatus.PENDING,
         action_type=ApprovalActionType.DELETE,
         primary_approver_id=primary_approver_id,
@@ -219,7 +318,8 @@ async def archive_risk_detail(
         db,
         approval=approval,
         actor=current_user,
-        department_id=risk.department_id,
+        department_id=descriptor.department_id(entity),
+        on_duplicate_detail=descriptor.on_duplicate_detail,
     )
 
     response = build_approval_queued_response(
@@ -230,6 +330,22 @@ async def archive_risk_detail(
         requires_privileged_approval=requires_privileged,
     )
     return EntityMutationOutcome(kind="approval_queued", response=response)
+
+
+async def archive_risk_detail(
+    *,
+    db: AsyncSession,
+    risk_id: int,
+    reason: str,
+    current_user: User,
+) -> EntityMutationOutcome:
+    return await _archive_detail(
+        db=db,
+        resource_id=risk_id,
+        reason=reason,
+        current_user=current_user,
+        descriptor=_RISK_ARCHIVE_DESCRIPTOR,
+    )
 
 
 async def archive_control_detail(
@@ -239,64 +355,13 @@ async def archive_control_detail(
     reason: str,
     current_user: User,
 ) -> EntityMutationOutcome:
-    control = await assert_can_request_delete_control(db, control_id=control_id, current_user=current_user)
-
-    scenario_policy = await load_approval_scenario_policy(
-        db,
-        "control_delete",
-        default_roles=list(APPROVER_ROLES),
-    )
-
-    if approval_privilege_tier(current_user).is_privileged or not scenario_policy.requires_approval:
-        try:
-            await archive_control_no_commit(db, control=control, current_user=current_user)
-            await db.commit()
-        except Exception:
-            # Deliberately broad: audit hooks can fail before commit; rollback keeps this request session reusable.
-            await db.rollback()
-            raise
-        return EntityMutationOutcome(kind="applied", response=Response(status_code=status.HTTP_204_NO_CONTENT))
-
-    await assert_no_existing_pending_delete_request(
-        db,
-        resource_type=ApprovalResourceType.CONTROL,
-        resource_id=control.id,
-    )
-
-    name_snippet = (control.name or "").strip()[:50]
-    primary_approver_id, requires_privileged = await get_control_delete_approval_metadata(
-        db,
-        control=control,
-        requester_id=current_user.id,
-    )
-    approval = ApprovalRequest(
-        resource_type=ApprovalResourceType.CONTROL,
-        resource_id=control.id,
-        resource_name=name_snippet or "Unknown control",
-        requested_by_id=current_user.id,
+    return await _archive_detail(
+        db=db,
+        resource_id=control_id,
         reason=reason,
-        status=ApprovalStatus.PENDING,
-        action_type=ApprovalActionType.DELETE,
-        primary_approver_id=primary_approver_id,
-        requires_privileged_approval=requires_privileged,
+        current_user=current_user,
+        descriptor=_CONTROL_ARCHIVE_DESCRIPTOR,
     )
-    apply_approval_scenario_snapshot(approval, scenario_policy)
-
-    await create_approval_request_with_audit(
-        db,
-        approval=approval,
-        actor=current_user,
-        department_id=control.department_id,
-    )
-
-    response = build_approval_queued_response(
-        message="Deletion request submitted for approval",
-        approval_id=approval.id,
-        action_type="delete",
-        primary_approver_id=primary_approver_id,
-        requires_privileged_approval=requires_privileged,
-    )
-    return EntityMutationOutcome(kind="approval_queued", response=response)
 
 
 async def archive_kri_detail(
@@ -306,56 +371,10 @@ async def archive_kri_detail(
     reason: str,
     current_user: User,
 ) -> EntityMutationOutcome:
-    kri = await assert_can_request_delete_kri(db, kri_id=kri_id, current_user=current_user)
-
-    scenario_policy = await load_approval_scenario_policy(
-        db,
-        "kri_delete",
-        default_roles=list(APPROVER_ROLES),
-    )
-
-    if approval_privilege_tier(current_user).is_privileged or not scenario_policy.requires_approval:
-        try:
-            await archive_kri_no_commit(db, kri=kri, current_user=current_user)
-            await db.commit()
-        except Exception:
-            # Deliberately broad: audit hooks can fail before commit; rollback keeps this request session reusable.
-            await db.rollback()
-            raise
-        return EntityMutationOutcome(kind="applied", response=Response(status_code=status.HTTP_204_NO_CONTENT))
-
-    await assert_no_existing_pending_delete_request(
-        db,
-        resource_type=ApprovalResourceType.KRI,
-        resource_id=kri.id,
-    )
-
-    name_snippet = (kri.metric_name or "").strip()[:50]
-    primary_approver_id = await get_primary_approver_for_risk(db, kri.risk_id, requester_id=current_user.id)
-    approval = ApprovalRequest(
-        resource_type=ApprovalResourceType.KRI,
-        resource_id=kri.id,
-        resource_name=name_snippet or "Unknown KRI",
-        requested_by_id=current_user.id,
+    return await _archive_detail(
+        db=db,
+        resource_id=kri_id,
         reason=reason,
-        action_type=ApprovalActionType.DELETE,
-        status=ApprovalStatus.PENDING,
-        primary_approver_id=primary_approver_id,
+        current_user=current_user,
+        descriptor=_KRI_ARCHIVE_DESCRIPTOR,
     )
-    apply_approval_scenario_snapshot(approval, scenario_policy)
-
-    await create_approval_request_with_audit(
-        db,
-        approval=approval,
-        actor=current_user,
-        department_id=kri.risk.department_id,
-        on_duplicate_detail="Deletion request already pending",
-    )
-
-    response = build_approval_queued_response(
-        message="Deletion request submitted for approval",
-        approval_id=approval.id,
-        action_type="delete",
-        primary_approver_id=primary_approver_id,
-    )
-    return EntityMutationOutcome(kind="approval_queued", response=response)

@@ -5,6 +5,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import { ControlForm } from '@/components/control-form/ControlFormContainer';
 import { useTranslation } from '@/i18n/hooks';
+import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { controlApi } from '@/services/controlApi';
 import { logError } from '@/services/logger';
 import type { Control } from '@/types/control';
@@ -57,11 +58,11 @@ export function ControlEditPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
             >
-                {control.capabilities?.can_update === true ? (
+                {resolveCapabilityFlag(control.capabilities, 'can_update') ? (
                     <ControlForm
                         initialData={control}
                         isEdit={true}
-                        allowRiskLinking={control.capabilities.can_link_risk === true}
+                        allowRiskLinking={resolveCapabilityFlag(control.capabilities, 'can_link_risk')}
                     />
                 ) : (
                     <FormCapabilityGateState state="denied" />

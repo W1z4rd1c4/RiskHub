@@ -36,10 +36,10 @@ assert "app.api.v1.endpoints.issues" not in sys.modules, sorted(
 
 
 @pytest.mark.asyncio
-async def test_serialize_issue_summaries_for_actor_reuses_visibility_and_capabilities(monkeypatch):
+async def test_serialize_issue_summaries_for_actor_reuses_visibility_and_preloads_capabilities(monkeypatch):
     issues = [SimpleNamespace(id=1), SimpleNamespace(id=2)]
     visibility = object()
-    capability_calls: list[int] = []
+    preload_calls: list[list[int]] = []
 
     async def fake_visibility(db, current_user, visible_issues):
         assert db == "db"
@@ -47,11 +47,11 @@ async def test_serialize_issue_summaries_for_actor_reuses_visibility_and_capabil
         assert visible_issues == issues
         return visibility
 
-    async def fake_capabilities(db, *, current_user, issue):
+    async def fake_capability_preload(db, *, current_user, issues):
         assert db == "db"
         assert current_user == "user"
-        capability_calls.append(issue.id)
-        return {"can_edit": issue.id == 1}
+        preload_calls.append([issue.id for issue in issues])
+        return {issue.id: {"can_edit": issue.id == 1} for issue in issues}
 
     def fake_summary(issue, current_user=None, *, capabilities=None, linked_visibility=None):
         assert current_user == "user"
@@ -62,7 +62,7 @@ async def test_serialize_issue_summaries_for_actor_reuses_visibility_and_capabil
         }
 
     monkeypatch.setattr(projection, "build_issue_linked_visibility", fake_visibility)
-    monkeypatch.setattr(projection, "issue_capabilities", fake_capabilities)
+    monkeypatch.setattr(projection, "preload_issue_capabilities", fake_capability_preload)
     monkeypatch.setattr(projection, "_serialize_issue_summary", fake_summary)
 
     summaries = await projection.serialize_issue_summaries_for_actor("db", current_user="user", issues=issues)
@@ -71,4 +71,4 @@ async def test_serialize_issue_summaries_for_actor_reuses_visibility_and_capabil
         {"id": 1, "capabilities": {"can_edit": True}},
         {"id": 2, "capabilities": {"can_edit": False}},
     ]
-    assert capability_calls == [1, 2]
+    assert preload_calls == [[1, 2]]

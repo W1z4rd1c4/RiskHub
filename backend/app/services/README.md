@@ -9,7 +9,6 @@ Folder for `backend/app/services` implementation assets.
 - `__init__.py`
 - `__pycache__/`
 - `_approval_execution/`
-- `_directory_sync/`
 - `_graph_directory/`
 - `_issue_workflow/`
 - `_kri_history/`

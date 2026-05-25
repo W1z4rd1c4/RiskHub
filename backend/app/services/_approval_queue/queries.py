@@ -6,7 +6,7 @@ from sqlalchemy.orm import selectinload
 
 from app.models import ApprovalRequest, ApprovalResourceType, ApprovalStatus, User
 from app.schemas.approval_request import ApprovalRequestListResponse, ApprovalResourceTypeEnum, ApprovalStatusEnum
-from app.services.approval_queue_visibility import visible_pending_approvals_for_user
+from app.services.approval_queue_visibility import build_visible_pending_approvals_query
 from app.services.approval_scenario_policy import approval_privilege_tier
 
 from .logging import queue_logger
@@ -45,14 +45,24 @@ async def list_approval_queue_page(
                     ApprovalRequest.status.in_([ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED])
                 )
             else:
-                pending_approvals = await visible_pending_approvals_for_user(
+                pending_query = await build_visible_pending_approvals_query(
                     db,
                     current_user=current_user,
                     resource_type=ApprovalResourceType(resource_type.value) if resource_type else None,
                 )
+                count_query = select(func.count()).select_from(pending_query.order_by(None).subquery())
+                total = (await db.execute(count_query)).scalar() or 0
+                result = await db.execute(
+                    pending_query.options(
+                        selectinload(ApprovalRequest.requested_by),
+                        selectinload(ApprovalRequest.resolved_by),
+                    )
+                    .offset(skip)
+                    .limit(limit)
+                )
                 return approval_queue_page(
-                    approvals=pending_approvals[skip : skip + limit],
-                    total=len(pending_approvals),
+                    approvals=list(result.scalars().all()),
+                    total=total,
                     skip=skip,
                     limit=limit,
                     current_user=current_user,
@@ -85,14 +95,20 @@ async def list_my_approval_queue_page(
     skip: int,
     limit: int,
 ) -> ApprovalRequestListResponse:
-    approvals = await visible_pending_approvals_for_user(
+    query = await build_visible_pending_approvals_query(
         db,
         current_user=current_user,
         include_requester=False,
     )
+    total = (await db.execute(select(func.count()).select_from(query.order_by(None).subquery()))).scalar() or 0
+    result = await db.execute(
+        query.options(selectinload(ApprovalRequest.requested_by), selectinload(ApprovalRequest.resolved_by))
+        .offset(skip)
+        .limit(limit)
+    )
     return approval_queue_page(
-        approvals=approvals[skip : skip + limit],
-        total=len(approvals),
+        approvals=list(result.scalars().all()),
+        total=total,
         skip=skip,
         limit=limit,
         current_user=current_user,

@@ -160,9 +160,9 @@ export function IssuesTableSection({
     const groupLabel = (group: CollectionGroup) =>
         formatIssueGroupLabel(group, {
             unlinkedVendor: t('fallbacks.unlinked_vendor'),
-            uncategorized: t('fallbacks.uncategorized', 'Uncategorized'),
+            uncategorized: t('fallbacks.uncategorized'),
             unknownDepartment: t('fallbacks.unknown_department'),
-            noProcess: t('fallbacks.no_process', 'No Process'),
+            noProcess: t('fallbacks.no_process'),
             unknownRiskType: t('common:fallbacks.unknown_type'),
         });
     const tableModel = buildRegisterTableModel({

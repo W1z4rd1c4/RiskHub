@@ -1,6 +1,6 @@
 # Repository Structure
 
-**Analysis Date:** 2026-05-10
+**Analysis Date:** 2026-05-24
 
 ## Top-Level Layout
 
@@ -22,14 +22,14 @@
 - `backend/app/api/v1/endpoints/` - 166 Python modules/packages (measured `*.py` snapshot; extensively split into subrouters for maintainability)
 - `backend/app/models/` - 28 model modules (measured `*.py` snapshot)
 - `backend/app/schemas/` - 26 schema modules (measured `*.py` snapshot)
-- `backend/app/services/` - 264 Python modules (measured workspace `*.py` snapshot; business services + internal helper packages such as `_approval_queue`, `_issue_register`, `_vendor_links`, `_admin_telemetry`, `_issue_workflow`, `_kri_history`, `_vendor_workflow`, `_control_execution`, `_access_workflow`, `_riskhub_config`, `_orphaned_items`, `_quarterly_comparison`, `_risk_questionnaires`, `_auth_session_workflow`, `_graph_directory`, and `_identity_access_lifecycle`)
+- `backend/app/services/` - 267 Python modules (measured workspace `*.py` snapshot; business services + internal helper packages such as `_approval_queue`, `_issue_register`, `_vendor_links`, `_admin_telemetry`, `_issue_workflow`, `_kri_history`, `_vendor_workflow`, `_control_execution`, `_access_workflow`, `_riskhub_config`, `_orphaned_items`, `_quarterly_comparison`, `_risk_questionnaires`, `_auth_session_workflow`, `_graph_directory`, and `_identity_access_lifecycle`)
 - `backend/app/core/` - configuration facade + segmented settings package, auth, permissions, logging, scheduler
 - `backend/app/middleware/` - 11 Python modules (measured workspace `*.py` snapshot; security/logging/language/rate-limit middleware with facade-preserving splits)
 - `backend/app/integrations/` - AD emulator and vendor-signal connectors
 - `backend/alembic/` - migration environment and versioned migrations
 - `backend/scripts/runtime/` - component-scoped backend runtime entrypoints (`dev`, `test`, `prod`)
 - `backend/scripts/runtime/db/` - backend-owned DB runtime entrypoints (`dev`, `test`, `prod`)
-- `tests/backend/pytest/` - 338 tracked test files (315 Python)
+- `tests/backend/pytest/` - 375 tracked test files (340 Python)
 
 ## Frontend Tree (`frontend/`)
 
@@ -38,7 +38,7 @@
 - `frontend/src/App.tsx` - provider composition and route tree
 
 ### Primary subdirectories
-- `frontend/src/pages/` - 172 tracked files (measured workspace snapshot; route-level pages + colocated helpers/tests and shared detail/admin/user workflow modules)
+- `frontend/src/pages/` - 173 tracked files (measured workspace snapshot; route-level pages + colocated helpers/tests and shared detail/admin/user workflow modules)
 - `frontend/src/components/` - 290 tracked files (measured workspace snapshot; components + tests, including split linking, remediation, questionnaire workflow state, governance, dashboard, and KRI modal modules)
 - `frontend/src/services/` - API client, auth transport, session state packages, domain service wrappers, and split runtime schema modules
 - `frontend/src/contexts/` - auth/theme/filter context providers
@@ -79,4 +79,4 @@
 
 ---
 
-*Structure audit refreshed on 2026-05-10*
+*Structure audit refreshed on 2026-05-24*

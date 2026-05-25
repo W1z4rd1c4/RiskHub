@@ -4,6 +4,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DEV_SCRIPT = REPO_ROOT / "scripts" / "dev.sh"
+MAKEFILE = REPO_ROOT / "scripts" / "Makefile"
 
 
 def test_dev_script_runs_schema_preflight_before_local_backend_startup() -> None:
@@ -37,3 +38,17 @@ def test_dev_script_unexpected_port_conflict_marker_is_machine_readable() -> Non
 
     assert "DEV_PORT_CONFLICT_UNEXPECTED_PROCESS" in text
     assert "refusing to stop unexpected process on port" in text.lower()
+
+
+def test_dev_script_enables_outbox_only_scheduler_for_local_e2e_parity() -> None:
+    text = DEV_SCRIPT.read_text(encoding="utf-8")
+
+    assert "ENABLE_SCHEDULER=true" in text
+    assert "SCHEDULER_JOB_PROFILE=outbox_only" in text
+    assert "outbox-only scheduler for E2E notification parity" in text
+
+
+def test_makefile_e2e_gate_uses_single_worker_for_shared_seed_data() -> None:
+    text = MAKEFILE.read_text(encoding="utf-8")
+
+    assert "npx playwright test --workers=1" in text

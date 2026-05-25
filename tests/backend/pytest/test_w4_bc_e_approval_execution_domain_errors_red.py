@@ -36,7 +36,6 @@ async def test_kri_value_submission_internal_failure_preserves_cause_with_saniti
             },
             current_user=SimpleNamespace(id=77),
             approval_id=55,
-            department_id=None,
         )
 
     assert exc_info.value.detail == "Internal server error during KRI approval execution"

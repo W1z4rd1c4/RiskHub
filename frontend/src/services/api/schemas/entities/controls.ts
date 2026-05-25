@@ -53,9 +53,9 @@ const controlCapabilitiesSchema = passthroughObject({
     is_executable: z.boolean(),
 });
 export const controlListCapabilitiesSchema = passthroughObject({
-    can_export: z.boolean(),
-    can_create: z.boolean(),
-    can_view_vendor_contexts: z.boolean(),
+    can_export: z.boolean().optional(),
+    can_create: z.boolean().optional(),
+    can_view_vendor_contexts: z.boolean().optional(),
 });
 
 export const linkedRiskSchema: z.ZodType<LinkedRisk> = passthroughObject({

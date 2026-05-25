@@ -61,10 +61,10 @@ export function DashboardPage() {
     const exportDepartmentId = canUseDepartmentFilter ? filters.departmentId : null;
 
     useEffect(() => {
-        if (capabilities?.can_use_department_filter === false && filters.departmentId !== null) {
+        if (capabilities !== null && capabilities !== undefined && !resolveCapabilityFlag(capabilities, 'can_use_department_filter') && filters.departmentId !== null) {
             setDepartmentId(null);
         }
-    }, [capabilities?.can_use_department_filter, filters.departmentId, setDepartmentId]);
+    }, [capabilities, filters.departmentId, setDepartmentId]);
 
     if (overviewQuery.isLoading && !summary) {
         return <DashboardLoadingState label={t('loading')} />;

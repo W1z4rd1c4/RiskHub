@@ -17,13 +17,12 @@ from app.core.ttl_cache import TTLCache
 from app.db.session import get_db
 from app.models import User
 from app.schemas.dashboard import DashboardOverviewCapabilities, DashboardOverviewResponse
-
-from .controls import build_control_trends
-from .departments import get_department_metrics
-from .issues_metrics import get_issue_aging, get_issue_summary, get_issues_by_severity
-from .kris import get_kri_breach_trends
-from .risks import get_risk_distribution, get_risk_trends
-from .summary import get_dashboard_summary
+from app.services._dashboard_metrics import build_dashboard_summary_metrics
+from app.services._dashboard_metrics.controls import load_control_trends
+from app.services._dashboard_metrics.departments import load_department_dashboard_metrics
+from app.services._dashboard_metrics.issues import build_issue_dashboard_metrics_bundle
+from app.services._dashboard_metrics.kris import load_kri_breach_trends
+from app.services._dashboard_metrics.risks import load_risk_distribution, load_risk_trends
 
 router = APIRouter()
 
@@ -54,7 +53,7 @@ async def get_dashboard_overview(
     if cached is not None:
         return DashboardOverviewResponse(**cached)
 
-    summary = await get_dashboard_summary(
+    summary = await build_dashboard_summary_metrics(
         db=db,
         current_user=current_user,
         department_id=department_id,
@@ -63,13 +62,13 @@ async def get_dashboard_overview(
         risk_level=risk_level,
         include_archived=include_archived,
     )
-    department_metrics = await get_department_metrics(
+    department_metrics = await load_department_dashboard_metrics(
         db=db,
         current_user=current_user,
         department_id=department_id,
         include_archived=include_archived,
     )
-    gross_distribution = await get_risk_distribution(
+    gross_distribution = await load_risk_distribution(
         db=db,
         current_user=current_user,
         department_id=department_id,
@@ -77,7 +76,7 @@ async def get_dashboard_overview(
         risk_type="gross",
         include_archived=include_archived,
     )
-    net_distribution = await get_risk_distribution(
+    net_distribution = await load_risk_distribution(
         db=db,
         current_user=current_user,
         department_id=department_id,
@@ -85,19 +84,19 @@ async def get_dashboard_overview(
         risk_type="net",
         include_archived=include_archived,
     )
-    control_trends = await build_control_trends(
+    control_trends = await load_control_trends(
         db=db,
         current_user=current_user,
         department_id=department_id,
         control_status=control_status,
     )
-    risk_trends = await get_risk_trends(
+    risk_trends = await load_risk_trends(
         db=db,
         current_user=current_user,
         department_id=department_id,
         include_archived=include_archived,
     )
-    kri_breach_trends = await get_kri_breach_trends(
+    kri_breach_trends = await load_kri_breach_trends(
         db=db,
         current_user=current_user,
         department_id=department_id,
@@ -107,9 +106,14 @@ async def get_dashboard_overview(
     issue_aging = None
     issue_severity = None
     if has_permission(current_user, "issues", "read"):
-        issue_summary = await get_issue_summary(db=db, current_user=current_user, department_id=department_id)
-        issue_aging = await get_issue_aging(db=db, current_user=current_user, department_id=department_id)
-        issue_severity = await get_issues_by_severity(db=db, current_user=current_user, department_id=department_id)
+        issue_metrics = await build_issue_dashboard_metrics_bundle(
+            db=db,
+            current_user=current_user,
+            department_id=department_id,
+        )
+        issue_summary = issue_metrics.summary
+        issue_aging = issue_metrics.aging
+        issue_severity = issue_metrics.severity
 
     payload = {
         "summary": summary.model_dump(),

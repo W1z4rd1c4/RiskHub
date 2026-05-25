@@ -4,6 +4,7 @@ import { ActivityLogFilterBar } from '@/components/activity-log/ActivityLogFilte
 import { ActivityLogEntries } from '@/components/activity-log/ActivityLogEntries';
 import { ActivityLogPagination } from '@/components/activity-log/ActivityLogPagination';
 import { useTranslation } from '@/i18n/hooks';
+import { resolveCapabilityFlag } from '@/lib/capabilities';
 
 // ─────────────────────────────────────────────────────────────
 // Tab definitions
@@ -23,7 +24,7 @@ const TABS: { id: ActiveTab; labelKey: string }[] = [
 export function ActivityLogPage() {
     const { t } = useTranslation('common');
     const state = useActivityLogPageState();
-    const readDenied = state.capabilities?.can_read === false;
+    const readDenied = state.capabilities !== null && !resolveCapabilityFlag(state.capabilities, 'can_read');
 
     if (state.errorType === 'access_denied' || readDenied) {
         return (
@@ -101,8 +102,8 @@ export function ActivityLogPage() {
                 users={state.users}
                 departments={state.departments}
                 risks={state.risks}
-                canFilterByDepartment={state.capabilities?.can_filter_by_department === true}
-                canViewEntityFilters={state.capabilities?.can_view_entity_filters === true}
+                canFilterByDepartment={resolveCapabilityFlag(state.capabilities, 'can_filter_by_department')}
+                canViewEntityFilters={resolveCapabilityFlag(state.capabilities, 'can_view_entity_filters')}
             />
 
             {/* Entries List */}

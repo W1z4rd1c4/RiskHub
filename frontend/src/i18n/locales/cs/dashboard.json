@@ -132,7 +132,9 @@
     "days_overdue": "{{count}} dní po termínu",
     "days_until_due": "zbývá {{count}} dní",
     "view_all": "Zobrazit všechna KRI",
-    "view_all_overdue": "Zobrazit vše po termínu"
+    "view_all_overdue": "Zobrazit vše po termínu",
+    "breaches_load_failed": "Nepodařilo se načíst porušení KRI",
+    "status_load_failed": "Nepodařilo se načíst stav KRI"
   },
   "charts": {
     "by_status": "Podle stavu",
@@ -163,7 +165,8 @@
     "total_samples": "Celkem vzorků",
     "breaches": "Překročení",
     "no_risk_trend_data": "Data trendu rizik nejsou k dispozici.",
-    "no_kri_breach_data": "Data o překročení KRI nejsou k dispozici."
+    "no_kri_breach_data": "Data o překročení KRI nejsou k dispozici.",
+    "breakdown": "Rozpad kontrol"
   },
   "errors": {
     "connection_interrupted": "Připojení přerušeno",
@@ -178,7 +181,8 @@
     "clear_all": "Vymazat vše",
     "risk_level": "Úroveň rizika",
     "control_status": "Stav kontroly",
-    "control_form": "Forma kontroly"
+    "control_form": "Forma kontroly",
+    "department_load_failed": "Oddělení nejsou dostupná"
   },
   "time_periods": {
     "today": "Dnes",
@@ -251,7 +255,8 @@
       "set_focus": "Nastavit zaměření",
       "go_to_department": "Přejít na oddělení"
     },
-    "empty": "Žádná data oddělení nejsou k dispozici"
+    "empty": "Žádná data oddělení nejsou k dispozici",
+    "title": "Metriky oddělení"
   },
   "risk_drilldown": {
     "gross": "Hrubá",
@@ -259,6 +264,7 @@
     "title": "{{riskType}} rizika na P{{probability}} × I{{impact}}",
     "no_risks_at_position": "V této pozici nejsou žádná rizika",
     "footer_prefix": "Klikněte na riziko pro detail • Stiskněte",
-    "footer_suffix": "pro zavření"
+    "footer_suffix": "pro zavření",
+    "results": "Výsledky detailu rizik"
   }
 }

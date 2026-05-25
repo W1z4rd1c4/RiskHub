@@ -289,8 +289,6 @@ def test_directory_identity_package_uses_lifecycle_module() -> None:
     from app.services import _directory_identity as directory_identity
     from app.services._directory_identity import lifecycle
 
-    assert hasattr(lifecycle, "DirectoryImportOutcome")
-    assert hasattr(lifecycle, "DirectorySyncOutcome")
     assert hasattr(lifecycle, "DirectoryProfileUpdateOutcome")
     assert hasattr(lifecycle, "DirectoryReenableOutcome")
 
@@ -374,7 +372,7 @@ def test_orphan_services_use_governance_definitions() -> None:
 
     assert hasattr(governance, "OrphanItemDefinition")
     assert hasattr(governance, "OrphanDetectionPlan")
-    assert hasattr(governance, "OrphanResolutionPlan")
+    assert hasattr(governance, "OrphanResolutionRequirements")
     assert hasattr(governance, "OrphanDisplayProjection")
     assert set(governance.ORPHAN_ITEM_DEFINITIONS) >= {"risk", "control", "kri"}
 
@@ -622,7 +620,6 @@ def test_quarterly_comparison_service_is_composition_facade() -> None:
 
     assert hasattr(composition, "QuarterMetricComposition")
     assert hasattr(composition, "SnapshotSourceDecision")
-    assert hasattr(composition, "MetricAvailability")
     assert quarterly_comparison_service.build_quarterly_comparison is composition.build_quarterly_comparison
 
     facade_source = inspect.getsource(quarterly_comparison_service)
@@ -639,9 +636,6 @@ def test_entity_mutation_routes_use_lifecycle_interface() -> None:
     from app.services._entity_mutation_lifecycle import lifecycle
 
     assert hasattr(lifecycle, "EntityMutationOutcome")
-    assert hasattr(lifecycle, "EntityMutationOptions")
-    assert hasattr(lifecycle, "EntityApprovalPlan")
-    assert hasattr(lifecycle, "EntityDirectApplyPlan")
 
     route_source = (
         inspect.getsource(risk_update)
@@ -732,10 +726,7 @@ def test_register_list_routes_use_listing_planners() -> None:
     from app.api.v1.endpoints.vendors import crud as vendor_list
     from app.services._register_listings import lifecycle
 
-    assert hasattr(lifecycle, "RegisterListingCriteria")
     assert hasattr(lifecycle, "RegisterListingPlan")
-    assert hasattr(lifecycle, "RegisterListingDefinition")
-    assert hasattr(lifecycle, "RegisterSerializerContext")
 
     route_source = (
         inspect.getsource(risk_list)
@@ -908,8 +899,6 @@ def test_report_exporters_use_reporting_export_definitions() -> None:
     from app.services._reporting.exports.pipeline import ExportPipelineDefinition
 
     assert hasattr(lifecycle, "ReportExportDefinition")
-    assert hasattr(lifecycle, "ReportExportExecutionPlan")
-    assert hasattr(lifecycle, "ReportExportOutcome")
     assert "ReportExportDefinition" in _defined_class_names("backend/app/services/_reporting/exports/lifecycle.py")
     assert lifecycle.ReportExportDefinition is not ExportPipelineDefinition
 
@@ -942,16 +931,7 @@ def test_report_export_routes_use_service_export_definitions() -> None:
         assert "ReportExportDefinition(" in source
         assert "render_report_export_definition(" in source
 
-    endpoint_source = "\n".join(
-        _source(path)
-        for path in (
-            "backend/app/api/v1/endpoints/reports/unified_exports/export_risks.py",
-            "backend/app/api/v1/endpoints/reports/unified_exports/export_controls.py",
-            "backend/app/api/v1/endpoints/reports/unified_exports/export_kris.py",
-            "backend/app/api/v1/endpoints/reports/unified_exports/export_vendors.py",
-            "backend/app/api/v1/endpoints/reports/unified_exports/export_issues.py",
-        )
-    )
+    endpoint_source = _source("backend/app/api/v1/endpoints/reports/unified_exports/routes.py")
     for leaked_export_detail in (
         "_fetch_risks_for_export",
         "_filter_rows_by_final_scope",
@@ -967,8 +947,15 @@ def test_monitoring_export_rows_are_owned_by_monitoring_status_module() -> None:
     assert hasattr(export_rows, "apply_control_monitoring_rows")
     assert hasattr(export_rows, "apply_kri_monitoring_rows")
 
-    reporting_adapter_source = _source("backend/app/services/_reporting/exports/monitoring.py")
-    assert "from app.services._monitoring_status.export_rows import" in reporting_adapter_source
+    assert not (REPO_ROOT / "backend/app/services/_reporting/exports/monitoring.py").exists()
+    reporting_export_source = "\n".join(
+        _source(path)
+        for path in (
+            "backend/app/services/_reporting/exports/controls.py",
+            "backend/app/services/_reporting/exports/kris.py",
+        )
+    )
+    assert "from app.services._monitoring_status.export_rows import" in reporting_export_source
     for leaked_monitoring_detail in (
         "derive_control_monitoring_snapshot",
         "derive_kri_monitoring_snapshot",
@@ -980,7 +967,7 @@ def test_monitoring_export_rows_are_owned_by_monitoring_status_module() -> None:
         "def _int_value",
         "def _float_value",
     ):
-        assert leaked_monitoring_detail not in reporting_adapter_source
+        assert leaked_monitoring_detail not in reporting_export_source
 
 
 def test_backend_service_modules_do_not_import_endpoint_adapters() -> None:
@@ -998,11 +985,6 @@ def test_backend_service_modules_do_not_import_endpoint_adapters() -> None:
 
 def test_dashboard_routes_use_metric_composition_module() -> None:
     from app.api.v1.endpoints.dashboard import committee, quarterly, summary
-    from app.services._dashboard_metrics import lifecycle
-
-    assert hasattr(lifecycle, "DashboardMetricPlan")
-    assert hasattr(lifecycle, "DashboardMetricOutcome")
-    assert hasattr(lifecycle, "DashboardSnapshotDecision")
 
     route_source = inspect.getsource(summary) + inspect.getsource(quarterly) + inspect.getsource(committee)
     for metric_function in (
@@ -1115,18 +1097,18 @@ def test_release_parity_runtime_commands_are_owned_by_command_module() -> None:
 def test_issue_routes_use_issue_register_linked_context_contracts() -> None:
     from app.api.v1.endpoints.issues.crud import contextual, create
     from app.services._issue_register import linked_context, source_mutation
+    from app.services._issue_workflow import execution, source_validation
 
-    assert hasattr(linked_context, "IssueLinkedContextDefinition")
-    assert hasattr(linked_context, "IssueRegisterPlan")
-    assert hasattr(linked_context, "IssueSourceMutationPlan")
+    assert hasattr(linked_context, "IssueLinkedVisibility")
     assert hasattr(source_mutation, "resolve_issue_source_metadata")
     assert hasattr(source_mutation, "resolve_contextual_issue_source")
     assert hasattr(source_mutation, "ensure_issue_source_link")
 
     route_source = inspect.getsource(create) + inspect.getsource(contextual)
-    assert "from app.services._issue_register import" in route_source
-    assert "resolve_issue_source_metadata" in route_source
-    assert "resolve_contextual_issue_source" in route_source
+    assert "create_issue_detail" in route_source
+    assert "create_contextual_issue_detail" in route_source
+    assert "from app.services._issue_register import resolve_contextual_issue_source" in inspect.getsource(execution)
+    assert "from app.services._issue_register.source_mutation import" in inspect.getsource(source_validation)
 
 
 def test_kri_history_routes_use_governance_interface() -> None:
@@ -1206,12 +1188,13 @@ def test_approval_kri_history_execution_delegates_to_kri_history_module() -> Non
 
 
 def test_approval_kri_vendor_assignment_delegates_to_vendor_link_module() -> None:
-    from app.services._vendor_links import kri_assignment
+    from app.services._vendor_links import kri_bridge
 
-    assert hasattr(kri_assignment, "apply_kri_vendor_assignment_change")
+    assert hasattr(kri_bridge, "apply_kri_vendor_assignment_change")
 
     approval_source = _source("backend/app/services/_approval_execution/kri_generic_edit.py")
 
+    assert "from app.services._vendor_links.kri_bridge import" in approval_source
     assert "apply_kri_vendor_assignment_change(" in approval_source
     for low_level_vendor_behavior in (
         "ensure_vendors_exist",
@@ -1250,12 +1233,16 @@ def test_approval_archive_side_effects_delegate_to_entity_lifecycle_module() -> 
 
 
 def test_risk_restore_passes_display_name_before_activity_redaction() -> None:
-    restore_source = _function_body_source("backend/app/api/v1/endpoints/risks/crud/restore.py", "restore_risk")
+    restore_source = _function_body_source(
+        "backend/app/services/_entity_mutation_lifecycle/lifecycle.py",
+        "restore_risk_detail",
+    )
     adapter_source = _function_body_source("backend/app/core/audit/risk.py", "risk_restored")
 
     assert "risk_restored(" in restore_source
     assert "entity_name=risk_display_name(risk)" in adapter_source
     assert "safe_entity_label=risk.risk_id_code" in adapter_source
+
 
 def test_approval_queue_routes_use_queue_lifecycle_module() -> None:
     """S6.3: routes consume the package directly; no `lifecycle` indirection."""
@@ -1301,10 +1288,10 @@ def test_vendor_link_services_use_vendor_governance_modules() -> None:
     from app.services._vendor_governance import links, reports
     from app.services._vendor_links import workflow
 
-    assert hasattr(links, "VendorLinkAccessPlan")
-    assert hasattr(links, "VendorLinkedResourceProjection")
+    assert hasattr(links, "create_vendor_link")
+    assert hasattr(links, "delete_vendor_link")
     assert hasattr(vendor_listing, "VendorListingGovernance")
-    assert hasattr(reports, "VendorReportDefinition")
+    assert hasattr(reports, "annual_report_rows")
 
     service_source = inspect.getsource(workflow)
     assert "app.api.v1.endpoints" not in service_source
@@ -1350,9 +1337,7 @@ def test_deadline_services_use_deadline_execution_module() -> None:
     from app.services import issue_deadline_service, kri_deadline_service
     from app.services._deadline_execution import lifecycle
 
-    assert hasattr(lifecycle, "DeadlineRunPlan")
     assert hasattr(lifecycle, "DeadlineNotificationPlan")
-    assert hasattr(lifecycle, "DeadlineRunOutcome")
 
     service_source = inspect.getsource(issue_deadline_service) + inspect.getsource(kri_deadline_service)
     assert "from app.services._deadline_execution" in service_source
@@ -1362,12 +1347,9 @@ def test_deadline_services_use_deadline_execution_module() -> None:
 
 def test_deadline_execution_module_owns_execution_plans() -> None:
     assert {
-        "DeadlineRunPlan",
         "DeadlineNotificationPlan",
-        "DeadlineRunOutcome",
     } <= _defined_class_names("backend/app/services/_deadline_execution/contracts.py")
     assert {
-        "build_deadline_notification_plan",
         "has_recent_deadline_notification",
     } <= _defined_function_names("backend/app/services/_deadline_execution/plans.py")
     assert {

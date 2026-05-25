@@ -161,6 +161,7 @@ test.describe('Risk Owner Cross-Department Access', () => {
             // Try to access a risk by direct URL
             // Most systems will return 403 or redirect to dashboard
             const response = await page.goto('/risks/9999', { waitUntil: 'networkidle' });
+            await waitForDataLoad(page);
 
             // Verify page shows error/not found content (app may stay at URL)
             const url = page.url();

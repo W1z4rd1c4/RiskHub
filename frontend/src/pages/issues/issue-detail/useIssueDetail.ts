@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 
-import { issueDetailQueryKey } from '@/lib/issueQueryKeys';
+import { DETAIL_QUERY_STALE_TIME_MS } from '@/lib/queryKeys/detail';
+import { issueDetailQueryKey } from '@/lib/queryKeys/issues';
 import { apiClient, isForbiddenApiError } from '@/services/apiClient';
 import { issuesApi } from '@/services/issuesApi';
 import { useSessionSnapshot } from '@/services/session';
@@ -16,7 +17,7 @@ export function useIssueDetail({ issueId }: UseIssueDetailOptions) {
         queryKey: issueDetailQueryKey(session.user?.id, issueId),
         enabled: hasValidIssueId,
         queryFn: ({ signal }) => issuesApi.get(issueId, { signal }),
-        staleTime: 30_000,
+        staleTime: DETAIL_QUERY_STALE_TIME_MS,
     });
 
     const issue = issueQuery.data ?? null;

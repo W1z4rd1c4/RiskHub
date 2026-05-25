@@ -32,7 +32,7 @@ describe('useAuthz invariants', () => {
         const policySource = readRepoSource('frontend/src/authz/policy.ts');
         const buildAuthzBody = policySource.slice(policySource.indexOf('export function buildAuthz'));
 
-        expect(buildAuthzBody).toContain('meCapabilities.resource_permissions[key] === true');
+        expect(buildAuthzBody).toContain('resolveCapabilityFlag(meCapabilities.resource_permissions, key)');
     });
 
     it('tracks access_user as a required capability surface', () => {

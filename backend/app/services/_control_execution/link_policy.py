@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models import Control, ControlRiskLink
+from app.services.transaction_boundary import commit_service_boundary
 
 
 @dataclass(frozen=True)
@@ -85,7 +86,7 @@ async def create_control_risk_link_outcome(
     await assert_link_does_not_exist(db, control_id=control_id, risk_id=risk_id)
     link = ControlRiskLink(control_id=control_id, risk_id=risk_id, effectiveness=effectiveness, notes=notes)
     db.add(link)
-    await db.commit()
+    await commit_service_boundary(db, boundary="control_execution.link_create")
     await db.refresh(link)
     if response_owner == "control":
         return await reload_link_for_control_response(db, link.id)
@@ -94,4 +95,4 @@ async def create_control_risk_link_outcome(
 
 async def delete_control_risk_link_plan(db: AsyncSession, link: ControlRiskLink) -> None:
     await db.delete(link)
-    await db.commit()
+    await commit_service_boundary(db, boundary="control_execution.link_delete")

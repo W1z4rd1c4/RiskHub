@@ -12,7 +12,17 @@ const mockListDirectoryUsers = vi.fn();
 
 vi.mock('@/i18n/hooks', () => ({
     useTranslation: () => ({
-        t: (key: string, opts?: { defaultValue?: string }) => opts?.defaultValue ?? key,
+        t: (key: string, opts?: { defaultValue?: string }) => {
+            const translations: Record<string, string> = {
+                'users.add_from_ad': 'Add from AD',
+                'users.auth_mode_load_failed':
+                    'Unable to load authentication mode. User data remains visible, but create and directory actions are disabled until the page can load configuration.',
+                'users.auth_mode_service_unavailable':
+                    'Authentication mode is temporarily unavailable. User data remains visible, but create and directory actions are disabled until configuration is available again.',
+                'users.check_directory': 'Check AD',
+            };
+            return translations[key] ?? opts?.defaultValue ?? key;
+        },
         i18n: { language: 'en' },
     }),
 }));

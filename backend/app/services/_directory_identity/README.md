@@ -7,10 +7,8 @@ Directory identity normalization and lifecycle decisions shared by SSO, director
 ## Public Surface
 
 - `DirectoryIdentityConflictError`
-- `DirectoryImportOutcome`
 - `DirectoryProfileUpdateOutcome`
 - `DirectoryReenableOutcome`
-- `DirectorySyncOutcome`
 - `apply_directory_profile`
 - `has_auto_deprovision_reason`
 - `normalize_business_role`

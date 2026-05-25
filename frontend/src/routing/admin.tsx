@@ -1,6 +1,7 @@
 import { lazy } from 'react';
 import { BookOpen, Server } from 'lucide-react';
 
+import { AdminConsoleRouteGuard } from '@/authz/BusinessRouteGuards';
 import type { AppRouteDef } from './types';
 
 const AdminConsolePage = lazy(() => import('@/pages/AdminConsolePage'));
@@ -10,7 +11,11 @@ export const adminRoutes: AppRouteDef[] = [
   {
     key: 'admin',
     path: 'admin',
-    element: <AdminConsolePage />,
+    element: (
+      <AdminConsoleRouteGuard>
+        <AdminConsolePage />
+      </AdminConsoleRouteGuard>
+    ),
     nav: {
       href: '/admin',
       labelKey: 'admin',
@@ -23,7 +28,11 @@ export const adminRoutes: AppRouteDef[] = [
   {
     key: 'admin-docs',
     path: 'admin/docs',
-    element: <DocumentationPage />,
+    element: (
+      <AdminConsoleRouteGuard>
+        <DocumentationPage />
+      </AdminConsoleRouteGuard>
+    ),
     nav: {
       href: '/admin/docs',
       labelKey: 'documentation',

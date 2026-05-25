@@ -1,5 +1,6 @@
 import { useAdaptivePollingQuery } from '@/hooks/useAdaptivePollingQuery';
 import { DASHBOARD_POLL_MS } from '@/config/constants';
+import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { dashboardKeys } from '@/lib/queryKeys';
 import { dashboardApi } from '@/services/dashboardApi';
 import type { DashboardFilters, DashboardOverview } from '@/types/dashboard';
@@ -43,7 +44,7 @@ export function useDashboardOverviewState({
         t,
     });
     const stats = buildDashboardStats({
-        canReadIssues: overviewQuery.data?.capabilities?.can_view_issue_metrics === true,
+        canReadIssues: resolveCapabilityFlag(overviewQuery.data?.capabilities, 'can_view_issue_metrics'),
         departmentMetrics,
         issueSummary,
         summary,

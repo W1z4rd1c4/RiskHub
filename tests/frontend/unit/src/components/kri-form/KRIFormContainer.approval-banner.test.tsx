@@ -6,7 +6,7 @@ import { KRIFormContainer } from '@/components/kri-form/KRIFormContainer';
 
 const mocks = vi.hoisted(() => ({
     formState: undefined as unknown,
-    setApprovalQueued: vi.fn(),
+    setStatePatch: vi.fn(),
 }));
 
 vi.mock('@/hooks/useDebouncedValue', () => ({
@@ -98,20 +98,8 @@ function baseFormState() {
         selectedProcess: '',
         selectedVendorIds: [],
         selectedVendorOptions: [],
-        setApprovalQueued: mocks.setApprovalQueued,
-        setCurrentStep: vi.fn(),
-        setError: vi.fn(),
         setFormField: vi.fn(),
-        setIsMismatchDialogOpen: vi.fn(),
-        setIsSubmitting: vi.fn(),
-        setRiskSearch: vi.fn(),
-        setSelectedCategory: vi.fn(),
-        setSelectedDeptId: vi.fn(),
-        setSelectedProcess: vi.fn(),
-        setSelectedVendorIds: vi.fn(),
-        setSelectedVendorOptions: vi.fn(),
-        setShowOnlyVendorLinkedRisks: vi.fn(),
-        setVendorSearch: vi.fn(),
+        setStatePatch: mocks.setStatePatch,
         showOnlyVendorLinkedRisks: false,
         vendorSearch: '',
     };

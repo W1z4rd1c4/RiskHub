@@ -1,24 +1,11 @@
-from fastapi import Depends, HTTPException
-from sqlalchemy import select
+from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload, selectinload
 
-from app.core.audit.kri import kri_created
-from app.core.datetime_utils import utc_now
-from app.core.owner_reference_validation import validate_active_owner_reference
-from app.core.permissions import check_department_access
 from app.core.security import require_permission
 from app.db.session import get_db
-from app.models import KeyRiskIndicator, Risk, User, VendorKRILink
+from app.models import User
 from app.schemas.kri import KRICreate, KRIResponse
-from app.services._kri_history.direct_application import visible_linked_vendors
-from app.services._monitoring_response import load_monitoring_response_context, serialize_kri_response
-from app.services._vendor_links.kri_assignment import (
-    assign_vendors_to_kri,
-    validate_assignable_vendors,
-)
-from app.services.authorization_capabilities import kri_capabilities
-from app.services.transaction_boundary import commit_service_transaction
+from app.services._entity_mutation_lifecycle import create_kri_detail
 
 from .list import router
 
@@ -30,73 +17,4 @@ async def create_kri(
     current_user: User = Depends(require_permission("risks", "write")),
 ):
     """Create a new KRI. Requires risks:write permission."""
-    linked_vendor_ids = data.linked_vendor_ids
-    ensure_parent_risk_vendor_ids = data.ensure_parent_risk_vendor_ids
-
-    # Verify risk exists
-    risk_result = await db.execute(select(Risk).where(Risk.id == data.risk_id))
-    risk = risk_result.scalar_one_or_none()
-    if not risk:
-        raise HTTPException(status_code=404, detail="Risk not found")
-
-    # Verify department access
-    check_department_access(risk.department_id, current_user)
-
-    # Validate limits
-    if data.lower_limit >= data.upper_limit:
-        raise HTTPException(status_code=400, detail="lower_limit must be less than upper_limit")
-    await validate_active_owner_reference(
-        db,
-        user_id=data.reporting_owner_id,
-        label="Reporting owner",
-    )
-
-    await validate_assignable_vendors(
-        db,
-        current_user=current_user,
-        vendor_ids=[*linked_vendor_ids, *ensure_parent_risk_vendor_ids],
-    )
-
-    try:
-        kri = KeyRiskIndicator(**data.model_dump(exclude={"linked_vendor_ids", "ensure_parent_risk_vendor_ids"}))
-        db.add(kri)
-        await db.flush()
-
-        await assign_vendors_to_kri(
-            db,
-            kri=kri,
-            current_user=current_user,
-            linked_vendor_ids=linked_vendor_ids,
-            ensure_parent_risk_vendor_ids=ensure_parent_risk_vendor_ids,
-        )
-
-        # Log activity within the same transaction
-        await kri_created(db, actor=current_user, kri=kri)
-        await commit_service_transaction(db)
-    except Exception:
-        await db.rollback()
-        raise
-    await db.refresh(kri)
-
-    result = await db.execute(
-        select(KeyRiskIndicator)
-        .join(Risk)
-        .where(KeyRiskIndicator.id == kri.id)
-        .options(
-            joinedload(KeyRiskIndicator.risk).joinedload(Risk.owner),
-            joinedload(KeyRiskIndicator.risk).joinedload(Risk.department),
-            selectinload(KeyRiskIndicator.reporting_owner),
-            selectinload(KeyRiskIndicator.vendor_links).selectinload(VendorKRILink.vendor),
-        )
-    )
-    reloaded_kri = result.scalar_one()
-
-    now = utc_now()
-    monitoring_context = await load_monitoring_response_context(db, now=now, today=now.date())
-    capabilities = await kri_capabilities(db, current_user=current_user, kri=reloaded_kri)
-    return serialize_kri_response(
-        reloaded_kri,
-        monitoring_context,
-        linked_vendors=visible_linked_vendors(current_user, getattr(reloaded_kri, "vendor_links", [])),
-        capabilities=capabilities,
-    )
+    return await create_kri_detail(db=db, data=data, current_user=current_user)

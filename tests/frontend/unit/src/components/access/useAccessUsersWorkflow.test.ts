@@ -45,9 +45,10 @@ describe('useAccessUsersWorkflow helpers', () => {
     });
 
     it('keeps action and presentation models wired to production access rows', () => {
-        const source = fs.readFileSync(path.resolve(process.cwd(), 'src/components/access/AccessUserRow.tsx'), 'utf8');
+        const source = fs.readFileSync(path.resolve(process.cwd(), 'src/components/access/UsersTable.tsx'), 'utf8');
 
-        expect(source).toContain('buildAccessUserActionModel');
-        expect(source).toContain('buildAccessUserPresentationModel');
+        expect(source).toContain('actionModelsByUserId.get(user.id)');
+        expect(source).toContain('presentationModelsByUserId.get(user.id)');
+        expect(source).toContain('<AccessUserRow');
     });
 });

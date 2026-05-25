@@ -7,6 +7,7 @@ Folder for `tests/frontend/unit/src/architecture` implementation assets.
 ## Contents
 
 - `noInlineReactI18nextMock.test.ts`
+- `verifiedDeadCodeDeleted.test.ts`
 
 ## Notes
 

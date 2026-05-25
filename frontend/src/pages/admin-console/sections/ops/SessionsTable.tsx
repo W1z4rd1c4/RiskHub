@@ -57,7 +57,7 @@ export function SessionsTable({ canRevokeSessions, onRevoke, sessions }: Session
                                                 <span className="admin-subtle text-xs">{presentation.durationText}</span>
                                             )}
                                             <span className="admin-subtle text-xs">
-                                                {session.active_sessions} {t('sessions.devices', { defaultValue: 'devices' })}
+                                                {session.active_sessions} {t('sessions.devices')}
                                             </span>
                                         </div>
                                     </div>

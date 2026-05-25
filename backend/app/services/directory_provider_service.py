@@ -14,7 +14,7 @@ from app.core.outbound_guard import (
     guarded_get,
 )
 from app.schemas.directory import DirectoryUserRead
-from app.services._directory_identity import normalize_business_role
+from app.services._directory_identity import normalize_directory_user_read
 from app.services._graph_directory.service import (
     GraphDirectoryProviderError,
     GraphDirectoryService,
@@ -123,29 +123,19 @@ class _ADEmulatorDirectoryService:
         if not isinstance(oid, str) or not oid.strip():
             raise DirectoryProviderError("AD emulator payload missing user id")
 
-        display_name_raw = payload.get("display_name") or payload.get("displayName")
-        display_name = display_name_raw.strip() if isinstance(display_name_raw, str) else ""
-        if not display_name:
-            display_name = oid
-
-        email_raw = payload.get("email") or payload.get("mail")
-        upn_raw = payload.get("user_principal_name") or payload.get("userPrincipalName")
-        department_raw = payload.get("department")
-        job_title_raw = payload.get("job_title") or payload.get("jobTitle")
         business_role_raw = None
         if self._settings.entra_business_role_enabled:
             business_role_raw = payload.get("business_role") or payload.get("businessRole")
-        account_enabled_raw = payload.get("account_enabled")
 
-        return DirectoryUserRead(
-            external_id=oid.strip(),
-            display_name=display_name,
-            email=email_raw.strip().lower() if isinstance(email_raw, str) and email_raw.strip() else None,
-            user_principal_name=upn_raw.strip().lower() if isinstance(upn_raw, str) and upn_raw.strip() else None,
-            department=department_raw.strip() if isinstance(department_raw, str) and department_raw.strip() else None,
-            job_title=job_title_raw.strip() if isinstance(job_title_raw, str) and job_title_raw.strip() else None,
-            business_role=normalize_business_role(business_role_raw if isinstance(business_role_raw, str) else None),
-            account_enabled=bool(account_enabled_raw) if isinstance(account_enabled_raw, bool) else True,
+        return normalize_directory_user_read(
+            external_id=oid,
+            display_name=payload.get("display_name") or payload.get("displayName"),
+            email=payload.get("email") or payload.get("mail"),
+            user_principal_name=payload.get("user_principal_name") or payload.get("userPrincipalName"),
+            department=payload.get("department"),
+            job_title=payload.get("job_title") or payload.get("jobTitle"),
+            business_role=business_role_raw,
+            account_enabled=payload.get("account_enabled"),
             source="ad_emulator",
         )
 

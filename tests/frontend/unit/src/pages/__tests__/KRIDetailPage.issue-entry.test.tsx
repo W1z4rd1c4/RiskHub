@@ -1,7 +1,8 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { KRIDetailPage } from '@/pages/KRIDetailPage';
 import { ApiClientError } from '@/services/apiClient';
+import { renderWithQueryClient as render } from '@test/render';
 
 const mockNavigate = vi.fn();
 const mockGetKRI = vi.fn();

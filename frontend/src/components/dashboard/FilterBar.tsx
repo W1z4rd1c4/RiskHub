@@ -79,7 +79,7 @@ export function FilterBar({ canUseDepartmentFilter }: FilterBarProps) {
                 setDepartmentLoadError(
                     error instanceof Error
                         ? error
-                        : new Error(t('dashboard:filters.department_load_failed', 'Departments unavailable'))
+                        : new Error(t('dashboard:filters.department_load_failed'))
                 );
                 setDepartments([]);
             });
@@ -191,7 +191,7 @@ export function FilterBar({ canUseDepartmentFilter }: FilterBarProps) {
                                                 className="flex items-center gap-2 rounded-md border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-300"
                                             >
                                                 <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                                                <span>{t('dashboard:filters.department_load_failed', 'Departments unavailable')}</span>
+                                                <span>{t('dashboard:filters.department_load_failed')}</span>
                                             </div>
                                         )}
                                     </div>

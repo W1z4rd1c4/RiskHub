@@ -9,17 +9,16 @@ from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import User
 from app.models.issue import IssueSeverity, IssueStatus
-
-from .._export_context import build_report_export_context
-from .._streaming import EXCEL_EXPORT_REMOVED_OPENAPI_RESPONSE, resolve_export_format
-from ._shared import (
+from app.services._reporting.exports import get_export_builder
+from app.services._reporting.exports.shared import (
     ControlMonitoringExportStatus,
-    ExportFormatQuery,
     KRIExportStatus,
     KRIMonitoringExportStatus,
     KRITimelinessExportStatus,
 )
-from .exports import _export_controls, _export_issues, _export_kris, _export_risks, _export_vendors
+
+from .._export_context import build_report_export_context
+from .._streaming import EXCEL_EXPORT_REMOVED_OPENAPI_RESPONSE, ExportFormatQuery, resolve_export_format
 
 router = APIRouter()
 
@@ -38,7 +37,8 @@ async def export_risks(
 ):
     export_format = resolve_export_format(format, replacement="/api/v1/reports/risks/export?format=csv")
     context = build_report_export_context(current_user=current_user, department_id=department_id, as_of_date=as_of_date)
-    return await _export_risks(
+    export_builder = get_export_builder("risks")
+    return await export_builder(
         db=db,
         current_user=current_user,
         export_format=export_format,
@@ -64,7 +64,8 @@ async def export_controls(
 ):
     export_format = resolve_export_format(format, replacement="/api/v1/reports/controls/export?format=csv")
     context = build_report_export_context(current_user=current_user, department_id=department_id, as_of_date=as_of_date)
-    return await _export_controls(
+    export_builder = get_export_builder("controls")
+    return await export_builder(
         db=db,
         current_user=current_user,
         export_format=export_format,
@@ -96,7 +97,8 @@ async def export_kris(
 
     export_format = resolve_export_format(format, replacement="/api/v1/reports/kris/export?format=csv")
     context = build_report_export_context(current_user=current_user, department_id=department_id, as_of_date=as_of_date)
-    return await _export_kris(
+    export_builder = get_export_builder("kris")
+    return await export_builder(
         db=db,
         current_user=current_user,
         export_format=export_format,
@@ -122,7 +124,8 @@ async def export_vendors(
 ):
     export_format = resolve_export_format(format, replacement="/api/v1/reports/vendors/export?format=csv")
     context = build_report_export_context(current_user=current_user, department_id=department_id, as_of_date=as_of_date)
-    return await _export_vendors(
+    export_builder = get_export_builder("vendors")
+    return await export_builder(
         db=db,
         current_user=current_user,
         export_format=export_format,
@@ -156,7 +159,8 @@ async def export_issues(
         )
 
     context = build_report_export_context(current_user=current_user, department_id=department_id, as_of_date=as_of_date)
-    return await _export_issues(
+    export_builder = get_export_builder("issues")
+    return await export_builder(
         db=db,
         current_user=current_user,
         export_format=export_format,

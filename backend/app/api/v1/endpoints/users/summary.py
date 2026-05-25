@@ -15,9 +15,9 @@ from app.core.ttl_cache import TTLCache
 from app.db.session import get_db
 from app.models import ApprovalRequest, ApprovalStatus, OrphanedItem, User
 from app.schemas.user import UserShellSummary
-from app.services._authorization_capabilities import build_me_capabilities
 from app.services.approval_queue_visibility import count_visible_pending_approvals_for_user
 from app.services.approval_scenario_policy import approval_privilege_tier
+from app.services.authorization_capabilities import build_me_capabilities
 from app.services.notification_visibility import count_visible_unread_notifications
 
 router = APIRouter()

@@ -21,7 +21,7 @@ async def test_missing_kri_load_uses_not_found_domain_error(db_session):
 
 
 @pytest.mark.asyncio
-async def test_direct_kri_value_breach_commits_core_then_notification_batch(monkeypatch: pytest.MonkeyPatch):
+async def test_direct_kri_value_breach_commits_core_with_outbox_events(monkeypatch: pytest.MonkeyPatch):
     db = _FakeDb()
     kri = SimpleNamespace(
         id=1,
@@ -36,7 +36,7 @@ async def test_direct_kri_value_breach_commits_core_then_notification_batch(monk
         vendor_links=[],
     )
     data = KRIRecordValue(value=30.0, period_end=date(2026, 4, 30))
-    notifications: list[int] = []
+    outbox_events: list[dict[str, object]] = []
 
     async def fake_record_value(**kwargs):
         target = kwargs["kri"]
@@ -48,8 +48,11 @@ async def test_direct_kri_value_breach_commits_core_then_notification_batch(monk
     async def noop_activity(*_args, **_kwargs):
         return None
 
-    async def fake_notification(**kwargs):
-        notifications.append(kwargs["user_id"])
+    async def fail_inline_notification(**_kwargs):
+        raise AssertionError("KRI breach notifications must go through the outbox")
+
+    async def fake_enqueue(_db, **kwargs):
+        outbox_events.append(kwargs)
 
     async def fake_capabilities(*_args, **_kwargs):
         return {}
@@ -62,8 +65,9 @@ async def test_direct_kri_value_breach_commits_core_then_notification_batch(monk
     monkeypatch.setattr(direct_application, "kri_value_mutation_updated", noop_activity)
     monkeypatch.setattr(
         "app.services.notification_service.NotificationService.create_notification",
-        fake_notification,
+        fail_inline_notification,
     )
+    monkeypatch.setattr(direct_application.OutboxService, "enqueue", fake_enqueue)
     monkeypatch.setattr(direct_application, "kri_capabilities", fake_capabilities)
     monkeypatch.setattr(direct_application, "serialize_kri_history_response", fake_serialize)
     monkeypatch.setattr(direct_application, "visible_linked_vendors", lambda *_args, **_kwargs: [])
@@ -76,8 +80,9 @@ async def test_direct_kri_value_breach_commits_core_then_notification_batch(monk
         is_privileged_submission=True,
     )
 
-    assert notifications == [101, 202]
-    assert db.commits == 2
+    assert [event["event_type"] for event in outbox_events] == ["kri.breach_detected", "kri.breach_detected"]
+    assert [event["payload"].recipient_user_id for event in outbox_events] == [101, 202]
+    assert db.commits == 1
     assert db.rollbacks == 0
 
 

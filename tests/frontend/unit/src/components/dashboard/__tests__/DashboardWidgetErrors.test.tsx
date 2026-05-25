@@ -9,7 +9,12 @@ const getDueSoonMock = vi.fn();
 const getDepartmentsMock = vi.fn();
 
 vi.mock('@/i18n/hooks', () => {
-    const t = (key: string, fallback?: unknown) => (typeof fallback === 'string' ? fallback : key);
+    const t = (key: string, fallback?: unknown) => {
+        const translations: Record<string, string> = {
+            'dashboard:filters.department_load_failed': 'Departments unavailable',
+        };
+        return translations[key] ?? (typeof fallback === 'string' ? fallback : key);
+    };
     return {
         useTranslation: () => ({
             t,

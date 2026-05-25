@@ -118,6 +118,7 @@ class ApprovalRequest(Base):
     __table_args__ = (
         Index("ix_approval_resource", "resource_type", "resource_id"),
         Index("ix_approval_status", "status"),
+        Index("ix_approval_requests_status_created_at", "status", "created_at"),
         Index("ix_approval_requested_by", "requested_by_id"),
         Index("ix_approval_action_type", "action_type"),
     )

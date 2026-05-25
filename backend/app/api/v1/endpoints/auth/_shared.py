@@ -1,8 +1,11 @@
+from __future__ import annotations
+
 import hashlib
 from datetime import datetime, timedelta
+from typing import TYPE_CHECKING
 
 from fastapi import HTTPException
-from sqlalchemy import select, update
+from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
 from starlette.responses import Response
@@ -19,9 +22,13 @@ from app.core.tokens import (
     set_csrf_cookie,
     set_refresh_cookie,
 )
-from app.models import RefreshToken, Role, User
+from app.models import RefreshToken, User
 from app.schemas.auth import TokenResponse
 from app.schemas.user import AccessScopeEnum, UserBrief
+from app.services._directory_identity import resolve_safe_default_role as resolve_directory_safe_default_role
+
+if TYPE_CHECKING:
+    from app.models import Role
 
 SESSION_RENEWAL_MINIMUM_SECONDS = 60
 
@@ -163,13 +170,7 @@ async def _invalidate_user_sessions(
 
 
 async def _resolve_safe_default_role(db: AsyncSession) -> Role:
-    from app.core.policy import SAFE_DIRECTORY_DEFAULT_ROLE_CANDIDATES
-
-    for name in SAFE_DIRECTORY_DEFAULT_ROLE_CANDIDATES:
-        result = await db.execute(select(Role).where(Role.name == name))
-        role = result.scalar_one_or_none()
-        if role:
-            return role
-
-    candidates = ", ".join(str(name) for name in SAFE_DIRECTORY_DEFAULT_ROLE_CANDIDATES)
-    raise HTTPException(status_code=500, detail=f"No safe default role found ({candidates}). Seed roles first.")
+    return await resolve_directory_safe_default_role(
+        db,
+        exception_factory=lambda message: HTTPException(status_code=500, detail=message),
+    )

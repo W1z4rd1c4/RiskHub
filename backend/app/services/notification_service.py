@@ -23,6 +23,64 @@ from app.services.notification_creation_helpers import (
 logger = logging.getLogger(__name__)
 
 
+class ExpectedNotificationDeliveryError(Exception):
+    """Base class for notification delivery failures that best-effort callers may tolerate."""
+
+
+EXPECTED_NOTIFICATION_DELIVERY_ERRORS = (ExpectedNotificationDeliveryError,)
+
+
+def _notification_failure_extra(
+    *,
+    operation: str,
+    user_id: int,
+    notification_type: NotificationType,
+    approval_id: int | None = None,
+) -> dict[str, object]:
+    return {
+        "operation": operation,
+        "user_id": user_id,
+        "notification_type": notification_type.value,
+        "approval_id": approval_id,
+    }
+
+
+def _log_expected_notification_failure(
+    *,
+    operation: str,
+    user_id: int,
+    notification_type: NotificationType,
+    approval_id: int | None,
+) -> None:
+    logger.warning(
+        "notification_delivery_expected_failure",
+        extra=_notification_failure_extra(
+            operation=operation,
+            user_id=user_id,
+            notification_type=notification_type,
+            approval_id=approval_id,
+        ),
+    )
+
+
+def _log_unexpected_notification_failure(
+    *,
+    operation: str,
+    user_id: int,
+    notification_type: NotificationType,
+    approval_id: int | None,
+) -> None:
+    logger.exception(
+        "notification_delivery_unexpected_failure",
+        extra=_notification_failure_extra(
+            operation=operation,
+            user_id=user_id,
+            notification_type=notification_type,
+            approval_id=approval_id,
+        ),
+    )
+
+
 class NotificationService:
     """Service for creating and managing notifications."""
 
@@ -190,11 +248,23 @@ class NotificationService:
                 )
                 if notification:
                     notifications.append(notification)
-            except Exception as e:
+            except EXPECTED_NOTIFICATION_DELIVERY_ERRORS:
                 if strict_errors:
                     raise
-                logger.error(f"Failed to create notification for approver {approver.id}: {e}")
-                # Continue creating notifications for other approvers
+                _log_expected_notification_failure(
+                    operation="notify_approvers",
+                    user_id=approver.id,
+                    notification_type=NotificationType.APPROVAL_PENDING,
+                    approval_id=approval.id,
+                )
+            except Exception:
+                _log_unexpected_notification_failure(
+                    operation="notify_approvers",
+                    user_id=approver.id,
+                    notification_type=NotificationType.APPROVAL_PENDING,
+                    approval_id=approval.id,
+                )
+                raise
 
         logger.info(
             "Created %s approval pending notifications for approval %s; skipped=%s",
@@ -250,11 +320,24 @@ class NotificationService:
             logger.info(f"Created resolution notification for requester {approval.requested_by_id}")
             return notification
 
-        except Exception as e:
+        except EXPECTED_NOTIFICATION_DELIVERY_ERRORS:
             if strict_errors:
                 raise
-            logger.error(f"Failed to create resolution notification for requester {approval.requested_by_id}: {e}")
+            _log_expected_notification_failure(
+                operation="notify_requester_resolved",
+                user_id=approval.requested_by_id,
+                notification_type=NotificationType.APPROVAL_RESOLVED,
+                approval_id=approval.id,
+            )
             return None
+        except Exception:
+            _log_unexpected_notification_failure(
+                operation="notify_requester_resolved",
+                user_id=approval.requested_by_id,
+                notification_type=NotificationType.APPROVAL_RESOLVED,
+                approval_id=approval.id,
+            )
+            raise
 
     @staticmethod
     async def notify_approvers_cancelled(
@@ -299,11 +382,23 @@ class NotificationService:
                 )
                 if notification:
                     notifications.append(notification)
-            except Exception as e:
+            except EXPECTED_NOTIFICATION_DELIVERY_ERRORS:
                 if strict_errors:
                     raise
-                logger.error(f"Failed to create cancellation notification for approver {approver.id}: {e}")
-                # Continue creating notifications for other approvers
+                _log_expected_notification_failure(
+                    operation="notify_approvers_cancelled",
+                    user_id=approver.id,
+                    notification_type=NotificationType.APPROVAL_CANCELLED,
+                    approval_id=approval.id,
+                )
+            except Exception:
+                _log_unexpected_notification_failure(
+                    operation="notify_approvers_cancelled",
+                    user_id=approver.id,
+                    notification_type=NotificationType.APPROVAL_CANCELLED,
+                    approval_id=approval.id,
+                )
+                raise
 
         logger.info(
             "Created %s cancellation notifications for approval %s; skipped=%s",

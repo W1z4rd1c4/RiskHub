@@ -19,7 +19,7 @@ from app.models import (
     RiskTypeConfig,
     User,
 )
-from app.services._vendor_links.kri_assignment import normalize_vendor_ids, validate_assignable_vendors
+from app.services._vendor_links.kri_bridge import normalize_vendor_ids, validate_assignable_vendors
 
 
 def raise_missing_permission(resource: str, action: str) -> None:
@@ -63,8 +63,20 @@ async def validate_risk_update_payload(db: AsyncSession, risk: Risk, update_data
     if "risk_type" in update_data:
         await validate_risk_type(db, update_data["risk_type"])
 
-    if risk.is_archived:
-        raise ValidationError("Cannot update archived risk. Please restore it before applying changes.")
+    assert_not_archived_for_update(
+        risk,
+        detail="Cannot update archived risk. Please restore it before applying changes.",
+    )
+
+
+def assert_not_archived_for_update(
+    entity: object,
+    *,
+    detail: str,
+    error_type: type[Exception] = ValidationError,
+) -> None:
+    if getattr(entity, "is_archived", False):
+        raise error_type(detail)
 
 
 async def assert_no_pending_delete(
@@ -74,7 +86,18 @@ async def assert_no_pending_delete(
     resource_id: int,
     detail: str,
 ) -> None:
-    pending = (
+    pending = await _get_pending_delete_request(db, resource_type=resource_type, resource_id=resource_id)
+    if pending is not None:
+        raise ConflictError(detail)
+
+
+async def _get_pending_delete_request(
+    db: AsyncSession,
+    *,
+    resource_type: ApprovalResourceType,
+    resource_id: int,
+) -> ApprovalRequest | None:
+    return (
         await db.execute(
             select(ApprovalRequest)
             .where(ApprovalRequest.resource_type == resource_type)
@@ -83,8 +106,6 @@ async def assert_no_pending_delete(
             .where(ApprovalRequest.status.in_([ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED]))
         )
     ).scalar_one_or_none()
-    if pending is not None:
-        raise ConflictError(detail)
 
 
 async def assert_no_existing_pending_delete_request(
@@ -94,15 +115,7 @@ async def assert_no_existing_pending_delete_request(
     resource_id: int,
     detail: str = "Deletion request already pending",
 ) -> None:
-    existing = (
-        await db.execute(
-            select(ApprovalRequest)
-            .where(ApprovalRequest.resource_type == resource_type)
-            .where(ApprovalRequest.resource_id == resource_id)
-            .where(ApprovalRequest.action_type == ApprovalActionType.DELETE)
-            .where(ApprovalRequest.status.in_([ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED]))
-        )
-    ).scalar_one_or_none()
+    existing = await _get_pending_delete_request(db, resource_type=resource_type, resource_id=resource_id)
     if existing is not None:
         raise ValidationError(detail)
 
@@ -168,6 +181,10 @@ async def prepare_control_update(
         control_id=control_id,
         current_user=current_user,
     )
+    assert_not_archived_for_update(
+        control,
+        detail="Cannot update archived control. Please restore it before applying changes.",
+    )
     await assert_no_pending_delete(
         db,
         resource_type=ApprovalResourceType.CONTROL,
@@ -201,8 +218,7 @@ async def prepare_kri_update(
         raise NotFoundError("KRI not found")
 
     check_department_access(kri.risk.department_id, current_user)
-    if kri.is_archived:
-        raise ConflictError("Cannot update archived KRI")
+    assert_not_archived_for_update(kri, detail="Cannot update archived KRI", error_type=ConflictError)
 
     requested_vendor_ids = update_data.pop("linked_vendor_ids", None)
     normalized_vendor_ids = normalize_vendor_ids(requested_vendor_ids) if requested_vendor_ids is not None else None

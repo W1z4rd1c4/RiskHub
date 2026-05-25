@@ -12,7 +12,7 @@ import { riskApi } from '@/services/riskApi';
 import type { KeyRiskIndicator, KRIHistoryCapabilities, KRIHistoryEntry } from '@/types/kri';
 import type { Risk } from '@/types/risk';
 
-import { useDetailResource } from './useDetailResource';
+import { useDetailQuery } from './useDetailQuery';
 
 export type KriDetailTabView = 'overview' | 'history';
 
@@ -44,7 +44,8 @@ export function useKriDetailState({ rawId }: UseKriDetailStateArgs) {
         refetch: fetchKRI,
         resource: kri,
         resourceId: kriId,
-    } = useDetailResource<KeyRiskIndicator>({
+    } = useDetailQuery<KeyRiskIndicator>({
+        entity: 'kri',
         rawId,
         load: loadKRI,
         toErrorKey: () => 'not_found',

@@ -11,7 +11,8 @@ pytestmark = pytest.mark.contract
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 ENDPOINTS = REPO_ROOT / "backend/app/api/v1/endpoints/risks"
-CANONICAL_IMPORT = "from app.services._entity_mutation_lifecycle.policy import validate_risk_type"
+LIFECYCLE = REPO_ROOT / "backend/app/services/_entity_mutation_lifecycle/lifecycle.py"
+CANONICAL_POLICY = REPO_ROOT / "backend/app/services/_entity_mutation_lifecycle/policy.py"
 
 
 def test_no_local_validate_risk_type_in_endpoints() -> None:
@@ -30,5 +31,9 @@ def test_no_local_validate_risk_type_in_endpoints() -> None:
 
 def test_create_imports_canonical_path() -> None:
     create = (ENDPOINTS / "crud/create.py").read_text()
-    assert CANONICAL_IMPORT in create
+    lifecycle = LIFECYCLE.read_text()
+    assert "validate_risk_type" in CANONICAL_POLICY.read_text()
+    assert "validate_risk_type" in lifecycle
+    assert "create_risk_detail" in create
+    assert "validate_risk_type" not in create
     assert "from ._shared import validate_risk_type" not in create

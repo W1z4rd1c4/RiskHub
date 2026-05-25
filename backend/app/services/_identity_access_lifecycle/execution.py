@@ -10,6 +10,7 @@ from app.core.activity_logger import log_activity
 from app.core.user_query_options import user_selectinload_options
 from app.models import User
 from app.models.activity_log import ActivityAction, ActivityEntityType
+from app.services.transaction_boundary import commit_service_boundary
 
 
 async def log_user_update_and_commit(
@@ -35,7 +36,7 @@ async def log_user_update_and_commit(
             description=description,
         )
 
-    await db.commit()
+    await commit_service_boundary(db, boundary="identity_access.log_user_update")
     await db.refresh(user)
 
     result = await db.execute(
@@ -66,7 +67,7 @@ async def commit_directory_import(
             description=f"Directory import ({provider_name}) for {user.email}",
         )
 
-    await db.commit()
+    await commit_service_boundary(db, boundary="identity_access.directory_import")
 
 
 async def load_directory_import_user(db: AsyncSession, *, user_id: int) -> User:

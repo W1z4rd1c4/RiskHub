@@ -10,6 +10,8 @@ vi.mock('@/authz/useAuthz', () => ({
 
 import {
     ActivityLogRouteGuard,
+    AdminConsoleRouteGuard,
+    AuditTrailRouteGuard,
     createBusinessRouteGuard,
     GovernanceRouteGuard,
     UserLifecycleRouteGuard,
@@ -23,6 +25,8 @@ const cases: Array<[string, GuardComponent, string]> = [
     ['ActivityLogRouteGuard', ActivityLogRouteGuard, 'canViewActivityLog'],
     ['UsersRouteGuard', UsersRouteGuard, 'canViewUsersRoute'],
     ['UserLifecycleRouteGuard', UserLifecycleRouteGuard, 'isPlatformAdmin'],
+    ['AdminConsoleRouteGuard', AdminConsoleRouteGuard, 'canViewAdminConsole'],
+    ['AuditTrailRouteGuard', AuditTrailRouteGuard, 'canReadControls'],
 ];
 
 function renderGuard(Guard: GuardComponent, key: string, allowed: boolean) {

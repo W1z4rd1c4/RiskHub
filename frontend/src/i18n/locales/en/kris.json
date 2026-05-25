@@ -77,7 +77,8 @@
     "archived": "Archived",
     "overdue_only": "Overdue Only",
     "include_archived": "Include archived",
-    "search_placeholder": "Search by metric name..."
+    "search_placeholder": "Search by metric name...",
+    "clear": "Clear filters"
   },
   "empty_state": {
     "no_kris": "No KRIs found matching your criteria.",

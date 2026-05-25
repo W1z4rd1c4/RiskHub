@@ -1,0 +1,55 @@
+[[allow]]
+file = "backend/app/services/_deadline_execution/executor.py"
+rationale = "Deferred deadline execution workflow; migrate with deadline behavior tests."
+
+[[allow]]
+file = "backend/app/services/_kri_history/governance.py"
+rationale = "Approval-sensitive KRI governance workflow; migrate with KRI approval tests."
+
+[[allow]]
+file = "backend/app/services/_kri_history/direct_application.py"
+rationale = "KRI history direct application has transaction-sensitive outbox work; migrate separately."
+
+[[allow]]
+file = "backend/app/services/ad_deprovision_service.py"
+rationale = "External identity deprovision workflow; migrate with integration/failure-path tests."
+
+[[allow]]
+file = "backend/app/services/_vendor_links/workflow.py"
+rationale = "Vendor link multi-step workflow has with-commit/no-commit variants."
+
+[[allow]]
+file = "backend/app/services/_approval_execution/resolution.py"
+rationale = "High-risk approval execution boundary; migrate after approval execution tests."
+
+[[allow]]
+file = "backend/app/services/_risk_questionnaires/lifecycle.py"
+rationale = "Questionnaire lifecycle contains multiple public mutation boundaries."
+
+[[allow]]
+file = "backend/app/services/_issue_workflow/execution.py"
+rationale = "Issue workflow has several mutation paths requiring local tests."
+
+[[allow]]
+file = "backend/app/services/_auth_session/sso_identity.py"
+rationale = "Legacy auth-session persistence path; retained until auth workflow consolidation."
+
+[[allow]]
+file = "backend/app/services/_auth_session/refresh.py"
+rationale = "Legacy refresh-token persistence path; retained until auth workflow consolidation."
+
+[[allow]]
+file = "backend/app/services/_entity_mutation_lifecycle/direct_apply.py"
+rationale = "Entity mutation lifecycle direct-apply paths need archive/update parity tests."
+
+[[allow]]
+file = "backend/app/services/_entity_mutation_lifecycle/archive_plans.py"
+rationale = "Archive plan commit handling is approval-sensitive and remains separately tracked."
+
+[[allow]]
+file = "backend/app/services/_vendor_governance/lifecycle.py"
+rationale = "Vendor governance lifecycle has multiple business transaction boundaries."
+
+[[allow]]
+file = "backend/app/services/_riskhub_config/lifecycle.py"
+rationale = "Existing W12 ratchet owns riskhub config commit migration."

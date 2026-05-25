@@ -97,7 +97,10 @@
     "risk": "Riziko",
     "results": "výsledků",
     "archived": "Archivované",
-    "by": "od"
+    "by": "od",
+    "approved_on": "Schváleno dne",
+    "proposed_changes": "Navržené změny",
+    "rejected_on": "Zamítnuto dne"
   },
   "errors": {
     "generic": "Došlo k chybě. Zkuste to prosím znovu.",
@@ -111,7 +114,14 @@
     "required_field": "Toto pole je povinné.",
     "invalid_format": "Neplatný formát.",
     "min_length": "Musí obsahovat alespoň {{min}} znaků.",
-    "max_length": "Nesmí obsahovat více než {{max}} znaků."
+    "max_length": "Nesmí obsahovat více než {{max}} znaků.",
+    "department_required": "Oddělení je povinné.",
+    "load_failed": "Nepodařilo se načíst data.",
+    "name_required": "Název je povinný.",
+    "owner_required": "Vlastník je povinný.",
+    "process_required": "Proces je povinný.",
+    "save_failed": "Uložení selhalo.",
+    "score_required": "Skóre je povinné."
   },
   "success": {
     "saved": "Změny byly úspěšně uloženy.",
@@ -217,7 +227,8 @@
     "all_caught_up": "Vše přečteno!",
     "nothing_to_show": "Zatím nic k zobrazení",
     "no_high_risk_items": "Nebyly nalezeny žádné položky s vysokým rizikem.",
-    "no_history_available": "Žádná historie není k dispozici"
+    "no_history_available": "Žádná historie není k dispozici",
+    "unknown_group": "Neznámá skupina"
   },
   "access": {
     "denied": "Přístup zamítnut",
@@ -268,7 +279,11 @@
       "all_departments": "Všechna oddělení",
       "all_processes": "Všechny procesy",
       "all_categories": "Všechny kategorie",
-      "search_risks": "Hledat rizika..."
+      "search_risks": "Hledat rizika...",
+      "data_source": "Zdroj dat",
+      "methodology_reference": "Odkaz na metodiku",
+      "metric_name": "Název metriky",
+      "reporting_owner_default": "Vlastník reportingu"
     },
     "financial": {
       "loss": "Finanční ztráta",
@@ -299,7 +314,9 @@
       "risk": "Riziko",
       "controls": "Kontroly",
       "users": "Uživatelé"
-    }
+    },
+    "select_risk": "Vyberte riziko pro zobrazení aktivity.",
+    "select_risk_hint": "Pro načtení záznamů vyberte riziko ve filtru výše."
   },
   "department_detail": {
     "tabs": {
@@ -321,7 +338,8 @@
     "filter_all": "Vše",
     "no_matches_title": "Žádné odpovídající dokumenty",
     "no_matches_subtitle": "Zkuste jiný tag filtr.",
-    "view_manual": "Zobrazit manuál"
+    "view_manual": "Zobrazit manuál",
+    "maintainer_reference": "Reference správce:"
   },
   "tables": {
     "items_count": "{{count}} položek",
@@ -339,6 +357,132 @@
     "system": "Systém",
     "no_data": "Žádná data",
     "unknown_type": "Neznámý typ",
-    "unknown_control": "Neznámá kontrola"
+    "unknown_control": "Neznámá kontrola",
+    "not_set": "Nenastaveno",
+    "unknown_department": "Neznámé oddělení",
+    "unknown_link": "Neznámé propojení"
+  },
+  "audit": {
+    "columns": {
+      "timestamp": "Čas",
+      "event": "Událost",
+      "user": "Uživatel",
+      "client_ip": "IP klienta",
+      "details": "Podrobnosti"
+    },
+    "no_events": "Nebyly nalezeny žádné auditní události.",
+    "view": "Zobrazit"
+  },
+  "columns": {
+    "name": "Název",
+    "category": "Kategorie",
+    "description": "Popis",
+    "type": "Typ",
+    "gross": "Hrubé",
+    "net": "Čisté",
+    "controls": "Kontroly",
+    "kris": "KRI",
+    "pending": "Čeká",
+    "pending_tooltip": "Čeká na schválení"
+  },
+  "department_table": {
+    "actions": {
+      "view_controls": "Zobrazit kontroly",
+      "view_risks": "Zobrazit rizika",
+      "remove_focus": "Odebrat fokus",
+      "set_focus": "Nastavit fokus",
+      "go_to_department": "Přejít na oddělení"
+    },
+    "audited": "Auditováno",
+    "breached": "Porušeno",
+    "focused": "Fokus",
+    "high": "Vysoké"
+  },
+  "detail": {
+    "fields": {
+      "source": "Zdroj",
+      "owner": "Vlastník",
+      "department": "Oddělení",
+      "opened": "Otevřeno",
+      "due": "Termín",
+      "created_by": "Vytvořil"
+    },
+    "messages": {
+      "expires": "Vyprší",
+      "loading_history": "Načítám historii...",
+      "no_exceptions": "Nejsou evidovány žádné výjimky.",
+      "no_history": "Nebyly nalezeny žádné záznamy historie.",
+      "no_linked_entities": "Žádné propojené entity.",
+      "system": "Systém"
+    },
+    "sections": {
+      "exceptions": "Výjimky",
+      "linked_entities": "Propojené entity"
+    }
+  },
+  "dialogs": {
+    "approve_title": "Schválit požadavek",
+    "reject_title": "Zamítnout požadavek",
+    "processing": "Zpracovávám...",
+    "resolution_placeholder": "Doplňte poznámky k rozhodnutí",
+    "resolution_required": "Poznámka k rozhodnutí je povinná."
+  },
+  "empty_state": {
+    "all_caught_up": "Vše vyřízeno!",
+    "no_matching": "Žádné odpovídající požadavky.",
+    "no_questionnaires": "Žádné čekající dotazníky."
+  },
+  "fields": {
+    "status": "Stav"
+  },
+  "issues": {
+    "summary": {
+      "open_issues": "Otevřené problémy"
+    }
+  },
+  "permissions": {
+    "history_denied": "Nemáte oprávnění zobrazit historii."
+  },
+  "quarterly": {
+    "compare_period": "Porovnat:",
+    "current_period": "Aktuální:",
+    "last_quarter": "minulé čtvrtletí",
+    "no_snapshot_banner": "Pro období {{period}} není dostupný snapshot. Deltové srovnání není k dispozici.",
+    "no_snapshot_hint": "Historický snapshot není dostupný - porovnání není k dispozici",
+    "not_available": "N/A",
+    "vs": "vs"
+  },
+  "risk_committee": {
+    "critical_risks": "Kritická rizika",
+    "critical_vendors": "Kritičtí dodavatelé",
+    "days_ago": "před {{count}} dny",
+    "months_ago": "před {{count}} měsíci",
+    "no_critical_risks": "Aktuálně žádná kritická rizika",
+    "no_department_exposure_data": "Žádná data o expozici oddělení",
+    "no_recent_significant_activity": "Žádná nedávná významná aktivita",
+    "no_summary_data": "Souhrnná data nejsou dostupná",
+    "no_vendors_in_scope": "Žádní dodavatelé v rozsahu",
+    "today": "Dnes",
+    "weeks_ago": "před {{count}} týdny",
+    "yesterday": "Včera"
+  },
+  "sections": {
+    "recent_activity": "Nedávná aktivita",
+    "risk_exposure_by_dept": "Riziková expozice podle oddělení"
+  },
+  "stats": {
+    "active_depts": "Aktivní oddělení",
+    "avg_risk_score": "Průměrné skóre rizika",
+    "calculated": "Vypočteno",
+    "critical_risks": "Kritická rizika",
+    "live": "Živě",
+    "stable": "Stabilní",
+    "total_controls": "Celkem kontrol",
+    "urgent": "Urgentní",
+    "vendors": "Dodavatelé"
+  },
+  "error_boundary": {
+    "title": "Něco se pokazilo",
+    "description": "Stránku se nepodařilo zobrazit."
   }
 }

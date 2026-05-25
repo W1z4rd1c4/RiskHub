@@ -10,6 +10,8 @@ vi.mock('@/authz/useAuthz', () => ({
 
 import {
     ActivityLogRouteGuard,
+    AdminConsoleRouteGuard,
+    AuditTrailRouteGuard,
     GovernanceRouteGuard,
 } from '@/authz/BusinessRouteGuards';
 
@@ -49,6 +51,31 @@ function renderActivityLogRoute() {
     );
 }
 
+function renderGuardedRoute(
+    Guard: typeof GovernanceRouteGuard,
+    path: string,
+    protectedLabel: string,
+    authz: Record<string, boolean>,
+) {
+    mockUseAuthz.mockReturnValue(authz);
+
+    return render(
+        <MemoryRouter initialEntries={[path]}>
+            <Routes>
+                <Route path="/" element={<div>Home</div>} />
+                <Route
+                    path={path}
+                    element={
+                        <Guard>
+                            <div>{protectedLabel}</div>
+                        </Guard>
+                    }
+                />
+            </Routes>
+        </MemoryRouter>
+    );
+}
+
 describe('Business route guards', () => {
     beforeEach(() => {
         vi.resetAllMocks();
@@ -80,4 +107,45 @@ describe('Business route guards', () => {
         expect(screen.queryByText('Activity Log')).not.toBeInTheDocument();
     });
 
+    it('redirects users without control read access away from /audit-trail', async () => {
+        renderGuardedRoute(
+            AuditTrailRouteGuard,
+            '/audit-trail',
+            'Audit Trail',
+            {
+                canReadControls: false,
+            },
+        );
+
+        expect(await screen.findByText('Home')).toBeInTheDocument();
+        expect(screen.queryByText('Audit Trail')).not.toBeInTheDocument();
+    });
+
+    it('redirects users without admin console access away from /admin', async () => {
+        renderGuardedRoute(
+            AdminConsoleRouteGuard,
+            '/admin',
+            'Admin Console',
+            {
+                canViewAdminConsole: false,
+            },
+        );
+
+        expect(await screen.findByText('Home')).toBeInTheDocument();
+        expect(screen.queryByText('Admin Console')).not.toBeInTheDocument();
+    });
+
+    it('redirects users without admin console access away from /admin/docs', async () => {
+        renderGuardedRoute(
+            AdminConsoleRouteGuard,
+            '/admin/docs',
+            'Admin Docs',
+            {
+                canViewAdminConsole: false,
+            },
+        );
+
+        expect(await screen.findByText('Home')).toBeInTheDocument();
+        expect(screen.queryByText('Admin Docs')).not.toBeInTheDocument();
+    });
 });

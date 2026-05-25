@@ -150,7 +150,7 @@ export function DocumentationSettings() {
 
                         {maintainerReference && (
                             <p className="docs-reader-meta-source">
-                                Maintainer reference: {maintainerReference}
+                                {t('common:documentation.maintainer_reference')} {maintainerReference}
                             </p>
                         )}
                     </div>

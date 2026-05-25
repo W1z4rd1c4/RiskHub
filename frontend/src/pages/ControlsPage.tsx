@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { ExportDialog } from '@/components/reports/ExportDialog';
 import { ViewSwitcher } from '@/components/tables';
+import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { ControlsFilterBar } from './controls/ControlsFilterBar';
 import { ControlsPageHeader } from './controls/ControlsPageHeader';
 import { ControlsTableSection } from './controls/ControlsTableSection';
@@ -48,8 +49,8 @@ export function ControlsPage() {
     return (
         <div className="space-y-8">
             <ControlsPageHeader
-                canCreateControl={capabilities?.can_create === true}
-                canExport={capabilities?.can_export === true}
+                canCreateControl={resolveCapabilityFlag(capabilities, 'can_create')}
+                canExport={resolveCapabilityFlag(capabilities, 'can_export')}
                 isExporting={isExporting}
                 onCreateControl={() => navigate('/controls/new')}
                 onOpenExport={openExportDialog}
@@ -58,7 +59,7 @@ export function ControlsPage() {
             <ViewSwitcher
                 value={viewMode}
                 onChange={updateViewMode}
-                exclude={capabilities?.can_view_vendor_contexts === true ? ['flag'] : ['flag', 'vendor']}
+                exclude={resolveCapabilityFlag(capabilities, 'can_view_vendor_contexts') ? ['flag'] : ['flag', 'vendor']}
             />
 
             <ControlsFilterBar

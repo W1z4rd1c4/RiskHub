@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
+from datetime import datetime
 from typing import Any
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.datetime_utils import coerce_utc, utc_now
@@ -9,8 +12,8 @@ from app.core.permissions import (
     can_access_department_id,
     can_read_issue_id,
     can_write_issue_id,
+    get_issue_scope_clause,
     has_permission,
-    is_issue_owner_assignable_to_department,
     is_platform_admin,
 )
 from app.models import Issue, IssueExceptionStatus, IssueRemediationStatus, IssueStatus, User
@@ -26,11 +29,14 @@ def _is_active_issue_exception(exception: Any, now) -> bool:
     )
 
 
-async def issue_capabilities(db: AsyncSession, *, current_user: User, issue: Issue) -> IssueCapabilities:
-    can_read = await can_read_issue_id(db, current_user, issue.id)
-    can_write = await can_write_issue_id(db, current_user, issue.id)
-    can_approve = bool(has_permission(current_user, "issues", "approve") and can_read)
-    now = utc_now()
+def _build_issue_capabilities(
+    *,
+    current_user: User,
+    issue: Issue,
+    can_read: bool,
+    can_write: bool,
+    now: datetime,
+) -> IssueCapabilities:
     active_exception = next(
         (
             exception
@@ -75,14 +81,9 @@ async def issue_capabilities(db: AsyncSession, *, current_user: User, issue: Iss
     can_close = bool(can_write and issue_status == IssueStatus.ready_for_validation.value and remediation_complete)
     is_closed = bool(issue_status == IssueStatus.closed.value)
     can_assign_owner = bool(can_write and not is_closed)
-    can_clear_owner = bool(
-        can_write and not is_closed and await is_issue_owner_assignable_to_department(
-            db,
-            owner_user_id=None,
-            issue_department_id=issue.department_id,
-        )
-    )
+    can_clear_owner = bool(can_write and not is_closed)
     can_link = bool(can_write and not is_closed)
+    can_approve = bool(has_permission(current_user, "issues", "approve") and can_read)
     return IssueCapabilities(
         can_read=can_read,
         can_update=bool(can_write and not is_closed),
@@ -116,4 +117,75 @@ async def issue_capabilities(db: AsyncSession, *, current_user: User, issue: Iss
         is_closed=is_closed,
         has_active_exception=active_exception is not None,
         has_pending_exception_request=pending_exception is not None,
+    )
+
+
+async def _visible_issue_ids(
+    db: AsyncSession,
+    *,
+    current_user: User,
+    issue_ids: set[int],
+    include_direct_kri_reporting_owner_links: bool,
+) -> set[int]:
+    if not issue_ids:
+        return set()
+
+    scope_clause = await get_issue_scope_clause(
+        db,
+        current_user,
+        include_direct_kri_reporting_owner_links=include_direct_kri_reporting_owner_links,
+    )
+    query = select(Issue.id).where(Issue.id.in_(issue_ids))
+    if scope_clause is not None:
+        query = query.where(scope_clause)
+    return set((await db.execute(query)).scalars().all())
+
+
+async def preload_issue_capabilities(
+    db: AsyncSession,
+    *,
+    current_user: User,
+    issues: Sequence[Issue],
+) -> dict[int, IssueCapabilities]:
+    issue_ids = {issue.id for issue in issues}
+    can_read_ids: set[int] = set()
+    can_write_ids: set[int] = set()
+
+    if has_permission(current_user, "issues", "read"):
+        can_read_ids = await _visible_issue_ids(
+            db,
+            current_user=current_user,
+            issue_ids=issue_ids,
+            include_direct_kri_reporting_owner_links=True,
+        )
+    if has_permission(current_user, "issues", "read") and has_permission(current_user, "issues", "write"):
+        can_write_ids = await _visible_issue_ids(
+            db,
+            current_user=current_user,
+            issue_ids=issue_ids,
+            include_direct_kri_reporting_owner_links=False,
+        )
+
+    now = utc_now()
+    return {
+        issue.id: _build_issue_capabilities(
+            current_user=current_user,
+            issue=issue,
+            can_read=issue.id in can_read_ids,
+            can_write=issue.id in can_write_ids,
+            now=now,
+        )
+        for issue in issues
+    }
+
+
+async def issue_capabilities(db: AsyncSession, *, current_user: User, issue: Issue) -> IssueCapabilities:
+    can_read = await can_read_issue_id(db, current_user, issue.id)
+    can_write = await can_write_issue_id(db, current_user, issue.id)
+    return _build_issue_capabilities(
+        current_user=current_user,
+        issue=issue,
+        can_read=can_read,
+        can_write=can_write,
+        now=utc_now(),
     )

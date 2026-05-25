@@ -125,3 +125,4 @@ class ApprovalRequestListResponse(BaseModel):
     total: int
     skip: int
     limit: int
+    skipped_corrupt_payloads: int = 0

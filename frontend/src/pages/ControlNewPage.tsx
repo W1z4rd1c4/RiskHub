@@ -5,6 +5,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import { ControlForm } from '@/components/control-form/ControlFormContainer';
 import { useTranslation } from '@/i18n/hooks';
+import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { controlApi } from '@/services/controlApi';
 import { logError } from '@/services/logger';
 import { vendorApi } from '@/services/vendorApi';
@@ -47,7 +48,7 @@ export function ControlNewPage() {
                 const vendor = await vendorApi.getVendor(vendorId);
                 if (!isMounted) return;
                 setVendorContextState(
-                    vendor.capabilities?.can_create_linked_control === true ? 'allowed' : 'denied',
+                    resolveCapabilityFlag(vendor.capabilities, 'can_create_linked_control') ? 'allowed' : 'denied',
                 );
             } catch (error) {
                 logError('Failed to load vendor control-create capabilities.', error);

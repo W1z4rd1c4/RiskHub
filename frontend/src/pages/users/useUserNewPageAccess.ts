@@ -7,7 +7,7 @@ import { logError } from '@/services/logger';
 import { userDirectoryApi } from '@/services/userDirectoryApi';
 import type { UserDirectoryCapabilities } from '@/types/user';
 
-type Translate = (key: string, options?: { ns?: string; defaultValue?: string }) => string;
+type Translate = (key: string, options?: { ns?: string }) => string;
 
 export function useUserNewPageAccess(t: Translate) {
     const [authConfig, setAuthConfig] = useState<AuthConfigResponse | null>(null);
@@ -41,10 +41,7 @@ export function useUserNewPageAccess(t: Translate) {
                 logError('Failed to load auth mode:', error);
                 setAuthConfigError(
                     isAuthUnavailableError(error)
-                        ? t('user_new.auth_mode_service_unavailable', {
-                            ns: 'admin',
-                            defaultValue: 'Authentication mode is temporarily unavailable. Refresh after the auth service is reachable again.',
-                        })
+                        ? t('user_new.auth_mode_service_unavailable', { ns: 'admin' })
                         : (error instanceof Error ? error.message : String(error)),
                 );
             } finally {

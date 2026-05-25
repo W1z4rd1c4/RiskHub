@@ -31,7 +31,7 @@ export function UsersPageHeader({
                     {isAccessMode ? t('access.title') : t('users.title')}
                 </h1>
                 <p className="text-slate-400 mt-1">
-                    {isAccessMode ? t('access.subtitle') : t('users.subtitle', { defaultValue: 'View platform users and their roles.' })}
+                    {isAccessMode ? t('access.subtitle') : t('users.subtitle')}
                 </p>
             </div>
             {allowAuthModeActions && (
@@ -45,8 +45,8 @@ export function UsersPageHeader({
                             <span className="inline-flex items-center gap-2">
                                 <RefreshCw className={`h-4 w-4 ${isCheckingAllDirectory ? 'animate-spin' : ''}`} />
                                 {isCheckingAllDirectory
-                                    ? t('users.checking_directory', { defaultValue: 'Checking...' })
-                                    : t('users.check_directory', { defaultValue: 'Check AD' })}
+                                    ? t('users.checking_directory')
+                                    : t('users.check_directory')}
                             </span>
                         </button>
                     )}
@@ -56,7 +56,7 @@ export function UsersPageHeader({
                     >
                         {isDirectoryFirstMode ? <Building2 className="h-5 w-5" /> : <UserPlus className="h-5 w-5" />}
                         {isDirectoryFirstMode
-                            ? t('users.add_from_ad', { defaultValue: 'Add from AD' })
+                            ? t('users.add_from_ad')
                             : t('access.add_user')}
                     </button>
                 </div>

@@ -14,11 +14,11 @@ from sqlalchemy.sql import visitors
 from sqlalchemy.sql.elements import BindParameter
 
 from app.api.v1.endpoints.reports._export_context import ReportExportContext
-from app.api.v1.endpoints.reports.audit_trail_excel import _audit_trail_query
 from app.models import Department
 from app.models.control import Control
 from app.models.control_execution import ControlExecution
 from app.models.risk import ControlRiskLink, Risk
+from app.services._reporting.excel import _audit_trail_query
 
 
 @pytest_asyncio.fixture

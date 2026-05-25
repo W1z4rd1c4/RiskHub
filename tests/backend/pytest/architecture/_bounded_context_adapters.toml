@@ -2,7 +2,6 @@
 expires_at = "2026-11-11"
 packages = [
     "_directory_identity",
-    "_directory_sync",
     "_graph_directory", # planned package; created by #61.
     "_admin_telemetry",
     "_activity_log_query",

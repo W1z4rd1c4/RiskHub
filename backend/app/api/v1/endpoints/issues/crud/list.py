@@ -11,7 +11,7 @@ from app.models.issue import IssueSeverity, IssueStatus
 from app.schemas.issue import IssueListResponse
 from app.services._register_listings.issues import IssueListingCriteria, plan_issue_listing
 from app.services._register_listings.lifecycle import execute_register_listing_plan
-from app.services.authorization_capabilities import issue_capabilities
+from app.services.authorization_capabilities import preload_issue_capabilities
 
 router = APIRouter()
 
@@ -73,7 +73,7 @@ async def list_issues(
             filters=collection_context.filters,
             sort_by=sort_by,
             sort_order=sort_order,
-            capability_loader=issue_capabilities,
+            capability_preloader=preload_issue_capabilities,
         ),
     )
 

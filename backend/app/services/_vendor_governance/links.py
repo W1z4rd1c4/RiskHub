@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Any, Literal, TypeAlias, cast
 
 from sqlalchemy import select
@@ -14,20 +13,6 @@ from app.services._authorization_capabilities import has_capability, require_cap
 VendorLink: TypeAlias = VendorRiskLink | VendorControlLink | VendorKRILink
 VendorLinkModel: TypeAlias = type[VendorRiskLink] | type[VendorControlLink] | type[VendorKRILink]
 VendorLinkField: TypeAlias = Literal["risk_id", "control_id", "kri_id"]
-
-
-@dataclass(frozen=True)
-class VendorLinkAccessPlan:
-    vendor_id: int
-    entity_permission: str
-    require_write: bool = False
-
-
-@dataclass(frozen=True)
-class VendorLinkedResourceProjection:
-    resource_id: int
-    resource_type: str
-    visible: bool
 
 
 async def get_vendor(db: AsyncSession, vendor_id: int) -> Vendor | None:

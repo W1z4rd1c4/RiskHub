@@ -19,6 +19,7 @@ from app.services._collection_filters import (
     coerce_optional_enum,
     coerce_optional_int,
     coerce_optional_string,
+    merge_collection_filters,
 )
 from app.services._vendor_governance.projection import (
     get_visible_vendor_risk_ids,
@@ -28,6 +29,7 @@ from app.services._vendor_governance.projection import (
 from app.services._vendor_workflow import apply_vendor_visibility_scope
 
 from .lifecycle import RegisterListingPlan, SerializeItems, build_register_listing_plan, execute_register_listing_plan
+from .shared import parse_prefixed_group_value
 
 VENDOR_GROUP_UNASSIGNED = "__unassigned__"
 VENDOR_GROUP_NO_PROCESS = "__no_process__"
@@ -74,10 +76,6 @@ def build_vendor_collection_capabilities(
         "can_export": check_permission_fn(current_user, "reports", "read"),
         "can_view_risk_contexts": check_permission_fn(current_user, "risks", "read"),
     }
-
-
-def merge_collection_filters(query: CollectionQuery, defaults: dict[str, Any]) -> dict[str, Any]:
-    return defaults | query.filters
 
 
 def coerce_vendor_list_criteria(
@@ -394,12 +392,11 @@ def vendor_group_value_filter(group_by: str, group_value: str, *, risk_context=N
             )
         return Vendor.id.is_(None)
     if group_by == "risk" and group_value.startswith("risk:"):
-        try:
-            risk_id = int(group_value.removeprefix("risk:"))
-        except ValueError:
-            return Vendor.id.is_(None)
+        risk_id = parse_prefixed_group_value(group_value, prefix="risk")
+        if risk_id is None:
+            return false()
         if risk_context is None:
-            return Vendor.id.is_(None)
+            return false()
         return Vendor.id.in_(select(risk_context.c.vendor_id).where(risk_context.c.risk_id == risk_id))
     if group_by == "risk" and group_value == VENDOR_GROUP_UNLINKED_RISK and risk_context is not None:
         return ~Vendor.id.in_(select(risk_context.c.vendor_id))

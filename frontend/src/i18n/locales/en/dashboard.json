@@ -132,7 +132,9 @@
     "days_overdue": "{{count}} days overdue",
     "days_until_due": "{{count}} days until due",
     "view_all": "View All KRIs",
-    "view_all_overdue": "View All Overdue"
+    "view_all_overdue": "View All Overdue",
+    "breaches_load_failed": "Unable to load KRI breaches",
+    "status_load_failed": "Unable to load KRI status"
   },
   "charts": {
     "by_status": "By Status",
@@ -163,7 +165,8 @@
     "total_samples": "Total Samples",
     "breaches": "Breaches",
     "no_risk_trend_data": "No risk trend data available.",
-    "no_kri_breach_data": "No KRI breach data available."
+    "no_kri_breach_data": "No KRI breach data available.",
+    "breakdown": "Control breakdown"
   },
   "errors": {
     "connection_interrupted": "Connection Interrupted",
@@ -178,7 +181,8 @@
     "clear_all": "Clear All",
     "risk_level": "Risk Level",
     "control_status": "Control Status",
-    "control_form": "Control Form"
+    "control_form": "Control Form",
+    "department_load_failed": "Departments unavailable"
   },
   "time_periods": {
     "today": "Today",
@@ -251,7 +255,8 @@
       "set_focus": "Set as Focus",
       "go_to_department": "Go to Department"
     },
-    "empty": "No department data available"
+    "empty": "No department data available",
+    "title": "Department metrics"
   },
   "risk_drilldown": {
     "gross": "Gross",
@@ -259,6 +264,7 @@
     "title": "{{riskType}} Risks at P{{probability}} × I{{impact}}",
     "no_risks_at_position": "No risks at this position",
     "footer_prefix": "Click a risk to view details • Press",
-    "footer_suffix": "to close"
+    "footer_suffix": "to close",
+    "results": "Risk drilldown results"
   }
 }

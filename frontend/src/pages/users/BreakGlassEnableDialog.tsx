@@ -38,12 +38,11 @@ export function BreakGlassEnableDialog({
             />
             <div className="relative w-full max-w-md rounded-2xl border border-amber-500/20 bg-slate-900 p-6 shadow-2xl">
                 <h3 className="text-lg font-bold text-white">
-                    {t('users.break_glass_enable', { ns: 'admin', defaultValue: 'Break-glass enable' })}
+                    {t('users.break_glass_enable', { ns: 'admin' })}
                 </h3>
                 <p className="mt-2 text-sm text-slate-300">
                     {t('users.break_glass_message', {
                         ns: 'admin',
-                        defaultValue: `Temporarily re-enable ${breakGlassUser.name} with an audited expiry.`,
                         name: breakGlassUser.name,
                     })}
                 </p>
@@ -51,7 +50,7 @@ export function BreakGlassEnableDialog({
                     htmlFor="break-glass-reason"
                     className="mt-5 block text-xs font-bold uppercase tracking-widest text-slate-400"
                 >
-                    {t('users.break_glass_reason', { ns: 'admin', defaultValue: 'Reason' })}
+                    {t('users.break_glass_reason', { ns: 'admin' })}
                 </label>
                 <textarea
                     id="break-glass-reason"
@@ -64,7 +63,7 @@ export function BreakGlassEnableDialog({
                     htmlFor="break-glass-expires-in-hours"
                     className="mt-4 block text-xs font-bold uppercase tracking-widest text-slate-400"
                 >
-                    {t('users.break_glass_expires_in_hours', { ns: 'admin', defaultValue: 'Expires in hours' })}
+                    {t('users.break_glass_expires_in_hours', { ns: 'admin' })}
                 </label>
                 <input
                     id="break-glass-expires-in-hours"
@@ -98,8 +97,8 @@ export function BreakGlassEnableDialog({
                         className="rounded-xl bg-amber-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                         {isBreakGlassSubmitting
-                            ? t('users.break_glass_enabling', { ns: 'admin', defaultValue: 'Enabling...' })
-                            : t('users.break_glass_enable', { ns: 'admin', defaultValue: 'Break-glass enable' })}
+                            ? t('users.break_glass_enabling', { ns: 'admin' })
+                            : t('users.break_glass_enable', { ns: 'admin' })}
                     </button>
                 </div>
             </div>

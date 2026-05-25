@@ -10,7 +10,7 @@ RiskHub authentication is implemented across `backend/app/api/v1/endpoints/auth/
 
 The mock-auth fallback in `backend/app/core/security.py` is intentionally available for local demo and test flows only. It must remain gated by both `settings.mock_auth_enabled` and `settings.debug`.
 
-ADR-002 records eight auth-flow endpoint commit exemptions in `tests/backend/pytest/architecture/_endpoint_commit_allowlist.toml`, each carrying `expires_at = "2026-09-01"`. Microsoft Entra SSO enters through `backend/app/api/v1/endpoints/auth/sso.py`, while transport-neutral SSO challenge, identity, and session-lifetime decisions live under `backend/app/services/_auth_session/`.
+ADR-002 records that the endpoint commit allowlist is empty. Microsoft Entra SSO enters through `backend/app/api/v1/endpoints/auth/sso.py`, while transport-neutral SSO challenge, identity, and session-lifetime decisions live under `backend/app/services/_auth_session/` and `_auth_session_workflow/`.
 
 ## Decision
 
@@ -22,7 +22,7 @@ Endpoint authorization uses `require_permission(resource, action)` from `backend
 
 Microsoft Entra SSO is a deployment-time authentication option, not a separate RiskHub session model. Entra tokens are verified and resolved by `app.services._auth_session.resolve_sso_exchange`; `auth/sso.py` then issues the RiskHub access token through `_build_token_response` and the refresh row/cookies through `_issue_refresh_session`. New SSO providers must attach to the same exchange and refresh-rotation boundary instead of minting an alternate session.
 
-The eight auth-flow endpoint commit exemptions migrate to service-owned transactions before `2026-09-01`. New auth-flow entries in `_endpoint_commit_allowlist.toml` are forbidden unless this ADR and ADR-002 are superseded.
+Auth/session workflow commit adapters use `commit_auth_transaction`, and `commit_auth_transaction` delegates to `commit_service_boundary` with an `auth.` boundary prefix. New auth-flow entries in `_endpoint_commit_allowlist.toml` are forbidden unless this ADR and ADR-002 are superseded.
 
 ## Alternatives Rejected
 
@@ -33,20 +33,13 @@ The eight auth-flow endpoint commit exemptions migrate to service-owned transact
 
 ## Migration Impact
 
-Finding `#76` migrates the eight auth-flow commit allowlist entries to service-owned transactions. Existing `_require_*` body-call helpers and inline `has_permission` 403 branches remain during migration, but new occurrences fail the architecture ratchet.
+Finding `#76` migrated auth-flow endpoint commits to service-owned transactions. Existing `_require_*` body-call helpers and inline `has_permission` 403 branches remain during migration, but new occurrences fail the architecture ratchet.
 
 SSO deployment configuration is unchanged. This ADR documents and locks the current exchange boundary: Entra identity verification resolves into a RiskHub session outcome, then RiskHub issues and rotates its own tokens.
 
-## Hard Expiration on Auth-Flow Exemption
+## Endpoint Commit Allowlist
 
-The eight auth-flow commit-allowlist entries in `tests/backend/pytest/architecture/_endpoint_commit_allowlist.toml` carry `expires_at = "2026-09-01"`. The current ratchet test in `tests/backend/pytest/architecture/test_w5_endpoint_commit_ratchet_red.py:47-49` enforces `assert len(allowed) <= 8` and `assert date.fromisoformat(str(entry["expires_at"])) >= date.today()` (line 64). Together these guarantee the cap cannot grow beyond eight and that no entry may persist past its sunset date.
-
-The `2026-09-01` sunset is a hard expiration. On that date, the cap drops from `<= 8` to `== 0` and the allowlist must be empty. Concretely, two changes land together no later than `2026-09-01`:
-
-1. The eight auth-flow commit sites in `backend/app/api/v1/endpoints/auth/` migrate to service-owned transactions per ADR-002.
-2. `tests/backend/pytest/architecture/test_w5_endpoint_commit_ratchet_red.py:47` is updated from `assert len(allowed) <= 8` to `assert len(allowed) == 0`, and the corresponding allowlist file is emptied (the `[allowlist]` array becomes `[]`).
-
-After the sunset, any new `_endpoint_commit_allowlist.toml` entry fails the ratchet immediately rather than relying on per-entry `expires_at` checks. Any extension of the sunset requires superseding both this ADR and ADR-002.
+The endpoint commit allowlist is empty. `tests/backend/pytest/architecture/test_w5_endpoint_commit_ratchet_red.py` fails on any endpoint `await db.commit()` that is not backed by a superseding ADR. Auth/session flows use `_auth_session_workflow` service adapters and the shared service transaction boundary instead of endpoint commits.
 
 ## Rollback Strategy
 
@@ -54,7 +47,8 @@ Forward-only as documentation and lock policy. No schema or runtime behavior cha
 
 ## Invariant Tests
 
-- `tests/backend/pytest/architecture/test_w5_endpoint_commit_ratchet_red.py` enforces the auth-flow commit exemption sunset.
+- `tests/backend/pytest/architecture/test_w5_endpoint_commit_ratchet_red.py` enforces the empty endpoint commit allowlist.
+- `tests/backend/pytest/architecture/test_service_commit_boundary_ratchet_red.py` tracks remaining service-side raw commits as ADR-002 adoption work.
 - `tests/backend/pytest/architecture/test_w12_auth_idiom_ratchet_red.py` keeps `_require_*` body calls and inline `has_permission` 403 branches non-increasing.
 - `tests/backend/pytest/architecture/test_w12_get_current_user_isolation_red.py` forbids direct endpoint imports of `app.core.security.get_current_user`.
 - `tests/backend/pytest/architecture/test_w12_mock_auth_guard_red.py` asserts mock auth is gated by both mock mode and debug mode.
@@ -63,6 +57,6 @@ Forward-only as documentation and lock policy. No schema or runtime behavior cha
 ## ADR Cross-References
 
 - ADR-001: keeps the service-layer capability interface separate from the FastAPI adapter elected here.
-- ADR-002: governs the auth-flow transaction sunset.
+- ADR-002: governs service-owned transaction boundaries and the empty endpoint commit allowlist.
 - ADR-003: keeps authentication and authorization failures mapped through the domain exception taxonomy.
 - ADR-004: keeps token and refresh-session timestamps UTC-aware.

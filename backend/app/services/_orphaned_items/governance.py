@@ -30,7 +30,7 @@ class OrphanDetectionPlan:
 
 
 @dataclass(frozen=True)
-class OrphanResolutionPlan:
+class OrphanResolutionRequirements:
     item_type: str
     requires_owner: bool
     requires_risk: bool
@@ -77,9 +77,9 @@ def orphan_item_definition(item_type: str) -> OrphanItemDefinition:
         raise ValueError(f"Unsupported orphaned item type: {item_type}") from exc
 
 
-def orphan_resolution_plan(item_type: str) -> OrphanResolutionPlan:
+def orphan_resolution_requirements_projection(item_type: str) -> OrphanResolutionRequirements:
     definition = orphan_item_definition(item_type)
-    return OrphanResolutionPlan(
+    return OrphanResolutionRequirements(
         item_type=definition.item_type,
         requires_owner=definition.requires_owner,
         requires_risk=definition.requires_risk,
@@ -88,7 +88,7 @@ def orphan_resolution_plan(item_type: str) -> OrphanResolutionPlan:
 
 
 def orphan_resolution_requirements(item_type: str) -> dict[str, bool]:
-    plan = orphan_resolution_plan(item_type)
+    plan = orphan_resolution_requirements_projection(item_type)
     return {
         "requires_owner": plan.requires_owner,
         "requires_risk": plan.requires_risk,

@@ -92,8 +92,8 @@ async def cancel_request(
     ctx: PrivilegeContext = Depends(get_privilege_context),
 ):
     """
-    Cancel own pending request.
-    Only the original requester can cancel.
+    Cancel a pending request.
+    The requester or an approval resolver can cancel.
     """
     from app.services.approval_execution_service import cancel_request_workflow
 

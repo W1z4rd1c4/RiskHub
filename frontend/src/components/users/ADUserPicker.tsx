@@ -25,7 +25,7 @@ export function ADUserPicker({ isOpen, onClose, onImported }: ADUserPickerProps)
             <div className="relative w-full max-w-2xl rounded-2xl border border-white/10 bg-slate-900 p-5 shadow-2xl">
                 <div className="mb-4 flex items-center justify-between">
                     <h3 className="text-lg font-semibold text-white">
-                        {t('users.add_from_ad', { defaultValue: 'Add from Directory' })}
+                        {t('users.add_from_ad')}
                     </h3>
                     <button
                         type="button"

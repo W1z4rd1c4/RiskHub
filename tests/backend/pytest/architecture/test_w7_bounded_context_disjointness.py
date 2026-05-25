@@ -46,6 +46,10 @@ def _underscored_packages() -> set[str]:
     }
 
 
+def _missing_packages(packages: set[str]) -> set[str]:
+    return {package for package in packages if not (SERVICES / package).is_dir()}
+
+
 def test_every_package_in_a_primary_allowlist_or_workflow_pair() -> None:
     pkgs = _underscored_packages()
     write_side = set(_load_toml(WRITE_SIDE).get("packages", []))
@@ -65,6 +69,15 @@ def test_every_package_in_a_primary_allowlist_or_workflow_pair() -> None:
     assert overlaps == set(), f"undocumented dual-class: {overlaps}"
 
 
+def test_adapter_allowlist_has_no_phantom_packages() -> None:
+    adapters = set(_load_toml(ADAPTERS).get("packages", []))
+    assert _missing_packages(adapters) == set()
+
+
+def test_phantom_package_detector_reports_missing_entries() -> None:
+    assert _missing_packages({"_definitely_missing_package"}) == {"_definitely_missing_package"}
+
+
 def test_register_listings_is_dual_classed() -> None:
     write_side = set(_load_toml(WRITE_SIDE).get("packages", []))
     read_shape = set(_load_toml(READ_SHAPE).get("packages", []))
@@ -77,8 +90,8 @@ def test_monitoring_response_is_file_entry_in_read_shape() -> None:
     assert "backend/app/services/_monitoring_response.py" in files
 
 
-def test_at_least_32_packages_classified() -> None:
-    """Phase 7: #61 landed; lock asserts >= 32 underscored packages."""
+def test_at_least_expected_packages_classified() -> None:
+    """Lock the current underscored package floor after verified dead contexts are removed."""
     pkgs = _underscored_packages()
     assert len(pkgs) >= EXPECTED_DISJOINT_COUNT, (
         f"expected >= {EXPECTED_DISJOINT_COUNT} underscored packages per "

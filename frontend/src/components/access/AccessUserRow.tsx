@@ -142,7 +142,7 @@ export function AccessUserRow({
                         </p>
                         {user.external_id && (
                             <p className="text-xs text-slate-500">
-                                {t('users.directory_status_label', { defaultValue: 'Directory status:' })}{' '}
+                                {t('users.directory_status_label')}{' '}
                                 <span className="text-slate-300">
                                     {presentationModel.directoryStatus || t('common:fallbacks.not_available')}
                                 </span>
@@ -223,11 +223,11 @@ export function AccessUserRow({
                             <button
                                 onClick={() => onBreakGlassEnable(user)}
                                 className="rounded-lg border border-amber-500/30 px-2.5 py-1.5 text-xs text-amber-300 transition hover:bg-amber-500/10"
-                                title={t('users.break_glass_enable', { defaultValue: 'Break-glass enable' })}
+                                title={t('users.break_glass_enable')}
                             >
                                 <span className="inline-flex items-center gap-1.5">
                                     <ShieldAlert className="h-3.5 w-3.5" aria-hidden="true" />
-                                    {t('users.break_glass', { defaultValue: 'Break-glass' })}
+                                    {t('users.break_glass')}
                                 </span>
                             </button>
                         )}
@@ -236,11 +236,11 @@ export function AccessUserRow({
                                 onClick={() => onCheckDirectory(user)}
                                 disabled={checkingDirectoryUserId === user.id}
                                 className="rounded-lg border border-sky-500/30 px-2.5 py-1.5 text-xs text-sky-300 transition hover:bg-sky-500/10 disabled:cursor-not-allowed disabled:opacity-50"
-                                title={t('users.check_directory_status', { defaultValue: 'Check directory status' })}
+                                title={t('users.check_directory_status')}
                             >
                                 {checkingDirectoryUserId === user.id
-                                    ? t('users.checking_directory', { defaultValue: 'Checking...' })
-                                    : t('users.check_directory', { defaultValue: 'Check AD' })}
+                                    ? t('users.checking_directory')
+                                    : t('users.check_directory')}
                             </button>
                         )}
                     </div>

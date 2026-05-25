@@ -164,6 +164,9 @@ def test_renderer_derives_public_url_hosts_and_target_specific_redis_urls_withou
         assert docker_backend["AUTH_SSO_ALLOW_EMAIL_LINK"] == "false"
         assert docker_backend["AUTH_SSO_REQUIRE_CHALLENGE"] == "true"
         assert docker_backend["AD_DEPROVISION_CHECK_INTERVAL_MINUTES"] == "15"
+        assert docker_backend["METRICS_ENABLED"] == "false"
+        assert docker_backend["OTEL_SERVICE_NAME"] == "riskhub-api"
+        assert "OTEL_EXPORTER_OTLP_ENDPOINT" not in docker_backend
         assert "DATABASE_URL" not in docker_backend
         assert "SECRET_KEY" not in docker_backend
         assert "ENTRA_CLIENT_SECRET" not in docker_backend
@@ -176,6 +179,47 @@ def test_renderer_derives_public_url_hosts_and_target_specific_redis_urls_withou
         assert docker_meta["DOCKER_NETWORK_SUBNET"] == DEFAULT_DOCKER_NETWORK_SUBNET
         assert linux_meta["BACKEND_BIND_PORT"] == "8000"
         assert docker_meta["ENTRA_GRAPH_CREDENTIAL_MODE"] == "secret"
+
+
+def test_renderer_passes_through_observability_settings() -> None:
+    with tempfile.TemporaryDirectory(prefix="riskhub-deploy-render-observability-") as td:
+        tmp = Path(td)
+        config_path = tmp / "riskhub.env"
+        secret_dir = tmp / "secrets"
+        runtime_dir = tmp / "runtime"
+        out_dir = tmp / "rendered"
+        _write_config(
+            config_path,
+            METRICS_ENABLED="true",
+            OTEL_EXPORTER_OTLP_ENDPOINT="http://otel-collector:4318/v1/traces",
+            OTEL_SERVICE_NAME="riskhub-prod",
+        )
+        _write_secrets(secret_dir)
+
+        subprocess.run(
+            [
+                "python3",
+                str(RENDERER),
+                "write-runtime",
+                "--config",
+                str(config_path),
+                "--target",
+                "docker",
+                "--secret-dir",
+                str(secret_dir),
+                "--runtime-dir",
+                str(runtime_dir),
+                "--out-dir",
+                str(out_dir),
+            ],
+            cwd=REPO_ROOT,
+            check=True,
+        )
+
+        backend_env = _parse_env(out_dir / "backend.env")
+        assert backend_env["METRICS_ENABLED"] == "true"
+        assert backend_env["OTEL_EXPORTER_OTLP_ENDPOINT"] == "http://otel-collector:4318/v1/traces"
+        assert backend_env["OTEL_SERVICE_NAME"] == "riskhub-prod"
 
 
 def test_renderer_prefers_certificate_mode_and_omits_secret_file_from_runtime_env() -> None:

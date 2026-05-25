@@ -5,7 +5,6 @@ from app.core.approval_helpers import check_control_requires_privileged_approval
 from app.core.permissions import is_high_risk_for_approval_async
 from app.models import Control, ControlRiskLink, Risk
 from app.models.global_config import GlobalConfig, clear_config_cache
-from app.services.report_service import count_high_risks
 
 
 @pytest.fixture(autouse=True)
@@ -118,19 +117,3 @@ async def test_check_control_requires_privileged_approval_respects_threshold(
     clear_config_cache()
 
     assert await check_control_requires_privileged_approval(db_session, control.id) is False
-
-
-def test_count_high_risks_helper_uses_threshold():
-    class DummyRisk:
-        def __init__(self, net_probability: int, net_impact: int):
-            self.net_probability = net_probability
-            self.net_impact = net_impact
-
-    risks = [
-        DummyRisk(2, 2),  # 4
-        DummyRisk(2, 5),  # 10
-        DummyRisk(4, 4),  # 16
-    ]
-
-    assert count_high_risks(risks, high_threshold=10) == 2
-    assert count_high_risks(risks, high_threshold=16) == 1

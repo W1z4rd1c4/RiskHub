@@ -1,9 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect } from 'react';
 
-import type { ExportDialogSubmitPayload } from '@/components/reports/ExportDialog';
 import type { SortDirection, ViewMode } from '@/components/tables';
-import { DEFAULT_LIST_PAGE_SIZE } from '@/constants/list';
-import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { apiClient } from '@/services/apiClient';
 import { reportApi } from '@/services/reportApi';
 import { vendorApi } from '@/services/vendorApi';
@@ -16,59 +14,80 @@ import {
     type VendorArchiveFilter,
 } from './vendorsPagePresentation';
 import {
-    getTotalPages,
-} from '../shared/collectionPageState';
-import {
-    type CollectionWorkflowLoadRequest,
-    useCollectionPageWorkflow,
-} from '../shared/collectionPageWorkflow';
-import { resetCollectionGroupAndPage } from '../shared/collectionViewVocabulary';
+    type RegisterPageExportRequest,
+    type RegisterPageLoadRequest,
+    useRegisterPageController,
+} from '../shared/useRegisterPageController';
+
+type VendorRegisterFilters = {
+    sortDirection: SortDirection;
+    sortField: VendorListParams['sort_by'] | null;
+    statusFilter: VendorArchiveFilter;
+    typeFilter: VendorType | '';
+};
 
 export function useVendorsPageState() {
-    const [search, setSearch] = useState('');
-    const [statusFilter, setStatusFilter] = useState<VendorArchiveFilter>('active');
-    const [typeFilter, setTypeFilter] = useState<VendorType | ''>('');
-    const [currentPage, setCurrentPage] = useState(1);
-    const [sortField, setSortField] = useState<VendorListParams['sort_by'] | null>(null);
-    const [sortDirection, setSortDirection] = useState<SortDirection>(null);
-    const [viewMode, setViewMode] = useState<ViewMode>('all');
-    const limit = DEFAULT_LIST_PAGE_SIZE;
-    const debouncedSearch = useDebouncedValue(search, 300);
-    const includeArchived = statusFilter !== 'active';
-    const groupBy = getVendorGroupBy(viewMode);
-
     const loadVendorPage = useCallback(
-        ({ currentPage, groupBy, groupValue }: CollectionWorkflowLoadRequest) => vendorApi.getVendors(
+        ({
+            currentPage,
+            debouncedSearch,
+            filters,
+            groupBy,
+            groupValue,
+            limit,
+        }: RegisterPageLoadRequest<VendorRegisterFilters, ViewMode>) => vendorApi.getVendors(
             buildVendorListParams({
                 currentPage,
                 debouncedSearch,
-                includeArchived,
+                includeArchived: filters.statusFilter !== 'active',
                 limit,
-                sortDirection,
-                sortField,
-                typeFilter,
+                sortDirection: filters.sortDirection,
+                sortField: filters.sortField,
+                typeFilter: filters.typeFilter,
                 groupBy,
                 groupValue,
             })
         ),
-        [
-            debouncedSearch,
-            includeArchived,
-            limit,
-            sortDirection,
-            sortField,
-            typeFilter,
-        ]
+        []
     );
 
     const toUiErrorKey = useCallback((error: unknown) => apiClient.toUiMessageKey(error), []);
 
-    const collectionWorkflow = useCollectionPageWorkflow<Vendor>({
+    const submitExport = useCallback(
+        async ({
+            format,
+            asOfDate,
+            filters,
+            search,
+        }: RegisterPageExportRequest<VendorRegisterFilters, ViewMode>) => {
+            await reportApi.exportVendors({
+                format,
+                asOfDate,
+                filters: buildVendorExportFilters({
+                    statusFilter: filters.statusFilter,
+                    search,
+                    typeFilter: filters.typeFilter,
+                }),
+            });
+        },
+        []
+    );
+
+    const registerController = useRegisterPageController<Vendor, VendorRegisterFilters, ViewMode>({
         clearOnNonForbidden: true,
-        currentPage,
-        groupBy,
+        fallbackErrorKey: 'errors.load_failed',
+        getGroupBy: getVendorGroupBy,
+        initialFilters: {
+            sortDirection: null,
+            sortField: null,
+            statusFilter: 'active',
+            typeFilter: '',
+        },
+        initialViewMode: 'all',
         loadPage: loadVendorPage,
+        submitExport,
         toErrorKey: toUiErrorKey,
+        toExportErrorKey: toUiErrorKey,
     });
     const {
         closeExportDialog,
@@ -76,28 +95,24 @@ export function useVendorsPageState() {
         isExportDialogOpen,
         isExporting,
         openExportDialog,
-        resetGroupSelection: clearGroupSelection,
-        selectGroup: setSelectedGroup,
+        clearSelectedGroup,
         selectedGroupLabel,
         selectedGroupValue,
         setErrorKey,
-        setIsExporting,
-    } = collectionWorkflow;
+        selectGroup,
+        updateFilter,
+        updateFilters,
+        updateViewMode,
+    } = registerController;
 
     useEffect(() => {
-        void fetchVendors();
-    }, [fetchVendors]);
-
-    useEffect(() => {
-        if (collectionWorkflow.capabilities?.can_view_risk_contexts !== true && viewMode === 'risk') {
-            setViewMode('all');
-            clearGroupSelection();
+        if (
+            !resolveCapabilityFlag(registerController.capabilities, 'can_view_risk_contexts') &&
+            registerController.viewMode === 'risk'
+        ) {
+            updateViewMode('all');
         }
-    }, [collectionWorkflow.capabilities, clearGroupSelection, viewMode]);
-
-    const resetGroupSelection = useCallback(() => {
-        resetCollectionGroupAndPage(clearGroupSelection, setCurrentPage);
-    }, [clearGroupSelection]);
+    }, [registerController.capabilities, registerController.viewMode, updateViewMode]);
 
     const restoreVendor = useCallback(
         async (vendorId: number) => {
@@ -111,94 +126,52 @@ export function useVendorsPageState() {
         [fetchVendors, setErrorKey]
     );
 
-    const handleExport = useCallback(
-        async ({ format, asOfDate }: ExportDialogSubmitPayload) => {
-            setIsExporting(true);
-            try {
-                await reportApi.exportVendors({
-                    format,
-                    asOfDate,
-                    filters: buildVendorExportFilters({
-                        statusFilter,
-                        search,
-                        typeFilter,
-                    }),
-                });
-                closeExportDialog();
-            } catch (error) {
-                setErrorKey(apiClient.toUiMessageKey(error));
-            } finally {
-                setIsExporting(false);
-            }
-        },
-        [closeExportDialog, search, setErrorKey, setIsExporting, statusFilter, typeFilter]
-    );
-
-    const updateSearch = useCallback((value: string) => {
-        setSearch(value);
-        resetGroupSelection();
-    }, [resetGroupSelection]);
-
     const updateStatusFilter = useCallback((value: VendorArchiveFilter) => {
-        setStatusFilter(value);
-        resetGroupSelection();
-    }, [resetGroupSelection]);
+        updateFilter('statusFilter', value);
+    }, [updateFilter]);
 
     const updateTypeFilter = useCallback((value: VendorType | '') => {
-        setTypeFilter(value);
-        resetGroupSelection();
-    }, [resetGroupSelection]);
+        updateFilter('typeFilter', value);
+    }, [updateFilter]);
 
-    const updateSort = useCallback((field: VendorListParams['sort_by'] | null, direction: SortDirection) => {
-        setSortField(field);
-        setSortDirection(direction);
-        resetGroupSelection();
-    }, [resetGroupSelection]);
-
-    const updateViewMode = useCallback((value: ViewMode) => {
-        setViewMode(value);
-        resetGroupSelection();
-    }, [resetGroupSelection]);
-
-    const selectGroup = useCallback((groupValue: string, groupLabel: string) => {
-        setSelectedGroup(groupValue, groupLabel);
-        setCurrentPage(1);
-    }, [setSelectedGroup]);
+    const updateSort = useCallback((sortField: VendorListParams['sort_by'] | null, sortDirection: SortDirection) => {
+        updateFilters({ sortDirection, sortField });
+    }, [updateFilters]);
 
     return {
-        currentPage,
-        capabilities: collectionWorkflow.capabilities,
-        errorKey: collectionWorkflow.errorKey,
+        currentPage: registerController.currentPage,
+        capabilities: registerController.capabilities,
+        errorKey: registerController.errorKey,
         fetchVendors,
-        groups: collectionWorkflow.groups,
-        handleExport,
-        hasLoadedOnce: collectionWorkflow.hasLoadedOnce,
+        groups: registerController.groups,
+        handleExport: registerController.handleExport,
+        hasLoadedOnce: registerController.hasLoadedOnce,
         isExportDialogOpen,
         isExporting,
-        isAccessDenied: collectionWorkflow.isAccessDenied,
-        isLoading: collectionWorkflow.isLoading,
-        items: collectionWorkflow.items,
-        limit,
+        isAccessDenied: registerController.isAccessDenied,
+        isLoading: registerController.isLoading,
+        items: registerController.items,
+        limit: registerController.limit,
         openExportDialog,
         closeExportDialog,
         restoreVendor,
-        search,
+        search: registerController.search,
         selectedGroupLabel,
         selectedGroupValue,
-        setCurrentPage,
-        sortDirection,
-        sortField,
-        statusFilter,
-        totalCount: collectionWorkflow.totalCount,
-        totalPages: getTotalPages(collectionWorkflow.totalCount, limit),
-        typeFilter,
-        updateSearch,
+        setCurrentPage: registerController.setCurrentPage,
+        sortDirection: registerController.filters.sortDirection,
+        sortField: registerController.filters.sortField,
+        statusFilter: registerController.filters.statusFilter,
+        totalCount: registerController.totalCount,
+        totalPages: registerController.totalPages,
+        typeFilter: registerController.filters.typeFilter,
+        updateSearch: registerController.updateSearch,
         updateSort,
         updateStatusFilter,
         updateTypeFilter,
         updateViewMode,
-        viewMode,
+        viewMode: registerController.viewMode,
         selectGroup,
-        clearSelectedGroup: resetGroupSelection,
+        clearSelectedGroup,
     };
 }

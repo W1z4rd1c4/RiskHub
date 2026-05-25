@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
-import { issueDetailQueryKey, issueHistoryQueryKey } from '@/lib/issueQueryKeys';
+import { issueDetailQueryKey, issueHistoryQueryKey } from '@/lib/queryKeys/issues';
 import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { apiClient } from '@/services/apiClient';
 import { issuesApi } from '@/services/issuesApi';
@@ -13,22 +13,56 @@ interface UseRemediationPlanWorkflowOptions {
     issue: Issue;
 }
 
+type WorkflowField =
+    | 'assignOwnerId'
+    | 'assignDueAt'
+    | 'progressPercent'
+    | 'remediationStatus'
+    | 'blockerReason'
+    | 'completionNotes'
+    | 'exceptionReason'
+    | 'exceptionExpiresAt'
+    | 'validationNote';
+
+interface IssueWorkflowDraft {
+    assignOwnerId: string;
+    assignDueAt: string;
+    progressPercent: string;
+    remediationStatus: string;
+    blockerReason: string;
+    completionNotes: string;
+    validationNote: string;
+}
+
 export const REMEDIATION_STATUSES: IssueRemediationStatus[] = ['draft', 'active', 'blocked', 'completed'];
+
+function draftFromIssue(issue: Issue): IssueWorkflowDraft {
+    return {
+        assignOwnerId: issue.owner_user_id ? String(issue.owner_user_id) : '',
+        assignDueAt: toDateTimeLocalInputValue(issue.due_at),
+        progressPercent: issue.remediation_plan ? String(issue.remediation_plan.progress_percent) : '0',
+        remediationStatus: issue.remediation_plan?.status ?? 'active',
+        blockerReason: issue.remediation_plan?.blocker_reason ?? '',
+        completionNotes: issue.remediation_plan?.completion_notes ?? '',
+        validationNote: issue.validation_note ?? '',
+    };
+}
 
 export function useRemediationPlanWorkflow({ issue }: UseRemediationPlanWorkflowOptions) {
     const queryClient = useQueryClient();
     const session = useSessionSnapshot();
-    const [assignOwnerId, setAssignOwnerId] = useState<string>(issue.owner_user_id ? String(issue.owner_user_id) : '');
-    const [assignDueAt, setAssignDueAt] = useState<string>(toDateTimeLocalInputValue(issue.due_at));
-    const [progressPercent, setProgressPercent] = useState<string>(
-        issue.remediation_plan ? String(issue.remediation_plan.progress_percent) : '0',
-    );
-    const [remediationStatus, setRemediationStatus] = useState<string>(issue.remediation_plan?.status ?? 'active');
-    const [blockerReason, setBlockerReason] = useState<string>(issue.remediation_plan?.blocker_reason ?? '');
-    const [completionNotes, setCompletionNotes] = useState<string>(issue.remediation_plan?.completion_notes ?? '');
-    const [exceptionReason, setExceptionReason] = useState<string>('');
-    const [exceptionExpiresAt, setExceptionExpiresAt] = useState<string>('');
-    const [validationNote, setValidationNote] = useState<string>(issue.validation_note ?? '');
+    const initialDraft = draftFromIssue(issue);
+    const dirtyFieldsRef = useRef<Set<WorkflowField>>(new Set());
+    const issueIdRef = useRef(issue.id);
+    const [assignOwnerId, setAssignOwnerIdState] = useState<string>(initialDraft.assignOwnerId);
+    const [assignDueAt, setAssignDueAtState] = useState<string>(initialDraft.assignDueAt);
+    const [progressPercent, setProgressPercentState] = useState<string>(initialDraft.progressPercent);
+    const [remediationStatus, setRemediationStatusState] = useState<string>(initialDraft.remediationStatus);
+    const [blockerReason, setBlockerReasonState] = useState<string>(initialDraft.blockerReason);
+    const [completionNotes, setCompletionNotesState] = useState<string>(initialDraft.completionNotes);
+    const [exceptionReason, setExceptionReasonState] = useState<string>('');
+    const [exceptionExpiresAt, setExceptionExpiresAtState] = useState<string>('');
+    const [validationNote, setValidationNoteState] = useState<string>(initialDraft.validationNote);
     const [ownerOptions, setOwnerOptions] = useState<IssueOwnerLookup[]>([]);
     const [isOwnersLoading, setIsOwnersLoading] = useState<boolean>(false);
     const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
@@ -54,19 +88,70 @@ export function useRemediationPlanWorkflow({ issue }: UseRemediationPlanWorkflow
         return requested[0]?.id;
     }, [issue.exceptions]);
 
+    function setDirtyField(
+        field: WorkflowField,
+        setter: Dispatch<SetStateAction<string>>,
+    ): Dispatch<SetStateAction<string>> {
+        return (value) => {
+            dirtyFieldsRef.current.add(field);
+            setter(value);
+        };
+    }
+
+    const setAssignOwnerId = setDirtyField('assignOwnerId', setAssignOwnerIdState);
+    const setAssignDueAt = setDirtyField('assignDueAt', setAssignDueAtState);
+    const setProgressPercent = setDirtyField('progressPercent', setProgressPercentState);
+    const setRemediationStatus = setDirtyField('remediationStatus', setRemediationStatusState);
+    const setBlockerReason = setDirtyField('blockerReason', setBlockerReasonState);
+    const setCompletionNotes = setDirtyField('completionNotes', setCompletionNotesState);
+    const setExceptionReason = setDirtyField('exceptionReason', setExceptionReasonState);
+    const setExceptionExpiresAt = setDirtyField('exceptionExpiresAt', setExceptionExpiresAtState);
+    const setValidationNote = setDirtyField('validationNote', setValidationNoteState);
+
+    function markFieldsClean(fields: WorkflowField[]): void {
+        for (const field of fields) {
+            dirtyFieldsRef.current.delete(field);
+        }
+    }
+
+    const applyDraftFromIssue = useCallback((updatedIssue: Issue, resetAll: boolean): void => {
+        const draft = draftFromIssue(updatedIssue);
+        if (resetAll) {
+            dirtyFieldsRef.current.clear();
+        }
+        const applyClean = (
+            field: WorkflowField,
+            setter: Dispatch<SetStateAction<string>>,
+            value: string,
+        ) => {
+            if (resetAll || !dirtyFieldsRef.current.has(field)) {
+                setter(value);
+            }
+        };
+
+        applyClean('assignOwnerId', setAssignOwnerIdState, draft.assignOwnerId);
+        applyClean('assignDueAt', setAssignDueAtState, draft.assignDueAt);
+        applyClean('progressPercent', setProgressPercentState, draft.progressPercent);
+        applyClean('remediationStatus', setRemediationStatusState, draft.remediationStatus);
+        applyClean('blockerReason', setBlockerReasonState, draft.blockerReason);
+        applyClean('completionNotes', setCompletionNotesState, draft.completionNotes);
+        applyClean('validationNote', setValidationNoteState, draft.validationNote);
+
+        if (resetAll) {
+            setExceptionReasonState('');
+            setExceptionExpiresAtState('');
+        }
+    }, []);
+
     useEffect(() => {
-        setAssignOwnerId(issue.owner_user_id ? String(issue.owner_user_id) : '');
-        setAssignDueAt(toDateTimeLocalInputValue(issue.due_at));
-        setProgressPercent(issue.remediation_plan ? String(issue.remediation_plan.progress_percent) : '0');
-        setRemediationStatus(issue.remediation_plan?.status ?? 'active');
-        setBlockerReason(issue.remediation_plan?.blocker_reason ?? '');
-        setCompletionNotes(issue.remediation_plan?.completion_notes ?? '');
-        setValidationNote(issue.validation_note ?? '');
-        setExceptionReason('');
-        setExceptionExpiresAt('');
+        const issueChanged = issueIdRef.current !== issue.id;
+        if (issueChanged) {
+            issueIdRef.current = issue.id;
+        }
+        applyDraftFromIssue(issue, issueChanged);
         setErrorKey(null);
         setIsSubmitting(false);
-    }, [issue.id, issue.updated_at, issue.owner_user_id, issue.due_at, issue.remediation_plan, issue.validation_note]);
+    }, [applyDraftFromIssue, issue]);
 
     useEffect(() => {
         if (!canUseOwnerLookup || isClosed) {
@@ -79,7 +164,7 @@ export function useRemediationPlanWorkflow({ issue }: UseRemediationPlanWorkflow
             .listAssignableOwners(issue.department_id)
             .then((owners) => {
                 setOwnerOptions(owners);
-                setAssignOwnerId((previous) => {
+                setAssignOwnerIdState((previous) => {
                     if (!previous) {
                         return previous;
                     }
@@ -94,7 +179,9 @@ export function useRemediationPlanWorkflow({ issue }: UseRemediationPlanWorkflow
             });
     }, [canUseOwnerLookup, isClosed, issue.department_id]);
 
-    async function syncIssue(updatedIssue: Issue): Promise<void> {
+    async function syncIssue(updatedIssue: Issue, acknowledgedFields: WorkflowField[] = []): Promise<void> {
+        markFieldsClean(acknowledgedFields);
+        applyDraftFromIssue(updatedIssue, false);
         queryClient.setQueryData(issueDetailQueryKey(session.user?.id, issue.id), updatedIssue);
         await queryClient.invalidateQueries({
             queryKey: issueHistoryQueryKey(session.user?.id, issue.id),
@@ -144,7 +231,7 @@ export function useRemediationPlanWorkflow({ issue }: UseRemediationPlanWorkflow
                 due_at: dueAt,
                 target_date: dueAt,
             });
-            await syncIssue(updated);
+            await syncIssue(updated, ['assignOwnerId', 'assignDueAt']);
         });
     }
 
@@ -153,7 +240,7 @@ export function useRemediationPlanWorkflow({ issue }: UseRemediationPlanWorkflow
             const updated = await issuesApi.startRemediation(issue.id, {
                 target_date: fromDateTimeLocalInputValue(assignDueAt),
             });
-            await syncIssue(updated);
+            await syncIssue(updated, ['assignDueAt']);
         });
     }
 
@@ -166,7 +253,7 @@ export function useRemediationPlanWorkflow({ issue }: UseRemediationPlanWorkflow
                 blocker_reason: blockerReason || undefined,
                 completion_notes: completionNotes || undefined,
             });
-            await syncIssue(updated);
+            await syncIssue(updated, ['progressPercent', 'remediationStatus', 'blockerReason', 'completionNotes']);
         });
     }
 
@@ -178,7 +265,8 @@ export function useRemediationPlanWorkflow({ issue }: UseRemediationPlanWorkflow
 
         await runMutation(async () => {
             await issuesApi.requestException(issue.id, { reason: exceptionReason.trim() });
-            setExceptionReason('');
+            markFieldsClean(['exceptionReason']);
+            setExceptionReasonState('');
             await refreshIssue();
         });
     }
@@ -199,7 +287,8 @@ export function useRemediationPlanWorkflow({ issue }: UseRemediationPlanWorkflow
                 exception_id: requestedExceptionId,
                 expires_at: expiresAt,
             });
-            setExceptionExpiresAt('');
+            markFieldsClean(['exceptionExpiresAt']);
+            setExceptionExpiresAtState('');
             await refreshIssue();
         });
     }
@@ -214,7 +303,7 @@ export function useRemediationPlanWorkflow({ issue }: UseRemediationPlanWorkflow
                 validation_note: validationNote.trim(),
                 completion_notes: completionNotes || undefined,
             });
-            await syncIssue(updated);
+            await syncIssue(updated, ['validationNote', 'completionNotes']);
         });
     }
 

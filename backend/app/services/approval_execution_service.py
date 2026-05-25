@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -13,13 +12,14 @@ from app.core.audit.approval import approval_cancelled, approval_rejected
 from app.core.datetime_utils import utc_now
 from app.models import ApprovalRequest, ApprovalStatus, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
-from app.services.approval_scenario_policy import (
-    can_view_approval_resource,
-    resolve_approval_privilege_tier,
-)
 from app.services.outbox import OutboxService
 
-from ._approval_execution.authorization import apply_status_transition, assert_can_approve
+from ._approval_execution.authorization import (
+    apply_status_transition,
+    assert_can_approve,
+    assert_can_cancel,
+    assert_can_reject,
+)
 from ._approval_execution.constants import EDITABLE_FIELDS
 from ._approval_execution.loading import get_approval_department_id, load_approval
 from ._approval_execution.logging import log_approval_approve
@@ -71,7 +71,7 @@ async def reject_request_workflow(
 ) -> ApprovalRequest:
     """Reject a pending approval request and return the refreshed model."""
     approval = await load_approval(db, approval_id)
-    await _assert_can_reject(db, approval, current_user)
+    await assert_can_reject(db, approval, current_user)
     previous_status = approval.status
 
     async def apply_rejection() -> None:
@@ -107,13 +107,7 @@ async def cancel_request_workflow(
 ) -> ApprovalRequest:
     """Cancel a pending approval request and return the refreshed model."""
     approval = await load_approval(db, approval_id)
-
-    tier = await resolve_approval_privilege_tier(db, current_user, approval)
-    if not tier.is_requester and not tier.is_privileged:
-        raise HTTPException(status_code=403, detail="Only the requester or approval resolvers can cancel requests")
-
-    if approval.status not in (ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED):
-        raise HTTPException(status_code=400, detail=f"Cannot cancel request with status: {approval.status.value}")
+    tier = await assert_can_cancel(db, approval, current_user)
 
     async def apply_cancellation() -> None:
         approval.status = ApprovalStatus.CANCELLED
@@ -201,31 +195,6 @@ async def _apply_escalation_resolution(
         before_commit=apply_escalation,
         outbox_service=OutboxService,
     )
-
-
-async def _assert_can_reject(db: AsyncSession, approval: ApprovalRequest, current_user: User) -> None:
-    if approval.status not in (ApprovalStatus.PENDING, ApprovalStatus.PENDING_PRIVILEGED):
-        raise HTTPException(status_code=400, detail=f"Cannot reject request with status: {approval.status.value}")
-
-    tier = await resolve_approval_privilege_tier(db, current_user, approval)
-    if tier.scenario_match is None:
-        if not tier.is_privileged:
-            raise HTTPException(status_code=403, detail="Only authorized approval resolvers can reject requests")
-    elif tier.is_requester:
-        raise HTTPException(
-            status_code=403,
-            detail="Requesters must cancel their own approval requests instead of rejecting them",
-        )
-    elif approval.status == ApprovalStatus.PENDING:
-        if not tier.scenario_match:
-            raise HTTPException(
-                status_code=403,
-                detail="This approval scenario does not allow your role to reject this request",
-            )
-        if not tier.is_privileged and not await can_view_approval_resource(db, current_user, approval):
-            raise HTTPException(status_code=403, detail="Access denied")
-    elif not tier.is_privileged or tier.privileged_scenario_match is not True:
-        raise HTTPException(status_code=403, detail="This request requires approval-resolution authority")
 
 
 async def _reload_approval(db: AsyncSession, approval_id: int) -> ApprovalRequest:

@@ -23,7 +23,7 @@ import { apiClient } from '@/services/apiClient';
 import { ControlDetailOverviewTab } from '@/pages/controls/ControlDetailOverviewTab';
 import { ContextualIssueAction } from '@/pages/detail/ContextualIssueAction';
 import { DetailActionBanner } from '@/pages/detail/DetailActionBanner';
-import { useDetailResource } from '@/pages/detail/useDetailResource';
+import { useDetailQuery } from '@/pages/detail/useDetailQuery';
 import { ReadAccessDeniedState } from '@/pages/shared/ReadAccessDeniedState';
 import { useControlDetailWorkflow } from '@/pages/controls/useControlDetailWorkflow';
 import { getControlDisplayStatus, getControlStatusColor } from '@/pages/controls/controlsPagePresentation';
@@ -42,7 +42,8 @@ export function ControlDetailPage() {
         refetch: fetchControl,
         resource: control,
         resourceId: controlId,
-    } = useDetailResource<Control>({
+    } = useDetailQuery<Control>({
+        entity: 'control',
         rawId: id,
         load: loadControl,
         toErrorKey: (error) => apiClient.toUiMessageKey(error),

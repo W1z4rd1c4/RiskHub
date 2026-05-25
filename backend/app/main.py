@@ -21,8 +21,10 @@ from app.core.logging import (
     get_logger,
     reconfigure_log_rotation,
 )
+from app.core.otel import configure_opentelemetry
 from app.core.production_contract import PRODUCTION_INVARIANTS
 from app.core.scheduler import configure_scheduler, start_scheduler_async, stop_scheduler_async
+from app.core.scheduler_jobs import resolve_process_worker_count
 from app.core.schema_guard import enforce_schema_head
 from app.core.settings.database import DEFAULT_DATABASE_URL
 from app.db.session import init_app_db
@@ -275,6 +277,10 @@ def register_middleware(app: FastAPI, settings: Settings) -> None:
         ).instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
 
 
+def configure_observability(settings: Settings) -> None:
+    configure_opentelemetry(settings)
+
+
 def register_routes(app: FastAPI, settings: Settings) -> None:
     app.include_router(api_router, prefix="/api/v1")
 
@@ -317,6 +323,12 @@ async def bootstrap_runtime_services(app: FastAPI) -> None:
         app.state.account_lockout = AccountLockoutService(RedisAccountLockoutBackend(app.state.redis))
         app.state.sso_challenge_store = RedisSsoChallengeStore(app.state.redis)
     else:
+        worker_count = resolve_process_worker_count()
+        if worker_count > 1:
+            raise RuntimeError(
+                "FATAL: in-memory account lockout is unsafe for multi-worker runtime. "
+                "Set REDIS_URL or run a single worker for debug/demo mode."
+            )
         app.state.account_lockout = AccountLockoutService(InMemoryAccountLockoutBackend())
         app.state.sso_challenge_store = InMemorySsoChallengeStore()
 
@@ -383,6 +395,7 @@ def create_app(settings: Settings) -> FastAPI:
     configure_database_and_scheduler(app, settings)
     register_exception_handlers(app)
     register_middleware(app, settings)
+    configure_observability(settings)
     register_routes(app, settings)
     return app
 

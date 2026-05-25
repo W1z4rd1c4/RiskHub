@@ -5,7 +5,7 @@ from typing import Any
 from app.core.config import Settings
 from app.core.email import normalize_email
 from app.schemas.directory import DirectoryUserRead
-from app.services._directory_identity import normalize_business_role
+from app.services._directory_identity import normalize_directory_user_read
 from app.services._graph_directory.auth import GraphAccessTokenProvider, reset_graph_token_cache_for_tests
 from app.services._graph_directory.errors import (
     GraphDirectoryProviderError,
@@ -112,27 +112,15 @@ class GraphDirectoryService:
         if not isinstance(oid, str) or not oid:
             raise GraphDirectoryProviderError("Graph user payload missing id")
 
-        display_name_raw = payload.get("displayName")
-        display_name = display_name_raw.strip() if isinstance(display_name_raw, str) else ""
-        if not display_name:
-            display_name = oid
-
-        mail_raw = payload.get("mail")
-        upn_raw = payload.get("userPrincipalName")
-        department_raw = payload.get("department")
-        job_title_raw = payload.get("jobTitle")
-        business_role_raw = payload.get(self._settings.entra_business_role_graph_field or "")
-        account_enabled = payload.get("accountEnabled")
-
-        return DirectoryUserRead(
+        return normalize_directory_user_read(
             external_id=oid,
-            display_name=display_name,
-            email=mail_raw.strip().lower() if isinstance(mail_raw, str) and mail_raw.strip() else None,
-            user_principal_name=upn_raw.strip().lower() if isinstance(upn_raw, str) and upn_raw.strip() else None,
-            department=department_raw.strip() if isinstance(department_raw, str) and department_raw.strip() else None,
-            job_title=job_title_raw.strip() if isinstance(job_title_raw, str) and job_title_raw.strip() else None,
-            business_role=normalize_business_role(business_role_raw if isinstance(business_role_raw, str) else None),
-            account_enabled=bool(account_enabled) if isinstance(account_enabled, bool) else True,
+            display_name=payload.get("displayName"),
+            email=payload.get("mail"),
+            user_principal_name=payload.get("userPrincipalName"),
+            department=payload.get("department"),
+            job_title=payload.get("jobTitle"),
+            business_role=payload.get(self._settings.entra_business_role_graph_field or ""),
+            account_enabled=payload.get("accountEnabled"),
             source="graph",
         )
 

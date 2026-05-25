@@ -129,9 +129,9 @@ export interface Issue extends IssueSummary {
 }
 
 export interface IssueListCapabilities {
-    can_export: boolean;
-    can_create: boolean;
-    can_view_vendor_contexts: boolean;
+    can_export?: boolean;
+    can_create?: boolean;
+    can_view_vendor_contexts?: boolean;
 }
 
 export type IssueListResponse = CollectionListResponse<IssueSummary, IssueListCapabilities>;

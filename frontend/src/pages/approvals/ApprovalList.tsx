@@ -24,7 +24,6 @@ interface ApprovalListProps {
     approvals: ApprovalRequest[];
     loading: boolean;
     expandedRows: Set<number>;
-    currentUserId?: number | null;
     locale?: string;
     onToggleRow: (approvalId: number) => void;
     onApprove: (approval: ApprovalRequest) => void;
@@ -37,7 +36,6 @@ export function ApprovalList({
     approvals,
     loading,
     expandedRows,
-    currentUserId: _currentUserId,
     locale = 'en',
     onToggleRow,
     onApprove,

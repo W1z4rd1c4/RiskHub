@@ -23,6 +23,7 @@ from app.models.notification import NotificationType
 from app.models.risk import RiskStatus
 from app.models.risk_questionnaire import RiskQuestionnaireStatus
 from app.models.user import AccessScope
+from app.services.kri_deadline_service import KRIDeadlineService
 from app.services.notification_service import NotificationService
 
 
@@ -274,6 +275,47 @@ async def test_issue_notifications_require_issues_read_for_list_count_and_shell_
     assert count_response.json() == {"count": 1}
     assert shell_response.status_code == 200
     assert shell_response.json()["unread_notifications_count"] == 1
+
+
+@pytest.mark.asyncio
+async def test_privileged_user_can_trigger_manual_kri_deadline_check(
+    client_cro: AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    calls = 0
+
+    async def fake_check_kri_deadlines(db):
+        nonlocal calls
+        calls += 1
+        assert db is not None
+        return {"total_kris_checked": 3, "notifications_created": 1}
+
+    monkeypatch.setattr(KRIDeadlineService, "check_kri_deadlines", fake_check_kri_deadlines)
+
+    response = await client_cro.post("/api/v1/notifications/trigger-kri-check")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "status": "completed",
+        "results": {"total_kris_checked": 3, "notifications_created": 1},
+    }
+    assert calls == 1
+
+
+@pytest.mark.asyncio
+async def test_unprivileged_user_cannot_trigger_manual_kri_deadline_check(
+    client_employee: AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    async def fail_if_called(db):
+        raise AssertionError("deadline check should not run for unprivileged users")
+
+    monkeypatch.setattr(KRIDeadlineService, "check_kri_deadlines", fail_if_called)
+
+    response = await client_employee.post("/api/v1/notifications/trigger-kri-check")
+
+    assert response.status_code == 403
+    assert "Only Admin, CRO, or Risk Manager" in response.json()["detail"]
 
 
 @pytest.mark.asyncio

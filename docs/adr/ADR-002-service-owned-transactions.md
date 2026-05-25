@@ -10,9 +10,9 @@ RiskHub currently mixes endpoint commits and service commits. Audit, outbox, app
 
 ## Decision
 
-Service entrypoints own transaction completion. Endpoints act as adapters that call services and serialize responses. Scheduler or worker entrypoints are also service entrypoints and may commit through their service API. During migration, endpoint commit sites are tracked by an allowlist that ratchets to zero.
+Service entrypoints own transaction completion. Endpoints act as adapters that call services and serialize responses. Scheduler or worker entrypoints are also service entrypoints and may commit through their service API. Service-owned commits go through `commit_service_boundary(db, *, boundary)` in `backend/app/services/transaction_boundary.py`, which commits once, rolls back and logs `transaction_boundary` metadata on commit failure, and re-raises the original failure.
 
-Outbox transaction ownership is consolidated in `backend/app/services/outbox/dispatcher.py`: the dispatcher owns the worker transaction scopes and `backend/app/services/outbox/store.py` flushes only. Temporary auth endpoint commits are tracked in `tests/backend/pytest/architecture/_endpoint_commit_allowlist.toml` with rationale and expiration metadata.
+Outbox transaction ownership is consolidated in `backend/app/services/outbox/dispatcher.py`: the dispatcher owns the worker transaction scopes and `backend/app/services/outbox/store.py` flushes only. Endpoint commit sites have ratcheted to zero in `tests/backend/pytest/architecture/_endpoint_commit_allowlist.toml`. Remaining service-side raw commits are explicitly tracked in `tests/backend/pytest/architecture/_service_commit_boundary_allowlist.toml` and must move to `commit_service_boundary` with local behavior coverage before removal from that allowlist.
 
 ## Alternatives Rejected
 
@@ -22,7 +22,7 @@ Outbox transaction ownership is consolidated in `backend/app/services/outbox/dis
 
 ## Migration Impact
 
-Each bounded context migrates independently. Tests must prove rollback behavior before service commit ownership changes. Endpoint commit calls remain only in a temporary allowlist during migration.
+Each bounded context migrates independently. Tests must prove rollback behavior before service commit ownership changes. Endpoint commit calls are no longer allowlisted. Service raw commits are capped by the service commit boundary ratchet and each allowlisted entry carries a rationale for later migration.
 
 ## Rollback Strategy
 
@@ -30,14 +30,15 @@ Rollback by bounded-context checkpoint. Service entrypoints should retain narrow
 
 ## Invariant Tests
 
-- Static ratchet for `await db.commit()` in endpoint adapters, including the auth allowlist expiration check.
+- Static ratchet for `await db.commit()` in endpoint adapters; the endpoint allowlist is empty.
+- Static ratchet for service-side raw commits through `_service_commit_boundary_allowlist.toml`.
 - Static lock that `backend/app/services/outbox/store.py` contains no direct commit calls.
 - Per-context transaction atomicity tests for mutation plus audit/outbox side effects.
 - Failure injection tests assert no orphan rows after rollback.
 
-## Hard Expiration on Auth-Flow Exemption
+## Endpoint Commit Allowlist
 
-Auth-flow exemptions in `tests/backend/pytest/architecture/_endpoint_commit_allowlist.toml` carry `expires_at = 2026-09-01`; the architecture lock at `architecture/test_w5_endpoint_commit_ratchet_red.py::test_auth_commit_allowlist_entries_are_complete_and_unexpired` will fail after that date until each entry is re-justified or the underlying commit is migrated to a service-owned transaction.
+The endpoint commit allowlist is empty. Auth/session commit wrappers now delegate to `commit_service_boundary` through `backend/app/services/_auth_session_workflow/transactions.py`; new endpoint commit exemptions require a superseding ADR and a failing architecture test update.
 
 ## Outbox Dispatcher Consolidation
 

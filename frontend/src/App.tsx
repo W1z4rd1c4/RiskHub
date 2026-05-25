@@ -5,6 +5,7 @@ import { useTranslation } from '@/i18n/hooks';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { DashboardFilterProvider } from '@/contexts/DashboardFilterContext';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { MainLayout } from '@/components/layout';
 import { createAppQueryClient } from '@/lib/queryClient';
 import { protectedAppRoutes, publicRoutes, type AppRouteDef } from '@/routing';
@@ -48,29 +49,40 @@ function renderRoute(route: AppRouteDef) {
   );
 }
 
+function AppRoutes() {
+  const location = useLocation();
+  const resetKey = `${location.pathname}${location.search}${location.hash}`;
+
+  return (
+    <ErrorBoundary resetKey={resetKey}>
+      <Suspense fallback={<RouteLoadingFallback />}>
+        <Routes>
+          {publicRoutes.map(renderRoute)}
+
+          <Route path="/" element={
+            <ProtectedRoute>
+              <DashboardFilterProvider>
+                <MainLayout />
+              </DashboardFilterProvider>
+            </ProtectedRoute>
+          }>
+            {protectedAppRoutes.map(renderRoute)}
+          </Route>
+
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Suspense>
+    </ErrorBoundary>
+  );
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <ThemeProvider>
           <BrowserRouter>
-            <Suspense fallback={<RouteLoadingFallback />}>
-              <Routes>
-                {publicRoutes.map(renderRoute)}
-
-                <Route path="/" element={
-                  <ProtectedRoute>
-                    <DashboardFilterProvider>
-                      <MainLayout />
-                    </DashboardFilterProvider>
-                  </ProtectedRoute>
-                }>
-                  {protectedAppRoutes.map(renderRoute)}
-                </Route>
-
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-            </Suspense>
+            <AppRoutes />
           </BrowserRouter>
         </ThemeProvider>
       </AuthProvider>

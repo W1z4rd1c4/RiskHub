@@ -223,5 +223,9 @@
     "evidence_reference": "Evidence Reference",
     "next_scheduled_optional": "Next Scheduled (Optional)",
     "logging": "Logging..."
+  },
+  "access": {
+    "denied": "Access denied",
+    "denied_activity_log": "You do not have permission to view the Activity Log."
   }
 }

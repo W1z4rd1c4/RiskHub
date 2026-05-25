@@ -13,6 +13,8 @@ function KriFormStateHarness() {
     return (
         <div>
             <div data-testid="metric-name">{state.formData.metric_name}</div>
+            <div data-testid="current-step">{state.currentStep}</div>
+            <div data-testid="error">{state.error ?? 'none'}</div>
             <div data-testid="vendor-mode">{String(state.showOnlyVendorLinkedRisks)}</div>
             <div data-testid="vendor-ids">{state.selectedVendorIds.join(',')}</div>
             <button
@@ -23,9 +25,15 @@ function KriFormStateHarness() {
             </button>
             <button
                 type="button"
-                onClick={() => state.setSelectedVendorIds([12, 21])}
+                onClick={() => state.setStatePatch({ selectedVendorIds: [12, 21] })}
             >
                 update-vendors
+            </button>
+            <button
+                type="button"
+                onClick={() => state.setStatePatch({ currentStep: 1, error: 'needs review' })}
+            >
+                patch-ui-state
             </button>
         </div>
     );
@@ -44,5 +52,17 @@ describe('useKriFormState', () => {
 
         expect(screen.getByTestId('metric-name')).toHaveTextContent('Updated metric');
         expect(screen.getByTestId('vendor-ids')).toHaveTextContent('12,21');
+    });
+
+    it('patches non-form UI state through one typed patch setter', () => {
+        render(<KriFormStateHarness />);
+
+        expect(screen.getByTestId('current-step')).toHaveTextContent('0');
+        expect(screen.getByTestId('error')).toHaveTextContent('none');
+
+        fireEvent.click(screen.getByRole('button', { name: 'patch-ui-state' }));
+
+        expect(screen.getByTestId('current-step')).toHaveTextContent('1');
+        expect(screen.getByTestId('error')).toHaveTextContent('needs review');
     });
 });

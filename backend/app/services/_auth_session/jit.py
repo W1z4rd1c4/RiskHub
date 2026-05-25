@@ -1,19 +1,22 @@
 from __future__ import annotations
 
 from http import HTTPStatus
+from typing import TYPE_CHECKING
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
 from app.core.email import email_equals, normalize_email
-from app.core.policy import SAFE_DIRECTORY_DEFAULT_ROLE_CANDIDATES
 from app.core.user_query_options import user_selectinload_options
-from app.models import Role, User
-from app.services._directory_identity import normalize_business_role
+from app.models import User
+from app.services._directory_identity import normalize_business_role, resolve_safe_default_role
 
 from .contracts import SsoFailure
 from .sso_identity import log_failed_sso
+
+if TYPE_CHECKING:
+    from app.models import Role
 
 
 def _user_permission_load():
@@ -35,14 +38,7 @@ async def _find_user_by_email(db: AsyncSession, email: str) -> User | None:
 
 
 async def _resolve_safe_default_role(db: AsyncSession) -> Role:
-    for name in SAFE_DIRECTORY_DEFAULT_ROLE_CANDIDATES:
-        result = await db.execute(select(Role).where(Role.name == name))
-        role = result.scalar_one_or_none()
-        if role:
-            return role
-
-    candidates = ", ".join(str(name) for name in SAFE_DIRECTORY_DEFAULT_ROLE_CANDIDATES)
-    raise RuntimeError(f"No safe default role found ({candidates}). Seed roles first.")
+    return await resolve_safe_default_role(db)
 
 
 async def sync_sso_user_profile(

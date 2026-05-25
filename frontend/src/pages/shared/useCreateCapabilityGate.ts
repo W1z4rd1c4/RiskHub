@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 
+import { resolveCapabilityFlag } from '@/lib/capabilities';
 import { logError } from '@/services/logger';
 
 type CapabilityState = 'loading' | 'allowed' | 'denied';
@@ -36,7 +37,7 @@ export function useCreateCapabilityGate({
             try {
                 const response = await load();
                 if (!isMounted) return;
-                setState(response.capabilities?.can_create === true ? 'allowed' : 'denied');
+                setState(resolveCapabilityFlag(response.capabilities, 'can_create') ? 'allowed' : 'denied');
             } catch (error) {
                 logError(logMessage, error);
                 if (isMounted) {

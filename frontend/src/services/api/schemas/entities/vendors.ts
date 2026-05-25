@@ -34,9 +34,9 @@ const vendorCapabilitiesSchema = passthroughObject({
     can_create_issue: z.boolean(),
 });
 export const vendorListCapabilitiesSchema = passthroughObject({
-    can_export: z.boolean(),
-    can_create: z.boolean(),
-    can_view_risk_contexts: z.boolean(),
+    can_export: z.boolean().optional(),
+    can_create: z.boolean().optional(),
+    can_view_risk_contexts: z.boolean().optional(),
 });
 
 export const vendorSchema: z.ZodType<Vendor> = passthroughObject({

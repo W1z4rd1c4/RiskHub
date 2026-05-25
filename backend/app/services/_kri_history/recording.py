@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Optional
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.datetime_utils import coerce_utc, utc_now
@@ -24,6 +25,18 @@ from .periods import (
 
 class DuplicateKRIPeriodError(ValueError):
     """Raised when a KRI already has a value recorded for the selected period."""
+
+
+KRI_PERIOD_UNIQUE_CONSTRAINT = "uq_kri_value_history_kri_period_end"
+
+
+def _is_duplicate_kri_period_integrity_error(exc: IntegrityError) -> bool:
+    message = str(getattr(exc, "orig", exc))
+    return (
+        KRI_PERIOD_UNIQUE_CONSTRAINT in message
+        or "kri_value_history.kri_id" in message
+        and "kri_value_history.period_end" in message
+    )
 
 
 async def record_value(
@@ -111,7 +124,6 @@ async def record_value(
     if history_recorded_at > now:
         raise ValueError("recorded_at cannot be in the future")
 
-    # Create history entry
     history_entry = KRIValueHistory(
         kri_id=kri.id,
         period_start=period_start,
@@ -124,16 +136,22 @@ async def record_value(
         unit=kri.unit,
         breach_status=breach_status,
     )
-    db.add(history_entry)
 
-    # Update KRI current value and period tracking
-    should_update_current = kri.last_period_end is None or period_end >= kri.last_period_end
-    if should_update_current:
-        kri.current_value = value
-        kri.last_period_end = period_end
-        kri.last_reported_at = history_recorded_at
+    try:
+        async with db.begin_nested():
+            db.add(history_entry)
 
-    await db.flush()
+            should_update_current = kri.last_period_end is None or period_end >= kri.last_period_end
+            if should_update_current:
+                kri.current_value = value
+                kri.last_period_end = period_end
+                kri.last_reported_at = history_recorded_at
+
+            await db.flush()
+    except IntegrityError as exc:
+        if _is_duplicate_kri_period_integrity_error(exc):
+            raise DuplicateKRIPeriodError(f"KRI value already recorded for period ending {period_end}") from exc
+        raise
     logger.info(f"Recorded KRI {kri.id} value {value} for period {period_start} to {period_end}")
 
     return history_entry

@@ -20,9 +20,6 @@ def test_no_self_aliases_in_workflow_serialization() -> None:
 
 
 def test_endpoint_barrel_imports_public_active_exception() -> None:
-    shared_text = SHARED_SER.read_text()
-    init_text = SHARED_INIT.read_text()
-    assert "_active_exception" not in shared_text, "endpoint barrel must use public name"
-    assert "_active_exception" not in init_text, "endpoint shared package must re-export public name"
-    assert "active_exception" in shared_text
-    assert "active_exception" in init_text
+    assert not SHARED_SER.exists(), "endpoint shared serialization shim must stay deleted"
+    assert not SHARED_INIT.exists(), "endpoint shared package shim must stay deleted"
+    assert "active_exception" in WORKFLOW_SER.read_text()

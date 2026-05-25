@@ -1,8 +1,6 @@
 from .contracts import DeadlineNotificationExecutionPlan
 from .lifecycle import (
     DeadlineNotificationPlan,
-    DeadlineRunOutcome,
-    DeadlineRunPlan,
     VisibilityCheck,
     create_deadline_notification,
     execute_deadline_notification_plan,
@@ -14,8 +12,6 @@ from .lifecycle import (
 __all__ = [
     "DeadlineNotificationExecutionPlan",
     "DeadlineNotificationPlan",
-    "DeadlineRunOutcome",
-    "DeadlineRunPlan",
     "VisibilityCheck",
     "create_deadline_notification",
     "execute_deadline_notification_plan",

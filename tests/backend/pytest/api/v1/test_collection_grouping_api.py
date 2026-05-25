@@ -993,7 +993,7 @@ async def test_issues_grouped_summary_does_not_serialize_all_rows(
     async def fail_issue_capabilities(*args, **kwargs):
         raise AssertionError("issue group summaries should not serialize issue rows")
 
-    monkeypatch.setattr("app.api.v1.endpoints.issues.crud.list.issue_capabilities", fail_issue_capabilities)
+    monkeypatch.setattr("app.api.v1.endpoints.issues.crud.list.preload_issue_capabilities", fail_issue_capabilities)
 
     response = await auth_client.get(
         "/api/v1/issues",
@@ -1028,13 +1028,15 @@ async def test_issues_grouped_drilldown_serializes_only_requested_page(
     await db_session.commit()
 
     serialized_issue_ids: list[int] = []
-    from app.services.authorization_capabilities import issue_capabilities as original_issue_capabilities
+    from app.services.authorization_capabilities import (
+        preload_issue_capabilities as original_preload_issue_capabilities,
+    )
 
-    async def spy_issue_capabilities(_db, *, current_user, issue):
-        serialized_issue_ids.append(issue.id)
-        return await original_issue_capabilities(_db, current_user=current_user, issue=issue)
+    async def spy_issue_capabilities(_db, *, current_user, issues):
+        serialized_issue_ids.extend(issue.id for issue in issues)
+        return await original_preload_issue_capabilities(_db, current_user=current_user, issues=issues)
 
-    monkeypatch.setattr("app.api.v1.endpoints.issues.crud.list.issue_capabilities", spy_issue_capabilities)
+    monkeypatch.setattr("app.api.v1.endpoints.issues.crud.list.preload_issue_capabilities", spy_issue_capabilities)
 
     response = await auth_client.get(
         "/api/v1/issues",

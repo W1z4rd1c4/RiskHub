@@ -4,6 +4,7 @@ import { Download, Plus, RefreshCw, Search } from 'lucide-react';
 import { ExportDialog } from '@/components/reports/ExportDialog';
 import { ViewSwitcher } from '@/components/tables';
 import { useTranslation } from '@/i18n/hooks';
+import { resolveCapabilityFlag } from '@/lib/capabilities';
 import type { VendorType } from '@/types/vendor';
 import { ThemedSelect } from '@/components/ui/ThemedSelect';
 
@@ -64,7 +65,7 @@ export function VendorsPage() {
                     <p className="text-slate-500 font-medium mt-1">{t('subtitle')}</p>
                 </div>
                 <div className="flex items-center gap-3">
-                    {capabilities?.can_export === true && (
+                    {resolveCapabilityFlag(capabilities, 'can_export') && (
                         <button
                             type="button"
                             onClick={openExportDialog}
@@ -76,7 +77,7 @@ export function VendorsPage() {
                             {t('actions.export')}
                         </button>
                     )}
-                    {capabilities?.can_create === true && (
+                    {resolveCapabilityFlag(capabilities, 'can_create') && (
                         <button
                             type="button"
                             onClick={() => navigate('/vendors/new')}
@@ -93,7 +94,7 @@ export function VendorsPage() {
             <ViewSwitcher
                 value={viewMode}
                 onChange={updateViewMode}
-                exclude={capabilities?.can_view_risk_contexts === true ? ['category', 'risk_type', 'vendor'] : ['category', 'risk_type', 'risk', 'vendor']}
+                exclude={resolveCapabilityFlag(capabilities, 'can_view_risk_contexts') ? ['category', 'risk_type', 'vendor'] : ['category', 'risk_type', 'risk', 'vendor']}
             />
 
             <div className="glass-card flex flex-col md:flex-row gap-4">

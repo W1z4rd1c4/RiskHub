@@ -6,7 +6,13 @@ import type { ActivityLogEntry } from '@/types/activityLog';
 
 vi.mock('@/i18n/hooks', () => ({
     useTranslation: () => ({
-        t: (key: string, fallback?: string) => fallback ?? key,
+        t: (key: string, fallback?: string) => {
+            const translations: Record<string, string> = {
+                'activity_log.select_risk': 'Select a risk to view activity.',
+                'activity_log.select_risk_hint': 'Choose a risk in the filter above to load entries.',
+            };
+            return translations[key] ?? fallback ?? key;
+        },
         i18n: { language: 'en' },
     }),
 }));

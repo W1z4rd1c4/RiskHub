@@ -7,16 +7,9 @@ API endpoint package for `reports` domain.
 ## Contents
 
 - `__init__.py`
-- `__pycache__/`
-- `_shared.py`
-- `exports.py`
-- `fetch.py`
-- `filters.py`
-- `rehydrate.py`
-- `render.py`
 - `routes.py`
-- `rows.py`
 
 ## Notes
 
-Keep this README updated when responsibilities or structure in this folder change.
+This package is an HTTP adapter only. Export assembly lives in
+`backend/app/services/_reporting/exports/`.

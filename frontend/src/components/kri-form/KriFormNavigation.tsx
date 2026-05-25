@@ -1,6 +1,7 @@
 import type { NavigateFunction } from 'react-router-dom';
 
 import { KriFormFooter } from './KriFormFooter';
+import type { KriFormStatePatch } from './useKriFormState';
 
 interface KriFormNavigationProps {
     cancelLabel: string;
@@ -9,8 +10,7 @@ interface KriFormNavigationProps {
     isSubmitting: boolean;
     navigate: NavigateFunction;
     onCancel?: () => void;
-    setCurrentStep: (currentStep: number) => void;
-    setError: (error: string | null) => void;
+    setStatePatch: (patch: KriFormStatePatch) => void;
     validateStep1: () => boolean;
 }
 
@@ -21,8 +21,7 @@ export function KriFormNavigation({
     isSubmitting,
     navigate,
     onCancel,
-    setCurrentStep,
-    setError,
+    setStatePatch,
     validateStep1,
 }: KriFormNavigationProps) {
     return (
@@ -32,8 +31,7 @@ export function KriFormNavigation({
             isEdit={isEdit}
             isSubmitting={isSubmitting}
             onBack={() => {
-                setError(null);
-                setCurrentStep(0);
+                setStatePatch({ currentStep: 0, error: null });
             }}
             onCancel={() => {
                 if (onCancel) {
@@ -44,8 +42,7 @@ export function KriFormNavigation({
             }}
             onNext={() => {
                 if (validateStep1()) {
-                    setError(null);
-                    setCurrentStep(1);
+                    setStatePatch({ currentStep: 1, error: null });
                 }
             }}
         />

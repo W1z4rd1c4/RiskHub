@@ -14,6 +14,7 @@ from app.models.control import ControlStatus
 from app.models.risk import ControlRiskLink
 from app.schemas.control import ControlFrequencyEnum, normalize_control_frequency
 from app.schemas.execution import ControlExecutionWriteBase
+from app.services.transaction_boundary import commit_service_boundary
 
 
 def calculate_next_scheduled(frequency: str, executed_at: datetime) -> datetime:
@@ -100,7 +101,7 @@ async def create_execution_record(
         next_scheduled=next_scheduled,
     )
     db.add(execution)
-    await db.commit()
+    await commit_service_boundary(db, boundary="control_execution.create")
     await db.refresh(execution)
     return await load_execution_with_context(db, execution.id)
 

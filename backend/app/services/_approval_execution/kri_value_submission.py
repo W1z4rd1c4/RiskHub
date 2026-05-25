@@ -28,7 +28,6 @@ async def _apply_kri_value_submission(
     changes: dict,
     current_user: User,
     approval_id: int,
-    department_id: int | None,
 ) -> SideEffectResult:
     """Apply value submission (new history entry) to a KRI."""
     from datetime import date as date_type

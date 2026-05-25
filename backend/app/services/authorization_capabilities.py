@@ -9,6 +9,7 @@ from app.services._authorization_capabilities import (
     control_capabilities,
     issue_capabilities,
     kri_capabilities,
+    preload_issue_capabilities,
     risk_capabilities,
     vendor_capabilities,
 )
@@ -22,6 +23,7 @@ __all__ = [
     "control_capabilities",
     "issue_capabilities",
     "kri_capabilities",
+    "preload_issue_capabilities",
     "risk_capabilities",
     "vendor_capabilities",
 ]

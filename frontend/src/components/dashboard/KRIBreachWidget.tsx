@@ -32,7 +32,7 @@ export function KRIBreachWidget() {
             } catch (err) {
                 logError('Failed to fetch breaches:', err);
                 if (!cancelled) {
-                    setError(err instanceof Error ? err : new Error(t('kri.breaches_load_failed', 'Unable to load KRI breaches')));
+                    setError(err instanceof Error ? err : new Error(t('kri.breaches_load_failed')));
                     setBreaches([]);
                 }
             } finally {
@@ -68,7 +68,7 @@ export function KRIBreachWidget() {
             <div className="w-12 h-12 bg-rose-500/10 rounded-full flex items-center justify-center mb-4">
                 <AlertTriangle className="h-6 w-6 text-rose-500" />
             </div>
-            <h4 className="text-white font-bold mb-1">{t('kri.breaches_load_failed', 'Unable to load KRI breaches')}</h4>
+            <h4 className="text-white font-bold mb-1">{t('kri.breaches_load_failed')}</h4>
             <p className="text-xs text-slate-500">{error?.message}</p>
         </div>
     );
