@@ -4,7 +4,7 @@
 # =============================================================================
 # Stage 1: Build dependencies
 # =============================================================================
-FROM python:3.13-alpine AS builder-base
+FROM python:3.13-alpine@sha256:420cd0bf0f3998275875e02ecd5808168cf0843cbb4d3c536432f729247b2acc AS builder-base
 
 WORKDIR /app
 
@@ -31,7 +31,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # =============================================================================
 # Stage 2: Production runtime
 # =============================================================================
-FROM python:3.13-alpine AS runtime
+FROM python:3.13-alpine@sha256:420cd0bf0f3998275875e02ecd5808168cf0843cbb4d3c536432f729247b2acc AS runtime
 
 WORKDIR /app
 
@@ -76,7 +76,7 @@ CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--worker
 # =============================================================================
 # Stage 3: DB tasks runtime
 # =============================================================================
-FROM python:3.13-alpine AS dbtasks
+FROM python:3.13-alpine@sha256:420cd0bf0f3998275875e02ecd5808168cf0843cbb4d3c536432f729247b2acc AS dbtasks
 
 WORKDIR /app
 

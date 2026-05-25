@@ -10,6 +10,7 @@ VALIDATOR_PATH = REPO_ROOT / "scripts" / "security" / "validate_workflow_pins.py
 CI_HEALTH_PATH = REPO_ROOT / "scripts" / "security" / "ci_health.py"
 SECURITY_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "security.yml"
 GRYPE_IGNORE = REPO_ROOT / "backend" / "security" / "grype-ignore.yaml"
+BACKEND_DOCKERFILE = REPO_ROOT / "backend" / "Dockerfile"
 GITLEAKS_CONFIG = REPO_ROOT / ".gitleaks.toml"
 RELEASE_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "release.yml"
 RELEASE_PARITY_PR_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "release-parity-pr.yml"
@@ -245,8 +246,16 @@ def test_grype_python_runtime_suppressions_are_time_bound() -> None:
         assert f"vulnerability: {cve}" in text
     assert text.count("\n    expires-on: 2026-06-30") == 4
     assert text.count("\n      name: python") == 4
-    assert text.count("\n      version: 3.13.12") == 4
+    assert text.count("\n      version: 3.13.13") == 4
     assert "\n    fix-state:" not in text
+
+
+def test_backend_dockerfile_pins_python_alpine_base_digest() -> None:
+    text = BACKEND_DOCKERFILE.read_text(encoding="utf-8")
+    pinned_base = "python:3.13-alpine@sha256:420cd0bf0f3998275875e02ecd5808168cf0843cbb4d3c536432f729247b2acc"
+
+    assert text.count(f"FROM {pinned_base}") == 3
+    assert "FROM python:3.13-alpine AS" not in text
 
 
 def test_security_workflow_audits_runtime_python_requirements() -> None:

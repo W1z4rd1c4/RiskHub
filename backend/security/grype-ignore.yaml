@@ -24,22 +24,22 @@ ignore:
     expires-on: 2026-06-30
     package:
       name: python
-      version: 3.13.12
+      version: 3.13.13
   - vulnerability: CVE-2026-3298
     reason: "No fixed Python 3.13 Docker base image is available yet; re-evaluate when upstream publishes a fixed 3.13 runtime. Owner: Platform."
     expires-on: 2026-06-30
     package:
       name: python
-      version: 3.13.12
+      version: 3.13.13
   - vulnerability: CVE-2026-7210
     reason: "No fixed Python 3.13 Docker base image is available yet; re-evaluate when upstream publishes a fixed 3.13 runtime. Owner: Platform."
     expires-on: 2026-06-30
     package:
       name: python
-      version: 3.13.12
+      version: 3.13.13
   - vulnerability: CVE-2026-4786
     reason: "No fixed Python 3.13 Docker base image is available yet; re-evaluate when upstream publishes a fixed 3.13 runtime. Owner: Platform."
     expires-on: 2026-06-30
     package:
       name: python
-      version: 3.13.12
+      version: 3.13.13
