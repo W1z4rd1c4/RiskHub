@@ -1,4 +1,4 @@
-import { expect, Page, test } from '@playwright/test';
+import { expect, Page, test, type Response } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
 
@@ -33,9 +33,39 @@ async function stabilizeForScreenshot(page: Page) {
     await page.waitForTimeout(750);
 }
 
+function waitForDashboardOverview(page: Page): Promise<Response> {
+    return page.waitForResponse(
+        (response) => response.url().includes('/api/v1/dashboard/overview') && response.request().method() === 'GET',
+        { timeout: 30000 }
+    );
+}
+
+async function assertIssueDashboardDataReady(response: Response) {
+    expect(response.ok(), 'README dashboard captures require a successful dashboard overview response').toBeTruthy();
+
+    const overview = await response.json();
+    const openIssues = Number(overview?.issue_summary?.open_issues ?? 0);
+    const agingTotal = (overview?.issue_aging?.buckets ?? []).reduce(
+        (sum: number, bucket: { count?: number }) => sum + Number(bucket.count ?? 0),
+        0
+    );
+    const severityTotal = (overview?.issue_severity?.items ?? []).reduce(
+        (sum: number, item: { count?: number }) => sum + Number(item.count ?? 0),
+        0
+    );
+
+    expect(openIssues, 'README dashboard captures require seeded open issues').toBeGreaterThan(0);
+    expect(agingTotal, 'README dashboard captures require a non-empty issue aging chart').toBeGreaterThan(0);
+    expect(severityTotal, 'README dashboard captures require a non-empty issue severity chart').toBeGreaterThan(0);
+}
+
 async function capturePage(page: Page, url: string, fileName: string) {
+    const overviewResponse = url === '/' ? waitForDashboardOverview(page) : null;
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
     await stabilizeForScreenshot(page);
+    if (overviewResponse) {
+        await assertIssueDashboardDataReady(await overviewResponse);
+    }
     await page.screenshot({
         path: path.join(OUTPUT_DIR, fileName),
         fullPage: false,
@@ -43,9 +73,11 @@ async function capturePage(page: Page, url: string, fileName: string) {
 }
 
 async function captureDashboardHero(page: Page) {
+    const overviewResponse = waitForDashboardOverview(page);
     await page.goto('/', { waitUntil: 'domcontentloaded', timeout: 30000 });
     await stabilizeForScreenshot(page);
     await expect(page.locator('.recharts-wrapper').first()).toBeVisible({ timeout: 30000 });
+    await assertIssueDashboardDataReady(await overviewResponse);
     await page.locator('main').evaluate((main) => {
         main.scrollTop = 120;
     });

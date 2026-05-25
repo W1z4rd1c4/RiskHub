@@ -17,7 +17,7 @@ from scripts.e2e_mappings import (
     load_mappings,
 )
 
-E2E_DATA_VERSION = "179-16"
+E2E_DATA_VERSION = "179-17"
 
 
 async def verify_prerequisites():

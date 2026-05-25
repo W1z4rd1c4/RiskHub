@@ -15,13 +15,14 @@ from sqlalchemy import func, select
 
 from app.core.config import get_settings
 from app.db.session import session_context
-from app.models import ApprovalRequest, Control, KeyRiskIndicator, Risk, Vendor
+from app.models import ApprovalRequest, Control, Issue, KeyRiskIndicator, Risk, Vendor
 from scripts.seed_e2e_activity_logs import seed_activity_logs
 from scripts.seed_e2e_approvals import seed_approvals
 from scripts.seed_e2e_archives import seed_archives
 from scripts.seed_e2e_controls import seed_controls
 from scripts.seed_e2e_cross_dept import seed_cross_dept_scenarios
 from scripts.seed_e2e_foundation import seed_foundation
+from scripts.seed_e2e_issues import seed_issues
 from scripts.seed_e2e_kris import seed_kris
 from scripts.seed_e2e_permission_actions import seed_permission_actions
 from scripts.seed_e2e_resolved_approvals import seed_resolved_approvals
@@ -109,6 +110,17 @@ async def _collect_summary_counts():
         approvals_total = (
             await db.execute(select(func.count(ApprovalRequest.id)).where(ApprovalRequest.reason.like("E2E-%")))
         ).scalar_one()
+        issues_total = (
+            await db.execute(select(func.count(Issue.id)).where(Issue.title.like("E2E-ISSUE-%")))
+        ).scalar_one()
+        issues_non_closed = (
+            await db.execute(
+                select(func.count(Issue.id)).where(
+                    Issue.title.like("E2E-ISSUE-%"),
+                    Issue.status != "closed",
+                )
+            )
+        ).scalar_one()
 
         return {
             "risks_active": risks_active,
@@ -121,6 +133,8 @@ async def _collect_summary_counts():
             "vendors_archived": vendors_archived,
             "vendors_inactive": vendors_archived,
             "approvals_total": approvals_total,
+            "issues_total": issues_total,
+            "issues_non_closed": issues_non_closed,
         }
 
 
@@ -148,7 +162,8 @@ async def seed_e2e_all():
         await _run_step(9, "Seeding Permission-Gated Actions", seed_permission_actions)
         await _run_step(10, "Seeding Cross-Department Scenarios", seed_cross_dept_scenarios)
         await _run_step(11, "Seeding Vendors", seed_vendors)
-        await _run_step(12, "Seeding Archive Matrix", seed_archives)
+        await _run_step(12, "Seeding Issues", seed_issues)
+        await _run_step(13, "Seeding Archive Matrix", seed_archives)
     except Exception as exc:
         print(f"\n❌ E2E seeding failed: {exc}")
         return 1
@@ -164,6 +179,7 @@ async def seed_e2e_all():
     print(f"   • KRIs active/archived: {summary['kris_active']}/{summary['kris_archived']}")
     print(f"   • Vendors active/archived: {summary['vendors_active']}/{summary['vendors_archived']}")
     print(f"   • Approval requests with E2E marker: {summary['approvals_total']}")
+    print(f"   • Issues total/non-closed: {summary['issues_total']}/{summary['issues_non_closed']}")
     print("\n💡 All entities prefixed with 'E2E-' for isolation")
     return 0
 
