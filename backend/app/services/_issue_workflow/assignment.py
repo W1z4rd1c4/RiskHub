@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime
 
 from fastapi import HTTPException, status
@@ -14,6 +15,44 @@ from app.models import Issue, User
 from app.models.issue import IssueStatus
 
 from .transitions import _ensure_issue_not_closed, _get_or_init_remediation
+
+
+@dataclass(frozen=True)
+class _IssueAssignmentState:
+    owner_user_id: int | None
+    remediation_owner_user_id: int | None
+    due_at: datetime | None
+    target_date: datetime | None
+    status: str
+
+
+@dataclass(frozen=True)
+class IssueAssignmentResult:
+    issue: Issue
+    assignment_event_id: str | None
+
+
+def _assignment_status_after(issue: Issue) -> str:
+    if issue.status == IssueStatus.open.value:
+        return IssueStatus.triaged.value
+    return issue.status
+
+
+def _assignment_state(
+    *,
+    owner_user_id: int | None,
+    remediation_owner_user_id: int | None,
+    due_at: datetime | None,
+    target_date: datetime | None,
+    status: str,
+) -> _IssueAssignmentState:
+    return _IssueAssignmentState(
+        owner_user_id=owner_user_id,
+        remediation_owner_user_id=remediation_owner_user_id,
+        due_at=coerce_utc(due_at),
+        target_date=coerce_utc(target_date),
+        status=status,
+    )
 
 
 async def validate_user_exists(db: AsyncSession, user_id: int | None) -> None:
@@ -53,19 +92,37 @@ async def assign_issue(
     due_at: datetime,
     target_date: datetime | None,
     actor: User,
-) -> Issue:
+) -> IssueAssignmentResult:
     _ensure_issue_not_closed(issue, "assign")
 
     due_at = coerce_utc(due_at) or due_at
     target_date = coerce_utc(target_date) or due_at
     remediation = _get_or_init_remediation(issue)
+    next_status = _assignment_status_after(issue)
+
+    before_state = _assignment_state(
+        owner_user_id=issue.owner_user_id,
+        remediation_owner_user_id=remediation.owner_user_id,
+        due_at=issue.due_at,
+        target_date=remediation.target_date,
+        status=issue.status,
+    )
+    after_state = _assignment_state(
+        owner_user_id=owner_user_id,
+        remediation_owner_user_id=owner_user_id,
+        due_at=due_at,
+        target_date=target_date,
+        status=next_status,
+    )
+    if before_state == after_state:
+        return IssueAssignmentResult(issue=issue, assignment_event_id=None)
 
     issue_updates: dict[str, object] = {
         "owner_user_id": owner_user_id,
         "due_at": due_at,
     }
-    if issue.status == IssueStatus.open.value:
-        issue_updates["status"] = IssueStatus.triaged.value
+    if issue.status != next_status:
+        issue_updates["status"] = next_status
 
     issue_changes = build_change_set(issue, issue_updates)
     for key, value in issue_updates.items():
@@ -82,7 +139,8 @@ async def assign_issue(
     db.add(issue)
     db.add(remediation)
 
-    await issue_assigned(db, actor=actor, issue=issue, changes=issue_changes)
+    assignment_activity = await issue_assigned(db, actor=actor, issue=issue, changes=issue_changes)
+    await db.flush()
     await issue_remediation_updated(
         db,
         actor=actor,
@@ -90,4 +148,4 @@ async def assign_issue(
         plan=remediation,
         changes=remediation_changes,
     )
-    return issue
+    return IssueAssignmentResult(issue=issue, assignment_event_id=f"activity:{assignment_activity.id}")

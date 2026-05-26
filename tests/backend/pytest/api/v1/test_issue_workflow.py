@@ -344,6 +344,137 @@ async def test_issue_assignment_outbox_distinguishes_round_trip_reassignment(
     )
     assert [event.payload["owner_user_id"] for event in outbox_events] == [owner_a_id, owner_b_id, owner_a_id]
     assert len({event.idempotency_key for event in outbox_events}) == 3
+    assert all(event.idempotency_key.startswith(f"issue:{issue_id}:assigned:activity:") for event in outbox_events)
+
+
+@pytest.mark.asyncio
+async def test_duplicate_issue_assignment_retry_reuses_outbox_event_and_notification(
+    db_session: AsyncSession,
+    async_engine: AsyncEngine,
+    client_cro: AsyncClient,
+    test_department: Department,
+    test_role_employee: Role,
+    test_user_employee: User,
+) -> None:
+    department_id = test_department.id
+    owner_user_id = test_user_employee.id
+    employee_role_id = test_role_employee.id
+    await _grant(db_session, employee_role_id, "issues", "read")
+    due_at = (datetime.now(UTC) + timedelta(days=5)).replace(microsecond=0).isoformat()
+    request_body = {"owner_user_id": owner_user_id, "due_at": due_at}
+
+    create_resp = await client_cro.post(
+        "/api/v1/issues",
+        json={
+            "title": "Duplicate assignment retry issue",
+            "severity": "medium",
+            "source_type": "manual",
+            "department_id": department_id,
+        },
+    )
+    assert create_resp.status_code == 201
+    issue_id = create_resp.json()["id"]
+
+    first_assign = await client_cro.post(f"/api/v1/issues/{issue_id}/assign", json=request_body)
+    second_assign = await client_cro.post(f"/api/v1/issues/{issue_id}/assign", json=request_body)
+    assert first_assign.status_code == 200
+    assert second_assign.status_code == 200
+
+    outbox_events = (
+        (
+            await db_session.execute(
+                select(OutboxEvent)
+                .where(OutboxEvent.event_type == "issue.assigned", OutboxEvent.aggregate_id == issue_id)
+                .order_by(OutboxEvent.created_at.asc())
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len(outbox_events) == 1
+    assert outbox_events[0].idempotency_key.startswith(f"issue:{issue_id}:assigned:activity:")
+
+    dispatched = await _dispatch_outbox(async_engine)
+    assert dispatched == 1
+
+    notifications = (
+        (
+            await db_session.execute(
+                select(Notification).where(
+                    Notification.user_id == owner_user_id,
+                    Notification.resource_type == "issue",
+                    Notification.resource_id == issue_id,
+                    Notification.type == NotificationType.ISSUE_ASSIGNED,
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len(notifications) == 1
+
+
+@pytest.mark.asyncio
+async def test_issue_assignment_repairs_stale_remediation_owner(
+    db_session: AsyncSession,
+    client_cro: AsyncClient,
+    test_department: Department,
+    test_user_employee: User,
+    test_user_cro: User,
+) -> None:
+    owner_user_id = test_user_employee.id
+    stale_remediation_owner_id = test_user_cro.id
+    due_at = (datetime.now(UTC) + timedelta(days=5)).replace(microsecond=0)
+    issue = Issue(
+        title="Stale remediation owner repair",
+        severity="medium",
+        status="triaged",
+        source_type="manual",
+        department_id=test_department.id,
+        owner_user_id=owner_user_id,
+        created_by_id=test_user_cro.id,
+        due_at=due_at,
+    )
+    db_session.add(issue)
+    await db_session.flush()
+    db_session.add(
+        IssueRemediationPlan(
+            issue_id=issue.id,
+            status="draft",
+            progress_percent=0,
+            owner_user_id=stale_remediation_owner_id,
+            target_date=due_at,
+        )
+    )
+    await db_session.commit()
+    issue_id = issue.id
+
+    response = await client_cro.post(
+        f"/api/v1/issues/{issue_id}/assign",
+        json={"owner_user_id": owner_user_id, "due_at": due_at.isoformat()},
+    )
+    assert response.status_code == 200
+
+    db_session.expire_all()
+    remediation = (
+        await db_session.execute(select(IssueRemediationPlan).where(IssueRemediationPlan.issue_id == issue_id))
+    ).scalar_one()
+    assert remediation.owner_user_id == owner_user_id
+
+    outbox_events = (
+        (
+            await db_session.execute(
+                select(OutboxEvent).where(
+                    OutboxEvent.event_type == "issue.assigned",
+                    OutboxEvent.aggregate_id == issue_id,
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len(outbox_events) == 1
+    assert outbox_events[0].idempotency_key.startswith(f"issue:{issue_id}:assigned:activity:")
 
 
 @pytest.mark.asyncio

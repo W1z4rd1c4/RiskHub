@@ -28,7 +28,7 @@ def issue_assigned_outbox_plan(
         event_type="issue.assigned",
         aggregate_type="issue",
         aggregate_id=issue.id,
-        idempotency_key=f"issue:{issue.id}:assigned:{owner_user_id}:{actor_id}:{assignment_event_id}",
+        idempotency_key=f"issue:{issue.id}:assigned:{assignment_event_id}",
         payload={
             "issue_id": issue.id,
             "owner_user_id": owner_user_id,

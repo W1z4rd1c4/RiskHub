@@ -9,7 +9,7 @@ from app.core.audit._emit import emit_adapter
 from app.core.audit.changes import resolve_audit_changes
 from app.core.audit.labels import safe_entity_label
 from app.core.audit.types import AuditLogActivity
-from app.models import Issue, IssueException, IssueLink, IssueRemediationPlan, User
+from app.models import ActivityLog, Issue, IssueException, IssueLink, IssueRemediationPlan, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 
 
@@ -47,9 +47,9 @@ async def issue_updated(
     after_data: Mapping[str, object] | None = None,
     description: str | None = None,
     log_activity_func: AuditLogActivity = log_activity,
-) -> None:
+) -> ActivityLog:
     changes = resolve_audit_changes(changes=changes, before_data=before_data, after_data=after_data)
-    await emit_adapter(
+    return await emit_adapter(
         db,
         entity_type=ActivityEntityType.ISSUE,
         entity_id=issue.id,
@@ -100,8 +100,8 @@ async def issue_assigned(
     before_data: Mapping[str, object] | None = None,
     after_data: Mapping[str, object] | None = None,
     log_activity_func: AuditLogActivity = log_activity,
-) -> None:
-    await issue_updated(
+) -> ActivityLog:
+    return await issue_updated(
         db,
         actor=actor,
         issue=issue,
