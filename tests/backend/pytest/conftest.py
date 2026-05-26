@@ -85,6 +85,7 @@ def alembic_live_db(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Generato
     from alembic.config import Config
     from alembic.runtime.migration import MigrationContext
     from alembic.script import ScriptDirectory
+
     from app.core.settings import get_settings
 
     db_path = tmp_path / "riskhub-alembic-live.db"

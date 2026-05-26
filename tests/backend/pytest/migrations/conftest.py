@@ -11,11 +11,11 @@ from typing import AsyncGenerator
 
 import pytest
 import pytest_asyncio
+from alembic.migration import MigrationContext
+from alembic.operations import Operations
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 
-from alembic.migration import MigrationContext
-from alembic.operations import Operations
 from app.core.exceptions import MigrationAlreadyAppliedError
 
 POSTGRES_URL = os.environ.get("TEST_DATABASE_URL")

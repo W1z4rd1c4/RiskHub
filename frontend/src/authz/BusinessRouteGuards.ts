@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { createElement, Fragment, type ReactNode } from 'react';
 import { Navigate } from 'react-router-dom';
 
 import type { Authz } from '@/authz/policy';
@@ -12,15 +12,14 @@ type BoolKeys = {
     [K in keyof Authz]: Authz[K] extends boolean ? K : never;
 }[keyof Authz];
 
-// eslint-disable-next-line react-refresh/only-export-components -- route guard factory is locked by architecture tests
 export function createBusinessRouteGuard<K extends BoolKeys>(key: K) {
     return ({ children }: GuardProps) => {
         const authz = useAuthz();
         if (!authz[key]) {
-            return <Navigate to="/" replace />;
+            return createElement(Navigate, { to: '/', replace: true });
         }
 
-        return <>{children}</>;
+        return createElement(Fragment, null, children);
     };
 }
 
