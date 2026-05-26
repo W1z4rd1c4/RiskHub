@@ -10,6 +10,7 @@ from install_lib.common import (
     curl_ok,
     port_listening,
     run_command,
+    secret_placeholder,
 )
 from install_lib.diagnostics import build_doctor_diagnostic_plan
 from install_lib.production import summary_demo, summary_dev, summary_production_lifecycle, verify_demo, verify_dev
@@ -22,15 +23,45 @@ from install_lib.runtime_state import (
 )
 
 LOCAL_ARTIFACT_WARNING_BYTES = 100 * 1024 * 1024
+REQUIRED_PRODUCTION_SECRET_NAMES = ("database_url", "secret_key", "redis_password")
+
+
+def _legacy_secret_placeholder(name: str) -> str | None:
+    legacy_secret_key = "-".join(("replace", "with", "32", "char", "secret", "key"))
+    legacy_redis_password = "-".join(("replace", "with", "redis", "password"))
+    placeholders = {
+        "database_url": "postgresql+asyncpg://riskhub:replace-me@db.example.com:5432/riskhub",
+        "secret_key": legacy_secret_key,
+        "redis_password": legacy_redis_password,
+    }
+    return placeholders.get(name)
 
 
 def _write_secret_placeholder(secret_path: Path) -> None:
-    placeholders = {
-        "database_url": "postgresql+asyncpg://riskhub:replace-me@db.example.com:5432/riskhub\n",
-        "secret_key": "replace-with-32-char-secret-key\n",
-        "redis_password": "replace-with-redis-password\n",
-    }
-    secret_path.write_text(placeholders.get(secret_path.name, "replace-me\n"), encoding="utf-8")
+    secret_path.write_text(f"{secret_placeholder(secret_path.name)}\n", encoding="utf-8")
+
+
+def _trimmed_secret_value(secret_path: Path) -> str:
+    try:
+        return secret_path.read_text(encoding="utf-8").strip()
+    except OSError:
+        return ""
+
+
+def _secret_value_is_legacy_placeholder(secret_path: Path) -> bool:
+    legacy_placeholder = _legacy_secret_placeholder(secret_path.name)
+    return legacy_placeholder is not None and _trimmed_secret_value(secret_path) == legacy_placeholder
+
+
+def _secret_value_is_unresolved_placeholder(secret_path: Path) -> bool:
+    value = _trimmed_secret_value(secret_path)
+    if not value:
+        return False
+    try:
+        canonical_placeholder = secret_placeholder(secret_path.name)
+    except KeyError:
+        return False
+    return value == canonical_placeholder or value == _legacy_secret_placeholder(secret_path.name)
 
 
 def _bounded_tree_size(path: Path, *, limit_bytes: int) -> int:
@@ -216,10 +247,12 @@ def run_doctor(
             findings.append("secret_dir_missing")
         if not runtime_dir.exists():
             findings.append("runtime_dir_missing")
-        for secret_name in ("database_url", "secret_key", "redis_password"):
+        for secret_name in REQUIRED_PRODUCTION_SECRET_NAMES:
             secret_path = secret_dir / secret_name
             if not secret_path.exists() or not secret_path.read_text(encoding="utf-8").strip():
                 findings.append(f"{secret_name}_missing")
+            elif _secret_value_is_legacy_placeholder(secret_path):
+                findings.append(f"{secret_name}_legacy_placeholder")
 
         if resolved_target == "docker":
             for container_name, finding_name in (
@@ -271,7 +304,7 @@ def run_doctor(
                 run_command(["mkdir", "-p", str(secret_dir)], options=options)
                 run_command(["mkdir", "-p", str(runtime_dir)], options=options)
 
-            for secret_name in ("database_url", "secret_key", "redis_password"):
+            for secret_name in REQUIRED_PRODUCTION_SECRET_NAMES:
                 secret_path = secret_dir / secret_name
                 if not secret_path.exists():
                     actions.append(f"create missing secret scaffold: {secret_name}")
@@ -281,45 +314,55 @@ def run_doctor(
                         secret_dir.mkdir(parents=True, exist_ok=True)
                         _write_secret_placeholder(secret_path)
 
-            if resolved_target == "docker":
-                actions.append("restart docker managed resources")
-                for container_name in (
-                    "riskhub-redis",
-                    "riskhub-backend",
-                    "riskhub-backend-scheduler",
-                    "riskhub-frontend",
-                ):
-                    if docker_container_state(container_name) != "missing":
-                        run_command(["docker", "restart", container_name], options=options)
+            unresolved_secret_placeholders = [
+                secret_name
+                for secret_name in REQUIRED_PRODUCTION_SECRET_NAMES
+                if _secret_value_is_unresolved_placeholder(secret_dir / secret_name)
+            ]
+            if unresolved_secret_placeholders:
+                if "secret_placeholders_require_user_edits" not in findings:
+                    findings.append("secret_placeholders_require_user_edits")
+                actions.append("edit generated secret scaffold files before rerunning doctor")
+            else:
+                if resolved_target == "docker":
+                    actions.append("restart docker managed resources")
+                    for container_name in (
+                        "riskhub-redis",
+                        "riskhub-backend",
+                        "riskhub-backend-scheduler",
+                        "riskhub-frontend",
+                    ):
+                        if docker_container_state(container_name) != "missing":
+                            run_command(["docker", "restart", container_name], options=options)
 
-            actions.append(f"{paths.deploy_script} status --target {resolved_target}")
-            actions.append(
-                f"{paths.deploy_script} smoke --target {resolved_target} "
-                f"--config {config_path} --secret-dir {secret_dir}"
-            )
-            run_command([paths.deploy_script, "status", "--target", resolved_target], options=options)
-            run_command(
-                [
-                    paths.deploy_script,
-                    "smoke",
-                    "--target",
-                    resolved_target,
-                    "--config",
-                    str(config_path),
-                    "--secret-dir",
-                    str(secret_dir),
-                ],
-                options=options,
-            )
-            if not options.dry_run:
-                rebuild_install_state_from_live(
-                    paths,
-                    target=resolved_target,
-                    config_path=config_path,
-                    secret_dir=secret_dir,
-                    runtime_dir=runtime_dir,
+                actions.append(f"{paths.deploy_script} status --target {resolved_target}")
+                actions.append(
+                    f"{paths.deploy_script} smoke --target {resolved_target} "
+                    f"--config {config_path} --secret-dir {secret_dir}"
                 )
-                repair_applied = True
+                run_command([paths.deploy_script, "status", "--target", resolved_target], options=options)
+                run_command(
+                    [
+                        paths.deploy_script,
+                        "smoke",
+                        "--target",
+                        resolved_target,
+                        "--config",
+                        str(config_path),
+                        "--secret-dir",
+                        str(secret_dir),
+                    ],
+                    options=options,
+                )
+                if not options.dry_run:
+                    rebuild_install_state_from_live(
+                        paths,
+                        target=resolved_target,
+                        config_path=config_path,
+                        secret_dir=secret_dir,
+                        runtime_dir=runtime_dir,
+                    )
+                    repair_applied = True
 
         payload = {
             **diagnostic_plan.payload_defaults,

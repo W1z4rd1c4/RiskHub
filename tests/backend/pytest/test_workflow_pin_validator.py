@@ -10,8 +10,11 @@ VALIDATOR_PATH = REPO_ROOT / "scripts" / "security" / "validate_workflow_pins.py
 CI_HEALTH_PATH = REPO_ROOT / "scripts" / "security" / "ci_health.py"
 SECURITY_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "security.yml"
 GRYPE_IGNORE = REPO_ROOT / "backend" / "security" / "grype-ignore.yaml"
+RUNTIME_REQUIREMENTS = REPO_ROOT / "backend" / "requirements-runtime.txt"
+PIP_AUDIT_ALLOWLIST = REPO_ROOT / "backend" / "security" / "pip-audit-allowlist.txt"
 BACKEND_DOCKERFILE = REPO_ROOT / "backend" / "Dockerfile"
 GITLEAKS_CONFIG = REPO_ROOT / ".gitleaks.toml"
+GITLEAKS_IGNORE = REPO_ROOT / ".gitleaksignore"
 RELEASE_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "release.yml"
 RELEASE_PARITY_PR_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "release-parity-pr.yml"
 MAINTENANCE_GOVERNANCE_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "maintenance-governance.yml"
@@ -23,6 +26,11 @@ LOCAL_PROD_AUDIT = REPO_ROOT / "scripts" / "security" / "run_prod_readiness_audi
 PROD_READINESS_PHASES = REPO_ROOT / "scripts" / "security" / "prod_readiness_audit" / "phases.py"
 PUBLIC_LEAK_AUDIT = REPO_ROOT / "scripts" / "security" / "run_public_repo_leak_audit.sh"
 MAKEFILE = REPO_ROOT / "scripts" / "Makefile"
+
+DOCTOR_PLACEHOLDER_GITLEAKS_FINGERPRINTS = [
+    "c01491201c5136cfe68cad8b0a1e1f3fc14b0816:scripts/install_lib/doctor.py:generic-api-key:20",
+    "697ece9e12e4ba0b3a0844a35f1fce5a5fdc8dbf:scripts/install_lib/doctor.py:generic-api-key:20",
+]
 
 
 def _grype_ignore_entry(text: str, vulnerability: str) -> str:
@@ -379,6 +387,24 @@ def test_security_workflow_audits_runtime_python_requirements() -> None:
     assert "pip-audit -r requirements-runtime.txt" not in text
 
 
+def test_backend_runtime_fastapi_pin_avoids_mal_2026_4750() -> None:
+    runtime_lines = [
+        raw_line.split("#", 1)[0].strip()
+        for raw_line in RUNTIME_REQUIREMENTS.read_text(encoding="utf-8").splitlines()
+    ]
+    active_runtime_lines = [line for line in runtime_lines if line]
+    allowlist_text = PIP_AUDIT_ALLOWLIST.read_text(encoding="utf-8")
+
+    assert "fastapi==0.135.4" in active_runtime_lines
+    assert "fastapi==0.136.3" not in active_runtime_lines
+    assert "MAL-2026-4750" not in allowlist_text
+
+    for manifest_path in sorted((REPO_ROOT / "backend").glob("requirements*.txt")):
+        manifest_text = manifest_path.read_text(encoding="utf-8").lower()
+        assert "fastapi[standard]" not in manifest_text
+        assert "fastar" not in manifest_text
+
+
 def test_ci_health_python_audit_manifest_interface_covers_runtime_requirements() -> None:
     module = _load_ci_health_module()
 
@@ -400,6 +426,31 @@ def test_security_workflow_gitleaks_parse_gate_invokes_shell_once() -> None:
     assert "--entrypoint /bin/sh" in text
     assert "\\\n            -lc 'mkdir -p /tmp/gitleaks-empty" in text
     assert "\\\n            sh -lc 'mkdir -p /tmp/gitleaks-empty" not in text
+
+
+def test_gitleaks_legacy_doctor_placeholder_ignores_are_exact_fingerprints() -> None:
+    ignored_fingerprints = [
+        raw_line.strip()
+        for raw_line in GITLEAKS_IGNORE.read_text(encoding="utf-8").splitlines()
+        if raw_line.strip() and not raw_line.lstrip().startswith("#")
+    ]
+    config = tomllib.loads(GITLEAKS_CONFIG.read_text(encoding="utf-8"))
+    allowed_paths = "\n".join(config["allowlist"]["paths"])
+
+    assert ignored_fingerprints == DOCTOR_PLACEHOLDER_GITLEAKS_FINGERPRINTS
+    assert "scripts/install_lib/doctor.py" not in allowed_paths
+    assert "doctor.py:generic-api-key" not in GITLEAKS_CONFIG.read_text(encoding="utf-8")
+
+
+def test_security_workflow_keeps_scheduled_full_history_gitleaks_scan() -> None:
+    text = SECURITY_WORKFLOW.read_text(encoding="utf-8")
+    secrets_job = text[text.index("secrets-detection:") :]
+
+    assert "schedule:" in text
+    assert "fetch-depth: 0" in secrets_job
+    assert "uses: gitleaks/gitleaks-action@" in secrets_job
+    assert "GITLEAKS_CONFIG: .gitleaks.toml" in secrets_job
+    assert "--log-opts=-1" not in secrets_job
 
 
 def test_gitleaks_allowlist_excludes_local_generated_public_audit_noise() -> None:

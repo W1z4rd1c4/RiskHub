@@ -28,6 +28,10 @@ from app.models import (
     VendorKRILink,
 )
 from app.models.risk import RiskStatus
+from app.services._approval_queue.delete_context import (
+    capture_delete_approval_context,
+    serialize_delete_approval_context,
+)
 from app.services.approval_execution_service import approve_request_workflow
 
 
@@ -36,6 +40,16 @@ async def _approve_pending_edit(db_session, approval: ApprovalRequest, approver:
     await db_session.commit()
     await db_session.refresh(approval)
     return await approve_request_workflow(db_session, approval.id, approver, "Approved in test")
+
+
+async def _delete_context_snapshot(db_session, resource_type: ApprovalResourceType, resource_id: int) -> dict:
+    context = await capture_delete_approval_context(
+        db_session,
+        resource_type=resource_type,
+        resource_id=resource_id,
+    )
+    assert context is not None
+    return serialize_delete_approval_context(context)
 
 
 @pytest.mark.asyncio
@@ -703,6 +717,11 @@ async def test_approval_delete_control_archives_and_sets_updated_by_id(
         requested_by_id=test_user_risk_manager.id,
         reason="Testing control archive side effect",
         status=ApprovalStatus.PENDING,
+        delete_context_snapshot=await _delete_context_snapshot(
+            db_session,
+            ApprovalResourceType.CONTROL,
+            control.id,
+        ),
     )
 
     resolved = await _approve_pending_edit(db_session, approval, test_user_cro)
@@ -744,6 +763,11 @@ async def test_approval_delete_kri_archives_and_sets_archive_metadata(
         requested_by_id=test_user_employee.id,
         reason="Testing KRI archive side effect",
         status=ApprovalStatus.PENDING,
+        delete_context_snapshot=await _delete_context_snapshot(
+            db_session,
+            ApprovalResourceType.KRI,
+            kri.id,
+        ),
     )
 
     resolved = await _approve_pending_edit(db_session, approval, test_user_cro)
