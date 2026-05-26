@@ -4,10 +4,9 @@ from pathlib import Path
 from types import ModuleType
 
 import pytest
-from sqlalchemy import text
-
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
+from sqlalchemy import text
 
 CONSTRAINT_NAME = "uq_kri_value_history_kri_period_end"
 MIGRATION_GLOB = "*_add_kri_value_history_period_unique_constraint.py"

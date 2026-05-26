@@ -1,12 +1,22 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
 const repoRoot = resolve(__dirname, '../../../../../../');
-const sourcePath = resolve(repoRoot, 'frontend/src/authz/BusinessRouteGuards.tsx');
+const sourcePath = resolve(repoRoot, 'frontend/src/authz/BusinessRouteGuards.ts');
+const legacySourcePath = resolve(repoRoot, 'frontend/src/authz/BusinessRouteGuards.tsx');
 
 describe('BusinessRouteGuards structure', () => {
+    it('keeps route guards in a non-JSX module without local lint suppressions', () => {
+        expect(existsSync(sourcePath)).toBe(true);
+        expect(existsSync(legacySourcePath)).toBe(false);
+
+        const source = readFileSync(sourcePath, 'utf8');
+
+        expect(source).not.toContain('eslint-disable');
+    });
+
     it('uses a single typed route guard factory', () => {
         const source = readFileSync(sourcePath, 'utf8');
 

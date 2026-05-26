@@ -4,13 +4,12 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
+from alembic.config import Config
+from alembic.script import ScriptDirectory
 from sqlalchemy import text
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncEngine
-
-from alembic.config import Config
-from alembic.script import ScriptDirectory
 
 MIGRATION_COMMAND = "./venv/bin/alembic upgrade head"
 

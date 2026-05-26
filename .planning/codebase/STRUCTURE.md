@@ -1,6 +1,6 @@
 # Repository Structure
 
-**Analysis Date:** 2026-05-25
+**Analysis Date:** 2026-05-26
 
 ## Top-Level Layout
 
@@ -22,14 +22,14 @@
 - `backend/app/api/v1/endpoints/` - 145 Python modules/packages (measured git-tracked `*.py` snapshot; extensively split into subrouters for maintainability)
 - `backend/app/models/` - 28 model modules (measured git-tracked `*.py` snapshot)
 - `backend/app/schemas/` - 26 schema modules (measured git-tracked `*.py` snapshot)
-- `backend/app/services/` - 274 Python modules (measured git-tracked `*.py` snapshot; business services + internal helper packages such as `_approval_queue`, `_issue_register`, `_vendor_links`, `_admin_telemetry`, `_issue_workflow`, `_kri_history`, `_vendor_workflow`, `_control_execution`, `_access_workflow`, `_riskhub_config`, `_orphaned_items`, `_quarterly_comparison`, `_risk_questionnaires`, `_auth_session_workflow`, `_graph_directory`, `_authorization_capabilities`, and `_identity_access_lifecycle`)
+- `backend/app/services/` - 275 Python modules (measured git-tracked `*.py` snapshot; business services + internal helper packages such as `_approval_queue`, `_issue_register`, `_vendor_links`, `_admin_telemetry`, `_issue_workflow`, `_kri_history`, `_vendor_workflow`, `_control_execution`, `_access_workflow`, `_riskhub_config`, `_orphaned_items`, `_quarterly_comparison`, `_risk_questionnaires`, `_auth_session_workflow`, `_graph_directory`, `_authorization_capabilities`, and `_identity_access_lifecycle`)
 - `backend/app/core/` - configuration facade + segmented settings package, auth, permissions, logging, scheduler
 - `backend/app/middleware/` - 11 Python modules (measured git-tracked `*.py` snapshot; security/logging/language/rate-limit middleware with facade-preserving splits)
 - `backend/app/integrations/` - reserved integration package and vendor-signal package docs; current directory/Graph behavior lives in service-layer adapters
 - `backend/alembic/` - migration environment and versioned migrations
 - `backend/scripts/runtime/` - component-scoped backend runtime entrypoints (`dev`, `test`, `prod`)
 - `backend/scripts/runtime/db/` - backend-owned DB runtime entrypoints (`dev`, `test`, `prod`)
-- `tests/backend/pytest/` - 410 tracked test files (374 Python)
+- `tests/backend/pytest/` - 412 tracked test files (376 Python)
 
 ## Frontend Tree (`frontend/`)
 
@@ -79,4 +79,4 @@
 
 ---
 
-*Structure audit refreshed on 2026-05-25*
+*Structure audit refreshed on 2026-05-26*

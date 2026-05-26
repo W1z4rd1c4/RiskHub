@@ -4,10 +4,9 @@ import importlib.util
 from pathlib import Path
 
 import pytest
-from sqlalchemy import create_engine, text
-
 from alembic.operations import Operations
 from alembic.runtime.migration import MigrationContext
+from sqlalchemy import create_engine, text
 
 ROOT = Path(__file__).resolve().parents[3]
 MIGRATION_PATH = ROOT / "backend/alembic/versions/h3i4j5k6l7m8_unify_archive_state.py"
