@@ -1,23 +1,23 @@
 -r requirements.txt
 
 # Backend testing
-pytest>=8.0.0
-pytest-asyncio>=0.23.0
-pytest-cov>=4.1.0
-pytest-timeout>=2.3.1
+pytest>=9.0.3
+pytest-asyncio>=1.3.0
+pytest-cov>=7.1.0
+pytest-timeout>=2.4.0
 freezegun==1.5.*
-pytest-postgresql==6.*
-syrupy==4.6.*
-aiosqlite>=0.20.0
-fakeredis>=2.31.0
-sqlalchemy-utils>=0.41,<0.42
-testcontainers[redis]>=4.8.0
+pytest-postgresql==8.*
+syrupy==5.2.*
+aiosqlite>=0.22.1
+fakeredis>=2.35.1
+sqlalchemy-utils>=0.42.1,<0.43
+testcontainers[redis]>=4.14.2
 
 # Security/tooling
-ruff==0.6.9
-bandit>=1.7.8
-mypy>=1.18.0
-pre-commit>=3.7.0
+ruff==0.15.14
+bandit>=1.9.4
+mypy>=2.1.0
+pre-commit>=4.6.0
 
 # Data migration helpers
-openpyxl>=3.1.0
+openpyxl>=3.1.5
