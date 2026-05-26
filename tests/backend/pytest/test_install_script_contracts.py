@@ -51,7 +51,7 @@ SCRIPTS_DIR = REPO_ROOT / "scripts"
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
-from install_lib.common import InstallPaths  # noqa: E402
+from install_lib.common import InstallPaths, secret_placeholder  # noqa: E402
 
 INSTALL_SCRIPT = REPO_ROOT / "scripts" / "install.sh"
 COMPOSE_SCRIPT = REPO_ROOT / "scripts" / "compose.sh"
@@ -1025,6 +1025,101 @@ def test_install_doctor_repair_reconstructs_missing_production_metadata() -> Non
         assert state["target"] == "docker"
         assert state["current_release_source"]["kind"] == "docker_images"
         assert state["last_successful_smoke_timestamp"] is not None
+
+
+def test_install_doctor_flags_legacy_secret_placeholder_values() -> None:
+    with tempfile.TemporaryDirectory(prefix="riskhub-doctor-legacy-secrets-") as td:
+        tmp = Path(td)
+        config_path = tmp / "riskhub.env"
+        secret_dir = tmp / "secrets"
+        runtime_dir = tmp / "runtime"
+        fake_bin = _make_fake_bin(tmp)
+        _write_config(config_path)
+        secret_dir.mkdir(parents=True, exist_ok=True)
+        runtime_dir.mkdir(parents=True, exist_ok=True)
+        legacy_secret_key = "-".join(("replace", "with", "32", "char", "secret", "key"))
+        legacy_redis_password = "-".join(("replace", "with", "redis", "password"))
+        (secret_dir / "database_url").write_text(
+            "postgresql+asyncpg://riskhub:replace-me@db.example.com:5432/riskhub\n",
+            encoding="utf-8",
+        )
+        (secret_dir / "secret_key").write_text(f"{legacy_secret_key}\n", encoding="utf-8")
+        (secret_dir / "redis_password").write_text(f"{legacy_redis_password}\n", encoding="utf-8")
+
+        env = os.environ.copy()
+        env["PATH"] = f"{fake_bin}:{env['PATH']}"
+        env["RISKHUB_RUNTIME_DIR"] = str(runtime_dir)
+
+        result = _run_install(
+            "doctor",
+            "--mode",
+            "production",
+            "--target",
+            "docker",
+            "--config",
+            str(config_path),
+            "--secret-dir",
+            str(secret_dir),
+            "--json",
+            env=env,
+        )
+        output = f"{result.stdout}\n{result.stderr}"
+
+        assert result.returncode == 0, output
+        payload = json.loads(result.stdout)
+        assert "database_url_legacy_placeholder" in payload["findings"]
+        assert "secret_key_legacy_placeholder" in payload["findings"]
+        assert "redis_password_legacy_placeholder" in payload["findings"]
+
+
+def test_install_doctor_repair_scaffolds_canonical_secret_placeholders_and_stops_for_user_edits() -> None:
+    with tempfile.TemporaryDirectory(prefix="riskhub-doctor-secret-scaffold-") as td:
+        tmp = Path(td)
+        config_path = tmp / "riskhub.env"
+        secret_dir = tmp / "secrets"
+        runtime_dir = tmp / "runtime"
+        command_log = tmp / "commands.log"
+        fake_bin = _make_fake_bin(tmp)
+        fake_deploy = _make_fake_deploy_script(tmp)
+        _write_config(config_path)
+        runtime_dir.mkdir(parents=True, exist_ok=True)
+
+        env = os.environ.copy()
+        env["PATH"] = f"{fake_bin}:{env['PATH']}"
+        env["RISKHUB_RUNTIME_DIR"] = str(runtime_dir)
+        env["RISKHUB_INSTALL_DEPLOY_SCRIPT"] = str(fake_deploy)
+        env["RISKHUB_TEST_COMMAND_LOG"] = str(command_log)
+
+        result = _run_install(
+            "doctor",
+            "--mode",
+            "production",
+            "--target",
+            "docker",
+            "--config",
+            str(config_path),
+            "--secret-dir",
+            str(secret_dir),
+            "--repair",
+            "--json",
+            env=env,
+        )
+        output = f"{result.stdout}\n{result.stderr}"
+
+        assert result.returncode == 0, output
+        payload = json.loads(result.stdout)
+        for name in ("database_url", "secret_key", "redis_password"):
+            assert (secret_dir / name).read_text(encoding="utf-8") == f"{secret_placeholder(name)}\n"
+        assert payload["repair_requested"] is True
+        assert payload["repair_applied"] is False
+        assert "secret_placeholders_require_user_edits" in payload["findings"]
+        assert any(
+            "edit generated secret scaffold files before rerunning doctor" in action
+            for action in payload["actions"]
+        )
+        command_text = command_log.read_text(encoding="utf-8") if command_log.exists() else ""
+        assert " smoke " not in f" {command_text} "
+        assert not (runtime_dir / "install-state.json").exists()
 
 
 def test_manual_scripts_reference_install_wrapper_in_help_text() -> None:
