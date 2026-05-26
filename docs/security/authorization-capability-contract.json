@@ -243,7 +243,7 @@
       "backend_authority": "backend/app/api/v1/endpoints/users/ for /api/v1/users/directory",
       "service_policy": "backend/app/core/permissions.py, backend/app/core/permission_cache.py, backend/app/api/v1/endpoints/users/_visibility.py, backend/app/api/v1/endpoints/users/_lifecycle.py; backend/app/api/v1/endpoints/users/summary.py consumes backend/app/services/authorization_capabilities.py::build_me_capabilities for /me/shell-summary can_view_governance",
       "response_capability": "backend/app/schemas/user.py UserDirectoryCapabilities plus backend-provided available_roles facets",
-      "frontend_gate": "frontend/src/authz/BusinessRouteGuards.tsx, frontend/src/pages/UsersPage.tsx, frontend/src/pages/UserNewPage.tsx, frontend/src/pages/users/useUsersPageData.ts, and frontend/src/pages/users/useUserNewPageAccess.ts",
+      "frontend_gate": "frontend/src/authz/BusinessRouteGuards.ts, frontend/src/pages/UsersPage.tsx, frontend/src/pages/UserNewPage.tsx, frontend/src/pages/users/useUsersPageData.ts, and frontend/src/pages/users/useUserNewPageAccess.ts",
       "tests": [
         "tests/backend/pytest/test_users.py",
         "tests/backend/pytest/test_aggregate_overviews.py",
@@ -708,7 +708,7 @@
       "backend_authority": "backend/app/api/v1/endpoints/activity_log.py",
       "service_policy": "backend/app/core/security.py require_business_permission; backend/app/services/_activity_log_query/policy.py, backend/app/services/_activity_log_query/query.py, backend/app/services/_activity_log_query/criteria.py, and backend/app/services/_activity_log_query/projection.py own business-view eligibility, department scope, query construction, and ActivityLogCapabilities projection",
       "response_capability": "backend/app/schemas/activity_log.py ActivityLogCapabilities on ActivityLogListResponse; response rows remain scoped server-side",
-      "frontend_gate": "frontend/src/authz/BusinessRouteGuards.tsx, frontend/src/pages/ActivityLogPage.tsx, frontend/src/hooks/useActivityLogPageState.ts, and frontend/src/components/activity-log/ActivityLogFilterBar.tsx; frontend/src/hooks/activityLogPageWorkflow.ts owns production-used activity-log filter/view transitions while API calls and rendering remain local",
+      "frontend_gate": "frontend/src/authz/BusinessRouteGuards.ts, frontend/src/pages/ActivityLogPage.tsx, frontend/src/hooks/useActivityLogPageState.ts, and frontend/src/components/activity-log/ActivityLogFilterBar.tsx; frontend/src/hooks/activityLogPageWorkflow.ts owns production-used activity-log filter/view transitions while API calls and rendering remain local",
       "tests": [
         "tests/backend/pytest/test_activity_log.py",
         "tests/frontend/unit/src/hooks/__tests__/useActivityLogPageState.test.tsx",
