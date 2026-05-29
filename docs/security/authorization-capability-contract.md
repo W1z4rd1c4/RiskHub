@@ -3,7 +3,7 @@
 Back to tree: [`docs/DOCUMENTATION_TREE.md`](../DOCUMENTATION_TREE.md)
 
 > Version: 1.0
-> Last reviewed: 2026-05-17
+> Last reviewed: 2026-05-26
 > Owner: RiskHub Maintainer
 > Machine-readable mirror: [`authorization-capability-contract.json`](./authorization-capability-contract.json)
 > Capability field catalog: [`capability-catalog.json`](./capability-catalog.json)
@@ -119,6 +119,10 @@ versioned delete context snapshot. Approval execution compares that snapshot
 against current governance context and auto-rejects stale or existing-target
 legacy delete approvals before archive side effects. Approval route guards and
 response capability field shapes are unchanged.
+On 2026-05-26, issue assignment began suppressing duplicate no-op assignment
+outbox events and deriving assignment event idempotency from persisted activity
+identity. `issues:write`, issue scope, assignable-owner checks, REST shape, and
+capability semantics are unchanged.
 
 Strict capabilities rollout note: `STRICT_CAPABILITIES` is a frontend runtime
 configuration flag and remains off by default until operational telemetry
