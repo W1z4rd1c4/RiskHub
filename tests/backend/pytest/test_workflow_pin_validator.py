@@ -21,6 +21,7 @@ MAINTENANCE_GOVERNANCE_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "mainten
 LINT_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "lint.yml"
 BACKEND_POSTGRES_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "backend-postgres.yml"
 E2E_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "e2e.yml"
+PLAYWRIGHT_CONFIG = REPO_ROOT / "frontend" / "playwright.config.ts"
 STARTUP_SMOKE_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "startup-smoke.yml"
 LOCAL_PROD_AUDIT = REPO_ROOT / "scripts" / "security" / "run_prod_readiness_audit_local.sh"
 PROD_READINESS_PHASES = REPO_ROOT / "scripts" / "security" / "prod_readiness_audit" / "phases.py"
@@ -360,6 +361,27 @@ def test_e2e_workflow_caches_playwright_browsers_and_uses_shell_only_chromium() 
     assert "ms-playwright" in text
     assert "npx playwright install --with-deps --only-shell chromium" in text
     assert "npx playwright install --with-deps chromium" not in text
+
+
+def test_e2e_workflow_prefers_system_chrome_with_bounded_browser_fallback() -> None:
+    text = E2E_WORKFLOW.read_text(encoding="utf-8")
+    install_step = text[text.index("      - name: Install Playwright browsers") : text.index("      - name: Start backend")]
+
+    assert "id: system-chrome" in text
+    assert "command -v google-chrome" in text
+    assert "command -v google-chrome-stable" in text
+    assert "steps.system-chrome.outputs.available != 'true'" in install_step
+    assert "timeout-minutes: 8" in install_step
+    assert "--project=ci" in text
+    assert "--project=chromium" in text
+    assert "PLAYWRIGHT_CHROMIUM_CHANNEL: chrome" in text
+
+
+def test_playwright_ci_project_allows_workflow_selected_chromium_channel() -> None:
+    text = PLAYWRIGHT_CONFIG.read_text(encoding="utf-8")
+
+    assert "PLAYWRIGHT_CHROMIUM_CHANNEL" in text
+    assert "process.env.PLAYWRIGHT_CHROMIUM_CHANNEL" in text
 
 
 def test_e2e_workflow_allows_runtime_headroom_for_cache_misses() -> None:

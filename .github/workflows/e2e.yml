@@ -114,8 +114,24 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('frontend/package-lock.json') }}
 
-      - name: Install Playwright browsers
+      - name: Detect system Chrome
+        id: system-chrome
         if: steps.e2e-scope.outputs.run-e2e == 'true'
+        run: |
+          set -euo pipefail
+          if command -v google-chrome >/dev/null 2>&1; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+            google-chrome --version
+          elif command -v google-chrome-stable >/dev/null 2>&1; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+            google-chrome-stable --version
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install Playwright browsers
+        if: steps.e2e-scope.outputs.run-e2e == 'true' && steps.system-chrome.outputs.available != 'true'
+        timeout-minutes: 8
         working-directory: frontend
         env:
           PLAYWRIGHT_BROWSERS_PATH: ~/.cache/ms-playwright
@@ -175,7 +191,13 @@ jobs:
         env:
           CI: 'true'
           PLAYWRIGHT_BROWSERS_PATH: ~/.cache/ms-playwright
-        run: npx playwright test -c playwright.config.ts --project=chromium
+          PLAYWRIGHT_CHROMIUM_CHANNEL: chrome
+        run: |
+          if [ "${{ steps.system-chrome.outputs.available }}" = "true" ]; then
+            npx playwright test -c playwright.config.ts --project=ci
+          else
+            npx playwright test -c playwright.config.ts --project=chromium
+          fi
 
       - name: Upload test results
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
