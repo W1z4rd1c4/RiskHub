@@ -319,6 +319,57 @@ def test_e2e_workflow_uses_canonical_health_route_and_no_fixed_sleep() -> None:
     assert "CORS_ORIGINS: '[\"http://localhost:5173\"]'" in text
 
 
+def test_e2e_workflow_has_manual_dispatch_and_no_path_ignore() -> None:
+    text = E2E_WORKFLOW.read_text(encoding="utf-8")
+
+    assert "workflow_dispatch:" in text
+    assert "paths-ignore:" not in text
+    assert "paths_ignore:" not in text
+
+
+def test_e2e_workflow_classifies_scope_before_expensive_playwright_steps() -> None:
+    text = E2E_WORKFLOW.read_text(encoding="utf-8")
+
+    assert "id: e2e-scope" in text
+    assert "run-e2e=false" in text
+    assert "run-e2e=true" in text
+    for path_pattern in (
+        "backend/*",
+        "frontend/*",
+        "tests/frontend/e2e/*",
+        "backend/scripts/seed_e2e_*",
+        "scripts/install.sh",
+        "scripts/dev.sh",
+        "scripts/compose.sh",
+        "scripts/Makefile",
+        "docker-compose.yml",
+        ".github/workflows/e2e.yml",
+    ):
+        assert path_pattern in text
+    assert "steps.e2e-scope.outputs.run-e2e == 'true'" in text
+    assert "steps.e2e-scope.outputs.run-e2e != 'true'" in text
+
+
+def test_e2e_workflow_caches_playwright_browsers_and_uses_shell_only_chromium() -> None:
+    text = E2E_WORKFLOW.read_text(encoding="utf-8")
+
+    assert "actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830" in text
+    assert "path: ~/.cache/ms-playwright" in text
+    assert "key: playwright-${{ runner.os }}-${{ hashFiles('frontend/package-lock.json') }}" in text
+    assert "PLAYWRIGHT_BROWSERS_PATH:" in text
+    assert "ms-playwright" in text
+    assert "npx playwright install --with-deps --only-shell chromium" in text
+    assert "npx playwright install --with-deps chromium" not in text
+
+
+def test_e2e_workflow_allows_runtime_headroom_for_cache_misses() -> None:
+    text = E2E_WORKFLOW.read_text(encoding="utf-8")
+    playwright_job = text[text.index("  e2e-tests:") : text.index("  production-profile-smoke:")]
+
+    assert "timeout-minutes: 45" in playwright_job
+    assert "timeout-minutes: 30" not in playwright_job
+
+
 def test_e2e_workflow_defines_production_profile_smoke_lane() -> None:
     text = E2E_WORKFLOW.read_text(encoding="utf-8")
 
