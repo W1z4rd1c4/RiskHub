@@ -1,14 +1,6 @@
 # RiskHub
 
 <p align="center">
-  <a href="https://github.com/W1z4rd1c4/RiskHub/releases"><img alt="Release" src="https://img.shields.io/github/v/release/W1z4rd1c4/RiskHub?include_prereleases&sort=semver"></a>
-  <a href="./LICENSE"><img alt="License" src="https://img.shields.io/github/license/W1z4rd1c4/RiskHub"></a>
-  <a href="https://github.com/W1z4rd1c4/RiskHub/actions/workflows/lint.yml"><img alt="Lint" src="https://github.com/W1z4rd1c4/RiskHub/actions/workflows/lint.yml/badge.svg"></a>
-  <a href="https://github.com/W1z4rd1c4/RiskHub/actions/workflows/e2e.yml"><img alt="E2E" src="https://github.com/W1z4rd1c4/RiskHub/actions/workflows/e2e.yml/badge.svg"></a>
-  <a href="https://github.com/W1z4rd1c4/RiskHub/actions/workflows/security.yml"><img alt="Security" src="https://github.com/W1z4rd1c4/RiskHub/actions/workflows/security.yml/badge.svg"></a>
-</p>
-
-<p align="center">
   <strong>Open-source risk operations for teams that need ownership, approvals, evidence, and operating clarity in one place.</strong>
 </p>
 
