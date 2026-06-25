@@ -182,7 +182,7 @@ export const orphanedItemSchema: z.ZodType<OrphanedItem> = passthroughObject({
     item_id: z.number(),
     item_name: z.string(),
     item_description: z.string().nullable(),
-    item_identifier: z.string(),
+    item_identifier: z.string().nullable(),
     department_name: z.string().nullable(),
     previous_owner_name: z.string(),
     previous_owner_email: z.string(),

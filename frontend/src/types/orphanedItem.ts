@@ -12,7 +12,7 @@ export interface OrphanedItem {
     item_id: number;
     item_name: string;
     item_description: string | null;
-    item_identifier: string;
+    item_identifier: string | null;
     department_name: string | null;
     previous_owner_name: string;
     previous_owner_email: string;

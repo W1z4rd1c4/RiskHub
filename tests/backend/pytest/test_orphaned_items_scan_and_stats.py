@@ -134,6 +134,47 @@ async def test_orphaned_items_overview_returns_stats_items_and_scan_status(
 
 
 @pytest.mark.asyncio
+async def test_overview_emits_null_identifier_for_control_orphans(
+    client_cro: AsyncClient,
+    db_session: AsyncSession,
+    test_user: User,
+):
+    """Controls have no human code, so the overview emits item_identifier=None.
+
+    This is the contract the frontend orphanedItemsOverviewSchema relies on
+    (item_identifier is nullable). Pinning it here means a future backend change
+    that started emitting a non-null control identifier fails this guard instead
+    of silently breaking the Governance page.
+    """
+    department = Department(name="Uncategorised", code="UNCAT", description="System")
+    db_session.add(department)
+    await db_session.commit()
+    await db_session.refresh(department)
+
+    control = Control(
+        name="Overview Control",
+        description="",
+        department_id=department.id,
+        control_owner_id=test_user.id,
+        status="active",
+    )
+    db_session.add(control)
+    await db_session.commit()
+
+    scan_resp = await client_cro.post("/api/v1/orphaned-items/scan")
+    assert scan_resp.status_code == 200
+
+    overview_resp = await client_cro.get("/api/v1/orphaned-items/overview")
+    assert overview_resp.status_code == 200
+    data = overview_resp.json()
+
+    control_items = [item for item in data["items"] if item["item_type"] == "control"]
+    assert control_items, "expected the uncategorised control to be flagged as an orphan"
+    assert all(item["item_identifier"] is None for item in control_items)
+    assert data["stats"]["control_count"] >= 1
+
+
+@pytest.mark.asyncio
 async def test_orphan_stats_denies_non_operator_business_users(
     client: AsyncClient,
     db_session: AsyncSession,
