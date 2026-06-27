@@ -5,13 +5,12 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
-from app.api.mappers.risk import risk_to_summary
+from app.api.mappers.risk import risk_summary_load_options, risk_to_summary
 from app.core.pagination import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
 from app.core.security import check_permission, require_permission
 from app.db.session import get_db
-from app.models import KeyRiskIndicator, Risk, User
+from app.models import Risk, User
 from app.schemas.risk import RiskSummary
 
 from ._shared import _assert_department_in_scope
@@ -44,11 +43,7 @@ async def list_department_risks(
     # Load risks with their KRIs eagerly
     query = (
         select(Risk)
-        .options(
-            selectinload(Risk.department),
-            selectinload(Risk.kris.and_(KeyRiskIndicator.is_archived.is_(False))),
-            selectinload(Risk.control_links),
-        )
+        .options(*risk_summary_load_options())
         .where(Risk.department_id == department_id)
     )
 

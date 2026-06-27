@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, cast
+from typing import Any
 
 from sqlalchemy import String, and_, asc, case, desc, false, func, literal, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.api.mappers.risk import risk_to_summary
+from app.api.mappers.risk import risk_summary_load_options, risk_to_summary
 from app.core.permissions import can_read_vendor, risk_visibility_clause
 from app.core.security import check_permission
 from app.models import (
@@ -96,24 +96,20 @@ async def load_risk_sql_groups(
 ) -> list[dict[str, Any]]:
     value_expr: Any
     label_expr: Any
-    joins: tuple[Any, ...]
+    vendor_context = None
 
     if group_by == "category":
         value_expr = func.coalesce(func.nullif(Risk.category, ""), RISK_GROUP_UNCATEGORIZED)
         label_expr = value_expr
-        joins = ()
     elif group_by == "department":
         value_expr = func.coalesce(func.nullif(Department.name, ""), RISK_GROUP_UNKNOWN_DEPARTMENT)
         label_expr = value_expr
-        joins = (Risk.department,)
     elif group_by == "process":
         value_expr = func.coalesce(func.nullif(Risk.process, ""), RISK_GROUP_NO_PROCESS)
         label_expr = value_expr
-        joins = ()
     elif group_by in {"risk_type", "type"}:
         value_expr = func.coalesce(func.nullif(Risk.risk_type, ""), RISK_GROUP_UNKNOWN_RISK_TYPE)
         label_expr = value_expr
-        joins = ()
     elif group_by == "vendor" and can_read_vendors:
         vendor_context = visible_risk_vendor_context(filtered_ids, current_user, can_read_vendors=can_read_vendors)
         value_expr = func.coalesce(
@@ -121,11 +117,9 @@ async def load_risk_sql_groups(
             RISK_GROUP_UNLINKED_VENDOR,
         )
         label_expr = func.coalesce(vendor_context.c.vendor_name, RISK_GROUP_UNLINKED_VENDOR)
-        joins = ("vendor",)
     elif group_by == "vendor":
         value_expr = literal(RISK_GROUP_UNLINKED_VENDOR)
         label_expr = value_expr
-        joins = ()
     else:
         return []
 
@@ -141,11 +135,12 @@ async def load_risk_sql_groups(
         .select_from(Risk)
         .join(filtered_ids, Risk.id == filtered_ids.c.id)
     )
-    for join_target in joins:
-        if join_target == "vendor":
-            group_query = group_query.outerjoin(vendor_context, vendor_context.c.risk_id == Risk.id)
-        else:
-            group_query = group_query.outerjoin(cast(Any, join_target))
+    # Each joined group reaches its label table with an explicit ON clause (never an
+    # ORM relationship, which cannot resolve against the filtered_ids subquery FROM).
+    if group_by == "department":
+        group_query = group_query.outerjoin(Department, Department.id == Risk.department_id)
+    elif vendor_context is not None:
+        group_query = group_query.outerjoin(vendor_context, vendor_context.c.risk_id == Risk.id)
     rows = (await db.execute(group_query.group_by(value_expr, label_expr).order_by(func.lower(label_expr)))).all()
     return [
         {
@@ -381,10 +376,7 @@ async def plan_risk_listing(
         base_query = base_query.order_by(asc(order_column))
 
     query_options = (
-        selectinload(Risk.department),
-        selectinload(Risk.owner),
-        selectinload(Risk.kris.and_(KeyRiskIndicator.is_archived.is_(False))),
-        selectinload(Risk.control_links),
+        *risk_summary_load_options(),
         selectinload(Risk.vendor_links).selectinload(VendorRiskLink.vendor),
     )
 

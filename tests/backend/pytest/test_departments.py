@@ -209,6 +209,66 @@ async def test_list_department_risks_without_min_net_score(
 
 
 @pytest.mark.asyncio
+async def test_list_department_risks_eager_loads_owner(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: User,
+):
+    """Regression: the endpoint must eager-load Risk.owner.
+
+    risk_to_summary reads risk.owner.name. When the owner is a different user
+    than the authenticated caller (so it is not already cached in the request
+    session's identity map), an un-eager-loaded owner triggers a lazy load on
+    the async session -> MissingGreenlet (HTTP 500), which the UI renders as
+    "No risks found". The expunge() drops only the owner and risk so the
+    endpoint must satisfy them from its own query (the production path), while
+    the authenticated user stays cached so auth still resolves.
+    """
+    dept = Department(name="Owned Risk Dept", code="OWNED-RISK")
+    db_session.add(dept)
+    await db_session.commit()
+    await db_session.refresh(dept)
+
+    owner = User(
+        name="Risk Owner User",
+        email="risk-owner-dept@test.example.com",
+        department_id=dept.id,
+        role_id=test_user.role_id,
+        is_active=True,
+        access_scope=AccessScope.DEPARTMENT,
+    )
+    db_session.add(owner)
+    await db_session.commit()
+    await db_session.refresh(owner)
+
+    risk = Risk(
+        risk_id_code="RISK-OWNED-001",
+        name="Owned Risk Name",
+        process="Owned Risk Process",
+        description="Risk owned by a non-caller user",
+        category="Test",
+        department_id=dept.id,
+        owner_id=owner.id,
+        risk_type="operational",
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=3,
+        net_impact=3,
+        status=RiskStatusEnum.active.value,
+    )
+    db_session.add(risk)
+    await db_session.commit()
+    db_session.expunge(owner)
+    db_session.expunge(risk)
+
+    response = await auth_client.get(f"/api/v1/departments/{dept.id}/risks")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["owner_name"] == "Risk Owner User"
+
+
+@pytest.mark.asyncio
 async def test_list_department_risks_pagination(
     auth_client: AsyncClient,
     db_session: AsyncSession,

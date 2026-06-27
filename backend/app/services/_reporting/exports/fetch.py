@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.api.mappers.risk import risk_summary_load_options
 from app.core.datetime_utils import utc_now
 from app.core.permissions import (
     control_visibility_clause,
@@ -38,12 +39,7 @@ async def _fetch_risks_for_export(
     current_user: User,
     department_id: int | None,
 ) -> list[Risk]:
-    query = select(Risk).options(
-        selectinload(Risk.department),
-        selectinload(Risk.owner),
-        selectinload(Risk.kris.and_(KeyRiskIndicator.is_archived.is_(False))),
-        selectinload(Risk.control_links),
-    )
+    query = select(Risk).options(*risk_summary_load_options())
 
     visibility_clause = await risk_visibility_clause(db, current_user, department_id=department_id)
     if visibility_clause is not None:

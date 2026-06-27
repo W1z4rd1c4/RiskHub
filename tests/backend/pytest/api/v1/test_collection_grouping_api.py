@@ -289,6 +289,124 @@ async def test_risks_grouped_contract_returns_summary_and_drilldown(
 
 
 @pytest.mark.asyncio
+async def test_risks_grouped_by_department_returns_summary_and_drilldown(
+    auth_client: AsyncClient,
+    test_department: Department,
+    test_user: User,
+    seed_risk_types,
+):
+    create_response = await auth_client.post(
+        "/api/v1/risks",
+        json={
+            "risk_id_code": "GRP-RISK-DEPT-001",
+            "name": "Department Grouped Risk",
+            "process": "Grouped Process",
+            "description": "Risk used by department grouping contract test",
+            "department_id": test_department.id,
+            "owner_id": test_user.id,
+            "risk_type": "operational",
+            "category": "Dept Group Category",
+            "gross_probability": 4,
+            "gross_impact": 4,
+            "net_probability": 4,
+            "net_impact": 4,
+            "status": "active",
+        },
+    )
+    assert create_response.status_code == 201
+    risk_id = create_response.json()["id"]
+
+    summary_response = await auth_client.get(
+        "/api/v1/risks",
+        params={"offset": 0, "limit": 10, "group_by": "department"},
+    )
+    assert summary_response.status_code == 200
+    summary = summary_response.json()
+    group = _group_by_value(summary["groups"], test_department.name)
+    assert group is not None
+    assert group["label"] == test_department.name
+    assert group["count"] >= 1
+    assert group["active_count"] >= 1
+
+    drilldown_response = await auth_client.get(
+        "/api/v1/risks",
+        params={
+            "offset": 0,
+            "limit": 10,
+            "group_by": "department",
+            "group_value": test_department.name,
+        },
+    )
+    assert drilldown_response.status_code == 200
+    drilldown = drilldown_response.json()
+    assert any(item["id"] == risk_id for item in drilldown["items"])
+    assert _group_by_value(drilldown["groups"], test_department.name) is not None
+
+
+@pytest.mark.asyncio
+async def test_controls_kris_vendors_grouped_by_department_return_summaries(
+    auth_client: AsyncClient,
+    db_session: AsyncSession,
+    test_department: Department,
+    test_user: User,
+    seed_risk_types,
+):
+    """Department grouping must work for every register listing, not just risks.
+
+    These listings already use the correct explicit-table join; this guards them
+    so a future regression to an ORM-relationship join fails here instead of in
+    production.
+    """
+    risk = Risk(
+        risk_id_code="GRP-DEPT-GUARD-RISK-001",
+        name="Department Guard Risk",
+        process="Department Guard Process",
+        description="Risk owning the guarded KRI",
+        department_id=test_department.id,
+        owner_id=test_user.id,
+        risk_type="operational",
+        category="Department Guard Category",
+        gross_probability=3,
+        gross_impact=3,
+        net_probability=2,
+        net_impact=2,
+        status="active",
+    )
+    control = Control(
+        name="Department Guard Control",
+        description="Control grouped by department",
+        department_id=test_department.id,
+        control_owner_id=test_user.id,
+        control_form="manual",
+        frequency="daily",
+        risk_level=3,
+        status="active",
+    )
+    vendor = _vendor(name="Department Guard Vendor", department_id=test_department.id, owner_user_id=test_user.id)
+    db_session.add_all([risk, control, vendor])
+    await db_session.flush()
+    db_session.add(
+        KeyRiskIndicator(
+            risk_id=risk.id,
+            metric_name="Department Guard KRI",
+            description="KRI grouped by department",
+            current_value=50.0,
+            lower_limit=0.0,
+            upper_limit=100.0,
+            unit="%",
+            frequency="monthly",
+        )
+    )
+    await db_session.commit()
+
+    for path in ("/api/v1/controls", "/api/v1/kris", "/api/v1/vendors"):
+        response = await auth_client.get(path, params={"offset": 0, "limit": 10, "group_by": "department"})
+        assert response.status_code == 200, f"{path} group_by=department failed: {response.text[:200]}"
+        groups = response.json()["groups"]
+        assert _group_by_value(groups, test_department.name) is not None, (path, groups)
+
+
+@pytest.mark.asyncio
 async def test_risks_grouped_highlighted_count_uses_configured_critical_threshold(
     auth_client: AsyncClient,
     db_session: AsyncSession,
