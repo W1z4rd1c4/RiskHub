@@ -59,7 +59,7 @@ from release_parity_audit.toolchain import ToolchainSnapshot, capture_toolchain
 from release_parity_audit.types import CommandResult
 from release_parity_audit.ui_parity import evaluate_ui_parity
 
-ROOT_DIR = Path(__file__).resolve().parents[2]
+ROOT_DIR = Path(__file__).resolve().parents[3]
 
 CRITICAL_BACKEND_PACKAGES = [
     "fastapi",

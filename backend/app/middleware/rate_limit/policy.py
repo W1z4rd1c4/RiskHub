@@ -11,6 +11,7 @@ DEFAULT_RATE_LIMIT_RULES: dict[str, RateLimitRule] = {
     "/api/v1/auth/login": (5, 60),
     "/api/v1/auth/sso": (10, 60),
     "/api/v1/auth/demo-login": (10, 60),
+    "/api/v1/auth/refresh": (10, 60),
     "/api/v1/users": (100, 60),
     "default": (200, 60),
 }

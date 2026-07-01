@@ -59,6 +59,48 @@ Still not addressed in the dirty checkout:
   `make -f scripts/Makefile public-leak-audit` as fully resolved until this is
   fixed.
 
+## Verification Update — 2026-07-01
+
+The dated "Still not addressed" list above is preserved as the audit record for
+2026-05-25. The first three items on that list were independently re-verified
+against the current codebase on 2026-07-01 and found **FIXED**. Remaining items
+on the list are out of scope for this addendum. Evidence:
+
+- **Dashboard control aggregate leakage to risk-only users — FIXED.**
+  `backend/app/services/_dashboard_metrics/departments.py:25` computes
+  `can_read_controls = has_permission(current_user, "controls", "read")` and
+  gates the control-aggregate query blocks behind it (`if can_read_controls:` at
+  lines 50 and 98). Both `/dashboard/departments`
+  (`backend/app/api/v1/endpoints/dashboard/departments.py:23`) and
+  `/dashboard/overview` (`backend/app/api/v1/endpoints/dashboard/overview.py:65`)
+  route through this gated function. Regression tests:
+  `test_department_dashboard_metrics_zero_control_aggregates_without_controls_read`
+  and `test_overview_department_metrics_zero_control_aggregates_without_controls_read`
+  in `tests/backend/pytest/test_dashboard.py`.
+
+- **Risk, control, and KRI stale delete approval side effects — FIXED.**
+  `backend/app/models/approval_request.py:79` adds the nullable JSON column
+  `delete_context_snapshot` (migration
+  `n9o0p1q2r3s5_add_delete_context_snapshot_to_approval_requests`). Snapshots are
+  captured at intake in `backend/app/services/_approval_queue/delete_intake.py`.
+  Staleness is checked by `_reject_if_stale_delete_context` in
+  `backend/app/services/_approval_execution/delete_side_effects.py:28`, called
+  before each archive-apply (lines 55, 73, 96) and failing closed on a missing
+  snapshot (`snapshot_missing` → `auto_rejected`, line 32). Regression tests:
+  `tests/backend/pytest/test_approval_delete_stale_context.py`.
+
+- **Production wildcard `ALLOWED_HOSTS` acceptance — FIXED.**
+  `backend/app/main.py:93` collects any host entry containing `*` and raises
+  `RuntimeError("FATAL: ALLOWED_HOSTS cannot include wildcard entries when
+  DEBUG=false...")` (lines 94-98); an empty `allowed_hosts` list is also
+  rejected (lines 89-92). The default in `backend/.env.example:32` is a scoped
+  list (`["localhost","127.0.0.1"]`), not a wildcard.
+
+Note: the stale-delete check landed in `delete_side_effects.py` (delegating to
+`compare_delete_approval_context`) rather than the separate
+`_approval_execution/delete_context.py` module proposed in the plan below; the
+behavior matches the plan's intent.
+
 Second subagent run corrections for implementation:
 
 - `ALLOWED_HOSTS` rejection must cover any host entry containing `*`, including

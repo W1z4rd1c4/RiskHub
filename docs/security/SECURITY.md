@@ -201,7 +201,7 @@ Re-evaluate this acceptance if RiskHub introduces any ECDSA/ECDH-based algorithm
 
 ## Reporting Security Issues
 
-For security vulnerabilities, please contact the development team directly rather than opening a public issue.
+For security vulnerabilities, please use GitHub's private vulnerability reporting rather than opening a public issue: go to the repository's **Security** tab and select **"Report a vulnerability"** (GitHub Security Advisories). This keeps the report confidential until a fix is available and lets maintainers coordinate a disclosure with you privately.
 
 Include:
 - Description of the vulnerability

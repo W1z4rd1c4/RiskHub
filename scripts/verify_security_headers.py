@@ -81,7 +81,9 @@ def main():
         try:
             import httpx
             response = httpx.get(f"{args.url}/", timeout=10)
-            headers = dict(response.headers)
+            # Keep httpx's case-insensitive Headers object; dict(...) would
+            # lowercase keys and break the title-case membership checks below.
+            headers = response.headers
         except ImportError:
             print("ERROR: httpx not installed. Run: pip install httpx")
             print("Or use --mock flag for CI testing without live server")
