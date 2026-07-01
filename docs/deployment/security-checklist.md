@@ -24,7 +24,9 @@ RiskHub production deploys must satisfy these invariants:
 
 ## Network
 
-- Terminate TLS on the host or an upstream reverse proxy.
+- RiskHub does not terminate TLS itself. A reverse proxy or load balancer that terminates TLS MUST sit in front of RiskHub in any environment reachable by untrusted clients; the app's own listeners are plaintext by design.
+- Terminate TLS on that upstream reverse proxy or load balancer, then proxy plaintext to the RiskHub public listener (see [Reference TLS-terminating reverse proxy](#reference-tls-terminating-reverse-proxy)).
+- The upstream proxy must forward `X-Forwarded-Proto` and `X-Forwarded-For`; add its address to `TRUSTED_PROXIES` so forwarded client IPs are trusted (see Runtime Hardening).
 - Do not expose PostgreSQL or Redis publicly.
 - Use the frontend same-origin entrypoint as the public surface.
 - Linux target:
@@ -120,3 +122,61 @@ RiskHub production deploys must satisfy these invariants:
 - Prefer PITR for production databases.
 - Application rollback does not downgrade the database.
 - Treat migration rollback as a controlled database operation or a forward-fix.
+
+## Reference TLS-terminating Reverse Proxy
+
+RiskHub ships plaintext listeners only. Operators bring their own TLS-terminating
+reverse proxy or load balancer. The public RiskHub listener is the frontend
+(`FRONTEND_BIND_PORT`, default `80`); it already proxies `/api/` to the backend
+on `127.0.0.1:8000`, so terminate TLS upstream and proxy plaintext to that
+frontend port.
+
+Minimal nginx example (adjust `server_name`, cert paths, and the `proxy_pass`
+port to match `FRONTEND_BIND_PORT`):
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name riskhub.example.com;
+
+    ssl_certificate     /etc/ssl/riskhub/fullchain.pem;
+    ssl_certificate_key /etc/ssl/riskhub/privkey.pem;
+
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
+
+    location / {
+        proxy_pass http://127.0.0.1:80;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Authorization $http_authorization;
+        proxy_read_timeout 300s;
+        proxy_connect_timeout 75s;
+    }
+}
+
+server {
+    listen 80;
+    server_name riskhub.example.com;
+    return 308 https://$host$request_uri;
+}
+```
+
+- The RiskHub frontend consumes `X-Forwarded-For`/`X-Forwarded-Proto` from its
+  immediate peer only when that peer is listed in `TRUSTED_PROXIES`. When this
+  external proxy is a separate host from the RiskHub frontend, add its address to
+  `TRUSTED_PROXIES` (see Runtime Hardening) so client IPs are attributed
+  correctly for rate limiting, refresh-session IP attribution, and request logs.
+- Keep the RiskHub frontend and backend listeners bound to loopback or an
+  internal network so the only public ingress is this TLS-terminating proxy.
+
+Certificate acquisition is out of scope for RiskHub tooling. Operators without
+existing TLS infrastructure typically use one of:
+
+- Let's Encrypt via an ACME client of their choice (for example certbot, acme.sh,
+  or a proxy with built-in ACME).
+- A managed cloud load balancer that terminates TLS (for example Azure
+  Application Gateway, AWS ALB, or GCP HTTPS Load Balancer).
+- Cloudflare or a comparable TLS-terminating CDN in front of the proxy.

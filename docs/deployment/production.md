@@ -33,7 +33,12 @@ Linux target:
 - `redis-server`
 - `curl`
 
-TLS termination is expected to be pre-provisioned on the host or upstream.
+RiskHub does not terminate TLS itself. Both targets serve plaintext listeners
+(the frontend public listener plus a loopback backend), so a TLS-terminating
+reverse proxy or load balancer MUST sit in front of RiskHub in any environment
+reachable by untrusted clients. Provision TLS before first production sign-in;
+see [Reference TLS-terminating reverse proxy](security-checklist.md#reference-tls-terminating-reverse-proxy)
+for a concrete nginx example and certificate-acquisition pointers.
 
 ## 2. Create The Operator Config
 
