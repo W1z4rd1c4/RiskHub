@@ -29,11 +29,15 @@ RUN npm run build
 # =============================================================================
 # Stage 2: Production nginx server
 # =============================================================================
-FROM nginx:alpine@sha256:8b1e78743a03dbb2c95171cc58639fef29abc8816598e27fb910ed2e621e589a AS runtime
+FROM nginx:alpine@sha256:54f2a904c251d5a34adf545a72d32515a15e08418dae0266e23be2e18c66fefa AS runtime
 
-# Keep the runtime to plain nginx. The official Alpine image ships optional
-# dynamic modules and their image/curl dependencies that this SPA does not use.
-RUN apk del --no-cache \
+# Patch base OS packages to the latest point releases on every rebuild so that
+# CVEs fixed in Alpine's stable branch (e.g. openssl 3.5.7-r0) get picked up
+# automatically, not just at the next manual digest bump. Then keep the runtime
+# to plain nginx: the official Alpine image ships optional dynamic modules and
+# their image/curl dependencies that this SPA does not use.
+RUN apk upgrade --no-cache && \
+    apk del --no-cache \
     curl \
     nginx-module-acme \
     nginx-module-geoip \

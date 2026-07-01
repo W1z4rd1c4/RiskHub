@@ -21,25 +21,25 @@
 ignore:
   - vulnerability: CVE-2026-6100
     reason: "Owner: Platform. Decision: time-bound no-fix suppression for Python 3.13 runtime CPE match. Scanner evidence: Grype v0.110.0 backend SBOM match for python 3.13.13. No-fix proof: no fixed Python 3.13 Docker base image is available yet; re-evaluate when upstream publishes a fixed 3.13 runtime."
-    expires-on: 2026-06-30
+    expires-on: 2026-09-30
     package:
       name: python
       version: 3.13.13
   - vulnerability: CVE-2026-3298
     reason: "Owner: Platform. Decision: time-bound no-fix suppression for Python 3.13 runtime CPE match. Scanner evidence: Grype v0.110.0 backend SBOM match for python 3.13.13. No-fix proof: no fixed Python 3.13 Docker base image is available yet; re-evaluate when upstream publishes a fixed 3.13 runtime."
-    expires-on: 2026-06-30
+    expires-on: 2026-09-30
     package:
       name: python
       version: 3.13.13
   - vulnerability: CVE-2026-7210
     reason: "Owner: Platform. Decision: time-bound no-fix suppression for Python 3.13 runtime CPE match. Scanner evidence: Grype v0.110.0 backend SBOM match for python 3.13.13. No-fix proof: no fixed Python 3.13 Docker base image is available yet; re-evaluate when upstream publishes a fixed 3.13 runtime."
-    expires-on: 2026-06-30
+    expires-on: 2026-09-30
     package:
       name: python
       version: 3.13.13
   - vulnerability: CVE-2026-4786
     reason: "Owner: Platform. Decision: time-bound no-fix suppression for Python 3.13 runtime CPE match. Scanner evidence: Grype v0.110.0 backend SBOM match for python 3.13.13. No-fix proof: no fixed Python 3.13 Docker base image is available yet; re-evaluate when upstream publishes a fixed 3.13 runtime."
-    expires-on: 2026-06-30
+    expires-on: 2026-09-30
     package:
       name: python
       version: 3.13.13
