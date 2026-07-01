@@ -1,0 +1,70 @@
+# Accepted public-repo history baseline (Option B).
+#
+# Records the two historical-only findings from `make -f scripts/Makefile
+# public-leak-audit` that were reviewed and accepted on 2026-07-01 rather than
+# resolved by rewriting git history. See docs/security/SECURITY.md
+# ("Accepted public-repo history baseline") for the full decision record.
+#
+# SCOPE — this baseline applies ONLY to the two historical-only counts:
+#   * history_privacy_path_hits  (git-log patch scan, --mode history-patches)
+#   * history_runtime_artifacts  (history blob listing)
+# It does NOT relax current_tree_gitleaks, history_gitleaks,
+# tracked_hygiene_findings, or history_message_privacy_hits — those stay strict
+# (0) with no exception.
+#
+# It is deliberately narrow: a NEW privacy hit (a different local user path, a
+# match outside the accepted maintainer-local-path shape, or ANY hit in the
+# current tree) and a NEW runtime-artifact blob (any object id not listed here)
+# still fail the gate. This records a snapshot; it does not disable the check.
+
+accepted_on = "2026-07-01"
+justification = "Historical-only maintainer-local-path noise and labeled dev placeholders; confirmed non-secret (dual gitleaks pass clean). History rewrite rejected as disproportionate for a public repo — see docs/security/SECURITY.md."
+
+# --- history_privacy_path_hits ---------------------------------------------
+# Every accepted hit echoes the maintainer's own local user path. A hit whose
+# match references any OTHER user, or that does not start with one of these
+# prefixes, is treated as NEW and fails the gate. `accepted_count` snapshots
+# the current volume: if the number of accepted-shape hits GROWS, the gate
+# fails so the increase is reviewed (the baseline is not a blanket mute).
+[privacy_paths]
+accepted_match_prefixes = [
+  "/Users/stefanlesnak/",
+  "file:///Users/stefanlesnak/",
+]
+accepted_count = 4910
+
+# --- history_runtime_artifacts ---------------------------------------------
+# Exact blob object-id + path pairs accepted. `git rev-list --objects --all`
+# is deterministic per blob content, so any NEW artifact (new content, new
+# path, or an object id not listed here) is not covered and fails the gate.
+[[runtime_artifacts]]
+oid = "1264ea46ef8df66c8a38b26045c9a9cdc8abe507"
+path = ".dev-backend.pid"
+
+[[runtime_artifacts]]
+oid = "90cbc8ca79c37f5c03a9c3bab172994afbe603cf"
+path = ".dev-backend.pid"
+
+[[runtime_artifacts]]
+oid = "60cbabed3f9ad5f2c2ffcb435676d036db3b59a9"
+path = ".dev-frontend.pid"
+
+[[runtime_artifacts]]
+oid = "a15cd72e1575f46174aabbabdae4dee683a6614c"
+path = ".dev-frontend.pid"
+
+[[runtime_artifacts]]
+oid = "d26f41af85f1dff1a4d2610a7fc1c0db9927bedd"
+path = "dev.sh.pid"
+
+[[runtime_artifacts]]
+oid = "a4c14a68989e3d6165987372fb9853fda8a1371c"
+path = "scripts/runtime-artifacts/legacy/dev.sh.pid"
+
+[[runtime_artifacts]]
+oid = "1504b22120b8f405434514364d117d6c79533c38"
+path = "scripts/runtime-artifacts/legacy/dev.sh.log.20260202-223730"
+
+[[runtime_artifacts]]
+oid = "852ed0adee664a95466bbb986ad518a7045ffbd4"
+path = "scripts/runtime-artifacts/legacy/dev.sh.log.20260202-223823"

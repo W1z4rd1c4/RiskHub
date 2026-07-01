@@ -76,7 +76,11 @@ else
   tracked_hygiene_rc=$?
 fi
 
-if python3 "$ROOT_DIR/scripts/security/validate_public_repo_hygiene.py" --mode history-patches --format json --output "$PRIVACY_REPORT"; then
+# --apply-baseline subtracts the accepted maintainer-local-path history noise
+# (scripts/security/_public_repo_history_baseline.toml). Only NEW privacy hits
+# — a different local user, a match outside the accepted shape, or growth beyond
+# the recorded snapshot — make this exit non-zero. See docs/security/SECURITY.md.
+if python3 "$ROOT_DIR/scripts/security/validate_public_repo_hygiene.py" --mode history-patches --apply-baseline --format json --output "$PRIVACY_REPORT"; then
   :
 else
   history_privacy_rc=$?
@@ -91,9 +95,44 @@ fi
 git -C "$ROOT_DIR" ls-files '.dev-*.pid' 'dev.sh.pid' 'scripts/runtime-artifacts/**' 'backend/logs/**' 'tests/results/**' \
   >"$TRACKED_ARTIFACTS_REPORT"
 
+# List history runtime-artifact blobs, then subtract the accepted baseline by
+# exact object-id (scripts/security/_public_repo_history_baseline.toml). A blob
+# with new content/path yields a new object id that is NOT in the baseline, so
+# it survives the filter and fails the gate below. See docs/security/SECURITY.md.
+HISTORY_BASELINE_TOML="$ROOT_DIR/scripts/security/_public_repo_history_baseline.toml"
 git -C "$ROOT_DIR" rev-list --objects --all | \
   rg '(^| )(\.dev-backend\.pid|\.dev-frontend\.pid|dev\.sh\.pid|scripts/runtime-artifacts/legacy/)' \
-  >"$HISTORY_ARTIFACTS_REPORT" || true
+  >"$TMP_ARTIFACT_ROOT/history-runtime-artifacts-raw.txt" || true
+
+python3 - "$HISTORY_BASELINE_TOML" "$TMP_ARTIFACT_ROOT/history-runtime-artifacts-raw.txt" "$HISTORY_ARTIFACTS_REPORT" <<'PY_BASELINE'
+from __future__ import annotations
+
+import sys
+import tomllib
+from pathlib import Path
+
+baseline_path, raw_path, out_path = (Path(sys.argv[i]) for i in (1, 2, 3))
+
+accepted_oids: set[str] = set()
+if baseline_path.exists():
+    with baseline_path.open("rb") as handle:
+        data = tomllib.load(handle)
+    for entry in data.get("runtime_artifacts", []):
+        oid = entry.get("oid")
+        if oid:
+            accepted_oids.add(str(oid))
+
+residual: list[str] = []
+if raw_path.exists():
+    for line in raw_path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        oid = line.split(maxsplit=1)[0]
+        if oid not in accepted_oids:
+            residual.append(line)
+
+out_path.write_text("".join(f"{line}\n" for line in residual), encoding="utf-8")
+PY_BASELINE
 
 python3 - "$CURRENT_TREE_REPORT" "$HISTORY_REPORT" "$TRACKED_HYGIENE_REPORT" "$PRIVACY_REPORT" "$MESSAGE_PRIVACY_REPORT" "$TRACKED_ARTIFACTS_REPORT" "$HISTORY_ARTIFACTS_REPORT" <<'PY2'
 from __future__ import annotations

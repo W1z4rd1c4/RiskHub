@@ -8,17 +8,22 @@ import json
 import re
 import subprocess
 import sys
+import tomllib
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+HISTORY_BASELINE_PATH = (
+    Path(__file__).resolve().parent / "_public_repo_history_baseline.toml"
+)
 PATCH_COMMIT_PREFIX = "__RISKHUB_HYGIENE_PATCH_COMMIT__ "
 MESSAGE_COMMIT_PREFIX = "__RISKHUB_HYGIENE_MESSAGE_COMMIT__ "
 MESSAGE_END_MARKER = "__RISKHUB_HYGIENE_MESSAGE_END__"
 DIFF_HEADER_RE = re.compile(r"^diff --git a/(.+) b/(.+)$")
 
 ALLOWED_CONTENT_PATHS = {
+    Path("scripts/security/_public_repo_history_baseline.toml"),
     Path("scripts/security/run_public_repo_leak_audit.sh"),
     Path("scripts/security/validate_public_repo_hygiene.py"),
     Path("scripts/tools/docs_tree_audit.py"),
@@ -27,6 +32,7 @@ ALLOWED_CONTENT_PATHS = {
 }
 
 DEFAULT_HISTORY_PATCH_EXCLUDES = (
+    ":(exclude)scripts/security/_public_repo_history_baseline.toml",
     ":(exclude)scripts/security/run_public_repo_leak_audit.sh",
     ":(exclude)scripts/security/validate_public_repo_hygiene.py",
     ":(exclude)scripts/tools/docs_tree_audit.py",
@@ -357,6 +363,57 @@ def scan_history_messages() -> list[HygieneFinding]:
     return scan_history_message_output(result.stdout)
 
 
+@dataclass(frozen=True)
+class PrivacyBaseline:
+    accepted_match_prefixes: tuple[str, ...]
+    accepted_count: int
+
+
+def load_privacy_baseline(
+    baseline_path: Path = HISTORY_BASELINE_PATH,
+) -> PrivacyBaseline:
+    """Load the accepted history-privacy baseline.
+
+    Applies ONLY to history-patches privacy hits. A hit is "accepted" when its
+    trimmed match starts with one of the recorded maintainer-local-path
+    prefixes. Any other match (a different local user, a path outside the
+    accepted shape) is NEW and is not covered by this baseline.
+    """
+    with baseline_path.open("rb") as handle:
+        data = tomllib.load(handle)
+    privacy = data.get("privacy_paths", {})
+    prefixes = tuple(privacy.get("accepted_match_prefixes", ()))
+    accepted_count = int(privacy.get("accepted_count", 0))
+    return PrivacyBaseline(
+        accepted_match_prefixes=prefixes, accepted_count=accepted_count
+    )
+
+
+def apply_privacy_baseline(
+    findings: list[HygieneFinding], baseline: PrivacyBaseline
+) -> tuple[list[HygieneFinding], int, bool]:
+    """Split findings into (residual, accepted_count, count_regressed).
+
+    Residual findings are those NOT covered by an accepted match prefix; those
+    still fail the gate. `count_regressed` is True when the number of
+    accepted-shape hits exceeds the recorded snapshot, so a growth in the
+    accepted noise is surfaced rather than silently muted.
+    """
+    residual: list[HygieneFinding] = []
+    accepted = 0
+    for finding in findings:
+        match = finding.match or ""
+        if any(
+            match.startswith(prefix)
+            for prefix in baseline.accepted_match_prefixes
+        ):
+            accepted += 1
+        else:
+            residual.append(finding)
+    count_regressed = accepted > baseline.accepted_count
+    return residual, accepted, count_regressed
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Validate public-repo hygiene and privacy leaks."
@@ -372,6 +429,15 @@ def parse_args() -> argparse.Namespace:
         action="append",
         default=[],
         help="Additional git pathspec exclusion for history-patches mode.",
+    )
+    parser.add_argument(
+        "--apply-baseline",
+        action="store_true",
+        help=(
+            "In history-patches mode, subtract the accepted maintainer-local-path "
+            "baseline (_public_repo_history_baseline.toml) so only NEW privacy hits "
+            "are reported. Ignored in other modes."
+        ),
     )
     parser.add_argument(
         "--format", choices=("text", "json"), default="text", help="Output format."
@@ -404,35 +470,59 @@ def render_text(findings: list[HygieneFinding]) -> str:
     return "\n".join(lines) + "\n"
 
 
-def render_json(findings: list[HygieneFinding], *, mode: str) -> str:
-    payload = {
+def render_json(
+    findings: list[HygieneFinding],
+    *,
+    mode: str,
+    baseline: dict[str, object] | None = None,
+) -> str:
+    payload: dict[str, object] = {
         "repo_root": str(REPO_ROOT),
         "mode": mode,
         "finding_count": len(findings),
         "findings": [asdict(finding) for finding in findings],
     }
+    if baseline is not None:
+        payload["baseline"] = baseline
     return json.dumps(payload, indent=2, ensure_ascii=True) + "\n"
 
 
 def main() -> int:
     args = parse_args()
+    baseline_meta: dict[str, object] | None = None
+    baseline_regressed = False
     try:
         if args.mode == "tracked":
             findings = scan_paths(args.paths) if args.paths else scan_repo()
         elif args.mode == "history-patches":
             path_excludes = DEFAULT_HISTORY_PATCH_EXCLUDES + tuple(args.path_exclude)
             findings = scan_history_patches(path_excludes)
+            if args.apply_baseline:
+                baseline = load_privacy_baseline()
+                residual, accepted, baseline_regressed = apply_privacy_baseline(
+                    findings, baseline
+                )
+                findings = residual
+                baseline_meta = {
+                    "applied": True,
+                    "accepted_count": accepted,
+                    "accepted_snapshot": baseline.accepted_count,
+                    "count_regressed": baseline_regressed,
+                    "residual_count": len(residual),
+                }
         else:
             findings = scan_history_messages()
-    except RuntimeError as exc:
+    except (RuntimeError, OSError, tomllib.TOMLDecodeError) as exc:
         print(str(exc), file=sys.stderr)
         return 2
 
     rendered = (
-        render_json(findings, mode=args.mode)
+        render_json(findings, mode=args.mode, baseline=baseline_meta)
         if args.format == "json"
         else render_text(findings)
     )
+
+    gate_failed = bool(findings) or baseline_regressed
 
     if args.output:
         output_path = Path(args.output)
@@ -442,9 +532,9 @@ def main() -> int:
         try:
             print(rendered, end="")
         except BrokenPipeError:
-            return 1 if findings else 0
+            return 1 if gate_failed else 0
 
-    return 1 if findings else 0
+    return 1 if gate_failed else 0
 
 
 if __name__ == "__main__":

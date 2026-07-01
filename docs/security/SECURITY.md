@@ -184,6 +184,52 @@ RiskHub uses symmetric JWT signing/verification (`HS256`) only (see `backend/app
 
 Re-evaluate this acceptance if RiskHub introduces any ECDSA/ECDH-based algorithms (e.g., `ES256`/`ES384`/`ES512`) or other features that rely on `ecdsa`.
 
+### Accepted public-repo history baseline (2026-07-01)
+
+`make -f scripts/Makefile public-leak-audit` reported two **history-only**
+findings that were reviewed and accepted rather than resolved by rewriting git
+history:
+
+- `history_privacy_path_hits`: git-history patches echo the maintainer's own
+  local absolute home path (a single `Users/<maintainer>/…` prefix) in internal
+  AI-audit working notes and generated caches (`.planning/`, `.codex-home/`,
+  `.smart-coding-cache/`, and older `docs/` drafts). Every hit references the
+  same single maintainer user — no third-party PII, no secrets, no non-localhost
+  IPs.
+- `history_runtime_artifacts`: eight historical blobs — `.dev-*.pid` /
+  `dev.sh.pid` (a screen-session label only) and
+  `scripts/runtime-artifacts/legacy/dev.sh.log.*` (bounded by `scripts/dev.sh`
+  to the already-public labeled dev placeholders
+  `SECRET_KEY=dev-secret-key-not-for-production-use` and the local
+  `riskhub:riskhub_dev@localhost` DSN).
+
+Both are **history-only**: the current tree is clean and `.gitignore` excludes
+these patterns going forward. A dual `gitleaks` pass (current tree + full
+history) is clean, confirming no real secret sits alongside them.
+
+**Decision — Option B (documented baseline, not history rewrite).** Severity is
+LOW: closed-off historical noise, not an active leak. Rewriting history on a
+public repo would break every fork, open PR, and commit-hash reference for a
+non-secret finding — disproportionate to the risk. The accepted snapshot is
+recorded in
+[`scripts/security/_public_repo_history_baseline.toml`](../../scripts/security/_public_repo_history_baseline.toml).
+
+The baseline is deliberately narrow and does **not** disable the check:
+
+- It applies **only** to `history_privacy_path_hits` and
+  `history_runtime_artifacts`. `current_tree_gitleaks`, `history_gitleaks`,
+  `tracked_hygiene_findings`, and `history_message_privacy_hits` stay strict (0)
+  with no exception.
+- Privacy hits are accepted only when they match the recorded
+  maintainer-local-path prefixes, keyed to a snapshot count — a hit referencing
+  a **different** user, a match outside that shape, ANY hit in the current tree,
+  or **growth** beyond the snapshot still fails the gate.
+- Runtime artifacts are accepted by exact blob object-id — any new content, new
+  path, or new object-id is not covered and still fails the gate.
+
+Re-evaluate (and shrink) this baseline if the repository is ever re-published
+from a rewritten history, or if the accepted counts change.
+
 ---
 
 ## Development Security Checklist
