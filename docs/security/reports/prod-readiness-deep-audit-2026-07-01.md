@@ -1,7 +1,7 @@
 # Production Readiness Audit (20260701-203243)
 
 - Original status: **complete** — 11 required-command failures, 15 open High findings
-- Current status (re-verified 2026-07-02, run `20260702-115755`): **MC-12 remediated via policy suppression**; the remaining 14 are not repo defects (see table). The two grype findings are now suppressed with upstream-verified, time-bound entries; a targeted grype re-scan of the run's SBOM with the updated `backend/security/grype-ignore.yaml` reports `grype_backend_high_critical = 0`.
+- Current status (re-verified 2026-07-02, run `20260702-115755`): **MC-12 remediated post-run via policy suppression**; the remaining 14 are not repo defects (see table). Note the reconciliation: run `20260702-115755` executed **before** the suppression was added, so its `supply-chain-counts.json` still records `grype_backend_high_critical = 2`. The two grype findings were then suppressed with upstream-verified, time-bound entries in `backend/security/grype-ignore.yaml`; a targeted re-scan of the **same** run SBOM with the **updated** config — identical to the audit's grype gate step (`grype … --config /repo/backend/security/grype-ignore.yaml`) — reports `grype_backend_high_critical = 0`. A fresh full audit run would therefore record 0; the committed `20260702-115755` artifact predates the fix and is not re-generated here.
 - Scorecard: production readiness **needs-attention (0/5)** — the harness scores 0 while the deploy lifecycle cannot complete in the local harness environment (see MC-09 below); this reflects harness/host state, not application code.
 
 ## Resolution summary
@@ -45,12 +45,15 @@ cascades**:
 | MC-08 (frontend non-root UID) | RESOLVED — code already correct | `frontend/Dockerfile:64` `USER riskhub` (uid 1001); audit FAIL was a cascade artifact (no container to inspect) |
 | MC-09 (deploy lifecycle) | ENV/HARNESS — not a code defect | rolls up ROOT-A + ROOT-B; deploy machinery unchanged and correct-by-design |
 | MC-10 (docs/openapi not exposed) | RESOLVED — code already correct | `backend/app/main.py:394-396` gate `docs_url`/`redoc_url`/`openapi_url` on `settings.debug`; audit FAIL was a cascade artifact |
-| MC-12 (supply-chain High/Critical) | **OPEN** | grype reports **2 High** on the backend python runtime (see below) |
+| MC-12 (supply-chain High/Critical) | **REMEDIATED post-run** (suppression) | run artifact records **2 High**; post-run suppression + targeted re-scan → **0** (see below) |
 
-## MC-12 — the one open finding
+## MC-12 — the one real finding (remediated post-run)
 
 Fresh run `20260702-115755` (`reports/supply-chain-counts.json`): `trivy_backend=0`,
-`trivy_frontend=0`, `gitleaks=0`, **`grype_backend_high_critical=2`**.
+`trivy_frontend=0`, `gitleaks=0`, **`grype_backend_high_critical=2`**. This run executed
+**before** the suppression was added, so its committed artifact records 2; the remediation
+below was applied afterward and is confirmed by a targeted re-scan (not by re-generating this
+run's artifact).
 
 The two findings are both `tarfile` stdlib CPE matches on the base-image CPython, with **no
 released 3.13.x fix**:
@@ -72,8 +75,20 @@ archive, and RiskHub does not use the `tarfile` module anywhere (`backend/app`,
 Owner / Decision / Scanner-evidence / No-fix-proof (with the verified upstream state and the
 non-reachability) and `expires-on: 2026-09-30`. The four stale `3.13.13` entries
 (`CVE-2026-6100/-3298/-7210/-4786`), which no longer match the shipped runtime, were removed.
-A targeted grype re-scan of the run's SBOM with the updated config reports
-`grype_backend_high_critical = 0`, closing MC-12.
+
+Verification (reproduce the audit's grype gate against the existing run SBOM with the updated
+config):
+
+```
+docker run --rm -v "$PWD":/repo -v <run>/reports:/out -w /repo \
+  anchore/grype:v0.110.0 sbom:/out/sbom-backend.json \
+  --config /repo/backend/security/grype-ignore.yaml -o json=/out/grype-reverify.json
+# High/Critical matches -> 0
+```
+
+This step is byte-identical to the audit's `p4_grype_backend` command, so a fresh full audit
+run would record `grype_backend_high_critical = 0`, closing MC-12. The `20260702-115755`
+artifact itself is left as the pre-fix record (2) and is **not** re-generated here.
 
 **Standing exit (Option A):** when `python:3.13.15-alpine` (or later, containing the merged
 fixes) is published, bump the three `FROM` lines in `backend/Dockerfile` and remove both

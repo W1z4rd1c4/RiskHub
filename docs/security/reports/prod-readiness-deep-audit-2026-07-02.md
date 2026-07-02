@@ -5,8 +5,10 @@
 > [prod-readiness-deep-audit-2026-07-01.md](./prod-readiness-deep-audit-2026-07-01.md).
 > In short: the 11 command failures are two local env/harness roots plus nine
 > cascades (not code defects), MC-08/MC-10 were already satisfied by shipping
-> code, MC-09 is a harness limitation, and MC-12 is remediated via time-bound
-> `grype-ignore.yaml` suppressions (grype High/Critical re-scan → 0). Evidence
+> code, MC-09 is a harness limitation, and MC-12 was remediated **after** this run
+> via time-bound `grype-ignore.yaml` suppressions. This run predates the fix, so
+> its `supply-chain-counts.json` records `grype_backend_high_critical = 2`; a
+> targeted re-scan of the same SBOM with the updated config reports 0. Evidence
 > paths below are local run artifacts under `tests/results/` (gitignored).
 
 - Status: **complete**
