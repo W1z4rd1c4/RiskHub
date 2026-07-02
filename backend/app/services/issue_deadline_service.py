@@ -221,25 +221,16 @@ class IssueDeadlineService:
             due_soon_backoff=due_soon_backoff,
             last_due_soon_notified_at=issue.last_due_soon_notified_at,
         ):
-            plan = deadline_decisions.build_issue_due_soon_notification_plan(issue=issue, due_at=due_at)
-            created_for_issue = 0
-            for user in recipients:
-                created = await IssueDeadlineService._create_issue_notification(
-                    db,
-                    user=user,
-                    issue=issue,
-                    notification_type=plan.notification_type,
-                    title=plan.title,
-                    message=plan.message,
-                    now=now,
-                )
-                if created:
-                    created_for_issue += 1
-            if created_for_issue:
-                issue.last_due_soon_notified_at = now
-                db.add(issue)
-                increment_deadline_results(issue_results, "due_soon")
-                increment_deadline_results(issue_results, "notifications_created", count=created_for_issue)
+            await IssueDeadlineService._fan_out_and_stamp(
+                db,
+                issue=issue,
+                recipients=recipients,
+                plan=deadline_decisions.build_issue_due_soon_notification_plan(issue=issue, due_at=due_at),
+                stamp_field="last_due_soon_notified_at",
+                result_key="due_soon",
+                issue_results=issue_results,
+                now=now,
+            )
 
         if due_at >= now:
             return issue_results
@@ -250,25 +241,16 @@ class IssueDeadlineService:
             overdue_cutoff=overdue_cutoff,
             last_overdue_notified_at=issue.last_overdue_notified_at,
         ):
-            plan = deadline_decisions.build_issue_overdue_notification_plan(issue=issue, due_at=due_at)
-            created_for_issue = 0
-            for user in recipients:
-                created = await IssueDeadlineService._create_issue_notification(
-                    db,
-                    user=user,
-                    issue=issue,
-                    notification_type=plan.notification_type,
-                    title=plan.title,
-                    message=plan.message,
-                    now=now,
-                )
-                if created:
-                    created_for_issue += 1
-            if created_for_issue:
-                issue.last_overdue_notified_at = now
-                db.add(issue)
-                increment_deadline_results(issue_results, "overdue")
-                increment_deadline_results(issue_results, "notifications_created", count=created_for_issue)
+            await IssueDeadlineService._fan_out_and_stamp(
+                db,
+                issue=issue,
+                recipients=recipients,
+                plan=deadline_decisions.build_issue_overdue_notification_plan(issue=issue, due_at=due_at),
+                stamp_field="last_overdue_notified_at",
+                result_key="overdue",
+                issue_results=issue_results,
+                now=now,
+            )
 
         if deadline_decisions.should_escalate_issue_overdue(
             now=now,
@@ -277,30 +259,52 @@ class IssueDeadlineService:
             last_escalated_at=issue.last_escalated_at,
             issue_severity=issue.severity,
         ):
-            plan = deadline_decisions.build_issue_escalation_notification_plan(issue=issue, due_at=due_at)
-            created_escalations = 0
-            recipient_ids = {u.id for u in escalation_users} - {u.id for u in recipients}
-            for user in escalation_users:
-                if user.id not in recipient_ids:
-                    continue
-                created = await IssueDeadlineService._create_issue_notification(
-                    db,
-                    user=user,
-                    issue=issue,
-                    notification_type=plan.notification_type,
-                    title=plan.title,
-                    message=plan.message,
-                    now=now,
-                )
-                if created:
-                    created_escalations += 1
-            if created_escalations:
-                issue.last_escalated_at = now
-                db.add(issue)
-                increment_deadline_results(issue_results, "escalated")
-                increment_deadline_results(issue_results, "notifications_created", count=created_escalations)
+            owner_recipient_ids = {user.id for user in recipients}
+            escalation_recipients = [user for user in escalation_users if user.id not in owner_recipient_ids]
+            await IssueDeadlineService._fan_out_and_stamp(
+                db,
+                issue=issue,
+                recipients=escalation_recipients,
+                plan=deadline_decisions.build_issue_escalation_notification_plan(issue=issue, due_at=due_at),
+                stamp_field="last_escalated_at",
+                result_key="escalated",
+                issue_results=issue_results,
+                now=now,
+            )
 
         return issue_results
+
+    @staticmethod
+    async def _fan_out_and_stamp(
+        db: AsyncSession,
+        *,
+        issue: Issue,
+        recipients: list[User],
+        plan: deadline_decisions.IssueDeadlineNotificationPlan,
+        stamp_field: str,
+        result_key: str,
+        issue_results: dict[str, int],
+        now: datetime,
+    ) -> None:
+        """Notify recipients; stamp the backoff field only if at least one notification landed."""
+        created_count = 0
+        for user in recipients:
+            created = await IssueDeadlineService._create_issue_notification(
+                db,
+                user=user,
+                issue=issue,
+                notification_type=plan.notification_type,
+                title=plan.title,
+                message=plan.message,
+                now=now,
+            )
+            if created:
+                created_count += 1
+        if created_count:
+            setattr(issue, stamp_field, now)
+            db.add(issue)
+            increment_deadline_results(issue_results, result_key)
+            increment_deadline_results(issue_results, "notifications_created", count=created_count)
 
     @staticmethod
     async def check_issue_deadlines(db: AsyncSession, *, now: datetime | None = None) -> dict[str, int]:

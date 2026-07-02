@@ -39,6 +39,39 @@ export type Authz = {
     can: CapabilityChecker;
 };
 
+function buildDenyAllAuthz(isAuthenticated: boolean): Authz {
+    // Strict-mode fail-safe: without backend capability metadata we deny every
+    // capability-gated surface instead of silently reverting to the permissive
+    // legacy rules. Only session identity survives.
+    return {
+        isAuthenticated,
+        isPlatformAdmin: false,
+        isCRO: false,
+        isRiskManager: false,
+        isCompliance: false,
+        isDepartmentHead: false,
+        hasGlobalScope: false,
+        canViewUserDirectory: false,
+        canViewAccessUsers: false,
+        canViewDepartmentAccessUsers: false,
+        canViewUsersRoute: false,
+        canManageAccess: false,
+        canViewDepartmentAccess: false,
+        canViewAdminConsole: false,
+        canViewRiskHub: false,
+        canViewGovernance: false,
+        canViewActivityLog: false,
+        canViewCommittee: false,
+        canViewUsersPage: false,
+        isSecondLine: false,
+        canReadRisks: false,
+        canReadControls: false,
+        canReadVendors: false,
+        canReadDepartments: false,
+        can: () => false,
+    };
+}
+
 function buildLegacyAuthz(user: AuthUser, hasPermission: PermissionChecker): Authz {
     const isAuthenticated = !!user;
     const isPlatformAdmin = user?.role === 'admin';
@@ -98,8 +131,11 @@ export function buildAuthz(
     const isDepartmentHead = user?.role === 'department_head';
     const hasGlobalScope = user?.access_scope === 'global';
 
-    if (!strictCapabilities || !meCapabilities) {
+    if (!strictCapabilities) {
         return buildLegacyAuthz(user, hasPermission);
+    }
+    if (!meCapabilities) {
+        return buildDenyAllAuthz(isAuthenticated);
     }
 
     const can = (action: string, resource: string): boolean => {

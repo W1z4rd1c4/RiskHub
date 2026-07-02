@@ -24,7 +24,7 @@ async def test_kri_correction_requires_privileged_approval(
     """Test PATCH /kris/{id}/history/{entry_id} sets requires_privileged_approval=True per §5.3."""
     from app.models import ApprovalRequest, Permission, RolePermission, User
     from app.models.user import AccessScope
-    from app.services.kri_history_service import KRIHistoryService
+    from app.services._kri_history.service import KRIHistoryService
 
     risks_write = Permission(resource="risks", action="write", description="Edit risks")
     db_session.add(risks_write)
@@ -107,7 +107,7 @@ async def test_privileged_user_can_directly_correct_kri(
     test_user_cro,
 ):
     """Test privileged user (CRO) can correct KRI value immediately without approval."""
-    from app.services.kri_history_service import KRIHistoryService
+    from app.services._kri_history.service import KRIHistoryService
 
     # Create KRI with history entry
     _, period_end = KRIHistoryService.latest_closed_period_for_date(date.today(), KRIFrequency.monthly.value)

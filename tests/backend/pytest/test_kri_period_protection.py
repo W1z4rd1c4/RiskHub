@@ -11,7 +11,7 @@ from app.models import KeyRiskIndicator, Risk, User
 from app.models.key_risk_indicator import KRIFrequency
 from app.models.kri_history import KRIValueHistory
 from app.services._kri_history.recording import DuplicateKRIPeriodError
-from app.services.kri_history_service import KRIHistoryService
+from app.services._kri_history.service import KRIHistoryService
 
 
 class TestKRIPeriodProtection:

@@ -30,8 +30,8 @@ from app.models.key_risk_indicator import KeyRiskIndicator, KRIFrequency
 from app.models.kri_history import KRIValueHistory
 from app.models.risk import RiskStatus
 from app.models.user import AccessScope
+from app.services._kri_history.service import KRIHistoryService
 from app.services._riskhub_config.approval_scenario_roles import APPROVER_ROLES, set_approval_scenario_roles
-from app.services.kri_history_service import KRIHistoryService
 
 pytest_plugins = ("tests.backend.pytest.kri_history_api_support",)
 

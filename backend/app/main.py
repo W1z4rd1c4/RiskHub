@@ -23,8 +23,8 @@ from app.core.logging import (
 )
 from app.core.otel import configure_opentelemetry
 from app.core.production_contract import PRODUCTION_INVARIANTS
-from app.core.scheduler import configure_scheduler, start_scheduler_async, stop_scheduler_async
 from app.core.scheduler_jobs import resolve_process_worker_count
+from app.core.scheduler_runtime import configure_scheduler, start_scheduler_async, stop_scheduler_async
 from app.core.schema_guard import enforce_schema_head
 from app.core.settings.database import DEFAULT_DATABASE_URL
 from app.db.session import init_app_db

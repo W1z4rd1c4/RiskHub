@@ -28,7 +28,7 @@ from app.models.kri_history import KRIValueHistory
 from app.models.notification import NotificationType
 from app.models.risk_questionnaire import RiskQuestionnaireStatus
 from app.models.user import AccessScope
-from app.services.kri_history_service import KRIHistoryService
+from app.services._kri_history.service import KRIHistoryService
 from app.services.notification_service import NotificationService
 from app.services.outbox import dispatch_pending_outbox_events
 from app.services.outbox.errors import FatalOutboxError, RetryableOutboxError

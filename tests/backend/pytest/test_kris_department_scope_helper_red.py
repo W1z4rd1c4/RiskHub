@@ -6,7 +6,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Department, User
-from app.services.kri_history_service import KRIHistoryService
+from app.services._kri_history.service import KRIHistoryService
 from tests.backend.pytest.factories import create_test_kri, create_test_risk
 
 pytestmark = pytest.mark.contract

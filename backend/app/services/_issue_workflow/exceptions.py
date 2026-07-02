@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.activity_logger import build_change_set
@@ -13,6 +12,7 @@ from app.core.audit.issue import (
     issue_status_changed,
 )
 from app.core.datetime_utils import coerce_utc, utc_now
+from app.core.exceptions import AuthorizationError, ValidationError
 from app.models import Issue, IssueException, User
 from app.models.issue import IssueExceptionStatus, IssueStatus
 
@@ -73,17 +73,14 @@ async def approve_exception(
         _conflict(f"Only requested exceptions can be approved (current={exception.status})")
 
     if exception.requested_by_id is not None and exception.requested_by_id == actor.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Users cannot approve their own exception requests",
-        )
+        raise AuthorizationError("Users cannot approve their own exception requests")
 
     coerced_expires_at = coerce_utc(expires_at)
     if coerced_expires_at is None:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="expires_at is required")
+        raise ValidationError("expires_at is required")
     now = utc_now()
     if coerced_expires_at <= now:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="expires_at must be in the future")
+        raise ValidationError("expires_at must be in the future")
     updates = {
         "status": IssueExceptionStatus.approved.value,
         "approved_by_id": actor.id,

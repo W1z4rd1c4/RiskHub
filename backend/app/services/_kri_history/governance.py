@@ -143,7 +143,7 @@ async def list_kri_history_projection(
     sort_by: str,
     sort_direction: str,
 ) -> KRIHistoryListResponse:
-    from app.services.kri_history_service import KRIHistoryService
+    from app.services._kri_history.service import KRIHistoryService
 
     from .loading import _load_kri_with_risk_or_404
     from .workflow import ensure_can_read_history, history_capabilities
@@ -213,8 +213,8 @@ async def correct_kri_history_governance(
     data: KRIHistoryEdit,
     current_user: User,
 ) -> KRIHistoryEntry | ApprovalQueuedResponse:
+    from app.services._kri_history.service import KRIHistoryService
     from app.services.approval_scenario_policy import load_approval_scenario_policy
-    from app.services.kri_history_service import KRIHistoryService
 
     from .loading import _load_kri_with_risk_or_404
     from .workflow import ensure_can_request_history_correction

@@ -11,18 +11,20 @@ from httpx import AsyncClient
 from sqlalchemy import inspect, select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
-from app.core.scheduler import (
+from app.core.scheduler_errors import FatalSchedulerJobError
+from app.core.scheduler_locks import PostgresAdvisoryLockProvider, SchedulerLockProvider
+from app.core.scheduler_registry import (
     FULL_SCHEDULER_JOB_IDS,
     OPTIONAL_SCHEDULER_JOB_IDS,
     OUTBOX_ONLY_SCHEDULER_JOB_IDS,
-    PostgresAdvisoryLockProvider,
-    SchedulerLockProvider,
+    SCHEDULER_RUNTIME_JOB_NAME,
+)
+from app.core.scheduler_runtime import (
     configure_scheduler,
     execute_tracked_job,
     get_scheduler_role_status,
     start_scheduler_async,
 )
-from app.core.scheduler_errors import FatalSchedulerJobError
 from app.core.settings import Settings
 from app.models.outbox_event import OutboxEvent
 from app.models.scheduler_job_run import SchedulerJobRun
@@ -44,9 +46,9 @@ def test_core_logging_and_scheduler_facades_import_split_runtime_modules() -> No
         importlib.import_module(module_name)
 
     logging_source = (REPO_ROOT / "backend" / "app" / "core" / "logging.py").read_text()
-    scheduler_source = (REPO_ROOT / "backend" / "app" / "core" / "scheduler.py").read_text()
     assert "logging_config" in logging_source
-    assert "scheduler_runtime" in scheduler_source
+    # The scheduler compat facade is collapsed; the runtime module is the only home.
+    assert not (REPO_ROOT / "backend" / "app" / "core" / "scheduler.py").exists()
 
 
 def _registered_job_ids(test_scheduler: AsyncIOScheduler) -> set[str]:
@@ -84,11 +86,11 @@ def test_scheduler_role_status_reports_follower_ready() -> None:
 
 @pytest_asyncio.fixture
 async def isolated_scheduler(async_engine: AsyncEngine, monkeypatch: pytest.MonkeyPatch):
-    import app.core.scheduler as scheduler_module
     import app.core.scheduler_jobs as scheduler_jobs_module
+    import app.core.scheduler_runtime as scheduler_runtime
 
     test_scheduler = AsyncIOScheduler()
-    monkeypatch.setattr(scheduler_module, "scheduler", test_scheduler)
+    monkeypatch.setattr(scheduler_runtime.runtime_state, "scheduler", test_scheduler)
     monkeypatch.setattr(scheduler_jobs_module, "scheduler", test_scheduler)
     monkeypatch.setenv("ENABLE_SCHEDULER", "true")
     configure_scheduler(
@@ -96,9 +98,9 @@ async def isolated_scheduler(async_engine: AsyncEngine, monkeypatch: pytest.Monk
         async_engine,
     )
 
-    yield scheduler_module
+    yield scheduler_runtime
 
-    await scheduler_module.stop_scheduler_async()
+    await scheduler_runtime.stop_scheduler_async()
 
 
 @pytest.mark.asyncio
@@ -112,17 +114,17 @@ async def test_scheduler_job_run_table_exists(async_engine: AsyncEngine) -> None
 async def test_scheduler_start_with_lock_acquired_starts_runtime_and_records_ownership(
     isolated_scheduler,
     async_engine: AsyncEngine,
+    monkeypatch: pytest.MonkeyPatch,
 ):
     provider = SchedulerLockProvider()
-    isolated_scheduler._lock_provider = None
-
-    isolated_scheduler._resolve_lock_provider = lambda: provider
+    isolated_scheduler.runtime_state.lock_provider = None
+    monkeypatch.setattr(isolated_scheduler, "resolve_lock_provider", lambda: provider)
 
     await start_scheduler_async()
 
-    assert isolated_scheduler.scheduler.running is True
+    assert isolated_scheduler.runtime_state.scheduler.running is True
     assert provider.lock_acquired is True
-    _assert_full_job_registration(_registered_job_ids(isolated_scheduler.scheduler))
+    _assert_full_job_registration(_registered_job_ids(isolated_scheduler.runtime_state.scheduler))
 
     async_session = async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
     async with async_session() as session:
@@ -130,7 +132,7 @@ async def test_scheduler_start_with_lock_acquired_starts_runtime_and_records_own
             (
                 await session.execute(
                     select(SchedulerJobRun).where(
-                        SchedulerJobRun.job_name == isolated_scheduler.SCHEDULER_RUNTIME_JOB_NAME
+                        SchedulerJobRun.job_name == SCHEDULER_RUNTIME_JOB_NAME
                     )
                 )
             )
@@ -147,15 +149,15 @@ async def test_scheduler_outbox_only_profile_registers_only_dispatch_job_and_rec
     monkeypatch: pytest.MonkeyPatch,
 ):
     provider = SchedulerLockProvider()
-    isolated_scheduler._lock_provider = None
-    isolated_scheduler._resolve_lock_provider = lambda: provider
+    isolated_scheduler.runtime_state.lock_provider = None
+    monkeypatch.setattr(isolated_scheduler, "resolve_lock_provider", lambda: provider)
     monkeypatch.setenv("SCHEDULER_JOB_PROFILE", "outbox_only")
 
     await start_scheduler_async()
 
-    assert isolated_scheduler.scheduler.running is True
+    assert isolated_scheduler.runtime_state.scheduler.running is True
     assert provider.lock_acquired is True
-    assert _registered_job_ids(isolated_scheduler.scheduler) == set(OUTBOX_ONLY_SCHEDULER_JOB_IDS)
+    assert _registered_job_ids(isolated_scheduler.runtime_state.scheduler) == set(OUTBOX_ONLY_SCHEDULER_JOB_IDS)
 
     async_session = async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
     async with async_session() as session:
@@ -163,7 +165,7 @@ async def test_scheduler_outbox_only_profile_registers_only_dispatch_job_and_rec
             (
                 await session.execute(
                     select(SchedulerJobRun).where(
-                        SchedulerJobRun.job_name == isolated_scheduler.SCHEDULER_RUNTIME_JOB_NAME
+                        SchedulerJobRun.job_name == SCHEDULER_RUNTIME_JOB_NAME
                     )
                 )
             )
@@ -177,17 +179,18 @@ async def test_scheduler_outbox_only_profile_registers_only_dispatch_job_and_rec
 async def test_scheduler_stop_marks_runtime_run_stopped(
     isolated_scheduler,
     async_engine: AsyncEngine,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     provider = SchedulerLockProvider()
-    isolated_scheduler._lock_provider = None
-    isolated_scheduler._resolve_lock_provider = lambda: provider
+    isolated_scheduler.runtime_state.lock_provider = None
+    monkeypatch.setattr(isolated_scheduler, "resolve_lock_provider", lambda: provider)
 
     await start_scheduler_async()
     await isolated_scheduler.stop_scheduler_async()
 
-    assert isolated_scheduler.scheduler.running is False
+    assert isolated_scheduler.runtime_state.scheduler.running is False
     assert provider.lock_acquired is False
-    assert isolated_scheduler._runtime_run_id is None
+    assert isolated_scheduler.runtime_state.runtime_run_id is None
 
     async_session = async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
     async with async_session() as session:
@@ -195,7 +198,7 @@ async def test_scheduler_stop_marks_runtime_run_stopped(
             (
                 await session.execute(
                     select(SchedulerJobRun).where(
-                        SchedulerJobRun.job_name == isolated_scheduler.SCHEDULER_RUNTIME_JOB_NAME
+                        SchedulerJobRun.job_name == SCHEDULER_RUNTIME_JOB_NAME
                     )
                 )
             )
@@ -222,40 +225,41 @@ async def test_scheduler_start_failure_releases_lock_and_stops_scheduler(
             await super().release()
 
     provider = TrackingLockProvider()
-    isolated_scheduler._lock_provider = None
-    isolated_scheduler._resolve_lock_provider = lambda: provider
+    isolated_scheduler.runtime_state.lock_provider = None
+    monkeypatch.setattr(isolated_scheduler, "resolve_lock_provider", lambda: provider)
 
     async def fail_runtime_start() -> None:
         raise RuntimeError("runtime start failed")
 
-    monkeypatch.setattr(isolated_scheduler, "_mark_runtime_started", fail_runtime_start)
+    monkeypatch.setattr(isolated_scheduler, "mark_runtime_started", fail_runtime_start)
 
     with pytest.raises(RuntimeError, match="runtime start failed"):
         await start_scheduler_async()
 
     await asyncio.sleep(0)
 
-    assert isolated_scheduler.scheduler.running is False
+    assert isolated_scheduler.runtime_state.scheduler.running is False
     assert provider.lock_acquired is False
     assert provider.release_calls == 1
-    assert isolated_scheduler._lock_provider is None
-    assert isolated_scheduler._runtime_run_id is None
+    assert isolated_scheduler.runtime_state.lock_provider is None
+    assert isolated_scheduler.runtime_state.runtime_run_id is None
 
 
 @pytest.mark.asyncio
 async def test_scheduler_start_with_lock_denied_skips_runtime_start(
     isolated_scheduler,
+    monkeypatch: pytest.MonkeyPatch,
 ):
     class DeniedLockProvider(SchedulerLockProvider):
         async def acquire(self) -> bool:
             self.lock_acquired = False
             return False
 
-    isolated_scheduler._resolve_lock_provider = lambda: DeniedLockProvider()
+    monkeypatch.setattr(isolated_scheduler, "resolve_lock_provider", lambda: DeniedLockProvider())
 
     await start_scheduler_async()
 
-    assert isolated_scheduler.scheduler.running is False
+    assert isolated_scheduler.runtime_state.scheduler.running is False
 
 
 @pytest.mark.asyncio
@@ -272,7 +276,7 @@ async def test_scheduler_rejects_multi_worker_non_postgres_outbox_runtime(
     with pytest.raises(RuntimeError, match=NON_POSTGRES_OUTBOX_SINGLE_WORKER_ERROR):
         await start_scheduler_async()
 
-    assert isolated_scheduler.scheduler.running is False
+    assert isolated_scheduler.runtime_state.scheduler.running is False
 
 
 @pytest.mark.asyncio
@@ -347,11 +351,11 @@ async def test_admin_jobs_status_returns_runtime_and_latest_runs(
     db_session: AsyncSession,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import app.core.scheduler as scheduler_module
+    import app.core.scheduler_runtime as scheduler_runtime
 
     process_started_at = datetime.now(UTC) - timedelta(minutes=10)
     monkeypatch.setattr(
-        scheduler_module,
+        scheduler_runtime,
         "get_scheduler_runtime_state",
         lambda: {
             "process_role": "api",
@@ -369,7 +373,7 @@ async def test_admin_jobs_status_returns_runtime_and_latest_runs(
     db_session.add_all(
         [
             SchedulerJobRun(
-                job_name=scheduler_module.SCHEDULER_RUNTIME_JOB_NAME,
+                job_name=SCHEDULER_RUNTIME_JOB_NAME,
                 run_id="runtime-run-id",
                 status="running",
                 trigger_type="startup",
@@ -480,11 +484,11 @@ async def test_admin_outbox_status_returns_queue_health_and_dispatch_state(
     db_session: AsyncSession,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import app.core.scheduler as scheduler_module
+    import app.core.scheduler_runtime as scheduler_runtime
 
     now = datetime.now(UTC)
     monkeypatch.setattr(
-        scheduler_module,
+        scheduler_runtime,
         "get_outbox_dispatch_runtime_state",
         lambda: {
             "last_started_at": (now - timedelta(seconds=15)).isoformat(),

@@ -15,12 +15,12 @@ from app.models.notification import NotificationType
 from app.models.risk_questionnaire import RiskQuestionnaireStatus
 from app.models.role import Role, RolePermission
 from app.models.user import User
-from app.services.deadline_notifications import (
+from app.services._deadline_execution import (
     create_deadline_notification,
     has_recent_deadline_notification,
     increment_deadline_results,
+    run_deadline_items,
 )
-from app.services.deadline_runner import run_deadline_items
 from app.services.risk_questionnaire_service import can_read_questionnaire
 
 logger = logging.getLogger(__name__)

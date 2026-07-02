@@ -9,7 +9,7 @@ from app.core.exceptions import NotFoundError
 from app.schemas.kri import KRIRecordValue
 from app.services._kri_history import direct_application
 from app.services._kri_history.loading import _load_kri_with_risk_or_404
-from app.services.kri_history_service import KRIHistoryService
+from app.services._kri_history.service import KRIHistoryService
 
 
 @pytest.mark.asyncio

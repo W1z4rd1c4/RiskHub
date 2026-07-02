@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import re
 import tomllib
+from datetime import date
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -365,7 +366,9 @@ def test_e2e_workflow_caches_playwright_browsers_and_uses_shell_only_chromium() 
 
 def test_e2e_workflow_prefers_system_chrome_with_bounded_browser_fallback() -> None:
     text = E2E_WORKFLOW.read_text(encoding="utf-8")
-    install_step = text[text.index("      - name: Install Playwright browsers") : text.index("      - name: Start backend")]
+    install_step = text[
+        text.index("      - name: Install Playwright browsers") : text.index("      - name: Start backend")
+    ]
 
     assert "id: system-chrome" in text
     assert "command -v google-chrome" in text
@@ -419,37 +422,53 @@ def test_security_workflow_runs_container_scan_in_pull_requests() -> None:
     assert "if: github.event_name == 'push' || github.event_name == 'schedule'" not in text
 
 
+def _grype_python_runtime_suppressed_cves(text: str) -> list[str]:
+    # Derive the suppressed set from the file so the lock tracks the shipped
+    # runtime instead of a hardcoded CVE list that rots on every base-image bump.
+    # Match real 2-space-indented YAML entries only, not the commented example.
+    return re.findall(r"^  - vulnerability: (CVE-\d{4}-\d+)", text, re.MULTILINE)
+
+
 def test_grype_python_runtime_suppressions_are_time_bound() -> None:
     text = GRYPE_IGNORE.read_text(encoding="utf-8")
 
-    for cve in ("CVE-2026-6100", "CVE-2026-3298", "CVE-2026-7210", "CVE-2026-4786"):
-        assert f"vulnerability: {cve}" in text
-    assert text.count("\n    expires-on: 2026-06-30") == 4
-    assert text.count("\n      name: python") == 4
-    assert text.count("\n      version: 3.13.13") == 4
+    suppressed = _grype_python_runtime_suppressed_cves(text)
+    assert suppressed, "expected at least one Python runtime suppression"
+    expiry_dates = re.findall(r"\n    expires-on: (\d{4}-\d{2}-\d{2})", text)
+    assert len(expiry_dates) == len(suppressed)
+    assert len(set(expiry_dates)) == 1, "suppressions must share one review date"
+    assert date.fromisoformat(expiry_dates[0]) > date.today(), "grype suppressions have expired; re-review them"
+    # Every suppression targets the CPython runtime at one shared shipped version.
+    python_versions = set(re.findall(r"\n      name: python\n      version: (\S+)", text))
+    assert len(python_versions) == 1, f"suppressions must pin one python version, saw {python_versions}"
+    assert text.count("\n      name: python") == len(suppressed)
     assert "\n    fix-state:" not in text
 
 
 def test_grype_python_runtime_suppressions_include_policy_evidence() -> None:
     text = GRYPE_IGNORE.read_text(encoding="utf-8")
 
-    for cve in ("CVE-2026-6100", "CVE-2026-3298", "CVE-2026-7210", "CVE-2026-4786"):
+    suppressed = _grype_python_runtime_suppressed_cves(text)
+    assert suppressed, "expected at least one Python runtime suppression"
+    for cve in suppressed:
         entry = _grype_ignore_entry(text, cve)
         assert "Owner:" in entry
         assert "Decision:" in entry
         assert "Scanner evidence:" in entry
         assert "No-fix proof:" in entry
-        assert "\n    expires-on: 2026-06-30" in entry
+        assert re.search(r"\n    expires-on: \d{4}-\d{2}-\d{2}", entry)
         assert "\n      name: python" in entry
-        assert "\n      version: 3.13.13" in entry
+        assert re.search(r"\n      version: 3\.13\.\d+", entry)
 
 
 def test_backend_dockerfile_pins_python_alpine_base_digest() -> None:
     text = BACKEND_DOCKERFILE.read_text(encoding="utf-8")
-    pinned_base = "python:3.13-alpine@sha256:420cd0bf0f3998275875e02ecd5808168cf0843cbb4d3c536432f729247b2acc"
+    digests = set(re.findall(r"FROM python:3\.13-alpine@sha256:([0-9a-f]{64})", text))
 
-    assert text.count(f"FROM {pinned_base}") == 3
-    assert "FROM python:3.13-alpine AS" not in text
+    assert len(digests) == 1, "all base stages must pin one shared digest"
+    digest = digests.pop()
+    assert text.count(f"FROM python:3.13-alpine@sha256:{digest}") == 3
+    assert not re.search(r"FROM python:3\.13-alpine(?!@)", text), "unpinned base image stage found"
 
 
 def test_security_workflow_audits_runtime_python_requirements() -> None:

@@ -19,6 +19,8 @@ from app.core.scheduler_ownership import (
     release_scheduler_lock,
 )
 from app.core.scheduler_registry import SCHEDULER_RUNTIME_JOB_NAME
+from app.core.scheduler_tracking import execute_tracked_job as _execute_tracked_job
+from app.core.scheduler_tracking import execute_tracked_job_with_session as _execute_tracked_job_with_session
 
 logger = get_logger("scheduler")
 
@@ -126,6 +128,39 @@ def get_scheduler_runtime_state() -> dict[str, object]:
     }
 
 
+async def execute_tracked_job(
+    job_name: str,
+    job_func: Callable[[], Awaitable[object]],
+    *,
+    trigger_type: str = "scheduled",
+) -> dict | None:
+    return await _execute_tracked_job(
+        job_name,
+        job_func,
+        db_context=get_db_context,
+        instance_id=runtime_state.process_instance_id,
+        logger=logger,
+        trigger_type=trigger_type,
+    )
+
+
+async def execute_tracked_job_with_session(
+    db: AsyncSession,
+    job_name: str,
+    job_func: Callable[[AsyncSession], Awaitable[object]],
+    *,
+    trigger_type: str = "manual",
+) -> dict | None:
+    return await _execute_tracked_job_with_session(
+        db,
+        job_name,
+        job_func,
+        instance_id=runtime_state.process_instance_id,
+        logger=logger,
+        trigger_type=trigger_type,
+    )
+
+
 def resolve_lock_provider() -> SchedulerLockProvider:
     if runtime_state.db_engine is not None and runtime_state.db_engine.dialect.name == "postgresql":
         return PostgresAdvisoryLockProvider(runtime_state.db_engine)
@@ -191,13 +226,15 @@ def setup_scheduler() -> tuple[str, tuple[str, ...]]:
     return profile, registered_job_ids
 
 
-async def start_scheduler_async(
-    *,
-    ensure_outbox_runtime_supported: Callable[..., None],
-    resolve_lock_provider_func: Callable[[], SchedulerLockProvider] = resolve_lock_provider,
-    mark_runtime_started_func: Callable[[], Awaitable[None]] = mark_runtime_started,
-    release_lock_provider_func: Callable[..., Awaitable[None]] = release_lock_provider,
-) -> None:
+def start_scheduler() -> None:
+    raise RuntimeError("start_scheduler is async; call await start_scheduler_async() instead")
+
+
+def stop_scheduler() -> None:
+    raise RuntimeError("stop_scheduler is async; call await stop_scheduler_async() instead")
+
+
+async def start_scheduler_async() -> None:
     enable = os.getenv("ENABLE_SCHEDULER", "false").lower()
     if enable != "true":
         logger.info("scheduler_disabled", scheduler_enabled=False, instance_id=runtime_state.process_instance_id)
@@ -220,14 +257,16 @@ async def start_scheduler_async(
     if runtime_state.scheduler.running:
         return
 
+    # Lazy imports keep this module free of the scheduler_jobs/outbox import cycle.
     from app.core.scheduler_jobs import resolve_process_worker_count
+    from app.services.outbox.store import ensure_outbox_runtime_supported
 
     ensure_outbox_runtime_supported(
         dialect_name=runtime_state.db_engine.dialect.name,
         worker_count=resolve_process_worker_count(),
     )
 
-    provider = resolve_lock_provider_func()
+    provider = resolve_lock_provider()
     runtime_state.lock_provider = provider
     lock_acquired = await provider.acquire()
     logger.info(
@@ -243,7 +282,7 @@ async def start_scheduler_async(
     try:
         profile, registered_job_ids = setup_scheduler()
         runtime_state.scheduler.start()
-        await mark_runtime_started_func()
+        await mark_runtime_started()
     except Exception:
         if runtime_state.scheduler.running:
             try:
@@ -255,7 +294,7 @@ async def start_scheduler_async(
                     lock_provider=provider.provider_name,
                 )
         runtime_state.runtime_run_id = None
-        await release_lock_provider_func(suppress_exceptions=True)
+        await release_lock_provider(suppress_exceptions=True)
         raise
 
     logger.info(
@@ -269,11 +308,7 @@ async def start_scheduler_async(
     )
 
 
-async def stop_scheduler_async(
-    *,
-    mark_runtime_stopped_func: Callable[[], Awaitable[None]] = mark_runtime_stopped,
-    release_lock_provider_func: Callable[..., Awaitable[None]] = release_lock_provider,
-) -> None:
+async def stop_scheduler_async() -> None:
     try:
         if runtime_state.scheduler.running:
             try:
@@ -282,11 +317,11 @@ async def stop_scheduler_async(
                 logger.exception("scheduler_shutdown_failed", instance_id=runtime_state.process_instance_id)
 
             try:
-                await mark_runtime_stopped_func()
+                await mark_runtime_stopped()
             except Exception:
                 logger.exception("scheduler_runtime_stop_mark_failed", instance_id=runtime_state.process_instance_id)
             else:
                 logger.info("scheduler_stopped", instance_id=runtime_state.process_instance_id)
     finally:
         runtime_state.runtime_run_id = None
-        await release_lock_provider_func(suppress_exceptions=True)
+        await release_lock_provider(suppress_exceptions=True)

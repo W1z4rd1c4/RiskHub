@@ -3,13 +3,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 
-from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.activity_logger import build_change_set
 from app.core.audit.issue import issue_assigned, issue_remediation_updated
 from app.core.datetime_utils import coerce_utc
+from app.core.exceptions import AuthorizationError, DomainError, ValidationError
 from app.core.permissions import is_issue_owner_assignable_to_department
 from app.models import Issue, User
 from app.models.issue import IssueStatus
@@ -60,7 +60,7 @@ async def validate_user_exists(db: AsyncSession, user_id: int | None) -> None:
         return
     exists = (await db.execute(select(User.id).where(User.id == user_id))).scalar_one_or_none()
     if exists is None:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"User {user_id} not found")
+        raise ValidationError(f"User {user_id} not found")
 
 
 async def ensure_owner_assignable(
@@ -68,7 +68,7 @@ async def ensure_owner_assignable(
     *,
     owner_user_id: int | None,
     department_id: int,
-    denied_status: int = status.HTTP_403_FORBIDDEN,
+    denied_error: type[DomainError] = AuthorizationError,
 ) -> None:
     if owner_user_id is None:
         return
@@ -78,10 +78,7 @@ async def ensure_owner_assignable(
         issue_department_id=department_id,
     )
     if not allowed:
-        raise HTTPException(
-            status_code=denied_status,
-            detail="Owner user must have global scope or belong to the issue department",
-        )
+        raise denied_error("Owner user must have global scope or belong to the issue department")
 
 
 async def assign_issue(

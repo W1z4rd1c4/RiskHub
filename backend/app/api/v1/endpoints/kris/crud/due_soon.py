@@ -22,7 +22,7 @@ async def list_due_soon_kris(
     Returns KRIs with due_date, days_until_due, and reporting_owner info.
     Useful for CRO dashboard to see upcoming deadlines.
     """
-    from app.services.kri_history_service import KRIHistoryService
+    from app.services._kri_history.service import KRIHistoryService
 
     due_soon = await KRIHistoryService.get_due_soon_kris(db)
     return await apply_kri_department_scope(due_soon, current_user=current_user, department_id=department_id)

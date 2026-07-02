@@ -56,7 +56,7 @@ async def test_due_soon_excludes_already_reported(
     test_risk,
 ):
     """Test GET /kris/due-soon excludes KRIs already reported for current period."""
-    from app.services.kri_history_service import KRIHistoryService
+    from app.services._kri_history.service import KRIHistoryService
 
     today = date.today()
     _, current_period_end = KRIHistoryService.period_bounds_for_date(today, "monthly")

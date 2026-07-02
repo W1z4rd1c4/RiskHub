@@ -547,14 +547,9 @@ def test_corrective_architecture_gate_rejects_shallow_split_modules() -> None:
     logging_source = _source("backend/app/core/logging.py")
     for leaked_logging_detail in ("structlog.configure(", "root_logger.addHandler", 'open(log_path, "rb")'):
         assert leaked_logging_detail not in logging_source
-    scheduler_source = _source("backend/app/core/scheduler.py")
-    for leaked_scheduler_detail in (
-        "scheduler = AsyncIOScheduler()",
-        "lock_acquired = await provider.acquire()",
-        "scheduler.start()",
-        "scheduler.shutdown(wait=False)",
-    ):
-        assert leaked_scheduler_detail not in scheduler_source
+    # The scheduler facade is collapsed entirely; runtime details live only in
+    # scheduler_runtime (see test_scheduler_runtime_is_the_only_scheduler_home).
+    assert not (REPO_ROOT / "backend/app/core/scheduler.py").exists()
 
 
 def test_riskhub_config_routes_use_lifecycle_contracts() -> None:
@@ -1460,7 +1455,7 @@ def test_issue_workflow_lifecycle_delegates_mutation_execution() -> None:
     assert "_enqueue_issue_outbox" not in _defined_function_names("backend/app/services/_issue_workflow/lifecycle.py")
 
 
-def test_core_logging_and_scheduler_facades_do_not_own_split_implementations() -> None:
+def test_core_logging_facade_does_not_own_split_implementations() -> None:
     logging_source = _source("backend/app/core/logging.py")
     for logging_detail in (
         "def _resolve_logging_config",
@@ -1470,37 +1465,26 @@ def test_core_logging_and_scheduler_facades_do_not_own_split_implementations() -
     ):
         assert logging_detail not in logging_source
 
-    scheduler_source = _source("backend/app/core/scheduler.py")
-    for scheduler_detail in (
-        "FULL_SCHEDULER_JOB_IDS =",
-        "OPTIONAL_SCHEDULER_JOB_IDS =",
-        "OUTBOX_ONLY_SCHEDULER_JOB_IDS =",
-        "def _register_scheduler_jobs",
-    ):
-        assert scheduler_detail not in scheduler_source
 
-
-def test_scheduler_facade_does_not_own_runtime_state() -> None:
-    scheduler_state_names = {
-        "scheduler",
-        "_db_sessionmaker",
-        "_db_engine",
-        "_lock_provider",
-        "_runtime_run_id",
-        "_outbox_dispatch_state",
-    }
-    assert not scheduler_state_names.intersection(_assigned_names("backend/app/core/scheduler.py"))
-    assert "sys.modules[__name__]" not in _source("backend/app/core/scheduler.py")
+def test_scheduler_runtime_is_the_only_scheduler_home() -> None:
+    # The compat facade is collapsed: no second copy of runtime state, no sync
+    # machinery, no callback re-injection. scheduler_runtime owns everything.
+    assert not (REPO_ROOT / "backend/app/core/scheduler.py").exists()
 
     runtime_functions = _defined_function_names("backend/app/core/scheduler_runtime.py")
     assert {
         "configure_scheduler",
+        "execute_tracked_job",
+        "execute_tracked_job_with_session",
         "get_db_context",
         "get_scheduler_runtime_state",
         "setup_scheduler",
+        "start_scheduler",
         "start_scheduler_async",
+        "stop_scheduler",
         "stop_scheduler_async",
     } <= runtime_functions
+    assert {"runtime_state", "outbox_dispatch_state"} <= _assigned_names("backend/app/core/scheduler_runtime.py")
     assert "ModuleType" not in _source("backend/app/core/scheduler_runtime.py")
 
 

@@ -7,15 +7,16 @@ from apscheduler.triggers.interval import IntervalTrigger
 
 from app.core.datetime_utils import utc_now
 from app.core.logging import get_logger
-from app.core.scheduler import (
+from app.core.scheduler_registry import (
     DEFAULT_SCHEDULER_JOB_PROFILE,
     OUTBOX_ONLY_SCHEDULER_JOB_IDS,
-    PROCESS_INSTANCE_ID,
     SCHEDULER_JOB_PROFILE_ENV,
-    _outbox_dispatch_state,
+)
+from app.core.scheduler_runtime import (
     execute_tracked_job,
     get_db_context,
-    scheduler,
+    outbox_dispatch_state,
+    runtime_state,
 )
 from app.services._orphaned_items import scan_uncategorised_items
 from app.services.issue_deadline_service import IssueDeadlineService
@@ -23,13 +24,16 @@ from app.services.kri_deadline_service import KRIDeadlineService
 from app.services.outbox import OUTBOX_DISPATCH_INTERVAL_SECONDS, dispatch_pending_outbox_events
 from app.services.questionnaire_deadline_service import QuestionnaireDeadlineService
 
+# Re-assigned by scheduler_runtime.setup_scheduler before job registration.
+scheduler = runtime_state.scheduler
+
 logger = get_logger("scheduler.jobs")
 
 _db_sessionmaker_ref = None
 
 
 def set_db_sessionmaker_ref(sessionmaker):
-    """Allow scheduler.py to pass the sessionmaker reference without circular import."""
+    """Allow scheduler_runtime to pass the sessionmaker reference without circular import."""
     global _db_sessionmaker_ref
     _db_sessionmaker_ref = sessionmaker
 
@@ -117,28 +121,28 @@ async def run_outbox_dispatch() -> None:
         logger.warning("outbox_dispatch_skipped", reason="db_sessionmaker_not_configured")
         return
     started_at = utc_now()
-    _outbox_dispatch_state["last_started_at"] = started_at.isoformat()
-    _outbox_dispatch_state["last_status"] = "running"
-    _outbox_dispatch_state["last_error"] = None
+    outbox_dispatch_state["last_started_at"] = started_at.isoformat()
+    outbox_dispatch_state["last_status"] = "running"
+    outbox_dispatch_state["last_error"] = None
     try:
         processed = await dispatch_pending_outbox_events(
             _db_sessionmaker_ref,
-            lock_owner=PROCESS_INSTANCE_ID,
+            lock_owner=runtime_state.process_instance_id,
         )
         finished_at = utc_now()
-        _outbox_dispatch_state["last_finished_at"] = finished_at.isoformat()
-        _outbox_dispatch_state["last_status"] = "succeeded"
-        _outbox_dispatch_state["last_processed"] = processed
+        outbox_dispatch_state["last_finished_at"] = finished_at.isoformat()
+        outbox_dispatch_state["last_status"] = "succeeded"
+        outbox_dispatch_state["last_processed"] = processed
         if processed:
-            logger.info("outbox_dispatch_completed", processed=processed, instance_id=PROCESS_INSTANCE_ID)
+            logger.info("outbox_dispatch_completed", processed=processed, instance_id=runtime_state.process_instance_id)
     except Exception as exc:
         finished_at = utc_now()
-        _outbox_dispatch_state["last_finished_at"] = finished_at.isoformat()
-        _outbox_dispatch_state["last_status"] = "failed"
-        _outbox_dispatch_state["last_error"] = str(exc)
+        outbox_dispatch_state["last_finished_at"] = finished_at.isoformat()
+        outbox_dispatch_state["last_status"] = "failed"
+        outbox_dispatch_state["last_error"] = str(exc)
         logger.exception(
             "outbox_dispatch_failed",
-            instance_id=PROCESS_INSTANCE_ID,
+            instance_id=runtime_state.process_instance_id,
             error_message=str(exc),
         )
 
@@ -235,7 +239,7 @@ def resolve_scheduler_job_profile() -> str:
         "scheduler_job_profile_invalid",
         configured_profile=configured or None,
         selected_profile=DEFAULT_SCHEDULER_JOB_PROFILE,
-        instance_id=PROCESS_INSTANCE_ID,
+        instance_id=runtime_state.process_instance_id,
     )
     return DEFAULT_SCHEDULER_JOB_PROFILE
 
@@ -253,7 +257,7 @@ def resolve_process_worker_count() -> int:
                 env_name=env_name,
                 configured_value=raw_value,
                 selected_worker_count=1,
-                instance_id=PROCESS_INSTANCE_ID,
+                instance_id=runtime_state.process_instance_id,
             )
             return 1
     return 1

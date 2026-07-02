@@ -2,14 +2,13 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from fastapi import HTTPException, status
-
+from app.core.exceptions import ConflictError
 from app.models import Issue, IssueRemediationPlan
 from app.models.issue import IssueRemediationStatus, IssueStatus
 
 
 def _conflict(detail: str) -> None:
-    raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail)
+    raise ConflictError(detail)
 
 
 def _status_value(value: object) -> str:

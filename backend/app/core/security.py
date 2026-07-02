@@ -5,7 +5,9 @@ from typing import Any, Iterable, Optional
 import jwt
 from fastapi import Depends, Header
 from jwt import InvalidTokenError
-from passlib.context import CryptContext
+from pwdlib import PasswordHash
+from pwdlib.exceptions import UnknownHashError
+from pwdlib.hashers.bcrypt import BcryptHasher
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -17,7 +19,8 @@ from app.core.permissions import ensure_business_view_access, has_permission
 from app.db.session import get_db
 from app.models import Role, RolePermission, User
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# bcrypt-only so hashes minted by the previous passlib[bcrypt] setup keep verifying.
+password_hasher = PasswordHash((BcryptHasher(),))
 logger = logging.getLogger(__name__)
 DUMMY_PASSWORD_HASH = "$2b$12$PKiOVCVtyq61.6OteU0aAOhNxM5hP3/jHGgVLh0mQYZe0B2YfM7uy"
 ACCESS_TOKEN_TYPE = "access"
@@ -30,20 +33,27 @@ TokenDecodeError = InvalidTokenError
 
 # Password hashing utilities
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify a plain password against a hashed password."""
-    return pwd_context.verify(plain_password, hashed_password)
+    """Verify a plain password against a hashed password.
+
+    A malformed or unknown-algorithm stored hash denies instead of raising, so
+    a corrupt row surfaces as a failed login rather than a 500.
+    """
+    try:
+        return password_hasher.verify(plain_password, hashed_password)
+    except UnknownHashError:
+        return False
 
 
 def verify_password_or_dummy(plain_password: str, hashed_password: str | None) -> bool:
     """Verify a password, falling back to a fixed dummy hash for timing normalization."""
     target_hash = hashed_password or DUMMY_PASSWORD_HASH
-    verified = pwd_context.verify(plain_password, target_hash)
+    verified = verify_password(plain_password, target_hash)
     return bool(hashed_password) and verified
 
 
 def get_password_hash(password: str) -> str:
     """Hash a password using bcrypt."""
-    return pwd_context.hash(password)
+    return password_hasher.hash(password)
 
 
 # JWT token utilities

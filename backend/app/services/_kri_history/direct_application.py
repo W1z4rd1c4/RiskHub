@@ -121,7 +121,7 @@ async def apply_kri_value_directly(
     current_user: User,
     is_privileged_submission: bool,
 ) -> KRIResponse:
-    from app.services.kri_history_service import KRIHistoryService
+    from app.services._kri_history.service import KRIHistoryService
 
     notification_payloads: list[tuple[int, KriBreachDetectedPayload]] = []
     try:

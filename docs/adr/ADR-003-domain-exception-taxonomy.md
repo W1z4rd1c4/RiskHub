@@ -34,3 +34,16 @@ Rollback by bounded context. The API exception handler can coexist with remainin
 - Registry completeness for every `DomainError` subclass.
 - Endpoint tests assert status and `detail` preservation.
 - Service tests assert domain exception type for representative failures.
+
+## Amendment 1 — Issue Workflow-Pair Migration
+
+### Status
+
+Accepted (2026-07-02)
+
+### Decision
+
+`_issue_register` + `_issue_workflow` migrated as one workflow-pair rollback
+unit (42 raise sites) to the domain taxonomy. Detail strings and status codes
+preserved verbatim. The per-pair AST ban lives in
+`tests/backend/pytest/architecture/test_w4_bc_h_issue_pair_boundaries_red.py`.

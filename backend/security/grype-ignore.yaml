@@ -19,27 +19,15 @@
 #       version: 3.13.0
 
 ignore:
-  - vulnerability: CVE-2026-6100
-    reason: "Owner: Platform. Decision: time-bound no-fix suppression for Python 3.13 runtime CPE match. Scanner evidence: Grype v0.110.0 backend SBOM match for python 3.13.13. No-fix proof: no fixed Python 3.13 Docker base image is available yet; re-evaluate when upstream publishes a fixed 3.13 runtime."
+  - vulnerability: CVE-2026-11940
+    reason: "Owner: Platform. Decision: time-bound no-released-fix suppression for a Python 3.13 stdlib CPE match (tarfile.extractall hardlink/symlink filter bypass, gh-151558). Scanner evidence: Grype v0.110.0 backend SBOM binary CPE match for python 3.13.14 (/usr/local/bin/python3.13). No-fix proof: verified upstream 2026-07-02, the 3.13 backport (cpython 771d12dda, 2026-06-23) is NOT in the latest released tag v3.13.14 and no v3.13.15 exists yet, so no fixed python:3.13 base image is published; RiskHub additionally does not use the tarfile module (no `import tarfile`/`extractall` in backend/app or backend/scripts), so the archive-extraction path is unreachable. Exit: bump the base image to python 3.13.15-alpine (or later) once released and remove this entry."
     expires-on: 2026-09-30
     package:
       name: python
-      version: 3.13.13
-  - vulnerability: CVE-2026-3298
-    reason: "Owner: Platform. Decision: time-bound no-fix suppression for Python 3.13 runtime CPE match. Scanner evidence: Grype v0.110.0 backend SBOM match for python 3.13.13. No-fix proof: no fixed Python 3.13 Docker base image is available yet; re-evaluate when upstream publishes a fixed 3.13 runtime."
+      version: 3.13.14
+  - vulnerability: CVE-2026-11972
+    reason: "Owner: Platform. Decision: time-bound no-released-fix suppression for a Python 3.13 stdlib CPE match (tarfile streaming-mode EOF DoS, gh-151981). Scanner evidence: Grype v0.110.0 backend SBOM binary CPE match for python 3.13.14 (/usr/local/bin/python3.13). No-fix proof: verified upstream 2026-07-02, the 3.13 backport (cpython 3f031d431f80, 2026-06-23) is NOT in the latest released tag v3.13.14 and no v3.13.15 exists yet, so no fixed python:3.13 base image is published; RiskHub additionally does not use the tarfile module (no `import tarfile`/streaming tar parsing in backend/app or backend/scripts), so the archive-parse path is unreachable. Exit: bump the base image to python 3.13.15-alpine (or later) once released and remove this entry."
     expires-on: 2026-09-30
     package:
       name: python
-      version: 3.13.13
-  - vulnerability: CVE-2026-7210
-    reason: "Owner: Platform. Decision: time-bound no-fix suppression for Python 3.13 runtime CPE match. Scanner evidence: Grype v0.110.0 backend SBOM match for python 3.13.13. No-fix proof: no fixed Python 3.13 Docker base image is available yet; re-evaluate when upstream publishes a fixed 3.13 runtime."
-    expires-on: 2026-09-30
-    package:
-      name: python
-      version: 3.13.13
-  - vulnerability: CVE-2026-4786
-    reason: "Owner: Platform. Decision: time-bound no-fix suppression for Python 3.13 runtime CPE match. Scanner evidence: Grype v0.110.0 backend SBOM match for python 3.13.13. No-fix proof: no fixed Python 3.13 Docker base image is available yet; re-evaluate when upstream publishes a fixed 3.13 runtime."
-    expires-on: 2026-09-30
-    package:
-      name: python
-      version: 3.13.13
+      version: 3.13.14

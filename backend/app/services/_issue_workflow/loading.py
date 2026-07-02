@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.core.exceptions import NotFoundError
 from app.core.permissions import can_read_issue_id, can_write_issue_id
 from app.models import (
     Control,
@@ -50,18 +50,18 @@ async def get_issue_with_relations(db: AsyncSession, issue_id: int) -> Issue | N
 async def get_readable_issue_or_404(db: AsyncSession, issue_id: int, current_user: User) -> Issue:
     issue = await get_issue_with_relations(db, issue_id)
     if not issue:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Issue not found")
+        raise NotFoundError("Issue not found")
     if not await can_read_issue_id(db, current_user, issue_id):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Issue not found")
+        raise NotFoundError("Issue not found")
     return issue
 
 
 async def get_writable_issue_or_404(db: AsyncSession, issue_id: int, current_user: User) -> Issue:
     issue = await get_issue_with_relations(db, issue_id)
     if not issue:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Issue not found")
+        raise NotFoundError("Issue not found")
     if not await can_write_issue_id(db, current_user, issue_id):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Issue not found")
+        raise NotFoundError("Issue not found")
     return issue
 
 

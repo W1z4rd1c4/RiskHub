@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api import deps
 from app.core.permission_cache import build_permission_sensitive_cache_key
 from app.core.permissions import can_manage_users, ensure_business_view_access
-from app.core.scheduler import execute_tracked_job_with_session
+from app.core.scheduler_runtime import execute_tracked_job_with_session
 from app.core.ttl_cache import TTLCache
 from app.db.session import get_db
 from app.models import User

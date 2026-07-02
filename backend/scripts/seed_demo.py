@@ -10,10 +10,10 @@ Creates:
 
 import asyncio
 
-from passlib.context import CryptContext
 from sqlalchemy import text
 
 from app.core.config import get_settings
+from app.core.security import get_password_hash
 from app.db.rbac_seed_contract import (
     PERMISSION_BY_KEY,
     RBAC_ROLE_PERMISSIONS,
@@ -27,9 +27,7 @@ from app.models.key_risk_indicator import KeyRiskIndicator, KRIFrequency
 from app.models.risk import ControlEffectiveness, ControlRiskLink, Risk, RiskStatus, RiskType
 from app.models.user import AccessScope
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-DEMO_PASSWORD = pwd_context.hash("test123")
+DEMO_PASSWORD = get_password_hash("test123")
 
 # Match LoginPage.tsx DEMO_ACCOUNTS exactly
 DEMO_USERS = [

@@ -10,7 +10,7 @@ from typing import Any, Literal
 from fastapi.responses import StreamingResponse
 
 from app.core.datetime_utils import utc_now
-from app.services.report_service import generate_tabular_csv
+from app.services._reporting.tabular import generate_tabular_csv
 
 ExportFormat = Literal["csv"]
 ExportRow = dict[str, Any]

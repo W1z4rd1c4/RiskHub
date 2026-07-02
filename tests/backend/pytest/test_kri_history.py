@@ -8,7 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.key_risk_indicator import KeyRiskIndicator, KRIFrequency
 from app.models.kri_history import KRIValueHistory
-from app.services.kri_history_service import REPORTING_GRACE_DAYS, KRIHistoryService
+from app.services._kri_history.constants import REPORTING_GRACE_DAYS
+from app.services._kri_history.service import KRIHistoryService
 
 
 def _previous_period_end(period_end: date, frequency: str) -> date:

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.activity_logger import build_change_set
@@ -12,6 +11,7 @@ from app.core.audit.issue import (
     issue_status_changed,
 )
 from app.core.datetime_utils import coerce_utc, utc_now
+from app.core.exceptions import ValidationError
 from app.models import Issue, User
 from app.models.issue import IssueRemediationStatus, IssueStatus
 
@@ -91,10 +91,7 @@ async def update_progress(
     target_status = _status_value(remediation_status)
     if progress_percent is not None:
         if progress_percent < 0 or progress_percent > 100:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="progress_percent must be between 0 and 100",
-            )
+            raise ValidationError("progress_percent must be between 0 and 100")
         remediation_updates["progress_percent"] = progress_percent
     if progress_percent == 100 and target_status in {
         IssueRemediationStatus.active.value,

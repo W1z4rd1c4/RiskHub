@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from fastapi import HTTPException, status
-
 from app.core.activity_logger import build_change_set
 from app.core.audit.issue import issue_created, issue_linked, issue_updated
 from app.core.datetime_utils import coerce_utc, utc_now
+from app.core.exceptions import AuthorizationError, ConflictError, NotFoundError, ValidationError
 from app.core.permissions import can_access_department_id
 from app.models import Issue, IssueRemediationPlan, User
 from app.models.issue import IssueRemediationStatus, IssueStatus
@@ -64,9 +63,9 @@ async def create_issue_detail(
     current_user: User,
 ) -> IssueRead:
     if payload.department_id is None:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="department_id is required")
+        raise ValidationError("department_id is required")
     if not can_access_department_id(current_user, payload.department_id):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied to this department")
+        raise AuthorizationError("Access denied to this department")
 
     resolved_source = await resolve_issue_source_metadata(
         db,
@@ -75,10 +74,7 @@ async def create_issue_detail(
         source_id=payload.source_id,
     )
     if resolved_source is not None and resolved_source.department_id != payload.department_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Source entity department must match issue department",
-        )
+        raise ValidationError("Source entity department must match issue department")
 
     await validate_user_exists(db, payload.owner_user_id)
     await ensure_owner_assignable(db, owner_user_id=payload.owner_user_id, department_id=payload.department_id)
@@ -137,7 +133,7 @@ async def create_issue_detail(
     await commit_service_boundary(db, boundary="issue_workflow.create_issue")
     refreshed = await get_issue_with_relations(db, issue.id)
     if refreshed is None:
-        raise HTTPException(status_code=404, detail="Issue not found")
+        raise NotFoundError("Issue not found")
     return await serialize_issue_read_for_actor(db, current_user=current_user, issue=refreshed)
 
 
@@ -197,7 +193,7 @@ async def create_contextual_issue_detail(
         is_source_link=True,
     )
     if link_result is None:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Contextual source link is required")
+        raise ValidationError("Contextual source link is required")
     link, _link_created = link_result
 
     await issue_created(db, actor=current_user, issue=issue)
@@ -212,7 +208,7 @@ async def create_contextual_issue_detail(
     await commit_service_boundary(db, boundary="issue_workflow.create_contextual_issue")
     refreshed = await get_issue_with_relations(db, issue.id)
     if refreshed is None:
-        raise HTTPException(status_code=404, detail="Issue not found")
+        raise NotFoundError("Issue not found")
     return await serialize_issue_read_for_actor(db, current_user=current_user, issue=refreshed)
 
 
@@ -265,7 +261,7 @@ async def update_issue_detail(
 
     await db.commit()
     if await get_issue_with_relations(db, issue.id) is None:
-        raise HTTPException(status_code=404, detail="Issue not found")
+        raise NotFoundError("Issue not found")
     return await serialize_refreshed_issue(db, issue_id=issue.id, current_user=current_user)
 
 
@@ -398,14 +394,11 @@ async def approve_exception_detail(
     issue = await get_readable_issue_or_404(db, issue_id, current_user)
     active = active_exception(issue)
     if active is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Issue already has an active approved exception",
-        )
+        raise ConflictError("Issue already has an active approved exception")
 
     selection = await select_exception_for_approval(db, issue_id=issue.id, exception_id=payload.exception_id)
     if selection.exception is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Requested exception not found")
+        raise NotFoundError("Requested exception not found")
 
     approved = await approve_exception(
         db,
@@ -434,7 +427,7 @@ async def revoke_exception_detail(
     issue = await get_readable_issue_or_404(db, issue_id, current_user)
     selection = await select_exception_for_revocation(db, issue_id=issue.id, exception_id=payload.exception_id)
     if selection.exception is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Approved exception not found")
+        raise NotFoundError("Approved exception not found")
 
     revoked = await revoke_exception(
         db,

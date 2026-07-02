@@ -3,10 +3,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 
-from fastapi import HTTPException, status
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.exceptions import ConflictError, NotFoundError, ValidationError
 from app.core.permissions import can_read_control_id, can_read_kri_id, can_read_risk_id, can_read_vendor_id
 from app.models import Control, ControlExecution, IssueLink, KeyRiskIndicator, Risk, User, Vendor
 from app.models.issue import IssueSourceType
@@ -36,19 +36,16 @@ async def resolve_vendor_department_and_access(
         )
     ).one_or_none()
     if row is None or not await can_read_vendor_id(db, current_user, vendor_id):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Linked vendor not found")
+        raise NotFoundError("Linked vendor not found")
 
     _, vendor_department_id, owner_department_id, vendor_is_archived = row
     # BL §11.5 treats inactive linked vendors as archived after vendor status removal.
     if vendor_is_archived:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Cannot link archived vendor")
+        raise ConflictError("Cannot link archived vendor")
 
     resolved_department_id = vendor_department_id or owner_department_id
     if resolved_department_id is None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Linked vendor has no department and owner department is unresolved",
-        )
+        raise ConflictError("Linked vendor has no department and owner department is unresolved")
     return resolved_department_id
 
 
@@ -106,13 +103,13 @@ async def resolve_contextual_issue_source(
     if entity_type == IssueContextEntityTypeEnum.risk:
         row = (await db.execute(select(Risk.id, Risk.department_id).where(Risk.id == entity_id))).one_or_none()
         if row is None or not await can_read_risk_id(db, current_user, entity_id):
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Source risk not found")
+            raise NotFoundError("Source risk not found")
         return ResolvedIssueSource(row[1], IssueSourceType.manual, None, {"risk_id": entity_id})
 
     if entity_type == IssueContextEntityTypeEnum.control:
         row = (await db.execute(select(Control.id, Control.department_id).where(Control.id == entity_id))).one_or_none()
         if row is None or not await can_read_control_id(db, current_user, entity_id):
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Source control not found")
+            raise NotFoundError("Source control not found")
         return ResolvedIssueSource(row[1], IssueSourceType.manual, None, {"control_id": entity_id})
 
     if entity_type == IssueContextEntityTypeEnum.execution:
@@ -124,7 +121,7 @@ async def resolve_contextual_issue_source(
             )
         ).one_or_none()
         if execution_row is None or not await can_read_control_id(db, current_user, execution_row[1]):
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Source execution not found")
+            raise NotFoundError("Source execution not found")
         return ResolvedIssueSource(
             execution_row[2],
             IssueSourceType.control_execution,
@@ -141,14 +138,14 @@ async def resolve_contextual_issue_source(
             )
         ).one_or_none()
         if row is None or not await can_read_kri_id(db, current_user, entity_id):
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Source KRI not found")
+            raise NotFoundError("Source KRI not found")
         return ResolvedIssueSource(row[1], IssueSourceType.kri_breach, entity_id, {"kri_id": entity_id})
 
     if entity_type == IssueContextEntityTypeEnum.vendor:
         department_id = await resolve_vendor_department_and_access(db, current_user, entity_id)
         return ResolvedIssueSource(department_id, IssueSourceType.manual, None, {"vendor_id": entity_id})
 
-    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported contextual entity type")
+    raise ValidationError("Unsupported contextual entity type")
 
 
 async def resolve_issue_source_metadata(
@@ -162,14 +159,11 @@ async def resolve_issue_source_metadata(
 
     if value in {IssueSourceType.manual.value, IssueSourceType.audit.value}:
         if source_id is not None:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"{value} issues cannot include source_id",
-            )
+            raise ValidationError(f"{value} issues cannot include source_id")
         return None
 
     if source_id is None:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="source_id is required")
+        raise ValidationError("source_id is required")
 
     if value == IssueSourceType.control_execution.value:
         execution_row = (
@@ -180,7 +174,7 @@ async def resolve_issue_source_metadata(
             )
         ).one_or_none()
         if execution_row is None or not await can_read_control_id(db, current_user, execution_row[1]):
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Source execution not found")
+            raise NotFoundError("Source execution not found")
         return ResolvedIssueSource(
             execution_row[2],
             IssueSourceType.control_execution,
@@ -197,10 +191,10 @@ async def resolve_issue_source_metadata(
             )
         ).one_or_none()
         if row is None or not await can_read_kri_id(db, current_user, source_id):
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Source KRI not found")
+            raise NotFoundError("Source KRI not found")
         return ResolvedIssueSource(row[1], IssueSourceType.kri_breach, source_id, {"kri_id": source_id})
 
-    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported source_type")
+    raise ValidationError("Unsupported source_type")
 
 
 async def ensure_issue_source_link(

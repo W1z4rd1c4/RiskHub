@@ -21,7 +21,7 @@ async def list_overdue_kris(
 
     Returns KRIs with due_date, days_overdue, and reporting_owner info.
     """
-    from app.services.kri_history_service import KRIHistoryService
+    from app.services._kri_history.service import KRIHistoryService
 
     overdue = await KRIHistoryService.get_overdue_kris(db)
     return await apply_kri_department_scope(overdue, current_user=current_user, department_id=department_id)

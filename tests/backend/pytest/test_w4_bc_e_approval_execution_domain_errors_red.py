@@ -7,7 +7,7 @@ import pytest
 
 from app.core.exceptions import ServiceFailure
 from app.services._approval_execution import kri_value_submission
-from app.services.kri_history_service import KRIHistoryService
+from app.services._kri_history.service import KRIHistoryService
 
 
 @pytest.mark.asyncio

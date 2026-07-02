@@ -6,7 +6,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.scheduler import get_scheduler_runtime_state
+from app.core.scheduler_runtime import get_scheduler_runtime_state
 from app.db.session import get_db
 from app.schemas.health import HealthResponse, LivenessResponse, ReadinessResponse
 

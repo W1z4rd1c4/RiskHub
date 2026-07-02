@@ -21,8 +21,8 @@ from app.api.v1.endpoints.reports._streaming import (
 from app.core.security import require_permission
 from app.db.session import get_db
 from app.models import User
+from app.services._reporting.tabular import generate_tabular_csv
 from app.services._vendor_governance.reports import annual_report_rows, dora_register_rows
-from app.services.report_service import generate_tabular_csv
 from app.services.vendor_report_policy import can_access_vendor_reports, vendor_report_capabilities
 from app.services.vendor_reporting_service import VendorReportingService
 

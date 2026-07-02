@@ -23,6 +23,7 @@ from app.services._deadline_execution import (
     run_deadline_items,
 )
 from app.services._kri_history.constants import REPORTING_GRACE_DAYS as DEFAULT_REPORTING_GRACE_DAYS
+from app.services._kri_history.service import KRIHistoryService
 from app.services.kri_deadline_decisions import (
     KriDeadlineNotificationPlan,
     build_kri_limit_notification_plan,
@@ -34,7 +35,6 @@ from app.services.kri_deadline_support import (
     list_risk_managers,
     load_kri_deadline_config,
 )
-from app.services.kri_history_service import KRIHistoryService
 
 logger = logging.getLogger(__name__)
 

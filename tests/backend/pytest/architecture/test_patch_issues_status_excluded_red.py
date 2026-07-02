@@ -37,7 +37,9 @@ def _raises_status_conflict_for_updates(node: ast.FunctionDef | ast.AsyncFunctio
         ):
             continue
         body_source = "\n".join(ast.unparse(stmt) for stmt in child.body)
-        if "HTTPException" in body_source and "HTTP_409_CONFLICT" in body_source and expected_substring in body_source:
+        # ADR-003: ConflictError is the domain-taxonomy 409; the sole baseline
+        # (_issue_workflow/update_plans.py) is fully migrated.
+        if "ConflictError" in body_source and expected_substring in body_source:
             return True
     return False
 

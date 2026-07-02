@@ -91,7 +91,8 @@ async def build_system_health_snapshot(request: Request, db: AsyncSession) -> Sy
 
 
 async def build_scheduler_status_snapshot(db: AsyncSession) -> SchedulerStatusSnapshot:
-    from app.core.scheduler import SCHEDULER_RUNTIME_JOB_NAME, get_scheduler_runtime_state
+    from app.core.scheduler_registry import SCHEDULER_RUNTIME_JOB_NAME
+    from app.core.scheduler_runtime import get_scheduler_runtime_state
 
     runtime_state = get_scheduler_runtime_state()
     recent_runs = (
@@ -140,7 +141,7 @@ async def build_scheduler_status_snapshot(db: AsyncSession) -> SchedulerStatusSn
 
 
 async def build_outbox_status_snapshot(db: AsyncSession) -> OutboxStatusSnapshot:
-    from app.core.scheduler import get_outbox_dispatch_runtime_state
+    from app.core.scheduler_runtime import get_outbox_dispatch_runtime_state
 
     pending_count = (
         await db.execute(select(func.count()).select_from(OutboxEvent).where(OutboxEvent.status == "pending"))

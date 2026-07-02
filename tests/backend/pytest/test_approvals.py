@@ -41,13 +41,13 @@ from app.models.key_risk_indicator import KRIFrequency
 from app.models.kri_history import KRIValueHistory
 from app.models.user import AccessScope
 from app.services._approval_execution import kri_value_submission
+from app.services._kri_history.service import KRIHistoryService
 from app.services._riskhub_config.approval_scenario_roles import APPROVER_ROLES, set_approval_scenario_roles
 from app.services.approval_execution_service import (
     approve_request_workflow,
     cancel_request_workflow,
     reject_request_workflow,
 )
-from app.services.kri_history_service import KRIHistoryService
 
 
 async def _count_outbox_events(db_session: AsyncSession) -> int:
@@ -2189,7 +2189,7 @@ async def test_approve_kri_value_submission_sanitizes_internal_500_detail(
     async def _raise_runtime_error(*args, **kwargs):
         raise RuntimeError("super-sensitive database internals")
 
-    monkeypatch.setattr("app.services.kri_history_service.KRIHistoryService.record_value", _raise_runtime_error)
+    monkeypatch.setattr("app.services._kri_history.service.KRIHistoryService.record_value", _raise_runtime_error)
 
     response = await auth_client.post(
         f"/api/v1/approvals/{approval.id}/approve",

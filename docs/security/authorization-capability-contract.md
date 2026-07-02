@@ -135,6 +135,17 @@ approval path. Live register listings, snapshot metrics, and summary exports
 exclude archived rows (including KRIs of archived parent risks per the ADR-005
 amendment), and risks/vendors listings reject unknown `sort_by` values (400).
 Capability field shapes are unchanged.
+On 2026-07-02 (architecture batch), the `_issue_register`/`_issue_workflow`
+pair migrated `raise HTTPException` to the ADR-003 domain taxonomy with detail
+strings and status codes preserved verbatim, locked by a per-pair AST ban.
+Frontend strict-capability mode gained a deny-all fail-safe (missing
+`me_capabilities` under strict mode denies capability-gated surfaces instead of
+reverting to the permissive legacy adapter) and a legacy-vs-strict parity test
+pins rule equivalence ahead of the rollout flip. Password hashing moved from
+unmaintained passlib[bcrypt] to pwdlib (bcrypt hashes verify unchanged). The
+scheduler compat facade and four service re-export shims were collapsed into
+their runtime/package homes with registry-driven tombstones; authorization
+policy and capability field shapes are otherwise unchanged.
 
 Strict capabilities rollout note: `STRICT_CAPABILITIES` is a frontend runtime
 configuration flag and remains off by default until operational telemetry

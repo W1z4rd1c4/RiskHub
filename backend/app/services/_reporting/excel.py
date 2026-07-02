@@ -16,7 +16,7 @@ from app.models.risk import ControlRiskLink
 from app.schemas.execution import ExecutionResultEnum
 from app.services._reporting.exports.pipeline import _stream_binary
 from app.services._reporting.exports.shared import ExportFormat
-from app.services.report_service import generate_tabular_csv
+from app.services._reporting.tabular import generate_tabular_csv
 
 
 class ReportExportContextLike(Protocol):
